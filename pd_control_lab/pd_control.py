@@ -4,14 +4,15 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 import numpy as np
 import time
+import math 
 from collections import deque
 import signal
 
 JOINT_NAME = "leg_front_l_3"
 ####
 ####
-KP = 0.0  # YOUR KP VALUE
-KD = 0.0  # YOUR KD VALUE
+KP = 7.0  # YOUR KP VALUE
+KD = 0.5  # YOUR KD VALUE
 ####
 ####
 LOOP_RATE = 200  # Hz
@@ -41,20 +42,32 @@ class JointStateSubscriber(Node):
         # Create a timer to run control_loop at the specified frequency
         self.create_timer(1.0 / LOOP_RATE, self.control_loop)
 
-    def get_target_joint_info(self):
-        ####
-        #### YOUR CODE HERE
-        ####
+        # ADDING DELAYS
 
-        # target_joint_pos, target_joint_vel
-        return 0, 0
+        delay_seconds = 0
+        control_frequency = 1/LOOP_RATE
+
+        self.delay_buffer_size = int(delay_seconds * control_frequency)
+        self.angle_buffer = deque(maxlen=self.delay_buffer_size)
+        self.velocity_buffer = deque(maxlen=self.delay_buffer_size)
+        
+
+    def get_target_joint_info(self):
+        current_time = time.time()
+        joint_pos_desired = math.sin(current_time)
+        return 2*joint_pos_desired,50.0
+
+        #return 0.0,0.0
 
     def calculate_torque(self, joint_pos, joint_vel, target_joint_pos, target_joint_vel):
-        ####
-        #### YOUR CODE HERE
-        ####
-        
-        return 0.0
+        #PD Control
+        return KP*(target_joint_pos-joint_pos) + KD*(target_joint_vel-joint_vel) + 0
+
+        #Zero
+        #return 0.0
+
+        #P Control
+        #return KP*(target_joint_pos-joint_pos)
 
     def print_info(self):
         """Print joint information every 2 control loops"""
@@ -84,6 +97,12 @@ class JointStateSubscriber(Node):
         )
         self.print_info()
         self.publish_torque(self.calculated_torque)
+
+        ADDING QUEUE
+        self.angle_buffer.append(self.joint_pos)
+        self.velocity_buffer.append(self.joint_vel)
+        joint_pos = self.angle_buffer[0]
+        joint_vel = self.velocity_buffer[0]
 
     def publish_torque(self, torque=0.0):
         # Create a Float64MultiArray message with zero kp and kd values
