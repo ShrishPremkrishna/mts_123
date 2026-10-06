@@ -43,7 +43,7 @@ class InverseKinematics(Node):
         )
 
         self.pd_timer_period = 1.0 / 200  # 200 Hz
-        self.ik_timer_period = 1.0 / 20   # 20 Hz
+        self.ik_timer_period = 1/100#1.0 / 20   # 20 Hz
         self.pd_timer = self.create_timer(self.pd_timer_period, self.pd_timer_callback)
         self.ik_timer = self.create_timer(self.ik_timer_period, self.ik_timer_callback)
 
@@ -56,6 +56,9 @@ class InverseKinematics(Node):
             [-0.05, 0.0, -0.12], # Liftoff
             [0.0, 0.0, -0.06]    # Mid-swing
         ])
+        # [0.05, 0.0, -0.12],  # Touchdown
+        # [-0.05, 0.0, -0.12], # Liftoff
+        # [0.0, 0.0, -0.06]    # Mid-swing
 
         center_to_rf_hip = np.array([0.07500, -0.08350, 0])
         self.ee_triangle_positions = self.ee_triangle_positions + center_to_rf_hip
@@ -72,9 +75,22 @@ class InverseKinematics(Node):
         # based on the current time t
         ################################################################################################
         # TODO 5: Implement the interpolation function
-        
+        td, l, md = self.ee_triangle_positions
+        t = t%3
+        if t<1:
+            start=td
+            end=l
+            frac=t
+        elif t<2:
+            start=l
+            end=md
+            frac=t-1
+        elif t<3:
+            start=md
+            end=td
+            frac=t-2
+        return start + frac*(end-start)
         ################################################################################################
-        return
 
     def ik_timer_callback(self):
         if self.joint_positions is not None:
@@ -85,6 +101,7 @@ class InverseKinematics(Node):
             # update the current time for the triangle interpolation
             ################################################################################################
             # TODO 6: Implement the time update
+            self.t += self.ik_timer_period
             ################################################################################################
 
             self.get_logger().info(f'Target EE: {target_ee}, Current EE: {current_ee}, Target Angles: {self.target_joint_positions}, Target Angles to EE: {fr_leg_fk(self.target_joint_positions)}, Current Angles: {self.joint_positions}')
