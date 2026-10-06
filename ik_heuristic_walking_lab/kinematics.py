@@ -170,7 +170,7 @@ LEG_FK = [fr_leg_fk, fl_leg_fk, br_leg_fk, bl_leg_fk]
 
 
 def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
-                       learning_rate=20, max_iterations=None, tolerance=1e-5):
+                       learning_rate=20, max_iterations=100, tolerance=1e-5):
     """Joint angles that put leg_fk's foot at target_ee, found by gradient descent.
 
     leg_fk is one of the FK functions above, so the same solver works for every leg.
@@ -186,24 +186,32 @@ def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
         ################################################################################################
         p = leg_fk(theta)
         p_end = target_ee
-        l1 = p - p_end # Error, not norm. Abuse of notation
-        cost = np.sum((l1) ** 2) # L2 norm of error
+        l1 = p - p_end
+        cost = np.sum((l1) ** 2)
         return cost, l1
         ################################################################################################
 
-    def gradient(theta, epsilon=1e-5):
+    def gradient(theta, epsilon=1e-4):
         # Compute the gradient of the cost function using finite differences
         ###############################################################################################
-        # Centered finite diff over each error component.
-        diff = lambda ei: (cost_function(theta + epsilon * ei)[0] - cost_function(theta - epsilon * ei)[0]) / (2 * epsilon)
-        return np.array([diff(ei) for ei in np.eye(len(theta))])
+        grad =np.zeros(len(theta))
+        for j in range(len(theta)):
+            n =np.zeros(len(theta))
+            n[j] = epsilon
+            plus, error =cost_function(theta +n)
+            minus, merror =cost_function(theta -n)
+            grad[j] =(plus - minus) / (2 * epsilon)
+        return grad
+
+        # diff = lambda ei: (cost_function(theta + epsilon * ei)[0] - cost_function(theta - epsilon * ei)[0]) / (2 * epsilon)
+        # return np.array([diff(ei) for ei in np.eye(len(theta))])
         ################################################################################################
 
     theta = np.array(initial_guess).astype(np.float64)
 
     cost_l = []
     diff_l = []
-    for _ in range(max_iterations):
+    for i in range(max_iterations):
         grad = gradient(theta)
 
         # Update the theta (parameters) using the gradient and the learning rate
@@ -212,7 +220,7 @@ def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
         cost, l1 = cost_function(theta)
         cost_l.append(cost.item())
         diff_l.append((cost_l[-1] if len(cost_l) else 0) - cost.item())
-        if cost < tolerance:
+        if np.mean(np.abs(l1)) < tolerance:
             break  # IK Converged
         theta = theta - learning_rate * grad
         # print(f'Grads: {grad}')
@@ -242,6 +250,6 @@ if __name__ == '__main__':
     goal_angles = np.array([0.1, 0.4, -0.8])
     for name, leg_fk in zip(names, LEG_FK):
         target = leg_fk(goal_angles)
-        theta = inverse_kinematics(leg_fk, target, max_iterations=100, tolerance=1e-5)
+        theta = inverse_kinematics(leg_fk, target, max_iterations=100, tolerance=1e-4)
         error_mm = 1000 * np.linalg.norm(leg_fk(theta) - target)
         print(f'  {name:12s} foot error {error_mm:.2f} mm')
