@@ -43,7 +43,7 @@ class InverseKinematics(Node):
         )
 
         self.pd_timer_period = 1.0 / 200  # 200 Hz
-        self.ik_timer_period = 1/100#1.0 / 20   # 20 Hz
+        self.ik_timer_period = 1.0 / 20   # 20 Hz
         self.pd_timer = self.create_timer(self.pd_timer_period, self.pd_timer_callback)
         self.ik_timer = self.create_timer(self.ik_timer_period, self.ik_timer_callback)
 
@@ -89,6 +89,7 @@ class InverseKinematics(Node):
             start=md
             end=td
             frac=t-2
+            
         return start + frac*(end-start)
         ################################################################################################
 

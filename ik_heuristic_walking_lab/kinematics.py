@@ -170,7 +170,7 @@ LEG_FK = [fr_leg_fk, fl_leg_fk, br_leg_fk, bl_leg_fk]
 
 
 def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
-                       learning_rate=10, max_iterations=100, tolerance=1e-5):
+                       learning_rate=20, max_iterations=15, tolerance=1e-5):
     """Joint angles that put leg_fk's foot at target_ee, found by gradient descent.
 
     leg_fk is one of the FK functions above, so the same solver works for every leg.
@@ -184,10 +184,13 @@ def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
         # Compute the cost function and the L1 error vector
         # return the cost (a scalar) and l1 (a vector of size 3)
         ################################################################################################
-        p = leg_fk(theta)
-        p_end = target_ee
-        l1 = p - p_end
+        position = leg_fk(theta)
+        position_end = target_ee
+        l1 = position - position_end
+
+        # l1 dot l1
         cost = np.sum((l1) ** 2)
+        
         return cost, l1
         ################################################################################################
 
