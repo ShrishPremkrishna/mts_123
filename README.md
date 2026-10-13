@@ -5,6 +5,7 @@ All my CS 123 labs, one folder per lab.
 - `pd_control_lab/` — week 1
 - `forward_kinematics_lab/` — week 2
 - `ik_heuristic_walking_lab/` — week 3
+- `pupper-mjlab/` — week 4
 
 ## Adding a new lab
 
