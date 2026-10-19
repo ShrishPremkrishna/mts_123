@@ -15,7 +15,7 @@ The completed experiment is **Step 7 StableGait**, following the Step 6 lift-gai
 - [Exact recorded settings](training-settings.json).
 - [Step 6 reference video](https://drive.google.com/file/d/1tM5Or-W3KuLJunFk66fl2r_e2eaG7vdX/view?usp=drive_link).
 - [Step 7 final-policy video](https://drive.google.com/file/d/1R9TXiXDxXtrec42yhgUol9gsqaotVXrV/view?usp=drive_link).
-- [Shared lab answers](https://docs.google.com/document/d/1SXTJbsNtFzzQWN5G0x6bqWesDSliujptZeMbVfN2CCk/edit) — Q17–22 and the StableGait side of Q23.
+- [Shared lab answers](https://docs.google.com/document/d/1SXTJbsNtFzzQWN5G0x6bqWesDSliujptZeMbVfN2CCk/edit) — completed Q17–23, including the comparison with Tej’s best Step 4 run.
 
 The configured notebook was reconstructed after training from the saved settings and the course notebook. It contains no saved execution outputs or credentials. The existing results belong to the W&B run above; running this copy creates a new experiment under the account that signs in.
 
@@ -87,7 +87,21 @@ To inspect the trained model, open the existing W&B run's **Files** tab and loca
 
 - Member C can inspect settings and results immediately; no rerun is needed just to review them.
 - To run a new experiment, open the Colab link, select a GPU runtime, complete sections 1–6, and run the **training** cell in section 7. The preceding live-viewer cell is optional and does not train.
-- Q23 still needs the teammate's best Step 4 from-scratch run: link, iteration budget, final tracking errors, video, reward weights, and total training attempts.
-- Q21 needs confirmation of the exact standing-pose reward term used in that Step 4 run.
+- Steps 6–7 and Q17–23 are complete. Q21 uses the actual Step 4 `stand_still_pose` term. Q23 includes both final W&B summaries, video links and observations, reward-term counts, and training attempts.
+- Tej’s final [from-scratch run vt55ode8](https://wandb.ai/tejk-stanford-university/mjlab/runs/vt55ode8) achieved horizontal error 0.0956203 and yaw error 0.2954807 using 18 nonzero reward terms and two attempts. Both final runs used 3,000 iterations and 4,096 environments. The from-scratch run tracked more accurately; StableGait required fewer reward terms and attempts. See Q23 for the comparison and its limits.
+- The team still owns Step 5 physical-robot evidence and Step 8. Shrish’s completed part does not require him to operate the robot.
+
+### Deploy this completed flat-ground baseline
+
+On the robot, using the course’s configured deployment environment:
+
+```sh
+cd ~/pupper_gait_deploy
+./deploy.sh shrishp-stanford/mjlab/4hkyvuxh
+```
+
+Use the course’s normal robot startup procedure and the controller’s square button to start the policy. The exported `policy.json` includes the trained policy and StableGait reference; the reference does not need to be reimplemented on the robot. See the [official deployment README](https://github.com/cs123-stanford/pupper_gait_deploy/blob/main/README.md).
+
+For Step 8, Member C should use this flat-ground result as the baseline, train StableGait on bumpy terrain with the same lift reference, and run the required domain-randomization experiment. Record the final bumpy-terrain simulation and hardware videos and complete Q24–26. The existing notebook provides the starting settings; choose the Step 8 task and experiment settings before starting a new run.
 
 Prepared with AI assistance from the recorded run settings, completed W&B summary, and actual simulator recordings. No physical-robot testing was performed for this experiment.
