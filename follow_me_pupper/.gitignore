@@ -1,0 +1,23 @@
+# Python
+__pycache__
+*.py[cod]
+*.so
+*.egg-info
+
+# Hailo models -- fetched by scripts/download_model.sh, too big to track
+*.hef
+
+# Logs
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+
+# ROS build output
+build/
+install/
+log/

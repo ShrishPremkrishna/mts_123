@@ -7,6 +7,7 @@ All my CS 123 labs, one folder per lab.
 - `ik_heuristic_walking_lab/` — week 3
 - `pupper-mjlab/` — week 4
   - [Shrish’s Steps 6–7 training handoff](pupper-mjlab/lab4_runs/shrish_stablegait/) — settings, Colab, W&B results, and videos.
+- `follow_me_pupper/` — week 5
 
 ## Adding a new lab
 
