@@ -1,0 +1,64 @@
+{
+  "run_id": "4hkyvuxh",
+  "run_url": "https://wandb.ai/shrishp-stanford/mjlab/runs/4hkyvuxh",
+  "task": "Mjlab-StableGait-Flat-Pupper-v3",
+  "num_envs": 4096,
+  "iterations": 3000,
+  "seed": 42,
+  "lift": {
+    "LIFT_STRIDE": 0,
+    "LIFT_TOUCHDOWN": [
+      0,
+      0.5,
+      0.5,
+      0
+    ],
+    "LIFT_STANCE_Z": -0.14,
+    "LIFT_SWING_LIFT": 0.09
+  },
+  "nonzero_rewards": {
+    "track_linear_velocity": 10,
+    "track_yaw_velocity": 7,
+    "gait_tracking": 10,
+    "upright": 1,
+    "lin_vel_z_l2": -0.5,
+    "ang_vel_xy_l2": -0.05,
+    "action_rate_l2": -0.02,
+    "knee_ground_contact": -1
+  },
+  "other_rewards": 0,
+  "domain_randomization": {
+    "kp_multiplier": [
+      0.6,
+      1.1
+    ],
+    "kd_multiplier": [
+      0.8,
+      1.5
+    ],
+    "friction": [
+      0.6,
+      1.4
+    ]
+  },
+  "stable_gait_training_attempts": 1,
+  "status": "training finished; reference and final-policy videos uploaded and linked in shared answers",
+  "comparison_status": "teammate best Step 4 run and weights not ready",
+  "git_commit": "9cfcb148c6514d70ceb9851b98897d2b9e68079b",
+  "run_name": "2026-10-19_06-36-06",
+  "answer_document": "https://docs.google.com/document/d/1SXTJbsNtFzzQWN5G0x6bqWesDSliujptZeMbVfN2CCk/edit",
+  "notes": "Q17\u201322 entered in shared document; Q20 video linked. Q23 StableGait measurements, video, and observed behavior completed. Teammate best Step 4 evidence still needed for final comparison and Q21 exact standing-pose term.",
+  "final_metrics": {
+    "error_vel_xy": 0.12313481420278548,
+    "error_vel_yaw": 0.3761392831802368,
+    "mean_episode_length": 500,
+    "mean_reward": 223.00849060058593
+  },
+  "metrics_source": "W&B Overview summary after run state Finished; refreshed 2026-10-19",
+  "video_links": {
+    "reference": "https://drive.google.com/file/d/1tM5Or-W3KuLJunFk66fl2r_e2eaG7vdX/view?usp=drive_link",
+    "final_policy": "https://drive.google.com/file/d/1R9TXiXDxXtrec42yhgUol9gsqaotVXrV/view?usp=drive_link"
+  },
+  "shareable_colab": "https://colab.research.google.com/github/ShrishPremkrishna/mts_123/blob/main/pupper-mjlab/lab4_runs/shrish_stablegait/CS123_StableGait_Shrish.ipynb",
+  "notebook_note": "Configured copy prepared after training; no execution outputs or login credentials. Source code pinned to the recorded training commit."
+}

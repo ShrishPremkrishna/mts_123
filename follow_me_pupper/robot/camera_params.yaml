@@ -1,0 +1,17 @@
+# Double Sphere Camera Parameters
+camera_params:
+  fx: 228.81030
+  fy: 228.81030
+  cx: 680.0
+  cy: 479.0
+  xi: -0.00092
+  alpha: 0.62007
+
+# Fixed white balance. Auto white balance leaves this camera pink indoors (it
+# runs out of range), so both camera paths (camera_ros in follow_me.launch.py
+# and picamera2 in viser_camera.py) use these gains instead. Tuned under
+# ceiling lights; if colors look off somewhere else, adjust colour_gains
+# [red, blue] (raise red to warm, raise blue to cool) or set awb_enable: true.
+white_balance:
+  awb_enable: false
+  colour_gains: [1.4, 3.3]
