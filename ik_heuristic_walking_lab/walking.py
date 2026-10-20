@@ -65,11 +65,11 @@ class InverseKinematics(Node):
         # liftoff_position = np.array([-0.07, 0.0, -0.12])
         # mid_swing_position = np.array([0.0, 0.0, -0.08])
         #test 2
-        touch_down_position = np.array([0.03, 0.0, -0.14])
-        stand_position_1 = np.array([0.015, 0.0, -0.14])
+        touch_down_position = np.array([0.045, 0.0, -0.15])
+        stand_position_1 = np.array([0.0225, 0.0, -0.15])
         stand_position_2 = np.array([0.0, 0.0, -0.14])
-        stand_position_3 = np.array([-0.015, 0.0, -0.14])
-        liftoff_position = np.array([-0.03, 0.0, -0.14])
+        stand_position_3 = np.array([-0.0225, 0.0, -0.15])
+        liftoff_position = np.array([-0.045, 0.0, -0.15])
         mid_swing_position = np.array([0.0, 0.0, -0.05])
         #initial below
         # touch_down_position = np.array([0.05, 0.0, -0.14])
@@ -82,7 +82,7 @@ class InverseKinematics(Node):
         ## trotting
         # TODO 7: Implement each leg's trajectory in the trotting gait.
         #rf_ee_offset = np.array([0.06, -0.09, 0])
-        rf_ee_offset = np.array([0.06, -0.09, 0])
+        rf_ee_offset = np.array([0.06, -0.09, -0.0035])
         rf_ee_triangle_positions = np.array([
             stand_position_1,
             stand_position_2,
@@ -138,7 +138,7 @@ class InverseKinematics(Node):
         print(f'shape of target_ee_cache: {self.target_ee_cache.shape}')
 
         self.pd_timer_period = 1.0 / 200  # 200 Hz
-        self.ik_timer_period = 1.0 / 100  # 100 Hz
+        self.ik_timer_period = 1.0 / 120  # 200 Hz
         self.pd_timer = self.create_timer(self.pd_timer_period, self.pd_timer_callback)
         self.ik_timer = self.create_timer(self.ik_timer_period, self.ik_timer_callback)
 

@@ -43,7 +43,7 @@ class InverseKinematics(Node):
         )
 
         self.pd_timer_period = 1.0 / 200  # 200 Hz
-        self.ik_timer_period = 1.0 / 20   # 20 Hz
+        self.ik_timer_period = 1.0 / 40  # 100 Hz
         self.pd_timer = self.create_timer(self.pd_timer_period, self.pd_timer_callback)
         self.ik_timer = self.create_timer(self.ik_timer_period, self.ik_timer_callback)
 
@@ -52,9 +52,9 @@ class InverseKinematics(Node):
         self.target_joint_positions = None
 
         self.ee_triangle_positions = np.array([
-            [0.05, 0.0, -0.12],  # Touchdown
-            [-0.05, 0.0, -0.12], # Liftoff
-            [0.0, 0.0, -0.06]    # Mid-swing
+            [0.15, 0.0, -0.12],  # Touchdown
+            [-0.15, 0.0, -0.12], # Liftoff
+            [0.0, 0.0, -0.09]    # Mid-swing
         ])
         # [0.05, 0.0, -0.12],  # Touchdown
         # [-0.05, 0.0, -0.12], # Liftoff
@@ -64,6 +64,7 @@ class InverseKinematics(Node):
         self.ee_triangle_positions = self.ee_triangle_positions + center_to_rf_hip
         self.current_target = 0
         self.t = 0
+        self.step_frequency = 0.33  # Hz; one triangle is 3 units of t
 
     def listener_callback(self, msg):
         joints_of_interest = ['leg_front_r_1', 'leg_front_r_2', 'leg_front_r_3']
@@ -96,13 +97,15 @@ class InverseKinematics(Node):
     def ik_timer_callback(self):
         if self.joint_positions is not None:
             target_ee = self.interpolate_triangle(self.t)
+            # Ablation: bad init for IK causes divergence
+            #             self.target_joint_positions = np.clip(inverse_kinematics(fr_leg_fk, target_ee, np.array([np.pi/2, -np.pi/2, np.pi/2])), -1.6, 1.6)
             self.target_joint_positions = inverse_kinematics(fr_leg_fk, target_ee, self.joint_positions)
             current_ee = fr_leg_fk(self.joint_positions)
 
             # update the current time for the triangle interpolation
             ################################################################################################
             # TODO 6: Implement the time update
-            self.t += self.ik_timer_period
+            self.t += 3 * self.step_frequency * self.ik_timer_period
             ################################################################################################
 
             self.get_logger().info(f'Target EE: {target_ee}, Current EE: {current_ee}, Target Angles: {self.target_joint_positions}, Target Angles to EE: {fr_leg_fk(self.target_joint_positions)}, Current Angles: {self.joint_positions}')

@@ -170,8 +170,13 @@ LEG_FK = [fr_leg_fk, fl_leg_fk, br_leg_fk, bl_leg_fk]
 
 
 def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
-                       learning_rate=20, max_iterations=15, tolerance=1e-5):
-    """Joint angles that put leg_fk's foot at target_ee, found by gradient descent.
+                       learning_rate=20, max_iterations=15, tolerance=1e-5,
+                       method='gauss_newton', damping=1e-4):
+    """Joint angles that put leg_fk's foot at target_ee.
+
+    method='gauss_newton' (default) converges in 2-3 iterations; 'gradient_descent' is the
+    original solver and uses learning_rate. damping keeps Gauss-Newton stable near a
+    straight (singular) leg.
 
     leg_fk is one of the FK functions above, so the same solver works for every leg.
     """
@@ -210,22 +215,34 @@ def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
         # return np.array([diff(ei) for ei in np.eye(len(theta))])
         ################################################################################################
 
+    def jacobian(theta, position, epsilon=1e-6):
+        # d(foot position)/d(theta) by forward differences: 3 FK calls instead of gradient()'s 6
+        J = np.empty((3, len(theta)))
+        for j in range(len(theta)):
+            n = np.zeros(len(theta))
+            n[j] = epsilon
+            J[:, j] = (leg_fk(theta + n) - position) / epsilon
+        return J
+
     theta = np.array(initial_guess).astype(np.float64)
 
     cost_l = []
     diff_l = []
     for i in range(max_iterations):
-        grad = gradient(theta)
-
-        # Update the theta (parameters) using the gradient and the learning rate
-        ################################################################################################
-
         cost, l1 = cost_function(theta)
         cost_l.append(cost.item())
         diff_l.append((cost_l[-1] if len(cost_l) else 0) - cost.item())
         if np.mean(np.abs(l1)) < tolerance:
             break  # IK Converged
-        theta = theta - learning_rate * grad
+
+        # Update the theta (parameters) using the gradient and the learning rate
+        ################################################################################################
+        if method == 'gauss_newton':
+            J = jacobian(theta, l1 + target_ee)
+            theta = theta - np.linalg.solve(J.T @ J + damping * np.eye(len(theta)), J.T @ l1)
+        else:
+            grad = gradient(theta)
+            theta = theta - learning_rate * grad
         # print(f'Grads: {grad}')
         
         # TODO (BONUS): Implement the (quasi-)Newton's method instead of finite differences for faster
