@@ -247,6 +247,7 @@ class StateMachineNode(Node):
             target_lock.remember(self.lock, target)
         self.target_pos = box_offset(target)
         self.last_detection_time = self.get_clock().now()
+        self.target_bottom = box_bottom(target)
         return target
 
         # ==========================================================================
@@ -334,7 +335,7 @@ class StateMachineNode(Node):
             sign = -1 if (self.target_pos > 0) else 1
             return (sign*SEARCH_YAW_VEL, 0)
         
-        return (-KP * self.target_pos, TRACK_FORWARD_VEL)
+        return (-KP * self.target_pos, target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL))
         # ===================================================================
 
     # ======================================================== Optional Step 6: the detour

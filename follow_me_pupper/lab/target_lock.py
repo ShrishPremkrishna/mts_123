@@ -46,7 +46,7 @@ LOCK_GATE = 0.12
 # y of the box's bottom edge to the 572 px frame:
 #     STOP_BOTTOM = y_bottom / screenshot_height * IMAGE_HEIGHT
 # ========== YOUR CODE HERE: Step 4: measure the stop distance ==========
-STOP_BOTTOM = None  # px -- measure it (see above)
+STOP_BOTTOM = 414  # px -- measure it (see above)
 # =======================================================================
 # Closer to STOP_BOTTOM than this and we stand still: the box jitters by a
 # few pixels every frame, and a robot that shuffles back and forth to chase
@@ -194,7 +194,13 @@ def approach_speed(target_bottom, max_forward):
     # stand still. Otherwise a proportional command that reaches
     # max_forward at SLOWDOWN_PX of error, max_forward * error / SLOWDOWN_PX,
     # clamped to [-MAX_BACKUP_VEL, max_forward].
-    raise NotImplementedError
+    error = STOP_BOTTOM-target_bottom
+    if (abs(error) < STOP_TOLERANCE):
+        return 0
+    if (error > 0):
+        return min(max_forward, max_forward * error / SLOWDOWN_PX)
+    return max(-MAX_BACKUP_VEL, max_forward * error / SLOWDOWN_PX)
+    
     # ============================================================
 
 
