@@ -240,14 +240,15 @@ class StateMachineNode(Node):
         if (len(targets) == 0):
             return None
 
-        for target in targets:
-            if (abs(box_offset(target)) < min_offset):
-                min_offset = abs(box_offset(target))
-                best_target = target
-
-        self.target_pos = box_offset(best_target)
+        target = target_lock.pick_target(targets, self.lock)
+        if (target is None):
+            return None
+        else:
+            target_lock.remember(self.lock, target)
+        self.target_pos = box_offset(target)
         self.last_detection_time = self.get_clock().now()
-        return best_target
+        return target
+
         # ==========================================================================
 
     # ======================================================== motion out

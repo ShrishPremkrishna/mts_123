@@ -112,7 +112,9 @@ def position_distance(detection, position):
     # ========== YOUR CODE HERE: Step 3: position_distance ==========
     # The straight-line (Euclidean) distance between box_position(detection)
     # and position. Both are fractions of the image, so compare them directly.
-    raise NotImplementedError
+    #prev_x, prev_y = position
+    #new_x, new_y = box_position(detection)
+    return np.linalg.norm(np.subtract(position, box_position(detection)))
     # ===============================================================
 
 
@@ -142,7 +144,14 @@ def pick_target(targets, lock):
     #      the nearest one. Nobody that close? None.
     # Tip: min(people, key=lambda d: position_distance(d, lock.position))
     # is the nearest of a non-empty list.
-    raise NotImplementedError
+    pos = lock.position
+    if (pos is None):
+        return min(targets, key=lambda d: abs(box_offset(d)))
+    nearby = [d for d in targets if position_distance(d, pos) <= LOCK_GATE]
+    if (not nearby):
+        return None
+    return min(nearby, key=lambda d: position_distance(d, pos))
+    
     # =========================================================
 
 
@@ -157,7 +166,7 @@ def remember(lock, detection):
     """
     # ========== YOUR CODE HERE: Step 3: remember ==========
     # lock.position = where the detection is (box_position).
-    raise NotImplementedError
+    lock.position = box_position(detection)
     # ======================================================
     if USE_COLOR:
         remember_color(lock, detection)  # Optional Step 5
