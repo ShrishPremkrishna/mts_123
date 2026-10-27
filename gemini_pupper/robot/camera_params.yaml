@@ -1,0 +1,20 @@
+# Double Sphere Camera Parameters (server.py undistorts the frames it sends
+# Gemini with these, as Lab 5 does)
+camera_params:
+  fx: 228.81030
+  fy: 228.81030
+  cx: 680.0
+  cy: 479.0
+  xi: -0.00092
+  alpha: 0.62007
+
+# Copied from Lab 5 (follow_me_pupper/robot/camera_params.yaml).
+#
+# Fixed white balance. Auto white balance leaves this camera pink indoors (it
+# runs out of range), so gemini_pupper.launch.py sets these gains on the
+# course's camera node once it is up. Tuned under
+# ceiling lights; if colors look off somewhere else, adjust colour_gains
+# [red, blue] (raise red to warm, raise blue to cool) or set awb_enable: true.
+white_balance:
+  awb_enable: false
+  colour_gains: [1.4, 3.3]
