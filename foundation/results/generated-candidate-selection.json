@@ -99,5 +99,166 @@
     "Generated kinematics and open-loop playback do not establish trained feedback-policy performance.",
     "Sparse video frames do not prove every transient is acceptable.",
     "Course verdict thresholds are tracking thresholds, not physical safety certification."
-  ]
+  ],
+  "corrected_contacts_screen": {
+    "motion": "/private/tmp/cs123-pupper-foundation/artifacts/generated/pupper-generated-results/standing-dance-candidates/sample_03/secret_dance.npz",
+    "checkpoint": null,
+    "seed": 42,
+    "randomize_dynamics": false,
+    "mass_scale": 1.0,
+    "com_offset_m": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "effective_com_offset_m": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "inertial_event_order": [
+      "base_com",
+      "inertial"
+    ],
+    "com_randomization_contract": {
+      "contract": "density_preserving_independent_base_com_v1",
+      "rng_draw_order_preserved": true,
+      "event_order": [
+        "base_com",
+        "inertial"
+      ],
+      "effective_at": "startup; sampled once per world, retained across resets",
+      "scope": "density-only pseudo-inertia retaining the already sampled additive body-frame COM offset"
+    },
+    "loops": 1,
+    "frames": 298,
+    "reference_resets": 0,
+    "verdict": "HOLDS UP",
+    "worst_position_error_m": 0.009628710336983204,
+    "worst_orientation_error_deg": 2.646164120335483,
+    "mean_position_error_m": 0.004282045861712409,
+    "rms_position_error_m": 0.004443593535184216,
+    "p95_position_error_m": 0.005789518915116787,
+    "mean_orientation_error_deg": 1.0268496888806462,
+    "p95_orientation_error_deg": 2.5160008859728826,
+    "rms_joint_error_rad": 0.04432770136453796,
+    "worst_joint_error_rad": 0.1782253384590149,
+    "worst_tracked_body_error_m": 0.01216532476246357,
+    "peak_joint_speed_rad_s": 4.311784744262695,
+    "peak_motor_torque_nm": 2.4118130207061768,
+    "deployment_target_clamp": true,
+    "collision_contract": {
+      "contract": "tracking_ground_hulls_v1",
+      "hull_count": 9,
+      "contype": 0,
+      "conaffinity": 1,
+      "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+    },
+    "collision_geometry": [
+      {
+        "name": "terrain",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/base_link_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_r_2_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_r_2_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_r_3_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_r_3_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_l_2_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_l_2_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_l_3_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_front_l_3_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_r_2_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_r_2_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_r_3_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_r_3_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_l_2_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_l_2_hull",
+        "contype": 0,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_l_3_collision",
+        "contype": 1,
+        "conaffinity": 1
+      },
+      {
+        "name": "robot/leg_back_l_3_hull",
+        "contype": 0,
+        "conaffinity": 1
+      }
+    ],
+    "peak_sampled_hull_vertex_penetration_m": 0.002165771315120704,
+    "fraction_frames_with_body_ground_contact": 0.9966329966329966,
+    "fraction_steps_requesting_target_outside_limits": 0.0,
+    "mean_joint_target_violation_fraction": 0.0,
+    "max_requested_target_violation_rad": 0.0,
+    "peak_body_tilt_from_upright_deg": 1.5705976140964064,
+    "minimum_root_height_m": 0.15137849748134613,
+    "fraction_frames_without_foot_contact": 0.003367003367003367,
+    "failure_criteria": [],
+    "fell_at_s": null,
+    "wobble_at_s": null,
+    "approved_for_hardware": false,
+    "scope": "Course verdict uses root tracking thresholds, not a physical fall detector; joint/body/effort metrics are reported separately. Randomized mode varies dynamics, not external pushes."
+  },
+  "corrected_contacts_training_eligible": true
 }

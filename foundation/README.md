@@ -15,13 +15,13 @@ the last two.
 
 | Source | Capability implemented here | Evidence and remaining boundary |
 |---|---|---|
-| Lab 1 | Signed bounded PD control, consistent position/velocity targets, measured-pose initialization, configurable sampled delay, sensor-loss zero torque | [Classical tests](tests/test_classical.py), [runtime tests](tests/test_pd_runtime.py); gains, feedback, delay and thermal behavior need the supported single-joint robot setup |
+| Lab 1 | Signed bounded PD control, consistent position/velocity targets, measured-pose initialization, configurable sampled delay, sensor-loss zero-torque command | [Classical tests](tests/test_classical.py), [runtime tests](tests/test_pd_runtime.py); gains, feedback, delay and thermal behavior need the supported single-joint robot setup |
 | Lab 2 | Homogeneous-transform FK and recorded-motion workflow | Student FK is preserved; FK/IK and tuner parity are checked for all four legs. Physical frame/sign calibration and camera/recording setup still matter |
 | Lab 3 and extensions | Bounded damped IK, strict unreachable-target rejection, validated gait caches, trajectory interpolation, tuner-to-keyframe conversion, cycloidal swing, additional gait patterns | [Position tests](tests/test_position_controllers.py), [single-leg tests](tests/test_single_leg.py); the full default gait is checked against bounds and FK. Geometric reachability does not prove dynamic stability |
-| Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered StableGait checkpoint/export agree numerically; comparison under sustained commands, perturbations, terrain, effort and slip is required before promotion |
+| Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered team checkpoints/exports agree numerically. [Matched tests](results/lab4-deployment-contract-comparison.json) found deployment target clipping changes gait behavior; corrected finetunes and held-out comparison are in progress |
 | Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
 | Lab 6 tools | Finite movement limits, turn/move/arc, follow interruption, serialized jobs, honest queued/completed outcomes, interactive actions and transitions | [Gemini behavior and operation](../gemini_pupper/docs/foundation.md); course checks and fault-injection tests cover stops, failures and late service responses. Live Gemini and ROS are separate tests |
-| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | [Training/evaluation workflow](../pupper-mjlab/docs/pupper_foundation.md); nominal, randomized and continuous long-idle evaluation precede installation and supervised hardware use |
+| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | Trained export installed locally; [simulation evidence](results/lab6-sit-stay-shake.json) includes continuous long-idle evaluation. Corrected COM tests pass, but enabling actual body contacts exposes tracking error. A corrected-physics continuation is required; hardware use remains pending |
 | Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | Both policies are necessary. [Command sweep](../pupper-mjlab/configs/foundation/spider_commands.json) supplies bounded evaluation requests; permitted operating speeds must come from successful evaluation, not training caps |
 | Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
 | Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, reward ablation, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Each candidate must beat its matched baseline; rejected experiments stay rejected. A captured jump must contain real flight and landing |
@@ -32,6 +32,24 @@ bundle, deployment controller, gait tuner, ROS reference material, and pinned
 UniMate source. Their presence does not mean the laptop has a ROS installation
 or that the robot should be upgraded to a different upstream build. Inspect the
 actual class-image revision before any installation.
+
+## Simulator corrections that affect the evidence
+
+The audit found three consequential differences between apparent and tested
+behavior: the Pi clamps motor targets while the original simulator did not;
+inertial randomization erased the earlier center-of-mass offset; and tracking
+body/leg collision hulls were disabled after creation. Each correction has an
+explicit run flag, actual-model tests and a recorded contract, so old results stay
+reproducible without being mistaken for corrected results. See the
+[target comparison](results/lab4-deployment-contract-comparison.json),
+[realized-dynamics audit](results/pupper-randomization-audit.json), and
+[body-contact audit](results/tracking-body-contact-audit.json).
+
+The corrected body-contact evaluation changes the sit and spider tracking verdicts.
+Historical “HOLDS UP” labels describe the simulator used at the time. They are not
+sufficient evidence for deployment; new evaluations must name the actual contact,
+actuation and randomization contracts. A stable-looking animation can still be
+physically wrong when contact is disabled.
 
 ## How the capabilities fit together
 
