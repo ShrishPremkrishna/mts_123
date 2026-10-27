@@ -113,11 +113,15 @@ artifacts that code implementation alone cannot supply.
 
 For Optional 1, transfer the exported `contact.pt` and its matching `metadata.json`
 as one versioned artifact; verify both checksums after transfer. The metadata owns
-channel order, units, sample rate, windowing and normalization. First record a
+channel order, resampling rate, windowing and normalization; verify live units and
+effort semantics against the [interface audit](../implicit_compliance/results/2026-10-27/deployment-interface-audit.json). First record a
 shadow-mode stream: inference may log predictions but must not change the motion.
-Check real timestamp rates, measured efforts, CPU/latency, false triggers and
-missed/delayed contact on the intended single-leg trajectory. Camera material or
-incline accuracy on the course data is a separate result from this live contact
+Use `python3 -m implicit_compliance.shadow --model <export-directory> --out <new-trial-directory> --seconds 60`; it subscribes only and never enables the trajectory pause.
+Check actual timestamps and receipt latency, available effort fields, active PD
+gains, homing offsets, CPU/latency, false triggers and missed/delayed contact on
+the intended single-leg trajectory. The local driver publishes a PD-based effort
+estimate, not measured torque; the historical CSV driver/gains remain unverified.
+DenseTact tactile-camera material/incline accuracy is a separate result from this live contact
 test. Enable the one-second pause only after the predictions and thresholds are
 checked on this robot. Preserve the model and threshold version with the trial.
 

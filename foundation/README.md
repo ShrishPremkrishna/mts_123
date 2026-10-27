@@ -70,7 +70,10 @@ instead of assuming that a timed-out request never happened.
 The new contact model augments the **single front-right leg trajectory** through
 `ik.py --contact-model <export-directory>`. It freezes trajectory time for one
 second after fresh high-confidence contact, without blocking ROS. It requires
-measured effort and valid timestamps. It is not a whole-body reflex or a general
+published effort channels with verified semantics and valid timestamps. The local
+class driver estimates effort from its PD controller; it does not measure torque.
+See the [interface audit](../implicit_compliance/results/2026-10-27/deployment-interface-audit.json).
+It is not a whole-body reflex or a general
 collision detector, and it does not feed unvalidated material/slope predictions
 into locomotion.
 

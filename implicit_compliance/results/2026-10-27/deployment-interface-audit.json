@@ -1,0 +1,265 @@
+{
+  "scope": "Source and offline dataset audit only. The Pi is offline; installed software, motor gains, actual messages, acquisition timing and camera calibration have not been inspected.",
+  "repository_revision": "3265886525a84fbf3426e294d05e0d758490b554",
+  "model_artifact": {
+    "contact_sha256": "ea2523a8fbae644b74ce0c6acb6ad4df164987abc5b2a1f6e330a502ab212fd0",
+    "metadata_sha256": "a83fa4f604ef73617ea7aa49f85c1724a90731316bd97567e80d235fc2a27d06",
+    "weights_and_normalizer_changed": false
+  },
+  "input_contract": {
+    "channels": [
+      "leg_front_r_1_position",
+      "leg_front_r_2_position",
+      "leg_front_r_3_position",
+      "leg_front_r_1_velocity",
+      "leg_front_r_2_velocity",
+      "leg_front_r_3_velocity",
+      "leg_front_r_1_effort",
+      "leg_front_r_2_effort",
+      "leg_front_r_3_effort"
+    ],
+    "mapping": "Named front-right joints 1,2,3 in position then velocity then published-effort order; no reordering by the SPI abad/hip/knee aliases.",
+    "expected_live_units": {
+      "position": "Joint angles in radians after local homing/sign/offset mapping; verify live zero conventions.",
+      "velocity": "Joint radians per second; verify firmware/installed driver scaling.",
+      "effort": "Published effort proxy in the driver PD convention; not sensor-measured torque. Dataset collection implementation and gains remain unidentified."
+    },
+    "window": 100,
+    "model_resampling_hz": 1000,
+    "history_span_s": 0.099,
+    "max_sensor_gap_s": 0.025,
+    "default_inference_hz": 20,
+    "first_pause_requirement": "Two distinct predictions >=0.8; separate hysteresis/cooldown. This is not a calibrated end-to-end contact-detection latency bound."
+  },
+  "findings": [
+    {
+      "id": "effort_semantics",
+      "confirmed": "Local C++ driver exports effort computed as Kp*(position_command-position_state)+Kd*(velocity_command-velocity_state). Receive struct supplies position, velocity and flags, not measured torque.",
+      "evidence": [
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 557,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 136,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/rt/rt_spi.h",
+          "line": 89,
+          "sha256": "f0149cc0af8fce81872d0172af9f8de984f0313f3cd375c5fe3f1e3fcd302a6f"
+        }
+      ],
+      "implication": "Preserve published values and verify provenance; substituting measured torque, zeros or another estimator changes the learned feature distribution. Historical CSV collection driver is unknown."
+    },
+    {
+      "id": "effort_estimate_limits",
+      "confirmed": "Local estimate omits feedforward effort, uses pre-clamping command/gain storage and does not model transport delay. Command-copy code separately clamps positions, velocities, effort and gains before SPI transmission.",
+      "evidence": [
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 476,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 557,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        }
+      ],
+      "implication": "Do not label the estimate as applied motor torque, calibrated load or electrical energy."
+    },
+    {
+      "id": "state_interface_declaration",
+      "confirmed": "Hardware description declares position and velocity states for each joint, while driver also exports effort. ik.yaml sets a position-oriented broadcaster field; this is not proof of a published effort array.",
+      "evidence": [
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/pupper_v3_description/description/components.xacro",
+          "line": 32,
+          "sha256": "dd37684786102fd8e4cf5135f0985e7321ae3005dccb8608e932cb0cd8001919"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 136,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        },
+        {
+          "file": "ik_heuristic_walking_lab/ik.yaml",
+          "line": 8,
+          "sha256": "3f8812e75c57cc5da155fe98aec8f156c4fc6c74f3ed0a7a89b9b866f7403b75"
+        }
+      ],
+      "implication": "Inspect installed ros2_control hardware interfaces, broadcaster parameters and actual JointState arrays. The adapter rejects missing effort; do not fill with zero. Exact runtime behavior depends on installed versions."
+    },
+    {
+      "id": "gains_are_not_python_constants",
+      "confirmed": "ik.py defines Kp=3 and Kd=.1 but publishes position targets only. The local driver sets gains during homing and leaves those command values afterward; local homing parameters are 5.5/.2. A separate gain controller could change them.",
+      "evidence": [
+        {
+          "file": "ik_heuristic_walking_lab/ik.py",
+          "line": 32,
+          "sha256": "5c10227bf5fc21f58aa44f4cdcffe5808ee09645507d301b19fb959534c11498"
+        },
+        {
+          "file": "ik_heuristic_walking_lab/ik.py",
+          "line": 191,
+          "sha256": "5c10227bf5fc21f58aa44f4cdcffe5808ee09645507d301b19fb959534c11498"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 419,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/pupper_v3_description/description/components.xacro",
+          "line": 15,
+          "sha256": "dd37684786102fd8e4cf5135f0985e7321ae3005dccb8608e932cb0cd8001919"
+        }
+      ],
+      "implication": "Record the active kp/kd/desired-velocity/feedforward ownership and values, rather than claiming the Python constants establish deployment gains. Do not infer historical dataset gains."
+    },
+    {
+      "id": "named_order_offsets",
+      "confirmed": "Adapter maps leg_front_r_1,2,3 by name. Hardware description maps them to CAN channel 2 IDs 1,2,3; SPI aliases are explicitly unrelated to anatomical joint names. State positions subtract homing zero after SPI sign/offset conversion.",
+      "evidence": [
+        {
+          "file": "implicit_compliance/streaming.py",
+          "line": 47,
+          "sha256": "ab2908e7d95b54962776a348f90ce235715cd176ce21eaad7b081eb97521feb9"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 503,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+          "line": 554,
+          "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+        }
+      ],
+      "implication": "No extra channel-order transform should be added. Verify physical front-right identity and same angle zero/sign convention on the robot."
+    },
+    {
+      "id": "sampling_and_clock",
+      "confirmed": "Local IK controller-manager request is 1000 Hz; neural-controller stack requests 520 Hz with joint-state broadcaster 260 Hz. These are configuration requests, not measured sensor delivery rates. SPI joint receive fields have no per-sample acquisition timestamp.",
+      "evidence": [
+        {
+          "file": "ik_heuristic_walking_lab/ik.yaml",
+          "line": 3,
+          "sha256": "3f8812e75c57cc5da155fe98aec8f156c4fc6c74f3ed0a7a89b9b866f7403b75"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/neural_controller/launch/config.yaml",
+          "line": 5,
+          "sha256": "16b97145579e05ba03e2e6542dc1887658440f58548c6e4211d4a907042c1c72"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/neural_controller/launch/config.yaml",
+          "line": 31,
+          "sha256": "16b97145579e05ba03e2e6542dc1887658440f58548c6e4211d4a907042c1c72"
+        },
+        {
+          "file": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/rt/rt_spi.h",
+          "line": 89,
+          "sha256": "f0149cc0af8fce81872d0172af9f8de984f0313f3cd375c5fe3f1e3fcd302a6f"
+        }
+      ],
+      "implication": "Record header and receipt intervals, age, duplicates, gaps and actual array refresh. A 1,000 Hz interpolation grid does not create 1,000 Hz measurements. Historical CSV timestamp clock/source is unverified."
+    },
+    {
+      "id": "tactile_image_sensor",
+      "confirmed": "Optional Lab1 handout describes a DenseTact right-front foot experiment with tactile images at 3 Hz and a reference-based contact detector at 10 Hz. Explicit classifier consumes those tactile images, not front RGB images.",
+      "evidence": [
+        {
+          "file": "Course library: Optional Lab 1/Optional Lab 1 - Instructions.txt",
+          "lines": [
+            6,
+            20,
+            32,
+            34,
+            40,
+            55
+          ]
+        },
+        {
+          "file": "implicit_compliance/train.py",
+          "line": 48,
+          "sha256": "0ccd5d77ae92a8b6ba6220f22e0947242ec75608a91a91af842d9ee6831b09f4"
+        }
+      ],
+      "implication": "No front-camera calibration can make the existing tactile classifier an RGB terrain recognizer. The live motor-only contact path does not require the tactile camera."
+    },
+    {
+      "id": "camera_collection_and_calibration",
+      "confirmed": "DenseTact collector/image_index exporter source was not supplied. Existing Gemini HTTP camera endpoint returns a cached JPEG without exposure/header timestamp; front camera intrinsics are fixed and lack camera-ID/resolution provenance.",
+      "evidence": [
+        {
+          "file": "gemini_pupper/robot/server.py",
+          "line": 301
+        },
+        {
+          "file": "follow_me_pupper/robot/camera_params.yaml",
+          "line": 1
+        },
+        {
+          "file": "follow_me_pupper/robot/fisheye_converter.py",
+          "line": 114
+        }
+      ],
+      "implication": "For any new synchronized collection, capture actual ROS image header plus receipt clocks and verify resolution/intrinsics; do not align using HTTP request time or reuse front-camera frames as DenseTact input. Calibration validity is unverified, not proven wrong."
+    }
+  ],
+  "provided_dataset_measurement": {
+    "record_count": 56,
+    "samples": 2169795,
+    "median_record_interval_s": 0.0009893178939819336,
+    "min_record_median_interval_s": 0.0009639263153076172,
+    "max_record_median_interval_s": 0.0010437965393066406,
+    "total_nonpositive_intervals": 75,
+    "effort_min": [
+      -2.7819442104812895,
+      -0.25217814042493153,
+      -1.1662094191935994
+    ],
+    "effort_max": [
+      0.8750504965179206,
+      0.14916089191009071,
+      0.5533951695992108
+    ],
+    "effort_zero_fraction": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "provided_dataset_provenance_limit": "CSV effort channels are finite and nonzero in these recordings and timestamp intervals are approximately 1 ms. This establishes stored data content, not torque-sensor provenance, the historical driver revision or hardware sensing rate.",
+  "offline_shadow_validation": {
+    "tests_passed": 21,
+    "tests": "implicit_compliance/tests plus foundation/tests/test_single_leg.py; includes fake subscription-only CLI, named-order mapping, missing/nonfinite efforts, gaps, duplicates/rewinds, stale/future timestamps and rate distinction.",
+    "actual_export_replay": {
+      "scope": "Offline interface replay of first 2,500 rows of a training recording with synthetic receipt clocks, not hardware timing or new accuracy evaluation.",
+      "messages": 2500,
+      "outcome_counts": {
+        "warming_up": 102,
+        "predicted": 52,
+        "inference_throttled": 2346
+      }
+    },
+    "pi_operation": false
+  },
+  "next_live_trial": {
+    "command": "python3 -m implicit_compliance.shadow --model <export-directory> --out <new-trial-directory> --seconds 60 --topic /joint_states",
+    "side_effects": "Read-only ROS subscription and local log files; no motor publishers, services or controller launch.",
+    "capture": [
+      "Installed ROS distro, ros2_control/broadcaster, hardware-interface and firmware revisions; actual effort array and active controllers.",
+      "kp/kd, feedforward and velocity command ownership/values; homing offsets/signs and physical right-front joint mapping.",
+      "Header clock and actual message rate, receipt age, gaps/duplicates, source freshness; sample-statistics comparison with training channels.",
+      "Actual Pi cold/warm inference latency, total callback load and thermals while existing stack runs.",
+      "Independent timestamped contact annotations on the intended trajectory, false triggers, misses and delays; no pause until calibration supports it."
+    ],
+    "status": "Live calibration remains required; source compatibility alone is not deployment approval."
+  }
+}
