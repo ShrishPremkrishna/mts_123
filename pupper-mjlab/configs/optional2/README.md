@@ -1,5 +1,5 @@
 ---
-date: 2026-10-27T16:00
+date: 2026-10-27T15:16
 tags: [cs123, foundation]
 ---
 # Optional Lab 2: controlled reference bootstrapping

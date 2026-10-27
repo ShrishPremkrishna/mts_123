@@ -230,7 +230,7 @@ def _apply_jump_slots(cfg: ManagerBasedRlEnvCfg, play: bool) -> ManagerBasedRlEn
   cfg.rewards["jump_up_velocity"] = RewardTermCfg(
     func=mdp.slot_jump_up_velocity,
     weight=0.0,
-    params={"slot_s": JUMP_REWARD_WINDOW_S},
+    params={"slot_s": JUMP_REWARD_WINDOW_S, "velocity_cap": 2.0},
   )
   cfg.rewards["jump_airborne_height"] = RewardTermCfg(
     func=mdp.slot_jump_airborne_height,

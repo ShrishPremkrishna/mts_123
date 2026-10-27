@@ -390,11 +390,12 @@ def slot_jump_up_velocity(
   env: "ManagerBasedRlEnv",
   slot_s: float,
   asset_cfg: SceneEntityCfg = _ROBOT,
+  velocity_cap: float = 2.0,
 ) -> torch.Tensor:
-  """Upward base velocity, clamped at zero, paid only inside a jump slot."""
+  """Bounded upward shaping inside a slot; no reward for extreme launch speed."""
   in_slot, _ = _slot_progress(env, slot_s)
   asset: Entity = env.scene[asset_cfg.name]
-  up = torch.clamp(asset.data.root_link_lin_vel_w[:, 2], min=0.0)
+  up = torch.clamp(asset.data.root_link_lin_vel_w[:, 2], min=0.0, max=velocity_cap)
   return in_slot.float() * up
 
 

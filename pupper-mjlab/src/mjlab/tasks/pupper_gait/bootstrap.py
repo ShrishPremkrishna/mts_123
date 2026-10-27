@@ -131,6 +131,15 @@ def summarize_trace(trace,dt,warmup_s=1.):
                         if len(ids)>1:
                             angle=np.unwrap(trace["heading"][ids,e]); drift.append(abs(float(angle[-1]-angle[0])))
             record["max_abs_heading_drift_rad"]=max(drift) if drift else None
+            if "height" in trace:
+                record["peak_base_height_world_m"]=float(trace["height"][mask].max())
+                record["minimum_base_height_world_m"]=float(trace["height"][mask].min())
+            if "vertical_velocity" in trace:
+                record["peak_downward_speed_m_s"]=float(np.maximum(-trace["vertical_velocity"][mask],0).max())
+            if "foot_force_norm" in trace:
+                forces=trace["foot_force_norm"][mask]
+                record["peak_sampled_foot_contact_force_n"]=float(np.nanmax(forces)) if np.isfinite(forces).any() else None
+            record["airborne_sample_fraction"]=float((~contacts.any(axis=1)).mean())
         result.append(record)
     return dict(segments=result,dt=dt,warmup_s=warmup_s,
                 scope="simulation only; measured velocities are simulator observations, not hardware speed")

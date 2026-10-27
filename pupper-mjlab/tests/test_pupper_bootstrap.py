@@ -93,3 +93,25 @@ def test_jump_selection_requires_flight_and_landing_in_same_episode():
     assert selected['flight_s']==pytest.approx(.2)
     t['terminated'][49]=True
     with pytest.raises(ValueError): b.select_jump(t)
+
+
+def test_new_jump_capture_uses_measured_touchdown_instead_of_legacy_time(tmp_path,monkeypatch):
+    from mjlab.tasks.pupper_gait.mdp import gait_reference as ref
+    path=tmp_path/'captured_jump_gait.npz'
+    np.savez(path,jump=np.zeros((40,12)),duration_s=.8,touchdown_s=.5)
+    monkeypatch.setattr(ref,'_CAPTURED_JUMP_FILE',path)
+    assert ref.jump_capture_duration_s()==pytest.approx(.8)
+    assert ref.jump_capture_touchdown_s()==pytest.approx(.5)
+    np.savez(path,jump=np.zeros((40,12)),duration_s=.8,touchdown_s=.9)
+    with pytest.raises(ValueError):ref.jump_capture_touchdown_s()
+
+
+def test_jump_launch_reward_cannot_grow_without_bound(monkeypatch):
+    from types import SimpleNamespace
+    import torch
+    from mjlab.tasks.pupper_gait.mdp import mixed_jump
+    monkeypatch.setattr(mixed_jump,'_slot_progress',lambda env,slot:(torch.tensor([False,True,True]),None))
+    velocity=torch.tensor([[0.,0.,100.],[0.,0.,1.],[0.,0.,100.]])
+    env=SimpleNamespace(scene={'robot':SimpleNamespace(data=SimpleNamespace(root_link_lin_vel_w=velocity))})
+    result=mixed_jump.slot_jump_up_velocity(env,.8,velocity_cap=2.)
+    torch.testing.assert_close(result,torch.tensor([0.,1.,2.]))

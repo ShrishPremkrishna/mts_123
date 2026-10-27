@@ -115,7 +115,7 @@ def evaluate(args):
     dump_yaml(args.out/"env.yaml",asdict(cfg))
     configure_torch_backends()
     env=ManagerBasedRlEnv(cfg,device=args.device)
-    samples={k:[] for k in ("joint_pos","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height")}
+    samples={k:[] for k in ("joint_pos","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm")}
     try:
         wrapped=RslRlVecEnvWrapper(env,clip_actions=agent.clip_actions)
         if args.zero_policy:
@@ -157,7 +157,9 @@ def evaluate(args):
                     phase=np.mod(env.episode_length_buf.cpu().numpy()*dt*frequency,1.)
                     arrays=dict(joint_pos=robot.data.joint_pos[:,joint_ids],velocity=torch.cat([robot.data.root_link_lin_vel_b[:,:2],robot.data.root_link_ang_vel_b[:,2:3]],dim=1),
                                 torque=robot.data.qfrc_actuator[:,joint_ids],foot_contact=contact_sensor.data.found>0,
-                                foot_speed_xy=torch.linalg.vector_norm(robot.data.site_lin_vel_w[:,site_ids,:2],dim=-1),heading=robot.data.heading_w,height=robot.data.root_link_pos_w[:,2])
+                                foot_speed_xy=torch.linalg.vector_norm(robot.data.site_lin_vel_w[:,site_ids,:2],dim=-1),heading=robot.data.heading_w,height=robot.data.root_link_pos_w[:,2],
+                                vertical_velocity=robot.data.root_link_lin_vel_w[:,2],
+                                foot_force_norm=torch.linalg.vector_norm(contact_sensor.data.force,dim=-1) if contact_sensor.data.force is not None else torch.full_like(contact_sensor.data.found,float("nan"),dtype=torch.float32))
                     for key,value in arrays.items(): samples[key].append(value.detach().cpu().numpy().copy())
                     samples["phase"].append(phase); samples["episode"].append(episodes.copy())
                     samples["command"].append(raw); samples["effective_command"].append(effective)
