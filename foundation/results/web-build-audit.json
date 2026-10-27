@@ -1,0 +1,24 @@
+{
+  "checked_utc": "2026-10-27T23:40:40.956144+00:00",
+  "node": "v26.12.1",
+  "build": "passed",
+  "installed_dependency_audit": {
+    "before": {
+      "total": 10,
+      "high": 7
+    },
+    "after": {
+      "total": 0
+    },
+    "note": "npm audit checked by repository review agent after compatible same-major updates."
+  },
+  "source_sha256": {
+    "gemini_pupper/web/package.json": "905bc60bf4cc34a08ca67097b6a6c30f0b38d6a1d315997df091f9f8d6a57f2d",
+    "gemini_pupper/web/package-lock.json": "66df7abef00d4660adf44ce2c679cbe90df3a4a476d17da70b3a965b959156fa",
+    "gemini_pupper/web/index.html": "0cb8172d257f4a447c4ef590c125141c5b8373b382e0e3880c9559dc993f8bf7"
+  },
+  "build_log_sha256": "468e930c501663ca47b639987289005cf3e4bb84c750ba9a213eccca3ce370d0",
+  "remaining_build_warning": "657.55 kB minified main JavaScript chunk exceeds500kB advisory size; gzip170.21kB. No size limit was relaxed.",
+  "live_Gemini_API_tested": false,
+  "native_ROS_integration_tested": false
+}

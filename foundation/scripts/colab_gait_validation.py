@@ -75,7 +75,9 @@ def commands(path):
 
 def make_plan(args):
     repo = args.repo.resolve()
-    python = (args.python or repo / 'pupper-mjlab/.venv/bin/python').resolve()
+    # Resolving a venv's executable symlink bypasses pyvenv.cfg and loses its
+    # installed packages. Normalize the invocation path without dereferencing it.
+    python = Path(os.path.abspath((args.python or repo / 'pupper-mjlab/.venv/bin/python').expanduser()))
     if not python.is_file():
         raise ValueError(f'Python environment missing: {python}')
     if len(args.seeds) != len(set(args.seeds)) or not args.seeds:
@@ -148,6 +150,42 @@ def completed_artifacts_match(item):
         return artifact_hashes(Path(item['directory'])) == item['artifact_sha256']
     except (OSError, KeyError):
         return False
+
+
+def runtime_preflight(plan, log):
+    """Check imports and the requested device in the exact worker interpreter."""
+    probe = '''
+import json, sys
+import mjlab, torch
+device = torch.device(sys.argv[1])
+if device.type == "cuda":
+    if not torch.cuda.is_available():
+        raise RuntimeError("Requested CUDA evaluation, but CUDA is unavailable in this interpreter")
+    torch.empty(1, device=device)
+    torch.cuda.synchronize(device)
+print(json.dumps({"executable": sys.executable, "prefix": sys.prefix,
+                  "base_prefix": sys.base_prefix, "mjlab_file": mjlab.__file__,
+                  "torch_file": torch.__file__, "torch_version": torch.__version__,
+                  "device": str(device), "cuda_available": torch.cuda.is_available()}))
+'''
+    command = [plan['python'], '-B', '-c', probe, plan['device']]
+    with log.open('w') as stream:
+        stream.write('Runtime preflight: ' + json.dumps(command) + '\n')
+        stream.flush()
+        try:
+            result = subprocess.run(command, cwd=plan['repo'], stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, text=True, timeout=60)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            stream.write(f'{type(exc).__name__}: {exc}\n')
+            raise RuntimeError(f'Runtime preflight could not complete; see {log}') from exc
+        stream.write(result.stdout)
+        stream.write(result.stderr)
+    if result.returncode:
+        raise RuntimeError(f'Runtime preflight exited {result.returncode}; no evaluation jobs launched; see {log}')
+    try:
+        return json.loads(result.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError) as exc:
+        raise RuntimeError(f'Runtime preflight did not report its environment; see {log}') from exc
 
 
 def launch(command, repo, log):
@@ -245,7 +283,8 @@ def summarize(plan, status):
     return summary
 
 
-def run_plan(plan, out, *, resume=False, retry_incomplete=False, execute=launch):
+def run_plan(plan, out, *, resume=False, retry_incomplete=False, execute=launch,
+             check_runtime=runtime_preflight):
     out = out.resolve()
     plan_path, status_path = out / 'plan.json', out / 'status.json'
     if resume:
@@ -258,6 +297,8 @@ def run_plan(plan, out, *, resume=False, retry_incomplete=False, execute=launch)
         status = {'created_utc': utc_now(), 'state': 'prepared', 'jobs': {}, 'automatic_promotion': False}
     save(status_path, status)
     try:
+        runtime = check_runtime(plan, out / 'preflight.log')
+        save(out / 'runtime.json', runtime)
         for job in plan['jobs']:
             attempts = status['jobs'].setdefault(job['name'], [])
             previous = attempts[-1] if attempts else {}

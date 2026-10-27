@@ -1,6 +1,9 @@
 """The evaluation runner must preserve evidence and never promote from survival."""
 import importlib.util
 import json
+import os
+import subprocess
+import venv
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -33,6 +36,11 @@ def plan(tmp_path):
         spider_checkpoint=inputs['spider'], stable_commands=inputs['stable_commands'],
         spider_commands=inputs['spider_commands'])
     return runner.make_plan(args)
+
+
+def fake_runtime(plan, log):
+    log.write_text('simulated runtime for evaluator orchestration tests\n')
+    return {'test_runtime': True}
 
 
 def fake_execute(plan, fail_name=None):
@@ -95,7 +103,7 @@ def test_skip_spider_omits_all_spider_inputs_and_jobs(plan):
 
 def test_zero_failures_with_poor_tracking_never_creates_speed_recommendations(plan, tmp_path):
     output = tmp_path / 'results'
-    assert runner.run_plan(plan, output, execute=fake_execute(plan)) == 0
+    assert runner.run_plan(plan, output, check_runtime=fake_runtime, execute=fake_execute(plan)) == 0
     summary = json.loads((output / 'summary.json').read_text())
     assert summary['spider_limit_review']['zero_failures_and_nonempty_measurements']
     assert summary['spider_limit_review']['recommended_limits'] is None
@@ -106,7 +114,7 @@ def test_zero_failures_with_poor_tracking_never_creates_speed_recommendations(pl
 
 def test_resume_skips_verified_success_and_preserves_failed_attempts(plan, tmp_path):
     output = tmp_path / 'results'
-    assert runner.run_plan(plan, output, execute=fake_execute(plan, 'stable-finetuned-s101')) == 1
+    assert runner.run_plan(plan, output, check_runtime=fake_runtime, execute=fake_execute(plan, 'stable-finetuned-s101')) == 1
     old = output / 'jobs/stable-finetuned-s101/attempt-001/partial.txt'
     assert old.read_text() == 'preserve failed attempt'
     calls = []
@@ -114,33 +122,33 @@ def test_resume_skips_verified_success_and_preserves_failed_attempts(plan, tmp_p
     def retry(argv, repo, log):
         calls.append(argv)
         return success(argv, repo, log)
-    assert runner.run_plan(plan, output, resume=True, execute=retry) == 0
+    assert runner.run_plan(plan, output, resume=True, check_runtime=fake_runtime, execute=retry) == 0
     assert len(calls) == 1 and old.exists()
     assert (output / 'jobs/stable-finetuned-s101/attempt-002/metrics.json').is_file()
 
 
 def test_changed_completed_output_is_not_silently_reused(plan, tmp_path):
     output = tmp_path / 'results'
-    runner.run_plan(plan, output, execute=fake_execute(plan))
+    runner.run_plan(plan, output, check_runtime=fake_runtime, execute=fake_execute(plan))
     (output / 'jobs/stable-recovered-s101/attempt-001/metrics.json').write_text('{}')
     with pytest.raises(ValueError, match='changed or disappeared'):
-        runner.run_plan(plan, output, resume=True, execute=lambda *args: pytest.fail('must not launch'))
+        runner.run_plan(plan, output, resume=True, check_runtime=fake_runtime, execute=lambda *args: pytest.fail('must not launch'))
 
 
 def test_changed_input_blocks_launch_and_resume(plan, tmp_path):
     Path(plan['inputs']['finetuned']['path']).write_bytes(b'other checkpoint')
     with pytest.raises(ValueError, match='bytes changed'):
-        runner.run_plan(plan, tmp_path / 'results', execute=lambda *args: pytest.fail('must not launch'))
+        runner.run_plan(plan, tmp_path / 'results', check_runtime=fake_runtime, execute=lambda *args: pytest.fail('must not launch'))
 
 
 def test_incomplete_worker_requires_explicit_retry_after_it_stops(plan, tmp_path):
     output = tmp_path / 'results'
-    runner.run_plan(plan, output, execute=fake_execute(plan))
+    runner.run_plan(plan, output, check_runtime=fake_runtime, execute=fake_execute(plan))
     status = json.loads((output / 'status.json').read_text())
     status['jobs']['stable-recovered-s101'][-1]['state'] = 'running'
     runner.save(output / 'status.json', status)
     with pytest.raises(ValueError, match='may still be running'):
-        runner.run_plan(plan, output, resume=True, execute=lambda *args: pytest.fail('must not launch'))
+        runner.run_plan(plan, output, resume=True, check_runtime=fake_runtime, execute=lambda *args: pytest.fail('must not launch'))
 
 
 def test_wrong_reported_protocol_cannot_be_marked_complete(plan, tmp_path):
@@ -152,6 +160,48 @@ def test_wrong_reported_protocol_cannot_be_marked_complete(plan, tmp_path):
         record['provenance']['seed'] = -1
         path.write_text(json.dumps(record))
         return result
-    assert runner.run_plan(plan, tmp_path / 'results', execute=wrong_seed) == 1
+    assert runner.run_plan(plan, tmp_path / 'results', check_runtime=fake_runtime, execute=wrong_seed) == 1
     status = json.loads((tmp_path / 'results/status.json').read_text())
     assert all(attempts[-1]['state'] == 'failed' for attempts in status['jobs'].values())
+
+
+@pytest.mark.parametrize('explicit', [False, True])
+def test_venv_interpreter_preserves_prefix_and_installed_package(plan, tmp_path, explicit):
+    repo = Path(plan['repo'])
+    environment = repo / 'pupper-mjlab/.venv'
+    venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+    interpreter = environment / 'bin/python'
+    assert interpreter.is_symlink()
+    site = Path(subprocess.check_output([str(interpreter), '-c',
+        'import sysconfig; print(sysconfig.get_path("purelib"))'], text=True).strip())
+    (site / 'foundation_venv_probe.py').write_text('VALUE = "only-in-venv"\n')
+    args = SimpleNamespace(repo=repo,
+        python=Path(os.path.relpath(interpreter)) if explicit else None,
+        seeds=[101], num_envs=1, seconds=1., warmup=0., device='cpu', skip_spider=True,
+        recovered_checkpoint=Path(plan['inputs']['recovered']['path']),
+        finetuned_checkpoint=Path(plan['inputs']['finetuned']['path']), spider_checkpoint=None,
+        stable_commands=Path(plan['inputs']['stable_commands']['path']), spider_commands=None)
+    prepared = runner.make_plan(args)
+    executable = prepared['jobs'][0]['argv_without_out'][0]
+    result = json.loads(subprocess.check_output([executable, '-B', '-c',
+        'import json, sys, foundation_venv_probe; print(json.dumps([sys.prefix, foundation_venv_probe.VALUE]))'],
+        text=True, cwd=repo))
+    assert prepared['python'] == str(interpreter)
+    assert result == [str(environment), 'only-in-venv']
+    # The old resolve() behavior demonstrably cannot import the venv-only package.
+    bypassed = subprocess.run([str(interpreter.resolve()), '-B', '-c',
+        'import foundation_venv_probe'], text=True, capture_output=True, cwd=repo)
+    assert bypassed.returncode != 0 and 'ModuleNotFoundError' in bypassed.stderr
+
+
+def test_missing_runtime_dependency_fails_once_before_any_evaluation(plan, tmp_path):
+    environment = tmp_path / 'empty-venv'
+    venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+    plan['python'] = str(environment / 'bin/python')
+    output = tmp_path / 'results'
+    with pytest.raises(RuntimeError, match='no evaluation jobs launched'):
+        runner.run_plan(plan, output, execute=lambda *args: pytest.fail('must not launch'))
+    status = json.loads((output / 'status.json').read_text())
+    assert status['state'] == 'failed' and status['jobs'] == {}
+    assert 'ModuleNotFoundError' in (output / 'preflight.log').read_text()
+    assert (output / 'plan.json').is_file()
