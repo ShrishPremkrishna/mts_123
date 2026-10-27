@@ -59,7 +59,12 @@ def find_blocking_obstacle(target, others):
     #   3. ahead: abs(its box_offset) is at most OBSTACLE_CENTER_BAND.
     # Of the ones that block, return the box_offset of the nearest (the
     # biggest bottom edge). None if nothing blocks.
-    raise NotImplementedError
+    target_bottom = box_bottom(target)
+    blocking = [d for d in others
+                if box_bottom(d) > target_bottom
+                and box_bottom(d) >= IMAGE_HEIGHT - OBSTACLE_BOTTOM_MARGIN
+                and abs(box_offset(d)) <= OBSTACLE_CENTER_BAND]
+    return box_offset(max(blocking, key=box_bottom)) if blocking else None
     # ===============================================================================
 
 

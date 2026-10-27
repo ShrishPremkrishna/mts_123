@@ -7,6 +7,7 @@ import time
 import math 
 from collections import deque
 import signal
+from control_math import sine_target, pd_torque, SampleDelay
 
 JOINT_NAME = "leg_front_l_3"
 ####
@@ -37,37 +38,22 @@ class JointStateSubscriber(Node):
         self.joint_vel = 0
         self.target_joint_pos = 0
         self.target_joint_vel = 0
-        # self.torque_history = deque(maxlen=DELAY)
-
-        # Create a timer to run control_loop at the specified frequency
+        self.started_at = time.monotonic()
+        self.last_state_at = None
+        self.declare_parameter('delay_seconds', 0.0)
+        self.declare_parameter('target_amplitude', 0.2)
+        self.delay = SampleDelay(float(self.get_parameter('delay_seconds').value), LOOP_RATE)
+        self.target_center = None
         self.create_timer(1.0 / LOOP_RATE, self.control_loop)
 
-        # ADDING DELAYS
-
-        delay_seconds = 0
-        control_frequency = 1/LOOP_RATE
-
-        self.delay_buffer_size = int(delay_seconds * control_frequency)
-        self.angle_buffer = deque(maxlen=self.delay_buffer_size)
-        self.velocity_buffer = deque(maxlen=self.delay_buffer_size)
-        
-
     def get_target_joint_info(self):
-        current_time = time.time()
-        joint_pos_desired = math.sin(current_time)
-        return 2*joint_pos_desired,50.0
-
-        #return 0.0,0.0
+        # Start from the measured pose instead of commanding an arbitrary angle.
+        return sine_target(time.monotonic() - self.started_at,
+                           amplitude=float(self.get_parameter('target_amplitude').value),
+                           center=self.target_center or 0.0)
 
     def calculate_torque(self, joint_pos, joint_vel, target_joint_pos, target_joint_vel):
-        #PD Control
-        return KP*(target_joint_pos-joint_pos) + KD*(target_joint_vel-joint_vel) + 0
-
-        #Zero
-        #return 0.0
-
-        #P Control
-        #return KP*(target_joint_pos-joint_pos)
+        return pd_torque(joint_pos, joint_vel, target_joint_pos, target_joint_vel, KP, KD, MAX_TORQUE)
 
     def print_info(self):
         """Print joint information every 2 control loops"""
@@ -80,29 +66,34 @@ class JointStateSubscriber(Node):
 
     def get_joint_info(self, msg):
         """Callback function to process incoming JointState messages"""
-        joint_index = msg.name.index(JOINT_NAME)
-        joint_pos = msg.position[joint_index]
-        joint_vel = msg.velocity[joint_index]
-
-        self.joint_pos = joint_pos
-        self.joint_vel = joint_vel
-
+        try:
+            joint_index = msg.name.index(JOINT_NAME)
+            joint_pos, joint_vel = float(msg.position[joint_index]), float(msg.velocity[joint_index])
+        except (ValueError, IndexError, TypeError):
+            return
+        if not np.isfinite([joint_pos, joint_vel]).all():
+            return
+        self.joint_pos, self.joint_vel = joint_pos, joint_vel
+        self.last_state_at = time.monotonic()
+        if self.target_center is None:
+            self.target_center = joint_pos
+            self.started_at = self.last_state_at
         return joint_pos, joint_vel
 
     def control_loop(self):
-        """Control control loop to calculate and publish torque commands"""
+        if self.last_state_at is None or time.monotonic() - self.last_state_at > 0.25:
+            self.delay.clear()
+            self.publish_torque(0.0)
+            return
         self.target_joint_pos, self.target_joint_vel = self.get_target_joint_info()
+        observed = self.delay.push((self.joint_pos, self.joint_vel))
+        if observed is None:
+            self.publish_torque(0.0)
+            return
         self.calculated_torque = self.calculate_torque(
-            self.joint_pos, self.joint_vel, self.target_joint_pos, self.target_joint_vel
-        )
+            *observed, self.target_joint_pos, self.target_joint_vel)
         self.print_info()
         self.publish_torque(self.calculated_torque)
-
-        ADDING QUEUE
-        self.angle_buffer.append(self.joint_pos)
-        self.velocity_buffer.append(self.joint_vel)
-        joint_pos = self.angle_buffer[0]
-        joint_vel = self.velocity_buffer[0]
 
     def publish_torque(self, torque=0.0):
         # Create a Float64MultiArray message with zero kp and kd values

@@ -26,7 +26,10 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
 import numpy as np
 
-from kinematics import LEG_FK, inverse_kinematics
+from kinematics import LEG_FK, LEG_LIMITS, inverse_kinematics
+from rclpy.signals import SignalHandlerOptions
+from controller_manager_msgs.srv import SwitchController
+import hashlib
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -185,7 +188,8 @@ class InverseKinematics(Node):
                 # tolerance than ik.py's live solve.
                 target_joint_positions = inverse_kinematics(
                     self.fk_functions[leg_index], target_ee, target_joint_positions,
-                    max_iterations=100, tolerance=1e-4)
+                    max_iterations=150, tolerance=1e-4,
+                    joint_limits=LEG_LIMITS[leg_index], strict=True)
 
                 target_joint_positions_cache[leg_index].append(target_joint_positions)
                 target_ee_cache[leg_index].append(target_ee)
@@ -199,7 +203,8 @@ class InverseKinematics(Node):
     def save_cached_joint_positions(self):
         np.savez(CACHE_FILE,
                  target_joint_positions=self.target_joint_positions_cache,
-                 target_ee=self.target_ee_cache)
+                 target_ee=self.target_ee_cache,
+                 keyframe_hash=self.keyframe_hash())
         print(f'Saved joint position cache to {CACHE_FILE}')
 
     def load_cached_joint_positions(self):
@@ -210,7 +215,41 @@ class InverseKinematics(Node):
             print(f'No cache at {CACHE_FILE}. Run with --save-cache once to create it.')
             raise
         print(f'Loaded cached joint positions from {CACHE_FILE}')
-        return data['target_joint_positions'], data['target_ee']
+        joints, feet = data['target_joint_positions'], data['target_ee']
+        if 'keyframe_hash' not in data or str(data['keyframe_hash']) != self.keyframe_hash():
+            raise ValueError("stale or unversioned gait cache; regenerate with --save-cache")
+        if joints.shape != (50, 12) or feet.shape != (50, 12) or not np.isfinite([joints, feet]).all():
+            raise ValueError("invalid gait cache")
+        limits = np.concatenate(LEG_LIMITS)
+        if np.any(joints < limits[:, 0]) or np.any(joints > limits[:, 1]):
+            raise ValueError("cached gait exceeds joint limits")
+        residual = max(np.linalg.norm(self.forward_kinematics(q).reshape(4, 3) - f.reshape(4, 3), axis=1).max()
+                       for q, f in zip(joints, feet))
+        if residual > 1e-4:
+            raise ValueError("cached gait no longer matches forward kinematics")
+        return joints, feet
+
+    def keyframe_hash(self):
+        return hashlib.sha256(np.asarray(self.ee_triangle_positions, dtype=np.float64).tobytes()).hexdigest()
+
+    def stop_controller(self):
+        # Zero angles are a POSITION request, never a torque-off command.
+        self.pd_timer.cancel()
+        self.ik_timer.cancel()
+        client = self.create_client(SwitchController, '/controller_manager/switch_controller')
+        if not client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().error('Controller stop unavailable: use the gamepad emergency stop.')
+            return False
+        req = SwitchController.Request()
+        req.deactivate_controllers = ['forward_command_controller']
+        req.strictness = SwitchController.Request.BEST_EFFORT
+        req.timeout.sec = 2
+        future = client.call_async(req)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=3.0)
+        ok = future.done() and future.exception() is None and future.result().ok
+        if not ok:
+            self.get_logger().error('Controller did not confirm stop: use the gamepad emergency stop.')
+        return bool(ok)
 
     def get_target_joint_positions(self):
         target_joint_positions = self.target_joint_positions_cache[self.counter]
@@ -247,7 +286,7 @@ def main():
                         help='solve IK, then save the joint cache to disk')
     args, _ = parser.parse_known_args()
 
-    rclpy.init()
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     inverse_kinematics = InverseKinematics(use_cache=args.use_cache, save_cache=args.save_cache)
 
     try:
@@ -255,10 +294,7 @@ def main():
     except KeyboardInterrupt:
         print("Program terminated by user")
     finally:
-        # Send zero torques
-        zero_torques = Float64MultiArray()
-        zero_torques.data = [0.0] * 12
-        inverse_kinematics.command_publisher.publish(zero_torques)
+        inverse_kinematics.stop_controller()
 
         inverse_kinematics.destroy_node()
         rclpy.shutdown()

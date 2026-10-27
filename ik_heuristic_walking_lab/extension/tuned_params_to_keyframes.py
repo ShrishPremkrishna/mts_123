@@ -17,11 +17,12 @@ plus the ``ik_timer_period`` that reproduces the frequency you tuned.
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 
 # The tuner is a separate repo; point this at wherever you cloned it.
-TUNER_PATH = os.path.expanduser('~/pupper-gait-tuner')
+TUNER_PATH = os.environ.get('PUPPER_GAIT_TUNER', str(Path(__file__).resolve().parents[2] / 'pupper-gait-tuner'))
 sys.path.insert(0, TUNER_PATH)
 
 try:
@@ -66,7 +67,11 @@ def keyframes_for_leg(leg_name, params, n=N_KEYFRAMES):
     #     the same trajectory at a shifted phase is exactly the "rotate the keyframe list"
     #     trick you used by hand when you wrote the trot in Part 5.
     ################################################################################################
-    return np.zeros((n, 3))
+    if not isinstance(n, int) or n < 3:
+        raise ValueError("at least three keyframes required")
+    offset = effective_offsets(params)[leg_name]
+    origin = nominal_offset(leg_name, params)
+    return np.array([foot_position(k / n + offset, leg_name, params) - origin for k in range(n)])
 
 
 def emit_snippet(params):

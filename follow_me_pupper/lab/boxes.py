@@ -55,7 +55,9 @@ def detection_color(detection):
         parts = [float(p) for p in detection.id.split(',')]
     except ValueError:
         return None
-    return np.array(parts) if len(parts) == 3 else None
+    if len(parts) != 3 or not np.all(np.isfinite(parts)) or not all(0 <= p <= 255 for p in parts):
+        return None
+    return np.array(parts)
 
 
 def box_offset(detection):

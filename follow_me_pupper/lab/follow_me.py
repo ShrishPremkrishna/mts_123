@@ -110,6 +110,7 @@ class StateMachineNode(Node):
         self.target_pos = 0.0               # its box_offset, -0.5..+0.5
         self.target_bottom = 0.0            # its box_bottom, px (Step 4)
         self.last_detection_time = None     # when we last saw it; None = not yet
+        self.last_frame_time = None         # watchdog distinguishes target loss from camera failure
 
         # Step 3: where our target was (Optional Step 5: and what it looks like).
         self.lock = target_lock.Lock()
@@ -186,9 +187,11 @@ class StateMachineNode(Node):
         6's bookkeeping: how crowded each half of the frame is, and whether
         something blocks the way to the target.
         """
+        self.last_frame_time = self.get_clock().now()
         target = self.process_detections(msg.detections)
 
         if ENABLE_OBSTACLE_AVOIDANCE:
+            self.obstacle_pos = None
             others = [d for d in msg.detections
                       if detection_class_id(d) not in (None, self.target_class_id)
                       and d.results[0].hypothesis.score >= avoidance.OBSTACLE_MIN_SCORE]
@@ -266,6 +269,14 @@ class StateMachineNode(Node):
             self.state = State.IDLE
             return
         now = self.get_clock().now()
+        frame_time = getattr(self, 'last_frame_time', None)
+        if frame_time is None or (now - frame_time).nanoseconds / 1e9 > TIMEOUT:
+            # A stopped camera is different from a live frame with no person.
+            # Cancel blind detours and hold still until fresh perception returns.
+            self.state = State.SEARCH
+            self.obstacle_pos = None
+            self.command_publisher.publish(Twist())
+            return
 
         if self.state in AVOID_STATES:
             yaw, forward = self.detour_command(now)
@@ -331,6 +342,8 @@ class StateMachineNode(Node):
         #   target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL)
         #   instead: full speed when far, slowing to a stop at STOP_BOTTOM,
         #   backing off when too close.
+        if self.state == State.IDLE:
+            return (0.0, 0.0)
         if (self.state == State.SEARCH):
             sign = -1 if (self.target_pos > 0) else 1
             return (sign*SEARCH_YAW_VEL, 0)
@@ -357,7 +370,12 @@ class StateMachineNode(Node):
         #      the stop distance, a detour would walk into the person.)
         #   3. no detour ended in the last AVOID_COOLDOWN seconds. (Right after
         #      one, the obstacle is often still half in frame.)
-        raise NotImplementedError
+        if self.obstacle_pos is None:
+            return False
+        if target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL) <= 0:
+            return False
+        return (self.avoid_done_time is None or
+                (now - self.avoid_done_time).nanoseconds / 1e9 >= AVOID_COOLDOWN)
         # =======================================================================
 
     def start_avoiding(self, now):

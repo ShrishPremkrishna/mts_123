@@ -134,6 +134,8 @@ def pick_target(targets, lock):
     Used by:    follow_me.py's process_detections, in place of "most centred".
     Test:       python3 lab/test.py step3
     """
+    if not targets:
+        return None
     if USE_COLOR:
         return pick_target_by_color(targets, lock)  # Optional Step 5
     # ========== YOUR CODE HERE: Step 3: pick_target ==========
@@ -221,7 +223,13 @@ def color_distance(detection, color):
     # ========== OPTIONAL — YOUR CODE HERE: Step 5: color_distance ==========
     # Return None if either color is missing, else the distance between them
     # (np.linalg.norm of the difference).
-    raise NotImplementedError
+    observed = detection_color(detection)
+    if observed is None or color is None:
+        return None
+    remembered = np.asarray(color, dtype=float)
+    if remembered.shape != (3,) or not np.all(np.isfinite(remembered)):
+        return None
+    return float(np.linalg.norm(observed - remembered))
     # =======================================================================
 
 
@@ -247,7 +255,21 @@ def pick_target_by_color(targets, lock):
     #      within LOCK_GATE of it who are not strangers, the nearest one.
     #   3. Otherwise, the person whose color is closest to lock.color, if
     #      it is within REID_MAX_DIST; else None (only strangers).
-    raise NotImplementedError
+    if not targets:
+        return None
+    if lock.position is None and lock.color is None:
+        return min(targets, key=lambda d: abs(box_offset(d)))
+    distances = [(d, color_distance(d, lock.color)) for d in targets]
+    if lock.position is not None:
+        nearby = [d for d, distance in distances
+                  if position_distance(d, lock.position) <= LOCK_GATE
+                  and (distance is None or distance <= REID_MAX_DIST)]
+        if nearby:
+            return min(nearby, key=lambda d: position_distance(d, lock.position))
+    # Without position evidence, a missing color cannot establish identity.
+    matches = [(d, distance) for d, distance in distances
+               if distance is not None and distance <= REID_MAX_DIST]
+    return min(matches, key=lambda pair: pair[1])[0] if matches else None
     # =============================================================================
 
 
@@ -269,5 +291,9 @@ def remember_color(lock, detection):
     # 1. color = detection_color(detection). If it is None, stop here.
     # 2. First sight (lock.color is None): store it. Otherwise blend:
     #    lock.color = (1 - REID_BLEND) * lock.color + REID_BLEND * color
-    raise NotImplementedError
+    color = detection_color(detection)
+    if color is None:
+        return
+    lock.color = (color.copy() if lock.color is None else
+                  (1.0 - REID_BLEND) * lock.color + REID_BLEND * color)
     # =======================================================================

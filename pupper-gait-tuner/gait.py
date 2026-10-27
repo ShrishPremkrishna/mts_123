@@ -136,6 +136,8 @@ NOMINAL_XY = {
 
 # Phase offset (fraction of a cycle) for each leg, per gait pattern.
 GAIT_PATTERNS = {
+    "pronk": {"front_r": 0.0, "front_l": 0.0, "back_r": 0.0, "back_l": 0.0},
+    "crawl_reverse": {"front_r": 0.0, "front_l": 0.5, "back_r": 0.75, "back_l": 0.25},
     # diagonal pairs move together
     "trot":  {"front_r": 0.0, "front_l": 0.5, "back_r": 0.5, "back_l": 0.0},
     # lateral pairs move together
@@ -162,10 +164,13 @@ class GaitParams:
     # per-leg multipliers on step length / height, in LEG order. None = all 1.0.
     step_length_scale: tuple = None
     step_height_scale: tuple = None
+    swing_profile: str = "cycloid"  # sine remains selectable for comparison
     n_frames: int = 50           # cache resolution per cycle
 
     def clamped(self):
         """Return a copy with all values clamped to safe ranges."""
+        if self.swing_profile not in ("sine", "cycloid"):
+            raise ValueError("swing_profile must be sine or cycloid")
         offs = self.phase_offsets
         if offs is not None:
             offs = tuple(float(x) % 1.0 for x in offs)
@@ -228,8 +233,12 @@ def foot_position(phase, leg_name, p: GaitParams):
     else:
         # swing: -half -> +half with a lifted sine arc
         u = (ph - p.duty) / (1.0 - p.duty)
-        x = -half + u * step_length
-        z = z_stance + step_height * np.sin(np.pi * u)
+        if p.swing_profile == "cycloid":
+            x = -half + step_length * (u - np.sin(2 * np.pi * u) / (2 * np.pi))
+            z = z_stance + step_height * (1 - np.cos(2 * np.pi * u)) / 2
+        else:
+            x = -half + u * step_length
+            z = z_stance + step_height * np.sin(np.pi * u)
     return np.array([nom_x + x, nom_y, z])
 
 

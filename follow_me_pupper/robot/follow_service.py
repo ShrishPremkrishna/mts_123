@@ -86,6 +86,7 @@ class FollowService(StateMachineNode):
         self.declare_parameter('follow_class', 'person')
         self.declare_parameter('cmd_vel_topic', '/person_following_cmd_vel')
         self.declare_parameter('avoid_obstacles', False)
+        self.declare_parameter('use_color', False)
         self.declare_parameter('detect_hz', 10.0)       # while following
         self.declare_parameter('always_detect', False)  # keep detecting between follows
         self.declare_parameter('idle_detect_hz', 3.0)   # ... at this rate (for the eyes)
@@ -98,6 +99,7 @@ class FollowService(StateMachineNode):
         if not self.get_parameter('verbose').value:
             self.get_logger().set_level(LoggingSeverity.WARN)
         follow_me.ENABLE_OBSTACLE_AVOIDANCE = bool(self.get_parameter('avoid_obstacles').value)
+        follow_me.target_lock.USE_COLOR = bool(self.get_parameter('use_color').value)
 
         # Frames come from our own pipeline and on/off from the services, so
         # drop follow_me.py's /detections and /tracking_control subscriptions

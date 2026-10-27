@@ -169,90 +169,63 @@ def bl_leg_fk(theta):
 LEG_FK = [fr_leg_fk, fl_leg_fk, br_leg_fk, bl_leg_fk]
 
 
+# Limits from the corrected course URDF, in FR, FL, BR, BL order.
+RIGHT_LIMITS = np.array([[-1.22, 2.51], [-0.42, 3.14], [-2.79, 0.71]])
+LEFT_LIMITS = np.array([[-2.51, 1.22], [-3.14, 0.42], [-0.71, 2.79]])
+LEG_LIMITS = [RIGHT_LIMITS, LEFT_LIMITS, RIGHT_LIMITS, LEFT_LIMITS]
+
+
 def inverse_kinematics(leg_fk, target_ee, initial_guess=(0, 0, 0),
                        learning_rate=20, max_iterations=15, tolerance=1e-5,
-                       method='gauss_newton', damping=1e-4):
-    """Joint angles that put leg_fk's foot at target_ee.
+                       method='gauss_newton', damping=1e-4,
+                       joint_limits=None, strict=False):
+    """Solve foot position with damped steps and explicit failure handling.
 
-    method='gauss_newton' (default) converges in 2-3 iterations; 'gradient_descent' is the
-    original solver and uses learning_rate. damping keeps Gauss-Newton stable near a
-    straight (singular) leg.
-
-    leg_fk is one of the FK functions above, so the same solver works for every leg.
+    Pure learning callers may inspect the best iterate (strict=False). Robot
+    command producers use strict=True and joint_limits; an unreachable target
+    must never silently become an angle command. Tolerance is Euclidean metres.
     """
-    ################################################################################################
-    # TODO 4: Set default values for learning_rate, max_iterations, and tolerance in the
-    # signature above. Tolerance is in meters. walking.py overrides max_iterations and tolerance.
-    ################################################################################################
-
-    def cost_function(theta):
-        # Compute the cost function and the L1 error vector
-        # return the cost (a scalar) and l1 (a vector of size 3)
-        ################################################################################################
-        position = leg_fk(theta)
-        position_end = target_ee
-        l1 = position - position_end
-
-        # l1 dot l1
-        cost = np.sum((l1) ** 2)
-        
-        return cost, l1
-        ################################################################################################
-
-    def gradient(theta, epsilon=1e-4):
-        # Compute the gradient of the cost function using finite differences
-        ###############################################################################################
-        grad =np.zeros(len(theta))
-        for j in range(len(theta)):
-            n =np.zeros(len(theta))
-            n[j] = epsilon
-            plus, error =cost_function(theta +n)
-            minus, merror =cost_function(theta -n)
-            grad[j] =(plus - minus) / (2 * epsilon)
-        return grad
-
-        # diff = lambda ei: (cost_function(theta + epsilon * ei)[0] - cost_function(theta - epsilon * ei)[0]) / (2 * epsilon)
-        # return np.array([diff(ei) for ei in np.eye(len(theta))])
-        ################################################################################################
-
-    def jacobian(theta, position, epsilon=1e-6):
-        # d(foot position)/d(theta) by forward differences: 3 FK calls instead of gradient()'s 6
-        J = np.empty((3, len(theta)))
-        for j in range(len(theta)):
-            n = np.zeros(len(theta))
-            n[j] = epsilon
-            J[:, j] = (leg_fk(theta + n) - position) / epsilon
-        return J
-
-    theta = np.array(initial_guess).astype(np.float64)
-
-    cost_l = []
-    diff_l = []
-    for i in range(max_iterations):
-        cost, l1 = cost_function(theta)
-        cost_l.append(cost.item())
-        diff_l.append((cost_l[-1] if len(cost_l) else 0) - cost.item())
-        if np.mean(np.abs(l1)) < tolerance:
-            break  # IK Converged
-
-        # Update the theta (parameters) using the gradient and the learning rate
-        ################################################################################################
+    target = np.asarray(target_ee, dtype=float)
+    theta = np.asarray(initial_guess, dtype=float).copy()
+    if target.shape != (3,) or theta.shape != (3,) or not np.isfinite([target, theta]).all():
+        raise ValueError("target and initial guess must contain three finite values")
+    if method not in ('gauss_newton', 'gradient_descent'):
+        raise ValueError("unknown IK method")
+    if max_iterations < 1 or tolerance <= 0 or damping <= 0 or learning_rate <= 0:
+        raise ValueError("solver parameters must be positive")
+    limits = None if joint_limits is None else np.asarray(joint_limits, dtype=float)
+    if limits is not None:
+        if limits.shape != (3, 2) or not np.isfinite(limits).all() or np.any(limits[:, 0] >= limits[:, 1]):
+            raise ValueError("joint_limits must be a finite (3, 2) lower/upper array")
+        theta = np.clip(theta, limits[:, 0], limits[:, 1])
+    for _ in range(max_iterations):
+        residual = np.asarray(leg_fk(theta)) - target
+        error = float(np.linalg.norm(residual))
+        if error <= tolerance:
+            return theta
+        eps = 1e-6
+        jac = np.column_stack([(leg_fk(theta + eps*np.eye(3)[j]) -
+                                leg_fk(theta - eps*np.eye(3)[j])) / (2*eps)
+                               for j in range(3)])
         if method == 'gauss_newton':
-            J = jacobian(theta, l1 + target_ee)
-            theta = theta - np.linalg.solve(J.T @ J + damping * np.eye(len(theta)), J.T @ l1)
+            delta = np.linalg.solve(jac.T @ jac + damping*np.eye(3), jac.T @ residual)
         else:
-            grad = gradient(theta)
-            theta = theta - learning_rate * grad
-        # print(f'Grads: {grad}')
-        
-        # TODO (BONUS): Implement the (quasi-)Newton's method instead of finite differences for faster
-        # convergence
-        ################################################################################################
-        
-    # print(cost_l[-1])
-    # if cost_l[-1] > .0050:
-    #     print(f'Cost: {cost_l}') # If strictly decreasing, should be all negative
-
+            delta = learning_rate * 2 * jac.T @ residual
+        # Bound nonlinear steps, then backtrack instead of accepting a worse pose.
+        delta *= min(1.0, 0.35 / max(float(np.linalg.norm(delta)), 1e-12))
+        improved = False
+        for scale in (1.0, 0.5, 0.25, 0.125, 0.0625):
+            candidate = theta - scale*delta
+            if limits is not None:
+                candidate = np.clip(candidate, limits[:, 0], limits[:, 1])
+            if np.linalg.norm(leg_fk(candidate) - target) < error:
+                theta, improved = candidate, True
+                break
+        if not improved:
+            break
+    error = float(np.linalg.norm(leg_fk(theta) - target))
+    if strict and error > tolerance:
+        raise ValueError(f"IK did not converge: foot error {1000*error:.3f} mm (limit {1000*tolerance:.3f} mm)")
     return theta
 
 
