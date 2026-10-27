@@ -65,9 +65,12 @@ def settings(args,play):
     cfg=load_env_cfg(args.task,play=play)
     agent=load_rl_cfg(args.task)
     cfg.scene.num_envs=args.num_envs; cfg.seed=args.seed; agent.seed=args.seed
-    if args.deployment_target_clamp:
+    if getattr(args,"deployment_target_clamp",False):
         from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
         apply_deployment_target_clamp(cfg)
+    if getattr(args,"compose_com_randomization",False):
+        from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
+        compose_pupper_com_randomization(cfg)
     return cfg,agent
 
 
@@ -102,6 +105,9 @@ def train(args):
     configure_torch_backends()
     env=ManagerBasedRlEnv(cfg,device=args.device)
     try:
+        from mjlab.tasks.pupper.randomization_audit import write_randomization_snapshot
+        run["domain_randomization"]=write_randomization_snapshot(env,args.out)
+        (args.out/"provenance.json").write_text(json.dumps(run,indent=2)+"\n")
         wrapped=RslRlVecEnvWrapper(env,clip_actions=agent.clip_actions)
         runner=load_runner_cls(args.task)(wrapped,asdict(agent),str(args.out),args.device)
         if args.checkpoint: runner.load(str(args.checkpoint))
@@ -145,6 +151,9 @@ def evaluate(args):
     env=ManagerBasedRlEnv(cfg,device=args.device)
     samples={k:[] for k in ("joint_pos","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm","raw_actions","unclipped_target_joint_pos","target_joint_pos","deployment_clipped_target_joint_pos","target_clipped","target_range_excess_rad","physical_target_joint_pos","actuator_input_target_joint_pos")}
     try:
+        from mjlab.tasks.pupper.randomization_audit import write_randomization_snapshot
+        run["domain_randomization"]=write_randomization_snapshot(env,args.out)
+        run["randomized_flag_semantics"]="selects training task configuration; play configuration already retains startup physics randomization and observation noise"
         wrapped=RslRlVecEnvWrapper(env,clip_actions=agent.clip_actions)
         if args.zero_policy:
             policy=lambda obs:torch.zeros((args.num_envs,wrapped.num_actions),device=args.device)
@@ -232,6 +241,7 @@ def main():
         parser.add_argument("--out",type=Path,required=True); parser.add_argument("--seed",type=int,default=42)
         parser.add_argument("--device",default="cuda:0")
         parser.add_argument("--deployment-target-clamp",action="store_true",help="Opt in to the C++ joint-target clamp before simulation; preserves normalized last_action observations")
+        parser.add_argument("--compose-com-randomization",action="store_true",help="Opt in to preserving the independent base COM offset during density randomization; legacy behavior remains default")
     tr.add_argument("--num-envs",type=int,default=4096); tr.add_argument("--iterations",type=int,default=3000)
     tr.add_argument("--profile",choices=["baseline","fast"],default="baseline"); tr.add_argument("--weights",type=Path)
     tr.add_argument("--logger",choices=["wandb","tensorboard"],default="wandb")

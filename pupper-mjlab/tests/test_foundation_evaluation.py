@@ -58,7 +58,7 @@ def test_physics_score_counts_only_actual_whole_reference_wraps(tmp_path, monkey
 
 def test_video_uses_recorded_physics_pose_and_aligned_reference(tmp_path, monkeypatch):
   import torch
-  import imageio.v3 as iio
+  import imageio.v2 as iio
   from mjlab.tasks.tracking.config.pupper import unimate as U
   from mjlab.tasks.tracking.config.pupper.play_motion import main
 
@@ -69,10 +69,37 @@ def test_video_uses_recorded_physics_pose_and_aligned_reference(tmp_path, monkey
     assert not kwargs["skeleton"]
     return np.zeros((10, 2, 4, 3), dtype=np.uint8)
   monkeypatch.setattr(U, "render", render)
-  monkeypatch.setattr(iio, "imwrite", lambda path, frames, fps: captured.update(video=str(path), fps=fps))
+  class Writer:
+    def __enter__(self):
+      return self
+    def __exit__(self, *args):
+      pass
+    def append_data(self, frame):
+      captured["frame_count"] = captured.get("frame_count", 0) + 1
+  def writer(path, fps):
+    captured.update(video=str(path), fps=fps)
+    return Writer()
+  monkeypatch.setattr(iio, "get_writer", writer)
   path = md.build_motion([md.stand(0), md.stand(.2)]).save_npz(tmp_path / "stand.npz")
   main(path, video_file=tmp_path / "video.mp4")
   reference, actual = [fit.motion for fit in captured["fits"]]
   assert len(reference.joint_pos) == len(actual.joint_pos) == 10
   assert not np.array_equal(reference.joint_pos, actual.joint_pos)
   assert captured["fps"] == 50
+  assert captured["frame_count"] == 10
+  with np.load(tmp_path / "video.trajectory.npz", allow_pickle=False) as saved:
+    np.testing.assert_array_equal(saved["actual_joint_pos"], actual.joint_pos)
+    np.testing.assert_array_equal(saved["reference_frame"], np.arange(1, 11))
+
+
+@pytest.mark.parametrize("axis", ["com_x", "com_y"])
+def test_requested_com_shift_is_present_in_actual_model_after_mass_randomization(tmp_path, monkeypatch, axis):
+  import torch
+  from mjlab.tasks.tracking.config.pupper.play_motion import main
+  monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+  path = md.build_motion([md.stand(0), md.stand(.2)]).save_npz(tmp_path / "stand.npz")
+  destination = tmp_path / "score.json"
+  main(path, mass_scale=1.3, report_file=destination, **{axis: .02})
+  report = json.loads(destination.read_text())
+  np.testing.assert_allclose(report["effective_com_offset_m"], [.02 if axis == "com_x" else 0,
+                                                              .02 if axis == "com_y" else 0, 0], atol=1e-6)

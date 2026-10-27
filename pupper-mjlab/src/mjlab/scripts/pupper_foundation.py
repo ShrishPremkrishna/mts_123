@@ -159,7 +159,7 @@ def train(args: argparse.Namespace) -> Path:
 
   profile = load_profile(args.profile)
   motion_path = args.motion.resolve() if args.motion else None
-  if profile.get("motion_builder"):
+  if profile.get("motion_builder") and motion_path is None:
     motion_path = prepare(args.output)[profile["motion_builder"]]
   if profile.get("requires_motion") and motion_path is None:
     raise ValueError("Provide --motion with the inspected, cleaned generated-motion NPZ")
@@ -174,6 +174,11 @@ def train(args: argparse.Namespace) -> Path:
   if deploy_clamp:
     from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
     contract = apply_deployment_target_clamp(cfg)
+  compose_com = getattr(args, "compose_com_randomization", False)
+  com_contract = {"contract": "legacy_event_order"}
+  if compose_com:
+    from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
+    com_contract = compose_pupper_com_randomization(cfg)
   cfg.scene.num_envs = args.num_envs or profile["num_envs"]
   agent.max_iterations = args.iterations or profile["iterations"]
   agent.seed = args.seed
@@ -193,6 +198,7 @@ def train(args: argparse.Namespace) -> Path:
     cfg.commands["motion"].motion_file = str(motion_path)
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
   contract_suffix = "_deployclamp" if deploy_clamp else "_legacytargets"
+  contract_suffix += "_composedcom" if compose_com else "_legacycom"
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -220,7 +226,7 @@ def train(args: argparse.Namespace) -> Path:
   manifest = {
     "state": "running", "created_utc": stamp, "profile": args.profile,
     "profile_config": profile, "seed": args.seed,
-    "actuation_contract": contract,
+    "actuation_contract": contract, "com_randomization_contract": com_contract,
     "num_envs": cfg.scene.num_envs, "iterations": agent.max_iterations,
     "resume_run": args.resume_run, "resume_checkpoint": args.resume_checkpoint,
     "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
@@ -267,6 +273,7 @@ def score(args: argparse.Namespace) -> None:
   """Nominal and held-out dynamics scores, with exact checkpoint/motion provenance."""
   from mjlab.tasks.tracking.config.pupper.play_motion import main as replay
 
+  evaluation_source = source_manifest()
   args.output.mkdir(parents=True, exist_ok=True)
   variants = [("nominal", 1.0, 0.0, 0.0, False)]
   if args.suite:
@@ -289,11 +296,14 @@ def score(args: argparse.Namespace) -> None:
     result = json.loads(stress_report.read_text())
     result["purpose"] = "continuous held-out long-idle/repeated-action sequence"
     reports.append(result)
+  final_source = source_manifest()
   write_json(args.output / "evaluation.json", {
     "state": "simulation_evaluated", "approved_for_hardware": False,
     "checkpoint_sha256": sha256(args.checkpoint), "motion_sha256": sha256(args.motion),
     "deployment_target_clamp": getattr(args, "deployment_target_clamp", False),
-    "source": source_manifest(), "reports": reports,
+    "source": evaluation_source, "source_after": final_source,
+    "source_changed_during_evaluation": evaluation_source["source_sha256"] != final_source["source_sha256"],
+    "reports": reports,
     "all_hold_up": all(r["verdict"] == "HOLDS UP" for r in reports),
     "scope": "Reference tracking; does not test thermal limits or real robot policy hand-offs",
   })
@@ -317,6 +327,7 @@ def main() -> None:
   launch.add_argument("--resume-checkpoint", help="Exact model_N.pt within --resume-run")
   launch.add_argument("--initial-checkpoint", type=Path, help="Exact local checkpoint for a separate finetune run; the original is retained")
   launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
+  launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
   evaluate = sub.add_parser("score")
   evaluate.add_argument("--motion", type=Path, required=True)
   evaluate.add_argument("--checkpoint", type=Path, required=True)

@@ -202,6 +202,8 @@ def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, 
             raise ValueError(f"Cannot compare different evaluation protocols: {key}")
     if bool(baseline["provenance"].get("deployment_target_clamp",False)) != bool(candidate["provenance"].get("deployment_target_clamp",False)):
         raise ValueError("Cannot compare different evaluation protocols: deployment_target_clamp")
+    if bool(baseline["provenance"].get("compose_com_randomization",False)) != bool(candidate["provenance"].get("compose_com_randomization",False)):
+        raise ValueError("Cannot compare different evaluation protocols: compose_com_randomization")
     if any(r["provenance"].get("zero_policy") for r in (baseline,candidate)):
         raise ValueError("An infrastructure smoke test cannot be promoted as a trained policy")
     if len(baseline["segments"]) != len(candidate["segments"]):

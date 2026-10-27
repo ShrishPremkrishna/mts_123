@@ -226,3 +226,32 @@ python -m pytest tests/test_pupper_foundation.py tests/test_pupper_tracking.py \
 These tests cover real geometry/mirroring, clip transitions and exported arrays,
 invalid inputs, source preservation, repair behavior, and worker cleanup/timeouts.
 They do not train policies. GPU and hardware results must be recorded separately.
+
+### Controlled tracking continuations
+
+To compare a deployment-clipped continuation with its original policy, retain the
+exact exported reference and checkpoint. The launcher respects an explicit
+`--motion` even for built-in profiles and copies those bytes into the new run.
+For example, from the project directory on a CUDA host:
+
+```bash
+python -m mjlab.scripts.pupper_foundation train spider_clips \
+  --motion /persistent/original/spider_walk.npz \
+  --initial-checkpoint /persistent/original/model_2999.pt \
+  --deployment-target-clamp --iterations 1000 --seed 42 \
+  --output /persistent/spider-clamp-continuation
+```
+
+This changes only the target actuation contract. Evaluate against the original
+policy with the same reference, seed and deployment clamp before changing the
+reward or motion. `--compose-com-randomization` is a separate opt-in: the course
+inertial randomization otherwise erases the already sampled body COM offset.
+The composition preserves the RNG draw order and the mass, friction, encoder and
+gain samples, while retaining the intended COM shift. Run identities and manifests
+record both choices. Old policies and default training configurations stay intact.
+
+Physics video output also writes a `.trajectory.npz` file before rendering. It
+contains the recorded robot state and aligned reference at every physics control
+step, so video rendering can be retried without rerunning or altering the rollout.
+Rendering streams batches to the video encoder rather than retaining the entire
+video in memory.

@@ -108,6 +108,11 @@ def main(
     }
     alpha = math.log(mass_scale) / 2  # pseudo_inertia scales mass by exp(2 * alpha)
     cfg.events["inertial"].params["alpha_range"] = (alpha, alpha)
+  # pseudo_inertia reconstructs body_ipos from model defaults. If it runs after
+  # base_com, it silently erases both requested offsets and sampled COM shifts.
+  # Compose the known density-only event pair and verify the actual model below.
+  from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
+  com_contract = compose_pupper_com_randomization(cfg)
   articulation = cfg.scene.entities["robot"].articulation
   assert articulation is not None
   actuator = articulation.actuators[0]
@@ -116,6 +121,13 @@ def main(
     actuator.stiffness, actuator.damping = REPLAY_KP, REPLAY_KD
   env = ManagerBasedRlEnv(cfg=cfg, device=device)
   robot = env.scene["robot"]
+  base_id = robot.indexing.root_body_id
+  default_com = env.sim.get_default_field("body_ipos")
+  default_com = default_com[0, base_id] if "body_ipos" in env.sim.per_world_default_fields else default_com[base_id]
+  effective_com_offset = (env.sim.model.body_ipos[0, base_id] - default_com).detach().cpu().numpy()
+  if not randomize and not np.allclose(effective_com_offset, [com_x, com_y, com_z], atol=1e-6):
+    env.close()
+    raise RuntimeError(f"Requested COM offset was not applied: observed {effective_com_offset}")
   cmd = env.command_manager.get_term("motion")
   assert isinstance(cmd, MotionCommand)
   default = robot.data.default_joint_pos
@@ -212,7 +224,10 @@ def main(
               "body_tilt_from_upright_deg": math.degrees(math.acos(float(torch.clamp(
                 -robot.data.projected_gravity_b[0, 2], -1, 1)))),
               "foot_contact_count": int((env.scene["score_foot_ground"].data.found > 0).sum()),
-              "root_height_m": float(robot.data.root_link_pos_w[0, 2])}
+              "root_height_m": float(robot.data.root_link_pos_w[0, 2]),
+              "reference_root_height_m": float(cmd.anchor_pos_w[0, 2]),
+              **{f"position_error_{axis}_m": float((cmd.robot_anchor_pos_w - cmd.anchor_pos_w)[0, i])
+                 for i, axis in enumerate("xyz")}}
     sample.update(target_limit_violation_fraction=float((violation > 1e-6).float().mean()),
                   target_limit_violation_max_rad=float(violation.max()))
     if video_file is not None:
@@ -246,20 +261,12 @@ def main(
   print(f"worst body orientation error {worst_tilt:.1f} deg")
   if reference_resets:
     print(f"reference resets {reference_resets}: whole-file wraps teleport the robot; this is not continuous endurance")
-  train = (
-    "uv run train Mjlab-Tracking-Flat-Pupper-v3 "
-    f"--env.commands.motion.motion-file {motion_file}"
-  )
   if fell_at is not None:
-    print(
-      f"verdict       FALLS at t = {fell_at:.2f} s. Plain replay won't work: make the "
-      f"motion gentler, or train it:\n              {train}"
-    )
+    print(f"verdict       FALLS at t = {fell_at:.2f} s under course tracking thresholds; "
+          "inspect absolute body tilt and contacts to distinguish tracking drift from a physical topple.")
   elif wobble_at is not None:
-    print(
-      f"verdict       WOBBLES from t = {wobble_at:.2f} s but stays up. Replay may work on "
-      f"the robot; a trained policy will track it more tightly:\n              {train}"
-    )
+    print(f"verdict       WOBBLES from t = {wobble_at:.2f} s under course tracking thresholds; "
+          "the rollout remains below the course failure thresholds.")
   else:
     who = "the policy" if checkpoint else "plain replay"
     print(f"verdict       HOLDS UP: {who} follows the reference closely.")
@@ -269,6 +276,9 @@ def main(
       "checkpoint": str(checkpoint.resolve()) if checkpoint else None,
       "seed": seed, "randomize_dynamics": randomize,
       "mass_scale": mass_scale, "com_offset_m": [com_x, com_y, com_z],
+      "effective_com_offset_m": effective_com_offset.tolist(),
+      "inertial_event_order": com_contract["event_order"],
+      "com_randomization_contract": com_contract,
       "loops": loops, "frames": n_frames,
       "reference_resets": reference_resets,
       "verdict": "FALLS" if fell_at is not None else "WOBBLES" if wobble_at is not None else "HOLDS UP",
@@ -303,7 +313,6 @@ def main(
   if video_file is not None:
     # These are recorded physics states, not a visual replay of the reference.
     # Set MUJOCO_GL=egl before starting this process on a headless GPU host.
-    import imageio.v3 as iio
     from mjlab.tasks.tracking.config.pupper import motion_design as md
     from mjlab.tasks.tracking.config.pupper import unimate as U
 
@@ -315,9 +324,44 @@ def main(
       reference = md.Motion(fps=1 / dt, root_pos=source["body_pos_w"][frames, 0],
                            root_quat=source["body_quat_w"][frames, 0],
                            joint_pos=source["joint_pos"][frames])
-    panels = [U.Fit(m, np.empty((0, 19, 3)), {}, {}) for m in (reference, actual)]
     video_file.parent.mkdir(parents=True, exist_ok=True)
-    iio.imwrite(video_file, U.render(panels, labels=["Reference", "Physics rollout"], skeleton=False), fps=1 / dt)
+    trajectory_file = video_file.with_suffix(".trajectory.npz")
+    np.savez_compressed(trajectory_file, fps=np.asarray([1 / dt]),
+                        reference_root_pos=reference.root_pos, reference_root_quat=reference.root_quat,
+                        reference_joint_pos=reference.joint_pos, reference_frame=frames,
+                        actual_root_pos=actual.root_pos, actual_root_quat=actual.root_quat,
+                        actual_joint_pos=actual.joint_pos)
+    render_recorded_rollout(trajectory_file, video_file)
+
+
+def render_recorded_rollout(trajectory_file: Path, video_file: Path, chunk_frames: int = 64) -> None:
+  """Render recorded physics in bounded chunks, preserving every simulation frame.
+
+  Kept separate so a renderer failure does not require recomputing the rollout.
+  Both panels follow each body's horizontal position with the same camera scale.
+  """
+  import imageio.v2 as iio
+  from mjlab.tasks.tracking.config.pupper import motion_design as md
+  from mjlab.tasks.tracking.config.pupper import unimate as U
+
+  if chunk_frames < 1:
+    raise ValueError("chunk_frames must be positive")
+  with np.load(trajectory_file, allow_pickle=False) as source:
+    data = {key: source[key].copy() for key in source.files}
+  fps = float(data["fps"][0])
+  count = len(data["actual_root_pos"])
+  with iio.get_writer(video_file, fps=fps) as writer:
+    for start in range(0, count, chunk_frames):
+      end = min(start + chunk_frames, count)
+      panels = []
+      for name in ("reference", "actual"):
+        motion = md.Motion(fps=fps, root_pos=data[f"{name}_root_pos"][start:end],
+                           root_quat=data[f"{name}_root_quat"][start:end],
+                           joint_pos=data[f"{name}_joint_pos"][start:end])
+        panels.append(U.Fit(motion, np.empty((0, 19, 3)), {}, {}))
+      for frame in U.render(panels, labels=["Reference", "Physics rollout"], skeleton=False):
+        writer.append_data(frame)
+
 
 
 if __name__ == "__main__":

@@ -42,9 +42,11 @@ def baseline_configuration(checkpoint,iterations):
     return config
 
 
-def validate_resume_contract(previous,clamp,baseline):
+def validate_resume_contract(previous,clamp,baseline,compose_com=False):
     if bool(previous.get('deployment_target_clamp',False))!=clamp:
         raise ValueError('Changing deployment target clamp requires a fresh --out directory; preserve the legacy batch')
+    if bool(previous.get('compose_com_randomization',False))!=compose_com:
+        raise ValueError('Changing COM randomization composition requires a fresh --out directory')
     original=previous.get('baseline_configuration',baseline_configuration(None,3000))
     if original!=baseline:
         raise ValueError('Changing baseline checkpoint/hash/iterations requires a fresh --out directory')
@@ -70,6 +72,7 @@ def main():
     p.add_argument('--bootstrap-rounds',type=int,default=2)
     p.add_argument('--device',default='cuda:0')
     p.add_argument('--deployment-target-clamp',action='store_true',help='Use deployment absolute-target clipping for every locomotion stage; requires a separate output root from legacy runs')
+    p.add_argument('--compose-com-randomization',action='store_true',help='Preserve independent COM offsets during density randomization for every locomotion stage; requires a separate output root')
     p.add_argument('--baseline-checkpoint',type=Path,help='Finished exact MixedGaits-Flat checkpoint plus sibling provenance.json to warm-start a new baseline stage')
     p.add_argument('--baseline-iterations',type=int,default=3000,help='Additional baseline iterations; use e.g.1500 for a clamped warm start')
     p.add_argument('--wandb',action=argparse.BooleanOptionalAction,default=True)
@@ -81,7 +84,7 @@ def main():
     args.repo=args.repo.resolve();args.out=args.out.resolve();args.out.mkdir(parents=True,exist_ok=True)
     previous_status=args.out/'batch_status.json'
     if previous_status.exists():
-        try:validate_resume_contract(json.loads(previous_status.read_text()),args.deployment_target_clamp,baseline_config)
+        try:validate_resume_contract(json.loads(previous_status.read_text()),args.deployment_target_clamp,baseline_config,args.compose_com_randomization)
         except ValueError as exc:p.error(str(exc))
     elif any(args.out.glob('*.done.json')):
         p.error('Stage markers without batch provenance cannot be reused; use a fresh --out directory')
@@ -104,7 +107,7 @@ def main():
     source_hash=hashlib.sha256(json.dumps(source_files,sort_keys=True).encode()).hexdigest()
     (args.out/'source_hashes.json').write_text(json.dumps(source_files,indent=2)+'\n')
     revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-    state={'started':datetime.now(timezone.utc).isoformat(),'smoke':args.smoke,'deployment_target_clamp':args.deployment_target_clamp,'baseline_configuration':baseline_config,'stages':{},'status':'running','git_revision':revision,'source_sha256':source_hash,'seed':123,'locomotion_training_seed':42,'evaluation_seeds':[101,202,303]}
+    state={'started':datetime.now(timezone.utc).isoformat(),'smoke':args.smoke,'deployment_target_clamp':args.deployment_target_clamp,'compose_com_randomization':args.compose_com_randomization,'baseline_configuration':baseline_config,'stages':{},'status':'running','git_revision':revision,'source_sha256':source_hash,'seed':123,'locomotion_training_seed':42,'evaluation_seeds':[101,202,303]}
     status_file=args.out/'batch_status.json'
     def save():
         tmp=status_file.with_suffix('.tmp');tmp.write_text(json.dumps(state,indent=2)+'\n');tmp.replace(status_file)
@@ -192,6 +195,7 @@ def main():
                 target=fresh(name)
                 cmd=common+['train','--out',target,'--task',task,'--iterations',2 if args.smoke else iterations,'--num-envs',num_envs,'--device',args.device,'--logger','wandb' if args.wandb else 'tensorboard','--profile',profile]
                 if args.deployment_target_clamp:cmd+=['--deployment-target-clamp']
+                if args.compose_com_randomization:cmd+=['--compose-com-randomization']
                 if previous:cmd+=['--checkpoint',previous]
                 if reference:cmd+=['--reference-dir',reference]
                 if weights:cmd+=['--weights',weights]
@@ -200,6 +204,7 @@ def main():
                 target=fresh(name)
                 cmd=common+['evaluate','--checkpoint',ckpt,'--out',target,'--task',task,'--seed',seed,'--num-envs',2 if args.smoke else 32,'--seconds',1 if args.smoke else 10,'--warmup',.1 if args.smoke else 2,'--device',args.device]
                 if args.deployment_target_clamp:cmd+=['--deployment-target-clamp']
+                if args.compose_com_randomization:cmd+=['--compose-com-randomization']
                 if reference:cmd+=['--reference-dir',reference]
                 if randomized:cmd+=['--randomized']
                 run(name,cmd);return target

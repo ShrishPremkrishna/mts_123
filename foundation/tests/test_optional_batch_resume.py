@@ -31,6 +31,8 @@ def test_resume_requires_same_clip_checkpoint_bytes_and_iteration_budget(tmp_pat
     previous=dict(deployment_target_clamp=True,baseline_configuration=config)
     batch.validate_resume_contract(previous,True,config)
     with pytest.raises(ValueError,match='fresh'):batch.validate_resume_contract(previous,False,config)
+    with pytest.raises(ValueError,match='COM randomization'):
+        batch.validate_resume_contract(previous,True,config,compose_com=True)
     with pytest.raises(ValueError,match='iterations'):
         batch.validate_resume_contract(previous,True,batch.baseline_configuration(checkpoint,3000))
     checkpoint.write_bytes(b'replaced checkpoint with the same filename')
