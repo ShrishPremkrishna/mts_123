@@ -50,3 +50,13 @@ The course Mystery task adds timed jump slots. `bootstrap jump TRACE OUT --env E
 ## Validation and limitations
 
 The NumPy capture tests and existing gait export/parity suite run locally. A real CPU MuJoCo-Warp two-command rollout with an explicitly zero policy verifies collector execution; it is only an infrastructure test. GPU training, promotion, randomized robustness and measured hardware speed are separate evidence gates. In restricted local environments set `MPLCONFIGDIR`, `XDG_CACHE_HOME` and `WARP_CACHE_PATH` to writable cache directories.
+
+A concrete **simulation-only hypothesis** is provided in `mystery_experiment.json`: small bounded height/upward-motion incentives, always-on torso-clearance cost, joint acceleration/torque/action-change penalties, and retained tracking/upright objectives. These weights have not been validated as safe or optimal; reward penalties are not physical safety guarantees. Start from a demonstrated MixedGaits checkpoint, use a bounded pilot, examine all failures and landing loads, and only extend if it remains stable:
+
+```sh
+python -m mjlab.scripts.pupper_locomotion train --task Mjlab-Mystery-Flat-Pupper-v3 --checkpoint BEST_MIXED_CHECKPOINT --weights pupper-mjlab/configs/optional2/mystery_experiment.json --out artifacts/optional2/mystery-pilot --iterations 500
+python -m mjlab.scripts.pupper_locomotion evaluate --task Mjlab-Mystery-Flat-Pupper-v3 --checkpoint PILOT_CHECKPOINT --out artifacts/optional2/mystery-eval
+python -m mjlab.tasks.pupper_gait.bootstrap jump artifacts/optional2/mystery-eval/trace.npz artifacts/optional2/jump-reference --auto
+```
+
+`--auto` only selects an actual contact-free flight with sufficient height gain, loading and landing inside one valid uninterrupted episode. If none exists it fails explicitly. It does not label a fall or a reset as a jump. Combine a validated jump archive with the winning reach references in a new per-round directory before finetuning; preserve both manifests. The jump duration must fit the existing scheduler; a different timing requires modifying and testing that scheduler, not silently stretching the recorded motion.

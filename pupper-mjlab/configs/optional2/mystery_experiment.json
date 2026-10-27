@@ -1,0 +1,17 @@
+{
+  "track_linear_velocity": 10.0,
+  "track_yaw_velocity": 7.0,
+  "gait_tracking": 5.0,
+  "upright": 2.0,
+  "lin_vel_z_l2": -0.5,
+  "ang_vel_xy_l2": -0.1,
+  "action_rate_l2": -0.05,
+  "joint_torques_l2": -0.0005,
+  "joint_acc_l2": -0.0000001,
+  "knee_ground_contact": -2.0,
+  "roll_asymmetry": -2.0,
+  "foot_slip": -0.1,
+  "jump_up_velocity": 0.2,
+  "jump_airborne_height": 2.0,
+  "torso_clearance": -20.0
+}

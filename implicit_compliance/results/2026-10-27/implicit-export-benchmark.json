@@ -1,0 +1,11 @@
+{
+  "device": "cpu",
+  "threads": 1,
+  "batch_size": 1,
+  "samples": 100,
+  "median_ms": 0.10110391303896904,
+  "p95_ms": 0.10458497563377023,
+  "max_ms": 0.10758405551314354,
+  "scope": "this development host, not Raspberry Pi",
+  "model_bytes": 133593
+}

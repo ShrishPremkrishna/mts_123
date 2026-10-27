@@ -1,0 +1,66 @@
+{
+  "channels": [
+    "leg_front_r_1_position",
+    "leg_front_r_2_position",
+    "leg_front_r_3_position",
+    "leg_front_r_1_velocity",
+    "leg_front_r_2_velocity",
+    "leg_front_r_3_velocity",
+    "leg_front_r_1_effort",
+    "leg_front_r_2_effort",
+    "leg_front_r_3_effort"
+  ],
+  "inclines": [
+    0,
+    15,
+    30,
+    45,
+    60,
+    75
+  ],
+  "materials": [
+    "none",
+    "felt_pad",
+    "rough",
+    "slip",
+    "very_rough",
+    "foam"
+  ],
+  "window": 100,
+  "sample_hz": 1000.0,
+  "max_gap_s": 0.025,
+  "normalization": {
+    "mean": [
+      0.13399571868167692,
+      -0.16391855307826647,
+      0.10864292985103964,
+      0.014715471665561364,
+      0.016016251598001147,
+      0.007400403414237826,
+      -0.28633107582731687,
+      -0.026745647174037435,
+      -0.1658764520224518
+    ],
+    "std": [
+      0.2321684898174357,
+      0.0126601786655509,
+      0.2583777854331887,
+      0.4252345879069775,
+      0.05474095316661838,
+      0.5958574494259647,
+      0.29451752236359746,
+      0.06920969757388758,
+      0.23277137233485676
+    ],
+    "training_samples": 1558598
+  },
+  "label_rule": "latest past annotation at window end; max age 0.25s",
+  "model_sha256": "ea2523a8fbae644b74ce0c6acb6ad4df164987abc5b2a1f6e330a502ab212fd0",
+  "checkpoint_sha256": "19a8f9c0adffe64441f22e430e7a338957b6909a77b6cf833491b136a3abc504",
+  "outputs": [
+    "contact_probability",
+    "incline_probabilities",
+    "material_probabilities"
+  ],
+  "status": "trained on course dataset; hardware validation required"
+}

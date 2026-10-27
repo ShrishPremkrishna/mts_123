@@ -150,6 +150,35 @@ def save_references(out, forward, backward, report, *, limits=None, frequency_mu
     return manifest
 
 
+def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08):
+    """Select a genuine flight with loading and landing, never a reset or a fall."""
+    dt=float(trace["dt"])
+    if dt<=0: raise ValueError("Invalid trace timestep")
+    contacts=np.asarray(trace["foot_contact"],dtype=bool).sum(axis=-1)
+    candidates=[]
+    for env in range(contacts.shape[1]):
+        airborne=contacts[:,env]==0
+        edges=np.diff(np.r_[False,airborne,False].astype(int))
+        starts,ends=np.flatnonzero(edges==1),np.flatnonzero(edges==-1)
+        for flight_start,flight_end in zip(starts,ends):
+            flight=(flight_end-flight_start)*dt
+            if flight<min_flight_s: continue
+            before=int(np.ceil(pre_s/dt)); after=int(np.ceil(post_s/dt))
+            a=flight_start-before; b=flight_end+after
+            # Match the current fixed touchdown scheduler: retain a slightly
+            # longer settle rather than speed-stretching a captured motion.
+            b=max(b,a+int(np.ceil(.80/dt))+1)
+            if a<0 or b>len(contacts) or (b-a-1)*dt>=1.44: continue
+            if not np.all(trace["valid"][a:b,env]) or not np.all(trace["episode"][a:b,env]==trace["episode"][a,env]): continue
+            if np.any(trace["terminated"][a:b,env]) or contacts[a:flight_start,env].max()<2 or contacts[flight_end:b,env].max()<2: continue
+            height=float(np.max(trace["height"][flight_start:flight_end,env]))
+            rise=height-float(np.median(trace["height"][a:flight_start,env]))
+            if rise<.02: continue
+            candidates.append(dict(env=env,start=a,end=b,flight_s=flight,touchdown_s=(flight_end-a)*dt,peak_height_m=height,rise_m=rise))
+    if not candidates: raise ValueError("No clean jump with loading, flight and landing found; do not fabricate a capture")
+    return max(candidates,key=lambda c:c["rise_m"])
+
+
 def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, max_cost_regression=.2):
     """A conservative per-seed promotion rule; multiple held-out seeds remain required."""
     keys=("task", "seed", "num_envs", "seconds", "warmup", "commands", "randomized", "reset_each_command", "no_heading_hold")
@@ -200,7 +229,7 @@ def main():
     design.add_argument("--swing-lift",type=float,default=.05); design.add_argument("--swing-keyframes",type=int,default=5)
     design.add_argument("--frequency-mult",type=float,default=2.)
     jump=sub.add_parser("jump"); jump.add_argument("trace",type=Path); jump.add_argument("out",type=Path)
-    jump.add_argument("--env",type=int,default=0); jump.add_argument("--start",type=int,required=True); jump.add_argument("--end",type=int,required=True)
+    jump.add_argument("--env",type=int,default=0); jump.add_argument("--start",type=int); jump.add_argument("--end",type=int); jump.add_argument("--auto",action="store_true")
     compare=sub.add_parser("compare"); compare.add_argument("baseline",type=Path); compare.add_argument("candidate",type=Path); compare.add_argument("out",type=Path)
     args=p.parse_args()
     if args.command=="fold":
@@ -226,17 +255,27 @@ def main():
         print(json.dumps(result,indent=2))
     else:
         with np.load(args.trace,allow_pickle=False) as f: trace={k:f[k] for k in f.files}
-        a,b,e=args.start,args.end,args.env
+        selection=select_jump(trace) if args.auto else None
+        a,b,e=(selection["start"],selection["end"],selection["env"]) if selection else (args.start,args.end,args.env)
+        if a is None or b is None: raise ValueError("Provide --auto or both --start and --end")
         if a<0 or b<=a+7 or b>len(trace["joint_pos"]) or e<0 or e>=trace["joint_pos"].shape[1]: raise ValueError("Invalid jump range")
         if not np.all(trace["episode"][a:b,e]==trace["episode"][a,e]) or np.any(trace["terminated"][a:b,e]): raise ValueError("Jump capture crosses a reset/failure")
         table=trace["joint_pos"][a:b,e]
         duration=float((b-a-1)*trace["dt"])
         report=validate_reference(table,limits=robot_limits(),cycle_s=duration,periodic=False)
         # The existing jump scheduler has a 1.5 s maximum reward window.
-        if duration+.06>=1.5 or duration<=.78: raise ValueError("Course jump schedule requires 0.78 < captured duration < 1.44 seconds")
+        if duration+.06>=1.5 or duration<=.2: raise ValueError("Course jump schedule requires 0.2 < captured duration < 1.44 seconds")
+        if selection:
+            touchdown=selection["touchdown_s"]
+        else:
+            airborne=np.asarray(trace["foot_contact"])[a:b,e].sum(axis=-1)==0
+            landing=np.flatnonzero(airborne[:-1]&~airborne[1:])+1
+            if not len(landing): raise ValueError("Selected interval has no measured flight-to-contact landing")
+            touchdown=float(landing[-1]*trace["dt"])
+        if not .15<touchdown<=duration: raise ValueError("Invalid measured touchdown within capture")
         args.out.mkdir(parents=True,exist_ok=True)
-        report.update(trace_sha256=file_hash(args.trace),start_step=a,end_step=b,env=e,status="simulation candidate; first hardware run requires TA review")
-        np.savez_compressed(args.out/"captured_jump_gait.npz",jump=table,duration_s=duration,joint_names=np.asarray(JOINT_ORDER),metadata_json=np.asarray(json.dumps(report)))
+        report.update(selection=selection,touchdown_s=touchdown,trace_sha256=file_hash(args.trace),start_step=a,end_step=b,env=e,status="simulation candidate; first hardware run requires TA review")
+        np.savez_compressed(args.out/"captured_jump_gait.npz",jump=table,duration_s=duration,touchdown_s=touchdown,joint_names=np.asarray(JOINT_ORDER),metadata_json=np.asarray(json.dumps(report)))
         (args.out/"jump_report.json").write_text(json.dumps(report,indent=2)+"\n")
 
 if __name__=="__main__": main()

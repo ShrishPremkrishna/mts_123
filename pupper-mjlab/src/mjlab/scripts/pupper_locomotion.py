@@ -5,6 +5,7 @@ No command in this module connects to a robot.
 """
 from __future__ import annotations
 import argparse
+import hashlib
 from dataclasses import asdict
 import json
 import os
@@ -24,6 +25,10 @@ def provenance(args):
     result={k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()}
     try: result["git_revision"]=subprocess.check_output(["git","rev-parse","HEAD"],text=True,stderr=subprocess.DEVNULL).strip()
     except (OSError,subprocess.CalledProcessError): result["git_revision"]=None
+    package=Path(__file__).resolve().parents[1]
+    source_hashes={str(p.relative_to(package)):file_hash(p) for p in sorted(package.rglob("*")) if p.is_file() and "__pycache__" not in p.parts and p.suffix in (".py",".xml",".urdf",".yaml",".yml",".json",".csv",".npz")}
+    result["source_sha256"]=hashlib.sha256(json.dumps(source_hashes,sort_keys=True).encode()).hexdigest()
+    result["source_files_hashed"]=len(source_hashes)
     if getattr(args,"checkpoint",None): result["checkpoint_sha256"]=file_hash(args.checkpoint)
     if args.reference_dir:
         result["references"]={p.name:file_hash(p) for p in args.reference_dir.iterdir() if p.suffix in (".npz",".json")}

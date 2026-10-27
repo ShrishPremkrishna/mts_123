@@ -13,9 +13,9 @@ os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
 if not repo.exists():
     run(['git', 'clone', '--depth', '1', '--filter=blob:none', '--sparse', '--branch',
          'pupper-foundation', 'https://github.com/ShrishPremkrishna/mts_123.git', str(repo)])
-    run(['git', 'sparse-checkout', 'set', 'pupper-mjlab', 'pupper_gait_deploy', 'foundation'], repo)
 else:
     run(['git', 'pull', '--ff-only'], repo)
+run(['git', 'sparse-checkout', 'set', 'pupper-mjlab', 'pupper_gait_deploy', 'foundation', 'implicit_compliance'], repo)
 run(['git', 'rev-parse', 'HEAD'], repo)
 run(['python', '-m', 'pip', 'install', 'uv'])
 run(['uv', 'sync', '--extra', 'cu128'], repo/'pupper-mjlab')

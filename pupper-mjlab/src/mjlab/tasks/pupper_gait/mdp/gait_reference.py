@@ -46,9 +46,21 @@ def jump_capture_duration_s() -> float | None:
     return None
   with np.load(_CAPTURED_JUMP_FILE, allow_pickle=False) as capture:
     duration = float(capture["duration_s"])
-  if not np.isfinite(duration) or not 0.78 < duration < 1.44:
-    raise ValueError("Jump capture duration must fit the course scheduler (0.78 < seconds < 1.44)")
+  if not np.isfinite(duration) or not 0.2 < duration < 1.44:
+    raise ValueError("Jump capture duration must fit the course scheduler (0.2 < seconds < 1.44)")
   return duration
+
+
+def jump_capture_touchdown_s() -> float | None:
+  """Measured landing time of a capture, retaining the original legacy fallback."""
+  duration = jump_capture_duration_s()
+  if duration is None:
+    return None
+  with np.load(_CAPTURED_JUMP_FILE, allow_pickle=False) as capture:
+    touchdown = float(capture["touchdown_s"]) if "touchdown_s" in capture else 0.84
+  if not np.isfinite(touchdown) or not 0.15 < touchdown <= duration:
+    raise ValueError("Capture needs a valid measured touchdown_s before its end")
+  return touchdown
 
 
 def rotation_x(a):

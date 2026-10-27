@@ -1,0 +1,1024 @@
+{
+  "version": 1,
+  "seed": 123,
+  "group_by": "recording",
+  "channels": [
+    "leg_front_r_1_position",
+    "leg_front_r_2_position",
+    "leg_front_r_3_position",
+    "leg_front_r_1_velocity",
+    "leg_front_r_2_velocity",
+    "leg_front_r_3_velocity",
+    "leg_front_r_1_effort",
+    "leg_front_r_2_effort",
+    "leg_front_r_3_effort"
+  ],
+  "inclines": [
+    0,
+    15,
+    30,
+    45,
+    60,
+    75
+  ],
+  "materials": [
+    "none",
+    "felt_pad",
+    "rough",
+    "slip",
+    "very_rough",
+    "foam"
+  ],
+  "window": 100,
+  "stride": 50,
+  "sample_hz": 1000.0,
+  "normalization": {
+    "mean": [
+      0.13399571868167692,
+      -0.16391855307826647,
+      0.10864292985103964,
+      0.014715471665561364,
+      0.016016251598001147,
+      0.007400403414237826,
+      -0.28633107582731687,
+      -0.026745647174037435,
+      -0.1658764520224518
+    ],
+    "std": [
+      0.2321684898174357,
+      0.0126601786655509,
+      0.2583777854331887,
+      0.4252345879069775,
+      0.05474095316661838,
+      0.5958574494259647,
+      0.29451752236359746,
+      0.06920969757388758,
+      0.23277137233485676
+    ],
+    "training_samples": 1558598
+  },
+  "label_rule": "latest past annotation at window end; max age 0.25s",
+  "records": [
+    {
+      "id": "0 degrees_new/0-felt_pad",
+      "incline": 0,
+      "material": 1,
+      "split": "train",
+      "cache": "recording_000.npz",
+      "windows": 932,
+      "joint_sha256": "d045ab1a422b5a9367e1fb5439517b3bf9c69f0af4cd1dba1b3ad53a308e83f8",
+      "contact_sha256": "c2b3cdc2e3860b2370b0a06ef5abf7e617a66478e04ca17204df8bcf79c725ab"
+    },
+    {
+      "id": "0 degrees_new/0-rough",
+      "incline": 0,
+      "material": 2,
+      "split": "test",
+      "cache": "recording_001.npz",
+      "windows": 904,
+      "joint_sha256": "a43b16705dad28532f28a50f234941c532ea6ec151c4a2e946c29d57890be9af",
+      "contact_sha256": "50f8940cdb597acd127eaa0f1d8ab7f8b313670858862ae9f03f79a5edaea619"
+    },
+    {
+      "id": "0 degrees_new/0-slip",
+      "incline": 0,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_002.npz",
+      "windows": 909,
+      "joint_sha256": "39c8e0e0fbacce1e7a930eed3c53eabca0118e86edb66e49d536dd768808944f",
+      "contact_sha256": "8e98e09258d7607a6d19615cf65df36f329cb548df8b5b1b24cf751592d84956"
+    },
+    {
+      "id": "0 degrees_new/0-very_rough",
+      "incline": 0,
+      "material": 4,
+      "split": "test",
+      "cache": "recording_003.npz",
+      "windows": 1041,
+      "joint_sha256": "c0ae340b7a3f610d5ef76d98804412f07d16f1fd62c05cf4b8c107bb60d40096",
+      "contact_sha256": "97157b8e52c6a1845eb37ef72d5ea71a8821976d885eeb9ec881344abc9f4a27"
+    },
+    {
+      "id": "15 degrees/15-felt_pad",
+      "incline": 1,
+      "material": 1,
+      "split": "test",
+      "cache": "recording_004.npz",
+      "windows": 611,
+      "joint_sha256": "b790672075f4543e4613b5f6a511021c31c3ee8aafba09825e0bcf9929063ced",
+      "contact_sha256": "02d592ed169a13da0b27d98b13a1dbfb14119b51c4723f7672ac1fdb6ebf02c7"
+    },
+    {
+      "id": "15 degrees/15-rough",
+      "incline": 1,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_005.npz",
+      "windows": 451,
+      "joint_sha256": "cd0c94757e0df24da05b347b466a860e926209fed4e9a985d3285a72e9cf8cc9",
+      "contact_sha256": "ed88857a09ca5027b24f5267653270711eaed571b368badc7f316f60eafbbf94"
+    },
+    {
+      "id": "15 degrees/15-slip",
+      "incline": 1,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_006.npz",
+      "windows": 488,
+      "joint_sha256": "fbc1bb827ce7f941c7d2694dc6876765be7382d20c698e36f5e29587b71ae87a",
+      "contact_sha256": "9ee925a64aa1d0c9bcfad667e73139a3bb044fa0c926be3945270d5e2c447fd3"
+    },
+    {
+      "id": "15 degrees/15-very_rough",
+      "incline": 1,
+      "material": 4,
+      "split": "val",
+      "cache": "recording_007.npz",
+      "windows": 522,
+      "joint_sha256": "06f96117dc9467d56a6cc775087fd0ed9df9023368283ddd070be431a79fd812",
+      "contact_sha256": "563c170022ef34b0a34280acb8abf3c11f215b5724e4862e9b89c9f4761fcd9b"
+    },
+    {
+      "id": "15 degrees_new/15-felt_pad",
+      "incline": 1,
+      "material": 1,
+      "split": "train",
+      "cache": "recording_008.npz",
+      "windows": 808,
+      "joint_sha256": "1d3cb7892c1eb31082530703a718ea27a5c667cff7edaaff665b2ec0dccb826e",
+      "contact_sha256": "3539dce21acc63dd1889704c7d6da3ce9600a087aadf39617bb80bcaeb608209"
+    },
+    {
+      "id": "15 degrees_new/15-rough",
+      "incline": 1,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_009.npz",
+      "windows": 952,
+      "joint_sha256": "e403ab932a931c90a50aaa7ad72921d2f2c277b0139284d531c8c36632fc9965",
+      "contact_sha256": "3ae844e7a45da89bd6abe719305902e6e05b00250bbf527931e9b97df642d15b"
+    },
+    {
+      "id": "15 degrees_new/15-slip",
+      "incline": 1,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_010.npz",
+      "windows": 975,
+      "joint_sha256": "e1b8d31876c54bf42b4ee17fa43b2eab4cf529b6172d29f80e70dc184216fac9",
+      "contact_sha256": "7c5d33a8afa89e53c9b6e99c16dadedf97bffbf5149510537abb5cd75df95170"
+    },
+    {
+      "id": "15 degrees_new/15-very_rough",
+      "incline": 1,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_011.npz",
+      "windows": 938,
+      "joint_sha256": "47c383227e8004bd42c46d983541a460a464b59b3ed376e34c856e64a3303aed",
+      "contact_sha256": "88706e5763f5212a0b589969b27c8f93e074efe4057a682c97f96fe3c21dccf8"
+    },
+    {
+      "id": "30 degrees/30-felt_pad",
+      "incline": 2,
+      "material": 1,
+      "split": "train",
+      "cache": "recording_012.npz",
+      "windows": 505,
+      "joint_sha256": "bd6f16f63f9265cd868faedefd253b380d897a9e9e2fb6719bc96de54f15be43",
+      "contact_sha256": "61e70f86eec1282f3d16802d604b971da84cccf057a8b53a4ccbce6962fe18db"
+    },
+    {
+      "id": "30 degrees/30-rough",
+      "incline": 2,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_013.npz",
+      "windows": 533,
+      "joint_sha256": "9e558c4729caff4dc01809d1a56c36f8cc5444d8852f9873c52cfde62f8f855d",
+      "contact_sha256": "0b313e8268fe166a7c7f931ac4234a4c741aa9e60312dce97f25a7d2e058e746"
+    },
+    {
+      "id": "30 degrees/30-slip",
+      "incline": 2,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_014.npz",
+      "windows": 653,
+      "joint_sha256": "ad7622bbc4e392cca6b1671ae5305a75dc12a7ada6eecc72fac9a5cd07009c01",
+      "contact_sha256": "6246fd3d537926390f7be636f707445dfe705028de5593139bd58553b8d1e628"
+    },
+    {
+      "id": "30 degrees/30-very_rough",
+      "incline": 2,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_015.npz",
+      "windows": 526,
+      "joint_sha256": "7bb4174a9ab068892eb51f8fdac525fbfe85499e27f6525f5368dd0a4f1c8f40",
+      "contact_sha256": "89975161e8f1c18d8a418a4ccd5908df92ebcd555aafee9ba925a4c8ea41bbc7"
+    },
+    {
+      "id": "30 degrees_new/30-felt_pad",
+      "incline": 2,
+      "material": 1,
+      "split": "val",
+      "cache": "recording_016.npz",
+      "windows": 920,
+      "joint_sha256": "dd56f754a83f2f797ea527e1f29b059db3b8ece2b639b6ead7c8b4e6b8208999",
+      "contact_sha256": "7410759274746fbb7319748d65abeba54c009a397e780d4637b1506b74940552"
+    },
+    {
+      "id": "30 degrees_new/30-rough",
+      "incline": 2,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_017.npz",
+      "windows": 936,
+      "joint_sha256": "2bb4b3abae53a5ebee4346e8e8738ba9cf3073d3b103478ecaf01c3a6143d12a",
+      "contact_sha256": "55de479cb9487b5a880a1e2ddc4301f4a8a442aaef275a221728a4172c31dc34"
+    },
+    {
+      "id": "30 degrees_new/30-slip",
+      "incline": 2,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_018.npz",
+      "windows": 921,
+      "joint_sha256": "e9dcca600a9dd9eea7e01429856682a9127a48ada0278af90db9396a80fa2fc7",
+      "contact_sha256": "ceb2bae100438ce733e7164b003b6ff6d9ac0c8a83b4d466d7296f7f72ad9505"
+    },
+    {
+      "id": "30 degrees_new/30-very_rough",
+      "incline": 2,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_019.npz",
+      "windows": 900,
+      "joint_sha256": "f2611f479c454b2e9688d0cbb30473c3dc34a63eff69faada6204035dab4c339",
+      "contact_sha256": "ee8b470f077693a53d79295c7f20ba17c54523232106c826308ae52acfd2ab59"
+    },
+    {
+      "id": "45 degrees/45-felt_pad",
+      "incline": 3,
+      "material": 1,
+      "split": "train",
+      "cache": "recording_020.npz",
+      "windows": 581,
+      "joint_sha256": "b15232d219b158d889952d8f79748d1b55afe5d287fc465ebbcdcaed762bfa60",
+      "contact_sha256": "344e79c16ef2322d830f0522665ac29da8048c928c8b537ea88477018b6307fe"
+    },
+    {
+      "id": "45 degrees/45-rough",
+      "incline": 3,
+      "material": 2,
+      "split": "val",
+      "cache": "recording_021.npz",
+      "windows": 601,
+      "joint_sha256": "24fd3f706a024224e0b2ff696d47d0fcf46d0ed8002b0a8b83febb5caf68aca2",
+      "contact_sha256": "8b9dd76413e7e10144277c23e91d448d97862b6076a0c72947ff9dc05d357066"
+    },
+    {
+      "id": "45 degrees/45-slip",
+      "incline": 3,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_022.npz",
+      "windows": 479,
+      "joint_sha256": "72eb0dc0bcb242f093ec94798204d9d05ff5733ba1cdaf074598a173c0b7037b",
+      "contact_sha256": "53f46d4372aadfcf2e408e213c38f8ef3f264ab587c82c65936d38f2e466a38b"
+    },
+    {
+      "id": "45 degrees/45-very-rough",
+      "incline": 3,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_023.npz",
+      "windows": 644,
+      "joint_sha256": "71d49b6eea0ad396593d941fa38c6de7080fe640e0841d3b1d4d69c2d17b235c",
+      "contact_sha256": "465c3c87e020a34822bc3c4396fec76397fb2aa6a9aadeb29114bc7e1874e0e5"
+    },
+    {
+      "id": "45 degrees_new/45-felt_pad",
+      "incline": 3,
+      "material": 1,
+      "split": "test",
+      "cache": "recording_024.npz",
+      "windows": 909,
+      "joint_sha256": "53e1161a7cf4e0b17853e5c9d2c09bbbfb5124bfe67890cccf07f16da32cf6d7",
+      "contact_sha256": "dd231cba750ec3501f7b5eafbb60dbc14fb263019b4b9f8c7a1b3656865c701c"
+    },
+    {
+      "id": "45 degrees_new/45-rough",
+      "incline": 3,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_025.npz",
+      "windows": 934,
+      "joint_sha256": "3f1cfcce2f78626f1c05e3c4cc1abcdaa601ac2e35009a1269fa337596ec6119",
+      "contact_sha256": "5af9e3c529527d8a4837f140d91d0b4af15c4d14c62e3122aaea3f788cefd63d"
+    },
+    {
+      "id": "45 degrees_new/45-slip",
+      "incline": 3,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_026.npz",
+      "windows": 838,
+      "joint_sha256": "d932219c499c1c6a96fe284c73f0e3611eac3849445061f55e245c68894b07b1",
+      "contact_sha256": "b95a433d9c73d128b02ab6b39381ce5069df237bd2fc21d6dd313fb4ba167faf"
+    },
+    {
+      "id": "45 degrees_new/45-very_rough",
+      "incline": 3,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_027.npz",
+      "windows": 928,
+      "joint_sha256": "8ae90a230cddb961731b87aab8d909bbc03cf1cf9226aa98cf9ec0743468eef0",
+      "contact_sha256": "05c9bfc53f99d5a79774c42e5ba690dfcf2cbc4f558d044ec6fe800b0e7d4b4e"
+    },
+    {
+      "id": "60 degrees/60-felt_pad",
+      "incline": 4,
+      "material": 1,
+      "split": "val",
+      "cache": "recording_028.npz",
+      "windows": 775,
+      "joint_sha256": "5ae177228aaf675070310d24c9397d6b780e26fad1881d069d2a89a260df7593",
+      "contact_sha256": "45d87aff671b0fffb2eaf02064275e9e4a0c9d144095629177b579c644dfdf52"
+    },
+    {
+      "id": "60 degrees/60-rough",
+      "incline": 4,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_029.npz",
+      "windows": 741,
+      "joint_sha256": "2b0c7c8197fe2536d58c8cd7c2ee8d97a65c3d484f4a715d069002d79db336ca",
+      "contact_sha256": "9e19cff1d02c32801d69fd7fd81218b19d0c1f602d7f888f60db38bbb48963dc"
+    },
+    {
+      "id": "60 degrees/60-slip",
+      "incline": 4,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_030.npz",
+      "windows": 863,
+      "joint_sha256": "4c1f1aa8d82f687e5fb067474f895682e2e1854f0c9cb0ca848dfc0621125140",
+      "contact_sha256": "1af4daa0548288ca6ce54adf016a74634e6a435f4a64aed7173867fc039a62b6"
+    },
+    {
+      "id": "60 degrees/60-very_rough",
+      "incline": 4,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_031.npz",
+      "windows": 724,
+      "joint_sha256": "54d031b5115b41c4cb134a069d8327d36a2b2075104049ec401b697fe6f7b39a",
+      "contact_sha256": "4698c68e8deccf215071d10f306a9b8d328c0a6deace0f93e9f01529f56f0ca6"
+    },
+    {
+      "id": "60 degrees_new/60-felt_pad",
+      "incline": 4,
+      "material": 1,
+      "split": "test",
+      "cache": "recording_032.npz",
+      "windows": 982,
+      "joint_sha256": "5f6f1eaab429470809ef97cc5616aff836a62ce3a5a150ba5af1d9b1d5166572",
+      "contact_sha256": "166d7fdd3ccf72ef5ac66636e5d34b6e9d6f327193255c6b9c737cd58ce31b11"
+    },
+    {
+      "id": "60 degrees_new/60-rough",
+      "incline": 4,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_033.npz",
+      "windows": 921,
+      "joint_sha256": "ed1d2e5892349a9f42826f16fabc2aa8804f54c4172317ba9173d7b959db99a8",
+      "contact_sha256": "55af6ba8fbf61c70ea6bfed89d04ff03b0b45bebbd99b4bd78f590d47daddd3c"
+    },
+    {
+      "id": "60 degrees_new/60-slip",
+      "incline": 4,
+      "material": 3,
+      "split": "val",
+      "cache": "recording_034.npz",
+      "windows": 1026,
+      "joint_sha256": "20c120066d75882745db7a9868bf99097d771a64453bc47489422391f777d84f",
+      "contact_sha256": "ce59b793baabc2d33e167824190b3609a658982c63b334e2369223101e4faf8d"
+    },
+    {
+      "id": "60 degrees_new/60-very_rough",
+      "incline": 4,
+      "material": 4,
+      "split": "test",
+      "cache": "recording_035.npz",
+      "windows": 908,
+      "joint_sha256": "90e42e3fbadc16fedcb9f89e9f87d04e7979efe99c9cfd86a4261ce7302fc6f3",
+      "contact_sha256": "5b63536f5db481f34e26f8dfaf45dc2a437babe1d3a2b7351d97e8c1c396617b"
+    },
+    {
+      "id": "75 degrees/75-felt_pad",
+      "incline": 5,
+      "material": 1,
+      "split": "train",
+      "cache": "recording_036.npz",
+      "windows": 747,
+      "joint_sha256": "27d6a6ceb7ade908ab23a492d305888f6c5fd0bcc7892cf41f3b16f20638ce8a",
+      "contact_sha256": "beb646f9080b4be943b965623c0e1300223fdf9d6207a1cc42871fa815027087"
+    },
+    {
+      "id": "75 degrees/75-rough",
+      "incline": 5,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_037.npz",
+      "windows": 644,
+      "joint_sha256": "01b239dda2b9eecca3b5682c50847a4eb3a80ba281c1fd4f8d14c2bbbf901583",
+      "contact_sha256": "f3cf73b957027050293e403ff803838137b3505978b37ae7e0238b3904d2cfaa"
+    },
+    {
+      "id": "75 degrees/75-slip",
+      "incline": 5,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_038.npz",
+      "windows": 597,
+      "joint_sha256": "638032a1fb1624135889abc69aeed5e0c5791c895f040b8eb36e6c22cdff2111",
+      "contact_sha256": "63f2b359bb6a407d40064cbc3d51c0c5616f26e2a67af77d1feb3818b91354c8"
+    },
+    {
+      "id": "75 degrees/75-very_rough",
+      "incline": 5,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_039.npz",
+      "windows": 822,
+      "joint_sha256": "b67c50c3fb5d263a171127949d0d6941c3c6b351cda54510c16cd9fa6d812791",
+      "contact_sha256": "8d561d7bbf522aaafcc236b11296f2c86c0e903ed7e46fa3ede85f540b08c476"
+    },
+    {
+      "id": "75 degrees_new/75-felt_pad",
+      "incline": 5,
+      "material": 1,
+      "split": "train",
+      "cache": "recording_040.npz",
+      "windows": 895,
+      "joint_sha256": "5e721e2a45d0684d9fe8be2a8798f065a14c1849e1b4c1bba185688545601839",
+      "contact_sha256": "d4937fc0591c6e43c1f0f38c3d499b0eb848969cd8de778d7fd69105dcec7bcf"
+    },
+    {
+      "id": "75 degrees_new/75-rough",
+      "incline": 5,
+      "material": 2,
+      "split": "train",
+      "cache": "recording_041.npz",
+      "windows": 914,
+      "joint_sha256": "0662887f743c4f9bedb041abb82042fbe252f2adfd056919d884e5ef670df7fb",
+      "contact_sha256": "bf843203b6551778a4f4b1a14ee334a0460c8ad7cef27cdc85bf162c15f093b0"
+    },
+    {
+      "id": "75 degrees_new/75-slip",
+      "incline": 5,
+      "material": 3,
+      "split": "train",
+      "cache": "recording_042.npz",
+      "windows": 942,
+      "joint_sha256": "4120c15aeb2bfcefcd65d82702d046d0ea0b96e953740a882a4d2ccf44eb4b74",
+      "contact_sha256": "773339f6278a236c364673bc77184220becfead46fa50bfc8e06fef04d42aea1"
+    },
+    {
+      "id": "75 degrees_new/75-very_rough",
+      "incline": 5,
+      "material": 4,
+      "split": "train",
+      "cache": "recording_043.npz",
+      "windows": 999,
+      "joint_sha256": "d723b54418f6c384b4992bc74905b40ed389f1df7539a4ddcfeff9bf7a507a7f",
+      "contact_sha256": "4d711828d4eaf025811524df6ab5d13b0610efd39db13e6f7183fd5fe6b553e1"
+    },
+    {
+      "id": "None/0_None",
+      "incline": 0,
+      "material": 0,
+      "split": "train",
+      "cache": "recording_044.npz",
+      "windows": 431,
+      "joint_sha256": "6cfda90949d2b06cb1255f307502a0dd32bc2c93d73ae9f207efc24b0712ad59",
+      "contact_sha256": "3cb8935ab16e1d78191c64f8a3ac05bd04ade9c2e7ad15ae375db2830890a527"
+    },
+    {
+      "id": "None/15_None",
+      "incline": 1,
+      "material": 0,
+      "split": "val",
+      "cache": "recording_045.npz",
+      "windows": 440,
+      "joint_sha256": "4c1ae7812496b7db2a4621687b5e570a7eaa539c0dcd7f44c7c1485a445fea0f",
+      "contact_sha256": "0d5ade23dd1154e21b2d4f78830fa9d6833dc30b3fb06e364edf27c933758a3d"
+    },
+    {
+      "id": "None/30_None",
+      "incline": 2,
+      "material": 0,
+      "split": "val",
+      "cache": "recording_046.npz",
+      "windows": 476,
+      "joint_sha256": "2f3535246ea43028e1d4ec2ec2b7491056235092a0a86fe96d43282da114d7b9",
+      "contact_sha256": "e2ee6117820e19c438b80d27612a93d13ee992011e28fb8116448643f0492736"
+    },
+    {
+      "id": "None/45_None",
+      "incline": 3,
+      "material": 0,
+      "split": "train",
+      "cache": "recording_047.npz",
+      "windows": 559,
+      "joint_sha256": "0bc7b9625b4730d40d91a67b2c746e552ca693de5f37f43590479aa541e80280",
+      "contact_sha256": "5dae000b348e68ef270844074c8f24d80c8c9ce7dcb1f53be3449ac8bc00b7e3"
+    },
+    {
+      "id": "None/60_None",
+      "incline": 4,
+      "material": 0,
+      "split": "val",
+      "cache": "recording_048.npz",
+      "windows": 634,
+      "joint_sha256": "7a14be3957960d70e2ff8fe29de18a8a94117e2e93fc52f6170683cec4584c8a",
+      "contact_sha256": "1905dec75bb99fc56cb94529513381a49d1c9312aa8b7e0c17b3da77510ad0d7"
+    },
+    {
+      "id": "None/75_None",
+      "incline": 5,
+      "material": 0,
+      "split": "train",
+      "cache": "recording_049.npz",
+      "windows": 704,
+      "joint_sha256": "e8bc819a579e574ec3fcbda83aab16dff32897082d5f2cfdb89afb09b33a478e",
+      "contact_sha256": "f06756775819e36e8f700b64380cdd015248da9ac82a0d279127c7f7e90b2f32"
+    },
+    {
+      "id": "foam/0 degrees",
+      "incline": 0,
+      "material": 5,
+      "split": "train",
+      "cache": "recording_050.npz",
+      "windows": 894,
+      "joint_sha256": "1681e77147bb9dccb011499e507ad40e27871281eb81f00520946774777c199d",
+      "contact_sha256": "f914cc09d99ab36a4e4e31d54269c5303d19838a8e25e16bd6b51811f082b009"
+    },
+    {
+      "id": "foam/15 degrees",
+      "incline": 1,
+      "material": 5,
+      "split": "test",
+      "cache": "recording_051.npz",
+      "windows": 1033,
+      "joint_sha256": "ef8efd8a24e29dcefd0148cafe9a22db9b7440cc391458ce328bf1adcb48ef03",
+      "contact_sha256": "971eec3a22cb53fff6375cd448340e0c969f8798b498c81ed8e05711baf5c129"
+    },
+    {
+      "id": "foam/30 degrees",
+      "incline": 2,
+      "material": 5,
+      "split": "train",
+      "cache": "recording_052.npz",
+      "windows": 883,
+      "joint_sha256": "c0e5e093e093304a0db069a2c91f90024038f143a6e9d064952d6503566fbe73",
+      "contact_sha256": "7b8bae3aa96e6092088b373a13961156d18d987f4f1ae27d955d8ea059372b81"
+    },
+    {
+      "id": "foam/45 degrees",
+      "incline": 3,
+      "material": 5,
+      "split": "train",
+      "cache": "recording_053.npz",
+      "windows": 929,
+      "joint_sha256": "ec6066e3a47e94b8e6d6c0ffff4f92fecd5d77ba514ecafb33a7ce58c62bf14c",
+      "contact_sha256": "38b36ad0a9294874b41de67f97f0568f5c7aacfbea738c1fac870907b931dd36"
+    },
+    {
+      "id": "foam/60 degrees",
+      "incline": 4,
+      "material": 5,
+      "split": "train",
+      "cache": "recording_054.npz",
+      "windows": 993,
+      "joint_sha256": "237385dba11037db25d0f65e48f3d0b8be9da602e1764b573252a87166d387b6",
+      "contact_sha256": "464e474b71f51454a5fc17bbf5c5b512c3d26fd57ab1c4eb6344579c7c37275d"
+    },
+    {
+      "id": "foam/75 degrees",
+      "incline": 5,
+      "material": 5,
+      "split": "test",
+      "cache": "recording_055.npz",
+      "windows": 881,
+      "joint_sha256": "61e0c3e7095d7aaf00c4c5620c445043c0462c493e6ad16f8d574b24c24ec282",
+      "contact_sha256": "29a2938b7f7ad336219a37d2dda3369deed04bf9e33d9cbf7000e07114f7bdd9"
+    }
+  ],
+  "image_filter_audit": {
+    "0 degrees_new/0-felt_pad": {
+      "images": 141,
+      "reference_positive": 0,
+      "annotated_positive": 61,
+      "comparable": 141,
+      "disagreements": 61
+    },
+    "0 degrees_new/0-rough": {
+      "images": 139,
+      "reference_positive": 37,
+      "annotated_positive": 98,
+      "comparable": 139,
+      "disagreements": 61
+    },
+    "0 degrees_new/0-slip": {
+      "images": 137,
+      "reference_positive": 43,
+      "annotated_positive": 107,
+      "comparable": 137,
+      "disagreements": 64
+    },
+    "0 degrees_new/0-very_rough": {
+      "images": 158,
+      "reference_positive": 44,
+      "annotated_positive": 103,
+      "comparable": 158,
+      "disagreements": 59
+    },
+    "15 degrees/15-felt_pad": {
+      "images": 92,
+      "reference_positive": 0,
+      "annotated_positive": 40,
+      "comparable": 91,
+      "disagreements": 40
+    },
+    "15 degrees/15-rough": {
+      "images": 68,
+      "reference_positive": 0,
+      "annotated_positive": 36,
+      "comparable": 68,
+      "disagreements": 36
+    },
+    "15 degrees/15-slip": {
+      "images": 74,
+      "reference_positive": 0,
+      "annotated_positive": 34,
+      "comparable": 73,
+      "disagreements": 34
+    },
+    "15 degrees/15-very_rough": {
+      "images": 78,
+      "reference_positive": 0,
+      "annotated_positive": 39,
+      "comparable": 78,
+      "disagreements": 39
+    },
+    "15 degrees_new/15-felt_pad": {
+      "images": 121,
+      "reference_positive": 0,
+      "annotated_positive": 72,
+      "comparable": 121,
+      "disagreements": 72
+    },
+    "15 degrees_new/15-rough": {
+      "images": 143,
+      "reference_positive": 0,
+      "annotated_positive": 65,
+      "comparable": 143,
+      "disagreements": 65
+    },
+    "15 degrees_new/15-slip": {
+      "images": 147,
+      "reference_positive": 0,
+      "annotated_positive": 75,
+      "comparable": 147,
+      "disagreements": 75
+    },
+    "15 degrees_new/15-very_rough": {
+      "images": 141,
+      "reference_positive": 0,
+      "annotated_positive": 63,
+      "comparable": 141,
+      "disagreements": 63
+    },
+    "30 degrees/30-felt_pad": {
+      "images": 79,
+      "reference_positive": 0,
+      "annotated_positive": 35,
+      "comparable": 79,
+      "disagreements": 35
+    },
+    "30 degrees/30-rough": {
+      "images": 84,
+      "reference_positive": 0,
+      "annotated_positive": 36,
+      "comparable": 84,
+      "disagreements": 36
+    },
+    "30 degrees/30-slip": {
+      "images": 98,
+      "reference_positive": 0,
+      "annotated_positive": 41,
+      "comparable": 98,
+      "disagreements": 41
+    },
+    "30 degrees/30-very_rough": {
+      "images": 79,
+      "reference_positive": 0,
+      "annotated_positive": 41,
+      "comparable": 79,
+      "disagreements": 41
+    },
+    "30 degrees_new/30-felt_pad": {
+      "images": 139,
+      "reference_positive": 0,
+      "annotated_positive": 64,
+      "comparable": 139,
+      "disagreements": 64
+    },
+    "30 degrees_new/30-rough": {
+      "images": 141,
+      "reference_positive": 8,
+      "annotated_positive": 76,
+      "comparable": 141,
+      "disagreements": 68
+    },
+    "30 degrees_new/30-slip": {
+      "images": 139,
+      "reference_positive": 3,
+      "annotated_positive": 76,
+      "comparable": 139,
+      "disagreements": 73
+    },
+    "30 degrees_new/30-very_rough": {
+      "images": 139,
+      "reference_positive": 8,
+      "annotated_positive": 73,
+      "comparable": 139,
+      "disagreements": 65
+    },
+    "45 degrees/45-felt_pad": {
+      "images": 91,
+      "reference_positive": 0,
+      "annotated_positive": 39,
+      "comparable": 91,
+      "disagreements": 39
+    },
+    "45 degrees/45-rough": {
+      "images": 91,
+      "reference_positive": 3,
+      "annotated_positive": 39,
+      "comparable": 91,
+      "disagreements": 36
+    },
+    "45 degrees/45-slip": {
+      "images": 73,
+      "reference_positive": 1,
+      "annotated_positive": 29,
+      "comparable": 73,
+      "disagreements": 28
+    },
+    "45 degrees/45-very-rough": {
+      "images": 97,
+      "reference_positive": 1,
+      "annotated_positive": 42,
+      "comparable": 97,
+      "disagreements": 41
+    },
+    "45 degrees_new/45-felt_pad": {
+      "images": 137,
+      "reference_positive": 6,
+      "annotated_positive": 66,
+      "comparable": 137,
+      "disagreements": 60
+    },
+    "45 degrees_new/45-rough": {
+      "images": 141,
+      "reference_positive": 5,
+      "annotated_positive": 73,
+      "comparable": 141,
+      "disagreements": 68
+    },
+    "45 degrees_new/45-slip": {
+      "images": 128,
+      "reference_positive": 9,
+      "annotated_positive": 71,
+      "comparable": 128,
+      "disagreements": 62
+    },
+    "45 degrees_new/45-very_rough": {
+      "images": 140,
+      "reference_positive": 8,
+      "annotated_positive": 70,
+      "comparable": 140,
+      "disagreements": 62
+    },
+    "60 degrees/60-felt_pad": {
+      "images": 118,
+      "reference_positive": 0,
+      "annotated_positive": 44,
+      "comparable": 117,
+      "disagreements": 44
+    },
+    "60 degrees/60-rough": {
+      "images": 112,
+      "reference_positive": 0,
+      "annotated_positive": 44,
+      "comparable": 112,
+      "disagreements": 44
+    },
+    "60 degrees/60-slip": {
+      "images": 131,
+      "reference_positive": 0,
+      "annotated_positive": 51,
+      "comparable": 131,
+      "disagreements": 51
+    },
+    "60 degrees/60-very_rough": {
+      "images": 112,
+      "reference_positive": 0,
+      "annotated_positive": 49,
+      "comparable": 109,
+      "disagreements": 49
+    },
+    "60 degrees_new/60-felt_pad": {
+      "images": 151,
+      "reference_positive": 44,
+      "annotated_positive": 92,
+      "comparable": 151,
+      "disagreements": 48
+    },
+    "60 degrees_new/60-rough": {
+      "images": 139,
+      "reference_positive": 0,
+      "annotated_positive": 60,
+      "comparable": 139,
+      "disagreements": 60
+    },
+    "60 degrees_new/60-slip": {
+      "images": 155,
+      "reference_positive": 6,
+      "annotated_positive": 84,
+      "comparable": 155,
+      "disagreements": 78
+    },
+    "60 degrees_new/60-very_rough": {
+      "images": 139,
+      "reference_positive": 0,
+      "annotated_positive": 53,
+      "comparable": 137,
+      "disagreements": 53
+    },
+    "75 degrees/75-felt_pad": {
+      "images": 112,
+      "reference_positive": 0,
+      "annotated_positive": 47,
+      "comparable": 112,
+      "disagreements": 47
+    },
+    "75 degrees/75-rough": {
+      "images": 97,
+      "reference_positive": 0,
+      "annotated_positive": 44,
+      "comparable": 97,
+      "disagreements": 44
+    },
+    "75 degrees/75-slip": {
+      "images": 92,
+      "reference_positive": 0,
+      "annotated_positive": 46,
+      "comparable": 92,
+      "disagreements": 46
+    },
+    "75 degrees/75-very_rough": {
+      "images": 123,
+      "reference_positive": 0,
+      "annotated_positive": 55,
+      "comparable": 123,
+      "disagreements": 55
+    },
+    "75 degrees_new/75-felt_pad": {
+      "images": 136,
+      "reference_positive": 0,
+      "annotated_positive": 59,
+      "comparable": 135,
+      "disagreements": 59
+    },
+    "75 degrees_new/75-rough": {
+      "images": 137,
+      "reference_positive": 0,
+      "annotated_positive": 70,
+      "comparable": 137,
+      "disagreements": 70
+    },
+    "75 degrees_new/75-slip": {
+      "images": 142,
+      "reference_positive": 0,
+      "annotated_positive": 72,
+      "comparable": 142,
+      "disagreements": 72
+    },
+    "75 degrees_new/75-very_rough": {
+      "images": 151,
+      "reference_positive": 0,
+      "annotated_positive": 67,
+      "comparable": 151,
+      "disagreements": 67
+    },
+    "None/0_None": {
+      "images": 65,
+      "reference_positive": 0,
+      "annotated_positive": 36,
+      "comparable": 65,
+      "disagreements": 36
+    },
+    "None/15_None": {
+      "images": 67,
+      "reference_positive": 0,
+      "annotated_positive": 35,
+      "comparable": 66,
+      "disagreements": 35
+    },
+    "None/30_None": {
+      "images": 71,
+      "reference_positive": 0,
+      "annotated_positive": 34,
+      "comparable": 71,
+      "disagreements": 34
+    },
+    "None/45_None": {
+      "images": 84,
+      "reference_positive": 2,
+      "annotated_positive": 37,
+      "comparable": 84,
+      "disagreements": 35
+    },
+    "None/60_None": {
+      "images": 97,
+      "reference_positive": 2,
+      "annotated_positive": 48,
+      "comparable": 97,
+      "disagreements": 46
+    },
+    "None/75_None": {
+      "images": 106,
+      "reference_positive": 1,
+      "annotated_positive": 52,
+      "comparable": 106,
+      "disagreements": 51
+    },
+    "foam/0 degrees": {
+      "images": 135,
+      "reference_positive": 0,
+      "annotated_positive": 80,
+      "comparable": 135,
+      "disagreements": 80
+    },
+    "foam/15 degrees": {
+      "images": 156,
+      "reference_positive": 46,
+      "annotated_positive": 111,
+      "comparable": 156,
+      "disagreements": 65
+    },
+    "foam/30 degrees": {
+      "images": 134,
+      "reference_positive": 0,
+      "annotated_positive": 79,
+      "comparable": 134,
+      "disagreements": 79
+    },
+    "foam/45 degrees": {
+      "images": 140,
+      "reference_positive": 0,
+      "annotated_positive": 59,
+      "comparable": 140,
+      "disagreements": 59
+    },
+    "foam/60 degrees": {
+      "images": 150,
+      "reference_positive": 0,
+      "annotated_positive": 67,
+      "comparable": 150,
+      "disagreements": 67
+    },
+    "foam/75 degrees": {
+      "images": 134,
+      "reference_positive": 1,
+      "annotated_positive": 76,
+      "comparable": 133,
+      "disagreements": 75
+    }
+  },
+  "implicit_manifest_sha256": "ca82b21caa89d160d6790d9530d5063554b9d9fc84bdad96060d92cce07e0156",
+  "explicit_image_counts": {
+    "train": 2289,
+    "val": 387,
+    "test": 639
+  },
+  "source_provenance": "Course ZIP saved in course library on2026-10-27. First local run began from uncommitted implementation; model/training operators unchanged while reporting/export code developed. Future committed reruns are the canonical reproduction."
+}

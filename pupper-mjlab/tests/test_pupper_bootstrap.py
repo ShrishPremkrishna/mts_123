@@ -79,3 +79,17 @@ def test_promotion_rejects_faster_failing_policy():
     assert not b.compare_evaluations(baseline,candidate)['promotable_for_this_seed']
     candidate['provenance']['seed']=2
     with pytest.raises(ValueError): b.compare_evaluations(baseline,candidate)
+
+
+def test_jump_selection_requires_flight_and_landing_in_same_episode():
+    t=trace(cycles=3); n,e=t['phase'].shape
+    t.update(dt=np.asarray(.02),foot_contact=np.ones((n,e,4),bool),height=np.ones((n,e))*.15,
+             terminated=np.zeros((n,e),bool))
+    with pytest.raises(ValueError): b.select_jump(t)
+    t['foot_contact'][40:50]=False
+    t['height'][40:50]=.25
+    selected=b.select_jump(t)
+    assert selected['start']<40 and selected['end']>50
+    assert selected['flight_s']==pytest.approx(.2)
+    t['terminated'][49]=True
+    with pytest.raises(ValueError): b.select_jump(t)

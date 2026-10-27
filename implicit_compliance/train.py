@@ -5,6 +5,7 @@ import copy
 import json
 import random
 import subprocess
+import shutil
 import time
 from pathlib import Path
 import numpy as np
@@ -175,6 +176,11 @@ def fit(args):
                 args={k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},
                 limited_smoke_data=args.max_samples is not None,
                 preprocessing={k:manifest[k] for k in ("channels","inclines","materials","window","sample_hz","max_gap_s","normalization","label_rule")})
+    source=out/"source"; source.mkdir()
+    meta["source_sha256"]={}
+    for file in sorted(Path(__file__).parent.glob("*.py")):
+        shutil.copy2(file,source/file.name)
+        meta["source_sha256"][file.name]=sha256(file)
     (out/"run.json").write_text(json.dumps(meta,indent=2)+"\n")
     best = -float("inf")
     history = []
@@ -183,7 +189,7 @@ def fit(args):
         model.train()
         weight = 1. - .9*(epoch-1)/max(1,args.epochs-1)
         total_loss, seen = 0., 0
-        for x,y in train_loader:
+        for batch_number,(x,y) in enumerate(train_loader,1):
             x,y = x.to(device),y.to(device)
             output = model(x)
             losses = task_losses(output,y,args.kind,weight)
@@ -193,6 +199,7 @@ def fit(args):
             else:
                 optimizer.zero_grad(set_to_none=True); value.backward(); optimizer.step()
             total_loss += float(value.detach())*len(x); seen += len(x)
+            if batch_number % 25 == 0: print(f"epoch {epoch}/{args.epochs}, batch {batch_number}/{len(train_loader)}, loss {total_loss/seen:.4f}",flush=True)
         metrics = evaluate(model,val_loader,device,args.kind)
         score = np.mean([m["balanced_accuracy"] for m in metrics.values() if m["balanced_accuracy"] is not None])
         row = dict(epoch=epoch,train_loss=total_loss/seen,validation=metrics,selection_score=float(score),elapsed_s=time.monotonic()-start)
