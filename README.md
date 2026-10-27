@@ -17,6 +17,7 @@ Supporting repos (not weekly labs):
 - `pupper-gait-tuner/` — gait tuning tool
 - `UniMate/` — UniMate motion generation
 - `ros2_cheats_sheet/` — ROS 2 reference
+- `pupperv3-monorepo/` — Pupper v3 full monorepo (ROS 2 workspace, infra, recordings)
 
 ## Adding a new lab
 
