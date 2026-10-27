@@ -14,6 +14,9 @@ leg's keyframe ordering, so a single global phase indexes all four legs.
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import json
+import hashlib
 
 import numpy as np
 
@@ -23,37 +26,29 @@ from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import (
   get_spec,
 )
 
-# Captured fast gaits: the reach ("fast forward") and reach_back ("fast
-# backward") references are no longer IK-generated -- they are the emergent
-# gaits a trained MixedGaits policy (run al7sdood, +-1.5 m/s commands,
-# velocity-dominant reward) actually performed at +1.5 and -1.5 m/s, recorded
-# phase-locked to the reference clock (cycle-to-cycle dispersion < 6 mrad).
-# Each left/right leg pair is mirror-averaged (all three joints, one shared
-# phase shift) before shipping: the raw capture's worst asymmetry was the
-# leg roll -- motor 2, the joint that moves the foot in/out -- with pair sums
-# of 0.44-0.68 rad sustained, i.e. one leg tucked in while its partner
-# splayed out. Regenerate with the capture script recorded in the npz's
-# metadata fields whenever a better fast policy exists.
-_CAPTURED_GAITS_FILE = Path(__file__).with_name("captured_reach_gaits.npz")
+# Optional Lab 2 accepts student-produced fast forward/backward captures. The
+# public course source does not ship them: without an archive those slots fall
+# back to trot. Keep a separate directory/manifest for every bootstrap round.
+# An isolated per-experiment directory prevents one bootstrap round from silently
+# changing another round's reference. Set before importing the task registry.
+_REFERENCE_DIR = Path(os.environ.get("PUPPER_REFERENCE_DIR", Path(__file__).parent)).resolve()
+_CAPTURED_GAITS_FILE = _REFERENCE_DIR / "captured_reach_gaits.npz"
 _CAPTURED_KEYS = {"reach": "reach_fwd", "reach_back": "reach_back"}
 
-# Captured jump: the emergent countermovement of run zuy6c85c (trained on the
-# IK pronk + drive shaping below), captured from the loading dip through the
-# landing, left/right mirror-averaged (1.58 rad of asymmetry removed) and
-# loop-closed onto its own starting crouch. One-shot, not periodic: row 0 is
-# the near-stance hold pose, one playback is one jump, and the wrap
-# interpolation lands the final settle back on row 0. When this file exists
-# the jump task trains against it (at 1/duration_s for its clock, phase
-# starting at 0) instead of the shaped IK pronk; delete or rename the file to
-# fall back. Regenerate with the capture script recorded in its provenance.
-_CAPTURED_JUMP_FILE = Path(__file__).with_name("captured_jump_gait.npz")
+# Optional Lab 2's jump slot accepts a one-shot captured motion, indexed in
+# chronological order. Supplying a file is not proof that it is robot-ready.
+_CAPTURED_JUMP_FILE = _REFERENCE_DIR / "captured_jump_gait.npz"
 
 
 def jump_capture_duration_s() -> float | None:
   """Playback duration of the captured jump [s], or None without a capture."""
   if not _CAPTURED_JUMP_FILE.exists():
     return None
-  return float(np.load(_CAPTURED_JUMP_FILE)["duration_s"])
+  with np.load(_CAPTURED_JUMP_FILE, allow_pickle=False) as capture:
+    duration = float(capture["duration_s"])
+  if not np.isfinite(duration) or not 0.78 < duration < 1.44:
+    raise ValueError("Jump capture duration must fit the course scheduler (0.78 < seconds < 1.44)")
+  return duration
 
 
 def rotation_x(a):
@@ -200,6 +195,18 @@ _GAIT_SWING_LIFT: dict[str, float | None] = {
 # Phase-clock multiplier per gait, relative to the base cadence; empty = 1x
 # for everything. A faster reference usually wants a quicker cycle.
 _GAIT_FREQ_MULT: dict[str, float] = {}
+_REFERENCE_MANIFEST = _REFERENCE_DIR / "reference_manifest.json"
+if _REFERENCE_MANIFEST.exists():
+  _manifest = json.loads(_REFERENCE_MANIFEST.read_text())
+  if not _CAPTURED_GAITS_FILE.exists():
+    raise ValueError("Reference manifest exists without captured_reach_gaits.npz")
+  if hashlib.sha256(_CAPTURED_GAITS_FILE.read_bytes()).hexdigest() != _manifest["reference_sha256"]:
+    raise ValueError("Captured gait checksum differs from its reference manifest")
+  _mult = float(_manifest["frequency_mult"])
+  if not np.isfinite(_mult) or _mult <= 0:
+    raise ValueError("Invalid reference frequency multiplier")
+  _GAIT_FREQ_MULT["reach"] = _mult
+  _GAIT_FREQ_MULT["reach_back"] = _mult
 
 
 # =============================================================================
@@ -227,16 +234,17 @@ _GAIT_FREQ_MULT: dict[str, float] = {}
 #   * Stance depth and swing lift: the trot's values hold the body at standing
 #     height and clear the terrain. Any reason to change them here?
 #
-# Replace each None with a real value. StableGait refuses to build until you
+# Foundation: restored the exact lift values from Shrish's Lab 4 run 4hkyvuxh.
+# The original exercise asked to replace each None. StableGait refuses to build until you
 # do, and the lift tests in tests/test_pupper_gait_export.py un-skip to check
 # that your gait deploys. Look at it before you train with it:
 #
 #   uv run python -m mjlab.tasks.pupper_gait.visualize_reference --gait lift
 # =============================================================================
-_GAIT_TOUCHDOWN["lift"] = None  # (FR, FL, BR, LB) touchdown phases in [0, 1)
-_GAIT_STRIDE["lift"] = None  # fore-aft half-stride [m]
-_GAIT_STANCE_Z["lift"] = None  # foot depth below the hip during stance [m]
-_GAIT_SWING_LIFT["lift"] = None  # foot rise above the stance plane in swing [m]
+_GAIT_TOUCHDOWN["lift"] = (0.0, 0.5, 0.5, 0.0)  # (FR, FL, BR, LB) touchdown phases in [0, 1)
+_GAIT_STRIDE["lift"] = 0.0  # fore-aft half-stride [m]
+_GAIT_STANCE_Z["lift"] = -0.14  # foot depth below the hip during stance [m]
+_GAIT_SWING_LIFT["lift"] = 0.09  # foot rise above the stance plane in swing [m]
 
 
 # Spider: a trot in place, low and splayed (the SpiderWalk task). Not a foot-space
@@ -346,6 +354,17 @@ def _ik_single_leg(target_ee, leg_index, initial_guess):
 _TABLE_CACHE: dict[tuple[int, str], np.ndarray] = {}
 
 
+
+def _validate_capture(table: np.ndarray, name: str) -> np.ndarray:
+  """Fail visibly on corrupt, wrong-order or out-of-limit student captures."""
+  if table.ndim != 2 or table.shape[1] != 12 or len(table) < 8 or not np.isfinite(table).all():
+    raise ValueError(f"Invalid {name} reference: require finite (N >= 8, 12) angles")
+  model = get_spec().compile()
+  limits = np.array([model.joint(n).range for n in JOINT_NAMES])
+  if np.any(table < limits[:, 0] - 1e-6) or np.any(table > limits[:, 1] + 1e-6):
+    raise ValueError(f"{name} reference exceeds robot joint limits; repair the capture")
+  return np.asarray(table, dtype=np.float64)
+
 def _clamp_to_joint_limits(table: np.ndarray) -> np.ndarray:
   model = get_spec().compile()
   limits = np.array([model.joint(n).range for n in JOINT_NAMES])
@@ -359,11 +378,16 @@ def build_joint_reference_table(n_samples: int = 100, gait: str = "trot") -> np.
   it lands at its touchdown phase), then the per-leg hip offset (and, for the
   gallop, the fore-aft spread) is added before IK.
   """
+  if n_samples < 2:
+    raise ValueError("At least two reference samples required")
   key = (n_samples, gait)
   if key in _TABLE_CACHE:
     return _TABLE_CACHE[key]
   if gait == "jump" and _CAPTURED_JUMP_FILE.exists():
-    src = np.load(_CAPTURED_JUMP_FILE)["jump"]
+    with np.load(_CAPTURED_JUMP_FILE, allow_pickle=False) as capture:
+      if "joint_names" in capture and tuple(capture["joint_names"]) != JOINT_NAMES:
+        raise ValueError("Jump capture joint order differs from robot order")
+      src = _validate_capture(capture["jump"], "jump")
     if len(src) != n_samples:
       # Non-periodic resample: the jump is one-shot, so the endpoints are the
       # hold pose and the landed settle -- both preserved, no wrap.
@@ -378,7 +402,10 @@ def build_joint_reference_table(n_samples: int = 100, gait: str = "trot") -> np.
     _TABLE_CACHE[key] = table
     return table
   if gait in _CAPTURED_KEYS and _CAPTURED_GAITS_FILE.exists():
-    src = np.load(_CAPTURED_GAITS_FILE)[_CAPTURED_KEYS[gait]]
+    with np.load(_CAPTURED_GAITS_FILE, allow_pickle=False) as capture:
+      if "joint_names" in capture and tuple(capture["joint_names"]) != JOINT_NAMES:
+        raise ValueError("Captured gait joint order differs from robot order")
+      src = _validate_capture(capture[_CAPTURED_KEYS[gait]], gait)
     if len(src) != n_samples:
       # Periodic linear resample onto the requested grid.
       xp = np.arange(len(src) + 1) / len(src)

@@ -94,6 +94,55 @@ def prepare(output: Path) -> dict[str, Path]:
   return paths
 
 
+def prepare_stress(profile: str, output: Path, idle_seconds: float = 15.0) -> Path:
+  """One continuous held-out sequence; do not use --loops to simulate endurance,
+  because the course MotionCommand teleports the robot at whole-file wraparound."""
+  from mjlab.tasks.tracking.config.pupper import motion_design as md
+  from mjlab.tasks.tracking.config.pupper.motion_ops import hold
+  from mjlab.tasks.tracking.config.pupper.tricks import sit_stay_shake, spider
+
+  if profile not in ("sit_stay_shake", "spider_clips"):
+    raise ValueError("stress references are defined for sit_stay_shake and spider_clips")
+  module = sit_stay_shake if profile == "sit_stay_shake" else spider
+  clips = module.clips()
+  for clip in clips:
+    if clip.loop:
+      clip.motion = hold(clip.motion, 0, idle_seconds)
+  order = (["sit_down", "sit_idle", "shake_right", "sit_idle", "shake_left",
+            "shake_right", "sit_idle", "shake_left", "sit_idle", "stand_up"]
+           if profile == "sit_stay_shake" else ["spider_down", "spider_idle", "spider_idle", "spider_up"])
+  library = md.concat_clips(clips, order=order)
+  output.mkdir(parents=True, exist_ok=True)
+  path = library.save_npz(output / f"{profile}_stress.npz")
+  write_json(path.with_suffix(".json"), {
+    "purpose": "held-out continuous long-idle/repeated-action reference; never use as the training file",
+    "order": order, "idle_seconds": idle_seconds, "geometry_report": library.report,
+    "motion_sha256": sha256(path), "source": source_manifest(),
+  })
+  return path
+
+
+def check_generated_motion(path: Path) -> None:
+  """Recheck the file itself instead of trusting a mutable sidecar's pass flag."""
+  import numpy as np
+  from mjlab.tasks.tracking.config.pupper import motion_design as md
+  from mjlab.tasks.tracking.config.pupper.unimate.repair import geometry_issues
+
+  with np.load(path, allow_pickle=False) as data:
+    names = list(data["body_names"])
+    base = names.index("base_link")
+    motion = md.Motion(
+      fps=float(data["fps"][0]), root_pos=data["body_pos_w"][:, base].copy(),
+      root_quat=data["body_quat_w"][:, base].copy(), joint_pos=data["joint_pos"].copy(),
+    )
+    for key in ("joint_vel", "body_lin_vel_w", "body_ang_vel_w"):
+      if not np.isfinite(data[key]).all():
+        raise ValueError(f"non-finite {key} in generated motion")
+  issues = geometry_issues(motion)
+  if issues:
+    raise ValueError("Generated motion failed geometry validation: " + "; ".join(issues))
+
+
 def train(args: argparse.Namespace) -> Path:
   # run_train uses CUDA_VISIBLE_DEVICES to choose the device. An explicitly
   # disabled GPU must fail, not silently start 4096 CPU environments.
@@ -115,6 +164,8 @@ def train(args: argparse.Namespace) -> Path:
     raise ValueError("Provide --motion with the inspected, cleaned generated-motion NPZ")
   if motion_path is not None and not motion_path.is_file():
     raise FileNotFoundError(motion_path)
+  if profile.get("requires_motion"):
+    check_generated_motion(motion_path)
   cfg = load_env_cfg(profile["task"])
   agent = load_rl_cfg(profile["task"])
   cfg.scene.num_envs = args.num_envs or profile["num_envs"]
@@ -181,8 +232,14 @@ def train(args: argparse.Namespace) -> Path:
       if wandb.run is not None:
         manifest["wandb_run"] = f"{wandb.run.entity}/{wandb.run.project}/{wandb.run.id}"
         write_json(run_dir / "foundation-run.json", manifest)
-        wandb.save(str(run_dir / "foundation-run.json"), base_path=str(run_dir), policy="now")
-        wandb.finish(exit_code=0 if manifest["state"] == "trained_unvalidated" else 1)
+        try:
+          wandb.save(str(run_dir / "foundation-run.json"), base_path=str(run_dir), policy="now")
+          wandb.finish(exit_code=0 if manifest["state"] == "trained_unvalidated" else 1)
+        except Exception as upload_error:
+          # Keep the original training failure (if any) and the local artifact.
+          manifest["provenance_upload_error"] = str(upload_error)
+          write_json(run_dir / "foundation-run.json", manifest)
+          print(f"[WARN] Manifest kept locally; W&B finalization failed: {upload_error}")
   return run_dir
 
 
@@ -203,6 +260,14 @@ def score(args: argparse.Namespace) -> None:
              mass_scale=mass, com_x=x, com_y=y, seed=seed, randomize=randomized,
              report_file=report_file)
       reports.append(json.loads(report_file.read_text()))
+  if args.stress_profile:
+    stress = prepare_stress(args.stress_profile, args.output)
+    stress_report = args.output / "continuous-stress.json"
+    replay(stress, checkpoint=args.checkpoint.resolve(), loops=1,
+           seed=args.seeds[0], report_file=stress_report)
+    result = json.loads(stress_report.read_text())
+    result["purpose"] = "continuous held-out long-idle/repeated-action sequence"
+    reports.append(result)
   write_json(args.output / "evaluation.json", {
     "state": "simulation_evaluated", "approved_for_hardware": False,
     "checkpoint_sha256": sha256(args.checkpoint), "motion_sha256": sha256(args.motion),
@@ -234,6 +299,7 @@ def main() -> None:
   evaluate.add_argument("--output", type=Path, required=True)
   evaluate.add_argument("--loops", type=int, default=1)
   evaluate.add_argument("--suite", action="store_true")
+  evaluate.add_argument("--stress-profile", choices=("sit_stay_shake", "spider_clips"))
   evaluate.add_argument("--seeds", nargs="+", type=int, default=[101, 202, 303])
   args = parser.parse_args()
   for name in ("num_envs", "iterations", "loops"):

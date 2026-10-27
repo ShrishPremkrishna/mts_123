@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Literal
 
 import torch
+import numpy as np
 import tyro
 
 import mjlab
@@ -152,22 +153,49 @@ def main(
     return
 
   wrapped.reset()
+  # env.reset() computes commands with dt=0, but the motion command advances its
+  # frame even then. Restore frame zero so a single-file score cannot include an
+  # accidental final teleport that erases its last physical state.
+  cmd.reset_to_frame(torch.arange(env.num_envs, device=device), 0)
+  env.scene.write_data_to_sim()
+  env.sim.forward()
+  env.sim.sense()
+  cmd.update_relative_body_poses()
   obs = wrapped.get_observations()
   worst_pos, worst_tilt, fell_at, wobble_at = 0.0, 0.0, None, None
   timeline = []
   samples = []
+  reference_resets = 0
+  previous_frame = int(cmd.time_steps[0])
   for step in range(n_frames * loops - 1):
     with torch.inference_mode():
       obs, *_ = wrapped.step(policy(obs))
     pos_err = float(torch.linalg.norm(cmd.robot_anchor_pos_w - cmd.anchor_pos_w))
     # angle between the robot's and the reference's body orientation
     dot = float(torch.abs((cmd.robot_anchor_quat_w * cmd.anchor_quat_w).sum()))
+    if not math.isfinite(dot):
+      env.close()
+      raise RuntimeError("non-finite orientation in motion evaluation")
     tilt = math.degrees(2 * math.acos(min(1.0, dot)))
     if not math.isfinite(pos_err) or not math.isfinite(tilt):
       env.close()
       raise RuntimeError("non-finite state in motion evaluation")
-    samples.append({"time_s": (step + 1) * dt, "position_error_m": pos_err,
-                    "orientation_error_deg": tilt})
+    frame = int(cmd.time_steps[0])
+    reference_resets += int(frame < previous_frame)
+    previous_frame = frame
+    joint_error = cmd.robot_joint_pos - cmd.joint_pos
+    body_error = torch.linalg.vector_norm(cmd.robot_body_pos_w - cmd.body_pos_w, dim=-1)
+    sample = {"time_s": (step + 1) * dt, "reference_frame": frame,
+              "position_error_m": pos_err, "orientation_error_deg": tilt,
+              "joint_error_rms_rad": float(torch.sqrt(torch.mean(joint_error ** 2))),
+              "joint_error_max_rad": float(torch.abs(joint_error).max()),
+              "tracked_body_error_max_m": float(body_error.max()),
+              "joint_speed_max_rad_s": float(torch.abs(cmd.robot_joint_vel).max()),
+              "motor_torque_max_nm": float(torch.abs(robot.data.qfrc_actuator).max())}
+    if not all(math.isfinite(value) for value in sample.values()):
+      env.close()
+      raise RuntimeError("non-finite joint/body metrics in motion evaluation")
+    samples.append(sample)
     worst_pos, worst_tilt = max(worst_pos, pos_err), max(worst_tilt, tilt)
     if (step + 1) % int(round(0.5 / dt)) == 0:
       timeline.append(f"{(step + 1) * dt:4.1f}s {pos_err * 100:5.1f}cm {tilt:5.1f}deg")
@@ -189,6 +217,8 @@ def main(
     print("   ", line)
   print(f"worst body position error   {worst_pos * 100:.1f} cm")
   print(f"worst body orientation error {worst_tilt:.1f} deg")
+  if reference_resets:
+    print(f"reference resets {reference_resets}: whole-file wraps teleport the robot; this is not continuous endurance")
   train = (
     "uv run train Mjlab-Tracking-Flat-Pupper-v3 "
     f"--env.commands.motion.motion-file {motion_file}"
@@ -213,11 +243,24 @@ def main(
       "seed": seed, "randomize_dynamics": randomize,
       "mass_scale": mass_scale, "com_offset_m": [com_x, com_y, com_z],
       "loops": loops, "frames": n_frames,
+      "reference_resets": reference_resets,
       "verdict": "FALLS" if fell_at is not None else "WOBBLES" if wobble_at is not None else "HOLDS UP",
       "worst_position_error_m": worst_pos, "worst_orientation_error_deg": worst_tilt,
+      "mean_position_error_m": float(np.mean([s["position_error_m"] for s in samples])),
+      "rms_position_error_m": float(np.sqrt(np.mean([s["position_error_m"] ** 2 for s in samples]))),
+      "p95_position_error_m": float(np.percentile([s["position_error_m"] for s in samples], 95)),
+      "mean_orientation_error_deg": float(np.mean([s["orientation_error_deg"] for s in samples])),
+      "p95_orientation_error_deg": float(np.percentile([s["orientation_error_deg"] for s in samples], 95)),
+      "rms_joint_error_rad": float(np.sqrt(np.mean([s["joint_error_rms_rad"] ** 2 for s in samples]))),
+      "worst_joint_error_rad": max(s["joint_error_max_rad"] for s in samples),
+      "worst_tracked_body_error_m": max(s["tracked_body_error_max_m"] for s in samples),
+      "peak_joint_speed_rad_s": max(s["joint_speed_max_rad_s"] for s in samples),
+      "peak_motor_torque_nm": max(s["motor_torque_max_nm"] for s in samples),
+      "failure_criteria": (["position_tracking"] if worst_pos > FALL_POS_M else [])
+                          + (["orientation_tracking"] if worst_tilt > FALL_TILT_DEG else []),
       "fell_at_s": fell_at, "wobble_at_s": wobble_at,
       "approved_for_hardware": False,
-      "scope": "Physics reference tracking; randomized mode varies dynamics, not external pushes",
+      "scope": "Course verdict uses root tracking thresholds, not a physical fall detector; joint/body/effort metrics are reported separately. Randomized mode varies dynamics, not external pushes.",
       "samples": samples,
     }
     report_file.parent.mkdir(parents=True, exist_ok=True)
