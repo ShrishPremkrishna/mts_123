@@ -255,3 +255,24 @@ contains the recorded robot state and aligned reference at every physics control
 step, so video rendering can be retried without rerunning or altering the rollout.
 Rendering streams batches to the video encoder rather than retaining the entire
 video in memory.
+
+### Restored tracking body contacts
+
+The course tracking task constructs nine torso and leg collision hulls, but the
+inherited walking collision filter disables them when the final environment is
+built. Historical runs therefore used **legacy hulls disabled**. Their network
+parity and clip geometry still apply; their simulation scores do not validate
+body support or clearance.
+
+Use `--tracking-ground-hulls` on every new tracking `train` and `score` command,
+alongside `--deployment-target-clamp`. For `generated_trick` from scratch also use
+`--compose-com-randomization`. The hull option restores the original intended
+0/1 masks without changing mass, inertia or geometry; hulls contact terrain and
+non-adjacent active knee/foot balls, but do not contact each other. Run identities
+and manifests distinguish this physical contract from legacy reproduction.
+
+The evaluator records masks from the **compiled environment**, body-ground
+contacts, and approximate penetration of sampled collision-mesh vertices.
+The latter is a diagnostic, not an exact convex-hull clearance certificate.
+A policy trained with disabled hulls must be evaluated and, where needed,
+continued under corrected contacts before being considered a foundation candidate.

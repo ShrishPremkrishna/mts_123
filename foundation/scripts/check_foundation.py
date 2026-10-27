@@ -41,7 +41,8 @@ def main():
                  'test_pupper_unimate.py','test_unimate_repair.py','test_unimate_worker.py',
                  'test_unimate_candidates.py','test_foundation_evaluation.py','test_pupper_export.py',
                  'test_pupper_gait_export.py','test_pupper_latency.py','test_pupper_bootstrap.py',
-                 'test_deployment_target_clamp.py','test_pupper_randomization_contract.py']
+                 'test_deployment_target_clamp.py','test_pupper_randomization_contract.py',
+                 'test_foundation_training_contract.py','test_tracking_ground_hulls.py']
     checks += [('motion_export', [python,'-m','pytest',*[f'pupper-mjlab/tests/{name}' for name in numerical],'-q','-p','no:cacheprovider']),
                ('controller_cpp', ['bash','pupper_gait_deploy/test/run_host_test.sh'])]
     revision = subprocess.run(['git','rev-parse','HEAD'],cwd=root,text=True,capture_output=True,check=False)

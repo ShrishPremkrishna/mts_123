@@ -66,6 +66,7 @@ def main(
   report_file: Path | None = None,
   video_file: Path | None = None,
   deployment_target_clamp: bool = False,
+  tracking_ground_hulls: bool = False,
 ) -> None:
   """mass_scale scales every link's mass and inertia (1.3: 30% heavier, like a
   payload); com_x, com_y, com_z move the torso's center of mass (x forward,
@@ -86,6 +87,10 @@ def main(
     raise ValueError("choose training randomization OR fixed mass/COM offsets")
   device = "cuda:0" if torch.cuda.is_available() else "cpu"
   cfg = pupper_tracking_env_cfg(motion_file=str(motion_file.resolve()), play=True)
+  collision_contract = {"contract": "legacy_inherited_collision_config"}
+  if tracking_ground_hulls:
+    from mjlab.tasks.tracking.config.pupper.contact_contract import enable_tracking_ground_hulls
+    collision_contract = enable_tracking_ground_hulls(cfg)
   cfg.seed = seed
   cfg.scene.num_envs = 1
   if deployment_target_clamp:
@@ -96,7 +101,11 @@ def main(
       mode="geom", pattern=r"^leg_(front|back)_(r|l)_3_collision$", entity="robot"),
     secondary=ContactMatch(mode="body", pattern="terrain"),
     fields=("found", "force"), reduce="netforce", num_slots=1,
-  ),)
+  ), ContactSensorCfg(
+    name="score_hull_ground", primary=ContactMatch(mode="geom", pattern=r".*_hull$", entity="robot"),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found", "force"), reduce="netforce", num_slots=1,
+  ))
   cfg.terminations = {}  # watch the whole motion even if it goes wrong
   # The nominal robot, not a random draw of the training randomization: same
   # verdict every run. Only the mass/inertia scale is applied (exactly).
@@ -121,6 +130,15 @@ def main(
     actuator.stiffness, actuator.damping = REPLAY_KP, REPLAY_KD
   env = ManagerBasedRlEnv(cfg=cfg, device=device)
   robot = env.scene["robot"]
+  import mujoco
+  from mjlab.tasks.tracking.config.pupper import motion_design as md
+  collision_geometry = []
+  for index in range(env.sim.mj_model.ngeom):
+    name = mujoco.mj_id2name(env.sim.mj_model, mujoco.mjtObj.mjOBJ_GEOM, index) or ""
+    if name.endswith(("_hull", "_collision")) or name == "terrain":
+      collision_geometry.append({"name": name, "contype": int(env.sim.mj_model.geom_contype[index]),
+                                 "conaffinity": int(env.sim.mj_model.geom_conaffinity[index])})
+  geometry = md.kinematics()
   base_id = robot.indexing.root_body_id
   default_com = env.sim.get_default_field("body_ipos")
   default_com = default_com[0, base_id] if "body_ipos" in env.sim.per_world_default_fields else default_com[base_id]
@@ -214,6 +232,8 @@ def main(
     previous_frame = frame
     joint_error = cmd.robot_joint_pos - cmd.joint_pos
     body_error = torch.linalg.vector_norm(cmd.robot_body_pos_w - cmd.body_pos_w, dim=-1)
+    geometry.set_state(cmd.robot_anchor_pos_w[0].cpu().numpy(),
+                       cmd.robot_anchor_quat_w[0].cpu().numpy(), cmd.robot_joint_pos[0].cpu().numpy())
     sample = {"time_s": (step + 1) * dt, "reference_frame": frame,
               "position_error_m": pos_err, "orientation_error_deg": tilt,
               "joint_error_rms_rad": float(torch.sqrt(torch.mean(joint_error ** 2))),
@@ -224,6 +244,8 @@ def main(
               "body_tilt_from_upright_deg": math.degrees(math.acos(float(torch.clamp(
                 -robot.data.projected_gravity_b[0, 2], -1, 1)))),
               "foot_contact_count": int((env.scene["score_foot_ground"].data.found > 0).sum()),
+              "body_hulls_with_ground_contact": int((env.scene["score_hull_ground"].data.found > 0).sum()),
+              "lowest_sampled_hull_vertex_m": geometry.lowest_body_point(),
               "root_height_m": float(robot.data.root_link_pos_w[0, 2]),
               "reference_root_height_m": float(cmd.anchor_pos_w[0, 2]),
               **{f"position_error_{axis}_m": float((cmd.robot_anchor_pos_w - cmd.anchor_pos_w)[0, i])
@@ -294,6 +316,9 @@ def main(
       "peak_joint_speed_rad_s": max(s["joint_speed_max_rad_s"] for s in samples),
       "peak_motor_torque_nm": max(s["motor_torque_max_nm"] for s in samples),
       "deployment_target_clamp": deployment_target_clamp,
+      "collision_contract": collision_contract, "collision_geometry": collision_geometry,
+      "peak_sampled_hull_vertex_penetration_m": max(0.0, -min(s["lowest_sampled_hull_vertex_m"] for s in samples)),
+      "fraction_frames_with_body_ground_contact": float(np.mean([s["body_hulls_with_ground_contact"] > 0 for s in samples])),
       "fraction_steps_requesting_target_outside_limits": float(np.mean([s["target_limit_violation_max_rad"] > 1e-6 for s in samples])),
       "mean_joint_target_violation_fraction": float(np.mean([s["target_limit_violation_fraction"] for s in samples])),
       "max_requested_target_violation_rad": max(s["target_limit_violation_max_rad"] for s in samples),

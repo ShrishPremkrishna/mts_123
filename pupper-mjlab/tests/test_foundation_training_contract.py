@@ -11,8 +11,8 @@ from mjlab.scripts import train as training
 from mjlab.tasks.registry import load_env_cfg
 
 
-@pytest.mark.parametrize("clamp,compose", [(False, False), (True, False), (True, True)])
-def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, monkeypatch, clamp, compose):
+@pytest.mark.parametrize("clamp,compose,hulls", [(False, False, False), (True, False, False), (True, True, False), (True, True, True)])
+def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, monkeypatch, clamp, compose, hulls):
   monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
   monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
   monkeypatch.setattr(torch.cuda, "get_device_name", lambda device: "mocked launcher test, no GPU")
@@ -29,7 +29,7 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
     (run_dir / "policy.json").write_text("{}")
   monkeypatch.setattr(training, "run_train", fake_train)
   args = argparse.Namespace(profile="spider_clips", motion=motion, output=tmp_path / "run",
-                            deployment_target_clamp=clamp, compose_com_randomization=compose,
+                            deployment_target_clamp=clamp, compose_com_randomization=compose, tracking_ground_hulls=hulls,
                             num_envs=64, iterations=1000, seed=42, logger="tensorboard", project="test",
                             initial_checkpoint=checkpoint, resume_run=None, resume_checkpoint=None)
   run = foundation.train(args)
@@ -41,6 +41,7 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
   assert agent.resume and agent.max_iterations == 1000
   assert agent.load_checkpoint == "initial_checkpoint\\.pt$"
   assert (cfg.actions["joint_pos"].clip is not None) == clamp
+  assert cfg.scene.entities["robot"].collisions[0].disable_other_geoms != hulls
   order = list(cfg.events)
   assert order.index("base_com") < order.index("inertial")
   if compose:
@@ -51,6 +52,7 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
   assert report["motion_sha256"] == foundation.sha256(motion)
   assert ("_deployclamp_" in run.name) == clamp
   assert ("_composedcom_" in run.name) == compose
+  assert ("_groundhulls_" in run.name) == hulls
   assert not report["approved_for_hardware"]
   default = load_env_cfg("Mjlab-Tracking-Flat-Pupper-v3")
   assert default.actions["joint_pos"].clip is None

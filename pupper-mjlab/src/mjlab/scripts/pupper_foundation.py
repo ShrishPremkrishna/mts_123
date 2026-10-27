@@ -179,6 +179,11 @@ def train(args: argparse.Namespace) -> Path:
   if compose_com:
     from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
     com_contract = compose_pupper_com_randomization(cfg)
+  ground_hulls = getattr(args, "tracking_ground_hulls", False)
+  collision_contract = {"contract": "legacy_inherited_collision_config"}
+  if ground_hulls:
+    from mjlab.tasks.tracking.config.pupper.contact_contract import enable_tracking_ground_hulls
+    collision_contract = enable_tracking_ground_hulls(cfg)
   cfg.scene.num_envs = args.num_envs or profile["num_envs"]
   agent.max_iterations = args.iterations or profile["iterations"]
   agent.seed = args.seed
@@ -199,6 +204,7 @@ def train(args: argparse.Namespace) -> Path:
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
   contract_suffix = "_deployclamp" if deploy_clamp else "_legacytargets"
   contract_suffix += "_composedcom" if compose_com else "_legacycom"
+  contract_suffix += "_groundhulls" if ground_hulls else "_legacyhulls"
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -227,6 +233,7 @@ def train(args: argparse.Namespace) -> Path:
     "state": "running", "created_utc": stamp, "profile": args.profile,
     "profile_config": profile, "seed": args.seed,
     "actuation_contract": contract, "com_randomization_contract": com_contract,
+    "collision_contract": collision_contract,
     "num_envs": cfg.scene.num_envs, "iterations": agent.max_iterations,
     "resume_run": args.resume_run, "resume_checkpoint": args.resume_checkpoint,
     "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
@@ -285,14 +292,16 @@ def score(args: argparse.Namespace) -> None:
       report_file = args.output / f"{label}-s{seed}.json"
       replay(args.motion.resolve(), checkpoint=args.checkpoint.resolve(), loops=args.loops,
              mass_scale=mass, com_x=x, com_y=y, seed=seed, randomize=randomized,
-             report_file=report_file, deployment_target_clamp=getattr(args, "deployment_target_clamp", False))
+             report_file=report_file, deployment_target_clamp=getattr(args, "deployment_target_clamp", False),
+             tracking_ground_hulls=getattr(args, "tracking_ground_hulls", False))
       reports.append(json.loads(report_file.read_text()))
   if args.stress_profile:
     stress = prepare_stress(args.stress_profile, args.output)
     stress_report = args.output / "continuous-stress.json"
     replay(stress, checkpoint=args.checkpoint.resolve(), loops=1,
            seed=args.seeds[0], report_file=stress_report,
-           deployment_target_clamp=getattr(args, "deployment_target_clamp", False))
+           deployment_target_clamp=getattr(args, "deployment_target_clamp", False),
+             tracking_ground_hulls=getattr(args, "tracking_ground_hulls", False))
     result = json.loads(stress_report.read_text())
     result["purpose"] = "continuous held-out long-idle/repeated-action sequence"
     reports.append(result)
@@ -301,6 +310,7 @@ def score(args: argparse.Namespace) -> None:
     "state": "simulation_evaluated", "approved_for_hardware": False,
     "checkpoint_sha256": sha256(args.checkpoint), "motion_sha256": sha256(args.motion),
     "deployment_target_clamp": getattr(args, "deployment_target_clamp", False),
+    "tracking_ground_hulls": getattr(args, "tracking_ground_hulls", False),
     "source": evaluation_source, "source_after": final_source,
     "source_changed_during_evaluation": evaluation_source["source_sha256"] != final_source["source_sha256"],
     "reports": reports,
@@ -328,6 +338,7 @@ def main() -> None:
   launch.add_argument("--initial-checkpoint", type=Path, help="Exact local checkpoint for a separate finetune run; the original is retained")
   launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
+  launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")
   evaluate = sub.add_parser("score")
   evaluate.add_argument("--motion", type=Path, required=True)
   evaluate.add_argument("--checkpoint", type=Path, required=True)
@@ -335,6 +346,7 @@ def main() -> None:
   evaluate.add_argument("--loops", type=int, default=1)
   evaluate.add_argument("--suite", action="store_true")
   evaluate.add_argument("--deployment-target-clamp", action="store_true")
+  evaluate.add_argument("--tracking-ground-hulls", action="store_true")
   evaluate.add_argument("--stress-profile", choices=("sit_stay_shake", "spider_clips"))
   evaluate.add_argument("--seeds", nargs="+", type=int, default=[101, 202, 303])
   args = parser.parse_args()

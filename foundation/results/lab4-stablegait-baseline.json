@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-10-27",
+  "run_id": "4hkyvuxh",
+  "task": "Mjlab-StableGait-Flat-Pupper-v3",
+  "state": "recovered_checkpoint_compatible_and_short_seeded_play_smoke_passed",
+  "artifact_location": "artifacts/recovered-policies/4hkyvuxh (ignored local artifacts; weights not embedded in this report)",
+  "artifact_sha256": {
+    "model_2999.pt": "9a8681877d503fa1155cccade10151c2d9c8ad15edb040cec4be4a30bf16db06",
+    "policy.json": "e897f150d1b7242ada9e85fe30a7dff1ca1c4db10c70358573334cd2a96b7732",
+    "config.yaml": "f484469d40a7e5bfa3a26f5a0ad0b72d742d3864cca764f84b18741917d4b9f9",
+    "compatibility-audit.json": "bcd81c0a787b7a14d0219619021aa9e445024f532e695ecc31c37d25d01a835d",
+    "current-source-smoke/metrics.json": "4caf057863caa766487f76d069ba735585bc0912400fa8dd2daa8538b6608937",
+    "current-source-smoke/trace.npz": "9b161c4482973b99c886f37208068883f36b316ad2766ee2c32c35eb7d068ca0",
+    "current-source-smoke/env.yaml": "b205134301406a81b1eee27484b983d51f13a930cf0edad03faf2bc5d8d7d783",
+    "current-source-smoke/torque-saturation.json": "6a7ee8f4652e634841d0aced6d7c35ee6f4909c4411c440952a534564a0327a4"
+  },
+  "source": {
+    "original_course_revision": "9cfcb148c6514d70ceb9851b98897d2b9e68079b",
+    "compatibility_review_revision": "01fe17a4d408f7b49f4d25808cc692b1fea04cf0",
+    "rollout_revision": "19bc2889ab2561f22129b451b85c00aa703f0d4f",
+    "exact_working_tree_hashes_recorded_for_rollout": false,
+    "limitation": "Source was in the active shared worktree; Git revision alone does not certify every uncommitted file. Exact exported reference tables and actor observation configuration were independently compared."
+  },
+  "compatibility": {
+    "checkpoint_iteration": 2999,
+    "checked_inputs": 512,
+    "normalizer_epsilon": 0.01,
+    "checkpoint_vs_json_max_error": 3.048022151961108e-06,
+    "folded_normalization_weight_max_error": 7.830193204938496e-07,
+    "network_parity_passed": true,
+    "actor_observation_config_equal": true,
+    "decimation_old_current": [
+      5,
+      5
+    ],
+    "timestep_old_current": [
+      0.004,
+      0.004
+    ],
+    "strict_actor_load_passed": true,
+    "metadata_comparison": {
+      "contract_version": true,
+      "use_imu": true,
+      "control_orientation": true,
+      "observation_history": true,
+      "single_observation_size": true,
+      "obs_spec": true,
+      "action_scale": true,
+      "kp": true,
+      "kd": true,
+      "default_joint_pos": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "joint_upper_limits": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "joint_lower_limits": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "in_shape": true,
+      "command_clip": true,
+      "gait_reference.clamp_lower": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "gait_reference.clamp_upper": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "gait_reference.n_samples": true,
+      "gait_reference.frequency": true,
+      "gait_reference.blend_speed": true,
+      "gait_reference.gallop_speed": true,
+      "gait_reference.gallop_freq_mult": true,
+      "gait_reference.dir_threshold": true,
+      "gait_reference.reference_index": true,
+      "gait_reference.joint_names": true,
+      "gait_reference.trot_table": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "gait_reference.gallop_table": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "gait_reference.lift_table": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "gait_reference.gallop_back_table": {
+        "shape_equal": true,
+        "max_error": 0.0
+      },
+      "heading_hold": true
+    },
+    "live_rollout_checkpoint_vs_saved_json_max_error": 2.7937749802475764e-06,
+    "actuator_config_audit": {
+      "original": [
+        {
+          "stiffness": 5.5,
+          "damping": 0.25,
+          "delay_min_lag": 4,
+          "delay_max_lag": 4,
+          "velocity_limit_sim": null,
+          "effort_limit_sim": null
+        }
+      ],
+      "current": [
+        {
+          "stiffness": 5.5,
+          "damping": 0.25,
+          "delay_min_lag": 4,
+          "delay_max_lag": 4,
+          "velocity_limit_sim": null,
+          "effort_limit_sim": null
+        }
+      ]
+    },
+    "training_resume_validated": false,
+    "hardware_robustness_validated": false
+  },
+  "rollout_protocol": {
+    "seed": 42,
+    "device": "cpu",
+    "num_envs": 1,
+    "seconds": 3.0,
+    "warmup": 1.0,
+    "commands": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.3,
+        0,
+        0
+      ],
+      [
+        -0.3,
+        0,
+        0
+      ],
+      [
+        0,
+        0.2,
+        0
+      ],
+      [
+        0,
+        0,
+        0.5
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "randomized": false,
+    "reset_each_command": false,
+    "no_heading_hold": false,
+    "zero_policy": false
+  },
+  "rollout_metrics": [
+    {
+      "segment": 0,
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 100,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 3.0,
+      "mean_xy_error_m_s": 0.0068215719482939115,
+      "rms_xy_error_m_s": 0.007798354602289651,
+      "mean_abs_yaw_error_rad_s": 0.022691261047584704,
+      "mean_achieved_vx_m_s": 0.0010159640805795789,
+      "mean_torque_squared_nm2": 0.08603744953870773,
+      "peak_abs_torque_nm": 0.9949629306793213,
+      "mean_contact_slip_m_s": 0.007954641245305538,
+      "max_abs_heading_drift_rad": 0.0001074075698852539
+    },
+    {
+      "segment": 1,
+      "command": [
+        0.3,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 100,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 3.0,
+      "mean_xy_error_m_s": 0.051472565048891576,
+      "rms_xy_error_m_s": 0.05822185883798243,
+      "mean_abs_yaw_error_rad_s": 0.12124006546102464,
+      "mean_achieved_vx_m_s": 0.2721848785877228,
+      "mean_torque_squared_nm2": 0.5805279016494751,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.14480029046535492,
+      "max_abs_heading_drift_rad": 0.010166525840759277
+    },
+    {
+      "segment": 2,
+      "command": [
+        -0.3,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 100,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 3.0,
+      "mean_xy_error_m_s": 0.03813155982812045,
+      "rms_xy_error_m_s": 0.04806094198054427,
+      "mean_abs_yaw_error_rad_s": 0.11953483710065484,
+      "mean_achieved_vx_m_s": -0.2831132113933563,
+      "mean_torque_squared_nm2": 0.7407177686691284,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.16553910076618195,
+      "max_abs_heading_drift_rad": 0.029154419898986816
+    },
+    {
+      "segment": 3,
+      "command": [
+        0.0,
+        0.2,
+        0.0
+      ],
+      "valid_samples": 100,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 3.0,
+      "mean_xy_error_m_s": 0.05091494002755044,
+      "rms_xy_error_m_s": 0.055263273468999154,
+      "mean_abs_yaw_error_rad_s": 0.1396768825314939,
+      "mean_achieved_vx_m_s": -0.008551147766411304,
+      "mean_torque_squared_nm2": 0.6031449437141418,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.19242550432682037,
+      "max_abs_heading_drift_rad": 0.041960835456848145
+    },
+    {
+      "segment": 4,
+      "command": [
+        0.0,
+        0.0,
+        0.5
+      ],
+      "valid_samples": 100,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 3.0,
+      "mean_xy_error_m_s": 0.03317433620876888,
+      "rms_xy_error_m_s": 0.036522319272035746,
+      "mean_abs_yaw_error_rad_s": 0.09924654960632324,
+      "mean_achieved_vx_m_s": -0.010857478715479374,
+      "mean_torque_squared_nm2": 0.45576608180999756,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.10042478889226913,
+      "max_abs_heading_drift_rad": null
+    },
+    {
+      "segment": 5,
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 100,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 3.0,
+      "mean_xy_error_m_s": 0.00598108269985215,
+      "rms_xy_error_m_s": 0.007188309163305859,
+      "mean_abs_yaw_error_rad_s": 0.029911051586968825,
+      "mean_achieved_vx_m_s": -0.00020694923296105117,
+      "mean_torque_squared_nm2": 0.08712100982666016,
+      "peak_abs_torque_nm": 1.084540605545044,
+      "mean_contact_slip_m_s": 0.007405687589198351,
+      "max_abs_heading_drift_rad": 0.0005578994750976562
+    }
+  ],
+  "torque_saturation": {
+    "threshold_nm": 2.99,
+    "limit_nm": 3.0,
+    "segments": [
+      {
+        "segment": 0,
+        "valid_control_steps": 100,
+        "fraction_steps_any_motor_at_3nm": 0.0
+      },
+      {
+        "segment": 1,
+        "valid_control_steps": 100,
+        "fraction_steps_any_motor_at_3nm": 0.08
+      },
+      {
+        "segment": 2,
+        "valid_control_steps": 100,
+        "fraction_steps_any_motor_at_3nm": 0.07
+      },
+      {
+        "segment": 3,
+        "valid_control_steps": 100,
+        "fraction_steps_any_motor_at_3nm": 0.03
+      },
+      {
+        "segment": 4,
+        "valid_control_steps": 100,
+        "fraction_steps_any_motor_at_3nm": 0.03
+      },
+      {
+        "segment": 5,
+        "valid_control_steps": 100,
+        "fraction_steps_any_motor_at_3nm": 0.0
+      }
+    ],
+    "scope": "One short CPU smoke in the seeded default play configuration; not motor heating or a hardware measurement."
+  },
+  "interpretation": [
+    "No termination or timeout occurred during this single 18-second seeded default-play simulation.",
+    "At +0.3/-0.3 m/s requested speed, mean achieved forward velocity was +0.272/-0.283 m/s in the scored intervals.",
+    "Modeled torque saturation and contact slip motivate controlled reward/reference comparisons; this does not establish that retraining improves the policy.",
+    "This smoke does not establish a maximum speed, robustness to perturbations, thermal performance, or readiness for hardware."
+  ],
+  "remaining_validation": [
+    "Longer multiseed nominal and randomized command grids with matched evaluation for alternatives.",
+    "Continuous transitions and zero-command settling.",
+    "Export parity for each newly trained artifact.",
+    "Supervised hardware checks and course-required approval before new physical tricks."
+  ],
+  "reproduction_command": "python -m mjlab.scripts.pupper_locomotion evaluate --task Mjlab-StableGait-Flat-Pupper-v3 --checkpoint ../artifacts/recovered-policies/4hkyvuxh/model_2999.pt --out ../artifacts/recovered-policies/4hkyvuxh/current-source-smoke-rerun --commands ../artifacts/recovered-policies/4hkyvuxh/current-source-smoke-commands.json --num-envs 1 --seconds 3 --warmup 1 --seed 42 --device cpu",
+  "reproduction_cwd": "pupper-mjlab",
+  "approved_for_hardware": false,
+  "default_play_randomization_note": "The provided locomotion play=True configuration retains startup friction, encoder-bias, PD-gain and inertial randomization plus actor observation noise. These are seeded default-play tests, not an unperturbed nominal model. The same task and seed are paired; realized randomization values were not saved in these older rollouts."
+}

@@ -1,0 +1,71 @@
+{
+  "created_utc": "2026-10-27T23:16:11.877097+00:00",
+  "state": "confirmed_course_tracking_collision_filter_defect_with_tested_opt_in_fix",
+  "approved_for_hardware": false,
+  "defect": {
+    "constructor": "get_spec_with_hulls creates nine body hulls with contype=0/conaffinity=1",
+    "later_filter": "Inherited PUPPER_COLLISION has disable_other_geoms=True; Entity construction zeroes all nine hulls to0/0",
+    "legacy_effect": "Bodies can pass into the floor despite a low orientation error; original Lab6 policies trained with those hulls disabled."
+  },
+  "correction": {
+    "flag": "--tracking-ground-hulls",
+    "contract": "tracking_ground_hulls_v1",
+    "behavior": "Retain all existing collision config fields except disable_other_geoms=False, then explicitly restore nine hull masks0/1; retain eight knee/foot balls1/1 and visual geoms0/0.",
+    "scope": "Hulls contact terrain and non-adjacent active knee/foot balls; hull-hull contacts remain disabled.",
+    "unchanged": "Body mass/inertia, geom positions and mesh vertices; independent actual Entity probe found exact equality and total mass3.17kg."
+  },
+  "regression_evidence": {
+    "tests": "pupper-mjlab/tests/test_tracking_ground_hulls.py",
+    "passed": 2,
+    "actual_environment": "ManagerBasedRlEnv with final Entity filtering applied; legacy nine hull masks0/0 versus corrected0/1.",
+    "actual_contact_test": "Place root at0.02m with Spider joint pose; forward actual compiled MuJoCo model. Base hull/terrain contacts occur only with corrected masks.",
+    "independent_probe": "Second reviewer built actual Entity, added1/1 ground, root at0.025m with default joints: legacy0 hull contacts, corrected27 hull contacts including3 torso/ground contacts.",
+    "supporting_launcher_evaluator_tests_passed": 14
+  },
+  "source_files_sha256": {
+    "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+    "pupper-mjlab/tests/test_tracking_ground_hulls.py": "2e3e1a5abd8cfe8800c527e3f90a4adcee7c6aa153f6e8d31260fd36ddb92acf",
+    "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/play_motion.py": "0f0840795a7fee514127917650e438f708167c8baad4431750a8839254957134"
+  },
+  "legacy_spider_video_geometry": {
+    "trajectory": "artifacts/lab6/spider_clips/physics-deployment-clamp.trajectory.npz",
+    "trajectory_sha256": "6f75c83200abe5f25bd8f6c4abba46f6db955d9787e9f134b0b4817fd189f07b",
+    "sampled_hull_vertex_lowest_m_at_5_6_seconds": -0.025160755208886124,
+    "sampled_hull_vertex_lowest_m_at_idle_8_5_seconds": -0.010073477304022305,
+    "limitation": "Collision hull diagnostic samples mesh vertices; it is not an exact penetration or convex-hull certificate."
+  },
+  "original_checkpoint_corrected_nominal": {
+    "sit_stay_shake": {
+      "report_sha256": "f028845a64a3330c2963b9080c15d404d493a17a0f4b34e2898ef0cbfa106219",
+      "seed": 101,
+      "verdict": "WOBBLES",
+      "worst_position_error_m": 0.030565105378627777,
+      "worst_orientation_error_deg": 3.5420088013630324,
+      "peak_body_tilt_from_upright_deg": 38.09589773891945,
+      "peak_motor_torque_nm": 1.8835192918777466,
+      "minimum_root_height_m": 0.12262582778930664,
+      "reference_resets": 0,
+      "wobble_at_s": 15.06,
+      "fell_at_s": null
+    },
+    "spider_clips": {
+      "report_sha256": "65a7ddc8b67d01d569d403abd2172706d456bfa2688294c78bbca81b7cd69c07",
+      "seed": 101,
+      "verdict": "WOBBLES",
+      "worst_position_error_m": 0.03532210364937782,
+      "worst_orientation_error_deg": 11.256138800963425,
+      "peak_body_tilt_from_upright_deg": 8.458258174447446,
+      "peak_motor_torque_nm": 3.0,
+      "minimum_root_height_m": 0.029984669759869576,
+      "reference_resets": 0,
+      "wobble_at_s": 0.22,
+      "fell_at_s": null
+    }
+  },
+  "required_followup": [
+    "Re-evaluate old sit, Spider and generated motion policies with deployed target clipping and corrected hull contacts.",
+    "Continue under corrected physical contract as needed; preserve original artifacts and compare identical reference, seed and reward before tuning.",
+    "New generated training uses clipping, corrected body contacts and preserved COM randomization."
+  ],
+  "historical_evidence_scope": "Original network export/clip geometry checks remain useful; old simulation HOLDS UP/WOBBLES labels refer only to legacy_hulls_disabled and do not establish body support or hardware readiness."
+}
