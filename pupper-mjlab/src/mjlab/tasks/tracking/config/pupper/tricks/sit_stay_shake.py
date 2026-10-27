@@ -8,7 +8,7 @@ You turn them into five clips the robot can play one at a time:
   sit_down -> sit_idle (repeats, so the dog stays) -> shake_left or shake_right
   (both go back to sit_idle) -> stand_up
 
-Fill in the TODOs, then run:
+Build and check the completed engineering clip library:
   uv run python -m mjlab.tasks.tracking.config.pupper.tricks.sit_stay_shake
 It checks your code and writes sit_stay_shake.npz, the file you train on.
 
@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 
 from mjlab.tasks.tracking.config.pupper import motion_design as md
+from mjlab.tasks.tracking.config.pupper.motion_ops import cut, hold, mirror
 from mjlab.tasks.tracking.config.pupper.tricks import sit
 
 HERE = Path(__file__).resolve().parent
@@ -95,64 +96,26 @@ def shake_left() -> md.Motion:
   )
 
 
-# -------------------------------------------------------------------- your code
-def cut(motion: md.Motion, start_s: float, end_s: float) -> md.Motion:
-  """The piece of ``motion`` from start_s to end_s. Keep both end frames.
-
-  Keeping both ends means two clips cut at the same time share a frame, so
-  they join up with no jump.
-  """
-  # ========== YOUR CODE HERE (TODO 1) ==========
-  # TODO(student): seconds -> frame numbers (round them). Return a new md.Motion
-  # with the same fps and just those rows of root_pos, root_quat and joint_pos.
-  raise NotImplementedError("TODO 1: cut() in tricks/sit_stay_shake.py")
-
-
-def hold(motion: md.Motion, at_s: float, seconds: float) -> md.Motion:
-  """Stand still in the pose ``motion`` has at time at_s, for ``seconds``.
-
-  This is the "stay".
-  """
-  # ========== YOUR CODE HERE (TODO 2) ==========
-  # TODO(student): take the frame at at_s and repeat it (np.repeat). Use
-  # seconds * fps + 1 frames, so the clip starts and ends on that pose.
-  raise NotImplementedError("TODO 2: hold() in tricks/sit_stay_shake.py")
-
-
-def mirror(motion: md.Motion) -> md.Motion:
-  """The same motion with left and right swapped (shake_left -> shake_right).
-
-  Three changes:
-    * body position: flip the sign of y.
-    * body quaternion: (w, x, y, z) -> (w, -x, y, -z).
-    * joints: each left leg gets the right leg's angles, and the other way round.
-  For the joints, look at how Pupper's left and right motors are mounted (your
-  lab 2 kinematics helps). Do you copy the angles as they are, or flip some
-  signs? Which ones? The checks will tell you if you got it right.
-  """
-  # ========== YOUR CODE HERE (TODO 3) ==========
-  # TODO(student): make the three new arrays. md.JOINT_NAMES lists the joints in
-  # order; "_l_" in a name means a left leg, "_r_" a right leg.
-  raise NotImplementedError("TODO 3: mirror() in tricks/sit_stay_shake.py")
-
-
+# -------------------------------------------------------------------- clip library
 def clips() -> list[md.Clip]:
-  """The five clips: sit_down, sit_idle, shake_left, shake_right, stand_up."""
+  """Five compatible clips; both paw shakes return to the common sitting pose."""
   sitting = whole_sit()
-  # ========== YOUR CODE HERE (TODO 4a) ==========
-  # TODO(student): make each clip with md.Clip(name, motion, loop=..., next=...).
-  # loop=True: the clip repeats until something else is asked for.
-  # next: the clip that plays when this one ends. stand_up has next=None.
-  del sitting
-  raise NotImplementedError("TODO 4a: clips() in tricks/sit_stay_shake.py")
+  left = shake_left()
+  return [
+    md.Clip("sit_down", cut(sitting, 0.0, SITTING_FROM_S), next="sit_idle"),
+    md.Clip("sit_idle", hold(sitting, SITTING_FROM_S, 1.0), loop=True),
+    md.Clip("shake_left", left, next="sit_idle"),
+    md.Clip("shake_right", mirror(left), next="sit_idle"),
+    md.Clip("stand_up", cut(sitting, SITTING_UNTIL_S, sitting.duration)),
+  ]
 
 
-# ========== YOUR CODE HERE (TODO 4b) ==========
-# TODO(student): the order the clips are joined in for training. The policy only
-# learns the changes from one clip to the next that appear here, so include
-# every change the robot can make (like sit_idle -> shake_right). Names can
-# repeat.
-ORDER: list[str] = []
+# Include the idle self-loop as well as both action/return pairs and the exit.
+# The robot can repeat these edges for an arbitrary duration at deployment.
+ORDER = [
+  "sit_down", "sit_idle", "sit_idle", "shake_left", "sit_idle",
+  "shake_right", "sit_idle", "stand_up",
+]
 
 
 # ----------------------------------------------------------------------- checks

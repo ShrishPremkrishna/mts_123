@@ -129,5 +129,6 @@ def test_sit_stay_shake_template_parts_meet_at_the_sitting_pose():
     for n in JOINT_NAMES
   ]
   assert np.abs(-ends[:, swap] - seated[0]).max() < 0.05
-  with pytest.raises(NotImplementedError, match="TODO 1"):
-    t.cut(whole, 0.0, 1.0)
+  first_second = t.cut(whole, 0.0, 1.0)
+  assert first_second.duration == pytest.approx(1.0)
+  np.testing.assert_array_equal(first_second.joint_pos, whole.joint_pos[:51])

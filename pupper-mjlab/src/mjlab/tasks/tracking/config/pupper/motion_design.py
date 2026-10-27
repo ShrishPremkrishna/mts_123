@@ -506,8 +506,26 @@ def concat_clips(clips: list[Clip], order: list[str] | None = None) -> Motion:
   every action); by default each clip once, in the given order. The clip table
   points at each clip's first occurrence.
   """
+  from mjlab.tasks.tracking.config.pupper.motion_ops import validate
+
+  if not clips:
+    raise ValueError("a clip library must contain at least one clip")
   by_name = {c.name: c for c in clips}
-  order = order or [c.name for c in clips]
+  if len(by_name) != len(clips) or any(not c.name for c in clips):
+    raise ValueError("clip names must be nonempty and unique")
+  order = [c.name for c in clips] if order is None else order
+  if not order or set(order) != set(by_name):
+    raise ValueError("training order must include every clip and no unknown names")
+  for c in clips:
+    validate(c.motion)
+    if len(c.motion.root_pos) < 2:
+      raise ValueError(f"clip {c.name} must span at least one frame interval")
+    if c.next is not None and c.next not in by_name:
+      raise ValueError(f"clip {c.name} has unknown next clip {c.next}")
+    # Validate edges the robot follows, including idle loops, independently of
+    # the selected training order. A good training seam alone is insufficient.
+    for target in ([c.name] if c.loop else []) + ([c.next] if c.next else []):
+      _check_clip_boundary(c.name, c.motion, target, by_name[target].motion)
   fps = clips[0].motion.fps
   parts, table, frame = [], {}, 0
   for i, name in enumerate(order):
@@ -516,11 +534,7 @@ def concat_clips(clips: list[Clip], order: list[str] | None = None) -> Motion:
       raise ValueError(f"clip {name} is at {m.fps} fps, expected {fps}")
     if i > 0:
       prev = by_name[order[i - 1]].motion
-      gap = np.abs(prev.joint_pos[-1] - m.joint_pos[0]).max()
-      if gap > 0.05:
-        raise ValueError(
-          f"{order[i - 1]} ends {gap:.2f} rad away from where {name} starts"
-        )
+      _check_clip_boundary(order[i - 1], prev, name, m)
     # Frames shared at a boundary are kept once: drop this clip's first frame.
     skip = 1 if i > 0 else 0
     start = frame - skip
@@ -545,6 +559,20 @@ def concat_clips(clips: list[Clip], order: list[str] | None = None) -> Motion:
   )
   motion.report = check_motion(motion)
   return motion
+
+
+def _check_clip_boundary(a_name: str, a: Motion, b_name: str, b: Motion) -> None:
+  """Reject jumps in the joint AND root references consumed by the policy."""
+  gap = float(np.abs(a.joint_pos[-1] - b.joint_pos[0]).max())
+  if gap > 0.05:
+    raise ValueError(f"{a_name} ends {gap:.2f} rad away from where {b_name} starts")
+  distance = float(np.linalg.norm(a.root_pos[-1] - b.root_pos[0]))
+  dot = float(abs(np.dot(a.root_quat[-1], b.root_quat[0])))
+  angle = 2 * np.arccos(np.clip(dot, 0, 1))
+  if distance > 0.005 or angle > 0.05:
+    raise ValueError(
+      f"root discontinuity {a_name} -> {b_name}: {distance:.4f} m, {angle:.3f} rad"
+    )
 
 
 def clip_arrays(clips: list[dict]) -> dict:

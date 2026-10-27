@@ -1,0 +1,45 @@
+{
+  "sit_stay_shake": {
+    "task": "Mjlab-Tracking-Flat-Pupper-v3",
+    "motion_builder": "sit_stay_shake",
+    "num_envs": 4096,
+    "iterations": 3000,
+    "purpose": "One policy for sit entry, unlimited idle, either paw shake, and exit"
+  },
+  "spider_clips": {
+    "task": "Mjlab-Tracking-Flat-Pupper-v3",
+    "motion_builder": "spider_clips",
+    "num_envs": 4096,
+    "iterations": 3000,
+    "purpose": "Enter, hold, and leave the precise spider-walking stance"
+  },
+  "spider_walk": {
+    "task": "Mjlab-SpiderWalk-Flat-Pupper-v3",
+    "num_envs": 4096,
+    "iterations": 4000,
+    "purpose": "Initial reward hypothesis, requiring measured speed/clearance evaluation before deployment",
+    "rewards": {
+      "track_linear_velocity": 10.0,
+      "track_yaw_velocity": 7.0,
+      "gait_tracking": 10.0,
+      "upright": 1.0,
+      "base_height": 3.0,
+      "lin_vel_z_l2": -0.5,
+      "ang_vel_xy_l2": -0.05,
+      "action_rate_l2": -0.02,
+      "knee_ground_contact": -1.0,
+      "termination": -5.0,
+      "foot_slip": -0.1,
+      "joint_torques_l2": -0.0002
+    },
+    "training_command_bounds": {"forward_m_s": 0.15, "sideways_m_s": 0.1, "yaw_rad_s": 0.6},
+    "rationale": "Retain the recorded StableGait objectives; reward low-body support, penalize sliding/falls and effort. Abduction penalty remains zero because intentional splay is essential. Runtime speed limits must come from evaluation, not these training bounds."
+  },
+  "generated_trick": {
+    "task": "Mjlab-Tracking-Flat-Pupper-v3",
+    "requires_motion": true,
+    "num_envs": 4096,
+    "iterations": 3000,
+    "purpose": "Track a generated, inspected, repaired motion supplied with --motion"
+  }
+}

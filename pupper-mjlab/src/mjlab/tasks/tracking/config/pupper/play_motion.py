@@ -29,6 +29,7 @@ a candidate for training with Mjlab-Tracking-Flat-Pupper-v3.
 from __future__ import annotations
 
 import math
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -59,6 +60,9 @@ def main(
   com_x: float = 0.0,
   com_y: float = 0.0,
   com_z: float = 0.0,
+  seed: int = 42,
+  randomize: bool = False,
+  report_file: Path | None = None,
 ) -> None:
   """mass_scale scales every link's mass and inertia (1.3: 30% heavier, like a
   payload); com_x, com_y, com_z move the torso's center of mass (x forward,
@@ -70,19 +74,27 @@ def main(
   from mjlab.tasks.tracking.config.pupper.env_cfgs import pupper_tracking_env_cfg
   from mjlab.tasks.tracking.mdp import MotionCommand
 
+  if loops < 1 or not math.isfinite(mass_scale) or mass_scale <= 0:
+    raise ValueError("loops and mass_scale must be positive")
+  if any(not math.isfinite(v) for v in (com_x, com_y, com_z)):
+    raise ValueError("centre-of-mass offsets must be finite")
+  if randomize and (mass_scale != 1.0 or any((com_x, com_y, com_z))):
+    raise ValueError("choose training randomization OR fixed mass/COM offsets")
   device = "cuda:0" if torch.cuda.is_available() else "cpu"
   cfg = pupper_tracking_env_cfg(motion_file=str(motion_file.resolve()), play=True)
+  cfg.seed = seed
   cfg.scene.num_envs = 1
   cfg.terminations = {}  # watch the whole motion even if it goes wrong
   # The nominal robot, not a random draw of the training randomization: same
   # verdict every run. Only the mass/inertia scale is applied (exactly).
-  for name in ("encoder_bias", "foot_friction", "pd_gains"):
-    cfg.events.pop(name, None)
-  cfg.events["base_com"].params["ranges"] = {
-    i: (d, d) for i, d in enumerate((com_x, com_y, com_z))
-  }
-  alpha = math.log(mass_scale) / 2  # pseudo_inertia scales mass by exp(2 * alpha)
-  cfg.events["inertial"].params["alpha_range"] = (alpha, alpha)
+  if not randomize:
+    for name in ("encoder_bias", "foot_friction", "pd_gains"):
+      cfg.events.pop(name, None)
+    cfg.events["base_com"].params["ranges"] = {
+      i: (d, d) for i, d in enumerate((com_x, com_y, com_z))
+    }
+    alpha = math.log(mass_scale) / 2  # pseudo_inertia scales mass by exp(2 * alpha)
+    cfg.events["inertial"].params["alpha_range"] = (alpha, alpha)
   articulation = cfg.scene.entities["robot"].articulation
   assert articulation is not None
   actuator = articulation.actuators[0]
@@ -143,6 +155,7 @@ def main(
   obs = wrapped.get_observations()
   worst_pos, worst_tilt, fell_at, wobble_at = 0.0, 0.0, None, None
   timeline = []
+  samples = []
   for step in range(n_frames * loops - 1):
     with torch.inference_mode():
       obs, *_ = wrapped.step(policy(obs))
@@ -150,6 +163,11 @@ def main(
     # angle between the robot's and the reference's body orientation
     dot = float(torch.abs((cmd.robot_anchor_quat_w * cmd.anchor_quat_w).sum()))
     tilt = math.degrees(2 * math.acos(min(1.0, dot)))
+    if not math.isfinite(pos_err) or not math.isfinite(tilt):
+      env.close()
+      raise RuntimeError("non-finite state in motion evaluation")
+    samples.append({"time_s": (step + 1) * dt, "position_error_m": pos_err,
+                    "orientation_error_deg": tilt})
     worst_pos, worst_tilt = max(worst_pos, pos_err), max(worst_tilt, tilt)
     if (step + 1) % int(round(0.5 / dt)) == 0:
       timeline.append(f"{(step + 1) * dt:4.1f}s {pos_err * 100:5.1f}cm {tilt:5.1f}deg")
@@ -188,6 +206,22 @@ def main(
   else:
     who = "the policy" if checkpoint else "plain replay"
     print(f"verdict       HOLDS UP: {who} follows the reference closely.")
+  if report_file is not None:
+    result = {
+      "motion": str(motion_file.resolve()),
+      "checkpoint": str(checkpoint.resolve()) if checkpoint else None,
+      "seed": seed, "randomize_dynamics": randomize,
+      "mass_scale": mass_scale, "com_offset_m": [com_x, com_y, com_z],
+      "loops": loops, "frames": n_frames,
+      "verdict": "FALLS" if fell_at is not None else "WOBBLES" if wobble_at is not None else "HOLDS UP",
+      "worst_position_error_m": worst_pos, "worst_orientation_error_deg": worst_tilt,
+      "fell_at_s": fell_at, "wobble_at_s": wobble_at,
+      "approved_for_hardware": False,
+      "scope": "Physics reference tracking; randomized mode varies dynamics, not external pushes",
+      "samples": samples,
+    }
+    report_file.parent.mkdir(parents=True, exist_ok=True)
+    report_file.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
   env.close()
 
 

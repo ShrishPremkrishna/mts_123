@@ -21,8 +21,11 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import math
+import queue
 import subprocess
 import threading
+import uuid
 from pathlib import Path
 
 import mujoco
@@ -111,7 +114,11 @@ class UniMate:
     exp: str = "unimate_uniml3d_f60_v3",
     step: int = 150000,
     log: str | Path | None = None,
+    timeout_s: float = 1200.0,
   ):
+    if not math.isfinite(timeout_s) or timeout_s <= 0:
+      raise ValueError("timeout_s must be finite and positive")
+    self.timeout_s = timeout_s
     self.dir = Path(unimate_dir).resolve()
     self.log = Path(log) if log else self.dir / "worker.log"
     python = self.dir / ".venv" / "bin" / "python"
@@ -125,31 +132,57 @@ class UniMate:
       k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VIRTUAL_ENV")
     }
     env["MPLBACKEND"] = "Agg"
-    self.proc = subprocess.Popen(
+    self.log.parent.mkdir(parents=True, exist_ok=True)
+    self._log_handle = self.log.open("w")
+    try:
+      self.proc = subprocess.Popen(
       cmd,
       env=env,
       stdin=subprocess.PIPE,
       stdout=subprocess.PIPE,
-      stderr=self.log.open("w"),
+      stderr=self._log_handle,
       text=True,
       bufsize=1,
-    )
+      )
+    except BaseException:
+      self._log_handle.close()
+      raise
+    self._lines: queue.Queue[str] = queue.Queue()
+    def read_lines():
+      assert self.proc.stdout is not None
+      for line in self.proc.stdout:
+        self._lines.put(line)
+      self._lines.put("")
+    self._reader = threading.Thread(target=read_lines, daemon=True)
+    self._reader.start()
     self.lock = threading.Lock()
-    self._read()  # {"ready": true} once the model is loaded
-    sk = SKELETON
-    self.call(
-      cmd="register",
-      **{k: sk[k] for k in ("name", "names", "clean", "parents", "rest", "face")},
-    )
+    try:
+      self._read()  # {"ready": true} once the model is loaded
+      sk = SKELETON
+      self.call(
+        cmd="register",
+        **{k: sk[k] for k in ("name", "names", "clean", "parents", "rest", "face")},
+      )
+    except BaseException:
+      self.close()
+      raise
     self.n_out = 0
 
   def _read(self) -> dict:
-    assert self.proc.stdout is not None
-    line = self.proc.stdout.readline()
+    try:
+      line = self._lines.get(timeout=self.timeout_s)
+    except queue.Empty as exc:
+      self.close()
+      raise TimeoutError(f"UniMate did not respond in {self.timeout_s}s; see {self.log}") from exc
     if not line:
       tail = "\n".join(self.log.read_text().splitlines()[-15:])
       raise RuntimeError(f"the UniMate worker stopped; the end of {self.log}:\n{tail}")
-    res = json.loads(line)
+    try:
+      res = json.loads(line)
+    except json.JSONDecodeError as exc:
+      raise RuntimeError(f"Invalid worker response; see {self.log}") from exc
+    if not isinstance(res, dict):
+      raise RuntimeError(f"Worker response is not an object; see {self.log}")
     if not res.get("ok"):
       raise RuntimeError(f"UniMate: {res.get('error')} (details in {self.log})")
     return res
@@ -179,8 +212,16 @@ class UniMate:
     when a prompt is ignored, lower for calmer motion).
     """
     prompts = [prompts] if isinstance(prompts, str) else list(prompts)
+    if not prompts or any(not isinstance(p, str) or not p.strip() for p in prompts):
+      raise ValueError("provide at least one nonempty prompt")
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+      raise ValueError("n must be a positive integer")
+    if not isinstance(overlap, int) or not 0 <= overlap < SEGMENT:
+      raise ValueError(f"overlap must be an integer in [0, {SEGMENT})")
+    if not math.isfinite(cfg) or cfg <= 0:
+      raise ValueError("cfg must be finite and positive")
     self.n_out += 1
-    out = self.dir / "outputs" / f"pupper_{self.n_out:03d}.npz"
+    out = self.dir / "outputs" / f"pupper_{self.n_out:03d}_{uuid.uuid4().hex[:12]}.npz"
     res = self.call(
       cmd="generate",
       skeleton=SKELETON["name"],
@@ -193,11 +234,32 @@ class UniMate:
       out=str(out),
     )
     self.seconds = res["seconds"]
-    return np.load(out)["positions"]
+    with np.load(out, allow_pickle=False) as data:
+      positions = data["positions"].copy()
+    if (positions.ndim != 4 or positions.shape[0] != n or positions.shape[1] < 2
+        or positions.shape[2:] != (19, 3) or not np.isfinite(positions).all()):
+      raise ValueError("UniMate returned invalid or non-finite skeleton positions")
+    return positions
 
   def close(self) -> None:
     if self.proc.poll() is None:
-      self.proc.kill()
+      self.proc.terminate()
+      try:
+        self.proc.wait(timeout=5)
+      except subprocess.TimeoutExpired:
+        self.proc.kill()
+        self.proc.wait(timeout=5)
+    self._reader.join(timeout=1)
+    for pipe in (self.proc.stdin, self.proc.stdout):
+      if pipe is not None:
+        pipe.close()
+    self._log_handle.close()
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, *_):
+    self.close()
 
 
 # ----------------------------------------------------------------------------- timing
@@ -359,10 +421,21 @@ def fit_pupper(
   ``trim_end`` cut seconds off either end, and ``hold`` keeps the last pose
   that many seconds (to stay seated, say). Then IK fits Pupper to it.
   """
+  raw = np.asarray(raw, dtype=float)
+  if raw.ndim != 3 or raw.shape[0] < 2 or raw.shape[1:] != (19, 3) or not np.isfinite(raw).all():
+    raise ValueError("raw must contain finite skeleton positions with shape (T>=2, 19, 3)")
+  if not isinstance(overlap, int) or not 0 <= overlap < SEGMENT:
+    raise ValueError(f"overlap must be an integer in [0, {SEGMENT})")
+  if not math.isfinite(slow) or slow <= 0:
+    raise ValueError("slow must be finite and positive")
+  if any(not math.isfinite(v) or v < 0 for v in (stride, trim_start, trim_end, hold)):
+    raise ValueError("stride, trimming and hold must be finite and nonnegative")
   n_prompts = 1 + max(0, round((len(raw) - SEGMENT) / (SEGMENT - overlap)))
   durations = list(durations or [2.0] * n_prompts)
   if len(durations) != n_prompts:
     raise ValueError(f"{len(durations)} durations for {n_prompts} chained prompts")
+  if any(not math.isfinite(v) or v <= 0 for v in durations):
+    raise ValueError("durations must be finite and positive")
   pos = warp_resample(
     scale_travel(raw, stride), time_warp(len(raw), durations, overlap, slow)
   )
@@ -381,9 +454,13 @@ def fit_pupper(
   front = (roots["front_r"] + roots["front_l"]) / 2
   back = (roots["back_r"] + roots["back_l"]) / 2
   x = front - back
+  if np.any(np.linalg.norm(x, axis=1) < 1e-6):
+    raise ValueError("generated skeleton has coincident front/back anchors")
   x /= np.linalg.norm(x, axis=1, keepdims=True)
   y = (roots["front_l"] - roots["front_r"]) + (roots["back_l"] - roots["back_r"])
   y -= (y * x).sum(1, keepdims=True) * x
+  if np.any(np.linalg.norm(y, axis=1) < 1e-6):
+    raise ValueError("generated skeleton has a degenerate left/right body axis")
   y /= np.linalg.norm(y, axis=1, keepdims=True)
   R = np.stack([x, y, np.cross(x, y)], -1)
   targets = {

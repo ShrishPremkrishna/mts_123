@@ -9,8 +9,8 @@ On the robot, the walking policy (Mjlab-SpiderWalk-Flat-Pupper-v3, the second
 policy) takes the legs between spider_down and spider_up.
 
 You get the recorded spider trick (recorded(): 11.3 s, stand -> lie down ->
-wiggle -> lie still) and settle_into_stance(). Paste your cut() and hold() from
-Part 5, write reverse(), then clips() and ORDER, and run:
+wiggle -> lie still) and settle_into_stance(). This completed engineering
+version shares tested motion helpers with Part 5. Build the library with:
   uv run python -m mjlab.tasks.tracking.config.pupper.tricks.spider
 It checks your code and writes spider_walk.npz, the file you train on.
 
@@ -26,6 +26,7 @@ import numpy as np
 
 from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import SPIDER_HEIGHT, SPIDER_POSE
 from mjlab.tasks.tracking.config.pupper import motion_design as md
+from mjlab.tasks.tracking.config.pupper.motion_ops import cut, hold, reverse, validate
 
 HERE = Path(__file__).resolve().parent
 FPS = 50.0
@@ -50,6 +51,9 @@ def settle_into_stance(motion: md.Motion, seconds: float = 0.6) -> md.Motion:
   """The motion, then a smooth blend from its last frame into the spider-walk
   stance (SPIDER_POSE, body level at SPIDER_HEIGHT): the pose the walking policy
   starts from, so the hand-off between the two policies is seamless."""
+  validate(motion)
+  if not np.isfinite(seconds) or seconds <= 0 or round(seconds * motion.fps) < 1:
+    raise ValueError("stance blend must span at least one frame interval")
   n = round(seconds * motion.fps)
   s = (0.5 - 0.5 * np.cos(np.linspace(0, np.pi, n + 1)[1:]))[:, None]
   p0, q0, j0 = motion.root_pos[-1], motion.root_quat[-1], motion.joint_pos[-1]
@@ -70,48 +74,30 @@ def settle_into_stance(motion: md.Motion, seconds: float = 0.6) -> md.Motion:
   )
 
 
-# ------------------------------------------------------------------- your code
-def cut(motion: md.Motion, start_s: float, end_s: float) -> md.Motion:
-  """The frames from start_s to end_s, both included: your Part 5 cut()."""
-  # ========== YOUR CODE HERE ==========
-  # TODO(student): paste your cut() from tricks/sit_stay_shake.py (Part 5).
-  raise NotImplementedError("paste your cut() from Part 5")
-
-
-def hold(motion: md.Motion, at_s: float, seconds: float) -> md.Motion:
-  """The frame at at_s, held for seconds: your Part 5 hold()."""
-  # ========== YOUR CODE HERE ==========
-  # TODO(student): paste your hold() from tricks/sit_stay_shake.py (Part 5).
-  raise NotImplementedError("paste your hold() from Part 5")
-
-
-def reverse(motion: md.Motion) -> md.Motion:
-  """The motion played backwards: the last frame first."""
-  # ========== YOUR CODE HERE (TODO S1) ==========
-  # TODO(student): a new md.Motion, same fps, with every array's frames in reverse
-  # order. (Velocities would flip sign, but a Motion has none: they are worked out
-  # from the frames when the file is written.)
-  raise NotImplementedError("TODO S1: reverse() in tricks/spider.py")
-
-
+# -------------------------------------------------------------------- clip library
 def clips() -> list[md.Clip]:
-  """The three clips: spider_down, spider_idle, spider_up."""
-  spider = recorded()
-  # ========== YOUR CODE HERE (TODO S2a) ==========
-  # TODO(student): spider_down is the recording up to WIGGLE_UNTIL_S, settled into
-  # the stance. spider_idle holds its last frame (a second is plenty). spider_up
-  # takes Pupper from the stance back to standing, wiggling on the way. Which
-  # motion you already have does exactly that, played backwards?
-  # Then: which clip loops, and which clip follows which (next=...)?
-  del spider
-  raise NotImplementedError("TODO S2a: clips() in tricks/spider.py")
+  """Use the exact walking stance at both controller hand-off boundaries."""
+  down = settle_into_stance(cut(recorded(), 0.0, WIGGLE_UNTIL_S))
+  # The hardware recording has small encoder overshoots (up to ~0.016 rad)
+  # beyond model limits and ~2 mm floor penetration. Keep recorded() untouched;
+  # repair the training reference explicitly rather than teaching impossible poses.
+  k = md.kinematics()
+  down.joint_pos = np.clip(down.joint_pos, k.lower, k.upper)
+  for i in range(len(down.root_pos)):
+    feet = k.feet(down.root_pos[i], down.root_quat[i], down.joint_pos[i])
+    lowest = min(k.lowest_body_point(), min(p[2] for p in feet.values()) - md.FOOT_RADIUS)
+    # Ignore sub-10-micrometre model rounding so the final root height remains
+    # exactly the walking controller's SPIDER_HEIGHT.
+    if lowest < -1e-5:
+      down.root_pos[i, 2] -= lowest
+  return [
+    md.Clip("spider_down", down, next="spider_idle"),
+    md.Clip("spider_idle", hold(down, down.duration, 1.0), loop=True),
+    md.Clip("spider_up", reverse(down)),
+  ]
 
 
-# ========== YOUR CODE HERE (TODO S2b) ==========
-# TODO(student): the training sequence. As in Part 5, the policy only learns the
-# changes from one clip to the next that appear here. (On the robot the walking
-# policy takes over after spider_idle, and spider_up starts from the stance.)
-ORDER: list[str] = []
+ORDER = ["spider_down", "spider_idle", "spider_idle", "spider_up"]
 
 
 # ----------------------------------------------------------------------- checks
