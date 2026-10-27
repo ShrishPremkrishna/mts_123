@@ -9,11 +9,62 @@ import argparse
 from dataclasses import asdict
 import json
 from pathlib import Path
+import re
 
 import numpy as np
 import torch
+import yaml
 
 from mjlab.scripts.pupper_foundation import sha256, source_manifest, write_json
+
+
+class TrainingConfigLoader(yaml.SafeLoader):
+  """Read the known dumped configuration tags as inert comparison data.
+
+  No Python name is imported, resolved or called. Only tuples, slices and the
+  two serialized config enums below are accepted beyond ordinary safe YAML.
+  """
+
+
+def _config_name(loader, suffix, node):
+  if (loader.construct_scalar(node) != "" or
+      not re.fullmatch(r"mjlab(?:\.[A-Za-z_]\w*)+(?:\.<lambda>)?", suffix)):
+    raise ValueError(f"Unsupported configuration name tag: {suffix}")
+  return suffix
+
+
+def _config_apply(loader, suffix, node):
+  allowed = {"builtins.slice", "mjlab.actuator.actuator.TransmissionType",
+             "mjlab.viewer.viewer_config.OriginType", "mjlab.viewer.viewer_config.ViewerConfig.OriginType"}
+  if suffix not in allowed or not isinstance(node, yaml.SequenceNode):
+    raise ValueError(f"Unsupported configuration object tag: {suffix}")
+  values = loader.construct_sequence(node, deep=True)
+  if suffix == "builtins.slice":
+    if len(values) != 3 or any(v is not None and type(v) is not int for v in values):
+      raise ValueError("Configuration slice requires three integer-or-null values")
+    return f"slice({values[0]!r}, {values[1]!r}, {values[2]!r})"
+  if suffix.endswith("TransmissionType"):
+    if len(values) != 1 or values[0] not in ("joint", "tendon", "site"):
+      raise ValueError("Unknown configuration TransmissionType")
+    return values[0]
+  members = {1: "AUTO", 2: "WORLD", 3: "ASSET_ROOT", 4: "ASSET_BODY"}
+  if len(values) != 1 or type(values[0]) is not int or values[0] not in members:
+    raise ValueError("Unknown configuration OriginType")
+  return "OriginType." + members[values[0]]
+
+
+TrainingConfigLoader.add_constructor("tag:yaml.org,2002:python/tuple",
+                                    lambda loader, node: loader.construct_sequence(node, deep=True))
+TrainingConfigLoader.add_multi_constructor("tag:yaml.org,2002:python/name:", _config_name)
+TrainingConfigLoader.add_multi_constructor("tag:yaml.org,2002:python/object/apply:", _config_apply)
+
+
+def load_training_config(text):
+  """Load an exported environment/W&B config without Python object execution."""
+  value = yaml.load(text, Loader=TrainingConfigLoader)
+  if not isinstance(value, dict):
+    raise ValueError("Training configuration must be a YAML mapping")
+  return value
 
 
 def canonical(value):
@@ -59,8 +110,7 @@ def audit(args):
             "tolerance": 1e-4, "source": source_manifest(), "training_resume_validated": False,
             "policy_performance_validated": False, "approved_for_hardware": False}
   if args.training_config:
-    import yaml
-    old = yaml.safe_load(args.training_config.read_text())
+    old = load_training_config(args.training_config.read_text())
     old = old["env_cfg"]["value"] if "env_cfg" in old else old
     current = canonical(asdict(cfg))
     report["training_config_sha256"] = sha256(args.training_config)
