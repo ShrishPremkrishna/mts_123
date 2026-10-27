@@ -46,6 +46,19 @@ before launching anything. A successful preflight is not a hardware readiness
 certificate: it cannot establish physical condition, camera calibration, services,
 emergency-stop operation, or policy performance.
 
+When ROS is already running, `start.sh` first inspects it without changing it.
+Reuse requires this branch's combined-launch manifest, unchanged policy and
+descriptor files, configured controllers, feedback broadcasters, the mux with
+joystick priority, the selected follower services/flags, and matching controller
+parameters. A course-only or stale stack is refused before any server is replaced.
+With the operator beside the robot, preserve the approved baseline and use the
+course stop/setup procedure before explicitly launching the combined stack; never
+start a second competing motor stack. When no manager is running, `start.sh`
+launches normally and applies the same inspection before starting the server.
+Every resolved native JSON policy, including the installed locomotion policy,
+is validated before the combined launch executes. The manifest proves file and
+configuration consistency, not loaded binary compatibility or physical readiness.
+
 ## One explicit follower
 
 `PUPPER_FOLLOWER_MODE=lab5` is the default. The service and Hailo model must both

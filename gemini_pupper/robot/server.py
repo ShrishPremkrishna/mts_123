@@ -18,7 +18,7 @@ import os
 import re
 import socket
 import subprocess
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 import cv2
@@ -87,8 +87,15 @@ async def lifespan(app: FastAPI):
     tools = Robot()
     tools.follow_available = follower_config().mode != "disabled"
     task = asyncio.create_task(detections.run())
-    yield
-    task.cancel()
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        stopped = await tools.shutdown()
+        (log.info if stopped.ok else log.error)("tool-server shutdown: %s", stopped.message)
+        tools = None
 
 
 app = FastAPI(title="Gemini Pupper robot server", lifespan=lifespan)

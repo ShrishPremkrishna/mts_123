@@ -233,6 +233,8 @@ class Robot:
         self.startup_error: str | None = None
         self.controller_fault: str | None = None
         self.activation_cleanup_tasks: set[asyncio.Task] = set()
+        self.reference_active = False
+        self.closing = False
         self.ready = asyncio.Event()
         self.commands: asyncio.Queue = asyncio.Queue()
         self.current: asyncio.Task | None = None
@@ -433,8 +435,16 @@ class Robot:
                 req = SwitchController.Request()
                 req.deactivate_controllers = latched
                 req.strictness = SwitchController.Request.BEST_EFFORT
-                await self._call(self.switch_client, req)
+                reset = await self._call(self.switch_client, req)
+                if reset is None:
+                    self.controller_fault = ("fall recovery deactivation outcome unknown; motion quarantined. "
+                                             "Use the physical e-stop and inspect/restart the controller stack before restarting this tool server")
+                    return Result(False, self.controller_fault)
+                if not reset.ok:
+                    return Result(False, "could not deactivate the fall-latched controllers; fall remains latched")
                 states = await self.controller_states()
+                if not states or any(states.get(c) == "active" for c in latched):
+                    return Result(False, "could not confirm fall-latched controllers inactive; fall remains latched")
             self.walk_since = None
             log.info("recovering from the fall in %s: %s", self.fallen, why)
             recovered = "recovered from the fall and stood back up; "
@@ -461,6 +471,9 @@ class Robot:
                 res = await self.switch_to(leaving.controller, start_clip=leaving.exit_clip)
                 if res.ok:
                     await asyncio.sleep(TRICK_INIT_S + TRICK_FADE_S + leaving.clip_length(leaving.exit_clip) + 0.3)
+                    res = await self.confirm_clip_endpoint(leaving, leaving.exit_clip)
+                    if not res.ok:
+                        return Result(False, f"cannot leave {leaving.name}: {res.message}")
                 else:
                     return Result(False, f"cannot leave {leaving.name}: {res.message}")
             states = await self.controller_states()
@@ -470,6 +483,9 @@ class Robot:
             configured = await self._set_start_clip(controller, start_clip)
             if not configured.ok:
                 return configured  # never replay an entry motion instead of an exit
+            # Completion feedback from a previous activation is not evidence that
+            # this entry/exit motion has reached its endpoint.
+            self.clip_status[controller] = ("", False)
         if activate and (generation != self.stops or self.stopped_during_call()):
             return Result(False, "controller change cancelled by a stop")
         req = SwitchController.Request()
@@ -555,6 +571,10 @@ class Robot:
         req = SetParameters.Request()
         req.parameters = [Parameter(name="start_clip", value=ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=clip))]
         result = await self._call(client, req)
+        if result is None:
+            self.controller_fault = ("start-clip parameter update outcome unknown; motion quarantined. "
+                                     "Inspect/restart the controller stack before restarting this tool server")
+            return Result(False, self.controller_fault)
         if result is None or not result.results or not all(r.successful for r in result.results):
             return Result(False, f"could not set {controller} start clip; controller not activated")
         return Result(True, "start clip configured")
@@ -622,6 +642,8 @@ class Robot:
                 self.send_speed(0, 0, 0)
                 log.info("%s: cancelled", name)
                 self.last_outcome = {"name": name, "success": False, "message": "cancelled"}
+                if self.closing:
+                    raise
             except Exception as exc:
                 log.exception("%s failed", name)
                 self.send_speed(0, 0, 0)
@@ -727,6 +749,13 @@ class Robot:
 
     async def play_clip(self, trick: Trick, clip: str) -> Result:
         """Request a clip and wait until the controller has played it through."""
+        if self.fallen or self.stopped_during_call() or self.controller_fault:
+            return Result(False, self.controller_fault or "clip refused after a fall or stop")
+        async def unconfirmed(message):
+            # A missing topic response does not mean the autonomous policy stopped.
+            self.controller_fault = message + "; motion quarantined. Inspect/restart the controller stack before restarting this tool server"
+            relaxed = await self._relax_controllers()
+            return Result(False, f"{message}; {relaxed.message}. {self.controller_fault}")
         self.clip_status[trick.controller] = ("", False)  # forget an earlier activation's status
         self.clip_pubs[trick.controller].publish(String(data=clip))
         length = trick.clip_length(clip)
@@ -736,7 +765,7 @@ class Robot:
             if self.fallen or self.stopped_during_call():
                 return Result(False, "clip interrupted by a fall or stop")
             if time.monotonic() > deadline:
-                return Result(False, f"{trick.name} did not start {clip} (is the controller running?)")
+                return await unconfirmed(f"{trick.name} did not confirm starting {clip}")
             await asyncio.sleep(0.05)
         deadline = time.monotonic() + length + 1.0
         while True:
@@ -746,9 +775,39 @@ class Robot:
             if name != clip or holding:
                 break
             if time.monotonic() > deadline:
-                return Result(False, f"{trick.name} did not confirm completion of {clip}")
+                return await unconfirmed(f"{trick.name} did not confirm completion of {clip}")
             await asyncio.sleep(0.05)
         return Result(True, f"played {clip}")
+
+    async def confirm_clip_endpoint(self, trick: Trick, start_clip: str = "") -> Result:
+        """Confirm the loop/hold reached by an automatically started clip chain.
+
+        Call after its nominal playback time. A timer cannot establish that an
+        entry/exit actually completed; the controller must report its endpoint.
+        """
+        clip = start_clip or trick.clips[0]["name"]
+        seen = set()
+        while clip not in seen:
+            seen.add(clip)
+            endpoint = trick.clip(clip)
+            if endpoint.get("loop") or not endpoint.get("next"):
+                break
+            clip = endpoint["next"]
+        else:
+            return Result(False, "clip chain has no stable endpoint")
+        deadline = time.monotonic() + 1.0
+        while True:
+            if self.fallen or self.stopped_during_call() or self.controller_fault:
+                return Result(False, self.controller_fault or "clip transition interrupted by a fall or stop")
+            name, holding = self.clip_status.get(trick.controller, ("", False))
+            if name == clip and (holding or endpoint.get("loop")):
+                return Result(True, f"controller confirmed {clip}")
+            if time.monotonic() >= deadline:
+                self.controller_fault = (f"{trick.name} did not confirm its {clip} endpoint; motion quarantined. "
+                                         "Inspect/restart the controller stack before restarting this tool server")
+                relaxed = await self._relax_controllers()
+                return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
+            await asyncio.sleep(0.05)
 
     async def play_reference_trick(self, trick: Trick) -> Result:
         """Feed a reference (e.g. the jump) to the running locomotion policy, standing still."""
@@ -760,8 +819,15 @@ class Robot:
         await asyncio.sleep(0.5)  # settle, standing still
         if self.fallen or self.stopped_during_call():
             return Result(False, "reference motion cancelled by a fall or stop")
-        self.ref_pub.publish(Float32MultiArray(data=reference))
-        await asyncio.sleep(trick.total_time)
+        generation = self.stops
+        self.reference_active = True
+        try:
+            self.ref_pub.publish(Float32MultiArray(data=reference))
+            await asyncio.sleep(trick.total_time)
+        finally:
+            self.reference_active = False
+        if generation != self.stops or self.stopped_during_call():
+            return Result(False, "reference motion interrupted by a stop")
         if self.fallen:
             return Result(False, f"{trick.name} ended in a fall: {FELL_MESSAGE}")
         return Result(True, f"played {trick.name}; standing, in locomotion mode")
@@ -836,7 +902,7 @@ class Robot:
     # ---------------------------------------------------------------- stopping
     def _on_estop(self, _msg: Empty) -> None:
         self.gamepad_estop_at = time.monotonic()
-        self.fallen = None  # a person stopped it on purpose; standing up is their call
+        # Stopping is not evidence that a previously fallen robot is upright.
         asyncio.run_coroutine_threadsafe(self.emergency_stop(), self.loop)
 
     async def emergency_stop(self) -> Result:
@@ -863,6 +929,12 @@ class Robot:
                                          "Use the physical e-stop and inspect/restart the controller "
                                          "stack before restarting this tool server")
                 return Result(False, self.controller_fault)
+            observed = await self.controller_states()
+            if not observed or any(observed.get(c) == "active" for c in self.leg_controllers):
+                self.controller_fault = ("controller deactivation response did not confirm inactive controllers; "
+                                         "motion quarantined. Use the physical e-stop and inspect/restart "
+                                         "the controller stack before restarting this tool server")
+                return Result(False, self.controller_fault)
         self.state_now = self.state_after_queue = MOTORS_IDLE
         self.walk_since = None
         log.warning("e-stop: relaxed %s", active or "nothing (no leg controller was active)")
@@ -881,6 +953,7 @@ class Robot:
         self.secret_gate.lock()
         self.send_speed(0, 0, 0)  # stand still first, before anything that waits
         running = self.current is not None and not self.current.done()
+        reference_was_playing = self.reference_active
         cleared = await self.clear_queue()
         if running:
             self.current.cancel()
@@ -893,6 +966,11 @@ class Robot:
         if self.controller_fault:
             relaxed = await self._relax_controllers()
             return Result(False, f"{relaxed.message}. {self.controller_fault}")
+        if relax_playing_trick and reference_was_playing:
+            # A reference jump runs autonomously inside the locomotion controller;
+            # a zero velocity does not cancel it. Disable that controller too.
+            relaxed = await self._relax_controllers()
+            return Result(relaxed.ok, f"reference motion stopped; {relaxed.message}")
         if not (relax_playing_trick and running):
             return Result(True, f"stopped; {cleared.message}")
         await asyncio.sleep(0.1)  # a job cancelled while switching to a trick may still finish the switch
@@ -906,6 +984,36 @@ class Robot:
         log.warning("stop: %s was still playing; relaxed the motors", playing[0].name)
         return Result(True, f"stopped; {cleared.message}. {playing[0].name} was still playing, so the motors"
                             " relaxed and the robot is lying down; call stand_up to go on")
+
+    async def shutdown(self) -> Result:
+        """Stop autonomous activity before a graceful tool-server exit.
+
+        A completed pose can keep holding; active tricks and reference motions
+        use the same stop path as the stop tool. Unresolved remote activation
+        remains a fault requiring the physical stop and controller inspection.
+        """
+        self.closing = True
+        self.startup_error = "tool server is shutting down; no new motion is accepted"
+        try:
+            result = await self.immediate_stop(relax_playing_trick=True)
+            pending = set(self.activation_cleanup_tasks)
+            if pending:
+                _, unresolved = await asyncio.wait(pending, timeout=3.0)
+                if unresolved:
+                    result = Result(False, "remote activation still pending at shutdown; use the physical e-stop and restart the controller stack")
+            return result
+        finally:
+            self.worker.cancel()
+            try:
+                await self.worker
+            except asyncio.CancelledError:
+                pass
+            if hasattr(self.executor, "shutdown"):
+                self.executor.shutdown(timeout_sec=1.0)
+            if hasattr(self.node, "destroy_node"):
+                self.node.destroy_node()
+            if hasattr(rclpy, "try_shutdown"):
+                rclpy.try_shutdown()
 
     async def mode(self) -> Result:
         """What the robot is doing right now, in words (the robot_status tool)."""

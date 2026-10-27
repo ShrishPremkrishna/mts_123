@@ -87,6 +87,7 @@ class FakeRobot:
         self.follower_on = False
         self.follow_calls: list[str] = []
         self.start_clips: dict[str, list[str]] = {}  # controller -> start_clip values set, in order
+        self.tricks: dict[str, Trick] = {}
 
     def active(self) -> set[str]:
         return {n for n, s in self.controllers.items() if s == "active"}
@@ -116,6 +117,20 @@ class FakeRobot:
                 self.controllers[c] = "inactive"
             for c in req.activate_controllers:
                 self.controllers[c] = "active"
+                # Model the controller's autonomous clip-status topic too. Fault
+                # tests can suppress/replace this separately from service replies.
+                trick = self.tricks.get(c)
+                if trick and trick.interactive:
+                    clip = (self.start_clips.get(c, [""])[-1] or trick.clips[0]["name"])
+                    seen = set()
+                    while clip not in seen:
+                        seen.add(clip)
+                        spec = trick.clip(clip)
+                        if spec.get("loop") or not spec.get("next"):
+                            break
+                        clip = spec["next"]
+                    state = "playing" if spec.get("loop") else "holding"
+                    self.send(f"/{c}/clip_status", _DataMsg(f"{clip} {state} frame 0 queued 0"))
             self.switches.append((self.clock.now, list(req.deactivate_controllers), list(req.activate_controllers)))
             return _Msg(ok=True)
         if service.endswith("/set_parameters"):
@@ -303,6 +318,7 @@ class Rig:
         self.clock = VirtualClock()
         ROBOT = self.robot = FakeRobot(self.clock)
         made = tricks or fixture_tricks
+        self.robot.tricks = {t.controller: t for t in made().values()}
         robot_api.time = types.SimpleNamespace(monotonic=self.clock.monotonic)
         robot_api.asyncio = _AsyncioShim(self.clock)
         robot_api.load_tricks = made

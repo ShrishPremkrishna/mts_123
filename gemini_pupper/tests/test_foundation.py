@@ -191,6 +191,46 @@ def test_exit_failure_does_not_jump_to_another_pose():
     run_case(case)
 
 
+@pytest.mark.parametrize('feedback', ['missing', 'wrong_endpoint'])
+def test_interactive_entry_requires_new_endpoint_feedback(feedback):
+    async def case(rig):
+        trick = rig.ts.tricks['hold_pose']
+        rig.ts.clip_status[trick.controller] = ('idle', False)  # old activation
+        original = rig.robot.send
+        def feedback_fault(topic, message):
+            if topic == f'/{trick.controller}/clip_status':
+                if feedback == 'wrong_endpoint':
+                    original(topic, harness._DataMsg('enter playing frame 0 queued 0'))
+                return
+            original(topic, message)
+        rig.robot.send = feedback_fault
+        result = await harness.behaviors.play_policy_trick(rig.ts, trick)
+        assert not result.ok and 'endpoint' in result.message
+        assert rig.ts.controller_fault
+        assert not rig.robot.active()
+    run_case(case)
+
+
+def test_walking_stance_exit_requires_terminal_feedback_before_locomotion():
+    async def case(rig):
+        trick = rig.ts.tricks['hold_pose']
+        trick.walk_path = Path('test_walking_policy.json')
+        rig.ts.leg_controllers.add(trick.walk_controller)
+        rig.robot.controllers = {name: 'inactive' for name in rig.robot.controllers}
+        rig.robot.controllers[trick.walk_controller] = 'active'
+        rig.ts.state_now = rig.ts.state_after_queue = trick
+        # A previous exit must not satisfy the confirmation for this activation.
+        rig.ts.clip_status[trick.controller] = (trick.exit_clip, True)
+        original = rig.robot.send
+        rig.robot.send = lambda topic, msg: None if topic.endswith('/clip_status') else original(topic, msg)
+        result = await rig.ts.switch_to(LOCOMOTION_CONTROLLER)
+        assert not result.ok and 'endpoint' in result.message
+        assert not rig.robot.activations(LOCOMOTION_CONTROLLER)
+        assert rig.robot.start_clips[trick.controller][-1] == trick.exit_clip
+        assert rig.ts.controller_fault and not rig.robot.active()
+    run_case(case)
+
+
 def test_rejected_start_clip_prevents_controller_activation():
     async def case(rig):
         original = rig.robot.handle
@@ -203,6 +243,53 @@ def test_rejected_start_clip_prevents_controller_activation():
         result = await rig.ts.switch_to(trick.controller, start_clip="leave")
         assert not result.ok
         assert trick.controller not in rig.robot.active()
+    run_case(case)
+
+
+def test_unknown_start_clip_update_quarantines_later_activation():
+    async def case(rig):
+        original = rig.ts._call
+        async def lost_reply(client, request, timeout=3.0):
+            if client.name.endswith('/set_parameters'):
+                return None
+            return await original(client, request, timeout)
+        rig.ts._call = lost_reply
+        trick = rig.ts.tricks['hold_pose']
+        assert not (await rig.ts.switch_to(trick.controller, start_clip='leave')).ok
+        assert rig.ts.controller_fault
+        assert trick.controller not in rig.robot.active()
+        assert not (await rig.ts.switch_to(trick.controller)).ok
+    run_case(case)
+
+
+@pytest.mark.parametrize('reported_success', [False, True])
+def test_failed_fall_reset_never_claims_recovery(reported_success):
+    async def case(rig):
+        rig.ts.fallen = LOCOMOTION_CONTROLLER
+        rig.imu(0., seconds=2.)
+        original = rig.robot.handle
+        def no_change(service, request):
+            if service.endswith('switch_controller'):
+                return harness._Msg(ok=reported_success)  # legs are still active
+            return original(service, request)
+        rig.robot.handle = no_change
+        result = await rig.ts.switch_to(LOCOMOTION_CONTROLLER)
+        assert not result.ok
+        assert rig.ts.fallen == LOCOMOTION_CONTROLLER
+    run_case(case)
+
+
+def test_cleanup_checks_observed_state_after_positive_deactivation_reply():
+    async def case(rig):
+        original = rig.robot.handle
+        def no_change(service, request):
+            if service.endswith('switch_controller'):
+                return harness._Msg(ok=True)
+            return original(service, request)
+        rig.robot.handle = no_change
+        result = await rig.ts._relax_controllers()
+        assert not result.ok and rig.ts.controller_fault
+        assert LOCOMOTION_CONTROLLER in rig.robot.active()
     run_case(case)
 
 
@@ -219,6 +306,77 @@ def test_clip_without_completion_feedback_fails():
         rig.robot.publish = playing_forever
         result = await rig.ts.play_clip(trick, "wave_left")
         assert not result.ok and "completion" in result.message
+        assert rig.ts.controller_fault and not rig.robot.active()
+    run_case(case)
+
+
+def test_clip_request_after_fall_never_reaches_controller():
+    async def case(rig):
+        trick = rig.ts.tricks['hold_pose']
+        rig.ts.fallen = trick.controller
+        result = await rig.ts.play_clip(trick, 'wave_left')
+        assert not result.ok
+        assert not rig.robot.clips(trick.controller)
+    run_case(case)
+
+
+def test_stop_cancels_reference_jump_controller_not_just_velocity():
+    async def case(rig):
+        published = asyncio.Event()
+        original = rig.ts.ref_pub.publish
+        def observe(msg):
+            original(msg)
+            published.set()
+        rig.ts.ref_pub.publish = observe
+        assert (await tool_registry.call(rig.ts, 'play_trick', {'name': 'hop'})).ok
+        await published.wait()
+        assert rig.ts.reference_active
+        result = await tool_registry.call(rig.ts, 'stop', {})
+        await rig.settle()
+        assert result.ok and 'reference' in result.message
+        assert not rig.robot.active()
+        assert not rig.ts.reference_active
+    run_case(case)
+
+
+@pytest.mark.parametrize('autonomous', ['follower', 'trick'])
+def test_graceful_shutdown_stops_autonomous_work_and_finishes_worker(autonomous):
+    async def case(rig):
+        if autonomous == 'follower':
+            assert (await rig.ts.set_following(True)).ok
+        else:
+            entered = asyncio.Event()
+            async def job():
+                result = await rig.ts.switch_to(rig.ts.tricks['bow'].controller)
+                assert result.ok
+                entered.set()
+                await asyncio.Event().wait()
+            assert (await rig.ts.queue('active trick', job, 4, then=LOCOMOTION)).ok
+            await entered.wait()
+        result = await rig.ts.shutdown()
+        assert result.ok
+        assert not rig.robot.follower_on
+        assert rig.ts.worker.done()
+        assert rig.ts.commands.empty()
+        if autonomous == 'trick':
+            assert not rig.robot.active()
+        assert not (await tool_registry.call(rig.ts, 'move', {'direction': 'forward'})).ok
+    run_case(case)
+
+
+def test_gamepad_stop_does_not_erase_fall_evidence(monkeypatch):
+    async def case(rig):
+        scheduled = []
+        def remember(coroutine, loop):
+            scheduled.append(coroutine)
+        monkeypatch.setattr(robot_api.asyncio, 'run_coroutine_threadsafe', remember)
+        rig.ts.fallen = LOCOMOTION_CONTROLLER
+        rig.ts._on_estop(None)
+        assert rig.ts.fallen == LOCOMOTION_CONTROLLER
+        await scheduled[0]
+        assert rig.ts.fallen == LOCOMOTION_CONTROLLER
+        # No IMU evidence: stand-up must still be refused after the e-stop.
+        assert not (await rig.ts.switch_to(LOCOMOTION_CONTROLLER)).ok
     run_case(case)
 
 
@@ -372,6 +530,23 @@ def test_follow_refuses_a_walking_trick_and_fall():
         rig.ts.fallen = LOCOMOTION_CONTROLLER
         assert not (await rig.ts.set_following(True)).ok
         assert "on" not in rig.robot.follow_calls
+    run_case(case)
+
+
+def test_lock_also_revokes_moving_with_a_hidden_walking_policy():
+    async def case(rig):
+        trick = rig.ts.tricks['hold_pose']
+        trick.secret = True
+        trick.walk_path = Path('walk.json')
+        rig.ts.state_now = rig.ts.state_after_queue = trick
+        for tool, args in [('move', {'direction': 'forward'}),
+                           ('move', {'direction': 'forward', 'run': True}),
+                           ('turn', {'direction': 'left'}),
+                           ('arc', {'direction': 'left', 'angle': 30., 'radius': 1.})]:
+            result = await tool_registry.call(rig.ts, tool, args)
+            assert not result.ok and 'locked' in result.message
+            assert 'hold_pose' not in result.message
+        assert rig.ts.commands.empty() and not harness.walk_twists(rig)
     run_case(case)
 
 

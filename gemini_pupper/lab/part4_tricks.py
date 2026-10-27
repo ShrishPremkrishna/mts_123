@@ -140,6 +140,9 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
     if robot.fallen:
         return Result(False, f"{trick.name} ended in a fall: {FELL_MESSAGE}")
     if trick.interactive:  # 4. it stays in its looping clip until asked for an action
+        confirmed = await robot.confirm_clip_endpoint(trick)
+        if not confirmed.ok:
+            return confirmed
         actions = ", ".join(trick.actions) or "none"
         leave = f" Any other motion first plays {trick.exit_clip}." if trick.exit_clip else ""
         if trick.walks:  # ... and a trick that walks in its stance hands the legs to its walking policy

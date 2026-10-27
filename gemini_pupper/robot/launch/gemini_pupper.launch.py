@@ -34,6 +34,7 @@ from spawn_controllers import PARAM_FILE as TRICK_PARAMS  # noqa: E402
 from tricks import (WALK_CONTROLLER, controller_params, load_tricks, walk_controller_params,
                     walk_policy_params, validate_locomotion_contract)  # noqa: E402
 from runtime_config import follower_config  # noqa: E402
+from startup_readiness import write_launch_manifest  # noqa: E402
 
 COURSE_CONFIG = PathJoinSubstitution([FindPackageShare("neural_controller"), "launch", "config.yaml"])
 
@@ -75,6 +76,9 @@ def gemini_controllers():
             return True
 
     TRICK_PARAMS.write_text(yaml.dump(params, Dumper=NoAliasDumper, sort_keys=False))
+    # The policies are validated before launch actions run. This captures the
+    # exact files/configuration a later server restart is allowed to reuse.
+    write_launch_manifest(params, follower_config())
     # After the course's own controllers, and checked one by one: see spawn_controllers.py.
     spawn = HERE.parent / "spawn_controllers.py"
     return [ExecuteProcess(cmd=["python3", "-u", str(spawn), str(TRICK_PARAMS), *params], output="both")]

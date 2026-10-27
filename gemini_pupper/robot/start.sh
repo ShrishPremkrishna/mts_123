@@ -23,7 +23,7 @@ if [ $KIOSK = 1 ] && [ ! -s "$KEY_FILE" ]; then
 fi
 
 if pgrep -f "[r]os2_control_node" >/dev/null; then
-  echo "[1/3] robot stack already running"
+  echo "[1/3] checking the existing ROS stack without changing it"
 else
   echo "[1/3] starting robot stack (about a minute; log $LOG/robot.log)"
   rm -f $LOG/controllers_ready
@@ -33,6 +33,10 @@ else
   if [ -f $LOG/controllers_ready ]; then echo "      $(cat $LOG/controllers_ready)"
   else echo "      controllers still loading after 4 min; see $LOG/robot.log"; fi
 fi
+
+# Names alone do not prove a course-only stack has Gemini's mux, follower or
+# matching policies. Inspect before replacing a server or claiming readiness.
+bash -c "$ROS; exec python3 \"\$1\"" _ "$HERE/startup_readiness.py" || exit 1
 
 echo "[2/3] starting robot server on localhost:8000 (log $LOG/server.log)"
 pkill -f "[r]obot/server.py" 2>/dev/null; free_port

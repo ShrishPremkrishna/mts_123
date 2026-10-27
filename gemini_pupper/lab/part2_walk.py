@@ -98,6 +98,9 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
       same now-question as Part 5.
     """
     # NOW, before anything is queued:
+    state = robot.state_after_queue
+    if getattr(state, "walks", False) and not robot.trick_available(state):
+        return Result(False, "This walking stance is locked; stand_up leaves it safely, or unlock before moving in it.")
     speeds = robot.speeds()  # the limits where Pupper will be (a walking trick has its own)
     refused = check_move(vx, vy, wz_deg, duration, speeds.limits)  # your TODO 2: is this move allowed?
     if refused:
@@ -114,6 +117,8 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
     async def job() -> Result:  # LATER, when the queue gets to it
         if robot.fallen:  # (2)
             return Result(False, FELL_MESSAGE)
+        if getattr(state, "walks", False) and not robot.trick_available(state):
+            return Result(False, "The walking stance was locked before this motion started; stand_up leaves it safely.")
         # A previous job may have failed or a person may have changed controllers.
         # A gait-specific command must never silently run on a different gait.
         if walker != LOCOMOTION_CONTROLLER and robot.state_now is not state:
@@ -224,6 +229,8 @@ async def move_tool(
     if speed is not None and (not math.isfinite(speed) or speed <= 0):
         return Result(False, "speed must be a finite number greater than 0 m/s")
     state = robot.state_after_queue
+    if getattr(state, "walks", False) and not robot.trick_available(state):
+        return Result(False, "This walking stance is locked; stand_up leaves it safely, or unlock before moving in it.")
     if run and getattr(state, "walks", False) and not state.walk.run:
         limits = robot.speeds().limits
         return Result(False, f"{state.name} cannot run; it walks at most {limits.vx_max} m/s forward and {limits.vy_max} m/s sideways")
