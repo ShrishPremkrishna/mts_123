@@ -8,7 +8,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(dirname "$HERE")"
 
-JSON_INCLUDE_DIR="${JSON_INCLUDE_DIR:-$HOME/projects/pupperv3-monorepo/ros2_ws/src/neural_controller/modules/RTNeural/modules/json}"
+JSON_INCLUDE_DIR="${JSON_INCLUDE_DIR:-$REPO/../pupperv3-monorepo/ros2_ws/src/neural_controller/modules/RTNeural/modules/json}"
 if [[ ! -f "$JSON_INCLUDE_DIR/json.hpp" ]]; then
   echo "json.hpp not found in $JSON_INCLUDE_DIR" >&2
   echo "Set JSON_INCLUDE_DIR to a directory containing nlohmann's json.hpp." >&2
@@ -39,5 +39,8 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -o "$BUILD/test_trick_motion" "$HERE/test_trick_motion.cpp"
 
 "$BUILD/test_gait_reference" "$@"
+if [[ $# -eq 0 && -f "$HERE/jump_timing_golden.json" ]]; then
+  "$BUILD/test_gait_reference" "$HERE/jump_timing_golden.json"
+fi
 "$BUILD/test_command_filter"
 "$BUILD/test_trick_motion"

@@ -6,6 +6,7 @@ from visualization_msgs.msg import Marker
 import numpy as np
 import socket
 import subprocess
+import time
 
 VISER_PORT = 8080  # must match viser_port in forward_kinematics.launch.py
 
@@ -54,6 +55,7 @@ class ForwardKinematics(Node):
         self.marker_publisher = self.create_publisher(Marker, "marker", 10)
 
         self.joint_positions = None  # dict: leg name -> [theta1, theta2, theta3]
+        self.last_joint_state_time = None
         timer_period = 0.02  # publish FK information and markers at 50Hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
@@ -78,10 +80,21 @@ class ForwardKinematics(Node):
         self.kd_publisher.publish(Float64MultiArray(data=[0.0] * 12))
 
     def listener_callback(self, msg):
-        # Extract the positions of the three joints of every leg, e.g. leg_front_l_1, leg_front_l_2, leg_front_l_3
-        self.joint_positions = {
-            leg: [msg.position[msg.name.index(f"leg_{leg}_{i}")] for i in (1, 2, 3)] for leg in LEGS
-        }
+        # JointState may arrive reordered or incomplete during controller changes.
+        # A bad packet must not crash the node or publish misleading foot poses.
+        names = [f"leg_{leg}_{i}" for leg in LEGS for i in (1, 2, 3)]
+        self.joint_positions = None
+        self.last_joint_state_time = None
+        if len(msg.name) != len(set(msg.name)) or any(name not in msg.name for name in names):
+            return
+        indices = [msg.name.index(name) for name in names]
+        if max(indices) >= len(msg.position):
+            return
+        positions = np.asarray([msg.position[index] for index in indices], dtype=float)
+        if not np.isfinite(positions).all():
+            return
+        self.joint_positions = {leg: positions[i * 3 : (i + 1) * 3] for i, leg in enumerate(LEGS)}
+        self.last_joint_state_time = time.monotonic()
 
     ######################## Homogeneous transforms ########################
 
@@ -126,7 +139,6 @@ class ForwardKinematics(Node):
             [0,0,1,z],
             [0,0,0,1]
         ])
-        raise NotImplementedError()
 
     ######################## Per-leg forward kinematics ########################
     #
@@ -295,7 +307,8 @@ class ForwardKinematics(Node):
 
     def timer_callback(self):
         """Timer callback for publishing end-effector markers and positions of all four legs."""
-        if self.joint_positions is None:
+        age = None if self.last_joint_state_time is None else time.monotonic() - self.last_joint_state_time
+        if self.joint_positions is None or age is None or not 0 <= age <= 0.25:
             return
 
         for marker_id, leg in enumerate(LEGS):
@@ -323,7 +336,13 @@ def main(args=None):
 
     forward_kinematics = ForwardKinematics()
 
-    rclpy.spin(forward_kinematics)
+    try:
+        rclpy.spin(forward_kinematics)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        forward_kinematics.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":

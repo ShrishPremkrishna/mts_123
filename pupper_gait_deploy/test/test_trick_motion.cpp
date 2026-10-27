@@ -77,6 +77,32 @@ int main() {
     failures++;
   }
 
+  // Malformed clocks/clip tables used to parse successfully and then divide by
+  // zero or index an empty clip array during controller activation.
+  auto rejects = [&](const nlohmann::json &t, const nlohmann::json &b, const char *name) {
+    try {
+      TrickMotion invalid;
+      parse_trick_motion(t, b, 12, invalid);
+      std::printf("invalid trick accepted: %s\n", name);
+      failures++;
+    } catch (const std::exception &) {}
+  };
+  auto invalid = trick;
+  invalid["fps"] = 0;
+  rejects(invalid, block, "zero fps");
+  invalid = trick;
+  invalid["clips"] = nlohmann::json::array();
+  rejects(invalid, block, "empty clips");
+  invalid["clips"] = {{{"name", "same"}, {"start", 0}, {"end", 2}},
+                       {{"name", "same"}, {"start", 0}, {"end", 2}}};
+  rejects(invalid, block, "duplicate clips");
+  auto invalid_motion = block;
+  invalid_motion["anchor_quat_wxyz"][0] = {0, 0, 0, 0};
+  rejects(trick, invalid_motion, "zero quaternion");
+  invalid_motion = block;
+  invalid_motion["joint_pos"][0][0] = 1e300;
+  rejects(trick, invalid_motion, "overflowing motor target");
+
   // Clip sequencing: A -> B (loops) ; requests C (-> B) and D (holds) ; a request
   // after the hold starts at once. 10 fps, clips share boundary frames.
   {

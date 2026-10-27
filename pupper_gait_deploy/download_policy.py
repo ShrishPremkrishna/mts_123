@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import shutil
 import sys
 from pathlib import Path
@@ -267,12 +268,27 @@ def validate(path: Path) -> dict:
     if "trick" not in policy or "fps" not in policy["trick"]:
       problems.append("motion block without a trick block (name, fps)")
     frames = len(motion.get("joint_pos", []))
+    fps = policy.get("trick", {}).get("fps", 0)
+    if not isinstance(fps, (int, float)) or not math.isfinite(fps) or fps <= 0:
+      problems.append("trick fps must be finite and positive")
+    if frames < 2:
+      problems.append("trick motion must have at least two frames")
     for key, width in (("joint_pos", ACTION_SIZE), ("joint_vel", ACTION_SIZE), ("anchor_quat_wxyz", 4)):
       rows = motion.get(key, [])
       if len(rows) != frames or any(len(r) != width for r in rows):
         problems.append(f"motion.{key} is not {frames}x{width}")
+      elif any(not isinstance(v, (int, float)) or not math.isfinite(v) for row in rows for v in row):
+        problems.append(f"motion.{key} contains nonfinite values")
+      elif key != "anchor_quat_wxyz" and any(abs(v) > 3.402823466e38 for row in rows for v in row):
+        problems.append(f"motion.{key} overflows the controller's float32 storage")
+      elif key == "anchor_quat_wxyz" and any(abs(sum(v*v for v in row) - 1) > 2e-3 for row in rows):
+        problems.append("motion.anchor_quat_wxyz must contain unit quaternions")
     clips = policy.get("trick", {}).get("clips", [])
+    if "clips" in policy.get("trick", {}) and not clips:
+      problems.append("explicit trick clips must not be empty")
     names = [c.get("name") for c in clips]
+    if any(not isinstance(name, str) or not name for name in names):
+      problems.append("trick clip names must be nonempty strings")
     for c in clips:
       start, end = c.get("start", -1), c.get("end", -1)
       if not (0 <= start and end <= frames and end - start >= 2):

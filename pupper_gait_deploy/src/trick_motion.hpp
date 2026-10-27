@@ -60,13 +60,16 @@ template <typename Json>
 inline void parse_trick_motion(const Json &trick, const Json &motion, int n_joints,
                                TrickMotion &out) {
   out.fps = trick.at("fps");
+  if (!std::isfinite(out.fps) || out.fps <= 0.0 || n_joints <= 0) {
+    throw std::runtime_error("trick motion: fps and joint count must be positive and finite");
+  }
   const auto &jp = motion.at("joint_pos");
   const auto &jv = motion.at("joint_vel");
   const auto &aq = motion.at("anchor_quat_wxyz");
   out.frames = static_cast<int>(jp.size());
-  if (out.frames == 0 || jv.size() != jp.size() || aq.size() != jp.size()) {
+  if (out.frames < 2 || jv.size() != jp.size() || aq.size() != jp.size()) {
     throw std::runtime_error("trick motion: joint_pos, joint_vel and anchor_quat_wxyz must "
-                             "have the same, nonzero number of frames");
+                             "have the same number of frames (at least two)");
   }
   out.joint_pos.clear();
   out.joint_vel.clear();
@@ -77,10 +80,23 @@ inline void parse_trick_motion(const Json &trick, const Json &motion, int n_join
       throw std::runtime_error("trick motion: frame " + std::to_string(f) + " has the wrong width");
     }
     for (int i = 0; i < n_joints; i++) {
-      out.joint_pos.push_back(jp[f][i]);
-      out.joint_vel.push_back(jv[f][i]);
+      const float position = jp[f][i], velocity = jv[f][i];
+      if (!std::isfinite(position) || !std::isfinite(velocity)) {
+        throw std::runtime_error("trick motion: nonfinite joint position or velocity");
+      }
+      out.joint_pos.push_back(position);
+      out.joint_vel.push_back(velocity);
     }
-    for (int k = 0; k < 4; k++) out.anchor_quat.push_back(aq[f][k]);
+    double norm_squared = 0.0;
+    for (int k = 0; k < 4; k++) {
+      const double value = aq[f][k];
+      if (!std::isfinite(value)) throw std::runtime_error("trick motion: nonfinite quaternion");
+      norm_squared += value * value;
+      out.anchor_quat.push_back(value);
+    }
+    if (std::abs(norm_squared - 1.0) > 2e-3) {
+      throw std::runtime_error("trick motion: anchor quaternion must have unit norm");
+    }
   }
 
   out.clips.clear();
@@ -91,11 +107,15 @@ inline void parse_trick_motion(const Json &trick, const Json &motion, int n_join
       clip.start = c.at("start");
       clip.end = c.at("end");
       clip.loop = c.value("loop", false);
+      if (clip.name.empty() || out.clip_index(clip.name) >= 0) {
+        throw std::runtime_error("trick clip names must be nonempty and unique");
+      }
       if (clip.start < 0 || clip.end > out.frames || clip.end - clip.start < 2) {
         throw std::runtime_error("trick clip '" + clip.name + "' has a bad frame range");
       }
       out.clips.push_back(clip);
     }
+    if (out.clips.empty()) throw std::runtime_error("trick clips must not be empty");
     // Resolve "next" names once all clips are known.
     std::size_t i = 0;
     for (const auto &c : trick.at("clips")) {
