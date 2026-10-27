@@ -26,7 +26,9 @@ Run it (see README.md for the full three-terminal setup):
 """
 
 from enum import Enum
+import math
 import os
+import signal
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -37,7 +39,7 @@ from vision_msgs.msg import Detection2DArray
 
 import avoidance
 import target_lock
-from boxes import box_bottom, box_offset, detection_class_id
+from boxes import box_bottom, box_offset, detection_class_id, valid_detection
 
 # --- Step 2: control constants ----------------------------------------------
 # TRACK_FORWARD_VEL is how fast Pupper walks. At about 0.5 m/s and above, the
@@ -47,6 +49,7 @@ TIMEOUT = 1.0            # s without a detection before we go searching
 SEARCH_YAW_VEL = 1.0     # rad/s rotation speed while searching
 TRACK_FORWARD_VEL = 0.3  # m/s forward speed while tracking (Step 4: the top speed)
 KP = 5.0                 # rad/s of yaw per unit of box_offset
+MAX_YAW_VEL = 2.0       # trained |wz| bound in the supplied default policy (rad/s)
 # ===============================================================
 
 # --- Optional Step 6: obstacle avoidance ------------------------------------
@@ -85,8 +88,13 @@ def load_class_names():
 
 
 class StateMachineNode(Node):
-    def __init__(self):
+    def __init__(self, auto_start=True):
         super().__init__('state_machine_node')
+        self.declare_parameter('use_color', False)
+        self.declare_parameter('avoid_obstacles', False)
+        target_lock.USE_COLOR = bool(self.get_parameter('use_color').value)
+        global ENABLE_OBSTACLE_AVOIDANCE
+        ENABLE_OBSTACLE_AVOIDANCE = bool(self.get_parameter('avoid_obstacles').value)
 
         self.detection_subscription = self.create_subscription(
             Detection2DArray, '/detections', self.detection_callback, 10)
@@ -134,8 +142,10 @@ class StateMachineNode(Node):
         initial_target = self.get_parameter('target').value.strip()
 
         self.get_logger().info('State Machine Node initialized in IDLE state.')
-        if initial_target:
+        if initial_target and auto_start:
             self.start_tracking(initial_target)
+        elif initial_target:
+            self.get_logger().warning('Service mode ignores target auto-start; use follow_class and activate_person_following')
         else:
             self.get_logger().info(
                 'Use begin_tracking(object), or -p target:=<class>, to enable tracking.'
@@ -143,26 +153,33 @@ class StateMachineNode(Node):
 
     def start_tracking(self, obj_name):
         """Enter tracking mode for a COCO class, from the parameter or the topic."""
+        if obj_name not in self.class_name_to_id:
+            self.get_logger().warning(f'Unknown object class "{obj_name}"; tracking remains disabled')
+            self.stop_tracking()
+            return False
+        self.tracking_generation = getattr(self, 'tracking_generation', 0) + 1
         self.tracking_enabled = True
         self.lock.reset()  # a new chase locks onto a new target
         self.last_detection_time = None
-        if obj_name in self.class_name_to_id:
-            self.target_object = obj_name
-            self.target_class_id = self.class_name_to_id[obj_name]
-        else:
-            self.get_logger().warning(
-                f'⚠️  Unknown object class "{obj_name}" - still chasing {self.target_object}'
-            )
+        self.last_frame_time = None
+        self.target_pos, self.target_bottom = 0.0, 0.0
+        self.obstacle_pos, self.crowding = None, (0.0, 0.0)
+        self.avoid_done_time = None
+        self.target_object = obj_name
+        self.target_class_id = self.class_name_to_id[obj_name]
         self.get_logger().info(
             f'✅ Tracking enabled for: {self.target_object} '
             f'(class_id={self.target_class_id})'
         )
         self.get_logger().info(f'   State transition: {self.state.name} → SEARCH')
         self.state = State.SEARCH
+        return True
 
     def stop_tracking(self):
         """Leave tracking mode and stand still."""
         self.tracking_enabled = False
+        self.tracking_generation = getattr(self, 'tracking_generation', 0) + 1
+        self.last_detection_time = self.last_frame_time = None
         self.obstacle_pos = None
         self.lock.reset()
         self.get_logger().info('⏸️  Tracking disabled - returning to IDLE')
@@ -187,12 +204,15 @@ class StateMachineNode(Node):
         6's bookkeeping: how crowded each half of the frame is, and whether
         something blocks the way to the target.
         """
+        detections = [d for d in msg.detections if valid_detection(d)]
+        if msg.detections and not detections:
+            return  # corrupt geometry is not evidence of healthy perception
         self.last_frame_time = self.get_clock().now()
-        target = self.process_detections(msg.detections)
+        target = self.process_detections(detections)
 
         if ENABLE_OBSTACLE_AVOIDANCE:
             self.obstacle_pos = None
-            others = [d for d in msg.detections
+            others = [d for d in detections
                       if detection_class_id(d) not in (None, self.target_class_id)
                       and d.results[0].hypothesis.score >= avoidance.OBSTACLE_MIN_SCORE]
             # Measured even when the target is not in this frame: it decides
@@ -237,9 +257,8 @@ class StateMachineNode(Node):
         # Step 4: in 3, also set self.target_bottom = box_bottom(target).
         targets = [] 
         for detection in detections:
-            if (detection_class_id(detection) == self.target_class_id):
+            if valid_detection(detection) and detection_class_id(detection) == self.target_class_id:
                 targets.append(detection)
-        min_offset = 10
         if (len(targets) == 0):
             return None
 
@@ -270,15 +289,23 @@ class StateMachineNode(Node):
             return
         now = self.get_clock().now()
         frame_time = getattr(self, 'last_frame_time', None)
-        if frame_time is None or (now - frame_time).nanoseconds / 1e9 > TIMEOUT:
+        if frame_time is None or not 0 <= (now - frame_time).nanoseconds / 1e9 <= TIMEOUT:
             # A stopped camera is different from a live frame with no person.
             # Cancel blind detours and hold still until fresh perception returns.
             self.state = State.SEARCH
             self.obstacle_pos = None
+            self.lock.position = None
             self.command_publisher.publish(Twist())
             return
 
-        if self.state in AVOID_STATES:
+        if (self.state in AVOID_STATES and self.last_detection_time is not None
+                and 0 <= (now - self.last_detection_time).nanoseconds / 1e9 <= TIMEOUT
+                and target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL) <= 0):
+            # A timed detour never has permission to keep walking into a person
+            # who moved into the stopping zone while the detour was underway.
+            self.state, self.avoid_done_time, self.obstacle_pos = State.TRACK, now, None
+            yaw, forward = 0.0, 0.0
+        elif self.state in AVOID_STATES:
             yaw, forward = self.detour_command(now)
         else:
             if self.last_detection_time is None:
@@ -314,7 +341,7 @@ class StateMachineNode(Node):
         """
         # ========== YOUR CODE HERE: Step 2: choose_state ==========
         # Seen within the last TIMEOUT seconds: TRACK. Otherwise: SEARCH.
-        if (seconds_since_detection > TIMEOUT):
+        if not math.isfinite(seconds_since_detection) or not 0 <= seconds_since_detection <= TIMEOUT:
             return State.SEARCH
         return State.TRACK
         # ==========================================================
@@ -344,11 +371,14 @@ class StateMachineNode(Node):
         #   backing off when too close.
         if self.state == State.IDLE:
             return (0.0, 0.0)
+        if not math.isfinite(self.target_pos) or not math.isfinite(self.target_bottom):
+            return (0.0, 0.0)
         if (self.state == State.SEARCH):
             sign = -1 if (self.target_pos > 0) else 1
             return (sign*SEARCH_YAW_VEL, 0)
         
-        return (-KP * self.target_pos, target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL))
+        yaw = max(-MAX_YAW_VEL, min(MAX_YAW_VEL, -KP * self.target_pos))
+        return (yaw, target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL))
         # ===================================================================
 
     # ======================================================== Optional Step 6: the detour
@@ -393,12 +423,20 @@ class StateMachineNode(Node):
         the chase picks straight back up when it ends.
         """
         elapsed = (now - self.phase_start).nanoseconds / 1e9
+        if elapsed < 0:
+            self.state, self.avoid_done_time, self.obstacle_pos = State.SEARCH, now, None
+            self.lock.position = None
+            return 0.0, 0.0
         if self.state == State.AVOID_TURN and elapsed >= AVOID_TURN_TIME:
             self.state, self.phase_start = State.AVOID_PASS, now
         elif self.state == State.AVOID_PASS and elapsed >= AVOID_PASS_TIME:
             self.state, self.phase_start = State.AVOID_RETURN, now
         elif self.state == State.AVOID_RETURN and elapsed >= AVOID_TURN_TIME:
-            self.state = State.TRACK
+            age = (float('inf') if self.last_detection_time is None else
+                   (now - self.last_detection_time).nanoseconds / 1e9)
+            self.state = self.choose_state(age)
+            if self.state == State.SEARCH:
+                self.lock.position = None
             self.avoid_done_time = now
             self.obstacle_pos = None
             self.get_logger().info('↩️  Back on the original heading - resuming chase')
@@ -415,6 +453,9 @@ def main():
     # Handle Ctrl+C here rather than in rclpy, so the context is still alive
     # to send the final stand-still command.
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt
+    previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM)}
     node = StateMachineNode()
     try:
         rclpy.spin(node)
@@ -424,6 +465,8 @@ def main():
         node.command_publisher.publish(Twist())
         node.destroy_node()
         rclpy.try_shutdown()
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
 
 
 if __name__ == '__main__':

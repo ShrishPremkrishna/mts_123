@@ -35,12 +35,28 @@ IMAGE_HEIGHT = 572
 
 def detection_class_id(detection):
     """COCO class id of a detection as an int (0 = person), or None when it cannot be read."""
-    if not detection.results:
-        return None
     try:
+        if not detection.results:
+            return None
         return int(detection.results[0].hypothesis.class_id)
-    except (TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError, OverflowError):
         return None
+
+
+def valid_detection(detection):
+    """Reject malformed geometry/confidence before it can become motor commands."""
+    try:
+        box = detection.bbox
+        x, y = box.center.position.x, box.center.position.y
+        w, h = box.size_x, box.size_y
+        score = detection.results[0].hypothesis.score
+        return (detection_class_id(detection) is not None
+                and np.isfinite([x, y, w, h, score]).all()
+                and 0 <= x <= IMAGE_WIDTH and 0 <= y <= IMAGE_HEIGHT
+                and 0 < w <= 2 * IMAGE_WIDTH and 0 < h <= 2 * IMAGE_HEIGHT
+                and 0 <= score <= 1)
+    except (AttributeError, TypeError, ValueError, IndexError):
+        return False
 
 
 def detection_color(detection):

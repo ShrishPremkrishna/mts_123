@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch a trick from Weights & Biases into tricks/<name>/.
+"""Install an exported trick from local files or Weights & Biases into tricks/<name>/.
 
 Pupper trick training (pupper-mjlab's Mjlab-Tracking-Flat-Pupper-v3) uploads the
 trick policy to its W&B run as policy.json; the training log prints the exact
@@ -7,11 +7,13 @@ command to run here. The Pupper is already logged into W&B for policy deploys.
 
     python3 robot/get_trick.py <entity>/mjlab/<run-id> --name sit
     python3 robot/get_trick.py mjlab/<run-id> --name sit          # your default entity
+    python3 robot/get_trick.py --policy-file artifacts/sit/policy.json --name sit_stay_shake
 
 A trick that walks in its own stance (the spider) has two policies: its clips
 (a trick run) and its walking policy (a Mjlab-SpiderWalk run). Fetch both at once:
 
     python3 robot/get_trick.py <clip-trick-run> --walk <spider-walk-run> --name spider_walk
+    python3 robot/get_trick.py --policy-file clip_policy.json --walk-policy-file walk_policy.json --walk-limits evaluated_limits.json --name spider_walk
 
 The trick lands as tricks/<name>/policy.json. Every trick on the robot is a
 policy: check a design in simulation (pupper-mjlab's play_motion) before
@@ -103,9 +105,44 @@ def fetch_walk_policy(run_path: str, dest: Path) -> None:
   print(f"Run {run.name} ({run_path}) -> {dest / 'walk_policy.json'}")
 
 
+def copy_local_policy(source: Path, dest: Path, *, walking: bool = False) -> dict:
+  """Validate exactly the bytes staged for installation; no W&B dependency/auth."""
+  if not source.is_file():
+    raise ValueError(f"local policy file does not exist: {source}")
+  dest.mkdir(parents=True, exist_ok=True)
+  staged = dest / ("walk_policy.json" if walking else "policy.json")
+  shutil.copy2(source, staged)
+  policy = json.loads(staged.read_text())
+  if not isinstance(policy, dict):
+    raise ValueError("policy file must contain a JSON object")
+  if walking and "trick" in policy:
+    raise ValueError("--walk-policy-file requires an exported velocity policy, not a trick policy")
+  if not walking and not ("trick" in policy and "motion" in policy):
+    raise ValueError("--policy-file requires an exported trick policy with trick/motion blocks")
+  validate_artifact(staged)
+  print(f"Local policy {source.resolve()} -> {staged}")
+  return policy
+
+
 def write_template(dest: Path, name: str, policy: dict, walks: bool = False, walk_limits: dict | None = None) -> None:
   spec = dest / "trick.yaml"
+  if walk_limits is not None:
+    if not isinstance(walk_limits, dict) or not isinstance(walk_limits.get("evaluation_source"), str) or not walk_limits["evaluation_source"].strip():
+      raise ValueError("--walk-limits must identify evaluation_source; training caps are not measured performance")
+    for key in ("speed", "max_forward", "max_sideways", "turn"):
+      value = walk_limits.get(key)
+      if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        raise ValueError(f"--walk-limits {key} must be a finite positive number")
   if spec.exists():
+    if walks and walk_limits is not None:
+      import yaml
+      previous = yaml.safe_load(spec.read_text())
+      previous["walk"] = {**previous.get("walk", {}), "policy": "walk_policy.json",
+                          **{key: walk_limits[key] for key in ("speed", "max_forward", "max_sideways", "turn")}, "run": False}
+      previous["evaluation_source"] = walk_limits["evaluation_source"]
+      spec.write_text(yaml.safe_dump(previous, sort_keys=False))
+      print(f"Updated evaluated walking limits in {spec}; kept its descriptions and actions")
+      return
     print(f"Kept the existing {spec}")
     return
   if name in ("sit_stay_shake", "spider_walk"):
@@ -167,21 +204,32 @@ def write_template(dest: Path, name: str, policy: dict, walks: bool = False, wal
 
 def main() -> None:
   parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-  parser.add_argument("run", help="W&B training run: entity/project/run-id, project/run-id or run-id")
+  parser.add_argument("run", nargs="?", help="W&B training run: entity/project/run-id, project/run-id or run-id")
+  parser.add_argument("--policy-file", type=Path, help="local exported trick policy.json; requires no W&B account")
   parser.add_argument("--name", required=True, help="trick name: the folder under tricks/ and Gemini's id")
   parser.add_argument("--project", default="mjlab")
   parser.add_argument("--entity", default=None)
   parser.add_argument("--walk", default=None, help="a walking policy's run (Mjlab-SpiderWalk), for a trick that walks")
+  parser.add_argument("--walk-policy-file", type=Path, help="local exported walking policy, paired with --policy-file")
   parser.add_argument("--walk-limits", type=Path, help="JSON with evaluation_source and measured speed, max_forward, max_sideways (m/s), turn (deg/s)")
   parser.add_argument("--secret", action="store_true", help="hide the trick behind the local password gate")
   args = parser.parse_args()
+  if bool(args.run) == bool(args.policy_file):
+    parser.error("choose exactly one W&B run or --policy-file")
+  if args.walk and args.walk_policy_file:
+    parser.error("choose --walk or --walk-policy-file, not both")
+  if (args.policy_file and args.walk) or (args.run and args.walk_policy_file):
+    parser.error("do not mix W&B and local sources; use a run with --walk, or --policy-file with --walk-policy-file")
   if not re.fullmatch(r"[a-z][a-z0-9_]*", args.name):
     parser.error("--name must be lowercase letters, digits and underscores, starting with a letter")
-  if args.name == "spider_walk" and (not args.walk or not args.walk_limits):
-    parser.error("spider_walk requires --walk and --walk-limits from simulation evaluation")
+  has_walk = bool(args.walk or args.walk_policy_file)
+  if args.name == "spider_walk" and (not has_walk or not args.walk_limits):
+    parser.error("spider_walk requires both trained policies and --walk-limits from simulation evaluation")
+  if args.walk_limits and not has_walk:
+    parser.error("--walk-limits requires a walking policy")
   limits = json.loads(args.walk_limits.read_text()) if args.walk_limits else None
   dest = TRICK_DIR / args.name
-  run_path = resolve_run_path(args.run, args.project, args.entity)
+  run_path = resolve_run_path(args.run, args.project, args.entity) if args.run else None
   walk_run = resolve_run_path(args.walk, args.project, args.entity) if args.walk else None
   # Stage both policies and their descriptor before replacing an existing trick.
   # A failed second download or contract check must leave the working copy intact.
@@ -190,10 +238,13 @@ def main() -> None:
     staged = Path(temp) / args.name
     if dest.exists():
       shutil.copytree(dest, staged)
-    policy = fetch_policy(run_path, staged)
+    policy = (copy_local_policy(args.policy_file, staged) if args.policy_file
+              else fetch_policy(run_path, staged))
     if walk_run:
       fetch_walk_policy(walk_run, staged)
-    write_template(staged, args.name, policy, walks=bool(walk_run), walk_limits=limits)
+    elif args.walk_policy_file:
+      copy_local_policy(args.walk_policy_file, staged, walking=True)
+    write_template(staged, args.name, policy, walks=has_walk, walk_limits=limits)
     if args.secret:
       import yaml
       spec_path = staged / "trick.yaml"
@@ -202,9 +253,19 @@ def main() -> None:
       spec_path.write_text(yaml.safe_dump(spec, sort_keys=False))
     load_tricks(Path(temp))  # validates clips, transitions and walking limits together
     manifest = {"policy_run": run_path, "walk_run": walk_run,
+                "policy_source": ({"type": "local", "path": str(args.policy_file.resolve())}
+                                  if args.policy_file else {"type": "wandb", "run": run_path}),
+                "walk_source": ({"type": "local", "path": str(args.walk_policy_file.resolve())}
+                                if args.walk_policy_file else {"type": "wandb", "run": walk_run} if walk_run else None),
                 "files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                          for p in staged.glob("*.json") if p.name != "artifact_manifest.json"},
+                          for p in staged.iterdir() if p.suffix in (".json", ".yaml") and p.name != "artifact_manifest.json"},
                 "hardware_validated": False, "ta_approval_recorded": False}
+    if args.walk_limits:
+      manifest["walk_limits_source"] = {"path": str(args.walk_limits.resolve()),
+                                      "sha256": hashlib.sha256(args.walk_limits.read_bytes()).hexdigest()}
+    manifest["policy_source"]["sha256"] = manifest["files"]["policy.json"]
+    if manifest["walk_source"]:
+      manifest["walk_source"]["sha256"] = manifest["files"]["walk_policy.json"]
     (staged / "artifact_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     backup = None
     if dest.exists():

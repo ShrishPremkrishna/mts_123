@@ -35,7 +35,9 @@ camera node, or follow_me.launch.py) and yolov8n_seg.hef
 """
 
 import json
+import math
 import os
+import signal
 import sys
 import threading
 import time
@@ -46,6 +48,7 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 from geometry_msgs.msg import Twist
 from rclpy.logging import LoggingSeverity
+from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import CompressedImage
 from std_srvs.srv import Trigger
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
@@ -56,6 +59,7 @@ import follow_me  # noqa: E402  (lab/follow_me.py: your state machine)
 from boxes import IMAGE_HEIGHT, IMAGE_WIDTH  # noqa: E402
 from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
 from follow_me import StateMachineNode
+from perception_safety import image_stamp_ns, fresh_frame
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # The same projection viser_camera.py hands the model by default, so boxes come
@@ -82,17 +86,19 @@ class FollowService(StateMachineNode):
     """follow_me.py's state machine, fed by an on-demand camera + Hailo pipeline."""
 
     def __init__(self):
-        super().__init__()
+        super().__init__(auto_start=False)  # activation must also start our detector
         self.declare_parameter('follow_class', 'person')
         self.declare_parameter('cmd_vel_topic', '/person_following_cmd_vel')
-        self.declare_parameter('avoid_obstacles', False)
-        self.declare_parameter('use_color', False)
         self.declare_parameter('detect_hz', 10.0)       # while following
         self.declare_parameter('always_detect', False)  # keep detecting between follows
         self.declare_parameter('idle_detect_hz', 3.0)   # ... at this rate (for the eyes)
         self.declare_parameter('score_threshold', 0.4)
         self.declare_parameter('eyes_port', 5556)  # 0 turns the eye feed off
         self.declare_parameter('verbose', False)
+        for name in ('detect_hz', 'idle_detect_hz'):
+            rate = float(self.get_parameter(name).value)
+            if not math.isfinite(rate) or rate <= 0:
+                raise ValueError(f'{name} must be finite and positive')
 
         # follow_me.py logs every frame and every tick, which is what you want
         # while tuning and not on a robot that follows people all afternoon.
@@ -117,6 +123,8 @@ class FollowService(StateMachineNode):
         self.detector = None
         self.image_sub = None
         self.latest_image = None
+        self.last_image_stamp = None
+        self.image_lock = threading.Lock()
         self.image_ready = threading.Event()
         self.wake = threading.Event()  # cuts the wait between frames short
         self.pipeline = None
@@ -149,6 +157,10 @@ class FollowService(StateMachineNode):
 
     # ------------------------------------------------------------ services
     def on_activate(self, request, response):
+        target = self.get_parameter('follow_class').value
+        if target not in self.class_name_to_id:
+            response.success, response.message = False, f'unknown follow class: {target}'
+            return response
         if self.tracking_enabled:
             response.success, response.message = True, 'already following'
             return response
@@ -157,7 +169,6 @@ class FollowService(StateMachineNode):
             response.success, response.message = False, f'could not start the detector: {error}'
             self.get_logger().error(response.message)
             return response
-        target = self.get_parameter('follow_class').value
         with self.state_lock:
             self.start_tracking(target)
         self.wake.set()  # switch to the following rate right away
@@ -179,6 +190,8 @@ class FollowService(StateMachineNode):
         """Open the Hailo and start detecting. None on success, else why not."""
         if self.running:
             return None
+        if self.pipeline is not None and self.pipeline.is_alive():
+            return 'previous detector inference is still stopping; wait or inspect the Hailo process before retrying'
         try:
             from yolo_seg import HailoYoloSeg
             self.detector = HailoYoloSeg(
@@ -191,55 +204,79 @@ class FollowService(StateMachineNode):
             # Only the target's color is ever read; skip the other classes' masks.
             target = self.get_parameter('follow_class').value
             self.detector.mask_classes = {self.class_name_to_id.get(target, 0)}
-        self.latest_image = None
+        with self.image_lock:
+            self.latest_image = None
+            self.last_image_stamp = None
         self.image_ready.clear()
         self.image_sub = self.create_subscription(
             CompressedImage, '/camera/image_raw/compressed', self.on_image, 1)
         self.running = True
-        self.pipeline = threading.Thread(target=self.run_pipeline, daemon=True)
+        # A worker owns its detector until it exits. A timed join must never
+        # close a device under an in-flight inference or allow another owner.
+        self.pipeline = threading.Thread(target=self.run_pipeline, args=(self.detector,), daemon=True)
         self.pipeline.start()
         return None
 
     def stop_pipeline(self):
         """Stop detecting and release the Hailo and the camera subscription."""
-        if not self.running:
-            return
         self.running = False
+        if self.image_sub is not None:
+            self.destroy_subscription(self.image_sub)
+            self.image_sub = None
         self.image_ready.set()
         self.wake.set()
-        self.pipeline.join(timeout=3.0)
-        self.destroy_subscription(self.image_sub)
-        self.image_sub = None
-        self.detector.close()  # frees the Hailo for anyone else
-        self.detector = None
-        self.send_eyes([])
+        if self.pipeline is not None:
+            self.pipeline.join(timeout=3.0)
+        if self.pipeline is not None and self.pipeline.is_alive():
+            self.get_logger().error('Detector inference has not stopped; restart is blocked until its worker exits')
+        else:
+            self.send_eyes([])  # no worker can concurrently use the ZMQ socket
 
     # ------------------------------------------------------------ pipeline
     def on_image(self, msg):
         # Just keep the newest frame; decoding happens at detect_hz, not 30 Hz.
-        self.latest_image = msg
+        with self.image_lock:
+            stamp = image_stamp_ns(msg)
+            if stamp is None or (self.last_image_stamp is not None and stamp <= self.last_image_stamp):
+                return
+            self.last_image_stamp = stamp
+            self.latest_image = (msg, time.monotonic())
         self.image_ready.set()
 
-    def run_pipeline(self):
+    def run_pipeline(self, detector):
         follow_hz = float(self.get_parameter('detect_hz').value)
         idle_hz = float(self.get_parameter('idle_detect_hz').value)
-        while self.running:
-            started = time.monotonic()
-            period = 1.0 / max(follow_hz if self.tracking_enabled else idle_hz, 0.5)
-            self.image_ready.wait(timeout=1.0)
-            self.image_ready.clear()
-            msg, self.latest_image = self.latest_image, None
-            if msg is None or not self.running:
-                continue
+        try:
+            while self.running:
+                started = time.monotonic()
+                period = 1.0 / max(follow_hz if self.tracking_enabled else idle_hz, 0.5)
+                self.image_ready.wait(timeout=1.0)
+                self.image_ready.clear()
+                with self.image_lock:
+                    item, self.latest_image = self.latest_image, None
+                if item is None or not self.running:
+                    continue
+                try:
+                    self.process(item[0], item[1], detector)
+                except Exception as exc:  # a bad frame or a chip hiccup: try the next one
+                    self.get_logger().error(f'detection failed: {exc}')
+                    self.wake.wait(0.5)
+                self.wake.wait(max(0.0, period - (time.monotonic() - started)))
+                self.wake.clear()
+        finally:
+            # Only this worker may close the detector it is using.
             try:
-                self.process(msg)
-            except Exception as exc:  # a bad frame or a chip hiccup: try the next one
-                self.get_logger().error(f'detection failed: {exc}')
-                time.sleep(0.5)
-            self.wake.wait(max(0.0, period - (time.monotonic() - started)))
-            self.wake.clear()
+                detector.close()
+            finally:
+                if self.detector is detector:
+                    self.detector = None
+                self.running = False
 
-    def process(self, image_msg):
+    def process(self, image_msg, received_at, detector):
+        if not self.running or not fresh_frame(received_at, time.monotonic(), follow_me.TIMEOUT):
+            return
+        with self.state_lock:
+            generation = getattr(self, 'tracking_generation', 0)
         bgr = cv2.imdecode(np.frombuffer(image_msg.data, np.uint8), cv2.IMREAD_COLOR)
         if bgr is None:
             return
@@ -249,7 +286,9 @@ class FollowService(StateMachineNode):
             self.camera_model = load_camera_model(os.path.join(HERE, 'camera_params.yaml'), w, h)
         equirect = fisheye_to_equirectangular(
             frame, self.camera_model, IMAGE_WIDTH, IMAGE_HEIGHT, h_fov_deg=H_FOV_DEG)
-        detections = self.detector.infer(equirect)
+        detections = detector.infer(equirect)
+        if not self.running or not fresh_frame(received_at, time.monotonic(), follow_me.TIMEOUT):
+            return  # an old frame must not refresh the perception watchdog
 
         msg = Detection2DArray()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -271,7 +310,7 @@ class FollowService(StateMachineNode):
             msg.detections.append(d)
 
         with self.state_lock:
-            if self.tracking_enabled:
+            if self.tracking_enabled and generation == getattr(self, 'tracking_generation', 0):
                 self.detection_callback(msg)
         self.send_eyes([d for d in detections if d.class_id == self.target_class_id])
 
@@ -301,19 +340,25 @@ class FollowService(StateMachineNode):
 
 
 def main():
-    rclpy.init()
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt
+    previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM)}
     node = FollowService()
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        if node.tracking_enabled:
-            node.stop_tracking()
+        with node.state_lock:
+            if node.tracking_enabled:
+                node.stop_tracking()
         node.stop_pipeline()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
 
 
 if __name__ == '__main__':

@@ -154,3 +154,33 @@ avoidance off. So keep this repo on the robot, with the model downloaded.
 python3 robot/follow_service.py                             # by hand, for a try
 python3 robot/follow_service.py --ros-args -p always_detect:=true   # keep detecting (eyes)
 ```
+
+## Engineering branch integration
+
+Optional color recovery and timed detours are implemented but remain off by
+default. Enable them separately, after camera/stop-distance validation:
+
+```bash
+python3 lab/follow_me.py --ros-args -p use_color:=true
+python3 lab/follow_me.py --ros-args -p avoid_obstacles:=true
+```
+
+The same parameters work on `robot/follow_service.py`; Gemini exposes them as
+`FOLLOW_USE_COLOR` and `FOLLOW_AVOID_OBSTACLES`. Camera frames are consumed once,
+duplicate stamps are rejected, and detections older than one second are discarded.
+A frozen camera or stalled detector cannot keep refreshing the follower's motion
+watchdog. A target entering the stopping zone cancels a timed detour; these
+detours still are not collision-free navigation or person identity recognition.
+
+Only the inference worker closes its Hailo device. If an inference cannot stop,
+service reactivation is refused until that worker exits; do not start another
+detector to work around the error. Viewer and service compete for the same Hailo,
+so choose one operating mode. A controller acknowledgement or zero velocity
+publication still needs physical observation of stopping.
+
+Robot prerequisites include the built course ROS workspace, Hailo driver/runtime,
+the matching `robot/yolov8n_seg.hef`, OpenCV/NumPy/PyYAML, camera calibration, and
+`viser` for the viewer. The service's optional eye feed additionally uses pyzmq.
+This laptop's passing offline tests do not install or validate those robot
+dependencies. The combined repository layout is supported by Gemini's explicit
+component paths; do not copy a laptop virtual environment onto the Raspberry Pi.

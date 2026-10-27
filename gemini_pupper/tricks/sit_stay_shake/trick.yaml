@@ -1,0 +1,12 @@
+type: policy
+policy: policy.json
+start_pose: standing
+max_body_angle_deg: 60
+description: Sit and stay sitting until asked to stand. Use for a plain sit request;
+  shake either paw while seated.
+end_pose: sitting
+exit_clip: stand_up
+actions:
+  shake_left: Shake the left paw, then keep sitting.
+  shake_right: Shake the right paw, then keep sitting.
+  stand_up: Stand up and return to normal locomotion.

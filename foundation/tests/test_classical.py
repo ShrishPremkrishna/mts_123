@@ -126,6 +126,7 @@ def test_stale_camera_cancels_detour_and_publishes_stop(monkeypatch):
     sent = []
     node = SimpleNamespace(tracking_enabled=True, state=follow_me.State.AVOID_PASS,
                            last_frame_time=FakeTime(10), obstacle_pos=.1,
+                           lock=target_lock.Lock(),
                            get_clock=lambda: SimpleNamespace(now=lambda: FakeTime(12)),
                            command_publisher=SimpleNamespace(publish=sent.append))
     follow_me.StateMachineNode.timer_callback(node)

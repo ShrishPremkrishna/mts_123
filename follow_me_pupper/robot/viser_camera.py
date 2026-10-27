@@ -53,6 +53,7 @@ import yaml
 
 from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
 from yolo_seg import Detection, HailoYoloSeg, draw_detections
+from perception_safety import image_stamp_ns, fresh_frame
 
 # follow_me.py measures against this reference frame, so publish in it no matter
 # what resolution the viewer happens to be showing. The height is pinned too --
@@ -108,13 +109,22 @@ class RosSource:
         self.node = Node("viser_camera")
         self.lock = threading.Lock()
         self.frame = None
+        self.frame_received_at = None
+        self.last_read_at = None
+        self.last_image_stamp = None
 
         def callback(msg):
+            received_at = time.monotonic()
+            stamp = image_stamp_ns(msg)
+            if stamp is None or (self.last_image_stamp is not None and stamp <= self.last_image_stamp):
+                return
             arr = np.frombuffer(msg.data, np.uint8)
             bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
             if bgr is not None:
                 with self.lock:
                     self.frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                    self.frame_received_at = received_at
+                    self.last_image_stamp = stamp
 
         self.node.create_subscription(CompressedImage, topic, callback, 10)
         self.thread = threading.Thread(target=self._spin, daemon=True)
@@ -147,7 +157,11 @@ class RosSource:
 
     def read(self):
         with self.lock:
-            return None if self.frame is None else self.frame.copy()
+            frame, self.frame = self.frame, None
+            self.last_read_at = self.frame_received_at
+            if frame is None or not fresh_frame(self.last_read_at, time.monotonic()):
+                return None
+            return frame.copy()  # consume once; never re-detect a frozen camera image
 
     def close(self):
         # Order matters: shut down rclpy so spin() returns and the thread exits,
@@ -294,9 +308,9 @@ class DetectionWorker:
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
-    def submit(self, frame):
+    def submit(self, frame, received_at=None):
         with self._lock:
-            self._pending = frame
+            self._pending = (frame, time.monotonic() if received_at is None else received_at)
         self._wake.set()
 
     def raw(self):
@@ -321,38 +335,43 @@ class DetectionWorker:
 
     def _run(self):
         last_done = None
-        while not self._stop:
-            self._wake.wait(timeout=0.5)
-            self._wake.clear()
-            with self._lock:
-                frame, self._pending = self._pending, None
-            if frame is None or self._stop:
-                continue
-
-            try:
-                detections = self.model.infer(frame)
-            except Exception as exc:  # keep streaming even if the chip hiccups
-                print(f"[detection] inference failed: {exc}")
-                time.sleep(0.5)
-                continue
-
-            with self._lock:
-                self._result = (detections, frame.shape[:2])
-            self.inference_ms = self.model.last_inference_ms
-
-            now = time.time()
-            if last_done is not None:
-                instant = 1.0 / max(now - last_done, 1e-6)
-                self.fps = instant if self.fps == 0 else 0.7 * self.fps + 0.3 * instant
-            last_done = now
-
-            if self.on_result is not None:
-                self.on_result(detections, frame)
+        try:
+            while not self._stop:
+                self._wake.wait(timeout=0.5)
+                self._wake.clear()
+                with self._lock:
+                    item, self._pending = self._pending, None
+                if item is None or self._stop:
+                    continue
+                frame, received_at = item
+                if not fresh_frame(received_at, time.monotonic()):
+                    continue
+                try:
+                    detections = self.model.infer(frame)
+                except Exception as exc:  # keep streaming even if the chip hiccups
+                    print(f"[detection] inference failed: {exc}")
+                    self._wake.wait(0.5)
+                    continue
+                if self._stop or not fresh_frame(received_at, time.monotonic()):
+                    continue  # stale results cannot refresh /detections
+                with self._lock:
+                    self._result = (detections, frame.shape[:2])
+                self.inference_ms = self.model.last_inference_ms
+                now = time.time()
+                if last_done is not None:
+                    instant = 1.0 / max(now - last_done, 1e-6)
+                    self.fps = instant if self.fps == 0 else 0.7 * self.fps + 0.3 * instant
+                last_done = now
+                if self.on_result is not None:
+                    self.on_result(detections, frame)
+        finally:
+            self.model.close()  # owner closes only after its inference has finished
 
     def close(self):
         self._stop = True
         self._wake.set()
         self.thread.join(timeout=2.0)
+        return not self.thread.is_alive()
 
 
 def _scale_detections(detections, src_shape, dst_shape):
@@ -850,7 +869,7 @@ def main():
                         detect_frame = cv2.resize(
                             detect_frame, None, fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA
                         )
-                    worker.submit(detect_frame)
+                    worker.submit(detect_frame, received_at=getattr(source, 'last_read_at', None))
                     last_submit = time.time()
 
                 # Boxes and masks live in equirectangular pixels, so they can
@@ -922,7 +941,7 @@ def main():
     finally:
         if worker is not None:
             worker.close()
-        if detector is not None:
+        elif detector is not None:
             detector.close()
         source.close()
 

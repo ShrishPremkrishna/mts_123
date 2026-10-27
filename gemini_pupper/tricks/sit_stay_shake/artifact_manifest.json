@@ -1,0 +1,25 @@
+{
+  "policy_run": null,
+  "walk_run": null,
+  "policy_source": {
+    "type": "local",
+    "path": "/private/tmp/cs123-pupper-foundation/artifacts/lab6/sit_stay_shake/policy.json",
+    "sha256": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954"
+  },
+  "walk_source": null,
+  "files": {
+    "policy.json": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954",
+    "trick.yaml": "9a4905053e78ce34f148aad99bb7142e6dc3317536c82265d26173d65ceb63fd"
+  },
+  "hardware_validated": false,
+  "ta_approval_recorded": false,
+  "evaluation": {
+    "reference": "foundation/results/lab6-sit-stay-shake.json",
+    "sha256": "bfc9f2a5f6d50c81aba801a308e562caccd6c940d6b4d523c739f29206e09d0a",
+    "policy_sha256": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954",
+    "scenario_count": 8,
+    "scope": "CPU simulation evaluation only; consult report limitations",
+    "all_hold_up": true,
+    "approved_for_hardware": false
+  }
+}

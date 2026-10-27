@@ -88,6 +88,18 @@ the complete trick, and preserves an older installation under `tricks/.backups/`
 before replacing it. `artifact_manifest.json` records source runs and file hashes.
 No controller is activated by fetching a policy.
 
+Local Colab/TensorBoard exports can be installed without a W&B account:
+
+```bash
+python3 robot/get_trick.py --policy-file /path/to/sit/policy.json --name sit_stay_shake
+python3 robot/get_trick.py --policy-file /path/to/spider-clips/policy.json --walk-policy-file /path/to/spider-walk/policy.json --walk-limits /path/to/evaluated-limits.json --name spider_walk
+```
+
+Local and W&B sources use the same staging, validation, backup and descriptor
+checks. Local source paths and hashes are recorded. Keep the paired exported
+policies, limits and evaluation together; installation does not establish that
+the policy earned a hardware trial. Mixed local/W&B source arguments are refused.
+
 The completed `sit_stay_shake` descriptor is generated when its real policy is
 fetched. Its actions are `shake_left`, `shake_right`, `stand_up`; `stand_up` is the
 exit. No placeholder policy is shipped. `spider_walk` requires both the clip policy

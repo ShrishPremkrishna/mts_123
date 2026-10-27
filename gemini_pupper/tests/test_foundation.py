@@ -57,6 +57,89 @@ def test_bad_argument_container_is_a_refusal():
     run_case(case)
 
 
+@pytest.mark.parametrize('source_args', [
+    [],
+    ['entity/project/run', '--policy-file', 'p.json'],
+    ['entity/project/run', '--walk-policy-file', 'w.json'],
+    ['--policy-file', 'p.json', '--walk', 'entity/project/walk'],
+    ['--policy-file', 'p.json', '--walk-policy-file', 'w.json', '--walk', 'entity/project/walk'],
+    ['--policy-file', 'p.json', '--walk-limits', 'limits.json'],
+])
+def test_trick_installer_rejects_ambiguous_or_mixed_sources_before_access(monkeypatch, source_args):
+    import get_trick
+    monkeypatch.setattr(get_trick, 'resolve_run_path', lambda *args: pytest.fail('source validation must precede remote access'))
+    monkeypatch.setattr(sys, 'argv', ['get_trick.py', '--name', 'new_trick', *source_args])
+    with pytest.raises(SystemExit) as exc:
+        get_trick.main()
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize('extra', [[], ['--walk-policy-file', 'walk.json']])
+def test_local_spider_install_requires_both_policies_and_evaluated_limits(monkeypatch, extra):
+    import get_trick
+    monkeypatch.setattr(sys, 'argv', ['get_trick.py', '--name', 'spider_walk', '--policy-file', 'clip.json', *extra])
+    with pytest.raises(SystemExit) as exc:
+        get_trick.main()
+    assert exc.value.code == 2
+
+
+def test_local_policy_install_validates_and_records_provenance_without_wandb(tmp_path, monkeypatch):
+    import get_trick
+    source = ROBOT_DIR.parent / 'tricks/sneeze/policy.json'
+    destination = tmp_path / 'tricks'
+    monkeypatch.setattr(get_trick, 'TRICK_DIR', destination)
+    monkeypatch.setattr(get_trick, 'resolve_run_path', lambda *args: pytest.fail('local import must not use W&B'))
+    monkeypatch.setattr(sys, 'argv', ['get_trick.py', '--name', 'local_sneeze', '--policy-file', str(source)])
+    get_trick.main()
+    installed = destination / 'local_sneeze'
+    assert (installed / 'policy.json').read_bytes() == source.read_bytes()
+    manifest = json.loads((installed / 'artifact_manifest.json').read_text())
+    assert manifest['policy_source']['type'] == 'local'
+    assert manifest['policy_source']['path'] == str(source.resolve())
+    assert manifest['policy_source']['sha256'] == manifest['files']['policy.json']
+    assert manifest['policy_run'] is None and not manifest['hardware_validated']
+    get_trick.main()
+    backups = list((destination / '.backups').iterdir())
+    assert len(backups) == 1 and (backups[0] / 'policy.json').read_bytes() == source.read_bytes()
+
+
+def test_local_second_policy_failure_keeps_previous_installation(tmp_path, monkeypatch):
+    import get_trick
+    source = ROBOT_DIR.parent / 'tricks/sneeze/policy.json'
+    destination = tmp_path / 'tricks'
+    installed = destination / 'existing'
+    installed.mkdir(parents=True)
+    (installed / 'marker').write_text('preserved baseline')
+    bad_walk = tmp_path / 'not_a_walking_policy.json'
+    bad_walk.write_text('{"trick": {}}')
+    monkeypatch.setattr(get_trick, 'TRICK_DIR', destination)
+    monkeypatch.setattr(sys, 'argv', ['get_trick.py', '--name', 'existing', '--policy-file', str(source), '--walk-policy-file', str(bad_walk)])
+    with pytest.raises(ValueError, match='velocity policy'):
+        get_trick.main()
+    assert sorted(p.name for p in installed.iterdir()) == ['marker']
+    assert not (destination / '.backups').exists()
+
+
+def test_new_evaluated_walk_limits_replace_old_limits_without_losing_actions(tmp_path):
+    import get_trick
+    import yaml
+    spec = tmp_path / 'trick.yaml'
+    spec.write_text(yaml.safe_dump({'description': 'existing spider', 'secret': True,
+        'actions': {'spider_up': 'stand'}, 'walk': {'policy': 'walk_policy.json', 'speed': .1}}))
+    limits = {'evaluation_source': 'new-run/evaluation.json', 'speed': .04,
+              'max_forward': .08, 'max_sideways': .04, 'turn': 15.}
+    get_trick.write_template(tmp_path, 'spider_walk', {}, walks=True, walk_limits=limits)
+    result = yaml.safe_load(spec.read_text())
+    assert result['walk']['speed'] == .04
+    assert result['evaluation_source'] == 'new-run/evaluation.json'
+    assert result['secret'] and result['actions'] == {'spider_up': 'stand'}
+    before = spec.read_bytes()
+    with pytest.raises(ValueError, match='finite positive'):
+        get_trick.write_template(tmp_path, 'spider_walk', {}, walks=True,
+                                 walk_limits={**limits, 'speed': float('nan')})
+    assert spec.read_bytes() == before
+
+
 @pytest.mark.parametrize("crashes", [False, True])
 def test_failed_job_cancels_dependent_sequence_and_reports_outcome(crashes):
     async def case(rig):
