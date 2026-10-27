@@ -68,7 +68,28 @@ async def play_trick(robot: Robot, name: str) -> Result:
     # QUEUE IT:
     # 4. Decide then: which state is Pupper in once the job is done? (Read the card above.)
     # 5. return with_note(note, await robot.queue(f"trick {name}", job, trick.total_time, then=...))
-    return not_written("TODO 7", "play_trick in lab/part4_tricks.py")
+    trick = robot.tricks.get(name)
+    if trick is None:
+        return Result(False, f"unknown trick '{name}'; available: {list(robot.available_tricks())}")
+    if not robot.trick_available(trick):
+        return Result(False, "This trick is locked. Ask for the password, then use unlock(password).")
+    if robot.fallen:
+        return Result(False, FELL_MESSAGE)
+    note = await prepare_to_move(robot)
+    if isinstance(note, Result):
+        return note
+
+    async def job() -> Result:
+        if not robot.trick_available(trick):
+            return Result(False, "The trick was locked before it started; unlock it first.")
+        if robot.fallen:
+            return Result(False, FELL_MESSAGE)
+        if trick.kind == "reference":
+            return await robot.play_reference_trick(trick)
+        return await play_policy_trick(robot, trick)
+
+    then = LOCOMOTION if trick.kind == "reference" or (not trick.interactive and trick.end_pose == "standing") else trick
+    return with_note(note, await robot.queue(f"trick {name}", job, trick.total_time, then=then))
     # ====================================
 
 
@@ -101,6 +122,10 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
                                               actions: shake_left, shake_right, stand_up. ..."
       sit_stay_shake, already in it        -> "already doing sit_stay_shake"
     """
+    if robot.fallen:
+        return Result(False, FELL_MESSAGE)
+    if not robot.trick_available(trick):
+        return Result(False, "This trick is locked; unlock it first.")
     if trick.interactive and robot.state_now is trick:  # 1. already in it
         return Result(True, f"already doing {trick.name}")
     if not trick.interactive and robot.state_now is trick:
@@ -122,6 +147,8 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
             if not res.ok:
                 return Result(False, f"played {trick.name}, but its walking policy did not take over: {res.message}")
             await robot.sleep(WALK_READY_S)  # it eases into the stance, then fades its policy in
+            if robot.fallen or robot.stopped_during_call():
+                return Result(False, "walking trick interrupted by a fall or stop")
             return Result(True, f"played {trick.name}; it now stays in its {trick.end_pose} stance."
                                 f" {trick.walk.describe()} Interactive actions: {actions}.{leave}")
         return Result(True, f"played {trick.name}; it now stays {trick.end_pose}. Interactive actions: {actions}.{leave}")
@@ -148,8 +175,11 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
 # ========== TODO 8: YOUR CODE HERE ==========
 @tool(
     "play_trick",
-    "TODO 8: describe play_trick for Gemini." + PREPARES_MOVE + "\nTricks:\n{tricks}",
-    name=Param("string", "TODO 8", enum=TRICK_NAMES),
+    "Play an installed trick. Read its description and starting pose before choosing. A playback trick keeps its final"
+    " pose unless it ends standing; an interactive trick stays until an action or another motion leaves it."
+    " Use sit_stay_shake for sit-and-stay once installed. A queued reply means accepted, not already completed."
+    + PREPARES_MOVE + "\nAvailable tricks:\n{tricks}",
+    name=Param("string", "Exact installed trick name from the available list.", enum=TRICK_NAMES),
 )
 # ====================================
 async def play_trick_tool(robot: Robot, name: str) -> Result:

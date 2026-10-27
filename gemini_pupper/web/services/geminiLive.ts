@@ -431,7 +431,7 @@ export class GeminiLiveService {
 
     if (message.toolCall) {
       for (const fc of message.toolCall.functionCalls) {
-        this.log('function', `Call: ${fc.name}(${JSON.stringify(fc.args)})`);
+        this.log('function', `Call: ${fc.name}(${fc.name === 'unlock' ? '[redacted]' : JSON.stringify(fc.args)})`);
         let result: any = { success: true };
         
         try {

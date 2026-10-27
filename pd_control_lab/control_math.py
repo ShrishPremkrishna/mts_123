@@ -10,6 +10,16 @@ def sine_target(t, amplitude=0.2, frequency=1 / (2 * math.pi), center=0.0):
     return center + amplitude * math.sin(omega * t), amplitude * omega * math.cos(omega * t)
 
 
+def bounded_sine_target(t, amplitude, center, lower, upper, margin=0.02):
+    """Reduce amplitude symmetrically, preserving the analytic target velocity."""
+    if not all(math.isfinite(v) for v in (amplitude, center, lower, upper, margin)):
+        raise ValueError('trajectory bounds must be finite')
+    if amplitude < 0 or margin < 0 or not lower + margin <= center <= upper - margin:
+        raise ValueError('measured center or amplitude is outside the usable joint range')
+    usable = min(amplitude, center - lower - margin, upper - margin - center)
+    return sine_target(t, amplitude=max(0., usable), center=center)
+
+
 def pd_torque(position, velocity, target_position, target_velocity, kp, kd, limit):
     values = (position, velocity, target_position, target_velocity, kp, kd, limit)
     if not all(math.isfinite(v) for v in values):

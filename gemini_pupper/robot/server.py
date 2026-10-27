@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 import tool_registry as gemini_tools
 from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
 from robot_api import LIMITS, Robot
+from runtime_config import component_dir, follower_config
 
 behaviors = gemini_tools.load_lab()  # lab/: every tool, and the behaviors they call
 
@@ -42,7 +43,7 @@ log = logging.getLogger("server")
 REPO = Path(__file__).resolve().parent.parent
 WEB_DIST = REPO / "web" / "dist"
 PROMPT_FILE = REPO / "lab" / "prompt.md"
-BATTERY_SCRIPT = Path("/home/pi/pupperv3-monorepo/robot/utils/check_batt_voltage.py")
+BATTERY_SCRIPT = component_dir("pupperv3-monorepo", "PUPPER_MONOREPO_DIR") / "robot/utils/check_batt_voltage.py"
 
 tools: Robot | None = None
 
@@ -84,6 +85,7 @@ detections = Detections()
 async def lifespan(app: FastAPI):
     global tools
     tools = Robot()
+    tools.follow_available = follower_config().mode != "disabled"
     task = asyncio.create_task(detections.run())
     yield
     task.cancel()
@@ -151,44 +153,57 @@ def tool_list():
 @app.post("/tools/{name}")
 async def tool_call(name: str, args: dict = Body(default={})):
     res = await gemini_tools.call(T(), name, args)
-    log.info("tool %s(%s) -> %s: %s", name, args, "ok" if res.ok else "FAILED", res.message)
+    log.info("tool %s(%s) -> %s: %s", name, "[redacted]" if name == "unlock" else args,
+             "ok" if res.ok else "FAILED", res.message)
     return res.as_dict()
 
 
 # ------------------------------------------------------------------ commands
 @app.post("/walking/activate")
 async def walking_activate():
-    return (await behaviors.stand_up(T())).as_dict()
+    return (await gemini_tools.call(T(), "stand_up", {})).as_dict()
 
 
 @app.post("/walking/deactivate")
 async def walking_deactivate():
-    return (await behaviors.lie_down(T())).as_dict()
+    return (await gemini_tools.call(T(), "lie_down", {})).as_dict()
 
 
 @app.post("/move/velocity")
 async def move_velocity(req: MoveVelocity):
     # The browser uses right/clockwise-positive; ROS uses left/counter-clockwise-positive.
-    res = await behaviors.walk(T(), req.forward_backward_velocity, -req.right_left_velocity, -req.turning_velocity, req.duration)
+    res = await gemini_tools.dispatch(T(), lambda: behaviors.walk(T(), req.forward_backward_velocity,
+                -req.right_left_velocity, -req.turning_velocity, req.duration), name="move/velocity")
     return res.as_dict()
 
 
 @app.post("/move/direction")
 async def move_direction(req: MoveDirection):
-    turn = await behaviors.walk(T(), 0.0, 0.0, -90.0 if req.heading > 0 else 90.0, abs(req.heading) / 90.0) if req.heading else None
-    if turn and not turn.ok:
-        return turn.as_dict()
-    return (await behaviors.walk(T(), req.speed, 0.0, 0.0, req.duration)).as_dict()
+    async def run():
+        # Validate both segments before queuing either; a rejected second segment
+        # must not leave the robot executing half of the requested movement.
+        limits = T().speeds().limits
+        issue = behaviors.check_move(req.speed, 0.0, 0.0, req.duration, limits)
+        if issue:
+            from robot_api import Result
+            return Result(False, issue)
+        if req.heading:
+            turn_speed = T().speeds().turn
+            turn = await behaviors.walk(T(), 0.0, 0.0, -turn_speed if req.heading > 0 else turn_speed, abs(req.heading) / turn_speed)
+            if not turn.ok:
+                return turn
+        return await behaviors.walk(T(), req.speed, 0.0, 0.0, req.duration)
+    return (await gemini_tools.dispatch(T(), run, name="move/direction")).as_dict()
 
 
 @app.post("/animation")
 async def animation(req: Trick):
-    return (await behaviors.play_trick(T(), req.animation_name)).as_dict()
+    return (await gemini_tools.call(T(), "play_trick", {"name": req.animation_name})).as_dict()
 
 
 @app.post("/interactive_action")
 async def interactive_action(req: TrickAction):
-    return (await behaviors.interactive_action(T(), req.action)).as_dict()
+    return (await gemini_tools.call(T(), "interactive_action", {"action": req.action})).as_dict()
 
 
 @app.get("/interactive_actions")
@@ -206,18 +221,18 @@ def available_tricks() -> dict:
     """The tricks in <repo>/tricks, every one played by a policy."""
     return {
         name: {"description": t.description, "duration_s": round(t.total_time, 1), "kind": t.kind}
-        for name, t in T().tricks.items()
+        for name, t in T().available_tricks().items()
     }
 
 
 @app.post("/queue/wait")
 async def queue_wait(req: Wait):
-    return (await T().wait(req.duration)).as_dict()
+    return (await gemini_tools.dispatch(T(), lambda: T().wait(req.duration), name="wait")).as_dict()
 
 
 @app.post("/queue/reset")
 async def queue_reset():
-    return (await T().clear_queue()).as_dict()
+    return (await gemini_tools.dispatch(T(), lambda: T().clear_queue(), name="clear_queue")).as_dict()
 
 
 @app.post("/queue/stop")
@@ -233,12 +248,12 @@ def queue_status():
 
 @app.post("/following/activate")
 async def following_on():
-    return (await T().set_following(True)).as_dict()
+    return (await gemini_tools.call(T(), "follow", {"enabled": True})).as_dict()
 
 
 @app.post("/following/deactivate")
 async def following_off():
-    return (await T().set_following(False)).as_dict()
+    return (await gemini_tools.call(T(), "follow", {"enabled": False})).as_dict()
 
 
 @app.get("/system/mode")

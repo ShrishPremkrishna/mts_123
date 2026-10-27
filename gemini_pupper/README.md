@@ -14,6 +14,15 @@ happened. In CS 123, Lab 6 (*Bringing Your Pupper to Life*), you write them.
 (Google DeepMind)**, original repo [sippeyxp/gemini-pupper](https://github.com/sippeyxp/gemini-pupper).
 This is the CS 123 version: tools in Python, trick policies, and safety checks.
 
+## Foundation branch
+
+This engineering branch implements the Lab 6 tools, the optional jump, and the
+Optional Lab 3 password gate. It also checks controller/follower transitions
+and reports failed queued work. The motion-training work is separate: a completed
+tool does not mean a newly trained policy has been validated on this robot.
+See [Foundation operation](docs/foundation.md) for configuration, offline checks,
+artifact installation and the remaining training/hardware boundaries.
+
 ## What's where
 
 You only work in `lab/`. Everything else is provided.

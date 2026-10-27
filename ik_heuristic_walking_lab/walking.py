@@ -19,6 +19,7 @@ Rebuild the cache (plain run, or --save-cache) any time you change the keyframes
 
 import argparse
 import os
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -28,7 +29,7 @@ import numpy as np
 
 from kinematics import LEG_FK, LEG_LIMITS, inverse_kinematics
 from rclpy.signals import SignalHandlerOptions
-from controller_manager_msgs.srv import SwitchController
+from controller_support import joint_sample, state_fresh, request_position_stop, confirm_position_stop
 import hashlib
 
 np.set_printoptions(precision=3, suppress=True)
@@ -58,6 +59,9 @@ class InverseKinematics(Node):
         self.joint_velocities = None
         self.target_joint_positions = None
         self.counter = 0
+        self.last_state_at = None
+        self.sensor_fault = False
+        self.stop_future = None
 
         # Keyframes of a single leg's cycle, in the leg's own frame. The per-leg
         # offsets below place them under the correct hip.
@@ -73,7 +77,9 @@ class InverseKinematics(Node):
         stand_position_2 = np.array([0.0, 0.0, -0.14])
         stand_position_3 = np.array([-0.0225, 0.0, -0.15])
         liftoff_position = np.array([-0.045, 0.0, -0.15])
-        mid_swing_position = np.array([0.0, 0.0, -0.05])
+        # The previous -0.05 m apex was outside the front legs' bounded IK
+        # path. Lowering it by 1 cm makes all 200 cached samples reachable.
+        mid_swing_position = np.array([0.0, 0.0, -0.06])
         #initial below
         # touch_down_position = np.array([0.05, 0.0, -0.14])
         # stand_position_1 = np.array([0.025, 0.0, -0.14])
@@ -131,17 +137,23 @@ class InverseKinematics(Node):
         self.ee_triangle_positions = [rf_ee_triangle_positions, lf_ee_triangle_positions, rb_ee_triangle_positions, lb_ee_triangle_positions]
         self.fk_functions = LEG_FK
 
-        if use_cache:
-            self.target_joint_positions_cache, self.target_ee_cache = self.load_cached_joint_positions()
-        else:
-            self.target_joint_positions_cache, self.target_ee_cache = self.cache_target_joint_positions()
-            if save_cache:
-                self.save_cached_joint_positions()
+        try:
+            if use_cache:
+                self.target_joint_positions_cache, self.target_ee_cache = self.load_cached_joint_positions()
+            else:
+                self.target_joint_positions_cache, self.target_ee_cache = self.cache_target_joint_positions()
+                if save_cache:
+                    self.save_cached_joint_positions()
+        except Exception:
+            # A launch may have activated the position controller before this
+            # process discovered an invalid cache or unreachable keyframe.
+            confirm_position_stop(self, request_position_stop(self, []))
+            raise
         print(f'shape of target_joint_positions_cache: {self.target_joint_positions_cache.shape}')
         print(f'shape of target_ee_cache: {self.target_ee_cache.shape}')
 
         self.pd_timer_period = 1.0 / 200  # 200 Hz
-        self.ik_timer_period = 1.0 / 120  # 200 Hz
+        self.ik_timer_period = 1.0 / 120  # 120 Hz
         self.pd_timer = self.create_timer(self.pd_timer_period, self.pd_timer_callback)
         self.ik_timer = self.create_timer(self.ik_timer_period, self.ik_timer_callback)
 
@@ -155,8 +167,28 @@ class InverseKinematics(Node):
             'leg_back_r_1', 'leg_back_r_2', 'leg_back_r_3',
             'leg_back_l_1', 'leg_back_l_2', 'leg_back_l_3'
         ]
-        self.joint_positions = np.array([msg.position[msg.name.index(joint)] for joint in joints_of_interest])
-        self.joint_velocities = np.array([msg.velocity[msg.name.index(joint)] for joint in joints_of_interest])
+        sample = joint_sample(msg, joints_of_interest)
+        if sample is None:
+            self.stop_on_sensor_fault('Malformed or nonfinite joint state')
+            return
+        self.joint_positions, self.joint_velocities = sample
+        self.last_state_at = time.monotonic()
+
+    def stop_on_sensor_fault(self, reason):
+        if self.sensor_fault:
+            return
+        self.sensor_fault = True
+        self.target_joint_positions = None
+        self.get_logger().error(f'{reason}; gait stopped. Repair sensors and restart explicitly.')
+        self.stop_future = request_position_stop(self, [self.pd_timer, self.ik_timer])
+
+    def sensors_ready(self):
+        if self.sensor_fault or self.last_state_at is None:
+            return False
+        if not state_fresh(self.last_state_at, time.monotonic()):
+            self.stop_on_sensor_fault('Joint state timed out')
+            return False
+        return True
 
     def interpolate_triangle(self, t, leg_index):
         ################################################################################################
@@ -210,19 +242,24 @@ class InverseKinematics(Node):
     def load_cached_joint_positions(self):
         # Load a previously saved cache. Regenerate it whenever you change the keyframes!
         try:
-            data = np.load(CACHE_FILE)
+            data = np.load(CACHE_FILE, allow_pickle=False)
         except FileNotFoundError:
             print(f'No cache at {CACHE_FILE}. Run with --save-cache once to create it.')
             raise
         print(f'Loaded cached joint positions from {CACHE_FILE}')
-        joints, feet = data['target_joint_positions'], data['target_ee']
-        if 'keyframe_hash' not in data or str(data['keyframe_hash']) != self.keyframe_hash():
-            raise ValueError("stale or unversioned gait cache; regenerate with --save-cache")
+        with data:
+            joints, feet = data['target_joint_positions'], data['target_ee']
+            if 'keyframe_hash' not in data or str(data['keyframe_hash']) != self.keyframe_hash():
+                raise ValueError("stale or unversioned gait cache; regenerate with --save-cache")
         if joints.shape != (50, 12) or feet.shape != (50, 12) or not np.isfinite([joints, feet]).all():
             raise ValueError("invalid gait cache")
         limits = np.concatenate(LEG_LIMITS)
         if np.any(joints < limits[:, 0]) or np.any(joints > limits[:, 1]):
             raise ValueError("cached gait exceeds joint limits")
+        intended = np.array([np.concatenate([self.interpolate_triangle(t, leg) for leg in range(4)])
+                             for t in np.arange(0, 1, 0.02)])
+        if not np.allclose(feet, intended, atol=1e-12, rtol=0):
+            raise ValueError("cached foot targets do not match the configured gait")
         residual = max(np.linalg.norm(self.forward_kinematics(q).reshape(4, 3) - f.reshape(4, 3), axis=1).max()
                        for q, f in zip(joints, feet))
         if residual > 1e-4:
@@ -234,22 +271,9 @@ class InverseKinematics(Node):
 
     def stop_controller(self):
         # Zero angles are a POSITION request, never a torque-off command.
-        self.pd_timer.cancel()
-        self.ik_timer.cancel()
-        client = self.create_client(SwitchController, '/controller_manager/switch_controller')
-        if not client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().error('Controller stop unavailable: use the gamepad emergency stop.')
-            return False
-        req = SwitchController.Request()
-        req.deactivate_controllers = ['forward_command_controller']
-        req.strictness = SwitchController.Request.BEST_EFFORT
-        req.timeout.sec = 2
-        future = client.call_async(req)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=3.0)
-        ok = future.done() and future.exception() is None and future.result().ok
-        if not ok:
-            self.get_logger().error('Controller did not confirm stop: use the gamepad emergency stop.')
-        return bool(ok)
+        if self.stop_future is None:
+            self.stop_future = request_position_stop(self, [self.pd_timer, self.ik_timer])
+        return confirm_position_stop(self, self.stop_future)
 
     def get_target_joint_positions(self):
         target_joint_positions = self.target_joint_positions_cache[self.counter]
@@ -260,7 +284,7 @@ class InverseKinematics(Node):
         return target_ee, target_joint_positions
 
     def ik_timer_callback(self):
-        if self.joint_positions is not None:
+        if self.sensors_ready():
             target_ee, self.target_joint_positions = self.get_target_joint_positions()
             current_ee = self.forward_kinematics(self.joint_positions)
 
@@ -272,7 +296,7 @@ class InverseKinematics(Node):
                 Current Angles: {self.joint_positions}')
 
     def pd_timer_callback(self):
-        if self.target_joint_positions is not None:
+        if self.sensors_ready() and self.target_joint_positions is not None:
             command_msg = Float64MultiArray()
             command_msg.data = self.target_joint_positions.tolist()
             self.command_publisher.publish(command_msg)
@@ -287,17 +311,18 @@ def main():
     args, _ = parser.parse_known_args()
 
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    inverse_kinematics = InverseKinematics(use_cache=args.use_cache, save_cache=args.save_cache)
-
+    inverse_kinematics = None
     try:
+        inverse_kinematics = InverseKinematics(use_cache=args.use_cache, save_cache=args.save_cache)
         rclpy.spin(inverse_kinematics)
     except KeyboardInterrupt:
         print("Program terminated by user")
     finally:
-        inverse_kinematics.stop_controller()
-
-        inverse_kinematics.destroy_node()
-        rclpy.shutdown()
+        if inverse_kinematics is not None:
+            inverse_kinematics.stop_controller()
+            inverse_kinematics.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

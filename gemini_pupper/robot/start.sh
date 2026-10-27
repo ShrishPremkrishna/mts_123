@@ -13,7 +13,9 @@ free_port() {  # stop whatever is serving port 8000 (an older robot server)
   [ -n "$pids" ] && kill $pids 2>/dev/null && sleep 1
   return 0
 }
-ROS="source /opt/ros/jazzy/setup.bash; source $HOME/pupperv3-monorepo/ros2_ws/install/local_setup.bash; export ROS_LOCALHOST_ONLY=1"
+python3 "$HERE/preflight.py" || exit 1
+MONOREPO=$(cd "$HERE" && python3 -c 'from runtime_config import component_dir; print(component_dir("pupperv3-monorepo", "PUPPER_MONOREPO_DIR"))')
+printf -v ROS 'source %q; source %q; export ROS_LOCALHOST_ONLY=1' "/opt/ros/jazzy/setup.bash" "$MONOREPO/ros2_ws/install/local_setup.bash"
 
 [ -f "$REPO/web/dist/index.html" ] || { echo "Missing $REPO/web/dist: run robot/setup.sh first (it builds the web app)"; exit 1; }
 if [ $KIOSK = 1 ] && [ ! -s "$KEY_FILE" ]; then

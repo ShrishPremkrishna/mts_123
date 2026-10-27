@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import math
 import sys
 import types
 from dataclasses import dataclass
@@ -58,7 +59,7 @@ TOOLS: dict[str, Tool] = {}
 
 # The lab's files, in the order of the lab. Gemini gets the tools in this order.
 LAB_DIR = Path(__file__).resolve().parent.parent / "lab"
-LAB_MODULES = ["basics", "part2_walk", "part3_follow", "part4_tricks", "part5_interactive_action"]
+LAB_MODULES = ["basics", "part2_walk", "part3_follow", "part4_tricks", "part5_interactive_action", "part8_secrets"]
 
 
 def tool(tool_name: str, description: str, /, **params: Param):
@@ -93,7 +94,7 @@ def _in_lab_order(tools: list[Tool]) -> list[Tool]:
 
 def TRICK_NAMES(robot: Robot) -> list:
     """enum: the installed tricks."""
-    return list(robot.tricks)
+    return list(robot.available_tricks())
 
 
 def ACTION_IDS(robot: Robot) -> list:
@@ -102,7 +103,7 @@ def ACTION_IDS(robot: Robot) -> list:
 
 
 def _trick_list(robot: Robot) -> str:
-    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.tricks.items())
+    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.available_tricks().items()) or "(none available)"
 
 
 def _action_list(robot: Robot) -> str:
@@ -130,7 +131,10 @@ def declarations(robot: Robot) -> list[dict]:
         for name, p in t.params.items():
             prop: dict[str, Any] = {"type": p.type.upper(), "description": p.description}
             enum = _resolve(p.enum, robot)
-            if enum:  # an empty list (nothing installed yet) is left out: Gemini rejects it
+            # The live connection's schema cannot change after unlock. Keep hidden
+            # names out, and let the server validate their newly unlocked names.
+            dynamic_hidden = p.enum in (TRICK_NAMES, ACTION_IDS) and any(t.secret for t in robot.tricks.values())
+            if enum and not dynamic_hidden:
                 prop["enum"] = [str(v) for v in enum]
             props[name] = prop
             if p.required:
@@ -150,7 +154,9 @@ async def call(robot: Robot, name: str, args: dict) -> Result:
     t = TOOLS.get(name)
     if t is None:
         return Result(False, f"unknown tool {name}; the tools are {sorted(TOOLS)}")
-    args = dict(args or {})
+    if not isinstance(args, dict):
+        return Result(False, f"{name} arguments must be an object")
+    args = dict(args)
     extra = sorted(set(args) - set(t.params))
     if extra:
         return Result(False, f"{name} has no parameter {extra}; it takes {sorted(t.params)}")
@@ -161,15 +167,40 @@ async def call(robot: Robot, name: str, args: dict) -> Result:
             continue
         v = args[pname]
         if isinstance(v, bool) and p.type != "boolean" or not isinstance(v, _TYPES[p.type]):
-            return Result(False, f"{name}: {pname} must be a {p.type}, not {v!r}")
+            return Result(False, f"{name}: {pname} must be a {p.type}")
+        if p.type in ("number", "integer"):
+            try:
+                finite = math.isfinite(v)
+            except OverflowError:
+                finite = False
+            if not finite:
+                return Result(False, f"{name}: {pname} must be finite")
+        if p.enum is TRICK_NAMES and v in robot.tricks and not robot.trick_available(robot.tricks[v]):
+            return Result(False, "This trick is locked. Ask for the password, then use unlock(password).")
         enum = _resolve(p.enum, robot)
         if enum is not None and not enum:
             return Result(False, f"{name}: nothing is installed for {pname} yet, so it can't be used")
         if enum is not None and v not in enum:
             return Result(False, f"{name}: {pname} must be one of {list(enum)}, not {v!r}")
-    token = CALL_STOPS.set(robot.stops)  # a stop after this point cancels what this call would queue
+    return await dispatch(robot, lambda: t.run(robot, **args), name=name,
+                          interrupt=name in ("stop", "robot_status", "lock_tricks"))
+
+
+async def dispatch(robot: Robot, run: Callable[[], Awaitable[Result]], *, name: str, interrupt: bool = False) -> Result:
+    """The same stop-generation/serialization boundary for tools and direct HTTP controls."""
+    token = CALL_STOPS.set(robot.stops)
     try:
-        return await t.run(robot, **args)
+        if interrupt:
+            return await run()
+        await robot.ready.wait()
+        if robot.startup_error:
+            return Result(False, robot.startup_error)
+        if robot.controller_fault:
+            return Result(False, robot.controller_fault)
+        async with robot.action_lock:
+            if robot.stopped_during_call():
+                return Result(False, "Request cancelled by a stop; ask again when ready.")
+            return await run()
     except Exception as e:  # a bug in a tool must not crash the server
         log.exception("tool %s failed", name)
         return Result(False, f"{name} failed on the robot: {type(e).__name__}: {e}")

@@ -122,6 +122,7 @@ class Trick:
     exit_clip: str | None = None
     walk_path: Path | None = None  # a walking interactive trick's walking policy
     walk: WalkConfig | None = None  # ... and its speeds (trick.yaml's walk block)
+    secret: bool = False  # hidden until the local password gate accepts an unlock
 
     @property
     def interactive(self) -> bool:
@@ -190,6 +191,10 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
     replaced_by: dict[str, str] = {}  # trick -> the trick that replaces it
     for spec_path in sorted(trick_dir.glob("*/trick.yaml")):
         spec = yaml.safe_load(spec_path.read_text())
+        if not isinstance(spec, dict):
+            raise ValueError(f"{spec_path}: expected a mapping")
+        if not isinstance(spec.get("secret", False), bool):
+            raise ValueError(f"{spec_path}: secret must be true or false")
         name = spec_path.parent.name
         kind = spec.get("type")
         clips, fps = [], 50.0
@@ -203,6 +208,19 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             duration = float(json.loads(path.read_text())["playback_s"])
         else:
             raise ValueError(f"{spec_path}: type must be policy or reference, not {kind!r}")
+        if not math.isfinite(duration) or duration <= 0 or not math.isfinite(fps) or fps <= 0:
+            raise ValueError(f"{spec_path}: duration and fps must be finite and positive")
+        clip_names_list = [c["name"] for c in clips]
+        if len(set(clip_names_list)) != len(clip_names_list):
+            raise ValueError(f"{spec_path}: duplicate clip names")
+        for c in clips:
+            if (type(c["start"]) is not int or type(c["end"]) is not int or c["start"] < 0
+                    or c["end"] - c["start"] < 2 or c["end"] > info.get("frames", c["end"])):
+                raise ValueError(f"{spec_path}: invalid frame bounds for clip {c['name']}")
+            if c.get("next") is not None and c["next"] not in clip_names_list:
+                raise ValueError(f"{spec_path}: clip {c['name']} has an unknown next clip")
+            if not isinstance(c.get("loop", False), bool):
+                raise ValueError(f"{spec_path}: clip loop must be true or false")
         actions = {str(k): str(v).strip() for k, v in (spec.get("actions") or {}).items()}
         exit_clip = spec.get("exit_clip")
         clip_names = {c["name"] for c in clips}
@@ -218,9 +236,20 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             walk = WalkConfig(speed=float(w["speed"]), max_forward=float(w["max_forward"]),
                               max_sideways=float(w["max_sideways"]), turn=float(w["turn"]),
                               run=bool(w.get("run", False)), note=str(w.get("note", "")).strip())
+            if not isinstance(w.get("run", False), bool):
+                raise ValueError(f"{spec_path}: walk run must be true or false")
+            if any(not math.isfinite(v) or v <= 0 for v in (walk.speed, walk.max_forward, walk.max_sideways, walk.turn)):
+                raise ValueError(f"{spec_path}: walk speeds must be finite and positive")
             clip_cmd = json.loads(walk_path.read_text())["command_clip"]  # what the policy was trained on
-            trained = (max(map(abs, clip_cmd["vx"])), max(map(abs, clip_cmd["vy"])),
-                       math.degrees(max(map(abs, clip_cmd["wz"]))))
+            for axis in ("vx", "vy", "wz"):
+                bounds = clip_cmd[axis]
+                if (len(bounds) != 2 or any(not math.isfinite(v) for v in bounds)
+                        or not bounds[0] < 0 < bounds[1]):
+                    raise ValueError(f"{spec_path}: walking command_clip {axis} must span zero with finite bounds")
+            # This API offers the same limit in both directions, so the narrower
+            # side of an asymmetric training range is the valid symmetric cap.
+            trained = (min(map(abs, clip_cmd["vx"])), min(map(abs, clip_cmd["vy"])),
+                       math.degrees(min(map(abs, clip_cmd["wz"]))))
             for what, asked, top in zip(("max_forward", "max_sideways", "turn"),
                                         (walk.max_forward, walk.max_sideways, walk.turn), trained):
                 if asked > top + 1e-6:
@@ -232,6 +261,9 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
         description = str(spec.get("description", name)).strip()
         if walk:  # what Gemini reads about walking in it comes from the numbers
             description = f"{description} {walk.describe()}"
+        angle = float(spec.get("max_body_angle_deg", 60.0))
+        if not math.isfinite(angle) or not 0 < angle < 180:
+            raise ValueError(f"{spec_path}: max_body_angle_deg must be finite and between 0 and 180")
         tricks[name] = Trick(
             name=name,
             description=description,
@@ -240,13 +272,14 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             duration=duration,
             start_pose=spec.get("start_pose", "standing"),
             end_pose=spec.get("end_pose", "standing"),
-            max_body_angle=math.radians(float(spec.get("max_body_angle_deg", 60.0))),
+            max_body_angle=math.radians(angle),
             clips=clips,
             fps=fps,
             actions=actions,
             exit_clip=exit_clip,
             walk_path=walk_path,
             walk=walk,
+            secret=spec.get("secret", False),
         )
     return {name: t for name, t in tricks.items() if replaced_by.get(name) not in tricks}
 
@@ -282,10 +315,17 @@ def reference_message_data(trick: Trick) -> list[float]:
     """The ~/reference_trick message: playback_s, active_s, cross_fade_s, then the table."""
     ref = json.loads(trick.path.read_text())
     data = [float(ref["playback_s"]), float(ref["active_s"]), float(ref["cross_fade_s"])]
+    if any(not math.isfinite(v) for v in data) or not (0 < data[1] <= data[0]) or not 0 <= data[2] <= data[0]:
+        raise ValueError(f"{trick.path}: invalid reference timing")
+    if len(ref["table"]) < 2:
+        raise ValueError(f"{trick.path}: a reference needs at least two frames")
     for row in ref["table"]:
         if len(row) != 12:
             raise ValueError(f"{trick.path}: every table row needs 12 joint offsets")
-        data.extend(float(v) for v in row)
+        values = [float(v) for v in row]
+        if any(not math.isfinite(v) for v in values):
+            raise ValueError(f"{trick.path}: joint offsets must be finite")
+        data.extend(values)
     return data
 
 
@@ -302,3 +342,34 @@ def walk_controller_params(base: dict) -> dict:
         reference_tricks=True,
     )
     return params
+
+
+def validate_locomotion_contract(policy_path: Path, references: list[Trick]) -> None:
+    """Reject a gait swap that invalidates the tool limits or an installed reference trick.
+
+    Full network/layout validation belongs to the deployment validator. This is
+    the additional behavior-level contract between Gemini and the walking policy.
+    """
+    policy = json.loads(policy_path.read_text())
+    caps = {"vx": 1.5, "vy": 0.5, "wz": math.radians(114.0)}
+    ranges = policy.get("command_clip", {})
+    for axis, cap in caps.items():
+        bound = ranges.get(axis, [])
+        if (len(bound) != 2 or any(not math.isfinite(v) for v in bound)
+                or bound[0] > -cap or bound[1] < cap):
+            raise ValueError(f"{policy_path}: {axis} training range does not support the Gemini tool limits; "
+                             "evaluate the policy and update the tool/controller limits together before using it")
+    slot = policy.get("jump_slot", {})
+    for trick in references:
+        ref = json.loads(trick.path.read_text())
+        reference_message_data(trick)
+        matching = all(math.isclose(float(ref[k]), float(slot.get(k, -1)), abs_tol=1e-6)
+                       for k in ("playback_s", "active_s", "cross_fade_s"))
+        trained = slot.get("jump_table", [])
+        table = ref["table"]
+        matching = matching and len(trained) == len(table) and all(
+            len(a) == len(b) and all(math.isclose(float(x), float(y), abs_tol=1e-6) for x, y in zip(a, b))
+            for a, b in zip(trained, table))
+        if not matching:
+            raise ValueError(f"{trick.name}: reference does not match the locomotion policy's trained jump slot; "
+                             "do not substitute an untrained reference")

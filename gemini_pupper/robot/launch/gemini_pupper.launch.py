@@ -4,8 +4,8 @@ Includes the course's neural_controller launch (walking policies, camera, joysti
 e-stop) exactly as pupper_gait_deploy installs it, and adds:
   - Lab 5's fixed white balance on the course's camera node (camera_white_balance)
   - cmd_vel_mux, so the joystick, Gemini and the person follower share /cmd_vel
-  - the person follower: your Lab 5 follow-me (follow_me_pupper/robot/follow_service.py)
-    when that repo is on the robot, else the monorepo's simple follower
+  - the explicitly selected person follower: Lab 5 by default, requiring its
+    service and detector model; legacy or disabled mode must be selected explicitly
   - gemini_walk, the walking controller Gemini drives (default policy, running
     allowed, reference tricks such as the jump enabled), and one controller per
     policy trick in <repo>/tricks (see robot/tricks.py). Every motion Gemini asks
@@ -31,7 +31,9 @@ HERE = Path(__file__).resolve().parent
 PARAMS = str(HERE / "gemini_pupper.yaml")
 sys.path.insert(0, str(HERE.parent))
 from spawn_controllers import PARAM_FILE as TRICK_PARAMS  # noqa: E402
-from tricks import WALK_CONTROLLER, controller_params, load_tricks, walk_controller_params, walk_policy_params  # noqa: E402
+from tricks import (WALK_CONTROLLER, controller_params, load_tricks, walk_controller_params,
+                    walk_policy_params, validate_locomotion_contract)  # noqa: E402
+from runtime_config import follower_config  # noqa: E402
 
 COURSE_CONFIG = PathJoinSubstitution([FindPackageShare("neural_controller"), "launch", "config.yaml"])
 
@@ -63,6 +65,8 @@ def gemini_controllers():
             pkg = path[start + len("$(find-pkg-share "):end].strip()
             path = path[:start] + get_package_share_directory(pkg) + path[end + 1:]
         p["model_path"] = path
+    validate_locomotion_contract(Path(params[WALK_CONTROLLER]["ros__parameters"]["model_path"]),
+                                 [t for t in load_tricks().values() if t.kind == "reference"])
     TRICK_PARAMS.parent.mkdir(parents=True, exist_ok=True)
     # ROS parameter files reject YAML aliases, which safe_dump emits for the lists
     # the controllers share with the course config.
@@ -95,28 +99,28 @@ def camera_white_balance():
 def person_follower():
     """The follower behind activate/deactivate_person_following.
 
-    Your Lab 5 follow-me when ~/follow_me_pupper (or $FOLLOW_ME_DIR) has
-    robot/follow_service.py and the YOLO model next to it (an older clone has
-    both at the top level): it opens the Hailo only while
-    following, with obstacle avoidance off. FOLLOW_ALWAYS_DETECT=1 keeps it
-    detecting (slowly) between follows, so the on-screen eyes track people all
-    the time; the robot runs warmer. Without that repo, the monorepo's Hailo
-    detector (always on) and its simpler follower, which chases whichever
-    person comes first and has no stop distance.
+    The Lab 5 service/model resolve through FOLLOW_ME_DIR, a sibling repo or
+    ~/follow_me_pupper. FOLLOW_ALWAYS_DETECT keeps detection on between follows.
+    FOLLOW_USE_COLOR and FOLLOW_AVOID_OBSTACLES explicitly enable the optional
+    experiments. Missing dependencies fail startup; selecting legacy or disabled
+    mode is an explicit choice through PUPPER_FOLLOWER_MODE.
     """
-    repo = Path(os.environ.get("FOLLOW_ME_DIR", Path.home() / "follow_me_pupper")).expanduser()
-    service = next((d for d in (repo / "robot", repo)
-                    if (d / "follow_service.py").exists() and (d / "yolov8n_seg.hef").exists()), None)
-    if service is not None:
-        always = os.environ.get("FOLLOW_ALWAYS_DETECT", "0").lower() in ("1", "true", "yes")
+    config = follower_config()  # fail visibly if the intended stack/model is absent
+    service = config.service_dir
+    if config.mode == "disabled":
+        print("[gemini_pupper] following explicitly disabled; no detector/follower started")
+        return []
+    if config.mode == "lab5":
         print(f"[gemini_pupper] person follower: {service}/follow_service.py"
-              + (" (always detecting, for the eyes)" if always else ""))
+              f"; color recovery={config.use_color}; obstacle detours={config.avoid_obstacles}"
+              + (" (always detecting, for the eyes)" if config.always_detect else ""))
         return [ExecuteProcess(
             cmd=["python3", "-u", "follow_service.py", "--ros-args", "-r", "__node:=person_follower_node",
-                 "-p", f"always_detect:={'true' if always else 'false'}"],
+                 "-p", f"always_detect:={str(config.always_detect).lower()}",
+                 "-p", f"use_color:={str(config.use_color).lower()}",
+                 "-p", f"avoid_obstacles:={str(config.avoid_obstacles).lower()}"],
             cwd=str(service), output="both", respawn=True, respawn_delay=3.0)]
-    print(f"[gemini_pupper] {repo} has no follow_service.py / yolov8n_seg.hef: "
-          "using the monorepo person follower")
+    print("[gemini_pupper] explicit legacy follower: no Lab 5 target lock, stopping distance, color recovery or detours")
     return [
         Node(package="hailo", executable="hailo_detection", output="both", respawn=True, respawn_delay=3.0),
         Node(package="person_follower", executable="person_follower_node", output="both"),

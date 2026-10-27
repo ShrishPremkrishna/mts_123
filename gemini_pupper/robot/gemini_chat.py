@@ -185,7 +185,8 @@ async def chat(backend, model: str, full: bool) -> None:
                     replies = []
                     for fc in msg.tool_call.function_calls:
                         args = dict(fc.args or {})
-                        print(("\n" if said else "") + f"  -> Gemini calls {fc.name}({json.dumps(args)})")
+                        shown_args = "[redacted]" if fc.name == "unlock" else json.dumps(args)
+                        print(("\n" if said else "") + f"  -> Gemini calls {fc.name}({shown_args})")
                         said = False
                         try:
                             result = await backend.call(fc.name, args)

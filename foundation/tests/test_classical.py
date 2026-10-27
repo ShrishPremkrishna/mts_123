@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 for relative in ('pd_control_lab', 'ik_heuristic_walking_lab', 'pupper-gait-tuner',
                  'ik_heuristic_walking_lab/extension', 'follow_me_pupper/lab', 'follow_me_pupper/robot'):
     sys.path.insert(0, str(ROOT / relative))
-from control_math import sine_target, pd_torque, SampleDelay
+from control_math import sine_target, bounded_sine_target, pd_torque, SampleDelay
 from kinematics import LEG_FK, LEG_LIMITS, inverse_kinematics
 from gait import GaitParams, LEGS, fk_batch, foot_position
 from tuned_params_to_keyframes import keyframes_for_leg, nominal_offset
@@ -32,6 +32,18 @@ def test_pd_sign_bounds_and_invalid_sensor():
     assert pd_torque(0, 2, 0, 0, 7, .5, 3) == -1
     assert pd_torque(0, 0, 0, 0, 7, .5, 3) == 0
     assert pd_torque(float('nan'), 0, 0, 0, 7, .5, 3) == 0
+
+
+def test_pd_target_respects_joint_range_and_keeps_derivative():
+    for center in (-.68, 0., 2.75):
+        for t in np.linspace(0, 10, 30):
+            q, v = bounded_sine_target(t, .2, center, -.71, 2.79)
+            assert -.69 <= q <= 2.77
+            plus = bounded_sine_target(t+1e-6, .2, center, -.71, 2.79)[0]
+            minus = bounded_sine_target(t-1e-6, .2, center, -.71, 2.79)[0]
+            assert v == pytest.approx((plus-minus)/2e-6, abs=1e-8)
+    with pytest.raises(ValueError):
+        bounded_sine_target(0, .2, 2.79, -.71, 2.79)
 
 
 def test_delay_zero_warmup_and_reset():

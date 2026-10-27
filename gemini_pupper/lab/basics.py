@@ -52,6 +52,8 @@ PREPARES_MOVE = (
 async def stand_up(robot: Robot) -> Result:
     """Stand up in locomotion mode (also: stand up after a trick)."""
     note = await prepare_to_move(robot)  # (1) now: get ready (does nothing until your TODO 5, Part 3)
+    if isinstance(note, Result):
+        return note
 
     async def job() -> Result:  # (2) later: give the legs to the locomotion policy
         return await robot.switch_to(LOCOMOTION_CONTROLLER)
@@ -61,7 +63,10 @@ async def stand_up(robot: Robot) -> Result:
 
 async def lie_down(robot: Robot) -> Result:
     """Relax every motor, so the robot lies down."""
+    robot.secret_gate.lock()
     note = await prepare_to_move(robot)
+    if isinstance(note, Result):
+        return note
 
     async def job() -> Result:
         return await robot.switch_to(None)  # None: no controller holds the legs

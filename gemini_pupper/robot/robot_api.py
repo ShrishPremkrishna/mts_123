@@ -73,6 +73,7 @@ from std_msgs.msg import Empty, Float32MultiArray, String
 from std_srvs.srv import Trigger
 
 from spawn_controllers import LOADED, spawn
+from secret_gate import SecretGate
 from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
 
 log = logging.getLogger("robot_api")
@@ -220,10 +221,19 @@ class Robot:
         threading.Thread(target=self.executor.spin, daemon=True).start()
 
         self.tricks: dict[str, Trick] = load_tricks()
+        self.secret_gate = SecretGate()
+        self.action_lock = asyncio.Lock()  # serialize request acceptance; stop bypasses it
+        self.last_outcome: dict | None = None
         self.leg_controllers = (LEG_CONTROLLERS | {t.controller for t in self.tricks.values() if t.kind == "policy"}
                                 | {t.walk_controller for t in self.tricks.values() if t.walks})
         self.param_clients: dict[str, object] = {}  # controller -> its set_parameters client
         self.following = False
+        self.follow_available = True  # server fills from explicit startup configuration
+        self.follow_state_uncertain = False
+        self.startup_error: str | None = None
+        self.controller_fault: str | None = None
+        self.activation_cleanup_tasks: set[asyncio.Task] = set()
+        self.ready = asyncio.Event()
         self.commands: asyncio.Queue = asyncio.Queue()
         self.current: asyncio.Task | None = None
         self.busy_until = 0.0  # monotonic time when the queued work should finish
@@ -268,9 +278,18 @@ class Robot:
 
     def _on_imu(self, msg: Imu) -> None:
         q, w = msg.orientation, msg.angular_velocity
-        # Angle between the body's up axis and the world's: the controllers' tilt check.
-        up = max(-1.0, min(1.0, 1.0 - 2.0 * (q.x * q.x + q.y * q.y)))
         now = time.monotonic()
+        while self.imu and self.imu[0][0] < now - SAFE_STILL_S - 0.5:
+            self.imu.popleft()
+        values = (q.x, q.y, q.z, q.w, w.x, w.y, w.z)
+        norm = math.sqrt(sum(v * v for v in (q.x, q.y, q.z, q.w)))
+        covariance = getattr(msg, "orientation_covariance", [])
+        if (any(not math.isfinite(v) for v in values) or not math.isfinite(norm) or norm < 1e-8
+                or (len(covariance) and covariance[0] < 0)):
+            self.imu.append((now, float("inf"), float("inf")))
+            return  # invalid/missing orientation must never authorize recovery
+        # Angle between the body's up axis and the world's: the controllers' tilt check.
+        up = max(-1.0, min(1.0, 1.0 - 2.0 * ((q.x / norm) ** 2 + (q.y / norm) ** 2)))
         self.imu.append((now, math.degrees(math.acos(up)), math.sqrt(w.x * w.x + w.y * w.y + w.z * w.z)))
         while self.imu and self.imu[0][0] < now - SAFE_STILL_S - 0.5:
             self.imu.popleft()
@@ -309,21 +328,59 @@ class Robot:
         return True, f"upright ({tilt:.0f} degrees) and still"
 
     async def _wait_upright(self) -> tuple[bool, str]:
+        generation = self.stops
         deadline = time.monotonic() + SAFE_WAIT_S
         while True:
+            if self.stops != generation or self.stopped_during_call():
+                return False, "a stop interrupted the request"
             ok, why = self.upright()
             if ok or time.monotonic() > deadline:
                 return ok, why
             await asyncio.sleep(0.1)
 
     async def _call(self, client, request, timeout: float = 3.0):
-        if not client.wait_for_service(timeout_sec=timeout):
-            return None
+        # A blocking wait here would prevent the stop tool from being handled.
+        deadline = time.monotonic() + timeout
+        while not client.wait_for_service(timeout_sec=0.0):
+            if time.monotonic() >= deadline:
+                return None
+            await asyncio.sleep(0.02)
         future = client.call_async(request)
         deadline = time.monotonic() + timeout
-        while not future.done() and time.monotonic() < deadline:
-            await asyncio.sleep(0.02)
-        return future.result() if future.done() else None
+        activation = client is self.switch_client and bool(getattr(request, "activate_controllers", []))
+        try:
+            while not future.done() and time.monotonic() < deadline:
+                await asyncio.sleep(0.02)
+            if future.done():
+                return future.result()
+        except (asyncio.CancelledError, Exception):
+            if activation:
+                self._watch_uncertain_activation(future)
+            raise
+        if activation:
+            # Cancelling a ROS client future does NOT cancel the remote request.
+            # Keep its eventual response so a late activation gets cleaned up.
+            self._watch_uncertain_activation(future)
+            return None
+        if hasattr(future, "cancel"):
+            future.cancel()
+        return None
+
+    def _watch_uncertain_activation(self, future) -> None:
+        self.controller_fault = ("controller activation outcome was unknown; motion is quarantined. "
+                                 "Use the physical e-stop and inspect/restart the controller stack "
+                                 "before restarting this tool server")
+        async def cleanup():
+            try:
+                while not future.done():
+                    await asyncio.sleep(0.1)
+                result = await self._relax_controllers()
+                log.warning("late controller activation cleanup: %s", result.message)
+            except Exception:
+                log.exception("late controller cleanup failed; use the physical e-stop")
+        task = asyncio.create_task(cleanup())
+        self.activation_cleanup_tasks.add(task)
+        task.add_done_callback(self.activation_cleanup_tasks.discard)
 
     async def controller_states(self) -> dict[str, str]:
         res = await self._call(self.list_client, ListControllers.Request())
@@ -345,6 +402,11 @@ class Robot:
         takes the legs, waiting until the locomotion policy is ready to walk, and
         keeping robot.state_now up to date.
         """
+        generation = self.stops
+        if controller and self.controller_fault:
+            return Result(False, self.controller_fault)
+        if controller and self.stopped_during_call():
+            return Result(False, "controller change cancelled by a stop")
         activate = [controller] if controller else []
         deactivate = sorted(self.leg_controllers - set(activate))
         states = await self.controller_states()
@@ -365,7 +427,6 @@ class Robot:
                 states = await self.controller_states()
             self.walk_since = None
             log.info("recovering from the fall in %s: %s", self.fallen, why)
-            self.fallen = None
             recovered = "recovered from the fall and stood back up; "
         not_ready = [c for c in activate if states.get(c) not in LOADED]
         if not_ready:  # the launch's spawner missed it: load it now (a few seconds)
@@ -383,7 +444,7 @@ class Robot:
             if states.get(leaving.controller) == "active":
                 res = await self.play_clip(leaving, leaving.exit_clip)
                 if not res.ok:
-                    log.warning("exit clip: %s", res.message)
+                    return Result(False, f"cannot leave {leaving.name}: {res.message}")
             elif leaving.walks and states.get(leaving.walk_controller) == "active":
                 # Walking in its stance: give the legs back to the trick's own policy,
                 # started at its exit clip, and let it play.
@@ -391,12 +452,16 @@ class Robot:
                 if res.ok:
                     await asyncio.sleep(TRICK_INIT_S + TRICK_FADE_S + leaving.clip_length(leaving.exit_clip) + 0.3)
                 else:
-                    log.warning("exit clip: %s", res.message)
+                    return Result(False, f"cannot leave {leaving.name}: {res.message}")
             states = await self.controller_states()
             deactivate = sorted(self.leg_controllers - set(activate))
         trick = self.state_of(controller)
         if isinstance(trick, Trick) and trick.interactive and controller == trick.controller and states.get(controller) != "active":
-            await self._set_start_clip(controller, start_clip)  # read by the controller when it activates
+            configured = await self._set_start_clip(controller, start_clip)
+            if not configured.ok:
+                return configured  # never replay an entry motion instead of an exit
+        if activate and (generation != self.stops or self.stopped_during_call()):
+            return Result(False, "controller change cancelled by a stop")
         req = SwitchController.Request()
         req.activate_controllers = [c for c in activate if states[c] != "active"]
         req.deactivate_controllers = [c for c in deactivate if states.get(c) == "active"]
@@ -406,20 +471,42 @@ class Robot:
             self.state_now = self.state_of(controller)
             if controller == LOCOMOTION_CONTROLLER:
                 await self._wait_walk_ready()
+            if activate and generation != self.stops:
+                return Result(False, "controller change cancelled by a stop")
+            if recovered:
+                self.fallen = None
             return Result(True, recovered + "already in that state")
         req.strictness = SwitchController.Request.STRICT
         res = await self._call(self.switch_client, req)
+        if activate and generation != self.stops:
+            # A ROS request already in flight can finish after a stop; explicitly
+            # remove that late activation before accepting another request.
+            relaxed = await self._relax_controllers()
+            return Result(False, f"controller activation overlapped a stop; {relaxed.message}"
+                          + (f". {self.controller_fault}" if self.controller_fault else ""))
         if res is None or not res.ok:
             why = "no answer from controller_manager" if res is None else "refused by controller_manager"
             log.warning("switch %s -> %s: %s", req.deactivate_controllers, req.activate_controllers, why)
+            if res is None:
+                # Even without a retained future (e.g. transport failure), a
+                # missing response is not evidence that activation was refused.
+                self.controller_fault = self.controller_fault or (
+                    "controller switch outcome unknown; motion quarantined. Use the physical e-stop "
+                    "and inspect/restart the controller stack before restarting this tool server")
+                relaxed = await self._relax_controllers()
+                return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
             return Result(False, f"controller switch failed (activate {activate}): {why}")
         self.state_now = self.state_of(controller)
+        if recovered:
+            self.fallen = None
         if LOCOMOTION_CONTROLLER in req.activate_controllers:
             self.walk_since = time.monotonic()
         if LOCOMOTION_CONTROLLER in req.deactivate_controllers:
             self.walk_since = None
         if controller == LOCOMOTION_CONTROLLER:
             await self._wait_walk_ready()
+        if activate and generation != self.stops:
+            return Result(False, "controller change cancelled by a stop")
         return Result(True, recovered + "ok")
 
     def state_of(self, controller: str | None) -> str | Trick:
@@ -450,22 +537,25 @@ class Robot:
                             duration_max=LIMITS.duration_max, distance_max=LIMITS.distance_max)
         return Speeds(walk=w.speed, turn=w.turn, limits=limits, where=f" (in {state.name})")
 
-    async def _set_start_clip(self, controller: str, clip: str) -> None:
+    async def _set_start_clip(self, controller: str, clip: str) -> Result:
         """Set an interactive trick's start_clip parameter ("" = its first clip)."""
         client = self.param_clients.get(controller)
         if client is None:
             client = self.param_clients[controller] = self.node.create_client(SetParameters, f"/{controller}/set_parameters")
         req = SetParameters.Request()
         req.parameters = [Parameter(name="start_clip", value=ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=clip))]
-        if await self._call(client, req) is None:
-            log.warning("could not set %s start_clip=%r", controller, clip)
+        result = await self._call(client, req)
+        if result is None or not result.results or not all(r.successful for r in result.results):
+            return Result(False, f"could not set {controller} start clip; controller not activated")
+        return Result(True, "start clip configured")
 
     async def _wait_walk_ready(self) -> None:
         """Wait until gemini_walk has eased the legs to standing and faded its
         policy in. A walk sent before that runs on a half-started controller."""
-        wait = (self.walk_since or time.monotonic()) + WALK_READY_S - time.monotonic()
-        if wait > 0:
-            await asyncio.sleep(wait)
+        generation = self.stops
+        deadline = (self.walk_since or time.monotonic()) + WALK_READY_S
+        while time.monotonic() < deadline and self.stops == generation:
+            await asyncio.sleep(min(0.1, deadline - time.monotonic()))
 
     def send_speed(self, vx: float, vy: float, wz_deg: float) -> None:
         """One speed command to the locomotion policy: vx forward m/s, vy left m/s,
@@ -486,24 +576,53 @@ class Robot:
             if self.commands.empty():  # a request may already be queued: it set the state after it
                 self.state_after_queue = self.state_now
             log.info("found %s holding the legs; starting in state %s", active[0], state_name(self.state_now))
+        if self.follow_available:
+            # The ROS follower can survive a tool-server restart. Establish that it
+            # is off before accepting motion, rather than trusting a fresh False.
+            response = await self._call(self.follow_off, Trigger.Request())
+            self.follow_state_uncertain = response is None or not response.success
+            self.following = self.follow_state_uncertain
+            if self.follow_state_uncertain:
+                log.warning("cannot confirm follower stopped at startup; motion remains blocked")
 
     # ---------------------------------------------------------------- the queue
     async def _run_queue(self) -> None:
-        await self._adopt_running_state()
+        try:
+            await self._adopt_running_state()
+        except Exception:
+            log.exception("could not establish the robot state at startup")
+            self.startup_error = "robot state could not be established at startup; check the services and restart the tool server"
+        finally:
+            self.ready.set()
         while True:
             name, job, then = await self.commands.get()
             self._running_job_then = then
+            token = CALL_STOPS.set(self.stops)
             self.current = asyncio.create_task(job())
+            CALL_STOPS.reset(token)
             try:
                 res = await self.current
                 (log.info if res.ok else log.warning)("%s: %s", name, res.message)
+                self.last_outcome = {"name": name, "success": res.ok, "message": res.message}
+                if not res.ok:
+                    self.send_speed(0, 0, 0)
+                    await self.clear_queue()  # later requests relied on this one succeeding
+                    self.state_after_queue = self.state_now
             except asyncio.CancelledError:
                 self.send_speed(0, 0, 0)
                 log.info("%s: cancelled", name)
-            except Exception:
+                self.last_outcome = {"name": name, "success": False, "message": "cancelled"}
+            except Exception as exc:
                 log.exception("%s failed", name)
+                self.send_speed(0, 0, 0)
+                await self.clear_queue()
+                self.state_after_queue = self.state_now
+                self.last_outcome = {"name": name, "success": False, "message": f"job failed: {type(exc).__name__}"}
             finally:
                 self.current = None
+                if self.commands.empty():
+                    self.state_after_queue = self.state_now
+                    self.busy_until = time.monotonic()
 
     async def queue(self, name: str, job: Job, seconds: float, *, then) -> Result:
         """Put ``job`` in line behind everything already queued, and return at once.
@@ -517,8 +636,17 @@ class Robot:
         MOTORS_IDLE, or a trick); it becomes robot.state_after_queue. Jobs that
         don't move the legs (wait) pass UNCHANGED.
         """
+        await self.ready.wait()
+        if self.startup_error:
+            return Result(False, self.startup_error)
+        if self.controller_fault:
+            return Result(False, self.controller_fault)
         if self.stopped_during_call():
             return Result(False, f"{name} not queued: a stop came in while this request was being handled")
+        if self.follow_state_uncertain:
+            return Result(False, "motion blocked: could not confirm that the follower stopped; use stop and check the follower service")
+        if not math.isfinite(seconds) or seconds < 0:
+            return Result(False, "queue duration estimate must be finite and nonnegative")
         if then is not UNCHANGED:
             self.state_after_queue = then
         now = time.monotonic()
@@ -537,9 +665,15 @@ class Robot:
             "running": self.current is not None,
             "seconds_left": round(max(0.0, self.busy_until - time.monotonic()), 1),
             "following": self.following,
+            "controller_fault": self.controller_fault,
+            "state": self.public_state_name(self.state_now),
+            "state_after_queue": self.public_state_name(self.state_after_queue),
+            "last_outcome": self.public_outcome(),
         }
 
     async def wait(self, duration: float) -> Result:
+        if isinstance(duration, bool) or not math.isfinite(duration) or not 0 < duration <= 60:
+            return Result(False, "wait duration must be finite, more than 0 and at most 60 seconds")
         async def job():
             await asyncio.sleep(duration)
             return Result(True, f"waited {duration} s")
@@ -560,9 +694,26 @@ class Robot:
     def action_ids(self) -> dict[str, tuple[Trick, str]]:
         """Interactive action ids Gemini uses -> (trick, clip). A clip name, prefixed with the
         trick's name only when two tricks share it."""
-        pairs = [(t, clip) for t in self.tricks.values() for clip in t.actions]
-        names = [clip for _, clip in pairs]
+        pairs = [(t, clip) for t in self.available_tricks().values() for clip in t.actions]
+        names = [clip for t in self.tricks.values() for clip in t.actions]
         return {(clip if names.count(clip) == 1 else f"{t.name}.{clip}"): (t, clip) for t, clip in pairs}
+
+    def trick_available(self, trick: Trick) -> bool:
+        return not trick.secret or self.secret_gate.unlocked
+
+    def available_tricks(self) -> dict[str, Trick]:
+        return {name: t for name, t in self.tricks.items() if self.trick_available(t)}
+
+    def public_state_name(self, state) -> str:
+        return "locked trick" if isinstance(state, Trick) and not self.trick_available(state) else state_name(state)
+
+    def public_outcome(self) -> dict | None:
+        outcome = self.last_outcome
+        if outcome and not self.secret_gate.unlocked:
+            text = outcome["name"] + " " + outcome["message"]
+            if any(t.secret and (t.name in text or any(clip in text for clip in t.actions)) for t in self.tricks.values()):
+                return {"name": "locked trick", "success": outcome["success"], "message": "details hidden while locked"}
+        return outcome
 
     async def play_clip(self, trick: Trick, clip: str) -> Result:
         """Request a clip and wait until the controller has played it through."""
@@ -572,60 +723,103 @@ class Robot:
         longest = max((trick.clip_length(c["name"]) for c in trick.clips), default=0.0)
         deadline = time.monotonic() + longest + 1.0  # the current clip finishes first
         while self.clip_status.get(trick.controller, ("", False))[0] != clip:
+            if self.fallen or self.stopped_during_call():
+                return Result(False, "clip interrupted by a fall or stop")
             if time.monotonic() > deadline:
                 return Result(False, f"{trick.name} did not start {clip} (is the controller running?)")
             await asyncio.sleep(0.05)
         deadline = time.monotonic() + length + 1.0
         while True:
             name, holding = self.clip_status.get(trick.controller, ("", False))
-            if name != clip or holding or time.monotonic() > deadline:
+            if self.fallen or self.stopped_during_call():
+                return Result(False, "clip interrupted by a fall or stop")
+            if name != clip or holding:
                 break
+            if time.monotonic() > deadline:
+                return Result(False, f"{trick.name} did not confirm completion of {clip}")
             await asyncio.sleep(0.05)
         return Result(True, f"played {clip}")
 
     async def play_reference_trick(self, trick: Trick) -> Result:
         """Feed a reference (e.g. the jump) to the running locomotion policy, standing still."""
+        reference = reference_message_data(trick)  # validate before changing controllers
         res = await self.switch_to(LOCOMOTION_CONTROLLER)  # waits until the policy is ready
         if not res.ok:
             return res
         self.send_speed(0, 0, 0)
         await asyncio.sleep(0.5)  # settle, standing still
-        self.ref_pub.publish(Float32MultiArray(data=reference_message_data(trick)))
+        if self.fallen or self.stopped_during_call():
+            return Result(False, "reference motion cancelled by a fall or stop")
+        self.ref_pub.publish(Float32MultiArray(data=reference))
         await asyncio.sleep(trick.total_time)
         if self.fallen:
             return Result(False, f"{trick.name} ended in a fall: {FELL_MESSAGE}")
         return Result(True, f"played {trick.name}; standing, in locomotion mode")
 
     # ---------------------------------------------------------------- follow mode
-    async def stop_following(self) -> None:
+    async def stop_following(self) -> Result:
         """Turn the person follower off (if it is on)."""
         if self.following:
-            self.following = False  # at once: nothing should count on it while the service answers
-            await self._call(self.follow_off, Trigger.Request())
+            result = await self._call(self.follow_off, Trigger.Request())
+            if result is None or not result.success:
+                self.follow_state_uncertain = True
+                return Result(False, "could not confirm that following stopped; new motion refused")
+            self.following = False
+            self.follow_state_uncertain = False
+        return Result(True, "following is off")
 
     async def set_following(self, enabled: bool) -> Result:
+        await self.ready.wait()
+        if enabled and self.startup_error:
+            return Result(False, self.startup_error)
+        if enabled and self.controller_fault:
+            return Result(False, self.controller_fault)
         if not enabled:
-            await self.stop_following()
+            result = await self.stop_following()
             self.send_speed(0, 0, 0)
+            if not result.ok:
+                return result
             return Result(True, "stopped following")
+        if self.fallen:
+            return Result(False, FELL_MESSAGE)
+        if not self.follow_available:
+            return Result(False, "following is disabled in this robot's startup configuration")
+        if any(isinstance(s, Trick) and s.walks for s in (self.state_now, self.state_after_queue)):
+            return Result(False, "following needs the normal locomotion stance; stand_up to leave the walking trick first")
+        if self.follow_state_uncertain:
+            return Result(False, "following state is unknown; use stop and check the follower service first")
         if self.following:
             return Result(True, "already following the nearest person")
         await self.clear_queue()
         if self.current and not self.current.done():
             self.current.cancel()
+            try:
+                await self.current
+            except asyncio.CancelledError:
+                pass
         res = await self.switch_to(LOCOMOTION_CONTROLLER)
-        self.state_after_queue = LOCOMOTION
         if not res.ok:
+            self.state_after_queue = self.state_now
             return res
+        self.state_after_queue = LOCOMOTION
         if self.stopped_during_call():  # stop came in while the legs were switching
             return Result(False, "stopped before follow mode started; not following")
         r = await self._call(self.follow_on, Trigger.Request())
         if r is None or not r.success:
-            return Result(False, "person_follower did not respond")
-        if self.stopped_during_call():  # ... or while the follower was starting
-            await self._call(self.follow_off, Trigger.Request())
-            return Result(False, "stopped before follow mode started; not following")
+            # A timed-out activation might still have reached the service. Confirm
+            # deactivation before future movement; don't equate no reply with off.
+            self.following = True
+            stopped = await self.stop_following()
+            if not stopped.ok:
+                await self._relax_controllers()
+            return Result(False, "person_follower did not confirm startup; " + stopped.message)
         self.following = True
+        if self.stopped_during_call():  # ... or while the follower was starting
+            stopped = await self.stop_following()
+            if not stopped.ok:
+                relaxed = await self._relax_controllers()
+                return Result(False, f"stop interrupted follower startup; {stopped.message}; {relaxed.message}")
+            return Result(False, "stopped before follow mode started; not following")
         return Result(True, "following the nearest person. Any new motion (walk, turn, trick, stand, lie down) will end follow mode.")
 
     # ---------------------------------------------------------------- stopping
@@ -637,14 +831,28 @@ class Robot:
     async def emergency_stop(self) -> Result:
         """Gamepad e-stop: cancel everything and relax every leg controller."""
         await self.immediate_stop()
-        self.state_now = self.state_after_queue = MOTORS_IDLE  # no exit clip: the motors just relax
+        return await self._relax_controllers()
+
+    async def _relax_controllers(self) -> Result:
+        """Deactivate directly, without an exit motion; used by emergency/failure handling."""
         states = await self.controller_states()
+        if not states:
+            self.controller_fault = ("could not reach controller_manager to confirm motors relaxed; "
+                                     "motion quarantined. Use the physical e-stop and inspect/restart "
+                                     "the controller stack before restarting this tool server")
+            return Result(False, self.controller_fault)
         active = [c for c in sorted(self.leg_controllers) if states.get(c) == "active"]
         if active:
             req = SwitchController.Request()
             req.deactivate_controllers = active
             req.strictness = SwitchController.Request.BEST_EFFORT
-            await self._call(self.switch_client, req)
+            result = await self._call(self.switch_client, req)
+            if result is None or not result.ok:
+                self.controller_fault = ("could not confirm motors relaxed; motion quarantined. "
+                                         "Use the physical e-stop and inspect/restart the controller "
+                                         "stack before restarting this tool server")
+                return Result(False, self.controller_fault)
+        self.state_now = self.state_after_queue = MOTORS_IDLE
         self.walk_since = None
         log.warning("e-stop: relaxed %s", active or "nothing (no leg controller was active)")
         return Result(True, "e-stop: motors relaxed")
@@ -659,14 +867,21 @@ class Robot:
         e-stop. A trick that finished and only holds its pose is left as it is.
         """
         self.stops += 1  # requests still being handled won't queue anything now
+        self.secret_gate.lock()
         self.send_speed(0, 0, 0)  # stand still first, before anything that waits
         running = self.current is not None and not self.current.done()
         cleared = await self.clear_queue()
         if running:
             self.current.cancel()
         self.state_after_queue = self.state_now  # nothing else is coming
-        await self.stop_following()
+        follower = await self.stop_following()
         self.send_speed(0, 0, 0)
+        if not follower.ok:
+            relaxed = await self._relax_controllers()
+            return Result(False, f"{follower.message}. {relaxed.message}")
+        if self.controller_fault:
+            relaxed = await self._relax_controllers()
+            return Result(False, f"{relaxed.message}. {self.controller_fault}")
         if not (relax_playing_trick and running):
             return Result(True, f"stopped; {cleared.message}")
         await asyncio.sleep(0.1)  # a job cancelled while switching to a trick may still finish the switch
@@ -674,18 +889,17 @@ class Robot:
         playing = [t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"]
         if not playing:
             return Result(True, f"stopped; {cleared.message}")
-        req = SwitchController.Request()
-        req.deactivate_controllers = [c for c in sorted(self.leg_controllers) if states.get(c) == "active"]
-        req.strictness = SwitchController.Request.BEST_EFFORT
-        await self._call(self.switch_client, req)
-        self.state_now = self.state_after_queue = MOTORS_IDLE
-        self.walk_since = None
+        relaxed = await self._relax_controllers()
+        if not relaxed.ok:
+            return relaxed
         log.warning("stop: %s was still playing; relaxed the motors", playing[0].name)
         return Result(True, f"stopped; {cleared.message}. {playing[0].name} was still playing, so the motors"
                             " relaxed and the robot is lying down; call stand_up to go on")
 
     async def mode(self) -> Result:
         """What the robot is doing right now, in words (the robot_status tool)."""
+        if self.controller_fault:
+            return Result(False, self.controller_fault)
         states = await self.controller_states()
         if not states:
             return Result(False, "controller_manager is not running")
@@ -702,7 +916,12 @@ class Robot:
             else f"trick {trick.name}, holding its end pose ({trick.end_pose})" if trick
             else "motors idle (lying down)"
         )
-        return Result(True, f"mode: {mode}")
+        if (trick and not self.trick_available(trick)) or (walking and not self.trick_available(walking)):
+            mode = "holding a locked trick pose; stand_up leaves it, stop halts movement"
+        outcome = self.public_outcome()
+        detail = (f" Last queued action {outcome['name']}: "
+                  f"{'completed' if outcome['success'] else 'failed'}: {outcome['message']}.") if outcome else ""
+        return Result(True, f"mode: {mode}. {self.commands.qsize()} queued; running: {self.current is not None}.{detail}")
 
 
 # The old name, for staff scripts written against tool_server.ToolServer.
