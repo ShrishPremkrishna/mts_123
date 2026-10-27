@@ -1,0 +1,6 @@
+# Python deps for the gait tuner.
+# NOTE: rclpy is NOT installed via pip — it comes from your ROS 2 (Jazzy)
+# installation. Source ROS before running (your ~/.bashrc already does this).
+numpy>=1.26
+viser>=1.0
+yourdfpy>=0.0.56        # optional: enables the URDF mesh view (falls back if absent)

@@ -1,0 +1,2 @@
+main b5b8c89ec5c71b18fe8bb3d3fa27d492441644b3
+2025-10-18 fix hailo detection by updating python deps

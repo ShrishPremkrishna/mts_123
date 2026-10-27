@@ -1,0 +1,2 @@
+wifi-pairing-mode 64c86d7e928a6dc09aca7821537251157856acd6
+2026-07-20 QR pairing: zbar decode in-node + on-screen scan feedback

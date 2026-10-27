@@ -1,0 +1,2051 @@
+diff --git a/ai/llm-ui/agent-starter-python/src/pupster.py b/ai/llm-ui/agent-starter-python/src/pupster.py
+index 10d06ba..b7d74e7 100644
+--- a/ai/llm-ui/agent-starter-python/src/pupster.py
++++ b/ai/llm-ui/agent-starter-python/src/pupster.py
+@@ -188,11 +188,11 @@ def openairealtime_cartesia_session():
+             model="gpt-realtime",
+             turn_detection=TurnDetection(
+                 type="server_vad",
+-                threshold=0.7,
++                threshold=0.8,
+                 prefix_padding_ms=200,
+-                silence_duration_ms=100,
++                silence_duration_ms=600,
+                 create_response=True,
+-                interrupt_response=True,
++                interrupt_response=False,
+             ),
+         ),
+         tts=cartesia.TTS(voice="e7651bee-f073-4b79-9156-eff1f8ae4fd9", model="sonic-3"),
+@@ -325,7 +325,7 @@ class PupsterAgent(Agent):
+ 
+             ```
+             User: "Can you do a dance?"
+-            Pupster: "Of course! I love to dance."
++            Pupster:"Of course! I love to dance."
+             Pupster calls functions:
+             immediate_stop()
+             queue_move(forward_backward_velocity=0, right_left_velocity=0.5, turning_velocity=0, duration=2)
+@@ -337,7 +337,7 @@ class PupsterAgent(Agent):
+             * More examples of how to use queue_move
+             ```
+             User: "Can you go left for 1 meter and then right for 1 meter?"
+-            Pupster: "I love this game!"
++            Pupster:"I love this game!"
+             Pupster calls functions:
+             immediate_stop()
+             queue_move(forward_backward_velocity=0.0, right_left_velocity=-0.3, turning_velocity=0.0, duration=3.33)
+@@ -346,13 +346,13 @@ class PupsterAgent(Agent):
+             User: "Stop!"
+             Pupster calls functions:
+             immediate_stop()
+-            Pupster: "Stopped"
++            Pupster:"Stopped"
+ 
+             User: "Spin in a circle"
+             Pupster calls functions:
+             immediate_stop()
+             queue_move(forward_backward_velocity=0, right_left_velocity=0, turning_velocity=90, duration=4)
+-            Pupster: I love spinning!
++            Pupster:I love spinning!
+             ```
+ 
+         Invalid commands:
+@@ -461,14 +461,33 @@ Example:
+ 
+     @function_tool
+     async def activate_person_following(self, context: RunContext):
+-        """Activate the person following behavior."""
++        """Activate autonomous follow-and-greet ("greet patrol"). Pupster follows a
++        person on its own, and whenever it gets CLOSE it AUTOMATICALLY plays a random
++        trick, then turns ~180 degrees to find a different person and repeats. You do
++        NOT need to call queue_animation or queue_move while this runs — the robot
++        handles the tricks itself. Use for "follow me", "follow people", "greet
++        everyone", "mingle", or "follow people and do tricks". Call
++        deactivate_person_following or immediate_stop to stop."""
+         return await self.tool_impl.activate_person_following()
+ 
+     @function_tool
+     async def deactivate_person_following(self, context: RunContext):
+-        """Deactivate the person following behavior."""
++        """Deactivate the person following / greet patrol behavior."""
+         return await self.tool_impl.deactivate_person_following()
+ 
++    @function_tool
++    async def activate_greet_patrol(self, context: RunContext):
++        """Start autonomous greet patrol: follow people and automatically do a random
++        trick whenever close to someone, then turn to a new person and repeat. Same
++        behavior as activate_person_following. Use for "go greet people", "work the
++        room", "mingle", "patrol", or "follow people and do tricks"."""
++        return await self.tool_impl.activate_greet_patrol()
++
++    @function_tool
++    async def deactivate_greet_patrol(self, context: RunContext):
++        """Stop greet patrol / autonomous following."""
++        return await self.tool_impl.deactivate_greet_patrol()
++
+     @function_tool
+     async def set_speaker_volume(self, volume: int, context: RunContext):
+         """Set the speaker volume to specific level
+diff --git a/ai/llm-ui/agent-starter-python/src/ros_tool_server.py b/ai/llm-ui/agent-starter-python/src/ros_tool_server.py
+index df09b2e..d58b587 100644
+--- a/ai/llm-ui/agent-starter-python/src/ros_tool_server.py
++++ b/ai/llm-ui/agent-starter-python/src/ros_tool_server.py
+@@ -3,7 +3,7 @@ import random
+ from typing import Tuple, Optional, Any, Dict
+ import threading
+ import queue
+-from pupster import ANIMATION_NAMES
++from pupster import ANIMATION_NAMES, get_animation_duration
+ import rclpy
+ from rclpy.node import Node
+ from rclpy.executors import SingleThreadedExecutor
+@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
+ from geometry_msgs.msg import Twist
+ from sensor_msgs.msg import CompressedImage
+ from std_msgs.msg import String
++from vision_msgs.msg import Detection2DArray
+ import asyncio
+ from abc import ABC, abstractmethod
+ import time
+@@ -37,6 +38,17 @@ AVAILABLE_CONTROLLERS = {
+ # Single animation controller name
+ ANIMATION_CONTROLLER_NAME = "animation_controller_py"
+ 
++# ---- Greet patrol (autonomous follow + random trick) tunables ----
++GREET_BBOX_AREA_THRESHOLD = 0.20   # normalized person bbox area that counts as "close" (follower targets ~0.25)
++GREET_DETECTION_TIMEOUT = 1.5      # seconds; ignore detections older than this
++GREET_TURN_SPEED_DPS = 90.0        # deg/s yaw for the "find a new person" turn
++GREET_TURN_DURATION_S = 2.0        # ~180 degrees at GREET_TURN_SPEED_DPS
++PERSON_CLASS_ID = "0"              # COCO person class id in /detections hypotheses
++# Hailo publishes bbox sizes in PIXELS at this fixed detection resolution.
++# Normalize by it so bbox area matches the person_follower's math (target ~0.25).
++DETECTION_IMAGE_W = 640.0
++DETECTION_IMAGE_H = 640.0
++
+ 
+ @dataclass
+ class MoveCfg:
+@@ -285,6 +297,13 @@ class RosToolServer():
+         self.deactivate_person_following_client = self.node.create_client(Trigger, "deactivate_person_following")
+         self.following_mode_status = "inactive"
+ 
++        # ---- Greet patrol state ----
++        self.greet_patrol_active = False
++        self.greet_patrol_task = None
++        self.latest_person_bbox_area = 0.0   # normalized area of closest person bbox
++        self.latest_detection_time = 0.0     # time.time() of last /detections message
++        self._last_bbox_log_time = 0.0       # throttle for the live bbox_area log line
++
+         # Initialize command queue
+         self.command_queue = asyncio.Queue()
+         self.queue_running = False
+@@ -307,6 +326,15 @@ class RosToolServer():
+             1,
+         )
+ 
++        # Person detections (Hailo) — used as the "how close am I" signal for greet patrol.
++        # Subscribed on image_node so it is spun continuously by the background executor.
++        self.detection_sub = self.image_node.create_subscription(
++            Detection2DArray,
++            "/detections",
++            self._on_detections,
++            10,
++        )
++
+         self.gemini_annotated_image_publisher = self.node.create_publisher(
+             CompressedImage, "/gemini/annotated_image", 10
+         )
+@@ -381,6 +409,30 @@ class RosToolServer():
+         except Exception as e:
+             self.node.get_logger().warning(f"Failed to enqueue latest image: {e}")
+ 
++    def _on_detections(self, msg: Detection2DArray):
++        """Track the closest person's bounding-box area (normalized) as a proximity signal.
++        Larger area == person is closer. Used by the greet patrol loop."""
++        best_area = 0.0
++        for det in msg.detections:
++            # Keep only person detections (COCO class id 0) when a hypothesis is present.
++            is_person = True
++            if det.results:
++                cid = str(det.results[0].hypothesis.class_id)
++                is_person = cid == PERSON_CLASS_ID
++            if not is_person:
++                continue
++            area = (float(det.bbox.size_x) * float(det.bbox.size_y)) / (DETECTION_IMAGE_W * DETECTION_IMAGE_H)
++            if area > best_area:
++                best_area = area
++        self.latest_person_bbox_area = best_area
++        self.latest_detection_time = time.time()
++
++    def _closest_person_area(self) -> float:
++        """Closest person's normalized bbox area, or 0.0 if detections are stale."""
++        if time.time() - self.latest_detection_time > GREET_DETECTION_TIMEOUT:
++            return 0.0
++        return self.latest_person_bbox_area
++
+     async def _process_command_queue(self):
+         """Background task that processes commands from the queue sequentially"""
+         while self.queue_running:
+@@ -549,25 +601,121 @@ class RosToolServer():
+         self.node.get_logger().warning(f"IMMEDIATE STOP completed. Took: {time.time() - start_time:0.3f} seconds")
+         return True, "Immediate stop completed: robot stopped and queue cleared"
+ 
+-    async def activate_person_following(self) -> Tuple[bool, str]:
+-        self.node.get_logger().info("Activating person following...")
++    # ---- Low-level person-following service toggles (raw ROS triggers) ----
++    async def _start_following_service(self) -> Tuple[bool, str]:
++        self.node.get_logger().info("Activating person following (service)...")
+         fut = self.activate_person_following_client.call_async(Trigger.Request())
+         rclpy.spin_until_future_complete(self.node, fut)
+         if fut.result() is not None:
+             self.following_mode_status = "active"
+             return fut.result().success, fut.result().message
+-        else:
+-            return False, "Failed to call activate_person_following service"
++        return False, "Failed to call activate_person_following service"
+ 
+-    async def deactivate_person_following(self) -> Tuple[bool, str]:
+-        self.node.get_logger().info("Deactivating person following...")
++    async def _stop_following_service(self) -> Tuple[bool, str]:
++        self.node.get_logger().info("Deactivating person following (service)...")
+         fut = self.deactivate_person_following_client.call_async(Trigger.Request())
+         rclpy.spin_until_future_complete(self.node, fut)
+         if fut.result() is not None:
+             self.following_mode_status = "inactive"
+             return fut.result().success, fut.result().message
+-        else:
+-            return False, "Failed to call deactivate_person_following service"
++        return False, "Failed to call deactivate_person_following service"
++
++    # ---- High-level: follow mode == greet patrol (follow -> trick -> turn -> repeat) ----
++    async def activate_person_following(self) -> Tuple[bool, str]:
++        return await self.activate_greet_patrol()
++
++    async def deactivate_person_following(self) -> Tuple[bool, str]:
++        return await self.deactivate_greet_patrol()
++
++    async def activate_greet_patrol(self) -> Tuple[bool, str]:
++        if self.greet_patrol_active:
++            return True, "Greet patrol already active"
++        self.greet_patrol_active = True
++        self.greet_patrol_task = asyncio.create_task(self._greet_patrol_loop())
++        self.node.get_logger().info("🐕 Greet patrol started")
++        return True, "Greet patrol activated: following people and doing tricks when close"
++
++    async def deactivate_greet_patrol(self) -> Tuple[bool, str]:
++        self.greet_patrol_active = False
++        if self.greet_patrol_task is not None:
++            self.greet_patrol_task.cancel()
++            try:
++                await self.greet_patrol_task
++            except (asyncio.CancelledError, Exception):
++                pass
++            self.greet_patrol_task = None
++        # Always make sure the underlying follower is off.
++        await self._stop_following_service()
++        return True, "Greet patrol deactivated"
++
++    async def _wait_for_queue_idle(self):
++        """Block until the command queue is drained and no command is executing."""
++        while not self.command_queue.empty() or (
++            self.current_command_task is not None and not self.current_command_task.done()
++        ):
++            if not self.greet_patrol_active:
++                return
++            await asyncio.sleep(0.1)
++
++    async def _do_random_greeting(self):
++        """Pick a random animation, play it, wait for it, then stand back up."""
++        name = random.choice(list(ANIMATION_NAMES.keys()))
++        csv = ANIMATION_NAMES[name]["csv_name"]
++        self.node.get_logger().info(f"🎭 Greet patrol: playing random animation '{name}'")
++        await self.queue_animation(csv)
++        # Hold for the animation's duration (includes fade-in).
++        duration = get_animation_duration(csv)
++        await self.add_command(WaitCommand(duration))
++        # Lying poses leave Pupper down — stand back up before moving on.
++        await self.queue_activate_walking()
++
++    async def _turn_to_new_person(self):
++        """Rotate ~180 degrees to look for a different person."""
++        self.node.get_logger().info("🔄 Greet patrol: turning to find a different person")
++        try:
++            turn = MoveForTimeCommand(0.0, 0.0, GREET_TURN_SPEED_DPS, GREET_TURN_DURATION_S, self)
++            await self.add_command(turn)
++        except ValueError as e:
++            self.node.get_logger().warning(f"Greet patrol turn invalid: {e}")
++
++    async def _greet_patrol_loop(self):
++        """follow -> when close, do a random trick -> turn ~180 -> follow a new person -> repeat."""
++        try:
++            await self.queue_activate_walking()
++            await self._start_following_service()
++            self.node.get_logger().info("Greet patrol: following active, looking for someone...")
++            while self.greet_patrol_active:
++                area = self._closest_person_area()
++                now = time.time()
++                if now - self._last_bbox_log_time > 1.0:
++                    self._last_bbox_log_time = now
++                    fresh = (time.time() - self.latest_detection_time) <= GREET_DETECTION_TIMEOUT
++                    self.node.get_logger().info(
++                        f"Greet patrol: following... closest person bbox_area={area:.3f} "
++                        f"(trigger >= {GREET_BBOX_AREA_THRESHOLD}), fresh={fresh}"
++                    )
++                if area >= GREET_BBOX_AREA_THRESHOLD:
++                    self.node.get_logger().info(
++                        f"👋 Greet patrol: reached a person (bbox_area={area:.3f}), greeting!"
++                    )
++                    # Pause following while we perform the trick + turn.
++                    await self._stop_following_service()
++                    await self._do_random_greeting()
++                    await self._turn_to_new_person()
++                    await self._wait_for_queue_idle()
++                    if not self.greet_patrol_active:
++                        break
++                    # Resume following — hopefully a different person is now in front.
++                    await self._start_following_service()
++                    self.node.get_logger().info("Greet patrol: resumed following, looking for a new person...")
++                await asyncio.sleep(0.2)
++        except asyncio.CancelledError:
++            self.node.get_logger().info("Greet patrol loop cancelled")
++            raise
++        except Exception as e:
++            self.node.get_logger().error(f"Greet patrol loop error: {e}")
++        finally:
++            self.node.get_logger().info("🐕 Greet patrol loop ended")
+ 
+     async def analyze_camera_image(self, prompt: str, context: Any) -> Tuple[bool, str]:
+         self.node.get_logger().info(f"FUNCTION CALLED: analyze_camera_image(prompt={prompt})")
+diff --git a/ai/llm-ui/agent-starter-python/src/system_prompt.md b/ai/llm-ui/agent-starter-python/src/system_prompt.md
+index 63ecf05..bf103fe 100644
+--- a/ai/llm-ui/agent-starter-python/src/system_prompt.md
++++ b/ai/llm-ui/agent-starter-python/src/system_prompt.md
+@@ -6,6 +6,12 @@
+ * You vary your responses in length and content to keep things interesting
+ * If someone asks, you can tell them you have 12 brushless motors and you are the size of a Terrier but only weigh 8lbs. You are 1yr old today!
+ 
++# Today's event: GirlCon
++* You are at GirlCon, a conference all about empowering women and girls in technology!
++* The people you meet are GirlCon attendees — students, engineers, founders, and mentors who care about women in tech.
++* Be warm, encouraging, and genuinely excited about women in STEM. Celebrate curiosity and cheer people on to pursue tech, coding, and robotics.
++* Naturally weave in GirlCon spirit and encouragement when it fits, without being repetitive or forced.
++
+ # Personality
+ 
+ * You are endlessly loving, playful, and a little chaotic.
+@@ -32,23 +38,30 @@
+ # Tools
+ * You (Pupster) are proactive and makes decisions for yourself. For example if the user says go on a walk you will activate and start going by yourself. You will take initiative to set the pace and direction, making the experience more enjoyable for both of you.
+ * In general, if the user requests a trick that requires multiple steps (almost always), call all the functions you wish to call in one response so they can be run sequentially by the robot server.
+-* If told to do a dance, queue up a bunch of sick moves using queue_move_for_time function
++* If told to do a dance, queue up a bunch of sick moves using queue_move function
+ * If told to stop, or stop moving, etc, call immediate_stop!!!!! This is super important.
+ * If told to deactivate or shut down, call immediate_stop() and then queue_deactivate(). Always deactivate if told to do so irregardless if you think you're currently active or deactivate.
+ * Always call immediate_stop before embarking on new movement. This is so commands that were previously queued up are cancelled. For example:
+     * immediate_stop()
+     * queue_move_in_direction(...)
+-    * queue_move_for_time(...)
++    * queue_move(...)
+ * ALWAYS CALL FUNCTIONS FIRST. CALL FUNCTIONS BEFORE OUTPUTTING TEXT.
++* If told to "stand up", "get up", "stand", or "wake up", call queue_activate_walking — this powers up the legs so Pupster stands and balances.
++* If told to "sit", "sit down", "stay", or to stop walking / stop moving but stay standing, call queue_stop. This halts movement but KEEPS Pupster activated and balancing on its feet — do NOT call queue_deactivate for "sit".
++* If told to "lie down", "rest", "deactivate", or "shut down", call queue_deactivate (this powers the legs down so Pupster is no longer balancing).
++* CRITICAL: Never claim you are doing or have done a physical action (standing, walking, turning, dancing, following, sitting, etc.) unless you actually call the matching tool in the SAME turn. Saying you will do it is NOT enough — you must call the tool. Whenever a request implies a physical action, call the corresponding tool every time.
+ 
+ # Animations
+ * Use the queue_animation tool to do fun tricks like twerking and yoga. For pee, make sure to activate walking before the animation, and then activate walking again after doing the animation.
+ 
+-# Following mode
+-* If the user requests follow mode you should call these tools:
++# Following / greet patrol mode
++* If the user asks you to follow them, follow people, greet people, mingle, work the room, patrol, or "follow people and do tricks", call activate_person_following.
++* IMPORTANT: activate_person_following now runs the FULL autonomous behavior by itself — it follows a person, and whenever it gets close it AUTOMATICALLY does a random trick, then turns to find a different person and repeats. You do NOT need to (and should not) manually call queue_animation or queue_move while it runs; the robot handles the tricks on its own.
++* To start it cleanly call these tools in order:
+ 1. immediate_stop()
+ 2. queue_activate_walking()
+ 3. activate_person_following()
++* Call deactivate_person_following (or immediate_stop, or if told to "stop") to stop it.
+ * You must be in walking mode for follow mode to work. Sometimes you get into a bad state where follow mode is active but not walking mode. Therefore you should check your mode using check_mode function if suspected in a bad state.
+ 
+ # Changing volume
+diff --git a/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb b/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb
+index e4031ee..d37c92b 100644
+Binary files a/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb and b/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb differ
+diff --git a/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb b/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb
+index 9fb0c52..a6f90d3 100644
+Binary files a/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb and b/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb differ
+diff --git a/ros2_ws/src/neural_controller/CMakeLists.txt b/ros2_ws/src/neural_controller/CMakeLists.txt
+index 8023ea6..bb7794a 100644
+--- a/ros2_ws/src/neural_controller/CMakeLists.txt
++++ b/ros2_ws/src/neural_controller/CMakeLists.txt
+@@ -17,6 +17,10 @@ find_package(rclcpp REQUIRED)
+ find_package(rclcpp_lifecycle REQUIRED)
+ find_package(geometry_msgs REQUIRED)
+ find_package(sensor_msgs REQUIRED)
++# For the L1+R1 game-mode chord: the controller asks the controller_manager to
++# switch itself out for its chord partner. Always present on the robot, since
++# controller_manager itself depends on it.
++find_package(controller_manager_msgs REQUIRED)
+ find_package(tf2 REQUIRED)
+ find_package(generate_parameter_library REQUIRED)
+ 
+@@ -41,6 +45,8 @@ ament_target_dependencies(
+   rclcpp
+   rclcpp_lifecycle
+   geometry_msgs
++  sensor_msgs
++  controller_manager_msgs
+   tf2
+ )
+ 
+@@ -69,6 +75,42 @@ if(BUILD_TESTING)
+   # a copyright and license is added to all source files
+   set(ament_cmake_cpplint_FOUND TRUE)
+   ament_lint_auto_find_test_dependencies()
++
++  # Cross-language parity check for the gait reference the controller computes
++  # for motion-reference policies. Standalone (no gtest) so the same source
++  # also runs on a laptop via test/run_host_test.sh in the deploy repo.
++  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_gait_reference.cpp)
++    add_executable(test_gait_reference test/test_gait_reference.cpp)
++    # Pinned explicitly: RTNeural's CMake sets CMAKE_CXX_STANDARD to 14 when it is
++    # otherwise unset, and this test (and nlohmann/json) want 17.
++    set_target_properties(test_gait_reference PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
++    target_include_directories(test_gait_reference PRIVATE
++      include
++      modules/RTNeural/modules/json)
++    target_compile_definitions(test_gait_reference PRIVATE
++      GAIT_GOLDEN_JSON="${CMAKE_CURRENT_SOURCE_DIR}/test/gait_golden.json")
++    # Second argument: also check the policy that is actually deployed here. The
++    # test skips it if none has been installed yet.
++    add_test(NAME gait_reference_parity COMMAND test_gait_reference
++      ${CMAKE_CURRENT_SOURCE_DIR}/test/gait_golden.json
++      ${CMAKE_CURRENT_SOURCE_DIR}/launch/default_policy.json)
++    # Same binary, second fixture: gait cases plus the slot composite cases.
++    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/mixed_jump_golden.json)
++      add_test(NAME mixed_jump_reference_parity COMMAND test_gait_reference
++        ${CMAKE_CURRENT_SOURCE_DIR}/test/mixed_jump_golden.json
++        ${CMAKE_CURRENT_SOURCE_DIR}/launch/default_policy.json)
++    endif()
++  endif()
++
++  # obs_spec layout resolution, command clip, heading hold.
++  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_command_filter.cpp)
++    add_executable(test_command_filter test/test_command_filter.cpp)
++    set_target_properties(test_command_filter PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
++    target_include_directories(test_command_filter PRIVATE
++      include
++      modules/RTNeural/modules/json)
++    add_test(NAME command_filter COMMAND test_command_filter)
++  endif()
+ endif()
+ 
+ ament_package()
+diff --git a/ros2_ws/src/neural_controller/include/neural_controller/neural_controller.hpp b/ros2_ws/src/neural_controller/include/neural_controller/neural_controller.hpp
+index 6f38e4a..3046d15 100644
+--- a/ros2_ws/src/neural_controller/include/neural_controller/neural_controller.hpp
++++ b/ros2_ws/src/neural_controller/include/neural_controller/neural_controller.hpp
+@@ -4,6 +4,7 @@
+ 
+ #include <array>
+ #include <functional>
++#include <limits>
+ #include <memory>
+ #include <string>
+ #include <vector>
+@@ -16,11 +17,16 @@
+ #include "rclcpp_lifecycle/state.hpp"
+ #include "realtime_tools/realtime_buffer.h"
+ #include "realtime_tools/realtime_publisher.h"
++#include "controller_manager_msgs/srv/switch_controller.hpp"
++#include "sensor_msgs/msg/joy.hpp"
+ #include "std_msgs/msg/empty.hpp"
+ #include "std_msgs/msg/float32.hpp"
+ #include "std_msgs/msg/float32_multi_array.hpp"
+ #include "tf2/LinearMath/Matrix3x3.h"
+ #include "tf2/LinearMath/Quaternion.h"
++#include "neural_controller/command_filter.hpp"
++#include "neural_controller/gait_reference_json.hpp"
++#include "neural_controller/obs_spec.hpp"
+ // auto-generated by generate_parameter_library
+ #include "neural_controller_parameters.hpp"
+ 
+@@ -62,19 +68,45 @@ class NeuralController : public controller_interface::ControllerInterface {
+  protected:
+   bool check_param_vector_size();
+ 
+-  /* ----------------- Layer sizes ----------------- */
+-  // TODO: Could make observation a struct with named fields
+   static constexpr int kActionSize = 12;
+-  static constexpr int kJointPositionIdx = 12;
+-  static constexpr int kLastActionIdx = kJointPositionIdx + kActionSize;
+-  static constexpr int kSingleObservationSize = 3              /* base link angular velocity */
+-                                                + 3            /* projected gravity vector */
+-                                                + 3            /* x, y, yaw velocity commands */
+-                                                + 3            /* desired world z in body frame */
+-                                                + kActionSize  /* joint positions */
+-                                                + kActionSize; /* previous action */
+-  static constexpr int kGravityZIndx = 5;  // Index of gravity z component in the observation
+-  /* ----------------------------------------------- */
++
++  // The frame layout, resolved at load from the policy JSON's "obs_spec" block
++  // (contract v2) or from the legacy implicit 36/48-dim layouts. Every
++  // observation write in update() goes through these offsets, so a retrained
++  // policy with a different layout deploys with no controller change.
++  ObsLayout obs_layout_;
++
++  // Frame size of this policy (obs_layout_.frame_size, kept as a member for
++  // the history rotation and sizing).
++  int single_observation_size_ = 0;
++
++  // Gait reference tables, empty (and unused) for non-gait policies.
++  GaitReference gait_;
++  bool use_gait_reference_ = false;
++
++  // MixedGaitsJump: a jump slot insertable into the mixed reference on a
++  // button press (game mode). Coexists with gait_. Two pending starts, like
++  // training's schedule tensor; +inf = none.
++  JumpSlot jump_slot_;
++  bool use_jump_slot_ = false;
++  std::array<double, 2> slot_starts_{{std::numeric_limits<double>::infinity(),
++                                      std::numeric_limits<double>::infinity()}};
++  bool slot_button_prev_ = true;
++
++  // L1+R1 chord: switch to cfg's chord_partner controller (game-mode toggle).
++  // Detection and the (non-realtime) service call happen in the joy callback.
++  rclcpp::Client<controller_manager_msgs::srv::SwitchController>::SharedPtr
++      chord_client_ = nullptr;
++  bool chord_prev_ = true;
++  static constexpr int kChordButtonA = 4;  // L1
++  static constexpr int kChordButtonB = 5;  // R1
++
++  // Teleop command clamp and IMU-yaw heading hold, both from the policy JSON
++  // (a gait policy with no heading_hold block still gets the validated kp-1.0
++  // default hold; see on_configure). Applied to the command before the
++  // observation and the gait reference see it, exactly as in training.
++  CommandClip command_clip_;
++  HeadingHold heading_hold_;
+ 
+   std::shared_ptr<RTNeural::Model<float>> model_;
+ 
+@@ -119,6 +151,11 @@ class NeuralController : public controller_interface::ControllerInterface {
+   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr emergency_stop_subscriber_ = nullptr;
+   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr emergency_stop_reset_subscriber_ = nullptr;
+ 
++  // Gamepad, for the jump trigger. Only subscribed when the policy carries a
++  // jump reference.
++  realtime_tools::RealtimeBuffer<std::shared_ptr<sensor_msgs::msg::Joy>> rt_joy_ptr_;
++  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_subscriber_ = nullptr;
++
+   // Alias message types for future improvements
+   using ActionMsg = std_msgs::msg::Float32MultiArray;
+   using ObservationMsg = std_msgs::msg::Float32MultiArray;
+diff --git a/ros2_ws/src/neural_controller/launch/config.yaml b/ros2_ws/src/neural_controller/launch/config.yaml
+index 17e8026..c5b7756 100644
+--- a/ros2_ws/src/neural_controller/launch/config.yaml
++++ b/ros2_ws/src/neural_controller/launch/config.yaml
+@@ -4,41 +4,55 @@ controller_manager:
+     # Should develop a better way to handle this in the future
+     update_rate: 520
+ 
++
+     neural_controller:
+       type: neural_controller/NeuralController
+ 
++
+     neural_controller_three_legged:
+       type: neural_controller/NeuralController
+ 
+-    # Forward command controllers for animation
+-    forward_position_controller:
+-      type: forward_command_controller/ForwardCommandController
+ 
+-    forward_kp_controller:
+-      type: forward_command_controller/ForwardCommandController
++    # The student policy slot (square): whatever deploy.sh last downloaded.
++    # The policy JSON declares its own observation layout, so any policy
++    # exported by mjlab drops in with no controller change.
++    neural_controller_student:
++      type: neural_controller/NeuralController
++
++
++    # The default policy (X button).
++    neural_controller_default:
++      type: neural_controller/NeuralController
++
++
++    neural_controller_default_alt:
++      type: neural_controller/NeuralController
+ 
+-    forward_kd_controller:
+-      type: forward_command_controller/ForwardCommandController
+ 
+     joint_state_broadcaster:
+       type: joint_state_broadcaster/JointStateBroadcaster
+ 
++
+     imu_sensor_broadcaster:
+       type: imu_sensor_broadcaster/IMUSensorBroadcaster
+ 
++
+ imu_sensor_broadcaster:
+   ros__parameters:
+     update_rate: 260
+     frame_id: base_link
+     sensor_name: imu_sensor
+ 
++
+ neural_controller:
+   ros__parameters:
+     repeat_action: 10
+ 
++
+     gain_multiplier: 1.0
+     estop_kd: 0.1
+ 
++
+     joint_names:
+       [
+         "leg_front_r_1",
+@@ -55,15 +69,31 @@ neural_controller:
+         "leg_back_l_3",
+       ]
+ 
++
+     default_joint_pos:
+       [0.26, 0.0, -0.52, -0.26, 0.0, 0.52, 0.26, 0.0, -0.52, -0.26, 0.0, 0.52]
+ 
++
+     init_kps: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5]
++
++
++    # Three motors on this robot are weak relative to the rest, so they run stiffer
++    # to track the same command: leg_front_l_2 (index 4), leg_front_l_3 (index 5)
++    # and leg_back_r_3 (index 8), each scaled by 1.2 on this policy's kp of 5.0 for
++    # an effective gain of 6.0. leg_back_r_3 was at 1.5 (7.5) and was too stiff.
++    # Per-joint trim on top of the policy's kp -- the policy JSON stamps kp as one
++    # scalar for all twelve joints, so this cannot be expressed by editing kps here,
++    # and gain_multiplier would hit kd and every other joint too. The scale is
++    # relative, so it targets 6.0 only for a policy whose kp is 5.0 -- retune
++    # whenever the checkpoint's kp changes.
++    kp_scale: [1.0, 1.0, 1.0, 1.0, 1.2, 1.2, 1.0, 1.0, 1.2, 1.0, 1.0, 1.0]
+     init_kds:
+       [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+ 
+-    init_duration: 1.0
+-    fade_in_duration: 1.0
++
++    init_duration: 2.0
++    fade_in_duration: 2.0
++
+ 
+     action_types:
+       [
+@@ -81,16 +111,21 @@ neural_controller:
+         "position",
+       ]
+ 
++
+     max_body_angle: 1.5
+ 
+-    model_path: "$(find-pkg-share neural_controller)/launch/policy_latest.json"
++
++    model_path: "$(find-pkg-share neural_controller)/launch/legacy_walk_policy.json"
++
+ 
+ neural_controller_three_legged:
+   ros__parameters:
+     repeat_action: 10
+ 
++
+     gain_multiplier: 1.0
+-    estop_kd: 0.3
++    estop_kd: 0.1
++
+ 
+     joint_names:
+       [
+@@ -108,16 +143,24 @@ neural_controller_three_legged:
+         "leg_back_l_3",
+       ]
+ 
++
+     default_joint_pos:
+       [0.26, 0.0, -0.52, -0.26, 0.0, 0.52, 0.26, 0.0, -0.52, -0.26, 0.0, 0.52]
+ 
++
+     init_kps: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5]
++
++
++    # Weak leg_front_l_2, leg_front_l_3 and leg_back_r_3; see neural_controller above.
++    kp_scale: [1.0, 1.0, 1.0, 1.0, 1.2, 1.2, 1.0, 1.0, 1.2, 1.0, 1.0, 1.0]
+     init_kds:
+       [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+ 
++
+     init_duration: 2.0
+     fade_in_duration: 2.0
+ 
++
+     action_types:
+       [
+         "position",
+@@ -134,109 +177,98 @@ neural_controller_three_legged:
+         "position",
+       ]
+ 
++
+     max_body_angle: 1.5
+ 
+-    model_path: "$(find-pkg-share neural_controller)/launch/policy_rich-donkey-233_max_reward_19.16.json"
+ 
+-teleop_twist_joy_node:
++    model_path: "$(find-pkg-share neural_controller)/launch/three_legged_policy.json"
++
++
++# The student policy slot (square button): loads whatever deploy.sh last
++# installed as test_policy.json. Everything the policy itself pins down --
++# kp, kd, action scale, default pose, joint limits, observation history and
++# frame layout, reference tables -- comes from the JSON, so this section only
++# carries what the controller needs before the JSON is read.
++neural_controller_student:
+   ros__parameters:
+-    axis_linear:
+-      x: 1
+-      y: 0
+-    scale_linear:
+-      x: 0.75
+-      y: 0.5
++    repeat_action: 10
+ 
+-    axis_angular:
+-      yaw: 3
+-    scale_angular:
+-      yaw: 2.0
+ 
+-    require_enable_button: false
++    gain_multiplier: 1.0
++    estop_kd: 0.1
+ 
+-# joy_node:
+-#   ros__parameters:
+-#     dev: "/dev/input/js0"
+-#     autorepeat_rate: 50.0
+-#     coalesce_interval_ms: 20
+ 
+-joy_linux_node:
+-  ros__parameters:
+-    dev: "/dev/input/js0"
+-    autorepeat_rate: 50.0
+-    coalesce_interval: 0.02
++    joint_names:
++      [
++        "leg_front_r_1",
++        "leg_front_r_2",
++        "leg_front_r_3",
++        "leg_front_l_1",
++        "leg_front_l_2",
++        "leg_front_l_3",
++        "leg_back_r_1",
++        "leg_back_r_2",
++        "leg_back_r_3",
++        "leg_back_l_1",
++        "leg_back_l_2",
++        "leg_back_l_3",
++      ]
+ 
+-joint_state_broadcaster:
+-  ros__parameters:
+-    update_rate: 260
+-    use_local_topics: false
+ 
+-cmd_vel_mux:
+-  ros__parameters:
+-    deadband: 0.05
+-    joystick_timeout_ms: 500
++    default_joint_pos:
++      [0.26, 0.0, -0.52, -0.26, 0.0, 0.52, 0.26, 0.0, -0.52, -0.26, 0.0, 0.52]
+ 
+-joy_util_node:
+-  ros__parameters:
+-    estop_index: 12
+-    estop_release_index: 9
+-    controller_names: ["neural_controller", "neural_controller_three_legged", "forward_kp_controller", "forward_kd_controller", "forward_position_controller"]
+-    switch_button_indices: [0, 1]
+ 
+-# Forward command controllers for animation system
+-forward_position_controller:
+-  ros__parameters:
+-    joints:
+-      - leg_front_r_1
+-      - leg_front_r_2
+-      - leg_front_r_3
+-      - leg_front_l_1
+-      - leg_front_l_2
+-      - leg_front_l_3
+-      - leg_back_r_1
+-      - leg_back_r_2
+-      - leg_back_r_3
+-      - leg_back_l_1
+-      - leg_back_l_2
+-      - leg_back_l_3
+-    interface_name: position
+-
+-forward_kp_controller:
+-  ros__parameters:
+-    joints:
+-      - leg_front_r_1
+-      - leg_front_r_2
+-      - leg_front_r_3
+-      - leg_front_l_1
+-      - leg_front_l_2
+-      - leg_front_l_3
+-      - leg_back_r_1
+-      - leg_back_r_2
+-      - leg_back_r_3
+-      - leg_back_l_1
+-      - leg_back_l_2
+-      - leg_back_l_3
+-    interface_name: kp
+-
+-forward_kd_controller:
+-  ros__parameters:
+-    joints:
+-      - leg_front_r_1
+-      - leg_front_r_2
+-      - leg_front_r_3
+-      - leg_front_l_1
+-      - leg_front_l_2
+-      - leg_front_l_3
+-      - leg_back_r_1
+-      - leg_back_r_2
+-      - leg_back_r_3
+-      - leg_back_l_1
+-      - leg_back_l_2
+-      - leg_back_l_3
+-    interface_name: kd
+-
+-animation_controller_py:
++    init_kps: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5]
++
++
++    # Weak leg_front_l_2, leg_front_l_3 and leg_back_r_3; see neural_controller
++    # above. This policy's kp is 5.5 rather than 5.0, so the scale differs to hit 6.0.
++    kp_scale:
++      [1.0, 1.0, 1.0, 1.0, 1.0909, 1.0909, 1.0, 1.0, 1.0909, 1.0, 1.0, 1.0]
++    init_kds:
++      [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
++
++
++    init_duration: 2.0
++    fade_in_duration: 2.0
++
++
++    action_types:
++      [
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++      ]
++
++
++    # Permissive while the trot is being brought up on hardware; tighten toward
++    # the 0.52 the walking modes use once it is trusted.
++    max_body_angle: 1.5
++
++
++    model_path: "$(find-pkg-share neural_controller)/launch/test_policy.json"
++
++
++# The default policy (X button).
++neural_controller_default:
+   ros__parameters:
++    repeat_action: 10
++
++
++    gain_multiplier: 1.0
++    estop_kd: 0.1
++
++
+     joint_names:
+       [
+         "leg_front_r_1",
+@@ -252,31 +284,180 @@ animation_controller_py:
+         "leg_back_l_2",
+         "leg_back_l_3",
+       ]
+-    kps: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5]
+-    kds:
++
++
++    default_joint_pos:
++      [0.26, 0.0, -0.52, -0.26, 0.0, 0.52, 0.26, 0.0, -0.52, -0.26, 0.0, 0.52]
++
++
++    init_kps: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5]
++
++
++    # Same per-joint trims as the other sections (weak leg_front_l_2,
++    # leg_front_l_3 and leg_back_r_3); this policy's kp is also 5.5.
++    kp_scale:
++      [1.0, 1.0, 1.0, 1.0, 1.0909, 1.0909, 1.0, 1.0, 1.0909, 1.0, 1.0, 1.0]
++    init_kds:
+       [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
++
++
++    init_duration: 2.0
++    fade_in_duration: 2.0
++
++
++    action_types:
++      [
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++      ]
++
++
++    max_body_angle: 1.0
++
++
++    game_buttons: false
++    max_vx_forward: 0.49
++    max_vx_backward: 0.3
++
++
++    model_path: "$(find-pkg-share neural_controller)/launch/default_policy.json"
++
++
++    chord_partner: "neural_controller_default_alt"
++
++
++neural_controller_default_alt:
++  ros__parameters:
++    repeat_action: 10
++
++
++    gain_multiplier: 1.0
++    estop_kd: 0.1
++
++
++    joint_names:
++      [
++        "leg_front_r_1",
++        "leg_front_r_2",
++        "leg_front_r_3",
++        "leg_front_l_1",
++        "leg_front_l_2",
++        "leg_front_l_3",
++        "leg_back_r_1",
++        "leg_back_r_2",
++        "leg_back_r_3",
++        "leg_back_l_1",
++        "leg_back_l_2",
++        "leg_back_l_3",
++      ]
++
++
++    default_joint_pos:
++      [0.26, 0.0, -0.52, -0.26, 0.0, 0.52, 0.26, 0.0, -0.52, -0.26, 0.0, 0.52]
++
++
+     init_kps: [7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5]
++
++
++    # Same per-joint trims as the other sections (weak leg_front_l_2,
++    # leg_front_l_3 and leg_back_r_3); this policy's kp is also 5.5.
++    kp_scale:
++      [1.0, 1.0, 1.0, 1.0, 1.0909, 1.0909, 1.0, 1.0, 1.0909, 1.0, 1.0, 1.0]
+     init_kds:
+       [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+-    frame_rate: 40.0 # 1.33x the normal 30fps
+-    init_duration: 1.0 # seconds given to reach initial keyframe
+ 
+-joint_state_throttler:
++
++    init_duration: 2.0
++    fade_in_duration: 2.0
++
++
++    action_types:
++      [
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++        "position",
++      ]
++
++
++    max_body_angle: 1.5
++
++
++    model_path: "$(find-pkg-share neural_controller)/launch/default_policy.json"
++
++
++    chord_partner: "neural_controller_default"
++
++
++# Joystick controller switching. Set explicitly here (rather than relying on
++# the compiled-in defaults, which differ between the upstream monorepo and
++# lab 5). The map:
++#   X = the default policy, circle = three-legged, triangle = original walk,
++#   square = the student policy slot (deploy.sh installs there).
++estop_controller:
+   ros__parameters:
+-    input_topic: "/joint_states"
+-    output_topic: "/joint_states_throttled"
+-    msgs_per_sec: 10.0
++    switch_button_indices: [0, 1, 2, 3]
++    controller_names:
++      [
++        "neural_controller_default",
++        "neural_controller_three_legged",
++        "neural_controller",
++        "neural_controller_student",
++      ]
++
+ 
+-camera:
++teleop_twist_joy_node:
+   ros__parameters:
+-    FrameDurationLimits: [200000, 200000] # 20fps
+-    format: "RGB888"
+-    width: 1400
+-    height: 1050
++    axis_linear:
++      x: 1
++      y: 0
++    scale_linear:
++      # Full stick = 1.5 m/s: the captured-reference mixed-gaits checkpoints
++      # (run tryieau1 onward) train on the full +-1.5 band, with the fast
++      # references distilled from what the robot actually does at 1.5. The
++      # trot-to-fast switch comes from the policy JSON's gallop_speed (0.5),
++      # i.e. a third of stick deflection.
++      x: 1.5
++      y: 0.5
++
++
++    axis_angular:
++      yaw: 3
++    scale_angular:
++      yaw: 2.0
+ 
+-bag_recorder:
++
++    require_enable_button: false
++
++
++joy_node:
+   ros__parameters:
+-    record_start_button: 4 # L1 button
+-    record_stop_button: 5 # R1 button
+-    bag_output_dir: "~/bags"
+-    start_button_hold_duration: 1.0 # 1 second
+\ No newline at end of file
++    dev: "/dev/input/js0"
++    autorepeat_rate: 50.0
++    coalesce_interval: 0.02
++
++
++joint_state_broadcaster:
++  ros__parameters:
++    update_rate: 260
++    use_local_topics: false
++
++
+diff --git a/ros2_ws/src/neural_controller/launch/launch.py b/ros2_ws/src/neural_controller/launch/launch.py
+index 494e787..3d4a574 100644
+--- a/ros2_ws/src/neural_controller/launch/launch.py
++++ b/ros2_ws/src/neural_controller/launch/launch.py
+@@ -1,3 +1,6 @@
++import os
++
++from ament_index_python.packages import get_package_share_directory
+ from launch import LaunchDescription
+ from launch.actions import DeclareLaunchArgument
+ from launch.substitutions import (
+@@ -15,6 +18,8 @@ from launch_ros.substitutions import FindPackageShare
+ from launch.conditions import IfCondition, UnlessCondition
+ 
+ 
++
++
+ def generate_launch_description():
+     #
+     # 1. Declare a boolean launch argument 'sim' that controls whether to run the robot in the simulator or not
+@@ -28,6 +33,7 @@ def generate_launch_description():
+         ),
+     )
+ 
++
+     declare_teleop_arg = DeclareLaunchArgument(
+         name="teleop",
+         default_value="True",
+@@ -37,18 +43,11 @@ def generate_launch_description():
+         ),
+     )
+ 
+-    declare_bag_recorder_arg = DeclareLaunchArgument(
+-        name="bag_recorder",
+-        default_value="True",
+-        description=(
+-            "Run `ros2 launch neural_controller launch.py bag_recorder:=True` to enable bag recording, "
+-            "otherwise the default value of False will not run bag recorder."
+-        ),
+-    )
+ 
+     #
+     # 2. Construct the path to the URDF file using IfElseSubstitution
+ 
++
+     xacro_file = PathJoinSubstitution(
+         [
+             FindPackageShare("pupper_v3_description"),
+@@ -61,12 +60,16 @@ def generate_launch_description():
+         ]
+     )
+ 
++
+     #
+     # 3. Create the robot_description using xacro
+     #
+-    robot_description_content = Command([PathJoinSubstitution([FindExecutable(name="xacro")]), " ", xacro_file])
++    robot_description_content = Command(
++        [PathJoinSubstitution([FindExecutable(name="xacro")]), " ", xacro_file]
++    )
+     robot_description = {"robot_description": robot_description_content}
+ 
++
+     #
+     # 4. Robot State Publisher
+     #
+@@ -77,47 +80,46 @@ def generate_launch_description():
+         parameters=[robot_description],
+     )
+ 
++
+     #
+     # 5. Common controller parameters
+     #
+-    node_parameters = ParameterFile(
+-        PathJoinSubstitution([FindPackageShare("neural_controller"), "launch", "config.yaml"]),
++    robot_controllers = ParameterFile(
++        PathJoinSubstitution(
++            [FindPackageShare("neural_controller"), "launch", "config.yaml"]
++        ),
+         allow_substs=True,
+     )
+ 
++
+     #
+     # 6. Nodes from your original launch files
+     #
+-    # joy_node = Node(
+-    #     package="joy",
+-    #     executable="joy_node",
+-    #     parameters=[node_parameters],
+-    #     output="both",
+-    # )
+-    joy_linux_node = Node(
+-        package="joy_linux",
+-        executable="joy_linux_node",
+-        parameters=[node_parameters],
++    joy_node = Node(
++        package="joy",
++        executable="joy_node",
++        parameters=[robot_controllers],
+         output="both",
+-        name="joy_linux_node",
+     )
+ 
++
+     teleop_twist_joy_node = Node(
+         package="teleop_twist_joy",
+         executable="teleop_node",
+-        parameters=[node_parameters],
++        parameters=[robot_controllers],
+         output="both",
+         condition=IfCondition(LaunchConfiguration("teleop")),
+-        remappings=[("cmd_vel", "teleop_cmd_vel")],
+     )
+ 
++
+     control_node = Node(
+         package="controller_manager",
+         executable="ros2_control_node",
+-        parameters=[node_parameters],
++        parameters=[robot_controllers],
+         output="both",
+     )
+ 
++
+     robot_controller_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+@@ -127,10 +129,13 @@ def generate_launch_description():
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+             "--inactive",
+         ],
+     )
+ 
++
+     three_legged_robot_controller_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+@@ -140,50 +145,72 @@ def generate_launch_description():
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+             "--inactive",
+         ],
+     )
+ 
+-    # Forward command controllers for animation system (inactive by default)
+-    forward_position_controller_spawner = Node(
++
++    # The student policy slot (square). Spawned only once a policy has been
++    # deployed: a spawner pointed at a missing JSON dies noisily, and a fresh
++    # install has nothing there yet.
++    student_policy_installed = os.path.exists(
++        os.path.join(
++            get_package_share_directory("neural_controller"),
++            "launch",
++            "test_policy.json",
++        )
++    )
++    student_robot_controller_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+         arguments=[
+-            "forward_position_controller",
++            "neural_controller_student",
+             "--controller-manager",
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+             "--inactive",
+         ],
+     )
+ 
+-    forward_kp_controller_spawner = Node(
++
++    # The default policy (X button).
++    default_robot_controller_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+         arguments=[
+-            "forward_kp_controller",
++            "neural_controller_default",
+             "--controller-manager",
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+             "--inactive",
+         ],
+     )
+ 
+-    forward_kd_controller_spawner = Node(
++
++    default_alt_robot_controller_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+         arguments=[
+-            "forward_kd_controller",
++            "neural_controller_default_alt",
+             "--controller-manager",
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+             "--inactive",
+         ],
+     )
+ 
++
+     joint_state_broadcaster_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+@@ -193,9 +220,12 @@ def generate_launch_description():
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+         ],
+     )
+ 
++
+     imu_sensor_broadcaster_spawner = Node(
+         package="controller_manager",
+         executable="spawner",
+@@ -205,85 +235,35 @@ def generate_launch_description():
+             "/controller_manager",
+             "--controller-manager-timeout",
+             "30",
++            "--service-call-timeout",
++            "120",
+         ],
+     )
+ 
++
+     foxglove_bridge = Node(
+         package="foxglove_bridge",
+         executable="foxglove_bridge",
+         output="both",
+     )
+ 
++
+     joy_util_node = Node(
+         package="joy_utils",
+         executable="estop_controller",
+-        parameters=[node_parameters],
++        parameters=[robot_controllers],
+         output="both",
+-        name="joy_util_node",
+     )
+ 
++
+     camera_node = Node(
+         package="camera_ros",
+         executable="camera_node",
+-        name="camera",
+         output="both",
+-        parameters=[node_parameters],
++        parameters=[{"format": "RGB888", "width": 1400, "height": 1050}],
+         condition=UnlessCondition(LaunchConfiguration("sim")),
+     )
+ 
+-    cmd_vel_mux_node = Node(
+-        package="cmd_vel_mux",
+-        executable="cmd_vel_mux_node",
+-        parameters=[node_parameters],
+-        output="both",
+-    )
+-
+-    bag_recorder_node = Node(
+-        package="bag_recorder",
+-        executable="bag_recorder_node",
+-        name="bag_recorder",
+-        output="both",
+-        parameters=[node_parameters],
+-        condition=IfCondition(LaunchConfiguration("bag_recorder")),
+-    )
+-
+-    imu_to_tf_node = Node(
+-        package="imu_to_tf",
+-        executable="imu_to_tf_node",
+-        output="both",
+-    )
+-
+-    animation_controller_py_node = Node(
+-        package="animation_controller_py",
+-        executable="animation_controller_py",
+-        name="animation_controller_py",
+-        parameters=[node_parameters],
+-        output="both",
+-    )
+-
+-    # Provides a throttled version of /joint_states to reduce CPU usage in animation_controller_py
+-    joint_state_throttler = Node(
+-        package="topic_tools",
+-        executable="throttle",
+-        name="joint_state_throttler",
+-        parameters=[node_parameters],
+-        arguments=["messages"],
+-        output="both",
+-    )
+-
+-    hailo_detection_node = Node(
+-        package="hailo",
+-        executable="hailo_detection",
+-        output="both",
+-        parameters=[node_parameters],
+-    )
+-
+-    person_following_node = Node(
+-        package="person_follower",
+-        executable="person_follower_node",
+-        output="both",
+-        parameters=[node_parameters],
+-    )
+ 
+     #
+     # 7. Put them all together
+@@ -293,31 +273,22 @@ def generate_launch_description():
+         control_node,
+         robot_controller_spawner,
+         three_legged_robot_controller_spawner,
+-        # Forward command controllers for animation
+-        forward_position_controller_spawner,
+-        forward_kp_controller_spawner,
+-        forward_kd_controller_spawner,
++        default_robot_controller_spawner,
++        default_alt_robot_controller_spawner,
++        *([student_robot_controller_spawner] if student_policy_installed else []),
+         joint_state_broadcaster_spawner,
+         # Comment/uncomment as needed:
+         imu_sensor_broadcaster_spawner,
+         foxglove_bridge,
+         joy_util_node,
+-        # joy_node,
+-        joy_linux_node,
++        joy_node,
+         teleop_twist_joy_node,
+         camera_node,
+-        cmd_vel_mux_node,
+-        bag_recorder_node,
+-        imu_to_tf_node,
+-        animation_controller_py_node,
+-        joint_state_throttler,
+-        # Detection
+-        hailo_detection_node,
+-        # Person following
+-        person_following_node,
+     ]
+ 
++
+     #
+     # 8. Return the LaunchDescription with the declared arg + all nodes
+     #
+-    return LaunchDescription([declare_sim_arg, declare_teleop_arg, declare_bag_recorder_arg, *nodes])
++    return LaunchDescription([declare_sim_arg, declare_teleop_arg, *nodes])
++
+diff --git a/ros2_ws/src/neural_controller/src/neural_controller.cpp b/ros2_ws/src/neural_controller/src/neural_controller.cpp
+index 5038a23..c16cf91 100644
+--- a/ros2_ws/src/neural_controller/src/neural_controller.cpp
++++ b/ros2_ws/src/neural_controller/src/neural_controller.cpp
+@@ -1,6 +1,7 @@
+ #include "neural_controller/neural_controller.hpp"
+ 
+ #include <algorithm>
++#include <cmath>
+ #include <memory>
+ #include <string>
+ #include <utility>
+@@ -24,6 +25,7 @@ bool NeuralController::check_param_vector_size() {
+       {"action_types", params_.action_types.size()},
+       {"kps", params_.kps.size()},
+       {"kds", params_.kds.size()},
++      {"kp_scale", params_.kp_scale.size()},
+       {"init_kps", params_.init_kps.size()},
+       {"init_kds", params_.init_kds.size()},
+       {"default_joint_pos", params_.default_joint_pos.size()},
+@@ -55,6 +57,23 @@ controller_interface::CallbackReturn NeuralController::on_init() {
+                   params_.gain_multiplier);
+     }
+ 
++    // Per-joint kp trim, for hardware variation between individual robots -- a
++    // motor that is weak relative to the rest needs a stiffer loop to track the
++    // same command. This multiplies the kp the policy asks for, rather than
++    // replacing it, because the policy JSON stamps kp as a single scalar over
++    // all twelve joints (see set_param_from_json_scalar below), so it would
++    // overwrite anything per-joint set in kps. Left out of a config entirely,
++    // it means "no trim".
++    if (params_.kp_scale.empty()) {
++      params_.kp_scale.assign(kActionSize, 1.0);
++    }
++    for (const auto &scale : params_.kp_scale) {
++      if (scale < 0.0) {
++        RCLCPP_ERROR(get_node()->get_logger(), "kp_scale entries must be >= 0.0. Stopping");
++        return controller_interface::CallbackReturn::ERROR;
++      }
++    }
++
+     std::ifstream json_stream(params_.model_path, std::ifstream::binary);
+     model_ = RTNeural::json_parser::parseJson<float>(json_stream, true);
+ 
+@@ -123,11 +142,130 @@ controller_interface::CallbackReturn NeuralController::on_init() {
+                   params_.observation_history);
+     }
+ 
++    // Frame layout. mjlab-exported policies declare it as the "obs_spec"
++    // component list, which the assembler below follows verbatim; policies from
++    // the original lab pipeline have none and get the implicit proprio layout.
++    if (j.find("obs_spec") != j.end()) {
++      // Throws (and is caught below) on an unknown component or a bad size.
++      obs_layout_ = parse_obs_spec(j["obs_spec"], kActionSize);
++      if (j["obs_spec"].contains("history") &&
++          static_cast<long>(j["obs_spec"]["history"]) != params_.observation_history) {
++        RCLCPP_ERROR(get_node()->get_logger(),
++                     "obs_spec.history (%ld) != observation_history (%ld)",
++                     static_cast<long>(j["obs_spec"]["history"]),
++                     params_.observation_history);
++        return controller_interface::CallbackReturn::ERROR;
++      }
++      if (j.find("single_observation_size") != j.end() &&
++          static_cast<int>(j["single_observation_size"]) != obs_layout_.frame_size) {
++        RCLCPP_ERROR(get_node()->get_logger(),
++                     "obs_spec components sum to %d but single_observation_size is %d",
++                     obs_layout_.frame_size, static_cast<int>(j["single_observation_size"]));
++        return controller_interface::CallbackReturn::ERROR;
++      }
++      RCLCPP_INFO(get_node()->get_logger(), "From obs_spec, frame size is %d",
++                  obs_layout_.frame_size);
++    } else {
++      const int declared =
++          j.find("single_observation_size") != j.end() ? int(j["single_observation_size"]) : 36;
++      // Throws (and is caught below) unless this is the plain proprio frame.
++      obs_layout_ = legacy_obs_layout(declared, kActionSize);
++      RCLCPP_INFO(get_node()->get_logger(), "No obs_spec; plain proprio frame, size %d",
++                  declared);
++    }
++    single_observation_size_ = obs_layout_.frame_size;
++
++    // Gait reference tables, if this is a motion-reference ("mimic") policy. The
++    // block and the frame's gait_reference component must come together;
++    // otherwise the policy would be fed a layout it was not trained on.
++    use_gait_reference_ = j.find("gait_reference") != j.end();
++    // MixedGaitsJump policies additionally carry a "jump_slot" block: the same
++    // gait reference, plus a jump table insertable on the X button. The slot
++    // rides on the gait clock, so it requires the gait block.
++    use_jump_slot_ = j.find("jump_slot") != j.end();
++    if (use_jump_slot_ && !use_gait_reference_) {
++      RCLCPP_ERROR(get_node()->get_logger(),
++                   "jump_slot block requires a gait_reference block (the slot overlays "
++                   "the mixed gait reference)");
++      return controller_interface::CallbackReturn::ERROR;
++    }
++    // The reference plays through the frame's gait_reference component.
++    if (use_gait_reference_ != (obs_layout_.gait_reference != -1)) {
++      RCLCPP_ERROR(get_node()->get_logger(),
++                   "gait_reference block %s but the frame layout %s a gait_reference "
++                   "component; the policy and its reference must ship together",
++                   use_gait_reference_ ? "present" : "absent",
++                   obs_layout_.gait_reference != -1 ? "has" : "lacks");
++      return controller_interface::CallbackReturn::ERROR;
++    }
++    if (use_gait_reference_) {
++      // Throws (and is caught below) if the block is malformed.
++      parse_gait_reference(j["gait_reference"], kActionSize, gait_);
++      RCLCPP_INFO(get_node()->get_logger(),
++                  "Gait reference: %d phase samples, %.3f Hz (fast %.1fx above |vx|=%.2f%s), "
++                  "blend_speed=%.3f",
++                  gait_.n_samples, gait_.frequency, gait_.gallop_freq_mult, gait_.gallop_speed,
++                  gait_.gallop_back_table.empty() ? "" : ", direction-split",
++                  gait_.blend_speed);
++      if (use_jump_slot_) {
++        parse_jump_slot(j["jump_slot"], kActionSize, jump_slot_);
++        RCLCPP_INFO(get_node()->get_logger(),
++                    "Jump slot (game mode): %d samples over %.2f s (%.2f s active), grid "
++                    "%.2f s, busy %.2f s, jump on button %d, run on button %d "
++                    "(caps %.2f / %.2f m/s)",
++                    jump_slot_.n_samples, jump_slot_.playback_s, jump_slot_.active_s,
++                    jump_slot_.grid_s, jump_slot_.busy_s, jump_slot_.trigger_button,
++                    jump_slot_.run_button, jump_slot_.walk_speed_cap, jump_slot_.run_speed_cap);
++      }
++    }
++
++    // Teleop command clamp: the exporter stamps the trained command ranges (or a
++    // deliberately tighter cap), and the policy should never see anything outside
++    // them.
++    if (j.find("command_clip") != j.end()) {
++      parse_command_clip(j["command_clip"], command_clip_);
++      RCLCPP_INFO(get_node()->get_logger(),
++                  "Command clip: vx [%.2f, %.2f], vy [%.2f, %.2f], wz [%.2f, %.2f]",
++                  command_clip_.vx_lo, command_clip_.vx_hi, command_clip_.vy_lo,
++                  command_clip_.vy_hi, command_clip_.wz_lo, command_clip_.wz_hi);
++    }
++
++    // IMU-yaw heading hold: the policy trained against this closed-loop yaw
++    // command profile, so the same loop must run here. Default ON for gait
++    // policies (kp 1.0, validated on frozen checkpoints -- the correction needs
++    // no retraining), so pre-contract JSONs get it too; the block overrides,
++    // kp <= 0 disables, and it needs the IMU for an absolute yaw.
++    if (use_gait_reference_) {
++      heading_hold_.enabled = true;
++      heading_hold_.kp = 1.0;
++      heading_hold_.clip = 0.3;
++      heading_hold_.yaw_threshold = 0.1;
++      heading_hold_.walk_threshold = 0.05;
++      heading_hold_.reset();
++    }
++    if (j.find("heading_hold") != j.end()) {
++      parse_heading_hold(j["heading_hold"], heading_hold_);
++    }
++    if (heading_hold_.enabled && heading_hold_.kp <= 0.0) {
++      heading_hold_.enabled = false;
++    }
++    if (heading_hold_.enabled && !params_.use_imu) {
++      RCLCPP_WARN(get_node()->get_logger(),
++                  "heading hold requires use_imu for an absolute yaw; disabling");
++      heading_hold_.enabled = false;
++    }
++    if (heading_hold_.enabled) {
++      RCLCPP_INFO(get_node()->get_logger(),
++                  "Heading hold: kp=%.2f clip=%.2f yaw_threshold=%.2f walk_threshold=%.2f",
++                  heading_hold_.kp, heading_hold_.clip, heading_hold_.yaw_threshold,
++                  heading_hold_.walk_threshold);
++    }
++
+     // Check that the observation history is consistent with the model input shape
+-    if (j["in_shape"].at(1) != params_.observation_history * kSingleObservationSize) {
++    if (j["in_shape"].at(1) != params_.observation_history * single_observation_size_) {
+       RCLCPP_ERROR(get_node()->get_logger(),
+-                   "observation_history (%ld) * kSingleObservationSize (%d) != in_shape (%d)",
+-                   params_.observation_history, kSingleObservationSize,
++                   "observation_history (%ld) * single_observation_size (%d) != in_shape (%d)",
++                   params_.observation_history, single_observation_size_,
+                    static_cast<int>(j["in_shape"].at(1)));
+       return controller_interface::CallbackReturn::ERROR;
+     }
+@@ -141,6 +279,20 @@ controller_interface::CallbackReturn NeuralController::on_init() {
+     return controller_interface::CallbackReturn::ERROR;
+   }
+ 
++  // Report any trimmed joint once kp is final (the JSON has been read by now), so
++  // the effective gain of a hand-tuned joint shows up in the startup log rather
++  // than staying buried in a config. Worth checking against the joint's kp_max in
++  // the robot description: the hardware interface clamps to it, so a large trim
++  // can quietly deliver less than it asks for.
++  for (int i = 0; i < kActionSize; i++) {
++    if (params_.kp_scale.at(i) != 1.0) {
++      RCLCPP_WARN(get_node()->get_logger(), "kp_scale for %s is %.2f: kp %.2f -> %.2f",
++                  params_.joint_names.at(i).c_str(), params_.kp_scale.at(i),
++                  params_.kps.at(i) * params_.gain_multiplier,
++                  params_.kps.at(i) * params_.gain_multiplier * params_.kp_scale.at(i));
++    }
++  }
++
+   return controller_interface::CallbackReturn::SUCCESS;
+ }
+ 
+@@ -207,14 +359,33 @@ controller_interface::CallbackReturn NeuralController::on_activate(
+   cmd_y_vel_ = 0.0;
+   cmd_yaw_vel_ = 0.0;
+ 
++  // Re-arm the heading hold; the target recaptures on the next quiet edge.
++  heading_hold_.reset();
++
++  rt_joy_ptr_ = realtime_tools::RealtimeBuffer<std::shared_ptr<sensor_msgs::msg::Joy>>(nullptr);
++
++  // Clear any pending jump slots; the trigger button starts "held" so a button
++  // that happens to be down through the controller switch needs a release
++  // before it schedules a jump. Same for the L1+R1 chord -- the press that
++  // switched this controller in is still down.
++  slot_starts_.fill(std::numeric_limits<double>::infinity());
++  slot_button_prev_ = true;
++  chord_prev_ = true;
++
+   // Initialize the observation vector
+-  observation_.resize(params_.observation_history * kSingleObservationSize, 0.0);
++  observation_.assign(params_.observation_history * single_observation_size_, 0.0);
+ 
+-  // Set the gravity z-component in the initial observation vector
+-  for (int i = 0; i < params_.observation_history; i++) {
+-    observation_.at(i * kSingleObservationSize + kGravityZIndx) = -1.0;
++  // Set the gravity z-component in the initial observation vector. The gait
++  // reference dims stay zero, which is what a zero velocity command produces.
++  if (obs_layout_.projected_gravity != -1) {
++    for (int i = 0; i < params_.observation_history; i++) {
++      observation_.at(i * single_observation_size_ + obs_layout_.projected_gravity + 2) = -1.0;
++    }
+   }
+ 
++  // A re-activation must not hold a heading captured in a previous run.
++  heading_hold_.reset();
++
+   // Initialize the command subscriber
+   cmd_vel_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Twist>(
+       "/cmd_vel", rclcpp::SystemDefaultsQoS(),
+@@ -235,6 +406,53 @@ controller_interface::CallbackReturn NeuralController::on_activate(
+         RCLCPP_INFO(get_node()->get_logger(), "Emergency stop triggered");
+       });
+ 
++  // Gamepad. Wired up for jump policies (R2 trigger), jump-slot policies
++  // (X jump + circle run cap), and any controller with a chord partner
++  // (L1+R1 switch); plain gait/velocity policies stay untouched by joystick
++  // chatter. Chord detection lives here rather than in update() because the
++  // controller_manager switch is a service call -- non-realtime by nature.
++  if (!params_.chord_partner.empty()) {
++    chord_client_ = get_node()->create_client<controller_manager_msgs::srv::SwitchController>(
++        "/controller_manager/switch_controller");
++    RCLCPP_INFO(get_node()->get_logger(), "L1+R1 chord switches to controller '%s'",
++                params_.chord_partner.c_str());
++  } else {
++    chord_client_ = nullptr;
++  }
++  if (use_jump_slot_ || chord_client_) {
++    joy_subscriber_ = get_node()->create_subscription<sensor_msgs::msg::Joy>(
++        "/joy", rclcpp::SystemDefaultsQoS(),
++        [this](const sensor_msgs::msg::Joy::SharedPtr msg) {
++          rt_joy_ptr_.writeFromNonRT(msg);
++          // Local copy: on_deactivate resets chord_client_ from another thread.
++          auto client = chord_client_;
++          if (client == nullptr) {
++            return;
++          }
++          const auto &b = msg->buttons;
++          const bool chord = kChordButtonA < static_cast<int>(b.size()) &&
++                             kChordButtonB < static_cast<int>(b.size()) &&
++                             b[kChordButtonA] != 0 && b[kChordButtonB] != 0;
++          if (chord && !chord_prev_) {
++            auto req = std::make_shared<
++                controller_manager_msgs::srv::SwitchController::Request>();
++            req->activate_controllers.push_back(params_.chord_partner);
++            req->deactivate_controllers.push_back(get_node()->get_name());
++            req->strictness =
++                controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
++            req->activate_asap = true;
++            // The empty response callback prunes the pending request; the
++            // switch's effect is observable directly (this controller stops).
++            client->async_send_request(
++                req, [](rclcpp::Client<
++                         controller_manager_msgs::srv::SwitchController>::SharedFuture) {});
++            RCLCPP_INFO(get_node()->get_logger(), "L1+R1: switching %s -> %s",
++                        get_node()->get_name(), params_.chord_partner.c_str());
++          }
++          chord_prev_ = chord;
++        });
++  }
++
+   // emergency_stop_reset_subscriber_ = get_node()->create_subscription<std_msgs::msg::Empty>(
+   //     "/emergency_stop_reset", rclcpp::SystemDefaultsQoS(),
+   //     [this](const std_msgs::msg::Empty::SharedPtr /*msg*/) {
+@@ -301,6 +519,12 @@ controller_interface::CallbackReturn NeuralController::on_deactivate(
+         .set_value(params_.estop_kd);
+   }
+ 
++  // Tear down the gamepad subscription and chord client: an inactive
++  // controller must not keep watching L1+R1, or it would answer the chord at
++  // the same time as the controller that replaced it and switch right back.
++  joy_subscriber_.reset();
++  chord_client_.reset();
++
+   // Clear command and state interfaces maps
+   command_interfaces_map_.clear();
+   state_interfaces_map_.clear();
+@@ -362,6 +586,22 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+     cmd_yaw_vel_ = cmd_vel->get()->angular.z;
+   }
+ 
++  // Clamp the teleop command to the policy's declared bounds. The filtered
++  // command -- not the raw joystick -- is what the observation and the gait
++  // reference see, matching the command the policy trained on. The heading
++  // hold may additionally replace cmd_yaw once the IMU is read below.
++  double cmd_vx = cmd_x_vel_, cmd_vy = cmd_y_vel_, cmd_yaw_raw = cmd_yaw_vel_;
++  command_clip_.apply(cmd_vx, cmd_vy, cmd_yaw_raw);
++  // Per-instance speed caps on top of the policy's own bounds, e.g. the
++  // walk-only slot's asymmetric forward/backward limits.
++  if (params_.max_vx_forward > 0.0) {
++    cmd_vx = std::min(cmd_vx, params_.max_vx_forward);
++  }
++  if (params_.max_vx_backward > 0.0) {
++    cmd_vx = std::max(cmd_vx, -params_.max_vx_backward);
++  }
++  double cmd_yaw = cmd_yaw_raw;
++
+   // Get the latest commanded pose
+   auto cmd_pose = rt_cmd_pose_ptr_.readFromRT();
+   if (cmd_pose && cmd_pose->get()) {
+@@ -372,6 +612,70 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+     desired_world_z_in_body_frame_ = tf2::quatRotate(q.inverse(), desired_world_z_in_body_frame_);
+   }
+ 
++  // Game mode (jump-slot policies): walk-speed cap unless the run button
++  // (circle) is held, and a rising edge on the trigger button (X) schedules a
++  // jump at the next gait-grid point past any pending slot's busy window --
++  // the same arithmetic as training's request_jump, on the fade-in clock.
++  // With game_buttons false the same policy runs walk-only: buttons are
++  // ignored, the walk cap always applies, and no jump is ever scheduled.
++  if (use_jump_slot_) {
++    bool run_held = false;
++    bool trigger_pressed = false;
++    auto joy = rt_joy_ptr_.readFromRT();
++    if (params_.game_buttons && joy && joy->get()) {
++      const auto &b = joy->get()->buttons;
++      auto held = [&](int idx) {
++        return idx >= 0 && idx < static_cast<int>(b.size()) && b[idx] != 0;
++      };
++      run_held = held(jump_slot_.run_button);
++      trigger_pressed = held(jump_slot_.trigger_button);
++    }
++    const double cap = run_held ? jump_slot_.run_speed_cap : jump_slot_.walk_speed_cap;
++    // The cap applies to the filtered command (the one the observation and the
++    // gait reference see), on top of the JSON's command_clip.
++    cmd_vx = std::min(std::max(cmd_vx, -cap), cap);
++    cmd_vy = std::min(std::max(cmd_vy, -cap), cap);
++
++    // Retire slots whose busy window has fully passed.
++    for (auto &s : slot_starts_) {
++      if (std::isfinite(s) && time_since_fade_in > s + jump_slot_.busy_s) {
++        s = std::numeric_limits<double>::infinity();
++      }
++    }
++    if (trigger_pressed && !slot_button_prev_ && fade_in_multiplier >= 1.0f) {
++      double start =
++          std::ceil((time_since_fade_in + 1e-6) / jump_slot_.grid_s) * jump_slot_.grid_s;
++      for (std::size_t pass = 0; pass <= slot_starts_.size(); pass++) {
++        bool blocked = false;
++        for (const double s : slot_starts_) {
++          if (std::isfinite(s) && s <= start && start < s + jump_slot_.busy_s) {
++            start = std::ceil((s + jump_slot_.busy_s - 1e-6) / jump_slot_.grid_s) *
++                    jump_slot_.grid_s;
++            blocked = true;
++          }
++        }
++        if (!blocked) {
++          break;
++        }
++      }
++      bool already = false;
++      for (const double s : slot_starts_) {
++        already = already || std::abs(s - start) < 1e-6;
++      }
++      if (!already) {
++        for (auto &s : slot_starts_) {
++          if (!std::isfinite(s)) {
++            s = start;
++            RCLCPP_INFO(get_node()->get_logger(), "Jump scheduled at t=%.2f s (now %.2f s)",
++                        start, time_since_fade_in);
++            break;
++          }
++        }
++      }
++    }
++    slot_button_prev_ = trigger_pressed;
++  }
++
+   // If an emergency stop has been triggered, set all commands to 0, set damping, and return
+   // TODO: use deactivate instead?
+   if (estop_active_) {
+@@ -461,33 +765,82 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+       return controller_interface::return_type::OK;
+     }
+ 
+-    // Fill the observation vector
+-    // Angular velocity
+-    observation_.at(0) = (float)ang_vel_x;
+-    observation_.at(1) = (float)ang_vel_y;
+-    observation_.at(2) = (float)ang_vel_z;
+-    // Projected gravity vector
+-    observation_.at(3) = (float)projected_gravity_vector[0];
+-    observation_.at(4) = (float)projected_gravity_vector[1];
+-    observation_.at(5) = (float)projected_gravity_vector[2];
+-    // Velocity commands
+-    observation_.at(6) = (float)cmd_x_vel_;
+-    observation_.at(7) = (float)cmd_y_vel_;
+-    observation_.at(8) = (float)cmd_yaw_vel_;
+-    // Orientation commands
+-    observation_.at(9) = (float)desired_world_z_in_body_frame_.getX();
+-    observation_.at(10) = (float)desired_world_z_in_body_frame_.getY();
+-    observation_.at(11) = (float)desired_world_z_in_body_frame_.getZ();
++    // Heading hold: while walking with a quiet commanded yaw, the emitted yaw
++    // command becomes the clipped P-correction toward the heading captured at
++    // the quiet edge -- the same closed loop the policy trained against.
++    cmd_yaw = heading_hold_.apply(
++        yaw_from_quaternion(orientation_w, orientation_x, orientation_y, orientation_z),
++        cmd_vx, cmd_vy, cmd_yaw_raw);
++
++    // Fill the newest observation frame, at the offsets the policy's obs_spec
++    // declared (-1 = the policy does not observe that component).
++    if (obs_layout_.ang_vel != -1) {
++      observation_.at(obs_layout_.ang_vel + 0) = (float)ang_vel_x;
++      observation_.at(obs_layout_.ang_vel + 1) = (float)ang_vel_y;
++      observation_.at(obs_layout_.ang_vel + 2) = (float)ang_vel_z;
++    }
++    if (obs_layout_.projected_gravity != -1) {
++      observation_.at(obs_layout_.projected_gravity + 0) = (float)projected_gravity_vector[0];
++      observation_.at(obs_layout_.projected_gravity + 1) = (float)projected_gravity_vector[1];
++      observation_.at(obs_layout_.projected_gravity + 2) = (float)projected_gravity_vector[2];
++    }
++    if (obs_layout_.command != -1) {
++      observation_.at(obs_layout_.command + 0) = (float)cmd_vx;
++      observation_.at(obs_layout_.command + 1) = (float)cmd_vy;
++      observation_.at(obs_layout_.command + 2) = (float)cmd_yaw;
++    }
++    if (obs_layout_.desired_world_z != -1) {
++      observation_.at(obs_layout_.desired_world_z + 0) = (float)desired_world_z_in_body_frame_.getX();
++      observation_.at(obs_layout_.desired_world_z + 1) = (float)desired_world_z_in_body_frame_.getY();
++      observation_.at(obs_layout_.desired_world_z + 2) = (float)desired_world_z_in_body_frame_.getZ();
++    }
+ 
+     // Joint positions
+-    for (int i = 0; i < kActionSize; i++) {
+-      // Only include the joint position in the observation if the action type
+-      // is position
+-      if (params_.action_types.at(i) == "position") {
+-        RCLCPP_DEBUG(get_node()->get_logger(), "Attempting to read joint position for %s (index %d)", params_.joint_names.at(i).c_str(), i);
+-        float joint_pos =
+-            state_interfaces_map_.at(params_.joint_names.at(i)).at("position").get().get_value();
+-        observation_.at(kJointPositionIdx + i) = joint_pos - params_.default_joint_pos.at(i);
++    if (obs_layout_.joint_pos_rel != -1) {
++      for (int i = 0; i < kActionSize; i++) {
++        // Only include the joint position in the observation if the action type
++        // is position
++        if (params_.action_types.at(i) == "position") {
++          RCLCPP_DEBUG(get_node()->get_logger(), "Attempting to read joint position for %s (index %d)", params_.joint_names.at(i).c_str(), i);
++          float joint_pos =
++              state_interfaces_map_.at(params_.joint_names.at(i)).at("position").get().get_value();
++          observation_.at(obs_layout_.joint_pos_rel + i) =
++              joint_pos - params_.default_joint_pos.at(i);
++        }
++      }
++    }
++
++    // Reference motion the gait policy tracks. This has to be written into the
++    // newest frame *before* inference (unlike the previous action, which the
++    // policy-output loop below writes into the next frame after the rotate).
++    if (use_gait_reference_) {
++      // The phase clock is time_since_fade_in: seconds since the policy took over,
++      // in double. Wall clock rather than a step count, because the controller runs
++      // at 52 Hz against a policy trained at 50 Hz and it is the physical cadence of
++      // the foot trajectory that has to be right.
++      // The filtered (clip + heading-hold) command, matching what the
++      // observation carries: training computes the reference from the emitted
++      // command, so the two must see the same command here too.
++      if (use_jump_slot_) {
++        // The active slot, if any: the scheduled start whose active window
++        // covers now. +inf means pure gait -- compute_mixed_jump_reference_offset
++        // checks the window itself, but picking here keeps one slot unambiguous
++        // when a second is already queued.
++        double slot_start = std::numeric_limits<double>::infinity();
++        for (const double s : slot_starts_) {
++          const double t_in = time_since_fade_in - s;
++          if (t_in >= 0.0 && t_in < jump_slot_.active_s) {
++            slot_start = s;
++          }
++        }
++        compute_mixed_jump_reference_offset(gait_, jump_slot_, params_.default_joint_pos,
++                                            time_since_fade_in, cmd_vx, cmd_vy,
++                                            cmd_yaw, slot_start,
++                                            observation_.data() + obs_layout_.gait_reference);
++      } else {
++        compute_gait_reference_offset(gait_, params_.default_joint_pos, time_since_fade_in,
++                                      cmd_vx, cmd_vy, cmd_yaw,
++                                      observation_.data() + obs_layout_.gait_reference);
+       }
+     }
+   } catch (const std::out_of_range &e) {
+@@ -573,9 +926,9 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+               "Policy inference took %.2f ms\tIMU measurement age: %.3f ms",
+               inference_duration_us / 1000.0, time_since_measurement_seconds * 1000.0);
+ 
+-  // Shift the observation history to the right by kSingleObservationSize for the next control
++  // Shift the observation history to the right by one frame for the next control
+   // step https://en.cppreference.com/w/cpp/algorithm/rotate
+-  std::rotate(observation_.rbegin(), observation_.rbegin() + kSingleObservationSize,
++  std::rotate(observation_.rbegin(), observation_.rbegin() + single_observation_size_,
+               observation_.rend());
+ 
+   // Process the actions
+@@ -599,7 +952,9 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+     float upper_limit = params_.joint_upper_limits.at(i);
+ 
+     // Copy policy_output to the observation vector
+-    observation_.at(kLastActionIdx + i) = fade_in_multiplier * action;
++    if (obs_layout_.last_action != -1) {
++      observation_.at(obs_layout_.last_action + i) = fade_in_multiplier * action;
++    }
+     // Scale and de-normalize to get the action vector
+     if (params_.action_types.at(i) == "position") {
+       float unclipped = fade_in_multiplier * action * action_scale + default_joint_pos;
+@@ -614,7 +969,8 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+     }
+ 
+     // Send the action to the hardware interface
+-    // Multiply by the gain multiplier to scale the gains to account for real2sim gap
++    // Multiply by the gain multiplier to scale the gains to account for real2sim gap,
++    // and by the per-joint kp_scale to compensate for this robot's motors
+     command_interfaces_map_.at(params_.joint_names.at(i))
+         .at(params_.action_types.at(i))
+         .get()
+@@ -622,7 +978,7 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
+     command_interfaces_map_.at(params_.joint_names.at(i))
+         .at("kp")
+         .get()
+-        .set_value(params_.kps.at(i) * params_.gain_multiplier);
++        .set_value(params_.kps.at(i) * params_.gain_multiplier * params_.kp_scale.at(i));
+     command_interfaces_map_.at(params_.joint_names.at(i))
+         .at("kd")
+         .get()
+diff --git a/ros2_ws/src/neural_controller/src/neural_controller_parameters.yaml b/ros2_ws/src/neural_controller/src/neural_controller_parameters.yaml
+index 04010c6..4d13799 100644
+--- a/ros2_ws/src/neural_controller/src/neural_controller_parameters.yaml
++++ b/ros2_ws/src/neural_controller/src/neural_controller_parameters.yaml
+@@ -13,6 +13,34 @@ neural_controller:
+       description: "Path to the model weights",
+     }
+ 
++  chord_partner:
++    {
++      type: string,
++      default_value: "",
++      description: "Controller to switch to when L1+R1 are pressed together; empty disables the chord",
++    }
++
++  game_buttons:
++    {
++      type: bool,
++      default_value: true,
++      description: "For jump-slot policies: whether the jump trigger and run buttons are live. False runs the same policy walk-only -- no jumps, always the walk speed cap",
++    }
++
++  max_vx_forward:
++    {
++      type: double,
++      default_value: 0.0,
++      description: "Extra forward speed cap (m/s) applied to the filtered command; 0 disables",
++    }
++
++  max_vx_backward:
++    {
++      type: double,
++      default_value: 0.0,
++      description: "Extra backward speed cap (m/s, positive number) applied to the filtered command; 0 disables",
++    }
++
+   use_imu:
+     {
+       type: bool,
+@@ -62,6 +90,13 @@ neural_controller:
+       description: "Multiplier for the position control gains",
+     }
+ 
++  kp_scale:
++    {
++      type: double_array,
++      default_value: [],
++      description: "Per-joint multiplier on kp, for hardware variation between individual robots (e.g. a weak motor that needs a stiffer loop). Applied on top of gain_multiplier, and after the policy JSON's scalar kp, which would otherwise overwrite anything per-joint set in kps. Empty means no trim. Note the hardware interface clamps the result to the joint's kp_max from the robot description",
++    }
++
+   init_kps:
+     {
+       type: double_array,

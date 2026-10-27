@@ -1,0 +1,2 @@
+cs123-build 0e50afbdc11ae066606b0290c23969f46a265626
+2026-09-26 CS123 fall-26 build: upstream main + wifi-pairing-mode

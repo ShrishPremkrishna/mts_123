@@ -10,6 +10,14 @@ All my CS 123 labs, one folder per lab.
 - `follow_me_pupper/` — week 5
 - `gemini_pupper/` — week 6
 
+Supporting repos (not weekly labs):
+
+- `pupper_rebase/` — Pupper base software
+- `pupper_gait_deploy/` — gait deployment
+- `pupper-gait-tuner/` — gait tuning tool
+- `UniMate/` — UniMate motion generation
+- `ros2_cheats_sheet/` — ROS 2 reference
+
 ## Adding a new lab
 
 Clone it, delete its `.git` so it becomes a plain folder, then commit:

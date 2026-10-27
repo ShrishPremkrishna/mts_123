@@ -1,0 +1,6 @@
+diff --git a/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb b/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb
+index e4031ee..d37c92b 100644
+Binary files a/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb and b/infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb differ
+diff --git a/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb b/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb
+index 9fb0c52..a6f90d3 100644
+Binary files a/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb and b/infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb differ

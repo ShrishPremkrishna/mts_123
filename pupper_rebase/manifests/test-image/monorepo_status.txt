@@ -1,0 +1,46 @@
+?? ai/llm-ui/agent-starter-python/hailort.log
+?? ai/llm-ui/agent-starter-python/src/gemini_local_server.py
+?? disable_all_services.sh
+?? enable_all_services.sh
+?? hailort.log
+ M ai/llm-ui/agent-starter-python/src/pupster.py
+ M ai/llm-ui/agent-starter-python/src/ros_tool_server.py
+ M ai/llm-ui/agent-starter-python/src/system_prompt.md
+ M infra/pupper_image_builder/resources/hailort_4.19.0_arm64.deb
+ M infra/pupper_image_builder/resources/hailort-pcie-driver_4.19.0_all.deb
+ M ros2_ws/src/neural_controller/CMakeLists.txt
+ M ros2_ws/src/neural_controller/include/neural_controller/neural_controller.hpp
+ M ros2_ws/src/neural_controller/launch/config.yaml
+ M ros2_ws/src/neural_controller/launch/launch.py
+ M ros2_ws/src/neural_controller/src/neural_controller.cpp
+ M ros2_ws/src/neural_controller/src/neural_controller_parameters.yaml
+?? ros2_ws/src/common/
+?? ros2_ws/src/neural_controller/CMakeLists.txt.backup
+?? ros2_ws/src/neural_controller/include/neural_controller/command_filter.hpp
+?? ros2_ws/src/neural_controller/include/neural_controller/command_filter.hpp.backup
+?? ros2_ws/src/neural_controller/include/neural_controller/gait_reference.hpp
+?? ros2_ws/src/neural_controller/include/neural_controller/gait_reference.hpp.backup
+?? ros2_ws/src/neural_controller/include/neural_controller/gait_reference_json.hpp
+?? ros2_ws/src/neural_controller/include/neural_controller/gait_reference_json.hpp.backup
+?? ros2_ws/src/neural_controller/include/neural_controller/neural_controller.hpp.backup
+?? ros2_ws/src/neural_controller/include/neural_controller/obs_spec.hpp
+?? ros2_ws/src/neural_controller/include/neural_controller/obs_spec.hpp.backup
+?? ros2_ws/src/neural_controller/launch/config.yaml.backup
+?? ros2_ws/src/neural_controller/launch/default_policy.json
+?? ros2_ws/src/neural_controller/launch/default_policy.json.backup
+?? ros2_ws/src/neural_controller/launch/jump_policy.json
+?? ros2_ws/src/neural_controller/launch/jump_policy.json.backup
+?? ros2_ws/src/neural_controller/launch/launch.py.backup
+?? ros2_ws/src/neural_controller/launch/legacy_walk_policy.json
+?? ros2_ws/src/neural_controller/launch/legacy_walk_policy.json.backup
+?? ros2_ws/src/neural_controller/launch/mimic_policy.json
+?? ros2_ws/src/neural_controller/launch/mimic_policy.json.backup
+?? ros2_ws/src/neural_controller/launch/mixed_jump_policy.json
+?? ros2_ws/src/neural_controller/launch/mixed_jump_policy.json.backup
+?? ros2_ws/src/neural_controller/launch/test_policy.json
+?? ros2_ws/src/neural_controller/launch/test_policy.json.backup
+?? ros2_ws/src/neural_controller/launch/three_legged_policy.json
+?? ros2_ws/src/neural_controller/launch/three_legged_policy.json.backup
+?? ros2_ws/src/neural_controller/src/neural_controller.cpp.backup
+?? ros2_ws/src/neural_controller/src/neural_controller_parameters.yaml.backup
+?? ros2_ws/src/neural_controller/test/
