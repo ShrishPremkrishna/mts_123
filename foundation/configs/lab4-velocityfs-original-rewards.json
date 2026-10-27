@@ -1,0 +1,20 @@
+{
+  "abduction_angle": -0.1,
+  "action_rate_l2": -0.02,
+  "air_time": 0.25,
+  "ang_vel_xy_l2": -0.05,
+  "base_height": 0.5,
+  "foot_slip": -0.1,
+  "joint_torques_l2": -0.0002,
+  "knee_ground_contact": -1.0,
+  "lin_vel_z_l2": -2.0,
+  "orientation_l2": -5.0,
+  "self_collision_l": -1.0,
+  "self_collision_r": -1.0,
+  "stand_still_joint_velocity": -0.1,
+  "stand_still_pose": -0.5,
+  "termination": -10.0,
+  "track_linear_velocity": 4.0,
+  "track_yaw_velocity": 2.0,
+  "upright": 1.0
+}

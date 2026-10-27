@@ -1,0 +1,94 @@
+{
+  "kind": "explicit",
+  "manifest_sha256": "80379f3c8df78061e9045ecb07d3d45d417c91491b0b74f0f066fb178208bd55",
+  "seed": 123,
+  "device": "cuda:0",
+  "train_samples": 2289,
+  "validation_samples": 387,
+  "git_revision": "16068a2559fed3035de85b6d8493c59634c5cb65",
+  "torch_version": "2.9.0+cu128",
+  "optimizer": "PCGrad AdamW",
+  "args": {
+    "command": "train",
+    "manifest": "/content/pupper-optional-results/prepared/manifest.json",
+    "out": "/content/pupper-optional-results/explicit",
+    "root": null,
+    "device": "cuda:0",
+    "batch_size": 64,
+    "workers": 0,
+    "max_samples": null,
+    "kind": "explicit",
+    "epochs": 10,
+    "lr": 0.001,
+    "seed": 123,
+    "threads": 4,
+    "no_pretrained": false,
+    "pcgrad": true
+  },
+  "limited_smoke_data": false,
+  "preprocessing": {
+    "channels": [
+      "leg_front_r_1_position",
+      "leg_front_r_2_position",
+      "leg_front_r_3_position",
+      "leg_front_r_1_velocity",
+      "leg_front_r_2_velocity",
+      "leg_front_r_3_velocity",
+      "leg_front_r_1_effort",
+      "leg_front_r_2_effort",
+      "leg_front_r_3_effort"
+    ],
+    "inclines": [
+      0,
+      15,
+      30,
+      45,
+      60,
+      75
+    ],
+    "materials": [
+      "none",
+      "felt_pad",
+      "rough",
+      "slip",
+      "very_rough",
+      "foam"
+    ],
+    "window": 100,
+    "sample_hz": 1000.0,
+    "max_gap_s": 0.025,
+    "normalization": {
+      "mean": [
+        0.13399571868167692,
+        -0.16391855307826647,
+        0.10864292985103964,
+        0.014715471665561364,
+        0.016016251598001147,
+        0.007400403414237826,
+        -0.28633107582731687,
+        -0.026745647174037435,
+        -0.1658764520224518
+      ],
+      "std": [
+        0.2321684898174357,
+        0.0126601786655509,
+        0.2583777854331887,
+        0.4252345879069775,
+        0.05474095316661838,
+        0.5958574494259647,
+        0.29451752236359746,
+        0.06920969757388758,
+        0.23277137233485676
+      ],
+      "training_samples": 1558598
+    },
+    "label_rule": "latest past annotation at window end; max age 0.25s"
+  },
+  "source_sha256": {
+    "__init__.py": "957f1d8527332926df2db031471770e5fb2f63c523b6578fe2d96ed8903de226",
+    "data.py": "914286df06f56c00ff707d60fe2c8ce11d377b3e77d5b2fa31b678c0bab64b1e",
+    "models.py": "183adf7f4d59bbac70408950360f58aec6e0d343309b8d23f092edf51df5818b",
+    "streaming.py": "9f968e6f489d9dc46c2d21771fec633f90040eda50a93b574c96a02fbef03433",
+    "train.py": "0ccd5d77ae92a8b6ba6220f22e0947242ec75608a91a91af842d9ee6831b09f4"
+  }
+}

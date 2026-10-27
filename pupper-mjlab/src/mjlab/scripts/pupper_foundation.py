@@ -18,6 +18,7 @@ import hashlib
 import importlib.metadata
 import json
 import os
+import re
 import subprocess
 import sys
 import uuid
@@ -168,6 +169,11 @@ def train(args: argparse.Namespace) -> Path:
     check_generated_motion(motion_path)
   cfg = load_env_cfg(profile["task"])
   agent = load_rl_cfg(profile["task"])
+  deploy_clamp = getattr(args, "deployment_target_clamp", False)
+  contract = {"contract": "legacy_unclipped_target"}
+  if deploy_clamp:
+    from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
+    contract = apply_deployment_target_clamp(cfg)
   cfg.scene.num_envs = args.num_envs or profile["num_envs"]
   agent.max_iterations = args.iterations or profile["iterations"]
   agent.seed = args.seed
@@ -186,7 +192,8 @@ def train(args: argparse.Namespace) -> Path:
   if motion_path is not None:
     cfg.commands["motion"].motion_file = str(motion_path)
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-  agent.run_name = f"foundation_{args.profile}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
+  contract_suffix = "_deployclamp" if deploy_clamp else "_legacytargets"
+  agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
   if motion_path is not None:
@@ -195,7 +202,17 @@ def train(args: argparse.Namespace) -> Path:
     frozen_motion.write_bytes(motion_path.read_bytes())
     cfg.commands["motion"].motion_file = str(frozen_motion)
     motion_path = frozen_motion
-  agent.resume = args.resume_run is not None
+  initial_checkpoint = getattr(args, "initial_checkpoint", None)
+  if initial_checkpoint is not None:
+    initial_checkpoint = initial_checkpoint.resolve()
+    if not initial_checkpoint.is_file():
+      raise FileNotFoundError(initial_checkpoint)
+    # Freeze the exact warm-start bytes inside this distinct run. run_train's
+    # local resolver selects this directory/file only, never another latest run.
+    (run_dir / "initial_checkpoint.pt").write_bytes(initial_checkpoint.read_bytes())
+    agent.load_run = re.escape(run_dir.name) + "$"
+    agent.load_checkpoint = "initial_checkpoint\\.pt$"
+  agent.resume = args.resume_run is not None or initial_checkpoint is not None
   train_cfg = TrainConfig(
     env=cfg, agent=agent, enable_nan_guard=True,
     wandb_run_path=args.resume_run, wandb_checkpoint_name=args.resume_checkpoint,
@@ -203,8 +220,11 @@ def train(args: argparse.Namespace) -> Path:
   manifest = {
     "state": "running", "created_utc": stamp, "profile": args.profile,
     "profile_config": profile, "seed": args.seed,
+    "actuation_contract": contract,
     "num_envs": cfg.scene.num_envs, "iterations": agent.max_iterations,
     "resume_run": args.resume_run, "resume_checkpoint": args.resume_checkpoint,
+    "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
+    "initial_checkpoint_sha256": sha256(initial_checkpoint) if initial_checkpoint else None,
     "source": source_manifest(), "gpu": torch.cuda.get_device_name(0),
     "motion_file": str(motion_path) if motion_path else None,
     "motion_sha256": sha256(motion_path) if motion_path else None,
@@ -258,19 +278,21 @@ def score(args: argparse.Namespace) -> None:
       report_file = args.output / f"{label}-s{seed}.json"
       replay(args.motion.resolve(), checkpoint=args.checkpoint.resolve(), loops=args.loops,
              mass_scale=mass, com_x=x, com_y=y, seed=seed, randomize=randomized,
-             report_file=report_file)
+             report_file=report_file, deployment_target_clamp=getattr(args, "deployment_target_clamp", False))
       reports.append(json.loads(report_file.read_text()))
   if args.stress_profile:
     stress = prepare_stress(args.stress_profile, args.output)
     stress_report = args.output / "continuous-stress.json"
     replay(stress, checkpoint=args.checkpoint.resolve(), loops=1,
-           seed=args.seeds[0], report_file=stress_report)
+           seed=args.seeds[0], report_file=stress_report,
+           deployment_target_clamp=getattr(args, "deployment_target_clamp", False))
     result = json.loads(stress_report.read_text())
     result["purpose"] = "continuous held-out long-idle/repeated-action sequence"
     reports.append(result)
   write_json(args.output / "evaluation.json", {
     "state": "simulation_evaluated", "approved_for_hardware": False,
     "checkpoint_sha256": sha256(args.checkpoint), "motion_sha256": sha256(args.motion),
+    "deployment_target_clamp": getattr(args, "deployment_target_clamp", False),
     "source": source_manifest(), "reports": reports,
     "all_hold_up": all(r["verdict"] == "HOLDS UP" for r in reports),
     "scope": "Reference tracking; does not test thermal limits or real robot policy hand-offs",
@@ -293,12 +315,15 @@ def main() -> None:
   launch.add_argument("--project", default="mjlab")
   launch.add_argument("--resume-run", help="Exact entity/project/run-id to resume")
   launch.add_argument("--resume-checkpoint", help="Exact model_N.pt within --resume-run")
+  launch.add_argument("--initial-checkpoint", type=Path, help="Exact local checkpoint for a separate finetune run; the original is retained")
+  launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
   evaluate = sub.add_parser("score")
   evaluate.add_argument("--motion", type=Path, required=True)
   evaluate.add_argument("--checkpoint", type=Path, required=True)
   evaluate.add_argument("--output", type=Path, required=True)
   evaluate.add_argument("--loops", type=int, default=1)
   evaluate.add_argument("--suite", action="store_true")
+  evaluate.add_argument("--deployment-target-clamp", action="store_true")
   evaluate.add_argument("--stress-profile", choices=("sit_stay_shake", "spider_clips"))
   evaluate.add_argument("--seeds", nargs="+", type=int, default=[101, 202, 303])
   args = parser.parse_args()
@@ -307,6 +332,8 @@ def main() -> None:
       parser.error(f"--{name.replace('_', '-')} must be positive")
   if getattr(args, "resume_checkpoint", None) and not args.resume_run:
     parser.error("--resume-checkpoint requires --resume-run")
+  if getattr(args, "initial_checkpoint", None) and getattr(args, "resume_run", None):
+    parser.error("choose --initial-checkpoint or --resume-run")
   if args.command == "prepare":
     prepare(args.output)
   elif args.command == "train":

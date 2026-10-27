@@ -139,6 +139,12 @@ def summarize_trace(trace,dt,warmup_s=1.):
             if "foot_force_norm" in trace:
                 forces=trace["foot_force_norm"][mask]
                 record["peak_sampled_foot_contact_force_n"]=float(np.nanmax(forces)) if np.isfinite(forces).any() else None
+            if "target_clipped" in trace:
+                clipping=trace["target_clipped"][mask].astype(bool)
+                record["target_clipped_fraction"]=float(clipping.mean())
+                record["any_target_clipped_sample_fraction"]=float(clipping.any(axis=1).mean())
+                record["target_clipped_fraction_by_joint"]=clipping.mean(axis=0).tolist()
+                record["maximum_target_range_excess_rad"]=float(trace["target_range_excess_rad"][mask].max())
             record["airborne_sample_fraction"]=float((~contacts.any(axis=1)).mean())
         result.append(record)
     return dict(segments=result,dt=dt,warmup_s=warmup_s,
@@ -194,6 +200,8 @@ def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, 
     for key in keys:
         if baseline["provenance"].get(key) != candidate["provenance"].get(key):
             raise ValueError(f"Cannot compare different evaluation protocols: {key}")
+    if bool(baseline["provenance"].get("deployment_target_clamp",False)) != bool(candidate["provenance"].get("deployment_target_clamp",False)):
+        raise ValueError("Cannot compare different evaluation protocols: deployment_target_clamp")
     if any(r["provenance"].get("zero_policy") for r in (baseline,candidate)):
         raise ValueError("An infrastructure smoke test cannot be promoted as a trained policy")
     if len(baseline["segments"]) != len(candidate["segments"]):

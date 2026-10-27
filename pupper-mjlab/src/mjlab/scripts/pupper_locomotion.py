@@ -20,6 +20,31 @@ BASE_WEIGHTS={"track_linear_velocity":10.,"track_yaw_velocity":7.,"gait_tracking
 FAST_WEIGHTS={**BASE_WEIGHTS,"track_linear_velocity":15.,"gait_tracking":5.,"roll_asymmetry":-2.,"foot_slip":-.1,"joint_torques_l2":-.0001}
 
 
+def action_target_diagnostics(actions, action_term, robot, clip_actions=None):
+    """Read-only affine action audit in action-term order; never change targets.
+
+    The deployment-clamped target is a counterfactual for the C++ controller.
+    Training applies the configured action clip, latency and encoder bias.
+    These requested targets precede latency; the rollout also records the actuator
+    input after stepping, before internal actuator delay. Reset transitions are excluded.
+    Joint dynamics/torque saturation are separate and are not inferred here.
+    """
+    import torch
+    applied=actions if clip_actions is None else actions.clamp(-clip_actions,clip_actions)
+    requested=applied*action_term.scale+action_term.offset
+    target=requested
+    if action_term.cfg.clip is not None:
+        target=torch.clamp(target,min=action_term._clip[:,:,0],max=action_term._clip[:,:,1])
+    ids=action_term.target_ids
+    limits=robot.data.joint_pos_limits[:,ids]
+    clipped=torch.clamp(requested,min=limits[:,:,0],max=limits[:,:,1])
+    return dict(raw_actions=actions,unclipped_target_joint_pos=requested,target_joint_pos=target,
+                deployment_clipped_target_joint_pos=clipped,
+                target_clipped=torch.abs(requested-clipped)>1e-6,
+                target_range_excess_rad=torch.abs(requested-clipped),
+                physical_target_joint_pos=target-robot.data.encoder_bias[:,ids])
+
+
 def provenance(args):
     from mjlab.tasks.pupper_gait.bootstrap import file_hash
     result={k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()}
@@ -40,6 +65,9 @@ def settings(args,play):
     cfg=load_env_cfg(args.task,play=play)
     agent=load_rl_cfg(args.task)
     cfg.scene.num_envs=args.num_envs; cfg.seed=args.seed; agent.seed=args.seed
+    if args.deployment_target_clamp:
+        from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
+        apply_deployment_target_clamp(cfg)
     return cfg,agent
 
 
@@ -115,7 +143,7 @@ def evaluate(args):
     dump_yaml(args.out/"env.yaml",asdict(cfg))
     configure_torch_backends()
     env=ManagerBasedRlEnv(cfg,device=args.device)
-    samples={k:[] for k in ("joint_pos","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm")}
+    samples={k:[] for k in ("joint_pos","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm","raw_actions","unclipped_target_joint_pos","target_joint_pos","deployment_clipped_target_joint_pos","target_clipped","target_range_excess_rad","physical_target_joint_pos","actuator_input_target_joint_pos")}
     try:
         wrapped=RslRlVecEnvWrapper(env,clip_actions=agent.clip_actions)
         if args.zero_policy:
@@ -126,6 +154,14 @@ def evaluate(args):
             policy=runner.get_inference_policy(device=args.device)
         robot=env.scene["robot"]
         joint_ids=[robot.joint_names.index(n) for n in JOINT_NAMES]
+        if env.action_manager.active_terms != ["joint_pos"]:
+            raise ValueError("Action-target audit requires the Pupper joint_pos-only control contract")
+        action_term=env.action_manager.get_term("joint_pos")
+        action_ids=[action_term.target_names.index(n) for n in JOINT_NAMES]
+        run["action_target_audit"]=dict(wrapper_clip_actions=agent.clip_actions,
+            action_term_clip=action_term.cfg.clip,
+            meaning="raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request")
+        (args.out/"provenance.json").write_text(json.dumps(run,indent=2)+"\n")
         site_ids,_=robot.find_sites(FOOT_SITE_NAMES,preserve_order=True)
         contact_sensor=env.scene["feet_ground_contact"]
         command_term=env.command_manager.get_term("twist")
@@ -146,6 +182,10 @@ def evaluate(args):
                         if hasattr(command_term,name): getattr(command_term,name).fill_(False)
                     command_term.compute(0.)
                     obs=wrapped.get_observations()
+                    actions=policy(obs)
+                    action_diagnostics=action_target_diagnostics(actions,action_term,robot,agent.clip_actions)
+                    for key,value in action_diagnostics.items():
+                        samples[key].append(value[:,action_ids].detach().cpu().numpy().copy())
                     effective=command_term.command.detach().cpu().numpy().copy()
                     raw=np.broadcast_to(requested,(args.num_envs,3)).copy()
                     # Match the gait reward's phase clock; spider has the task's
@@ -165,7 +205,8 @@ def evaluate(args):
                     samples["command"].append(raw); samples["effective_command"].append(effective)
                     samples["valid"].append((age>=args.warmup)&(step*dt>=args.warmup))
                     samples["segment"].append(segment)
-                    _,_,done,_=wrapped.step(policy(obs))
+                    _,_,done,_=wrapped.step(actions)
+                    samples["actuator_input_target_joint_pos"].append(robot.data.joint_pos_target[:,joint_ids].detach().cpu().numpy().copy())
                     terminated=env.reset_terminated.cpu().numpy().copy(); timeout=env.reset_time_outs.cpu().numpy().copy()
                     samples["terminated"].append(terminated); samples["timeout"].append(timeout)
                     done_np=done.cpu().numpy().astype(bool)
@@ -190,6 +231,7 @@ def main():
         parser.add_argument("--reference-dir",type=Path); parser.add_argument("--checkpoint",type=Path)
         parser.add_argument("--out",type=Path,required=True); parser.add_argument("--seed",type=int,default=42)
         parser.add_argument("--device",default="cuda:0")
+        parser.add_argument("--deployment-target-clamp",action="store_true",help="Opt in to the C++ joint-target clamp before simulation; preserves normalized last_action observations")
     tr.add_argument("--num-envs",type=int,default=4096); tr.add_argument("--iterations",type=int,default=3000)
     tr.add_argument("--profile",choices=["baseline","fast"],default="baseline"); tr.add_argument("--weights",type=Path)
     tr.add_argument("--logger",choices=["wandb","tensorboard"],default="wandb")

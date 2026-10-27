@@ -1,0 +1,166 @@
+{
+  "manifest_sha256": "8da25d91d44904fde87fbf42981f56c62890badf1dd8e03a855e5d5ec00e6334",
+  "source_sha256": {
+    "audit.py": "c404d193cba8c418717efd1eafe0e7bd20e1349d87a5ee4d8ff2d1f0826b4ec2",
+    "models.py": "183adf7f4d59bbac70408950360f58aec6e0d343309b8d23f092edf51df5818b",
+    "ablation.py": "37b4e6b3871a1f155658271568cf756add12e949e69350f2408ce3ddafd69e64",
+    "__init__.py": "957f1d8527332926df2db031471770e5fb2f63c523b6578fe2d96ed8903de226",
+    "train.py": "0ccd5d77ae92a8b6ba6220f22e0947242ec75608a91a91af842d9ee6831b09f4",
+    "streaming.py": "9f968e6f489d9dc46c2d21771fec633f90040eda50a93b574c96a02fbef03433",
+    "data.py": "914286df06f56c00ff707d60fe2c8ce11d377b3e77d5b2fa31b678c0bab64b1e"
+  },
+  "device": "cpu",
+  "torch_version": "2.14.1",
+  "weights": "ResNet50_Weights.IMAGENET1K_V2",
+  "training_samples": 2289,
+  "validation_samples": 387,
+  "seed": 123,
+  "classifier": "standardized frozen ResNet50 features + balanced L2 multinomial logistic heads; C=1; max_iter=2000",
+  "metrics": {
+    "incline": {
+      "samples": 387,
+      "accuracy": 0.7829457364341085,
+      "balanced_accuracy": 0.817036366143509,
+      "recall": [
+        null,
+        0.6621621621621622,
+        0.8673469387755102,
+        1.0,
+        0.7386363636363636,
+        null
+      ],
+      "support": [
+        0,
+        74,
+        98,
+        39,
+        176,
+        0
+      ],
+      "confusion": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          19,
+          49,
+          6,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          9,
+          85,
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          39,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          38,
+          130,
+          7
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "material": {
+      "samples": 387,
+      "accuracy": 0.20930232558139536,
+      "balanced_accuracy": 0.18571428571428575,
+      "recall": [
+        0.10256410256410256,
+        0.4166666666666667,
+        0.1794871794871795,
+        0.17857142857142858,
+        0.05128205128205128,
+        null
+      ],
+      "support": [
+        117,
+        108,
+        39,
+        84,
+        39,
+        0
+      ],
+      "confusion": [
+        [
+          12,
+          20,
+          41,
+          36,
+          7,
+          1
+        ],
+        [
+          4,
+          45,
+          15,
+          19,
+          18,
+          7
+        ],
+        [
+          6,
+          8,
+          7,
+          17,
+          1,
+          0
+        ],
+        [
+          6,
+          1,
+          53,
+          15,
+          9,
+          0
+        ],
+        [
+          1,
+          13,
+          12,
+          11,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "elapsed_s": 293.6151678340975,
+  "test_accessed": false,
+  "scope": "single fixed validation-only diagnostic; no tuning, test result, or robot deployment claim"
+}

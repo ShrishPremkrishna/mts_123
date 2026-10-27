@@ -60,12 +60,18 @@ def test_summary_counts_failure_outside_steady_state_and_measures_achieved_speed
              velocity=np.broadcast_to([1.2,.1,.2],(n,e,3)).copy(),torque=np.ones((n,e,12))*2,
              foot_contact=np.ones((n,e,4),bool),foot_speed_xy=np.ones((n,e,4))*.05,heading=np.zeros((n,e)))
     t['terminated'][0]=True; t['valid'][0]=False
+    t['target_clipped']=np.zeros((n,e,12),bool); t['target_clipped'][:,:,4]=True
+    t['target_range_excess_rad']=np.zeros((n,e,12)); t['target_range_excess_rad'][:,:,4]=.2
     result=b.summarize_trace(t,.02)['segments'][0]
     assert result['failures']==1
     assert result['mean_achieved_vx_m_s']==pytest.approx(1.2)
     assert result['mean_xy_error_m_s']==pytest.approx(np.sqrt(.3**2+.1**2))
     assert result['mean_torque_squared_nm2']==4
     assert result['mean_contact_slip_m_s']==pytest.approx(.05)
+    assert result['target_clipped_fraction']==pytest.approx(1/12)
+    assert result['any_target_clipped_sample_fraction']==1
+    assert result['target_clipped_fraction_by_joint'][4]==1
+    assert result['maximum_target_range_excess_rad']==pytest.approx(.2)
 
 
 def test_promotion_rejects_faster_failing_policy():
@@ -79,6 +85,36 @@ def test_promotion_rejects_faster_failing_policy():
     assert not b.compare_evaluations(baseline,candidate)['promotable_for_this_seed']
     candidate['provenance']['seed']=2
     with pytest.raises(ValueError): b.compare_evaluations(baseline,candidate)
+
+
+def test_target_audit_preserves_actor_history_and_exposes_preclip_request():
+    import torch
+    from types import SimpleNamespace
+    source=Path(__file__).parents[1]/'src/mjlab/scripts/pupper_locomotion.py'
+    module_spec=importlib.util.spec_from_file_location('pupper_locomotion_audit',source)
+    module=importlib.util.module_from_spec(module_spec); module_spec.loader.exec_module(module)
+    limits=torch.tensor([[[-.3,.3],[-.4,.4]]])
+    robot=SimpleNamespace(data=SimpleNamespace(joint_pos_limits=limits,encoder_bias=torch.tensor([[.05,-.05]])))
+    term=SimpleNamespace(scale=.5,offset=0.,target_ids=torch.tensor([0,1]),cfg=SimpleNamespace(clip=None))
+    raw=torch.tensor([[2.,-2.]])
+    before=module.action_target_diagnostics(raw,term,robot,clip_actions=1.)
+    torch.testing.assert_close(before['unclipped_target_joint_pos'],torch.tensor([[.5,-.5]]))
+    torch.testing.assert_close(before['physical_target_joint_pos'],torch.tensor([[.45,-.45]]))
+    assert before['target_clipped'].all()
+    term.cfg.clip={'.*':(-.3,.3)}; term._clip=limits
+    after=module.action_target_diagnostics(raw,term,robot,clip_actions=1.)
+    torch.testing.assert_close(after['raw_actions'],torch.tensor([[2.,-2.]]))
+    torch.testing.assert_close(after['unclipped_target_joint_pos'],before['unclipped_target_joint_pos'])
+    torch.testing.assert_close(after['target_joint_pos'],torch.tensor([[.3,-.4]]))
+    torch.testing.assert_close(after['physical_target_joint_pos'],torch.tensor([[.25,-.35]]))
+    torch.testing.assert_close(after['target_range_excess_rad'],torch.tensor([[.2,.1]]))
+
+
+def test_promotion_requires_same_deployment_clamp_contract():
+    a=dict(provenance=dict(deployment_target_clamp=False))
+    c=dict(provenance=dict(deployment_target_clamp=True))
+    with pytest.raises(ValueError,match='deployment_target_clamp'):
+        b.compare_evaluations(a,c)
 
 
 def test_jump_selection_requires_flight_and_landing_in_same_episode():

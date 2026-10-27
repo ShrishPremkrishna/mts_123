@@ -1,0 +1,10 @@
+{
+  "action_rate_l2": -0.02,
+  "ang_vel_xy_l2": -0.05,
+  "gait_tracking": 10.0,
+  "knee_ground_contact": -1.0,
+  "lin_vel_z_l2": -0.5,
+  "track_linear_velocity": 10.0,
+  "track_yaw_velocity": 7.0,
+  "upright": 1.0
+}

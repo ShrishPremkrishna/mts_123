@@ -1,5 +1,5 @@
 ---
-date: 2026-10-27T16:00
+date: 2026-10-27T15:16
 tags: [cs123, foundation]
 ---
 # Implicit compliance
@@ -15,7 +15,7 @@ This implements Optional Lab 1 as a reproducible experiment and an opt-in stream
 - The explicit model is a two-head ResNet-50 initialized from ImageNet. The implicit model is a small temporal CNN with contact/incline/material heads. PCGrad projects conflicting task gradients; `--no-pcgrad` is a controlled ablation. The explicit baseline fully fine-tunes the backbone; it does not use the original notebook's partially specified LoRA wrapper.
 - Select the checkpoint only with validation metrics. Run the untouched test set once after model selection. Compare per-class recall, contact false positives/sensitivity and held-out support, not just aggregate accuracy.
 
-The supplied image reference filter proved unreliable on the linked ZIP: the course's expected retained-image count is not a reproducible guarantee. Preparation now records, for every recording, reference-filter positives, timestamp-annotation positives and disagreements. `--image-contact-source annotation` (default) uses the existing `contact.csv` aligned through `image_index.csv` for the explicit training set. `reference` runs the course's MAD-filter ablation. These are alternative noisy labels, not manually verified ground truth. Both pipelines use the same whole-recording split.
+The supplied image reference filter disagrees substantially with the recorded detector values on the linked ZIP: the course's expected retained-image count is not a reproducible guarantee. Preparation records, for every recording, reference-filter positives, timestamp-annotation positives and disagreements. `--image-contact-source annotation` (default) uses the existing `contact.csv` aligned through `image_index.csv` for the explicit training set. `reference` runs the course's MAD-filter ablation. The handout says contact detection during collection also used image references at 10 Hz. These are alternative noisy labels, not manually verified ground truth. Both pipelines use the same whole-recording split.
 
 ## Reproduce
 
@@ -28,7 +28,14 @@ python -m implicit_compliance.train train --manifest artifacts/compliance/prepar
 python -m implicit_compliance.train evaluate --manifest artifacts/compliance/prepared/manifest.json --checkpoint artifacts/compliance/implicit/best.pt --out artifacts/compliance/implicit/test.json
 python -m implicit_compliance.train evaluate --manifest artifacts/compliance/prepared/manifest.json --checkpoint artifacts/compliance/explicit/best.pt --out artifacts/compliance/explicit/test.json
 python -m implicit_compliance.train export --checkpoint artifacts/compliance/implicit/best.pt --out artifacts/compliance/deploy
+python -m implicit_compliance.audit artifacts/compliance/prepared/manifest.json artifacts/compliance/split-audit.json
 python -m pytest implicit_compliance/tests -q
+```
+
+The fixed diagnostic below freezes ImageNet features, standardizes them using training images only, fits balanced L2 logistic heads with `C=1`, and evaluates validation only. It never constructs a test dataset. Use it to test the effect of full-network finetuning; it does not repair weak labels or establish new test performance.
+
+```sh
+python -m implicit_compliance.ablation artifacts/compliance/prepared/manifest.json artifacts/compliance/frozen-linear-validation
 ```
 
 `data.extract_dataset(zip_path, destination)` extracts the supplied ZIP after checking traversal and symlink entries. Do not copy credentials into notebooks or configuration. For offline explicit training, cache the official PyTorch ResNet-50 weights first (`TORCH_HOME` controls that directory). `--max-samples` is only an infrastructure smoke test; every output made with it is marked limited.

@@ -188,6 +188,32 @@ timing, or a motion-specific repair. Physics replay and trained-policy evaluatio
 remain necessary. The model worker has bounded response waits and cleans up its
 process and descriptors on failure. Close it before RL to free GPU memory.
 
+## Simulator and deployment target limits
+
+The provided training action sends `default + scale * action` without target
+clipping. The robot controller clips that target to joint limits. A policy can
+therefore learn forces against a simulated soft joint stop that its deployed
+motor command will not reproduce. Keep legacy results and compare them with the
+actual deployment contract explicitly:
+
+```sh
+python -m mjlab.scripts.pupper_foundation score --motion exact-motion.npz \
+  --checkpoint exact-model.pt --output "$PUPPER_OUTPUT/deploy-clamp-evaluation" \
+  --suite --deployment-target-clamp
+python -m mjlab.scripts.pupper_foundation train sit_stay_shake \
+  --initial-checkpoint exact-model.pt --deployment-target-clamp --iterations 1000 \
+  --output "$PUPPER_OUTPUT"
+```
+
+The opt-in clips the absolute processed target while preserving the policy's raw
+previous-action observation, matching C++. It does not change task defaults or
+old runs. New run names and manifests state `deployclamp` versus `legacytargets`;
+local warm-start bytes are copied into the new run. Locomotion train/evaluate
+commands accept the same flag. Evaluation reports how often an unbounded target
+would exceed limits, even while the actual target is clipped. The flag alone
+does not establish transfer: compare tracking, falls, slip and effort, then
+validate the resulting model under the same contract and held-out conditions.
+
 ## Local verification
 
 ```sh

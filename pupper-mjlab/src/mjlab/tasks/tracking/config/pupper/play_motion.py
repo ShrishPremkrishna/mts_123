@@ -65,6 +65,7 @@ def main(
   randomize: bool = False,
   report_file: Path | None = None,
   video_file: Path | None = None,
+  deployment_target_clamp: bool = False,
 ) -> None:
   """mass_scale scales every link's mass and inertia (1.3: 30% heavier, like a
   payload); com_x, com_y, com_z move the torso's center of mass (x forward,
@@ -87,6 +88,9 @@ def main(
   cfg = pupper_tracking_env_cfg(motion_file=str(motion_file.resolve()), play=True)
   cfg.seed = seed
   cfg.scene.num_envs = 1
+  if deployment_target_clamp:
+    from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
+    apply_deployment_target_clamp(cfg)
   cfg.scene.sensors += (ContactSensorCfg(
     name="score_foot_ground", primary=ContactMatch(
       mode="geom", pattern=r"^leg_(front|back)_(r|l)_3_collision$", entity="robot"),
@@ -176,9 +180,13 @@ def main(
   video_poses = []
   reference_resets = 0
   previous_frame = int(cmd.time_steps[0])
+  limits = robot.data.joint_pos_limits[0]
   for step in range(n_frames * loops - 1):
     with torch.inference_mode():
-      obs, *_ = wrapped.step(policy(obs))
+      action = policy(obs)
+      requested_target = default + action * PUPPER_ACTION_SCALE
+      violation = torch.clamp(limits[:, 0] - requested_target, min=0) + torch.clamp(requested_target - limits[:, 1], min=0)
+      obs, *_ = wrapped.step(action)
     pos_err = float(torch.linalg.norm(cmd.robot_anchor_pos_w - cmd.anchor_pos_w))
     # angle between the robot's and the reference's body orientation
     dot = float(torch.abs((cmd.robot_anchor_quat_w * cmd.anchor_quat_w).sum()))
@@ -205,6 +213,8 @@ def main(
                 -robot.data.projected_gravity_b[0, 2], -1, 1)))),
               "foot_contact_count": int((env.scene["score_foot_ground"].data.found > 0).sum()),
               "root_height_m": float(robot.data.root_link_pos_w[0, 2])}
+    sample.update(target_limit_violation_fraction=float((violation > 1e-6).float().mean()),
+                  target_limit_violation_max_rad=float(violation.max()))
     if video_file is not None:
       video_poses.append((cmd.robot_anchor_pos_w[0].cpu().numpy().copy(),
                          cmd.robot_anchor_quat_w[0].cpu().numpy().copy(),
@@ -273,6 +283,10 @@ def main(
       "worst_tracked_body_error_m": max(s["tracked_body_error_max_m"] for s in samples),
       "peak_joint_speed_rad_s": max(s["joint_speed_max_rad_s"] for s in samples),
       "peak_motor_torque_nm": max(s["motor_torque_max_nm"] for s in samples),
+      "deployment_target_clamp": deployment_target_clamp,
+      "fraction_steps_requesting_target_outside_limits": float(np.mean([s["target_limit_violation_max_rad"] > 1e-6 for s in samples])),
+      "mean_joint_target_violation_fraction": float(np.mean([s["target_limit_violation_fraction"] for s in samples])),
+      "max_requested_target_violation_rad": max(s["target_limit_violation_max_rad"] for s in samples),
       "peak_body_tilt_from_upright_deg": max(s["body_tilt_from_upright_deg"] for s in samples),
       "minimum_root_height_m": min(s["root_height_m"] for s in samples),
       "fraction_frames_without_foot_contact": float(np.mean([s["foot_contact_count"] == 0 for s in samples])),

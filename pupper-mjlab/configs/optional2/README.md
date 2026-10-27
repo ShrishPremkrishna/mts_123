@@ -41,6 +41,18 @@ Default commands sweep stop → slow forward → either side of the 0.5 m/s fast
 
 Per-command metrics include actual simulated forward speed, mean/RMS horizontal tracking errors, yaw error, torque², peak torque, contact-conditioned slip, heading drift, failures and timeouts. Failures during warmup still count. Metrics are simulator measurements, **not measured real-world speed**.
 
+The deployed C++ controller clamps absolute joint targets to model limits, while the legacy simulator action configuration leaves them unclipped. Evaluation now records raw actor actions, the affine request, the configured target, the actuator input target after action processing and encoder bias (before internal actuator delay), and a counterfactual deployment-clamped target. `target_clipped_fraction` is the fraction of scored joint requests outside the model limits; per-joint fractions, fraction of samples with any violation and maximum excess are also reported. A physical joint can still overshoot a bounded command; this is a command-contract audit, not a guarantee about actual motion.
+
+Use `--deployment-target-clamp` on either `evaluate` or `train` to opt into the C++ target clamp before simulation. The clamp operates on the absolute target after scaling/offset, preserving the policy's raw `last_action` history. It changes the actuation contract, so use separate output directories and preserve legacy checkpoints. Compare a model with and without this flag to measure transfer sensitivity, then finetune in the clamped environment if justified. Promotion comparisons require the same clamp setting on both candidates. Existing training defaults and running jobs are unchanged.
+
+The batch driver supports a fresh clamped pipeline from a finished legacy MixedGaits baseline:
+
+```sh
+python foundation/scripts/colab_optional.py --mode locomotion --no-wandb --out artifacts/optional2-clamped --deployment-target-clamp --baseline-checkpoint EXACT_FINISHED_MIXED_CHECKPOINT --baseline-iterations 1500
+```
+
+The checkpoint must have its original sibling `provenance.json`, matching the exact MixedGaits-Flat task and a finished training state. The new `mixed-baseline` stage finetunes that checkpoint for the requested additional iterations; subsequent comparisons use its clamped policy as their baseline. The new batch records the original checkpoint/provenance hashes and copies the original environment/agent metadata under `baseline_source/`. Changing clamp setting, checkpoint bytes or iteration count requires a fresh output root. Completed stages can only be reused with the same recorded command. The original legacy batch is neither overwritten nor relabeled.
+
 Promotion requires improvement in every high-speed segment with no additional failures, adequate samples, and bounded regressions in low-speed tracking, torque, slip and yaw. The comparator labels its decision provisional for that seed. Repeat with at least three held-out seeds and `--randomized`, and evaluate the Bumpy task. Freeze the best checkpoint/reference before any hardware comparison. Stop after two non-improving rounds; preserve failed rounds. Do not keep increasing speed/cadence merely to exhaust compute.
 
 ## Mystery / jump

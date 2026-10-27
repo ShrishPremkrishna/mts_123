@@ -17,6 +17,47 @@ import sys
 import traceback
 
 
+def file_sha256(path):
+    digest=hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda:stream.read(1024*1024),b''):digest.update(chunk)
+    return digest.hexdigest()
+
+
+def baseline_configuration(checkpoint,iterations):
+    if iterations<1:raise ValueError('baseline-iterations must be positive')
+    config={'task':'Mjlab-MixedGaits-Flat-Pupper-v3','iterations':iterations,
+            'checkpoint':None,'checkpoint_sha256':None,'source_provenance_sha256':None}
+    if checkpoint is not None:
+        checkpoint=Path(checkpoint).resolve()
+        if not checkpoint.is_file():raise FileNotFoundError(checkpoint)
+        source=checkpoint.parent/'provenance.json'
+        if not source.is_file():raise ValueError('Baseline warm start requires the original sibling provenance.json')
+        provenance=json.loads(source.read_text())
+        if provenance.get('task')!=config['task']:
+            raise ValueError('Baseline checkpoint must have exact MixedGaits-Flat task provenance')
+        if provenance.get('status')!='training_finished_not_evaluated':
+            raise ValueError('Wait for the baseline training subprocess and final export to finish')
+        config.update(checkpoint=str(checkpoint),checkpoint_sha256=file_sha256(checkpoint),source_provenance_sha256=file_sha256(source))
+    return config
+
+
+def validate_resume_contract(previous,clamp,baseline):
+    if bool(previous.get('deployment_target_clamp',False))!=clamp:
+        raise ValueError('Changing deployment target clamp requires a fresh --out directory; preserve the legacy batch')
+    original=previous.get('baseline_configuration',baseline_configuration(None,3000))
+    if original!=baseline:
+        raise ValueError('Changing baseline checkpoint/hash/iterations requires a fresh --out directory')
+
+
+def completed_stage(marker,argv):
+    if not marker.exists():return None
+    completed=json.loads(marker.read_text())
+    if completed.get('command')!=[str(a) for a in argv] or completed.get('returncode')!=0:
+        raise ValueError(f'Completed stage does not match requested command: {marker}; use a fresh --out directory')
+    return completed
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--repo',type=Path,default=Path(__file__).resolve().parents[2])
@@ -28,10 +69,30 @@ def main():
     p.add_argument('--smoke',action='store_true',help='Explicitly limited infrastructure tests, never final results')
     p.add_argument('--bootstrap-rounds',type=int,default=2)
     p.add_argument('--device',default='cuda:0')
+    p.add_argument('--deployment-target-clamp',action='store_true',help='Use deployment absolute-target clipping for every locomotion stage; requires a separate output root from legacy runs')
+    p.add_argument('--baseline-checkpoint',type=Path,help='Finished exact MixedGaits-Flat checkpoint plus sibling provenance.json to warm-start a new baseline stage')
+    p.add_argument('--baseline-iterations',type=int,default=3000,help='Additional baseline iterations; use e.g.1500 for a clamped warm start')
     p.add_argument('--wandb',action=argparse.BooleanOptionalAction,default=True)
     args=p.parse_args()
     if not 0<=args.bootstrap_rounds<=3: p.error('bootstrap-rounds must be between0and3')
+    try:baseline_config=baseline_configuration(args.baseline_checkpoint,args.baseline_iterations)
+    except (ValueError,FileNotFoundError) as exc:p.error(str(exc))
+    if args.baseline_checkpoint:args.baseline_checkpoint=Path(baseline_config['checkpoint'])
     args.repo=args.repo.resolve();args.out=args.out.resolve();args.out.mkdir(parents=True,exist_ok=True)
+    previous_status=args.out/'batch_status.json'
+    if previous_status.exists():
+        try:validate_resume_contract(json.loads(previous_status.read_text()),args.deployment_target_clamp,baseline_config)
+        except ValueError as exc:p.error(str(exc))
+    elif any(args.out.glob('*.done.json')):
+        p.error('Stage markers without batch provenance cannot be reused; use a fresh --out directory')
+    if args.baseline_checkpoint:
+        snapshot=args.out/'baseline_source';snapshot.mkdir(exist_ok=True)
+        for name in ('provenance.json','params/env.yaml','params/agent.yaml'):
+            source=args.baseline_checkpoint.parent/name
+            if source.is_file():
+                target=snapshot/name;target.parent.mkdir(parents=True,exist_ok=True)
+                if target.exists() and file_sha256(target)!=file_sha256(source):p.error('Original baseline provenance snapshot changed; use a fresh --out directory')
+                if not target.exists():shutil.copy2(source,target)
     os.chdir(args.repo)
     sys.path.insert(0,str(args.repo))
     env=os.environ.copy();env.pop('PUPPER_REFERENCE_DIR',None)
@@ -43,14 +104,15 @@ def main():
     source_hash=hashlib.sha256(json.dumps(source_files,sort_keys=True).encode()).hexdigest()
     (args.out/'source_hashes.json').write_text(json.dumps(source_files,indent=2)+'\n')
     revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-    state={'started':datetime.now(timezone.utc).isoformat(),'smoke':args.smoke,'stages':{},'status':'running','git_revision':revision,'source_sha256':source_hash,'seed':123,'locomotion_training_seed':42,'evaluation_seeds':[101,202,303]}
+    state={'started':datetime.now(timezone.utc).isoformat(),'smoke':args.smoke,'deployment_target_clamp':args.deployment_target_clamp,'baseline_configuration':baseline_config,'stages':{},'status':'running','git_revision':revision,'source_sha256':source_hash,'seed':123,'locomotion_training_seed':42,'evaluation_seeds':[101,202,303]}
     status_file=args.out/'batch_status.json'
     def save():
         tmp=status_file.with_suffix('.tmp');tmp.write_text(json.dumps(state,indent=2)+'\n');tmp.replace(status_file)
     def run(name,argv):
         marker=args.out/f'{name}.done.json'
-        if marker.exists():
-            state['stages'][name]=json.loads(marker.read_text());save();return
+        completed=completed_stage(marker,argv)
+        if completed is not None:
+            state['stages'][name]=completed;save();return
         info={'status':'running','command':[str(a) for a in argv],'started':datetime.now(timezone.utc).isoformat()}
         state['stages'][name]=info;save();print(f'START {name}',flush=True)
         with (args.out/f'{name}.log').open('a') as log:
@@ -129,6 +191,7 @@ def main():
             def train(name,iterations,profile='baseline',previous=None,reference=None,task='Mjlab-MixedGaits-Flat-Pupper-v3',weights=None):
                 target=fresh(name)
                 cmd=common+['train','--out',target,'--task',task,'--iterations',2 if args.smoke else iterations,'--num-envs',num_envs,'--device',args.device,'--logger','wandb' if args.wandb else 'tensorboard','--profile',profile]
+                if args.deployment_target_clamp:cmd+=['--deployment-target-clamp']
                 if previous:cmd+=['--checkpoint',previous]
                 if reference:cmd+=['--reference-dir',reference]
                 if weights:cmd+=['--weights',weights]
@@ -136,10 +199,11 @@ def main():
             def evaluate(name,ckpt,reference=None,task='Mjlab-MixedGaits-Flat-Pupper-v3',seed=101,randomized=False):
                 target=fresh(name)
                 cmd=common+['evaluate','--checkpoint',ckpt,'--out',target,'--task',task,'--seed',seed,'--num-envs',2 if args.smoke else 32,'--seconds',1 if args.smoke else 10,'--warmup',.1 if args.smoke else 2,'--device',args.device]
+                if args.deployment_target_clamp:cmd+=['--deployment-target-clamp']
                 if reference:cmd+=['--reference-dir',reference]
                 if randomized:cmd+=['--randomized']
                 run(name,cmd);return target
-            base,base_dir=train('mixed-baseline',3000)
+            base,base_dir=train('mixed-baseline',args.baseline_iterations,previous=args.baseline_checkpoint)
             baseline_eval=evaluate('mixed-baseline-eval',base)
             best,reference,profile,best_eval=base,None,'baseline',baseline_eval
             authored=args.repo/'pupper-mjlab/configs/optional2/extended_trot'

@@ -1,0 +1,322 @@
+{
+  "manifest_sha256": "8da25d91d44904fde87fbf42981f56c62890badf1dd8e03a855e5d5ec00e6334",
+  "seed": 123,
+  "group_by": "recording",
+  "coverage": {
+    "train": {
+      "recordings": 40,
+      "selected_images": 2289,
+      "classes": {
+        "incline": [
+          {
+            "label": 0,
+            "recordings": 4,
+            "images": 284
+          },
+          {
+            "label": 15,
+            "recordings": 6,
+            "images": 345
+          },
+          {
+            "label": 30,
+            "recordings": 8,
+            "images": 457
+          },
+          {
+            "label": 45,
+            "recordings": 8,
+            "images": 420
+          },
+          {
+            "label": 60,
+            "recordings": 5,
+            "images": 271
+          },
+          {
+            "label": 75,
+            "recordings": 9,
+            "images": 512
+          }
+        ],
+        "material": [
+          {
+            "label": "none",
+            "recordings": 3,
+            "images": 125
+          },
+          {
+            "label": "felt_pad",
+            "recordings": 6,
+            "images": 313
+          },
+          {
+            "label": "rough",
+            "recordings": 9,
+            "images": 504
+          },
+          {
+            "label": "slip",
+            "recordings": 10,
+            "images": 602
+          },
+          {
+            "label": "very_rough",
+            "recordings": 8,
+            "images": 460
+          },
+          {
+            "label": "foam",
+            "recordings": 4,
+            "images": 285
+          }
+        ]
+      },
+      "conditions_absent_from_training": []
+    },
+    "val": {
+      "recordings": 8,
+      "selected_images": 387,
+      "classes": {
+        "incline": [
+          {
+            "label": 0,
+            "recordings": 0,
+            "images": 0
+          },
+          {
+            "label": 15,
+            "recordings": 2,
+            "images": 74
+          },
+          {
+            "label": 30,
+            "recordings": 2,
+            "images": 98
+          },
+          {
+            "label": 45,
+            "recordings": 1,
+            "images": 39
+          },
+          {
+            "label": 60,
+            "recordings": 3,
+            "images": 176
+          },
+          {
+            "label": 75,
+            "recordings": 0,
+            "images": 0
+          }
+        ],
+        "material": [
+          {
+            "label": "none",
+            "recordings": 3,
+            "images": 117
+          },
+          {
+            "label": "felt_pad",
+            "recordings": 2,
+            "images": 108
+          },
+          {
+            "label": "rough",
+            "recordings": 1,
+            "images": 39
+          },
+          {
+            "label": "slip",
+            "recordings": 1,
+            "images": 84
+          },
+          {
+            "label": "very_rough",
+            "recordings": 1,
+            "images": 39
+          },
+          {
+            "label": "foam",
+            "recordings": 0,
+            "images": 0
+          }
+        ]
+      },
+      "conditions_absent_from_training": [
+        "60 degrees/60-felt_pad",
+        "None/15_None",
+        "None/30_None",
+        "None/60_None"
+      ]
+    },
+    "test": {
+      "recordings": 8,
+      "selected_images": 639,
+      "classes": {
+        "incline": [
+          {
+            "label": 0,
+            "recordings": 2,
+            "images": 201
+          },
+          {
+            "label": 15,
+            "recordings": 2,
+            "images": 151
+          },
+          {
+            "label": 30,
+            "recordings": 0,
+            "images": 0
+          },
+          {
+            "label": 45,
+            "recordings": 1,
+            "images": 66
+          },
+          {
+            "label": 60,
+            "recordings": 2,
+            "images": 145
+          },
+          {
+            "label": 75,
+            "recordings": 1,
+            "images": 76
+          }
+        ],
+        "material": [
+          {
+            "label": "none",
+            "recordings": 0,
+            "images": 0
+          },
+          {
+            "label": "felt_pad",
+            "recordings": 3,
+            "images": 198
+          },
+          {
+            "label": "rough",
+            "recordings": 1,
+            "images": 98
+          },
+          {
+            "label": "slip",
+            "recordings": 0,
+            "images": 0
+          },
+          {
+            "label": "very_rough",
+            "recordings": 2,
+            "images": 156
+          },
+          {
+            "label": "foam",
+            "recordings": 2,
+            "images": 187
+          }
+        ]
+      },
+      "conditions_absent_from_training": [
+        "0 degrees_new/0-rough",
+        "0 degrees_new/0-very_rough",
+        "60 degrees_new/60-felt_pad",
+        "foam/15 degrees",
+        "foam/75 degrees"
+      ]
+    }
+  },
+  "selected_image_sizes": {
+    "320x240": 3315
+  },
+  "exact_image_duplicate_hashes_crossing_splits": 0,
+  "train_val_timing": {
+    "train": {
+      "label_age_s": {
+        "min": 0.0004241466522216797,
+        "median": 0.04880714416503906,
+        "p95": 0.09495422840118407,
+        "max": 0.24003076553344727
+      },
+      "annotation_interval_s": {
+        "min": 0.00047516822814941406,
+        "median": 0.09999024868011475,
+        "p95": 0.10683981180191039,
+        "max": 0.38481783866882324
+      },
+      "image_interval_s": {
+        "min": 0.16140055656433105,
+        "median": 0.333331823348999,
+        "p95": 0.3341238260269165,
+        "max": 0.6668624877929688
+      },
+      "offset_sensitivity": {
+        "-0.1": {
+          "comparable": 4691,
+          "changes": 215
+        },
+        "-0.05": {
+          "comparable": 4694,
+          "changes": 105
+        },
+        "0.05": {
+          "comparable": 4686,
+          "changes": 92
+        },
+        "0.1": {
+          "comparable": 4675,
+          "changes": 187
+        }
+      }
+    },
+    "val": {
+      "label_age_s": {
+        "min": 0.0005047321319580078,
+        "median": 0.04310131072998047,
+        "p95": 0.09796049594879148,
+        "max": 0.11441254615783691
+      },
+      "annotation_interval_s": {
+        "min": 0.0008289813995361328,
+        "median": 0.099967360496521,
+        "p95": 0.10708383321762086,
+        "max": 0.27164721488952637
+      },
+      "image_interval_s": {
+        "min": 0.28578925132751465,
+        "median": 0.3333299160003662,
+        "p95": 0.33403671979904176,
+        "max": 0.38065481185913086
+      },
+      "offset_sensitivity": {
+        "-0.1": {
+          "comparable": 813,
+          "changes": 39
+        },
+        "-0.05": {
+          "comparable": 814,
+          "changes": 20
+        },
+        "0.05": {
+          "comparable": 813,
+          "changes": 11
+        },
+        "0.1": {
+          "comparable": 812,
+          "changes": 27
+        }
+      }
+    }
+  },
+  "caveats": [
+    "No near-duplicate detection; frame correlations within recordings are expected.",
+    "Recorded contact values are detector outputs per the course handout, not human ground truth.",
+    "Offset sensitivity is descriptive only; no offset has been optimized or applied.",
+    "The eight test recordings do not cover every class; window/frame counts are not independent trials."
+  ],
+  "remote_manifest_sha256": "80379f3c8df78061e9045ecb07d3d45d417c91491b0b74f0f066fb178208bd55",
+  "same_local_remote_manifest_except_absolute_root": true,
+  "semantic_manifest_sha256": "e9765a8043acd1ba548a3ad1c510282cf41bf8be6077a0b51b27b8352ebcb7e9"
+}
