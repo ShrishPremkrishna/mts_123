@@ -3,23 +3,111 @@
   "walk_run": null,
   "policy_source": {
     "type": "local",
-    "path": "/private/tmp/cs123-pupper-foundation/artifacts/lab6/sit_stay_shake/policy.json",
-    "sha256": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954"
+    "path": "/private/tmp/cs123-pupper-foundation/artifacts/lab6/pupper-sit-corrected/training/runs/foundation_sit_stay_shake_deployclamp_composedcom_groundhulls_s42_20261027T232555Z_49d040ff/policy.json",
+    "sha256": "9d545daa3394eaa7fd74899786d7138c373ef1e4bf14aeb753f9f979b375ddf5"
   },
   "walk_source": null,
   "files": {
-    "policy.json": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954",
+    "policy.json": "9d545daa3394eaa7fd74899786d7138c373ef1e4bf14aeb753f9f979b375ddf5",
     "trick.yaml": "9a4905053e78ce34f148aad99bb7142e6dc3317536c82265d26173d65ceb63fd"
   },
   "hardware_validated": false,
   "ta_approval_recorded": false,
   "evaluation": {
-    "reference": "foundation/results/lab6-sit-stay-shake.json",
-    "sha256": "bfc9f2a5f6d50c81aba801a308e562caccd6c940d6b4d523c739f29206e09d0a",
-    "policy_sha256": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954",
-    "scenario_count": 8,
-    "scope": "CPU simulation evaluation only; consult report limitations",
+    "reference": "foundation/results/lab6-sit-corrected.json",
+    "sha256": "14cf297c0106fe2d7d9661ef429ec5505f0f49fad11eb5699d3733d81a70a9f7",
+    "policy_sha256": "9d545daa3394eaa7fd74899786d7138c373ef1e4bf14aeb753f9f979b375ddf5",
+    "scenario_count_cpu": 8,
+    "scenario_count_gpu": 8,
+    "scope": "Corrected-body-contact and deployed-target-clamp simulation; nominal, mass/COM, seeded dynamics and continuous81s stress. Physical approval remains pending.",
     "all_hold_up": true,
-    "approved_for_hardware": false
+    "approved_for_hardware": false,
+    "actual_cpp_inference_parity_passed": true
+  },
+  "training": {
+    "run_name": "foundation_sit_stay_shake_deployclamp_composedcom_groundhulls_s42_20261027T232555Z_49d040ff",
+    "checkpoint": "model_3998.pt",
+    "checkpoint_sha256": "ee256ec97d1a4b63122c9658c13f1d91b19ef047f0b3033460f7197c08846e14",
+    "motion_sha256": "5e7129e92ee10c3305e13ef33d973d5682664c813d7c2df5397bc9b85926d137",
+    "source_revision": "beaf8f8824e7faef6729efc230a6635a921b1722",
+    "source_sha256": "f5413b4af99391e76bf51a596a86907dfcf7ff3a8b144c900b6ebc4f5af04a6d",
+    "contracts": {
+      "actuation_contract": {
+        "contract": "deployment_joint_target_clamp_v1",
+        "limits": {
+          "leg_front_r_1": [
+            -1.22,
+            2.51
+          ],
+          "leg_front_r_2": [
+            -0.42,
+            3.14
+          ],
+          "leg_front_r_3": [
+            -2.79,
+            0.71
+          ],
+          "leg_front_l_1": [
+            -2.51,
+            1.22
+          ],
+          "leg_front_l_2": [
+            -3.14,
+            0.42
+          ],
+          "leg_front_l_3": [
+            -0.71,
+            2.79
+          ],
+          "leg_back_r_1": [
+            -1.22,
+            2.51
+          ],
+          "leg_back_r_2": [
+            -0.42,
+            3.14
+          ],
+          "leg_back_r_3": [
+            -2.79,
+            0.71
+          ],
+          "leg_back_l_1": [
+            -2.51,
+            1.22
+          ],
+          "leg_back_l_2": [
+            -3.14,
+            0.42
+          ],
+          "leg_back_l_3": [
+            -0.71,
+            2.79
+          ]
+        },
+        "order": "raw action retained; affine target; absolute joint clipping; encoder-bias correction; actuator latency",
+        "raw_action_history_preserved": true
+      },
+      "collision_contract": {
+        "contract": "tracking_ground_hulls_v1",
+        "hull_count": 9,
+        "contype": 0,
+        "conaffinity": 1,
+        "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+      },
+      "com_randomization_contract": {
+        "contract": "density_preserving_independent_base_com_v1",
+        "rng_draw_order_preserved": true,
+        "event_order": [
+          "push_robot",
+          "base_com",
+          "encoder_bias",
+          "foot_friction",
+          "pd_gains",
+          "inertial"
+        ],
+        "effective_at": "startup; sampled once per world, retained across resets",
+        "scope": "density-only pseudo-inertia retaining the already sampled additive body-frame COM offset"
+      }
+    }
   }
 }

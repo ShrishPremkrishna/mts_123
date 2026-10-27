@@ -169,7 +169,7 @@ print(json.dumps({"executable": sys.executable, "prefix": sys.prefix,
                   "device": str(device), "cuda_available": torch.cuda.is_available()}))
 '''
     command = [plan['python'], '-B', '-c', probe, plan['device']]
-    with log.open('w') as stream:
+    with log.open('a') as stream:
         stream.write('Runtime preflight: ' + json.dumps(command) + '\n')
         stream.flush()
         try:

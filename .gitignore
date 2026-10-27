@@ -11,3 +11,6 @@ wandb/
 .env
 .env.*
 !.env.example
+
+# Local atomic-import rollback copies; trained artifacts are versioned separately.
+gemini_pupper/tricks/.backups/
