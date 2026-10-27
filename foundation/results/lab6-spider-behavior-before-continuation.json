@@ -1,0 +1,241 @@
+{
+  "profile": "spider_clips",
+  "scope": "Behavior-specific descriptive metrics of one recorded simulation; no new pass threshold or hardware approval.",
+  "approved_for_hardware": false,
+  "inputs": {
+    "artifacts/lab6/spider_clips/spider_walk.npz": "2a51d40c03dbbd373ed09b0b60ee7b5c7f6864f48e77d8a5153a4d5d1758cf6f",
+    "artifacts/lab6/spider_clips/physics-corrected-ground-hulls.trajectory.npz": "18a790ce3b8bdfaa9cef227df434e2e77cdd9bfd654fb4704938070fae744538",
+    "artifacts/lab6/spider_clips/physics-corrected-ground-hulls.json": "2d9f88b478563105edf499394319d41935249ab10016f81b2b6a3b7960699a99"
+  },
+  "analysis_source_sha256": "25a3d3d6f3d208448bc7937a4e00956218f1e4762180d828144684d9cebb490d",
+  "fps": 50.0,
+  "collision_contract": {
+    "contract": "tracking_ground_hulls_v1",
+    "hull_count": 9,
+    "contype": 0,
+    "conaffinity": 1,
+    "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+  },
+  "course_tracking_verdict": "WOBBLES",
+  "reference_resets": 0,
+  "tolerances": "None added. Paw peak detection uses half the programmed3cm shake amplitude as prominence and0.4s separation, below the reference0.6s peak interval. Counts and amplitudes are reported, not graded.",
+  "observability": "The deployed69D actor has no measured root translation or linear velocity; world-position drift is distinct from pose and balance errors.",
+  "phases": [
+    {
+      "occurrence": 0,
+      "clip": "spider_down",
+      "reference_interval_s": [
+        0.0,
+        7.6
+      ],
+      "joint_tracking_rms_rad": 0.10133755207061768,
+      "joint_tracking_max_abs_rad": 0.398213654756546,
+      "peak_joint_speed_rad_s": 11.323169708251953,
+      "peak_motor_torque_nm": 2.6089584827423096,
+      "peak_absolute_body_tilt_deg": 7.832858343625232,
+      "peak_orientation_tracking_error_deg": 11.256138800963425,
+      "peak_position_tracking_error_m": 0.027438301593065262,
+      "peak_sampled_hull_vertex_penetration_m": 0.0032385188825363176,
+      "minimum_foot_contact_count": 0,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          -0.05627113953232765,
+          -0.023728324100375175,
+          -0.05077190697193146,
+          0.05009627714753151,
+          0.07332152873277664,
+          -0.0257515050470829,
+          0.09183549135923386,
+          -0.03435331955552101,
+          -0.05209991708397865,
+          0.03841930627822876,
+          0.0911848172545433,
+          -0.06403309851884842
+        ],
+        "joint_max_abs_error_rad": 0.21318089962005615,
+        "root_mean_error_xyz_m": [
+          -0.004128723405301571,
+          -0.019067199900746346,
+          -0.0015266259433701634
+        ],
+        "actual_root_mean_height_m": 0.03684157133102417,
+        "reference_root_mean_height_m": 0.03836819902062416
+      }
+    },
+    {
+      "occurrence": 1,
+      "clip": "spider_idle",
+      "reference_interval_s": [
+        7.6,
+        8.6
+      ],
+      "joint_tracking_rms_rad": 0.04738621413707733,
+      "joint_tracking_max_abs_rad": 0.14646226167678833,
+      "peak_joint_speed_rad_s": 0.080179363489151,
+      "peak_motor_torque_nm": 0.9617524147033691,
+      "peak_absolute_body_tilt_deg": 0.5004596292671164,
+      "peak_orientation_tracking_error_deg": 2.832195917305621,
+      "peak_position_tracking_error_m": 0.028498319908976555,
+      "peak_sampled_hull_vertex_penetration_m": 5.9717118900376454e-05,
+      "minimum_foot_contact_count": 4,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.0026450157165527344,
+          0.012042064219713211,
+          -0.11906477063894272,
+          0.007937000133097172,
+          0.006111741065979004,
+          0.06442932784557343,
+          0.015591979958117008,
+          -0.013569180853664875,
+          -0.00761557649821043,
+          0.05362560227513313,
+          0.0440196730196476,
+          0.006890554912388325
+        ],
+        "joint_max_abs_error_rad": 0.1258651614189148,
+        "root_mean_error_xyz_m": [
+          -0.0028240797109901905,
+          -0.02818666771054268,
+          0.0009853385854512453
+        ],
+        "actual_root_mean_height_m": 0.04298533871769905,
+        "reference_root_mean_height_m": 0.04200000315904617
+      }
+    },
+    {
+      "occurrence": 2,
+      "clip": "spider_idle",
+      "reference_interval_s": [
+        8.6,
+        9.6
+      ],
+      "joint_tracking_rms_rad": 0.04036985710263252,
+      "joint_tracking_max_abs_rad": 0.11294960975646973,
+      "peak_joint_speed_rad_s": 0.02210220694541931,
+      "peak_motor_torque_nm": 0.9986405372619629,
+      "peak_absolute_body_tilt_deg": 0.5528469067117766,
+      "peak_orientation_tracking_error_deg": 2.88829823099959,
+      "peak_position_tracking_error_m": 0.02884165197610855,
+      "peak_sampled_hull_vertex_penetration_m": 3.322364893146301e-05,
+      "minimum_foot_contact_count": 4,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          -0.0025547652039676905,
+          -0.004494190216064453,
+          -0.09901349246501923,
+          0.0030191128607839346,
+          0.008637607097625732,
+          0.06135303154587746,
+          0.019634077325463295,
+          -0.01649235375225544,
+          -0.007271191105246544,
+          0.0483512356877327,
+          0.04090464115142822,
+          -0.007130202371627092
+        ],
+        "joint_max_abs_error_rad": 0.10311973094940186,
+        "root_mean_error_xyz_m": [
+          -0.0032358216121792793,
+          -0.028565801680088043,
+          0.0012243632227182388
+        ],
+        "actual_root_mean_height_m": 0.043224360793828964,
+        "reference_root_mean_height_m": 0.04200000315904617
+      }
+    },
+    {
+      "occurrence": 3,
+      "clip": "spider_up",
+      "reference_interval_s": [
+        9.6,
+        17.2
+      ],
+      "joint_tracking_rms_rad": 0.09000814706087112,
+      "joint_tracking_max_abs_rad": 0.3983926773071289,
+      "peak_joint_speed_rad_s": 8.641451835632324,
+      "peak_motor_torque_nm": 3.0,
+      "peak_absolute_body_tilt_deg": 8.458258174447446,
+      "peak_orientation_tracking_error_deg": 6.028955984221131,
+      "peak_position_tracking_error_m": 0.03532210364937782,
+      "peak_sampled_hull_vertex_penetration_m": 0.0028638374463580557,
+      "minimum_foot_contact_count": 0,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          -0.02729896828532219,
+          -0.08218339830636978,
+          -0.03707488626241684,
+          0.023025747388601303,
+          0.09116316586732864,
+          0.022373903542757034,
+          0.09297323226928711,
+          -0.10227422416210175,
+          -0.08944147080183029,
+          -0.056537214666604996,
+          0.044828277081251144,
+          0.06611445546150208
+        ],
+        "joint_max_abs_error_rad": 0.13974112272262573,
+        "root_mean_error_xyz_m": [
+          -0.0155515531077981,
+          0.015614337287843227,
+          0.003673179540783167
+        ],
+        "actual_root_mean_height_m": 0.14750143885612488,
+        "reference_root_mean_height_m": 0.14382824301719666
+      }
+    }
+  ],
+  "return_to_stand": {
+    "reference_exact_stationary_terminal_duration_s": 0.0,
+    "reference_final_joint_speed_max_rad_s": 0.01984536647796631,
+    "reference_last_half_second_joint_speed_max_rad_s": 1.6243826150894165,
+    "reference_last_half_second_max_joint_motion_rad": 0.6188949346542358,
+    "reference_final_joint_pose_rad": [
+      0.2574760913848877,
+      0.0015228232368826866,
+      -0.4645444452762604,
+      -0.257476270198822,
+      -0.001523114275187254,
+      0.4645443856716156,
+      0.2617725729942322,
+      0.0011499810498207808,
+      -0.48467132449150085,
+      -0.26177269220352173,
+      -0.001150568830780685,
+      0.4846712648868561
+    ],
+    "actual_final_joint_pose_rad": [
+      0.27311599254608154,
+      -0.07397562265396118,
+      -0.4911399781703949,
+      -0.2958362400531769,
+      0.09676329791545868,
+      0.4784363806247711,
+      0.4015136957168579,
+      -0.10481488704681396,
+      -0.5812247395515442,
+      -0.32189667224884033,
+      0.083994060754776,
+      0.5019487738609314
+    ],
+    "final_joint_error_rad": [
+      0.015639901161193848,
+      -0.07549844682216644,
+      -0.02659553289413452,
+      -0.03835996985435486,
+      0.09828641265630722,
+      0.013891994953155518,
+      0.13974112272262573,
+      -0.10596486926078796,
+      -0.09655341506004333,
+      -0.060123980045318604,
+      0.08514463156461716,
+      0.017277508974075317
+    ],
+    "last_half_second_joint_max_abs_error_rad": 0.13974112272262573,
+    "final_reported_joint_speed_max_rad_s": 0.8809797167778015,
+    "last_half_second_peak_orientation_error_deg": 1.6061638118797548,
+    "last_half_second_minimum_foot_contact_count": 3
+  }
+}

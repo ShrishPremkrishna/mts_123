@@ -1,0 +1,455 @@
+{
+  "profile": "sit_stay_shake",
+  "scope": "Behavior-specific descriptive metrics of one recorded simulation; no new pass threshold or hardware approval.",
+  "approved_for_hardware": false,
+  "inputs": {
+    "artifacts/lab6/sit_stay_shake/sit_stay_shake.npz": "5e7129e92ee10c3305e13ef33d973d5682664c813d7c2df5397bc9b85926d137",
+    "artifacts/lab6/sit_stay_shake/physics-corrected-ground-hulls.trajectory.npz": "399615683bab83b5931893f473e35ded2a59ef74073e3e1fc3894f5e1e51d477",
+    "artifacts/lab6/sit_stay_shake/physics-corrected-ground-hulls.json": "617b57f923a9cf5d4f73ed943ab5cc18d1b36e71f99d6726906f9515067f7d5f"
+  },
+  "analysis_source_sha256": "25a3d3d6f3d208448bc7937a4e00956218f1e4762180d828144684d9cebb490d",
+  "fps": 50.0,
+  "collision_contract": {
+    "contract": "tracking_ground_hulls_v1",
+    "hull_count": 9,
+    "contype": 0,
+    "conaffinity": 1,
+    "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+  },
+  "course_tracking_verdict": "WOBBLES",
+  "reference_resets": 0,
+  "tolerances": "None added. Paw peak detection uses half the programmed3cm shake amplitude as prominence and0.4s separation, below the reference0.6s peak interval. Counts and amplitudes are reported, not graded.",
+  "observability": "The deployed69D actor has no measured root translation or linear velocity; world-position drift is distinct from pose and balance errors.",
+  "phases": [
+    {
+      "occurrence": 0,
+      "clip": "sit_down",
+      "reference_interval_s": [
+        0.0,
+        3.7
+      ],
+      "joint_tracking_rms_rad": 0.054172124713659286,
+      "joint_tracking_max_abs_rad": 0.22319698333740234,
+      "peak_joint_speed_rad_s": 7.092440128326416,
+      "peak_motor_torque_nm": 1.8835192918777466,
+      "peak_absolute_body_tilt_deg": 35.93493906812091,
+      "peak_orientation_tracking_error_deg": 3.2744324575253545,
+      "peak_position_tracking_error_m": 0.027646653354167938,
+      "peak_sampled_hull_vertex_penetration_m": 0.003001005531826334,
+      "minimum_foot_contact_count": 0,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.12063276022672653,
+          -0.0003197136684320867,
+          -0.06770683825016022,
+          -0.0736791342496872,
+          0.0070245093666017056,
+          0.04523187503218651,
+          -0.03251853212714195,
+          -0.031013937667012215,
+          0.017680563032627106,
+          0.034291718155145645,
+          0.013863665983080864,
+          -0.018718741834163666
+        ],
+        "joint_max_abs_error_rad": 0.12861528992652893,
+        "root_mean_error_xyz_m": [
+          -0.024387560784816742,
+          0.0032455811742693186,
+          0.0002939047699328512
+        ],
+        "actual_root_mean_height_m": 0.12346047908067703,
+        "reference_root_mean_height_m": 0.12316656857728958
+      }
+    },
+    {
+      "occurrence": 1,
+      "clip": "sit_idle",
+      "reference_interval_s": [
+        3.7,
+        4.7
+      ],
+      "joint_tracking_rms_rad": 0.053280677646398544,
+      "joint_tracking_max_abs_rad": 0.12658582627773285,
+      "peak_joint_speed_rad_s": 0.3031657636165619,
+      "peak_motor_torque_nm": 0.8480473160743713,
+      "peak_absolute_body_tilt_deg": 36.05548360533037,
+      "peak_orientation_tracking_error_deg": 1.0660499506680292,
+      "peak_position_tracking_error_m": 0.024517865851521492,
+      "peak_sampled_hull_vertex_penetration_m": 0.0,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.11379575729370117,
+          -0.0002591573866084218,
+          -0.0900486409664154,
+          -0.07987194508314133,
+          0.008780053816735744,
+          0.07364240288734436,
+          -0.009818801656365395,
+          -0.006824402138590813,
+          -0.009538226760923862,
+          0.01268534455448389,
+          -0.00042886321898549795,
+          0.007322150748223066
+        ],
+        "joint_max_abs_error_rad": 0.11808297783136368,
+        "root_mean_error_xyz_m": [
+          -0.023758593946695328,
+          0.003386980853974819,
+          0.0017364815576002002
+        ],
+        "actual_root_mean_height_m": 0.12307989597320557,
+        "reference_root_mean_height_m": 0.12134341895580292
+      }
+    },
+    {
+      "occurrence": 2,
+      "clip": "sit_idle",
+      "reference_interval_s": [
+        4.7,
+        5.7
+      ],
+      "joint_tracking_rms_rad": 0.051343612372875214,
+      "joint_tracking_max_abs_rad": 0.109503835439682,
+      "peak_joint_speed_rad_s": 0.01669682189822197,
+      "peak_motor_torque_nm": 0.6945881843566895,
+      "peak_absolute_body_tilt_deg": 36.11490982606464,
+      "peak_orientation_tracking_error_deg": 1.1343455193077279,
+      "peak_position_tracking_error_m": 0.023986272513866425,
+      "peak_sampled_hull_vertex_penetration_m": 0.0,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.09882978349924088,
+          -8.313465514220297e-06,
+          -0.08595768362283707,
+          -0.07619936019182205,
+          0.010876983404159546,
+          0.08621498197317123,
+          -0.014065057039260864,
+          0.0021999303717166185,
+          -0.005550038535147905,
+          0.010093610733747482,
+          -0.0022071627900004387,
+          0.011460453271865845
+        ],
+        "joint_max_abs_error_rad": 0.10189993679523468,
+        "root_mean_error_xyz_m": [
+          -0.023427000269293785,
+          0.0032989007886499166,
+          0.0019244898576289415
+        ],
+        "actual_root_mean_height_m": 0.12326789647340775,
+        "reference_root_mean_height_m": 0.12134341895580292
+      }
+    },
+    {
+      "occurrence": 3,
+      "clip": "shake_left",
+      "reference_interval_s": [
+        5.7,
+        9.2
+      ],
+      "joint_tracking_rms_rad": 0.05116213858127594,
+      "joint_tracking_max_abs_rad": 0.12775927782058716,
+      "peak_joint_speed_rad_s": 3.9865434169769287,
+      "peak_motor_torque_nm": 1.5512115955352783,
+      "peak_absolute_body_tilt_deg": 37.847087757364996,
+      "peak_orientation_tracking_error_deg": 2.8188984772624823,
+      "peak_position_tracking_error_m": 0.02624647319316864,
+      "peak_sampled_hull_vertex_penetration_m": 0.0008578732698540786,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.06268057227134705,
+          -0.00797106884419918,
+          -0.06708341091871262,
+          0.02749362774193287,
+          0.02919749729335308,
+          0.07748620212078094,
+          0.031085925176739693,
+          0.0042920708656311035,
+          -0.018808376044034958,
+          -0.013431590050458908,
+          -0.007049093022942543,
+          0.0019752955995500088
+        ],
+        "joint_max_abs_error_rad": 0.09935563802719116,
+        "root_mean_error_xyz_m": [
+          -0.021405763924121857,
+          0.001922002644278109,
+          0.0021217826288193464
+        ],
+        "actual_root_mean_height_m": 0.12571759521961212,
+        "reference_root_mean_height_m": 0.12359581887722015
+      },
+      "paw_offer": {
+        "intended_leg": "front_l",
+        "programmed_peak_center_height_m": 0.1,
+        "programmed_vertical_shake_amplitude_m": 0.03,
+        "reference": {
+          "intended_paw_peak_center_height_m": 0.10000293123310589,
+          "opposite_front_paw_peak_center_height_m": 0.019958788413969197,
+          "prominent_peak_count": 3,
+          "prominent_peak_times_in_clip_s": [
+            1.2,
+            1.8,
+            2.4
+          ]
+        },
+        "actual": {
+          "intended_paw_peak_center_height_m": 0.11493897013369192,
+          "opposite_front_paw_peak_center_height_m": 0.019725193433591165,
+          "prominent_peak_count": 3,
+          "prominent_peak_times_in_clip_s": [
+            1.18,
+            1.78,
+            2.38
+          ]
+        }
+      }
+    },
+    {
+      "occurrence": 4,
+      "clip": "sit_idle",
+      "reference_interval_s": [
+        9.2,
+        10.2
+      ],
+      "joint_tracking_rms_rad": 0.04369521886110306,
+      "joint_tracking_max_abs_rad": 0.0990753173828125,
+      "peak_joint_speed_rad_s": 0.029936395585536957,
+      "peak_motor_torque_nm": 0.4352703094482422,
+      "peak_absolute_body_tilt_deg": 35.93820933236603,
+      "peak_orientation_tracking_error_deg": 1.25302665063853,
+      "peak_position_tracking_error_m": 0.022276688367128372,
+      "peak_sampled_hull_vertex_penetration_m": 1.6911882767256525e-05,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.06529585272073746,
+          -0.0034045991487801075,
+          -0.0823792964220047,
+          0.010302596725523472,
+          0.03582983836531639,
+          0.0989861860871315,
+          0.004203186370432377,
+          0.015541107393801212,
+          -0.0037421537563204765,
+          -0.014870896004140377,
+          -0.017345542088150978,
+          0.007362117990851402
+        ],
+        "joint_max_abs_error_rad": 0.0990753173828125,
+        "root_mean_error_xyz_m": [
+          -0.02183893509209156,
+          0.0027741591911762953,
+          0.002809752244502306
+        ],
+        "actual_root_mean_height_m": 0.12415318191051483,
+        "reference_root_mean_height_m": 0.12134341895580292
+      }
+    },
+    {
+      "occurrence": 5,
+      "clip": "shake_right",
+      "reference_interval_s": [
+        10.2,
+        13.7
+      ],
+      "joint_tracking_rms_rad": 0.04940196871757507,
+      "joint_tracking_max_abs_rad": 0.1365993618965149,
+      "peak_joint_speed_rad_s": 4.064321994781494,
+      "peak_motor_torque_nm": 1.642324447631836,
+      "peak_absolute_body_tilt_deg": 38.09589773891945,
+      "peak_orientation_tracking_error_deg": 3.019989872241064,
+      "peak_position_tracking_error_m": 0.028620699420571327,
+      "peak_sampled_hull_vertex_penetration_m": 0.0010045197678746343,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.030635293573141098,
+          -0.038233425468206406,
+          -0.08564980328083038,
+          -0.009933242574334145,
+          0.011343466117978096,
+          0.08204209804534912,
+          0.025611739605665207,
+          -0.017652366310358047,
+          -0.02415958046913147,
+          -0.05794304236769676,
+          0.0019891916308552027,
+          0.02311568707227707
+        ],
+        "joint_max_abs_error_rad": 0.10385268926620483,
+        "root_mean_error_xyz_m": [
+          -0.025942854583263397,
+          0.0011684407945722342,
+          0.0029839815106242895
+        ],
+        "actual_root_mean_height_m": 0.12657980620861053,
+        "reference_root_mean_height_m": 0.12359581887722015
+      },
+      "paw_offer": {
+        "intended_leg": "front_r",
+        "programmed_peak_center_height_m": 0.1,
+        "programmed_vertical_shake_amplitude_m": 0.03,
+        "reference": {
+          "intended_paw_peak_center_height_m": 0.10000309798602594,
+          "opposite_front_paw_peak_center_height_m": 0.019958821776747293,
+          "prominent_peak_count": 3,
+          "prominent_peak_times_in_clip_s": [
+            1.2,
+            1.8,
+            2.4
+          ]
+        },
+        "actual": {
+          "intended_paw_peak_center_height_m": 0.11479838271978664,
+          "opposite_front_paw_peak_center_height_m": 0.01936915994767703,
+          "prominent_peak_count": 3,
+          "prominent_peak_times_in_clip_s": [
+            1.24,
+            1.8,
+            2.4
+          ]
+        }
+      }
+    },
+    {
+      "occurrence": 6,
+      "clip": "sit_idle",
+      "reference_interval_s": [
+        13.7,
+        14.7
+      ],
+      "joint_tracking_rms_rad": 0.04565882310271263,
+      "joint_tracking_max_abs_rad": 0.09022647142410278,
+      "peak_joint_speed_rad_s": 0.03323080390691757,
+      "peak_motor_torque_nm": 0.3184523582458496,
+      "peak_absolute_body_tilt_deg": 35.2011698579435,
+      "peak_orientation_tracking_error_deg": 0.952846462311579,
+      "peak_position_tracking_error_m": 0.027489569038152695,
+      "peak_sampled_hull_vertex_penetration_m": 3.368660020326708e-05,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.0419025681912899,
+          -0.03448253124952316,
+          -0.08294371515512466,
+          -0.021643469110131264,
+          0.01229836605489254,
+          0.08760908246040344,
+          0.04381690174341202,
+          -0.017545189708471298,
+          -0.0367656908929348,
+          -0.04521908983588219,
+          0.0042220535688102245,
+          0.00527721643447876
+        ],
+        "joint_max_abs_error_rad": 0.08811920881271362,
+        "root_mean_error_xyz_m": [
+          -0.027093978598713875,
+          0.001151955104433,
+          0.003492701333016157
+        ],
+        "actual_root_mean_height_m": 0.12483613193035126,
+        "reference_root_mean_height_m": 0.12134341895580292
+      }
+    },
+    {
+      "occurrence": 7,
+      "clip": "stand_up",
+      "reference_interval_s": [
+        14.7,
+        18.2
+      ],
+      "joint_tracking_rms_rad": 0.04210050776600838,
+      "joint_tracking_max_abs_rad": 0.12091600894927979,
+      "peak_joint_speed_rad_s": 7.361370086669922,
+      "peak_motor_torque_nm": 1.7343478202819824,
+      "peak_absolute_body_tilt_deg": 35.215616803760035,
+      "peak_orientation_tracking_error_deg": 3.5420088013630324,
+      "peak_position_tracking_error_m": 0.030565105378627777,
+      "peak_sampled_hull_vertex_penetration_m": 0.0014733117088781833,
+      "minimum_foot_contact_count": 2,
+      "final_half_second": {
+        "joint_mean_error_rad": [
+          0.02135353535413742,
+          -0.04170209541916847,
+          -0.06557543575763702,
+          -0.007538034580647945,
+          0.0011529992334544659,
+          0.054604869335889816,
+          -0.018474159762263298,
+          0.0013931243447586894,
+          -0.019368382170796394,
+          -0.0046599190682172775,
+          0.012119978666305542,
+          0.031343888491392136
+        ],
+        "joint_max_abs_error_rad": 0.07612597942352295,
+        "root_mean_error_xyz_m": [
+          -0.02697405405342579,
+          6.49030480417423e-05,
+          0.0018029854400083423
+        ],
+        "actual_root_mean_height_m": 0.16276495158672333,
+        "reference_root_mean_height_m": 0.16096195578575134
+      }
+    }
+  ],
+  "return_to_stand": {
+    "reference_exact_stationary_terminal_duration_s": 0.4,
+    "reference_final_joint_speed_max_rad_s": 0.0,
+    "reference_last_half_second_joint_speed_max_rad_s": 0.5288194417953491,
+    "reference_last_half_second_max_joint_motion_rad": 0.02111193537712097,
+    "reference_final_joint_pose_rad": [
+      0.2557472288608551,
+      -1.4499089502351126e-06,
+      -0.5120992660522461,
+      -0.2557520866394043,
+      -3.5490367622514896e-07,
+      0.512107789516449,
+      0.2557472288608551,
+      -1.4499089502351126e-06,
+      -0.5120992660522461,
+      -0.2557520866394043,
+      -3.5490367622514896e-07,
+      0.512107789516449
+    ],
+    "actual_final_joint_pose_rad": [
+      0.2717476785182953,
+      -0.03860729932785034,
+      -0.588225245475769,
+      -0.24343526363372803,
+      0.004618754610419273,
+      0.5620964765548706,
+      0.23133844137191772,
+      -0.00946043524891138,
+      -0.5071296691894531,
+      -0.23451484739780426,
+      0.019356781616806984,
+      0.5289731025695801
+    ],
+    "final_joint_error_rad": [
+      0.016000449657440186,
+      -0.03860585018992424,
+      -0.07612597942352295,
+      0.01231682300567627,
+      0.004619109444320202,
+      0.04998868703842163,
+      -0.024408787488937378,
+      -0.009458985179662704,
+      0.004969596862792969,
+      0.021237239241600037,
+      0.019357137382030487,
+      0.016865313053131104
+    ],
+    "last_half_second_joint_max_abs_error_rad": 0.07612597942352295,
+    "final_reported_joint_speed_max_rad_s": 0.07416706532239914,
+    "last_half_second_peak_orientation_error_deg": 1.3921007610153109,
+    "last_half_second_minimum_foot_contact_count": 3
+  }
+}
