@@ -180,10 +180,16 @@ def train(args: argparse.Namespace) -> Path:
     from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
     com_contract = compose_pupper_com_randomization(cfg)
   ground_hulls = getattr(args, "tracking_ground_hulls", False)
+  torso_contact = getattr(args, "locomotion_torso_contact", False)
+  if ground_hulls and torso_contact:
+    raise ValueError("Choose tracking ground hulls OR locomotion torso contact, not both")
   collision_contract = {"contract": "legacy_inherited_collision_config"}
   if ground_hulls:
     from mjlab.tasks.tracking.config.pupper.contact_contract import enable_tracking_ground_hulls
     collision_contract = enable_tracking_ground_hulls(cfg)
+  if torso_contact:
+    from mjlab.tasks.pupper.locomotion_contact_contract import enable_locomotion_torso_contact
+    collision_contract = enable_locomotion_torso_contact(cfg)
   cfg.scene.num_envs = args.num_envs or profile["num_envs"]
   agent.max_iterations = args.iterations or profile["iterations"]
   agent.seed = args.seed
@@ -204,7 +210,7 @@ def train(args: argparse.Namespace) -> Path:
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
   contract_suffix = "_deployclamp" if deploy_clamp else "_legacytargets"
   contract_suffix += "_composedcom" if compose_com else "_legacycom"
-  contract_suffix += "_groundhulls" if ground_hulls else "_legacyhulls"
+  contract_suffix += "_groundhulls" if ground_hulls else "_torsocontact" if torso_contact else "_legacyhulls"
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -339,6 +345,7 @@ def main() -> None:
   launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
   launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")
+  launch.add_argument("--locomotion-torso-contact", action="store_true", help="Separate SpiderWalk physics contract adding only the torso collider; preserve knee/foot spheres")
   evaluate = sub.add_parser("score")
   evaluate.add_argument("--motion", type=Path, required=True)
   evaluate.add_argument("--checkpoint", type=Path, required=True)

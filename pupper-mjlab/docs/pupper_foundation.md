@@ -276,3 +276,23 @@ contacts, and approximate penetration of sampled collision-mesh vertices.
 The latter is a diagnostic, not an exact convex-hull clearance certificate.
 A policy trained with disabled hulls must be evaluated and, where needed,
 continued under corrected contacts before being considered a foundation candidate.
+
+For the separate SpiderWalk policy, use `--locomotion-torso-contact` instead of
+`--tracking-ground-hulls`. This version adds only a zero-density torso collider
+and preserves the original knee/foot sphere approximation. The foundation
+`spider_walk` profile retains the complete original reward set, including
+`base_height=3` and `termination=-5`, when resumed with `--initial-checkpoint`.
+An explicit corrected continuation is:
+
+```bash
+python -m mjlab.scripts.pupper_foundation train spider_walk \
+  --initial-checkpoint /persistent/original-spiderwalk/model_3999.pt \
+  --deployment-target-clamp --compose-com-randomization \
+  --locomotion-torso-contact --iterations 1500 --num-envs 4096 --seed 42 \
+  --output /persistent/spiderwalk-torso-contact
+```
+
+Evaluate that checkpoint with `pupper_locomotion evaluate`, the bounded
+`configs/foundation/spider_commands.json`, and the same three contract flags.
+Keep torso penetration diagnostics enabled with `--geometry-audit`; a gait that
+tracks velocity while intersecting the floor is not a physical walking candidate.

@@ -1,0 +1,5046 @@
+{
+  "scope": "Single-seed continuous command screens with four simulated worlds, not hardware validation or a broad robustness claim.",
+  "method_validation": "Signed plane distance matches lowest transformed vertex of actual Pupper torso mesh at upright and rotated poses; disabled geometry is still measured. Heightfields explicitly unsupported.",
+  "runs": [
+    {
+      "directory": "artifacts/recovered-policies/4hkyvuxh/torso-geometry-clamp-s101",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-StableGait-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/recovered-policies/4hkyvuxh/model_2999.pt",
+        "out": "artifacts/recovered-policies/4hkyvuxh/torso-geometry-clamp-s101",
+        "seed": 101,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "num_envs": 4,
+        "seconds": 6.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.3,
+            0.0,
+            0.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0
+          ],
+          [
+            0.7,
+            0.0,
+            0.0
+          ],
+          [
+            0.3,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          [
+            -0.5,
+            0.0,
+            0.0
+          ],
+          [
+            -0.7,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.3,
+            0.0
+          ],
+          [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          [
+            0.0,
+            0.5,
+            0.0
+          ],
+          [
+            0.0,
+            -0.5,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            0.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            -2.0
+          ],
+          [
+            0.4,
+            0.2,
+            0.6
+          ],
+          [
+            -0.4,
+            -0.2,
+            -0.6
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "geometry_audit": true,
+        "geometry_audit_stride": 1,
+        "git_revision": "179b657a45a2c557ee934110c1e7ee09efab76eb",
+        "source_sha256": "0f11a366c3aa5aa1609371e40105af1900b9de8f6123bdf88da4d0044d0638b2",
+        "source_files_hashed": 258,
+        "checkpoint_sha256": "9a8681877d503fa1155cccade10151c2d9c8ad15edb040cec4be4a30bf16db06",
+        "domain_randomization": {
+          "worlds": 4,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                1.364255428314209,
+                0.18637144565582275,
+                0.16827969253063202,
+                0.04533899575471878,
+                0.16330237686634064,
+                0.17387625575065613,
+                0.05792638286948204,
+                0.18871676921844482,
+                0.17563976347446442,
+                0.04501064866781235,
+                0.17389369010925293,
+                0.18905872106552124,
+                0.0528649240732193
+              ],
+              "maximum": [
+                1.9329814910888672,
+                0.2280191034078598,
+                0.23897990584373474,
+                0.0515500083565712,
+                0.203887939453125,
+                0.21760940551757812,
+                0.060252394527196884,
+                0.2280063033103943,
+                0.21263793110847473,
+                0.05802445858716965,
+                0.1998172253370285,
+                0.23946723341941833,
+                0.06211560219526291
+              ],
+              "mean": [
+                1.615369439125061,
+                0.21232569217681885,
+                0.19280382990837097,
+                0.047398559749126434,
+                0.1827131062746048,
+                0.2012103796005249,
+                0.05912751331925392,
+                0.2033441662788391,
+                0.19449791312217712,
+                0.053249143064022064,
+                0.19094428420066833,
+                0.20312577486038208,
+                0.05853787809610367
+              ],
+              "std": [
+                0.24270512163639069,
+                0.01627781055867672,
+                0.027333173900842667,
+                0.002504009287804365,
+                0.014747877605259418,
+                0.01724391244351864,
+                0.0008254455751739442,
+                0.014907552860677242,
+                0.014294481836259365,
+                0.005023020785301924,
+                0.010177847929298878,
+                0.021040640771389008,
+                0.003434299724176526
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                0.9058800935745239,
+                1.035396933555603,
+                0.9047294855117798,
+                0.9067798852920532,
+                0.9072353839874268,
+                0.9348185658454895,
+                1.1585276126861572,
+                1.0484265089035034,
+                0.9442997574806213,
+                0.9002129435539246,
+                0.9660760164260864,
+                1.0164446830749512,
+                1.0572984218597412
+              ],
+              "maximum": [
+                1.283520221710205,
+                1.266772747039795,
+                1.2848381996154785,
+                1.0310001373291016,
+                1.1327106952667236,
+                1.1699429750442505,
+                1.205047845840454,
+                1.266701579093933,
+                1.1432147026062012,
+                1.1604892015457153,
+                1.1100956201553345,
+                1.2874581813812256,
+                1.2423120737075806
+              ],
+              "mean": [
+                1.072622537612915,
+                1.1795871257781982,
+                1.0365796089172363,
+                0.9479711651802063,
+                1.0150728225708008,
+                1.0817761421203613,
+                1.1825501918792725,
+                1.1296898126602173,
+                1.0456876754760742,
+                1.0649828910827637,
+                1.0608015060424805,
+                1.0920741558074951,
+                1.170757532119751
+              ],
+              "std": [
+                0.1611587554216385,
+                0.09043226391077042,
+                0.1469525545835495,
+                0.05008017271757126,
+                0.08193263411521912,
+                0.09270917624235153,
+                0.016508914530277252,
+                0.08281970024108887,
+                0.07685206830501556,
+                0.10046043246984482,
+                0.05654359236359596,
+                0.11312170326709747,
+                0.06868603080511093
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                4,
+                3
+              ],
+              "minimum": [
+                -3.725290298461914e-09,
+                0.0,
+                -9.313225746154785e-10
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                9.313225746154785e-10
+              ],
+              "mean": [
+                -1.862645149230957e-09,
+                0.0,
+                0.0
+              ],
+              "std": [
+                1.31708899342442e-09,
+                0.0,
+                6.5854449671221e-10
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                -0.005062941461801529,
+                -0.0077650826424360275,
+                -0.009065097197890282,
+                -0.012317068874835968,
+                0.0001951446756720543,
+                -0.010192274115979671,
+                -0.01494730543345213,
+                -0.004118628799915314,
+                -0.012347825802862644,
+                -0.012179005891084671,
+                -0.006602774374186993,
+                -0.007293918635696173
+              ],
+              "maximum": [
+                0.013220296241343021,
+                0.012124561704695225,
+                0.002599990926682949,
+                0.006735526956617832,
+                0.010575984604656696,
+                -0.00868222489953041,
+                0.0056894561275839806,
+                0.013832190074026585,
+                0.010127830319106579,
+                -0.0010586604475975037,
+                0.0130188362672925,
+                0.0037874532863497734
+              ],
+              "mean": [
+                0.008640561252832413,
+                -0.0014394756872206926,
+                -0.001614339416846633,
+                -0.005892705637961626,
+                0.005045260302722454,
+                -0.009400933980941772,
+                -0.005686202086508274,
+                0.005457059480249882,
+                -0.00021011964417994022,
+                -0.007017157040536404,
+                0.0038426192477345467,
+                -0.0019112775335088372
+              ],
+              "std": [
+                0.007911724038422108,
+                0.008030315861105919,
+                0.004771006293594837,
+                0.007458269130438566,
+                0.003762567415833473,
+                0.0005516973906196654,
+                0.008227271027863026,
+                0.007346045225858688,
+                0.008016475476324558,
+                0.0045889755710959435,
+                0.007306577172130346,
+                0.004352685995399952
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                4,
+                4
+              ],
+              "minimum": [
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453
+              ],
+              "maximum": [
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706
+              ],
+              "mean": [
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396
+              ],
+              "std": [
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                4.545194625854492,
+                3.9568307399749756,
+                3.425189256668091,
+                3.545442581176758,
+                3.9005372524261475,
+                3.889484167098999,
+                4.362841606140137,
+                3.918360471725464,
+                3.3605246543884277,
+                4.514185905456543,
+                4.327167987823486,
+                3.8741445541381836
+              ],
+              "maximum": [
+                5.523526191711426,
+                5.323330402374268,
+                5.1395673751831055,
+                5.389951705932617,
+                5.165459156036377,
+                5.943096160888672,
+                5.959719657897949,
+                5.959496021270752,
+                5.481598377227783,
+                5.716821193695068,
+                5.92822265625,
+                5.780951499938965
+              ],
+              "mean": [
+                5.149488925933838,
+                4.713894367218018,
+                4.186610221862793,
+                4.3934102058410645,
+                4.480312347412109,
+                5.068056583404541,
+                4.89509391784668,
+                4.761227607727051,
+                4.167128562927246,
+                5.078567028045654,
+                5.421555995941162,
+                5.229828834533691
+              ],
+              "std": [
+                0.36458534002304077,
+                0.5296885371208191,
+                0.7030323147773743,
+                0.6579168438911438,
+                0.5494896173477173,
+                0.7801645994186401,
+                0.6344815492630005,
+                0.836036205291748,
+                0.8626168370246887,
+                0.44160258769989014,
+                0.6379677653312683,
+                0.7916171550750732
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                0.30367380380630493,
+                0.2061508446931839,
+                0.22401010990142822,
+                0.22638845443725586,
+                0.2652358412742615,
+                0.24930794537067413,
+                0.22453677654266357,
+                0.31359946727752686,
+                0.2346504032611847,
+                0.22242502868175507,
+                0.2540041506290436,
+                0.2414574921131134
+              ],
+              "maximum": [
+                0.3712051510810852,
+                0.28423357009887695,
+                0.30856168270111084,
+                0.36326220631599426,
+                0.37399038672447205,
+                0.36481261253356934,
+                0.3316114544868469,
+                0.37003248929977417,
+                0.36908626556396484,
+                0.3609366714954376,
+                0.34306275844573975,
+                0.350558876991272
+              ],
+              "mean": [
+                0.3391086459159851,
+                0.2414683848619461,
+                0.2573593854904175,
+                0.3034432828426361,
+                0.3213098347187042,
+                0.3034821152687073,
+                0.2645988166332245,
+                0.34159600734710693,
+                0.3341977000236511,
+                0.2825094163417816,
+                0.2831622064113617,
+                0.3110097050666809
+              ],
+              "std": [
+                0.025151452049613,
+                0.029367735609412193,
+                0.031234588474035263,
+                0.04953974112868309,
+                0.05191197991371155,
+                0.050561703741550446,
+                0.040325481444597244,
+                0.020033687353134155,
+                0.057483259588479996,
+                0.05046849697828293,
+                0.03504425287246704,
+                0.04153234511613846
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "295df072f3a38eac8c81a5dce0aa03d01085ae74e3772947fc11af0a2448e56c"
+        },
+        "collision_model": {
+          "robot_geometries": [
+            {
+              "id": 1,
+              "name": "",
+              "body": "robot/base_link",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": true
+            },
+            {
+              "id": 2,
+              "name": "",
+              "body": "robot/leg_front_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 3,
+              "name": "robot/leg_front_r_2_collision",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 4,
+              "name": "",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 5,
+              "name": "robot/leg_front_r_3_collision",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 6,
+              "name": "",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 7,
+              "name": "",
+              "body": "robot/leg_front_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 8,
+              "name": "robot/leg_front_l_2_collision",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 9,
+              "name": "",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 10,
+              "name": "robot/leg_front_l_3_collision",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 11,
+              "name": "",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 12,
+              "name": "",
+              "body": "robot/leg_back_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 13,
+              "name": "robot/leg_back_r_2_collision",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 14,
+              "name": "",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 15,
+              "name": "robot/leg_back_r_3_collision",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 16,
+              "name": "",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 17,
+              "name": "",
+              "body": "robot/leg_back_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 18,
+              "name": "robot/leg_back_l_2_collision",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 19,
+              "name": "",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 20,
+              "name": "robot/leg_back_l_3_collision",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 21,
+              "name": "",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            }
+          ],
+          "active_robot_geometry_count": 8,
+          "active_torso_geometry_count": 0,
+          "terrain_heightfield_count": 0,
+          "geometry_contract_sha256": "12ea87ef4050ba851f072951398135a489cb2b181aa3feba1d1030a3f3620a12",
+          "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        },
+        "torso_geometry_audit": "torso_geometry_audit.json"
+      },
+      "aggregate": {
+        "scored_states": 22000,
+        "penetrated_scored_states": 0,
+        "penetrated_scored_fraction": 0.0,
+        "minimum_scored_clearance_m": 0.05808032825519639,
+        "minimum_all_clearance_m": 0.05808032825519639,
+        "failures": 0,
+        "timeouts": 0
+      },
+      "geometry_method": {
+        "method": "MuJoCo signed distance from compiled torso geom to plane at recorded root/joint poses, independent of collision masks",
+        "scope": "compiled mesh geometry, not verified hardware body dimensions; diagnostic does not add contact response",
+        "sample_stride": 1,
+        "penetration_tolerance_m": 0.0001,
+        "limitations": [
+          "Samples precede each policy transition; transient penetration between steps or on the final failing transition can be missed.",
+          "Correlated trajectory states are not independent safety trials.",
+          "Heightfield terrain is deliberately unsupported by this distance method."
+        ]
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.11035548569575157,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11291055400509582,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.006139588295016277,
+          "mean_abs_yaw_error_rad_s": 0.024702051694683178,
+          "mean_achieved_vx_m_s": 7.831006223568693e-05,
+          "peak_abs_torque_nm": 1.274303674697876,
+          "mean_contact_slip_m_s": 0.008494537323713303,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 1,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09768796688634467,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.10761057611970351,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.05880822892284479,
+          "mean_abs_yaw_error_rad_s": 0.1034613083023578,
+          "mean_achieved_vx_m_s": 0.26090070605278015,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1641620695590973,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 2,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09659895828836905,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09659895828836905,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.5,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.07216409843734303,
+          "mean_abs_yaw_error_rad_s": 0.13603025222313592,
+          "mean_achieved_vx_m_s": 0.4528197944164276,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.28358593583106995,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 3,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.08735511485848002,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.08735511485848002,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.7,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.08426440556069043,
+          "mean_abs_yaw_error_rad_s": 0.18328521968261338,
+          "mean_achieved_vx_m_s": 0.6616842746734619,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.40222933888435364,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 4,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.0974577200351919,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.1077155880479882,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.059581817642079135,
+          "mean_abs_yaw_error_rad_s": 0.10998212605842855,
+          "mean_achieved_vx_m_s": 0.26050007343292236,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.16572648286819458,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 5,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.10721452689029944,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11314216865742445,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.006517855287875811,
+          "mean_abs_yaw_error_rad_s": 0.025274609786764813,
+          "mean_achieved_vx_m_s": -0.000695333001203835,
+          "peak_abs_torque_nm": 1.1002757549285889,
+          "mean_contact_slip_m_s": 0.008894933387637138,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 6,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.08731615769465265,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09894277671695824,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.062422355480664306,
+          "mean_abs_yaw_error_rad_s": 0.13686109152389692,
+          "mean_achieved_vx_m_s": -0.2613670229911804,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.17410485446453094,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 7,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09896047723435791,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.0991679399386029,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            -0.5,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.08612314782156376,
+          "mean_abs_yaw_error_rad_s": 0.18100503235572252,
+          "mean_achieved_vx_m_s": -0.4355534017086029,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.26956304907798767,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 8,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09494060847187077,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09494060847187077,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            -0.7,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.10580862775424066,
+          "mean_abs_yaw_error_rad_s": 0.2432725770737743,
+          "mean_achieved_vx_m_s": -0.6293106079101562,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.3743076026439667,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 9,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.1001576023618169,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11330573774067144,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.006315484309448065,
+          "mean_abs_yaw_error_rad_s": 0.02625691894375268,
+          "mean_achieved_vx_m_s": 0.0003222822560928762,
+          "peak_abs_torque_nm": 1.3080964088439941,
+          "mean_contact_slip_m_s": 0.008723806589841843,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 10,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.07291788539110602,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.07291788539110602,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.3,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.08258692754762137,
+          "mean_abs_yaw_error_rad_s": 0.17513650541432435,
+          "mean_achieved_vx_m_s": 0.004355012904852629,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2344987690448761,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 11,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.07809042527069344,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.07809042527069344,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.08945199350843132,
+          "mean_abs_yaw_error_rad_s": 0.1890713526903419,
+          "mean_achieved_vx_m_s": 0.034978631883859634,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2589077651500702,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 12,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.05808032825519639,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.05808032825519639,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.5,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.1292592657409914,
+          "mean_abs_yaw_error_rad_s": 0.2547118860410992,
+          "mean_achieved_vx_m_s": 0.01900479942560196,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.31670939922332764,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 13,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.060594536916545594,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.060594536916545594,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            -0.5,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.1541203846902514,
+          "mean_abs_yaw_error_rad_s": 0.2878032441976247,
+          "mean_achieved_vx_m_s": 0.06040544435381889,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.3244602084159851,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 14,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.08575212692879994,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11310858568804631,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.006381836929530061,
+          "mean_abs_yaw_error_rad_s": 0.025155096825274087,
+          "mean_achieved_vx_m_s": -0.0005433671758510172,
+          "peak_abs_torque_nm": 1.1761109828948975,
+          "mean_contact_slip_m_s": 0.008637004531919956,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 15,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.10284153837905682,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.10323435614467073,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "mean_xy_error_m_s": 0.03784516306939224,
+          "mean_abs_yaw_error_rad_s": 0.14805046918988227,
+          "mean_achieved_vx_m_s": -0.0021119671873748302,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.14898468554019928,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 16,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09985496685205225,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09985496685205225,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "mean_xy_error_m_s": 0.03840185372639111,
+          "mean_abs_yaw_error_rad_s": 0.13057526889443397,
+          "mean_achieved_vx_m_s": 0.0012997941812500358,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.15369312465190887,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 17,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.08399442368104254,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.10189020150083812,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            2.0
+          ],
+          "mean_xy_error_m_s": 0.04468052262641887,
+          "mean_abs_yaw_error_rad_s": 0.20791922879219055,
+          "mean_achieved_vx_m_s": 0.0047207544557750225,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.22371651232242584,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 18,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.0987669283446209,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.1020231517098041,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            -2.0
+          ],
+          "mean_xy_error_m_s": 0.04059586473078188,
+          "mean_abs_yaw_error_rad_s": 0.17927486753463745,
+          "mean_achieved_vx_m_s": 0.003023178083822131,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2241540402173996,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 19,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09604895683455725,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.1025016206892505,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.4,
+            0.2,
+            0.6
+          ],
+          "mean_xy_error_m_s": 0.07665656545298617,
+          "mean_abs_yaw_error_rad_s": 0.17211386841759085,
+          "mean_achieved_vx_m_s": 0.3445722162723541,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.254265159368515,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 20,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.07781772163115984,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09854281564502025,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            -0.4,
+            -0.2,
+            -0.6
+          ],
+          "mean_xy_error_m_s": 0.08106920753247042,
+          "mean_abs_yaw_error_rad_s": 0.19201395316328854,
+          "mean_achieved_vx_m_s": -0.3464907705783844,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2774154543876648,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 21,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.10395381218977759,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11298336081646476,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.006498790109294214,
+          "mean_abs_yaw_error_rad_s": 0.026151886515057413,
+          "mean_achieved_vx_m_s": -0.00043702125549316406,
+          "peak_abs_torque_nm": 1.1020596027374268,
+          "mean_contact_slip_m_s": 0.008667058311402798,
+          "failures": 0,
+          "timeouts": 0
+        }
+      ],
+      "files_sha256": {
+        "metrics.json": "b0430dd34fd5f270f5a06d4fc2c16d5dea9ef1d5c16ef4c23a9af1a468c2ce53",
+        "provenance.json": "47f99c4315af73462001cf89accc4933e76fb45e0ec6785e53ffafc98b6d7004",
+        "torso_geometry_audit.json": "0b73a32df647c344148faaaffd9ca598324a09158e08a1bc2fd124e7586e1304",
+        "trace.npz": "d5e399ebd9dc71db4cbbfce57236edab9d6fee1fc2e0c3940d163e0feabb3f34"
+      }
+    },
+    {
+      "directory": "artifacts/optional2/legacy-mixed-baseline/torso-geometry-clamp-s101",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/optional2/legacy-mixed-baseline/model_2999.pt",
+        "out": "artifacts/optional2/legacy-mixed-baseline/torso-geometry-clamp-s101",
+        "seed": 101,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "num_envs": 4,
+        "seconds": 6.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "geometry_audit": true,
+        "geometry_audit_stride": 1,
+        "git_revision": "179b657a45a2c557ee934110c1e7ee09efab76eb",
+        "source_sha256": "0f11a366c3aa5aa1609371e40105af1900b9de8f6123bdf88da4d0044d0638b2",
+        "source_files_hashed": 258,
+        "checkpoint_sha256": "290d57c2b82b3bfb3b001acba85da9fd7f43e5f9f91d6c21155999dc0c6da778",
+        "domain_randomization": {
+          "worlds": 4,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                1.364255428314209,
+                0.18637144565582275,
+                0.16827969253063202,
+                0.04533899575471878,
+                0.16330237686634064,
+                0.17387625575065613,
+                0.05792638286948204,
+                0.18871676921844482,
+                0.17563976347446442,
+                0.04501064866781235,
+                0.17389369010925293,
+                0.18905872106552124,
+                0.0528649240732193
+              ],
+              "maximum": [
+                1.9329814910888672,
+                0.2280191034078598,
+                0.23897990584373474,
+                0.0515500083565712,
+                0.203887939453125,
+                0.21760940551757812,
+                0.060252394527196884,
+                0.2280063033103943,
+                0.21263793110847473,
+                0.05802445858716965,
+                0.1998172253370285,
+                0.23946723341941833,
+                0.06211560219526291
+              ],
+              "mean": [
+                1.615369439125061,
+                0.21232569217681885,
+                0.19280382990837097,
+                0.047398559749126434,
+                0.1827131062746048,
+                0.2012103796005249,
+                0.05912751331925392,
+                0.2033441662788391,
+                0.19449791312217712,
+                0.053249143064022064,
+                0.19094428420066833,
+                0.20312577486038208,
+                0.05853787809610367
+              ],
+              "std": [
+                0.24270512163639069,
+                0.01627781055867672,
+                0.027333173900842667,
+                0.002504009287804365,
+                0.014747877605259418,
+                0.01724391244351864,
+                0.0008254455751739442,
+                0.014907552860677242,
+                0.014294481836259365,
+                0.005023020785301924,
+                0.010177847929298878,
+                0.021040640771389008,
+                0.003434299724176526
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                0.9058800935745239,
+                1.035396933555603,
+                0.9047294855117798,
+                0.9067798852920532,
+                0.9072353839874268,
+                0.9348185658454895,
+                1.1585276126861572,
+                1.0484265089035034,
+                0.9442997574806213,
+                0.9002129435539246,
+                0.9660760164260864,
+                1.0164446830749512,
+                1.0572984218597412
+              ],
+              "maximum": [
+                1.283520221710205,
+                1.266772747039795,
+                1.2848381996154785,
+                1.0310001373291016,
+                1.1327106952667236,
+                1.1699429750442505,
+                1.205047845840454,
+                1.266701579093933,
+                1.1432147026062012,
+                1.1604892015457153,
+                1.1100956201553345,
+                1.2874581813812256,
+                1.2423120737075806
+              ],
+              "mean": [
+                1.072622537612915,
+                1.1795871257781982,
+                1.0365796089172363,
+                0.9479711651802063,
+                1.0150728225708008,
+                1.0817761421203613,
+                1.1825501918792725,
+                1.1296898126602173,
+                1.0456876754760742,
+                1.0649828910827637,
+                1.0608015060424805,
+                1.0920741558074951,
+                1.170757532119751
+              ],
+              "std": [
+                0.1611587554216385,
+                0.09043226391077042,
+                0.1469525545835495,
+                0.05008017271757126,
+                0.08193263411521912,
+                0.09270917624235153,
+                0.016508914530277252,
+                0.08281970024108887,
+                0.07685206830501556,
+                0.10046043246984482,
+                0.05654359236359596,
+                0.11312170326709747,
+                0.06868603080511093
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                4,
+                3
+              ],
+              "minimum": [
+                -3.725290298461914e-09,
+                0.0,
+                -9.313225746154785e-10
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                9.313225746154785e-10
+              ],
+              "mean": [
+                -1.862645149230957e-09,
+                0.0,
+                0.0
+              ],
+              "std": [
+                1.31708899342442e-09,
+                0.0,
+                6.5854449671221e-10
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                -0.005062941461801529,
+                -0.0077650826424360275,
+                -0.009065097197890282,
+                -0.012317068874835968,
+                0.0001951446756720543,
+                -0.010192274115979671,
+                -0.01494730543345213,
+                -0.004118628799915314,
+                -0.012347825802862644,
+                -0.012179005891084671,
+                -0.006602774374186993,
+                -0.007293918635696173
+              ],
+              "maximum": [
+                0.013220296241343021,
+                0.012124561704695225,
+                0.002599990926682949,
+                0.006735526956617832,
+                0.010575984604656696,
+                -0.00868222489953041,
+                0.0056894561275839806,
+                0.013832190074026585,
+                0.010127830319106579,
+                -0.0010586604475975037,
+                0.0130188362672925,
+                0.0037874532863497734
+              ],
+              "mean": [
+                0.008640561252832413,
+                -0.0014394756872206926,
+                -0.001614339416846633,
+                -0.005892705637961626,
+                0.005045260302722454,
+                -0.009400933980941772,
+                -0.005686202086508274,
+                0.005457059480249882,
+                -0.00021011964417994022,
+                -0.007017157040536404,
+                0.0038426192477345467,
+                -0.0019112775335088372
+              ],
+              "std": [
+                0.007911724038422108,
+                0.008030315861105919,
+                0.004771006293594837,
+                0.007458269130438566,
+                0.003762567415833473,
+                0.0005516973906196654,
+                0.008227271027863026,
+                0.007346045225858688,
+                0.008016475476324558,
+                0.0045889755710959435,
+                0.007306577172130346,
+                0.004352685995399952
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                4,
+                4
+              ],
+              "minimum": [
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453
+              ],
+              "maximum": [
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706
+              ],
+              "mean": [
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396
+              ],
+              "std": [
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                4.545194625854492,
+                3.9568307399749756,
+                3.425189256668091,
+                3.545442581176758,
+                3.9005372524261475,
+                3.889484167098999,
+                4.362841606140137,
+                3.918360471725464,
+                3.3605246543884277,
+                4.514185905456543,
+                4.327167987823486,
+                3.8741445541381836
+              ],
+              "maximum": [
+                5.523526191711426,
+                5.323330402374268,
+                5.1395673751831055,
+                5.389951705932617,
+                5.165459156036377,
+                5.943096160888672,
+                5.959719657897949,
+                5.959496021270752,
+                5.481598377227783,
+                5.716821193695068,
+                5.92822265625,
+                5.780951499938965
+              ],
+              "mean": [
+                5.149488925933838,
+                4.713894367218018,
+                4.186610221862793,
+                4.3934102058410645,
+                4.480312347412109,
+                5.068056583404541,
+                4.89509391784668,
+                4.761227607727051,
+                4.167128562927246,
+                5.078567028045654,
+                5.421555995941162,
+                5.229828834533691
+              ],
+              "std": [
+                0.36458534002304077,
+                0.5296885371208191,
+                0.7030323147773743,
+                0.6579168438911438,
+                0.5494896173477173,
+                0.7801645994186401,
+                0.6344815492630005,
+                0.836036205291748,
+                0.8626168370246887,
+                0.44160258769989014,
+                0.6379677653312683,
+                0.7916171550750732
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                0.30367380380630493,
+                0.2061508446931839,
+                0.22401010990142822,
+                0.22638845443725586,
+                0.2652358412742615,
+                0.24930794537067413,
+                0.22453677654266357,
+                0.31359946727752686,
+                0.2346504032611847,
+                0.22242502868175507,
+                0.2540041506290436,
+                0.2414574921131134
+              ],
+              "maximum": [
+                0.3712051510810852,
+                0.28423357009887695,
+                0.30856168270111084,
+                0.36326220631599426,
+                0.37399038672447205,
+                0.36481261253356934,
+                0.3316114544868469,
+                0.37003248929977417,
+                0.36908626556396484,
+                0.3609366714954376,
+                0.34306275844573975,
+                0.350558876991272
+              ],
+              "mean": [
+                0.3391086459159851,
+                0.2414683848619461,
+                0.2573593854904175,
+                0.3034432828426361,
+                0.3213098347187042,
+                0.3034821152687073,
+                0.2645988166332245,
+                0.34159600734710693,
+                0.3341977000236511,
+                0.2825094163417816,
+                0.2831622064113617,
+                0.3110097050666809
+              ],
+              "std": [
+                0.025151452049613,
+                0.029367735609412193,
+                0.031234588474035263,
+                0.04953974112868309,
+                0.05191197991371155,
+                0.050561703741550446,
+                0.040325481444597244,
+                0.020033687353134155,
+                0.057483259588479996,
+                0.05046849697828293,
+                0.03504425287246704,
+                0.04153234511613846
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "295df072f3a38eac8c81a5dce0aa03d01085ae74e3772947fc11af0a2448e56c"
+        },
+        "collision_model": {
+          "robot_geometries": [
+            {
+              "id": 1,
+              "name": "",
+              "body": "robot/base_link",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": true
+            },
+            {
+              "id": 2,
+              "name": "",
+              "body": "robot/leg_front_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 3,
+              "name": "robot/leg_front_r_2_collision",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 4,
+              "name": "",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 5,
+              "name": "robot/leg_front_r_3_collision",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 6,
+              "name": "",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 7,
+              "name": "",
+              "body": "robot/leg_front_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 8,
+              "name": "robot/leg_front_l_2_collision",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 9,
+              "name": "",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 10,
+              "name": "robot/leg_front_l_3_collision",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 11,
+              "name": "",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 12,
+              "name": "",
+              "body": "robot/leg_back_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 13,
+              "name": "robot/leg_back_r_2_collision",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 14,
+              "name": "",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 15,
+              "name": "robot/leg_back_r_3_collision",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 16,
+              "name": "",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 17,
+              "name": "",
+              "body": "robot/leg_back_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 18,
+              "name": "robot/leg_back_l_2_collision",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 19,
+              "name": "",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 20,
+              "name": "robot/leg_back_l_3_collision",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 21,
+              "name": "",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            }
+          ],
+          "active_robot_geometry_count": 8,
+          "active_torso_geometry_count": 0,
+          "terrain_heightfield_count": 0,
+          "geometry_contract_sha256": "12ea87ef4050ba851f072951398135a489cb2b181aa3feba1d1030a3f3620a12",
+          "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        },
+        "torso_geometry_audit": "torso_geometry_audit.json"
+      },
+      "aggregate": {
+        "scored_states": 16000,
+        "penetrated_scored_states": 0,
+        "penetrated_scored_fraction": 0.0,
+        "minimum_scored_clearance_m": 0.07149429108947691,
+        "minimum_all_clearance_m": 0.07149429108947691,
+        "failures": 0,
+        "timeouts": 0
+      },
+      "geometry_method": {
+        "method": "MuJoCo signed distance from compiled torso geom to plane at recorded root/joint poses, independent of collision masks",
+        "scope": "compiled mesh geometry, not verified hardware body dimensions; diagnostic does not add contact response",
+        "sample_stride": 1,
+        "penetration_tolerance_m": 0.0001,
+        "limitations": [
+          "Samples precede each policy transition; transient penetration between steps or on the final failing transition can be missed.",
+          "Correlated trajectory states are not independent safety trials.",
+          "Heightfield terrain is deliberately unsupported by this distance method."
+        ]
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.1080842323224389,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11247345061285387,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.007122435091767144,
+          "mean_abs_yaw_error_rad_s": 0.030094996725631065,
+          "mean_achieved_vx_m_s": 0.0001762271422194317,
+          "peak_abs_torque_nm": 1.1555209159851074,
+          "mean_contact_slip_m_s": 0.00853950995951891,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 1,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.10348835837922368,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.10378386262470925,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0722644455032924,
+          "mean_abs_yaw_error_rad_s": 0.10669402885483578,
+          "mean_achieved_vx_m_s": 0.25682246685028076,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1436455100774765,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 2,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09906054659013237,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09906054659013237,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.49,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.1291704187086932,
+          "mean_abs_yaw_error_rad_s": 0.12809458017977887,
+          "mean_achieved_vx_m_s": 0.3780464828014374,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2217065542936325,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 3,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09366335486951614,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09366335486951614,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.51,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.13727276452451326,
+          "mean_abs_yaw_error_rad_s": 0.13008835441450356,
+          "mean_achieved_vx_m_s": 0.3895418345928192,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.229646235704422,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 4,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09299196917197715,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09299196917197715,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.5674419519437666,
+          "mean_abs_yaw_error_rad_s": 0.14543228581675793,
+          "mean_achieved_vx_m_s": 0.4378637969493866,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2663959562778473,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 5,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09383513953902345,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09605080989058798,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 1.240257034494611,
+          "mean_abs_yaw_error_rad_s": 0.13027443025051616,
+          "mean_achieved_vx_m_s": 0.2623896300792694,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.15639759600162506,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 6,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09633156828633122,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09633156828633122,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.51,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.1432391807033347,
+          "mean_abs_yaw_error_rad_s": 0.1289491725730477,
+          "mean_achieved_vx_m_s": 0.3831855356693268,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.22580979764461517,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 7,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09374877409222215,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09374877409222215,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.49,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.1299391298567601,
+          "mean_abs_yaw_error_rad_s": 0.127664871654124,
+          "mean_achieved_vx_m_s": 0.3788430988788605,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.2211126685142517,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 8,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.10259049610994203,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.1119291228815334,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.007352025383331428,
+          "mean_abs_yaw_error_rad_s": 0.029990254777410883,
+          "mean_achieved_vx_m_s": -0.0006365204462781549,
+          "peak_abs_torque_nm": 1.2371912002563477,
+          "mean_contact_slip_m_s": 0.00837541464716196,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 9,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.08674626338915789,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09942910451806604,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0710188755881666,
+          "mean_abs_yaw_error_rad_s": 0.1362678963219514,
+          "mean_achieved_vx_m_s": -0.2591007947921753,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.14736905694007874,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 10,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.07964555405081844,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.07964555405081844,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 1.314535195062249,
+          "mean_abs_yaw_error_rad_s": 0.14493961954209952,
+          "mean_achieved_vx_m_s": -0.19123458862304688,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1523706614971161,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 11,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.08703213665147098,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.10115418721700749,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "mean_xy_error_m_s": 0.04656932190599535,
+          "mean_abs_yaw_error_rad_s": 0.19227617862820626,
+          "mean_achieved_vx_m_s": -0.009922009892761707,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.124360591173172,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 12,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09797787287073388,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.09812076096161816,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "mean_xy_error_m_s": 0.05132908142855091,
+          "mean_abs_yaw_error_rad_s": 0.14687562018632888,
+          "mean_achieved_vx_m_s": 0.0017890090821310878,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.12941160798072815,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 13,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.07483956879264733,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.07483956879264733,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.3,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.1413033232886725,
+          "mean_abs_yaw_error_rad_s": 0.15398010015534236,
+          "mean_achieved_vx_m_s": 0.026601867750287056,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.205654114484787,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 14,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.07149429108947691,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.07149429108947691,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.12365592585874356,
+          "mean_abs_yaw_error_rad_s": 0.1699641024833545,
+          "mean_achieved_vx_m_s": 0.02589990943670273,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.22031429409980774,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 15,
+          "sampled_states": 1200,
+          "minimum_clearance_m": 0.09921943389537463,
+          "penetrated_sampled_states": 0,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": 0.11252657507921728,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.006908487656277346,
+          "mean_abs_yaw_error_rad_s": 0.03156658273767243,
+          "mean_achieved_vx_m_s": 3.569313048501499e-05,
+          "peak_abs_torque_nm": 1.2399752140045166,
+          "mean_contact_slip_m_s": 0.008488774299621582,
+          "failures": 0,
+          "timeouts": 0
+        }
+      ],
+      "files_sha256": {
+        "metrics.json": "aa3c163eb915ff9da220bf345953734e5a3ca9e035fb5c6d7e1f744aaebb704b",
+        "provenance.json": "aaf6a1ef42f7b03a33ab84043692fbaf032f7c4a2463a04178a86b605a27e1dd",
+        "torso_geometry_audit.json": "c6a4b6a10099fffcea8001070bfdd32fd0b336a350c680d5e3ad46a867ea2218",
+        "trace.npz": "52739861d5adcb54d5aa04443748032f20e916dde6801b41f6ee1b5eaa1290f5"
+      }
+    },
+    {
+      "directory": "artifacts/lab6/spider_walk/torso-geometry-clamp-s101",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-SpiderWalk-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/lab6/spider_walk/model_3999.pt",
+        "out": "artifacts/lab6/spider_walk/torso-geometry-clamp-s101",
+        "seed": 101,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "num_envs": 4,
+        "seconds": 6.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.05,
+            0.0,
+            0.0
+          ],
+          [
+            0.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.15,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.05,
+            0.0
+          ],
+          [
+            0.0,
+            0.1,
+            0.0
+          ],
+          [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.3
+          ],
+          [
+            0.0,
+            0.0,
+            0.6
+          ],
+          [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          [
+            0.05,
+            0.03,
+            0.2
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "geometry_audit": true,
+        "geometry_audit_stride": 1,
+        "git_revision": "beaf8f8824e7faef6729efc230a6635a921b1722",
+        "source_sha256": "0f11a366c3aa5aa1609371e40105af1900b9de8f6123bdf88da4d0044d0638b2",
+        "source_files_hashed": 258,
+        "checkpoint_sha256": "ddd69001c7a56c4467b2e57ce859d8e33d81f7c651f3fa2f93c5675c9bd33bbc",
+        "domain_randomization": {
+          "worlds": 4,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                1.364255428314209,
+                0.18637144565582275,
+                0.16827969253063202,
+                0.04533899575471878,
+                0.16330237686634064,
+                0.17387625575065613,
+                0.05792638286948204,
+                0.18871676921844482,
+                0.17563976347446442,
+                0.04501064866781235,
+                0.17389369010925293,
+                0.18905872106552124,
+                0.0528649240732193
+              ],
+              "maximum": [
+                1.9329814910888672,
+                0.2280191034078598,
+                0.23897990584373474,
+                0.0515500083565712,
+                0.203887939453125,
+                0.21760940551757812,
+                0.060252394527196884,
+                0.2280063033103943,
+                0.21263793110847473,
+                0.05802445858716965,
+                0.1998172253370285,
+                0.23946723341941833,
+                0.06211560219526291
+              ],
+              "mean": [
+                1.615369439125061,
+                0.21232569217681885,
+                0.19280382990837097,
+                0.047398559749126434,
+                0.1827131062746048,
+                0.2012103796005249,
+                0.05912751331925392,
+                0.2033441662788391,
+                0.19449791312217712,
+                0.053249143064022064,
+                0.19094428420066833,
+                0.20312577486038208,
+                0.05853787809610367
+              ],
+              "std": [
+                0.24270512163639069,
+                0.01627781055867672,
+                0.027333173900842667,
+                0.002504009287804365,
+                0.014747877605259418,
+                0.01724391244351864,
+                0.0008254455751739442,
+                0.014907552860677242,
+                0.014294481836259365,
+                0.005023020785301924,
+                0.010177847929298878,
+                0.021040640771389008,
+                0.003434299724176526
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                0.9058800935745239,
+                1.035396933555603,
+                0.9047294855117798,
+                0.9067798852920532,
+                0.9072353839874268,
+                0.9348185658454895,
+                1.1585276126861572,
+                1.0484265089035034,
+                0.9442997574806213,
+                0.9002129435539246,
+                0.9660760164260864,
+                1.0164446830749512,
+                1.0572984218597412
+              ],
+              "maximum": [
+                1.283520221710205,
+                1.266772747039795,
+                1.2848381996154785,
+                1.0310001373291016,
+                1.1327106952667236,
+                1.1699429750442505,
+                1.205047845840454,
+                1.266701579093933,
+                1.1432147026062012,
+                1.1604892015457153,
+                1.1100956201553345,
+                1.2874581813812256,
+                1.2423120737075806
+              ],
+              "mean": [
+                1.072622537612915,
+                1.1795871257781982,
+                1.0365796089172363,
+                0.9479711651802063,
+                1.0150728225708008,
+                1.0817761421203613,
+                1.1825501918792725,
+                1.1296898126602173,
+                1.0456876754760742,
+                1.0649828910827637,
+                1.0608015060424805,
+                1.0920741558074951,
+                1.170757532119751
+              ],
+              "std": [
+                0.1611587554216385,
+                0.09043226391077042,
+                0.1469525545835495,
+                0.05008017271757126,
+                0.08193263411521912,
+                0.09270917624235153,
+                0.016508914530277252,
+                0.08281970024108887,
+                0.07685206830501556,
+                0.10046043246984482,
+                0.05654359236359596,
+                0.11312170326709747,
+                0.06868603080511093
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                4,
+                3
+              ],
+              "minimum": [
+                -3.725290298461914e-09,
+                0.0,
+                -9.313225746154785e-10
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                9.313225746154785e-10
+              ],
+              "mean": [
+                -1.862645149230957e-09,
+                0.0,
+                0.0
+              ],
+              "std": [
+                1.31708899342442e-09,
+                0.0,
+                6.5854449671221e-10
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                -0.005062941461801529,
+                -0.0077650826424360275,
+                -0.009065097197890282,
+                -0.012317068874835968,
+                0.0001951446756720543,
+                -0.010192274115979671,
+                -0.01494730543345213,
+                -0.004118628799915314,
+                -0.012347825802862644,
+                -0.012179005891084671,
+                -0.006602774374186993,
+                -0.007293918635696173
+              ],
+              "maximum": [
+                0.013220296241343021,
+                0.012124561704695225,
+                0.002599990926682949,
+                0.006735526956617832,
+                0.010575984604656696,
+                -0.00868222489953041,
+                0.0056894561275839806,
+                0.013832190074026585,
+                0.010127830319106579,
+                -0.0010586604475975037,
+                0.0130188362672925,
+                0.0037874532863497734
+              ],
+              "mean": [
+                0.008640561252832413,
+                -0.0014394756872206926,
+                -0.001614339416846633,
+                -0.005892705637961626,
+                0.005045260302722454,
+                -0.009400933980941772,
+                -0.005686202086508274,
+                0.005457059480249882,
+                -0.00021011964417994022,
+                -0.007017157040536404,
+                0.0038426192477345467,
+                -0.0019112775335088372
+              ],
+              "std": [
+                0.007911724038422108,
+                0.008030315861105919,
+                0.004771006293594837,
+                0.007458269130438566,
+                0.003762567415833473,
+                0.0005516973906196654,
+                0.008227271027863026,
+                0.007346045225858688,
+                0.008016475476324558,
+                0.0045889755710959435,
+                0.007306577172130346,
+                0.004352685995399952
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                4,
+                4
+              ],
+              "minimum": [
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453
+              ],
+              "maximum": [
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706
+              ],
+              "mean": [
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396
+              ],
+              "std": [
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                4.545194625854492,
+                3.9568307399749756,
+                3.425189256668091,
+                3.545442581176758,
+                3.9005372524261475,
+                3.889484167098999,
+                4.362841606140137,
+                3.918360471725464,
+                3.3605246543884277,
+                4.514185905456543,
+                4.327167987823486,
+                3.8741445541381836
+              ],
+              "maximum": [
+                5.523526191711426,
+                5.323330402374268,
+                5.1395673751831055,
+                5.389951705932617,
+                5.165459156036377,
+                5.943096160888672,
+                5.959719657897949,
+                5.959496021270752,
+                5.481598377227783,
+                5.716821193695068,
+                5.92822265625,
+                5.780951499938965
+              ],
+              "mean": [
+                5.149488925933838,
+                4.713894367218018,
+                4.186610221862793,
+                4.3934102058410645,
+                4.480312347412109,
+                5.068056583404541,
+                4.89509391784668,
+                4.761227607727051,
+                4.167128562927246,
+                5.078567028045654,
+                5.421555995941162,
+                5.229828834533691
+              ],
+              "std": [
+                0.36458534002304077,
+                0.5296885371208191,
+                0.7030323147773743,
+                0.6579168438911438,
+                0.5494896173477173,
+                0.7801645994186401,
+                0.6344815492630005,
+                0.836036205291748,
+                0.8626168370246887,
+                0.44160258769989014,
+                0.6379677653312683,
+                0.7916171550750732
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                0.30367380380630493,
+                0.2061508446931839,
+                0.22401010990142822,
+                0.22638845443725586,
+                0.2652358412742615,
+                0.24930794537067413,
+                0.22453677654266357,
+                0.31359946727752686,
+                0.2346504032611847,
+                0.22242502868175507,
+                0.2540041506290436,
+                0.2414574921131134
+              ],
+              "maximum": [
+                0.3712051510810852,
+                0.28423357009887695,
+                0.30856168270111084,
+                0.36326220631599426,
+                0.37399038672447205,
+                0.36481261253356934,
+                0.3316114544868469,
+                0.37003248929977417,
+                0.36908626556396484,
+                0.3609366714954376,
+                0.34306275844573975,
+                0.350558876991272
+              ],
+              "mean": [
+                0.3391086459159851,
+                0.2414683848619461,
+                0.2573593854904175,
+                0.3034432828426361,
+                0.3213098347187042,
+                0.3034821152687073,
+                0.2645988166332245,
+                0.34159600734710693,
+                0.3341977000236511,
+                0.2825094163417816,
+                0.2831622064113617,
+                0.3110097050666809
+              ],
+              "std": [
+                0.025151452049613,
+                0.029367735609412193,
+                0.031234588474035263,
+                0.04953974112868309,
+                0.05191197991371155,
+                0.050561703741550446,
+                0.040325481444597244,
+                0.020033687353134155,
+                0.057483259588479996,
+                0.05046849697828293,
+                0.03504425287246704,
+                0.04153234511613846
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "295df072f3a38eac8c81a5dce0aa03d01085ae74e3772947fc11af0a2448e56c"
+        },
+        "collision_model": {
+          "robot_geometries": [
+            {
+              "id": 1,
+              "name": "",
+              "body": "robot/base_link",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": true
+            },
+            {
+              "id": 2,
+              "name": "",
+              "body": "robot/leg_front_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 3,
+              "name": "robot/leg_front_r_2_collision",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 4,
+              "name": "",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 5,
+              "name": "robot/leg_front_r_3_collision",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 6,
+              "name": "",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 7,
+              "name": "",
+              "body": "robot/leg_front_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 8,
+              "name": "robot/leg_front_l_2_collision",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 9,
+              "name": "",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 10,
+              "name": "robot/leg_front_l_3_collision",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 11,
+              "name": "",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 12,
+              "name": "",
+              "body": "robot/leg_back_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 13,
+              "name": "robot/leg_back_r_2_collision",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 14,
+              "name": "",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 15,
+              "name": "robot/leg_back_r_3_collision",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 16,
+              "name": "",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 17,
+              "name": "",
+              "body": "robot/leg_back_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 18,
+              "name": "robot/leg_back_l_2_collision",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 19,
+              "name": "",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 20,
+              "name": "robot/leg_back_l_3_collision",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 21,
+              "name": "",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            }
+          ],
+          "active_robot_geometry_count": 8,
+          "active_torso_geometry_count": 0,
+          "terrain_heightfield_count": 0,
+          "geometry_contract_sha256": "12ea87ef4050ba851f072951398135a489cb2b181aa3feba1d1030a3f3620a12",
+          "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        },
+        "torso_geometry_audit": "torso_geometry_audit.json"
+      },
+      "aggregate": {
+        "scored_states": 18000,
+        "penetrated_scored_states": 13629,
+        "penetrated_scored_fraction": 0.7571666666666667,
+        "minimum_scored_clearance_m": -0.03273126856704758,
+        "minimum_all_clearance_m": -0.03273126856704758,
+        "failures": 0,
+        "timeouts": 0
+      },
+      "geometry_method": {
+        "method": "MuJoCo signed distance from compiled torso geom to plane at recorded root/joint poses, independent of collision masks",
+        "scope": "compiled mesh geometry, not verified hardware body dimensions; diagnostic does not add contact response",
+        "sample_stride": 1,
+        "penetration_tolerance_m": 0.0001,
+        "limitations": [
+          "Samples precede each policy transition; transient penetration between steps or on the final failing transition can be missed.",
+          "Correlated trajectory states are not independent safety trials.",
+          "Heightfield terrain is deliberately unsupported by this distance method."
+        ]
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.013553778147492514,
+          "penetrated_sampled_states": 1175,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.005116633792133549,
+          "penetrated_valid_sampled_states": 1000,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0013504501963754801,
+          "mean_abs_yaw_error_rad_s": 0.006104816974871937,
+          "mean_achieved_vx_m_s": 0.00014248570369090885,
+          "peak_abs_torque_nm": 1.0588088035583496,
+          "mean_contact_slip_m_s": 0.002628246322274208,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 1,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.00830092782442425,
+          "penetrated_sampled_states": 768,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.007894082710322659,
+          "penetrated_valid_sampled_states": 625,
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.061455723379060176,
+          "mean_abs_yaw_error_rad_s": 0.12749281655071537,
+          "mean_achieved_vx_m_s": 0.007380054332315922,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.08864481002092361,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 2,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.019079692532812165,
+          "penetrated_sampled_states": 758,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.014579227027206466,
+          "penetrated_valid_sampled_states": 617,
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.09154859691851791,
+          "mean_abs_yaw_error_rad_s": 0.20528855103388197,
+          "mean_achieved_vx_m_s": 0.03786657005548477,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11420001834630966,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 3,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.017333900124788484,
+          "penetrated_sampled_states": 723,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.017333900124788484,
+          "penetrated_valid_sampled_states": 605,
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.10528967008792305,
+          "mean_abs_yaw_error_rad_s": 0.2125291029002983,
+          "mean_achieved_vx_m_s": 0.07742424309253693,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.12945391237735748,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 4,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.01304046982232681,
+          "penetrated_sampled_states": 1188,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.005021186467642658,
+          "penetrated_valid_sampled_states": 1000,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0013554381865264343,
+          "mean_abs_yaw_error_rad_s": 0.006150552534105373,
+          "mean_achieved_vx_m_s": 0.00010666309390217066,
+          "peak_abs_torque_nm": 1.0349597930908203,
+          "mean_contact_slip_m_s": 0.002629984403029084,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 5,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.008387629430722125,
+          "penetrated_sampled_states": 811,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.008387629430722125,
+          "penetrated_valid_sampled_states": 679,
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.04243270454887088,
+          "mean_abs_yaw_error_rad_s": 0.13548172067321138,
+          "mean_achieved_vx_m_s": -0.03313194215297699,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.09144214540719986,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 6,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.014290792404191788,
+          "penetrated_sampled_states": 916,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.014290792404191788,
+          "penetrated_valid_sampled_states": 762,
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.06200192377709196,
+          "mean_abs_yaw_error_rad_s": 0.21673129807587246,
+          "mean_achieved_vx_m_s": -0.07150106877088547,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11700188368558884,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 7,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.01626478129786941,
+          "penetrated_sampled_states": 978,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.01626478129786941,
+          "penetrated_valid_sampled_states": 806,
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.07179271261336055,
+          "mean_abs_yaw_error_rad_s": 0.22059877882280854,
+          "mean_achieved_vx_m_s": -0.09807255864143372,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1278904378414154,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 8,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.008288531682996113,
+          "penetrated_sampled_states": 894,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.008288531682996113,
+          "penetrated_valid_sampled_states": 739,
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.05449927733852638,
+          "mean_abs_yaw_error_rad_s": 0.14248716913315002,
+          "mean_achieved_vx_m_s": -0.013624763116240501,
+          "peak_abs_torque_nm": 2.729694366455078,
+          "mean_contact_slip_m_s": 0.09162919968366623,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 9,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.016611810519372175,
+          "penetrated_sampled_states": 923,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.01579321574391107,
+          "penetrated_valid_sampled_states": 774,
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.094450744891798,
+          "mean_abs_yaw_error_rad_s": 0.22517882219143212,
+          "mean_achieved_vx_m_s": -0.02656167931854725,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11936226487159729,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 10,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.008661558734762237,
+          "penetrated_sampled_states": 825,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.007102945841693568,
+          "penetrated_valid_sampled_states": 688,
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.05644482313923443,
+          "mean_abs_yaw_error_rad_s": 0.1344754771394073,
+          "mean_achieved_vx_m_s": -0.01297188550233841,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.08780814707279205,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 11,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.03273126856704758,
+          "penetrated_sampled_states": 974,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.03273126856704758,
+          "penetrated_valid_sampled_states": 820,
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.10548202239438316,
+          "mean_abs_yaw_error_rad_s": 0.2781208603847772,
+          "mean_achieved_vx_m_s": -0.026886064559221268,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.13518698513507843,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 12,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.020076355822950115,
+          "penetrated_sampled_states": 824,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.018469319724964767,
+          "penetrated_valid_sampled_states": 665,
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_xy_error_m_s": 0.06605335813627214,
+          "mean_abs_yaw_error_rad_s": 0.21924197622975333,
+          "mean_achieved_vx_m_s": -0.020205894485116005,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11463688313961029,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 13,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.020700301080785327,
+          "penetrated_sampled_states": 874,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.020700301080785327,
+          "penetrated_valid_sampled_states": 720,
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_xy_error_m_s": 0.0703472787967032,
+          "mean_abs_yaw_error_rad_s": 0.26766421465650203,
+          "mean_achieved_vx_m_s": -0.015486191026866436,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.13692595064640045,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 14,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.026859485949281198,
+          "penetrated_sampled_states": 891,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.018716690930626598,
+          "penetrated_valid_sampled_states": 725,
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_xy_error_m_s": 0.06593409594176544,
+          "mean_abs_yaw_error_rad_s": 0.25280053229844196,
+          "mean_achieved_vx_m_s": -0.019719192758202553,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11761388182640076,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 15,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.023697838709887932,
+          "penetrated_sampled_states": 870,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0232072571369758,
+          "penetrated_valid_sampled_states": 728,
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_xy_error_m_s": 0.07318759538975901,
+          "mean_abs_yaw_error_rad_s": 0.32769525857623666,
+          "mean_achieved_vx_m_s": -0.01531856320798397,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.14510704576969147,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 16,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.01409954636048169,
+          "penetrated_sampled_states": 814,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.01409954636048169,
+          "penetrated_valid_sampled_states": 676,
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_xy_error_m_s": 0.08111621679215834,
+          "mean_abs_yaw_error_rad_s": 0.22375754046712537,
+          "mean_achieved_vx_m_s": 0.004875278100371361,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1068471223115921,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 17,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.012333923530160662,
+          "penetrated_sampled_states": 1198,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.005028577149378058,
+          "penetrated_valid_sampled_states": 1000,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0013531828040456886,
+          "mean_abs_yaw_error_rad_s": 0.005575395656531327,
+          "mean_achieved_vx_m_s": 7.875409937696531e-05,
+          "peak_abs_torque_nm": 1.0505261421203613,
+          "mean_contact_slip_m_s": 0.0025205062702298164,
+          "failures": 0,
+          "timeouts": 0
+        }
+      ],
+      "files_sha256": {
+        "metrics.json": "bc325d471b5bf371c8408e61d5046752ad1113c001742b2cc8c3dba5208c1f65",
+        "provenance.json": "de11aec4a586dbe4a2cba9b86bce8c89bd32910535f88f6044b4cc645385a479",
+        "torso_geometry_audit.json": "ce0708b965648087c9360e9980ef885f325fb6175e01b0efb54b589332ad3ff5",
+        "trace.npz": "fc6cde0b247d8feba9e106a1962c4bcbfc91458f0f3b1d96178ea176bce4f3b7"
+      }
+    },
+    {
+      "directory": "artifacts/lab6/spider_walk/torso-contact-clamp-s101",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-SpiderWalk-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/lab6/spider_walk/model_3999.pt",
+        "out": "artifacts/lab6/spider_walk/torso-contact-clamp-s101",
+        "seed": 101,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "locomotion_torso_contact": true,
+        "num_envs": 4,
+        "seconds": 6.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.05,
+            0.0,
+            0.0
+          ],
+          [
+            0.1,
+            0.0,
+            0.0
+          ],
+          [
+            0.15,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.05,
+            0.0
+          ],
+          [
+            0.0,
+            0.1,
+            0.0
+          ],
+          [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.3
+          ],
+          [
+            0.0,
+            0.0,
+            0.6
+          ],
+          [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          [
+            0.05,
+            0.03,
+            0.2
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "geometry_audit": true,
+        "geometry_audit_stride": 1,
+        "locomotion_contact_contract": {
+          "contract": "locomotion_torso_contact_v1",
+          "hull_count": 1,
+          "hull_body": "base_link",
+          "maximum_hull_vertices": 32,
+          "contype": 0,
+          "conaffinity": 1,
+          "density": 0,
+          "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+        },
+        "git_revision": "179b657a45a2c557ee934110c1e7ee09efab76eb",
+        "source_sha256": "0da088918ceec1ebfa202e23949349d70642f946c819afed83efa118cc7910b6",
+        "source_files_hashed": 259,
+        "checkpoint_sha256": "ddd69001c7a56c4467b2e57ce859d8e33d81f7c651f3fa2f93c5675c9bd33bbc",
+        "domain_randomization": {
+          "worlds": 4,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                1.364255428314209,
+                0.18637144565582275,
+                0.16827969253063202,
+                0.04533899575471878,
+                0.16330237686634064,
+                0.17387625575065613,
+                0.05792638286948204,
+                0.18871676921844482,
+                0.17563976347446442,
+                0.04501064866781235,
+                0.17389369010925293,
+                0.18905872106552124,
+                0.0528649240732193
+              ],
+              "maximum": [
+                1.9329814910888672,
+                0.2280191034078598,
+                0.23897990584373474,
+                0.0515500083565712,
+                0.203887939453125,
+                0.21760940551757812,
+                0.060252394527196884,
+                0.2280063033103943,
+                0.21263793110847473,
+                0.05802445858716965,
+                0.1998172253370285,
+                0.23946723341941833,
+                0.06211560219526291
+              ],
+              "mean": [
+                1.615369439125061,
+                0.21232569217681885,
+                0.19280382990837097,
+                0.047398559749126434,
+                0.1827131062746048,
+                0.2012103796005249,
+                0.05912751331925392,
+                0.2033441662788391,
+                0.19449791312217712,
+                0.053249143064022064,
+                0.19094428420066833,
+                0.20312577486038208,
+                0.05853787809610367
+              ],
+              "std": [
+                0.24270512163639069,
+                0.01627781055867672,
+                0.027333173900842667,
+                0.002504009287804365,
+                0.014747877605259418,
+                0.01724391244351864,
+                0.0008254455751739442,
+                0.014907552860677242,
+                0.014294481836259365,
+                0.005023020785301924,
+                0.010177847929298878,
+                0.021040640771389008,
+                0.003434299724176526
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                0.9058800935745239,
+                1.035396933555603,
+                0.9047294855117798,
+                0.9067798852920532,
+                0.9072353839874268,
+                0.9348185658454895,
+                1.1585276126861572,
+                1.0484265089035034,
+                0.9442997574806213,
+                0.9002129435539246,
+                0.9660760164260864,
+                1.0164446830749512,
+                1.0572984218597412
+              ],
+              "maximum": [
+                1.283520221710205,
+                1.266772747039795,
+                1.2848381996154785,
+                1.0310001373291016,
+                1.1327106952667236,
+                1.1699429750442505,
+                1.205047845840454,
+                1.266701579093933,
+                1.1432147026062012,
+                1.1604892015457153,
+                1.1100956201553345,
+                1.2874581813812256,
+                1.2423120737075806
+              ],
+              "mean": [
+                1.072622537612915,
+                1.1795871257781982,
+                1.0365796089172363,
+                0.9479711651802063,
+                1.0150728225708008,
+                1.0817761421203613,
+                1.1825501918792725,
+                1.1296898126602173,
+                1.0456876754760742,
+                1.0649828910827637,
+                1.0608015060424805,
+                1.0920741558074951,
+                1.170757532119751
+              ],
+              "std": [
+                0.1611587554216385,
+                0.09043226391077042,
+                0.1469525545835495,
+                0.05008017271757126,
+                0.08193263411521912,
+                0.09270917624235153,
+                0.016508914530277252,
+                0.08281970024108887,
+                0.07685206830501556,
+                0.10046043246984482,
+                0.05654359236359596,
+                0.11312170326709747,
+                0.06868603080511093
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                4,
+                3
+              ],
+              "minimum": [
+                -3.725290298461914e-09,
+                0.0,
+                -9.313225746154785e-10
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                9.313225746154785e-10
+              ],
+              "mean": [
+                -1.862645149230957e-09,
+                0.0,
+                0.0
+              ],
+              "std": [
+                1.31708899342442e-09,
+                0.0,
+                6.5854449671221e-10
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                -0.005062941461801529,
+                -0.0077650826424360275,
+                -0.009065097197890282,
+                -0.012317068874835968,
+                0.0001951446756720543,
+                -0.010192274115979671,
+                -0.01494730543345213,
+                -0.004118628799915314,
+                -0.012347825802862644,
+                -0.012179005891084671,
+                -0.006602774374186993,
+                -0.007293918635696173
+              ],
+              "maximum": [
+                0.013220296241343021,
+                0.012124561704695225,
+                0.002599990926682949,
+                0.006735526956617832,
+                0.010575984604656696,
+                -0.00868222489953041,
+                0.0056894561275839806,
+                0.013832190074026585,
+                0.010127830319106579,
+                -0.0010586604475975037,
+                0.0130188362672925,
+                0.0037874532863497734
+              ],
+              "mean": [
+                0.008640561252832413,
+                -0.0014394756872206926,
+                -0.001614339416846633,
+                -0.005892705637961626,
+                0.005045260302722454,
+                -0.009400933980941772,
+                -0.005686202086508274,
+                0.005457059480249882,
+                -0.00021011964417994022,
+                -0.007017157040536404,
+                0.0038426192477345467,
+                -0.0019112775335088372
+              ],
+              "std": [
+                0.007911724038422108,
+                0.008030315861105919,
+                0.004771006293594837,
+                0.007458269130438566,
+                0.003762567415833473,
+                0.0005516973906196654,
+                0.008227271027863026,
+                0.007346045225858688,
+                0.008016475476324558,
+                0.0045889755710959435,
+                0.007306577172130346,
+                0.004352685995399952
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                4,
+                4
+              ],
+              "minimum": [
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453
+              ],
+              "maximum": [
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706
+              ],
+              "mean": [
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396
+              ],
+              "std": [
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                4.545194625854492,
+                3.9568307399749756,
+                3.425189256668091,
+                3.545442581176758,
+                3.9005372524261475,
+                3.889484167098999,
+                4.362841606140137,
+                3.918360471725464,
+                3.3605246543884277,
+                4.514185905456543,
+                4.327167987823486,
+                3.8741445541381836
+              ],
+              "maximum": [
+                5.523526191711426,
+                5.323330402374268,
+                5.1395673751831055,
+                5.389951705932617,
+                5.165459156036377,
+                5.943096160888672,
+                5.959719657897949,
+                5.959496021270752,
+                5.481598377227783,
+                5.716821193695068,
+                5.92822265625,
+                5.780951499938965
+              ],
+              "mean": [
+                5.149488925933838,
+                4.713894367218018,
+                4.186610221862793,
+                4.3934102058410645,
+                4.480312347412109,
+                5.068056583404541,
+                4.89509391784668,
+                4.761227607727051,
+                4.167128562927246,
+                5.078567028045654,
+                5.421555995941162,
+                5.229828834533691
+              ],
+              "std": [
+                0.36458534002304077,
+                0.5296885371208191,
+                0.7030323147773743,
+                0.6579168438911438,
+                0.5494896173477173,
+                0.7801645994186401,
+                0.6344815492630005,
+                0.836036205291748,
+                0.8626168370246887,
+                0.44160258769989014,
+                0.6379677653312683,
+                0.7916171550750732
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                0.30367380380630493,
+                0.2061508446931839,
+                0.22401010990142822,
+                0.22638845443725586,
+                0.2652358412742615,
+                0.24930794537067413,
+                0.22453677654266357,
+                0.31359946727752686,
+                0.2346504032611847,
+                0.22242502868175507,
+                0.2540041506290436,
+                0.2414574921131134
+              ],
+              "maximum": [
+                0.3712051510810852,
+                0.28423357009887695,
+                0.30856168270111084,
+                0.36326220631599426,
+                0.37399038672447205,
+                0.36481261253356934,
+                0.3316114544868469,
+                0.37003248929977417,
+                0.36908626556396484,
+                0.3609366714954376,
+                0.34306275844573975,
+                0.350558876991272
+              ],
+              "mean": [
+                0.3391086459159851,
+                0.2414683848619461,
+                0.2573593854904175,
+                0.3034432828426361,
+                0.3213098347187042,
+                0.3034821152687073,
+                0.2645988166332245,
+                0.34159600734710693,
+                0.3341977000236511,
+                0.2825094163417816,
+                0.2831622064113617,
+                0.3110097050666809
+              ],
+              "std": [
+                0.025151452049613,
+                0.029367735609412193,
+                0.031234588474035263,
+                0.04953974112868309,
+                0.05191197991371155,
+                0.050561703741550446,
+                0.040325481444597244,
+                0.020033687353134155,
+                0.057483259588479996,
+                0.05046849697828293,
+                0.03504425287246704,
+                0.04153234511613846
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "295df072f3a38eac8c81a5dce0aa03d01085ae74e3772947fc11af0a2448e56c"
+        },
+        "collision_model": {
+          "robot_geometries": [
+            {
+              "id": 1,
+              "name": "",
+              "body": "robot/base_link",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": true
+            },
+            {
+              "id": 2,
+              "name": "robot/base_link_hull",
+              "body": "robot/base_link",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 1,
+              "torso": true
+            },
+            {
+              "id": 3,
+              "name": "",
+              "body": "robot/leg_front_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 4,
+              "name": "robot/leg_front_r_2_collision",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 5,
+              "name": "",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 6,
+              "name": "robot/leg_front_r_3_collision",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 7,
+              "name": "",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 8,
+              "name": "",
+              "body": "robot/leg_front_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 9,
+              "name": "robot/leg_front_l_2_collision",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 10,
+              "name": "",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 11,
+              "name": "robot/leg_front_l_3_collision",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 12,
+              "name": "",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 13,
+              "name": "",
+              "body": "robot/leg_back_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 14,
+              "name": "robot/leg_back_r_2_collision",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 15,
+              "name": "",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 16,
+              "name": "robot/leg_back_r_3_collision",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 17,
+              "name": "",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 18,
+              "name": "",
+              "body": "robot/leg_back_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 19,
+              "name": "robot/leg_back_l_2_collision",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 20,
+              "name": "",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 21,
+              "name": "robot/leg_back_l_3_collision",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 22,
+              "name": "",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            }
+          ],
+          "active_robot_geometry_count": 9,
+          "active_torso_geometry_count": 1,
+          "terrain_heightfield_count": 0,
+          "geometry_contract_sha256": "53573505887fe135e48ee3cb32d6010bcc927ccc6a871d1c2f132f3630eaea45",
+          "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        },
+        "torso_geometry_audit": "torso_geometry_audit.json"
+      },
+      "aggregate": {
+        "scored_states": 18000,
+        "penetrated_scored_states": 4184,
+        "penetrated_scored_fraction": 0.23244444444444445,
+        "minimum_scored_clearance_m": -0.0019281008989974827,
+        "minimum_all_clearance_m": -0.007427998282480294,
+        "failures": 0,
+        "timeouts": 0
+      },
+      "geometry_method": {
+        "method": "MuJoCo signed distance from compiled torso geom to plane at recorded root/joint poses, independent of collision masks",
+        "scope": "compiled mesh geometry, not verified hardware body dimensions; diagnostic does not add contact response",
+        "sample_stride": 1,
+        "penetration_tolerance_m": 0.0001,
+        "limitations": [
+          "Samples precede each policy transition; transient penetration between steps or on the final failing transition can be missed.",
+          "Correlated trajectory states are not independent safety trials.",
+          "Heightfield terrain is deliberately unsupported by this distance method."
+        ]
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.007427998282480294,
+          "penetrated_sampled_states": 22,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -4.930321812076505e-05,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0004993266466377311,
+          "mean_abs_yaw_error_rad_s": 0.0030029728761815024,
+          "mean_achieved_vx_m_s": 2.6483990950509906e-05,
+          "peak_abs_torque_nm": 1.1394267082214355,
+          "mean_contact_slip_m_s": 0.0025963173247873783,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 1,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0008774577354145816,
+          "penetrated_sampled_states": 204,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0008774577354145816,
+          "penetrated_valid_sampled_states": 174,
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.05304980549751377,
+          "mean_abs_yaw_error_rad_s": 0.09707208984144382,
+          "mean_achieved_vx_m_s": 0.0065942746587097645,
+          "peak_abs_torque_nm": 2.4267449378967285,
+          "mean_contact_slip_m_s": 0.08845650404691696,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 2,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0014219767050634852,
+          "penetrated_sampled_states": 276,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0014219767050634852,
+          "penetrated_valid_sampled_states": 235,
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.08511202374138846,
+          "mean_abs_yaw_error_rad_s": 0.15837036127573811,
+          "mean_achieved_vx_m_s": 0.02940448373556137,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.10778847336769104,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 3,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.001315641783546491,
+          "penetrated_sampled_states": 237,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.001315641783546491,
+          "penetrated_valid_sampled_states": 193,
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.10600266710133002,
+          "mean_abs_yaw_error_rad_s": 0.165709933151491,
+          "mean_achieved_vx_m_s": 0.06077420711517334,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1195211112499237,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 4,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0006929688519898836,
+          "penetrated_sampled_states": 15,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -8.417697118878742e-05,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.0005048961483283429,
+          "mean_abs_yaw_error_rad_s": 0.0030034447475698017,
+          "mean_achieved_vx_m_s": 1.5292021998902783e-05,
+          "peak_abs_torque_nm": 1.1393332481384277,
+          "mean_contact_slip_m_s": 0.0026091965846717358,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 5,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0008338864120194175,
+          "penetrated_sampled_states": 215,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0008338864120194175,
+          "penetrated_valid_sampled_states": 180,
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.04375241253092284,
+          "mean_abs_yaw_error_rad_s": 0.0998146256096934,
+          "mean_achieved_vx_m_s": -0.01726073957979679,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.0912550538778305,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 6,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0009106550862474153,
+          "penetrated_sampled_states": 307,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0009106550862474153,
+          "penetrated_valid_sampled_states": 257,
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.06918146736065532,
+          "mean_abs_yaw_error_rad_s": 0.1420420319576806,
+          "mean_achieved_vx_m_s": -0.044701386243104935,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11346998065710068,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 7,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0008003385276742978,
+          "penetrated_sampled_states": 349,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.000767573990739151,
+          "penetrated_valid_sampled_states": 291,
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.09805280479562527,
+          "mean_abs_yaw_error_rad_s": 0.14595061927402275,
+          "mean_achieved_vx_m_s": -0.05885991081595421,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.12401033192873001,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 8,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0006641217598850127,
+          "penetrated_sampled_states": 319,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0006641217598850127,
+          "penetrated_valid_sampled_states": 266,
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.05065694345921522,
+          "mean_abs_yaw_error_rad_s": 0.09865096656719834,
+          "mean_achieved_vx_m_s": -0.006619978696107864,
+          "peak_abs_torque_nm": 2.243147850036621,
+          "mean_contact_slip_m_s": 0.08952736854553223,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 9,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0010882934655090937,
+          "penetrated_sampled_states": 338,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0010882934655090937,
+          "penetrated_valid_sampled_states": 288,
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.09782510109758359,
+          "mean_abs_yaw_error_rad_s": 0.15281572908334784,
+          "mean_achieved_vx_m_s": -0.01463834848254919,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.10912314057350159,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 10,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0008213204521584638,
+          "penetrated_sampled_states": 196,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0008213204521584638,
+          "penetrated_valid_sampled_states": 154,
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.05025487358117281,
+          "mean_abs_yaw_error_rad_s": 0.0960335751075836,
+          "mean_achieved_vx_m_s": -0.005459112115204334,
+          "peak_abs_torque_nm": 2.575885772705078,
+          "mean_contact_slip_m_s": 0.08757179230451584,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 11,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.001668189725243803,
+          "penetrated_sampled_states": 427,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.001668189725243803,
+          "penetrated_valid_sampled_states": 360,
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.09442675931387595,
+          "mean_abs_yaw_error_rad_s": 0.15875336166158377,
+          "mean_achieved_vx_m_s": -0.006136185023933649,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.11426858603954315,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 12,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0010421479647332102,
+          "penetrated_sampled_states": 402,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0010421479647332102,
+          "penetrated_valid_sampled_states": 334,
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_xy_error_m_s": 0.03601096622718246,
+          "mean_abs_yaw_error_rad_s": 0.21923662085995307,
+          "mean_achieved_vx_m_s": -0.010930856689810753,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.1092875674366951,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 13,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.001335406912711265,
+          "penetrated_sampled_states": 496,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.001335406912711265,
+          "penetrated_valid_sampled_states": 415,
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_xy_error_m_s": 0.049034882967842336,
+          "mean_abs_yaw_error_rad_s": 0.29959311760663987,
+          "mean_achieved_vx_m_s": -0.009108232334256172,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.13107489049434662,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 14,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0013238830659130368,
+          "penetrated_sampled_states": 434,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0013238830659130368,
+          "penetrated_valid_sampled_states": 362,
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_xy_error_m_s": 0.040793797864628924,
+          "mean_abs_yaw_error_rad_s": 0.2295853398680978,
+          "mean_achieved_vx_m_s": -0.013794374652206898,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.10902915149927139,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 15,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0019281008989974827,
+          "penetrated_sampled_states": 446,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0019281008989974827,
+          "penetrated_valid_sampled_states": 375,
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_xy_error_m_s": 0.054256481316001554,
+          "mean_abs_yaw_error_rad_s": 0.3397131184917176,
+          "mean_achieved_vx_m_s": -0.01651676557958126,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.13392890989780426,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 16,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.0010450328106338669,
+          "penetrated_sampled_states": 350,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -0.0010450328106338669,
+          "penetrated_valid_sampled_states": 300,
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_xy_error_m_s": 0.06606132755405207,
+          "mean_abs_yaw_error_rad_s": 0.19865189829049634,
+          "mean_achieved_vx_m_s": 0.003624707693234086,
+          "peak_abs_torque_nm": 3.0,
+          "mean_contact_slip_m_s": 0.10465682297945023,
+          "failures": 0,
+          "timeouts": 0
+        },
+        {
+          "segment": 17,
+          "sampled_states": 1200,
+          "minimum_clearance_m": -0.000607760266344369,
+          "penetrated_sampled_states": 12,
+          "valid_sampled_states": 1000,
+          "minimum_valid_clearance_m": -3.5277432209733506e-05,
+          "penetrated_valid_sampled_states": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_xy_error_m_s": 0.00044631746218281784,
+          "mean_abs_yaw_error_rad_s": 0.0026618117006460126,
+          "mean_achieved_vx_m_s": 1.9025354049517773e-05,
+          "peak_abs_torque_nm": 1.1622347831726074,
+          "mean_contact_slip_m_s": 0.0025269631296396255,
+          "failures": 0,
+          "timeouts": 0
+        }
+      ],
+      "files_sha256": {
+        "metrics.json": "39f4c27d395d30b333d35ec02158ab9229dbdbe197b97fc81eaf3e96f53e8883",
+        "provenance.json": "8a1077bb1fcf04794478a7f182c24e1916f6e5cd8987a00ef99c147ebc8904dd",
+        "torso_geometry_audit.json": "9805aa94b2f00881baaaa3da2f72ccaa750797cf3bb06a8cac8ade00e9cd1396",
+        "trace.npz": "f57720d032cb19d3adbf523c4718e7c95e3287d651e599ba032336f957821d3e"
+      }
+    }
+  ]
+}

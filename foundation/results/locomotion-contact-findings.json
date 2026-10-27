@@ -1,0 +1,120 @@
+{
+  "scope": "Audit of actual compiled course locomotion models and bounded simulated trained-policy rollouts. No hardware was used; defaults and running training jobs were preserved.",
+  "findings": [
+    {
+      "finding": "Original walking model intentionally uses four foot and four knee spheres; visual torso and leg meshes do not contribute collision response.",
+      "evidence": "locomotion-contact-audit.json: all six compiled task records",
+      "implication": "This is a course model simplification, separate from the confirmed tracking-hull masking regression."
+    },
+    {
+      "finding": "MixedGaits-Bumpy and Mystery-Bumpy each compile 200 nonflat heightfields with maximum height span 0.04999184952 m; forced C and Warp contact probes see ground contact.",
+      "evidence": "locomotion-contact-audit.json",
+      "implication": "Rough terrain is physically active. Contact positions in forced overlap probes are not terrain-height measurements or rollout success."
+    },
+    {
+      "finding": "Default knee contact sensor has history_length=0; self_collision_cost falls back to found-contact count, so force_threshold does not gate this reward.",
+      "evidence": "Actual forced probes produce the same cost for thresholds 1 N and 1000000 N; tasks/velocity/mdp/rewards.py self_collision_cost",
+      "implication": "Interpret as binary knee-contact cost, not force-threshold cost. Behavior is unchanged because this fallback may be intentional."
+    },
+    {
+      "finding": "Mystery torso_clearance uses rotated torso AABB versus world z=0; it does not query local heightfield surface.",
+      "evidence": "tasks/pupper_gait/mdp/jump.py torso_clearance; default Mystery weight 0; optional2 experiment explicitly sets -20",
+      "implication": "A soft world-height penalty does not add physical body collision and cannot support a rough-terrain body-clearance claim."
+    },
+    {
+      "finding": "Root world-height metrics and base_height objectives are not terrain-relative clearance. Direct mesh-heightfield distance did not validate for this model.",
+      "evidence": "pupper/mdp/rewards.py base_height; pupper_gait/bootstrap.py names measured heights *_world_m; collision_audit.py refuses heightfields",
+      "implication": "Current signed clearance screen is intentionally plane-only. Do not use it to certify Bumpy or Mystery-Bumpy torso safety."
+    },
+    {
+      "finding": "Trained SpiderWalk has zero falls but penetrates torso geometry in 75.72% of scored states, including every scored stationary state; max penetration 32.73 mm.",
+      "evidence": "locomotion-geometry-screen.json: SpiderWalk model_3999.pt, seed 101, 4 worlds, 18 commands, 6 seconds per command, 1 second warmup, deployment target clamp",
+      "implication": "Do not install this checkpoint. Absence of falls is insufficient; correction and retraining are justified by observed behavior."
+    },
+    {
+      "finding": "Stable and Mixed checkpoints have no torso penetration in this same type of screen; minimum clearances 58.08 mm and 71.49 mm respectively.",
+      "evidence": "locomotion-geometry-screen.json: 22000 Stable and 16000 Mixed scored states",
+      "implication": "Continue existing foot/knee-only controlled comparisons. This single-seed bounded screen is not hardware approval or exhaustive robustness validation."
+    }
+  ],
+  "correction_experiment": {
+    "contract": "locomotion_torso_contact_v1",
+    "flag": "--locomotion-torso-contact",
+    "scope": "One zero-density torso hull, capped at 32 vertices, with tracking-compatible masks 0/1. Original masses, inertias and eight sphere shapes/masks retained. No lower-leg hulls. Torso can contact terrain and nonadjacent active knee/foot spheres.",
+    "defaults_unchanged": true,
+    "evidence": "test_locomotion_torso_contact.py verifies exact mass/inertia equality, sphere equality, nine compiled active geoms, real C/Warp floor contacts and nonzero force in an isolated forced probe.",
+    "decision": "Evaluate unchanged SpiderWalk checkpoint under corrected contact first, then warm-start the exact original reward profile with explicit torso contact, target clamp and composed COM randomization.",
+    "paired_existing_policy_result": {
+      "seed": 101,
+      "worlds": 4,
+      "commands": 18,
+      "seconds_per_command": 6,
+      "warmup_s": 1,
+      "deployment_target_clamp": true,
+      "compose_com_randomization": false,
+      "failures_before_after": [
+        0,
+        0
+      ],
+      "maximum_scored_body_overlap_m_before_after": [
+        0.03273126856704758,
+        0.0019281008989974827
+      ],
+      "scored_fraction_overlapping_more_than_0_1mm_before_after": [
+        0.7571666666666667,
+        0.23244444444444445
+      ],
+      "mean_segment_xy_error_m_s_before_after": [
+        0.06144976751846513,
+        0.0553290474814522
+      ],
+      "mean_segment_yaw_error_rad_s_before_after": [
+        0.1781874935721735,
+        0.14503675655394918
+      ],
+      "forward_command_0_15_achieved_m_s_after": 0.061,
+      "backward_command_minus_0_15_achieved_m_s_after": -0.059,
+      "interpretation": "Deep nonphysical overlap is prevented, with residual soft-contact penetration and possible body support. This is not a torso-clearance success or an installation recommendation. Continue exact original reward profile under all three corrected contracts; evaluate body clearance and tracking again."
+    },
+    "paired_randomization_equal_fields": [
+      "body_mass_kg",
+      "body_mass_ratio",
+      "base_com_offset_m",
+      "encoder_bias_rad",
+      "body_names",
+      "joint_names",
+      "foot_tangential_friction",
+      "foot_geom_priority",
+      "external_geom_priority",
+      "pd_stiffness",
+      "pd_damping",
+      "pd_target_names"
+    ],
+    "paired_randomization_different_fields": [],
+    "training_smoke": {
+      "status": "training_finished_not_evaluated",
+      "iterations": 2,
+      "worlds": 8,
+      "device": "cpu",
+      "checkpoint": "artifacts/lab6/spider_walk/model_3999.pt",
+      "output_directory": "artifacts/lab6/spider_walk/torso-contact-training-smoke-v2",
+      "output_checkpoint": "model_4000.pt",
+      "deployment_target_clamp": true,
+      "compose_com_randomization": true,
+      "locomotion_torso_contact": true,
+      "active_robot_geometry_count": 9,
+      "active_torso_geometry_count": 1,
+      "reward_profile": "Exact configs/foundation/training.json spider_walk rewards",
+      "claim": "Infrastructure validation only; not an improvement measurement."
+    }
+  },
+  "validation": {
+    "tests": "16 passed: collision audit (3), torso-contact model (2), bootstrap (11)",
+    "method": "Actual compiled Pupper mesh signed plane distance agrees with lowest transformed mesh vertex at upright and rotated poses to 1e-8 m.",
+    "limitations": [
+      "Four worlds and correlated trajectory steps at one seed are a screening experiment, not independent reliability trials.",
+      "Compiled mesh dimensions are not independently verified against this physical robot.",
+      "Diagnostic samples precede policy transitions; between-step contacts or a final failing state can be missed."
+    ]
+  }
+}

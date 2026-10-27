@@ -71,6 +71,9 @@ def settings(args,play):
     if getattr(args,"compose_com_randomization",False):
         from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
         compose_pupper_com_randomization(cfg)
+    if getattr(args,"locomotion_torso_contact",False):
+        from mjlab.tasks.pupper.locomotion_contact_contract import enable_locomotion_torso_contact
+        args.locomotion_contact_contract=enable_locomotion_torso_contact(cfg)
     return cfg,agent
 
 
@@ -106,11 +109,13 @@ def train(args):
     env=ManagerBasedRlEnv(cfg,device=args.device)
     try:
         from mjlab.tasks.pupper.randomization_audit import write_randomization_snapshot
+        from mjlab.tasks.pupper.collision_audit import collision_model_contract
         run["domain_randomization"]=write_randomization_snapshot(env,args.out)
+        run["collision_model"]=collision_model_contract(env)
         (args.out/"provenance.json").write_text(json.dumps(run,indent=2)+"\n")
         wrapped=RslRlVecEnvWrapper(env,clip_actions=agent.clip_actions)
         runner=load_runner_cls(args.task)(wrapped,asdict(agent),str(args.out),args.device)
-        if args.checkpoint: runner.load(str(args.checkpoint))
+        if args.checkpoint: runner.load(str(args.checkpoint),map_location=args.device)
         runner.learn(num_learning_iterations=args.iterations,init_at_random_ep_len=True)
     finally:
         env.close()
@@ -149,10 +154,12 @@ def evaluate(args):
     dump_yaml(args.out/"env.yaml",asdict(cfg))
     configure_torch_backends()
     env=ManagerBasedRlEnv(cfg,device=args.device)
-    samples={k:[] for k in ("joint_pos","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm","raw_actions","unclipped_target_joint_pos","target_joint_pos","deployment_clipped_target_joint_pos","target_clipped","target_range_excess_rad","physical_target_joint_pos","actuator_input_target_joint_pos")}
+    samples={k:[] for k in ("joint_pos","root_position","root_quaternion","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm","raw_actions","unclipped_target_joint_pos","target_joint_pos","deployment_clipped_target_joint_pos","target_clipped","target_range_excess_rad","physical_target_joint_pos","actuator_input_target_joint_pos")}
     try:
         from mjlab.tasks.pupper.randomization_audit import write_randomization_snapshot
+        from mjlab.tasks.pupper.collision_audit import collision_model_contract,flat_torso_clearance
         run["domain_randomization"]=write_randomization_snapshot(env,args.out)
+        run["collision_model"]=collision_model_contract(env)
         run["randomized_flag_semantics"]="selects training task configuration; play configuration already retains startup physics randomization and observation noise"
         wrapped=RslRlVecEnvWrapper(env,clip_actions=agent.clip_actions)
         if args.zero_policy:
@@ -163,6 +170,12 @@ def evaluate(args):
             policy=runner.get_inference_policy(device=args.device)
         robot=env.scene["robot"]
         joint_ids=[robot.joint_names.index(n) for n in JOINT_NAMES]
+        geometry_model=env.sim.mj_model
+        geometry_root_id=int(robot.indexing.root_body_id)
+        geometry_root_qpos_ids=robot.indexing.free_joint_q_adr.cpu().numpy()
+        geometry_joint_qpos_ids=robot.indexing.joint_q_adr[joint_ids].cpu().numpy()
+        if args.geometry_audit and geometry_model.nhfield:
+            raise ValueError("--geometry-audit signed torso distance is only validated for plane terrain")
         if env.action_manager.active_terms != ["joint_pos"]:
             raise ValueError("Action-target audit requires the Pupper joint_pos-only control contract")
         action_term=env.action_manager.get_term("joint_pos")
@@ -205,6 +218,7 @@ def evaluate(args):
                     frequency=freq*np.where(fast,_GAIT_FREQ_MULT.get("reach",1.),1.)
                     phase=np.mod(env.episode_length_buf.cpu().numpy()*dt*frequency,1.)
                     arrays=dict(joint_pos=robot.data.joint_pos[:,joint_ids],velocity=torch.cat([robot.data.root_link_lin_vel_b[:,:2],robot.data.root_link_ang_vel_b[:,2:3]],dim=1),
+                                root_position=robot.data.root_link_pos_w,root_quaternion=robot.data.root_link_quat_w,
                                 torque=robot.data.qfrc_actuator[:,joint_ids],foot_contact=contact_sensor.data.found>0,
                                 foot_speed_xy=torch.linalg.vector_norm(robot.data.site_lin_vel_w[:,site_ids,:2],dim=-1),heading=robot.data.heading_w,height=robot.data.root_link_pos_w[:,2],
                                 vertical_velocity=robot.data.root_link_lin_vel_w[:,2],
@@ -226,6 +240,12 @@ def evaluate(args):
         env.close()
     trace={k:np.asarray(v) for k,v in samples.items()}; trace["dt"]=np.asarray(dt)
     trace["joint_names"]=np.asarray(JOINT_NAMES)
+    if args.geometry_audit:
+        geometry_report,distance=flat_torso_clearance(geometry_model,trace,geometry_root_id,geometry_root_qpos_ids,geometry_joint_qpos_ids,args.geometry_audit_stride)
+        trace["torso_ground_signed_distance_m"]=distance
+        (args.out/"torso_geometry_audit.json").write_text(json.dumps(geometry_report,indent=2)+"\n")
+        run["torso_geometry_audit"]="torso_geometry_audit.json"
+    (args.out/"provenance.json").write_text(json.dumps(run,indent=2)+"\n")
     np.savez_compressed(args.out/"trace.npz",**trace)
     report=summarize_trace(trace,dt,args.warmup); report["provenance"]=run
     (args.out/"metrics.json").write_text(json.dumps(report,indent=2)+"\n")
@@ -242,6 +262,7 @@ def main():
         parser.add_argument("--device",default="cuda:0")
         parser.add_argument("--deployment-target-clamp",action="store_true",help="Opt in to the C++ joint-target clamp before simulation; preserves normalized last_action observations")
         parser.add_argument("--compose-com-randomization",action="store_true",help="Opt in to preserving the independent base COM offset during density randomization; legacy behavior remains default")
+        parser.add_argument("--locomotion-torso-contact",action="store_true",help="Opt in to one torso hull while retaining the original knee/foot spheres; new physical model requires reevaluation")
     tr.add_argument("--num-envs",type=int,default=4096); tr.add_argument("--iterations",type=int,default=3000)
     tr.add_argument("--profile",choices=["baseline","fast"],default="baseline"); tr.add_argument("--weights",type=Path)
     tr.add_argument("--logger",choices=["wandb","tensorboard"],default="wandb")
@@ -250,6 +271,8 @@ def main():
     ev.add_argument("--randomized",action="store_true"); ev.add_argument("--reset-each-command",action="store_true")
     ev.add_argument("--no-heading-hold",action="store_true"); ev.add_argument("--allow-out-of-range",action="store_true")
     ev.add_argument("--zero-policy",action="store_true",help="Infrastructure smoke test, never a trained-policy result")
+    ev.add_argument("--geometry-audit",action="store_true",help="Read-only signed torso/plane distance at recorded states; no collision response changes; rejects heightfield terrain")
+    ev.add_argument("--geometry-audit-stride",type=int,default=1)
     args=p.parse_args()
     if args.reference_dir:
         args.reference_dir=args.reference_dir.resolve()
@@ -259,6 +282,7 @@ def main():
     if args.command=="evaluate":
         if not args.checkpoint and not args.zero_policy: p.error("evaluation requires --checkpoint or explicit --zero-policy")
         if args.seconds<=args.warmup or args.warmup<0: p.error("seconds must exceed nonnegative warmup")
+        if args.geometry_audit_stride<1:p.error("geometry-audit-stride must be positive")
         evaluate(args)
     else: train(args)
 

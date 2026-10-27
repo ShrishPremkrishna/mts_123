@@ -57,3 +57,39 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
   default = load_env_cfg("Mjlab-Tracking-Flat-Pupper-v3")
   assert default.actions["joint_pos"].clip is None
   assert list(default.events).index("base_com") < list(default.events).index("inertial")
+
+
+def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_path, monkeypatch):
+  monkeypatch.setenv('CUDA_VISIBLE_DEVICES','0')
+  monkeypatch.setattr(torch.cuda,'is_available',lambda:True)
+  monkeypatch.setattr(torch.cuda,'get_device_name',lambda _: 'mock launcher test')
+  monkeypatch.setattr(foundation,'source_manifest',lambda:{'test':True})
+  captured={}
+  def fake_train(task,config,run_dir):
+    captured.update(task=task,config=config)
+    (run_dir/'model_4999.pt').write_bytes(b'test fixture, no training')
+    (run_dir/'policy.json').write_text('{}')
+  monkeypatch.setattr(training,'run_train',fake_train)
+  checkpoint=tmp_path/'original-4000.pt';checkpoint.write_bytes(b'original fixture bytes')
+  args=argparse.Namespace(profile='spider_walk',motion=None,output=tmp_path/'continuation',
+                         deployment_target_clamp=True,compose_com_randomization=True,
+                         tracking_ground_hulls=False,locomotion_torso_contact=True,
+                         num_envs=64,iterations=1500,seed=42,logger='tensorboard',project='test',
+                         initial_checkpoint=checkpoint,resume_run=None,resume_checkpoint=None)
+  run=foundation.train(args)
+  cfg=captured['config'].env
+  assert captured['task']=='Mjlab-SpiderWalk-Flat-Pupper-v3'
+  profile=foundation.load_profile('spider_walk')
+  for name,term in cfg.rewards.items():
+    assert term.weight==profile['rewards'].get(name,0.)
+  assert cfg.rewards['base_height'].weight==3.
+  assert cfg.rewards['termination'].weight==-5.
+  from mjlab.tasks.pupper.locomotion_contact_contract import get_spec_with_torso_contact
+  assert cfg.scene.entities['robot'].spec_fn is get_spec_with_torso_contact
+  assert cfg.actions['joint_pos'].clip is not None
+  record=json.loads((run/'foundation-run.json').read_text())
+  assert record['collision_contract']['contract']=='locomotion_torso_contact_v1'
+  assert record['com_randomization_contract']['rng_draw_order_preserved']
+  assert '_torsocontact_' in run.name
+  assert record['motion_file'] is None
+  assert record['initial_checkpoint_sha256']==foundation.sha256(checkpoint)
