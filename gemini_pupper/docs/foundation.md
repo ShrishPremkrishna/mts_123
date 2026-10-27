@@ -1,3 +1,7 @@
+---
+date: 2026-10-27T15:31
+tags: [cs123, foundation]
+---
 # Foundation operation
 
 This branch is the engineering implementation, separate from the student's Lab 6
@@ -12,7 +16,7 @@ include the latest outcome. A failed job cancels dependent queued work; a stop
 preempts request acceptance. Failed exit transitions and missing clip completion
 feedback are reported rather than treated as successful movement.
 
-A timed-out or cancelled controller activation may still execute remotely. The
+A timed-out or cancelled controller or follower activation may still execute remotely. The
 server keeps its future, attempts deactivation when the late response arrives,
 and latches a motion quarantine. Stop reports the actual cleanup result without
 silently rearming. Use the physical e-stop and inspect/restart the controller

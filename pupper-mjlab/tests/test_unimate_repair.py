@@ -41,6 +41,17 @@ def test_geometry_rejects_ground_penetration_and_joint_overshoot():
   assert any("joint angles" in s for s in issues)
 
 
+def test_yaw_wrap_represents_a_small_turn_not_a_full_spin():
+  original = standing()
+  original.root_quat = np.asarray([md.rpy_to_quat((0, 0, yaw)) for yaw in np.linspace(179, 181, 11)])
+  repaired = repair_motion(original, transition_s=0.5)
+  # Quaternion consecutive-angle distances must remain small through the wrap.
+  dots = np.abs(np.sum(repaired.root_quat[:-1] * repaired.root_quat[1:], axis=1))
+  steps = 2 * np.arccos(np.clip(dots, 0, 1))
+  assert steps.max() < np.deg2rad(1)
+  assert steps.sum() == pytest.approx(np.deg2rad(2), abs=1e-5)
+
+
 @pytest.mark.parametrize("kwargs", [{"transition_s": 0}, {"contact_height_m": -1},
                                     {"release_height_m": 0.001}, {"max_joint_speed_rad_s": 21}])
 def test_repair_rejects_unsafe_or_nonsensical_options(kwargs):

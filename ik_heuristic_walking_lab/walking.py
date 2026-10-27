@@ -19,6 +19,7 @@ Rebuild the cache (plain run, or --save-cache) any time you change the keyframes
 
 import argparse
 import os
+import signal
 import time
 
 import rclpy
@@ -311,6 +312,9 @@ def main():
     args, _ = parser.parse_known_args()
 
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt
+    previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM)}
     inverse_kinematics = None
     try:
         inverse_kinematics = InverseKinematics(use_cache=args.use_cache, save_cache=args.save_cache)
@@ -323,6 +327,8 @@ def main():
             inverse_kinematics.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
 
 
 if __name__ == '__main__':

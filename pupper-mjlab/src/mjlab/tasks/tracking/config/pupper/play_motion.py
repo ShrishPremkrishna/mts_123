@@ -64,6 +64,7 @@ def main(
   seed: int = 42,
   randomize: bool = False,
   report_file: Path | None = None,
+  video_file: Path | None = None,
 ) -> None:
   """mass_scale scales every link's mass and inertia (1.3: 30% heavier, like a
   payload); com_x, com_y, com_z move the torso's center of mass (x forward,
@@ -74,6 +75,7 @@ def main(
   from mjlab.rl import RslRlVecEnvWrapper
   from mjlab.tasks.tracking.config.pupper.env_cfgs import pupper_tracking_env_cfg
   from mjlab.tasks.tracking.mdp import MotionCommand
+  from mjlab.sensor import ContactMatch, ContactSensorCfg
 
   if loops < 1 or not math.isfinite(mass_scale) or mass_scale <= 0:
     raise ValueError("loops and mass_scale must be positive")
@@ -85,6 +87,12 @@ def main(
   cfg = pupper_tracking_env_cfg(motion_file=str(motion_file.resolve()), play=True)
   cfg.seed = seed
   cfg.scene.num_envs = 1
+  cfg.scene.sensors += (ContactSensorCfg(
+    name="score_foot_ground", primary=ContactMatch(
+      mode="geom", pattern=r"^leg_(front|back)_(r|l)_3_collision$", entity="robot"),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found", "force"), reduce="netforce", num_slots=1,
+  ),)
   cfg.terminations = {}  # watch the whole motion even if it goes wrong
   # The nominal robot, not a random draw of the training randomization: same
   # verdict every run. Only the mass/inertia scale is applied (exactly).
@@ -165,6 +173,7 @@ def main(
   worst_pos, worst_tilt, fell_at, wobble_at = 0.0, 0.0, None, None
   timeline = []
   samples = []
+  video_poses = []
   reference_resets = 0
   previous_frame = int(cmd.time_steps[0])
   for step in range(n_frames * loops - 1):
@@ -191,7 +200,15 @@ def main(
               "joint_error_max_rad": float(torch.abs(joint_error).max()),
               "tracked_body_error_max_m": float(body_error.max()),
               "joint_speed_max_rad_s": float(torch.abs(cmd.robot_joint_vel).max()),
-              "motor_torque_max_nm": float(torch.abs(robot.data.qfrc_actuator).max())}
+              "motor_torque_max_nm": float(torch.abs(robot.data.qfrc_actuator).max()),
+              "body_tilt_from_upright_deg": math.degrees(math.acos(float(torch.clamp(
+                -robot.data.projected_gravity_b[0, 2], -1, 1)))),
+              "foot_contact_count": int((env.scene["score_foot_ground"].data.found > 0).sum()),
+              "root_height_m": float(robot.data.root_link_pos_w[0, 2])}
+    if video_file is not None:
+      video_poses.append((cmd.robot_anchor_pos_w[0].cpu().numpy().copy(),
+                         cmd.robot_anchor_quat_w[0].cpu().numpy().copy(),
+                         cmd.robot_joint_pos[0].cpu().numpy().copy(), frame))
     if not all(math.isfinite(value) for value in sample.values()):
       env.close()
       raise RuntimeError("non-finite joint/body metrics in motion evaluation")
@@ -256,6 +273,9 @@ def main(
       "worst_tracked_body_error_m": max(s["tracked_body_error_max_m"] for s in samples),
       "peak_joint_speed_rad_s": max(s["joint_speed_max_rad_s"] for s in samples),
       "peak_motor_torque_nm": max(s["motor_torque_max_nm"] for s in samples),
+      "peak_body_tilt_from_upright_deg": max(s["body_tilt_from_upright_deg"] for s in samples),
+      "minimum_root_height_m": min(s["root_height_m"] for s in samples),
+      "fraction_frames_without_foot_contact": float(np.mean([s["foot_contact_count"] == 0 for s in samples])),
       "failure_criteria": (["position_tracking"] if worst_pos > FALL_POS_M else [])
                           + (["orientation_tracking"] if worst_tilt > FALL_TILT_DEG else []),
       "fell_at_s": fell_at, "wobble_at_s": wobble_at,
@@ -266,6 +286,24 @@ def main(
     report_file.parent.mkdir(parents=True, exist_ok=True)
     report_file.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
   env.close()
+  if video_file is not None:
+    # These are recorded physics states, not a visual replay of the reference.
+    # Set MUJOCO_GL=egl before starting this process on a headless GPU host.
+    import imageio.v3 as iio
+    from mjlab.tasks.tracking.config.pupper import motion_design as md
+    from mjlab.tasks.tracking.config.pupper import unimate as U
+
+    actual = md.Motion(fps=1 / dt, root_pos=np.asarray([p[0] for p in video_poses]),
+                       root_quat=np.asarray([p[1] for p in video_poses]),
+                       joint_pos=np.asarray([p[2] for p in video_poses]))
+    with np.load(motion_file, allow_pickle=False) as source:
+      frames = np.asarray([p[3] for p in video_poses])
+      reference = md.Motion(fps=1 / dt, root_pos=source["body_pos_w"][frames, 0],
+                           root_quat=source["body_quat_w"][frames, 0],
+                           joint_pos=source["joint_pos"][frames])
+    panels = [U.Fit(m, np.empty((0, 19, 3)), {}, {}) for m in (reference, actual)]
+    video_file.parent.mkdir(parents=True, exist_ok=True)
+    iio.imwrite(video_file, U.render(panels, labels=["Reference", "Physics rollout"], skeleton=False), fps=1 / dt)
 
 
 if __name__ == "__main__":

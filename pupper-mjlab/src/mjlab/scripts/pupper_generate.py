@@ -7,8 +7,10 @@ work. Nothing here deploys a policy or labels a kinematic fit physically stable.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +18,28 @@ import numpy as np
 from mjlab.scripts.pupper_foundation import sha256, source_manifest, write_json
 from mjlab.tasks.tracking.config.pupper import unimate as U
 from mjlab.tasks.tracking.config.pupper.unimate.repair import repair_motion
+
+
+def unimate_manifest(directory: Path, output: Path) -> dict:
+  revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=directory,
+                            capture_output=True, text=True, check=True).stdout.strip()
+  frozen = subprocess.run([str(directory.resolve() / ".venv/bin/python"), "-m", "pip", "freeze"],
+                          capture_output=True, text=True, check=False)
+  # uv-created environments need not include pip. install.sh records a freeze
+  # through uv itself; use that exact snapshot when pip is unavailable.
+  snapshot = directory / "foundation-environment.txt"
+  environment = frozen.stdout if frozen.returncode == 0 else snapshot.read_text() if snapshot.exists() else None
+  if environment is not None:
+    (output / "unimate-environment.txt").write_text(environment)
+  checkpoints = {}
+  for path in sorted((directory / "outputs").glob("*/checkpoints/checkpoint_step_*.pt")):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+      for block in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+        digest.update(block)
+    checkpoints[str(path.relative_to(directory))] = digest.hexdigest()
+  return {"git_revision": revision, "checkpoints_sha256": checkpoints,
+          "environment_snapshot": "unimate-environment.txt" if environment is not None else None}
 
 
 def main() -> None:
@@ -42,6 +66,7 @@ def main() -> None:
     path = args.output / "samples.npz"
     if path.exists():
       parser.error("output already contains samples.npz; choose a new directory to preserve the experiment")
+    generator_source = unimate_manifest(args.unimate, args.output)
     with U.UniMate(args.unimate, log=args.output / "worker.log") as worker:
       raw = worker.generate(args.prompt, n=args.samples, seed=args.seed, cfg=args.cfg)
       np.savez_compressed(path, positions=raw)
@@ -49,6 +74,7 @@ def main() -> None:
         "state": "generated_uninspected", "prompts": args.prompt, "seed": args.seed,
         "samples": args.samples, "cfg": args.cfg, "generation_seconds": worker.seconds,
         "raw_sha256": sha256(path), "source": source_manifest(),
+        "generator": generator_source,
       })
     print(f"Saved {len(raw)} candidate motions to {path}; choose a sample after inspection.")
   else:

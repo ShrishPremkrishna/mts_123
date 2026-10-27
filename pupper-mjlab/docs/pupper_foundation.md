@@ -144,6 +144,29 @@ python -m mjlab.scripts.pupper_generate generate --unimate /path/to/UniMate \
   --samples 4 --seed 42 --output "$PUPPER_OUTPUT/bow-candidates"
 ```
 
+For the initial foundation experiment, use a modest standing dance and inspect
+all four samples instead of choosing an index blindly. The batch saves every
+fit, repair, geometry report, physics trace and actual physics video:
+
+```sh
+python -m mjlab.scripts.pupper_generate generate --unimate /content/UniMate \
+  --prompt "An object gently sways its body from side to side while standing on all four legs." \
+  --samples 4 --seed 42 --output "$PUPPER_OUTPUT/standing-dance-generated"
+MUJOCO_GL=egl python -m mjlab.scripts.pupper_unimate_candidates \
+  --raw "$PUPPER_OUTPUT/standing-dance-generated/samples.npz" \
+  --output "$PUPPER_OUTPUT/standing-dance-candidates" --videos
+```
+
+`candidates.json` names a candidate for inspection and explains exclusions.
+The standing-dance screen rejects invalid geometry, nearly static motion,
+reference teleports, and more than 60 degrees of actual body tilt. Root tracking
+drift alone does not disqualify an RL candidate. Nominal contact, torque, height
+and tilt traces remain evidence to inspect; this heuristic is not physical
+approval. Train the selected NPZ with `generated_trick` only after reviewing
+its video, then run the same held-out dynamics score suite used for other tricks.
+Generation also records the UniMate revision, weights hashes and its separate
+environment snapshot. Raw generations and before-repair references are retained.
+
 Inspect candidates and choose one explicitly. Fitting records raw-sample and
 source hashes and saves both the original fit and repaired reference:
 
@@ -171,7 +194,7 @@ process and descriptors on failure. Close it before RL to free GPU memory.
 python -m pytest tests/test_pupper_foundation.py tests/test_pupper_tracking.py \
   tests/test_pupper_spider.py tests/test_pupper_unimate.py \
   tests/test_unimate_repair.py tests/test_unimate_worker.py \
-  tests/test_foundation_evaluation.py -q
+  tests/test_foundation_evaluation.py tests/test_unimate_candidates.py -q
 ```
 
 These tests cover real geometry/mirroring, clip transitions and exported arrays,

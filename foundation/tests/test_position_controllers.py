@@ -153,3 +153,21 @@ def test_shutdown_service_failure_is_reported(walking):
     future = SimpleNamespace(done=lambda: True, cancelled=lambda: False,
                              exception=lambda: None, result=lambda: SimpleNamespace(ok=False))
     assert not confirm_position_stop(node, future)
+
+
+def test_walking_sigterm_uses_confirmed_shutdown_path(walking, monkeypatch):
+    import signal
+    events = []
+    robot = SimpleNamespace(stop_controller=lambda: events.append('stop'),
+                            destroy_node=lambda: events.append('destroy'))
+    monkeypatch.setattr(walking, 'InverseKinematics', lambda **kwargs: robot)
+    monkeypatch.setattr(sys, 'argv', ['walking.py'])
+    walking.rclpy.init = lambda **kwargs: None
+    walking.rclpy.shutdown = lambda: events.append('shutdown')
+    def spin(node):
+        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+    walking.rclpy.spin = spin
+    previous = signal.getsignal(signal.SIGTERM)
+    walking.main()
+    assert events == ['stop', 'destroy', 'shutdown']
+    assert signal.getsignal(signal.SIGTERM) is previous

@@ -347,7 +347,8 @@ class Robot:
             await asyncio.sleep(0.02)
         future = client.call_async(request)
         deadline = time.monotonic() + timeout
-        activation = client is self.switch_client and bool(getattr(request, "activate_controllers", []))
+        follower_activation = client is self.follow_on
+        activation = follower_activation or (client is self.switch_client and bool(getattr(request, "activate_controllers", [])))
         try:
             while not future.done() and time.monotonic() < deadline:
                 await asyncio.sleep(0.02)
@@ -355,27 +356,36 @@ class Robot:
                 return future.result()
         except (asyncio.CancelledError, Exception):
             if activation:
-                self._watch_uncertain_activation(future)
+                self._watch_uncertain_activation(future, follower=follower_activation)
             raise
         if activation:
             # Cancelling a ROS client future does NOT cancel the remote request.
             # Keep its eventual response so a late activation gets cleaned up.
-            self._watch_uncertain_activation(future)
+            self._watch_uncertain_activation(future, follower=follower_activation)
             return None
         if hasattr(future, "cancel"):
             future.cancel()
         return None
 
-    def _watch_uncertain_activation(self, future) -> None:
-        self.controller_fault = ("controller activation outcome was unknown; motion is quarantined. "
+    def _watch_uncertain_activation(self, future, *, follower: bool = False) -> None:
+        source = "follower" if follower else "controller"
+        self.controller_fault = (f"{source} activation outcome was unknown; motion is quarantined. "
                                  "Use the physical e-stop and inspect/restart the controller stack "
                                  "before restarting this tool server")
         async def cleanup():
             try:
                 while not future.done():
                     await asyncio.sleep(0.1)
-                result = await self._relax_controllers()
-                log.warning("late controller activation cleanup: %s", result.message)
+                if follower:
+                    self.following = True  # lack of an earlier reply was not proof it stayed off
+                    result = await self.stop_following()
+                    self.send_speed(0, 0, 0)
+                    if not result.ok:
+                        relaxed = await self._relax_controllers()
+                        log.warning("late follower cleanup failed: %s; %s", result.message, relaxed.message)
+                else:
+                    result = await self._relax_controllers()
+                log.warning("late %s activation cleanup: %s", source, result.message)
             except Exception:
                 log.exception("late controller cleanup failed; use the physical e-stop")
         task = asyncio.create_task(cleanup())
@@ -812,7 +822,8 @@ class Robot:
             stopped = await self.stop_following()
             if not stopped.ok:
                 await self._relax_controllers()
-            return Result(False, "person_follower did not confirm startup; " + stopped.message)
+            return Result(False, "person_follower did not confirm startup; " + stopped.message
+                          + (f". {self.controller_fault}" if self.controller_fault else ""))
         self.following = True
         if self.stopped_during_call():  # ... or while the follower was starting
             stopped = await self.stop_following()

@@ -12,6 +12,7 @@ set -euo pipefail
 DIR=${1:-UniMate}
 REPO=https://github.com/Friedrich-M/UniMate.git
 COMMIT=b78c7807df7cf4231d4e67f8d0ece29c5e11025b
+MOTION_COMMIT=ac236251f90e5ca37c444c53ad383fc85de6d833
 EXP=unimate_uniml3d_f60_v3
 STEP=150000
 
@@ -22,7 +23,8 @@ fi
 git -C "$DIR" checkout -q "$COMMIT"
 
 export VIRTUAL_ENV="$DIR/.venv"
-if [ ! -f "$DIR/.venv/.done" ]; then
+INSTALL_VERSION="$COMMIT-$MOTION_COMMIT-cu128-v2"
+if [ ! -f "$DIR/.venv/.done" ] || [ "$(cat "$DIR/.venv/.done")" != "$INSTALL_VERSION" ]; then
   uv venv -q --allow-existing --python 3.10 "$DIR/.venv"
   uv pip install -q "setuptools<81"
   # cu128 wheels run on every current GPU, Blackwell (RTX 5090, RTX PRO 6000) included.
@@ -32,9 +34,10 @@ if [ ! -f "$DIR/.venv/.done" ]; then
     "spacy>=3.8,<3.9" \
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" \
     num2words==0.5.14 huggingface_hub==1.29.0 scipy matplotlib imageio imageio-ffmpeg pillow tyro==1.0.12 rich loguru tqdm
-  uv pip install -q --no-build-isolation "Motion @ git+https://github.com/inbar-2344/Motion.git"
-  touch "$DIR/.venv/.done"
+  uv pip install -q --no-build-isolation "Motion @ git+https://github.com/inbar-2344/Motion.git@$MOTION_COMMIT"
+  printf '%s\n' "$INSTALL_VERSION" > "$DIR/.venv/.done"
 fi
+uv pip freeze --python "$DIR/.venv/bin/python" > "$DIR/foundation-environment.txt"
 
 CKPT="$DIR/outputs/$EXP/checkpoints/checkpoint_step_$STEP.pt"
 if [ ! -f "$CKPT" ]; then

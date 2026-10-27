@@ -50,4 +50,29 @@ def test_physics_score_counts_only_actual_whole_reference_wraps(tmp_path, monkey
   assert report["samples"][0]["reference_frame"] == 1
   assert report["samples"][-1]["reference_frame"] == 10
   assert report["peak_motor_torque_nm"] >= 0
+  assert 0 <= report["peak_body_tilt_from_upright_deg"] <= 180
+  assert 0 <= report["fraction_frames_without_foot_contact"] <= 1
+  assert all(0 <= sample["foot_contact_count"] <= 4 for sample in report["samples"])
   assert not report["approved_for_hardware"]
+
+
+def test_video_uses_recorded_physics_pose_and_aligned_reference(tmp_path, monkeypatch):
+  import torch
+  import imageio.v3 as iio
+  from mjlab.tasks.tracking.config.pupper import unimate as U
+  from mjlab.tasks.tracking.config.pupper.play_motion import main
+
+  monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+  captured = {}
+  def render(fits, **kwargs):
+    captured["fits"] = fits
+    assert not kwargs["skeleton"]
+    return np.zeros((10, 2, 4, 3), dtype=np.uint8)
+  monkeypatch.setattr(U, "render", render)
+  monkeypatch.setattr(iio, "imwrite", lambda path, frames, fps: captured.update(video=str(path), fps=fps))
+  path = md.build_motion([md.stand(0), md.stand(.2)]).save_npz(tmp_path / "stand.npz")
+  main(path, video_file=tmp_path / "video.mp4")
+  reference, actual = [fit.motion for fit in captured["fits"]]
+  assert len(reference.joint_pos) == len(actual.joint_pos) == 10
+  assert not np.array_equal(reference.joint_pos, actual.joint_pos)
+  assert captured["fps"] == 50

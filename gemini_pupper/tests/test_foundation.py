@@ -374,6 +374,47 @@ def test_unconfirmed_follower_activation_requires_confirmed_shutdown():
     run_case(case)
 
 
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_late_follower_start_after_timeout_or_cancellation_is_stopped(cancelled):
+    async def case(rig):
+        class Deferred:
+            finished = False
+            cancelled = False
+            def done(self): return self.finished
+            def result(self): return harness._Msg(success=True)
+            def cancel(self): self.cancelled = True
+        future = Deferred()
+        pending = []
+        started = asyncio.Event()
+        client = rig.ts.follow_on
+        def delayed(request):
+            pending.append(request)
+            started.set()
+            return future
+        client.call_async = delayed
+        task = asyncio.create_task(rig.ts.set_following(True))
+        await started.wait()
+        if cancelled:
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        else:
+            assert not (await task).ok
+        assert rig.ts.controller_fault and not future.cancelled
+        assert not (await tool_registry.call(rig.ts, "move", {"direction": "forward"})).ok
+        rig.robot.handle(client.name, pending[0])  # remote activation completes late
+        future.finished = True
+        assert rig.robot.follower_on
+        for _ in range(30):
+            await asyncio.sleep(0)
+            if not rig.ts.activation_cleanup_tasks:
+                break
+        assert not rig.ts.activation_cleanup_tasks
+        assert not rig.robot.follower_on and not rig.ts.following
+        assert rig.ts.controller_fault
+    run_case(case)
+
+
 def test_password_gate_never_embeds_the_password(tmp_path):
     password = "a test-only phrase 123"
     path = tmp_path / "password"

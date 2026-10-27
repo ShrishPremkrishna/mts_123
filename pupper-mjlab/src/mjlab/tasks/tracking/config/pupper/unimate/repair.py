@@ -51,6 +51,10 @@ def repair_motion(
   roots = motion.root_pos.copy()
   roots[:, :2] -= roots[0, :2]
   angles = Rotation.from_quat(motion.root_quat[:, [1, 2, 3, 0]]).as_euler("xyz", degrees=True)
+  # Euler coordinates wrap at +/-180 degrees even for a small physical turn.
+  # build_motion interpolates these coordinates, so remove representation jumps
+  # before creating keyframes rather than introducing an artificial full spin.
+  angles = np.rad2deg(np.unwrap(np.deg2rad(angles), axis=0))
   keys = [md.stand(0.0, yaw=float(angles[0, 2]))]
   locked = {}
   anchored_frames = {leg: 0 for leg in md.LEGS}
