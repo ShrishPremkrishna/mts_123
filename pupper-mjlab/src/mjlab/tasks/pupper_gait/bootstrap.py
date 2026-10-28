@@ -187,6 +187,9 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
     if missing:raise ValueError(f"Jump capture needs complete physical evidence {missing}; audit all-body contacts before capture")
     dt=float(trace["dt"])
     if not np.isfinite(dt) or dt<=0:raise ValueError("Invalid trace timestep")
+    if not np.isfinite([pre_s,post_s,min_flight_s]).all() or pre_s<=0 or post_s<=0 or min_flight_s<JUMP_CAPTURE_GATE["min_flight_s"]:
+        raise ValueError("Capture timing must be finite and positive; the observed flight minimum cannot be loosened")
+    gate={**JUMP_CAPTURE_GATE,"min_flight_s":float(min_flight_s)}
     q=np.asarray(trace["joint_pos"]);shape=q.shape[:2]
     if q.ndim!=3 or q.shape[2]!=12:raise ValueError("Invalid jump joint trace")
     for key in ("robot_ground_contact_count","height","vertical_velocity","valid","episode","terminated"):
@@ -255,7 +258,7 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
                 flight_s=float(flight),flight_sample_count=flight_end-flight_start,
                 flight_nominal_bin_s=float((flight_end-flight_start)*dt),touchdown_s=float((flight_end-a)*dt),peak_height_m=peak,rise_m=rise,
                 rise_after_liftoff_m=flight_rise,takeoff_vertical_velocity_m_s=takeoff,
-                height_signal="robot_com",all_body_contact_audited=True,gate=dict(JUMP_CAPTURE_GATE),
+                height_signal="robot_com",all_body_contact_audited=True,gate=dict(gate),
                 recovery_s=float((settle-1)*dt),recovery_sample_count=settle,recovery_nominal_bin_s=float(settle*dt),maximum_recovery_tilt_rad=float(np.max(tilt[recovery,env])),
                 minimum_torso_clearance_m=float(torso.min()) if torso is not None else None))
     if not candidates:raise ValueError("No clean jump with loading, upward all-body flight and sustained landing found; do not fabricate a capture")

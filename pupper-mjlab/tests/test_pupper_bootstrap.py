@@ -320,3 +320,17 @@ def test_evaluation_enumerates_all_admissible_events_before_any_ranking():
     t['joint_pos'][40,0,0]=1.1
     bounded=b.select_jump(t,return_all=True,limits=np.tile([-1.,1.],(12,1)))
     assert [x['flight_start'] for x in bounded]==[100]
+
+
+@pytest.mark.parametrize('minimum',[float('nan'),float('inf'),-.1,0.,.079])
+def test_capture_flight_minimum_cannot_be_disabled_or_loosened(minimum):
+    t=jump_trace();add_observed_flight(t,40,50)
+    with pytest.raises(ValueError,match='cannot be loosened'):
+        b.select_jump(t,min_flight_s=minimum)
+
+
+def test_stricter_capture_flight_minimum_is_recorded_in_evidence():
+    t=jump_trace();add_observed_flight(t,40,50)
+    selected=b.select_jump(t,min_flight_s=.1)
+    assert selected['gate']['min_flight_s']==.1
+    assert b.JUMP_CAPTURE_GATE['min_flight_s']==.08
