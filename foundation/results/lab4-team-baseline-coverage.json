@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-10-27",
+  "scope": "Lab4 team-policy baseline coverage from recovered local artifacts and inspected saved course sources; no assumption that a dictated last four phrase means exactly four required policies.",
+  "recovered": [
+    {
+      "run_id": "4hkyvuxh",
+      "task": "Mjlab-StableGait-Flat-Pupper-v3",
+      "owner": "Shrish",
+      "role": "Lab4Steps6\u20137 StableGait guided training",
+      "checkpoint": "model_2999.pt",
+      "checkpoint_sha256": "9a8681877d503fa1155cccade10151c2d9c8ad15edb040cec4be4a30bf16db06",
+      "policy_sha256": "e897f150d1b7242ada9e85fe30a7dff1ca1c4db10c70358573334cd2a96b7732",
+      "config_sha256": "f484469d40a7e5bfa3a26f5a0ad0b72d742d3864cca764f84b18741917d4b9f9",
+      "export_parity_passed": true,
+      "short_legacy_vs_controller_clamp_cpu": "foundation/results/lab4-deployment-contract-comparison.json",
+      "additional_comparison": [
+        "Broad paired controller-clamp finetune GPU,32worlds,3seeds,22commands; no tighter driver bounds",
+        "Native exported controller common-band Default/Stable/Mixed screen with class-driver bounds/full hulls,4initial-condition replicas,nominal dynamics"
+      ],
+      "not_done": [
+        "Physical robot comparison"
+      ]
+    },
+    {
+      "run_id": "vt55ode8",
+      "task": "Mjlab-VelocityFS-Flat-Pupper-v3",
+      "owner": "Tej",
+      "role": "Teammate best Step4 from-scratch reward-tuned run",
+      "checkpoint": "model_2999.pt",
+      "checkpoint_sha256": "cc19ebdc6fec49a8a845ea821b2488686ceb8067e9798ded0c77c5609eac4244",
+      "policy_sha256": "2346d0870e8fa61977534f6bb80b27ddb2aaa9db9cc7be94f038afed81db4eed",
+      "config_sha256": "0ce00b3353b05f643cd38c3be240eab62f535cacaeebc99d6c34320647ee9a9b",
+      "export_parity_passed": true,
+      "short_legacy_vs_controller_clamp_cpu": "foundation/results/lab4-deployment-contract-comparison.json",
+      "additional_comparison": [],
+      "not_done": [
+        "Broad randomized comparison",
+        "New finetuning of this from-scratch baseline",
+        "Native exported-policy benchmark",
+        "Physical robot comparison"
+      ]
+    }
+  ],
+  "other_historical_run": {
+    "run_id": "z2ryqabi",
+    "owner": "Shrish",
+    "task": "Mjlab-VelocityFS-Flat-Pupper-v3",
+    "role": "Earlier tracking-only Step3 run, not teammate best Step4 baseline",
+    "checkpoint_or_export_recovered": false,
+    "source": "Fall2026Classes/Cs123/CS123.md Current position, Earlier Step3"
+  },
+  "identity_gap": "No additional team final-run identities established from available saved sources. Parent is checking the live team run table separately.",
+  "interpretation": "The known team StableGait and best from-scratch checkpoint identities are both recovered. Optimization evidence is substantially broader for StableGait. This does not establish the new gaits outperform Tej best from-scratch under broad randomized or class-driver-bound conditions.",
+  "shipped_default": {
+    "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "role": "Integrated default locomotion/jump export; exact original training run/checkpoint unproven, distinct from recovered team policy hashes",
+    "native_matched_evidence": "foundation/results/shipped-policy-native-screen.json",
+    "conclusion": "Preserve integrated shipped default. Native nominal screening measures it directly; newMixed4498 andfast7496 had full-range tilt stops. Randomized GPU robustness and jump performance were not measured by that native comparison."
+  },
+  "coverage_limitations": [
+    "No broad randomized comparison of Tej vt55ode8 against newly trained candidates.",
+    "Earlier broadStable clamp comparison predates tighter class-driver bounds and does not establish behavior under those bounds.",
+    "Native Default/Stable/Mixed common-band comparison uses four explicit initial-condition replicas and nominal dynamics, not a domain-randomization suite.",
+    "No current robot policy hash, installed controller limits, physical tracking or hardware readiness verified."
+  ],
+  "sources": {
+    "foundation/results/lab4-deployment-contract-comparison.json": "35aba9a0b2218d752692a9997c39636fe9c026ad3c57b9b71bbb8d5b00ccd2fb",
+    "foundation/results/lab4-stablegait-clamp-gpu-comparison.json": "49532d6bbc208d8b9696f98331a74e88ca2adb1601571b0c8e725f2f0ae3fb69",
+    "foundation/results/shipped-policy-native-screen.json": "9024be41f5e64e4a4a07cb5659476ce85314ab937de0563ffa94ddad0ae8e614",
+    "pupper-mjlab/lab4_runs/shrish_stablegait/README.md": "60c83aa96053e1215288c701ab757646195daeb954b4f5b0f23f348f4b074ee0",
+    "pupper-mjlab/lab4_runs/shrish_stablegait/training-settings.json": "28b7303eefdc225e70eba471fa1246ee477b9ca8ce26255f35dad5bcabbb32d6"
+  }
+}
