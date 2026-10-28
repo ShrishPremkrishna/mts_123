@@ -24,8 +24,10 @@ struct Controller {
   bool has_jump;
   double previous_time = -1;
   const double scheduled_slot_start;
-  explicit Controller(const char* path, double slot_start = std::numeric_limits<double>::infinity())
-      : scheduled_slot_start(slot_start) {
+  const bool api_reference_mode;
+  double api_slot_start = std::numeric_limits<double>::infinity();
+  explicit Controller(const char* path, double slot_start = std::numeric_limits<double>::infinity(), bool api_mode = false)
+      : scheduled_slot_start(slot_start), api_reference_mode(api_mode) {
     std::ifstream f(path); f >> metadata;
     std::ifstream n(path); network = RTNeural::json_parser::parseJson<float>(n, false);
     if (metadata.at("contract_version") != 2 || metadata.at("single_observation_size") != 48 ||
@@ -58,12 +60,15 @@ struct Controller {
        (!has_jump || !jump.valid() || scheduled_slot_start < 2.0 ||
         std::abs(scheduled_slot_start/jump.grid_s - std::round(scheduled_slot_start/jump.grid_s)) > 1e-9))
       throw std::runtime_error("scheduled jump requires a valid slot and a grid-aligned start after fade-in");
+    if(api_reference_mode && (!has_jump || !jump.valid())) throw std::runtime_error("API reference requires valid jump-slot policy");
     reset();
   }
   void reset() {
     history.assign(48*frames,0); for(int h=0;h<frames;++h) history[h*48+5]=-1;
     raw.assign(12,0);effective=raw;before.assign(defaults.begin(),defaults.end());target=before;
     heading.reset(); previous_time=-1;
+    api_slot_start=std::numeric_limits<double>::infinity();
+    if(has_jump) parse_jump_slot(metadata.at("jump_slot"),12,jump);
   }
   Json infer(const Json& r) {
     const double elapsed=r.at("elapsed_s");
@@ -72,6 +77,23 @@ struct Controller {
     previous_time=elapsed;
     const double phase_time=elapsed-2;
     const float fade=std::min(phase_time/2,1.0);
+    bool reference_received=false;
+    if(r.contains("reference_payload")) {
+      if(!api_reference_mode || fade<1 || std::isfinite(api_slot_start))
+        throw std::runtime_error("API reference requires explicit mode, completed fade and unused one-shot slot");
+      // ROS Float32MultiArray precision, including timing, exactly as production.
+      const auto data=r.at("reference_payload").get<std::vector<float>>();
+      if(data.size()<27 || (data.size()-3)%12 ||
+         !std::all_of(data.begin(),data.end(),[](float v){return std::isfinite(v);}))
+        throw std::runtime_error("invalid API reference payload");
+      JumpSlot next=jump;next.playback_s=data[0];next.active_s=data[1];next.cross_fade_s=data[2];
+      next.n_samples=(data.size()-3)/12;next.busy_s=std::max(next.busy_s,next.active_s);
+      next.jump_table.assign(data.begin()+3,data.end());
+      if(!next.valid() || next.active_s>next.playback_s || next.cross_fade_s>next.active_s)
+        throw std::runtime_error("invalid API reference timing");
+      jump=std::move(next);api_slot_start=phase_time;reference_received=true;
+    }
+    const double selected_slot=api_reference_mode ? api_slot_start : scheduled_slot_start;
     auto command=r.at("command").get<std::vector<double>>();
     const auto q=r.at("joint_pos").get<std::vector<double>>();
     const auto gyro=r.at("angular_velocity").get<std::vector<double>>();
@@ -89,7 +111,7 @@ struct Controller {
     history[3]=2*(w*y-x*z);history[4]=-2*(y*z+w*x);history[5]=-(1-2*(x*x+y*y));
     for(int j=0;j<12;++j) history[12+j]=q[j]-defaults[j];
     if(has_jump) compute_mixed_jump_reference_offset(gait,jump,defaults,phase_time,
-        command[0],command[1],command[2],scheduled_slot_start,false,history.data()+36);
+        command[0],command[1],command[2],selected_slot,false,history.data()+36);
     else compute_gait_reference_offset(gait,defaults,phase_time,command[0],command[1],command[2],history.data()+36);
     for(float& v:history) {if(!std::isfinite(v)) throw std::runtime_error("nonfinite observation");v=std::clamp(v,-100.f,100.f);}
     input=history;
@@ -108,6 +130,11 @@ struct Controller {
       result["scheduled_slot_start_s"]=scheduled_slot_start;
       result["jump_reference_active"]=phase_time>=scheduled_slot_start && phase_time<scheduled_slot_start+jump.active_s;
     }
+    if(api_reference_mode) {
+      result["reference_received"]=reference_received;
+      result["reference_start_s"]=std::isfinite(api_slot_start) ? Json(api_slot_start) : Json(nullptr);
+      result["jump_reference_active"]=phase_time>=api_slot_start && phase_time<api_slot_start+jump.active_s;
+    }
     if(r.value("debug",false)) result["observation"]=input;
     return result;
   }
@@ -116,15 +143,16 @@ struct Controller {
 int main(int argc,char** argv) {
   try {
     double slot_start=std::numeric_limits<double>::infinity();
+    const bool api_mode=argc==4 && std::string(argv[3])=="--api-reference";
     if(argc==5 && std::string(argv[3])=="--scheduled-jump") {
       std::size_t parsed=0;slot_start=std::stod(argv[4],&parsed);
       if(parsed!=std::string(argv[4]).size() || !std::isfinite(slot_start))
         throw std::runtime_error("scheduled jump start must be finite");
-    } else if(argc!=4 || std::string(argv[3])!="--no-jump")
+    } else if(!api_mode && (argc!=4 || std::string(argv[3])!="--no-jump"))
       throw std::runtime_error("usage: export_locomotion_controller POLICY REPLICAS --no-jump OR --scheduled-jump SLOT_START; without an explicit schedule jump capability unmeasured");
     const int count=std::stoi(argv[2]);if(count<1 || count>32) throw std::runtime_error("replica count outside 1..32");
     std::vector<std::unique_ptr<Controller>> controllers;
-    for(int i=0;i<count;++i) controllers.emplace_back(new Controller(argv[1],slot_start));
+    for(int i=0;i<count;++i) controllers.emplace_back(new Controller(argv[1],slot_start,api_mode));
     std::string line;
     while(std::getline(std::cin,line)) {
       const auto r=Json::parse(line);

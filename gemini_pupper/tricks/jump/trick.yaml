@@ -2,7 +2,7 @@
 # gemini_walk controller) is fed this absolute-joint-angle reference once, the same way the
 # joystick's game mode triggers its jump. Only policies trained with this reference
 # can follow it; the default policy was trained with this jump.
-description: Jumps straight up in place and lands standing using the course default locomotion policy's trained jump reference. Only when the user clearly asks for a jump, with clear space around the robot.
+description: Plays the course default locomotion policy's jump reference from a stop. Standing-jump simulations have triggered the tilt stop; physical jump performance has not been validated. Only when the user clearly asks for a jump, with clear space around the robot.
 type: reference
 reference: reference.json
 start_pose: standing
