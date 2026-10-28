@@ -67,8 +67,8 @@
     ],
     "active_work": {
       "root": "Full regression b8216f7 passes775pytest+225course checks+nativeC++; actual isolatedROS21tests also pass. All715watchedsource hashes unchanged during regression. All17installedpolicy files unchanged versus earlieraudit. Finite/reference/interactive completion bugs closed; canonical evidence preserved and branch being pushed. Continue force-refinement review and jump-tool integration assessment, without robot.",
-      "lab6_recovery": "GPU1 -2vs-5 refinement pinned84c1fc6 active; collector4332 healthy. Exact-contact native reruns ofpriorcontrol/-2finalists completed with everyphysicalstate/target/torquearray bit-identical toearlier chains. Updatingactualslip/support evidence afterglobalregressionfreeze released. Read current exitrecords before any retry.",
-      "optional_recovery": "Independent torso raw review complete and preserved; now read-only assessment of zero-speed Gemini jump API versus shipped native standing/forward evidence. No GPU/hardware changes or additionalallocation.",
+      "lab6_recovery": "Both -2/-5 refinement1000iteration trainings completed,8495exports recovered from verifiedcollector; full grids/stops underway. Collector67files/noerrors atlatest agentreceipt. Torch/export parity then2new complete exact-contact nativechains onfrozen sources; briefC++/handoff source hold active untilcopied. No promotion.",
+      "optional_recovery": "Owns a bounded CPU diagnostic of the actual Gemini zero-speed reference-jump path: Float32 table, immediate callback timing, fresh activation versus prior0.3m/s walking then0.5s zero settle, paired no-jump controls. Offline export_locomotion_controller helper only; coordinate with native finalist source holds. Also correcting descriptor guaranteed-landing wording and preserving descriptor provenance. No GPU allocation or hardware.",
       "sit_recovery": "Interactive C++/readiness implementation and independent Python review complete5265b91. All five stale/fault cases pass and actualROS21tests verified. Idle; no outstanding source edits."
     },
     "gpu_state_at_checkpoint": "Only GPU1 remains: pupper-foundation-recovery, refinement supervisor116535 under /content/pupper-spider-torso-refinement, frozen84c1fc634a0ed10cb556a5304e9e4911d7c63e66. Paired1000x4096seed42 -2control/-5intervention from exact torso7496. GPU2 pupper-optional-recovery confirmed terminated; do not retry prior completed jobs.",
@@ -105,7 +105,7 @@
       "foundation/results/controller-completion-v2-reviewed.json",
       "foundation/results/offline-validation-b8216f7.json"
     ],
-    "latest_checkpoint_note": "Validatedcodeb8216f7 (775pytest/225course/native;21actualROS) and immutablecompletionreports are ready. Later commits may change researchresults/docs. Sourcefreeze released; task-ownednative/GPU work continues. Do not retry completed runs."
+    "latest_checkpoint_note": "Origin push throughba4fd0f confirmed. Full validatedcodeb8216f7 (775pytest/225course/native;21actualROS) preserved. Active newresearch/evaluation tasks do notinvalidate earlierexactresults; inspectsourceandcurrentagents beforeedits/retries."
   },
   "checkpoint_history": [
     {
