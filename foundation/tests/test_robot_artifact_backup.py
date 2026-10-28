@@ -191,3 +191,31 @@ def test_stage_transfer_refuses_missing_or_mismatched_reviewed_source_hash(captu
     if output.exists():
         assert (output / 'INCOMPLETE').exists()
         with pytest.raises(ValueError): backup.verify_artifact(output)
+
+
+@pytest.mark.parametrize('target,mode', [('file', 0o700), ('file', 0o644), ('manifest', 0o644), ('directory', 0o755)])
+def test_artifact_verification_refuses_executable_or_nonprivate_modes(capture, target, mode):
+    _, plan, output = capture
+    backup.create_artifact(plan, output)
+    path = output / 'files/approved-policy' if target == 'file' else output / 'manifest.json' if target == 'manifest' else output
+    path.chmod(mode)
+    with pytest.raises(ValueError, match='private'):
+        backup.verify_artifact(output)
+
+
+def test_racing_output_symlink_cannot_redirect_or_overwrite_marker(capture, tmp_path, monkeypatch):
+    _, plan, output = capture
+    outside = tmp_path / 'outside'; outside.mkdir()
+    sentinel = outside / 'INCOMPLETE'; sentinel.write_text('do not overwrite')
+    original_mkdir = backup.os.mkdir
+    def swap_after_mkdir(path, *args, **kwargs):
+        result = original_mkdir(path, *args, **kwargs)
+        if path == output.name and kwargs.get('dir_fd') is not None:
+            output.rename(output.with_name('moved-private-output'))
+            output.symlink_to(outside, target_is_directory=True)
+        return result
+    monkeypatch.setattr(backup.os, 'mkdir', swap_after_mkdir)
+    with pytest.raises(OSError):
+        backup.create_artifact(plan, output)
+    assert sentinel.read_text() == 'do not overwrite'
+    assert sorted(p.name for p in outside.iterdir()) == ['INCOMPLETE']

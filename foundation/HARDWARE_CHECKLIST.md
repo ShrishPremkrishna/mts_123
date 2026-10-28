@@ -152,7 +152,9 @@ python3 foundation/scripts/robot_artifact_backup.py verify \
 
 Verification without the expected digest checks internal file integrity but does
 not pin the manifest's identity. Extra, missing, linked or altered files refuse
-verification. A matched file hash proves copied bytes, not that the file was
+verification, as do executable/public file modes or nonprivate artifact directories.
+Preserve the artifact's private permissions during transfer. Output writes are
+anchored to the newly created directory, so a racing symlink cannot redirect them. A matched file hash proves copied bytes, not that the file was
 loaded or that the robot can execute it safely.
 
 For a proposed transfer, create a separate explicit plan with purpose

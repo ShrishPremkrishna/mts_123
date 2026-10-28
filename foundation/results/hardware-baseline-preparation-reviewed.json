@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "reviewed_at_utc": "2026-10-28T11:17:42.394260+00:00",
+  "reviewed_at_utc": "2026-10-28T11:29:06.171380+00:00",
   "scope": "Local hardware-session preparation and temporary-fixture tests only. No SSH, robot access, ROS graph invocation, installation, restore or motor command.",
   "verified": {
-    "focused_tests": 26,
+    "focused_tests": 31,
     "result": "passed",
     "test_command": ".venv/bin/python -m pytest -q foundation/tests/test_robot_artifact_backup.py foundation/tests/test_robot_description.py",
     "inventory_execution": "Temporary nonsensitive fixture directories only, without --ros",
     "related_description_tests": 4,
-    "total_tests": 30
+    "total_tests": 35
   },
   "closed_gaps": [
     "Explicit discovered component paths supported; default candidates labeled unverified, never installed truth.",
@@ -19,7 +19,10 @@
     "Checklist covers current reference/finite/interactive readonly capability contracts, transient nonce exclusion, and slew-bearing policy contract.",
     "Checklist distinguishes preserved shipped default, local simulation Sit asset and unpromoted research candidates.",
     "Reopen the anchored no-follow source path after copying to reject atomic replacement as well as mutation of an open file.",
-    "Staged-transfer entries require individually reviewed expected_sha256 pins; baseline plans may pin inventory hashes."
+    "Staged-transfer entries require individually reviewed expected_sha256 pins; baseline plans may pin inventory hashes.",
+    "Output directory and file creation uses anchored directory descriptors; a symlink swap cannot redirect marker or payload writes.",
+    "Verification enforces private 0700 directories and nonexecutable 0600 manifest/payload modes.",
+    "JSON plans/manifests use the same stable no-follow read and path-replacement checks as payloads."
   ],
   "open_before_robot_changes": [
     "Discover actual Pi paths and launch invocation; pi@mts reachability is not established by this review.",
@@ -39,8 +42,8 @@
   ],
   "sources": {
     "foundation/scripts/robot_inventory.sh": "d762e82a292564b2e4a20e03a68939a842b6f50b97247f1626598c6945465d69",
-    "foundation/scripts/robot_artifact_backup.py": "fe3d30bbe5e6fb4ecb09fdc4a28d62605adebb0020e52f420fcc6647793e9cb6",
-    "foundation/tests/test_robot_artifact_backup.py": "60b84f772c254aa9f26e7b1578f83bab641a6e445613b201954490d8df562920",
-    "foundation/HARDWARE_CHECKLIST.md": "fa98f9703b813600a65b2dd16ffe708ef6839f830031fba19963788181c48332"
+    "foundation/scripts/robot_artifact_backup.py": "a85752202ac0f05982fea557e19376c13fe24bf93ad84f36642845b990b5d5dc",
+    "foundation/tests/test_robot_artifact_backup.py": "965949792152b801558ed9a08e54193dde3f51ede507b2030ac93038b95f356a",
+    "foundation/HARDWARE_CHECKLIST.md": "f2ef14bc0896caaf5199bf000cadb57bec272bec1690dd480921970c9de85566"
   }
 }
