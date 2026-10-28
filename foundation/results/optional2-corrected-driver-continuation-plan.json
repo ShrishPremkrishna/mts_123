@@ -1,0 +1,143 @@
+{
+  "created_utc": "2026-10-28T00:26:10.394941+00:00",
+  "status": "proposal_not_launched",
+  "purpose": "Redirect new Optional2 optimization to an explicit local class-driver contract while retaining all completed original comparisons.",
+  "inputs": {
+    "baseline": {
+      "checkpoint": "artifacts/optional2/clamped-batch/mixed-baseline/model_4498.pt",
+      "sha256": "9607b28bff6f66fd08d9c06fd509a0de14c6496cca75c64d872370349d7231f4",
+      "provenance_sha256": "a9f2cca313ea7cd836dd0078665bd79f4de5d89ec505cb1ea0cd4191d4956210",
+      "policy_sha256": "47ef80321c5edf7eedff6daf6c20e4c1042a0a8f3b887cdd9b6ad8fdb3d18f38"
+    },
+    "fast": {
+      "checkpoint": "artifacts/optional2/clamped-batch/mixed-fast-rewards/model_7496.pt",
+      "sha256": "c434427434263b161458baf8f7e598ee945219c07318ab0146c8d78464eeffb2",
+      "provenance_sha256": "54c1d89be0f986157be1ce5bd9722f7e5c365bfda0dc0cd3333158eb91e46a5a",
+      "policy_sha256": "172c8e4ec6ec14b79cb31918349060afcab924767fee3fd9f65828ad00798ddf"
+    },
+    "fast_reference": {
+      "directory": "artifacts/optional2/clamped-batch/reference_sources/extended_trot",
+      "files": {
+        "captured_reach_gaits.npz": "6c8b44f54ea411a4b8eed5c7758e6fb97093c589038765febeae435562990d52",
+        "reference_manifest.json": "97dc73b273df4b506c71982fa1dcfcef98db49558c6a5aead1211ca31e3d3788"
+      }
+    },
+    "driver_limits": {
+      "path": "foundation/configs/class-driver-joint-limits.json",
+      "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+      "installed_robot_verified": false
+    }
+  },
+  "contracts": {
+    "required": [
+      "--deployment-target-clamp",
+      "--driver-limits foundation/configs/class-driver-joint-limits.json"
+    ],
+    "recommended_new_branch": [
+      "--compose-com-randomization"
+    ],
+    "com_decision": "Use the verified corrected independent COM composition in both new candidates and every matched pre/post evaluation. This is a final engineering comparison with all named corrections, not a driver-only causal ablation. The already completed CPU screen isolates driver limits under legacy COM.",
+    "flat_collision_decision": "Retain the documented original foot/knee collision model for flat training unless root chooses torso contact across the entire new branch. The four local screens had positive mesh/plane clearance in all 64,000 scored states; this is limited evidence, not a guarantee.",
+    "bumpy_mystery_collision_decision": "Before terrain/jump training, evaluate the selected flat checkpoint with --locomotion-torso-contact and freeze the same torso-contact contract for both pre-finetune baseline and finetuned candidate. Body contact at rough terrain/landings should have a physical response. Do not claim validated mesh/heightfield distance; exact contact probes and same-scene rollout comparisons are the evidence.",
+    "unchanged": [
+      "named joint order",
+      "exact stock or authored reference bytes per candidate",
+      "existing per-profile reward weights",
+      "training seed 42",
+      "4096 training environments",
+      "full policy/source/artifact provenance"
+    ]
+  },
+  "parallel_schedule": [
+    {
+      "phase": 1,
+      "runtime": "GPU1 after Sit validation",
+      "job": "driver-base",
+      "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+      "initial_checkpoint": "baseline",
+      "iterations": 1000,
+      "profile": "baseline",
+      "reference_dir": null,
+      "dependencies": [
+        "source and contract freeze"
+      ],
+      "before_training": "Evaluate initial checkpoint under exactly the new contract at selection seed 101.",
+      "after_training": "Evaluate continuation at seed 101 under identical worlds/commands/noise; record per-command tracking, failures, torque/slip, targets and signed torso-plane geometry."
+    },
+    {
+      "phase": 1,
+      "runtime": "GPU2 after explicitly authorized legacy scheduler stop; otherwise next available runtime",
+      "job": "driver-fast",
+      "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+      "initial_checkpoint": "fast",
+      "iterations": 1000,
+      "profile": "fast",
+      "reference_dir": "fast_reference",
+      "dependencies": [
+        "source and contract freeze"
+      ],
+      "before_training": "Evaluate initial fast checkpoint under exactly the new contract at selection seed 101.",
+      "after_training": "Same selection evaluation as driver-base. The candidate still needs low-speed/turning/slip checks; average velocity error is insufficient."
+    },
+    {
+      "phase": 2,
+      "runtime": "both runtimes after both candidates complete",
+      "job": "flat-selection-and-heldout",
+      "dependencies": [
+        "driver-base",
+        "driver-fast"
+      ],
+      "action": "Select on seed 101 using per-command failures/tracking/torque/slip and training provenance. Freeze the choice. Evaluate selected candidate versus corrected-contract baseline at held-out seeds 202,303,404 with identical settings and realized randomization arrays. No repeated held-out tuning or automatic promotion."
+    },
+    {
+      "phase": 3,
+      "runtime": "GPU1",
+      "job": "driver-bumpy",
+      "task": "Mjlab-MixedGaits-Bumpy-Pupper-v3",
+      "iterations": 1500,
+      "initial_checkpoint": "selected-flat",
+      "profile": "selected-profile",
+      "reference_dir": "selected-exact-reference",
+      "dependencies": [
+        "frozen flat selection",
+        "frozen torso contact contract"
+      ],
+      "before_training": "Evaluate selected flat checkpoint on Bumpy at 202,303,404 with the exact same terrain/worlds/randomization contract used for the post-training candidate.",
+      "after_training": "Matched Bumpy evaluation at 202,303,404. Report realized terrain/contact model, tracking/falls/torque/slip. Do not extrapolate to other rough-terrain families or use unvalidated torso/heightfield distance."
+    },
+    {
+      "phase": 3,
+      "runtime": "GPU2",
+      "job": "driver-mystery-pilot",
+      "task": "Mjlab-Mystery-Flat-Pupper-v3",
+      "iterations": 500,
+      "initial_checkpoint": "selected-flat",
+      "weights": "pupper-mjlab/configs/optional2/mystery_experiment.json",
+      "reference_dir": "selected-exact-reference",
+      "dependencies": [
+        "frozen flat selection",
+        "frozen torso contact contract"
+      ],
+      "after_training": "Evaluate actual airborne interval, takeoff velocity, height, full-body contact, landing and recovery under bounded commands. Preserve unsuccessful attempts as failed jump evidence; soft jump rewards are not proof of jumping."
+    },
+    {
+      "phase": 4,
+      "runtime": "GPU2",
+      "job": "driver-mystery-captured",
+      "task": "Mjlab-Mystery-Flat-Pupper-v3",
+      "iterations": 1000,
+      "dependencies": [
+        "pilot produces validated flight-to-landing capture"
+      ],
+      "action": "Capture a real flight/landing sequence, preserve existing reach-reference files exactly, fine-tune, then evaluate independent held-out worlds. If no valid capture exists, record the concrete failure and inspect the reward/motion before any additional training."
+    }
+  ],
+  "resource_estimate": "Recent G4 locomotion runs took about 22 minutes per 1500 iterations: about 15 minutes for each parallel 1000-iteration flat continuation, then about 22 minutes Bumpy in parallel with 7+15 minutes Mystery pilot/captured. Add evaluation/export time; estimates are not guarantees.",
+  "legacy_preservation": "After the user directly approved the specific queue-control request, scheduler PID 12173 was paused at 2026-10-28T00:26:38Z. Its current bootstrap-1 training child PID 33782 continues untouched. Original batch_status.json was preserved unchanged; separate control records are in /content/pupper-clamp-results/optional2-control/20261028T002638Z. After this child finishes and outputs are verified, terminate only the paused scheduler without manufacturing completion markers.",
+  "bootstrap_policy": "Do not repeat two blind bootstrap rounds in the corrected branch. First evaluate the completed legacy bootstrap output independently under its recorded original references and corrected target contract; only schedule a new fold after measured improvement and stable capture justify it.",
+  "limitations": [
+    "No installation or hardware approval. Installed driver bounds/calibration are unknown.",
+    "Candidates have different prior optimization histories; compare engineering outcomes, not isolated causal effects.",
+    "All outputs, source hashes, exact references, selection decisions and scheduler-control records remain separate from original batch evidence."
+  ]
+}
