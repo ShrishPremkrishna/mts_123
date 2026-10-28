@@ -1,0 +1,710 @@
+{
+  "recorded_utc": "2026-10-28T10:05:27.959308+00:00",
+  "protocol": "final_mystery_fixed_four_seed_observed_span_v3",
+  "hardware_validated": false,
+  "promoted": false,
+  "new_reference_selected": false,
+  "further_training_authorized_by_this_report": false,
+  "source_checkpoint_sha256": "18304c3d38954661bb722120c1e5a1f266437c13df761eb9e6a19780237eaec9",
+  "training_reference_sha256": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+  "original_reference_v2_to_v3_reassessment": {
+    "original43frames": {
+      "accepted": false,
+      "reason": "No clean jump with loading, upward all-body flight and sustained landing found; do not fabricate a capture"
+    },
+    "later_unchanged_context": {
+      "accepted": false,
+      "reason": "No clean jump with loading, upward all-body flight and sustained landing found; do not fabricate a capture"
+    }
+  },
+  "original_reference_lineage": "The existing43frame reference and completed v5 job used v2 five-observation recovery (.08s first-to-last, previously labeled .10s by bins). These bytes/jobs remain unchanged; revised-v3 final evaluation does not retroactively validate the old input.",
+  "gate": {
+    "version": "all_body_com_sample_span_v3",
+    "min_flight_s": 0.08,
+    "min_total_rise_m": 0.02,
+    "min_takeoff_com_velocity_m_s": 0.05,
+    "min_positive_com_rise_m": 0.0001,
+    "min_observed_recovery_span_s": 0.1,
+    "max_recovery_tilt_rad": 0.35,
+    "max_recovery_com_speed_m_s": 0.3,
+    "max_window_tilt_rad": 1.0,
+    "max_capture_duration_exclusive_s": 1.44,
+    "duration_convention": "First-to-last observed sample span; count-times-dt bin duration is reported separately. Between-sample continuity is not established.",
+    "note": "Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen."
+  },
+  "results": {
+    "101": {
+      "seed": 101,
+      "protocol": "all_bounded_observed_jump_events_sample_span_v3",
+      "capture_gate": {
+        "version": "all_body_com_sample_span_v3",
+        "min_flight_s": 0.08,
+        "min_total_rise_m": 0.02,
+        "min_takeoff_com_velocity_m_s": 0.05,
+        "min_positive_com_rise_m": 0.0001,
+        "min_observed_recovery_span_s": 0.1,
+        "max_recovery_tilt_rad": 0.35,
+        "max_recovery_com_speed_m_s": 0.3,
+        "max_window_tilt_rad": 1.0,
+        "max_capture_duration_exclusive_s": 1.44,
+        "duration_convention": "First-to-last observed sample span; count-times-dt bin duration is reported separately. Between-sample continuity is not established.",
+        "note": "Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen."
+      },
+      "source_revision": "16aeb67da63e024004565a602189719f4911f943",
+      "source_trace_sha256": "d4bb566ee8f5c4330b950997c3612a3dff327908491a69646f8e900d155824fc",
+      "source_provenance_sha256": "8c7ddd9b1c24f8ea4fc4b7560dca9a787f1cdb3b9be3e95b8ec42ec8c7967225",
+      "source_env_sha256": "b4d8a6917bca34d736b0a4f5a0cbf791f38438ea3eea1ebffc5165ebec69f194",
+      "source_metrics_sha256": "a9fc95b4a2707461c97104cd7ad74f7aa14c701ebda80ac4f33b3c5572210331",
+      "randomization_snapshot_sha256": "d0f5d27241db613ec5e6e6441843b221a702ca2b8034b9b225498c460f548949",
+      "geometry_identity_sha256": "c16eceb4369a7e33f61bc7e6dac8a80057d8b72b7ae5518420e8d08255f13ed4",
+      "scope": {
+        "seconds": 10.0,
+        "warmup": 2.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "num_envs": 32,
+        "randomized": true,
+        "reset_each_command": true,
+        "forced_slot_coverage_probe": {
+          "script_sha256": "543af2055ad9579ead83c329520b6ba9aed67d0a27470d355335c8f417202da2",
+          "schedule_override": {
+            "p_no_jump": 0.0,
+            "min_start_s": 2.25,
+            "end_margin_s": 24.0,
+            "min_separation_s": 3.0
+          },
+          "purpose": "Ensure every command observes actual jump slots; reset each command, always schedule within its valid window. Different protocol from original continuous selection sweep; not a promotion claim."
+        }
+      },
+      "trace_shape": [
+        8000,
+        32
+      ],
+      "trace_dt_s": 0.02,
+      "trace_failure_events": 1,
+      "all_foot_air_runs": 2738,
+      "enumeration_excluded": {
+        "foot_air_observed_span_below80ms": 2329,
+        "warmup_reset_failure_or_invalid_context": 384,
+        "insufficient_bounded_context": 21
+      },
+      "audited_windows": 4,
+      "accepted_unique_events": 0,
+      "accepted_events_with_scheduled_reference": 0,
+      "accepted_by_command": [],
+      "interpretation": "Admissible recorded motion events, not per-request success rate: scheduled-reference overlap is separately counted, and moving gait aerial events may also qualify. Every bounded valid foot-air interval with enough observed span was geometrically replayed; every admissible all-body subevent was enumerated without max-rise ranking. Repeated overlapping audit windows are deduplicated by environment and source flight interval.",
+      "holdout_use": "Evaluation only; no reference selection, retraining or promotion follows.",
+      "report_sha256": "483cd70abd4eb4da87d5dda3a9c5d4fee2984caeb134a7bcecb6cff84c39ead5"
+    },
+    "202": {
+      "seed": 202,
+      "protocol": "all_bounded_observed_jump_events_sample_span_v3",
+      "capture_gate": {
+        "version": "all_body_com_sample_span_v3",
+        "min_flight_s": 0.08,
+        "min_total_rise_m": 0.02,
+        "min_takeoff_com_velocity_m_s": 0.05,
+        "min_positive_com_rise_m": 0.0001,
+        "min_observed_recovery_span_s": 0.1,
+        "max_recovery_tilt_rad": 0.35,
+        "max_recovery_com_speed_m_s": 0.3,
+        "max_window_tilt_rad": 1.0,
+        "max_capture_duration_exclusive_s": 1.44,
+        "duration_convention": "First-to-last observed sample span; count-times-dt bin duration is reported separately. Between-sample continuity is not established.",
+        "note": "Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen."
+      },
+      "source_revision": "16aeb67da63e024004565a602189719f4911f943",
+      "source_trace_sha256": "d90373dd81c03a8fe8eb7977e558999901138d0d12cb0df17f40979bb04ee405",
+      "source_provenance_sha256": "987a39038b80eab2d785f980155f3d163f91dccb0f6597e5aaf0c71dcaab055f",
+      "source_env_sha256": "2c81a779a771841af655a5f36f72df678ddf0d593a90221965a081f6d1e277eb",
+      "source_metrics_sha256": "cada12d0857b48e1ab30967dc1f671911e24d5082fc322062b93efe1983c9343",
+      "randomization_snapshot_sha256": "70b2d4e5b82ef31b7c54b7701c877788fdf07cfd9e9514e7fb21d79abf8e6b5c",
+      "geometry_identity_sha256": "c16eceb4369a7e33f61bc7e6dac8a80057d8b72b7ae5518420e8d08255f13ed4",
+      "scope": {
+        "seconds": 10.0,
+        "warmup": 2.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "num_envs": 32,
+        "randomized": true,
+        "reset_each_command": true,
+        "forced_slot_coverage_probe": {
+          "script_sha256": "543af2055ad9579ead83c329520b6ba9aed67d0a27470d355335c8f417202da2",
+          "schedule_override": {
+            "p_no_jump": 0.0,
+            "min_start_s": 2.25,
+            "end_margin_s": 24.0,
+            "min_separation_s": 3.0
+          },
+          "purpose": "Ensure every command observes actual jump slots; reset each command, always schedule within its valid window. Different protocol from original continuous selection sweep; not a promotion claim."
+        }
+      },
+      "trace_shape": [
+        8000,
+        32
+      ],
+      "trace_dt_s": 0.02,
+      "trace_failure_events": 1,
+      "all_foot_air_runs": 2654,
+      "enumeration_excluded": {
+        "foot_air_observed_span_below80ms": 2231,
+        "warmup_reset_failure_or_invalid_context": 392,
+        "insufficient_bounded_context": 28
+      },
+      "audited_windows": 3,
+      "accepted_unique_events": 0,
+      "accepted_events_with_scheduled_reference": 0,
+      "accepted_by_command": [],
+      "interpretation": "Admissible recorded motion events, not per-request success rate: scheduled-reference overlap is separately counted, and moving gait aerial events may also qualify. Every bounded valid foot-air interval with enough observed span was geometrically replayed; every admissible all-body subevent was enumerated without max-rise ranking. Repeated overlapping audit windows are deduplicated by environment and source flight interval.",
+      "holdout_use": "Evaluation only; no reference selection, retraining or promotion follows.",
+      "report_sha256": "86f72aa13275cd81c381a4245bfc9404877fc35fec6fcd64bc1d6ed62844818c"
+    },
+    "303": {
+      "seed": 303,
+      "protocol": "all_bounded_observed_jump_events_sample_span_v3",
+      "capture_gate": {
+        "version": "all_body_com_sample_span_v3",
+        "min_flight_s": 0.08,
+        "min_total_rise_m": 0.02,
+        "min_takeoff_com_velocity_m_s": 0.05,
+        "min_positive_com_rise_m": 0.0001,
+        "min_observed_recovery_span_s": 0.1,
+        "max_recovery_tilt_rad": 0.35,
+        "max_recovery_com_speed_m_s": 0.3,
+        "max_window_tilt_rad": 1.0,
+        "max_capture_duration_exclusive_s": 1.44,
+        "duration_convention": "First-to-last observed sample span; count-times-dt bin duration is reported separately. Between-sample continuity is not established.",
+        "note": "Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen."
+      },
+      "source_revision": "16aeb67da63e024004565a602189719f4911f943",
+      "source_trace_sha256": "5eb7b18230463041b4866fac9d2459eb581ea4f2bfc5e97cb2aa39f9471e9cfa",
+      "source_provenance_sha256": "91d0f8c61b832a48dbb22dc77f0b5f6405c6bb145c17d56ae888d5554def4299",
+      "source_env_sha256": "9ee1e71b3fbd0ed4e9894967b3aca0c721960b119071a144b4a4d03c6d6475ed",
+      "source_metrics_sha256": "552609709793a30640778866f10de3704f7008cdad1380c0157266cdae48c81c",
+      "randomization_snapshot_sha256": "79efd20b4cadfca3ba1bc486212c2262420f008add5ac9681b541b60a3325afd",
+      "geometry_identity_sha256": "c16eceb4369a7e33f61bc7e6dac8a80057d8b72b7ae5518420e8d08255f13ed4",
+      "scope": {
+        "seconds": 10.0,
+        "warmup": 2.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "num_envs": 32,
+        "randomized": true,
+        "reset_each_command": true,
+        "forced_slot_coverage_probe": {
+          "script_sha256": "543af2055ad9579ead83c329520b6ba9aed67d0a27470d355335c8f417202da2",
+          "schedule_override": {
+            "p_no_jump": 0.0,
+            "min_start_s": 2.25,
+            "end_margin_s": 24.0,
+            "min_separation_s": 3.0
+          },
+          "purpose": "Ensure every command observes actual jump slots; reset each command, always schedule within its valid window. Different protocol from original continuous selection sweep; not a promotion claim."
+        }
+      },
+      "trace_shape": [
+        8000,
+        32
+      ],
+      "trace_dt_s": 0.02,
+      "trace_failure_events": 1,
+      "all_foot_air_runs": 2768,
+      "enumeration_excluded": {
+        "insufficient_bounded_context": 20,
+        "warmup_reset_failure_or_invalid_context": 399,
+        "foot_air_observed_span_below80ms": 2346
+      },
+      "audited_windows": 3,
+      "accepted_unique_events": 1,
+      "accepted_events_with_scheduled_reference": 1,
+      "accepted_by_command": [
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "events": 1
+        }
+      ],
+      "interpretation": "Admissible recorded motion events, not per-request success rate: scheduled-reference overlap is separately counted, and moving gait aerial events may also qualify. Every bounded valid foot-air interval with enough observed span was geometrically replayed; every admissible all-body subevent was enumerated without max-rise ranking. Repeated overlapping audit windows are deduplicated by environment and source flight interval.",
+      "holdout_use": "Evaluation only; no reference selection, retraining or promotion follows.",
+      "report_sha256": "a85c0c74d5568eebe224b3f55f3230fb9439e5d6e2007832ed467e67eecbb57c"
+    },
+    "404": {
+      "seed": 404,
+      "protocol": "all_bounded_observed_jump_events_sample_span_v3",
+      "capture_gate": {
+        "version": "all_body_com_sample_span_v3",
+        "min_flight_s": 0.08,
+        "min_total_rise_m": 0.02,
+        "min_takeoff_com_velocity_m_s": 0.05,
+        "min_positive_com_rise_m": 0.0001,
+        "min_observed_recovery_span_s": 0.1,
+        "max_recovery_tilt_rad": 0.35,
+        "max_recovery_com_speed_m_s": 0.3,
+        "max_window_tilt_rad": 1.0,
+        "max_capture_duration_exclusive_s": 1.44,
+        "duration_convention": "First-to-last observed sample span; count-times-dt bin duration is reported separately. Between-sample continuity is not established.",
+        "note": "Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen."
+      },
+      "source_revision": "16aeb67da63e024004565a602189719f4911f943",
+      "source_trace_sha256": "de25027b542cc1717b1827a457cc421722937a54e2ff71384854659b11233f0c",
+      "source_provenance_sha256": "8b96a8b8c6c01b224d5a892ff1cbf9ea3cfe8360854849fb9c772a5141e2f57b",
+      "source_env_sha256": "7a05bb0ae355fb18001ca787f3ea7b5ed586faec93811cd28fc170606f17fe82",
+      "source_metrics_sha256": "ef7fa3b4f53df137e8b9500c371d49e7ccd73b912c555d0a36a85ad14ac8a8c4",
+      "randomization_snapshot_sha256": "0286fb9b3b14d43b8ff337911f4ddb2f24062492bb40dac1cb7aa256b837715a",
+      "geometry_identity_sha256": "c16eceb4369a7e33f61bc7e6dac8a80057d8b72b7ae5518420e8d08255f13ed4",
+      "scope": {
+        "seconds": 10.0,
+        "warmup": 2.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "num_envs": 32,
+        "randomized": true,
+        "reset_each_command": true,
+        "forced_slot_coverage_probe": {
+          "script_sha256": "543af2055ad9579ead83c329520b6ba9aed67d0a27470d355335c8f417202da2",
+          "schedule_override": {
+            "p_no_jump": 0.0,
+            "min_start_s": 2.25,
+            "end_margin_s": 24.0,
+            "min_separation_s": 3.0
+          },
+          "purpose": "Ensure every command observes actual jump slots; reset each command, always schedule within its valid window. Different protocol from original continuous selection sweep; not a promotion claim."
+        }
+      },
+      "trace_shape": [
+        8000,
+        32
+      ],
+      "trace_dt_s": 0.02,
+      "trace_failure_events": 2,
+      "all_foot_air_runs": 2847,
+      "enumeration_excluded": {
+        "insufficient_bounded_context": 24,
+        "warmup_reset_failure_or_invalid_context": 388,
+        "foot_air_observed_span_below80ms": 2430
+      },
+      "audited_windows": 5,
+      "accepted_unique_events": 1,
+      "accepted_events_with_scheduled_reference": 1,
+      "accepted_by_command": [
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "events": 1
+        }
+      ],
+      "interpretation": "Admissible recorded motion events, not per-request success rate: scheduled-reference overlap is separately counted, and moving gait aerial events may also qualify. Every bounded valid foot-air interval with enough observed span was geometrically replayed; every admissible all-body subevent was enumerated without max-rise ranking. Repeated overlapping audit windows are deduplicated by environment and source flight interval.",
+      "holdout_use": "Evaluation only; no reference selection, retraining or promotion follows.",
+      "report_sha256": "f947bd3d829d4825ba7bef1c5b8b7bfb2ddf9cfe3ab23ad9208546f93f19b091"
+    }
+  },
+  "geometry_contract": {
+    "contract": "locomotion_torso_contact_v1",
+    "hull_count": 1,
+    "hull_body": "base_link",
+    "maximum_hull_vertices": 32,
+    "contype": 0,
+    "conaffinity": 1,
+    "density": 0,
+    "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+  },
+  "source_geometry_sha256": {
+    "pupper-mjlab/src/mjlab/tasks/pupper/locomotion_contact_contract.py": "23f3322826681da74e862a798ce2e176385bcd31dd4582803f7b87eb9c5abbc6",
+    "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+    "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/__init__.py": "9889fce7d2debc9fa72aaa63ac328b9dd60eb4a1fbcca8e0e65e50d21d1d1a89",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/BodyV4v70_001.stl": "703137e327683555c1f6d12d39b99fd721479af0e0785e61805ad755a8f782a8",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_001.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_002.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_003.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_005.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_006.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_007.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_010.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_011.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_012.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_013.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_014.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_015.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/pupper_v3.xml": "a62291bb236e3a92979ddbd772f3f6506bfded07a9ff939e48e6d5ffeeba611d"
+  },
+  "execution_sources_sha256": {
+    "foundation/scripts/audit_jump_capture_contacts.py": "8bb71e792dfb3637ca79f916aa60aa0a45a940473ee995fe094b5bfc09fa7ccc",
+    "pupper-mjlab/src/mjlab/tasks/pupper_gait/bootstrap.py": "11c5df86742dad37019d1b3a3d2d1c9680bab963f93d21b4ef8680b7fa05f7dd",
+    "foundation/scripts/check_spider_handoff.py": "090f4e9340377dea5269a50559e34e189957a999084817e7fcc0c6d7dbcd8698"
+  },
+  "limitations": [
+    "Geometric queries at20ms saved GPU poses; no forces or native dynamic replay.",
+    "Source-identical9active geometries:4knee/4foot spheres and1torso hull; no silent enablement of visual meshes.",
+    "Recorded randomized masses and base COM restore the mass-weighted COM; velocity is finite-difference sampled COM.",
+    "First-to-last durations bound observed sample spans; between-sample support/contact continuity remains unobserved.",
+    "Joint bounds are model limits; accepted observations do not imply narrower driver-command compatibility or hardware readiness.",
+    "All four seeds are final evaluations; no held-out motion is selected for another reference."
+  ],
+  "artifacts": {
+    "directory": "artifacts/optional2/mystery-v5-final-observed-span-audit",
+    "preservation_manifest": "preservation-mystery-v5-final-observed-span-audit.json"
+  },
+  "audit_implementation_revision": "92fa793dab3c6b1fb68d12066db4d79ab61b2103",
+  "decision": "Retain the shipped jump policy; this completed captured-reference continuation does not establish reliable jumping. Across four fixed final seeds only two recorded events pass the stricter observed-span gate, both during the -1.5m/s command; none passes at the stationary commands. The input reference itself fails v3 recovery and remains unchanged, with its original v2 lineage documented. No further capture selection or training follows this audit.",
+  "count_summary": {
+    "seeds": [
+      101,
+      202,
+      303,
+      404
+    ],
+    "bounded_candidate_windows": [
+      4,
+      3,
+      3,
+      5
+    ],
+    "admissible_events": [
+      0,
+      0,
+      1,
+      1
+    ],
+    "trace_failure_events": [
+      1,
+      1,
+      1,
+      2
+    ],
+    "both_admissible_events_command": [
+      -1.5,
+      0,
+      0
+    ],
+    "both_admissible_events_intersect_scheduled_reference": true,
+    "per_request_success_rate_established": false
+  }
+}
