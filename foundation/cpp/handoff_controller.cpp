@@ -18,6 +18,8 @@ struct Controller {
   TrickMotion motion;
   ClipPlayer player;
   GaitReference gait;
+  JumpSlot jump;
+  bool has_jump=false, default_walk=false;
   CommandClip command_clip;
   HeadingHold heading;
   PositionTargetSlew position_slew;
@@ -30,7 +32,7 @@ struct Controller {
   int width=0, history=1, repeat=-1, frame=-1;
   double init_s=0, fade_s=0, yaw_offset=0, scale=0;
   bool yaw_set=false, clip_anchor=false;
-  explicit Controller(const char* path) {
+  explicit Controller(const char* path, bool default_walking=false) : default_walk(default_walking) {
     std::ifstream file(path); file>>metadata;
     std::ifstream network(path); model=RTNeural::json_parser::parseJson<float>(network,false);
     defaults=metadata.at("default_joint_pos").get<std::vector<double>>();
@@ -38,7 +40,12 @@ struct Controller {
     upper=metadata.at("joint_upper_limits").get<std::vector<double>>();
     scale=metadata.at("action_scale");
     if (!(std::isfinite(scale)&&scale>0)) throw std::runtime_error("positive action scale required");
+    if ((metadata.contains("action_types") && metadata.at("action_types")!=Json(std::vector<std::string>(12,"position"))) ||
+        (metadata.contains("action_type") && metadata.at("action_type")!="position"))
+      throw std::runtime_error("handoff host supports position actions only");
     history=metadata.at("observation_history");
+    if(history<1 || defaults.size()!=12 || lower.size()!=12 || upper.size()!=12)
+      throw std::runtime_error("invalid controller dimensions");
     for (const auto& part:metadata.at("obs_spec").at("components")) {
       offsets[part.at("name")]=width; width+=part.at("size").get<int>();
     }
@@ -47,7 +54,10 @@ struct Controller {
     if(metadata.contains("gait_reference")) parse_gait_reference(metadata.at("gait_reference"),12,gait);
     if(metadata.contains("command_clip")) parse_command_clip(metadata.at("command_clip"),command_clip);
     if(metadata.contains("heading_hold")) parse_heading_hold(metadata.at("heading_hold"),heading);
-    if(metadata.contains("jump_slot")) throw std::runtime_error("jump-slot controller outside bounded Spider diagnostic");
+    has_jump=metadata.contains("jump_slot");
+    if(has_jump && !default_walk) throw std::runtime_error("jump-slot controller allowed only in explicit default return with no jumps scheduled");
+    if(default_walk && (!gait.valid() || motion.frames)) throw std::runtime_error("default return requires a locomotion gait policy");
+    if(has_jump) parse_jump_slot(metadata.at("jump_slot"),12,jump);
     position_slew=parse_position_target_slew(metadata,lower,upper,position_slew_joint_names(),std::vector<std::string>(12,"position"));
   }
   void activate(const Json& request) {
@@ -91,6 +101,12 @@ struct Controller {
       const auto quat=r.at("quaternion").get<Quat>();
       auto command=r.at("command").get<std::vector<double>>();
       command_clip.apply(command[0],command[1],command[2]);
+      // gemini_walk's explicit speed cap; no buttons or reference requests are
+      // supplied in this diagnostic, so all jump slots remain at +infinity.
+      if(default_walk) {
+        command[0]=std::clamp(command[0],-1.5,1.5);
+        if(has_jump) command[1]=std::clamp(command[1],-1.5,1.5);
+      }
       command[2]=heading.apply(quat_yaw(quat),command[0],command[1],command[2]);
       auto write=[&](const std::string& name,const auto& values) {
         if(offsets.count(name)) for(std::size_t j=0;j<values.size();++j) observation[offsets.at(name)+j]=values[j];
@@ -110,7 +126,9 @@ struct Controller {
         Quat ref; for(int k=0;k<4;++k) ref[k]=motion.anchor_quat[frame*4+k];
         if(offsets.count("motion_anchor_ori_b")) relative_orientation_6d(quat,quat_mul(yaw_quat(yaw_offset),ref),observation.data()+offsets.at("motion_anchor_ori_b"));
       }
-      if(gait.valid()) compute_gait_reference_offset(gait,defaults,fade_time,command[0],command[1],command[2],observation.data()+offsets.at("gait_reference"));
+      if(has_jump) compute_mixed_jump_reference_offset(gait,jump,defaults,fade_time,command[0],command[1],command[2],
+          std::numeric_limits<double>::infinity(),false,observation.data()+offsets.at("gait_reference"));
+      else if(gait.valid()) compute_gait_reference_offset(gait,defaults,fade_time,command[0],command[1],command[2],observation.data()+offsets.at("gait_reference"));
       for(float& v:observation) v=std::clamp(v,-100.f,100.f);
       // Read-only audit copy before history rotation and last-action feedback.
       // This lets the caller distinguish reference, actor and clamp transitions.
@@ -139,13 +157,23 @@ struct Controller {
 };
 int main(int argc,char** argv) {
   try {
-    if(argc!=3) return 2;
+    if(argc!=3 && argc!=5) throw std::runtime_error("usage: handoff_controller TRICK WALK [--return-default-no-jump DEFAULT]");
+    if(argc==5 && std::string(argv[3])!="--return-default-no-jump") throw std::runtime_error("explicit no-jump default return required");
     Controller trick(argv[1]),walk(argv[2]); Controller* active=&trick;
+    std::unique_ptr<Controller> normal;
+    if(argc==5) normal=std::make_unique<Controller>(argv[4],true);
     std::string line;
     while(std::getline(std::cin,line)) {
       const auto request=Json::parse(line);
-      if(request.at("op")=="activate") { active=request.at("controller")=="trick"?&trick:&walk;active->activate(request);std::cout<<"{\"activated\":true}"<<std::endl; }
-      else std::cout<<active->step(request).dump()<<std::endl;
+      if(request.at("op")=="activate") {
+        const std::string selected=request.at("controller");
+        if(selected=="trick") active=&trick;
+        else if(selected=="walk") active=&walk;
+        else if(selected=="default" && normal) active=normal.get();
+        else throw std::runtime_error("unknown or unavailable controller");
+        active->activate(request);std::cout<<"{\"activated\":true}"<<std::endl;
+      } else if(request.at("op")=="step") std::cout<<active->step(request).dump()<<std::endl;
+      else throw std::runtime_error("unknown operation");
     }
   } catch(const std::exception& e) { std::cerr<<e.what()<<std::endl; return 1; }
 }

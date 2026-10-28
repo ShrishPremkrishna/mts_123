@@ -61,7 +61,9 @@ def make_model(contact_model):
     return model, contract
 
 
-def stage_plan(trick, single_motion=False):
+def stage_plan(trick, single_motion=False, return_default=False):
+    if single_motion and return_default:
+        raise ValueError('default return is only supported for the continuous Spider sequence')
     if single_motion:
         metadata=trick['trick'];clips=metadata.get('clips')
         if clips:
@@ -76,7 +78,7 @@ def stage_plan(trick, single_motion=False):
     clips={c['name']:c for c in trick['trick']['clips']};fps=trick['trick']['fps']
     down=(clips['spider_down']['end']-clips['spider_down']['start']-1)/fps
     up=(clips['spider_up']['end']-clips['spider_up']['start']-1)/fps
-    return [('entry','trick',.5+1+down+.3,[0,0,0],'spider_down'),
+    stages = [('entry','trick',.5+1+down+.3,[0,0,0],'spider_down'),
             ('walk_activation','walk',4.2,[0,0,0],''),
             ('walk_forward','walk',2,[.10,0,0],''),
             ('walk_stop_1','walk',1,[0,0,0],''),
@@ -85,6 +87,11 @@ def stage_plan(trick, single_motion=False):
             ('walk_stop_before_exit','walk',2,[0,0,0],''),
             ('exit','trick',.5+1+up+.3,[0,0,0],'spider_up'),
             ('standing_hold','trick',1,[0,0,0],'')]
+    if return_default:
+        stages += [('default_activation','default',4.2,[0,0,0],''),
+                   ('default_forward','default',2,[.10,0,0],''),
+                   ('default_stop','default',2,[0,0,0],'')]
+    return stages
 
 
 def numerical_failures(data):
@@ -108,7 +115,8 @@ def run(args):
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
                *sorted((ROOT/'pupper_gait_deploy/src').glob('*.hpp')),
-               ROOT/'pupper_gait_deploy/src/neural_controller.cpp', ROOT/'pupper_gait_deploy/config.yaml']
+               ROOT/'pupper_gait_deploy/src/neural_controller.cpp', ROOT/'pupper_gait_deploy/config.yaml',
+               ROOT/'gemini_pupper/robot/tricks.py']
     sources += [ROOT/'pupper-mjlab/src/mjlab'/p for p in (
         'tasks/tracking/config/pupper/env_cfgs.py','tasks/tracking/config/pupper/contact_contract.py',
         'tasks/pupper/locomotion_contact_contract.py','tasks/pupper/deployment_contract.py',
@@ -118,7 +126,18 @@ def run(args):
     single_motion=getattr(args,'single_motion',False)
     if args.walk_policy is None and not single_motion:raise ValueError('--walk-policy required for Spider handoff')
     walk_path=args.walk_policy or args.trick_policy  # second host slot unused in single-motion mode
-    trick = json.loads(args.trick_policy.read_text()); walking = json.loads(walk_path.read_text())
+    default_path=getattr(args,'return_default_policy',None)
+    # Read each original once. Parsing, preservation and native execution use
+    # those exact bytes even if an external process changes the original path.
+    policy_paths={'trick':args.trick_policy,'walk':walk_path}
+    if default_path is not None: policy_paths['default']=default_path
+    policy_bytes={name:path.read_bytes() for name,path in policy_paths.items()}
+    policy_before={name:hashlib.sha256(raw).hexdigest() for name,raw in policy_bytes.items()}
+    policies={name:json.loads(raw) for name,raw in policy_bytes.items()}
+    trick=policies['trick'];walking=policies['walk']
+    for name,raw in policy_bytes.items(): (output/f'{name}-policy.json').write_bytes(raw)
+    preserved_hashes={name:sha(output/f'{name}-policy.json') for name in policy_bytes}
+    if preserved_hashes!=policy_before:raise RuntimeError('Preserved policy identity mismatch')
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
     model, contract = make_model(args.contact_model); data = mujoco.MjData(model)
     mujoco.mj_saveModel(model,str(output/'model.mjb'),None)
@@ -140,8 +159,10 @@ def run(args):
         if lower.shape!=(12,) or upper.shape!=(12,) or not np.all(lower<upper): raise ValueError('invalid driver bounds')
     # Exact application timing: entry init/fade plus clip and .3s; walking
     # activation 2+2s plus .2s; bounded commands followed by a 2s zero stop.
-    stages=stage_plan(trick,single_motion)
-    proc=subprocess.Popen([str(binary),str(args.trick_policy.resolve()),str(walk_path.resolve())],
+    stages=stage_plan(trick,single_motion,default_path is not None)
+    host_command=[str(binary),str((output/'trick-policy.json').resolve()),str((output/'walk-policy.json').resolve())]
+    if default_path is not None: host_command += ['--return-default-no-jump',str((output/'default-policy.json').resolve())]
+    proc=subprocess.Popen(host_command,
                           stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=(output/'controller.log').open('w'),text=True,bufsize=1)
     def rpc(request):
         proc.stdin.write(json.dumps(request)+'\n'); proc.stdin.flush()
@@ -161,7 +182,7 @@ def run(args):
                 rpc(dict(op='activate',controller=controller,joint_pos=data.qpos[qadr].tolist(),
                          init_s=.5 if controller=='trick' else 2.,fade_s=1. if controller=='trick' else 2.,
                          start_clip=start_clip,clip_anchor=args.clip_anchor))
-                activations.append(dict(stage=stage,time_s=current_time,root_pose=data.qpos[root_q:root_q+7].tolist(),
+                activations.append(dict(stage=stage,controller=controller,policy_sha256=policy_before[controller],time_s=current_time,root_pose=data.qpos[root_q:root_q+7].tolist(),
                                         joint_pos=data.qpos[qadr].tolist(),joint_vel=data.qvel[vadr].tolist(),
                                         physical_state_reset=False,observation_history_reset=True))
                 previous_controller=controller
@@ -226,7 +247,7 @@ def run(args):
     for name,*_ in stages:
         rows=[s for s in samples if s['stage']==name]
         if not rows: continue
-        default=np.asarray(walking['default_joint_pos'] if rows[-1]['controller']=='walk' else trick['default_joint_pos'])
+        default=np.asarray(policies[rows[-1]['controller']]['default_joint_pos'])
         endpoint=(np.asarray(trick['motion']['joint_pos'][rows[-1]['frame']])
                   if rows[-1]['controller']=='trick' and rows[-1]['frame']>=0 else default)
         summaries[name]=dict(samples=len(rows),max_tilt_deg=max(s['tilt_deg'] for s in rows),
@@ -240,7 +261,9 @@ def run(args):
             driver_clipped_joint_fraction=float(np.mean(np.abs(np.array([s['driver_target'] for s in rows])-np.array([s['target'] for s in rows]))>1e-7)),
             last_clip=rows[-1]['clip'],last_frame=rows[-1]['frame'],last_holding=rows[-1]['holding'])
     source_after={str(p.relative_to(ROOT)):sha(p) for p in sources}
-    report=dict(protocol='exported_finite_trick_activation_and_hold_v1' if single_motion else 'continuous_exported_controller_spider_handoff_v1',hardware_validated=False,
+    policy_after={name:sha(path) for name,path in policy_paths.items()}
+    report=dict(protocol=('exported_finite_trick_activation_and_hold_v1' if single_motion else
+        'continuous_spider_to_default_nojump_v2' if default_path is not None else 'continuous_exported_controller_spider_handoff_v1'),hardware_validated=False,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
@@ -249,9 +272,14 @@ def run(args):
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.',
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
-                 'Single finite clip plus2s hold; no walking handoff tested.' if single_motion else 'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.',
+                 'Single finite clip plus2s hold; no walking handoff tested.' if single_motion else
+                 'Default controller returns after exit with its own measured-pose initialization, reset history, no scheduled jumps, 0.1m/s forward command and stop; no ROS services executed.' if default_path is not None else
+                 'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.',
                  'MuJoCo derived contacts/forces accompany the forward solve immediately before integration; recorded qpos is after integration, at most1/520s later.'],
-        trick_policy_sha256=sha(args.trick_policy),walk_policy_sha256=None if single_motion else sha(args.walk_policy),
+        trick_policy_sha256=policy_before['trick'],walk_policy_sha256=None if single_motion else policy_before['walk'],
+        default_policy_sha256=policy_before.get('default'),policy_hashes_start=policy_before,policy_hashes_end=policy_after,
+        preserved_policy_hashes={name:sha(output/f'{name}-policy.json') for name in policy_bytes},
+        policy_changed=policy_before!=policy_after,host_command=host_command,
         driver_limits=None if args.driver_limits is None else dict(path=str(args.driver_limits),sha256=sha(args.driver_limits)),
         sources_start=source_before,sources_end=source_after,source_changed=source_before!=source_after,
         compiler_command=compile_command,activations=activations,stage_summaries=summaries,stop=failure,
@@ -266,6 +294,7 @@ def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--trick-policy',type=Path,required=True);parser.add_argument('--walk-policy',type=Path)
+    parser.add_argument('--return-default-policy',type=Path,help='Continue from Spider exit into the actual normal walking policy; no jump requests, continuous physical state')
     parser.add_argument('--single-motion',action='store_true',help='One finite trick plus2s terminal hold; no walking controller used')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)

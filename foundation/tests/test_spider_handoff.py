@@ -202,3 +202,83 @@ def test_slew_backward_clock_refuses_without_another_command(slew_host):
     assert proc.stdout.readline()==''
     proc.stdin.close();assert proc.wait(timeout=5)==1
     assert 'invalid slew command clock' in proc.stderr.read()
+
+
+def test_default_return_extends_identical_spider_sequence():
+    policy={'trick':{'fps':50,'clips':[{'name':'spider_down','start':0,'end':101},
+                                     {'name':'spider_up','start':101,'end':202}]}}
+    original=handoff.stage_plan(policy)
+    extended=handoff.stage_plan(policy,return_default=True)
+    assert extended[:len(original)]==original
+    assert extended[len(original):]==[('default_activation','default',4.2,[0,0,0],''),
+                                     ('default_forward','default',2,[.1,0,0],''),
+                                     ('default_stop','default',2,[0,0,0],'')]
+    with pytest.raises(ValueError,match='continuous Spider'):
+        handoff.stage_plan(policy,single_motion=True,return_default=True)
+
+
+def test_actual_default_return_matches_independent_native_host_and_numpy(host,tmp_path):
+    from mjlab.tasks.pupper.export import json_forward
+    from mjlab.tasks.pupper_gait.export import reference_offset_numpy
+    independent_spec=importlib.util.spec_from_file_location('independent_default',ROOT/'foundation/scripts/check_export_locomotion.py')
+    independent=importlib.util.module_from_spec(independent_spec);independent_spec.loader.exec_module(independent)
+    other_dir=tmp_path/'other';other_dir.mkdir()
+    other_binary,_=independent.build_controller(other_dir)
+    default=ROOT/'pupper_gait_deploy/policies/default_policy.json'
+    metadata=json.loads(default.read_text())
+    other=independent.Host(other_binary,default,1,other_dir/'controller.log')
+    binary,fixture=host
+    proc=subprocess.Popen([str(binary),str(fixture),str(fixture),'--return-default-no-jump',str(default)],
+                          stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    def rpc(message):
+        proc.stdin.write(json.dumps(message)+'\n');proc.stdin.flush()
+        line=proc.stdout.readline();assert line,proc.stderr.read()
+        return json.loads(line)
+    measured=(np.array(metadata['default_joint_pos'])+.1).tolist()
+    try:
+        # First visit another controller with incompatible history, then verify
+        # the default activation starts from measured joints and its own history.
+        rpc(dict(op='activate',controller='trick',joint_pos=measured,init_s=.5,fade_s=1.,start_clip='exit',clip_anchor=True))
+        rpc(step(.7))
+        rpc(dict(op='activate',controller='default',joint_pos=measured,init_s=2.,fade_s=2.,start_clip='',clip_anchor=True))
+        np.testing.assert_allclose(rpc(step(0))['target'],measured,atol=1e-7)
+        expected_mid=(np.array(measured)+np.array(metadata['default_joint_pos']))/2
+        np.testing.assert_allclose(rpc(step(1))['target'],expected_mid,atol=1e-7)
+        for tick in range(3101):
+            t=2+tick/520
+            index=tick//520
+            command=([0,0,0],[.1,0,0],[2.,2.,.2],[-.1,0,-.2],[0,0,0],[0,0,0])[min(index,5)]
+            request=dict(op='step',elapsed_s=t,joint_pos=measured,joint_vel=[0.]*12,
+                         angular_velocity=[.01,-.02,.03],quaternion=[1,0,0,0],command=command,audit_inference=True)
+            result=rpc(request)
+            if not result['inference']:continue
+            expected=other.request(dict(op='infer',states=[{**request,'debug':True}]))[0]
+            for ours,theirs in [('target','target'),('raw_action','raw_action'),('model_input','observation'),('gait_reference_offset','reference')]:
+                np.testing.assert_allclose(result[ours],expected[theirs],atol=3e-5,rtol=3e-5)
+            raw=json_forward(metadata,np.array(result['model_input'])[None,:])[0]
+            np.testing.assert_allclose(result['raw_action'],raw,atol=3e-5,rtol=3e-5)
+            effective=result['effective_command']
+            ref=reference_offset_numpy(metadata['gait_reference'],np.array(metadata['default_joint_pos']),
+                                       np.array([t-2]),*[np.array([v]) for v in effective])[0]
+            np.testing.assert_allclose(result['gait_reference_offset'],ref,atol=2e-6,rtol=2e-6)
+            assert max(abs(v) for v in effective[:2])<=1.5
+    finally:
+        proc.stdin.close();assert proc.wait(timeout=5)==0
+        other.close()
+
+
+@pytest.mark.parametrize('label',['default','typo'])
+def test_unavailable_or_unknown_controller_is_not_silently_walk(host,label):
+    binary,path=host
+    proc=subprocess.run([str(binary),str(path),str(path)],input=json.dumps(dict(op='activate',controller=label))+'\n',
+                        capture_output=True,text=True)
+    assert proc.returncode==1 and 'unknown or unavailable controller' in proc.stderr
+
+
+@pytest.mark.parametrize('field,value',[('action_types',['effort']*12),('action_type','velocity')])
+def test_handoff_rejects_unsupported_action_contract(host,tmp_path,field,value):
+    binary,path=host
+    metadata=json.loads(path.read_text());metadata[field]=value
+    bad=tmp_path/'bad.json';bad.write_text(json.dumps(metadata))
+    proc=subprocess.run([str(binary),str(bad),str(path)],capture_output=True,text=True)
+    assert proc.returncode==1 and 'position actions only' in proc.stderr
