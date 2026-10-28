@@ -289,6 +289,13 @@ def train(args: argparse.Namespace) -> Path:
       reward.weight = profile["rewards"].get(name, 0.0)
   linear_std = getattr(args, "linear_tracking_std", None)
   reward_parameters = set_linear_tracking_std(cfg, linear_std)
+  torso_support_contract = None
+  torso_support_weight = getattr(args, "torso_support_weight", None)
+  if torso_support_weight is not None:
+    if args.profile != "spider_walk":
+      raise ValueError("Torso support experiment currently supports spider_walk only")
+    from mjlab.tasks.pupper.torso_support import apply_torso_support_penalty
+    torso_support_contract = apply_torso_support_penalty(cfg, torso_support_weight)
   if motion_path is not None:
     cfg.commands["motion"].motion_file = str(motion_path)
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -303,6 +310,8 @@ def train(args: argparse.Namespace) -> Path:
     contract_suffix += "_linstd" + format(linear_std, ".12g").replace(".", "p")
   if com_x_half_range is not None:
     contract_suffix += "_comx" + format(com_x_half_range, ".12g").replace(".", "p")
+  if torso_support_weight is not None:
+    contract_suffix += "_torsoload" + format(abs(torso_support_weight), ".12g").replace(".", "p")
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -337,6 +346,7 @@ def train(args: argparse.Namespace) -> Path:
     "domain_randomization_overrides": randomization_overrides,
     "num_envs": cfg.scene.num_envs, "iterations": agent.max_iterations,
     "resume_run": args.resume_run, "resume_checkpoint": args.resume_checkpoint,
+    "torso_support_contract": torso_support_contract,
     "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
     "initial_checkpoint_sha256": sha256(initial_checkpoint) if initial_checkpoint else None,
     "source": source_manifest(), "gpu": torch.cuda.get_device_name(0),
@@ -448,6 +458,7 @@ def main() -> None:
   launch.add_argument("--tracking-com-x-half-range", type=float, help="Separate tracking experiment: torso X COM uniform +/-range in meters, at most 0.02; requires --compose-com-randomization and retains Y/Z +/-0.01")
   launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")
   launch.add_argument("--locomotion-torso-contact", action="store_true", help="Separate SpiderWalk physics contract adding only the torso collider; preserve knee/foot spheres")
+  launch.add_argument("--torso-support-weight", type=float, help="Explicit flat-torso normal-load penalty weight [-5,0];0 is the sensor-only matched control, requires --locomotion-torso-contact")
   evaluate = sub.add_parser("score")
   evaluate.add_argument("--motion", type=Path, required=True)
   evaluate.add_argument("--checkpoint", type=Path, required=True)

@@ -102,6 +102,14 @@ def settings(args,play):
     if getattr(args,"locomotion_torso_contact",False):
         from mjlab.tasks.pupper.locomotion_contact_contract import enable_locomotion_torso_contact
         args.locomotion_contact_contract=enable_locomotion_torso_contact(cfg)
+    if getattr(args,"torso_contact_audit",False):
+        from mjlab.tasks.pupper.torso_support import enable_torso_support_audit
+        args.torso_support_contract=enable_torso_support_audit(cfg)
+    if getattr(args,"nominal_mechanics",False):
+        if getattr(args,"command",None)!="evaluate":
+            raise ValueError('Nominal mechanics is an evaluation-only diagnostic')
+        from mjlab.tasks.pupper.torso_support import nominal_mechanics
+        args.nominal_mechanics_contract=nominal_mechanics(cfg)
     return cfg,agent
 
 
@@ -214,6 +222,10 @@ def evaluate(args):
         run["action_target_audit"]=dict(wrapper_clip_actions=agent.clip_actions,
             action_term_clip=action_term.cfg.clip,
             meaning="raw actor actions; unclipped post-wrapper affine request; target_joint_pos is DESIRED target after configured clip BEFORE optional slew/latency/bias; physical_target_joint_pos is that desired request minus bias, not filtered actuator input; applied_target_joint_pos is the last physics-step encoder-coordinate target AFTER optional slew/action-term latency; actuator_input_target_joint_pos subtracts encoder bias before internal actuator delay. Post-step reset rows are excluded. Samples at policy frequency do not demonstrate every physics-step rate bound; those are checked separately. Deployment counterfactual clamps the affine request to model joint ranges; clipping fractions use unclipped request")
+        torso_audit=getattr(args,"torso_contact_audit",False)
+        if torso_audit:
+            from mjlab.tasks.pupper.torso_support import torso_support_diagnostics
+            for key in torso_support_diagnostics(env):samples[key]=[]
         jump_windows=None
         if "Mystery" in args.task:
             jump_windows=(float(cfg.observations["actor"].terms["policy"].params["slot_s"]),
@@ -261,6 +273,7 @@ def evaluate(args):
                                 foot_speed_xy=torch.linalg.vector_norm(robot.data.site_lin_vel_w[:,site_ids,:2],dim=-1),heading=robot.data.heading_w,height=robot.data.root_link_pos_w[:,2],
                                 vertical_velocity=robot.data.root_link_lin_vel_w[:,2],
                                 foot_force_norm=torch.linalg.vector_norm(contact_sensor.data.force,dim=-1) if contact_sensor.data.force is not None else torch.full_like(contact_sensor.data.found,float("nan"),dtype=torch.float32))
+                    if torso_audit:arrays.update(torso_support_diagnostics(env))
                     if jump_windows is not None:arrays.update(jump_schedule_diagnostics(env,*jump_windows))
                     for key,value in arrays.items(): samples[key].append(value.detach().cpu().numpy().copy())
                     samples["phase"].append(phase); samples["episode"].append(episodes.copy())
@@ -289,6 +302,11 @@ def evaluate(args):
     (args.out/"provenance.json").write_text(json.dumps(run,indent=2)+"\n")
     np.savez_compressed(args.out/"trace.npz",**trace)
     report=summarize_trace(trace,dt,args.warmup); report["provenance"]=run
+    if torso_audit:
+        from mjlab.tasks.pupper.torso_support import summarize_torso_support
+        support=summarize_torso_support(trace)
+        (args.out/"torso_support_metrics.json").write_text(json.dumps(support,indent=2)+"\n")
+        report["torso_support_metrics"]="torso_support_metrics.json"
     (args.out/"metrics.json").write_text(json.dumps(report,indent=2)+"\n")
     print(json.dumps(report,indent=2))
 
@@ -312,6 +330,8 @@ def main():
     ev.add_argument("--num-envs",type=int,default=32); ev.add_argument("--seconds",type=float,default=10.)
     ev.add_argument("--warmup",type=float,default=2.); ev.add_argument("--commands",type=Path)
     ev.add_argument("--randomized",action="store_true"); ev.add_argument("--reset-each-command",action="store_true")
+    ev.add_argument("--torso-contact-audit",action="store_true",help="Read actual torso ground force and substep history; requires explicit locomotion torso hull")
+    ev.add_argument("--nominal-mechanics",action="store_true",help="Diagnostic only: remove sampled mass/COM/PD/encoder/friction while retaining observation noise, latency and reset randomness")
     ev.add_argument("--no-heading-hold",action="store_true"); ev.add_argument("--allow-out-of-range",action="store_true")
     ev.add_argument("--zero-policy",action="store_true",help="Infrastructure smoke test, never a trained-policy result")
     ev.add_argument("--geometry-audit",action="store_true",help="Read-only signed torso/plane distance at recorded states; no collision response changes; rejects heightfield terrain")
