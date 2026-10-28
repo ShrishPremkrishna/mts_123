@@ -339,3 +339,24 @@ def test_interactive_plan_uses_actual_installed_clip_contract():
     policy['trick']['clips'][2]['next']=None
     with pytest.raises(ValueError,match='shake returns'):
         handoff.interactive_sit_stages(policy)
+
+
+def test_later_lying_return_requires_explicit_flag_and_preserves_descriptor(tmp_path):
+    policy=tmp_path/'policy.json';descriptor=tmp_path/'trick.yaml'
+    content=b'type: policy\npolicy: policy.json\nstart_pose: standing\nend_pose: lying\n'
+    descriptor.write_bytes(content)
+    with pytest.raises(ValueError,match='standing-to-standing'):
+        handoff.validate_single_return_descriptor(descriptor,policy)
+    assert handoff.validate_single_return_descriptor(descriptor,policy,later_return_from_lying=True)==content
+    assert descriptor.read_bytes()==content
+    descriptor.write_text(content.decode().replace('end_pose: lying','end_pose: sitting'))
+    with pytest.raises(ValueError,match='declared lying'):
+        handoff.validate_single_return_descriptor(descriptor,policy,later_return_from_lying=True)
+
+
+@pytest.mark.parametrize('single,default,interactive',[(False,Path('default.json'),False),(True,None,False),(False,Path('default.json'),True)])
+def test_later_lying_return_refuses_ambiguous_modes(single,default,interactive):
+    from types import SimpleNamespace
+    with pytest.raises(ValueError,match='requires single finite'):
+        handoff.run(SimpleNamespace(single_motion=single,interactive_sit=interactive,
+                                   return_default_policy=default,later_return_from_lying=True))

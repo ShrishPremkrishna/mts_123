@@ -68,12 +68,13 @@ def default_return_stages():
             ('default_stop','default',2,[0,0,0],'')]
 
 
-def validate_single_return_descriptor(path, policy_path):
+def validate_single_return_descriptor(path, policy_path, *, later_return_from_lying=False):
     if path is None:
         raise ValueError('Finite default return requires --trick-descriptor with a standing endpoint')
     content=path.read_bytes();descriptor=yaml.safe_load(content)
-    if not isinstance(descriptor,dict) or descriptor.get('type')!='policy' or descriptor.get('start_pose')!='standing' or descriptor.get('end_pose')!='standing':
-        raise ValueError('Finite default return requires a standing-to-standing policy descriptor')
+    expected_end='lying' if later_return_from_lying else 'standing'
+    if not isinstance(descriptor,dict) or descriptor.get('type')!='policy' or descriptor.get('start_pose')!='standing' or descriptor.get('end_pose')!=expected_end:
+        raise ValueError('Finite default return requires a standing-to-standing policy descriptor, or explicit later return from a declared lying endpoint')
     if not isinstance(descriptor.get('policy'),str) or (path.parent/descriptor['policy']).resolve()!=policy_path.resolve():
         raise ValueError('Descriptor policy path does not match the evaluated input')
     return content
@@ -165,9 +166,12 @@ def run(args):
     if single_motion and interactive_sit:raise ValueError('Choose finite single motion or interactive Sit, not both')
     default_path=getattr(args,'return_default_policy',None)
     descriptor_path=getattr(args,'trick_descriptor',None)
+    later_return_from_lying=getattr(args,'later_return_from_lying',False)
+    if later_return_from_lying and (not single_motion or default_path is None or interactive_sit):
+        raise ValueError('--later-return-from-lying requires single finite motion and explicit default policy')
     if interactive_sit and default_path is None:raise ValueError('Interactive Sit requires explicit --return-default-policy')
     descriptor_bytes=(validate_interactive_return_descriptor(descriptor_path,args.trick_policy) if interactive_sit else
-        validate_single_return_descriptor(descriptor_path,args.trick_policy) if single_motion and default_path is not None else None)
+        validate_single_return_descriptor(descriptor_path,args.trick_policy,later_return_from_lying=later_return_from_lying) if single_motion and default_path is not None else None)
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     if descriptor_bytes is not None:(output/'trick-descriptor.yaml').write_bytes(descriptor_bytes)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
@@ -333,11 +337,13 @@ def run(args):
             last_clip=rows[-1]['clip'],last_frame=rows[-1]['frame'],last_holding=rows[-1]['holding'])
     source_after={str(p.relative_to(ROOT)):sha(p) for p in sources}
     policy_after={name:sha(path) for name,path in policy_paths.items()}
-    report=dict(protocol=('interactive_sit_to_default_nojump_v1' if interactive_sit else
+    report=dict(protocol=('finite_lying_later_default_nojump_v1' if later_return_from_lying else
+        'interactive_sit_to_default_nojump_v1' if interactive_sit else
         'finite_trick_to_default_nojump_v1' if single_motion and default_path is not None else
         'exported_finite_trick_activation_and_hold_v1' if single_motion else
         'continuous_spider_to_default_nojump_v2' if default_path is not None else 'continuous_exported_controller_spider_handoff_v1'),hardware_validated=False,
-        interactive_sit=interactive_sit,clip_requests=clip_requests,
+        interactive_sit=interactive_sit,clip_requests=clip_requests,later_return_from_lying=later_return_from_lying,
+        declared_trick_end_pose=yaml.safe_load(descriptor_bytes)['end_pose'] if descriptor_bytes is not None else None,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
@@ -346,6 +352,7 @@ def run(args):
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.',
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
+                 'Finite trick retains its declared lying endpoint through2s terminal hold; a separate later move request directly activates the default controller. No implicit standing-exit clip is invented.' if later_return_from_lying else
                  'Interactive Sit queues left shake, right shake and standing exit through production ClipPlayer with persistent actor history and clock; this does not execute ROS messages.' if interactive_sit else
                  'Single finite clip plus2s hold; no walking handoff tested.' if single_motion and default_path is None else
                  'Default controller returns after the finite terminal hold or Spider exit with its own measured-pose initialization, reset history, no scheduled jumps, 0.1m/s forward command and stop; no ROS services executed.' if default_path is not None else
@@ -372,6 +379,7 @@ if __name__=='__main__':
     parser.add_argument('--trick-policy',type=Path,required=True);parser.add_argument('--walk-policy',type=Path)
     parser.add_argument('--return-default-policy',type=Path,help='Continue after Spider exit or an explicitly described finite standing-ending trick into actual normal walking; no jumps, continuous physical state')
     parser.add_argument('--trick-descriptor',type=Path,help='Required for finite default return; confirms standing start/end and exact policy path')
+    parser.add_argument('--later-return-from-lying',action='store_true',help='Explicit diagnostic of a later move request after a finite trick holds its declared lying endpoint; requires --single-motion and --return-default-policy')
     parser.add_argument('--interactive-sit',action='store_true',help='Explicit sit/idle/left/right/standing-exit queue sequence followed by actual default walking')
     parser.add_argument('--single-motion',action='store_true',help='One finite trick plus2s terminal hold; append normal walking only with explicit --return-default-policy')
     parser.add_argument('--output',type=Path,required=True)
