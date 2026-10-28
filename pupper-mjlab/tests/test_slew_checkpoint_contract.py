@@ -120,6 +120,32 @@ def test_standalone_export_refuses_invalid_metadata_before_env_creation(tmp_path
         exporter.run_export(TASK,exporter.ExportConfig(checkpoint_file=str(path),device='cpu'))
 
 
+@pytest.mark.parametrize('case', ['legacy_to_slew','matching_slew','missing_slew','different_slew'])
+def test_actual_runner_load_enforces_declared_contract_only(tmp_path,monkeypatch,runtime_metadata,case):
+    import mjlab.tasks.pupper.target_slew as slew
+    from mjlab.tasks.pupper.rl.runner import PupperOnPolicyRunner
+    from mjlab.tasks.velocity.rl.runner import VelocityOnPolicyRunner
+    path=tmp_path/'model.pt'
+    infos={} if case=='legacy_to_slew' else {CHECKPOINT_SLEW_KEY:runtime_metadata}
+    torch.save({'infos':infos},path)
+    actual=None if case=='missing_slew' else copy.deepcopy(runtime_metadata)
+    if case=='different_slew':actual['max_rate_rad_s']=14.
+    monkeypatch.setattr(slew,'target_slew_metadata',lambda _:actual)
+    loaded=[]
+    def parent_load(self,path,**kwargs):
+        loaded.append((path,kwargs));return {'original_parent_result':True}
+    monkeypatch.setattr(VelocityOnPolicyRunner,'load',parent_load)
+    runner=object.__new__(PupperOnPolicyRunner)
+    runner.env=SimpleNamespace(unwrapped=object())
+    if case in ('missing_slew','different_slew'):
+        with pytest.raises(ValueError,match='differs from the active environment'):
+            runner.load(str(path),load_cfg={'actor':True},map_location='cpu')
+        assert loaded==[]  # Reject before any actor/optimizer/curriculum mutation.
+    else:
+        assert runner.load(str(path),load_cfg={'actor':True},map_location='cpu')=={'original_parent_result':True}
+        assert loaded==[(str(path),{'load_cfg':{'actor':True},'strict':True,'map_location':'cpu'})]
+
+
 def test_actual_save_standalone_export_and_audit_roundtrip(tmp_path):
     import json
     cfg,_=slew_config();env=ManagerBasedRlEnv(cfg,device='cpu')

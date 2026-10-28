@@ -50,6 +50,21 @@ _PARITY_MAX_ENVS = 512
 class PupperOnPolicyRunner(VelocityOnPolicyRunner):
   """Velocity runner that emits an on-robot deploy JSON at every checkpoint."""
 
+  def load(self, path: str, load_cfg=None, strict: bool = True, map_location=None):
+    from mjlab.tasks.pupper.target_slew import (
+      checkpoint_position_target_slew, target_slew_metadata,
+      validate_position_target_slew_metadata,
+    )
+    expected = checkpoint_position_target_slew(path)
+    # An old checkpoint can deliberately warm-start a new-physics experiment.
+    # Once training stamps a slew contract, silently dropping/changing it would
+    # no longer reproduce that checkpoint's actuation during training or play.
+    if expected is not None:
+      actual = target_slew_metadata(self.env.unwrapped)
+      if actual is None or validate_position_target_slew_metadata(actual) != expected:
+        raise ValueError('Checkpoint position-target slew contract differs from the active environment')
+    return super().load(path, load_cfg=load_cfg, strict=strict, map_location=map_location)
+
   def save(self, path: str, infos=None):
     from mjlab.tasks.pupper.target_slew import checkpoint_infos_with_position_target_slew
     infos = checkpoint_infos_with_position_target_slew(self.env.unwrapped, infos)
