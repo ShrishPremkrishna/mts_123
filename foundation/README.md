@@ -37,7 +37,7 @@ actual class-image revision before any installation.
 
 ## Simulator corrections that affect the evidence
 
-The audit found three consequential differences between apparent and tested
+The audit found consequential differences between apparent and tested
 behavior: the Pi clamps motor targets while the original simulator did not;
 inertial randomization erased the earlier center-of-mass offset; and tracking
 body/leg collision hulls were disabled after creation. Each correction has an
@@ -70,6 +70,15 @@ under evaluation. Historical “HOLDS UP” labels describe the simulator used a
 sufficient evidence for deployment; new evaluations must name the actual contact,
 actuation and randomization contracts. A stable-looking animation can still be
 physically wrong when contact is disabled.
+
+A later sensor audit found that the locomotion actor observes true simulated
+joint angles while its action subtracts a persistent encoder calibration bias.
+The hardware controller observes measured angles, including that bias; tracking
+actors already model this correctly. Earlier randomized walking comparisons
+remain paired, but their calibration-robustness evidence is incomplete. Nominal
+zero-bias native tests cannot expose this mismatch. An explicit, versioned
+measured-angle training correction and matched continuation are being prepared;
+completed policies and historical results remain unchanged.
 
 A separate reference audit caught a misleading class description: the exported
 jump table contains **absolute joint angles**, while the policy observation uses

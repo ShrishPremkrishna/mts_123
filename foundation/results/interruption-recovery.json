@@ -31,6 +31,7 @@
     "drive_mount": "Not enabled; it requested additional broader Google access. Used existing approved downloads instead."
   },
   "continuing_work": [
+    "Close encoder observation mismatch for future training with explicit versioned contract, independent math/hardware review and a matched continuation/common deployment-measured evaluation; preserve all historical run identities. Do not silently relabel prior calibration robustness.",
     "Review exact worst-world startup transfer and bounded matched native diagnostics for residual Spider belly support; no claim of universal off-belly capability. Finish independent review and preserve all source/inputs/raw data.",
     "Complete current-catalog staged comparison package and independent validation. Actual Pi inventory, policy identity, ROS compatibility and physical performance remain unknown.",
     "Run appropriate regression once current helper/report edits settle, update installed descriptor audit and push reviewed branch. Preserve main.",
@@ -40,10 +41,10 @@
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T11:30:48.432539+00:00",
+    "recorded_utc": "2026-10-28T11:44:39.273115+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
-    "head": "a5841375fe84c6817d8c6f8cc8e38484545f3739",
+    "head": "f774f19c4b9ed65805955a172811227a85f17058",
     "main_clean": true,
     "last_full_regression": {
       "source": "b8216f7fd0f4e639ece60e58dc3004137620f803",
@@ -66,14 +67,15 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Reviewed paired native16case whole-chain mechanics/material study; original erroneous520Hz tilt label preserved and corrected to52Hz. Canonical capability/source-coverage review; independent helper reviews and final integration/regression after sources settle. No robot.",
-      "lab6_recovery": "Both -2/-5 continuation1000iterations and full grids/stops/nativeparity completed; archives verified. Owns exact named startup transfer helper for two posthoc high-supportGPUworlds, botharms, sphere-only versus separate foot-endunion material. No new training launched.",
-      "optional_recovery": "Physical variants independent rawreviewcomplete. Tightening nominal-return sampled-grid precision in exact Gemini jump report, then independently reviewing complete GPUrefinement metrics/lineage/archives.",
-      "sit_recovery": "Explicit source backup helper and output/path/permission race hardening complete; building a local hash-pinned installed-catalog comparison package. No deployment candidate selection, robot,SSH orROS."
+      "root": "Integrated independent16case native mechanics/material review; preserved comparisonplot; reviewed70filecurrent-catalog comparisonpackage; corrected staged/installedSpiderwording. Coordinating consequential encoder-observation correction and independentnative/startup/training reviews. No robot.",
+      "lab6_recovery": "Full\u22122/\u22125refinementreviewe787075committed/pushed andindependentlyaudited. Exact2GPUstartuprecreations matchalloldarrays; fullbodyinertia/COM/quaternioncaptured. Ownsnewnative startuptransfer (deployment_measured default, explicittraining_by_controllerdiagnostic) and12matchedCPUchains afterrootreview. No newtraining yet.",
+      "optional_recovery": "Fullrefinementrawindependentauditpassed,6files733810bytespreserved. Ownsexplicitfuturetraining measured-encoder observationmode andCLI/run/export/evalmetadata; historicallegacydefault preserved. Preparingpairedlegacy-versus-measured continuation from\u22125model8495, evaluatedinCOMMONdeployment-measuredcontext. Rootreviewbeforelaunch.",
+      "sit_recovery": "70filecurrentcatalog package2818a21completedandrootindependentlyverified. Final9handoutauditfoundonlystagedSpiderwordingambiguity(nowfixed). Independentlyauditinghardwareencoderzero/clamp/initialization/slewsemantics fornewtraining/nativefix; nohardwareaccess."
     },
     "gpu_state_at_checkpoint": "GPU1 pupper-foundation-recovery training/evaluations complete; owner preserving full refinement archives and evaluating need for bounded residual-support diagnostics. GPU2 confirmedreleased. Inspect exact exit and collector receipts before any remote action; do not rerun successful training.",
-    "backup_status": "Refinement full raw318files4,730,863,236bytes and nativeexports76files173,283,413bytes preserved; nativephysicalvariants224files1,169,514,309bytes preserved with full inputs/models/source snapshot and independentreview. Active refinementcollector4332 retention pending owner retirement after finalarchiveproof. Optional2 ninefullarchives and867fileindex preserved; GPU2released. Earlier fullregression/controllerreturn artifacts retained.",
+    "backup_status": "Refinement full raw318files4,730,863,236bytes and nativeexports76files173,283,413bytes preserved; nativephysicalvariants224files1,169,514,309bytes preserved with full inputs/models/source snapshot and independentreview. Active refinementcollector4332 retention pending owner retirement after finalarchiveproof. Optional2 ninefullarchives and867fileindex preserved; GPU2released. Earlier fullregression/controllerreturn artifacts retained. Fullrefinementindependentaudit6files733810bytespreserved;currentcatalogcomparison77files~33.76MB,70payloadmanifest41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9. Sourcee787075pushedsuccessfully. Plot5files325477bytespreserved.",
     "remaining_completion_gates": [
+      "Close encoder observation mismatch for future training with explicit versioned contract, independent math/hardware review and a matched continuation/common deployment-measured evaluation; preserve all historical run identities. Do not silently relabel prior calibration robustness.",
       "Review exact worst-world startup transfer and bounded matched native diagnostics for residual Spider belly support; no claim of universal off-belly capability. Finish independent review and preserve all source/inputs/raw data.",
       "Complete current-catalog staged comparison package and independent validation. Actual Pi inventory, policy identity, ROS compatibility and physical performance remain unknown.",
       "Run appropriate regression once current helper/report edits settle, update installed descriptor audit and push reviewed branch. Preserve main.",
@@ -109,7 +111,13 @@
       "foundation/results/spider-native-physical-variants-reviewed.json",
       "foundation/results/hardware-baseline-preparation-reviewed.json"
     ],
-    "latest_checkpoint_note": "The prior full regression remainsb8216f7(775pytest+225course+native;separate21actualROS). New helper changes have focused checks and need finalcurrent-source regression. Latest source head is the revision observed immediately before this checkpoint edit, not a self-referential commit claim."
+    "latest_checkpoint_note": "The prior full regression remainsb8216f7(775pytest+225course+native;separate21actualROS). New helper changes have focused checks and need finalcurrent-source regression. Latest source head is the revision observed immediately before this checkpoint edit, not a self-referential commit claim.",
+    "new_consequential_finding": {
+      "name": "Persistent encoder calibration bias absent from locomotion actor observations",
+      "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",
+      "implication": "PriorGPUcomparisonsremaininternallymatched but calibration-robustnesstransferincomplete; nominalzero-biasnativecannotexpose. Neveraddtrueqdiagnosticsemanticsunderadeploymentlabel.",
+      "response": "Versionedfuture-trainingflagwithlegacydefault forreproducibility; pairedcontinuation andcommonmeasured-observationevaluationafterreview. Nativeposthocstartupcaseswillusemeasuredqforallactors; optionaltraining_by_controllermodeexplicitlylabeled."
+    }
   },
   "checkpoint_history": [
     {
