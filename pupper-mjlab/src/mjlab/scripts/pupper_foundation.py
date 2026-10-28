@@ -170,6 +170,48 @@ def set_linear_tracking_std(cfg, value: float | None) -> dict:
   }}
 
 
+def set_tracking_com_x_half_range(cfg, value: float | None) -> dict:
+  """Separate tracking experiment: widen only torso body-frame X COM sampling.
+
+  The course samples each axis in +/-1 cm. This bounded override supports an
+  explicit X range up to +/-2 cm while retaining the original Y/Z distribution,
+  event/RNG order, reference, rewards and mechanical/command limits. Require COM
+  composition so a later density event cannot silently discard this experiment.
+  """
+  if value is None:
+    return {}
+  if isinstance(value, bool) or not math.isfinite(value) or not 0 < value <= 0.02:
+    raise ValueError("--tracking-com-x-half-range must be finite and in (0, 0.02] meters")
+  from mjlab.envs.mdp import dr
+  from mjlab.tasks.pupper.deployment_contract import density_randomization_preserving_com
+
+  term = cfg.events.get("base_com")
+  inertia = cfg.events.get("inertial")
+  if ("motion" not in cfg.commands or term is None or term.func is not dr.body_com_offset
+      or term.mode != "startup" or term.params.get("operation", "add") != "add"
+      or term.params.get("distribution", "uniform") != "uniform"):
+    raise ValueError("COM X override requires the standard startup uniform additive tracking COM event")
+  asset = term.params.get("asset_cfg")
+  if asset is None or asset.name != "robot" or tuple(asset.body_names) != ("base_link",):
+    raise ValueError("COM X override requires only robot/base_link")
+  if inertia is None or inertia.func is not density_randomization_preserving_com:
+    raise ValueError("COM X override requires --compose-com-randomization")
+  previous = term.params.get("ranges")
+  expected = {0: (-0.01, 0.01), 1: (-0.01, 0.01), 2: (-0.01, 0.01)}
+  if previous != expected:
+    raise ValueError("COM X override requires the unchanged course +/-1 cm XYZ ranges")
+  updated = {**previous, 0: (-float(value), float(value))}
+  term.params["ranges"] = updated
+  return {"base_com.ranges": {
+    "previous": {str(k): list(v) for k, v in previous.items()},
+    "value": {str(k): list(v) for k, v in updated.items()},
+    "units": "m", "frame": "base_link body frame", "distribution": "uniform",
+    "effective_at": "startup; sampled once per world, retained across resets",
+    "changed_axes": ["x"], "rng_draw_order_preserved": True,
+    "reason": "Separate robustness experiment; the +2 cm course test is outside the original +/-1 cm training distribution",
+  }}
+
+
 def train(args: argparse.Namespace) -> Path:
   # run_train uses CUDA_VISIBLE_DEVICES to choose the device. An explicitly
   # disabled GPU must fail, not silently start 4096 CPU environments.
@@ -210,6 +252,8 @@ def train(args: argparse.Namespace) -> Path:
   if compose_com:
     from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
     com_contract = compose_pupper_com_randomization(cfg)
+  com_x_half_range = getattr(args, "tracking_com_x_half_range", None)
+  randomization_overrides = set_tracking_com_x_half_range(cfg, com_x_half_range)
   ground_hulls = getattr(args, "tracking_ground_hulls", False)
   torso_contact = getattr(args, "locomotion_torso_contact", False)
   if ground_hulls and torso_contact:
@@ -248,6 +292,8 @@ def train(args: argparse.Namespace) -> Path:
   contract_suffix += "_groundhulls" if ground_hulls else "_torsocontact" if torso_contact else "_legacyhulls"
   if linear_std is not None:
     contract_suffix += "_linstd" + format(linear_std, ".12g").replace(".", "p")
+  if com_x_half_range is not None:
+    contract_suffix += "_comx" + format(com_x_half_range, ".12g").replace(".", "p")
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -278,6 +324,7 @@ def train(args: argparse.Namespace) -> Path:
     "actuation_contract": contract, "com_randomization_contract": com_contract,
     "collision_contract": collision_contract,
     "reward_parameter_overrides": reward_parameters,
+    "domain_randomization_overrides": randomization_overrides,
     "num_envs": cfg.scene.num_envs, "iterations": agent.max_iterations,
     "resume_run": args.resume_run, "resume_checkpoint": args.resume_checkpoint,
     "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
@@ -387,6 +434,7 @@ def main() -> None:
   launch.add_argument("--driver-limits", type=Path, help="Named driver joint limits JSON; requires --deployment-target-clamp")
   launch.add_argument("--linear-tracking-std", type=float, help="Explicit reward-width experiment in m/s; changes XY tracking AND body vertical-velocity tolerance, preserving reward weights")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
+  launch.add_argument("--tracking-com-x-half-range", type=float, help="Separate tracking experiment: torso X COM uniform +/-range in meters, at most 0.02; requires --compose-com-randomization and retains Y/Z +/-0.01")
   launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")
   launch.add_argument("--locomotion-torso-contact", action="store_true", help="Separate SpiderWalk physics contract adding only the torso collider; preserve knee/foot spheres")
   evaluate = sub.add_parser("score")

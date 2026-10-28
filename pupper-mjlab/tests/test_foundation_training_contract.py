@@ -11,8 +11,11 @@ from mjlab.scripts import train as training
 from mjlab.tasks.registry import load_env_cfg
 
 
-@pytest.mark.parametrize("clamp,compose,hulls", [(False, False, False), (True, False, False), (True, True, False), (True, True, True)])
-def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, monkeypatch, clamp, compose, hulls):
+@pytest.mark.parametrize("clamp,compose,hulls,com_x", [
+  (False, False, False, None), (True, False, False, None),
+  (True, True, False, None), (True, True, True, None), (True, True, True, .02),
+])
+def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, monkeypatch, clamp, compose, hulls, com_x):
   monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
   monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
   monkeypatch.setattr(torch.cuda, "get_device_name", lambda device: "mocked launcher test, no GPU")
@@ -30,6 +33,7 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
   monkeypatch.setattr(training, "run_train", fake_train)
   args = argparse.Namespace(profile="spider_clips", motion=motion, output=tmp_path / "run",
                             deployment_target_clamp=clamp, compose_com_randomization=compose, tracking_ground_hulls=hulls,
+                            tracking_com_x_half_range=com_x,
                             num_envs=64, iterations=1000, seed=42, logger="tensorboard", project="test",
                             initial_checkpoint=checkpoint, resume_run=None, resume_checkpoint=None)
   run = foundation.train(args)
@@ -57,6 +61,56 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
   default = load_env_cfg("Mjlab-Tracking-Flat-Pupper-v3")
   assert default.actions["joint_pos"].clip is None
   assert list(default.events).index("base_com") < list(default.events).index("inertial")
+  course_ranges = {0: (-.01, .01), 1: (-.01, .01), 2: (-.01, .01)}
+  assert default.events["base_com"].params["ranges"] == course_ranges
+  assert {name: (term.weight, term.params) for name, term in cfg.rewards.items()} == {
+    name: (term.weight, term.params) for name, term in default.rewards.items()}
+  assert report["reward_parameter_overrides"] == {}
+  if com_x is None:
+    assert report["domain_randomization_overrides"] == {}
+    assert cfg.events["base_com"].params["ranges"] == course_ranges
+  else:
+    assert cfg.events["base_com"].params["ranges"] == {**course_ranges, 0: (-.02, .02)}
+    override = report["domain_randomization_overrides"]["base_com.ranges"]
+    assert override["previous"] == {"0": [-.01, .01], "1": [-.01, .01], "2": [-.01, .01]}
+    assert override["value"] == {**override["previous"], "0": [-.02, .02]}
+    assert override["changed_axes"] == ["x"] and override["rng_draw_order_preserved"]
+    assert "_comx0p02_" in run.name
+
+
+@pytest.mark.parametrize("value", [0., -.01, .020001, float("nan"), float("inf"), True])
+def test_com_x_override_rejects_unbounded_or_invalid_values(value):
+  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pupper-v3")
+  with pytest.raises(ValueError, match="finite and in"):
+    foundation.set_tracking_com_x_half_range(cfg, value)
+
+
+def test_com_x_override_requires_composition_and_untouched_course_axes():
+  from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
+  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pupper-v3")
+  with pytest.raises(ValueError, match="compose-com-randomization"):
+    foundation.set_tracking_com_x_half_range(cfg, .02)
+  compose_pupper_com_randomization(cfg)
+  cfg.events["base_com"].params["ranges"][1] = (-.02, .02)
+  with pytest.raises(ValueError, match="unchanged course"):
+    foundation.set_tracking_com_x_half_range(cfg, .02)
+
+
+@pytest.mark.parametrize("mutation", ["locomotion", "other_body", "other_distribution", "other_event"])
+def test_com_x_override_refuses_different_sampling_contract(mutation):
+  from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
+  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pupper-v3")
+  compose_pupper_com_randomization(cfg)
+  if mutation == "locomotion":
+    cfg.commands.pop("motion")
+  elif mutation == "other_body":
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("base_link", "leg_front_r_1")
+  elif mutation == "other_distribution":
+    cfg.events["base_com"].params["distribution"] = "gaussian"
+  else:
+    cfg.events["base_com"].func = lambda *_: None
+  with pytest.raises(ValueError, match="requires"):
+    foundation.set_tracking_com_x_half_range(cfg, .02)
 
 
 @pytest.mark.parametrize('linear_std',[None,0.08])
