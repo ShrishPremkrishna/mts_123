@@ -1,0 +1,96 @@
+{
+  "scope": "Offline recording import and kinematic command-path validation; no ROS execution, motor publishing, physics simulation or hardware validation.",
+  "source_mcap": "forward_kinematics_lab/wave_01/wave_01_0.mcap",
+  "source_mcap_sha256": "ebd549cd009906672bc53162fc93c68d62493195ec315e2bc544f1659e954a27",
+  "imported_topics": {
+    "/joint_states": 872,
+    "/leg_front_r_end_effector_position": 485,
+    "/leg_front_l_end_effector_position": 439,
+    "/leg_back_r_end_effector_position": 440,
+    "/leg_back_l_end_effector_position": 440
+  },
+  "full_front_right_export": "Refused: first joint sample arrives0.898591383s after first foot sample;43initial foot samples lack a joint within50ms.",
+  "export": "artifacts/lab2-replay/wave_01-front_r-associated.json",
+  "export_sha256": "4ed69f4e631b6ee23941878762ddfce7e153ce71bc49706a62201b7dfbeb26d1",
+  "source_window": {
+    "requested_start_s": 0.92,
+    "requested_end_s": null,
+    "first_receipt_s": 0.9392358730000001,
+    "last_receipt_s": 9.677276495000001,
+    "selected_foot_samples": 438,
+    "excluded_foot_samples": 47
+  },
+  "timing": {
+    "method": "minimum FK error within receipt window; nearest receipt tie-break; foot topic is unstamped",
+    "allowed_skew_s": 0.05,
+    "maximum_skew_s": 0.012265365000000195,
+    "maximum_gap_s": 0.1
+  },
+  "duration_s": 8.738040622000002,
+  "actual_recording_validation": {
+    "interpolation": "piecewise-linear body-frame feet; sequential bounded strict IK at80Hz or finer",
+    "maximum_recorded_joint_speed_rad_s": 0.021253424583550548,
+    "maximum_recorded_fk_error_m": 2.7755575615628914e-17,
+    "simulated_command_path_peak_slew_rad_s": 0,
+    "simulated_command_path_maximum_fk_error_m": 3.3574540874920434e-05,
+    "simulated_command_path_scope": "40Hz replay with ideal measured joints following previous command, entry starts at first recorded pose, then finite playback and terminal hold",
+    "front_right_foot_range_m": [
+      3.0531212932713436e-05,
+      1.0044576482654e-06,
+      1.393147144607143e-05
+    ],
+    "interpretation": "Front-right channel is almost stationary; its entire recorded motion lies within the0.1mm IK tolerance, so ideal simulated commands remain unchanged. This verifies conversion/guards, not a moving physical replay."
+  },
+  "review_fixes": [
+    "Validate recording frame and units before any relabeling.",
+    "Require finite positive timing limits, full named joint arrays, and consistent acquisition/receipt clock progress.",
+    "Keep one continuous IK branch across offline segment boundaries.",
+    "Use monotonic replay time; retain contact-pause phase when enabled.",
+    "Bound actual online joint target steps by15rad/s times the smaller of actual interval and one40Hz control period; reject scheduler catch-up, branch jumps and entry jumps via existing fail-stop.",
+    "Decode existing MCAP offline without ROS initialization or bag playback; explicit trim provenance preserves exclusions.",
+    "Associate a derived foot sample with minimum FK error within the unchanged50ms receipt window, nearest-receipt tie-break, and monotonically ordered joint acquisition. Save matched timestamps; this corrects asynchronous topic delay without relaxing2mm geometric consistency."
+  ],
+  "tests": {
+    "command": ".venv/bin/python -m pytest foundation/tests/test_recorded_motion.py foundation/tests/test_position_controllers.py -q -p no:cacheprovider",
+    "passed": 38
+  },
+  "limitations": [
+    "Foot messages have no acquisition stamps; MCAP log/receipt alignment is approximate.",
+    "15rad/s and2s entry are engineering bounds, not validated robot performance.",
+    "Current limits are the model bounds; installed class driver may clamp more tightly.",
+    "Recorded joint positions seed/validate IK; playback tracks the foot path and need not exactly reproduce recorded joint angles.",
+    "The online guard rejects an unsuitable actual start or branch instead of claiming every entry is feasible.",
+    "Single-leg front_right replay is supported; coordinated four-leg replay is not claimed."
+  ],
+  "hardware_validated": false,
+  "moving_back_right_wave": {
+    "export": "Refused: recorded joint outside model bounds; no output file created and no clipping applied.",
+    "observed_joint_min_rad": [
+      -0.16865322113037107,
+      0.13161285400390627,
+      -2.8098755264282227
+    ],
+    "observed_joint_max_rad": [
+      1.4056961822509766,
+      0.24681861877441408,
+      -1.864960708618164
+    ],
+    "model_bounds_rad": [
+      [
+        -1.22,
+        2.51
+      ],
+      [
+        -0.42,
+        3.14
+      ],
+      [
+        -2.79,
+        0.71
+      ]
+    ],
+    "raw_joint_samples_outside_model_bounds": 6,
+    "kinematic_alignment": "Nearest receipt alone had39samples over2mm FK residual; every moving sample had an exact FK match within50ms. After correcting association the separate joint-bound gate still rejects the motion.",
+    "controller_scope": "Current ik.yaml is front-right only; a rear-right recording cannot be sent through it."
+  }
+}

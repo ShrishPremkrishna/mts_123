@@ -171,3 +171,26 @@ def test_walking_sigterm_uses_confirmed_shutdown_path(walking, monkeypatch):
     walking.main()
     assert events == ['stop', 'destroy', 'shutdown']
     assert signal.getsignal(signal.SIGTERM) is previous
+
+
+def test_recorded_ik_branch_jump_latches_existing_stop_before_publish(walking, tmp_path, monkeypatch):
+    import json
+    import recorded_motion
+    from kinematics import fr_leg_fk
+    spec=importlib.util.spec_from_file_location('ik_replay_under_test',ROOT/'ik_heuristic_walking_lab/ik.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    module.time=SimpleNamespace(monotonic=lambda:10.)
+    q=np.array([0,.4,-.8]);path=tmp_path/'motion.json'
+    path.write_text(json.dumps(dict(schema='pupper_recorded_foot_v1',frame='base_link',units='metres',leg='front_r',
+                                   times_s=[0,.02],positions=[fr_leg_fk(q).tolist()]*2,joint_positions=[q.tolist()]*2)))
+    node=module.InverseKinematics(recorded_motion=path)
+    feedback=sample();feedback.position[:3]=q.tolist()
+    node.listener_callback(feedback);node.ik_timer_callback();node.pd_timer_callback()
+    assert len(node.sent)==1
+    module.time.monotonic=lambda:10.025
+    monkeypatch.setattr(recorded_motion,'inverse_kinematics',lambda *args,**kwargs:q+np.array([1,0,0]))
+    node.ik_timer_callback();node.pd_timer_callback()
+    assert node.faulted and node.target_joint_positions is None
+    assert node.ik_timer.cancelled and node.pd_timer.cancelled
+    assert node.requests[-1].deactivate_controllers==['forward_command_controller']
+    assert len(node.sent)==1

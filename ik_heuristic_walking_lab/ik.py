@@ -35,7 +35,15 @@ Kd = 0.1
 
 class InverseKinematics(Node):
 
-    def __init__(self, contact_model=None):
+    def __init__(self, contact_model=None, recorded_motion=None):
+        self.recorded_motion = None
+        self.recorded_replay = None
+        if recorded_motion:
+            from recorded_motion import RecordedMotion, RecordedReplay
+            self.recorded_motion = RecordedMotion(recorded_motion)
+            if self.recorded_motion.leg != 'front_r':
+                raise ValueError('This single-leg controller only commands front_r')
+            self.recorded_replay = RecordedReplay(self.recorded_motion)
         super().__init__('inverse_kinematics')
         self.faulted = False
         self.stop_future = None
@@ -157,19 +165,26 @@ class InverseKinematics(Node):
 
     def ik_timer_callback(self):
         if self.sensors_ready():
+            now = time.monotonic()
+            phase_time = now
             if self.contact_clock is not None:
-                phase_time, contact = self.contact_clock.advance(time.monotonic(), self.pending_contact)
+                phase_time, contact = self.contact_clock.advance(now, self.pending_contact)
                 self.pending_contact = None  # Every prediction is consumed exactly once.
                 self.t = 3 * self.step_frequency * phase_time
                 if contact:
                     self.get_logger().info('Contact detected; pausing the trajectory for one second.')
-            target_ee = self.interpolate_triangle(self.t)
+            if self.recorded_motion is None:
+                target_ee = self.interpolate_triangle(self.t)
             # Ablation: bad init for IK causes divergence
             #             self.target_joint_positions = np.clip(inverse_kinematics(fr_leg_fk, target_ee, np.array([np.pi/2, -np.pi/2, np.pi/2])), -1.6, 1.6)
             try:
-                self.target_joint_positions = inverse_kinematics(
-                    fr_leg_fk, target_ee, self.joint_positions, max_iterations=150,
-                    tolerance=1e-4, strict=True, joint_limits=LEG_LIMITS[0])
+                if self.recorded_replay is None:
+                    self.target_joint_positions = inverse_kinematics(
+                        fr_leg_fk, target_ee, self.joint_positions, max_iterations=150,
+                        tolerance=1e-4, strict=True, joint_limits=LEG_LIMITS[0])
+                else:
+                    self.target_joint_positions = self.recorded_replay.target(phase_time,self.joint_positions,now)
+                    target_ee = fr_leg_fk(self.target_joint_positions)
             except ValueError as exc:
                 self.fail_stop(f'Trajectory rejected: {exc}')
                 return
@@ -196,6 +211,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--contact-model', type=Path,
                         help='Optional Lab 1 exported model directory; enables contact pause')
+    parser.add_argument('--recorded-motion', type=Path,
+                        help='Validated Lab2 front_r recording; smooth entry, play once, hold last pose')
     args, _ = parser.parse_known_args()
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     inverse_kinematics = None
@@ -203,7 +220,7 @@ def main():
         raise KeyboardInterrupt
     previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM)}
     try:
-        inverse_kinematics = InverseKinematics(contact_model=args.contact_model)
+        inverse_kinematics = InverseKinematics(contact_model=args.contact_model, recorded_motion=args.recorded_motion)
         rclpy.spin(inverse_kinematics)
     except KeyboardInterrupt:
         print("Program terminated by user")
