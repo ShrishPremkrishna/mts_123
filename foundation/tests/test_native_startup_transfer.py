@@ -144,3 +144,18 @@ def test_compiled_native_input_and_initialization_receive_measured_joint_coordin
         initial=rpc(dict(request,elapsed_s=0.));np.testing.assert_allclose(initial['target'],measured,atol=1e-8)
         infer=rpc(dict(request,elapsed_s=2.));np.testing.assert_allclose(infer['model_input'][12:24],measured-.1,atol=1e-8)
     finally:proc.stdin.close();assert proc.wait(timeout=5)==0
+
+
+@pytest.mark.parametrize('duration',[True,float('nan'),float('inf'),1.99,30.01,-1])
+def test_invalid_default_stop_diagnostic_refused(duration):
+    with pytest.raises(ValueError):h.default_diagnostic_stages(h.default_return_stages(),stop_duration_s=duration)
+
+
+def test_default_only_and_long_tail_preserve_exact_original_prefix():
+    original=[('entry','trick',3.,[0,0,0],'entry')]+h.default_return_stages()
+    assert h.default_diagnostic_stages(original)==original
+    longer=h.default_diagnostic_stages(original,stop_duration_s=8.)
+    assert longer[:-1]==original[:-1] and longer[-1]==('default_stop','default',8.,[0,0,0],'')
+    only=h.default_diagnostic_stages(original,default_only=True,stop_duration_s=8.)
+    assert only==longer[1:]
+    with pytest.raises(ValueError):h.default_diagnostic_stages(original[:1],stop_duration_s=8.)

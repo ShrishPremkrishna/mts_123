@@ -210,7 +210,7 @@ def apply_startup_transfer(model,value):
     scratch=mujoco.MjData(model);mujoco.mj_setConst(model,scratch)
     return dict(requested=value,before=before,realized_bodies=snapshot(),
         realized_foot_geoms=[dict(name=name,friction=model.geom(name).friction.tolist(),priority=int(model.geom_priority[model.geom(name).id])) for name in spheres+hulls],
-        scope='Posthoc transfer of recorded startup fields; not a GPU trajectory replay. Deployment-measured mode supplies biased measured joints to every actor. Optional training-by-controller mode supplies true joints to gait actors, reproducing a known training/deployment mismatch, and is not a deployment-sensing claim. All activation seeds use biased measured joints. Physical targets subtract bias before fixed16ms actuator delay. Per-joint gain scales multiply every controller gain command, including initialization. No stochastic observation noise, IMU delay, GPU reset state or solver transfer.')
+        scope='Posthoc transfer of recorded startup fields; not a GPU trajectory replay. Deployment-measured mode supplies biased measured joints to every actor. Optional training-by-controller mode supplies true joints to gait actors, reproducing the inspected current mjlab family and a known training/deployment mismatch; it is not established provenance of the shipped default training or a deployment-sensing claim. All activation seeds use biased measured joints. Physical targets subtract bias before fixed16ms actuator delay. Per-joint gain scales multiply every controller gain command, including initialization. No stochastic observation noise, IMU delay, GPU reset state or solver transfer.')
 
 
 def startup_joint_vectors(value,joint_names):
@@ -229,6 +229,17 @@ def startup_actor_joint_position(q,bias,controller,semantics="deployment_measure
 def startup_physical_command(target,kp,kd,bias,kp_scale,kd_scale):
     # Called after controller+driver clamp and controller slew, before delay.
     return np.asarray(target)-bias,np.asarray(kp)*kp_scale,np.asarray(kd)*kd_scale
+
+
+def default_diagnostic_stages(stages, *, default_only=False, stop_duration_s=2.):
+    """Explicit longer-tail/standing-start controls; the original two-second path stays unchanged."""
+    if type(stop_duration_s) not in (int,float) or not np.isfinite(stop_duration_s) or not 2<=stop_duration_s<=30:
+        raise ValueError('Default stop diagnostic must be between2 and30seconds')
+    if default_only:stages=default_return_stages()
+    if not any(stage[0]=='default_stop' for stage in stages):
+        raise ValueError('Default diagnostic requires an explicit default controller')
+    return [(name,controller,stop_duration_s if name=='default_stop' else duration,command,clip)
+            for name,controller,duration,command,clip in stages]
 
 
 def default_return_stages():
@@ -368,6 +379,10 @@ def run(args):
     interactive_sit=getattr(args,'interactive_sit',False)
     if single_motion and interactive_sit:raise ValueError('Choose finite single motion or interactive Sit, not both')
     default_path=getattr(args,'return_default_policy',None)
+    default_only=getattr(args,'default_only',False)
+    default_stop_duration=getattr(args,'default_stop_duration_s',2.)
+    if default_only and (default_path is None or single_motion or interactive_sit):raise ValueError('Default-only requires a default policy and no trick protocol')
+    if default_stop_duration!=2. and default_path is None:raise ValueError('Longer stop requires an explicit default controller')
     descriptor_path=getattr(args,'trick_descriptor',None)
     later_return_from_lying=getattr(args,'later_return_from_lying',False)
     if later_return_from_lying and (not single_motion or default_path is None or interactive_sit):
@@ -399,7 +414,7 @@ def run(args):
     if descriptor_bytes is not None:sources.append(descriptor_path.resolve())
     source_before = {str(p.relative_to(ROOT)):sha(p) for p in sources}
     binary, compile_command = build_controller(output)
-    if args.walk_policy is None and not (single_motion or interactive_sit):raise ValueError('--walk-policy required for Spider handoff')
+    if args.walk_policy is None and not (single_motion or interactive_sit or default_only):raise ValueError('--walk-policy required for Spider handoff')
     walk_path=args.walk_policy or args.trick_policy  # second host slot unused in single-motion mode
     # Read each original once. Parsing, preservation and native execution use
     # those exact bytes even if an external process changes the original path.
@@ -427,7 +442,7 @@ def run(args):
     root_q, root_v = int(model.jnt_qposadr[free]), int(model.jnt_dofadr[free])
     body = model.body('base_link').id
     data.qpos[root_q:root_q+7] = [0,0,.18,1,0,0,0]
-    data.qpos[qadr] = trick['default_joint_pos'] if single_motion or interactive_sit else trick['motion']['joint_pos'][0]
+    data.qpos[qadr] = policies['default']['default_joint_pos'] if default_only else trick['default_joint_pos'] if single_motion or interactive_sit else trick['motion']['joint_pos'][0]
     mujoco.mj_forward(model,data)
     lower = np.full(12,-np.inf); upper=np.full(12,np.inf)
     if args.driver_limits:
@@ -438,7 +453,8 @@ def run(args):
         if lower.shape!=(12,) or upper.shape!=(12,) or not np.all(lower<upper): raise ValueError('invalid driver bounds')
     # Exact application timing: entry init/fade plus clip and .3s; walking
     # activation 2+2s plus .2s; bounded commands followed by a 2s zero stop.
-    stages=interactive_sit_stages(trick) if interactive_sit else stage_plan(trick,single_motion,default_path is not None)
+    stages=default_return_stages() if default_only else interactive_sit_stages(trick) if interactive_sit else stage_plan(trick,single_motion,default_path is not None)
+    if default_only or default_stop_duration!=2.:stages=default_diagnostic_stages(stages,default_only=default_only,stop_duration_s=default_stop_duration)
     host_command=[str(binary),str((output/'trick-policy.json').resolve()),str((output/'walk-policy.json').resolve())]
     if default_path is not None: host_command += ['--return-default-no-jump',str((output/'default-policy.json').resolve())]
     proc=subprocess.Popen(host_command,
@@ -561,11 +577,13 @@ def run(args):
             last_clip=rows[-1]['clip'],last_frame=rows[-1]['frame'],last_holding=rows[-1]['holding'])
     source_after={str(p.relative_to(ROOT)):sha(p) for p in sources}
     policy_after={name:sha(path) for name,path in policy_paths.items()}
-    report=dict(protocol=('finite_lying_later_default_nojump_v1' if later_return_from_lying else
+    report=dict(protocol=('default_standing_start_nojump_v1' if default_only else
+        'finite_lying_later_default_nojump_v1' if later_return_from_lying else
         'interactive_sit_to_default_nojump_v1' if interactive_sit else
         'finite_trick_to_default_nojump_v1' if single_motion and default_path is not None else
         'exported_finite_trick_activation_and_hold_v1' if single_motion else
         'continuous_spider_to_default_nojump_v2' if default_path is not None else 'continuous_exported_controller_spider_handoff_v1'),hardware_validated=False,
+        default_only=default_only,default_stop_duration_s=default_stop_duration,
         interactive_sit=interactive_sit,clip_requests=clip_requests,later_return_from_lying=later_return_from_lying,
         declared_trick_end_pose=yaml.safe_load(descriptor_bytes)['end_pose'] if descriptor_bytes is not None else None,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
@@ -584,6 +602,7 @@ def run(args):
                   'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.' if physical_variant is None else
                   'Explicit fixed mechanics/material variant; no observation noise, IMU delay, encoder bias, gain randomization or external push. Nominal trained policies and controller limits remain unchanged.'),
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
+                 'Standing-start default-controller control with its own default joint pose, activation, forward command and explicitly bounded zero-command tail; no prior Spider state.' if default_only else
                  'Finite trick retains its declared lying endpoint through2s terminal hold; a separate later move request directly activates the default controller. No implicit standing-exit clip is invented.' if later_return_from_lying else
                  'Interactive Sit queues left shake, right shake and standing exit through production ClipPlayer with persistent actor history and clock; this does not execute ROS messages.' if interactive_sit else
                  'Single finite clip plus2s hold; no walking handoff tested.' if single_motion and default_path is None else
@@ -591,7 +610,7 @@ def run(args):
                  'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.',
                  'Contacts/forces and Jacobian-derived relative contact-point velocities are sampled on an isolated forward-solved pre-integration state; recorded qpos is after integration, at most1/520s later. No live solver state is changed by telemetry.'],
         trick_descriptor_sha256=hashlib.sha256(descriptor_bytes).hexdigest() if descriptor_bytes is not None else None,
-        trick_policy_sha256=policy_before['trick'],walk_policy_sha256=None if single_motion or interactive_sit else policy_before['walk'],
+        trick_policy_sha256=policy_before['trick'],walk_policy_sha256=None if single_motion or interactive_sit or default_only else policy_before['walk'],
         default_policy_sha256=policy_before.get('default'),policy_hashes_start=policy_before,policy_hashes_end=policy_after,
         preserved_policy_hashes={name:sha(output/f'{name}-policy.json') for name in policy_bytes},
         policy_changed=policy_before!=policy_after,host_command=host_command,
@@ -609,6 +628,8 @@ def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--trick-policy',type=Path,required=True);parser.add_argument('--walk-policy',type=Path)
+    parser.add_argument('--default-only',action='store_true',help='Standing-start diagnostic of the supplied default controller; requires return-default-policy, no prior trick or Spider execution')
+    parser.add_argument('--default-stop-duration-s',type=float,default=2.,help='Explicit default zero-command diagnostic tail,2 through30seconds; historical two-second verdicts remain separate')
     parser.add_argument('--return-default-policy',type=Path,help='Continue after Spider exit or an explicitly described finite standing-ending trick into actual normal walking; no jumps, continuous physical state')
     parser.add_argument('--trick-descriptor',type=Path,help='Required for finite default return; confirms standing start/end and exact policy path')
     parser.add_argument('--later-return-from-lying',action='store_true',help='Explicit diagnostic of a later move request after a finite trick holds its declared lying endpoint; requires --single-motion and --return-default-policy')
