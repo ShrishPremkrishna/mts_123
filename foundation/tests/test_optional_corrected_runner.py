@@ -167,3 +167,38 @@ def test_captured_bundle_preserves_reach_bytes_and_rejects_mutation(args,tmp_pat
     assert (combined/'captured_reach_gaits.npz').read_bytes()==b'reach'
     (combined/'captured_jump_gait.npz').write_bytes(b'changed')
     with pytest.raises(ValueError,match='bundle changed'):worker.combined_jump_references(capture,refs)
+
+
+
+def test_mystery_worker_records_missing_audit_without_false_no_jump_or_continuation(args,monkeypatch):
+    import numpy as np
+    args.phase='mystery';corrected_selection(args);plan=runner.make_plan(args)
+    output=args.out/'mock-evaluation';output.mkdir(parents=True)
+    np.savez_compressed(output/'trace.npz',joint_pos=np.zeros((2,1,12)),foot_contact=np.ones((2,1,4)))
+    trained=args.out/'mock-training';trained.mkdir();(trained/'model_500.pt').write_bytes(b'finished test checkpoint')
+    calls=[]
+    monkeypatch.setattr(runner,'runtime_preflight',lambda *a:None)
+    monkeypatch.setattr(runner.Worker,'evaluate',lambda *a:output)
+    def train(self,name,*a):calls.append(name);return trained
+    monkeypatch.setattr(runner.Worker,'train',train)
+    monkeypatch.setattr(runner.Worker,'compare',lambda *a:None)
+    monkeypatch.setattr(runner.Worker,'run',lambda *a:pytest.fail('must not launch capture or continuation before audit'))
+    # Worker must create its root itself; mocked outputs are elsewhere.
+    target=args.out/'worker';assert runner.execute(plan,target)==0
+    state=json.loads((target/'status.json').read_text())
+    assert state['state']=='finished_requires_capture_audit' and calls==['train']
+    assert state['capture_audit_required']['trace_sha256']==runner.shared.sha(output/'trace.npz')
+    assert 'robot_ground_contact_count' in state['capture_audit_required']['missing_fields']
+    assert state['candidate']['checkpoint_sha256']==runner.shared.sha(trained/'model_500.pt')
+    assert 'jump_capture_outcome' not in state
+
+
+def test_capture_audit_field_check_allows_complete_evidence_for_strict_gate(tmp_path):
+    import numpy as np
+    trace=tmp_path/'trace.npz'
+    fields=('robot_ground_contact_count','robot_com_height_m','robot_com_vertical_velocity_m_s',
+            'audited_foot_contact','contact_audit_metadata_json')
+    np.savez_compressed(trace,**{k:np.asarray(0) for k in fields})
+    # Field availability is not a physical validation: the strict capture gate
+    # still checks shapes, motion, provenance-bearing report and recovery.
+    assert runner.missing_jump_audit_fields(trace)==[]

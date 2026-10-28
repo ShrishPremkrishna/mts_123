@@ -264,6 +264,15 @@ class Worker:
         return target
 
 
+def missing_jump_audit_fields(trace_path):
+    """Distinguish unaudited telemetry from measured absence of a viable jump."""
+    import numpy as np
+    required={'robot_ground_contact_count','robot_com_height_m','robot_com_vertical_velocity_m_s',
+              'audited_foot_contact','contact_audit_metadata_json'}
+    with np.load(trace_path,allow_pickle=False) as trace:
+        return sorted(required-set(trace.files))
+
+
 def execute(plan,out,resume=False,retry_incomplete=False):
     worker=Worker(plan,out,resume,retry_incomplete)
     initial=Path(plan['checkpoint']);refs=Path(plan['reference_dir']) if plan['reference_dir'] else None
@@ -281,6 +290,18 @@ def execute(plan,out,resume=False,retry_incomplete=False):
             for seed in seeds:
                 after=worker.evaluate(f'post-s{seed}',final,task,seed,refs);worker.compare(f'paired-s{seed}',before[seed],after)
             if phase=='mystery':
+                trace=after/'trace.npz'
+                missing=missing_jump_audit_fields(trace)
+                if missing:
+                    worker.status['capture_audit_required']={
+                        'trace':str(trace),'trace_sha256':shared.sha(trace),'evaluation_directory':str(after),
+                        'missing_fields':missing,
+                        'reason':'Ordinary rollout telemetry lacks full-body COM/contact audit. This does not show that the policy cannot jump.',
+                        'next_step':'Audit unchanged source poses with foundation/scripts/audit_jump_capture_contacts.py, run the strict bootstrap jump gate, review loader timing, then use a separate bounded continuation with exact audited references.'}
+                    worker.status['candidate']={'checkpoint':str(final),'checkpoint_sha256':shared.sha(final),
+                        'task':task,'profile':plan['profile'],'references':reference_hashes(refs),
+                        'reference_dir':str(refs) if refs else None,'requires_review':True,'hardware_validated':False}
+                    worker.status['state']='finished_requires_capture_audit';worker.save();return 0
                 if worker.status.get('jump_capture_outcome'):
                     worker.status['state']='finished_with_capability_gap';worker.save();return 0
                 capture_argv=[plan['python'],'-B','-m','mjlab.tasks.pupper_gait.bootstrap','jump',str(after/'trace.npz'),'--auto']
@@ -289,8 +310,8 @@ def execute(plan,out,resume=False,retry_incomplete=False):
                 except RuntimeError:
                     attempt=worker.status['stages']['capture'][-1]
                     log=Path(attempt['directory'])/'stdout.log'
-                    if 'No clean jump with loading, flight and landing found' not in log.read_text():raise
-                    worker.status['jump_capture_outcome']='No clean flight-to-landing sequence in pilot evaluation; no captured continuation was run.'
+                    if 'No clean jump with loading' not in log.read_text():raise
+                    worker.status['jump_capture_outcome']='Complete audited telemetry contained no capture satisfying the physical/model-bound gate; no captured continuation was run.'
                     worker.status['state']='finished_with_capability_gap';worker.save();return 0
                 refs=worker.combined_jump_references(capture,refs)
                 trained=worker.train('captured-train',final,task,2 if plan['smoke'] else 1000,refs,weights)
