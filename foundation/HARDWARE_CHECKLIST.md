@@ -77,9 +77,10 @@ timing. Do not claim a model is ready just because `/joint_states` exists.
    response, surface and battery state. Do not replace the baseline first.
 2. Verify joint/IMU feedback and the camera stream while stationary. Check image
    orientation and white balance, timestamps, Hailo availability, detector model,
-   and an actual detection. The laptop checkout currently lacks the Hailo model
-   and installed ROS workspace; discover the robot's real paths rather than
-   copying that absence onto the robot.
+   and an actual detection. The course Hailo8L model is now downloaded and
+   [content-pinned](results/lab5-detector-model.json); this does not test accelerator
+   compatibility or inference. The laptop still lacks the installed ROS workspace;
+   discover the robot's real paths and versions before deploying.
 3. Compare the baseline's policy/configuration hashes with the intended branch.
    Confirm the controller that actually owns the motor command interfaces.
    Classical PD/IK nodes command `forward_command_controller`; the neural stack

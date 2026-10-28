@@ -1,0 +1,13 @@
+{
+  "retrieved_utc": "2026-10-28T07:04:19.673777+00:00",
+  "source": "https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.14.0/hailo8l/yolov8n_seg.hef",
+  "source_selected_by": "follow_me_pupper/scripts/download_model.sh (course original URL)",
+  "path": "follow_me_pupper/robot/yolov8n_seg.hef",
+  "bytes": 11467618,
+  "sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
+  "model_zoo_version": "v2.14.0",
+  "accelerator_target": "hailo8l",
+  "scope": "Course model downloaded and content-pinned; no Hailo parser/inference or camera execution on this laptop.",
+  "publisher_signature_verified": false,
+  "hardware_validated": false
+}

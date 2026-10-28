@@ -136,11 +136,15 @@ exports omit joint names and retain the contract's fixed order; any supplied
 names must agree. This catches an accidental upright-policy/Spider pairing but
 does not validate physical controller handoff or tracking quality.
 
-Sit/Stay/Shake and Spider training, simulation scoring and TA review remain
-necessary before the first supervised hardware run. UniMate's generated secret
-motion also needs generation, cleanup, tracking training and evaluation. Existing
-recorded policy tricks and the course jump are available in software; that is not
-evidence of validation on this particular robot.
+The retained Sit policy has completed the recorded simulation suites, with an
+explicit forward-COM weakness under tighter driver limits. Spider refinements
+are separate experiments. The generated `secret_dance` artifact has completed
+generation, repair, training and review; its actual movement is a gentle standing
+rise/sway/return. Its seven-scenario screen and native finite-clip activation/hold
+are documented in the [review](../../foundation/results/generated-motion-trained-review.json).
+These policies still require TA review before a first supervised hardware run.
+Existing recorded policy tricks and the course jump are available in software;
+that is not evidence of validation on this particular robot.
 
 ## Optional Lab 3: hidden tricks
 

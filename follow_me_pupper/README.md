@@ -26,6 +26,11 @@ Run every command below from the repo root (`~/follow_me_pupper`).
 ./scripts/download_model.sh      # fetches robot/yolov8n_seg.hef (~11 MB)
 ```
 
+The downloader checks the course version's SHA-256 before installing the Hailo8L
+model and refuses an existing file with different contents. This verifies file
+identity, not the installed accelerator/runtime or camera performance. Preserve
+the robot's current model before replacing it.
+
 ## Running
 
 Three terminals on the Pupper. Keeping them separate means you can restart your
