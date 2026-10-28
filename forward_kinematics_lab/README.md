@@ -65,3 +65,35 @@ RViz2 still works exactly as before (all four markers are on the same `marker` t
 ```bash
 rviz2 -d forward_kinematics.rviz           # in a third terminal
 ```
+
+## Record and export foot motion
+
+`record_motion.py` subscribes to existing joint and four foot topics. The recorder
+does not launch ROS controllers or publish motor commands. Start the course FK
+publisher in its supervised setup first, then record to a new file:
+
+```bash
+python3 record_motion.py record --out motion.jsonl --seconds 30
+python3 record_motion.py export motion.jsonl --out front-right-motion.json --leg front_r
+```
+
+Existing MCAP bags can be decoded offline, without ROS or bag playback. This
+optional importer needs `python3 -m pip install mcap-ros2-support==0.6.0`:
+
+```bash
+python3 record_motion.py import-mcap wave_01/wave_01_0.mcap --out wave_01.jsonl
+python3 record_motion.py export wave_01.jsonl --out front-right-motion.json --leg front_r --start 0.92
+```
+
+The explicit `--start`/`--end` window uses seconds since the recording's first
+sample and records exclusions in the export. The example skips the saved bag's
+initial period without joint feedback. Export never silently drops invalid
+samples inside that window. It matches named joints to each foot's FK within
+50 ms and 2 mm, rejects clock disagreement or large sample gaps, and validates
+joint bounds, interpolated reachability and joint speed before writing. Foot
+messages lack acquisition timestamps, so this is approximate receipt alignment.
+
+The output is for [Lab 3 replay](../ik_heuristic_walking_lab/README.md#replay-recorded-foot-motion).
+Only front-right replay is wired to that lab's controller. Other legs can be
+exported for offline analysis if valid; changing the `leg` label cannot make a
+recording suitable for a different motor interface.

@@ -43,11 +43,34 @@ python3 walking.py --save-cache   # solve, then write joint_positions_cache.npz
 python3 walking.py --use-cache    # load it back and start immediately
 ```
 
-Regenerate the cache whenever you change the keyframes — `--use-cache` will happily
-replay a stale gait.
+The cache records its keyframes, kinematics and timing contract. `--use-cache`
+refuses a stale or incompatible gait; regenerate it after changing those inputs.
 
 Only one process may drive the motors at a time. Stop `ik.py` before starting
 `walking.py`, and stop both before running the gait tuner.
+
+## Replay recorded foot motion
+
+The [Lab 2 recorder](../forward_kinematics_lab/README.md#record-and-export-foot-motion)
+produces a validated `pupper_recorded_foot_v1` JSON file. With the single front-right
+leg controller already active in the supported test setup:
+
+```bash
+python3 ik.py --recorded-motion /path/to/front-right-motion.json
+```
+
+This **commands the robot** and requires a supervised test. It enters from the
+measured foot position over two seconds, follows the recording once, then holds
+its final position. Coordinates are already in `base_link` metres. Other legs are
+rejected because `ik.yaml` exposes only the front-right leg. Continuous IK-branch
+selection, interpolated path checks, fresh feedback, and an online 15 rad/s target
+step bound cover entry and replay; delayed callbacks do not permit a larger step.
+These command checks do not establish physical tracking or stability.
+
+The saved `wave_01` bag contains an essentially stationary front-right foot. Its
+moving back-right leg includes six positions beyond the replay model's knee
+bound, so that motion is refused. It has not been clipped or substituted as a
+successful moving demonstration. See the [recording review](../foundation/results/lab2-recorded-motion-review.json).
 
 ## TODOs
 

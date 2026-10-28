@@ -30,15 +30,19 @@
       },
       "implemented_or_available": [
         "Four-leg FK and named EEF topics",
-        "Existing monorepo all-topic ROS bag recorder captures published joints and EEF topics"
+        "Existing monorepo all-topic ROS bag recorder captures published joints and EEF topics",
+        "Read-only joint/foot recorder, offline MCAP importer, explicit windowing and FK-aligned validated export to Lab3 replay"
       ],
       "evidence_paths": [
         "forward_kinematics_lab/forward_kinematics.py",
-        "pupperv3-monorepo/scripts/mcap_to_csv.py"
+        "pupperv3-monorepo/scripts/mcap_to_csv.py",
+        "forward_kinematics_lab/record_motion.py",
+        "ik_heuristic_walking_lab/recorded_motion.py",
+        "foundation/results/lab2-recorded-motion-review.json"
       ],
       "remaining_boundaries": [
-        "Dedicated EEF-recording-to-Lab3-keyframe workflow is not yet present: existing CSV conversion extracts joint states only.",
-        "Frame/sign validation and physical calibration remain hardware work."
+        "Saved front-right record passes after explicit startup trimming but is essentially static; moving back-right record exceeds the replay model knee limit and is refused.",
+        "Moving front-right replay, frame/sign validation and physical calibration remain hardware work."
       ]
     },
     {
@@ -50,7 +54,8 @@
       },
       "implemented_or_available": [
         "Bounded IK, single-leg and four-leg interpolation, trotting cache validation",
-        "Optional pronk/reverse-crawl patterns, cycloidal swing, tuner-to-keyframe conversion"
+        "Optional pronk/reverse-crawl patterns, cycloidal swing, tuner-to-keyframe conversion",
+        "Recorded front-right foot replay with continuous IK branch, measured-pose entry, fresh-feedback stop and online command-rate bound"
       ],
       "evidence_paths": [
         "ik_heuristic_walking_lab/kinematics.py",
@@ -187,21 +192,23 @@
       },
       "implemented_or_available": [
         "Three in-context prompt habits and deterministic secret-trick gating",
-        "Pinned UniMate generation, candidate selection, IK repair and trained generated-motion artifact"
+        "Pinned UniMate generation, candidate selection, IK repair and trained generated-motion artifact",
+        "Reviewed generated standing rise/sway/return installed locally behind secret gate; exact artifact and native activation/hold checks preserved"
       ],
       "evidence_paths": [
         "gemini_pupper/lab/prompt.md",
         "gemini_pupper/docs/foundation.md",
         "foundation/results/generated-candidate-selection.json",
-        "gemini_pupper/tricks/secret_dance/trick.yaml"
+        "gemini_pupper/tricks/secret_dance/trick.yaml",
+        "foundation/results/generated-motion-trained-review.json"
       ],
       "remaining_boundaries": [
-        "Generated artifact review/installation was interrupted and must be verified from saved evidence.",
-        "Named complex secret dance is a stretch example; descriptor must describe actual trained movement.",
+        "Seven-scenario simulation review and nominal native replay do not establish hardware performance; TA approval and supervised robot tests remain.",
+        "Actual generated movement is modest; it is not a complex dance.",
         "Password is owner-provided outside repo; in-context memory is not persistent identity authentication."
       ]
     }
   ],
   "acceptance_rule": "A trained experiment can be completed and rejected. Only reviewed evidence, exact model/reference identities, and supervised hardware measurements support promoted capabilities.",
-  "newly_identified_implementation_gap": "Lab2 optional EEF recording and replay adapter; all-topic recording alone does not provide the full convenient Lab2-to-Lab3 workflow."
+  "newly_identified_implementation_gap": "Closed in f13fa65: Lab2 recording-to-Lab3 adapter with real-bag review; source-linked boundaries above remain explicit."
 }

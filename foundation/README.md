@@ -16,7 +16,7 @@ the last two.
 | Source | Capability implemented here | Evidence and remaining boundary |
 |---|---|---|
 | Lab 1 | Signed bounded PD control, consistent position/velocity targets, measured-pose initialization, configurable sampled delay, sensor-loss zero-torque command | [Classical tests](tests/test_classical.py), [runtime tests](tests/test_pd_runtime.py); gains, feedback, delay and thermal behavior need the supported single-joint robot setup |
-| Lab 2 | Homogeneous-transform FK and recorded-motion workflow | Student FK is preserved; FK/IK and tuner parity are checked for all four legs. Physical frame/sign calibration and camera/recording setup still matter |
+| Lab 2 | Homogeneous-transform FK, read-only topic recording, offline MCAP import and validated foot-motion export | [Recording review](results/lab2-recorded-motion-review.json) covers the saved bag and explicit trimming. Its front-right foot is static; the moving back-right trajectory exceeds a knee bound and is refused. Physical frame/sign calibration remains |
 | Lab 3 and extensions | Bounded damped IK, strict unreachable-target rejection, validated gait caches, trajectory interpolation, tuner-to-keyframe conversion, cycloidal swing, additional gait patterns | [Position tests](tests/test_position_controllers.py), [single-leg tests](tests/test_single_leg.py); the full default gait is checked against bounds and FK. Geometric reachability does not prove dynamic stability |
 | Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered team checkpoints/exports agree numerically. [Paired GPU comparison](results/lab4-stablegait-clamp-gpu-comparison.json) finds improved tracking after controller-clamp finetuning, but more effort/slip and no fall-count improvement. No promotion; tighter driver limits and the shipped policy remain separate comparisons |
 | Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
@@ -24,8 +24,8 @@ the last two.
 | Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | Corrected export installed locally; [controller-limit evidence](results/lab6-sit-corrected.json) passes all eight scenarios on CPU/GPU and C++ inference parity. A [tighter driver-limit test](results/local-driver-tracking-evaluation.json) exposes a forward-COM weakness; further refinement and hardware checks remain pending |
 | Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | Both policies are necessary. [Command sweep](../pupper-mjlab/configs/foundation/spider_commands.json) supplies bounded evaluation requests; permitted operating speeds must come from successful evaluation, not training caps |
 | Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
-| Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, reward ablation, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Each candidate must beat its matched baseline; rejected experiments stay rejected. A captured jump must contain real flight and landing |
-| Optional Lab 3 | Pupper character/context, deterministic local hidden-trick gate, pinned UniMate generation, fitting/repair, candidate inspection, physics playback and tracking-policy training | [Generated-motion workflow](../pupper-mjlab/docs/pupper_foundation.md). Generated kinematics alone are not deployable; the selected policy must be trained, evaluated and approved |
+| Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, configurable reward comparisons, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Each candidate must beat its matched baseline; rejected experiments stay rejected. Existing fast comparisons change reference and optimization history, so do not isolate reward effects. A captured jump must contain real flight and landing |
+| Optional Lab 3 | Pupper character/context, deterministic local hidden-trick gate, pinned UniMate generation, fitting/repair, candidate inspection, physics playback and trained tracking policy | [Reviewed standing trick](results/generated-motion-trained-review.json) is installed locally behind the secret gate: a modest rise/sway/return, not a complex dance. Seven CPU/GPU scenarios and native activation/hold passed; hardware approval remains |
 
 The course support sources are also present: the robot monorepo, class rebase
 bundle, deployment controller, gait tuner, ROS reference material, and pinned
@@ -57,8 +57,13 @@ retains one failed robustness case for Sit and eight passing Spider-clip cases;
 it does not establish Spider walking or a physical robot result.
 
 The corrected body-contact evaluation changed the original sit and spider tracking
-verdicts. A subsequent corrected sit continuation passes the documented suite;
-spider refinements remain under evaluation. Historical “HOLDS UP” labels describe the simulator used at the time. They are not
+verdicts. The retained Sit continuation passes the controller-limit suite, but has
+a forward-COM weakness with tighter driver limits. The first driver-limit
+continuation was rejected, and a reference-margin sweep also worsened tracking.
+The stock training distribution covers torso x-COM offsets of ±1 cm; the difficult
++2 cm test lies outside it. A separate bounded ±2 cm continuation tests that gap;
+it is an experiment, not an installed improvement. Spider refinements remain
+under evaluation. Historical “HOLDS UP” labels describe the simulator used at the time. They are not
 sufficient evidence for deployment; new evaluations must name the actual contact,
 actuation and randomization contracts. A stable-looking animation can still be
 physically wrong when contact is disabled.
@@ -130,11 +135,33 @@ be copied out before releasing a runtime. Model hashes, configuration, seed and
 source provenance travel with each run; never replace them with a label such as
 `best` without preserving the actual checkpoint identity.
 
+The [interruption recovery record](results/interruption-recovery.json) identifies
+exactly which temporary outputs were lost and which inputs survived. Current
+training runs also use a bounded local checkpoint collector:
+
+```sh
+python foundation/scripts/preserve_colab_run.py --colab .venv/bin/colab \
+  --session SESSION --remote-root /content/pupper-RUN \
+  --out /durable/NEW-ARCHIVE --hours 6
+python foundation/scripts/restore_colab_snapshot.py /durable/NEW-ARCHIVE /new/recovered-run
+```
+
+The collector verifies downloads against remote SHA-256 hashes, retains earlier
+versions by content hash and receipt history, and downloads the latest two visible
+checkpoints per folder each cycle. Restore checks hashes and sizes before writing
+to a new directory. The index is a rolling **per-file** snapshot; a checkpoint and
+status file may describe different moments. Recovery still requires inspecting
+the actual exit record, source, inputs and references, which are preserved
+separately. Collectors require the laptop and network to remain available. Keep a
+complete final archive as well; neither periodic downloads nor `/content` storage
+guarantees that the final interval survives a runtime loss.
+
 Useful offline checks from the outer repository (with dependencies installed):
 
 ```sh
 python -m pytest foundation/tests implicit_compliance/tests gemini_pupper/tests
 python gemini_pupper/lab/test.py
+python foundation/scripts/check_foundation.py
 ```
 
 Simulation and deployment parity checks live under `pupper-mjlab/tests/` and
