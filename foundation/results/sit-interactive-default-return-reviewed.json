@@ -1,0 +1,426 @@
+{
+  "recorded_utc": "2026-10-28T10:08:53.824915+00:00",
+  "protocol": "interactive_sit_to_default_nojump_v1",
+  "source_revision": "4e6b1a8",
+  "hardware_validated": false,
+  "promoted": false,
+  "scope": "Installed improved Sit policy: sit, idle, queued left shake, idle, queued right shake, idle, queued standing exit,2s standing hold, actual shipped default initialization/fade,0.1m/s forward and stop. Native nominal full-hull/class-driver simulation; no ROS execution.",
+  "trick_policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+  "default_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+  "completed_sequence": true,
+  "physical_state_resets": 0,
+  "controller_activations": [
+    {
+      "stage": "sit_entry",
+      "controller": "trick",
+      "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+      "time_s": 0.0,
+      "root_pose": [
+        0.0,
+        0.0,
+        0.18,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "joint_pos": [
+        0.25999999046325684,
+        0.0,
+        -0.5199999809265137,
+        -0.25999999046325684,
+        0.0,
+        0.5199999809265137,
+        0.25999999046325684,
+        0.0,
+        -0.5199999809265137,
+        -0.25999999046325684,
+        0.0,
+        0.5199999809265137
+      ],
+      "joint_vel": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physical_state_reset": false,
+      "observation_history_reset": true
+    },
+    {
+      "stage": "default_activation",
+      "controller": "default",
+      "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+      "time_s": 27.9,
+      "root_pose": [
+        -0.010355410051672044,
+        -0.003293983783660882,
+        0.15835503248320482,
+        0.9998595371320158,
+        -0.0069135179226927695,
+        -0.00809694451001534,
+        -0.012944062951191057
+      ],
+      "joint_pos": [
+        0.24764842320073194,
+        -0.009420681823723104,
+        -0.5183847113913932,
+        -0.19777700753339508,
+        -0.00048422190265673317,
+        0.4754212524293506,
+        0.2044375810472142,
+        -0.04117178649853655,
+        -0.4594213600434342,
+        -0.14660493868599317,
+        -0.015915173577823367,
+        0.44386074372621787
+      ],
+      "joint_vel": [
+        0.0017196399412869401,
+        0.0016527598250921274,
+        0.00018289014799698165,
+        0.0039486010669441554,
+        0.001893091569558083,
+        0.0026661007076579047,
+        0.0017316995684418324,
+        -0.006655510597609691,
+        -0.0010145454846583785,
+        -0.0038825765284295636,
+        0.0036547908492216468,
+        0.0019458614179008972
+      ],
+      "physical_state_reset": false,
+      "observation_history_reset": true
+    }
+  ],
+  "clip_requests": [
+    {
+      "stage": "shake_left",
+      "time_s": 7.5,
+      "clip": "shake_left",
+      "accepted": true,
+      "queued": 1,
+      "activation_clock_reset": false,
+      "observation_history_reset": false,
+      "physical_state_reset": false,
+      "first_observed_inference_time_s": 8.211538461538462,
+      "boundary_wait_s": 0.7115384615384617
+    },
+    {
+      "stage": "shake_right",
+      "time_s": 14.3,
+      "clip": "shake_right",
+      "accepted": true,
+      "queued": 1,
+      "activation_clock_reset": false,
+      "observation_history_reset": false,
+      "physical_state_reset": false,
+      "first_observed_inference_time_s": 14.711538461538462,
+      "boundary_wait_s": 0.41153846153846096
+    },
+    {
+      "stage": "sit_stand_up",
+      "time_s": 21.1,
+      "clip": "stand_up",
+      "accepted": true,
+      "queued": 1,
+      "activation_clock_reset": false,
+      "observation_history_reset": false,
+      "physical_state_reset": false,
+      "first_observed_inference_time_s": 21.21153846153846,
+      "boundary_wait_s": 0.11153846153845848
+    }
+  ],
+  "actor_numpy_parity": {
+    "trick": {
+      "inferences": 1425,
+      "maximum_absolute_error": 4.4599221804553224e-07
+    },
+    "default": {
+      "inferences": 323,
+      "maximum_absolute_error": 1.0319386025692268e-06
+    }
+  },
+  "actual_feedback_history_checks": {
+    "trick": {
+      "history_depth": 1,
+      "all_consecutive_feedback_rows_checked": 1425,
+      "maximum_absolute_error": 7.947285973752827e-08,
+      "history_rotation_max_error": 0.0,
+      "first_history_was_zero": true
+    },
+    "default": {
+      "history_depth": 20,
+      "all_consecutive_feedback_rows_checked": 323,
+      "maximum_absolute_error": 3.9736429924275285e-08,
+      "history_rotation_max_error": 0.0,
+      "first_history_was_zero": true
+    }
+  },
+  "actual_clock_checks": {
+    "trick": {
+      "continuous_activation_clock_max_error_s": 0.0
+    },
+    "default": {
+      "continuous_activation_clock_max_error_s": 0.0
+    }
+  },
+  "stage_summaries": {
+    "sit_entry": {
+      "samples": 286,
+      "max_tilt_deg": 34.750099550600964,
+      "mean_velocity_body": [
+        -0.003236568320492762,
+        -0.0005082969435531509,
+        -0.009647712612179834
+      ],
+      "min_height_m": 0.12104532246419422,
+      "max_height_m": 0.17996372041420117,
+      "max_joint_speed_rad_s": 7.236293449466519,
+      "final_max_joint_speed_rad_s": 0.023618453555593458,
+      "final_error_vs_controller_default_max_rad": 1.1843885166502277,
+      "final_error_vs_current_reference_max_rad": 0.05120256162787454,
+      "max_target_step_rad": 0.21333910524845123,
+      "driver_clipped_joint_fraction": 0.010198135198135198,
+      "last_clip": "sit_idle",
+      "last_frame": 199,
+      "last_holding": false
+    },
+    "sit_idle_before_left": {
+      "samples": 104,
+      "max_tilt_deg": 35.234294440627934,
+      "mean_velocity_body": [
+        0.0004785546485498705,
+        -4.717261732048795e-06,
+        -0.0003443486112278045
+      ],
+      "min_height_m": 0.12151874774124044,
+      "max_height_m": 0.12155376209640553,
+      "max_joint_speed_rad_s": 0.02375353060253695,
+      "final_max_joint_speed_rad_s": 0.006925624349684534,
+      "final_error_vs_controller_default_max_rad": 1.1991787383014358,
+      "final_error_vs_current_reference_max_rad": 0.03774238971731189,
+      "max_target_step_rad": 0.0007534623146057129,
+      "driver_clipped_joint_fraction": 0.08333333333333333,
+      "last_clip": "sit_idle",
+      "last_frame": 199,
+      "last_holding": false
+    },
+    "shake_left": {
+      "samples": 250,
+      "max_tilt_deg": 37.251100222349805,
+      "mean_velocity_body": [
+        0.00017820941332945486,
+        -7.203207983445532e-05,
+        -1.3701190146992132e-05
+      ],
+      "min_height_m": 0.12151885378986381,
+      "max_height_m": 0.12934206150737676,
+      "max_joint_speed_rad_s": 4.135587189609647,
+      "final_max_joint_speed_rad_s": 0.011136944394535532,
+      "final_error_vs_controller_default_max_rad": 1.1977743168575352,
+      "final_error_vs_current_reference_max_rad": 0.03233926079149163,
+      "max_target_step_rad": 0.08276930451393127,
+      "driver_clipped_joint_fraction": 0.07866666666666666,
+      "last_clip": "sit_idle",
+      "last_frame": 214,
+      "last_holding": false
+    },
+    "sit_idle_before_right": {
+      "samples": 104,
+      "max_tilt_deg": 35.34187076273114,
+      "mean_velocity_body": [
+        -0.00014585478142775443,
+        0.0002489754902532775,
+        -2.9645416870762083e-06
+      ],
+      "min_height_m": 0.1217508368752449,
+      "max_height_m": 0.12191785703008547,
+      "max_joint_speed_rad_s": 0.010772447605342567,
+      "final_max_joint_speed_rad_s": 0.003798955723698644,
+      "final_error_vs_controller_default_max_rad": 1.2011997597756667,
+      "final_error_vs_current_reference_max_rad": 0.03138094842383421,
+      "max_target_step_rad": 0.00016942620277404785,
+      "driver_clipped_joint_fraction": 0.08333333333333333,
+      "last_clip": "sit_idle",
+      "last_frame": 214,
+      "last_holding": false
+    },
+    "shake_right": {
+      "samples": 250,
+      "max_tilt_deg": 36.76179866805967,
+      "mean_velocity_body": [
+        -0.00020157662126417188,
+        -0.00027757099750141,
+        0.00040015232683324127
+      ],
+      "min_height_m": 0.12170977665934549,
+      "max_height_m": 0.12853448880383908,
+      "max_joint_speed_rad_s": 4.170886310732538,
+      "final_max_joint_speed_rad_s": 0.040737874700281236,
+      "final_error_vs_controller_default_max_rad": 1.1837483319968967,
+      "final_error_vs_current_reference_max_rad": 0.06558712051622029,
+      "max_target_step_rad": 0.09782731533050537,
+      "driver_clipped_joint_fraction": 0.06266666666666666,
+      "last_clip": "sit_idle",
+      "last_frame": 229,
+      "last_holding": false
+    },
+    "sit_idle_before_exit": {
+      "samples": 104,
+      "max_tilt_deg": 35.160254577620655,
+      "mean_velocity_body": [
+        0.00013291135321986055,
+        0.0009107999922495284,
+        -0.0008622426029115226
+      ],
+      "min_height_m": 0.12175715911570138,
+      "max_height_m": 0.12300836478701953,
+      "max_joint_speed_rad_s": 0.0598378430168343,
+      "final_max_joint_speed_rad_s": 0.011160740489565198,
+      "final_error_vs_controller_default_max_rad": 1.2026597811810533,
+      "final_error_vs_current_reference_max_rad": 0.032677457693872446,
+      "max_target_step_rad": 0.0018492937088012695,
+      "driver_clipped_joint_fraction": 0.07371794871794872,
+      "last_clip": "sit_idle",
+      "last_frame": 229,
+      "last_holding": false
+    },
+    "sit_stand_up": {
+      "samples": 249,
+      "max_tilt_deg": 35.19005332754689,
+      "mean_velocity_body": [
+        0.0020085618428455063,
+        -0.00019022360081843355,
+        0.007040835171955452
+      ],
+      "min_height_m": 0.1217236873312821,
+      "max_height_m": 0.15811518306043426,
+      "max_joint_speed_rad_s": 7.676857204044516,
+      "final_max_joint_speed_rad_s": 0.0066467455428510114,
+      "final_error_vs_controller_default_max_rad": 0.12275325766290493,
+      "final_error_vs_current_reference_max_rad": 0.11850526719964807,
+      "max_target_step_rad": 0.264106810092926,
+      "driver_clipped_joint_fraction": 0.004016064257028112,
+      "last_clip": "stand_up",
+      "last_frame": 910,
+      "last_holding": true
+    },
+    "sit_standing_hold": {
+      "samples": 104,
+      "max_tilt_deg": 1.3701208110922771,
+      "mean_velocity_body": [
+        0.00014546278949837608,
+        -3.6201367530163666e-05,
+        0.00011613315216079225
+      ],
+      "min_height_m": 0.15811848431222308,
+      "max_height_m": 0.15835383452687668,
+      "max_joint_speed_rad_s": 0.007219492621970843,
+      "final_max_joint_speed_rad_s": 0.0066633525204179665,
+      "final_error_vs_controller_default_max_rad": 0.1134475290756366,
+      "final_error_vs_current_reference_max_rad": 0.10919953861237974,
+      "max_target_step_rad": 7.158517837524414e-05,
+      "driver_clipped_joint_fraction": 0.0,
+      "last_clip": "stand_up",
+      "last_frame": 910,
+      "last_holding": true
+    },
+    "default_activation": {
+      "samples": 219,
+      "max_tilt_deg": 1.2196495116926234,
+      "mean_velocity_body": [
+        -0.00013651122164721376,
+        0.00026420861134500564,
+        0.0003823015997991849
+      ],
+      "min_height_m": 0.1569774543036404,
+      "max_height_m": 0.15990016393774448,
+      "max_joint_speed_rad_s": 0.5109752186421531,
+      "final_max_joint_speed_rad_s": 0.02625093483708939,
+      "final_error_vs_controller_default_max_rad": 0.034856852068191335,
+      "final_error_vs_current_reference_max_rad": 0.034856852068191335,
+      "max_target_step_rad": 0.11636143922805786,
+      "driver_clipped_joint_fraction": 0.0,
+      "last_clip": null,
+      "last_frame": -1,
+      "last_holding": null
+    },
+    "default_forward": {
+      "samples": 104,
+      "max_tilt_deg": 2.2782736288103624,
+      "mean_velocity_body": [
+        0.11515004061016383,
+        0.001752504210610689,
+        -0.0028685570734109014
+      ],
+      "min_height_m": 0.15586019799434966,
+      "max_height_m": 0.16005574994550403,
+      "max_joint_speed_rad_s": 10.899906723718406,
+      "final_max_joint_speed_rad_s": 3.1457424734274206,
+      "final_error_vs_controller_default_max_rad": 0.17990537847699195,
+      "final_error_vs_current_reference_max_rad": 0.17990537847699195,
+      "max_target_step_rad": 0.3579491525888443,
+      "driver_clipped_joint_fraction": 0.0,
+      "last_clip": null,
+      "last_frame": -1,
+      "last_holding": null
+    },
+    "default_stop": {
+      "samples": 104,
+      "max_tilt_deg": 0.9657123201369137,
+      "mean_velocity_body": [
+        0.00968864980310638,
+        0.0008564565960028904,
+        0.001999549961494565
+      ],
+      "min_height_m": 0.15594755840870647,
+      "max_height_m": 0.16028933194367603,
+      "max_joint_speed_rad_s": 6.302478513527633,
+      "final_max_joint_speed_rad_s": 0.01460808912327544,
+      "final_error_vs_controller_default_max_rad": 0.0880224634380753,
+      "final_error_vs_current_reference_max_rad": 0.0880224634380753,
+      "max_target_step_rad": 0.23098057508468628,
+      "driver_clipped_joint_fraction": 0.0,
+      "last_clip": null,
+      "last_frame": -1,
+      "last_holding": null
+    }
+  },
+  "sampled_cross_controller_target_step_rad": 0.11627569794654846,
+  "final_half_second": {
+    "samples": 27,
+    "max_planar_speed_m_s": 0.00048691485591428353,
+    "max_yaw_rate_rad_s": 0.014970466105665343,
+    "meets_stop": true
+  },
+  "default_torso_support_rows": 0,
+  "validation": {
+    "focused_tests": 67,
+    "scope": "Combined native handoff, jump bootstrap and geometric audit tests; native queued-clip test checks persistent actor feedback and unchanged activation stage. Actual saved inputs independently checked across every inference."
+  },
+  "limitations": [
+    "One nominal initial pose, no randomized COM/push/sensor/physical-robot test. Previous Sit+2.5cmCOM wobble remains unresolved.",
+    "Clip requests use production ClipPlayer queue; subscriber delivery, controller-manager services and application status/timeout logic are not executed.",
+    "Reference clocks/holding confirm clip playback, not semantic success or precise paw placement; per-stage endpoint errors and speeds retained.",
+    "Contact/force data precede post-integration pose by at most1/520s, as disclosed by the raw diagnostic.",
+    "Actor/history reset at the actual switch to default; the physical state and16ms target-delay queue persist throughout."
+  ],
+  "decision": "Complete nominal interactive sequence and actual default return are now observed. Both queued shakes return to sitting idle, standing exit holds, and default stop settles; no policy installation or hardware approval follows.",
+  "artifacts": {
+    "directory": "artifacts/lab6/sit-interactive-default-return-v1",
+    "raw_report_sha256": "2b1007fb9d5035982859434531b396d49275e133a6cc570b16f7551c1732cafb",
+    "trajectory_sha256": "ab89460b7de2e3d1531aa1aaf987b9517893c8a86b53be8e1e7ca52f7088ffd5",
+    "inference_sha256": "9aa529a3daae8f348404623a2a1f022538591cd13943d3a5ea7350a81f114eff",
+    "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+    "preservation_manifest": "preservation-sit-interactive-default-return-v1.json"
+  }
+}
