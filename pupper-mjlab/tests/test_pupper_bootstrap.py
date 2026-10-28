@@ -206,3 +206,19 @@ def test_jump_launch_reward_cannot_grow_without_bound(monkeypatch):
     env=SimpleNamespace(scene={'robot':SimpleNamespace(data=SimpleNamespace(root_link_lin_vel_w=velocity))})
     result=mixed_jump.slot_jump_up_velocity(env,.8,velocity_cap=2.)
     torch.testing.assert_close(result,torch.tensor([0.,1.,2.]))
+
+
+def test_jump_selection_checks_bounds_before_ranking_actual_windows():
+    t=trace(cycles=3);n,e=t['phase'].shape
+    t.update(dt=np.asarray(.02),foot_contact=np.ones((n,e,4),bool),height=np.full((n,e),.15),terminated=np.zeros((n,e),bool))
+    t['foot_contact'][40:50]=False;t['height'][40:50]=.25
+    t['foot_contact'][100:110]=False;t['height'][100:110]=.22
+    t['joint_pos'][40,0,0]=1.1
+    original=t['joint_pos'].copy();limits=np.tile([-1.,1.],(12,1))
+    assert b.select_jump(t)['start']==25
+    selected=b.select_jump(t,limits=limits)
+    assert selected['start']==85 and selected['end']>110
+    np.testing.assert_array_equal(t['joint_pos'],original)
+    t['joint_pos'][100,0,0]=1.1
+    with pytest.raises(ValueError,match='No clean jump'):
+        b.select_jump(t,limits=limits)

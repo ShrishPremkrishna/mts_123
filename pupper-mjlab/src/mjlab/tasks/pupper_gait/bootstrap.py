@@ -165,7 +165,7 @@ def save_references(out, forward, backward, report, *, limits=None, frequency_mu
     return manifest
 
 
-def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08):
+def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None):
     """Select a genuine flight with loading and landing, never a reset or a fall."""
     dt=float(trace["dt"])
     if dt<=0: raise ValueError("Invalid trace timestep")
@@ -189,6 +189,12 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08):
             height=float(np.max(trace["height"][flight_start:flight_end,env]))
             rise=height-float(np.median(trace["height"][a:flight_start,env]))
             if rise<.02: continue
+            if limits is not None:
+                try:
+                    validate_reference(trace["joint_pos"][a:b,env], limits=limits,
+                                       cycle_s=(b-a-1)*dt, periodic=False)
+                except ValueError:
+                    continue  # Choose another observed window; never clip the best one.
             candidates.append(dict(env=env,start=a,end=b,flight_s=flight,touchdown_s=(flight_end-a)*dt,peak_height_m=height,rise_m=rise))
     if not candidates: raise ValueError("No clean jump with loading, flight and landing found; do not fabricate a capture")
     return max(candidates,key=lambda c:c["rise_m"])
@@ -303,7 +309,7 @@ def main():
         print(json.dumps(result,indent=2))
     else:
         with np.load(args.trace,allow_pickle=False) as f: trace={k:f[k] for k in f.files}
-        selection=select_jump(trace) if args.auto else None
+        selection=select_jump(trace,limits=robot_limits()) if args.auto else None
         a,b,e=(selection["start"],selection["end"],selection["env"]) if selection else (args.start,args.end,args.env)
         if a is None or b is None: raise ValueError("Provide --auto or both --start and --end")
         if a<0 or b<=a+7 or b>len(trace["joint_pos"]) or e<0 or e>=trace["joint_pos"].shape[1]: raise ValueError("Invalid jump range")
