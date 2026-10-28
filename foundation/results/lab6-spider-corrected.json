@@ -1,0 +1,458 @@
+{
+  "created_utc": "2026-10-28T00:00:45.517099+00:00",
+  "state": "tracking_clips_trained_and_evaluated_waiting_for_walking_partner",
+  "approved_for_hardware": false,
+  "hardware_validated": false,
+  "ta_approval_recorded": false,
+  "run_name": "foundation_spider_clips_deployclamp_legacycom_groundhulls_s42_20261027T232007Z_f6612330",
+  "training_iterations_additional": 1000,
+  "checkpoint": "model_3998.pt",
+  "checkpoint_sha256": "f1cfd1da41d4f976461e07710e6cc4c5fd035d810d525adc66e81048ad708396",
+  "policy_sha256": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb",
+  "motion_sha256": "2a51d40c03dbbd373ed09b0b60ee7b5c7f6864f48e77d8a5153a4d5d1758cf6f",
+  "initial_checkpoint_sha256": "fdc3dd10f879178db2d49872c6c244efd8f41edd53d6f3add6ac02c21c007b39",
+  "training_source_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+  "training_source_sha256": "f5413b4af99391e76bf51a596a86907dfcf7ff3a8b144c900b6ebc4f5af04a6d",
+  "contracts": {
+    "actuation_contract": {
+      "contract": "deployment_joint_target_clamp_v1",
+      "limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "order": "raw action retained; affine target; absolute joint clipping; encoder-bias correction; actuator latency",
+      "raw_action_history_preserved": true
+    },
+    "collision_contract": {
+      "contract": "tracking_ground_hulls_v1",
+      "hull_count": 9,
+      "contype": 0,
+      "conaffinity": 1,
+      "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+    },
+    "com_randomization_contract": {
+      "contract": "legacy_event_order"
+    }
+  },
+  "training_manifest_sha256": "f1fe979770cf1199608f64299b8f90b6059533f016d1c5f350a41916f299f956",
+  "download_receipt": {
+    "path": "artifacts/lab6/pupper-spider-corrected/download-receipt.json",
+    "sha256": "deafa246d62c8eb977c8bd7efbdadf331e3be484a39cd8eb6a6f34e92e6ed86f"
+  },
+  "evidence": {
+    "matched_cpu_evaluation": {
+      "path": "artifacts/lab6/pupper-spider-corrected/evaluation-cpu-matched/evaluation.json",
+      "sha256": "3238763769a29f4df260f40fc9eac57ce118e6e49adbc68fa4db5026b2f300d9",
+      "all_hold_up": true,
+      "scenario_count": 8,
+      "source_sha256": "7725ce4072777ca2416a8476cb841e65c2dd6a147a5e2de17c8eaab5a1f44d52",
+      "source_changed_during_evaluation": false
+    },
+    "gpu_evaluation": {
+      "path": "artifacts/lab6/pupper-spider-corrected/spider-corrected-contacts/evaluation/evaluation.json",
+      "sha256": "0949336c3f7ad9be464d4a817e8fdac796952192d508042e55824f8c0b33ed10",
+      "all_hold_up": true,
+      "scenario_count": 8,
+      "source_sha256": "f5413b4af99391e76bf51a596a86907dfcf7ff3a8b144c900b6ebc4f5af04a6d"
+    },
+    "baseline_cpu_evaluation": {
+      "path": "artifacts/lab6/spider_clips/evaluation-ground-hulls-v3/evaluation.json",
+      "sha256": "3edfe3af747d457f78327bfc293a021cec485e3e7d9527ee91e604a185653085"
+    },
+    "video": {
+      "path": "artifacts/lab6/pupper-spider-corrected/physics-corrected-ground-hulls.mp4",
+      "sha256": "5ecc2dd55aa6d74eb0842e3ecda8a0a7b1427e65ef1402bfc4711bdabed5d7a4",
+      "review": "Six sampled frames inspected alongside numerical trajectory: entry, low stance, wiggle, maintained idle and upright return are visible. Full recorded simulation video retained."
+    },
+    "behavior_before": {
+      "path": "foundation/results/lab6-spider-behavior-before-continuation.json",
+      "sha256": "d2954067a26ce9ed11b1525aaf6cd2899032d6aaa2ee550fdebf5947f5e63efc"
+    },
+    "behavior_after": {
+      "path": "foundation/results/lab6-spider-behavior-after-continuation.json",
+      "sha256": "e0088c66882f5ed26512f04f8209e9d09de024c27c1f63c3175c6349f28259a1"
+    },
+    "cpp_audit": {
+      "path": "artifacts/lab6/pupper-spider-corrected/rtneural-parity.json",
+      "sha256": "7c4482be6c6638e4330ddcd1c92254fd8f5ed0c7a9296522023ee1232ad776d8"
+    }
+  },
+  "export_parity": {
+    "strict_actor_load_passed": true,
+    "metadata_differences": [],
+    "random_inputs": 512,
+    "live_steps": 100,
+    "random_input_max_abs_error": 2.370119125405523e-06,
+    "live_input_max_abs_error": 2.9777164645139464e-07,
+    "passed": true
+  },
+  "actual_cpp_inference_parity": {
+    "backend": "vendored RTNeural Eigen float32",
+    "inputs": 512,
+    "input_dimension": 69,
+    "output_dimension": 12,
+    "max_abs_error_vs_json_float64": 8.336758994254012e-07,
+    "tolerance": 0.0001,
+    "passed": true,
+    "audit_source_sha256": "9902a464b8d49afdb6dc4ee2d072faeeff726a6ba5646044e1148f1681ae1491",
+    "inputs_sha256": "bae223552845effad36b4ec4b8fb06fd85b872ebfffa298b62fb3e29b21f8f40",
+    "compiler": "Apple clang version 21.0.0 (clang-2100.1.1.101)",
+    "scope": "Actual vendored C++ inference backend parity; no ROS controller activation, Pi performance benchmark or robot operation."
+  },
+  "matched_cpu_comparison": [
+    {
+      "scenario": "nominal",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.03532210364937782,
+        "worst_orientation_error_deg": 11.256138800963425,
+        "rms_joint_error_rad": 0.09137458200514736,
+        "worst_joint_error_rad": 0.3983926773071289,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 8.458258174447446,
+        "peak_sampled_hull_vertex_penetration_m": 0.0032385188825363176,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.21744186046511627,
+        "effective_com_offset_m": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.01255177054554224,
+        "worst_orientation_error_deg": 5.945383702350209,
+        "rms_joint_error_rad": 0.04335167850650091,
+        "worst_joint_error_rad": 0.18682244420051575,
+        "peak_motor_torque_nm": 2.694197654724121,
+        "peak_body_tilt_from_upright_deg": 8.107746278615725,
+        "peak_sampled_hull_vertex_penetration_m": 0.002629595416252961,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.38488372093023254,
+        "effective_com_offset_m": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "scenario": "mass_x1_3",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.029357576742768288,
+        "worst_orientation_error_deg": 11.685760467647311,
+        "rms_joint_error_rad": 0.09499998497428044,
+        "worst_joint_error_rad": 0.41721653938293457,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 8.353128966536234,
+        "peak_sampled_hull_vertex_penetration_m": 0.0031074196436713664,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.23604651162790696,
+        "effective_com_offset_m": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.010028312914073467,
+        "worst_orientation_error_deg": 3.6883855651229536,
+        "rms_joint_error_rad": 0.044211022836848114,
+        "worst_joint_error_rad": 0.21182256937026978,
+        "peak_motor_torque_nm": 2.210432767868042,
+        "peak_body_tilt_from_upright_deg": 8.06995681427975,
+        "peak_sampled_hull_vertex_penetration_m": 0.002418207817932637,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.38372093023255816,
+        "effective_com_offset_m": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "scenario": "com_left_2cm",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.03419740870594978,
+        "worst_orientation_error_deg": 7.771997101334599,
+        "rms_joint_error_rad": 0.09151916080039978,
+        "worst_joint_error_rad": 0.41983842849731445,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 8.481490839740966,
+        "peak_sampled_hull_vertex_penetration_m": 0.003123977507174275,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.2116279069767442,
+        "effective_com_offset_m": [
+          0.0,
+          0.019999999552965164,
+          0.0
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.023954061791300774,
+        "worst_orientation_error_deg": 4.718328300885546,
+        "rms_joint_error_rad": 0.04317807273077109,
+        "worst_joint_error_rad": 0.1843445599079132,
+        "peak_motor_torque_nm": 1.906204104423523,
+        "peak_body_tilt_from_upright_deg": 7.992617584198206,
+        "peak_sampled_hull_vertex_penetration_m": 0.002345508810302266,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.3813953488372093,
+        "effective_com_offset_m": [
+          0.0,
+          0.019999999552965164,
+          0.0
+        ]
+      }
+    },
+    {
+      "scenario": "com_front_2cm",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.03683078661561012,
+        "worst_orientation_error_deg": 8.420343781024174,
+        "rms_joint_error_rad": 0.0921726618737195,
+        "worst_joint_error_rad": 0.42551493644714355,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 7.927116943629881,
+        "peak_sampled_hull_vertex_penetration_m": 0.0032099498999708515,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.22674418604651161,
+        "effective_com_offset_m": [
+          0.020000001415610313,
+          0.0,
+          0.0
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.01552154403179884,
+        "worst_orientation_error_deg": 5.929161948892839,
+        "rms_joint_error_rad": 0.043198053910218255,
+        "worst_joint_error_rad": 0.19728222489356995,
+        "peak_motor_torque_nm": 2.0926923751831055,
+        "peak_body_tilt_from_upright_deg": 7.9246650678621755,
+        "peak_sampled_hull_vertex_penetration_m": 0.0023368068678235876,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.3825581395348837,
+        "effective_com_offset_m": [
+          0.020000001415610313,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "scenario": "randomized101",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.023215945810079575,
+        "worst_orientation_error_deg": 10.161054987639707,
+        "rms_joint_error_rad": 0.09700470380829225,
+        "worst_joint_error_rad": 0.4114772379398346,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 9.696067304093342,
+        "peak_sampled_hull_vertex_penetration_m": 0.002421188323772666,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.22906976744186047,
+        "effective_com_offset_m": [
+          -0.006039010360836983,
+          -0.0009942492470145226,
+          -0.008181971497833729
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.015302316285669804,
+        "worst_orientation_error_deg": 4.47651741453939,
+        "rms_joint_error_rad": 0.04725649094713945,
+        "worst_joint_error_rad": 0.2094799280166626,
+        "peak_motor_torque_nm": 2.570122480392456,
+        "peak_body_tilt_from_upright_deg": 9.167397051937767,
+        "peak_sampled_hull_vertex_penetration_m": 0.0023610458420381397,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.386046511627907,
+        "effective_com_offset_m": [
+          -0.006039010360836983,
+          -0.0009942492470145226,
+          -0.008181971497833729
+        ]
+      }
+    },
+    {
+      "scenario": "randomized202",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.024898270145058632,
+        "worst_orientation_error_deg": 13.852906985809787,
+        "rms_joint_error_rad": 0.10038220207895626,
+        "worst_joint_error_rad": 0.4292723536491394,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 8.5564842016523,
+        "peak_sampled_hull_vertex_penetration_m": 0.0026623646637924797,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.21395348837209302,
+        "effective_com_offset_m": [
+          -0.0020643379539251328,
+          0.008645810186862946,
+          0.001958080567419529
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.013698465190827847,
+        "worst_orientation_error_deg": 4.251928761947628,
+        "rms_joint_error_rad": 0.0515074025745436,
+        "worst_joint_error_rad": 0.249205082654953,
+        "peak_motor_torque_nm": 2.186709403991699,
+        "peak_body_tilt_from_upright_deg": 8.38199429109506,
+        "peak_sampled_hull_vertex_penetration_m": 0.0020898905250105043,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.3883720930232558,
+        "effective_com_offset_m": [
+          -0.0020643379539251328,
+          0.008645810186862946,
+          0.001958080567419529
+        ]
+      }
+    },
+    {
+      "scenario": "randomized303",
+      "before": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.02578057162463665,
+        "worst_orientation_error_deg": 7.093591497132774,
+        "rms_joint_error_rad": 0.09370339996715477,
+        "worst_joint_error_rad": 0.41526782512664795,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 8.858893616473503,
+        "peak_sampled_hull_vertex_penetration_m": 0.00283275617712736,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.21627906976744185,
+        "effective_com_offset_m": [
+          -0.009240040555596352,
+          -0.007386021316051483,
+          0.008899555541574955
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.011230265721678734,
+        "worst_orientation_error_deg": 4.020647653404032,
+        "rms_joint_error_rad": 0.04574153384119952,
+        "worst_joint_error_rad": 0.26544520258903503,
+        "peak_motor_torque_nm": 2.014111042022705,
+        "peak_body_tilt_from_upright_deg": 8.418345983924437,
+        "peak_sampled_hull_vertex_penetration_m": 0.002495457631324152,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.3802325581395349,
+        "effective_com_offset_m": [
+          -0.009240040555596352,
+          -0.007386021316051483,
+          0.008899555541574955
+        ]
+      }
+    },
+    {
+      "scenario": "continuous_stress",
+      "before": {
+        "verdict": "WOBBLES",
+        "worst_position_error_m": 0.02620861493051052,
+        "worst_orientation_error_deg": 11.256138800963425,
+        "rms_joint_error_rad": 0.0619505625708091,
+        "worst_joint_error_rad": 0.4102773666381836,
+        "peak_motor_torque_nm": 3.0,
+        "peak_body_tilt_from_upright_deg": 8.371327984499352,
+        "peak_sampled_hull_vertex_penetration_m": 0.0032385188825363176,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.08539823008849558,
+        "effective_com_offset_m": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "after": {
+        "verdict": "HOLDS UP",
+        "worst_position_error_m": 0.012064245529472828,
+        "worst_orientation_error_deg": 5.976778243034907,
+        "rms_joint_error_rad": 0.04503089735441282,
+        "worst_joint_error_rad": 0.18682244420051575,
+        "peak_motor_torque_nm": 2.0999255180358887,
+        "peak_body_tilt_from_upright_deg": 8.437941503354425,
+        "peak_sampled_hull_vertex_penetration_m": 0.0022789415662406165,
+        "reference_resets": 0,
+        "fraction_steps_requesting_target_outside_limits": 0.14513274336283186,
+        "effective_com_offset_m": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    }
+  ],
+  "interpretation": [
+    "All eight corrected-contact CPU scenarios and all eight GPU scenarios meet the original course HOLDS UP thresholds; continuous45s stress has zero reference resets.",
+    "The original frozen reference and reward profile are retained. This1000-iteration continuation corrected target clipping and body contacts. Training retains the legacy erased-COM behavior; evaluation explicitly composes and verifies COM perturbations, including\u00b1direction fixed2cm and seeded dynamics.",
+    "Standing exit improves: final max joint error0.140\u21920.087rad and endpoint speed0.881\u21920.161rad/s; final-half-second foot contacts3\u21924. The unchanged reference has no stationary terminal dwell. Use measured settling feedback before handoff, rather than treating elapsed clip duration as completion.",
+    "Idle root height stays4.28\u20134.29cm versus4.20cm target. Idle joint RMS worsens from0.040\u20130.047 to0.056\u20130.064rad, so this continuation does not dominate every metric.",
+    "The deployed actor lacks measured root translation/linear velocity. Position drift, pose tracking, body balance and clearance remain distinct outcomes.",
+    "Friction randomization varies foot material while hull support can have higher friction. It is not a uniformly slippery-surface test; thermal limits, external pushes and real controller handoffs are unvalidated."
+  ],
+  "installation": {
+    "installed": false,
+    "reason": "The spider_walk capability requires a separately validated walking policy, measured speed limits and reviewed handoff behavior. Parent coordination pending."
+  }
+}
