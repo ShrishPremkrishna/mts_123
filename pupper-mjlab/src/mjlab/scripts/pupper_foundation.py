@@ -247,6 +247,13 @@ def train(args: argparse.Namespace) -> Path:
       raise ValueError("--driver-limits requires --deployment-target-clamp")
     from mjlab.tasks.pupper.deployment_contract import apply_driver_target_clamp
     contract = apply_driver_target_clamp(cfg, args.driver_limits)
+  slew_contract = None
+  slew_rate = getattr(args, 'target_slew_rad_s', None)
+  if slew_rate is not None:
+    if args.profile != 'spider_walk':
+      raise ValueError('Target-slew continuation currently supports spider_walk only; tracking export needs a separate contract')
+    from mjlab.tasks.pupper.target_slew import apply_position_target_slew
+    slew_contract = apply_position_target_slew(cfg, slew_rate, contract)
   compose_com = getattr(args, "compose_com_randomization", False)
   com_contract = {"contract": "legacy_event_order"}
   if compose_com:
@@ -288,6 +295,8 @@ def train(args: argparse.Namespace) -> Path:
   contract_suffix = "_deployclamp" if deploy_clamp else "_legacytargets"
   if getattr(args, "driver_limits", None):
     contract_suffix += "_driverclamp"
+  if slew_contract is not None:
+    contract_suffix += '_slew' + format(slew_rate, '.12g').replace('.', 'p')
   contract_suffix += "_composedcom" if compose_com else "_legacycom"
   contract_suffix += "_groundhulls" if ground_hulls else "_torsocontact" if torso_contact else "_legacyhulls"
   if linear_std is not None:
@@ -322,6 +331,7 @@ def train(args: argparse.Namespace) -> Path:
     "state": "running", "created_utc": stamp, "profile": args.profile,
     "profile_config": profile, "seed": args.seed,
     "actuation_contract": contract, "com_randomization_contract": com_contract,
+    "position_target_slew_contract": slew_contract,
     "collision_contract": collision_contract,
     "reward_parameter_overrides": reward_parameters,
     "domain_randomization_overrides": randomization_overrides,
@@ -432,6 +442,7 @@ def main() -> None:
   launch.add_argument("--initial-checkpoint", type=Path, help="Exact local checkpoint for a separate finetune run; the original is retained")
   launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
   launch.add_argument("--driver-limits", type=Path, help="Named driver joint limits JSON; requires --deployment-target-clamp")
+  launch.add_argument('--target-slew-rad-s', type=float, help='SpiderWalk-only continuous command slew, at most15rad/s; requires controller/driver clamps and matched native support')
   launch.add_argument("--linear-tracking-std", type=float, help="Explicit reward-width experiment in m/s; changes XY tracking AND body vertical-velocity tolerance, preserving reward weights")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
   launch.add_argument("--tracking-com-x-half-range", type=float, help="Separate tracking experiment: torso X COM uniform +/-range in meters, at most 0.02; requires --compose-com-randomization and retains Y/Z +/-0.01")

@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--interval', type=float, default=120)
     parser.add_argument('--hours', type=float, default=6)
+    parser.add_argument('--once', action='store_true', help='Run one verified collection cycle and exit')
     args = parser.parse_args()
     if not args.remote_root.startswith('/content/pupper-') or '..' in Path(args.remote_root).parts:
         parser.error('remote root must be an explicit /content/pupper-* output directory')
@@ -69,31 +70,38 @@ print('RECOVERY_MANIFEST='+json.dumps(files))
                 output = call(['exec','-s',args.session,'-f',str(script),'--timeout','60'],90)
                 lines = [line for line in output.splitlines() if line.startswith('RECOVERY_MANIFEST=')]
                 if len(lines)!=1:raise ValueError('remote manifest unavailable; no completion inferred')
-                files = json.loads(lines[0].split('=',1)[1]); received=0
+                files = json.loads(lines[0].split('=',1)[1]); received=0; failures=[]
+                # Recover small configuration files and checkpoints before large rollouts.
+                files.sort(key=lambda item: (0 if Path(item['path']).suffix=='.pt' else 1 if Path(item['path']).suffix in ('.json','.yaml','.yml') else 2, item['bytes']))
                 for item in files:
-                    relative=Path(item['path'])
-                    if relative.is_absolute() or '..' in relative.parts:raise ValueError('invalid manifest path')
-                    digest=item['sha256']
-                    if not re.fullmatch('[0-9a-f]{64}',digest):raise ValueError('invalid hash')
-                    if index['files'].get(item['path'],{}).get('sha256')==digest:continue
-                    destination=versions/digest
-                    if not destination.exists():
-                        pending=Path(temporary)/'download.partial'
-                        call(['download','-s',args.session,str(Path(args.remote_root)/relative),str(pending)],120)
-                        if hashlib.sha256(pending.read_bytes()).hexdigest()!=digest:
-                            continue  # A running log/status may have changed during download.
-                        pending.replace(destination)
-                    receipt=dict(item,previous_sha256=index['files'].get(item['path'],{}).get('sha256'),
-                                 received_utc=datetime.now(timezone.utc).isoformat())
-                    with (args.out/'receipts.jsonl').open('a') as log:log.write(json.dumps(receipt)+'\n')
-                    index['files'][item['path']]=item;received+=1
-                    index['updated_utc']=datetime.now(timezone.utc).isoformat()
-                    staged=args.out/'index.tmp';staged.write_text(json.dumps(index,indent=2)+'\n');staged.replace(index_path)
-                event=dict(utc=datetime.now(timezone.utc).isoformat(),seen=len(files),received=received,preserved=len(index['files']))
+                    try:
+                        relative=Path(item['path'])
+                        if relative.is_absolute() or '..' in relative.parts:raise ValueError('invalid manifest path')
+                        digest=item['sha256']
+                        if not re.fullmatch('[0-9a-f]{64}',digest):raise ValueError('invalid hash')
+                        if index['files'].get(item['path'],{}).get('sha256')==digest:continue
+                        destination=versions/digest
+                        if not destination.exists():
+                            pending=Path(temporary)/'download.partial'
+                            call(['download','-s',args.session,str(Path(args.remote_root)/relative),str(pending)],120)
+                            if hashlib.sha256(pending.read_bytes()).hexdigest()!=digest:
+                                continue  # A running log/status may have changed during download.
+                            pending.replace(destination)
+                        receipt=dict(item,previous_sha256=index['files'].get(item['path'],{}).get('sha256'),
+                                     received_utc=datetime.now(timezone.utc).isoformat())
+                        with (args.out/'receipts.jsonl').open('a') as log:log.write(json.dumps(receipt)+'\n')
+                        index['files'][item['path']]=item;received+=1
+                        index['updated_utc']=datetime.now(timezone.utc).isoformat()
+                        staged=args.out/'index.tmp';staged.write_text(json.dumps(index,indent=2)+'\n');staged.replace(index_path)
+                    except Exception as error:
+                        failures.append(dict(path=item.get('path'),error=safe_text(str(error))))
+                        continue  # One unavailable trace must not discard other recoverable files.
+                event=dict(utc=datetime.now(timezone.utc).isoformat(),seen=len(files),received=received,preserved=len(index['files']),file_errors=failures)
             except (Exception, subprocess.TimeoutExpired) as error:
                 event=dict(utc=datetime.now(timezone.utc).isoformat(),error=safe_text(str(error)))
             with (args.out/'collector.jsonl').open('a') as log:log.write(json.dumps(event)+'\n')
             print(json.dumps(event),flush=True)
+            if args.once:break
             time.sleep(min(args.interval,max(0,deadline-time.monotonic())))
 
 

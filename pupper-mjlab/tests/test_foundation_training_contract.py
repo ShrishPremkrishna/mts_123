@@ -114,7 +114,8 @@ def test_com_x_override_refuses_different_sampling_contract(mutation):
 
 
 @pytest.mark.parametrize('linear_std',[None,0.08])
-def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_path, monkeypatch,linear_std):
+@pytest.mark.parametrize('slew_rate',[None,15.])
+def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_path, monkeypatch,linear_std,slew_rate):
   monkeypatch.setenv('CUDA_VISIBLE_DEVICES','0')
   monkeypatch.setattr(torch.cuda,'is_available',lambda:True)
   monkeypatch.setattr(torch.cuda,'get_device_name',lambda _: 'mock launcher test')
@@ -132,6 +133,9 @@ def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_
                          num_envs=64,iterations=1500,seed=42,logger='tensorboard',project='test',
                          initial_checkpoint=checkpoint,resume_run=None,resume_checkpoint=None)
   args.linear_tracking_std=linear_std
+  args.target_slew_rad_s=slew_rate
+  if slew_rate is not None:
+    args.driver_limits=Path(__file__).resolve().parents[2]/'foundation/configs/class-driver-joint-limits.json'
   run=foundation.train(args)
   cfg=captured['config'].env
   assert captured['task']=='Mjlab-SpiderWalk-Flat-Pupper-v3'
@@ -149,6 +153,14 @@ def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_
   assert '_torsocontact_' in run.name
   assert record['motion_file'] is None
   assert record['initial_checkpoint_sha256']==foundation.sha256(checkpoint)
+  if slew_rate is not None:
+    from mjlab.tasks.pupper.target_slew import SlewLimitedJointPositionActionCfg
+    assert isinstance(cfg.actions['joint_pos'],SlewLimitedJointPositionActionCfg)
+    assert record['position_target_slew_contract']['max_rate_rad_s']==slew_rate
+    assert record['position_target_slew_contract']['driver_limits_sha256']==foundation.sha256(args.driver_limits)
+    assert '_slew15_' in run.name
+  else:
+    assert record['position_target_slew_contract'] is None
   if linear_std is None:
     assert record['reward_parameter_overrides']=={}
     assert cfg.rewards['track_linear_velocity'].params['std']==pytest.approx(.1**.5)
