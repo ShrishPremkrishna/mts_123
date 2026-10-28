@@ -1484,5 +1484,68 @@
         "scope": "Actual saved9hull Pupper model, fixed reviewed stop target; one trajectory samples isolated-copy contact telemetry every10physicssteps and the paired trajectory does not. No learned controller or ROS execution in this measurement-invariance check."
       }
     }
+  },
+  "support_time_convention": {
+    "contract": "support_observed_sample_span_v1",
+    "scope": "Consecutive above-threshold samples are observations, not proof of between-sample continuity. GPU values are means over the preceding20ms physics interval; native original values are instantaneous pre-integration force samples52Hz. Bin coverage N*dt and observed first-to-last span (N-1)*dt are reported separately.",
+    "evidence": {
+      "path": "artifacts/lab6/pupper-spider-torso/support-time-audit/review.json",
+      "sha256": "a2ae7ecc02d0e5ee282fa48dd66cff36be34d33c5c2e8d837c6208d34c25a10f"
+    },
+    "historical_fields": "Earlier maximum_contiguous_loaded_s and maximum_contiguous_loaded_world_s values are bin-duration counts. Use this addendum observed spans; do not claim continuous contact duration from either.",
+    "recomputed_idle_world_segments_observed_span_above_1s": {
+      "control": 288,
+      "torso": 19
+    },
+    "maximum_gpu_observed_span_s": 7.98
+  },
+  "idle_load_distribution": {
+    "scope": "Every scored stationary world/segment mean, including light sustained torso support. Thresholds0.1%,1%,10% bodyweight are descriptive diagnostic bins, not course or hardware approval thresholds. Repeated stationary segments within one world are correlated.",
+    "evidence": {
+      "path": "artifacts/lab6/pupper-spider-torso/idle-load-distribution/review.json",
+      "sha256": "316fcc523540574cfec3eef0c09cdf9d86972144fe0fd8ed2df28901ab867a11"
+    },
+    "arms": {
+      "control": {
+        "world_segments": 288,
+        "world_mean_quantiles": {
+          "0": 0.45700591802597046,
+          "0.25": 0.5952657908201218,
+          "0.5": 0.6910572946071625,
+          "0.75": 0.7691573202610016,
+          "0.9": 0.8024025797843933,
+          "0.95": 0.8106865435838699,
+          "1": 0.8406097292900085
+        },
+        "world_means_exactly_zero": 0,
+        "world_means_at_or_below_0_1pct": 0,
+        "world_means_at_or_below_1pct": 0,
+        "world_means_at_or_below_10pct": 0,
+        "sample_fraction_exact_zero": 0.0,
+        "sample_fraction_above_0_1pct": 1.0,
+        "sample_fraction_above_1pct": 1.0,
+        "sample_fraction_above_10pct": 1.0
+      },
+      "torso": {
+        "world_segments": 288,
+        "world_mean_quantiles": {
+          "0": 0.0,
+          "0.25": 0.0,
+          "0.5": 0.002444084733724594,
+          "0.75": 0.08615781553089619,
+          "0.9": 0.11438338086009027,
+          "0.95": 0.1404243379831314,
+          "1": 0.18935726583003998
+        },
+        "world_means_exactly_zero": 127,
+        "world_means_at_or_below_0_1pct": 136,
+        "world_means_at_or_below_1pct": 155,
+        "world_means_at_or_below_10pct": 251,
+        "sample_fraction_exact_zero": 0.6040451388888889,
+        "sample_fraction_above_0_1pct": 0.3946267361111111,
+        "sample_fraction_above_1pct": 0.383515625,
+        "sample_fraction_above_10pct": 0.16661458333333334
+      }
+    }
   }
 }
