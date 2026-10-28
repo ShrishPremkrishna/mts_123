@@ -25,6 +25,20 @@ def evaluation_episode_length_s(current, seconds, command_count, step_dt):
     return max(current, math.ceil(seconds/step_dt)*step_dt*command_count+10)
 
 
+def jump_schedule_diagnostics(env, reference_window_s, reward_window_s):
+    """Read the actual Mystery schedule at the sampled pre-step clock."""
+    from mjlab.tasks.pupper_gait.mdp.mixed_jump import _JUMP_SCHEDULE_ATTR, _slot_progress
+    slots=getattr(env,_JUMP_SCHEDULE_ATTR,None)
+    if slots is None:
+        raise ValueError("Mystery evaluation requires its initialized jump schedule")
+    reference_active,reference_elapsed=_slot_progress(env,reference_window_s)
+    reward_active,reward_elapsed=_slot_progress(env,reward_window_s)
+    return dict(episode_time_s=env.episode_length_buf.float()*env.step_dt,
+                jump_slot_starts_s=slots,jump_reference_active=reference_active,
+                jump_reference_elapsed_s=reference_elapsed,jump_reward_active=reward_active,
+                jump_reward_elapsed_s=reward_elapsed)
+
+
 def action_target_diagnostics(actions, action_term, robot, clip_actions=None):
     """Read-only affine action audit in action-term order; never change targets.
 
@@ -196,6 +210,13 @@ def evaluate(args):
         run["action_target_audit"]=dict(wrapper_clip_actions=agent.clip_actions,
             action_term_clip=action_term.cfg.clip,
             meaning="raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request")
+        jump_windows=None
+        if "Mystery" in args.task:
+            jump_windows=(float(cfg.observations["actor"].terms["policy"].params["slot_s"]),
+                          float(cfg.rewards["jump_airborne_height"].params["slot_s"]))
+            run["jump_schedule_audit"]=dict(reference_window_s=jump_windows[0],reward_window_s=jump_windows[1],
+                meaning="Actual reset-time slot schedule and unmodified episode clock before stepping; +inf denotes unused slots. Activity masks use the same scheduler function as the policy reference and reward, without the tracking reward's phase-lead rewind.")
+            for key in jump_schedule_diagnostics(env,*jump_windows):samples[key]=[]
         (args.out/"provenance.json").write_text(json.dumps(run,indent=2)+"\n")
         site_ids,_=robot.find_sites(FOOT_SITE_NAMES,preserve_order=True)
         contact_sensor=env.scene["feet_ground_contact"]
@@ -236,6 +257,7 @@ def evaluate(args):
                                 foot_speed_xy=torch.linalg.vector_norm(robot.data.site_lin_vel_w[:,site_ids,:2],dim=-1),heading=robot.data.heading_w,height=robot.data.root_link_pos_w[:,2],
                                 vertical_velocity=robot.data.root_link_lin_vel_w[:,2],
                                 foot_force_norm=torch.linalg.vector_norm(contact_sensor.data.force,dim=-1) if contact_sensor.data.force is not None else torch.full_like(contact_sensor.data.found,float("nan"),dtype=torch.float32))
+                    if jump_windows is not None:arrays.update(jump_schedule_diagnostics(env,*jump_windows))
                     for key,value in arrays.items(): samples[key].append(value.detach().cpu().numpy().copy())
                     samples["phase"].append(phase); samples["episode"].append(episodes.copy())
                     samples["command"].append(raw); samples["effective_command"].append(effective)
