@@ -91,14 +91,15 @@ async def lie_down_tool(robot: Robot) -> Result:
 
 @tool(
     "stop",
-    "Stop right away: cancel everything queued and stand still. A trick that is"
-    " still playing can only be stopped by relaxing the motors: then the robot lies"
-    " down, and stand_up gets it going again.",
+    "Cancel queued actions, end following and request zero walking speed immediately."
+    " Interrupt a playing trick by deactivating its controller; stand_up is then"
+    " required before another motion. The reply confirms commands, not that the"
+    " robot is motionless.",
 )
 async def stop_tool(robot: Robot) -> Result:
     return await robot.immediate_stop(relax_playing_trick=True)
 
 
-@tool("robot_status", "Check what the robot is doing right now: walking (maybe following someone), in a trick, lying down with its motors idle, or fallen over.")
+@tool("robot_status", "Check active walking/trick controllers, following, queued work and detected falls. Controller status does not measure physical stopping or posture.")
 async def robot_status_tool(robot: Robot) -> Result:
     return await robot.mode()

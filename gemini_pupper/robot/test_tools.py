@@ -1281,9 +1281,11 @@ async def provided() -> None:
         check("(setup) the bow is playing", bow.controller in rig.robot.active())
         res = await tools.call(rig.ts, "stop", {})
         await rig.settle()
-        check("stop in the middle of a trick relaxes the motors (a trick policy plays on by itself)",
+        check("stop in the middle of a trick deactivates its autonomous controller",
               not (rig.robot.active() & rig.ts.leg_controllers), f"active: {sorted(rig.robot.active())}")
-        check("... and the reply says so", res.ok and "relaxed" in res.message, f"got {res}")
+        check("... and reports deactivation without claiming measured stopping or posture",
+              res.ok and "deactivated" in res.message and "not been measured" in res.message,
+              f"got {res}")
 
         async def walking_job():
             await rig.ts.switch_to(LOCOMOTION_CONTROLLER)
@@ -1296,7 +1298,7 @@ async def provided() -> None:
             await _real_sleep(0)
         res = await tools.call(rig.ts, "stop", {})
         await rig.settle()
-        check("stop during a walk just stands still: the locomotion policy keeps the legs",
+        check("stop during a walk leaves the locomotion controller active with a zero-speed request",
               LOCOMOTION_CONTROLLER in rig.robot.active() and "relaxed" not in res.message, f"got {res}")
 
         await rig.ts.queue("trick hold_pose", lambda: behaviors.play_policy_trick(rig.ts, hold), hold.total_time,
@@ -1304,7 +1306,7 @@ async def provided() -> None:
         await rig.settle()
         res = await tools.call(rig.ts, "stop", {})
         await rig.settle()
-        check("stop while a trick only holds its pose leaves it holding (nothing is moving)",
+        check("stop while a trick only holds its pose leaves that controller active",
               hold.controller in rig.robot.active() and "relaxed" not in res.message, f"got {res}")
     finally:
         rig.close()

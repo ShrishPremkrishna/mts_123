@@ -105,6 +105,13 @@ necessary if ROS or the hardware stops responding. On a tool-server restart,
 the server first turns off any follower left running by its predecessor. It
 refuses motion until shutdown is confirmed; use stop to retry after service repair.
 
+The stop reply distinguishes cancelled commands from measured stopping. Sending
+zero walking speed leaves the locomotion controller running; selected simulated
+mass/inertia cases keep moving despite that command. Deactivating a controller
+confirms software state, not motor torque, physical stillness or a lying pose.
+The tool and prompt must not turn either acknowledgement into a physical claim.
+See the [default-policy diagnostic](../../foundation/results/spider-default-inertial-ablation-reviewed.json).
+
 ## Policies and training
 
 The current locomotion policy is the course default. Launch checks its trained

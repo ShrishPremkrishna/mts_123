@@ -1,0 +1,51 @@
+{
+  "checked_utc": "2026-10-28T12:54:23.336684+00:00",
+  "scope": "Gemini-visible stop and post-stop status evidence; no control or motor behavior changed.",
+  "source_base": "36171a42d5e76a7465ff3a29bed91591f09fb0f5",
+  "changed_source_sha256": {
+    "gemini_pupper/robot/robot_api.py": "9f685b1c3f12a93114ab943ccdbbd7f66db303665bb514aa219706e1c5d9354d",
+    "gemini_pupper/robot/test_tools.py": "da3bbd0c7011f539d1984b98e3f162982f9bf794392432682e0341d99b912b0b",
+    "gemini_pupper/lab/basics.py": "b88025cecfdae0489f96272c83a9fe6d2b9d38a2d53aeb8b0f09b7b6068a2d35",
+    "gemini_pupper/lab/prompt.md": "dd79217b9422d8513b1320b6cb4387c8b02b6b260ddfa6a7b3136a4d680711d6",
+    "gemini_pupper/docs/foundation.md": "1f5c4eb47db3986731de4a4d6ff38fe3261853970ac586fb2fdc8d018ac2e1ee"
+  },
+  "control_AST_unchanged_after_normalizing_string_literals": {
+    "gemini_pupper/robot/robot_api.py": true,
+    "gemini_pupper/lab/basics.py": true
+  },
+  "motivation": [
+    "Zero walking speed is a request, not measured physical standstill. Selected mass/inertia simulation cases show persistent default-policy motion after eight seconds at zero command.",
+    "Controller-manager deactivation confirms software state, not physical torque, posture or a lying position."
+  ],
+  "changes": [
+    "Stop replies describe command cancellation and zero-speed requests or confirmed controller deactivation. They explicitly retain unmeasured physical stopping/posture.",
+    "Removed the false provided-code premise that locomotion only moves while speed is commanded.",
+    "Corrected no-controller and locked-trick status strings and Gemini stop/status descriptions and prompt.",
+    "The existing course assertion required the word relaxed despite observing only controller state. It now retains the deactivation behavior check and requires truthful deactivation/unmeasured-outcome wording."
+  ],
+  "independent_review": {
+    "agent": "sit_recovery",
+    "findings_closed": [
+      "Post-stop robot_status incorrectly implied lying down.",
+      "Locked-trick status incorrectly said stop halts movement."
+    ],
+    "final_exact_hash_review_passed": true
+  },
+  "validation": {
+    "gemini_pytest": 237,
+    "course_tool_checks": 166,
+    "all_passed": true,
+    "source_unchanged_during_checks": true,
+    "evidence": "artifacts/validation/stop-reporting-20261028T1252-v2/checks.json",
+    "evidence_sha256": "8c99005318ba9300a01ae68b511c4833bd45bd27dfee29d47fa3887a3ef4262e",
+    "initial_course_assertion_failure": "Before updating the obsolete text assertion:165passed,1failed requiring relaxed; existing237behavioraltests passed. No physical result was fabricated to satisfy that assertion."
+  },
+  "prior_full_regression": "foundation/results/offline-validation-3766cc0.json",
+  "limitations": [
+    "No new physical-stop sensing or policy correction is introduced.",
+    "Existing command cancellation, queue management, controller ownership and error quarantine are unchanged.",
+    "Live Gemini and actual robot/controller-manager behavior remain untested here."
+  ],
+  "hardware_access": false,
+  "policy_bytes_changed": false
+}

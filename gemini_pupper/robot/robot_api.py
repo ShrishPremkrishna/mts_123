@@ -1113,21 +1113,21 @@ class Robot:
                 return Result(False, self.controller_fault)
         self.state_now = self.state_after_queue = MOTORS_IDLE
         self.walk_since = None
-        log.warning("e-stop: relaxed %s", active or "nothing (no leg controller was active)")
-        return Result(True, "e-stop: motors relaxed")
+        log.warning("e-stop: deactivated %s", active or "nothing (no leg controller was active)")
+        return Result(True, "e-stop: leg controllers confirmed inactive; physical stopping "
+                            "and posture have not been measured")
 
     async def immediate_stop(self, relax_playing_trick: bool = False) -> Result:
-        """Clear the queue, cancel the running job, stop following and stand still.
+        """Cancel queued activity, end following, and request zero walking speed.
 
-        Cancelling a walk is enough to stop it: the locomotion policy only moves while
-        it is sent speeds. A trick policy plays its motion by itself, so with
-        relax_playing_trick (the stop tool) a trick that was still playing is
-        stopped the only way it can be: by relaxing the motors, like the gamepad
-        e-stop. A trick that finished and only holds its pose is left as it is.
+        A zero command does not establish physical standstill. With
+        relax_playing_trick (the stop tool), an active autonomous reference or
+        trick controller is deactivated; this confirms controller state, not
+        measured motor torque or posture. A finished pose keeps holding.
         """
         self.stops += 1  # requests still being handled won't queue anything now
         self.secret_gate.lock()
-        self.send_speed(0, 0, 0)  # stand still first, before anything that waits
+        self.send_speed(0, 0, 0)  # request zero speed before anything that waits
         running = self.current is not None and not self.current.done()
         reference_was_playing = self.reference_active
         cleared = await self.clear_queue()
@@ -1146,20 +1146,23 @@ class Robot:
             # A reference jump runs autonomously inside the locomotion controller;
             # a zero velocity does not cancel it. Disable that controller too.
             relaxed = await self._relax_controllers()
-            return Result(relaxed.ok, f"reference motion stopped; {relaxed.message}")
+            return Result(relaxed.ok, f"reference-motion controller deactivation requested; {relaxed.message}")
         if not (relax_playing_trick and running):
-            return Result(True, f"stopped; {cleared.message}")
+            return Result(True, f"commands stopped; zero walking speed requested. Physical stopping "
+                                f"has not been measured. {cleared.message}")
         await asyncio.sleep(0.1)  # a job cancelled while switching to a trick may still finish the switch
         states = await self.controller_states()
         playing = [t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"]
         if not playing:
-            return Result(True, f"stopped; {cleared.message}")
+            return Result(True, f"commands stopped; zero walking speed requested. Physical stopping "
+                                f"has not been measured. {cleared.message}")
         relaxed = await self._relax_controllers()
         if not relaxed.ok:
             return relaxed
-        log.warning("stop: %s was still playing; relaxed the motors", playing[0].name)
-        return Result(True, f"stopped; {cleared.message}. {playing[0].name} was still playing, so the motors"
-                            " relaxed and the robot is lying down; call stand_up to go on")
+        log.warning("stop: %s was still playing; deactivated leg controllers", playing[0].name)
+        return Result(True, f"commands stopped; {cleared.message}. {playing[0].name} was still playing, "
+                            "so its controller was deactivated. Physical stopping and posture have "
+                            "not been measured; stand_up is required before another motion")
 
     async def shutdown(self) -> Result:
         """Stop autonomous activity before a graceful tool-server exit.
@@ -1209,10 +1212,10 @@ class Robot:
                   f"actions: {', '.join(walking.actions)})") if walking
             else f"trick {trick.name} ({trick.end_pose}; actions: {', '.join(trick.actions)})" if trick and trick.actions
             else f"trick {trick.name}, holding its end pose ({trick.end_pose})" if trick
-            else "motors idle (lying down)"
+            else "no active leg controller; physical stopping and posture have not been measured"
         )
         if (trick and not self.trick_available(trick)) or (walking and not self.trick_available(walking)):
-            mode = "holding a locked trick pose; stand_up leaves it, stop halts movement"
+            mode = "locked trick controller active; stand_up leaves it, stop cancels commands and requests stopping"
         outcome = self.public_outcome()
         detail = (f" Last queued action {outcome['name']}: "
                   f"{'completed' if outcome['success'] else 'failed'}: {outcome['message']}.") if outcome else ""
