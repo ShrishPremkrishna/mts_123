@@ -39,7 +39,7 @@ def test_finite_bad_or_missing_completion_never_hands_back_as_success(fault):
         trick=rig.ts.tricks['bow'];original=rig.robot.send
         def send(topic,msg):
             if topic==f'/{trick.controller}/clip_status':
-                suffix=' execution '+rig.robot.active_execution_tokens[trick.controller]
+                suffix=' execution '+rig.robot.active_execution_tokens[trick.controller]+' request none'
                 if fault=='missing':return
                 if fault=='stale_early_hold':
                     if 'playing' not in msg.data:return
@@ -51,7 +51,7 @@ def test_finite_bad_or_missing_completion_never_hands_back_as_success(fault):
                     elif fault=='wrong_clip':msg=harness._DataMsg('other holding frame 199 queued 0'+suffix)
                     elif fault=='wrong_frame':msg=harness._DataMsg('all holding frame 198 queued 0'+suffix)
                     elif fault=='no_token':msg=harness._DataMsg('all holding frame 199 queued 0')
-                    elif fault=='wrong_token':msg=harness._DataMsg('all holding frame 199 queued 0 execution '+'0'*32)
+                    elif fault=='wrong_token':msg=harness._DataMsg('all holding frame 199 queued 0 execution '+'0'*32+' request none')
                     elif fault=='queued_restart':msg=harness._DataMsg('all holding frame 199 queued 1'+suffix)
             original(topic,msg)
         rig.robot.send=send
@@ -98,7 +98,7 @@ def test_delayed_previous_activation_receipts_arriving_after_new_endpoint_are_ig
     async def case(rig):
         trick=rig.ts.tricks['roll_over']
         assert (await harness.behaviors.play_policy_trick(rig.ts,trick)).ok
-        old=rig.ts.finite_execution_requests[trick.controller]
+        old=rig.ts.policy_execution_requests[trick.controller]
         original=rig.robot.send;delivered=[]
         def send(topic,msg):
             if topic!=f'/{trick.controller}/clip_status':
@@ -110,15 +110,15 @@ def test_delayed_previous_activation_receipts_arriving_after_new_endpoint_are_ig
             # These valid-shaped old receipts arrive freshly, beyond the new
             # activation's final-frame deadline. Arrival time alone is insufficient.
             if not valid_current_playing:
-                original(topic,harness._DataMsg('all playing frame 0 queued 0 execution '+old))
-            original(topic,harness._DataMsg('all holding frame 299 queued 0 execution '+old))
+                original(topic,harness._DataMsg('all playing frame 0 queued 0 execution '+old+' request none'))
+            original(topic,harness._DataMsg('all holding frame 299 queued 0 execution '+old+' request none'))
         rig.robot.send=send
         result=await harness.behaviors.play_policy_trick(rig.ts,trick)
         assert not result.ok and rig.ts.controller_fault
-        assert rig.ts.finite_execution_requests[trick.controller]!=old
-        earliest=rig.ts.finite_activation_since[trick.controller]+1.5+299/50
+        assert rig.ts.policy_execution_requests[trick.controller]!=old
+        earliest=rig.ts.policy_activation_since[trick.controller]+1.5+299/50
         assert delivered and min(delivered)>=earliest
-        assert (trick.controller in rig.ts.finite_playing_seen)==valid_current_playing
+        assert (trick.controller in rig.ts.clip_receipts)==valid_current_playing
         assert not rig.robot.active()
     run_case(case)
 
@@ -140,7 +140,7 @@ def test_execution_token_setup_failure_or_stop_prevents_activation(outcome):
         result=await harness.behaviors.play_policy_trick(rig.ts,trick)
         assert not result.ok
         assert rig.robot.activations(trick.controller)==[]
-        assert trick.controller not in rig.ts.finite_execution_requests
+        assert trick.controller not in rig.ts.policy_execution_requests
         assert rig.robot.active()=={LOCOMOTION_CONTROLLER}
         assert bool(rig.ts.controller_fault)==(outcome=='unknown')
     run_case(case)
@@ -151,7 +151,7 @@ def test_each_replay_gets_a_new_token_and_active_parameter_change_does_not_rebin
         trick=rig.ts.tricks['roll_over'];original=rig.robot.send;tokens=[]
         def send(topic,msg):
             if topic==f'/{trick.controller}/clip_status' and 'playing' in msg.data:
-                token=msg.data.split()[-1]
+                token=msg.data.split()[7]
                 tokens.append(token)
                 # Native on_activate snapshots this value; later parameter writes
                 # cannot relabel commands from the in-flight activation.
@@ -159,9 +159,9 @@ def test_each_replay_gets_a_new_token_and_active_parameter_change_does_not_rebin
             original(topic,msg)
         rig.robot.send=send
         assert (await harness.behaviors.play_policy_trick(rig.ts,trick)).ok
-        first=rig.ts.finite_execution_requests[trick.controller]
+        first=rig.ts.policy_execution_requests[trick.controller]
         assert (await harness.behaviors.play_policy_trick(rig.ts,trick)).ok
-        second=rig.ts.finite_execution_requests[trick.controller]
+        second=rig.ts.policy_execution_requests[trick.controller]
         assert len(first)==len(second)==32 and first!=second
         assert all(c in '0123456789abcdef' for c in first+second)
         assert tokens==[first,second]
@@ -170,10 +170,37 @@ def test_each_replay_gets_a_new_token_and_active_parameter_change_does_not_rebin
     run_case(case)
 
 
-def test_legacy_interactive_status_remains_readable_without_finite_ack():
+def test_legacy_interactive_status_is_not_adopted_as_current_execution():
     async def case(rig):
         trick=rig.ts.tricks['hold_pose']
         rig.ts._on_clip_status(trick.controller,harness._DataMsg('idle playing frame 149 queued 0'))
-        assert rig.ts.clip_status[trick.controller]==('idle',False)
+        assert trick.controller not in rig.ts.clip_status
         assert trick.controller not in rig.ts.clip_receipts
+    run_case(case)
+
+
+def test_current_terminal_only_feedback_succeeds_if_early_playing_packets_were_lost():
+    async def case(rig):
+        trick=rig.ts.tricks['bow'];original=rig.robot.send
+        def send(topic,msg):
+            if topic==f'/{trick.controller}/clip_status' and 'playing' in msg.data:return
+            original(topic,msg)
+        rig.robot.send=send
+        result=await harness.behaviors.play_policy_trick(rig.ts,trick)
+        assert result.ok,result.message
+        assert rig.robot.active()=={LOCOMOTION_CONTROLLER}
+    run_case(case)
+
+
+def test_original_policy_v1_eight_field_receipt_remains_valid_for_finite_motion():
+    async def case(rig):
+        trick=rig.ts.tricks['bow'];original=rig.robot.send
+        def send(topic,msg):
+            if topic==f'/{trick.controller}/clip_status':
+                msg=harness._DataMsg(' '.join(msg.data.split()[:8]))
+            original(topic,msg)
+        rig.robot.send=send
+        result=await harness.behaviors.play_policy_trick(rig.ts,trick)
+        assert result.ok,result.message
+        assert rig.robot.active()=={LOCOMOTION_CONTROLLER}
     run_case(case)

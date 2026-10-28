@@ -28,6 +28,7 @@ MANIFEST = Path('/tmp/gemini-pupper/runtime_manifest.json')
 CAPABILITY_PARAMETERS = frozenset({
     'reference_trick_status_protocol', 'reference_trick_status_active',
     'policy_execution_status_protocol', 'policy_execution_status_active',
+    'interactive_clip_status_protocol', 'interactive_clip_status_active',
     'position_target_slew_active', 'position_target_slew_contract_json',
     'position_target_slew_max_rate_rad_s', 'position_target_slew_max_step_s',
     'position_target_slew_driver_limits_sha256',
@@ -107,6 +108,7 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         tricks = load_tricks()
         _reject_capability_overrides(manifest['parameters'])
         policy_controllers = {t.controller for t in tricks.values() if t.kind == 'policy'}
+        interactive_controllers = {t.controller for t in tricks.values() if t.kind == 'policy' and t.interactive}
         expected = {WALK_CONTROLLER} | {t.controller for t in tricks.values() if t.kind == 'policy'}
         expected |= {t.walk_controller for t in tricks.values() if t.walks}
         if manifest.get('schema') != 1 or set(manifest['parameters']) != expected or set(manifest['policies']) != expected:
@@ -202,6 +204,13 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                     else:
                         require_readonly_markers(name, [('policy_execution_status_protocol', 'string'),
                                                        ('policy_execution_status_active', 'boolean')])
+                if name in interactive_controllers:
+                    if (actual.get('interactive_clip_status_protocol') != 'pupper_clip_v1'
+                            or actual.get('interactive_clip_status_active') is not True):
+                        errors.append(f'{name}: loaded controller does not confirm correlated interactive clip acknowledgements')
+                    else:
+                        require_readonly_markers(name, [('interactive_clip_status_protocol', 'string'),
+                                                       ('interactive_clip_status_active', 'boolean')])
                 if name in slew_requirements:
                     # These are read-only values declared by the loaded controller,
                     # never launch overrides. Older binaries ignore unknown JSON

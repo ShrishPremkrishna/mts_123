@@ -212,10 +212,10 @@ class Robot:
         self._running_job_then: str | Trick = MOTORS_IDLE  # ... once the running job ends
         # Interactive tricks: request clips and follow what the controller is playing.
         self.clip_status: dict[str, tuple[str, bool]] = {}  # controller -> (clip, holding)
-        self.clip_receipts: dict[str, tuple[str, bool, int, float, str]] = {}
-        self.finite_execution_requests: dict[str, str] = {}
-        self.finite_activation_since: dict[str, float] = {}
-        self.finite_playing_seen: set[str] = set()
+        self.clip_receipts: dict[str, tuple[str, bool, int, float, str, str, int]] = {}
+        self.clip_requests: dict[str, str] = {}
+        self.policy_execution_requests: dict[str, str] = {}
+        self.policy_activation_since: dict[str, float] = {}
         self.clip_pubs: dict[str, object] = {}
         for t in load_tricks().values():
             if t.interactive:
@@ -286,33 +286,47 @@ class Robot:
         self.reference_status = (parts[2], parts[3])
 
     def _on_clip_status(self, controller: str, msg: String) -> None:
-        # "<clip> playing|holding frame N queued K [execution <activation-token>]"
-        parts = msg.data.split()
-        if len(parts) >= 2 and parts[1] in ("playing", "holding"):
-            self.clip_status[controller] = (parts[0], parts[1] == "holding")
-            # Preserve the legacy interactive status above. Finite completion
-            # requires the token snapshotted by the controller for this activation.
-            expected = self.finite_execution_requests.get(controller)
-            if (len(parts) != 8 or parts[2] != "frame" or parts[4] != "queued"
-                    or parts[6] != "execution" or not expected or parts[7] != expected):
+        # Existing six fields plus activation and selected-request identities.
+        parts = str(msg.data).split()
+        if len(parts) == 8:
+            # pupper_policy_v1 originally carried only the activation identity.
+            # That remains sufficient for finite motion, but never for a clip
+            # request/interactive chain (which has its own readiness marker).
+            trick = next((t for t in self.tricks.values() if t.controller == controller), None)
+            if trick is None or trick.kind != "policy" or trick.interactive:
                 return
-            try:
-                frame, queued = int(parts[3]), int(parts[5])
-            except ValueError:
+            parts.extend(("request", "none"))
+        if (len(parts) != 10 or parts[1] not in ("playing", "holding")
+                or parts[2] != "frame" or parts[4] != "queued"
+                or parts[6] != "execution" or parts[8] != "request"):
+            return
+        def valid_id(value):
+            return value == "none" or (len(value) == 32 and all(c in "0123456789abcdef" for c in value))
+        activation, request = parts[7], parts[9]
+        if not valid_id(activation) or not valid_id(request):
+            return
+        if request != self.clip_requests.get(controller, "none"):
+            return
+        expected = self.policy_execution_requests.get(controller)
+        if expected is None:
+            # A restarted server can leave an already active manual/old trick.
+            # Only its own unpredictable explicit request can bind that active
+            # controller's token; unsolicited endpoint messages cannot do so.
+            if request == "none":
                 return
-            if frame < 0 or queued < 0:
-                return
-            if queued:
-                # A queued restart is not a settled finite endpoint. Do not
-                # reuse a recently held receipt after this newer status.
-                self.clip_receipts.pop(controller, None)
-                return
-            received = time.monotonic()
-            self.clip_receipts[controller] = (parts[0], parts[1] == "holding", frame, received, expected)
-            if (parts[0] == "all" and parts[1] == "playing"
-                    and controller in self.finite_activation_since
-                    and received >= self.finite_activation_since[controller]):
-                self.finite_playing_seen.add(controller)
+        elif activation != expected:
+            return
+        try:
+            frame, queued = int(parts[3]), int(parts[5])
+        except ValueError:
+            return
+        if frame < 0 or queued < 0:
+            return
+        if expected is None:
+            self.policy_execution_requests[controller] = activation
+        self.clip_status[controller] = (parts[0], parts[1] == "holding")
+        self.clip_receipts[controller] = (parts[0], parts[1] == "holding", frame,
+                                          time.monotonic(), activation, request, queued)
 
     def _on_image(self, msg: CompressedImage) -> None:
         try:
@@ -546,17 +560,17 @@ class Robot:
                 self.fallen = None
             return Result(True, recovered + "already in that state")
         req.strictness = SwitchController.Request.STRICT
-        if controller in req.activate_controllers and isinstance(trick, Trick) and not trick.interactive:
-            configured = await self._set_finite_execution_request(controller)
+        if controller in req.activate_controllers and isinstance(trick, Trick) and controller == trick.controller:
+            configured = await self._set_policy_execution_request(controller)
             if not configured.ok:
                 return configured
             if generation != self.stops or self.stopped_during_call():
-                self.finite_execution_requests.pop(controller, None)
+                self.policy_execution_requests.pop(controller, None)
                 return Result(False, "controller change cancelled by a stop")
             self.clip_receipts.pop(controller, None)
             self.clip_status.pop(controller, None)
-            self.finite_playing_seen.discard(controller)
-            self.finite_activation_since[controller] = time.monotonic()
+            self.clip_requests[controller] = "none"
+            self.policy_activation_since[controller] = time.monotonic()
         res = await self._call(self.switch_client, req)
         if activate and generation != self.stops:
             # A ROS request already in flight can finish after a stop; explicitly
@@ -633,7 +647,7 @@ class Robot:
             return Result(False, f"could not set {controller} start clip; controller not activated")
         return Result(True, "start clip configured")
 
-    async def _set_finite_execution_request(self, controller: str) -> Result:
+    async def _set_policy_execution_request(self, controller: str) -> Result:
         """Set a fresh token before activation; the controller snapshots it once."""
         request_id = uuid.uuid4().hex
         client = self.param_clients.get(controller)
@@ -644,15 +658,15 @@ class Robot:
             type=ParameterType.PARAMETER_STRING, string_value=request_id))]
         result = await self._call(client, req)
         if result is None:
-            self.finite_execution_requests.pop(controller, None)
-            self.controller_fault = ("finite execution token update outcome unknown; motion quarantined. "
+            self.policy_execution_requests.pop(controller, None)
+            self.controller_fault = ("policy execution token update outcome unknown; motion quarantined. "
                                      "Inspect/restart the controller stack before restarting this tool server")
             return Result(False, self.controller_fault)
         if len(result.results) != 1 or not result.results[0].successful:
-            self.finite_execution_requests.pop(controller, None)
+            self.policy_execution_requests.pop(controller, None)
             return Result(False, f"could not set {controller} execution token; controller not activated")
-        self.finite_execution_requests[controller] = request_id
-        return Result(True, "finite execution token configured")
+        self.policy_execution_requests[controller] = request_id
+        return Result(True, "policy execution token configured")
 
     async def _wait_walk_ready(self) -> None:
         """Wait until gemini_walk has eased the legs to standing and faded its
@@ -822,40 +836,64 @@ class Robot:
                 return {"name": "locked trick", "success": outcome["success"], "message": "details hidden while locked"}
         return outcome
 
+    def _clip_endpoint(self, trick: Trick, start_clip: str) -> tuple[dict, float]:
+        """Stable endpoint and minimum native playback time for an auto-next chain."""
+        clip, seen, elapsed = start_clip, set(), 0.0
+        while clip not in seen:
+            seen.add(clip)
+            spec = trick.clip(clip)
+            if spec.get("loop"):
+                return spec, elapsed
+            elapsed += trick.clip_length(clip)
+            if not spec.get("next"):
+                return spec, elapsed
+            clip = spec["next"]
+        raise ValueError("clip chain has no stable endpoint")
+
+    def _matches_clip_endpoint(self, controller: str, endpoint: dict, request: str, earliest: float) -> bool:
+        receipt = self.clip_receipts.get(controller)
+        if not receipt:
+            return False
+        name, holding, frame, received, activation, selected_request, queued = receipt
+        if (activation != self.policy_execution_requests.get(controller) or selected_request != request
+                or name != endpoint["name"] or queued != 0 or received < earliest
+                or not 0 <= time.monotonic() - received <= 0.25):
+            return False
+        if endpoint.get("loop"):
+            return not holding and endpoint["start"] <= frame < endpoint["end"]
+        return holding and frame == endpoint["end"] - 1
+
     async def play_clip(self, trick: Trick, clip: str) -> Result:
-        """Request a clip and wait until the controller has played it through."""
+        """Require playback feedback for this explicit clip request and activation."""
         if self.fallen or self.stopped_during_call() or self.controller_fault:
             return Result(False, self.controller_fault or "clip refused after a fall or stop")
-        async def unconfirmed(message):
-            # A missing topic response does not mean the autonomous policy stopped.
-            self.controller_fault = message + "; motion quarantined. Inspect/restart the controller stack before restarting this tool server"
-            relaxed = await self._relax_controllers()
-            return Result(False, f"{message}; {relaxed.message}. {self.controller_fault}")
-        self.clip_status[trick.controller] = ("", False)  # forget an earlier activation's status
-        self.clip_pubs[trick.controller].publish(String(data=clip))
-        length = trick.clip_length(clip)
+        try:
+            endpoint, minimum_playback = self._clip_endpoint(trick, clip)
+        except (ValueError, StopIteration) as error:
+            return Result(False, str(error))
+        request_id = uuid.uuid4().hex
+        self.clip_requests[trick.controller] = request_id
+        self.clip_receipts.pop(trick.controller, None)
+        self.clip_status.pop(trick.controller, None)
+        requested_at = time.monotonic()
+        generation = self.stops
         longest = max((trick.clip_length(c["name"]) for c in trick.clips), default=0.0)
-        deadline = time.monotonic() + longest + 1.0  # the current clip finishes first
-        while self.clip_status.get(trick.controller, ("", False))[0] != clip:
-            if self.fallen or self.stopped_during_call():
-                return Result(False, "clip interrupted by a fall or stop")
-            if time.monotonic() > deadline:
-                return await unconfirmed(f"{trick.name} did not confirm starting {clip}")
-            await asyncio.sleep(0.05)
-        deadline = time.monotonic() + length + 1.0
+        self.clip_pubs[trick.controller].publish(String(data=f"pupper_clip_v1 {request_id} {clip}"))
+        deadline = requested_at + longest + minimum_playback + 1.0
         while True:
-            name, holding = self.clip_status.get(trick.controller, ("", False))
-            if self.fallen or self.stopped_during_call():
-                return Result(False, "clip interrupted by a fall or stop")
-            if name != clip or holding:
-                break
-            if time.monotonic() > deadline:
-                return await unconfirmed(f"{trick.name} did not confirm completion of {clip}")
-            await asyncio.sleep(0.05)
-        return Result(True, f"played {clip}")
+            if generation != self.stops or self.fallen or self.stopped_during_call() or self.controller_fault:
+                return Result(False, self.controller_fault or "clip interrupted by a fall or stop")
+            if self._matches_clip_endpoint(trick.controller, endpoint, request_id, requested_at + minimum_playback):
+                return Result(True, f"played {clip}")
+            if time.monotonic() >= deadline:
+                message = f"{trick.name} did not confirm completion of {clip} for this request"
+                self.controller_fault = message + "; motion quarantined. Inspect/restart the controller stack before restarting this tool server"
+                relaxed = await self._relax_controllers()
+                return Result(False, f"{message}; {relaxed.message}. {self.controller_fault}")
+            await asyncio.sleep(0.02)
 
     async def confirm_finite_endpoint(self, trick: Trick) -> Result:
-        """Confirm a fresh terminal frame after this activation's playing feedback.
+        """Confirm a fresh terminal frame belonging to this activation.
 
         This is controller playback feedback, not measured physical posture.
         Only feedback carrying this activation's controller-snapshotted token
@@ -868,11 +906,12 @@ class Robot:
             if self.fallen or self.stopped_during_call() or self.controller_fault:
                 return Result(False, self.controller_fault or "finite playback interrupted by a fall or stop")
             receipt = self.clip_receipts.get(trick.controller)
-            began = self.finite_activation_since.get(trick.controller)
-            if receipt and began is not None and trick.controller in self.finite_playing_seen:
-                name, holding, frame, received, request_id = receipt
+            began = self.policy_activation_since.get(trick.controller)
+            if receipt and began is not None:
+                name, holding, frame, received, request_id, clip_request, queued = receipt
                 earliest = began + TRICK_INIT_S + TRICK_FADE_S + (trick.frame_count - 1) / trick.fps
-                if (request_id == self.finite_execution_requests.get(trick.controller)
+                if (request_id == self.policy_execution_requests.get(trick.controller)
+                        and clip_request == "none" and queued == 0
                         and name == "all" and holding and frame == trick.frame_count - 1
                         and received >= earliest and 0 <= time.monotonic() - received <= 0.25):
                     return Result(True, f"controller confirmed final frame of {trick.name}")
@@ -884,34 +923,25 @@ class Robot:
             await asyncio.sleep(0.02)
 
     async def confirm_clip_endpoint(self, trick: Trick, start_clip: str = "") -> Result:
-        """Confirm the loop/hold reached by an automatically started clip chain.
-
-        Call after its nominal playback time. A timer cannot establish that an
-        entry/exit actually completed; the controller must report its endpoint.
-        """
-        clip = start_clip or trick.clips[0]["name"]
-        seen = set()
-        while clip not in seen:
-            seen.add(clip)
-            endpoint = trick.clip(clip)
-            if endpoint.get("loop") or not endpoint.get("next"):
-                break
-            clip = endpoint["next"]
-        else:
-            return Result(False, "clip chain has no stable endpoint")
+        """Confirm the stable endpoint of our current activation's initial chain."""
+        try:
+            endpoint, minimum_playback = self._clip_endpoint(trick, start_clip or trick.clips[0]["name"])
+        except (ValueError, StopIteration) as error:
+            return Result(False, str(error))
+        began = self.policy_activation_since.get(trick.controller)
+        earliest = (began + TRICK_INIT_S + TRICK_FADE_S + minimum_playback) if began is not None else float("inf")
         deadline = time.monotonic() + 1.0
         while True:
             if self.fallen or self.stopped_during_call() or self.controller_fault:
                 return Result(False, self.controller_fault or "clip transition interrupted by a fall or stop")
-            name, holding = self.clip_status.get(trick.controller, ("", False))
-            if name == clip and (holding or endpoint.get("loop")):
-                return Result(True, f"controller confirmed {clip}")
+            if self._matches_clip_endpoint(trick.controller, endpoint, "none", earliest):
+                return Result(True, f"controller confirmed {endpoint['name']}")
             if time.monotonic() >= deadline:
-                self.controller_fault = (f"{trick.name} did not confirm its {clip} endpoint; motion quarantined. "
+                self.controller_fault = (f"{trick.name} did not confirm its {endpoint['name']} endpoint; motion quarantined. "
                                          "Inspect/restart the controller stack before restarting this tool server")
                 relaxed = await self._relax_controllers()
                 return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.02)
 
     async def play_reference_trick(self, trick: Trick) -> Result:
         """Play a correlated reference and require the controller's playback receipt.

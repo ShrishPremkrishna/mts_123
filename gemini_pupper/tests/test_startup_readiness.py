@@ -241,7 +241,7 @@ def test_matching_slew_values_with_writable_descriptors_are_refused(stack, marke
 
 def policy_stack(stack, monkeypatch):
     (stack.policy.parent / 'trick.yaml').write_text('type: policy\n')
-    trick = SimpleNamespace(controller='trick_test', kind='policy', walks=True, walk_controller='walk_test',
+    trick = SimpleNamespace(controller='trick_test', kind='policy', interactive=False, walks=True, walk_controller='walk_test',
                             path=stack.policy, walk_path=stack.policy)
     monkeypatch.setattr(readiness, 'load_tricks', lambda: {'test': trick})
     manifest = json.loads(stack.manifest.read_text())
@@ -287,3 +287,25 @@ def test_mutable_execution_request_id_is_not_misclassified_as_capability_overrid
     stack.params['gemini_walk']['ros__parameters']['execution_request_id'] = ''
     readiness.write_launch_manifest(stack.params, FollowerConfig('disabled', None, False, False, False), path=stack.manifest)
     assert json.loads(stack.manifest.read_text())['parameters']['gemini_walk']['ros__parameters']['execution_request_id'] == ''
+
+
+@pytest.mark.parametrize('runtime', ['matching', 'missing', 'inactive', 'old_protocol', 'writable', 'wrong_type'])
+def test_interactive_controllers_require_separate_correlated_clip_capability(stack, monkeypatch, runtime):
+    policy_stack(stack, monkeypatch)
+    readiness.load_tricks()['test'].interactive = True
+    key = ('param', 'dump', '/trick_test')
+    actual = yaml.safe_load(stack.responses[key])['/trick_test']['ros__parameters']
+    if runtime != 'missing':
+        actual['interactive_clip_status_protocol'] = 'old' if runtime == 'old_protocol' else 'pupper_clip_v1'
+        actual['interactive_clip_status_active'] = runtime != 'inactive'
+    stack.responses[key] = yaml.safe_dump({'/trick_test': {'ros__parameters': actual}})
+    readonly_markers(stack, 'trick_test', [('interactive_clip_status_protocol', 'string'),
+                                         ('interactive_clip_status_active', 'boolean')])
+    if runtime in ('writable', 'wrong_type'):
+        stack.responses[('param', 'describe', '/trick_test', 'interactive_clip_status_active')] = descriptor(
+            'interactive_clip_status_active', 'integer' if runtime == 'wrong_type' else 'boolean',
+            readonly=runtime != 'writable')
+    result = readiness.inspect_running_stack(run=stack.run, path=stack.manifest)
+    assert result['compatible'] is (runtime == 'matching')
+    if runtime != 'matching':
+        assert any('interactive' in error for error in result['errors'])

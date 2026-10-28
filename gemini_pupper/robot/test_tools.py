@@ -91,6 +91,8 @@ class FakeRobot:
         self.finite_started: dict[str, float] = {}
         self.execution_parameters: dict[str, str] = {}
         self.active_execution_tokens: dict[str, str] = {}
+        self.interactive_states: dict[str, dict] = {}
+        self.clock.on_advance.append(self.emit_interactive_status)
         self.clock.on_advance.append(self.emit_finite_status)
         self.pending_reference = None
         self.clock.on_advance.append(self.emit_reference_status)
@@ -106,7 +108,39 @@ class FakeRobot:
             frame = min(int(elapsed * trick.fps + 1e-6), frames - 1)
             state = "holding" if elapsed >= (frames - 1) / trick.fps else "playing"
             self.send(f"/{controller}/clip_status", _DataMsg(
-                f"all {state} frame {frame} queued 0 execution {self.active_execution_tokens.get(controller, '')}"))
+                f"all {state} frame {frame} queued 0 execution {self.active_execution_tokens.get(controller, 'none')} request none"))
+
+    def emit_interactive_status(self) -> None:
+        """Advance queued clips on their actual frame clock, retaining request identity."""
+        for controller, state in list(self.interactive_states.items()):
+            if self.controllers.get(controller) != "active" or self.clock.now < state["t0"]:
+                continue
+            trick = self.tricks[controller]
+            if state["holding"] and state["queue"]:
+                state["clip"], state["request"] = state["queue"].pop(0)
+                state["t0"], state["holding"] = self.clock.now, False
+            for _ in range(1000):
+                spec = trick.clip(state["clip"])
+                length = trick.clip_length(state["clip"])
+                if state["holding"] or self.clock.now - state["t0"] < length - 1e-6:
+                    break
+                if state["queue"]:
+                    state["clip"], state["request"] = state["queue"].pop(0)
+                elif spec.get("loop"):
+                    pass
+                elif spec.get("next"):
+                    state["clip"] = spec["next"]
+                else:
+                    state["holding"] = True
+                    break
+                state["t0"] += length
+            spec = trick.clip(state["clip"])
+            frame = spec["end"] - 1 if state["holding"] else min(
+                spec["start"] + int((self.clock.now-state["t0"]) * trick.fps + 1e-6), spec["end"]-1)
+            phase = "holding" if state["holding"] else "playing"
+            self.send(f"/{controller}/clip_status", _DataMsg(
+                f"{state['clip']} {phase} frame {frame} queued {len(state['queue'])} "
+                f"execution {self.active_execution_tokens.get(controller, 'none')} request {state['request']}"))
 
     def emit_reference_status(self) -> None:
         if self.pending_reference is None:
@@ -126,7 +160,7 @@ class FakeRobot:
         return [(t, m) for t, topic, m in self.published if topic == "/llm_cmd_vel"]
 
     def clips(self, controller: str) -> list[str]:
-        return [m.data for _, topic, m in self.published if topic == f"/{controller}/clip"]
+        return [m.data.split()[-1] for _, topic, m in self.published if topic == f"/{controller}/clip"]
 
     def activations(self, controller: str) -> list[float]:
         return [t for t, _, on in self.switches if controller in on]
@@ -146,26 +180,22 @@ class FakeRobot:
             for c in req.deactivate_controllers:
                 self.controllers[c] = "inactive"
                 self.finite_started.pop(c, None)
+                self.interactive_states.pop(c, None)
             for c in req.activate_controllers:
                 self.controllers[c] = "active"
                 # Model the controller's autonomous clip-status topic too. Fault
                 # tests can suppress/replace this separately from service replies.
                 trick = self.tricks.get(c)
-                if trick and trick.interactive:
-                    clip = (self.start_clips.get(c, [""])[-1] or trick.clips[0]["name"])
-                    seen = set()
-                    while clip not in seen:
-                        seen.add(clip)
-                        spec = trick.clip(clip)
-                        if spec.get("loop") or not spec.get("next"):
-                            break
-                        clip = spec["next"]
-                    state = "playing" if spec.get("loop") else "holding"
-                    self.send(f"/{c}/clip_status", _DataMsg(f"{clip} {state} frame 0 queued 0"))
-                elif trick and trick.kind == "policy":
-                    self.finite_started[c] = self.clock.now
-                    self.active_execution_tokens[c] = self.execution_parameters.get(c, "")
-                    self.emit_finite_status()
+                if trick and trick.kind == "policy":
+                    self.active_execution_tokens[c] = self.execution_parameters.get(c, "none")
+                    if trick.interactive:
+                        clip = (self.start_clips.get(c, [""])[-1] or trick.clips[0]["name"])
+                        self.interactive_states[c] = {"clip": clip, "t0": self.clock.now + 1.5,
+                                                      "holding": False, "request": "none", "queue": []}
+                        self.emit_interactive_status()
+                    else:
+                        self.finite_started[c] = self.clock.now
+                        self.emit_finite_status()
             self.switches.append((self.clock.now, list(req.deactivate_controllers), list(req.activate_controllers)))
             return _Msg(ok=True)
         if service.endswith("/set_parameters"):
@@ -202,8 +232,29 @@ class FakeRobot:
 
         if topic.endswith("/clip"):
             controller = topic.split("/")[1]
-            if self.controllers.get(controller) == "active":  # a stopped controller hears nothing
-                self.send(f"/{controller}/clip_status", _DataMsg(f"{msg.data} holding frame 0 queued 0"))
+            if self.controllers.get(controller) != "active":
+                return
+            fields = msg.data.split()
+            if (len(fields) != 3 or fields[0] != "pupper_clip_v1" or len(fields[1]) != 32
+                    or any(c not in "0123456789abcdef" for c in fields[1])):
+                return
+            _, request, clip = fields
+            trick = self.tricks[controller]
+            if clip not in {c["name"] for c in trick.clips}:
+                return
+            if controller not in self.interactive_states:
+                # A new server can find a controller already sitting/holding.
+                endpoint = trick.clips[0]
+                while endpoint.get("next") and not endpoint.get("loop"):
+                    endpoint = trick.clip(endpoint["next"])
+                self.interactive_states[controller] = {"clip": endpoint["name"], "t0": self.clock.now,
+                    "holding": not endpoint.get("loop", False), "request": "none", "queue": []}
+                self.active_execution_tokens.setdefault(controller, "none")
+            state = self.interactive_states[controller]
+            if request == state["request"] or any(request == token for _, token in state["queue"]):
+                return
+            state["queue"].append((clip, request))
+            self.emit_interactive_status()
 
 
 ROBOT: FakeRobot | None = None

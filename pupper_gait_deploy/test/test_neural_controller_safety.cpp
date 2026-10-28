@@ -1,3 +1,4 @@
+#include <thread>
 // Exercise production NeuralController::update against memory-backed ROS
 // command interfaces. No controller manager, driver or physical robot is used.
 #include <gtest/gtest.h>
@@ -76,6 +77,13 @@ class MemoryController : public neural_controller::NeuralController {
   }
   std::string clip_receipt_buffer() const { return rt_clip_status_publisher_->msg_.data; }
   auto execution_id() const {return execution_request_id_;}
+  auto clip_request_id() const {return clip_player_.request_id();}
+  auto queued_clips() const {return clip_player_.queued();}
+  void queue_clip(const std::string& payload) {
+    auto message=std::make_shared<std_msgs::msg::String>();message->data=payload;
+    rt_clip_request_ptr_.writeFromNonRT(message);repeat_action_counter_=-1;
+  }
+  auto tick_actor(double t) {repeat_action_counter_=-1;return tick(t);}
   void spoil_terminal_motion() { for(int j=12;j<24;++j)trick_.joint_pos[j]=std::numeric_limits<float>::quiet_NaN(); }
   void enable_reference(std::shared_ptr<std_msgs::msg::Float32MultiArray> message, bool busy=false) {
     use_jump_slot_=true;params_.reference_tricks=true;
@@ -90,7 +98,7 @@ class MemoryController : public neural_controller::NeuralController {
   auto retained_reference() const { return last_reference_trick_; }
   void stop() { estop_active_ = true; }
   void set_held_cycle() { repeat_action_counter_ = 0; }
-  auto tick(double t) {
+  controller_interface::return_type tick(double t) {
     return update(rclcpp::Time(static_cast<int64_t>(std::llround(t * 1e9)), RCL_ROS_TIME),
                   rclcpp::Duration::from_seconds(1./520));
   }
@@ -187,6 +195,8 @@ class ProductionRuntime : public ::testing::Test {
       rclcpp::Parameter("reference_trick_status_active",true),
       rclcpp::Parameter("policy_execution_status_protocol",std::string("forged")),
       rclcpp::Parameter("policy_execution_status_active",true),
+      rclcpp::Parameter("interactive_clip_status_protocol",std::string("forged")),
+      rclcpp::Parameter("interactive_clip_status_active",true),
       rclcpp::Parameter("position_target_slew_active",spoof),
       rclcpp::Parameter("position_target_slew_contract_json",std::string("forged"))});
     auto result=controller.init("slew_runtime_test","",520,"",options);
@@ -250,6 +260,31 @@ TEST_F(ProductionRuntime, ReferenceAcceptedThenObservationErrorNeverConfirmsComp
   EXPECT_EQ(controller.reference_state().phase,"interrupted");
 }
 
+TEST_F(ProductionRuntime, MalformedReservedReferenceLabelsNeverFallBackToLegacyPlayback) {
+  for(const std::string& label:std::vector<std::string>{"pupper_reference_v1:bad",
+      "pupper_reference_v2:"+std::string(32,'a'),"pupper_reference_v1:"+std::string(32,'A'),
+      "pupper_reference_","pupper_reference_v1:"}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_policy(false),false),controller_interface::return_type::OK);
+    auto message=reference_message();message->layout.dim.front().label=label;
+    controller.enable_reference(message);
+    // Missing observation interfaces fail later, after the parser is exercised.
+    EXPECT_EQ(controller.tick(2.1),controller_interface::return_type::ERROR);
+    EXPECT_FALSE(controller.reference_state().running);
+    EXPECT_TRUE(controller.reference_state().phase.empty());
+  }
+  for(const std::string& label:std::vector<std::string>{"","legacy_jump_table"}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_policy(false),false),controller_interface::return_type::OK);
+    auto message=reference_message();message->layout.dim.front().label=label;
+    controller.enable_reference(message);
+    EXPECT_EQ(controller.tick(2.1),controller_interface::return_type::ERROR);
+    EXPECT_TRUE(controller.reference_state().running);
+    EXPECT_EQ(controller.reference_state().phase,"playing");
+    EXPECT_TRUE(controller.reference_state().active_id.empty());
+  }
+}
+
 TEST_F(ProductionRuntime, ReferenceBusyAndNonfinitePayloadAreExplicitlyRejected) {
   for(bool busy:{false,true}) {
     MemoryController controller(false);
@@ -302,9 +337,53 @@ TEST_F(ProductionRuntime, FiniteReceiptUsesActivationIdAndWaitsForAppliedAction)
       for(const auto &joint:controller.values)for(double value:joint)EXPECT_DOUBLE_EQ(value,8.);
     } else {
       EXPECT_EQ(result,controller_interface::return_type::OK);
-      EXPECT_EQ(controller.clip_receipt_buffer(),"all holding frame 1 queued 0 execution "+std::string(32,'a'));
+      EXPECT_EQ(controller.clip_receipt_buffer(),"all holding frame 1 queued 0 execution "+std::string(32,'a')+" request none");
       for(const auto &joint:controller.values)EXPECT_DOUBLE_EQ(joint[0],0.);
     }
+  }
+}
+
+TEST_F(ProductionRuntime, InteractiveCapabilityIsReadOnlyAndCannotBeSpoofed) {
+  for(bool trick:{false,true}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,trick?make_trick_policy():make_policy(false),false),controller_interface::return_type::OK);
+    auto node=controller.get_node();
+    EXPECT_EQ(node->get_parameter("interactive_clip_status_protocol").as_string(),"pupper_clip_v1");
+    EXPECT_EQ(node->get_parameter("interactive_clip_status_active").as_bool(),trick);
+    EXPECT_TRUE(node->describe_parameter("interactive_clip_status_protocol").read_only);
+    EXPECT_TRUE(node->describe_parameter("interactive_clip_status_active").read_only);
+    EXPECT_FALSE(node->set_parameter(rclcpp::Parameter("interactive_clip_status_active",!trick)).successful);
+  }
+}
+
+TEST_F(ProductionRuntime, CorrelatedClipRequestUsesAppliedFrameAndMalformedRequestDoesNotMutate) {
+  for(bool named_activation:{false,true}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_trick_policy(),false),controller_interface::return_type::OK);
+    const std::string activation=named_activation?std::string(32,'a'):"none",request(32,'b');
+    if(named_activation) { ASSERT_TRUE(controller.get_node()->set_parameter(rclcpp::Parameter("execution_request_id",activation)).successful); }
+    controller.add_flat_feedback();ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+    ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+    EXPECT_EQ(controller.clip_receipt_buffer(),"all holding frame 1 queued 0 execution "+activation+" request none");
+    controller.queue_clip("pupper_clip_v1 "+request+" all");
+    ASSERT_EQ(controller.tick_actor(2.2),controller_interface::return_type::OK);
+    EXPECT_EQ(controller.clip_request_id(),request);
+    EXPECT_EQ(controller.queued_clips(),0u);
+    controller.queue_clip("pupper_clip_v1 bad all");
+    ASSERT_EQ(controller.tick_actor(2.3),controller_interface::return_type::OK);
+    EXPECT_EQ(controller.clip_request_id(),request);EXPECT_EQ(controller.queued_clips(),0u);
+    controller.queue_clip("pupper_clip_v1 "+request+" all");
+    ASSERT_EQ(controller.tick_actor(2.4),controller_interface::return_type::OK);
+    EXPECT_EQ(controller.clip_request_id(),request);EXPECT_EQ(controller.queued_clips(),0u);
+    // Once the publisher is available, the held receipt retains both causal IDs.
+    for(int attempt=0;attempt<20;++attempt) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
+      ASSERT_EQ(controller.tick_actor(2.5+attempt*.01),controller_interface::return_type::OK);
+      if(controller.clip_receipt_buffer()=="all holding frame 1 queued 0 execution "+activation+" request "+request) break;
+    }
+    EXPECT_EQ(controller.clip_receipt_buffer(),"all holding frame 1 queued 0 execution "+activation+" request "+request);
+    controller.queue_clip("all");ASSERT_EQ(controller.tick_actor(3.),controller_interface::return_type::OK);
+    EXPECT_TRUE(controller.clip_request_id().empty());
   }
 }
 

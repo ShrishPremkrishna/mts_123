@@ -180,6 +180,72 @@ int main() {
     }
   }
 
+  // Request identity changes no frame-clock arithmetic. Tokens follow queued
+  // selection through auto-next and looping, not the instant of enqueueing.
+  {
+    TrickMotion m;
+    m.fps=10;m.frames=25;
+    m.clips={{"A",0,10,false,1},{"B",9,15,true,-1},
+             {"C",14,20,false,1},{"D",19,25,false,-1}};
+    auto check=[&](bool ok,const char* what) {
+      if(!ok) { std::printf("clip correlation failed: %s\n",what);++failures; }
+    };
+    const std::string a(32,'a'),b(32,'b'),c(32,'c');
+    std::string name,id;
+    check(parse_clip_request("C",name,id) && name=="C" && id.empty(),"legacy name");
+    check(parse_clip_request("pupper_clip_v1 "+a+" C",name,id) && name=="C" && id==a,"structured request");
+    for(const std::string& bad:std::vector<std::string>{"pupper_clip_v1","pupper_clip_v1 bad C",
+        "pupper_clip_v1 "+a+" C extra","pupper_clip_v2 "+a+" C",
+        "pupper_clip_v1 "+std::string(32,'A')+" C"}) {
+      check(!parse_clip_request(bad,name,id) && name.empty() && id.empty(),"malformed parse");
+    }
+    ClipPlayer p;p.reset(1);
+    check(p.request_id().empty() && p.frame(m,0.)==9,"initial chain none");
+    check(p.request(m,"C",a) && p.request_id().empty(),"queued token not prematurely active");
+    check(!p.request(m,"D",a) && p.queued()==1,"queued duplicate refused");
+    check(p.frame(m,.4)==13 && p.request_id().empty(),"current loop owns receipt");
+    check(p.frame(m,.5)==14 && p.request_id()==a,"token activates at boundary");
+    check(p.frame(m,1.)==9 && p.request_id()==a,"token follows automatic next");
+    check(p.frame(m,1.2)==11 && p.request_id()==a,"token survives loop");
+    check(!p.request(m,"D",a) && p.queued()==0,"active duplicate refused");
+    check(!p.request(m,"D","bad") && !p.request(m,"unknown",b) && p.queued()==0,"invalid request no mutation");
+    check(p.request(m,"D",b),"new request accepted");
+    check(p.frame(m,1.5)==19 && p.request_id()==b,"new token replaces at selection");
+    check(p.frame(m,2.)==24 && p.holding() && p.request_id()==b,"hold retains token");
+    check(p.request(m,"C") && p.frame(m,2.1)==14 && p.request_id().empty(),"legacy selection clears token");
+    check(!p.request(m,"D",a),"recent completed duplicate refused");
+    p.reset();check(p.request_id().empty() && p.request(m,"C",a),"activation resets identity");
+
+    // Compare every frame, clip, hold and queue state with the legacy two-arg
+    // request API across automatic boundaries, queueing and held reactivation.
+    ClipPlayer legacy,tagged;int request_number=0;
+    for(int step=0;step<=400;++step) {
+      const double t=step/100.;
+      if(step==120 || step==200 || step==350) {
+        const std::string clip=step==200?"D":"C";
+        const std::string token(32,static_cast<char>('a'+request_number++));
+        check(legacy.request(m,clip)==tagged.request(m,clip,token),"legacy request acceptance parity");
+      }
+      check(legacy.frame(m,t)==tagged.frame(m,t) && legacy.clip()==tagged.clip() &&
+            legacy.holding()==tagged.holding() && legacy.queued()==tagged.queued(),"legacy trajectory parity");
+    }
+    p.reset(3);
+    for(int k=0;k<4;++k) check(p.request(m,"D",std::string(32,static_cast<char>('a'+k))),"queue capacity");
+    const std::string e(32,'e');
+    check(!p.request(m,"D",e) && p.queued()==4,"full queue refuses without reserving nonce");
+    p.frame(m,1.);check(p.request(m,"D",e),"full-queue rejected nonce can retry");
+
+    // Document the bounded 64-successful-request idempotency window exactly.
+    p.reset(3);
+    for(int k=0;k<65;++k) {
+      const std::string token=std::string(30,'0')+"0123456789abcdef"[k/16]+"0123456789abcdef"[k%16];
+      check(p.request(m,"D",token),"unique remembered request");
+      p.frame(m,2.*k+1.);
+    }
+    check(p.request(m,"D",std::string(32,'0')),"old nonce leaves bounded window");
+    check(!p.request(m,"D",std::string(30,'0')+"40"),"recent nonce remains remembered");
+  }
+
   std::printf(failures ? "FAILED (%d)\n" : "trick motion: all checks passed\n", failures);
   return failures ? 1 : 0;
 }

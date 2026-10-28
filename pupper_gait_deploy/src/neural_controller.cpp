@@ -270,6 +270,8 @@ controller_interface::CallbackReturn NeuralController::on_init() {
     execution_descriptor.description="Loaded controller activation-correlated after-apply playback contract; ignores launch overrides";
     get_node()->declare_parameter("policy_execution_status_protocol",std::string("pupper_policy_v1"),execution_descriptor,true);
     get_node()->declare_parameter("policy_execution_status_active",use_trick_,execution_descriptor,true);
+    get_node()->declare_parameter("interactive_clip_status_protocol",std::string(kInteractiveClipStatusProtocol),execution_descriptor,true);
+    get_node()->declare_parameter("interactive_clip_status_active",use_trick_,execution_descriptor,true);
 
     // Teleop command clamp: the exporter stamps the trained command ranges (or a
     // deliberately tighter cap), and the policy should never see anything outside
@@ -865,9 +867,15 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
       // Retain ownership: an allocator reusing a freed message address must not
       // make a later request look like the previously processed message.
       last_reference_trick_ = *trick;
-      const auto request_id=trick->get()->layout.dim.empty() ? std::string{} :
-          reference_request_id(trick->get()->layout.dim.front().label);
-      if(!reference_execution_.duplicate(request_id)) {
+      const auto request_label=trick->get()->layout.dim.empty() ? std::string{} :
+          trick->get()->layout.dim.front().label;
+      const auto request_id=reference_request_id(request_label);
+      // A malformed versioned request must not be reinterpreted as a legacy
+      // uncorrelated command. Empty/unrelated legacy labels remain supported.
+      const bool invalid_protocol=request_label.compare(0,17,"pupper_reference_")==0 && request_id.empty();
+      if(invalid_protocol) {
+        RCLCPP_WARN(get_node()->get_logger(),"reference trick ignored: malformed or unsupported request label");
+      } else if(!reference_execution_.duplicate(request_id)) {
         const auto &d = trick->get()->data;
         bool busy = false;
         for (const double s : slot_starts_) {
@@ -1049,8 +1057,10 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
       auto request = rt_clip_request_ptr_.readFromRT();
       if (request && request->get() && *request != last_clip_request_) {
         last_clip_request_ = *request;
-        if (!clip_player_.request(trick_, request->get()->data)) {
-          RCLCPP_WARN(get_node()->get_logger(), "clip request '%s' refused (unknown clip or queue full)",
+        std::string clip_name,clip_request_id;
+        if (!parse_clip_request(request->get()->data,clip_name,clip_request_id) ||
+            !clip_player_.request(trick_,clip_name,clip_request_id)) {
+          RCLCPP_WARN(get_node()->get_logger(), "clip request '%s' refused (invalid, duplicate, unknown clip or queue full)",
                       request->get()->data.c_str());
         }
       }
@@ -1281,7 +1291,8 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     rt_clip_status_publisher_->msg_.data =
         trick_.clips[clip_player_.clip()].name + (clip_player_.holding() ? " holding" : " playing") +
         " frame " + std::to_string(applied_clip_frame) + " queued " + std::to_string(clip_player_.queued()) +
-        (execution_request_id_.empty() ? "" : " execution " + execution_request_id_);
+        " execution " + (execution_request_id_.empty() ? std::string("none") : execution_request_id_) +
+        " request " + (clip_player_.request_id().empty() ? std::string("none") : clip_player_.request_id());
     rt_clip_status_publisher_->unlockAndPublish();
   }
 

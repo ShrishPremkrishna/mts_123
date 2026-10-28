@@ -5,6 +5,7 @@
 #include <cmath>
 #include <deque>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -159,6 +160,26 @@ inline void parse_trick_motion(const Json &trick, const Json &motion, int n_join
   }
 }
 
+// The wire token identifies one explicit clip request, independently of the
+// activation token. Legacy single-name requests remain supported natively.
+inline constexpr const char* kInteractiveClipStatusProtocol = "pupper_clip_v1";
+inline bool valid_clip_request_id(const std::string& id) {
+  return id.size()==32 && std::all_of(id.begin(),id.end(),[](unsigned char c) {
+    return (c>='0' && c<='9') || (c>='a' && c<='f');
+  });
+}
+inline bool parse_clip_request(const std::string& payload,std::string& name,std::string& id) {
+  name.clear();id.clear();
+  if(payload.compare(0,12,"pupper_clip_")!=0) {
+    name=payload;return !name.empty();
+  }
+  std::istringstream stream(payload);
+  std::string protocol,parsed_id,parsed_name,extra;
+  if(!(stream>>protocol>>parsed_id>>parsed_name) || (stream>>extra) ||
+      protocol!=kInteractiveClipStatusProtocol || !valid_clip_request_id(parsed_id)) return false;
+  name=parsed_name;id=parsed_id;return true;
+}
+
 /**
  * Plays a trick's clips on the controller's clock. frame(t) returns the frame to
  * track at trick time t (seconds since the trick started playing); clips switch
@@ -173,13 +194,21 @@ class ClipPlayer {
     t0_ = 0.0;
     holding_ = false;
     queue_.clear();
+    request_id_.clear();
+    remembered_ids_.clear();
   }
 
   /** Queue a clip to play when the current one reaches its end. */
-  bool request(const TrickMotion &m, const std::string &name) {
+  bool request(const TrickMotion &m, const std::string &name, const std::string &id = {}) {
     const int idx = m.clip_index(name);
     if (idx < 0 || queue_.size() >= kMaxQueue) return false;
-    queue_.push_back(idx);
+    if (!id.empty()) {
+      if (!valid_clip_request_id(id) ||
+          std::find(remembered_ids_.begin(),remembered_ids_.end(),id)!=remembered_ids_.end()) return false;
+      if (remembered_ids_.size()>=kRememberedRequests) remembered_ids_.pop_front();
+      remembered_ids_.push_back(id);
+    }
+    queue_.push_back({idx,id});
     return true;
   }
 
@@ -187,7 +216,8 @@ class ClipPlayer {
     if (t < 0.0) return m.clips[clip_].start;
     if (holding_) {
       if (queue_.empty()) return m.clips[clip_].end - 1;
-      clip_ = queue_.front();  // a request after a hold starts now
+      clip_ = queue_.front().clip;  // a request after a hold starts now
+      request_id_ = queue_.front().id;
       queue_.pop_front();
       t0_ = t;
       holding_ = false;
@@ -198,7 +228,8 @@ class ClipPlayer {
       if (t - t0_ < length - 1e-6) break;  // switch on the boundary itself
       int next;
       if (!queue_.empty()) {
-        next = queue_.front();
+        next = queue_.front().clip;
+        request_id_ = queue_.front().id;
         queue_.pop_front();
       } else if (c.loop) {
         next = clip_;
@@ -219,13 +250,22 @@ class ClipPlayer {
   int clip() const { return clip_; }
   bool holding() const { return holding_; }
   std::size_t queued() const { return queue_.size(); }
+  // Persists through automatic next/loop transitions. A legacy request clears it
+  // only when that request starts, never while it is merely waiting in the queue.
+  const std::string& request_id() const { return request_id_; }
 
  private:
   static constexpr std::size_t kMaxQueue = 4;
+  // Bounded idempotency window, not unbounded replay protection. Reset with the
+  // activation; API callers always generate fresh UUIDs and do not auto-retry.
+  static constexpr std::size_t kRememberedRequests = 64;
+  struct Request { int clip; std::string id; };
   int clip_ = 0;
   double t0_ = 0.0;
   bool holding_ = false;
-  std::deque<int> queue_;
+  std::deque<Request> queue_;
+  std::string request_id_;
+  std::deque<std::string> remembered_ids_;
 };
 
 // --- quaternion helpers, (w, x, y, z) -----------------------------------------
