@@ -31,28 +31,31 @@
     "drive_mount": "Not enabled; it requested additional broader Google access. Used existing approved downloads instead."
   },
   "continuing_work": [
-    "Run current-source full regression after completed correlation fixes; preserve exact validated sources, independent review and actualROS logs. Later Pi service/hardware integration remains separate.",
+    "Full current-source regression and actualROS protocol checks are complete and preserved. Finish independent policy/refinement reviews and honest capability/handoff consolidation; later Pi integration remains separate.",
     "Complete -2 versus -5 torso refinement and evaluate sustained support, tracking, effort/slip, stopping, contacts and native complete returns. Meet the class low-stepping/no-belly-resting goal; no reward-only promotion.",
+    "Reconcile shipped jump evidence with actual tool execution: current reference API zeros velocity, while native success was reliable only in testedforward0.3m/scases. Assess exactscenariofaithfulness and expose the correct limitation; no moving-jump workaround or hardware action authorized overnight.",
     "Optional2 studies are complete, but reliable new jumping remains unachieved. Preserve negative conclusions and changed-reference lineage rather than labeling every trained policy as a capability.",
     "Consolidate installed versus staged experiment capabilities, exact artifacts, rejected findings and morning handoff. Keep coursework main unchanged.",
     "Live Gemini credentials/session, Pi read-only inventory/backup and supervised TA-approved physical validation remain pending. Never activate robot overnight."
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T10:52:56.927651+00:00",
+    "recorded_utc": "2026-10-28T10:56:42.034327+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
     "head": "16fc3fb5f3759ce4afdeb505606890383622ec20",
     "main_clean": true,
     "last_full_regression": {
-      "source": "238ec482217b81e0dc16a4981c4beaa43c20a814",
-      "pytest": 616,
+      "source": "b8216f7fd0f4e639ece60e58dc3004137620f803",
+      "pytest": 775,
       "course_checks": 225,
       "native_cpp_suite": true,
-      "separate_ros_jazzy_tests": 11,
-      "source_hashes": 699,
+      "separate_ros_jazzy_tests": 21,
+      "source_hashes": 715,
       "source_changed": false,
-      "limitation": "Subsequent code changes require checks. Independent capture timing review found nominal five-sample recovery convention is80ms observed span, not100ms; versioned stricter gate pending. Passing tests do not close this issue."
+      "raw": "artifacts/validation/offline-b8216f7/checks.json",
+      "review": "foundation/results/offline-validation-b8216f7.json",
+      "limitation": "No hardware or policy promotion claim. Subsequent code changes require appropriate checks; results/documentation updates alone do not invalidate the tested code snapshot."
     },
     "completed_since_recovery": [
       "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
@@ -63,16 +66,17 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Reference/finite5f0e861 and interactive5265b91 playback correlation reviewed, including five reproduced failures and malformed reserved-label refusal. Actual isolated ROSJazzy21tests pass; Gemini237 and course166 pass. Preparing current-source full regression and final preservation; no hardware.",
-      "lab6_recovery": "Refinement frozen84c1fc6 remains active onGPU1. First torso report precision corrected16fc3fb:19/288 correlated idle windows still sustain thresholded average support over1s; max7.98s observed span/8s bincoverage,155/288<=1%BW butp95=14%. Two exact-contact native finalist reruns begin after source5265b91, artifacts-only duringfullregressionfreeze.",
-      "optional_recovery": "Optional2 and all ACK Python paths complete. Independent torso raw audit verifies means, paired dynamics/input identities and no-promotion;7/96 unique randomized worlds retain sustained support. Audit preserved under lab6/torso-independent-review. Idle, no jobs.",
+      "root": "Full regression b8216f7 passes775pytest+225course checks+nativeC++; actual isolatedROS21tests also pass. All715watchedsource hashes unchanged during regression. All17installedpolicy files unchanged versus earlieraudit. Finite/reference/interactive completion bugs closed; canonical evidence preserved and branch being pushed. Continue force-refinement review and jump-tool integration assessment, without robot.",
+      "lab6_recovery": "GPU1 -2vs-5 refinement pinned84c1fc6 active; collector4332 healthy. Exact-contact native reruns ofpriorcontrol/-2finalists completed with everyphysicalstate/target/torquearray bit-identical toearlier chains. Updatingactualslip/support evidence afterglobalregressionfreeze released. Read current exitrecords before any retry.",
+      "optional_recovery": "Independent torso raw review complete and preserved; now read-only assessment of zero-speed Gemini jump API versus shipped native standing/forward evidence. No GPU/hardware changes or additionalallocation.",
       "sit_recovery": "Interactive C++/readiness implementation and independent Python review complete5265b91. All five stale/fault cases pass and actualROS21tests verified. Idle; no outstanding source edits."
     },
     "gpu_state_at_checkpoint": "Only GPU1 remains: pupper-foundation-recovery, refinement supervisor116535 under /content/pupper-spider-torso-refinement, frozen84c1fc634a0ed10cb556a5304e9e4911d7c63e66. Paired1000x4096seed42 -2control/-5intervention from exact torso7496. GPU2 pupper-optional-recovery confirmed terminated; do not retry prior completed jobs.",
     "backup_status": "Optional2 all nine fullarchives plus867file collectorindex preserved; release receipt periodic/optional2/retired-20261028/runtime-release.json. First torso full review442files5,723,271,827bytes durable, oldcollector83086 retired after212file index verified. Refinement collector4332 healthy29files/noerrors10:41:21UTC. Completion-v1 source/build/test records preserved separately.",
     "remaining_completion_gates": [
-      "Run current-source full regression after completed correlation fixes; preserve exact validated sources, independent review and actualROS logs. Later Pi service/hardware integration remains separate.",
+      "Full current-source regression and actualROS protocol checks are complete and preserved. Finish independent policy/refinement reviews and honest capability/handoff consolidation; later Pi integration remains separate.",
       "Complete -2 versus -5 torso refinement and evaluate sustained support, tracking, effort/slip, stopping, contacts and native complete returns. Meet the class low-stepping/no-belly-resting goal; no reward-only promotion.",
+      "Reconcile shipped jump evidence with actual tool execution: current reference API zeros velocity, while native success was reliable only in testedforward0.3m/scases. Assess exactscenariofaithfulness and expose the correct limitation; no moving-jump workaround or hardware action authorized overnight.",
       "Optional2 studies are complete, but reliable new jumping remains unachieved. Preserve negative conclusions and changed-reference lineage rather than labeling every trained policy as a capability.",
       "Consolidate installed versus staged experiment capabilities, exact artifacts, rejected findings and morning handoff. Keep coursework main unchanged.",
       "Live Gemini credentials/session, Pi read-only inventory/backup and supervised TA-approved physical validation remain pending. Never activate robot overnight."
@@ -98,9 +102,10 @@
       "foundation/results/sit-interactive-default-return-reviewed.json",
       "foundation/results/lying-tricks-later-default-return-reviewed.json",
       "foundation/results/controller-completion-v1-reviewed.json",
-      "foundation/results/controller-completion-v2-reviewed.json"
+      "foundation/results/controller-completion-v2-reviewed.json",
+      "foundation/results/offline-validation-b8216f7.json"
     ],
-    "latest_checkpoint_note": "Source includes5265b91 and16fc3fb; fullregression starting afterdocumentation commit. GPU refinement stays pinned84c1fc6. Read actualsource/status before retrying any operation."
+    "latest_checkpoint_note": "Validatedcodeb8216f7 (775pytest/225course/native;21actualROS) and immutablecompletionreports are ready. Later commits may change researchresults/docs. Sourcefreeze released; task-ownednative/GPU work continues. Do not retry completed runs."
   },
   "checkpoint_history": [
     {
