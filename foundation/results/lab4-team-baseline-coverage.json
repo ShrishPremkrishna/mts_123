@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "recorded_date": "2026-10-27",
-  "scope": "Lab4 team-policy baseline coverage from recovered local artifacts and inspected saved course sources; no assumption that a dictated last four phrase means exactly four required policies.",
+  "scope": "Lab4 team-policy baseline coverage from recovered artifacts, saved course sources and the inspected team run table.",
   "recovered": [
     {
       "run_id": "4hkyvuxh",
@@ -50,7 +50,7 @@
     "checkpoint_or_export_recovered": false,
     "source": "Fall2026Classes/Cs123/CS123.md Current position, Earlier Step3"
   },
-  "identity_gap": "No additional team final-run identities established from available saved sources. Parent is checking the live team run table separately.",
+  "identity_gap": "No additional final team-policy identities established. Installed Pi policy remains unknown.",
   "interpretation": "The known team StableGait and best from-scratch checkpoint identities are both recovered. Optimization evidence is substantially broader for StableGait. This does not establish the new gaits outperform Tej best from-scratch under broad randomized or class-driver-bound conditions.",
   "shipped_default": {
     "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
@@ -70,5 +70,22 @@
     "foundation/results/shipped-policy-native-screen.json": "9024be41f5e64e4a4a07cb5659476ce85314ab937de0563ffa94ddad0ae8e614",
     "pupper-mjlab/lab4_runs/shrish_stablegait/README.md": "60c83aa96053e1215288c701ab757646195daeb954b4f5b0f23f348f4b074ee0",
     "pupper-mjlab/lab4_runs/shrish_stablegait/training-settings.json": "28b7303eefdc225e70eba471fa1246ee477b9ca8ce26255f35dad5bcabbb32d6"
+  },
+  "live_team_table": {
+    "url": "https://forge.coreweave.com/wandb/tejk-stanford-university/mjlab/table?nw=nwusertejk",
+    "inspected_before_interruption": true,
+    "listed_run_count": 2,
+    "runs": [
+      "vt55ode8",
+      "dgx39kes"
+    ],
+    "earlier_run": {
+      "run_id": "dgx39kes",
+      "state": "Finished",
+      "runtime": "11m36s",
+      "files_seen": "config.yaml, ONNX, checkpoints through at least1250;34 files total",
+      "download_completed": false,
+      "role": "Earlier experiment; no evidence this is a missing final baseline"
+    }
   }
 }

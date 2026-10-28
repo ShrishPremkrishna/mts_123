@@ -1,0 +1,41 @@
+{
+  "recorded_utc": "2026-10-28T06:49:50.192415+00:00",
+  "objective": "Complete and audit the class-provided Pupper foundation, including required/optional labs and justified training; preserve coursework main and distinguish measured capabilities from experiments.",
+  "main_preserved_at": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
+  "pushed_recovery_checkpoint": "58a5f9c440744a66f42489b4b297e08cb1621cff",
+  "verified_durable_files": 168,
+  "durable_hash_mismatches": 0,
+  "lost_remote_outputs": [
+    "pupper-spider-precision (original baseline/precision continuation outputs never downloaded)",
+    "pupper-optional-corrected-v1 (original corrected baseline/fast outputs never downloaded)"
+  ],
+  "loss_boundary": "Original runtime assignments absent from Colab server; no success/completion inferred for unretrieved jobs. Exact starting checkpoints and source/configuration identities survived.",
+  "restored_sessions": {
+    "pupper-foundation-recovery": {
+      "source": "845db7df059d47c4895ef3a05e391817dd41e2b5",
+      "output": "/content/pupper-spider-precision-recovery"
+    },
+    "pupper-optional-recovery": {
+      "source": "287000ad8a4ec45f1f67e8b1549ac57be0128ba9",
+      "output": "/content/pupper-optional-recovery-v2"
+    }
+  },
+  "periodic_preservation": {
+    "script": "foundation/scripts/preserve_colab_run.py",
+    "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/periodic",
+    "interval_s": 120,
+    "scope": "Latest two currently visible checkpoints per folder plus metadata, logs and rollouts. Previously downloaded versions preserved by hash. Final complete archives still required.",
+    "real_probe_passed": true,
+    "training_checkpoints_already_received": true,
+    "limitations": "Local collector needs this laptop running and network access. Runtime termination before next download can lose the most recent interval; no absolute durability guarantee.",
+    "drive_mount": "Not enabled; it requested additional broader Google access. Used existing approved downloads instead."
+  },
+  "continuing_work": [
+    "Spider precision paired evaluation and handoff decision",
+    "Corrected flat/multigait selection, held-out Bumpy and Mystery experiments",
+    "Separate Sit x-COM-range experiment after negative reference sweep",
+    "Lab2 recording-to-Lab3 replay gap with real saved recording",
+    "Final regression, current evidence documentation and durable worktree migration"
+  ],
+  "hardware": "User instructed continuing without Pupper access; no motor activation."
+}
