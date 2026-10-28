@@ -106,5 +106,13 @@
   "hardware_validated": false,
   "deployed": false,
   "complete_ros_install_package": false,
-  "next_robot_step": "Read-only inventory of actual Pi paths/current loaded policies first, then verified off-Pi baseline capture. This local package cannot stand in for that unknown baseline."
+  "next_robot_step": "Read-only inventory of actual Pi paths/current loaded policies first, then verified off-Pi baseline capture. This local package cannot stand in for that unknown baseline.",
+  "independent_parent_verification": {
+    "confirmed_in_task": true,
+    "manifest_sha256": "41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9",
+    "files": 70,
+    "bytes": 33658967,
+    "reviewed_source_allowlist_count": 68,
+    "scope": "Parent independently ran pinned package verification and inspected the catalog/allowlist; no hardware or installation claim."
+  }
 }
