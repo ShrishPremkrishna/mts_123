@@ -18,6 +18,9 @@ def apply_coverage_schedule(args, cfg):
     if args.seconds != 10 or args.warmup != 2:
         raise ValueError('Reviewed slot-coverage protocol requires --seconds 10 --warmup 2')
     args.reset_each_command = True
+    # reset_jump_schedule caps its horizon at30s. Keep the reviewed24s margin
+    # meaningful even for a randomized evaluation with only one10s command.
+    cfg.episode_length_s = max(cfg.episode_length_s,30.)
     event = cfg.events['reset_jump_schedule']
     event.params.update(SCHEDULE)
 

@@ -172,18 +172,31 @@ def test_driver_contract_comparison_ignores_only_location_and_description():
     assert not b.compare_evaluations(a,c)['promotable_for_this_seed']  # no high-speed data, but contracts match
 
 
+def jump_trace():
+    t=trace(cycles=3);n,e=t['phase'].shape
+    t.update(dt=np.asarray(.02),foot_contact=np.ones((n,e,4),bool),robot_ground_contact_count=np.full((n,e),4),
+             height=np.full((n,e),.15),vertical_velocity=np.zeros((n,e)),
+             root_quaternion=np.broadcast_to([1.,0.,0.,0.],(n,e,4)).copy(),terminated=np.zeros((n,e),bool))
+    t['robot_com_height_m']=t['height'];t['robot_com_vertical_velocity_m_s']=t['vertical_velocity']
+    return t
+
+
+def add_observed_flight(t,start,end,peak=.25):
+    t['foot_contact'][start:end]=False;t['robot_ground_contact_count'][start:end]=0
+    phase=np.linspace(0,1,end-start)
+    t['height'][start:end,0]=.18+(peak-.18)*4*phase*(1-phase)
+    t['vertical_velocity'][start:end,0]=4*(peak-.18)*(1-2*phase)/((end-start-1)*.02)
+
+
 def test_jump_selection_requires_flight_and_landing_in_same_episode():
-    t=trace(cycles=3); n,e=t['phase'].shape
-    t.update(dt=np.asarray(.02),foot_contact=np.ones((n,e,4),bool),height=np.ones((n,e))*.15,
-             terminated=np.zeros((n,e),bool))
-    with pytest.raises(ValueError): b.select_jump(t)
-    t['foot_contact'][40:50]=False
-    t['height'][40:50]=.25
+    t=jump_trace()
+    with pytest.raises(ValueError):b.select_jump(t)
+    add_observed_flight(t,40,50)
     selected=b.select_jump(t)
     assert selected['start']<40 and selected['end']>50
     assert selected['flight_s']==pytest.approx(.2)
     t['terminated'][49]=True
-    with pytest.raises(ValueError): b.select_jump(t)
+    with pytest.raises(ValueError):b.select_jump(t)
 
 
 def test_new_jump_capture_uses_measured_touchdown_instead_of_legacy_time(tmp_path,monkeypatch):
@@ -209,10 +222,7 @@ def test_jump_launch_reward_cannot_grow_without_bound(monkeypatch):
 
 
 def test_jump_selection_checks_bounds_before_ranking_actual_windows():
-    t=trace(cycles=3);n,e=t['phase'].shape
-    t.update(dt=np.asarray(.02),foot_contact=np.ones((n,e,4),bool),height=np.full((n,e),.15),terminated=np.zeros((n,e),bool))
-    t['foot_contact'][40:50]=False;t['height'][40:50]=.25
-    t['foot_contact'][100:110]=False;t['height'][100:110]=.22
+    t=jump_trace();add_observed_flight(t,40,50,.25);add_observed_flight(t,100,110,.22)
     t['joint_pos'][40,0,0]=1.1
     original=t['joint_pos'].copy();limits=np.tile([-1.,1.],(12,1))
     assert b.select_jump(t)['start']==25
@@ -220,5 +230,60 @@ def test_jump_selection_checks_bounds_before_ranking_actual_windows():
     assert selected['start']==85 and selected['end']>110
     np.testing.assert_array_equal(t['joint_pos'],original)
     t['joint_pos'][100,0,0]=1.1
-    with pytest.raises(ValueError,match='No clean jump'):
-        b.select_jump(t,limits=limits)
+    with pytest.raises(ValueError,match='No clean jump'):b.select_jump(t,limits=limits)
+
+
+@pytest.mark.parametrize('defect',['missing_body','missing_com','downward','no_rise_in_flight','torso_support','body_support','one_touch','unstable_recovery','nan_height'])
+def test_jump_capture_rejects_incomplete_or_false_physical_evidence(defect):
+    t=jump_trace();add_observed_flight(t,40,50)
+    if defect=='missing_body':del t['robot_ground_contact_count']
+    elif defect=='missing_com':del t['robot_com_height_m']
+    elif defect=='downward':t['vertical_velocity'][40:50]=-.2
+    elif defect=='no_rise_in_flight':t['height'][40:50]=.25
+    elif defect=='torso_support':
+        t['torso_ground_signed_distance_m']=np.ones_like(t['height'])*.04;t['torso_ground_signed_distance_m'][40:50]=-.01
+    elif defect=='body_support':t['robot_ground_contact_count'][40:50]=1
+    elif defect=='one_touch':t['foot_contact'][50:]=False;t['foot_contact'][51]=True
+    elif defect=='unstable_recovery':t['root_quaternion'][60:,0]=[np.cos(.5/2),np.sin(.5/2),0,0]
+    elif defect=='nan_height':t['height'][44]=np.nan
+    with pytest.raises(ValueError):b.select_jump(t)
+
+
+def test_capture_metadata_serializes_and_manual_window_cannot_bypass_gate(tmp_path,monkeypatch):
+    import json,sys
+    t=jump_trace();add_observed_flight(t,40,50)
+    selected=b.select_jump(t,limits=np.tile([-1.,1.],(12,1)))
+    json.dumps(selected,allow_nan=False)
+    assert type(selected['start']) is int and type(selected['end']) is int
+    assert b.select_jump(t,window=(selected['start'],selected['end'],0))['flight_start']==40
+    t['contact_audit_metadata_json']=np.asarray(json.dumps({'source_trace_sha256':'unit-test-source','motion_unchanged':True}))
+    source=tmp_path/'trace.npz';np.savez_compressed(source,**t)
+    monkeypatch.setattr(b,'robot_limits',lambda:np.tile([-1.,1.],(12,1)))
+    output=tmp_path/'capture';monkeypatch.setattr(sys,'argv',['bootstrap','jump',str(source),str(output),'--auto'])
+    b.main()
+    assert json.loads((output/'jump_report.json').read_text())['contact_audit_provenance']['source_trace_sha256']=='unit-test-source'
+    with np.load(output/'captured_jump_gait.npz') as capture:
+        np.testing.assert_array_equal(capture['jump'],t['joint_pos'][selected['start']:selected['end'],0])
+    t['vertical_velocity'][40:50]=-.2;np.savez_compressed(source,**t)
+    rejected=tmp_path/'bad';monkeypatch.setattr(sys,'argv',['bootstrap','jump',str(source),str(rejected),'--start',str(selected['start']),'--end',str(selected['end'])])
+    with pytest.raises(ValueError):b.main()
+    assert not rejected.exists()
+
+
+def test_capture_can_include_later_observed_recovery_without_time_stretch():
+    t=jump_trace();add_observed_flight(t,40,50)
+    t['foot_contact'][50:75]=False;t['foot_contact'][51]=True
+    selected=b.select_jump(t)
+    assert selected['end']==80
+    assert (selected['end']-selected['start']-1)*float(t['dt'])==pytest.approx(1.08)
+    assert selected['touchdown_s']==pytest.approx(.5)
+
+
+def test_positive_com_rise_uses_disclosed_numeric_tolerance_not_five_mm():
+    t=jump_trace();add_observed_flight(t,40,50)
+    t['height'][40:50,0]=.20+np.sin(np.linspace(0,np.pi,10))*.004
+    selected=b.select_jump(t)
+    assert .0001<selected['rise_after_liftoff_m']<.005
+    assert selected['gate']['version']=='all_body_com_recovery_v2'
+    t['height'][40:50,0]=.20+np.sin(np.linspace(0,np.pi,10))*.00005
+    with pytest.raises(ValueError):b.select_jump(t)

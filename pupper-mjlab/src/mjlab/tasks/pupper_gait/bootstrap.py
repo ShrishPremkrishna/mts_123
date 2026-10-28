@@ -165,38 +165,98 @@ def save_references(out, forward, backward, report, *, limits=None, frequency_mu
     return manifest
 
 
-def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None):
-    """Select a genuine flight with loading and landing, never a reset or a fall."""
+JUMP_CAPTURE_GATE = dict(version="all_body_com_recovery_v2",min_flight_s=.08,min_total_rise_m=.02,
+    min_takeoff_com_velocity_m_s=.05,min_positive_com_rise_m=.0001,
+    continuous_recovery_s=.10,max_recovery_tilt_rad=.35,max_recovery_com_speed_m_s=.30,
+    max_window_tilt_rad=1.,max_capture_duration_exclusive_s=1.44,
+    note="The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen.")
+
+
+def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, window=None):
+    """Select unmodified motion only with audited flight and sustained recovery.
+
+    Foot-only traces are insufficient: ``robot_ground_contact_count`` must cover
+    every robot/terrain collision pair. An offline geometric replay can add it
+    and mass-weighted COM height/velocity without changing the recorded motion.
+    """
+    required=("joint_pos","foot_contact","robot_ground_contact_count","height",
+              "vertical_velocity","root_quaternion","valid","episode","terminated",
+              "robot_com_height_m","robot_com_vertical_velocity_m_s")
+    missing=[key for key in required if key not in trace]
+    if missing:raise ValueError(f"Jump capture needs complete physical evidence {missing}; audit all-body contacts before capture")
     dt=float(trace["dt"])
-    if dt<=0: raise ValueError("Invalid trace timestep")
-    contacts=np.asarray(trace["foot_contact"],dtype=bool).sum(axis=-1)
+    if not np.isfinite(dt) or dt<=0:raise ValueError("Invalid trace timestep")
+    q=np.asarray(trace["joint_pos"]);shape=q.shape[:2]
+    if q.ndim!=3 or q.shape[2]!=12:raise ValueError("Invalid jump joint trace")
+    for key in ("robot_ground_contact_count","height","vertical_velocity","valid","episode","terminated"):
+        if np.asarray(trace[key]).shape!=shape:raise ValueError(f"Invalid jump evidence shape: {key}")
+    feet=np.asarray(trace.get("audited_foot_contact",trace["foot_contact"]),dtype=bool)
+    quat=np.asarray(trace["root_quaternion"])
+    if feet.shape!=(*shape,4) or quat.shape!=(*shape,4):raise ValueError("Invalid foot/quaternion trace shape")
+    contacts=feet.sum(axis=-1);whole=np.asarray(trace["robot_ground_contact_count"])
+    use_com="robot_com_height_m" in trace and "robot_com_vertical_velocity_m_s" in trace
+    height=np.asarray(trace["robot_com_height_m"] if use_com else trace["height"])
+    vertical=np.asarray(trace["robot_com_vertical_velocity_m_s"] if use_com else trace["vertical_velocity"])
+    if height.shape!=shape or vertical.shape!=shape:raise ValueError("Invalid COM trace shape")
+    tilt=np.arccos(np.clip(1-2*(quat[:,:,1]**2+quat[:,:,2]**2),-1,1))
+    before=int(np.ceil(pre_s/dt));after=int(np.ceil(post_s/dt));settle=max(2,int(np.ceil(.10/dt)))
+    if before<2 or after<settle:raise ValueError("Capture needs loading and at least0.10s recovery")
+    if window is not None:
+        wa,wb,we=map(int,window)
+        if not 0<=wa<wb<=shape[0] or not 0<=we<shape[1]:raise ValueError("Invalid requested capture window")
     candidates=[]
-    for env in range(contacts.shape[1]):
-        airborne=contacts[:,env]==0
+    for env in range(shape[1]):
+        if window is not None and env!=we:continue
+        airborne=whole[:,env]==0
         edges=np.diff(np.r_[False,airborne,False].astype(int))
         starts,ends=np.flatnonzero(edges==1),np.flatnonzero(edges==-1)
-        for flight_start,flight_end in zip(starts,ends):
+        for fs,fe in zip(starts,ends):
+            flight_start,flight_end=int(fs),int(fe)
             flight=(flight_end-flight_start)*dt
-            if flight<min_flight_s: continue
-            before=int(np.ceil(pre_s/dt)); after=int(np.ceil(post_s/dt))
-            a=flight_start-before; b=flight_end+after
-            # Match the current fixed touchdown scheduler: retain a slightly
-            # longer settle rather than speed-stretching a captured motion.
-            b=max(b,a+int(np.ceil(.80/dt))+1)
-            if a<0 or b>len(contacts) or (b-a-1)*dt>=1.44: continue
-            if not np.all(trace["valid"][a:b,env]) or not np.all(trace["episode"][a:b,env]==trace["episode"][a,env]): continue
-            if np.any(trace["terminated"][a:b,env]) or contacts[a:flight_start,env].max()<2 or contacts[flight_end:b,env].max()<2: continue
-            height=float(np.max(trace["height"][flight_start:flight_end,env]))
-            rise=height-float(np.median(trace["height"][a:flight_start,env]))
-            if rise<.02: continue
+            if flight<min_flight_s:continue
+            a=flight_start-before;b=max(flight_end+after,a+int(np.ceil(.80/dt))+1)
+            if window is not None:a,b=wa,wb
+            elif a>=0:
+                # Extend only through actual recorded samples to the first
+                # sustained settle, within the existing1.44s scheduler bound.
+                possible=range(b,min(shape[0],a+int(np.ceil(1.44/dt)))+1)
+                recovered=[end for end in possible if (end-a-1)*dt<1.44
+                    and np.all(contacts[end-settle:end,env]>=2) and np.all(whole[end-settle:end,env]>0)
+                    and np.all(tilt[end-settle:end,env]<.35) and np.all(np.abs(vertical[end-settle:end,env])<.30)]
+                if not recovered:continue
+                b=recovered[0]
+            if a<0 or b>shape[0] or flight_start-a<before or b-flight_end<after or (b-a-1)*dt>=1.44:continue
+            if not np.all(trace["valid"][a:b,env]) or not np.all(trace["episode"][a:b,env]==trace["episode"][a,env]) or np.any(trace["terminated"][a:b,env]):continue
+            arrays=(q[a:b,env],height[a:b,env],vertical[a:b,env],whole[a:b,env],quat[a:b,env])
+            if not all(np.isfinite(x).all() for x in arrays):continue
+            if np.any(whole[a:b,env]<0) or not np.equal(whole[a:b,env],np.floor(whole[a:b,env])).all():continue
+            if np.any(np.abs(np.linalg.norm(quat[a:b,env],axis=-1)-1)>1e-3) or np.any(tilt[a:b,env]>=1.):continue
+            # If any foot reports ground support, the all-body audit must agree.
+            if np.any((contacts[a:b,env]>0)&(whole[a:b,env]==0)):continue
+            torso=None
+            if "torso_ground_signed_distance_m" in trace:
+                torso=np.asarray(trace["torso_ground_signed_distance_m"])[a:b,env]
+                if not np.isfinite(torso).all() or np.any(torso<-.0001):continue
+            if not np.any((contacts[a:flight_start-1,env]>=2)&(contacts[a+1:flight_start,env]>=2)):continue
+            peak=float(np.max(height[flight_start:flight_end,env]))
+            rise=peak-float(np.median(height[a:flight_start,env]))
+            flight_rise=peak-float(height[flight_start,env]);takeoff=float(vertical[flight_start,env])
+            if rise<.02 or flight_rise<=.0001 or takeoff<.05:continue
+            # A single toe touch is not a recovered landing. Require continuous
+            # final support, upright attitude and settled vertical motion.
+            recovery=slice(b-settle,b)
+            if not (np.all(contacts[recovery,env]>=2) and np.all(whole[recovery,env]>0)
+                    and np.all(tilt[recovery,env]<.35) and np.all(np.abs(vertical[recovery,env])<.30)):continue
             if limits is not None:
-                try:
-                    validate_reference(trace["joint_pos"][a:b,env], limits=limits,
-                                       cycle_s=(b-a-1)*dt, periodic=False)
-                except ValueError:
-                    continue  # Choose another observed window; never clip the best one.
-            candidates.append(dict(env=env,start=a,end=b,flight_s=flight,touchdown_s=(flight_end-a)*dt,peak_height_m=height,rise_m=rise))
-    if not candidates: raise ValueError("No clean jump with loading, flight and landing found; do not fabricate a capture")
+                try:validate_reference(q[a:b,env],limits=limits,cycle_s=(b-a-1)*dt,periodic=False)
+                except ValueError:continue
+            candidates.append(dict(env=int(env),start=int(a),end=int(b),flight_start=flight_start,flight_end=flight_end,
+                flight_s=float(flight),touchdown_s=float((flight_end-a)*dt),peak_height_m=peak,rise_m=rise,
+                rise_after_liftoff_m=flight_rise,takeoff_vertical_velocity_m_s=takeoff,
+                height_signal="robot_com",all_body_contact_audited=True,gate=dict(JUMP_CAPTURE_GATE),
+                recovery_s=float(settle*dt),maximum_recovery_tilt_rad=float(np.max(tilt[recovery,env])),
+                minimum_torso_clearance_m=float(torso.min()) if torso is not None else None))
+    if not candidates:raise ValueError("No clean jump with loading, upward all-body flight and sustained landing found; do not fabricate a capture")
     return max(candidates,key=lambda c:c["rise_m"])
 
 
@@ -309,9 +369,10 @@ def main():
         print(json.dumps(result,indent=2))
     else:
         with np.load(args.trace,allow_pickle=False) as f: trace={k:f[k] for k in f.files}
-        selection=select_jump(trace,limits=robot_limits()) if args.auto else None
-        a,b,e=(selection["start"],selection["end"],selection["env"]) if selection else (args.start,args.end,args.env)
-        if a is None or b is None: raise ValueError("Provide --auto or both --start and --end")
+        if not args.auto and (args.start is None or args.end is None):raise ValueError("Provide --auto or both --start and --end")
+        requested=None if args.auto else (args.start,args.end,args.env)
+        selection=select_jump(trace,limits=robot_limits(),window=requested)
+        a,b,e=selection["start"],selection["end"],selection["env"]
         if a<0 or b<=a+7 or b>len(trace["joint_pos"]) or e<0 or e>=trace["joint_pos"].shape[1]: raise ValueError("Invalid jump range")
         if not np.all(trace["episode"][a:b,e]==trace["episode"][a,e]) or np.any(trace["terminated"][a:b,e]): raise ValueError("Jump capture crosses a reset/failure")
         table=trace["joint_pos"][a:b,e]
@@ -329,6 +390,8 @@ def main():
         if not .15<touchdown<=duration: raise ValueError("Invalid measured touchdown within capture")
         args.out.mkdir(parents=True,exist_ok=True)
         report.update(selection=selection,touchdown_s=touchdown,trace_sha256=file_hash(args.trace),start_step=a,end_step=b,env=e,status="simulation candidate; first hardware run requires TA review")
+        if "contact_audit_metadata_json" in trace:
+            report["contact_audit_provenance"]=json.loads(str(np.asarray(trace["contact_audit_metadata_json"]).item()))
         np.savez_compressed(args.out/"captured_jump_gait.npz",jump=table,duration_s=duration,touchdown_s=touchdown,joint_names=np.asarray(JOINT_ORDER),metadata_json=np.asarray(json.dumps(report)))
         (args.out/"jump_report.json").write_text(json.dumps(report,indent=2)+"\n")
 

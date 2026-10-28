@@ -44,9 +44,10 @@ def test_class_seed_refuses_unreviewed_source_identity_without_output(tmp_path):
 def test_coverage_protocol_cannot_silently_claim_short_or_warmup_only_slots():
     coverage = load('mystery_coverage_cli')
     event = SimpleNamespace(params={'grid_s': .75, 'p_no_jump': .15})
-    cfg = SimpleNamespace(events={'reset_jump_schedule': event})
+    cfg = SimpleNamespace(events={'reset_jump_schedule': event}, episode_length_s=10.)
     args = SimpleNamespace(command='evaluate', task='Mjlab-Mystery-Flat-Pupper-v3', seconds=10., warmup=2., reset_each_command=False)
     coverage.apply_coverage_schedule(args, cfg)
+    assert cfg.episode_length_s >= 30.
     assert args.reset_each_command and event.params['grid_s'] == .75
     assert event.params['p_no_jump'] == 0. and event.params['min_start_s'] > args.warmup
     for field, invalid in [('seconds', .2), ('warmup', 7), ('command', 'train'), ('task', 'Mjlab-MixedGaits-Flat-Pupper-v3')]:
@@ -80,3 +81,18 @@ def test_class_seed_loader_matches_actual_training_and_exported_reference_runtim
     t=(ticks.float()*.01).numpy();zeros=np.zeros(n)
     expected=mixed_jump_reference_offset_numpy(g,j,np.asarray(p['default_joint_pos']),t,zeros,zeros,zeros,zeros)
     np.testing.assert_allclose(actual,expected,rtol=0,atol=2e-6)
+
+
+def test_coverage_short_randomized_horizon_still_schedules_real_slots():
+    import torch
+    from mjlab.tasks.pupper_gait.mdp.mixed_jump import reset_jump_schedule, _JUMP_SCHEDULE_ATTR
+    coverage=load('mystery_coverage_cli')
+    cfg=SimpleNamespace(events={'reset_jump_schedule':SimpleNamespace(params={'grid_s':.75})},episode_length_s=20.)
+    args=SimpleNamespace(command='evaluate',task='Mjlab-Mystery-Flat-Pupper-v3',seconds=10.,warmup=2.,reset_each_command=False)
+    coverage.apply_coverage_schedule(args,cfg)
+    env=SimpleNamespace(num_envs=32,device='cpu',step_dt=.02,max_episode_length=cfg.episode_length_s/.02)
+    torch.manual_seed(101);reset_jump_schedule(env,None,**cfg.events['reset_jump_schedule'].params)
+    slots=getattr(env,_JUMP_SCHEDULE_ATTR)
+    assert torch.isfinite(slots).any(dim=1).all()
+    first=slots[:,0]
+    assert (first>2.).all() and (first+.8<10.).all()
