@@ -123,7 +123,8 @@
         "Prompt, bounded movement/turn/arc, follow interruption, serialized queue with truthful outcomes",
         "Interactive Sit/Stay/Shake and Spider clip training tools",
         "Corrected clip activation/handoff and separate Spider walking training",
-        "Existing reference jump enabled and contract-bound to shipped locomotion export"
+        "Existing reference jump enabled and contract-bound to shipped locomotion export",
+        "Matched 15rad/s actuator-target slew in training, exported contract and native deployment controller; actual controller-readiness verification"
       ],
       "evidence_paths": [
         "gemini_pupper/docs/foundation.md",
@@ -131,12 +132,17 @@
         "foundation/results/lab6-sit-driver-corrected-review.json",
         "foundation/results/lab6-sit-comx02-reviewed.json",
         "foundation/results/lab6-spider-precision-recovery-review.json",
-        "foundation/results/course-tricks-native-screen.json"
+        "foundation/results/course-tricks-native-screen.json",
+        "foundation/results/lab6-spider-slew-review.json",
+        "foundation/results/position-target-slew-contract-review.json",
+        "foundation/results/shipped-jump-native-reviewed.json",
+        "foundation/results/spider-default-return-reviewed.json"
       ],
       "remaining_boundaries": [
-        "Reviewed Sit improvement passes original8cases onCPU/GPU; +2.5cmCOM is outside trainingrange and backend-sensitive.",
-        "Spider walking has large learned target jumps; new matched slew contract requires training/evaluation before walking-pair promotion.",
-        "Twelve finite supplied tricks pass nominal native screen; no randomized/full walking-handoff or hardware claim.",
+        "Reviewed Sit improvement passes original eight cases on CPU/GPU; +2.5cm COM remains outside training range and backend-sensitive.",
+        "Five Spider slew/control studies and five complete returns to the actual default controller finished. No walking pair promoted: nearzero commands undertrack and sustained torso support violates the handout requirement to stay off its belly (lines1466\u20131472). A calibrated force-based paired experiment is active.",
+        "Twelve finite supplied tricks pass nominal activation/playback/hold screen; complete return to normal walking and randomized or physical performance remain separate checks.",
+        "Actual shipped jump: four forward0.3m/s native trials recover, but three of four standing trials hit the inherited tilt stop. This conditional evidence does not establish a robust standing jump or repeated/running-hop behavior.",
         "Live Gemini, installed Pi compatibility and physical validation remain pending."
       ]
     },
@@ -173,17 +179,24 @@
       "implemented_or_available": [
         "Stock/authored/fast reference comparisons, rollout capture and one trained legacy bootstrap round",
         "Mixed-reference training and paired randomized evaluation infrastructure",
-        "Corrected driver/COM/torso flat continuation, Bumpy and Mystery workers implemented and smoke-tested"
+        "Corrected driver/COM/torso flat continuation, heldout comparisons, Bumpy continuation and corrected absolute-class-reference Mystery training with four evaluation seeds",
+        "Full-body contact and center-of-mass flight audit, sustained landing recovery, numeric capture serialization, explicit class-seed versus observed-capture provenance"
       ],
       "evidence_paths": [
         "pupper-mjlab/configs/optional2/README.md",
         "foundation/results/optional2-clamped-batch-review.json",
-        "foundation/scripts/colab_optional_corrected.py"
+        "foundation/scripts/colab_optional_corrected.py",
+        "foundation/results/optional2-corrected-heldout-review.json",
+        "foundation/results/optional2-checked-bumpy-review.json",
+        "foundation/results/optional2-class-seed-correction.json",
+        "foundation/results/optional2-capture-independent-review.json"
       ],
       "remaining_boundaries": [
-        "Corrected flat and heldout runs recovered/completed; faster candidates retain tradeoffs and have no demonstrated overall promotion advantage.",
-        "Bumpy original5cm terrain discretization caused contact truncation with torso hull; explicit10cm discretization and overflow-guard experiment pending.",
-        "Mystery500-iteration pilot and corrected slot-coverage probe yielded no admissible flight/landing; genuine jump capability remains unfinished, with a labeled class-reference seed experiment planned.",
+        "Corrected flat/heldout candidates retain tracking/effort/slip tradeoffs; no overall promotion.",
+        "Original Bumpy5cm terrain discretization caused contact truncation and is invalid evidence. Explicit10cm discretization completed420,000steps without overflow; failures improved101to81 overall but one seed worsened36to37, so no promotion.",
+        "First class-seed helper incorrectly added the default pose to an already absolute exported table. Originals and affected descendants are preserved as altered-reference experiments. Corrected seed has independent training/native runtime parity; passing tests alone did not expose the original mistake.",
+        "Independent all-body replay found56 physically admissible research windows in the altered-reference trace but none entirely within the tighter driver target range; the original selected capture is rejected. They are not deployment-approved jumps.",
+        "Corrected absolute-class1000-iteration Mystery run has10/10/9/13failures across evaluation seeds101/202/303/404. Strict corrected seed101 audit found80 observed research windows; one unchanged capture is in a final bounded1000-iteration continuation with fourseed evaluation. No new Mystery policy promoted.",
         "Legacy fast comparison is not an isolated reward ablation: reference and prior optimization histories differ.",
         "No measured hardware speed or new-policy jump approval."
       ]
@@ -215,5 +228,6 @@
     }
   ],
   "acceptance_rule": "A trained experiment can be completed and rejected. Only reviewed evidence, exact model/reference identities, and supervised hardware measurements support promoted capabilities.",
-  "newly_identified_implementation_gap": "Closed in f13fa65: Lab2 recording-to-Lab3 adapter with real-bag review; source-linked boundaries above remain explicit."
+  "newly_identified_implementation_gap": "Closed in f13fa65: Lab2 recording-to-Lab3 adapter with real-bag review; source-linked boundaries above remain explicit.",
+  "updated_utc": "2026-10-28T09:49:15.025821+00:00"
 }

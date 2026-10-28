@@ -31,18 +31,17 @@
     "drive_mount": "Not enabled; it requested additional broader Google access. Used existing approved downloads instead."
   },
   "continuing_work": [
-    "Spider precision paired evaluation and handoff decision",
-    "Corrected flat/multigait selection, held-out Bumpy and Mystery experiments",
-    "Separate Sit x-COM-range experiment after negative reference sweep",
-    "Lab2 recording-to-Lab3 replay gap with real saved recording",
-    "Final regression, current evidence documentation and durable worktree migration"
+    "Spider must meet course Lab6 requirement \u201cnever on its belly\u201d (actualhandoutlines1466\u20131472), not just avoidfalls. Native sustainedtorso load and calibratedGPUforce showremainingclassgap; completepairedtorsoexperiment, reviewtracking/contact/stops/nativehandoff, then makeboundedcandidate decision.",
+    "Finish finalstrictcapturev5training/evaluation; retain exactclass/alteredreference/observedcapture provenance and rejectedresults. No globaloptimality or hardwarepromotion inferred.",
+    "Finish suppliedfinite/generated/Sit fullcontroller-return checks and appropriate current-source regression after agents settle.",
+    "Consolidate exactinstalledcapabilities versus stagedexperimentbundles, preserveallarchives and preparemorning handoff."
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T09:11:39.465196+00:00",
+    "recorded_utc": "2026-10-28T09:49:15.025821+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
-    "head": "5787691f7d32ab31eb160868dac8fff0993b7eaa",
+    "head": "b079adb088230998b78f7ce64d372402f04c7602",
     "main_clean": true,
     "last_full_regression": {
       "source": "9c6ebbc",
@@ -63,23 +62,33 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Overnight orchestration, independent review, promotion/integration, current-source regression and canonical capability/recovery documentation.",
-      "lab6_recovery": "All five Spider slew/control/counterfactual studies finished_requires_inspection.320files collected; full archives via bounded verified chunk downloader176ebf8, pooled review and remaining native screens pending. Prefiltered5498 native walking targetbound holds and maxwalkingjointspeed11.51rad/s, noreset; noautomaticpromotion.",
-      "optional_recovery": "Corrected absolute-class seed5a2605b; distinct GPU2 run50452 at /content/pupper-optional-recovery-v2/mystery-class-absolute-v4 from original5497. Bumpy1500iteration study completed5787691 with420kphysicssteps zerooverflow but no promotion. Preserves altered-reference runs and captured-v3provisional descendant; sharedchunkdownloadrecoveryworks.",
-      "sit_recovery": "Native actualshippedjump review9c6ebbc complete. Now owns stricter bootstrap.select_jump acceptance+NumPyserialization fixes and independent observedcapture audit, coordinated with optionalagent; seedhelper remains optionalagent ownership."
+      "root": "Five continuous Spider\u2192actual default-controller return chains complete, independently reviewed and337MBdurably preserved; all prior prefixes exactly equal, all final stops pass. Canonical coverage/provenance reconciliation and orchestration. Full current-source regression remains due after concurrent source changes settle.",
+      "lab6_recovery": "Owns torso_support.py, pupper_locomotion/foundation wiring and paired torso runner. Exactsourcecd30f48 onGPU1, /content/pupper-spider-torso; nominal-vs-DR32world probe then matched1000iteration weight0 vs\u22122 continuation from baseline6497 if diagnostic supports it. Native actual-force calibration passed; sensor leaves400steptrajectory bit-identical. Read current state/exit records before dispatch. GPU32world nominal/DR probes completed zeroresets/timeouts and confirm66.2%/74.3%bodyweight idle torso support; matched training being dispatched.",
+      "optional_recovery": "Final bounded strict observed-capture Mysteryv5 supervisor60706/child60821 training under /content/pupper-optional-recovery-v2/mystery-strict-captured-v5 from frozen16aeb67. Exact-classv4 full4seedreview finished10/10/9/13failures, notpromoted. v5 one1000iteration continuation, then four fixedseed evaluations and strict flight/recovery audit; no further selection/training after heldout results.",
+      "sit_recovery": "Strict altered-reference and corrected-v4 capture audits complete ccf0e07/8d554f6/15c7fe2. Downloader independently reviewed/fixed4b5c802. Owns handoffhost/script/tests now to extend five eligible standing-ending suppliedtricks plus separategeneratedtrick throughactualdefault, then meaningfulinteractiveSit chain. Also independently audits finalv5evidence."
     },
-    "gpu_state_at_checkpoint": "GPU1 all five studies completed; inspection/native/archives underway. GPU2 exact corrected absolute-class rerun active; earlier altered-reference captured-v3 continuation separately provisional. Inspect actualsupervisors/exitrecords before retrying.",
-    "backup_status": "Collectors70076(Optional2) and70138(Spider slew) running at permanentroot. Shared downloader176ebf8 uses bounded verified chunks after officialCLI fullbase64 downloads stalled. Real125filebackuprestoration verified; both final6497Spider actor+critic checkpoints finite with correct15rad/s metadata.",
+    "gpu_state_at_checkpoint": "GPU1 actual new torso nominal/DR probe fromcd30f48; GPU2 v5training60821 running. Earlier allfiveSpiderstudies and Bumpy/exactclassv4 complete; no duplicate oldtraining. Do not infer status from summary alone; inspect state.json/exitrecords and collectors.",
+    "backup_status": "Optional2collector70076 healthy775files/noerrors09:35, watches /content/pupper-optional-recovery-v2 until~12:23UTC. Newtorso collector83086 watches /content/pupper-spider-torso until~16:43UTC. OldSpidercollector70138 retired after328fileindex and9.17GBfullstudies preserved. Newdefaultreturn84files337,343,660bytes verified. Strict correctedcapture622files11.82MB preserved; fullOptional8archives3.55GB verified.",
     "remaining_completion_gates": [
-      "Finish/review all Spider matched comparisons and native handoffs; promote only with evaluated limits and exact paired artifacts.",
-      "Fix and independently review Mystery absolute-reference semantics, physical flight/full-body/landing acceptance, coveragehorizon and serialization; evaluate correctedrun and retain all altered-run corrections.",
-      "Consolidate Bumpy/flat negative results and actual shippedjump limits; do not replace shippedlocomotion without evidence.",
-      "Current-source final regression, artifact preservation and concise morning capability/remaining-work report.",
-      "Live Gemini/ROS/browser/hardware tests remain pending; no motor actions without user present and applicable approval."
+      "Spider must meet course Lab6 requirement \u201cnever on its belly\u201d (actualhandoutlines1466\u20131472), not just avoidfalls. Native sustainedtorso load and calibratedGPUforce showremainingclassgap; completepairedtorsoexperiment, reviewtracking/contact/stops/nativehandoff, then makeboundedcandidate decision.",
+      "Finish finalstrictcapturev5training/evaluation; retain exactclass/alteredreference/observedcapture provenance and rejectedresults. No globaloptimality or hardwarepromotion inferred.",
+      "Finish suppliedfinite/generated/Sit fullcontroller-return checks and appropriate current-source regression after agents settle.",
+      "Consolidate exactinstalledcapabilities versus stagedexperimentbundles, preserveallarchives and preparemorning handoff.",
+      "LiveGemini/key, robotread-onlyinventory and supervisedphysical tests remainpending; no motors duringovernight."
     ],
     "robot": "Continue without Pupper per user; no motor activation.",
-    "session_management": "Same3subagents reused; exactsource/output/checkpoint records persistent. No new chat/handoff needed. Source changes after this record must be tested as appropriate before final release.",
-    "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review."
+    "session_management": "Same3agents active with exactownership; checkpoint/exitrecords/artifactindexes are authoritative. Fresh agents may use canonicalentrypoints; no manualuserhandoff needed. Nativecoding/Colab/backup paths work; no newaccess assistance needed.",
+    "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review.",
+    "latest_reviewed_results": [
+      "foundation/results/lab6-spider-slew-review.json (allfivearms complete, noinstallation)",
+      "foundation/results/spider-default-return-reviewed.json (allfivecontinuouschains complete, zeroreset/stops, exactprefixparity, finalsettling)",
+      "foundation/results/optional2-checked-bumpy-review.json (zerooverflow420ksteps, failuretradeoff, nopromotion)",
+      "foundation/results/optional2-class-seed-correction.json (originalalteredruns preserved; absolute-table runtimeparity fix)",
+      "foundation/results/optional2-capture-independent-review.json (fullbody/COM/recovery gate, originalv3capture rejected)",
+      "foundation/results/optional2-corrected-capture-review.json (corrected-v4 seed101 audit15c7fe2)",
+      "foundation/results/shipped-jump-native-reviewed.json (conditional forward success, threeof fourstanding trialsstop)",
+      "foundation/results/lab6-spider-torso-diagnosis.json (actual-force calibration and class-behavior gap)"
+    ]
   },
   "checkpoint_history": [
     {
@@ -204,6 +213,11 @@
       "robot": "Continue without Pupper per user; no motor activation.",
       "session_management": "Same3subagents reused; exactsource/output/checkpoint records persistent. No new chat/handoff needed. Source changes after this record must be tested as appropriate before final release.",
       "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review."
+    },
+    {
+      "recorded_utc": "2026-10-28T09:11:39.465196+00:00",
+      "head": "5787691f7d32ab31eb160868dac8fff0993b7eaa",
+      "checkpoint_summary": "Overnight continuation authorized; source593100e saved prior state. Subsequent exact studies and independent corrections are linked in latest_checkpoint and their immutable reports."
     }
   ],
   "recovery_entry_points": [

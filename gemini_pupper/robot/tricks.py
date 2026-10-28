@@ -385,10 +385,10 @@ def reference_message_data(trick: Trick) -> list[float]:
         raise ValueError(f"{trick.path}: a reference needs at least two frames")
     for row in ref["table"]:
         if len(row) != 12:
-            raise ValueError(f"{trick.path}: every table row needs 12 joint offsets")
+            raise ValueError(f"{trick.path}: every table row needs 12 absolute joint angles")
         values = [float(v) for v in row]
         if any(not math.isfinite(v) for v in values):
-            raise ValueError(f"{trick.path}: joint offsets must be finite")
+            raise ValueError(f"{trick.path}: absolute joint angles must be finite")
         data.extend(values)
     return data
 
