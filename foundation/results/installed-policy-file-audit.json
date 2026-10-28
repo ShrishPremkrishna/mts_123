@@ -1,97 +1,105 @@
 {
-  "checked_utc": "2026-10-27T23:39:28.357501+00:00",
-  "scope": "Native policy file structure and motion data only; no simulated execution or hardware capability claim.",
+  "checked_utc": "2026-10-28T00:46:45.627285+00:00",
+  "scope": "Native policy files, descriptors and reference contracts only; no simulated execution or hardware capability claim.",
+  "validator_sha256": "3ab508107d6ee8e9df292928d45ef780891bcff4000dff9029fd9eded31b37b1",
   "policies": [
     {
       "path": "gemini_pupper/tricks/lie_downward_dog/policy.json",
-      "sha256": "57a3277c1a99cdbce17f1c35c2d9a4929bdbd9b600bd8a904760c9b974b2adf6",
       "native_contract_valid": true,
-      "trick": "lie_downward_dog"
+      "sha256": "57a3277c1a99cdbce17f1c35c2d9a4929bdbd9b600bd8a904760c9b974b2adf6"
     },
     {
       "path": "gemini_pupper/tricks/lie_sit_lie/policy.json",
-      "sha256": "b3a7c3639d8239019881c91e02913775d490e9a2ff4b068b12ba961f7918f8c6",
       "native_contract_valid": true,
-      "trick": "lie_sit_lie"
+      "sha256": "b3a7c3639d8239019881c91e02913775d490e9a2ff4b068b12ba961f7918f8c6"
     },
     {
       "path": "gemini_pupper/tricks/pee/policy.json",
-      "sha256": "f6b74dc086a7b20adf2eeb1cf25a336c44717a3aaea7e75bdd30e0eae5768e35",
       "native_contract_valid": true,
-      "trick": "pee"
+      "sha256": "f6b74dc086a7b20adf2eeb1cf25a336c44717a3aaea7e75bdd30e0eae5768e35"
     },
     {
       "path": "gemini_pupper/tricks/push_up/policy.json",
-      "sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
       "native_contract_valid": true,
-      "trick": "push_up"
+      "sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a"
     },
     {
       "path": "gemini_pupper/tricks/sit/policy.json",
-      "sha256": "8260a7b0e7900973a6972db5265561bb51df90030216c333b8c6fe020049afa7",
       "native_contract_valid": true,
-      "trick": "sit"
+      "sha256": "8260a7b0e7900973a6972db5265561bb51df90030216c333b8c6fe020049afa7"
     },
     {
       "path": "gemini_pupper/tricks/sit_stay_shake/policy.json",
-      "sha256": "b153ab7783462aca64b43276794fcf552ca13bd82526e6ea5785761190745954",
       "native_contract_valid": true,
-      "trick": "sit_stay_shake"
+      "sha256": "9d545daa3394eaa7fd74899786d7138c373ef1e4bf14aeb753f9f979b375ddf5"
     },
     {
       "path": "gemini_pupper/tricks/sneeze/policy.json",
-      "sha256": "baa87bd1137a35fc771783c82ee6e619a284f8f59021361a36d9b7a57ce4000e",
       "native_contract_valid": true,
-      "trick": "sneeze_dramatic"
+      "sha256": "baa87bd1137a35fc771783c82ee6e619a284f8f59021361a36d9b7a57ce4000e"
     },
     {
       "path": "gemini_pupper/tricks/spider/policy.json",
-      "sha256": "d52b1321fb140fd8918e155e6dfd43751a94bc09438f2f4b5e7895098ffece3e",
       "native_contract_valid": true,
-      "trick": "spider"
+      "sha256": "d52b1321fb140fd8918e155e6dfd43751a94bc09438f2f4b5e7895098ffece3e"
     },
     {
       "path": "gemini_pupper/tricks/stand_downward_dog/policy.json",
-      "sha256": "4bd415c9d7a09cad99246a76b42f05236291e6088837a86d6a07b12c70cba4a0",
       "native_contract_valid": true,
-      "trick": "stand_downward_dog"
+      "sha256": "4bd415c9d7a09cad99246a76b42f05236291e6088837a86d6a07b12c70cba4a0"
     },
     {
       "path": "gemini_pupper/tricks/stand_sit_shake_sit_stand/policy.json",
-      "sha256": "9c0caab08ce2453c92b7528e3b08f4ae7fe0f20757de56378246441fbf4b27da",
       "native_contract_valid": true,
-      "trick": "stand_sit_shake_sit_stand"
+      "sha256": "9c0caab08ce2453c92b7528e3b08f4ae7fe0f20757de56378246441fbf4b27da"
     },
     {
       "path": "gemini_pupper/tricks/stand_sit_stand/policy.json",
-      "sha256": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc",
       "native_contract_valid": true,
-      "trick": "stand_sit_stand"
+      "sha256": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc"
     },
     {
       "path": "gemini_pupper/tricks/superman/policy.json",
-      "sha256": "56856ba6a02070936d0f12dfda57bd4a8e7c6f757d2ca0ab2bd58b956febb3a1",
       "native_contract_valid": true,
-      "trick": "superman"
+      "sha256": "56856ba6a02070936d0f12dfda57bd4a8e7c6f757d2ca0ab2bd58b956febb3a1"
     },
     {
       "path": "gemini_pupper/tricks/swim/policy.json",
-      "sha256": "110de063dd48b0ad0f837c0108fb95fde822401cd3fe556b7dce10b53ed1e5f7",
       "native_contract_valid": true,
-      "trick": "swim"
+      "sha256": "110de063dd48b0ad0f837c0108fb95fde822401cd3fe556b7dce10b53ed1e5f7"
     },
     {
       "path": "gemini_pupper/tricks/twerk/policy.json",
-      "sha256": "2294489e310aa05bd1a4e8915ba5cba7c8b4077cbf7937b7e726d760242f2aa2",
       "native_contract_valid": true,
-      "trick": "twerk"
+      "sha256": "2294489e310aa05bd1a4e8915ba5cba7c8b4077cbf7937b7e726d760242f2aa2"
     },
     {
       "path": "gemini_pupper/tricks/upward_dog/policy.json",
-      "sha256": "9fb22f80d472790a0d9e1b7be986e5642b56ba076666aee997a2ef0c1ee212e8",
       "native_contract_valid": true,
-      "trick": "upward_dog"
+      "sha256": "9fb22f80d472790a0d9e1b7be986e5642b56ba076666aee997a2ef0c1ee212e8"
+    },
+    {
+      "path": "pupper_gait_deploy/policies/default_policy.json",
+      "native_contract_valid": true,
+      "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
     }
+  ],
+  "errors": [],
+  "active_descriptors": [
+    "jump",
+    "lie_downward_dog",
+    "lie_sit_lie",
+    "pee",
+    "push_up",
+    "sit_stay_shake",
+    "sneeze",
+    "spider",
+    "stand_downward_dog",
+    "stand_sit_stand",
+    "superman",
+    "swim",
+    "twerk",
+    "upward_dog"
   ],
   "passed": true
 }

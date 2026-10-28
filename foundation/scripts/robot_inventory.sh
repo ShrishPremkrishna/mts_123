@@ -24,6 +24,8 @@ parser.add_argument('--ros', action='store_true', help='sample existing ROS topi
 parser.add_argument('--sample-seconds', type=float, default=3.0)
 parser.add_argument('--contact-export', type=Path, help='Optional Lab 1 exported model directory to hash; model is never executed')
 args = parser.parse_args()
+sys.path.insert(0, str(args.repo / 'foundation/scripts'))
+from inspect_robot_description import inspect_description
 if not 0 < args.sample_seconds <= 15:
     parser.error('--sample-seconds must be more than zero and at most 15')
 
@@ -93,6 +95,7 @@ report['components']['web_build'] = {'exists': (gemini / 'web/dist/index.html').
 report['components']['hailo_model'] = {'paths': [str(p) for p in (follower / 'robot/yolov8n_seg.hef', follower / 'yolov8n_seg.hef') if p.is_file()]}
 report['components']['new_lab6_trained_policies'] = {
     name: (gemini / 'tricks' / name / 'policy.json').is_file() for name in ('sit_stay_shake', 'spider_walk')}
+report['driver_descriptions'] = {}
 
 # Hash allowlisted policy/configuration areas. Never read credentials, .env, logs,
 # shell history, remote URLs, API responses or arbitrary configuration directories.
@@ -102,8 +105,24 @@ areas = [(gemini / 'tricks', {'.json', '.yaml', '.npz'}),
          (monorepo / 'ros2_ws/src/neural_controller/launch', {'.json', '.yaml'}),
          (monorepo / 'ros2_ws/install/neural_controller/share/neural_controller/launch', {'.json', '.yaml'}),
          (deploy / 'policies', {'.json', '.yaml'})]
+areas += [(monorepo / 'ros2_ws/src/pupper_v3_description/description', {'.xacro', '.urdf'}),
+          (monorepo / 'ros2_ws/install/pupper_v3_description/share/pupper_v3_description/description', {'.xacro', '.urdf'}),
+          (monorepo / 'ros2_ws/install/control_board_hardware_interface/lib', {'.so'})]
 files = {p for directory, suffixes in areas if directory.is_dir()
          for p in directory.rglob('*') if p.is_file() and p.suffix in suffixes}
+for relative in ('src/control_board_hardware_interface.cpp', 'src/rt/rt_spi.cpp'):
+    p = monorepo / 'ros2_ws/src/control_board_hardware_interface' / relative
+    if p.is_file(): files.add(p)
+for p in sorted(files):
+    if p.suffix in ('.xacro', '.urdf'):
+        try:
+            source = p.read_text()
+        except (OSError, UnicodeError):
+            source = None
+        if source:
+            parsed = inspect_description(source)
+            if parsed['driver_joints'] or parsed['errors']:
+                report['driver_descriptions'][str(p)] = parsed
 for p in (gemini / 'robot/camera_params.yaml', follower / 'robot/camera_params.yaml',
           args.repo / 'ik_heuristic_walking_lab/ik.yaml', args.repo / 'ik_heuristic_walking_lab/walking.yaml',
           args.repo / 'pd_control_lab/pd_control.yaml'):
@@ -137,6 +156,7 @@ if args.ros:
         from sensor_msgs.msg import JointState, Imu, CompressedImage
         from geometry_msgs.msg import Twist
         from controller_manager_msgs.srv import ListControllers, ListHardwareInterfaces
+        from rcl_interfaces.srv import GetParameters
         from rosidl_runtime_py.convert import message_to_ordereddict
         context = Context()
         rclpy.init(args=[], context=context)
@@ -145,6 +165,20 @@ if args.ros:
         ros['nodes'] = node.get_node_names_and_namespaces()
         ros['topics'] = node.get_topic_names_and_types()
         ros['services'] = node.get_service_names_and_types()
+        ros['robot_descriptions'] = {}
+        # Only this named parameter is read. Do not enumerate arbitrary parameters.
+        for owner in ('/controller_manager', '/robot_state_publisher'):
+            client = node.create_client(GetParameters, owner + '/get_parameters')
+            if not client.wait_for_service(timeout_sec=0.5):
+                ros['robot_descriptions'][owner] = {'error': 'parameter service unavailable'}
+                continue
+            future = client.call_async(GetParameters.Request(names=['robot_description']))
+            rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
+            response = future.result() if future.done() else None
+            if response and len(response.values) == 1 and response.values[0].type == 4:
+                ros['robot_descriptions'][owner] = inspect_description(response.values[0].string_value)
+            else:
+                ros['robot_descriptions'][owner] = {'error': 'robot_description unavailable as string'}
         for suffix, service_type in [('list_controllers', ListControllers), ('list_hardware_interfaces', ListHardwareInterfaces)]:
             client = node.create_client(service_type, '/controller_manager/' + suffix)
             if client.wait_for_service(timeout_sec=1.0):

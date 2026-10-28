@@ -53,6 +53,15 @@ stamps and encoded sizes, not photographs. It reads no credentials, environment
 dump, shell history, API keys, or remote repository URLs. It never launches ROS,
 publishes commands, switches controllers, sets parameters, or downloads anything.
 
+The inventory also hashes the source/installed robot descriptions and installed
+hardware-driver library, and extracts the declared motor target bounds and homing
+settings. In ROS mode it reads only the `robot_description` parameter from the
+controller manager and robot-state publisher, when available. Compare those named
+driver bounds against `configs/class-driver-joint-limits.json`; a model's mechanical
+joint range is a different quantity. Unexpanded xacro values, missing parameters,
+and source/installed differences remain visible. A description or library hash
+alone cannot prove which values a running process actually loaded.
+
 Check the report against the running setup. Missing ROS packages or unavailable
 services are evidence gaps, not successful checks. Battery state and physical
 condition still need direct observation. Compare joint names/order, positions,

@@ -104,6 +104,15 @@ not measured speed, accuracy, payload capacity, endurance or safety margins.
 Likewise, a faster simulated gait is not automatically the better final-project
 baseline if it slips more, uses more torque, or fails at transitions.
 
+The [native exported-policy screen](results/shipped-policy-native-screen.json)
+supports keeping the shipped course gait as the integrated default. It completed
+the four nominal full-range trials; the new Mixed baseline and fast candidate
+triggered tilt stops in three and two trials respectively. The fast candidate
+tracked forward speed better but lost stability in reverse. These are bounded
+simulation results using the policies' actual references, clocks and limits;
+they do not establish a hardware speed rating. The shipped gait also retains the
+reference-jump contract that the new flat-walking exports lack.
+
 For a final project, freeze a reliable evaluated checkpoint first. Then choose
 one concrete missing behavior and a repeatable success measure, such as following
 the same person through an occlusion, adapting a gait to a measured surface
