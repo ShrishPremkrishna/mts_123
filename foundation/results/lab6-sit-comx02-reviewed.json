@@ -1,0 +1,1118 @@
+{
+  "state": "installed_as_local_simulation_foundation_asset",
+  "created_utc": "2026-10-28T07:45:05.542117+00:00",
+  "decision": "Replace retained3998 local Sit export with the reviewed COM-X continuation, preserving the previous asset and all experiment evidence. No robot deployment or hardware/TA approval.",
+  "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+  "checkpoint_sha256": "def7e1e02d8e989c261ad836db848e4e4996eab929d70de6edc4a1eebe404356",
+  "motion_sha256": "5e7129e92ee10c3305e13ef33d973d5682664c813d7c2df5397bc9b85926d137",
+  "training": {
+    "run_name": "foundation_sit_stay_shake_deployclamp_driverclamp_composedcom_groundhulls_comx0p02_s42_20261028T071309Z_15f161e2",
+    "checkpoint": "model_4997.pt",
+    "initial_checkpoint_sha256": "ee256ec97d1a4b63122c9658c13f1d91b19ef047f0b3033460f7197c08846e14",
+    "iterations": 1000,
+    "num_envs": 4096,
+    "seed": 42,
+    "source_revision": "467691c885795f710c1f2c1a745c5018220f5edf",
+    "source_sha256": "74cf0f9cf2d9f1efa09d5279b8efa4025f45f37fe9c97cb8923e7619c814106c",
+    "packages": {
+      "torch": "2.9.0+cu128",
+      "mujoco": "3.10.0",
+      "mujoco-warp": "3.10.0.2",
+      "warp-lang": "1.14.0",
+      "rsl-rl-lib": "5.4.0",
+      "numpy": "2.3.4"
+    },
+    "domain_randomization_overrides": {
+      "base_com.ranges": {
+        "previous": {
+          "0": [
+            -0.01,
+            0.01
+          ],
+          "1": [
+            -0.01,
+            0.01
+          ],
+          "2": [
+            -0.01,
+            0.01
+          ]
+        },
+        "value": {
+          "0": [
+            -0.02,
+            0.02
+          ],
+          "1": [
+            -0.01,
+            0.01
+          ],
+          "2": [
+            -0.01,
+            0.01
+          ]
+        },
+        "units": "m",
+        "frame": "base_link body frame",
+        "distribution": "uniform",
+        "effective_at": "startup; sampled once per world, retained across resets",
+        "changed_axes": [
+          "x"
+        ],
+        "rng_draw_order_preserved": true,
+        "reason": "Separate robustness experiment; the +2 cm course test is outside the original +/-1 cm training distribution"
+      }
+    },
+    "reward_parameter_overrides": {},
+    "config_audit": {
+      "saved_env_match_except": [
+        "events.base_com.params.ranges.0",
+        "commands.motion.motion_file"
+      ],
+      "prior_manifest_sha256": "f50fa05663316ffb28a9142ae0a7df7a71f9b2fc3fa0679c1c7eba51b20e8aa2",
+      "prior_env_sha256": "09e2458bfe43da71b64c84736e2a9a235bcbef351e745f5e4a3fc9623788bc62",
+      "candidate_manifest_sha256": "22b9daf19d36ac6a4bb86cfd4504ccb3286624706410a3c2e0a846cd96439931",
+      "candidate_env_sha256": "cecb6f3b6716d2bd81b4c8d430cfca823ac32eab8251e46508ef817de7c5ba94"
+    }
+  },
+  "controlled_comparison": "Same retained3998 warm start,1000 iterations,4096 environments,seed42,original reference/rewards,controller plus class driver clamps,composed COM andfullgroundhulls as prior driver4997. Only torso body-frame X COM training distribution changes from +/-1 cm to +/-2 cm; Y/Z remain +/-1 cm. Exact saved environment configs match apart from X range and copied motion path.",
+  "training_distribution_scope": "The original +2 cm course robustness case was outside the original +/-1 cm distribution. It is now the boundary of the explicit widened X distribution. Fixed +/-1.5 cm tests were not training trajectories but lie inside widened X support; +/-2.5 cm remains outside.",
+  "summary": {
+    "original_eight_all_hold_up_cpu": true,
+    "original_eight_all_hold_up_gpu": true,
+    "gpu_pass_counts": {
+      "candidate_comx02": 12,
+      "prior_driver4997": 10,
+      "retained3998": 9
+    },
+    "gpu_total_per_policy": 12,
+    "cpu_candidate_pass_count": 11,
+    "cpu_candidate_total": 12,
+    "all48_reviewed_physics_cases_without_reference_resets": true
+  },
+  "paired_gpu": {
+    "candidate_comx02": {
+      "com_back_015-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_back_015-s101.json",
+        "sha256": "28e8cedf7fce8df8175f3525347400db99afe616462543fb22489058959d31ac",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.013930708169937134,
+        "worst_orientation_error_deg": 4.1976353586663775,
+        "rms_joint_error_rad": 0.03230328472145934,
+        "peak_motor_torque_nm": 1.7389576435089111,
+        "peak_joint_speed_rad_s": 7.404360294342041,
+        "fraction_steps_requesting_target_outside_limits": 0.3274725274725275,
+        "max_requested_target_violation_rad": 0.24570828676223755
+      },
+      "com_back_025-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_back_025-s101.json",
+        "sha256": "8b812a95dc42292d6a01c976bdf6a506c425faa9a73c0a99eb14a153a529e83d",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.013365290127694607,
+        "worst_orientation_error_deg": 4.280737919906252,
+        "rms_joint_error_rad": 0.03311291633027282,
+        "peak_motor_torque_nm": 1.7352324724197388,
+        "peak_joint_speed_rad_s": 7.47662878036499,
+        "fraction_steps_requesting_target_outside_limits": 0.31758241758241756,
+        "max_requested_target_violation_rad": 0.244066059589386
+      },
+      "com_front-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_front-s101.json",
+        "sha256": "676ce4b7b5b1e025e13563ebc1962a85fee54a4a2b064e94b0019280aa0a53b5",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01376318745315075,
+        "worst_orientation_error_deg": 3.4633412162393835,
+        "rms_joint_error_rad": 0.03505387837118942,
+        "peak_motor_torque_nm": 1.6664421558380127,
+        "peak_joint_speed_rad_s": 7.276320934295654,
+        "fraction_steps_requesting_target_outside_limits": 0.2835164835164835,
+        "max_requested_target_violation_rad": 0.2521389126777649
+      },
+      "com_front_015-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_front_015-s101.json",
+        "sha256": "da69f68f5022c328532f13ed099d6aed2e26766df4287128e12ccc3961cb07fc",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012575223110616207,
+        "worst_orientation_error_deg": 3.4786769632386574,
+        "rms_joint_error_rad": 0.03343822573959595,
+        "peak_motor_torque_nm": 1.6745930910110474,
+        "peak_joint_speed_rad_s": 7.305693626403809,
+        "fraction_steps_requesting_target_outside_limits": 0.2824175824175824,
+        "max_requested_target_violation_rad": 0.24935251474380493
+      },
+      "com_front_025-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_front_025-s101.json",
+        "sha256": "fa290eebc4644edd871e41b9f10654d5c92d972144f50d098e2962262793920d",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.014877025969326496,
+        "worst_orientation_error_deg": 5.886483740693607,
+        "rms_joint_error_rad": 0.03858924884191184,
+        "peak_motor_torque_nm": 1.675938606262207,
+        "peak_joint_speed_rad_s": 7.2693281173706055,
+        "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+        "max_requested_target_violation_rad": 0.27686697244644165
+      },
+      "com_left-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_left-s101.json",
+        "sha256": "bee98827e1393873e550c6ffa55644f5659fb1e28373822db6b73a338ce10ec6",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.015939678996801376,
+        "worst_orientation_error_deg": 3.791989043265114,
+        "rms_joint_error_rad": 0.03384679985851299,
+        "peak_motor_torque_nm": 1.7968170642852783,
+        "peak_joint_speed_rad_s": 7.367405891418457,
+        "fraction_steps_requesting_target_outside_limits": 0.2934065934065934,
+        "max_requested_target_violation_rad": 0.2528828978538513
+      },
+      "continuous-stress": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/continuous-stress.json",
+        "sha256": "104172549109fe2c569ba8e042f759fb3879146fab5240a6033a677c3e9b8044",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.016171753406524658,
+        "worst_orientation_error_deg": 3.71882236057619,
+        "rms_joint_error_rad": 0.02450306227072086,
+        "peak_motor_torque_nm": 1.6778883934020996,
+        "peak_joint_speed_rad_s": 7.372469902038574,
+        "fraction_steps_requesting_target_outside_limits": 0.11625615763546798,
+        "max_requested_target_violation_rad": 0.2502599358558655
+      },
+      "heavy-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/heavy-s101.json",
+        "sha256": "99ff1d606e0ea2f5b2343749f9c466130bd6081058aad54e7af4575fa1dddf47",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.011119606904685497,
+        "worst_orientation_error_deg": 3.8086741312657217,
+        "rms_joint_error_rad": 0.032223046305324625,
+        "peak_motor_torque_nm": 2.0540177822113037,
+        "peak_joint_speed_rad_s": 7.364500999450684,
+        "fraction_steps_requesting_target_outside_limits": 0.2714285714285714,
+        "max_requested_target_violation_rad": 0.24931007623672485
+      },
+      "nominal-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/nominal-s101.json",
+        "sha256": "003388742e4983fc04abca40d1953a24c1c90c61fd73f0497f0461238a563e4a",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01460985653102398,
+        "worst_orientation_error_deg": 3.71882236057619,
+        "rms_joint_error_rad": 0.031886637648998954,
+        "peak_motor_torque_nm": 1.671724796295166,
+        "peak_joint_speed_rad_s": 7.358092308044434,
+        "fraction_steps_requesting_target_outside_limits": 0.2725274725274725,
+        "max_requested_target_violation_rad": 0.24502605199813843
+      },
+      "randomized-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/randomized-s101.json",
+        "sha256": "dafc0196c9980b3141ee0ec24cffb31ddc4e2bd933bf985d87257d374fac43c2",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.014737739227712154,
+        "worst_orientation_error_deg": 3.5093705309987095,
+        "rms_joint_error_rad": 0.03505686807691184,
+        "peak_motor_torque_nm": 1.8987196683883667,
+        "peak_joint_speed_rad_s": 6.618916988372803,
+        "fraction_steps_requesting_target_outside_limits": 0.29120879120879123,
+        "max_requested_target_violation_rad": 0.26798051595687866
+      },
+      "randomized-s202": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/randomized-s202.json",
+        "sha256": "c8bb11c1dceeca4e857e3dfff7d4e6abb0574ab01f30677e5a750f477e91ba68",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01182239968329668,
+        "worst_orientation_error_deg": 4.568952795694048,
+        "rms_joint_error_rad": 0.03543291626988556,
+        "peak_motor_torque_nm": 1.9381927251815796,
+        "peak_joint_speed_rad_s": 6.12421178817749,
+        "fraction_steps_requesting_target_outside_limits": 0.2868131868131868,
+        "max_requested_target_violation_rad": 0.25916415452957153
+      },
+      "randomized-s303": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/randomized-s303.json",
+        "sha256": "c134fc8c9342ed33fcc7776c840eb660a6764d3c6bef08b325c389bfcf745ad8",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.013525297865271568,
+        "worst_orientation_error_deg": 3.2796875800209744,
+        "rms_joint_error_rad": 0.036234118443944474,
+        "peak_motor_torque_nm": 1.6834146976470947,
+        "peak_joint_speed_rad_s": 7.009994029998779,
+        "fraction_steps_requesting_target_outside_limits": 0.2802197802197802,
+        "max_requested_target_violation_rad": 0.24120980501174927
+      }
+    },
+    "prior_driver4997": {
+      "com_back_015-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/com_back_015-s101.json",
+        "sha256": "5095122f6fbc82d7a42acb6770f8c175fa0711bc493e74fdbec58af362986a8d",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.011357367038726807,
+        "worst_orientation_error_deg": 4.049554914403285,
+        "rms_joint_error_rad": 0.027623482585535174,
+        "peak_motor_torque_nm": 1.8424814939498901,
+        "peak_joint_speed_rad_s": 7.281893730163574,
+        "fraction_steps_requesting_target_outside_limits": 0.26703296703296703,
+        "max_requested_target_violation_rad": 0.22425848245620728
+      },
+      "com_back_025-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/com_back_025-s101.json",
+        "sha256": "739a04fb83f5f1de0465ed73533a50cbc9df313cc99b993a09372ae52b9dc346",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.009515669196844101,
+        "worst_orientation_error_deg": 4.631073419278284,
+        "rms_joint_error_rad": 0.027548399792557993,
+        "peak_motor_torque_nm": 1.8998031616210938,
+        "peak_joint_speed_rad_s": 7.288405418395996,
+        "fraction_steps_requesting_target_outside_limits": 0.30439560439560437,
+        "max_requested_target_violation_rad": 0.2256658673286438
+      },
+      "com_front-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/com_front-s101.json",
+        "sha256": "01c1a4bef8ac5e61a220b038eac734e79e73b2eb8529bec04745a05128a23bd8",
+        "verdict": "WOBBLES",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.02055099606513977,
+        "worst_orientation_error_deg": 14.793013737182289,
+        "rms_joint_error_rad": 0.038903949492551625,
+        "peak_motor_torque_nm": 2.6694507598876953,
+        "peak_joint_speed_rad_s": 9.1718111038208,
+        "fraction_steps_requesting_target_outside_limits": 0.26263736263736265,
+        "max_requested_target_violation_rad": 0.2670857310295105
+      },
+      "com_front_015-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/com_front_015-s101.json",
+        "sha256": "3b304681501c7fe40f36864b7ccbe9b53573f11b7621600e0e4bae481ab6b2da",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.013894731178879738,
+        "worst_orientation_error_deg": 3.5147199238688613,
+        "rms_joint_error_rad": 0.03018715484028328,
+        "peak_motor_torque_nm": 1.8134677410125732,
+        "peak_joint_speed_rad_s": 7.24282169342041,
+        "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+        "max_requested_target_violation_rad": 0.2525675892829895
+      },
+      "com_front_025-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/com_front_025-s101.json",
+        "sha256": "55f1871daddf2e395c899ddebb3b4c54887ff91c2bde3e3d8ef09948332eca96",
+        "verdict": "WOBBLES",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.017564458772540092,
+        "worst_orientation_error_deg": 14.450627885719335,
+        "rms_joint_error_rad": 0.04343570990307651,
+        "peak_motor_torque_nm": 2.7098002433776855,
+        "peak_joint_speed_rad_s": 8.402007102966309,
+        "fraction_steps_requesting_target_outside_limits": 0.25934065934065936,
+        "max_requested_target_violation_rad": 0.30019503831863403
+      },
+      "com_left-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/com_left-s101.json",
+        "sha256": "8002c284503fa3716fe8c794842b92516ce2f263fe1709dc8e2b9f7273d5ab8d",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.013142256997525692,
+        "worst_orientation_error_deg": 3.7396040096018894,
+        "rms_joint_error_rad": 0.028622439192025454,
+        "peak_motor_torque_nm": 1.8128808736801147,
+        "peak_joint_speed_rad_s": 7.200290203094482,
+        "fraction_steps_requesting_target_outside_limits": 0.3,
+        "max_requested_target_violation_rad": 0.2430935502052307
+      },
+      "continuous-stress": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/continuous-stress.json",
+        "sha256": "4c3669156f1029b1beee6460089e313b58bf4f2b7979f64a9ef46f228ee3ede2",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012356000021100044,
+        "worst_orientation_error_deg": 3.8550489635146623,
+        "rms_joint_error_rad": 0.021071378295079622,
+        "peak_motor_torque_nm": 1.817938208580017,
+        "peak_joint_speed_rad_s": 7.276576519012451,
+        "fraction_steps_requesting_target_outside_limits": 0.12339901477832513,
+        "max_requested_target_violation_rad": 0.2290615439414978
+      },
+      "heavy-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/heavy-s101.json",
+        "sha256": "4ea35dda3557d8fd6c4e756c35f77eba13617a53d92b6e774ccdeffd7e04ed85",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.010230805724859238,
+        "worst_orientation_error_deg": 3.8716645881552565,
+        "rms_joint_error_rad": 0.02614027531061279,
+        "peak_motor_torque_nm": 2.008453130722046,
+        "peak_joint_speed_rad_s": 7.284013748168945,
+        "fraction_steps_requesting_target_outside_limits": 0.2879120879120879,
+        "max_requested_target_violation_rad": 0.22778338193893433
+      },
+      "nominal-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/nominal-s101.json",
+        "sha256": "ca3db23c01b8f5415c3fd51c642375695633fc33d32295e0a154efdc6c83be9c",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.011773093603551388,
+        "worst_orientation_error_deg": 3.8550489635146623,
+        "rms_joint_error_rad": 0.027769358711994836,
+        "peak_motor_torque_nm": 1.817938208580017,
+        "peak_joint_speed_rad_s": 7.215735912322998,
+        "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+        "max_requested_target_violation_rad": 0.22712641954421997
+      },
+      "randomized-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/randomized-s101.json",
+        "sha256": "ae2074a4e1896386b203bcff9e9e5ce15a1440a683c0d7bfc0994743a27be927",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.010048125870525837,
+        "worst_orientation_error_deg": 3.643972667319209,
+        "rms_joint_error_rad": 0.028825743539582713,
+        "peak_motor_torque_nm": 1.7850310802459717,
+        "peak_joint_speed_rad_s": 6.788996696472168,
+        "fraction_steps_requesting_target_outside_limits": 0.2846153846153846,
+        "max_requested_target_violation_rad": 0.2274799942970276
+      },
+      "randomized-s202": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/randomized-s202.json",
+        "sha256": "e00fe4d38dc0486d25a0a07476f5c83787d0f2d271bda172283f6c622053f306",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.010170758701860905,
+        "worst_orientation_error_deg": 4.579564171388148,
+        "rms_joint_error_rad": 0.027360209969716675,
+        "peak_motor_torque_nm": 1.910002589225769,
+        "peak_joint_speed_rad_s": 6.407946586608887,
+        "fraction_steps_requesting_target_outside_limits": 0.4043956043956044,
+        "max_requested_target_violation_rad": 0.2319815754890442
+      },
+      "randomized-s303": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/prior_driver4997/randomized-s303.json",
+        "sha256": "e9b86a7210c3acf717a3df9d86e88a02d8776f7d57ec6930672fedebd3d91ac1",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012577475979924202,
+        "worst_orientation_error_deg": 3.0269801059932746,
+        "rms_joint_error_rad": 0.029511165446762466,
+        "peak_motor_torque_nm": 1.7176334857940674,
+        "peak_joint_speed_rad_s": 7.379425525665283,
+        "fraction_steps_requesting_target_outside_limits": 0.2846153846153846,
+        "max_requested_target_violation_rad": 0.20715457201004028
+      }
+    },
+    "retained3998": {
+      "com_back_015-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/com_back_015-s101.json",
+        "sha256": "528d3be938547dc4c949810c0a60592534f0acfa6b526f73d48d2fe2e275c59e",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012896505184471607,
+        "worst_orientation_error_deg": 4.14017336836625,
+        "rms_joint_error_rad": 0.034022380468509285,
+        "peak_motor_torque_nm": 1.7808748483657837,
+        "peak_joint_speed_rad_s": 7.218505382537842,
+        "fraction_steps_requesting_target_outside_limits": 0.16593406593406593,
+        "max_requested_target_violation_rad": 0.14104622602462769
+      },
+      "com_back_025-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/com_back_025-s101.json",
+        "sha256": "b1c1ff75c62ecbe6517efed847551be3136010318151592e674376074ba42f0f",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01285126805305481,
+        "worst_orientation_error_deg": 4.402808450814525,
+        "rms_joint_error_rad": 0.03420197374397439,
+        "peak_motor_torque_nm": 1.813528060913086,
+        "peak_joint_speed_rad_s": 7.274061679840088,
+        "fraction_steps_requesting_target_outside_limits": 0.16813186813186815,
+        "max_requested_target_violation_rad": 0.14088624715805054
+      },
+      "com_front-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/com_front-s101.json",
+        "sha256": "427c4eb536d0bcb4689fd6e43acc404c491d2d3892ea7c120ec8f4f3dfcfc885",
+        "verdict": "WOBBLES",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.02143847942352295,
+        "worst_orientation_error_deg": 10.403892936372001,
+        "rms_joint_error_rad": 0.03559364963601835,
+        "peak_motor_torque_nm": 1.8752219676971436,
+        "peak_joint_speed_rad_s": 7.103635311126709,
+        "fraction_steps_requesting_target_outside_limits": 0.21428571428571427,
+        "max_requested_target_violation_rad": 0.16152340173721313
+      },
+      "com_front_015-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/com_front_015-s101.json",
+        "sha256": "ea159b85dac966f0700ca4618381661ab3735d75ba8327a55cc31d7fde996fe0",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01507192850112915,
+        "worst_orientation_error_deg": 8.716216615374215,
+        "rms_joint_error_rad": 0.03434399122047077,
+        "peak_motor_torque_nm": 1.7274351119995117,
+        "peak_joint_speed_rad_s": 7.071760654449463,
+        "fraction_steps_requesting_target_outside_limits": 0.2153846153846154,
+        "max_requested_target_violation_rad": 0.15270239114761353
+      },
+      "com_front_025-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/com_front_025-s101.json",
+        "sha256": "6777ab2155edffc8f9f07b794175beb1438a3f46ac3715638e2ed2fcf7c843fa",
+        "verdict": "WOBBLES",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.023718336597085,
+        "worst_orientation_error_deg": 13.608177933084173,
+        "rms_joint_error_rad": 0.042527600209081313,
+        "peak_motor_torque_nm": 2.494945764541626,
+        "peak_joint_speed_rad_s": 7.707627773284912,
+        "fraction_steps_requesting_target_outside_limits": 0.16923076923076924,
+        "max_requested_target_violation_rad": 0.20751053094863892
+      },
+      "com_left-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/com_left-s101.json",
+        "sha256": "e27a74e7b05f32d10a63fce675db3c590117a328e4420b761c8085d6e30b4fbc",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.015947507694363594,
+        "worst_orientation_error_deg": 4.058244827810866,
+        "rms_joint_error_rad": 0.03501751746135019,
+        "peak_motor_torque_nm": 1.899746298789978,
+        "peak_joint_speed_rad_s": 7.167788505554199,
+        "fraction_steps_requesting_target_outside_limits": 0.16263736263736264,
+        "max_requested_target_violation_rad": 0.15107303857803345
+      },
+      "continuous-stress": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/continuous-stress.json",
+        "sha256": "132d7cb1a5179d5b2e99dca5eec5b8e85b85b6dde2b13ae7f921a732a4e007e7",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012916293926537037,
+        "worst_orientation_error_deg": 3.933845875301811,
+        "rms_joint_error_rad": 0.024881403500161936,
+        "peak_motor_torque_nm": 1.7209348678588867,
+        "peak_joint_speed_rad_s": 7.179712772369385,
+        "fraction_steps_requesting_target_outside_limits": 0.07192118226600985,
+        "max_requested_target_violation_rad": 0.1427249312400818
+      },
+      "heavy-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/heavy-s101.json",
+        "sha256": "b04c7dfc759ec2ffab6e85b87d61219d8c3c4cdaa19d07c2a3acedb9a2d8d7b9",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.009714735671877861,
+        "worst_orientation_error_deg": 4.10199092041196,
+        "rms_joint_error_rad": 0.03270443726332762,
+        "peak_motor_torque_nm": 2.180694580078125,
+        "peak_joint_speed_rad_s": 7.16336727142334,
+        "fraction_steps_requesting_target_outside_limits": 0.2010989010989011,
+        "max_requested_target_violation_rad": 0.15498405694961548
+      },
+      "nominal-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/nominal-s101.json",
+        "sha256": "6de5410b82b506281995934141c500baa4de504033e0e81c6ed405613e3d5625",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012801313772797585,
+        "worst_orientation_error_deg": 3.933845875301811,
+        "rms_joint_error_rad": 0.034222917993785136,
+        "peak_motor_torque_nm": 1.7244315147399902,
+        "peak_joint_speed_rad_s": 7.173563003540039,
+        "fraction_steps_requesting_target_outside_limits": 0.16813186813186815,
+        "max_requested_target_violation_rad": 0.14187616109848022
+      },
+      "randomized-s101": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/randomized-s101.json",
+        "sha256": "5299cc67f380854c6cc2c65d37875989f100aeb27f5d6d6ec5996f127b6e9bc3",
+        "verdict": "WOBBLES",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01706855371594429,
+        "worst_orientation_error_deg": 12.101614390183798,
+        "rms_joint_error_rad": 0.041864677983240235,
+        "peak_motor_torque_nm": 1.945036768913269,
+        "peak_joint_speed_rad_s": 6.652813911437988,
+        "fraction_steps_requesting_target_outside_limits": 0.21868131868131868,
+        "max_requested_target_violation_rad": 0.14676696062088013
+      },
+      "randomized-s202": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/randomized-s202.json",
+        "sha256": "dc98002b181599abbc199375ac0866dbb23be80d9fecd5575e1903242b659639",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01394012663513422,
+        "worst_orientation_error_deg": 5.29179341733758,
+        "rms_joint_error_rad": 0.03479084387895574,
+        "peak_motor_torque_nm": 1.9581472873687744,
+        "peak_joint_speed_rad_s": 6.292047500610352,
+        "fraction_steps_requesting_target_outside_limits": 0.2175824175824176,
+        "max_requested_target_violation_rad": 0.15775400400161743
+      },
+      "randomized-s303": {
+        "report": "artifacts/lab6/pupper-sit-comx02/evaluation/retained3998/randomized-s303.json",
+        "sha256": "23812707dc833e89e63a1f9b8411bc73ce958f6bfc2ca937073ad4c17003ca23",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.012566827237606049,
+        "worst_orientation_error_deg": 3.4056770209630174,
+        "rms_joint_error_rad": 0.036926583716112085,
+        "peak_motor_torque_nm": 1.5430920124053955,
+        "peak_joint_speed_rad_s": 7.043773174285889,
+        "fraction_steps_requesting_target_outside_limits": 0.1934065934065934,
+        "max_requested_target_violation_rad": 0.13966363668441772
+      }
+    }
+  },
+  "candidate_cpu": {
+    "com_back_015-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_back_015-s101.json",
+      "sha256": "9bd8e7b075179fbb44ffbbd557b6595ea80f2fa0e0a9142f295797c57743be22",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.01369544304907322,
+      "worst_orientation_error_deg": 4.179505769182783,
+      "rms_joint_error_rad": 0.032214034716475375,
+      "peak_motor_torque_nm": 1.6452884674072266,
+      "peak_joint_speed_rad_s": 7.442488670349121,
+      "fraction_steps_requesting_target_outside_limits": 0.3252747252747253,
+      "max_requested_target_violation_rad": 0.24684816598892212
+    },
+    "com_back_025-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_back_025-s101.json",
+      "sha256": "02ce1cb6994a07b460aa99ebcef66c83b1cfc06601ac11520edebfc71c90f3d3",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.012969103641808033,
+      "worst_orientation_error_deg": 4.200431920722428,
+      "rms_joint_error_rad": 0.03316160763966145,
+      "peak_motor_torque_nm": 1.6709167957305908,
+      "peak_joint_speed_rad_s": 7.526762008666992,
+      "fraction_steps_requesting_target_outside_limits": 0.3230769230769231,
+      "max_requested_target_violation_rad": 0.24552518129348755
+    },
+    "com_front-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_front-s101.json",
+      "sha256": "921e32ab73aa444dc044c6594ffe611688060ba01018e9adc6483452f47ff06c",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.013216754421591759,
+      "worst_orientation_error_deg": 3.454061769606122,
+      "rms_joint_error_rad": 0.03506257695829129,
+      "peak_motor_torque_nm": 1.65714693069458,
+      "peak_joint_speed_rad_s": 7.307806015014648,
+      "fraction_steps_requesting_target_outside_limits": 0.2846153846153846,
+      "max_requested_target_violation_rad": 0.25186842679977417
+    },
+    "com_front_015-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_front_015-s101.json",
+      "sha256": "da37ca864a245a7ba9db88c2d4f160bebdf206b125a0ec955dc11cb9ba58a99a",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.012550858780741692,
+      "worst_orientation_error_deg": 3.4894616299207204,
+      "rms_joint_error_rad": 0.033352538692779696,
+      "peak_motor_torque_nm": 1.7424618005752563,
+      "peak_joint_speed_rad_s": 7.315338134765625,
+      "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+      "max_requested_target_violation_rad": 0.24833840131759644
+    },
+    "com_front_025-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_front_025-s101.json",
+      "sha256": "d08131a754afb11e09ff6821f7a4d2d095be940ab947a0dbc33fcef995c833f8",
+      "verdict": "WOBBLES",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.020544279366731644,
+      "worst_orientation_error_deg": 13.69077291029776,
+      "rms_joint_error_rad": 0.0405022408953523,
+      "peak_motor_torque_nm": 2.830634832382202,
+      "peak_joint_speed_rad_s": 7.261887550354004,
+      "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+      "max_requested_target_violation_rad": 0.29170018434524536
+    },
+    "com_left-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_left-s101.json",
+      "sha256": "eebe6e5a1afdf4ca57af5e83b3309e436981c8a951b8c35bdf17a5e5bbc80ac1",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.014630480669438839,
+      "worst_orientation_error_deg": 3.849765626407394,
+      "rms_joint_error_rad": 0.03355209325859256,
+      "peak_motor_torque_nm": 1.7269792556762695,
+      "peak_joint_speed_rad_s": 7.367425918579102,
+      "fraction_steps_requesting_target_outside_limits": 0.27802197802197803,
+      "max_requested_target_violation_rad": 0.2518375515937805
+    },
+    "continuous-stress": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/continuous-stress.json",
+      "sha256": "45103f0f592f9780cac86a6916d31f3aa9728d0e91ba53c2b9de6ce41309b70a",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.016160085797309875,
+      "worst_orientation_error_deg": 3.6972888375372905,
+      "rms_joint_error_rad": 0.024397115657194112,
+      "peak_motor_torque_nm": 1.670506477355957,
+      "peak_joint_speed_rad_s": 7.35848331451416,
+      "fraction_steps_requesting_target_outside_limits": 0.11748768472906404,
+      "max_requested_target_violation_rad": 0.2511877417564392
+    },
+    "heavy-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/heavy-s101.json",
+      "sha256": "87d8cc0fd3ffa722749dc7b1533b0bc4c06c67ced6abc6a58d8b43b76f18faed",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.010639210231602192,
+      "worst_orientation_error_deg": 3.8765142303359106,
+      "rms_joint_error_rad": 0.032344908012129504,
+      "peak_motor_torque_nm": 2.02653431892395,
+      "peak_joint_speed_rad_s": 7.368668079376221,
+      "fraction_steps_requesting_target_outside_limits": 0.2725274725274725,
+      "max_requested_target_violation_rad": 0.24979490041732788
+    },
+    "nominal-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/nominal-s101.json",
+      "sha256": "b8ac10be98f73f14d50f952c081f0b3c714d0aed85c7e087549e882bc370e87b",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.014923383481800556,
+      "worst_orientation_error_deg": 3.6972888375372905,
+      "rms_joint_error_rad": 0.03207256431745946,
+      "peak_motor_torque_nm": 1.669009804725647,
+      "peak_joint_speed_rad_s": 7.363875389099121,
+      "fraction_steps_requesting_target_outside_limits": 0.27912087912087913,
+      "max_requested_target_violation_rad": 0.24625736474990845
+    },
+    "randomized-s101": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/randomized-s101.json",
+      "sha256": "a250d3f3f130fceedfc9327df6c96ecbad05a60dfd5951128727d8b4900e437c",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.020640771836042404,
+      "worst_orientation_error_deg": 4.06980252805777,
+      "rms_joint_error_rad": 0.03688708422453772,
+      "peak_motor_torque_nm": 1.6512798070907593,
+      "peak_joint_speed_rad_s": 6.579048156738281,
+      "fraction_steps_requesting_target_outside_limits": 0.4010989010989011,
+      "max_requested_target_violation_rad": 0.26667672395706177
+    },
+    "randomized-s202": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/randomized-s202.json",
+      "sha256": "1cddb70c7f0b984095d2e53be15126d1ac3ec1dbe24284209404f01319e047f1",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.013023491948843002,
+      "worst_orientation_error_deg": 4.051487616354616,
+      "rms_joint_error_rad": 0.03745737946901478,
+      "peak_motor_torque_nm": 1.534582495689392,
+      "peak_joint_speed_rad_s": 5.89410924911499,
+      "fraction_steps_requesting_target_outside_limits": 0.2549450549450549,
+      "max_requested_target_violation_rad": 0.26885586977005005
+    },
+    "randomized-s303": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/randomized-s303.json",
+      "sha256": "0dd254701c8d57014537db22755897a3b8703a50129e749d2b913f2fdfffa3c6",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.018284562975168228,
+      "worst_orientation_error_deg": 4.509449831918682,
+      "rms_joint_error_rad": 0.03470278383885027,
+      "peak_motor_torque_nm": 1.6901135444641113,
+      "peak_joint_speed_rad_s": 6.259186744689941,
+      "fraction_steps_requesting_target_outside_limits": 0.3868131868131868,
+      "max_requested_target_violation_rad": 0.2666592001914978
+    }
+  },
+  "boundary_finding": {
+    "case": "torso COM X+0.025 m",
+    "outside_training_range": true,
+    "gpu": {
+      "report": "artifacts/lab6/pupper-sit-comx02/evaluation/candidate_comx02/com_front_025-s101.json",
+      "sha256": "fa290eebc4644edd871e41b9f10654d5c92d972144f50d098e2962262793920d",
+      "verdict": "HOLDS UP",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.014877025969326496,
+      "worst_orientation_error_deg": 5.886483740693607,
+      "rms_joint_error_rad": 0.03858924884191184,
+      "peak_motor_torque_nm": 1.675938606262207,
+      "peak_joint_speed_rad_s": 7.2693281173706055,
+      "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+      "max_requested_target_violation_rad": 0.27686697244644165
+    },
+    "cpu": {
+      "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_front_025-s101.json",
+      "sha256": "d08131a754afb11e09ff6821f7a4d2d095be940ab947a0dbc33fcef995c833f8",
+      "verdict": "WOBBLES",
+      "reference_resets": 0,
+      "worst_position_error_m": 0.020544279366731644,
+      "worst_orientation_error_deg": 13.69077291029776,
+      "rms_joint_error_rad": 0.0405022408953523,
+      "peak_motor_torque_nm": 2.830634832382202,
+      "peak_joint_speed_rad_s": 7.261887550354004,
+      "fraction_steps_requesting_target_outside_limits": 0.2813186813186813,
+      "max_requested_target_violation_rad": 0.29170018434524536
+    },
+    "interpretation": "GPU runtime passes but local CPU wobbles. Do not claim robust +2.5 cm capability. Runtime/backend-sensitive contact dynamics remain a measured limitation; numerical backend is not isolated from package/runtime differences here."
+  },
+  "selected_cpu_before_after": {
+    "nominal": {
+      "retained3998": {
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.01075355801731348,
+        "worst_orientation_error_deg": 3.954685708826928,
+        "rms_joint_error_rad": 0.034285955414559456,
+        "peak_motor_torque_nm": 1.7036559581756592,
+        "peak_joint_speed_rad_s": 7.176309585571289,
+        "fraction_steps_requesting_target_outside_limits": 0.16923076923076924,
+        "max_requested_target_violation_rad": 0.14205294847488403
+      },
+      "candidate": {
+        "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/nominal-s101.json",
+        "sha256": "b8ac10be98f73f14d50f952c081f0b3c714d0aed85c7e087549e882bc370e87b",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.014923383481800556,
+        "worst_orientation_error_deg": 3.6972888375372905,
+        "rms_joint_error_rad": 0.03207256431745946,
+        "peak_motor_torque_nm": 1.669009804725647,
+        "peak_joint_speed_rad_s": 7.363875389099121,
+        "fraction_steps_requesting_target_outside_limits": 0.27912087912087913,
+        "max_requested_target_violation_rad": 0.24625736474990845
+      }
+    },
+    "forward_com_2cm": {
+      "retained3998": {
+        "verdict": "WOBBLES",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.021915404126048088,
+        "worst_orientation_error_deg": 13.71356134971604,
+        "rms_joint_error_rad": 0.04158471421102123,
+        "peak_motor_torque_nm": 2.1484451293945312,
+        "peak_joint_speed_rad_s": 7.09028434753418,
+        "fraction_steps_requesting_target_outside_limits": 0.2021978021978022,
+        "max_requested_target_violation_rad": 0.1628769040107727
+      },
+      "candidate": {
+        "report": "artifacts/lab6/sit-comx-local-review/evaluation-cpu/com_front-s101.json",
+        "sha256": "921e32ab73aa444dc044c6594ffe611688060ba01018e9adc6483452f47ff06c",
+        "verdict": "HOLDS UP",
+        "reference_resets": 0,
+        "worst_position_error_m": 0.013216754421591759,
+        "worst_orientation_error_deg": 3.454061769606122,
+        "rms_joint_error_rad": 0.03506257695829129,
+        "peak_motor_torque_nm": 1.65714693069458,
+        "peak_joint_speed_rad_s": 7.307806015014648,
+        "fraction_steps_requesting_target_outside_limits": 0.2846153846153846,
+        "max_requested_target_violation_rad": 0.25186842679977417
+      }
+    }
+  },
+  "behavior_review": {
+    "nominal": {
+      "shakes": [
+        {
+          "clip": "shake_left",
+          "actual_paw_peak_height_m": 0.111104585581674,
+          "prominent_peak_count": 3,
+          "reference_peak_count": 3,
+          "minimum_foot_contact_count": 3,
+          "peak_orientation_error_deg": 2.2244709824864466
+        },
+        {
+          "clip": "shake_right",
+          "actual_paw_peak_height_m": 0.10824279961820338,
+          "prominent_peak_count": 3,
+          "reference_peak_count": 3,
+          "minimum_foot_contact_count": 3,
+          "peak_orientation_error_deg": 2.10923925599601
+        }
+      ],
+      "return_to_stand": {
+        "reference_exact_stationary_terminal_duration_s": 0.4,
+        "reference_final_joint_speed_max_rad_s": 0.0,
+        "reference_last_half_second_joint_speed_max_rad_s": 0.5288194417953491,
+        "reference_last_half_second_max_joint_motion_rad": 0.02111193537712097,
+        "reference_final_joint_pose_rad": [
+          0.2557472288608551,
+          -1.4499089502351126e-06,
+          -0.5120992660522461,
+          -0.2557520866394043,
+          -3.5490367622514896e-07,
+          0.512107789516449,
+          0.2557472288608551,
+          -1.4499089502351126e-06,
+          -0.5120992660522461,
+          -0.2557520866394043,
+          -3.5490367622514896e-07,
+          0.512107789516449
+        ],
+        "actual_final_joint_pose_rad": [
+          0.22804053127765656,
+          -0.01569877192378044,
+          -0.521702229976654,
+          -0.20839691162109375,
+          -0.0017598166596144438,
+          0.46314841508865356,
+          0.18821431696414948,
+          -0.019873980432748795,
+          -0.45063260197639465,
+          -0.129903182387352,
+          -0.03619838133454323,
+          0.4316510260105133
+        ],
+        "final_joint_error_rad": [
+          -0.027706697583198547,
+          -0.01569732278585434,
+          -0.009602963924407959,
+          0.04735517501831055,
+          -0.0017594617092981935,
+          -0.04895937442779541,
+          -0.06753291189670563,
+          -0.019872531294822693,
+          0.06146666407585144,
+          0.1258489042520523,
+          -0.036198027431964874,
+          -0.08045676350593567
+        ],
+        "last_half_second_joint_max_abs_error_rad": 0.12679170072078705,
+        "final_reported_joint_speed_max_rad_s": 0.023988159373402596,
+        "last_half_second_peak_orientation_error_deg": 1.673932937072568,
+        "last_half_second_minimum_foot_contact_count": 4
+      },
+      "video": "artifacts/lab6/sit-comx-local-review/physics-nominal.mp4",
+      "contact_sheet": "artifacts/lab6/sit-comx-local-review/frames-nominal.jpg",
+      "visual_review": "Rendered12-frame contact sheet inspected against reference; full per-frame trajectory/phase metrics separately checked. Both paw offers and return to stand are present."
+    },
+    "com-front": {
+      "shakes": [
+        {
+          "clip": "shake_left",
+          "actual_paw_peak_height_m": 0.10662700549219732,
+          "prominent_peak_count": 3,
+          "reference_peak_count": 3,
+          "minimum_foot_contact_count": 3,
+          "peak_orientation_error_deg": 3.021026482798372
+        },
+        {
+          "clip": "shake_right",
+          "actual_paw_peak_height_m": 0.10523967792655324,
+          "prominent_peak_count": 3,
+          "reference_peak_count": 3,
+          "minimum_foot_contact_count": 3,
+          "peak_orientation_error_deg": 2.633413743366428
+        }
+      ],
+      "return_to_stand": {
+        "reference_exact_stationary_terminal_duration_s": 0.4,
+        "reference_final_joint_speed_max_rad_s": 0.0,
+        "reference_last_half_second_joint_speed_max_rad_s": 0.5288194417953491,
+        "reference_last_half_second_max_joint_motion_rad": 0.02111193537712097,
+        "reference_final_joint_pose_rad": [
+          0.2557472288608551,
+          -1.4499089502351126e-06,
+          -0.5120992660522461,
+          -0.2557520866394043,
+          -3.5490367622514896e-07,
+          0.512107789516449,
+          0.2557472288608551,
+          -1.4499089502351126e-06,
+          -0.5120992660522461,
+          -0.2557520866394043,
+          -3.5490367622514896e-07,
+          0.512107789516449
+        ],
+        "actual_final_joint_pose_rad": [
+          0.2292085736989975,
+          -0.013948348350822926,
+          -0.515103816986084,
+          -0.19460399448871613,
+          -0.011424403637647629,
+          0.46580907702445984,
+          0.1965174376964569,
+          -0.024423113092780113,
+          -0.455254465341568,
+          -0.1396397054195404,
+          -0.025613779202103615,
+          0.4317833483219147
+        ],
+        "final_joint_error_rad": [
+          -0.026538655161857605,
+          -0.01394689828157425,
+          -0.0030045509338378906,
+          0.06114809215068817,
+          -0.0114240488037467,
+          -0.046298712491989136,
+          -0.05922979116439819,
+          -0.02442166395485401,
+          0.0568448007106781,
+          0.11611238121986389,
+          -0.02561342343688011,
+          -0.0803244411945343
+        ],
+        "last_half_second_joint_max_abs_error_rad": 0.11811797320842743,
+        "final_reported_joint_speed_max_rad_s": 0.051339950412511826,
+        "last_half_second_peak_orientation_error_deg": 1.3739911437061803,
+        "last_half_second_minimum_foot_contact_count": 4
+      },
+      "video": "artifacts/lab6/sit-comx-local-review/physics-com-front.mp4",
+      "contact_sheet": "artifacts/lab6/sit-comx-local-review/frames-com-front.jpg",
+      "visual_review": "Rendered12-frame contact sheet inspected against reference; full per-frame trajectory/phase metrics separately checked. Both paw offers and return to stand are present."
+    }
+  },
+  "export_audit": {
+    "task": "Mjlab-Tracking-Flat-Pupper-v3",
+    "checkpoint_sha256": "def7e1e02d8e989c261ad836db848e4e4996eab929d70de6edc4a1eebe404356",
+    "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+    "motion_sha256": "5e7129e92ee10c3305e13ef33d973d5682664c813d7c2df5397bc9b85926d137",
+    "seed": 42,
+    "device": "cpu",
+    "random_inputs": 512,
+    "live_steps": 100,
+    "tolerance": 0.0001,
+    "training_resume_validated": false,
+    "policy_performance_validated": false,
+    "approved_for_hardware": false,
+    "training_config_sha256": "cecb6f3b6716d2bd81b4c8d430cfca823ac32eab8251e46508ef817de7c5ba94",
+    "actor_observation_config_differences": [
+      "enable_corruption: value differs"
+    ],
+    "actuator_config_old_current": [
+      [
+        {
+          "stiffness": 5.5,
+          "damping": 0.25,
+          "delay_min_lag": 4,
+          "delay_max_lag": 4,
+          "velocity_limit_sim": null,
+          "effort_limit_sim": null
+        }
+      ],
+      [
+        {
+          "stiffness": 5.5,
+          "damping": 0.25,
+          "delay_min_lag": 4,
+          "delay_max_lag": 4,
+          "velocity_limit_sim": null,
+          "effort_limit_sim": null
+        }
+      ]
+    ],
+    "actuator_config_equal": true,
+    "decimation_old_current": [
+      5,
+      5
+    ],
+    "timestep_old_current": [
+      0.004,
+      0.004
+    ],
+    "strict_actor_load_passed": true,
+    "metadata_differences": [],
+    "random_input_max_abs_error": 1.802330174882627e-06,
+    "live_input_max_abs_error": 1.4998677011490713e-07,
+    "passed": false
+  },
+  "export_audit_interpretation": "Strict actor loading,metadata equality,actuator/timebase checks and numerical export parity pass. audit.passed remains false solely because training enables observation corruption while deterministic play disables it; the finding is retained, not suppressed.",
+  "native_inference": {
+    "backend": "vendored RTNeural Eigen float32",
+    "hardware_validated": false,
+    "input_dimension": 69,
+    "inputs": 512,
+    "max_abs_error_vs_json_float64": 1.0146834394930693e-06,
+    "output_dimension": 12,
+    "passed": true,
+    "tolerance": 0.0001,
+    "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+    "inputs_sha256": "62fa06cdb72be8dcae1fba52fbd054158f9fd0758001f398a766a854a6ee9efd",
+    "source_sha256": "9902a464b8d49afdb6dc4ee2d072faeeff726a6ba5646044e1148f1681ae1491",
+    "binary_sha256": "69f01bf51e920a92ba6ec39f8931e81fc650c988b12a71c60f1893bc95fe6a37",
+    "compiler_command": [
+      "clang++",
+      "-O2",
+      "-std=c++17",
+      "-DRTNEURAL_DEFAULT_ALIGNMENT=16",
+      "-DRTNEURAL_USE_EIGEN=1",
+      "-I/private/tmp/cs123-pupper-foundation/pupperv3-monorepo/ros2_ws/src/neural_controller/modules/RTNeural",
+      "-I/private/tmp/cs123-pupper-foundation/pupperv3-monorepo/ros2_ws/src/neural_controller/modules/RTNeural/modules/Eigen",
+      "/private/tmp/cs123-pupper-foundation/artifacts/lab6/sit-comx-local-review/rtneural_audit.cpp",
+      "-o",
+      "/private/tmp/cs123-pupper-foundation/artifacts/lab6/sit-comx-local-review/rtneural_audit"
+    ]
+  },
+  "installed_asset": {
+    "path": "gemini_pupper/tricks/sit_stay_shake/policy.json",
+    "sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+    "previous_policy_sha256": "9d545daa3394eaa7fd74899786d7138c373ef1e4bf14aeb753f9f979b375ddf5",
+    "previous_backup": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/lab6/sit-comx-local-review/previous-installed3998",
+    "descriptor_unchanged": true
+  },
+  "preservation": [
+    {
+      "manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-sit-comx02-completed.json",
+      "sha256": "556f8885c3cba0dcce4f479aaa7ba99fe6740dc10025142b75848fd04a48be44",
+      "files": 83,
+      "bytes": 115707201
+    },
+    {
+      "manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-sit-comx-local-review-preinstall.json",
+      "sha256": "96167147278543d347b75e897447980f216a485dd6f181cf3ff76f18459150e0",
+      "files": 59,
+      "bytes": 40904318
+    }
+  ],
+  "full_archive": {
+    "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/lab6/pupper-sit-comx02-full.tar.gz",
+    "sha256": "71bb4f98b7a5f5ae894b09a0da7bb6f5e01eb91971b32b1cc2e33d32914ed5e3",
+    "bytes": 35689441,
+    "contained_file_hashes_verified": 82
+  },
+  "limitations": [
+    "No physical robot test,installed motor-driver verification,thermal endurance or real-world handoff validation.",
+    "Course HOLDS UP uses root tracking thresholds; it is not a physical fall detector.",
+    "A finite set of dynamics tests does not prove arbitrary payload,surface,push or indefinite-hold robustness.",
+    "Local source changed only after the CPU review and its before/after source snapshots completed; future target-slew work is a separate untrained contract and is not part of this policy."
+  ],
+  "post_install_preservation_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-sit-comx-reviewed-installed.json",
+  "hardware_validated": false,
+  "ta_approval_recorded": false,
+  "approved_for_hardware": false,
+  "artifacts_sha256": {
+    "artifacts/lab6/pupper-sit-comx02/training/runs/foundation_sit_stay_shake_deployclamp_driverclamp_composedcom_groundhulls_comx0p02_s42_20261028T071309Z_15f161e2/foundation-run.json": "22b9daf19d36ac6a4bb86cfd4504ccb3286624706410a3c2e0a846cd96439931",
+    "artifacts/lab6/pupper-sit-comx02/status.json": "2fce513f4f2f55991c91e4dc4a7075ac8bbe206858515e31df6588e102ba13c3",
+    "artifacts/lab6/pupper-sit-comx02/full-file-manifest.json": "f749a346de72ee5df60441171510a9a42f4d1916f2a6399df6ad36f858692f17",
+    "artifacts/lab6/sit-comx-local-review/compatibility-audit.json": "e9d6991943b39e5e7ed356ff83a5653767a6cd40226ca764823513f0a08171c4",
+    "artifacts/lab6/sit-comx-local-review/rtneural-parity.json": "f0f75e4b144c3c6217a6211cd4fa1fc6e04d3c33a472cbfc32372dc303f00305",
+    "artifacts/lab6/sit-comx-local-review/local-audit-completion.json": "9f5f9e79d8f82927bd9803058db32137aa5dd02638a48c61b49b73436033b3fb",
+    "artifacts/lab6/sit-comx-local-review/source-before.json": "fc4eb68387fafa3d573588b1af75978fe2671bea9b463e60131ad125084e9ee3",
+    "artifacts/lab6/sit-comx-local-review/source-after.json": "fc4eb68387fafa3d573588b1af75978fe2671bea9b463e60131ad125084e9ee3",
+    "artifacts/lab6/sit-comx-local-review/local-install.json": "d51555960b8ab18ad8a43dbffc0d678893b17160f2e6e4c201272645decd15e1",
+    "artifacts/lab6/sit-comx-local-review/behavior-nominal.json": "86ed4c3418bb07b4dc829233812e6581d88339320694753f8c7331e06f0653cc",
+    "artifacts/lab6/sit-comx-local-review/behavior-com-front.json": "90e590775bb8cd4ea1702f5239dc6e470e405edfdc69c8901990e6b5334c6ba8",
+    "artifacts/lab6/sit-comx-local-review/physics-nominal.mp4": "22a4a6a2053922192da215ad6038d20666d5cf28dd945a60916072f7e0a6c8bd",
+    "artifacts/lab6/sit-comx-local-review/physics-com-front.mp4": "cda91f83e11156b6c6d725892f725a5e3b77ca9d4426d6132643df5c3471426a",
+    "artifacts/lab6/sit-comx-local-review/frames-nominal.jpg": "c8b802781d3309cbd6eee4afb017a227fb7b4e8503394fa9bc2a1417eea04ef9",
+    "artifacts/lab6/sit-comx-local-review/frames-com-front.jpg": "9fecfbc6c7aac0ecc5fd6b09224b90510ca558a1cbe82e8a10a9a3b4f3ced284"
+  },
+  "installed_policy_validation": {
+    "passed": true,
+    "report": "artifacts/lab6/sit-comx-local-review/installed-policy-audit.json",
+    "sha256": "a8200c06193caf7e1dabfa0fe2fc9057a24e4c9cd7bac294eb7d30986915bd43"
+  },
+  "focused_tests": {
+    "command": [
+      ".venv/bin/python",
+      "-m",
+      "pytest",
+      "foundation/tests/test_policy_motion_contract.py",
+      "gemini_pupper/tests/test_foundation.py",
+      "-q"
+    ],
+    "returncode": 0,
+    "passed": 71,
+    "summary": "71 passed in0.79s",
+    "log_sha256": "ec4f04cea7ee805271f6b84b9e2ab9784c917ebe5429d076a188bb7502741196"
+  }
+}
