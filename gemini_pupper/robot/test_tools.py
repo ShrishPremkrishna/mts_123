@@ -88,6 +88,36 @@ class FakeRobot:
         self.follow_calls: list[str] = []
         self.start_clips: dict[str, list[str]] = {}  # controller -> start_clip values set, in order
         self.tricks: dict[str, Trick] = {}
+        self.finite_started: dict[str, float] = {}
+        self.execution_parameters: dict[str, str] = {}
+        self.active_execution_tokens: dict[str, str] = {}
+        self.clock.on_advance.append(self.emit_finite_status)
+        self.pending_reference = None
+        self.clock.on_advance.append(self.emit_reference_status)
+
+    def emit_finite_status(self) -> None:
+        """Finite ClipPlayer feedback follows virtual time, not service success."""
+        for controller, started in list(self.finite_started.items()):
+            trick = self.tricks[controller]
+            if self.controllers.get(controller) != "active":
+                continue
+            elapsed = max(0.0, self.clock.now - started - 1.5)  # 0.5 init + 1.0 fade
+            frames = trick.frame_count
+            frame = min(int(elapsed * trick.fps + 1e-6), frames - 1)
+            state = "holding" if elapsed >= (frames - 1) / trick.fps else "playing"
+            self.send(f"/{controller}/clip_status", _DataMsg(
+                f"all {state} frame {frame} queued 0 execution {self.active_execution_tokens.get(controller, '')}"))
+
+    def emit_reference_status(self) -> None:
+        if self.pending_reference is None:
+            return
+        controller, token, ends = self.pending_reference
+        if self.controllers.get(controller) != "active":
+            self.pending_reference = None
+            return
+        if self.clock.now >= ends:
+            self.pending_reference = None
+            self.send(f"/{controller}/reference_status", _DataMsg(f"pupper_reference_v1 {token} completed ok"))
 
     def active(self) -> set[str]:
         return {n for n, s in self.controllers.items() if s == "active"}
@@ -115,6 +145,7 @@ class FakeRobot:
         if service.endswith("switch_controller"):
             for c in req.deactivate_controllers:
                 self.controllers[c] = "inactive"
+                self.finite_started.pop(c, None)
             for c in req.activate_controllers:
                 self.controllers[c] = "active"
                 # Model the controller's autonomous clip-status topic too. Fault
@@ -131,6 +162,10 @@ class FakeRobot:
                         clip = spec["next"]
                     state = "playing" if spec.get("loop") else "holding"
                     self.send(f"/{c}/clip_status", _DataMsg(f"{clip} {state} frame 0 queued 0"))
+                elif trick and trick.kind == "policy":
+                    self.finite_started[c] = self.clock.now
+                    self.active_execution_tokens[c] = self.execution_parameters.get(c, "")
+                    self.emit_finite_status()
             self.switches.append((self.clock.now, list(req.deactivate_controllers), list(req.activate_controllers)))
             return _Msg(ok=True)
         if service.endswith("/set_parameters"):
@@ -138,6 +173,8 @@ class FakeRobot:
             for prm in req.parameters:
                 if prm.name == "start_clip":
                     self.start_clips.setdefault(controller, []).append(prm.value.string_value)
+                elif prm.name == "execution_request_id":
+                    self.execution_parameters[controller] = prm.value.string_value
             return _Msg(results=[_Msg(successful=True)])
         if service == "activate_person_following":
             self.follower_on = True
@@ -151,6 +188,18 @@ class FakeRobot:
 
     def publish(self, topic: str, msg) -> None:
         self.published.append((self.clock.now, topic, msg))
+        if topic.endswith("/reference_trick"):
+            controller = topic.split("/")[1]
+            if self.controllers.get(controller) == "active":
+                token = msg.layout.dim[0].label.removeprefix("pupper_reference_v1:")
+                behavior = getattr(self, "reference_ack", "completed")
+                if behavior == "completed":
+                    self.pending_reference = (controller, token, self.clock.now + float(msg.data[1]))
+                    behavior = "playing"
+                if behavior != "silent":
+                    reason = "busy" if behavior == "rejected" else "ok"
+                    self.send(f"/{controller}/reference_status", _DataMsg(f"pupper_reference_v1 {token} {behavior} {reason}"))
+
         if topic.endswith("/clip"):
             controller = topic.split("/")[1]
             if self.controllers.get(controller) == "active":  # a stopped controller hears nothing
@@ -232,7 +281,7 @@ def _install_fake_ros() -> None:
     mod("sensor_msgs")
     mod("sensor_msgs.msg", CompressedImage=_Msg, Imu=_Msg, JointState=_Msg)
     mod("std_msgs")
-    mod("std_msgs.msg", Empty=_DataMsg, Float32MultiArray=_DataMsg, Float64MultiArray=_DataMsg, String=_DataMsg)
+    mod("std_msgs.msg", Empty=_DataMsg, Float32MultiArray=_DataMsg, Float64MultiArray=_DataMsg, String=_DataMsg, MultiArrayDimension=_Msg, MultiArrayLayout=_Msg)
     mod("std_srvs")
     mod("std_srvs.srv", Trigger=_Srv)
 
@@ -253,12 +302,15 @@ class VirtualClock:
 
     def __init__(self):
         self.now = 1000.0
+        self.on_advance: list = []
 
     def monotonic(self):
         return self.now
 
     async def sleep(self, seconds, result=None):
         self.now += max(0.0, float(seconds))
+        for callback in self.on_advance:
+            callback()
         await _real_sleep(0)
         return result
 
@@ -289,9 +341,9 @@ def fixture_tricks() -> dict[str, Trick]:
     _REFERENCE.write_text(json.dumps({"playback_s": 1.0, "active_s": 0.8, "cross_fade_s": 0.1,
                                       "table": [[0.0] * 12] * 3}))
     return {
-        "bow": Trick(name="bow", description="Bows.", kind="policy", path=Path("bow.json"), duration=4.0),
+        "bow": Trick(name="bow", description="Bows.", kind="policy", path=Path("bow.json"), duration=4.0, frame_count=200),
         "roll_over": Trick(name="roll_over", description="Rolls over and stays lying down.", kind="policy",
-                           path=Path("roll_over.json"), duration=6.0, start_pose="lying", end_pose="lying"),
+                           path=Path("roll_over.json"), duration=6.0, start_pose="lying", end_pose="lying", frame_count=300),
         "hold_pose": Trick(
             name="hold_pose", description="Gets into a pose and holds it.", kind="policy",
             path=Path("hold_pose.json"), duration=12.0, end_pose="sitting",
@@ -1344,7 +1396,7 @@ async def provided() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         def add(name, extra=""):
             (Path(tmp) / name).mkdir()
-            (Path(tmp) / name / "policy.json").write_text(json.dumps({"trick": {"duration_s": 1.0}}))
+            (Path(tmp) / name / "policy.json").write_text(json.dumps({"trick": {"duration_s": 1.0, "fps": 50, "frames": 50}, "motion": {"joint_pos": [[0.0]*12 for _ in range(50)]}}))
             (Path(tmp) / name / "trick.yaml").write_text(f"description: {name}\ntype: policy\npolicy: policy.json\n{extra}")
         add("old_sit", "replaced_by: new_sit\n")
         check("a trick with replaced_by is there while its replacement isn't",

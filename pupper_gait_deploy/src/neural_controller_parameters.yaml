@@ -41,11 +41,18 @@ neural_controller:
       description: "For trick policies with clips: the clip the next activation starts from (read at activation). Empty starts from the first clip. Lets a trick that handed the legs to another controller be re-entered at its exit clip, e.g. a spider standing back up",
     }
 
+  execution_request_id:
+    {
+      type: string,
+      default_value: "",
+      description: "Optional 32 lowercase hex request ID snapshotted at trick activation and echoed in after-apply playback receipts. Empty preserves legacy tools; changing it during playback affects only the next activation",
+    }
+
   reference_tricks:
     {
       type: bool,
       default_value: false,
-      description: "For jump-slot policies: accept reference tricks on ~/reference_trick (std_msgs/Float32MultiArray: playback_s, active_s, cross_fade_s, then an n x 12 joint-offset table). Each plays once through the jump-slot overlay, starting immediately, like a button jump",
+      description: "For jump-slot policies: accept reference tricks on ~/reference_trick (std_msgs/Float32MultiArray: playback_s, active_s, cross_fade_s, then an n x 12 absolute-joint-angle table). Each plays once through the jump-slot overlay, starting immediately, like a button jump",
     }
 
   max_vx_forward:

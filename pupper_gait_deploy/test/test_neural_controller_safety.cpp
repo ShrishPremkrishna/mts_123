@@ -61,6 +61,33 @@ class MemoryController : public neural_controller::NeuralController {
       state_interfaces_map_[handle.get_prefix_name()].insert_or_assign(handle.get_interface_name(),std::ref(handle));
     repeat_action_counter_=-1;
   }
+  std::array<double,12> joint_state{};
+  void add_flat_feedback() {
+    imu_values={0.,0.,0.,0.,0.,0.,1.};add_tilted_imu();
+    for(int j=0;j<12;++j) {
+      imu_handles.push_back(std::make_shared<hardware_interface::StateInterface>(params_.joint_names[j],"position",&joint_state[j]));
+      state_interfaces_.emplace_back(*imu_handles.back());
+    }
+  }
+  auto activate_in_memory() {
+    const auto result=on_activate(rclcpp_lifecycle::State());
+    init_time_=rclcpp::Time(0,0,RCL_ROS_TIME);repeat_action_counter_=-1;
+    return result;
+  }
+  std::string clip_receipt_buffer() const { return rt_clip_status_publisher_->msg_.data; }
+  auto execution_id() const {return execution_request_id_;}
+  void spoil_terminal_motion() { for(int j=12;j<24;++j)trick_.joint_pos[j]=std::numeric_limits<float>::quiet_NaN(); }
+  void enable_reference(std::shared_ptr<std_msgs::msg::Float32MultiArray> message, bool busy=false) {
+    use_jump_slot_=true;params_.reference_tricks=true;
+    jump_slot_.n_samples=2;jump_slot_.n_joints=12;
+    jump_slot_.playback_s=.94;jump_slot_.active_s=.8;jump_slot_.cross_fade_s=.06;
+    jump_slot_.grid_s=.75;jump_slot_.busy_s=1.;jump_slot_.jump_table.assign(24,0.);
+    slot_starts_.fill(std::numeric_limits<double>::infinity());
+    if(busy) slot_starts_[0]=1.;
+    rt_reference_trick_ptr_.writeFromNonRT(message);repeat_action_counter_=-1;
+  }
+  auto reference_state() const { return reference_execution_; }
+  auto retained_reference() const { return last_reference_trick_; }
   void stop() { estop_active_ = true; }
   void set_held_cycle() { repeat_action_counter_ = 0; }
   auto tick(double t) {
@@ -136,6 +163,18 @@ class ProductionRuntime : public ::testing::Test {
     }
     return policy;
   }
+  nlohmann::json make_trick_policy() {
+    using Json=nlohmann::json;
+    auto policy=make_policy(false);
+    policy["in_shape"]={nullptr,24};
+    policy["layers"][0]["weights"][0]=std::vector<std::vector<double>>(24,std::vector<double>(12,0.));
+    policy["obs_spec"]={{"frame_order","newest_first"},{"components",Json::array({{{"name","motion_command"},{"size",24}}})}};
+    policy["trick"]={{"fps",50.},{"frames",2},{"duration_s",.04}};
+    policy["motion"]={{"joint_pos",std::vector<std::vector<double>>(2,std::vector<double>(12,0.))},
+      {"joint_vel",std::vector<std::vector<double>>(2,std::vector<double>(12,0.))},
+      {"anchor_quat_wxyz",{{1.,0.,0.,0.},{1.,0.,0.,0.}}}};
+    return policy;
+  }
   controller_interface::return_type initialize(MemoryController &controller,const nlohmann::json &policy,bool spoof) {
     const std::string path="/tmp/cs123-controller-policy-"+std::to_string(getpid())+".json";
     {std::ofstream output(path);output<<policy.dump();}
@@ -143,7 +182,11 @@ class ProductionRuntime : public ::testing::Test {
       rclcpp::Parameter("model_path",path),rclcpp::Parameter("joint_names",neural_controller::position_slew_joint_names()),
       rclcpp::Parameter("action_types",std::vector<std::string>(12,"position")),
       rclcpp::Parameter("init_kps",std::vector<double>(12,7.5)),rclcpp::Parameter("init_kds",std::vector<double>(12,.25)),
-      rclcpp::Parameter("init_duration",1.),rclcpp::Parameter("estop_kd",.7),
+      rclcpp::Parameter("init_duration",1.),rclcpp::Parameter("fade_in_duration",1.),rclcpp::Parameter("estop_kd",.7),
+      rclcpp::Parameter("reference_trick_status_protocol",std::string("forged")),
+      rclcpp::Parameter("reference_trick_status_active",true),
+      rclcpp::Parameter("policy_execution_status_protocol",std::string("forged")),
+      rclcpp::Parameter("policy_execution_status_active",true),
       rclcpp::Parameter("position_target_slew_active",spoof),
       rclcpp::Parameter("position_target_slew_contract_json",std::string("forged"))});
     auto result=controller.init("slew_runtime_test","",520,"",options);
@@ -176,4 +219,93 @@ TEST_F(ProductionRuntime, TiltAppliesDampingInTheDetectionUpdate) {
     EXPECT_DOUBLE_EQ(joint[4],.7);
   }
 }
+
+TEST_F(ProductionRuntime, ReferenceCapabilityCannotBeSpoofedOrChanged) {
+  MemoryController controller(false);
+  ASSERT_EQ(initialize(controller,make_policy(false),false),controller_interface::return_type::OK);
+  auto node=controller.get_node();
+  EXPECT_EQ(node->get_parameter("reference_trick_status_protocol").as_string(),"pupper_reference_v1");
+  EXPECT_FALSE(node->get_parameter("reference_trick_status_active").as_bool());
+  auto result=node->set_parameter(rclcpp::Parameter("reference_trick_status_protocol",std::string("forged")));
+  EXPECT_FALSE(result.successful);
+}
+
+std::shared_ptr<std_msgs::msg::Float32MultiArray> reference_message() {
+  auto message=std::make_shared<std_msgs::msg::Float32MultiArray>();
+  message->data.assign(27,0.f);message->data[0]=.94f;message->data[1]=.8f;message->data[2]=.06f;
+  message->layout.dim.resize(1);message->layout.dim[0].label=std::string("pupper_reference_v1:")+std::string(32,'a');
+  return message;
+}
+
+TEST_F(ProductionRuntime, ReferenceAcceptedThenObservationErrorNeverConfirmsCompletion) {
+  MemoryController controller(false);
+  ASSERT_EQ(initialize(controller,make_policy(false),false),controller_interface::return_type::OK);
+  auto message=reference_message();controller.enable_reference(message);
+  // Deliberately omit observation state interfaces. A real accepted request can
+  // still fail during update; success must wait until actions were applied.
+  EXPECT_EQ(controller.tick(2.1),controller_interface::return_type::ERROR);
+  EXPECT_EQ(controller.reference_state().phase,"playing");
+  EXPECT_EQ(controller.retained_reference(),message);
+  controller.stop();EXPECT_EQ(controller.tick(2.2),controller_interface::return_type::OK);
+  EXPECT_EQ(controller.reference_state().phase,"interrupted");
+}
+
+TEST_F(ProductionRuntime, ReferenceBusyAndNonfinitePayloadAreExplicitlyRejected) {
+  for(bool busy:{false,true}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_policy(false),false),controller_interface::return_type::OK);
+    auto message=reference_message();if(!busy)message->data.back()=std::numeric_limits<float>::quiet_NaN();
+    controller.enable_reference(message,busy);
+    EXPECT_EQ(controller.tick(2.1),controller_interface::return_type::ERROR);
+    EXPECT_EQ(controller.reference_state().phase,"rejected");
+    EXPECT_EQ(controller.reference_state().reason,busy ? "busy" : "invalid_payload");
+    EXPECT_FALSE(controller.reference_state().running);
+  }
+}
+
+TEST_F(ProductionRuntime, PolicyExecutionCapabilityReflectsTheLoadedModel) {
+  for(bool trick:{false,true}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,trick?make_trick_policy():make_policy(false),false),controller_interface::return_type::OK);
+    auto node=controller.get_node();
+    EXPECT_EQ(node->get_parameter("policy_execution_status_protocol").as_string(),"pupper_policy_v1");
+    EXPECT_EQ(node->get_parameter("policy_execution_status_active").as_bool(),trick);
+    EXPECT_TRUE(node->describe_parameter("policy_execution_status_protocol").read_only);
+    EXPECT_TRUE(node->describe_parameter("policy_execution_status_active").read_only);
+    EXPECT_FALSE(node->set_parameter(rclcpp::Parameter("policy_execution_status_active",!trick)).successful);
+  }
+}
+
+TEST_F(ProductionRuntime, MalformedExecutionIdRefusesActivationBeforeCommands) {
+  MemoryController controller(false);
+  ASSERT_EQ(initialize(controller,make_trick_policy(),false),controller_interface::return_type::OK);
+  ASSERT_TRUE(controller.get_node()->set_parameter(rclcpp::Parameter("execution_request_id",std::string("bad"))).successful);
+  EXPECT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::ERROR);
+  for(const auto &joint:controller.values)for(double value:joint)EXPECT_DOUBLE_EQ(value,8.);
+}
+
+TEST_F(ProductionRuntime, FiniteReceiptUsesActivationIdAndWaitsForAppliedAction) {
+  for(bool fail:{false,true}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_trick_policy(),false),controller_interface::return_type::OK);
+    auto node=controller.get_node();
+    ASSERT_TRUE(node->set_parameter(rclcpp::Parameter("execution_request_id",std::string(32,'a'))).successful);
+    controller.add_flat_feedback();
+    ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+    ASSERT_TRUE(node->set_parameter(rclcpp::Parameter("execution_request_id",std::string(32,'b'))).successful);
+    EXPECT_EQ(controller.execution_id(),std::string(32,'a'));
+    if(fail)controller.spoil_terminal_motion();
+    const auto result=controller.tick(2.1);
+    if(fail) {
+      EXPECT_EQ(result,controller_interface::return_type::ERROR);
+      EXPECT_TRUE(controller.clip_receipt_buffer().empty());
+      for(const auto &joint:controller.values)for(double value:joint)EXPECT_DOUBLE_EQ(value,8.);
+    } else {
+      EXPECT_EQ(result,controller_interface::return_type::OK);
+      EXPECT_EQ(controller.clip_receipt_buffer(),"all holding frame 1 queued 0 execution "+std::string(32,'a'));
+      for(const auto &joint:controller.values)EXPECT_DOUBLE_EQ(joint[0],0.);
+    }
+  }
+}
+
 } // namespace

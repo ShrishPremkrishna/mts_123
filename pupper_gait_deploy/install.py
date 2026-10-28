@@ -58,6 +58,16 @@ def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
       "Opt-in physical target slew contract shared with training and native tests",
     ),
     (
+      REPO / "src" / "reference_execution.hpp",
+      pkg / "include" / "neural_controller" / "reference_execution.hpp",
+      "Correlated reference playback lifecycle; does not assert physical landing",
+    ),
+    (
+      REPO / "test" / "test_reference_execution.cpp",
+      pkg / "test" / "test_reference_execution.cpp",
+      "Reference playback lifecycle host test",
+    ),
+    (
       REPO / "src" / "trick_motion.hpp",
       pkg / "include" / "neural_controller" / "trick_motion.hpp",
       "Trick reference motion + relative-orientation math (new header)",

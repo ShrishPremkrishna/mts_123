@@ -1,4 +1,5 @@
 #pragma once
+#include "reference_execution.hpp"
 
 #include <RTNeural/RTNeural.h>
 
@@ -134,7 +135,8 @@ class NeuralController : public controller_interface::ControllerInterface {
   // Clip requests (~/clip, a clip name) and the current clip (~/clip_status).
   realtime_tools::RealtimeBuffer<std::shared_ptr<std_msgs::msg::String>> rt_clip_request_ptr_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr clip_subscriber_ = nullptr;
-  const std_msgs::msg::String *last_clip_request_ = nullptr;
+  std::shared_ptr<std_msgs::msg::String> last_clip_request_;
+  std::string execution_request_id_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr clip_status_publisher_ = nullptr;
   std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::String>>
       rt_clip_status_publisher_ = nullptr;
@@ -195,13 +197,17 @@ class NeuralController : public controller_interface::ControllerInterface {
   realtime_tools::RealtimeBuffer<std::shared_ptr<sensor_msgs::msg::Joy>> rt_joy_ptr_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_subscriber_ = nullptr;
 
-  // Reference tricks (params reference_tricks): a joint-offset table played once
+  // Reference tricks (params reference_tricks): an absolute joint-angle table played once
   // through the jump-slot overlay on the running policy, e.g. its jump reference.
   realtime_tools::RealtimeBuffer<std::shared_ptr<std_msgs::msg::Float32MultiArray>>
       rt_reference_trick_ptr_;
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr
       reference_trick_subscriber_ = nullptr;
-  const std_msgs::msg::Float32MultiArray *last_reference_trick_ = nullptr;
+  std::shared_ptr<std_msgs::msg::Float32MultiArray> last_reference_trick_;
+  ReferenceExecution reference_execution_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr reference_status_publisher_;
+  std::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::msg::String>> rt_reference_status_publisher_;
+  void publish_reference_status();
 
   // Alias message types for future improvements
   using ActionMsg = std_msgs::msg::Float32MultiArray;

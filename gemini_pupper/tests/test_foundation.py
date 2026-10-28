@@ -760,9 +760,10 @@ def test_invalid_walking_policy_caps_cannot_be_loaded(tmp_path):
     import yaml
     p = tmp_path / "test_spider"
     p.mkdir()
-    (p / "policy.json").write_text(json.dumps({"trick": {"duration_s": 1, "fps": 50, "frames": 51,
+    (p / "policy.json").write_text(json.dumps({"trick": {"duration_s": 51/50, "fps": 50, "frames": 51,
         "clips": [{"name": "idle", "start": 0, "end": 26, "loop": True},
-                  {"name": "up", "start": 25, "end": 51}]}}))
+                  {"name": "up", "start": 25, "end": 51}]},
+        "motion": {"joint_pos": [[0.] * 12 for _ in range(51)]}}))
     (p / "walk.json").write_text(json.dumps({"command_clip": {"vx": [-0.05, 0.15], "vy": [-0.1, 0.1], "wz": [-0.5, 0.5]}}))
     spec = {"type": "policy", "policy": "policy.json", "exit_clip": "up",
             "walk": {"policy": "walk.json", "speed": 0.05, "max_forward": 0.15, "max_sideways": 0.1, "turn": 20}}

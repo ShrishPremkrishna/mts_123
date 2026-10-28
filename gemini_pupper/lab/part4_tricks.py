@@ -139,6 +139,10 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
     await robot.sleep(trick.play_time + 0.3)  # ... and plays
     if robot.fallen:
         return Result(False, f"{trick.name} ended in a fall: {FELL_MESSAGE}")
+    if not trick.interactive:
+        confirmed = await robot.confirm_finite_endpoint(trick)
+        if not confirmed.ok:
+            return confirmed
     if trick.interactive:  # 4. it stays in its looping clip until asked for an action
         confirmed = await robot.confirm_clip_endpoint(trick)
         if not confirmed.ok:

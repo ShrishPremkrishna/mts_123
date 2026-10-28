@@ -23,6 +23,39 @@ from tricks import WALK_CONTROLLER, load_tricks, validate_locomotion_contract
 
 MANIFEST = Path('/tmp/gemini-pupper/runtime_manifest.json')
 
+# These values are declared by the loaded controller, with overrides ignored.
+# Copying them into launch YAML must never stand in for actual binary support.
+CAPABILITY_PARAMETERS = frozenset({
+    'reference_trick_status_protocol', 'reference_trick_status_active',
+    'policy_execution_status_protocol', 'policy_execution_status_active',
+    'position_target_slew_active', 'position_target_slew_contract_json',
+    'position_target_slew_max_rate_rad_s', 'position_target_slew_max_step_s',
+    'position_target_slew_driver_limits_sha256',
+})
+
+
+def _reject_capability_overrides(params):
+    for name, entry in params.items():
+        supplied = CAPABILITY_PARAMETERS.intersection(entry['ros__parameters'])
+        if supplied:
+            raise ValueError(f'{name}: launch cannot override loaded capability markers: '
+                             + ', '.join(sorted(supplied)))
+
+
+def _readonly_descriptor_matches(text, parameter, ros_type):
+    """Parse the single-parameter ros2 param describe output, failing closed.
+
+    The CLI calls the node's DescribeParameters service. Its output is not YAML:
+    the indented fields follow a scalar Parameter name. Accept only the actual
+    string/bool descriptor form used by these markers, including read_only=True.
+    Unexpected output or CLI format changes require inspection, never a pass.
+    """
+    lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+    if len(lines) >= 3 and lines[2].startswith('  Description: '):
+        lines.pop(2)
+    return lines == [f'Parameter name: {parameter}', f'  Type: {ros_type}',
+                     '  Constraints:', '    Read only: true']
+
 
 def _sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -44,6 +77,7 @@ def _catalog(tricks):
 
 def write_launch_manifest(params, config, path=MANIFEST):
     """Validate every resolved native policy before any launch actions execute."""
+    _reject_capability_overrides(params)
     validator_path = component_dir('pupper_gait_deploy', 'PUPPER_GAIT_DEPLOY_DIR') / 'download_policy.py'
     spec = importlib.util.spec_from_file_location('pupper_startup_policy_validator', validator_path)
     validator = importlib.util.module_from_spec(spec)
@@ -63,7 +97,7 @@ def write_launch_manifest(params, config, path=MANIFEST):
 
 
 def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
-    """Only list/get/dump operations; never launch, set, switch, publish or stop."""
+    """Only list/get/dump/describe operations; never change the running stack."""
     report = {'compatible': False, 'errors': []}
     errors = report['errors']
     slew_requirements = {}
@@ -71,6 +105,8 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         manifest = json.loads(Path(path).read_text())
         config = follower_config()
         tricks = load_tricks()
+        _reject_capability_overrides(manifest['parameters'])
+        policy_controllers = {t.controller for t in tricks.values() if t.kind == 'policy'}
         expected = {WALK_CONTROLLER} | {t.controller for t in tricks.values() if t.kind == 'policy'}
         expected |= {t.walk_controller for t in tricks.values() if t.walks}
         if manifest.get('schema') != 1 or set(manifest['parameters']) != expected or set(manifest['policies']) != expected:
@@ -99,6 +135,13 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         if result.returncode:
             raise ValueError(f'ROS inspection failed: {" ".join(args)}')
         return re.sub(r'\x1b\[[0-9;]*m', '', result.stdout)
+
+    def require_readonly_markers(name, markers):
+        for parameter, ros_type in markers:
+            descriptor = read('param', 'describe', '/' + name, parameter)
+            if not _readonly_descriptor_matches(descriptor, parameter, ros_type):
+                errors.append(f'{name}: loaded capability {parameter} must have a '
+                              f'read-only {ros_type} parameter descriptor')
 
     try:
         controllers = {}
@@ -145,6 +188,20 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                 for key, value in entry['ros__parameters'].items():
                     if key != 'type' and actual.get(key) != value:
                         errors.append(f'{name}: running parameter {key} differs from this launch')
+                if entry['ros__parameters'].get('reference_tricks') is True:
+                    if (actual.get('reference_trick_status_protocol') != 'pupper_reference_v1'
+                            or actual.get('reference_trick_status_active') is not True):
+                        errors.append(f'{name}: loaded controller does not confirm reference playback acknowledgements')
+                    else:
+                        require_readonly_markers(name, [('reference_trick_status_protocol', 'string'),
+                                                       ('reference_trick_status_active', 'boolean')])
+                if name in policy_controllers:
+                    if (actual.get('policy_execution_status_protocol') != 'pupper_policy_v1'
+                            or actual.get('policy_execution_status_active') is not True):
+                        errors.append(f'{name}: loaded controller does not confirm policy execution acknowledgements')
+                    else:
+                        require_readonly_markers(name, [('policy_execution_status_protocol', 'string'),
+                                                       ('policy_execution_status_active', 'boolean')])
                 if name in slew_requirements:
                     # These are read-only values declared by the loaded controller,
                     # never launch overrides. Older binaries ignore unknown JSON
@@ -155,6 +212,9 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                         loaded = None
                     if actual.get('position_target_slew_active') is not True or loaded != slew_requirements[name]:
                         errors.append(f'{name}: loaded controller does not confirm the policy position-target slew contract')
+                    else:
+                        require_readonly_markers(name, [('position_target_slew_active', 'boolean'),
+                                                       ('position_target_slew_contract_json', 'string')])
     except (ValueError, KeyError, AttributeError, yaml.YAMLError) as exc:
         errors.append(str(exc))
     report['compatible'] = not errors

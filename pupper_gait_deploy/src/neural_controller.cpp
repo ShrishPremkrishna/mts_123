@@ -234,6 +234,12 @@ controller_interface::CallbackReturn NeuralController::on_init() {
       }
     }
 
+    rcl_interfaces::msg::ParameterDescriptor reference_descriptor;
+    reference_descriptor.read_only=true;
+    reference_descriptor.description="Loaded controller reference playback acknowledgement contract; ignores launch overrides";
+    get_node()->declare_parameter("reference_trick_status_protocol",std::string(kReferenceStatusProtocol),reference_descriptor,true);
+    get_node()->declare_parameter("reference_trick_status_active",use_jump_slot_ && params_.reference_tricks,reference_descriptor,true);
+
     // Trick policies (pupper-mjlab export_trick.py) carry the reference motion
     // they track. The block and the frame's motion components must come
     // together, like the gait reference above.
@@ -258,6 +264,12 @@ controller_interface::CallbackReturn NeuralController::on_init() {
                   std::string(j["trick"].value("name", "")).c_str(), trick_.frames,
                   trick_.fps, trick_.duration());
     }
+
+    rcl_interfaces::msg::ParameterDescriptor execution_descriptor;
+    execution_descriptor.read_only=true;
+    execution_descriptor.description="Loaded controller activation-correlated after-apply playback contract; ignores launch overrides";
+    get_node()->declare_parameter("policy_execution_status_protocol",std::string("pupper_policy_v1"),execution_descriptor,true);
+    get_node()->declare_parameter("policy_execution_status_active",use_trick_,execution_descriptor,true);
 
     // Teleop command clamp: the exporter stamps the trained command ranges (or a
     // deliberately tighter cap), and the policy should never see anything outside
@@ -366,7 +378,13 @@ controller_interface::CallbackReturn NeuralController::on_activate(
   // the start_clip parameter (read now, so it can be set while the trick is inactive).
   trick_yaw_set_ = false;
   int start_clip = 0;
+  execution_request_id_.clear();
   if (use_trick_) {
+    execution_request_id_=param_listener_->get_params().execution_request_id;
+    if(!execution_request_id_.empty() && !valid_reference_id(execution_request_id_)) {
+      RCLCPP_ERROR(get_node()->get_logger(), "invalid execution_request_id; refusing activation");
+      return controller_interface::CallbackReturn::ERROR;
+    }
     const std::string name = param_listener_->get_params().start_clip;
     if (!name.empty()) {
       const int idx = trick_.clip_index(name);
@@ -399,7 +417,7 @@ controller_interface::CallbackReturn NeuralController::on_activate(
   }
   rt_clip_request_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<std_msgs::msg::String>>(nullptr);
-  last_clip_request_ = nullptr;
+  last_clip_request_.reset();
   if (use_trick_) {
     clip_subscriber_ = get_node()->create_subscription<std_msgs::msg::String>(
         "~/clip", rclcpp::SystemDefaultsQoS(),
@@ -519,8 +537,12 @@ controller_interface::CallbackReturn NeuralController::on_activate(
   // update()). Only for jump-slot policies, and only when enabled per instance.
   rt_reference_trick_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<std_msgs::msg::Float32MultiArray>>(nullptr);
-  last_reference_trick_ = nullptr;
+  last_reference_trick_.reset();
+  reference_execution_.reset();
   if (use_jump_slot_ && params_.reference_tricks) {
+    reference_status_publisher_=get_node()->create_publisher<std_msgs::msg::String>("~/reference_status",rclcpp::SystemDefaultsQoS());
+    rt_reference_status_publisher_=std::make_shared<realtime_tools::RealtimePublisher<std_msgs::msg::String>>(reference_status_publisher_);
+    rt_reference_status_publisher_->msg_.data.reserve(128);
     reference_trick_subscriber_ =
         get_node()->create_subscription<std_msgs::msg::Float32MultiArray>(
             "~/reference_trick", rclcpp::SystemDefaultsQoS(),
@@ -634,6 +656,8 @@ controller_interface::CallbackReturn NeuralController::on_deactivate(
   // the same time as the controller that replaced it and switch right back.
   joy_subscriber_.reset();
   chord_client_.reset();
+  reference_execution_.interrupt("deactivated");
+  publish_reference_status();
   reference_trick_subscriber_.reset();
   clip_subscriber_.reset();
 
@@ -652,9 +676,20 @@ controller_interface::CallbackReturn NeuralController::on_deactivate(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
+void NeuralController::publish_reference_status() {
+  const auto status=reference_execution_.next_message();
+  if(!status.empty() && rt_reference_status_publisher_ && rt_reference_status_publisher_->trylock()) {
+    rt_reference_status_publisher_->msg_.data=status;
+    rt_reference_status_publisher_->unlockAndPublish();
+    reference_execution_.published();
+  }
+}
+
 controller_interface::return_type NeuralController::update(const rclcpp::Time &time,
                                                            const rclcpp::Duration &period) {
   auto apply_emergency_damping = [&]() {
+    reference_execution_.interrupt("estop");
+    publish_reference_status();
     for (auto &command_interface : command_interfaces_) command_interface.set_value(0.0);
     for (int i = 0; i < kActionSize; ++i)
       command_interfaces_map_.at(params_.joint_names.at(i)).at("kd").get().set_value(params_.estop_kd);
@@ -826,45 +861,58 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     // A reference trick: load its table into the slot and start it now. Refused
     // (and dropped) until the policy has faded in, or while a slot is pending.
     auto trick = rt_reference_trick_ptr_.readFromRT();
-    if (trick && trick->get() && trick->get() != last_reference_trick_) {
-      last_reference_trick_ = trick->get();
-      const auto &d = trick->get()->data;
-      bool busy = false;
-      for (const double s : slot_starts_) {
-        busy = busy || std::isfinite(s);
-      }
-      const int n = d.size() > 3 ? static_cast<int>((d.size() - 3) / kActionSize) : 0;
-      if (n <= 0 || d.size() != 3 + static_cast<std::size_t>(n) * kActionSize) {
-        RCLCPP_WARN(get_node()->get_logger(),
-                    "reference trick ignored: expected 3 + n x %d values, got %zu",
-                    kActionSize, d.size());
-      } else if (fade_in_multiplier < 1.0f || busy) {
-        RCLCPP_WARN(get_node()->get_logger(),
-                    "reference trick ignored: policy %s", busy ? "busy with a slot"
-                                                                : "still fading in");
-      } else {
-        JumpSlot next = jump_slot_;  // swap in only once it validates
-        next.playback_s = d[0];
-        next.active_s = d[1];
-        next.cross_fade_s = d[2];
-        next.n_samples = n;
-        next.busy_s = std::max(next.busy_s, next.active_s);
-        next.jump_table.assign(d.begin() + 3, d.end());
-        if (!next.valid()) {
-          RCLCPP_WARN(get_node()->get_logger(), "reference trick ignored: invalid timing");
-        } else {
-          jump_slot_ = std::move(next);
-          slot_starts_[0] = time_since_fade_in;
-          slot_hop_[0] = 0;  // a reference trick plays its own table, never the hop
-          RCLCPP_INFO(get_node()->get_logger(),
-                      "Reference trick: %d samples over %.2f s (%.2f s active), now",
-                      n, jump_slot_.playback_s, jump_slot_.active_s);
+    if (trick && trick->get() && *trick != last_reference_trick_) {
+      // Retain ownership: an allocator reusing a freed message address must not
+      // make a later request look like the previously processed message.
+      last_reference_trick_ = *trick;
+      const auto request_id=trick->get()->layout.dim.empty() ? std::string{} :
+          reference_request_id(trick->get()->layout.dim.front().label);
+      if(!reference_execution_.duplicate(request_id)) {
+        const auto &d = trick->get()->data;
+        bool busy = false;
+        for (const double s : slot_starts_) {
+          busy = busy || std::isfinite(s);
         }
-      }
+        const int n = d.size() > 3 ? static_cast<int>((d.size() - 3) / kActionSize) : 0;
+        if (n < 2 || d.size() != 3 + static_cast<std::size_t>(n) * kActionSize ||
+            !std::all_of(d.begin(),d.end(),[](float v){return std::isfinite(v);})) {
+          reference_execution_.reject(request_id,"invalid_payload");
+          RCLCPP_WARN(get_node()->get_logger(),
+                      "reference trick ignored: expected 3 + n x %d values, got %zu",
+                      kActionSize, d.size());
+        } else if (fade_in_multiplier < 1.0f || busy) {
+          reference_execution_.reject(request_id,busy ? "busy" : "fading");
+          RCLCPP_WARN(get_node()->get_logger(),
+                      "reference trick ignored: policy %s", busy ? "busy with a slot"
+                                                                  : "still fading in");
+        } else {
+          JumpSlot next = jump_slot_;  // swap in only once it validates
+          next.playback_s = d[0];
+          next.active_s = d[1];
+          next.cross_fade_s = d[2];
+          next.n_samples = n;
+          next.busy_s = std::max(next.busy_s, next.active_s);
+          next.jump_table.assign(d.begin() + 3, d.end());
+          if (!next.valid() || next.active_s>next.playback_s || next.cross_fade_s>next.active_s) {
+            reference_execution_.reject(request_id,"invalid_timing");
+            RCLCPP_WARN(get_node()->get_logger(), "reference trick ignored: invalid timing");
+          } else {
+            jump_slot_ = std::move(next);
+            slot_starts_[0] = time_since_fade_in;
+            slot_hop_[0] = 0;  // a reference trick plays its own table, never the hop
+            reference_execution_.accept(request_id,time_since_fade_in,jump_slot_.active_s);
+            RCLCPP_INFO(get_node()->get_logger(),
+                        "Reference trick: %d samples over %.2f s (%.2f s active), now",
+                        n, jump_slot_.playback_s, jump_slot_.active_s);
+          }
+        }
+      } // not a duplicate acknowledged request
+      publish_reference_status();
     }
     slot_button_prev_ = trigger_pressed;
   }
 
+  int applied_clip_frame=-1;
   // Get the latest observation
   double ang_vel_x = 0;
   double ang_vel_y = 0;
@@ -999,20 +1047,15 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     if (use_trick_) {
       const double trick_time = time_since_fade_in - params_.fade_in_duration;
       auto request = rt_clip_request_ptr_.readFromRT();
-      if (request && request->get() && request->get() != last_clip_request_) {
-        last_clip_request_ = request->get();
+      if (request && request->get() && *request != last_clip_request_) {
+        last_clip_request_ = *request;
         if (!clip_player_.request(trick_, request->get()->data)) {
           RCLCPP_WARN(get_node()->get_logger(), "clip request '%s' refused (unknown clip or queue full)",
                       request->get()->data.c_str());
         }
       }
       const int frame = clip_player_.frame(trick_, trick_time);
-      if (rt_clip_status_publisher_ && rt_clip_status_publisher_->trylock()) {
-        rt_clip_status_publisher_->msg_.data =
-            trick_.clips[clip_player_.clip()].name + (clip_player_.holding() ? " holding" : " playing") +
-            " frame " + std::to_string(frame) + " queued " + std::to_string(clip_player_.queued());
-        rt_clip_status_publisher_->unlockAndPublish();
-      }
+      applied_clip_frame=frame;
       if (obs_layout_.motion_command != -1) {
         for (int i = 0; i < kActionSize; i++) {
           observation_.at(obs_layout_.motion_command + i) =
@@ -1232,6 +1275,16 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
         .set_value(params_.kds.at(i) * params_.gain_multiplier);
   }
 
+  // A frame is reported only after its inference and command writes succeed.
+  // The activation ID stays fixed even if the next request is configured early.
+  if(applied_clip_frame>=0 && rt_clip_status_publisher_ && rt_clip_status_publisher_->trylock()) {
+    rt_clip_status_publisher_->msg_.data =
+        trick_.clips[clip_player_.clip()].name + (clip_player_.holding() ? " holding" : " playing") +
+        " frame " + std::to_string(applied_clip_frame) + " queued " + std::to_string(clip_player_.queued()) +
+        (execution_request_id_.empty() ? "" : " execution " + execution_request_id_);
+    rt_clip_status_publisher_->unlockAndPublish();
+  }
+
   // Publish the scaled and final position command
   if (rt_position_command_publisher_->trylock()) {
     rt_position_command_publisher_->msg_.data.resize(kActionSize, 0.0);
@@ -1241,6 +1294,9 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     // rt_position_command_publisher_->msg_.header.stamp = time;
     rt_position_command_publisher_->unlockAndPublish();
   }
+
+  reference_execution_.complete_after_apply(time_since_fade_in);
+  publish_reference_status();
 
   // Publish imu latency
   if (rt_imu_latency_publisher_->trylock()) {

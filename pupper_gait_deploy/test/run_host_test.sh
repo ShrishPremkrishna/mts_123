@@ -21,7 +21,7 @@ BUILD="$(mktemp -d)"
 trap 'rm -rf "$BUILD"' EXIT
 mkdir -p "$BUILD/include/neural_controller"
 cp "$REPO/src/gait_reference.hpp" "$REPO/src/gait_reference_json.hpp" \
-  "$REPO/src/command_filter.hpp" "$REPO/src/obs_spec.hpp" "$REPO/src/trick_motion.hpp" "$REPO/src/position_target_slew.hpp" \
+  "$REPO/src/command_filter.hpp" "$REPO/src/obs_spec.hpp" "$REPO/src/trick_motion.hpp" "$REPO/src/position_target_slew.hpp" "$REPO/src/reference_execution.hpp" \
   "$BUILD/include/neural_controller/"
 
 g++ -std=c++17 -O2 -Wall -Wextra \
@@ -49,3 +49,8 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I "$BUILD/include" -I "$JSON_INCLUDE_DIR" \
   -o "$BUILD/test_position_target_slew" "$HERE/test_position_target_slew.cpp"
 "$BUILD/test_position_target_slew"
+
+g++ -std=c++17 -O2 -Wall -Wextra \
+  -I "$BUILD/include" \
+  -o "$BUILD/test_reference_execution" "$HERE/test_reference_execution.cpp"
+"$BUILD/test_reference_execution"

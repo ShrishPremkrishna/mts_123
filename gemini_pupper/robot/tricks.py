@@ -130,6 +130,7 @@ class Trick:
     walk_path: Path | None = None  # a walking interactive trick's walking policy
     walk: WalkConfig | None = None  # ... and its speeds (trick.yaml's walk block)
     secret: bool = False  # hidden until the local password gate accepts an unlock
+    frame_count: int = 0  # exact exported finite motion frames; references use zero
 
     @property
     def interactive(self) -> bool:
@@ -247,6 +248,41 @@ def validate_walking_handoff(policy: dict, walking: dict, exit_clip: str, source
     same(frame(leaving["start"], "exit start"), pose, "exit start")
 
 
+def validate_policy_timing(policy: dict, source: Path) -> tuple[int, float, float]:
+    """Bind API playback timing to the actual frame array used by ClipPlayer.
+
+    The native controller derives its frame count from motion.joint_pos, not
+    trick.frames. Refuse contradictory metadata before controller activation;
+    this is a timing/endpoint check, not the complete policy-format validator.
+    """
+    def fail(reason):
+        raise ValueError(f"{source}: invalid trick playback metadata: {reason}")
+
+    if not isinstance(policy, dict) or not isinstance(policy.get("trick"), dict):
+        fail("missing trick mapping")
+    info = policy["trick"]
+    frames = info.get("frames")
+    if type(frames) is not int or frames < 2:
+        fail("frames must be an integer of at least two")
+    motion = policy.get("motion")
+    rows = motion.get("joint_pos") if isinstance(motion, dict) else None
+    if not isinstance(rows, list) or len(rows) != frames:
+        fail("frames must equal the number of motion.joint_pos rows")
+    for row in rows:
+        if (not isinstance(row, list) or len(row) != 12
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in row)):
+            fail("motion.joint_pos must contain finite numeric rows of twelve joints")
+    fps, duration = info.get("fps"), info.get("duration_s")
+    for name, value in (("fps", fps), ("duration_s", duration)):
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            fail(f"{name} must be finite, numeric and positive")
+    # Exported duration is frames/fps; ClipPlayer reaches its final frame one
+    # sample earlier. The tolerance covers decimal encoding, not a timing edit.
+    if not math.isclose(duration, frames / fps, rel_tol=1e-9, abs_tol=1e-6):
+        fail("duration_s must equal frames/fps")
+    return frames, float(duration), float(fps)
+
+
 def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
     tricks = {}
     replaced_by: dict[str, str] = {}  # trick -> the trick that replaces it
@@ -258,13 +294,13 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             raise ValueError(f"{spec_path}: secret must be true or false")
         name = spec_path.parent.name
         kind = spec.get("type")
-        clips, fps = [], 50.0
+        clips, fps, frame_count = [], 50.0, 0
         if kind == "policy":
             path = spec_path.parent / spec["policy"]
             policy = json.loads(path.read_text())
+            frame_count, duration, fps = validate_policy_timing(policy, path)
             info = policy["trick"]
-            duration = float(info["duration_s"])
-            clips, fps = list(info.get("clips", [])), float(info.get("fps", 50.0))
+            clips = list(info.get("clips", []))
         elif kind == "reference":
             path = spec_path.parent / spec["reference"]
             duration = float(json.loads(path.read_text())["playback_s"])
@@ -339,6 +375,7 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             max_body_angle=math.radians(angle),
             clips=clips,
             fps=fps,
+            frame_count=frame_count,
             actions=actions,
             exit_clip=exit_clip,
             walk_path=walk_path,

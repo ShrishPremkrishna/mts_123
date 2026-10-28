@@ -58,6 +58,7 @@ import math
 import queue
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
@@ -69,7 +70,7 @@ from rclpy.node import Node
 from rcl_interfaces.msg import Log, Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from sensor_msgs.msg import CompressedImage, Imu
-from std_msgs.msg import Empty, Float32MultiArray, String
+from std_msgs.msg import Empty, Float32MultiArray, MultiArrayDimension, MultiArrayLayout, String
 from std_srvs.srv import Trigger
 
 from spawn_controllers import LOADED, spawn
@@ -195,6 +196,9 @@ class Robot:
         self.follow_off = self.node.create_client(Trigger, "deactivate_person_following")
         self.cmd_pub = self.node.create_publisher(Twist, "/llm_cmd_vel", 10)
         self.ref_pub = self.node.create_publisher(Float32MultiArray, f"/{WALK_CONTROLLER}/reference_trick", 10)
+        self.reference_request_id: str | None = None
+        self.reference_status: tuple[str, str] | None = None
+        self.node.create_subscription(String, f"/{WALK_CONTROLLER}/reference_status", self._on_reference_status, 10)
         self.walk_since = None  # monotonic time gemini_walk was last activated
 
         self.latest_image: queue.Queue[CompressedImage] = queue.Queue(maxsize=1)
@@ -208,10 +212,15 @@ class Robot:
         self._running_job_then: str | Trick = MOTORS_IDLE  # ... once the running job ends
         # Interactive tricks: request clips and follow what the controller is playing.
         self.clip_status: dict[str, tuple[str, bool]] = {}  # controller -> (clip, holding)
+        self.clip_receipts: dict[str, tuple[str, bool, int, float, str]] = {}
+        self.finite_execution_requests: dict[str, str] = {}
+        self.finite_activation_since: dict[str, float] = {}
+        self.finite_playing_seen: set[str] = set()
         self.clip_pubs: dict[str, object] = {}
         for t in load_tricks().values():
             if t.interactive:
                 self.clip_pubs[t.controller] = self.node.create_publisher(String, f"/{t.controller}/clip", 10)
+            if t.kind == "policy":
                 self.node.create_subscription(
                     String, f"/{t.controller}/clip_status", lambda m, c=t.controller: self._on_clip_status(c, m), 10
                 )
@@ -265,11 +274,45 @@ class Robot:
         await asyncio.sleep(seconds)
 
     # ---------------------------------------------------------------- ROS helpers
+    def _on_reference_status(self, msg: String) -> None:
+        parts = str(msg.data).split()
+        if (len(parts) != 4 or parts[0] != "pupper_reference_v1"
+                or parts[1] != self.reference_request_id
+                or parts[2] not in ("playing", "completed", "rejected", "interrupted")):
+            return
+        # Repeated/out-of-order playing receipts cannot undo a terminal outcome.
+        if self.reference_status and self.reference_status[0] in ("completed", "rejected", "interrupted"):
+            return
+        self.reference_status = (parts[2], parts[3])
+
     def _on_clip_status(self, controller: str, msg: String) -> None:
-        # "<clip> playing|holding frame N queued K"
+        # "<clip> playing|holding frame N queued K [execution <activation-token>]"
         parts = msg.data.split()
-        if len(parts) >= 2:
+        if len(parts) >= 2 and parts[1] in ("playing", "holding"):
             self.clip_status[controller] = (parts[0], parts[1] == "holding")
+            # Preserve the legacy interactive status above. Finite completion
+            # requires the token snapshotted by the controller for this activation.
+            expected = self.finite_execution_requests.get(controller)
+            if (len(parts) != 8 or parts[2] != "frame" or parts[4] != "queued"
+                    or parts[6] != "execution" or not expected or parts[7] != expected):
+                return
+            try:
+                frame, queued = int(parts[3]), int(parts[5])
+            except ValueError:
+                return
+            if frame < 0 or queued < 0:
+                return
+            if queued:
+                # A queued restart is not a settled finite endpoint. Do not
+                # reuse a recently held receipt after this newer status.
+                self.clip_receipts.pop(controller, None)
+                return
+            received = time.monotonic()
+            self.clip_receipts[controller] = (parts[0], parts[1] == "holding", frame, received, expected)
+            if (parts[0] == "all" and parts[1] == "playing"
+                    and controller in self.finite_activation_since
+                    and received >= self.finite_activation_since[controller]):
+                self.finite_playing_seen.add(controller)
 
     def _on_image(self, msg: CompressedImage) -> None:
         try:
@@ -503,6 +546,17 @@ class Robot:
                 self.fallen = None
             return Result(True, recovered + "already in that state")
         req.strictness = SwitchController.Request.STRICT
+        if controller in req.activate_controllers and isinstance(trick, Trick) and not trick.interactive:
+            configured = await self._set_finite_execution_request(controller)
+            if not configured.ok:
+                return configured
+            if generation != self.stops or self.stopped_during_call():
+                self.finite_execution_requests.pop(controller, None)
+                return Result(False, "controller change cancelled by a stop")
+            self.clip_receipts.pop(controller, None)
+            self.clip_status.pop(controller, None)
+            self.finite_playing_seen.discard(controller)
+            self.finite_activation_since[controller] = time.monotonic()
         res = await self._call(self.switch_client, req)
         if activate and generation != self.stops:
             # A ROS request already in flight can finish after a stop; explicitly
@@ -578,6 +632,27 @@ class Robot:
         if result is None or not result.results or not all(r.successful for r in result.results):
             return Result(False, f"could not set {controller} start clip; controller not activated")
         return Result(True, "start clip configured")
+
+    async def _set_finite_execution_request(self, controller: str) -> Result:
+        """Set a fresh token before activation; the controller snapshots it once."""
+        request_id = uuid.uuid4().hex
+        client = self.param_clients.get(controller)
+        if client is None:
+            client = self.param_clients[controller] = self.node.create_client(SetParameters, f"/{controller}/set_parameters")
+        req = SetParameters.Request()
+        req.parameters = [Parameter(name="execution_request_id", value=ParameterValue(
+            type=ParameterType.PARAMETER_STRING, string_value=request_id))]
+        result = await self._call(client, req)
+        if result is None:
+            self.finite_execution_requests.pop(controller, None)
+            self.controller_fault = ("finite execution token update outcome unknown; motion quarantined. "
+                                     "Inspect/restart the controller stack before restarting this tool server")
+            return Result(False, self.controller_fault)
+        if len(result.results) != 1 or not result.results[0].successful:
+            self.finite_execution_requests.pop(controller, None)
+            return Result(False, f"could not set {controller} execution token; controller not activated")
+        self.finite_execution_requests[controller] = request_id
+        return Result(True, "finite execution token configured")
 
     async def _wait_walk_ready(self) -> None:
         """Wait until gemini_walk has eased the legs to standing and faded its
@@ -779,6 +854,35 @@ class Robot:
             await asyncio.sleep(0.05)
         return Result(True, f"played {clip}")
 
+    async def confirm_finite_endpoint(self, trick: Trick) -> Result:
+        """Confirm a fresh terminal frame after this activation's playing feedback.
+
+        This is controller playback feedback, not measured physical posture.
+        Only feedback carrying this activation's controller-snapshotted token
+        can complete it; delayed receipts from prior activations are ignored.
+        """
+        if trick.kind != "policy" or trick.interactive or getattr(trick, "frame_count", 0) < 2:
+            return Result(False, "finite playback endpoint metadata unavailable")
+        deadline = time.monotonic() + 1.0
+        while True:
+            if self.fallen or self.stopped_during_call() or self.controller_fault:
+                return Result(False, self.controller_fault or "finite playback interrupted by a fall or stop")
+            receipt = self.clip_receipts.get(trick.controller)
+            began = self.finite_activation_since.get(trick.controller)
+            if receipt and began is not None and trick.controller in self.finite_playing_seen:
+                name, holding, frame, received, request_id = receipt
+                earliest = began + TRICK_INIT_S + TRICK_FADE_S + (trick.frame_count - 1) / trick.fps
+                if (request_id == self.finite_execution_requests.get(trick.controller)
+                        and name == "all" and holding and frame == trick.frame_count - 1
+                        and received >= earliest and 0 <= time.monotonic() - received <= 0.25):
+                    return Result(True, f"controller confirmed final frame of {trick.name}")
+            if time.monotonic() >= deadline:
+                self.controller_fault = (f"{trick.name} did not confirm a fresh final playback frame; motion quarantined. "
+                                         "Inspect/restart the controller stack before restarting this tool server")
+                relaxed = await self._relax_controllers()
+                return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
+            await asyncio.sleep(0.02)
+
     async def confirm_clip_endpoint(self, trick: Trick, start_clip: str = "") -> Result:
         """Confirm the loop/hold reached by an automatically started clip chain.
 
@@ -810,27 +914,69 @@ class Robot:
             await asyncio.sleep(0.05)
 
     async def play_reference_trick(self, trick: Trick) -> Result:
-        """Feed a reference (e.g. the jump) to the running locomotion policy, standing still."""
-        reference = reference_message_data(trick)  # validate before changing controllers
-        res = await self.switch_to(LOCOMOTION_CONTROLLER)  # waits until the policy is ready
+        """Play a correlated reference and require the controller's playback receipt.
+
+        A receipt confirms the reference clock completed, not physical flight,
+        landing or posture. Missing receipts leave motion outcome uncertain.
+        """
+        if self.controller_fault:
+            return Result(False, self.controller_fault)
+        reference = reference_message_data(trick)
+        res = await self.switch_to(LOCOMOTION_CONTROLLER)
         if not res.ok:
             return res
         self.send_speed(0, 0, 0)
-        await asyncio.sleep(0.5)  # settle, standing still
+        await asyncio.sleep(0.5)
+        if self.controller_fault:
+            return Result(False, self.controller_fault)
         if self.fallen or self.stopped_during_call():
             return Result(False, "reference motion cancelled by a fall or stop")
         generation = self.stops
+        request_id = uuid.uuid4().hex
+        self.reference_request_id = request_id
+        self.reference_status = None
+        request = Float32MultiArray(data=reference)
+        request.layout = MultiArrayLayout(dim=[MultiArrayDimension(
+            label="pupper_reference_v1:" + request_id, size=len(reference), stride=len(reference))], data_offset=0)
         self.reference_active = True
+        async def unconfirmed(message):
+            self.controller_fault = message + "; motion outcome unknown; inspect/restart the controller stack before restarting this tool server"
+            relaxed = await self._relax_controllers()
+            return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
         try:
-            self.ref_pub.publish(Float32MultiArray(data=reference))
-            await asyncio.sleep(trick.total_time)
+            self.ref_pub.publish(request)
+            acknowledgement_deadline = time.monotonic() + 1.0
+            completion_deadline = time.monotonic() + float(reference[1]) + 2.0
+            while True:
+                if self.controller_fault:
+                    return Result(False, self.controller_fault)
+                if generation != self.stops or self.stopped_during_call() or self.fallen:
+                    return Result(False, "reference playback interrupted by a fall or stop")
+                receipt = self.reference_status
+                if receipt:
+                    phase, reason = receipt
+                    if phase == "rejected":
+                        return Result(False, f"controller refused {trick.name} playback: {reason}")
+                    if phase == "interrupted":
+                        return Result(False, f"controller interrupted {trick.name} playback: {reason}")
+                    if phase == "completed":
+                        break
+                elif time.monotonic() >= acknowledgement_deadline:
+                    return await unconfirmed(f"controller did not acknowledge {trick.name}")
+                if time.monotonic() >= completion_deadline:
+                    return await unconfirmed(f"controller did not confirm completing {trick.name}")
+                await asyncio.sleep(0.02)
+            # Preserve the class's post-reference settle interval. It is a wait,
+            # not evidence of measured posture or a successful physical landing.
+            await asyncio.sleep(max(0.0, trick.total_time - float(reference[1])))
+            if self.controller_fault:
+                return Result(False, self.controller_fault)
+            if generation != self.stops or self.stopped_during_call() or self.fallen:
+                return Result(False, "reference playback interrupted by a fall or stop")
+            return Result(True, f"controller completed {trick.name} reference playback")
         finally:
             self.reference_active = False
-        if generation != self.stops or self.stopped_during_call():
-            return Result(False, "reference motion interrupted by a stop")
-        if self.fallen:
-            return Result(False, f"{trick.name} ended in a fall: {FELL_MESSAGE}")
-        return Result(True, f"played {trick.name}; standing, in locomotion mode")
+            self.reference_request_id = None
 
     # ---------------------------------------------------------------- follow mode
     async def stop_following(self) -> Result:
