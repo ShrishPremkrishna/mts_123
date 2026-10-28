@@ -124,6 +124,113 @@ def apply_physical_variant(model, value):
                'Separate foot-end material sensitivity: sphere and overlapping lower-leg hull share priority1 and sliding friction. This changes the native contact-material assumption and is not exact GPU domain randomization.'))
 
 
+def validate_startup_transfer(value):
+    """Named frozen startup fields, separate from deterministic schema1 corners."""
+    import re
+    keys={'schema','name','source','bodies','joints','foot_friction','foot_material','observation_semantics'}
+    if not isinstance(value,dict) or set(value)!=keys or value['schema']!='pupper_native_startup_transfer_v1':
+        raise ValueError('Startup transfer requires the exact versioned schema')
+    if not isinstance(value['name'],str) or not re.fullmatch(r'[a-z][a-z0-9_-]{0,63}',value['name']):
+        raise ValueError('Invalid startup transfer name')
+    source=value['source'];source_keys={'revision','snapshot_sha256','capture_sha256','seed','world_index','original_fields_bit_identical'}
+    if not isinstance(source,dict) or set(source)!=source_keys:
+        raise ValueError('Startup transfer requires complete source identity')
+    if (not isinstance(source['revision'],str) or not re.fullmatch('[0-9a-f]{40}',source['revision'])
+            or any(not isinstance(source[k],str) or not re.fullmatch('[0-9a-f]{64}',source[k]) for k in ('snapshot_sha256','capture_sha256'))
+            or any(type(source[k]) is not int or source[k]<0 for k in ('seed','world_index'))
+            or source['original_fields_bit_identical'] is not True):
+        raise ValueError('Unverified or invalid source identity')
+    def number(x):return type(x) in (int,float) and np.isfinite(x)
+    def vector(x,n):return isinstance(x,list) and len(x)==n and all(number(v) for v in x)
+    if (not number(value['foot_friction']) or not .6<=value['foot_friction']<=1.4
+            or value['foot_material'] not in ('sphere_only','foot_end_union')):
+        raise ValueError('Foot material must match the inspected friction range')
+    if value['observation_semantics'] not in ('deployment_measured','training_by_controller'):
+        raise ValueError('Explicit deployment_measured or training_by_controller semantics required')
+    from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
+    if not isinstance(value['joints'],dict) or set(value['joints'])!=set(JOINT_NAMES):
+        raise ValueError('All twelve named joints required exactly once')
+    for joint in value['joints'].values():
+        if (not isinstance(joint,dict) or set(joint)!={'kp_scale','kd_scale','encoder_bias_rad'}
+                or any(not number(v) for v in joint.values())
+                or not .6-1e-7<=joint['kp_scale']<=1.1+1e-7
+                or not .8-1e-7<=joint['kd_scale']<=1.5+1e-7
+                or abs(joint['encoder_bias_rad'])>.015+1e-8):
+            raise ValueError('Joint gains/bias outside the recorded training contract')
+    if not isinstance(value['bodies'],dict) or len(value['bodies'])!=13:
+        raise ValueError('All thirteen named robot bodies required')
+    for body in value['bodies'].values():
+        if (not isinstance(body,dict) or set(body)!={'mass_kg','principal_inertia_kg_m2','com_body_m','inertial_quaternion_wxyz'}
+                or not number(body['mass_kg']) or body['mass_kg']<=0
+                or not vector(body['principal_inertia_kg_m2'],3) or min(body['principal_inertia_kg_m2'])<=0
+                or not vector(body['com_body_m'],3) or not vector(body['inertial_quaternion_wxyz'],4)
+                or abs(np.linalg.norm(body['inertial_quaternion_wxyz'])-1)>2e-6):
+            raise ValueError('Invalid physical body fields')
+        inertia=np.asarray(body['principal_inertia_kg_m2'])
+        if 2*max(inertia)>sum(inertia)+1e-10:raise ValueError('Nonphysical principal inertia')
+    return value
+
+
+def apply_startup_transfer(model,value):
+    """Apply captured inertial tensors literally, after checking model/range match."""
+    value=validate_startup_transfer(value)
+    names={model.body(i).name for i in range(1,model.nbody)}
+    if set(value['bodies'])!=names:raise ValueError('Recorded body names differ from native robot')
+    def tensor(inertia,quat):
+        rotation=np.empty(9);mujoco.mju_quat2Mat(rotation,np.asarray(quat,dtype=float))
+        rotation=rotation.reshape(3,3)
+        return rotation@np.diag(inertia)@rotation.T
+    def snapshot():
+        return {model.body(i).name:dict(mass_kg=float(model.body_mass[i]),principal_inertia_kg_m2=model.body_inertia[i].tolist(),com_body_m=model.body_ipos[i].tolist(),inertial_quaternion_wxyz=model.body_iquat[i].tolist()) for i in range(1,model.nbody)}
+    before=snapshot()
+    # Validate all bodies before mutating any field. Pseudo-inertia changes the
+    # principal-axis representation, so compare body-frame tensors, not diagonals.
+    for name,b in value['bodies'].items():
+        old=before[name];scale=b['mass_kg']/old['mass_kg']
+        if not np.exp(-.1054)-1e-6<=scale<=np.exp(.2624)+1e-6:
+            raise ValueError(f'Density outside training range: {name}')
+        delta=np.asarray(b['com_body_m'])-old['com_body_m']
+        allowed=np.asarray([.02,.005,.005]) if name=='base_link' else np.zeros(3)
+        if np.any(np.abs(delta)>allowed+2e-7):raise ValueError(f'Unexpected body COM: {name}')
+        expected=tensor(old['principal_inertia_kg_m2'],old['inertial_quaternion_wxyz'])*scale
+        actual=tensor(b['principal_inertia_kg_m2'],b['inertial_quaternion_wxyz'])
+        if not np.allclose(actual,expected,rtol=2e-4,atol=2e-9):
+            raise ValueError(f'Inertia is not the captured density-only model: {name}')
+    spheres=[model.geom(i).name for i in range(model.ngeom) if model.geom(i).name.startswith('leg_') and model.geom(i).name.endswith('_3_collision')]
+    hulls=[model.geom(i).name for i in range(model.ngeom) if model.geom(i).name.startswith('leg_') and model.geom(i).name.endswith('_3_hull')]
+    if len(spheres)!=4 or (value['foot_material']=='foot_end_union' and len(hulls)!=4):
+        raise ValueError('Expected four named foot spheres and matching hulls for union')
+    for name,b in value['bodies'].items():
+        i=model.body(name).id;model.body_mass[i]=b['mass_kg'];model.body_inertia[i]=b['principal_inertia_kg_m2']
+        model.body_ipos[i]=b['com_body_m'];model.body_iquat[i]=b['inertial_quaternion_wxyz']
+    touched=spheres+(hulls if value['foot_material']=='foot_end_union' else [])
+    for name in touched:
+        i=model.geom(name).id;model.geom_friction[i,0]=value['foot_friction']
+        if value['foot_material']=='foot_end_union':model.geom_priority[i]=1
+    scratch=mujoco.MjData(model);mujoco.mj_setConst(model,scratch)
+    return dict(requested=value,before=before,realized_bodies=snapshot(),
+        realized_foot_geoms=[dict(name=name,friction=model.geom(name).friction.tolist(),priority=int(model.geom_priority[model.geom(name).id])) for name in spheres+hulls],
+        scope='Posthoc transfer of recorded startup fields; not a GPU trajectory replay. Deployment-measured mode supplies biased measured joints to every actor. Optional training-by-controller mode supplies true joints to gait actors, reproducing a known training/deployment mismatch, and is not a deployment-sensing claim. All activation seeds use biased measured joints. Physical targets subtract bias before fixed16ms actuator delay. Per-joint gain scales multiply every controller gain command, including initialization. No stochastic observation noise, IMU delay, GPU reset state or solver transfer.')
+
+
+def startup_joint_vectors(value,joint_names):
+    return tuple(np.asarray([value['joints'][n][key] for n in joint_names])
+                 for key in ('encoder_bias_rad','kp_scale','kd_scale'))
+
+
+def startup_actor_joint_position(q,bias,controller,semantics="deployment_measured"):
+    # Tracking actor explicitly sets biased=True. Pupper gait actor currently
+    # reads true joint_pos (not joint_pos_biased); preserve that real mismatch.
+    if controller not in ('trick','walk','default'):raise ValueError('Unknown controller')
+    if semantics not in ('deployment_measured','training_by_controller'):raise ValueError('Unknown observation semantics')
+    return np.asarray(q)+bias if semantics=='deployment_measured' or controller=='trick' else np.asarray(q).copy()
+
+
+def startup_physical_command(target,kp,kd,bias,kp_scale,kd_scale):
+    # Called after controller+driver clamp and controller slew, before delay.
+    return np.asarray(target)-bias,np.asarray(kp)*kp_scale,np.asarray(kd)*kd_scale
+
+
 def default_return_stages():
     return [('default_activation','default',4.2,[0,0,0],''),
             ('default_forward','default',2,[.10,0,0],''),
@@ -268,11 +375,16 @@ def run(args):
     if interactive_sit and default_path is None:raise ValueError('Interactive Sit requires explicit --return-default-policy')
     descriptor_bytes=(validate_interactive_return_descriptor(descriptor_path,args.trick_policy) if interactive_sit else
         validate_single_return_descriptor(descriptor_path,args.trick_policy,later_return_from_lying=later_return_from_lying) if single_motion and default_path is not None else None)
+    startup_path=getattr(args,'startup_transfer',None)
+    startup_bytes=None if startup_path is None else startup_path.read_bytes()
+    startup_spec=None if startup_bytes is None else validate_startup_transfer(json.loads(startup_bytes))
     variant_path=getattr(args,'physical_variant',None)
+    if startup_spec is not None and variant_path is not None:raise ValueError('Choose startup transfer or physical variant, not both')
     variant_bytes=None if variant_path is None else variant_path.read_bytes()
     variant_spec=None if variant_bytes is None else validate_physical_variant(json.loads(variant_bytes))
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     if variant_bytes is not None:(output/'physical-variant.json').write_bytes(variant_bytes)
+    if startup_bytes is not None:(output/'startup-transfer.json').write_bytes(startup_bytes)
     if descriptor_bytes is not None:(output/'trick-descriptor.yaml').write_bytes(descriptor_bytes)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
                *sorted((ROOT/'pupper_gait_deploy/src').glob('*.hpp')),
@@ -281,6 +393,8 @@ def run(args):
     sources += [ROOT/'pupper-mjlab/src/mjlab'/p for p in (
         'tasks/tracking/config/pupper/env_cfgs.py','tasks/tracking/config/pupper/contact_contract.py',
         'tasks/pupper/locomotion_contact_contract.py','tasks/pupper/deployment_contract.py',
+        'tasks/pupper/mdp/observations.py','tasks/pupper/target_slew.py','envs/mdp/observations.py',
+        'envs/mdp/actions/actions.py','tasks/tracking/tracking_env_cfg.py',
         'asset_zoo/robots/pupper_v3/pupper_constants.py','entity/entity.py','sim/sim.py')]
     if descriptor_bytes is not None:sources.append(descriptor_path.resolve())
     source_before = {str(p.relative_to(ROOT)):sha(p) for p in sources}
@@ -301,6 +415,8 @@ def run(args):
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
     model, contract = make_model(args.contact_model)
     physical_variant=None if variant_spec is None else apply_physical_variant(model,variant_spec)
+    startup_transfer=None if startup_spec is None else apply_startup_transfer(model,startup_spec)
+    if startup_spec is not None:bias,kp_scale,kd_scale=startup_joint_vectors(startup_spec,JOINT_NAMES)
     data = mujoco.MjData(model)
     contact_scratch = mujoco.MjData(model)
     mujoco.mj_saveModel(model,str(output/'model.mjb'),None)
@@ -333,21 +449,24 @@ def run(args):
         if not line: raise RuntimeError('controller exited; inspect controller.log')
         return json.loads(line)
     samples=[]; activations=[];clip_requests=[];inference_events=[]; previous_controller=None; activation_time=0.; previous_target=data.qpos[qadr].copy()
+    if startup_spec is not None:previous_target=previous_target+bias
     # Interpolate between timestamped old targets to realize exactly 16ms at
     # 520Hz. Buffer persists through all controller switches; initial values are
     # measured standing joints, initialized once at the start of the world.
-    delayed=deque([(-1.,previous_target.copy()),(0.,previous_target.copy())])
+    initial_physical_target=data.qpos[qadr].copy()
+    delayed=deque([(-1.,initial_physical_target.copy()),(0.,initial_physical_target.copy())])
     failure=None; current_time=0.; tick=0; interval_target_step=0.
     try:
         for stage,controller,duration,command,start_clip in stages:
             if controller!=previous_controller:
                 activation_time=current_time
-                rpc(dict(op='activate',controller=controller,joint_pos=data.qpos[qadr].tolist(),
+                rpc(dict(op='activate',controller=controller,joint_pos=(data.qpos[qadr] if startup_spec is None else data.qpos[qadr]+bias).tolist(),
                          init_s=.5 if controller=='trick' else 2.,fade_s=1. if controller=='trick' else 2.,
                          start_clip=start_clip,clip_anchor=args.clip_anchor))
                 activations.append(dict(stage=stage,controller=controller,policy_sha256=policy_before[controller],time_s=current_time,root_pose=data.qpos[root_q:root_q+7].tolist(),
                                         joint_pos=data.qpos[qadr].tolist(),joint_vel=data.qvel[vadr].tolist(),
                                         physical_state_reset=False,observation_history_reset=True))
+                if startup_spec is not None:activations[-1]['measured_joint_pos']=(data.qpos[qadr]+bias).tolist()
                 previous_controller=controller
             elif interactive_sit and start_clip:
                 response=rpc(dict(op='request_clip',clip=start_clip))
@@ -358,22 +477,25 @@ def run(args):
             observed_stage_clips=set()
             for _ in range(round(duration*520)):
                 quat=data.qpos[root_q+3:root_q+7].copy()
-                state=rpc(dict(op='step',elapsed_s=current_time-activation_time,joint_pos=data.qpos[qadr].tolist(),
+                actor_joint_pos=data.qpos[qadr] if startup_spec is None else startup_actor_joint_position(data.qpos[qadr],bias,controller,startup_spec['observation_semantics'])
+                state=rpc(dict(op='step',elapsed_s=current_time-activation_time,joint_pos=actor_joint_pos.tolist(),
                     joint_vel=data.qvel[vadr].tolist(),quaternion=quat.tolist(),angular_velocity=data.qvel[root_v+3:root_v+6].tolist(),command=command,
                     audit_inference=getattr(args,'record_inference',False)))
                 if state.get('clip'):observed_stage_clips.add(state['clip'])
                 target=np.asarray(state['target']); final_target=np.clip(target,lower,upper)
                 if state.get('inference') and getattr(args,'record_inference',False):
                     inference_events.append(inference_event(state,time_s=current_time,stage=stage,controller=controller,command=command,
-                        measured_joint_pos=data.qpos[qadr].tolist(),measured_joint_vel=data.qvel[vadr].tolist(),
+                        measured_joint_pos=(data.qpos[qadr] if startup_spec is None else data.qpos[qadr]+bias).tolist(),measured_joint_vel=data.qvel[vadr].tolist(),
                         previous_controller_target=previous_target.tolist(),driver_target=final_target.tolist()))
+                    if startup_spec is not None:inference_events[-1].update(actor_joint_pos=actor_joint_pos.tolist(),observation_semantics=startup_spec['observation_semantics'])
                 interval_target_step=max(interval_target_step,float(np.max(np.abs(target-previous_target))))
-                delayed.append((current_time,final_target.copy())); cutoff=current_time-.016
+                physical_target,kp,kd=(final_target,state['kp'],state['kd']) if startup_spec is None else startup_physical_command(final_target,state['kp'],state['kd'],bias,kp_scale,kd_scale)
+                delayed.append((current_time,physical_target.copy())); cutoff=current_time-.016
                 while len(delayed)>2 and delayed[1][0]<=cutoff: delayed.popleft()
                 t0,v0=delayed[0];t1,v1=delayed[1];a=np.clip((cutoff-t0)/(t1-t0),0,1)
                 data.ctrl[controls]=(1-a)*v0+a*v1
-                model.actuator_gainprm[controls,0]=state['kp']
-                model.actuator_biasprm[controls,1]=-state['kp'];model.actuator_biasprm[controls,2]=-state['kd']
+                model.actuator_gainprm[controls,0]=kp
+                model.actuator_biasprm[controls,1]=-kp;model.actuator_biasprm[controls,2]=-kd
                 contacts = sample_contact_state(model,data,contact_scratch) if tick%10==0 else None
                 mujoco.mj_step(model,data)
                 numerical=numerical_failures(data)
@@ -391,6 +513,10 @@ def run(args):
                         target=target.tolist(),driver_target=final_target.tolist(),before_clip=state['before_clip'],
                         command=command,tilt_deg=float(tilt),target_delta_max_rad=interval_target_step,
                         torque_max_nm=float(np.max(np.abs(data.actuator_force[controls]))),contacts=contacts))
+                    if startup_spec is not None:
+                        samples[-1].update(actor_joint_pos=actor_joint_pos.tolist(),encoder_bias_rad=bias.tolist(),
+                            physical_target_before_delay=physical_target.tolist(),physical_target_after_delay=data.ctrl[controls].tolist(),
+                            applied_kp=np.asarray(kp).tolist(),applied_kd=np.asarray(kd).tolist())
                     interval_target_step=0.
                     if not np.isfinite(data.qpos).all() or tilt>angle_limit:
                         failure=dict(time_s=current_time,reason=f'nonfinite state or configured {angle_limit:g}deg body-angle stop'); break
@@ -444,6 +570,9 @@ def run(args):
         declared_trick_end_pose=yaml.safe_load(descriptor_bytes)['end_pose'] if descriptor_bytes is not None else None,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_telemetry_contract='exact_preintegration_contact_point_velocity_v1',contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
+        startup_transfer=startup_transfer,
+        startup_transfer_input_sha256=None if startup_bytes is None else hashlib.sha256(startup_bytes).hexdigest(),
+        startup_transfer_input_changed=False if startup_path is None else sha(startup_path)!=hashlib.sha256(startup_bytes).hexdigest(),
         physical_variant=physical_variant,
         physical_variant_input_sha256=None if variant_bytes is None else hashlib.sha256(variant_bytes).hexdigest(),
         physical_variant_input_changed=False if variant_path is None else sha(variant_path)!=hashlib.sha256(variant_bytes).hexdigest(),
@@ -451,7 +580,8 @@ def run(args):
         numerical_instability_monitor='Check BADQPOS/BADQVEL/BADQACC/BADCTRL warnings and finite qpos/qvel after every physics step; stop rather than count automatic recovery as success.',
         maximum_body_angle_deg=angle_limit,
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
-                 ('Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.' if physical_variant is None else
+                 (startup_transfer['scope'] if startup_transfer is not None else
+                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.' if physical_variant is None else
                   'Explicit fixed mechanics/material variant; no observation noise, IMU delay, encoder bias, gain randomization or external push. Nominal trained policies and controller limits remain unchanged.'),
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
                  'Finite trick retains its declared lying endpoint through2s terminal hold; a separate later move request directly activates the default controller. No implicit standing-exit clip is invented.' if later_return_from_lying else
@@ -488,6 +618,7 @@ if __name__=='__main__':
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)
     parser.add_argument('--clip-anchor',action='store_true',help='Compare selected-clip anchor proposal; default reproduces legacy controller.')
     parser.add_argument('--driver-limits',type=Path)
+    parser.add_argument('--startup-transfer',type=Path,help='Explicit versioned named GPU startup parameter transfer; mutually exclusive with physical-variant, separate from GPU trajectory replay')
     parser.add_argument('--physical-variant',type=Path,help='Explicit schema1 deterministic model-perturbation JSON; kept separate from nominal checks and GPU DR')
     parser.add_argument('--record-inference',action='store_true',help='Save read-only actor inputs, raw outputs, references and target transitions at every inference step')
     parser.add_argument('--max-body-angle-deg',type=float,default=float(np.degrees(1.5)),help='Optional tighter descriptor body-angle stop; may not exceed the existing1.5rad threshold')
