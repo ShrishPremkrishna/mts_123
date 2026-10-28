@@ -21,7 +21,7 @@ the last two.
 | Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered team checkpoints/exports agree numerically. [Matched tests](results/lab4-deployment-contract-comparison.json) found deployment target clipping changes gait behavior; corrected finetunes and held-out comparison are in progress |
 | Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
 | Lab 6 tools | Finite movement limits, turn/move/arc, follow interruption, serialized jobs, honest queued/completed outcomes, interactive actions and transitions | [Gemini behavior and operation](../gemini_pupper/docs/foundation.md); course checks and fault-injection tests cover stops, failures and late service responses. Live Gemini and ROS are separate tests |
-| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | Corrected export installed locally; [simulation evidence](results/lab6-sit-corrected.json) passes all eight scenarios on CPU and GPU, including81s stress. Actual C++ inference parity passes; hardware use remains pending |
+| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | Corrected export installed locally; [controller-limit evidence](results/lab6-sit-corrected.json) passes all eight scenarios on CPU/GPU and C++ inference parity. A [tighter driver-limit test](results/local-driver-tracking-evaluation.json) exposes a forward-COM weakness; further refinement and hardware checks remain pending |
 | Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | Both policies are necessary. [Command sweep](../pupper-mjlab/configs/foundation/spider_commands.json) supplies bounded evaluation requests; permitted operating speeds must come from successful evaluation, not training caps |
 | Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
 | Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, reward ablation, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Each candidate must beat its matched baseline; rejected experiments stay rejected. A captured jump must contain real flight and landing |
@@ -44,6 +44,17 @@ reproducible without being mistaken for corrected results. See the
 [target comparison](results/lab4-deployment-contract-comparison.json),
 [realized-dynamics audit](results/pupper-randomization-audit.json), and
 [body-contact audit](results/tracking-body-contact-audit.json).
+
+The source class hardware driver adds a **second, tighter joint target clamp**,
+0.10 radians inside the exported controller limits on all twelve joints. Its
+coordinate transform was checked, but the installed Pi revision remains unknown.
+The original `--deployment-target-clamp` flag matches the neural controller only.
+New runs can additionally specify `--driver-limits foundation/configs/class-driver-joint-limits.json`;
+the exact named limits and file hash become part of the run contract. See the
+[driver source/target audit](results/local-driver-position-limit-audit.json) and
+[tracking re-evaluation](results/local-driver-tracking-evaluation.json). The latter
+retains one failed robustness case for Sit and eight passing Spider-clip cases;
+it does not establish Spider walking or a physical robot result.
 
 The corrected body-contact evaluation changed the original sit and spider tracking
 verdicts. A subsequent corrected sit continuation passes the documented suite;
