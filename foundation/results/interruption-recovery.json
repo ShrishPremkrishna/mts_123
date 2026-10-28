@@ -31,20 +31,18 @@
     "drive_mount": "Not enabled; it requested additional broader Google access. Used existing approved downloads instead."
   },
   "continuing_work": [
-    "Close encoder observation mismatch for future training with explicit versioned contract, independent math/hardware review and a matched continuation/common deployment-measured evaluation; preserve all historical run identities. Do not silently relabel prior calibration robustness.",
-    "Review exact worst-world startup transfer and bounded matched native diagnostics for residual Spider belly support; no claim of universal off-belly capability. Finish independent review and preserve all source/inputs/raw data.",
-    "Complete current-catalog staged comparison package and independent validation. Actual Pi inventory, policy identity, ROS compatibility and physical performance remain unknown.",
-    "Run appropriate regression once current helper/report edits settle, update installed descriptor audit and push reviewed branch. Preserve main.",
-    "Optional2 training studies are complete with no reliable new jump. Exact Gemini stopped-jump screen also fails4/8; descriptor wording is corrected and performance limitation remains explicit.",
-    "Live Gemini credentials/session and all hardware work require later access/user supervision. Do not activate robot overnight.",
-    "Continue until17:00UTC cutoff, then begin no new compute, preserve work, stop only owned idle/finished resources, write handoff and pause automation."
+    "Finish/review pairedencoder-sensingcontinuation fromexactoriginal8495; botharmsmustbe evaluatedundercommon deployment-measuredinputs. Preserveallcompletedcheckpoints/fullarchives; neveruse shortsmokesasfullarmstartingpoints.",
+    "Complete independent default-body-parameter attribution and update truthful installed/staged/rejected capability boundaries. Fixed-default drifting counterexamples are not solved by source correction or passing unit tests.",
+    "Repeat relevant nativeadversewhole-chain screens forfinaltrainedcandidates; no automaticpromotionorhardwarevalidationclaim.",
+    "Verifyfinalcurrentcatalog/stagedpackage andlatestsourcechecks afteranycodechange; preservecourseworkmain. ActualPiidentity,calibration,loadedbinaries,physicalstop andTA/newpolicytestsremainpending.",
+    "At17:00UTC beginnonewcompute, preserveactivework/checkpoints, stoponlytask-ownedidle/finishedcompute, retirecollectorsappropriately, writeclearhandoff andpauseautomation."
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T12:15:47.359199+00:00",
+    "recorded_utc": "2026-10-28T12:33:21.600086+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
-    "head": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
+    "head": "b857497a7ae3771498bc9f0a0b6b85e797c2706c",
     "main_clean": true,
     "last_full_regression": {
       "source": "3766cc0608b0bcc97ae5849c09cca040d4634565",
@@ -68,24 +66,22 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Reviewed newencodercontract0ada364 andconcretepairedplan; exactinitialcheckpointd789\u2026verified. Independentstartup/defaultnegativeevidenceintegrated. Startingfullstable-source regression afterbriefcoordinatedfreeze;nohardware.",
-      "lab6_recovery": "Finished12recordedstartupand12defaultattributionnegativecontrols95ffd21, preservedandindependentlyreviewed. Owns16CPUdefault-onlyablationruns:2worlds\u00d72materials\u00d7(unchangedbaseline/zerobias/nominalgains/both), originalbadinertiaCOMfixed. NoGPUactions.",
-      "optional_recovery": "OwnsGPU1;0ada364frozenandpushed. 199relatedtestsand32encodercontracttests pass. Preparing32world2iterationrealrunner/export/loadsmokes at/content/pupper-spider-encoder-smoke-v1; rootapprovedsmokes, full1000iterationpairedarms awaitsmokereview. Useplanfoundation/configs/spider-encoder-observation-study.json.",
-      "sit_recovery": "Finishedindependentreviewofhardwaresemantics+bothnegative12casebatches; reportscommittedbyroot. Noactivejobsorwritespending."
+      "root": "Fullregression3766cc0passes905pytest+225coursechecks+nativeC++,735unchangedhashes. Independentlyreviewedmodecode,realGPUsmokereceipts andactualpairedstartup arrays; authorizedfullpairedcontinuation afterqualitygate. Canonicaldocumentation/checkpoint preserved; no hardware.",
+      "optional_recovery": "OwnsGPU1fullencoderstudy active since12:26:11UTC. Frozen0ada364; legacy/measured1000x4096seed42,\u22125reward, originald789model8495. Workers162474/162475, actualtrainchildren162596/162604. Common deployment_measured eval9grids/stops perarm inclpredeclared404. Newcollector23439until17UTC. Preserve/reviewtraining+alloutputs, noautopromotion.",
+      "lab6_recovery": "CPU16gain/biasablations complete: noquietreturns, all4baselinesbitidentical. Exactfreshnominaldefault-only8s positivecontrolpasses; explicitidentitytransferbitidentical. Ownsnext12inertial-group restorations: fixednominalgains/zerobias/capturedmaterial, COMonly vs mass+centralinertia+iquatonly vsboth,2donorworlds\u00d72materials. Artifacts/reportwriting; noGPU/codechanges.",
+      "sit_recovery": "Independenthardware-coordinate,12recordedstartup and12defaultattribution audits completeandcommitted. Availableforindependentreview ofnewgain/bias/inertialgroups orfinalencoderstudy. No activehardware/jobactions."
     },
-    "gpu_state_at_checkpoint": "GPU1pupper-foundation-recovery handedtooptionalforencoderGPUpreflight; priortraining/fullarchivescomplete. Previouscollector4332retired11:45UTC(final199fileindex); do notexpectitmonitornewoutputs. Newsmoke/fullcollector mustbeverifiedwithownerbeforetraining. GPU2released.",
-    "backup_status": "Refinement full raw318files4,730,863,236bytes and nativeexports76files173,283,413bytes preserved; nativephysicalvariants224files1,169,514,309bytes preserved with full inputs/models/source snapshot and independentreview. Active refinementcollector4332 retention pending owner retirement after finalarchiveproof. Optional2 ninefullarchives and867fileindex preserved; GPU2released. Earlier fullregression/controllerreturn artifacts retained. Fullrefinementindependentaudit6files733810bytespreserved;currentcatalogcomparison77files~33.76MB,70payloadmanifest41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9. Sourcee787075pushedsuccessfully. Plot5files325477bytespreserved. Originalstartup225files908154983bytes andattribution192files882872717bytes durable; original12independentaudit2files70527bytes; attributionindependentaudit3files177081bytes. Originalprefixesbitidentical; exact25filesnapshot authoritative forattribution(base176672f plus1inprogressobservationfile, explicitlyrecorded).",
+    "gpu_state_at_checkpoint": "GPU1pupper-foundation-recovery ACTIVE: /content/pupper-spider-encoder-study-v1, source0ada364cf29d6e61d9f774e94f8f7b41349d1e81. Originalinputd789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5. Both1000iterationarms started12:26:11; do not retrybeforecheckingworkerstatus/exitfiles. GPU2released. Smokesfinishedandarchived; smokeoutputsMUSTNOTseedfullstudy.",
+    "backup_status": "Refinement full raw318files4,730,863,236bytes and nativeexports76files173,283,413bytes preserved; nativephysicalvariants224files1,169,514,309bytes preserved with full inputs/models/source snapshot and independentreview. Active refinementcollector4332 retention pending owner retirement after finalarchiveproof. Optional2 ninefullarchives and867fileindex preserved; GPU2released. Earlier fullregression/controllerreturn artifacts retained. Fullrefinementindependentaudit6files733810bytespreserved;currentcatalogcomparison77files~33.76MB,70payloadmanifest41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9. Sourcee787075pushedsuccessfully. Plot5files325477bytespreserved. Originalstartup225files908154983bytes andattribution192files882872717bytes durable; original12independentaudit2files70527bytes; attributionindependentaudit3files177081bytes. Originalprefixesbitidentical; exact25filesnapshot authoritative forattribution(base176672f plus1inprogressobservationfile, explicitlyrecorded). EncoderGPUsmokes8jobscomplete: fullarchive40,329,746bytes SHAfb3fe480846ead5f2d4aaacf76af7a2ff67ec716369f9cde82e7a3a28848a809,57files~58.57MB durable. Fullstudyexactdispatchscripts/plan/launch+cutoffreceipt7filesdurable; collector23439healthyandbounded17UTC.",
     "remaining_completion_gates": [
-      "Close encoder observation mismatch for future training with explicit versioned contract, independent math/hardware review and a matched continuation/common deployment-measured evaluation; preserve all historical run identities. Do not silently relabel prior calibration robustness.",
-      "Review exact worst-world startup transfer and bounded matched native diagnostics for residual Spider belly support; no claim of universal off-belly capability. Finish independent review and preserve all source/inputs/raw data.",
-      "Complete current-catalog staged comparison package and independent validation. Actual Pi inventory, policy identity, ROS compatibility and physical performance remain unknown.",
-      "Run appropriate regression once current helper/report edits settle, update installed descriptor audit and push reviewed branch. Preserve main.",
-      "Optional2 training studies are complete with no reliable new jump. Exact Gemini stopped-jump screen also fails4/8; descriptor wording is corrected and performance limitation remains explicit.",
-      "Live Gemini credentials/session and all hardware work require later access/user supervision. Do not activate robot overnight.",
-      "Continue until17:00UTC cutoff, then begin no new compute, preserve work, stop only owned idle/finished resources, write handoff and pause automation."
+      "Finish/review pairedencoder-sensingcontinuation fromexactoriginal8495; botharmsmustbe evaluatedundercommon deployment-measuredinputs. Preserveallcompletedcheckpoints/fullarchives; neveruse shortsmokesasfullarmstartingpoints.",
+      "Complete independent default-body-parameter attribution and update truthful installed/staged/rejected capability boundaries. Fixed-default drifting counterexamples are not solved by source correction or passing unit tests.",
+      "Repeat relevant nativeadversewhole-chain screens forfinaltrainedcandidates; no automaticpromotionorhardwarevalidationclaim.",
+      "Verifyfinalcurrentcatalog/stagedpackage andlatestsourcechecks afteranycodechange; preservecourseworkmain. ActualPiidentity,calibration,loadedbinaries,physicalstop andTA/newpolicytestsremainpending.",
+      "At17:00UTC beginnonewcompute, preserveactivework/checkpoints, stoponlytask-ownedidle/finishedcompute, retirecollectorsappropriately, writeclearhandoff andpauseautomation."
     ],
     "robot": "Continue without Pupper per user; no motor activation.",
-    "session_management": "Same3agents active with exactownership; checkpoint/exitrecords/artifactindexes are authoritative. Fresh agents may use canonicalentrypoints; no manualuserhandoff needed. Nativecoding/Colab/backup paths work; no newaccess assistance needed.",
+    "session_management": "Same3focusedagents haveexplicitownership anddurableentrypoints. No newuserchat/handoffneeded. Currentremotejobexit/status/indexrecords areauthoritative; donotrelaunchsuccessfuljobs aftercontextloss.",
     "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review.",
     "latest_reviewed_results": [
       "foundation/results/lab6-spider-slew-review.json (allfivearms complete, noinstallation)",
@@ -116,20 +112,55 @@
       "foundation/results/spider-recorded-startup-independent-review.json",
       "foundation/results/spider-default-startup-attribution-reviewed.json",
       "foundation/results/spider-default-startup-attribution-independent-review.json",
-      "foundation/results/offline-validation-3766cc0.json"
+      "foundation/results/offline-validation-3766cc0.json",
+      "foundation/results/spider-encoder-observation-smoke-reviewed.json",
+      "foundation/results/hardware-comparison-package-reviewed.json"
     ],
     "latest_checkpoint_note": "Complete current-source regression3766cc0passes905pytest+225course+nativeC++;735unchangedhashes. Previous21actualROStestsremainseparateunchangedsourceevidence. Subsequentdocs/resultsupdatesare notnewcodevalidation.",
     "new_consequential_finding": {
       "name": "Persistent encoder calibration bias absent from locomotion actor observations",
       "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",
       "implication": "PriorGPUcomparisonsremaininternallymatched but calibration-robustnesstransferincomplete; nominalzero-biasnativecannotexpose. Neveraddtrueqdiagnosticsemanticsunderadeploymentlabel.",
-      "response": "Explicitfuture-trainingcontractimplemented0ada364; legacydefault preserved, taggedcheckpointinheritance/localSHA-boundmodechange andactual-loadreceipts. Nativecasesusemeasuredqforallactors. ShortGPUrealrunner/export/loadsmokesauthorized, thenrootreviewbeforefullmatchedarms."
+      "response": "Implementedversioned0ada364 measured-encoder mode, legacycompatibility/defaults preserved. Full905pytestregressionpasses; exactrealGPU2iterationcontinuation/export/audit/commonevalsmokespass. FullpairedcontinuationRUNNING; avoidclaimingthisfixesfixed-defaultstoppingorbody-supportbehaviorbeforeevaluation."
     },
     "new_default_stopping_limit": {
       "finding": "Selectedfull-hullweak-gain/inertial/biasworlds keepfixedshippeddefaultmovingafter8szero, evenfromfreshstandingwithoutSpider. Only4torso-onlyoriginalchainssettle;nochange toactualinstalledpolicy.",
       "evidence": "foundation/results/spider-default-startup-attribution-reviewed.json + independentreview",
-      "next": "Boundedgain/biasablation; do notassumeSpidersensingfixrepairs shipped fallback. ActualPiapprovedbaselinebehaviorremainsunknown."
-    }
+      "next": "Gain/biasrestorationaloneorcombineddidnotsettle. Exactfreshnominalandidentitycontrols pass; nowseparateCOManddensity/inertiagroups underfixednominalgains/zerobias. Originalnegativeevidencepreserved; no policyorhardwarechange."
+    },
+    "encoder_study": {
+      "started_utc": "2026-10-28T12:26:11+00:00",
+      "remote_root": "/content/pupper-spider-encoder-study-v1",
+      "source": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
+      "worker_pids": [
+        162474,
+        162475
+      ],
+      "training_child_pids": [
+        162596,
+        162604
+      ],
+      "collector_pid": 23439,
+      "collector_deadline_utc": "2026-10-28T17:00:00+00:00",
+      "collector_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/periodic/spider-encoder-study-v1",
+      "local_dispatch": "artifacts/lab6/pupper-spider-encoder-study-v1/dispatch",
+      "worker_sha256": "5b01206ab483446b61a901b2842cea529fcb8687c075c92a5fbca4a090e74b51",
+      "plan_sha256": "b2b2b4817b73f038784d3242a326f5c749fa99c334949230bfd5a886015c95c1",
+      "dispatch_preservation": "preservation-spider-encoder-study-dispatch-v2.json",
+      "collector_handoff_index_sha256": "92994a86d71f13fad30085e4319e86c19a07d1d9981c3485244495536b07bcfe",
+      "observed_collection": "23verifiedfiles12:28:31UTC includingboth8500/8550checkpoints andactual initial-load receipts. Indexisrolling,inspectcurrentbeforeaction.",
+      "old_collectors_retired": [
+        21202,
+        22946,
+        4332
+      ],
+      "authorization": "User broadcomputeauthorization; root internalqualityreviewapprovedfullarms after8successfulrealGPUsmokejobs andindependentreceipt/math/sourcechecks. No newuserpermissionneeded."
+    },
+    "morning_visuals": [
+      "artifacts/review/spider-mechanical-corners/comparison.png",
+      "artifacts/shipped-jump/gemini-immediate-reference-v1/review/paired-api-jump.png",
+      "artifacts/lab6/spider-recorded-startup-v1/default-stop-drift.png"
+    ]
   },
   "checkpoint_history": [
     {

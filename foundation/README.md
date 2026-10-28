@@ -77,9 +77,10 @@ The hardware controller observes measured angles, including that bias; tracking
 actors already model this correctly. Earlier randomized walking comparisons
 remain paired, but their calibration-robustness evidence is incomplete. Nominal
 zero-bias native tests cannot expose this mismatch. An explicit, versioned
-measured-angle training correction is implemented; real continuation smoke tests
-and a matched study are being prepared. Completed policies and historical
-results remain unchanged. The [hardware-coordinate derivation](results/encoder-hardware-semantics-review.json) pins the source evidence.
+measured-angle training correction is implemented and passes the full offline
+regression plus [real GPU continuation/export/evaluation smoke tests](results/spider-encoder-observation-smoke-reviewed.json). The matched 1,000-iteration
+continuation is running, with both policies evaluated using measured angles.
+Completed policies and historical results remain unchanged. The [hardware-coordinate derivation](results/encoder-hardware-semantics-review.json) pins the source evidence.
 
 A separate reference audit caught a misleading class description: the exported
 jump table contains **absolute joint angles**, while the policy observation uses

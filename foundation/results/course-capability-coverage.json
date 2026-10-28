@@ -82,12 +82,16 @@
       "evidence_paths": [
         "foundation/results/lab4-stablegait-clamp-gpu-comparison.json",
         "foundation/results/shipped-policy-native-screen.json",
-        "foundation/results/lab4-team-baseline-coverage.json"
+        "foundation/results/lab4-team-baseline-coverage.json",
+        "foundation/results/encoder-hardware-semantics-review.json",
+        "foundation/results/spider-encoder-observation-smoke-reviewed.json",
+        "foundation/results/offline-validation-3766cc0.json"
       ],
       "remaining_boundaries": [
         "No broad optimization of every historical team run.",
         "Retain shipped default; tested new walking candidates have no demonstrated general promotion advantage.",
-        "Installed Pi policy identity and measured hardware performance remain unknown."
+        "Installed Pi policy identity and measured hardware performance remain unknown.",
+        "Inspected mjlab locomotion actor omitted persistent encoder calibration bias from observation while applying it to actuator targets. Future measured-angle mode is versioned and optional; old checkpoints preserve legacy compatibility. A Lab6 matched sensing continuation is active; no claim this changes the unknown original training provenance or measured hardware behavior of the shipped default."
       ]
     },
     {
@@ -152,7 +156,9 @@
         "foundation/results/spider-recorded-startup-independent-review.json",
         "foundation/results/spider-default-startup-attribution-reviewed.json",
         "foundation/results/spider-default-startup-attribution-independent-review.json",
-        "foundation/results/hardware-comparison-package-reviewed.json"
+        "foundation/results/hardware-comparison-package-reviewed.json",
+        "foundation/results/spider-encoder-observation-smoke-reviewed.json",
+        "foundation/results/offline-validation-3766cc0.json"
       ],
       "remaining_boundaries": [
         "Reviewed Sit improvement passes original eight cases on CPU/GPU; +2.5cm COM remains outside training range and backend-sensitive.",
@@ -161,7 +167,7 @@
         "All nominal native finite, generated, interactive Sit and Spider returns to actual default walking are checked; seven lying-ending returns require a later explicit request. Eight paired Spider mechanics/material corners also complete. These selected cases do not establish random-population reliability, ROS manager integration or hardware.",
         "Equal-budget -2/-5 refinement reduces idle support from4.14%to0.82%BW. Both384/384stops settle(max.98s); no sampled >10%BW support span exceeds1s in the stronger arm, yet lighter persistent support remains, worst idle world-segment mean10.50%BW. Eight paired native mechanics/material cases complete16/16whole chains; stronger removes sampled moving/stop torso load but slows forward8/8and increases exact foot-end slip5/8. No walking pair installed; exact worst-world startup transfer is the next diagnostic.",
         "Reference, finite and interactive playback now require activation/request-correlated controller receipts after successful action application. The reproduced stale-exit failure is closed, with21 isolated actualROS tests; Pi integration and measured physical outcomes remain separate.",
-        "New independent sensor audit: locomotion actor omits persistent encoder bias although physical target subtraction includes it; real controller observes measured joint angles. Prior randomized comparisons remain paired but do not fully model calibration robustness. Explicit future-training correction and common measured-observation comparison are in preparation; historical policy bytes unchanged.",
+        "New independent sensor audit: locomotion actor omits persistent encoder bias although physical target subtraction includes it; real controller observes measured joint angles. Prior randomized comparisons remain paired but do not fully model calibration robustness. Explicit future-training correction0ada364passes full regression and realGPU smoke. Matched1,000iterationcontinuation is running; both arms will be evaluated with measured-angle inputs. Historical policy bytes remain unchanged.",
         "Two selected recorded weak-gain/high-friction/inertial/calibration worlds expose further limits: only4/12originalwhole-chaincases settle (alltorso-only). All8full-hullcases keepmovingafter2szero. Fourstanding-start fixed-defaultcontrols and8extendedpost-Spidercases alsofailthe quiet-state screen after8szero, independently confirmingthis isnotuniquetoSpiderhandoff. These areposthoc selectedphysicscases, not robotmeasurements orapopulationfailurerate. Gain/bias attribution is underway."
       ]
     },
@@ -252,7 +258,7 @@
   ],
   "acceptance_rule": "A trained experiment can be completed and rejected. Only reviewed evidence, exact model/reference identities, and supervised hardware measurements support promoted capabilities.",
   "newly_identified_implementation_gap": "Closed in f13fa65: Lab2 recording-to-Lab3 adapter with real-bag review; source-linked boundaries above remain explicit.",
-  "updated_utc": "2026-10-28T12:15:47.358762+00:00",
+  "updated_utc": "2026-10-28T12:33:21.600086+00:00",
   "source_integrity_check": {
     "checked_utc": "2026-10-28T11:30:48.432539+00:00",
     "handouts": 9,
