@@ -22,7 +22,7 @@ the last two.
 | Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
 | Lab 6 tools | Finite movement limits, turn/move/arc, follow interruption, serialized jobs, honest queued/completed outcomes, interactive actions and transitions | [Gemini behavior and operation](../gemini_pupper/docs/foundation.md); course checks and fault-injection tests cover stops, failures and late service responses. Live Gemini and ROS are separate tests |
 | Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | [Expanded-COM policy](results/lab6-sit-comx02-reviewed.json) installed locally after all eight existing scenarios passed on CPU and GPU with class driver limits. The +2 cm weakness improved; +2.5 cm remains backend-sensitive and outside the training range. [The full interactive sequence and actual default return](results/sit-interactive-default-return-reviewed.json) pass a nominal native check. Hardware checks remain |
-| Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | [Five matched slew studies](results/lab6-spider-slew-review.json) meet the actuator-target rate contract and complete sampled stops, but retain tracking/turning tradeoffs, low-command undertracking and torso support. [Full return to the default controller](results/spider-default-return-reviewed.json) passes all five nominal chains. [A matched torso-load penalty](results/lab6-spider-torso-review.json) reduced mean idle support from 67.4% to 3.9% of bodyweight, but sustained support remains in some randomized worlds and stopping/effort tradeoffs remain. [The equal-budget -2/-5 continuation](results/lab6-spider-torso-refinement-review.json) lowers idle support from 4.14% to 0.82% of bodyweight, with lighter sustained support remaining in selected randomized worlds. [Eight paired native mechanics/material cases](results/spider-native-physical-variants-reviewed.json) complete all 16 full returns; -5 removes sampled walking torso support but is slower forward and slides more in five cases. [Recorded weak-gain/calibration/mechanics cases](results/spider-recorded-startup-reviewed.json) expose torso support and unsettled default returns. [Independent default-only controls](results/spider-default-startup-attribution-reviewed.json) also keep moving after eight seconds at zero command. No walking pair promoted |
+| Lab 6 spider | Entry/idle/exit clips, separate slow walking policy, and tested controller handoff | [Final matched sensing study](results/spider-encoder-observation-study-reviewed.json): both policies complete 512/512 sampled GPU stops; measured sensing improves the stopping tail but retains support and tracking tradeoffs. [Ten full native chains](results/spider-encoder-native-reviewed.json): both nominal returns settle; all eight selected adverse returns remain moving under the fixed default. Walking code and research pairs are staged; no walking pair is installed |
 | Supplied finite tricks | Twelve active finite course policies through native activation, playback and terminal hold | [Nominal screen](results/course-tricks-native-screen.json) completed all twelve with full hull contacts and driver limits. [Five standing-ending tricks and the generated trick](results/finite-tricks-default-return-reviewed.json) return to actual default walking; [seven lying-ending tricks](results/lying-tricks-later-default-return-reviewed.json) return on a later explicit request. Sneeze peak speed and randomized/hardware performance remain limitations |
 | Supplied reference jump | Exact shipped table through native gait controller with paired no-jump controls | [The exact Gemini reference-message path](results/gemini-jump-api-reviewed.json), using zero velocity and the actual immediate callback, recovers only two of four trials after fresh activation and two of four after prior walking; paired no-jump controls pass all four each. [Earlier forward0.3m/s success](results/shipped-jump-native-reviewed.json) does not validate this stopped-jump tool. No reliable standing-jump or hardware claim |
 | Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
@@ -65,8 +65,8 @@ covered torso x-COM offsets of ±1 cm; the difficult +2 cm case lay outside it.
 Expanding only that axis to ±2 cm improved the case on both CPU and GPU while
 retaining the original reference and reward weights. That reviewed policy is now
 installed locally. At +2.5 cm, CPU still wobbles while GPU passes: this is an
-explicit boundary, not a claim of general robustness. Spider refinements remain
-under evaluation. Historical “HOLDS UP” labels describe the simulator used at the time. They are not
+explicit boundary, not a claim of general robustness. Spider walking remains staged because reviewed candidates retain
+tracking/support tradeoffs and adverse-case failures. Historical “HOLDS UP” labels describe the simulator used at the time. They are not
 sufficient evidence for deployment; new evaluations must name the actual contact,
 actuation and randomization contracts. A stable-looking animation can still be
 physically wrong when contact is disabled.
@@ -78,9 +78,20 @@ actors already model this correctly. Earlier randomized walking comparisons
 remain paired, but their calibration-robustness evidence is incomplete. Nominal
 zero-bias native tests cannot expose this mismatch. An explicit, versioned
 measured-angle training correction is implemented and passes the full offline
-regression plus [real GPU continuation/export/evaluation smoke tests](results/spider-encoder-observation-smoke-reviewed.json). Both matched 1,000-iteration
-continuations have finished; evaluation uses measured angles for both policies.
-Completed policies and historical results remain unchanged. The [hardware-coordinate derivation](results/encoder-hardware-semantics-review.json) pins the source evidence.
+regression. The [completed matched 1,000-iteration study](results/spider-encoder-observation-study-reviewed.json)
+evaluates both policies using measured angles. Both pass 512 sampled base-speed
+stops; measured-mode training reduces the slowest stop from 1.86 to 1.26 seconds,
+but increases light idle torso support and slightly worsens tracking. The
+[independent raw-trace review](results/spider-encoder-gpu-independent-review.json)
+confirms these tradeoffs. No walking policy is promoted. The [hardware-coordinate derivation](results/encoder-hardware-semantics-review.json)
+pins the source evidence.
+
+For new locomotion experiments, explicitly select
+`--encoder-observation-mode deployment_measured`. Historical behavior remains
+available as `legacy_true`; continuing a legacy checkpoint in the corrected mode
+requires an explicit, hash-bound override documented in the study. Exported mode
+metadata describes training inputs. Hardware always supplies measured joint
+angles; metadata cannot reveal its unknown true calibration error.
 
 A separate reference audit caught a misleading class description: the exported
 jump table contains **absolute joint angles**, while the policy observation uses
@@ -217,6 +228,14 @@ the actual exit record, source, inputs and references, which are preserved
 separately. Collectors require the laptop and network to remain available. Keep a
 complete final archive as well; neither periodic downloads nor `/content` storage
 guarantees that the final interval survives a runtime loss.
+
+The [current verification record](results/offline-validation-composite-c3ad206.json)
+combines the 905-test full regression, 225 course checks and native C++ checks
+with exact source hashes. The later stop-reporting correction separately passes
+237 Gemini tests and 166 course tool checks; its controller logic is unchanged.
+The 21 isolated ROS Jazzy tests remain separate evidence. All 17 installed policy
+files still match their audited identities. Both GPU runtimes have been released
+after completed outputs were preserved; no training is left running.
 
 Useful offline checks from the outer repository (with dependencies installed):
 

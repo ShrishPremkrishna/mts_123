@@ -1,0 +1,78 @@
+{
+  "verified_utc": "2026-10-28T13:27:48.062742+00:00",
+  "head": "c3ad2065706e230064687144378f5d9dd0a6fc2c",
+  "verification_type": "Composite exact-source evidence, not a fresh rerun of every test.",
+  "complete_regression": {
+    "source": "3766cc0608b0bcc97ae5849c09cca040d4634565",
+    "pytest": 905,
+    "course_checks": 225,
+    "native_cpp_suite": true,
+    "review": "foundation/results/offline-validation-3766cc0.json"
+  },
+  "subsequent_message_only_change": {
+    "commit": "5893cc9",
+    "pytest": 237,
+    "course_tool_checks": 166,
+    "review": "foundation/results/stop-reporting-reviewed.json",
+    "exact_current_hashes": {
+      "gemini_pupper/robot/robot_api.py": "9f685b1c3f12a93114ab943ccdbbd7f66db303665bb514aa219706e1c5d9354d",
+      "gemini_pupper/robot/test_tools.py": "da3bbd0c7011f539d1984b98e3f162982f9bf794392432682e0341d99b912b0b",
+      "gemini_pupper/lab/basics.py": "b88025cecfdae0489f96272c83a9fe6d2b9d38a2d53aeb8b0f09b7b6068a2d35",
+      "gemini_pupper/lab/prompt.md": "dd79217b9422d8513b1320b6cb4387c8b02b6b260ddfa6a7b3136a4d680711d6",
+      "gemini_pupper/docs/foundation.md": "1f5c4eb47db3986731de4a4d6ff38fe3261853970ac586fb2fdc8d018ac2e1ee"
+    },
+    "control_AST_unchanged_against_full_regression": {
+      "gemini_pupper/robot/robot_api.py": true,
+      "gemini_pupper/lab/basics.py": true
+    }
+  },
+  "watched_original_files": 735,
+  "unchanged_original_files": 730,
+  "updated_report_files": [
+    {
+      "path": "foundation/results/course-capability-coverage.json",
+      "before": "4eb8325a973527763e76f3204812a5055ecaeb42a97df284e2774e56a0e4d550",
+      "current": "c81416cac07e69bf08e8f42350b68ad575ff6b634d7b289ed578532db34c00dc"
+    },
+    {
+      "path": "foundation/results/interruption-recovery.json",
+      "before": "3d270488fd98027200461803bbaf9446b20df8c76b65d6cfa59b5a0951299bea",
+      "current": "66fe40f9f34684c55c49d06716cb0dccf0bba02b426059214e9123de00d299cc"
+    }
+  ],
+  "updated_code_files": [
+    {
+      "path": "gemini_pupper/lab/basics.py",
+      "before": "bc8f657e84d95ca3280a9ccc11be990eaaa9eff8165d9ea42a1253793c69c4ee",
+      "current": "b88025cecfdae0489f96272c83a9fe6d2b9d38a2d53aeb8b0f09b7b6068a2d35"
+    },
+    {
+      "path": "gemini_pupper/robot/robot_api.py",
+      "before": "2ba11b0fc22b59b5fd6e2051fa8ca9957171a9ac4845e583ffff18cf053d6803",
+      "current": "9f685b1c3f12a93114ab943ccdbbd7f66db303665bb514aa219706e1c5d9354d"
+    },
+    {
+      "path": "gemini_pupper/robot/test_tools.py",
+      "before": "e644b5e83ac3f0083510ff1caee362b9a351caef9c304d9c282cfa168a39ac60",
+      "current": "da3bbd0c7011f539d1984b98e3f162982f9bf794392432682e0341d99b912b0b"
+    }
+  ],
+  "all_other_git_changes_are_documentation_or_results": true,
+  "installed_policy_files_unchanged": 17,
+  "coursework_main": {
+    "head": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
+    "clean": true
+  },
+  "separate_actual_ROS_tests": {
+    "tests": 21,
+    "rerun": false,
+    "basis": "Controller sources remain byte-identical to the previous isolated actualROS21-test evidence."
+  },
+  "hardware_validated": false,
+  "limitations": "No policy promotion or physical-stop/hardware approval follows from regression checks. New source changes require appropriate checks.",
+  "evidence": {
+    "path": "artifacts/validation/composite-c3ad206/checks.json",
+    "sha256": "f955d9f139f47b71ba2c33bbb14742cfda13b1ee2c2be3230e55dfbc0798e9da",
+    "unchanged_hashes_sha256": "8eaa1b0a7c795c1a545fe58c8be13805db565cdcb6ac4b80f76bedb7e9ed26a7"
+  }
+}

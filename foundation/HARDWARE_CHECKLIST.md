@@ -38,10 +38,23 @@ installed paths have not been established. Do not infer them from the laptop's
 layout. Stage this checkout separately; do not run its installer or setup script
 against the approved workspace while discovering it.
 
-On the robot, from the separately staged checkout, first run:
+The [portable inventory kit](results/portable-inventory-kit-reviewed.json) bundles
+only the three reviewed inspection helpers in a 12.4 kB archive. It avoids a full
+repository clone or installation for the first inventory. Its report pins the
+archive and source hashes. Verify the archive, extract into a new private staging
+directory, and preserve its `foundation/scripts` layout. The tools use the Python
+standard library for the base inventory; ROS is optional. The kit is not a policy
+installation, a complete robot backup, or proof of compatibility with this Pi.
+
+From either that kit or the separately staged checkout, run the inventory with
+`--repo-root /absolute/discovered/working/checkout` once the real path is known.
+Omitting it inspects labeled discovery candidates, not a verified active setup.
+For example:
 
 ```bash
-bash foundation/scripts/robot_inventory.sh > /tmp/pupper-inventory-before.json
+PYTHONDONTWRITEBYTECODE=1 GIT_OPTIONAL_LOCKS=0 \
+  bash foundation/scripts/robot_inventory.sh --repo-root /absolute/discovered/working/checkout \
+  > /tmp/pupper-inventory-before.json
 ```
 
 The default component paths are labeled discovery candidates, not proof of the
@@ -53,7 +66,9 @@ After sourcing the robot's existing approved ROS environment, observe the alread
 running graph without launching or changing controllers:
 
 ```bash
-bash foundation/scripts/robot_inventory.sh --ros > /tmp/pupper-inventory-ros-before.json
+PYTHONDONTWRITEBYTECODE=1 GIT_OPTIONAL_LOCKS=0 \
+  bash foundation/scripts/robot_inventory.sh --repo-root /absolute/discovered/working/checkout --ros \
+  > /tmp/pupper-inventory-ros-before.json
 ```
 
 The script prints JSON to standard output; these redirections create the report

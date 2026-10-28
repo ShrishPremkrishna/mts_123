@@ -39,10 +39,10 @@
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T12:59:36.420593+00:00",
+    "recorded_utc": "2026-10-28T13:38:15.524001+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
-    "head": "5893cc9d7dec918a329a9a49eca7616c6fd54fed",
+    "head": "e06496bc3a6864dc3dcaca64dc521d6dda4e8a31",
     "main_clean": true,
     "last_full_regression": {
       "source": "3766cc0608b0bcc97ae5849c09cca040d4634565",
@@ -66,22 +66,22 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Reviewed the fixed-default parameter attribution and stop-reporting correction. Committed5893cc9; independent review plus237Gemini tests and166course-tool checks pass on exact final bytes. Remaining work: independent final encoder-study synthesis, canonical evidence and archives. No hardware.",
-      "optional_recovery": "Both1000iteration encoder arms finished; finalmodel9494 and strict exports preserved. Owns9common measured-mode evaluations perarm and complete archives. Actual collector12:57:42 shows both grid-s404 active; training/export/audits and four preceding grids perarm exit0.",
-      "lab6_recovery": "All10 final encoder native chains ran. Owns precise support/tracking/slip, original2s and extended8s return metrics, parity, visuals and preservation. Early nominal both settle; all8adverse returns remain nonquiet. Report still under final review.",
-      "sit_recovery": "Independent30-case default restoration audit committed36171a4. Stop-reporting independent review complete. Owns independent review of final10encoder-native chains."
+      "root": "Canonical integration complete. Composite exact-source validation and bothGPU/native independent reviews are saved. Allcompute is closed; only documented robot/account gates and17:00UTC finalautomationhandoff remain. No policy promoted by finalencoderstudy.",
+      "optional_recovery": "Complete. Both final9494 arms, all18GPU evaluations, full250-file remote inventory, archives and analyses preserved. Collector retired and GPU1 released13:19:36UTC. No jobs or collectors remain.",
+      "lab6_recovery": "Complete. Final10native chains and visuals preserved. Portable12.4kB kit is root-verified and locally smoke-tested on macOS and isolatedARM64Linux/Python3.12.3, with matching85filehashes. No Pi/ROS execution and no jobs remain.",
+      "sit_recovery": "Independent restoration/native/stop-reporting reviews complete. Existing Google project imported in AIStudio; no key/payment/auth changes. OriginalCS123tab restored. No active work."
     },
-    "gpu_state_at_checkpoint": "GPU1 pupper-foundation-recovery: both trainings and strict exports complete; fixed evaluations still running under frozen0ada364. Root read hash-verified collected status12:57:42: both grid-s404 active, each previous fourgrid jobs exit0. GPU2 remains released. Do not restart completed training.",
-    "backup_status": "All earlier completed-study archives remain in the durable artifact root and named preservation receipts. Oldrefinementcollector4332 is retired. Currentencoder collector23439 is healthy; root independently hashed51files152318802bytes at12:41 with no mismatch; owner reports125preserved identities and zeroerrors at12:54. Final9494models/exports/manifests/audits already separately preserved15files37.04MB; full evaluation archives pending. Defaultinertial diagnostic205files699828080bytes and independentrestorationaudit9files809849bytes are preserved. Stop-reporting finalsource/patch/tests9files193288bytes preserved.",
+    "gpu_state_at_checkpoint": "Both task-owned Colab runtimes released after verified complete archives. GPU2 retired10:20:35UTC; GPU1 pupper-foundation-recovery retired13:19:36UTC. All encoder32childjobs exit0,18evaluation suitescomplete. Do not relaunch or poll the deleted session as if it were active.",
+    "backup_status": "Complete encoder runtime inventory250files recovered and SHA-matched; root independently rehashed258durable payload/archive/receipt files totaling3902784311bytes withzeroerrors. All18rawGPUtraces independently analyzed. Native10bundle193files848184587bytes preserved; independentnativeaudit9files740671bytes. Earlier Optional2ninearchives, torso/refinement, Sit, generatedmotion, controller and default-attribution archives remain preserved. Final233-file rollingindex retained withreceipts/logs aftercollector retirement; no activecheckpointcollector. Portableinventorykit archive12422bytesSHA b5b139bd8f79ce0e43732f2fa09d054433932379db538fe82ea44c8e733a8fd7 isroot-verified; sourcepayloadunchanged.",
     "remaining_completion_gates": [
-      "Finish/review both final9494encoder policies under common deployment-measured inputs. Training andstrict exports are complete. Preserve allfullarchives and actual exit records; no newtrainingunless a specific justified gap emerges.",
-      "Finish independent10-chain native review and summarize tradeoffs without hiding fixed-default drifting counterexamples. Do not infer physical performance from tests or clock completion.",
-      "Repeat relevant nativeadversewhole-chain screens forfinaltrainedcandidates; no automaticpromotionorhardwarevalidationclaim.",
-      "Verifyfinalcurrentcatalog/stagedpackage andlatestsourcechecks afteranycodechange; preservecourseworkmain. ActualPiidentity,calibration,loadedbinaries,physicalstop andTA/newpolicytestsremainpending.",
-      "At17:00UTC beginnonewcompute, preserveactivework/checkpoints, stoponlytask-ownedidle/finishedcompute, retirecollectorsappropriately, writeclearhandoff andpauseautomation."
+      "When Pupper is available: read-only discovery and baseline backup, recover missing installed/team policy identities, inspect actual launch/controller/driver/calibration paths. Portable inventory kit avoids a full clone/install. Continue without robot until the user reconnects it.",
+      "With user physically present and applicable TA approval: establish approved baseline standing/stopping, joint/IMU signs and timing, camera/Hailo, follower interruptions and actual controller receipts; validate newly trained Sit/generated candidates separately. No automaticmotoractivation.",
+      "Live Gemini remains pending: existing importedproject showsPrepayrequired andAPIkeycontrols didnotpopulate. No key created/stored, no payment/authchanges. Resolve account/key access with user or use their configured key at the robot session; neverpastekeyinchat.",
+      "Known research boundaries remain: no promotedSpiderwalkingpair, no reliable new/standingjump, Bumpy/fastgaittradeoffs, defaultmass/inertiarobustness failure inselectedsimcases, contactclassifierlivecalibration. Further optimization should use actual calibration and targeted acceptance criteria, not repeat finished jobs or claim globalmaxima.",
+      "At17:00UTC: inspect actual newstate, preserve any new work, write the final overnight handoff and pauseautomation. No newcompute at/aftercutoff. Existingcompute is alreadyclosed."
     ],
     "robot": "Continue without Pupper per user; no motor activation.",
-    "session_management": "Same3focusedagents haveexplicitownership anddurableentrypoints. No newuserchat/handoffneeded. Currentremotejobexit/status/indexrecords areauthoritative; donotrelaunchsuccessfuljobs aftercontextloss.",
+    "session_management": "Same focused agents reused; one capacity/compaction failure recovered from saved artifacts with no simulation or training rerun. Canonical entrypoints and exact archive/receipt identities are durable. No new user chat or handoff is needed. The offline study pipeline is closed; do not spend remaining overnight time rerunning completed experiments merely to stay active.",
     "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review.",
     "latest_reviewed_results": [
       "foundation/results/lab6-spider-slew-review.json (allfivearms complete, noinstallation)",
@@ -119,14 +119,20 @@
       "foundation/results/spider-default-nominal-control-reviewed.json",
       "foundation/results/spider-default-inertial-ablation-reviewed.json",
       "foundation/results/spider-default-restoration-independent-review.json",
-      "foundation/results/stop-reporting-reviewed.json"
+      "foundation/results/stop-reporting-reviewed.json",
+      "foundation/results/spider-encoder-observation-study-reviewed.json",
+      "foundation/results/spider-encoder-gpu-independent-review.json",
+      "foundation/results/spider-encoder-native-reviewed.json",
+      "foundation/results/spider-encoder-native-independent-review.json",
+      "foundation/results/portable-inventory-kit-reviewed.json",
+      "foundation/results/offline-validation-composite-c3ad206.json"
     ],
-    "latest_checkpoint_note": "Complete source3766cc0 regression:905pytest+225course checks+nativeC++,735unchanged hashes. Later messaging-only5893cc9 has separate237Gemini+166course-tool checks; normalized control AST unchanged. Previous21actualROStests remain separate unchanged-controller-source evidence.",
+    "latest_checkpoint_note": "Composite validation verifies730of735earlierwatched filesunchanged;2changedfilesarecanonicalreports and3Python changesarethe independentlyreviewed message/testassertion correction. Full905pytest+225course+nativeC++ evidence is retained; finalmessagingbytes separatelypass237Gemini+166course-toolchecks. ControlASTidentical afterstringnormalization. All17installedpolicyfilesunchanged andcourseworkmainclean13299faa. Seeoffline-validation-composite-c3ad206.json.",
     "new_consequential_finding": {
       "name": "Persistent encoder calibration bias absent from locomotion actor observations",
       "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",
       "implication": "PriorGPUcomparisonsremaininternallymatched but calibration-robustnesstransferincomplete; nominalzero-biasnativecannotexpose. Neveraddtrueqdiagnosticsemanticsunderadeploymentlabel.",
-      "response": "Versioned measured-encoder mode implemented and validated. Both matched1000iteration continuations completed; final9494exports verified and preserved. Common measured-modeGPU evaluations and native reviews underway. Does not repair the fixed default or establish hardware robustness."
+      "response": "Measured-angle contract implemented and independently validated. Finalpaired1000iterationstudy complete: both512/512basequietstops; max1.86to1.26s, but idle torso support.266%to.378%BW andslightlyworseXY/yawtracking. Nativeadverse torso support improves, turning/sliptradeoffs andall8failedadverse defaultreturnsremain. No promotion."
     },
     "new_default_stopping_limit": {
       "finding": "Selected full-hull startup cases keep the fixed shipped default moving after8s at zero command, including fresh standing starts. This is not uniquely caused by Spider history.",
@@ -143,15 +149,6 @@
       "started_utc": "2026-10-28T12:26:11+00:00",
       "remote_root": "/content/pupper-spider-encoder-study-v1",
       "source": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
-      "worker_pids": [
-        162474,
-        162475
-      ],
-      "training_child_pids": [
-        162596,
-        162604
-      ],
-      "collector_pid": 23439,
       "collector_deadline_utc": "2026-10-28T17:00:00+00:00",
       "collector_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/periodic/spider-encoder-study-v1",
       "local_dispatch": "artifacts/lab6/pupper-spider-encoder-study-v1/dispatch",
@@ -159,24 +156,44 @@
       "plan_sha256": "b2b2b4817b73f038784d3242a326f5c749fa99c334949230bfd5a886015c95c1",
       "dispatch_preservation": "preservation-spider-encoder-study-dispatch-v3.json",
       "collector_handoff_index_sha256": "92994a86d71f13fad30085e4319e86c19a07d1d9981c3485244495536b07bcfe",
-      "observed_collection": "Root read actual hash-verified armstatus files from rollingindex12:57:42; both training/export/audits and fourgridjobs/arm exit0, grid404 active. Owner125preserved identities12:54:50, noerrors. Inspectactualcurrent records before acting.",
+      "observed_collection": "Finalindex233filesSHA5a3b5df6c818f0e0da6e71a0c6176877f55174cf78651e9a60aa0580bf0a9eb7. Fullruntime250fileinventory andcompletearchives areauthoritative finalpreservation; rootverified258durablefiles includingarchives/receipts.",
       "old_collectors_retired": [
         21202,
         22946,
         4332
       ],
       "authorization": "User broadcomputeauthorization; root internalqualityreviewapprovedfullarms after8successfulrealGPUsmokejobs andindependentreceipt/math/sourcechecks. No newuserpermissionneeded.",
-      "training_state": "Both1000iteration arms complete; evaluation ongoing",
+      "training_state": "Complete; allGPU/nativeevaluation and preservation complete; runtime released",
       "final_checkpoint_label": "model_9494.pt",
       "iteration_convention": "RSL labels8495..9494, upper9495exclusive; optimizer170000to190000 confirms1000PPOiterations.",
       "final_export_lineage": "artifacts/lab6/pupper-spider-encoder-study-v1/exports/lineage.json",
       "final_exports_preservation": "preservation-spider-encoder-study-final-exports-v1.json",
-      "authorization_amendment": "artifacts/lab6/pupper-spider-encoder-study-v1/dispatch/authorization-amendment.json"
+      "authorization_amendment": "artifacts/lab6/pupper-spider-encoder-study-v1/dispatch/authorization-amendment.json",
+      "worker_pids_historical": [
+        162474,
+        162475
+      ],
+      "training_child_pids_historical": [
+        162596,
+        162604
+      ],
+      "collector_pid_historical": 23439,
+      "collector_state": "retired13:19:33UTC betweenquietcycles",
+      "runtime_released_utc": "2026-10-28T13:19:36+00:00",
+      "runtime_closure": "artifacts/lab6/pupper-spider-encoder-study-v1/runtime-closure",
+      "runtime_closure_preservation": "preservation-spider-encoder-study-runtime-closure-v1.json",
+      "final_reviews": [
+        "foundation/results/spider-encoder-observation-study-reviewed.json",
+        "foundation/results/spider-encoder-gpu-independent-review.json",
+        "foundation/results/spider-encoder-native-reviewed.json",
+        "foundation/results/spider-encoder-native-independent-review.json"
+      ]
     },
     "morning_visuals": [
-      "artifacts/review/spider-mechanical-corners/comparison.png",
-      "artifacts/shipped-jump/gemini-immediate-reference-v1/review/paired-api-jump.png",
-      "artifacts/lab6/spider-recorded-startup-v1/default-stop-drift.png"
+      "artifacts/lab6/pupper-spider-encoder-study-v1/analysis/comparison.png",
+      "artifacts/lab6/spider-encoder-native-v1/native-tradeoffs.png",
+      "artifacts/lab6/spider-default-inertial-ablation-v1/inertial-ablation.png",
+      "artifacts/shipped-jump/gemini-immediate-reference-v1/review/paired-api-jump.png"
     ],
     "latest_targeted_validation": {
       "commit": "5893cc9",
@@ -184,7 +201,8 @@
       "gemini_pytest": 237,
       "course_tool_checks": 166,
       "behavior_control_AST_unchanged": true
-    }
+    },
+    "latest_composite_validation": "foundation/results/offline-validation-composite-c3ad206.json"
   },
   "checkpoint_history": [
     {
@@ -324,6 +342,11 @@
       "recorded_utc": "2026-10-28T12:33:21.600086+00:00",
       "head": "b857497a7ae3771498bc9f0a0b6b85e797c2706c",
       "checkpoint_summary": "Paired encoder study dispatched and final exports subsequently verified; exact prior metadata remain in immutable dispatch/lineage and linked reports."
+    },
+    {
+      "recorded_utc": "2026-10-28T12:59:36.420593+00:00",
+      "head": "5893cc9d7dec918a329a9a49eca7616c6fd54fed",
+      "checkpoint_summary": "Both encoder trainings had completed and final evaluations were running. All studies are now finished; immutable full archives, independent GPU/native reviews and release receipts supersede that active-job snapshot."
     }
   ],
   "recovery_entry_points": [
@@ -358,7 +381,7 @@
       "screen_lock_unchanged": true
     },
     "authorization": "User explicitly requested roughly8h autonomous work and optional Gemini key setup, with earlier broad coding/compute/queue/Colab/policy-recovery approvals. Routine reversible work need not wait for user. Never weaken security/approval controls or activate robot.",
-    "key_access": "Chrome existing CS123 window inspected. AIStudio signed in, no importedCloudprojects, Createkeydisabled. No key/project created; originalCS123tab restored. Gemini SDK/schema/browserbuild already pass; live check deferred. This does not block RL.",
+    "key_access": "Bounded existingChromeAIStudio followup importedexisting GenerativeLanguageClient project, observedTier1/Prepayrequired. Keylist/creationdialog didnotpopulate afterreload; no key/projectcreated, no payment/security/authchanges. Nonsecret statusreceipt preserved atartifacts/access/gemini-existing-project-import-20261028/status-receipt.json. Originaltab restoredtohttps://cs123-stanford.readthedocs.io/en/latest/. LiveGemini remainspending; doesnotblockofflinework.",
     "communication": "No routine unchanged notifications; meaningful results/completion/failure or genuine user action only. User sleeping; continue unaffected work when optional access unavailable.",
     "cutoff_action": "Do not begin new jobs at/aftercutoff. Preserve/checkpoint active work and stop only task-owned idle/finished compute, provide clear handoff and pause this automation.",
     "handoff": "Reuse current agents where healthy; after interruption inspect source/head, current jobs/exit receipts, and durable indexes before resuming. Never restart successful training merely because chat context changed."
