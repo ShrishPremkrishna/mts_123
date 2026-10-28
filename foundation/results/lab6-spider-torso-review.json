@@ -1483,6 +1483,126 @@
         "qpos_qvel_solver_warmstart_bit_identical": true,
         "scope": "Actual saved9hull Pupper model, fixed reviewed stop target; one trajectory samples isolated-copy contact telemetry every10physicssteps and the paired trajectory does not. No learned controller or ROS execution in this measurement-invariance check."
       }
+    },
+    "exact_native_contact_point_replay": {
+      "path": "artifacts/lab6/pupper-spider-torso/native-exact-contact/review.json",
+      "sha256": "680f0b49a777671b39f20f30af7d52873fb3f16dedd8a41ae5bd20263455886d",
+      "scope": "Exact per-contact relative world velocity from two-body Jacobians on an isolated forward-solved pre-integration state; normal projection removed. Sampled52Hz; no continuous between-sample claim. Contact force weighting excludes unloaded geometric proximity. No hardware approval.",
+      "arms": {
+        "control": {
+          "physical_history_bit_identical": true,
+          "physical_history_max_difference": {
+            "root_pos": 0.0,
+            "root_quat": 0.0,
+            "joint_pos": 0.0,
+            "joint_vel": 0.0,
+            "target": 0.0,
+            "driver_target": 0.0,
+            "torque_max_nm": 0.0
+          },
+          "walking_stages": {
+            "walk_activation": {
+              "mean_torso_load_fraction": 0.09238489233939413,
+              "load_weighted_torso_contact_point_speed_m_s": 0.0001443739633089438,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0026053833854984693,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0,
+              "fraction_exact_zero_torso_force": 0.5525114155251142
+            },
+            "walk_forward": {
+              "mean_torso_load_fraction": 0.13528348754958153,
+              "load_weighted_torso_contact_point_speed_m_s": 0.022363601131694506,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.07684133293311707,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0673076923076923,
+              "fraction_exact_zero_torso_force": 0.8461538461538461
+            },
+            "walk_stop_1": {
+              "mean_torso_load_fraction": 0.3013836104771076,
+              "load_weighted_torso_contact_point_speed_m_s": 0.008662637654554394,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.04319696595383521,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.019230769230769232,
+              "fraction_exact_zero_torso_force": 0.3076923076923077
+            },
+            "walk_backward": {
+              "mean_torso_load_fraction": 0.20508102954027368,
+              "load_weighted_torso_contact_point_speed_m_s": 0.015050635688115783,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0463525949134793,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.057692307692307696,
+              "fraction_exact_zero_torso_force": 0.7788461538461539
+            },
+            "walk_turn": {
+              "mean_torso_load_fraction": 0.0891339716899307,
+              "load_weighted_torso_contact_point_speed_m_s": 0.014228614140203247,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.04341622070346386,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.04807692307692308,
+              "fraction_exact_zero_torso_force": 0.8653846153846154
+            },
+            "walk_stop_before_exit": {
+              "mean_torso_load_fraction": 0.30879114929374635,
+              "load_weighted_torso_contact_point_speed_m_s": 0.00047521804659958266,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0070515052769828035,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0,
+              "fraction_exact_zero_torso_force": 0.14423076923076922
+            }
+          }
+        },
+        "torso": {
+          "physical_history_bit_identical": true,
+          "physical_history_max_difference": {
+            "root_pos": 0.0,
+            "root_quat": 0.0,
+            "joint_pos": 0.0,
+            "joint_vel": 0.0,
+            "target": 0.0,
+            "driver_target": 0.0,
+            "torque_max_nm": 0.0
+          },
+          "walking_stages": {
+            "walk_activation": {
+              "mean_torso_load_fraction": 0.0027091264616756804,
+              "load_weighted_torso_contact_point_speed_m_s": 0.00040162135065439285,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0025266949713394636,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0,
+              "fraction_exact_zero_torso_force": 0.9817351598173516
+            },
+            "walk_forward": {
+              "mean_torso_load_fraction": 0.0,
+              "load_weighted_torso_contact_point_speed_m_s": null,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0,
+              "fraction_exact_zero_torso_force": 1.0
+            },
+            "walk_stop_1": {
+              "mean_torso_load_fraction": 0.0,
+              "load_weighted_torso_contact_point_speed_m_s": null,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0,
+              "fraction_exact_zero_torso_force": 1.0
+            },
+            "walk_backward": {
+              "mean_torso_load_fraction": 0.006760217973342411,
+              "load_weighted_torso_contact_point_speed_m_s": 0.0630967464902197,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0630967464902197,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.009615384615384616,
+              "fraction_exact_zero_torso_force": 0.9903846153846154
+            },
+            "walk_turn": {
+              "mean_torso_load_fraction": 0.11306560360657152,
+              "load_weighted_torso_contact_point_speed_m_s": 0.052707495332106606,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.08902413676102383,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.038461538461538464,
+              "fraction_exact_zero_torso_force": 0.9615384615384616
+            },
+            "walk_stop_before_exit": {
+              "mean_torso_load_fraction": 0.0,
+              "load_weighted_torso_contact_point_speed_m_s": null,
+              "peak_torso_contact_point_speed_when_contact_force_above_0_1N_m_s": 0.0,
+              "torso_force_above_10pct_BW_and_weighted_contact_speed_above_1cm_s_fraction": 0.0,
+              "fraction_exact_zero_torso_force": 1.0
+            }
+          }
+        }
+      },
+      "preservation": "preservation-spider-torso-exact-contact-reviewed-v1.json:49files146459075bytes"
     }
   },
   "support_time_convention": {
