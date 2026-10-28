@@ -141,7 +141,8 @@
         "foundation/results/finite-tricks-default-return-reviewed.json",
         "foundation/results/sit-interactive-default-return-reviewed.json",
         "foundation/results/lying-tricks-later-default-return-reviewed.json",
-        "foundation/results/controller-completion-v1-reviewed.json"
+        "foundation/results/controller-completion-v1-reviewed.json",
+        "foundation/results/controller-completion-v2-reviewed.json"
       ],
       "remaining_boundaries": [
         "Reviewed Sit improvement passes original eight cases on CPU/GPU; +2.5cm COM remains outside training range and backend-sensitive.",
@@ -149,7 +150,7 @@
         "Live Gemini, installed Pi compatibility and physical validation remain pending.",
         "All nominal native finite, generated, interactive Sit and Spider returns to actual default walking are checked; seven lying-ending returns require a later explicit request. Randomized transitions and hardware remain untested.",
         "Matched torso weight -2 reduced mean idle support 67.4% to 3.9% of bodyweight; 19/288 correlated idle world-segments still sustain over 10% bodyweight for over one second. All 384 stops settle, but maximum stopping time rises from 0.44 to 0.80 s and effort/slip/yaw tradeoffs remain. Matched -2 versus -5 refinement is active; no walking pair installed.",
-        "Reference and finite playback now require correlated controller receipts, with 18 isolated actual ROS Jazzy tests. A reproduced stale interactive exit receipt is under a separate correlation fix; no current completion claim for that path."
+        "Reference, finite and interactive playback now require activation/request-correlated controller receipts after successful action application. The reproduced stale-exit failure is closed, with21 isolated actualROS tests; Pi integration and measured physical outcomes remain separate."
       ]
     },
     {
@@ -239,5 +240,5 @@
   ],
   "acceptance_rule": "A trained experiment can be completed and rejected. Only reviewed evidence, exact model/reference identities, and supervised hardware measurements support promoted capabilities.",
   "newly_identified_implementation_gap": "Closed in f13fa65: Lab2 recording-to-Lab3 adapter with real-bag review; source-linked boundaries above remain explicit.",
-  "updated_utc": "2026-10-28T10:43:50.736601+00:00"
+  "updated_utc": "2026-10-28T10:52:56.927651+00:00"
 }

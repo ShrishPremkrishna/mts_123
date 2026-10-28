@@ -102,15 +102,14 @@ through its standing clip; the spider hands off between its clip policy and its
 separate slow walking policy. Unknown service outcomes quarantine new motion
 instead of assuming that a timed-out request never happened.
 
-A [controller completion audit](results/controller-completion-v1-reviewed.json)
-found that timers could report a reference or finite trick complete without
-matching controller feedback. Reference requests now carry unique IDs; finite
-policy receipts carry an ID frozen at activation and are emitted only after
-successful command application. The actual ROS Jazzy implementation passes
-18 isolated tests. A separate reproduced stale interactive-exit receipt is being
-closed with activation and per-clip correlation; do not treat that integration
-path as finished yet. Playback receipts establish controller progress, not
-measured physical posture, flight or landing.
+A [controller completion audit](results/controller-completion-v2-reviewed.json)
+found timers and stale interactive receipts could falsely report completion.
+Reference requests now carry unique IDs; policy receipts identify the activation;
+interactive clips also identify the specific request throughout queued playback.
+Receipts follow successful command application and require the expected fresh
+endpoint. The actual ROS Jazzy implementation passes 21 isolated tests, including
+the reproduced stale-exit failure. Playback receipts establish controller
+progress, not measured physical posture, flight or landing.
 
 The new contact model augments the **single front-right leg trajectory** through
 `ik.py --contact-model <export-directory>`. It freezes trajectory time for one

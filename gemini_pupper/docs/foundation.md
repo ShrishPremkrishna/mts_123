@@ -16,6 +16,23 @@ include the latest outcome. A failed job cancels dependent queued work; a stop
 preempts request acceptance. Failed exit transitions and missing clip completion
 feedback are reported rather than treated as successful movement.
 
+Reference playback carries a unique request ID; finite policies carry an ID
+frozen at activation; interactive clips additionally carry a per-request ID
+through their queue and automatic successor clips. Completion requires matching,
+fresh controller feedback for the expected final frame or loop. Receipts are
+published after successful inference and command writes, and never override a
+stop, fall or unresolved controller fault. A restarted server can leave an
+already-active trick only after its own new clip request receives a matching
+receipt. These messages confirm controller playback, not measured posture or
+physical landing. See the [review and exact protocols](../../foundation/results/controller-completion-v2-reviewed.json).
+
+The combined stack requires the rebuilt controller with read-only reference,
+policy and interactive capability descriptors. Copying marker values into YAML
+is refused. Current tools accept the earlier correlated finite receipt format,
+but interactive requests require the new protocol. The controller remembers the
+last 64 interactive request IDs per activation for duplicate refusal; the tool
+server uses a new UUID for every request and does not retry motion automatically.
+
 A timed-out or cancelled controller or follower activation may still execute remotely. The
 server keeps its future, attempts deactivation when the late response arrives,
 and latches a motion quarantine. Stop reports the actual cleanup result without
