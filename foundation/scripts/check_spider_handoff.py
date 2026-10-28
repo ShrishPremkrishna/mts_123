@@ -151,6 +151,40 @@ def numerical_failures(data):
     return failures
 
 
+def contact_point_telemetry(model, data):
+    """Exact ground contact-point velocities at the supplied forward-solved state.
+
+    Jacobians include translation, rotation about each body's COM and joint
+    motion. Subtract both point velocities, then project onto the contact plane;
+    root translation alone cannot identify sliding or rolling.
+    """
+    contacts=[]
+    for contact_id,c in enumerate(data.contact):
+        names=[model.geom(int(g)).name for g in (c.geom1,c.geom2)]
+        if 'terrain' not in names:continue
+        force=np.zeros(6);mujoco.mj_contactForce(model,data,contact_id,force)
+        point=np.array(c.pos,copy=True);frame=np.asarray(c.frame).reshape(3,3)
+        jacobians=[]
+        for geom in (c.geom1,c.geom2):
+            jac=np.zeros((3,model.nv));mujoco.mj_jac(model,data,jac,None,point,int(model.geom_bodyid[geom]));jacobians.append(jac)
+        relative=(jacobians[1]-jacobians[0])@data.qvel
+        normal_speed=float(frame[0]@relative)
+        tangential=relative-normal_speed*frame[0]
+        contacts.append(dict(geom=names[1-names.index('terrain')],distance_m=float(c.dist),friction=float(c.friction[0]),normal_force_n=float(force[0]),
+            position_world_m=point.tolist(),normal_world=frame[0].tolist(),relative_velocity_geom2_minus_geom1_world_m_s=relative.tolist(),
+            normal_relative_velocity_m_s=normal_speed,tangential_relative_velocity_world_m_s=tangential.tolist(),tangential_speed_m_s=float(np.linalg.norm(tangential))))
+    return contacts
+
+
+def sample_contact_state(model, data, scratch):
+    # Solve on an isolated exact copy so contact positions, forces and velocities
+    # all describe the pre-integration state. Never re-forward live simulation
+    # data after stepping or replace its solver warmstart/history.
+    mujoco.mj_copyData(scratch,model,data)
+    mujoco.mj_forward(model,scratch)
+    return contact_point_telemetry(model,scratch)
+
+
 def inference_event(state, **context):
     # Scenario stage (e.g. walk_forward) and activation stage (fade/policy) are
     # distinct. Preserve both without colliding dict keyword arguments.
@@ -200,6 +234,7 @@ def run(args):
     if preserved_hashes!=policy_before:raise RuntimeError('Preserved policy identity mismatch')
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
     model, contract = make_model(args.contact_model); data = mujoco.MjData(model)
+    contact_scratch = mujoco.MjData(model)
     mujoco.mj_saveModel(model,str(output/'model.mjb'),None)
     joints = [model.joint(name).id for name in JOINT_NAMES]
     qadr, vadr = model.jnt_qposadr[joints], model.jnt_dofadr[joints]
@@ -271,6 +306,7 @@ def run(args):
                 data.ctrl[controls]=(1-a)*v0+a*v1
                 model.actuator_gainprm[controls,0]=state['kp']
                 model.actuator_biasprm[controls,1]=-state['kp'];model.actuator_biasprm[controls,2]=-state['kd']
+                contacts = sample_contact_state(model,data,contact_scratch) if tick%10==0 else None
                 mujoco.mj_step(model,data)
                 numerical=numerical_failures(data)
                 if numerical:
@@ -279,13 +315,7 @@ def run(args):
                 if tick%10==0:
                     w,x,y,z=data.qpos[root_q+3:root_q+7]
                     tilt=np.degrees(np.arccos(np.clip(1-2*(x*x+y*y),-1,1)))
-                    contacts=[]
-                    for contact_id,c in enumerate(data.contact):
-                        names=[model.geom(int(g)).name for g in (c.geom1,c.geom2)]
-                        if 'terrain' in names:
-                            force=np.zeros(6);mujoco.mj_contactForce(model,data,contact_id,force)
-                            contacts.append(dict(geom=names[1-names.index('terrain')],distance_m=float(c.dist),friction=float(c.friction[0]),normal_force_n=float(force[0])))
-                    samples.append(dict(time_s=current_time,stage=stage,controller=controller,activation_stage=state['stage'],
+                    samples.append(dict(time_s=current_time,contact_state_time_s=current_time,stage=stage,controller=controller,activation_stage=state['stage'],
                         clip=state.get('clip'),frame=state['frame'],holding=state.get('holding'),
                         root_pos=data.qpos[root_q:root_q+3].tolist(),root_quat=data.qpos[root_q+3:root_q+7].tolist(),
                         root_velocity_body=(data.xmat[body].reshape(3,3).T@data.qvel[root_v:root_v+3]).tolist(),
@@ -345,7 +375,7 @@ def run(args):
         interactive_sit=interactive_sit,clip_requests=clip_requests,later_return_from_lying=later_return_from_lying,
         declared_trick_end_pose=yaml.safe_load(descriptor_bytes)['end_pose'] if descriptor_bytes is not None else None,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
-        contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
+        contact_telemetry_contract='exact_preintegration_contact_point_velocity_v1',contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
         numerical_instability_monitor='Check BADQPOS/BADQVEL/BADQACC/BADCTRL warnings and finite qpos/qvel after every physics step; stop rather than count automatic recovery as success.',
         maximum_body_angle_deg=angle_limit,
@@ -357,7 +387,7 @@ def run(args):
                  'Single finite clip plus2s hold; no walking handoff tested.' if single_motion and default_path is None else
                  'Default controller returns after the finite terminal hold or Spider exit with its own measured-pose initialization, reset history, no scheduled jumps, 0.1m/s forward command and stop; no ROS services executed.' if default_path is not None else
                  'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.',
-                 'MuJoCo derived contacts/forces accompany the forward solve immediately before integration; recorded qpos is after integration, at most1/520s later.'],
+                 'Contacts/forces and Jacobian-derived relative contact-point velocities are sampled on an isolated forward-solved pre-integration state; recorded qpos is after integration, at most1/520s later. No live solver state is changed by telemetry.'],
         trick_descriptor_sha256=hashlib.sha256(descriptor_bytes).hexdigest() if descriptor_bytes is not None else None,
         trick_policy_sha256=policy_before['trick'],walk_policy_sha256=None if single_motion or interactive_sit else policy_before['walk'],
         default_policy_sha256=policy_before.get('default'),policy_hashes_start=policy_before,policy_hashes_end=policy_after,
