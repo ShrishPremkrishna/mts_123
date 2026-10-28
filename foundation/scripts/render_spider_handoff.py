@@ -9,10 +9,12 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 
-def render(left, right, output):
+def render(left, right, output, left_label=None, right_label=None, shot_times=None):
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
     panels=[]
-    inputs=[(left,'Exported policy physics')] if right is None else [(left,'Legacy activation'),(right,'Selected clip activation')]
+    inputs=[(left,left_label or 'Exported policy physics')] if right is None else [(left,left_label or 'Legacy activation'),(right,right_label or 'Selected clip activation')]
+    if shot_times is None:shot_times=(.5,1.5,2.5,4.,6.,9.) if right is None else (22.6,23.1,23.6,24.1,27.,32.)
+    if not np.isfinite(shot_times).all() or any(t<0 for t in shot_times):raise ValueError('Snapshot times must be finite and nonnegative')
     for folder,label in inputs:
         model=mujoco.MjModel.from_binary_path(str(folder/'model.mjb'))
         # Presentation only: brighten the headlight and floor; qpos/model physics
@@ -43,7 +45,6 @@ def render(left, right, output):
                     images.append(np.asarray(im))
                 combined=np.concatenate(images,axis=1);writer.append_data(combined)
                 t=panels[0][2][i]['time_s']
-                shot_times=(.5,1.5,2.5,4.,6.,9.) if right is None else (22.6,23.1,23.6,24.1,27.,32.)
                 if any(abs(t-target)<1/52 for target in shot_times):
                     shots.append(combined)
         if shots:
@@ -55,4 +56,6 @@ def render(left, right, output):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('left',type=Path);parser.add_argument('right',type=Path,nargs='?');parser.add_argument('output',type=Path)
-    args=parser.parse_args();render(args.left,args.right,args.output)
+    parser.add_argument('--left-label');parser.add_argument('--right-label')
+    parser.add_argument('--snapshot-times',type=float,nargs='+')
+    args=parser.parse_args();render(args.left,args.right,args.output,args.left_label,args.right_label,args.snapshot_times)
