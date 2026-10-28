@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "contract": "local_class_driver_position_limits_v1",
+  "installed_robot_verified": false,
+  "joint_limits": {
+    "leg_front_r_1": [
+      -1.12,
+      2.41
+    ],
+    "leg_front_r_2": [
+      -0.32,
+      3.04
+    ],
+    "leg_front_r_3": [
+      -2.69,
+      0.61
+    ],
+    "leg_front_l_1": [
+      -2.41,
+      1.12
+    ],
+    "leg_front_l_2": [
+      -3.04,
+      0.32
+    ],
+    "leg_front_l_3": [
+      -0.61,
+      2.69
+    ],
+    "leg_back_r_1": [
+      -1.12,
+      2.41
+    ],
+    "leg_back_r_2": [
+      -0.32,
+      3.04
+    ],
+    "leg_back_r_3": [
+      -2.69,
+      0.61
+    ],
+    "leg_back_l_1": [
+      -2.41,
+      1.12
+    ],
+    "leg_back_l_2": [
+      -3.04,
+      0.32
+    ],
+    "leg_back_l_3": [
+      -0.61,
+      2.69
+    ]
+  },
+  "units": "radians",
+  "sources": [
+    {
+      "path": "pupperv3-monorepo/ros2_ws/src/pupper_v3_description/description/components.xacro",
+      "sha256": "dd37684786102fd8e4cf5135f0985e7321ae3005dccb8608e932cb0cd8001919",
+      "lines": [
+        7,
+        19,
+        20,
+        36,
+        48,
+        49,
+        65,
+        77,
+        78
+      ]
+    },
+    {
+      "path": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp",
+      "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e",
+      "lines": [
+        363,
+        364,
+        476,
+        479,
+        487,
+        497,
+        500,
+        503,
+        554
+      ]
+    },
+    {
+      "path": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_spi.cpp",
+      "sha256": "dcf50e0e2280b675e995fd575eda820ea3a0c10bdb520d2e6ed5db0deba2497b",
+      "lines": [
+        245,
+        250,
+        276,
+        279,
+        283
+      ]
+    }
+  ],
+  "coordinate_contract": "Named ROS joint coordinates after SPI sign/offset conversion and subtraction of homing zero. Normal hardware write calls copy_actuator_commands(true); it clamps cmd_pos to these limits when kp>0, then adds the homing zero before the SPI sign/offset transform. Thus these limits apply in the same joint coordinates as policy target_joint_pos, not raw motor coordinates.",
+  "relationship_to_controller": "All twelve lower bounds are 0.10 rad higher and upper bounds 0.10 rad lower than current MuJoCo/policy-JSON joint limits. This is a second downstream clamp beyond the C++ neural-controller clamp.",
+  "scope": "Explicit local class-source contract for simulation experiments. Installed Pi URDF, driver, firmware, calibration and active controller are unknown and may differ. No physical limit changes or hardware approval are implied."
+}

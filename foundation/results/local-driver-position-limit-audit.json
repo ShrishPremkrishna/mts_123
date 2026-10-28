@@ -1,0 +1,5252 @@
+{
+  "method": "Counterfactual component-wise clipping of recorded target_joint_pos, already clipped to model/controller limits, against exact local class-driver bounds. No dynamics replay or retraining.",
+  "units": "radians",
+  "tolerance_rad": 1e-06,
+  "scored_mask": "Existing trace valid mask; excludes warmup and reset/failure transitions according to original evaluator.",
+  "contract_file": "foundation/configs/class-driver-joint-limits.json",
+  "contract_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+  "coordinate_evidence": "Named ROS joint coordinates after SPI sign/offset conversion and subtraction of homing zero. Normal hardware write calls copy_actuator_commands(true); it clamps cmd_pos to these limits when kp>0, then adds the homing zero before the SPI sign/offset transform. Thus these limits apply in the same joint coordinates as policy target_joint_pos, not raw motor coordinates.",
+  "installed_robot_verified": false,
+  "runs": [
+    {
+      "label": "optional2-baseline4498",
+      "directory": "artifacts/optional2/clamped-batch/mixed-baseline-eval",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "/content/pupper-clamp-results/optional2/mixed-baseline/model_4498.pt",
+        "out": "/content/pupper-clamp-results/optional2/mixed-baseline-eval",
+        "seed": 101,
+        "device": "cuda:0",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "num_envs": 32,
+        "seconds": 10.0,
+        "warmup": 2.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "git_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+        "source_sha256": "cbd59667e7f36c2e0030380f3c49d0c71b9eaaf2120a261da163882dd2f9b4c8",
+        "source_files_hashed": 257,
+        "checkpoint_sha256": "9607b28bff6f66fd08d9c06fd509a0de14c6496cca75c64d872370349d7231f4",
+        "domain_randomization": {
+          "worlds": 32,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                32,
+                13
+              ],
+              "minimum": [
+                1.3756860494613647,
+                0.1624716967344284,
+                0.16835136711597443,
+                0.045230988413095474,
+                0.1631217747926712,
+                0.1682698279619217,
+                0.0458315908908844,
+                0.16319209337234497,
+                0.169749915599823,
+                0.0450083464384079,
+                0.16985833644866943,
+                0.16983656585216522,
+                0.0454685352742672
+              ],
+              "maximum": [
+                1.9498486518859863,
+                0.2330845445394516,
+                0.23987801373004913,
+                0.06459813565015793,
+                0.23129208385944366,
+                0.2414179891347885,
+                0.0643215924501419,
+                0.23383401334285736,
+                0.23987865447998047,
+                0.06482946127653122,
+                0.23384755849838257,
+                0.2383616864681244,
+                0.06260637193918228
+              ],
+              "mean": [
+                1.6557304859161377,
+                0.1981450617313385,
+                0.2031886726617813,
+                0.05528494715690613,
+                0.19365474581718445,
+                0.20639550685882568,
+                0.055426567792892456,
+                0.19348391890525818,
+                0.20508813858032227,
+                0.05340682342648506,
+                0.19978781044483185,
+                0.20324614644050598,
+                0.0529346689581871
+              ],
+              "std": [
+                0.15563759207725525,
+                0.022084450349211693,
+                0.021502729505300522,
+                0.006079267710447311,
+                0.01931118220090866,
+                0.02181781269609928,
+                0.00562743516638875,
+                0.022355394437909126,
+                0.020974252372980118,
+                0.005950685124844313,
+                0.021704398095607758,
+                0.021335680037736893,
+                0.0048536392860114574
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                32,
+                13
+              ],
+              "minimum": [
+                0.9134701490402222,
+                0.9026204943656921,
+                0.9051148295402527,
+                0.9046197533607483,
+                0.9062320590019226,
+                0.9046764969825745,
+                0.916631817817688,
+                0.9066227078437805,
+                0.9126339554786682,
+                0.900166928768158,
+                0.943657398223877,
+                0.9130997657775879,
+                0.9093707203865051
+              ],
+              "maximum": [
+                1.29472017288208,
+                1.2949141263961792,
+                1.2896666526794434,
+                1.291962742805481,
+                1.2849559783935547,
+                1.2979460954666138,
+                1.2864317893981934,
+                1.2990777492523193,
+                1.2896701097488403,
+                1.2965892553329468,
+                1.2991530895233154,
+                1.2815144062042236,
+                1.2521274089813232
+              ],
+              "mean": [
+                1.0994224548339844,
+                1.1008058786392212,
+                1.0924122333526611,
+                1.105698823928833,
+                1.075859785079956,
+                1.109653353691101,
+                1.1085312366485596,
+                1.0749106407165527,
+                1.1026242971420288,
+                1.06813645362854,
+                1.109932541847229,
+                1.0927212238311768,
+                1.0586934089660645
+              ],
+              "std": [
+                0.10334501415491104,
+                0.12269139289855957,
+                0.11560606211423874,
+                0.12158534675836563,
+                0.10728435218334198,
+                0.11730006337165833,
+                0.11254870146512985,
+                0.1241966187953949,
+                0.11276480555534363,
+                0.1190137043595314,
+                0.12057996541261673,
+                0.11470793187618256,
+                0.0970727875828743
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                32,
+                3
+              ],
+              "minimum": [
+                -5.587935447692871e-09,
+                0.0,
+                -2.7939677238464355e-09
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                1.862645149230957e-09
+              ],
+              "mean": [
+                -2.9103830456733704e-09,
+                0.0,
+                -5.820766091346741e-10
+              ],
+              "std": [
+                1.5400299924195338e-09,
+                0.0,
+                1.0081863122124446e-09
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                32,
+                12
+              ],
+              "minimum": [
+                -0.014273034408688545,
+                -0.011888658627867699,
+                -0.014353379607200623,
+                -0.014327476732432842,
+                -0.013720277696847916,
+                -0.014533553272485733,
+                -0.014391491189599037,
+                -0.014943324029445648,
+                -0.011551318690180779,
+                -0.014807851053774357,
+                -0.014424851164221764,
+                -0.014269599691033363
+              ],
+              "maximum": [
+                0.014004393480718136,
+                0.01480869110673666,
+                0.011614951305091381,
+                0.014320346526801586,
+                0.01436308491975069,
+                0.013464248739182949,
+                0.012829798273742199,
+                0.014284149743616581,
+                0.014211137779057026,
+                0.01356025505810976,
+                0.014956056140363216,
+                0.0144133185967803
+              ],
+              "mean": [
+                0.0014635523548349738,
+                0.0007409858517348766,
+                -0.0016693574143573642,
+                -0.0009505662601441145,
+                -0.00035989031312055886,
+                0.0006884703761897981,
+                0.00025771031505428255,
+                -4.521617665886879e-05,
+                0.000576683902181685,
+                -0.0020941321272403,
+                -0.0014509465545415878,
+                -0.00015712392632849514
+              ],
+              "std": [
+                0.008145510219037533,
+                0.009468309581279755,
+                0.00785547774285078,
+                0.009028904139995575,
+                0.00907716155052185,
+                0.008797908201813698,
+                0.008007572032511234,
+                0.00935717299580574,
+                0.008106531575322151,
+                0.008940380066633224,
+                0.007965720258653164,
+                0.008463970385491848
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                32,
+                4
+              ],
+              "minimum": [
+                0.6016901731491089,
+                0.6016901731491089,
+                0.6016901731491089,
+                0.6016901731491089
+              ],
+              "maximum": [
+                1.383682131767273,
+                1.383682131767273,
+                1.383682131767273,
+                1.383682131767273
+              ],
+              "mean": [
+                0.9823554158210754,
+                0.9823554158210754,
+                0.9823554158210754,
+                0.9823554158210754
+              ],
+              "std": [
+                0.2233559489250183,
+                0.2233559489250183,
+                0.2233559489250183,
+                0.2233559489250183
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                32,
+                12
+              ],
+              "minimum": [
+                3.330270290374756,
+                3.5567891597747803,
+                3.4407496452331543,
+                3.355564594268799,
+                3.344538450241089,
+                3.3250508308410645,
+                3.3498332500457764,
+                3.3143057823181152,
+                3.3528687953948975,
+                3.43282151222229,
+                3.3800439834594727,
+                3.3319036960601807
+              ],
+              "maximum": [
+                5.972644329071045,
+                5.989208698272705,
+                5.960158824920654,
+                6.033100605010986,
+                6.0383381843566895,
+                6.045017242431641,
+                5.971757411956787,
+                5.730266571044922,
+                5.85884952545166,
+                6.037256240844727,
+                6.018378257751465,
+                5.897969722747803
+              ],
+              "mean": [
+                4.775397300720215,
+                4.812564373016357,
+                4.646840572357178,
+                4.7624969482421875,
+                4.78141975402832,
+                4.695314407348633,
+                4.749114036560059,
+                4.713855266571045,
+                4.683009147644043,
+                4.768849849700928,
+                4.598699569702148,
+                4.586716651916504
+              ],
+              "std": [
+                0.8276616930961609,
+                0.7123389840126038,
+                0.8257259130477905,
+                0.8828886151313782,
+                0.7195819020271301,
+                0.8471754193305969,
+                0.8186554908752441,
+                0.6766303777694702,
+                0.7828965783119202,
+                0.7899274826049805,
+                0.8191024661064148,
+                0.7846186757087708
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                32,
+                12
+              ],
+              "minimum": [
+                0.20982138812541962,
+                0.20470526814460754,
+                0.20251183211803436,
+                0.20288406312465668,
+                0.2028590887784958,
+                0.21204882860183716,
+                0.20388227701187134,
+                0.2038600593805313,
+                0.20198041200637817,
+                0.20683839917182922,
+                0.2008020430803299,
+                0.20576080679893494
+              ],
+              "maximum": [
+                0.36729195713996887,
+                0.3636628985404968,
+                0.37382709980010986,
+                0.3684784770011902,
+                0.3652529716491699,
+                0.3718797266483307,
+                0.3675347566604614,
+                0.37401825189590454,
+                0.3684907555580139,
+                0.37248677015304565,
+                0.37100934982299805,
+                0.370065838098526
+              ],
+              "mean": [
+                0.305960088968277,
+                0.28278881311416626,
+                0.3003126084804535,
+                0.29311126470565796,
+                0.29077237844467163,
+                0.2973804771900177,
+                0.2913372814655304,
+                0.2891390919685364,
+                0.2906251549720764,
+                0.29228973388671875,
+                0.2864443361759186,
+                0.3056700825691223
+              ],
+              "std": [
+                0.04744664952158928,
+                0.04586118459701538,
+                0.04481020197272301,
+                0.05485298112034798,
+                0.04941904917359352,
+                0.049012746661901474,
+                0.04610284045338631,
+                0.05082330107688904,
+                0.05049101635813713,
+                0.054865363985300064,
+                0.046531617641448975,
+                0.04443658888339996
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "865d08515109f1fefdc860d2ddd120c1db748977d01fa3a7728181774ef97d3d"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        }
+      },
+      "aggregate": {
+        "scored_states": 204598,
+        "scored_joint_requests": 2455176,
+        "additionally_clipped_joint_requests": 252937,
+        "additionally_clipped_joint_fraction": 0.10302194221514059,
+        "states_with_any_additional_clipping_fraction": 0.5879431861504022,
+        "maximum_additional_target_clamp_rad": 0.10000002861022939,
+        "fraction_by_joint": {
+          "leg_front_r_1": 0.005586564873556926,
+          "leg_front_r_2": 0.1822696214039238,
+          "leg_front_r_3": 0.16267509946333786,
+          "leg_front_l_1": 0.008836841024838952,
+          "leg_front_l_2": 0.21001671570592087,
+          "leg_front_l_3": 0.15897027341420739,
+          "leg_back_r_1": 0.03180382994946187,
+          "leg_back_r_2": 0.0871025132210481,
+          "leg_back_r_3": 0.12795335242768746,
+          "leg_back_l_1": 0.023235808756683837,
+          "leg_back_l_2": 0.10760124732402077,
+          "leg_back_l_3": 0.1302114390169992
+        }
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 1,
+          "additionally_clipped_joint_fraction": 6.510416666666667e-06,
+          "states_with_any_additional_clipping_fraction": 7.8125e-05,
+          "maximum_additional_target_clamp_rad": 0.02864190220832824,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 7.8125e-05,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 1,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 15403,
+          "additionally_clipped_joint_fraction": 0.10027994791666667,
+          "states_with_any_additional_clipping_fraction": 0.6078125,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.000390625,
+            "leg_front_r_2": 0.125078125,
+            "leg_front_r_3": 0.174296875,
+            "leg_front_l_1": 0.001484375,
+            "leg_front_l_2": 0.18109375,
+            "leg_front_l_3": 0.191953125,
+            "leg_back_r_1": 0.03375,
+            "leg_back_r_2": 0.068046875,
+            "leg_back_r_3": 0.165625,
+            "leg_back_l_1": 0.01296875,
+            "leg_back_l_2": 0.0903125,
+            "leg_back_l_3": 0.158359375
+          }
+        },
+        {
+          "segment": 2,
+          "command": [
+            0.49,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 17472,
+          "additionally_clipped_joint_fraction": 0.11375,
+          "states_with_any_additional_clipping_fraction": 0.678671875,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.004140625,
+            "leg_front_r_2": 0.174765625,
+            "leg_front_r_3": 0.193671875,
+            "leg_front_l_1": 0.00484375,
+            "leg_front_l_2": 0.21484375,
+            "leg_front_l_3": 0.1809375,
+            "leg_back_r_1": 0.026953125,
+            "leg_back_r_2": 0.09578125,
+            "leg_back_r_3": 0.158828125,
+            "leg_back_l_1": 0.014296875,
+            "leg_back_l_2": 0.117734375,
+            "leg_back_l_3": 0.178203125
+          }
+        },
+        {
+          "segment": 3,
+          "command": [
+            0.51,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 17889,
+          "additionally_clipped_joint_fraction": 0.11646484375,
+          "states_with_any_additional_clipping_fraction": 0.68765625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.00453125,
+            "leg_front_r_2": 0.1771875,
+            "leg_front_r_3": 0.193984375,
+            "leg_front_l_1": 0.0053125,
+            "leg_front_l_2": 0.2209375,
+            "leg_front_l_3": 0.1890625,
+            "leg_back_r_1": 0.03109375,
+            "leg_back_r_2": 0.101796875,
+            "leg_back_r_3": 0.16515625,
+            "leg_back_l_1": 0.0121875,
+            "leg_back_l_2": 0.120078125,
+            "leg_back_l_3": 0.17625
+          }
+        },
+        {
+          "segment": 4,
+          "command": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 23415,
+          "additionally_clipped_joint_fraction": 0.15244140625,
+          "states_with_any_additional_clipping_fraction": 0.7778125,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.007421875,
+            "leg_front_r_2": 0.245546875,
+            "leg_front_r_3": 0.243984375,
+            "leg_front_l_1": 0.020625,
+            "leg_front_l_2": 0.308671875,
+            "leg_front_l_3": 0.27359375,
+            "leg_back_r_1": 0.019765625,
+            "leg_back_r_2": 0.169921875,
+            "leg_back_r_3": 0.182109375,
+            "leg_back_l_1": 0.00671875,
+            "leg_back_l_2": 0.187890625,
+            "leg_back_l_3": 0.163046875
+          }
+        },
+        {
+          "segment": 5,
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12598,
+          "scored_joint_requests": 151176,
+          "additionally_clipped_joint_requests": 25562,
+          "additionally_clipped_joint_fraction": 0.16908768587606499,
+          "states_with_any_additional_clipping_fraction": 0.8158437847277346,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0008731544689633275,
+            "leg_front_r_2": 0.24178441022384506,
+            "leg_front_r_3": 0.32076520082552784,
+            "leg_front_l_1": 0.025638990315923163,
+            "leg_front_l_2": 0.3414827750436577,
+            "leg_front_l_3": 0.305762819495158,
+            "leg_back_r_1": 0.013652960787426576,
+            "leg_back_r_2": 0.20860454040323861,
+            "leg_back_r_3": 0.19463406889982537,
+            "leg_back_l_1": 0.0032544848388633115,
+            "leg_back_l_2": 0.19376091443086205,
+            "leg_back_l_3": 0.1788379107794888
+          }
+        },
+        {
+          "segment": 6,
+          "command": [
+            0.51,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 17872,
+          "additionally_clipped_joint_fraction": 0.11635416666666666,
+          "states_with_any_additional_clipping_fraction": 0.685234375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.004453125,
+            "leg_front_r_2": 0.178828125,
+            "leg_front_r_3": 0.193671875,
+            "leg_front_l_1": 0.005625,
+            "leg_front_l_2": 0.21921875,
+            "leg_front_l_3": 0.1896875,
+            "leg_back_r_1": 0.030390625,
+            "leg_back_r_2": 0.099609375,
+            "leg_back_r_3": 0.16453125,
+            "leg_back_l_1": 0.01296875,
+            "leg_back_l_2": 0.121015625,
+            "leg_back_l_3": 0.17625
+          }
+        },
+        {
+          "segment": 7,
+          "command": [
+            0.49,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 17425,
+          "additionally_clipped_joint_fraction": 0.11344401041666667,
+          "states_with_any_additional_clipping_fraction": 0.676484375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.00421875,
+            "leg_front_r_2": 0.17578125,
+            "leg_front_r_3": 0.176640625,
+            "leg_front_l_1": 0.006484375,
+            "leg_front_l_2": 0.213515625,
+            "leg_front_l_3": 0.193359375,
+            "leg_back_r_1": 0.032734375,
+            "leg_back_r_2": 0.0921875,
+            "leg_back_r_3": 0.1696875,
+            "leg_back_l_1": 0.0134375,
+            "leg_back_l_2": 0.121796875,
+            "leg_back_l_3": 0.161484375
+          }
+        },
+        {
+          "segment": 8,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 1,
+          "additionally_clipped_joint_fraction": 6.510416666666667e-06,
+          "states_with_any_additional_clipping_fraction": 7.8125e-05,
+          "maximum_additional_target_clamp_rad": 0.00045868039131163885,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 7.8125e-05,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 9,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 16974,
+          "additionally_clipped_joint_fraction": 0.1105078125,
+          "states_with_any_additional_clipping_fraction": 0.632109375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.02421875,
+            "leg_front_r_2": 0.189375,
+            "leg_front_r_3": 0.1803125,
+            "leg_front_l_1": 0.03578125,
+            "leg_front_l_2": 0.22046875,
+            "leg_front_l_3": 0.166796875,
+            "leg_back_r_1": 0.07046875,
+            "leg_back_r_2": 0.034921875,
+            "leg_back_r_3": 0.1475,
+            "leg_back_l_1": 0.068203125,
+            "leg_back_l_2": 0.041328125,
+            "leg_back_l_3": 0.14671875
+          }
+        },
+        {
+          "segment": 10,
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 18959,
+          "additionally_clipped_joint_fraction": 0.12343098958333333,
+          "states_with_any_additional_clipping_fraction": 0.77140625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.028203125,
+            "leg_front_r_2": 0.34265625,
+            "leg_front_r_3": 0.1859375,
+            "leg_front_l_1": 0.0225,
+            "leg_front_l_2": 0.215390625,
+            "leg_front_l_3": 0.178046875,
+            "leg_back_r_1": 0.07203125,
+            "leg_back_r_2": 0.056796875,
+            "leg_back_r_3": 0.135625,
+            "leg_back_l_1": 0.06171875,
+            "leg_back_l_2": 0.056015625,
+            "leg_back_l_3": 0.12625
+          }
+        },
+        {
+          "segment": 11,
+          "command": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 17795,
+          "additionally_clipped_joint_fraction": 0.11585286458333334,
+          "states_with_any_additional_clipping_fraction": 0.640859375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.00015625,
+            "leg_front_r_2": 0.157109375,
+            "leg_front_r_3": 0.180234375,
+            "leg_front_l_1": 0.003046875,
+            "leg_front_l_2": 0.283984375,
+            "leg_front_l_3": 0.17390625,
+            "leg_back_r_1": 0.05,
+            "leg_back_r_2": 0.145234375,
+            "leg_back_r_3": 0.149921875,
+            "leg_back_l_1": 0.03625,
+            "leg_back_l_2": 0.06375,
+            "leg_back_l_3": 0.146640625
+          }
+        },
+        {
+          "segment": 12,
+          "command": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 16248,
+          "additionally_clipped_joint_fraction": 0.10578125,
+          "states_with_any_additional_clipping_fraction": 0.63859375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0003125,
+            "leg_front_r_2": 0.175234375,
+            "leg_front_r_3": 0.191796875,
+            "leg_front_l_1": 0.000234375,
+            "leg_front_l_2": 0.16296875,
+            "leg_front_l_3": 0.177578125,
+            "leg_back_r_1": 0.03875,
+            "leg_back_r_2": 0.0140625,
+            "leg_back_r_3": 0.135703125,
+            "leg_back_l_1": 0.039296875,
+            "leg_back_l_2": 0.179375,
+            "leg_back_l_3": 0.1540625
+          }
+        },
+        {
+          "segment": 13,
+          "command": [
+            0.0,
+            0.3,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 23844,
+          "additionally_clipped_joint_fraction": 0.155234375,
+          "states_with_any_additional_clipping_fraction": 0.892109375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.007421875,
+            "leg_front_r_2": 0.357265625,
+            "leg_front_r_3": 0.188515625,
+            "leg_front_l_1": 0.00609375,
+            "leg_front_l_2": 0.39015625,
+            "leg_front_l_3": 0.16671875,
+            "leg_back_r_1": 0.038203125,
+            "leg_back_r_2": 0.079765625,
+            "leg_back_r_3": 0.137578125,
+            "leg_back_l_1": 0.053828125,
+            "leg_back_l_2": 0.272265625,
+            "leg_back_l_3": 0.165
+          }
+        },
+        {
+          "segment": 14,
+          "command": [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 24076,
+          "additionally_clipped_joint_fraction": 0.15674479166666666,
+          "states_with_any_additional_clipping_fraction": 0.905859375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.00296875,
+            "leg_front_r_2": 0.376640625,
+            "leg_front_r_3": 0.181484375,
+            "leg_front_l_1": 0.003984375,
+            "leg_front_l_2": 0.389375,
+            "leg_front_l_3": 0.1584375,
+            "leg_back_r_1": 0.05078125,
+            "leg_back_r_2": 0.228828125,
+            "leg_back_r_3": 0.14140625,
+            "leg_back_l_1": 0.036328125,
+            "leg_back_l_2": 0.15765625,
+            "leg_back_l_3": 0.153046875
+          }
+        },
+        {
+          "segment": 15,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 1,
+          "additionally_clipped_joint_fraction": 6.510416666666667e-06,
+          "states_with_any_additional_clipping_fraction": 7.8125e-05,
+          "maximum_additional_target_clamp_rad": 0.009435020685195916,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 7.8125e-05,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        }
+      ],
+      "trace_sha256": "ed50ce92f40e029c706f666e7fa691d2fa53f0fc656377ceb589cef53ac6c46f"
+    },
+    {
+      "label": "optional2-authored5997",
+      "directory": "artifacts/optional2/clamped-batch/mixed-authored-eval",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+        "reference_dir": "/content/pupper-foundation/pupper-mjlab/configs/optional2/extended_trot",
+        "checkpoint": "/content/pupper-clamp-results/optional2/mixed-authored/model_5997.pt",
+        "out": "/content/pupper-clamp-results/optional2/mixed-authored-eval",
+        "seed": 101,
+        "device": "cuda:0",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "num_envs": 32,
+        "seconds": 10.0,
+        "warmup": 2.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            1.0,
+            0,
+            0
+          ],
+          [
+            1.5,
+            0,
+            0
+          ],
+          [
+            0.51,
+            0,
+            0
+          ],
+          [
+            0.49,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            -1.5,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            -1.0
+          ],
+          [
+            0,
+            0.3,
+            0
+          ],
+          [
+            0,
+            -0.3,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "git_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+        "source_sha256": "cbd59667e7f36c2e0030380f3c49d0c71b9eaaf2120a261da163882dd2f9b4c8",
+        "source_files_hashed": 257,
+        "checkpoint_sha256": "ac8c9f5fda33cfb0ef1a480cd8b54a627497d6e9aaa75fed87dc678caabc4cf6",
+        "references": {
+          "reference_manifest.json": "97dc73b273df4b506c71982fa1dcfcef98db49558c6a5aead1211ca31e3d3788",
+          "captured_reach_gaits.npz": "6c8b44f54ea411a4b8eed5c7758e6fb97093c589038765febeae435562990d52"
+        },
+        "domain_randomization": {
+          "worlds": 32,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                32,
+                13
+              ],
+              "minimum": [
+                1.3756860494613647,
+                0.1624716967344284,
+                0.16835136711597443,
+                0.045230988413095474,
+                0.1631217747926712,
+                0.1682698279619217,
+                0.0458315908908844,
+                0.16319209337234497,
+                0.169749915599823,
+                0.0450083464384079,
+                0.16985833644866943,
+                0.16983656585216522,
+                0.0454685352742672
+              ],
+              "maximum": [
+                1.9498486518859863,
+                0.2330845445394516,
+                0.23987801373004913,
+                0.06459813565015793,
+                0.23129208385944366,
+                0.2414179891347885,
+                0.0643215924501419,
+                0.23383401334285736,
+                0.23987865447998047,
+                0.06482946127653122,
+                0.23384755849838257,
+                0.2383616864681244,
+                0.06260637193918228
+              ],
+              "mean": [
+                1.6557304859161377,
+                0.1981450617313385,
+                0.2031886726617813,
+                0.05528494715690613,
+                0.19365474581718445,
+                0.20639550685882568,
+                0.055426567792892456,
+                0.19348391890525818,
+                0.20508813858032227,
+                0.05340682342648506,
+                0.19978781044483185,
+                0.20324614644050598,
+                0.0529346689581871
+              ],
+              "std": [
+                0.15563759207725525,
+                0.022084450349211693,
+                0.021502729505300522,
+                0.006079267710447311,
+                0.01931118220090866,
+                0.02181781269609928,
+                0.00562743516638875,
+                0.022355394437909126,
+                0.020974252372980118,
+                0.005950685124844313,
+                0.021704398095607758,
+                0.021335680037736893,
+                0.0048536392860114574
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                32,
+                13
+              ],
+              "minimum": [
+                0.9134701490402222,
+                0.9026204943656921,
+                0.9051148295402527,
+                0.9046197533607483,
+                0.9062320590019226,
+                0.9046764969825745,
+                0.916631817817688,
+                0.9066227078437805,
+                0.9126339554786682,
+                0.900166928768158,
+                0.943657398223877,
+                0.9130997657775879,
+                0.9093707203865051
+              ],
+              "maximum": [
+                1.29472017288208,
+                1.2949141263961792,
+                1.2896666526794434,
+                1.291962742805481,
+                1.2849559783935547,
+                1.2979460954666138,
+                1.2864317893981934,
+                1.2990777492523193,
+                1.2896701097488403,
+                1.2965892553329468,
+                1.2991530895233154,
+                1.2815144062042236,
+                1.2521274089813232
+              ],
+              "mean": [
+                1.0994224548339844,
+                1.1008058786392212,
+                1.0924122333526611,
+                1.105698823928833,
+                1.075859785079956,
+                1.109653353691101,
+                1.1085312366485596,
+                1.0749106407165527,
+                1.1026242971420288,
+                1.06813645362854,
+                1.109932541847229,
+                1.0927212238311768,
+                1.0586934089660645
+              ],
+              "std": [
+                0.10334501415491104,
+                0.12269139289855957,
+                0.11560606211423874,
+                0.12158534675836563,
+                0.10728435218334198,
+                0.11730006337165833,
+                0.11254870146512985,
+                0.1241966187953949,
+                0.11276480555534363,
+                0.1190137043595314,
+                0.12057996541261673,
+                0.11470793187618256,
+                0.0970727875828743
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                32,
+                3
+              ],
+              "minimum": [
+                -5.587935447692871e-09,
+                0.0,
+                -2.7939677238464355e-09
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                1.862645149230957e-09
+              ],
+              "mean": [
+                -2.9103830456733704e-09,
+                0.0,
+                -5.820766091346741e-10
+              ],
+              "std": [
+                1.5400299924195338e-09,
+                0.0,
+                1.0081863122124446e-09
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                32,
+                12
+              ],
+              "minimum": [
+                -0.014273034408688545,
+                -0.011888658627867699,
+                -0.014353379607200623,
+                -0.014327476732432842,
+                -0.013720277696847916,
+                -0.014533553272485733,
+                -0.014391491189599037,
+                -0.014943324029445648,
+                -0.011551318690180779,
+                -0.014807851053774357,
+                -0.014424851164221764,
+                -0.014269599691033363
+              ],
+              "maximum": [
+                0.014004393480718136,
+                0.01480869110673666,
+                0.011614951305091381,
+                0.014320346526801586,
+                0.01436308491975069,
+                0.013464248739182949,
+                0.012829798273742199,
+                0.014284149743616581,
+                0.014211137779057026,
+                0.01356025505810976,
+                0.014956056140363216,
+                0.0144133185967803
+              ],
+              "mean": [
+                0.0014635523548349738,
+                0.0007409858517348766,
+                -0.0016693574143573642,
+                -0.0009505662601441145,
+                -0.00035989031312055886,
+                0.0006884703761897981,
+                0.00025771031505428255,
+                -4.521617665886879e-05,
+                0.000576683902181685,
+                -0.0020941321272403,
+                -0.0014509465545415878,
+                -0.00015712392632849514
+              ],
+              "std": [
+                0.008145510219037533,
+                0.009468309581279755,
+                0.00785547774285078,
+                0.009028904139995575,
+                0.00907716155052185,
+                0.008797908201813698,
+                0.008007572032511234,
+                0.00935717299580574,
+                0.008106531575322151,
+                0.008940380066633224,
+                0.007965720258653164,
+                0.008463970385491848
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                32,
+                4
+              ],
+              "minimum": [
+                0.6016901731491089,
+                0.6016901731491089,
+                0.6016901731491089,
+                0.6016901731491089
+              ],
+              "maximum": [
+                1.383682131767273,
+                1.383682131767273,
+                1.383682131767273,
+                1.383682131767273
+              ],
+              "mean": [
+                0.9823554158210754,
+                0.9823554158210754,
+                0.9823554158210754,
+                0.9823554158210754
+              ],
+              "std": [
+                0.2233559489250183,
+                0.2233559489250183,
+                0.2233559489250183,
+                0.2233559489250183
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                32,
+                12
+              ],
+              "minimum": [
+                3.330270290374756,
+                3.5567891597747803,
+                3.4407496452331543,
+                3.355564594268799,
+                3.344538450241089,
+                3.3250508308410645,
+                3.3498332500457764,
+                3.3143057823181152,
+                3.3528687953948975,
+                3.43282151222229,
+                3.3800439834594727,
+                3.3319036960601807
+              ],
+              "maximum": [
+                5.972644329071045,
+                5.989208698272705,
+                5.960158824920654,
+                6.033100605010986,
+                6.0383381843566895,
+                6.045017242431641,
+                5.971757411956787,
+                5.730266571044922,
+                5.85884952545166,
+                6.037256240844727,
+                6.018378257751465,
+                5.897969722747803
+              ],
+              "mean": [
+                4.775397300720215,
+                4.812564373016357,
+                4.646840572357178,
+                4.7624969482421875,
+                4.78141975402832,
+                4.695314407348633,
+                4.749114036560059,
+                4.713855266571045,
+                4.683009147644043,
+                4.768849849700928,
+                4.598699569702148,
+                4.586716651916504
+              ],
+              "std": [
+                0.8276616930961609,
+                0.7123389840126038,
+                0.8257259130477905,
+                0.8828886151313782,
+                0.7195819020271301,
+                0.8471754193305969,
+                0.8186554908752441,
+                0.6766303777694702,
+                0.7828965783119202,
+                0.7899274826049805,
+                0.8191024661064148,
+                0.7846186757087708
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                32,
+                12
+              ],
+              "minimum": [
+                0.20982138812541962,
+                0.20470526814460754,
+                0.20251183211803436,
+                0.20288406312465668,
+                0.2028590887784958,
+                0.21204882860183716,
+                0.20388227701187134,
+                0.2038600593805313,
+                0.20198041200637817,
+                0.20683839917182922,
+                0.2008020430803299,
+                0.20576080679893494
+              ],
+              "maximum": [
+                0.36729195713996887,
+                0.3636628985404968,
+                0.37382709980010986,
+                0.3684784770011902,
+                0.3652529716491699,
+                0.3718797266483307,
+                0.3675347566604614,
+                0.37401825189590454,
+                0.3684907555580139,
+                0.37248677015304565,
+                0.37100934982299805,
+                0.370065838098526
+              ],
+              "mean": [
+                0.305960088968277,
+                0.28278881311416626,
+                0.3003126084804535,
+                0.29311126470565796,
+                0.29077237844467163,
+                0.2973804771900177,
+                0.2913372814655304,
+                0.2891390919685364,
+                0.2906251549720764,
+                0.29228973388671875,
+                0.2864443361759186,
+                0.3056700825691223
+              ],
+              "std": [
+                0.04744664952158928,
+                0.04586118459701538,
+                0.04481020197272301,
+                0.05485298112034798,
+                0.04941904917359352,
+                0.049012746661901474,
+                0.04610284045338631,
+                0.05082330107688904,
+                0.05049101635813713,
+                0.054865363985300064,
+                0.046531617641448975,
+                0.04443658888339996
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "865d08515109f1fefdc860d2ddd120c1db748977d01fa3a7728181774ef97d3d"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        }
+      },
+      "aggregate": {
+        "scored_states": 204777,
+        "scored_joint_requests": 2457324,
+        "additionally_clipped_joint_requests": 358712,
+        "additionally_clipped_joint_fraction": 0.14597668032379937,
+        "states_with_any_additional_clipping_fraction": 0.6833384608623039,
+        "maximum_additional_target_clamp_rad": 0.10000002861022939,
+        "fraction_by_joint": {
+          "leg_front_r_1": 0.008746099415461697,
+          "leg_front_r_2": 0.3248216352422391,
+          "leg_front_r_3": 0.19385477861283248,
+          "leg_front_l_1": 0.013956645521713865,
+          "leg_front_l_2": 0.34353955766516747,
+          "leg_front_l_3": 0.19420638059938372,
+          "leg_back_r_1": 0.047305117273912595,
+          "leg_back_r_2": 0.12297767815721491,
+          "leg_back_r_3": 0.1852161131377059,
+          "leg_back_l_1": 0.056725120496930806,
+          "leg_back_l_2": 0.09161673430121547,
+          "leg_back_l_3": 0.16875430346181455
+        }
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 143,
+          "additionally_clipped_joint_fraction": 0.0009309895833333334,
+          "states_with_any_additional_clipping_fraction": 0.011171875,
+          "maximum_additional_target_clamp_rad": 0.09999998688697814,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.011171875,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 1,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 20735,
+          "additionally_clipped_joint_fraction": 0.13499348958333332,
+          "states_with_any_additional_clipping_fraction": 0.74390625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.00359375,
+            "leg_front_r_2": 0.309453125,
+            "leg_front_r_3": 0.175234375,
+            "leg_front_l_1": 0.001796875,
+            "leg_front_l_2": 0.3725,
+            "leg_front_l_3": 0.192578125,
+            "leg_back_r_1": 0.037421875,
+            "leg_back_r_2": 0.087109375,
+            "leg_back_r_3": 0.179453125,
+            "leg_back_l_1": 0.04328125,
+            "leg_back_l_2": 0.05765625,
+            "leg_back_l_3": 0.15984375
+          }
+        },
+        {
+          "segment": 2,
+          "command": [
+            0.49,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 21573,
+          "additionally_clipped_joint_fraction": 0.14044921875,
+          "states_with_any_additional_clipping_fraction": 0.776953125,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.004296875,
+            "leg_front_r_2": 0.3284375,
+            "leg_front_r_3": 0.19296875,
+            "leg_front_l_1": 0.001796875,
+            "leg_front_l_2": 0.355078125,
+            "leg_front_l_3": 0.182578125,
+            "leg_back_r_1": 0.027265625,
+            "leg_back_r_2": 0.107578125,
+            "leg_back_r_3": 0.184140625,
+            "leg_back_l_1": 0.038046875,
+            "leg_back_l_2": 0.083671875,
+            "leg_back_l_3": 0.17953125
+          }
+        },
+        {
+          "segment": 3,
+          "command": [
+            0.51,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 33522,
+          "additionally_clipped_joint_fraction": 0.2182421875,
+          "states_with_any_additional_clipping_fraction": 0.881015625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.01578125,
+            "leg_front_r_2": 0.40796875,
+            "leg_front_r_3": 0.317421875,
+            "leg_front_l_1": 0.022890625,
+            "leg_front_l_2": 0.50140625,
+            "leg_front_l_3": 0.337265625,
+            "leg_back_r_1": 0.075546875,
+            "leg_back_r_2": 0.1815625,
+            "leg_back_r_3": 0.318984375,
+            "leg_back_l_1": 0.0996875,
+            "leg_back_l_2": 0.078203125,
+            "leg_back_l_3": 0.2621875
+          }
+        },
+        {
+          "segment": 4,
+          "command": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 33969,
+          "additionally_clipped_joint_fraction": 0.22115234375,
+          "states_with_any_additional_clipping_fraction": 0.871015625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0009375,
+            "leg_front_r_2": 0.40546875,
+            "leg_front_r_3": 0.338515625,
+            "leg_front_l_1": 0.00015625,
+            "leg_front_l_2": 0.408671875,
+            "leg_front_l_3": 0.3515625,
+            "leg_back_r_1": 0.05484375,
+            "leg_back_r_2": 0.20515625,
+            "leg_back_r_3": 0.37296875,
+            "leg_back_l_1": 0.07296875,
+            "leg_back_l_2": 0.13421875,
+            "leg_back_l_3": 0.308359375
+          }
+        },
+        {
+          "segment": 5,
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 36502,
+          "additionally_clipped_joint_fraction": 0.23764322916666666,
+          "states_with_any_additional_clipping_fraction": 0.877109375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.011953125,
+            "leg_front_r_2": 0.436015625,
+            "leg_front_r_3": 0.407734375,
+            "leg_front_l_1": 0.0225,
+            "leg_front_l_2": 0.393046875,
+            "leg_front_l_3": 0.407578125,
+            "leg_back_r_1": 0.05171875,
+            "leg_back_r_2": 0.21625,
+            "leg_back_r_3": 0.37125,
+            "leg_back_l_1": 0.047109375,
+            "leg_back_l_2": 0.152890625,
+            "leg_back_l_3": 0.333671875
+          }
+        },
+        {
+          "segment": 6,
+          "command": [
+            0.51,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 33460,
+          "additionally_clipped_joint_fraction": 0.21783854166666666,
+          "states_with_any_additional_clipping_fraction": 0.8803125,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0165625,
+            "leg_front_r_2": 0.405546875,
+            "leg_front_r_3": 0.3165625,
+            "leg_front_l_1": 0.023359375,
+            "leg_front_l_2": 0.501015625,
+            "leg_front_l_3": 0.337421875,
+            "leg_back_r_1": 0.074765625,
+            "leg_back_r_2": 0.1825,
+            "leg_back_r_3": 0.31828125,
+            "leg_back_l_1": 0.10015625,
+            "leg_back_l_2": 0.074375,
+            "leg_back_l_3": 0.263515625
+          }
+        },
+        {
+          "segment": 7,
+          "command": [
+            0.49,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 21547,
+          "additionally_clipped_joint_fraction": 0.14027994791666668,
+          "states_with_any_additional_clipping_fraction": 0.7815625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.004140625,
+            "leg_front_r_2": 0.33953125,
+            "leg_front_r_3": 0.17546875,
+            "leg_front_l_1": 0.00171875,
+            "leg_front_l_2": 0.353828125,
+            "leg_front_l_3": 0.19515625,
+            "leg_back_r_1": 0.03109375,
+            "leg_back_r_2": 0.1021875,
+            "leg_back_r_3": 0.196171875,
+            "leg_back_l_1": 0.03546875,
+            "leg_back_l_2": 0.086875,
+            "leg_back_l_3": 0.16171875
+          }
+        },
+        {
+          "segment": 8,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 111,
+          "additionally_clipped_joint_fraction": 0.00072265625,
+          "states_with_any_additional_clipping_fraction": 0.008671875,
+          "maximum_additional_target_clamp_rad": 0.09999998688697814,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.008671875,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 9,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 22067,
+          "additionally_clipped_joint_fraction": 0.14366536458333334,
+          "states_with_any_additional_clipping_fraction": 0.75515625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.013984375,
+            "leg_front_r_2": 0.3665625,
+            "leg_front_r_3": 0.179765625,
+            "leg_front_l_1": 0.020625,
+            "leg_front_l_2": 0.386484375,
+            "leg_front_l_3": 0.1675,
+            "leg_back_r_1": 0.07109375,
+            "leg_back_r_2": 0.066640625,
+            "leg_back_r_3": 0.151484375,
+            "leg_back_l_1": 0.074609375,
+            "leg_back_l_2": 0.066328125,
+            "leg_back_l_3": 0.15890625
+          }
+        },
+        {
+          "segment": 10,
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 33753,
+          "additionally_clipped_joint_fraction": 0.21974609375,
+          "states_with_any_additional_clipping_fraction": 0.9753125,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.047890625,
+            "leg_front_r_2": 0.5096875,
+            "leg_front_r_3": 0.248984375,
+            "leg_front_l_1": 0.110859375,
+            "leg_front_l_2": 0.4984375,
+            "leg_front_l_3": 0.223125,
+            "leg_back_r_1": 0.161875,
+            "leg_back_r_2": 0.115859375,
+            "leg_back_r_3": 0.22734375,
+            "leg_back_l_1": 0.179609375,
+            "leg_back_l_2": 0.070234375,
+            "leg_back_l_3": 0.243046875
+          }
+        },
+        {
+          "segment": 11,
+          "command": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scored_states": 12777,
+          "scored_joint_requests": 153324,
+          "additionally_clipped_joint_requests": 24306,
+          "additionally_clipped_joint_fraction": 0.1585270407763951,
+          "states_with_any_additional_clipping_fraction": 0.7667684119902951,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.37371840025045,
+            "leg_front_r_3": 0.1920638647569852,
+            "leg_front_l_1": 0.005478594349221257,
+            "leg_front_l_2": 0.4713156453001487,
+            "leg_front_l_3": 0.17781951944900995,
+            "leg_back_r_1": 0.04320262972528763,
+            "leg_back_r_2": 0.2532675902011427,
+            "leg_back_r_3": 0.15684432965484857,
+            "leg_back_l_1": 0.047194177036863114,
+            "leg_back_l_2": 0.020583861626359865,
+            "leg_back_l_3": 0.16083587696642404
+          }
+        },
+        {
+          "segment": 12,
+          "command": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 21963,
+          "additionally_clipped_joint_fraction": 0.14298828125,
+          "states_with_any_additional_clipping_fraction": 0.724609375,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0034375,
+            "leg_front_r_2": 0.39,
+            "leg_front_r_3": 0.191328125,
+            "leg_front_l_1": 0.000859375,
+            "leg_front_l_2": 0.278203125,
+            "leg_front_l_3": 0.179921875,
+            "leg_back_r_1": 0.0390625,
+            "leg_back_r_2": 0.0146875,
+            "leg_back_r_3": 0.16453125,
+            "leg_back_l_1": 0.05875,
+            "leg_back_l_2": 0.243828125,
+            "leg_back_l_3": 0.15125
+          }
+        },
+        {
+          "segment": 13,
+          "command": [
+            0.0,
+            0.3,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 27974,
+          "additionally_clipped_joint_fraction": 0.18212239583333334,
+          "states_with_any_additional_clipping_fraction": 0.9471875,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.012890625,
+            "leg_front_r_2": 0.49703125,
+            "leg_front_r_3": 0.18875,
+            "leg_front_l_1": 0.00578125,
+            "leg_front_l_2": 0.473125,
+            "leg_front_l_3": 0.1759375,
+            "leg_back_r_1": 0.037109375,
+            "leg_back_r_2": 0.093203125,
+            "leg_back_r_3": 0.161171875,
+            "leg_back_l_1": 0.0715625,
+            "leg_back_l_2": 0.30234375,
+            "leg_back_l_3": 0.1665625
+          }
+        },
+        {
+          "segment": 14,
+          "command": [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 26980,
+          "additionally_clipped_joint_fraction": 0.17565104166666667,
+          "states_with_any_additional_clipping_fraction": 0.924453125,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.004453125,
+            "leg_front_r_2": 0.4278125,
+            "leg_front_r_3": 0.176875,
+            "leg_front_l_1": 0.00546875,
+            "leg_front_l_2": 0.475546875,
+            "leg_front_l_3": 0.178828125,
+            "leg_back_r_1": 0.051875,
+            "leg_back_r_2": 0.341875,
+            "leg_back_r_3": 0.16078125,
+            "leg_back_l_1": 0.039140625,
+            "leg_back_l_2": 0.09453125,
+            "leg_back_l_3": 0.150625
+          }
+        },
+        {
+          "segment": 15,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 12800,
+          "scored_joint_requests": 153600,
+          "additionally_clipped_joint_requests": 107,
+          "additionally_clipped_joint_fraction": 0.0006966145833333334,
+          "states_with_any_additional_clipping_fraction": 0.008359375,
+          "maximum_additional_target_clamp_rad": 0.09999998688697814,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.008359375,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        }
+      ],
+      "trace_sha256": "8240adaaa16c0212b68519d2393609809940f5d9dc272f3e4e9bc8002c42433f"
+    },
+    {
+      "label": "stable-recovered-bounded-screen",
+      "directory": "artifacts/recovered-policies/4hkyvuxh/torso-geometry-clamp-s101",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-StableGait-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/recovered-policies/4hkyvuxh/model_2999.pt",
+        "out": "artifacts/recovered-policies/4hkyvuxh/torso-geometry-clamp-s101",
+        "seed": 101,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": false,
+        "num_envs": 4,
+        "seconds": 6.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.3,
+            0.0,
+            0.0
+          ],
+          [
+            0.5,
+            0.0,
+            0.0
+          ],
+          [
+            0.7,
+            0.0,
+            0.0
+          ],
+          [
+            0.3,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          [
+            -0.5,
+            0.0,
+            0.0
+          ],
+          [
+            -0.7,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.3,
+            0.0
+          ],
+          [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          [
+            0.0,
+            0.5,
+            0.0
+          ],
+          [
+            0.0,
+            -0.5,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ],
+          [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          [
+            0.0,
+            0.0,
+            2.0
+          ],
+          [
+            0.0,
+            0.0,
+            -2.0
+          ],
+          [
+            0.4,
+            0.2,
+            0.6
+          ],
+          [
+            -0.4,
+            -0.2,
+            -0.6
+          ],
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "geometry_audit": true,
+        "geometry_audit_stride": 1,
+        "git_revision": "179b657a45a2c557ee934110c1e7ee09efab76eb",
+        "source_sha256": "0f11a366c3aa5aa1609371e40105af1900b9de8f6123bdf88da4d0044d0638b2",
+        "source_files_hashed": 258,
+        "checkpoint_sha256": "9a8681877d503fa1155cccade10151c2d9c8ad15edb040cec4be4a30bf16db06",
+        "domain_randomization": {
+          "worlds": 4,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                1.364255428314209,
+                0.18637144565582275,
+                0.16827969253063202,
+                0.04533899575471878,
+                0.16330237686634064,
+                0.17387625575065613,
+                0.05792638286948204,
+                0.18871676921844482,
+                0.17563976347446442,
+                0.04501064866781235,
+                0.17389369010925293,
+                0.18905872106552124,
+                0.0528649240732193
+              ],
+              "maximum": [
+                1.9329814910888672,
+                0.2280191034078598,
+                0.23897990584373474,
+                0.0515500083565712,
+                0.203887939453125,
+                0.21760940551757812,
+                0.060252394527196884,
+                0.2280063033103943,
+                0.21263793110847473,
+                0.05802445858716965,
+                0.1998172253370285,
+                0.23946723341941833,
+                0.06211560219526291
+              ],
+              "mean": [
+                1.615369439125061,
+                0.21232569217681885,
+                0.19280382990837097,
+                0.047398559749126434,
+                0.1827131062746048,
+                0.2012103796005249,
+                0.05912751331925392,
+                0.2033441662788391,
+                0.19449791312217712,
+                0.053249143064022064,
+                0.19094428420066833,
+                0.20312577486038208,
+                0.05853787809610367
+              ],
+              "std": [
+                0.24270512163639069,
+                0.01627781055867672,
+                0.027333173900842667,
+                0.002504009287804365,
+                0.014747877605259418,
+                0.01724391244351864,
+                0.0008254455751739442,
+                0.014907552860677242,
+                0.014294481836259365,
+                0.005023020785301924,
+                0.010177847929298878,
+                0.021040640771389008,
+                0.003434299724176526
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                4,
+                13
+              ],
+              "minimum": [
+                0.9058800935745239,
+                1.035396933555603,
+                0.9047294855117798,
+                0.9067798852920532,
+                0.9072353839874268,
+                0.9348185658454895,
+                1.1585276126861572,
+                1.0484265089035034,
+                0.9442997574806213,
+                0.9002129435539246,
+                0.9660760164260864,
+                1.0164446830749512,
+                1.0572984218597412
+              ],
+              "maximum": [
+                1.283520221710205,
+                1.266772747039795,
+                1.2848381996154785,
+                1.0310001373291016,
+                1.1327106952667236,
+                1.1699429750442505,
+                1.205047845840454,
+                1.266701579093933,
+                1.1432147026062012,
+                1.1604892015457153,
+                1.1100956201553345,
+                1.2874581813812256,
+                1.2423120737075806
+              ],
+              "mean": [
+                1.072622537612915,
+                1.1795871257781982,
+                1.0365796089172363,
+                0.9479711651802063,
+                1.0150728225708008,
+                1.0817761421203613,
+                1.1825501918792725,
+                1.1296898126602173,
+                1.0456876754760742,
+                1.0649828910827637,
+                1.0608015060424805,
+                1.0920741558074951,
+                1.170757532119751
+              ],
+              "std": [
+                0.1611587554216385,
+                0.09043226391077042,
+                0.1469525545835495,
+                0.05008017271757126,
+                0.08193263411521912,
+                0.09270917624235153,
+                0.016508914530277252,
+                0.08281970024108887,
+                0.07685206830501556,
+                0.10046043246984482,
+                0.05654359236359596,
+                0.11312170326709747,
+                0.06868603080511093
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                4,
+                3
+              ],
+              "minimum": [
+                -3.725290298461914e-09,
+                0.0,
+                -9.313225746154785e-10
+              ],
+              "maximum": [
+                0.0,
+                0.0,
+                9.313225746154785e-10
+              ],
+              "mean": [
+                -1.862645149230957e-09,
+                0.0,
+                0.0
+              ],
+              "std": [
+                1.31708899342442e-09,
+                0.0,
+                6.5854449671221e-10
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                -0.005062941461801529,
+                -0.0077650826424360275,
+                -0.009065097197890282,
+                -0.012317068874835968,
+                0.0001951446756720543,
+                -0.010192274115979671,
+                -0.01494730543345213,
+                -0.004118628799915314,
+                -0.012347825802862644,
+                -0.012179005891084671,
+                -0.006602774374186993,
+                -0.007293918635696173
+              ],
+              "maximum": [
+                0.013220296241343021,
+                0.012124561704695225,
+                0.002599990926682949,
+                0.006735526956617832,
+                0.010575984604656696,
+                -0.00868222489953041,
+                0.0056894561275839806,
+                0.013832190074026585,
+                0.010127830319106579,
+                -0.0010586604475975037,
+                0.0130188362672925,
+                0.0037874532863497734
+              ],
+              "mean": [
+                0.008640561252832413,
+                -0.0014394756872206926,
+                -0.001614339416846633,
+                -0.005892705637961626,
+                0.005045260302722454,
+                -0.009400933980941772,
+                -0.005686202086508274,
+                0.005457059480249882,
+                -0.00021011964417994022,
+                -0.007017157040536404,
+                0.0038426192477345467,
+                -0.0019112775335088372
+              ],
+              "std": [
+                0.007911724038422108,
+                0.008030315861105919,
+                0.004771006293594837,
+                0.007458269130438566,
+                0.003762567415833473,
+                0.0005516973906196654,
+                0.008227271027863026,
+                0.007346045225858688,
+                0.008016475476324558,
+                0.0045889755710959435,
+                0.007306577172130346,
+                0.004352685995399952
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                4,
+                4
+              ],
+              "minimum": [
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453,
+                0.6654834747314453
+              ],
+              "maximum": [
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706,
+                1.329460859298706
+              ],
+              "mean": [
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396,
+                0.9474448561668396
+              ],
+              "std": [
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984,
+                0.2512284219264984
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                4.545194625854492,
+                3.9568307399749756,
+                3.425189256668091,
+                3.545442581176758,
+                3.9005372524261475,
+                3.889484167098999,
+                4.362841606140137,
+                3.918360471725464,
+                3.3605246543884277,
+                4.514185905456543,
+                4.327167987823486,
+                3.8741445541381836
+              ],
+              "maximum": [
+                5.523526191711426,
+                5.323330402374268,
+                5.1395673751831055,
+                5.389951705932617,
+                5.165459156036377,
+                5.943096160888672,
+                5.959719657897949,
+                5.959496021270752,
+                5.481598377227783,
+                5.716821193695068,
+                5.92822265625,
+                5.780951499938965
+              ],
+              "mean": [
+                5.149488925933838,
+                4.713894367218018,
+                4.186610221862793,
+                4.3934102058410645,
+                4.480312347412109,
+                5.068056583404541,
+                4.89509391784668,
+                4.761227607727051,
+                4.167128562927246,
+                5.078567028045654,
+                5.421555995941162,
+                5.229828834533691
+              ],
+              "std": [
+                0.36458534002304077,
+                0.5296885371208191,
+                0.7030323147773743,
+                0.6579168438911438,
+                0.5494896173477173,
+                0.7801645994186401,
+                0.6344815492630005,
+                0.836036205291748,
+                0.8626168370246887,
+                0.44160258769989014,
+                0.6379677653312683,
+                0.7916171550750732
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                4,
+                12
+              ],
+              "minimum": [
+                0.30367380380630493,
+                0.2061508446931839,
+                0.22401010990142822,
+                0.22638845443725586,
+                0.2652358412742615,
+                0.24930794537067413,
+                0.22453677654266357,
+                0.31359946727752686,
+                0.2346504032611847,
+                0.22242502868175507,
+                0.2540041506290436,
+                0.2414574921131134
+              ],
+              "maximum": [
+                0.3712051510810852,
+                0.28423357009887695,
+                0.30856168270111084,
+                0.36326220631599426,
+                0.37399038672447205,
+                0.36481261253356934,
+                0.3316114544868469,
+                0.37003248929977417,
+                0.36908626556396484,
+                0.3609366714954376,
+                0.34306275844573975,
+                0.350558876991272
+              ],
+              "mean": [
+                0.3391086459159851,
+                0.2414683848619461,
+                0.2573593854904175,
+                0.3034432828426361,
+                0.3213098347187042,
+                0.3034821152687073,
+                0.2645988166332245,
+                0.34159600734710693,
+                0.3341977000236511,
+                0.2825094163417816,
+                0.2831622064113617,
+                0.3110097050666809
+              ],
+              "std": [
+                0.025151452049613,
+                0.029367735609412193,
+                0.031234588474035263,
+                0.04953974112868309,
+                0.05191197991371155,
+                0.050561703741550446,
+                0.040325481444597244,
+                0.020033687353134155,
+                0.057483259588479996,
+                0.05046849697828293,
+                0.03504425287246704,
+                0.04153234511613846
+              ]
+            }
+          },
+          "warnings": [
+            "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+          ],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "295df072f3a38eac8c81a5dce0aa03d01085ae74e3772947fc11af0a2448e56c"
+        },
+        "collision_model": {
+          "robot_geometries": [
+            {
+              "id": 1,
+              "name": "",
+              "body": "robot/base_link",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": true
+            },
+            {
+              "id": 2,
+              "name": "",
+              "body": "robot/leg_front_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 3,
+              "name": "robot/leg_front_r_2_collision",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 4,
+              "name": "",
+              "body": "robot/leg_front_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 5,
+              "name": "robot/leg_front_r_3_collision",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 6,
+              "name": "",
+              "body": "robot/leg_front_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 7,
+              "name": "",
+              "body": "robot/leg_front_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 8,
+              "name": "robot/leg_front_l_2_collision",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 9,
+              "name": "",
+              "body": "robot/leg_front_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 10,
+              "name": "robot/leg_front_l_3_collision",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 11,
+              "name": "",
+              "body": "robot/leg_front_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 12,
+              "name": "",
+              "body": "robot/leg_back_r_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 13,
+              "name": "robot/leg_back_r_2_collision",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 14,
+              "name": "",
+              "body": "robot/leg_back_r_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 15,
+              "name": "robot/leg_back_r_3_collision",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 16,
+              "name": "",
+              "body": "robot/leg_back_r_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 17,
+              "name": "",
+              "body": "robot/leg_back_l_1",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 18,
+              "name": "robot/leg_back_l_2_collision",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 19,
+              "name": "",
+              "body": "robot/leg_back_l_2",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            },
+            {
+              "id": 20,
+              "name": "robot/leg_back_l_3_collision",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_SPHERE",
+              "contype": 1,
+              "conaffinity": 1,
+              "torso": false
+            },
+            {
+              "id": 21,
+              "name": "",
+              "body": "robot/leg_back_l_3",
+              "type": "mjGEOM_MESH",
+              "contype": 0,
+              "conaffinity": 0,
+              "torso": false
+            }
+          ],
+          "active_robot_geometry_count": 8,
+          "active_torso_geometry_count": 0,
+          "terrain_heightfield_count": 0,
+          "geometry_contract_sha256": "12ea87ef4050ba851f072951398135a489cb2b181aa3feba1d1030a3f3620a12",
+          "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        },
+        "torso_geometry_audit": "torso_geometry_audit.json"
+      },
+      "aggregate": {
+        "scored_states": 22000,
+        "scored_joint_requests": 264000,
+        "additionally_clipped_joint_requests": 20735,
+        "additionally_clipped_joint_fraction": 0.07854166666666666,
+        "states_with_any_additional_clipping_fraction": 0.46136363636363636,
+        "maximum_additional_target_clamp_rad": 0.10000002861022939,
+        "fraction_by_joint": {
+          "leg_front_r_1": 0.009681818181818182,
+          "leg_front_r_2": 0.14431818181818182,
+          "leg_front_r_3": 0.12195454545454545,
+          "leg_front_l_1": 0.013636363636363636,
+          "leg_front_l_2": 0.14513636363636365,
+          "leg_front_l_3": 0.1262727272727273,
+          "leg_back_r_1": 0.03495454545454545,
+          "leg_back_r_2": 0.05331818181818182,
+          "leg_back_r_3": 0.114,
+          "leg_back_l_1": 0.03809090909090909,
+          "leg_back_l_2": 0.043727272727272726,
+          "leg_back_l_3": 0.0974090909090909
+        }
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 1,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 877,
+          "additionally_clipped_joint_fraction": 0.07308333333333333,
+          "states_with_any_additional_clipping_fraction": 0.419,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.107,
+            "leg_front_r_3": 0.168,
+            "leg_front_l_1": 0.006,
+            "leg_front_l_2": 0.039,
+            "leg_front_l_3": 0.161,
+            "leg_back_r_1": 0.039,
+            "leg_back_r_2": 0.001,
+            "leg_back_r_3": 0.152,
+            "leg_back_l_1": 0.053,
+            "leg_back_l_2": 0.002,
+            "leg_back_l_3": 0.149
+          }
+        },
+        {
+          "segment": 2,
+          "command": [
+            0.5,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 959,
+          "additionally_clipped_joint_fraction": 0.07991666666666666,
+          "states_with_any_additional_clipping_fraction": 0.468,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.116,
+            "leg_front_r_3": 0.178,
+            "leg_front_l_1": 0.005,
+            "leg_front_l_2": 0.074,
+            "leg_front_l_3": 0.166,
+            "leg_back_r_1": 0.032,
+            "leg_back_r_2": 0.021,
+            "leg_back_r_3": 0.161,
+            "leg_back_l_1": 0.046,
+            "leg_back_l_2": 0.005,
+            "leg_back_l_3": 0.155
+          }
+        },
+        {
+          "segment": 3,
+          "command": [
+            0.7,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1060,
+          "additionally_clipped_joint_fraction": 0.08833333333333333,
+          "states_with_any_additional_clipping_fraction": 0.541,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.002,
+            "leg_front_r_2": 0.147,
+            "leg_front_r_3": 0.203,
+            "leg_front_l_1": 0.004,
+            "leg_front_l_2": 0.099,
+            "leg_front_l_3": 0.177,
+            "leg_back_r_1": 0.014,
+            "leg_back_r_2": 0.047,
+            "leg_back_r_3": 0.161,
+            "leg_back_l_1": 0.032,
+            "leg_back_l_2": 0.022,
+            "leg_back_l_3": 0.152
+          }
+        },
+        {
+          "segment": 4,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 876,
+          "additionally_clipped_joint_fraction": 0.073,
+          "states_with_any_additional_clipping_fraction": 0.415,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.103,
+            "leg_front_r_3": 0.167,
+            "leg_front_l_1": 0.009,
+            "leg_front_l_2": 0.027,
+            "leg_front_l_3": 0.157,
+            "leg_back_r_1": 0.043,
+            "leg_back_r_2": 0.004,
+            "leg_back_r_3": 0.153,
+            "leg_back_l_1": 0.05,
+            "leg_back_l_2": 0.003,
+            "leg_back_l_3": 0.16
+          }
+        },
+        {
+          "segment": 5,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 6,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 983,
+          "additionally_clipped_joint_fraction": 0.08191666666666667,
+          "states_with_any_additional_clipping_fraction": 0.482,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.032,
+            "leg_front_r_2": 0.126,
+            "leg_front_r_3": 0.136,
+            "leg_front_l_1": 0.039,
+            "leg_front_l_2": 0.088,
+            "leg_front_l_3": 0.164,
+            "leg_back_r_1": 0.065,
+            "leg_back_r_2": 0.011,
+            "leg_back_r_3": 0.148,
+            "leg_back_l_1": 0.054,
+            "leg_back_l_2": 0.006,
+            "leg_back_l_3": 0.114
+          }
+        },
+        {
+          "segment": 7,
+          "command": [
+            -0.5,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1144,
+          "additionally_clipped_joint_fraction": 0.09533333333333334,
+          "states_with_any_additional_clipping_fraction": 0.59,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.042,
+            "leg_front_r_2": 0.172,
+            "leg_front_r_3": 0.133,
+            "leg_front_l_1": 0.039,
+            "leg_front_l_2": 0.174,
+            "leg_front_l_3": 0.16,
+            "leg_back_r_1": 0.066,
+            "leg_back_r_2": 0.027,
+            "leg_back_r_3": 0.149,
+            "leg_back_l_1": 0.059,
+            "leg_back_l_2": 0.009,
+            "leg_back_l_3": 0.114
+          }
+        },
+        {
+          "segment": 8,
+          "command": [
+            -0.7,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1205,
+          "additionally_clipped_joint_fraction": 0.10041666666666667,
+          "states_with_any_additional_clipping_fraction": 0.625,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.046,
+            "leg_front_r_2": 0.194,
+            "leg_front_r_3": 0.131,
+            "leg_front_l_1": 0.04,
+            "leg_front_l_2": 0.211,
+            "leg_front_l_3": 0.157,
+            "leg_back_r_1": 0.065,
+            "leg_back_r_2": 0.038,
+            "leg_back_r_3": 0.144,
+            "leg_back_l_1": 0.062,
+            "leg_back_l_2": 0.01,
+            "leg_back_l_3": 0.107
+          }
+        },
+        {
+          "segment": 9,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 10,
+          "command": [
+            0.0,
+            0.3,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1461,
+          "additionally_clipped_joint_fraction": 0.12175,
+          "states_with_any_additional_clipping_fraction": 0.741,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.005,
+            "leg_front_r_2": 0.28,
+            "leg_front_r_3": 0.156,
+            "leg_front_l_1": 0.007,
+            "leg_front_l_2": 0.299,
+            "leg_front_l_3": 0.168,
+            "leg_back_r_1": 0.038,
+            "leg_back_r_2": 0.07,
+            "leg_back_r_3": 0.143,
+            "leg_back_l_1": 0.047,
+            "leg_back_l_2": 0.133,
+            "leg_back_l_3": 0.115
+          }
+        },
+        {
+          "segment": 11,
+          "command": [
+            0.0,
+            -0.3,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1469,
+          "additionally_clipped_joint_fraction": 0.12241666666666666,
+          "states_with_any_additional_clipping_fraction": 0.719,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.011,
+            "leg_front_r_2": 0.26,
+            "leg_front_r_3": 0.154,
+            "leg_front_l_1": 0.024,
+            "leg_front_l_2": 0.258,
+            "leg_front_l_3": 0.157,
+            "leg_back_r_1": 0.058,
+            "leg_back_r_2": 0.143,
+            "leg_back_r_3": 0.138,
+            "leg_back_l_1": 0.05,
+            "leg_back_l_2": 0.082,
+            "leg_back_l_3": 0.134
+          }
+        },
+        {
+          "segment": 12,
+          "command": [
+            0.0,
+            0.5,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1868,
+          "additionally_clipped_joint_fraction": 0.15566666666666668,
+          "states_with_any_additional_clipping_fraction": 0.863,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.013,
+            "leg_front_r_2": 0.332,
+            "leg_front_r_3": 0.158,
+            "leg_front_l_1": 0.018,
+            "leg_front_l_2": 0.383,
+            "leg_front_l_3": 0.17,
+            "leg_back_r_1": 0.041,
+            "leg_back_r_2": 0.17,
+            "leg_back_r_3": 0.137,
+            "leg_back_l_1": 0.047,
+            "leg_back_l_2": 0.299,
+            "leg_back_l_3": 0.1
+          }
+        },
+        {
+          "segment": 13,
+          "command": [
+            0.0,
+            -0.5,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1802,
+          "additionally_clipped_joint_fraction": 0.15016666666666667,
+          "states_with_any_additional_clipping_fraction": 0.842,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.006,
+            "leg_front_r_2": 0.336,
+            "leg_front_r_3": 0.153,
+            "leg_front_l_1": 0.023,
+            "leg_front_l_2": 0.313,
+            "leg_front_l_3": 0.161,
+            "leg_back_r_1": 0.05,
+            "leg_back_r_2": 0.271,
+            "leg_back_r_3": 0.148,
+            "leg_back_l_1": 0.041,
+            "leg_back_l_2": 0.161,
+            "leg_back_l_3": 0.139
+          }
+        },
+        {
+          "segment": 14,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 15,
+          "command": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 895,
+          "additionally_clipped_joint_fraction": 0.07458333333333333,
+          "states_with_any_additional_clipping_fraction": 0.467,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.075,
+            "leg_front_r_3": 0.168,
+            "leg_front_l_1": 0.012,
+            "leg_front_l_2": 0.116,
+            "leg_front_l_3": 0.15,
+            "leg_back_r_1": 0.04,
+            "leg_back_r_2": 0.034,
+            "leg_back_r_3": 0.136,
+            "leg_back_l_1": 0.05,
+            "leg_back_l_2": 0.001,
+            "leg_back_l_3": 0.113
+          }
+        },
+        {
+          "segment": 16,
+          "command": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 969,
+          "additionally_clipped_joint_fraction": 0.08075,
+          "states_with_any_additional_clipping_fraction": 0.501,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.006,
+            "leg_front_r_2": 0.161,
+            "leg_front_r_3": 0.144,
+            "leg_front_l_1": 0.004,
+            "leg_front_l_2": 0.092,
+            "leg_front_l_3": 0.178,
+            "leg_back_r_1": 0.044,
+            "leg_back_r_2": 0.002,
+            "leg_back_r_3": 0.156,
+            "leg_back_l_1": 0.042,
+            "leg_back_l_2": 0.023,
+            "leg_back_l_3": 0.117
+          }
+        },
+        {
+          "segment": 17,
+          "command": [
+            0.0,
+            0.0,
+            2.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1208,
+          "additionally_clipped_joint_fraction": 0.10066666666666667,
+          "states_with_any_additional_clipping_fraction": 0.574,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.129,
+            "leg_front_r_3": 0.174,
+            "leg_front_l_1": 0.017,
+            "leg_front_l_2": 0.224,
+            "leg_front_l_3": 0.152,
+            "leg_back_r_1": 0.039,
+            "leg_back_r_2": 0.159,
+            "leg_back_r_3": 0.132,
+            "leg_back_l_1": 0.058,
+            "leg_back_l_2": 0.023,
+            "leg_back_l_3": 0.101
+          }
+        },
+        {
+          "segment": 18,
+          "command": [
+            0.0,
+            0.0,
+            -2.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1314,
+          "additionally_clipped_joint_fraction": 0.1095,
+          "states_with_any_additional_clipping_fraction": 0.631,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.01,
+            "leg_front_r_2": 0.239,
+            "leg_front_r_3": 0.147,
+            "leg_front_l_1": 0.004,
+            "leg_front_l_2": 0.157,
+            "leg_front_l_3": 0.179,
+            "leg_back_r_1": 0.044,
+            "leg_back_r_2": 0.067,
+            "leg_back_r_3": 0.155,
+            "leg_back_l_1": 0.047,
+            "leg_back_l_2": 0.141,
+            "leg_back_l_3": 0.124
+          }
+        },
+        {
+          "segment": 19,
+          "command": [
+            0.4,
+            0.2,
+            0.6
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1327,
+          "additionally_clipped_joint_fraction": 0.11058333333333334,
+          "states_with_any_additional_clipping_fraction": 0.617,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.001,
+            "leg_front_r_2": 0.227,
+            "leg_front_r_3": 0.18,
+            "leg_front_l_1": 0.006,
+            "leg_front_l_2": 0.309,
+            "leg_front_l_3": 0.163,
+            "leg_back_r_1": 0.026,
+            "leg_back_r_2": 0.053,
+            "leg_back_r_3": 0.155,
+            "leg_back_l_1": 0.043,
+            "leg_back_l_2": 0.036,
+            "leg_back_l_3": 0.128
+          }
+        },
+        {
+          "segment": 20,
+          "command": [
+            -0.4,
+            -0.2,
+            -0.6
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 1318,
+          "additionally_clipped_joint_fraction": 0.10983333333333334,
+          "states_with_any_additional_clipping_fraction": 0.655,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.039,
+            "leg_front_r_2": 0.171,
+            "leg_front_r_3": 0.133,
+            "leg_front_l_1": 0.043,
+            "leg_front_l_2": 0.33,
+            "leg_front_l_3": 0.158,
+            "leg_back_r_1": 0.065,
+            "leg_back_r_2": 0.055,
+            "leg_back_r_3": 0.14,
+            "leg_back_l_1": 0.057,
+            "leg_back_l_2": 0.006,
+            "leg_back_l_3": 0.121
+          }
+        },
+        {
+          "segment": 21,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 1000,
+          "scored_joint_requests": 12000,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        }
+      ],
+      "trace_sha256": "d5e399ebd9dc71db4cbbfce57236edab9d6fee1fc2e0c3940d163e0feabb3f34"
+    },
+    {
+      "label": "stable-recovered-paired-cpu",
+      "directory": "artifacts/lab4-clamp/paired-cpu-preliminary/recovered",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-StableGait-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/recovered-policies/4hkyvuxh/model_2999.pt",
+        "out": "artifacts/lab4-clamp/paired-cpu-preliminary/recovered",
+        "seed": 42,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": true,
+        "num_envs": 1,
+        "seconds": 3.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            0,
+            0.2,
+            0
+          ],
+          [
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "git_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+        "source_sha256": "cbd59667e7f36c2e0030380f3c49d0c71b9eaaf2120a261da163882dd2f9b4c8",
+        "source_files_hashed": 257,
+        "checkpoint_sha256": "9a8681877d503fa1155cccade10151c2d9c8ad15edb040cec4be4a30bf16db06",
+        "domain_randomization": {
+          "worlds": 1,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.tasks.pupper.deployment_contract.density_randomization_preserving_com"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                1,
+                13
+              ],
+              "minimum": [
+                1.3573729991912842,
+                0.168608620762825,
+                0.17777863144874573,
+                0.058265477418899536,
+                0.20795194804668427,
+                0.2344057857990265,
+                0.04918321594595909,
+                0.17175859212875366,
+                0.2218097299337387,
+                0.05020877718925476,
+                0.2176896184682846,
+                0.1925983726978302,
+                0.060082726180553436
+              ],
+              "maximum": [
+                1.3573729991912842,
+                0.168608620762825,
+                0.17777863144874573,
+                0.058265477418899536,
+                0.20795194804668427,
+                0.2344057857990265,
+                0.04918321594595909,
+                0.17175859212875366,
+                0.2218097299337387,
+                0.05020877718925476,
+                0.2176896184682846,
+                0.1925983726978302,
+                0.060082726180553436
+              ],
+              "mean": [
+                1.3573729991912842,
+                0.168608620762825,
+                0.17777863144874573,
+                0.058265477418899536,
+                0.20795194804668427,
+                0.2344057857990265,
+                0.04918321594595909,
+                0.17175859212875366,
+                0.2218097299337387,
+                0.05020877718925476,
+                0.2176896184682846,
+                0.1925983726978302,
+                0.060082726180553436
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                1,
+                13
+              ],
+              "minimum": [
+                0.9013100862503052,
+                0.9367145299911499,
+                0.9557990431785583,
+                1.1653095483779907,
+                1.155288577079773,
+                1.2602461576461792,
+                0.983664333820343,
+                0.954214334487915,
+                1.1925253868103027,
+                1.0041755437850952,
+                1.2093867063522339,
+                1.0354751348495483,
+                1.2016545534133911
+              ],
+              "maximum": [
+                0.9013100862503052,
+                0.9367145299911499,
+                0.9557990431785583,
+                1.1653095483779907,
+                1.155288577079773,
+                1.2602461576461792,
+                0.983664333820343,
+                0.954214334487915,
+                1.1925253868103027,
+                1.0041755437850952,
+                1.2093867063522339,
+                1.0354751348495483,
+                1.2016545534133911
+              ],
+              "mean": [
+                0.9013100862503052,
+                0.9367145299911499,
+                0.9557990431785583,
+                1.1653095483779907,
+                1.155288577079773,
+                1.2602461576461792,
+                0.983664333820343,
+                0.954214334487915,
+                1.1925253868103027,
+                1.0041755437850952,
+                1.2093867063522339,
+                1.0354751348495483,
+                1.2016545534133911
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                1,
+                3
+              ],
+              "minimum": [
+                0.00357852503657341,
+                0.002539175096899271,
+                -0.0030475249513983727
+              ],
+              "maximum": [
+                0.00357852503657341,
+                0.002539175096899271,
+                -0.0030475249513983727
+              ],
+              "mean": [
+                0.00357852503657341,
+                0.002539175096899271,
+                -0.0030475249513983727
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                1,
+                12
+              ],
+              "minimum": [
+                0.009269249625504017,
+                0.0023377621546387672,
+                0.012119450606405735,
+                0.0016397954896092415,
+                -0.004730598069727421,
+                0.004030254669487476,
+                -0.004067691043019295,
+                0.00631286296993494,
+                0.013392332009971142,
+                0.008670893497765064,
+                -0.006557587534189224,
+                0.008658970706164837
+              ],
+              "maximum": [
+                0.009269249625504017,
+                0.0023377621546387672,
+                0.012119450606405735,
+                0.0016397954896092415,
+                -0.004730598069727421,
+                0.004030254669487476,
+                -0.004067691043019295,
+                0.00631286296993494,
+                0.013392332009971142,
+                0.008670893497765064,
+                -0.006557587534189224,
+                0.008658970706164837
+              ],
+              "mean": [
+                0.009269249625504017,
+                0.0023377621546387672,
+                0.012119450606405735,
+                0.0016397954896092415,
+                -0.004730598069727421,
+                0.004030254669487476,
+                -0.004067691043019295,
+                0.00631286296993494,
+                0.013392332009971142,
+                0.008670893497765064,
+                -0.006557587534189224,
+                0.008658970706164837
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                1,
+                4
+              ],
+              "minimum": [
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612
+              ],
+              "maximum": [
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612
+              ],
+              "mean": [
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                1,
+                12
+              ],
+              "minimum": [
+                3.313875913619995,
+                4.143754005432129,
+                3.6203436851501465,
+                5.80324125289917,
+                5.071043014526367,
+                5.24454402923584,
+                5.109859466552734,
+                4.65108060836792,
+                5.751086711883545,
+                3.6980438232421875,
+                4.761575222015381,
+                3.7365074157714844
+              ],
+              "maximum": [
+                3.313875913619995,
+                4.143754005432129,
+                3.6203436851501465,
+                5.80324125289917,
+                5.071043014526367,
+                5.24454402923584,
+                5.109859466552734,
+                4.65108060836792,
+                5.751086711883545,
+                3.6980438232421875,
+                4.761575222015381,
+                3.7365074157714844
+              ],
+              "mean": [
+                3.313875913619995,
+                4.143754005432129,
+                3.6203436851501465,
+                5.80324125289917,
+                5.071043014526367,
+                5.24454402923584,
+                5.109859466552734,
+                4.65108060836792,
+                5.751086711883545,
+                3.6980438232421875,
+                4.761575222015381,
+                3.7365074157714844
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                1,
+                12
+              ],
+              "minimum": [
+                0.31448081135749817,
+                0.2573665380477905,
+                0.3143114149570465,
+                0.269270122051239,
+                0.3600717782974243,
+                0.2356385886669159,
+                0.23531517386436462,
+                0.23531202971935272,
+                0.366201251745224,
+                0.31665948033332825,
+                0.37169694900512695,
+                0.21528832614421844
+              ],
+              "maximum": [
+                0.31448081135749817,
+                0.2573665380477905,
+                0.3143114149570465,
+                0.269270122051239,
+                0.3600717782974243,
+                0.2356385886669159,
+                0.23531517386436462,
+                0.23531202971935272,
+                0.366201251745224,
+                0.31665948033332825,
+                0.37169694900512695,
+                0.21528832614421844
+              ],
+              "mean": [
+                0.31448081135749817,
+                0.2573665380477905,
+                0.3143114149570465,
+                0.269270122051239,
+                0.3600717782974243,
+                0.2356385886669159,
+                0.23531517386436462,
+                0.23531202971935272,
+                0.366201251745224,
+                0.31665948033332825,
+                0.37169694900512695,
+                0.21528832614421844
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "warnings": [],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "d90a724384e5be394b40a4d6aafe2d71adcec44e0ecfce1dbe424e2fdb4179c5"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        }
+      },
+      "aggregate": {
+        "scored_states": 600,
+        "scored_joint_requests": 7200,
+        "additionally_clipped_joint_requests": 398,
+        "additionally_clipped_joint_fraction": 0.05527777777777778,
+        "states_with_any_additional_clipping_fraction": 0.3416666666666667,
+        "maximum_additional_target_clamp_rad": 0.10000002861022939,
+        "fraction_by_joint": {
+          "leg_front_r_1": 0.01,
+          "leg_front_r_2": 0.08166666666666667,
+          "leg_front_r_3": 0.095,
+          "leg_front_l_1": 0.005,
+          "leg_front_l_2": 0.07333333333333333,
+          "leg_front_l_3": 0.115,
+          "leg_back_r_1": 0.028333333333333332,
+          "leg_back_r_2": 0.011666666666666667,
+          "leg_back_r_3": 0.09666666666666666,
+          "leg_back_l_1": 0.041666666666666664,
+          "leg_back_l_2": 0.025,
+          "leg_back_l_3": 0.08
+        }
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 1,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 86,
+          "additionally_clipped_joint_fraction": 0.07166666666666667,
+          "states_with_any_additional_clipping_fraction": 0.44,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.08,
+            "leg_front_r_3": 0.16,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.05,
+            "leg_front_l_3": 0.17,
+            "leg_back_r_1": 0.02,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.15,
+            "leg_back_l_1": 0.08,
+            "leg_back_l_2": 0.01,
+            "leg_back_l_3": 0.14
+          }
+        },
+        {
+          "segment": 2,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 102,
+          "additionally_clipped_joint_fraction": 0.085,
+          "states_with_any_additional_clipping_fraction": 0.51,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.05,
+            "leg_front_r_2": 0.16,
+            "leg_front_r_3": 0.15,
+            "leg_front_l_1": 0.03,
+            "leg_front_l_2": 0.07,
+            "leg_front_l_3": 0.15,
+            "leg_back_r_1": 0.06,
+            "leg_back_r_2": 0.01,
+            "leg_back_r_3": 0.14,
+            "leg_back_l_1": 0.06,
+            "leg_back_l_2": 0.02,
+            "leg_back_l_3": 0.12
+          }
+        },
+        {
+          "segment": 3,
+          "command": [
+            0.0,
+            0.2,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 125,
+          "additionally_clipped_joint_fraction": 0.10416666666666667,
+          "states_with_any_additional_clipping_fraction": 0.65,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.01,
+            "leg_front_r_2": 0.2,
+            "leg_front_r_3": 0.1,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.22,
+            "leg_front_l_3": 0.21,
+            "leg_back_r_1": 0.05,
+            "leg_back_r_2": 0.06,
+            "leg_back_r_3": 0.16,
+            "leg_back_l_1": 0.04,
+            "leg_back_l_2": 0.12,
+            "leg_back_l_3": 0.08
+          }
+        },
+        {
+          "segment": 4,
+          "command": [
+            0.0,
+            0.0,
+            0.5
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 85,
+          "additionally_clipped_joint_fraction": 0.07083333333333333,
+          "states_with_any_additional_clipping_fraction": 0.45,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.05,
+            "leg_front_r_3": 0.16,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.1,
+            "leg_front_l_3": 0.16,
+            "leg_back_r_1": 0.04,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.13,
+            "leg_back_l_1": 0.07,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.14
+          }
+        },
+        {
+          "segment": 5,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        }
+      ],
+      "trace_sha256": "259cf3563b32526587d61796dcf0dbe51e76fd89ebf23a9ba2eda3c70f853f8f"
+    },
+    {
+      "label": "stable-finetuned4498-paired-cpu",
+      "directory": "artifacts/lab4-clamp/paired-cpu-preliminary/finetuned",
+      "provenance": {
+        "command": "evaluate",
+        "task": "Mjlab-StableGait-Flat-Pupper-v3",
+        "reference_dir": null,
+        "checkpoint": "artifacts/lab4-clamp/stablegait/model_4498.pt",
+        "out": "artifacts/lab4-clamp/paired-cpu-preliminary/finetuned",
+        "seed": 42,
+        "device": "cpu",
+        "deployment_target_clamp": true,
+        "compose_com_randomization": true,
+        "num_envs": 1,
+        "seconds": 3.0,
+        "warmup": 1.0,
+        "commands": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.3,
+            0,
+            0
+          ],
+          [
+            -0.3,
+            0,
+            0
+          ],
+          [
+            0,
+            0.2,
+            0
+          ],
+          [
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "randomized": false,
+        "reset_each_command": false,
+        "no_heading_hold": false,
+        "allow_out_of_range": false,
+        "zero_policy": false,
+        "git_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+        "source_sha256": "cbd59667e7f36c2e0030380f3c49d0c71b9eaaf2120a261da163882dd2f9b4c8",
+        "source_files_hashed": 257,
+        "checkpoint_sha256": "97cae6e168b7c4dcbbc5a66c449255125ed2f6bc7836f8df53e1439cf0c946c8",
+        "domain_randomization": {
+          "worlds": 1,
+          "event_order": [
+            {
+              "name": "reset_base",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+            },
+            {
+              "name": "reset_robot_joints",
+              "mode": "reset",
+              "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+            },
+            {
+              "name": "foot_friction",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+            },
+            {
+              "name": "encoder_bias",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+            },
+            {
+              "name": "base_com",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+            },
+            {
+              "name": "pd_gains",
+              "mode": "startup",
+              "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+            },
+            {
+              "name": "inertial",
+              "mode": "startup",
+              "function": "mjlab.tasks.pupper.deployment_contract.density_randomization_preserving_com"
+            },
+            {
+              "name": "reset_imu_latency",
+              "mode": "reset",
+              "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+            }
+          ],
+          "realized_fields": {
+            "body_mass_kg": {
+              "shape": [
+                1,
+                13
+              ],
+              "minimum": [
+                1.3573729991912842,
+                0.168608620762825,
+                0.17777863144874573,
+                0.058265477418899536,
+                0.20795194804668427,
+                0.2344057857990265,
+                0.04918321594595909,
+                0.17175859212875366,
+                0.2218097299337387,
+                0.05020877718925476,
+                0.2176896184682846,
+                0.1925983726978302,
+                0.060082726180553436
+              ],
+              "maximum": [
+                1.3573729991912842,
+                0.168608620762825,
+                0.17777863144874573,
+                0.058265477418899536,
+                0.20795194804668427,
+                0.2344057857990265,
+                0.04918321594595909,
+                0.17175859212875366,
+                0.2218097299337387,
+                0.05020877718925476,
+                0.2176896184682846,
+                0.1925983726978302,
+                0.060082726180553436
+              ],
+              "mean": [
+                1.3573729991912842,
+                0.168608620762825,
+                0.17777863144874573,
+                0.058265477418899536,
+                0.20795194804668427,
+                0.2344057857990265,
+                0.04918321594595909,
+                0.17175859212875366,
+                0.2218097299337387,
+                0.05020877718925476,
+                0.2176896184682846,
+                0.1925983726978302,
+                0.060082726180553436
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "body_mass_ratio": {
+              "shape": [
+                1,
+                13
+              ],
+              "minimum": [
+                0.9013100862503052,
+                0.9367145299911499,
+                0.9557990431785583,
+                1.1653095483779907,
+                1.155288577079773,
+                1.2602461576461792,
+                0.983664333820343,
+                0.954214334487915,
+                1.1925253868103027,
+                1.0041755437850952,
+                1.2093867063522339,
+                1.0354751348495483,
+                1.2016545534133911
+              ],
+              "maximum": [
+                0.9013100862503052,
+                0.9367145299911499,
+                0.9557990431785583,
+                1.1653095483779907,
+                1.155288577079773,
+                1.2602461576461792,
+                0.983664333820343,
+                0.954214334487915,
+                1.1925253868103027,
+                1.0041755437850952,
+                1.2093867063522339,
+                1.0354751348495483,
+                1.2016545534133911
+              ],
+              "mean": [
+                0.9013100862503052,
+                0.9367145299911499,
+                0.9557990431785583,
+                1.1653095483779907,
+                1.155288577079773,
+                1.2602461576461792,
+                0.983664333820343,
+                0.954214334487915,
+                1.1925253868103027,
+                1.0041755437850952,
+                1.2093867063522339,
+                1.0354751348495483,
+                1.2016545534133911
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "base_com_offset_m": {
+              "shape": [
+                1,
+                3
+              ],
+              "minimum": [
+                0.00357852503657341,
+                0.002539175096899271,
+                -0.0030475249513983727
+              ],
+              "maximum": [
+                0.00357852503657341,
+                0.002539175096899271,
+                -0.0030475249513983727
+              ],
+              "mean": [
+                0.00357852503657341,
+                0.002539175096899271,
+                -0.0030475249513983727
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "encoder_bias_rad": {
+              "shape": [
+                1,
+                12
+              ],
+              "minimum": [
+                0.009269249625504017,
+                0.0023377621546387672,
+                0.012119450606405735,
+                0.0016397954896092415,
+                -0.004730598069727421,
+                0.004030254669487476,
+                -0.004067691043019295,
+                0.00631286296993494,
+                0.013392332009971142,
+                0.008670893497765064,
+                -0.006557587534189224,
+                0.008658970706164837
+              ],
+              "maximum": [
+                0.009269249625504017,
+                0.0023377621546387672,
+                0.012119450606405735,
+                0.0016397954896092415,
+                -0.004730598069727421,
+                0.004030254669487476,
+                -0.004067691043019295,
+                0.00631286296993494,
+                0.013392332009971142,
+                0.008670893497765064,
+                -0.006557587534189224,
+                0.008658970706164837
+              ],
+              "mean": [
+                0.009269249625504017,
+                0.0023377621546387672,
+                0.012119450606405735,
+                0.0016397954896092415,
+                -0.004730598069727421,
+                0.004030254669487476,
+                -0.004067691043019295,
+                0.00631286296993494,
+                0.013392332009971142,
+                0.008670893497765064,
+                -0.006557587534189224,
+                0.008658970706164837
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "foot_tangential_friction": {
+              "shape": [
+                1,
+                4
+              ],
+              "minimum": [
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612
+              ],
+              "maximum": [
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612
+              ],
+              "mean": [
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612,
+                0.8701182007789612
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "pd_stiffness": {
+              "shape": [
+                1,
+                12
+              ],
+              "minimum": [
+                3.313875913619995,
+                4.143754005432129,
+                3.6203436851501465,
+                5.80324125289917,
+                5.071043014526367,
+                5.24454402923584,
+                5.109859466552734,
+                4.65108060836792,
+                5.751086711883545,
+                3.6980438232421875,
+                4.761575222015381,
+                3.7365074157714844
+              ],
+              "maximum": [
+                3.313875913619995,
+                4.143754005432129,
+                3.6203436851501465,
+                5.80324125289917,
+                5.071043014526367,
+                5.24454402923584,
+                5.109859466552734,
+                4.65108060836792,
+                5.751086711883545,
+                3.6980438232421875,
+                4.761575222015381,
+                3.7365074157714844
+              ],
+              "mean": [
+                3.313875913619995,
+                4.143754005432129,
+                3.6203436851501465,
+                5.80324125289917,
+                5.071043014526367,
+                5.24454402923584,
+                5.109859466552734,
+                4.65108060836792,
+                5.751086711883545,
+                3.6980438232421875,
+                4.761575222015381,
+                3.7365074157714844
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "pd_damping": {
+              "shape": [
+                1,
+                12
+              ],
+              "minimum": [
+                0.31448081135749817,
+                0.2573665380477905,
+                0.3143114149570465,
+                0.269270122051239,
+                0.3600717782974243,
+                0.2356385886669159,
+                0.23531517386436462,
+                0.23531202971935272,
+                0.366201251745224,
+                0.31665948033332825,
+                0.37169694900512695,
+                0.21528832614421844
+              ],
+              "maximum": [
+                0.31448081135749817,
+                0.2573665380477905,
+                0.3143114149570465,
+                0.269270122051239,
+                0.3600717782974243,
+                0.2356385886669159,
+                0.23531517386436462,
+                0.23531202971935272,
+                0.366201251745224,
+                0.31665948033332825,
+                0.37169694900512695,
+                0.21528832614421844
+              ],
+              "mean": [
+                0.31448081135749817,
+                0.2573665380477905,
+                0.3143114149570465,
+                0.269270122051239,
+                0.3600717782974243,
+                0.2356385886669159,
+                0.23531517386436462,
+                0.23531202971935272,
+                0.366201251745224,
+                0.31665948033332825,
+                0.37169694900512695,
+                0.21528832614421844
+              ],
+              "std": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            }
+          },
+          "warnings": [],
+          "physics_randomization_events_configured": true,
+          "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+          "observation_noise": {
+            "actor": {
+              "policy": true
+            },
+            "critic": {}
+          },
+          "imu_latency_distributions": {
+            "actor": {
+              "policy": [
+                0.5,
+                0.5
+              ]
+            },
+            "critic": {}
+          },
+          "geom_priorities": {
+            "foot_geom_priority": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "external_geom_priority": [
+              0
+            ]
+          },
+          "actuator_delays": [
+            {
+              "type": "BuiltinPositionActuator",
+              "physics_steps_min": 4,
+              "physics_steps_max": 4
+            }
+          ],
+          "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+          "snapshot": "randomization_snapshot.npz",
+          "snapshot_sha256": "d90a724384e5be394b40a4d6aafe2d71adcec44e0ecfce1dbe424e2fdb4179c5"
+        },
+        "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+        "action_target_audit": {
+          "wrapper_clip_actions": null,
+          "action_term_clip": {
+            "leg_front_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_front_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_front_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_front_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_front_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_front_l_3": [
+              -0.71,
+              2.79
+            ],
+            "leg_back_r_1": [
+              -1.22,
+              2.51
+            ],
+            "leg_back_r_2": [
+              -0.42,
+              3.14
+            ],
+            "leg_back_r_3": [
+              -2.79,
+              0.71
+            ],
+            "leg_back_l_1": [
+              -2.51,
+              1.22
+            ],
+            "leg_back_l_2": [
+              -3.14,
+              0.42
+            ],
+            "leg_back_l_3": [
+              -0.71,
+              2.79
+            ]
+          },
+          "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request"
+        }
+      },
+      "aggregate": {
+        "scored_states": 600,
+        "scored_joint_requests": 7200,
+        "additionally_clipped_joint_requests": 531,
+        "additionally_clipped_joint_fraction": 0.07375,
+        "states_with_any_additional_clipping_fraction": 0.45,
+        "maximum_additional_target_clamp_rad": 0.10000002861022939,
+        "fraction_by_joint": {
+          "leg_front_r_1": 0.008333333333333333,
+          "leg_front_r_2": 0.13,
+          "leg_front_r_3": 0.11666666666666667,
+          "leg_front_l_1": 0.005,
+          "leg_front_l_2": 0.14666666666666667,
+          "leg_front_l_3": 0.125,
+          "leg_back_r_1": 0.018333333333333333,
+          "leg_back_r_2": 0.025,
+          "leg_back_r_3": 0.105,
+          "leg_back_l_1": 0.043333333333333335,
+          "leg_back_l_2": 0.05,
+          "leg_back_l_3": 0.11166666666666666
+        }
+      },
+      "segments": [
+        {
+          "segment": 0,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        },
+        {
+          "segment": 1,
+          "command": [
+            0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 106,
+          "additionally_clipped_joint_fraction": 0.08833333333333333,
+          "states_with_any_additional_clipping_fraction": 0.56,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.1,
+            "leg_front_r_3": 0.18,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.12,
+            "leg_front_l_3": 0.2,
+            "leg_back_r_1": 0.01,
+            "leg_back_r_2": 0.01,
+            "leg_back_r_3": 0.17,
+            "leg_back_l_1": 0.07,
+            "leg_back_l_2": 0.02,
+            "leg_back_l_3": 0.18
+          }
+        },
+        {
+          "segment": 2,
+          "command": [
+            -0.3,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 145,
+          "additionally_clipped_joint_fraction": 0.12083333333333333,
+          "states_with_any_additional_clipping_fraction": 0.68,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.05,
+            "leg_front_r_2": 0.25,
+            "leg_front_r_3": 0.16,
+            "leg_front_l_1": 0.03,
+            "leg_front_l_2": 0.29,
+            "leg_front_l_3": 0.17,
+            "leg_back_r_1": 0.05,
+            "leg_back_r_2": 0.05,
+            "leg_back_r_3": 0.15,
+            "leg_back_l_1": 0.07,
+            "leg_back_l_2": 0.03,
+            "leg_back_l_3": 0.15
+          }
+        },
+        {
+          "segment": 3,
+          "command": [
+            0.0,
+            0.2,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 163,
+          "additionally_clipped_joint_fraction": 0.13583333333333333,
+          "states_with_any_additional_clipping_fraction": 0.86,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.3,
+            "leg_front_r_3": 0.18,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.3,
+            "leg_front_l_3": 0.19,
+            "leg_back_r_1": 0.01,
+            "leg_back_r_2": 0.05,
+            "leg_back_r_3": 0.16,
+            "leg_back_l_1": 0.05,
+            "leg_back_l_2": 0.22,
+            "leg_back_l_3": 0.17
+          }
+        },
+        {
+          "segment": 4,
+          "command": [
+            0.0,
+            0.0,
+            0.5
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 117,
+          "additionally_clipped_joint_fraction": 0.0975,
+          "states_with_any_additional_clipping_fraction": 0.6,
+          "maximum_additional_target_clamp_rad": 0.10000002861022939,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.13,
+            "leg_front_r_3": 0.18,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.17,
+            "leg_front_l_3": 0.19,
+            "leg_back_r_1": 0.04,
+            "leg_back_r_2": 0.04,
+            "leg_back_r_3": 0.15,
+            "leg_back_l_1": 0.07,
+            "leg_back_l_2": 0.03,
+            "leg_back_l_3": 0.17
+          }
+        },
+        {
+          "segment": 5,
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scored_states": 100,
+          "scored_joint_requests": 1200,
+          "additionally_clipped_joint_requests": 0,
+          "additionally_clipped_joint_fraction": 0.0,
+          "states_with_any_additional_clipping_fraction": 0.0,
+          "maximum_additional_target_clamp_rad": 0.0,
+          "fraction_by_joint": {
+            "leg_front_r_1": 0.0,
+            "leg_front_r_2": 0.0,
+            "leg_front_r_3": 0.0,
+            "leg_front_l_1": 0.0,
+            "leg_front_l_2": 0.0,
+            "leg_front_l_3": 0.0,
+            "leg_back_r_1": 0.0,
+            "leg_back_r_2": 0.0,
+            "leg_back_r_3": 0.0,
+            "leg_back_l_1": 0.0,
+            "leg_back_l_2": 0.0,
+            "leg_back_l_3": 0.0
+          }
+        }
+      ],
+      "trace_sha256": "ef519f291762fc0a6aa8d0b438925b900c6fb224149b8b3ab4d27b4af97037c7"
+    }
+  ],
+  "conclusion": "Second-clamp incidence is material. Existing controller-clamp experiments remain valid under their recorded simulation contract, but cannot establish exact physical command parity. Performance under the extra driver clamp requires a separately named dynamics evaluation before deciding whether further training is necessary.",
+  "limitations": [
+    "Does not model motor current/torque sensing, latency, velocity/feedforward clamp, friction, thermal limits or installed calibration.",
+    "Driver position clamp applies when kp>0 and normal write(true), as in the local neural position-control configuration.",
+    "Installed Pi descriptions/driver/firmware may differ; local source bounds are explicitly not asserted to be installed hardware limits."
+  ]
+}
