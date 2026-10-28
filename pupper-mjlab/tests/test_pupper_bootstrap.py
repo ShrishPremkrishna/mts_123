@@ -194,7 +194,8 @@ def test_jump_selection_requires_flight_and_landing_in_same_episode():
     add_observed_flight(t,40,50)
     selected=b.select_jump(t)
     assert selected['start']<40 and selected['end']>50
-    assert selected['flight_s']==pytest.approx(.2)
+    assert selected['flight_s']==pytest.approx(.18)
+    assert selected['flight_nominal_bin_s']==pytest.approx(.2)
     t['terminated'][49]=True
     with pytest.raises(ValueError):b.select_jump(t)
 
@@ -274,8 +275,8 @@ def test_capture_can_include_later_observed_recovery_without_time_stretch():
     t=jump_trace();add_observed_flight(t,40,50)
     t['foot_contact'][50:75]=False;t['foot_contact'][51]=True
     selected=b.select_jump(t)
-    assert selected['end']==80
-    assert (selected['end']-selected['start']-1)*float(t['dt'])==pytest.approx(1.08)
+    assert selected['end']==81
+    assert (selected['end']-selected['start']-1)*float(t['dt'])==pytest.approx(1.10)
     assert selected['touchdown_s']==pytest.approx(.5)
 
 
@@ -284,6 +285,28 @@ def test_positive_com_rise_uses_disclosed_numeric_tolerance_not_five_mm():
     t['height'][40:50,0]=.20+np.sin(np.linspace(0,np.pi,10))*.004
     selected=b.select_jump(t)
     assert .0001<selected['rise_after_liftoff_m']<.005
-    assert selected['gate']['version']=='all_body_com_recovery_v2'
+    assert selected['gate']['version']=='all_body_com_sample_span_v3'
     t['height'][40:50,0]=.20+np.sin(np.linspace(0,np.pi,10))*.00005
     with pytest.raises(ValueError):b.select_jump(t)
+
+
+def test_recovery_requires_six_50hz_samples_to_span_one_tenth_second():
+    t=jump_trace();add_observed_flight(t,40,50)
+    t['foot_contact'][50:]=False;t['foot_contact'][61:66]=True
+    with pytest.raises(ValueError,match='No clean jump'):b.select_jump(t)
+    t['foot_contact'][66]=True
+    selected=b.select_jump(t)
+    assert selected['end']==67 and selected['recovery_sample_count']==6
+    assert selected['recovery_s']==pytest.approx(.10)
+    assert selected['recovery_nominal_bin_s']==pytest.approx(.12)
+    assert (selected['recovery_sample_count']-1)*float(t['dt'])==pytest.approx(.10)
+
+
+def test_minimum_flight_uses_observed_span_not_count_times_dt():
+    short=jump_trace();add_observed_flight(short,40,44)
+    with pytest.raises(ValueError,match='No clean jump'):b.select_jump(short)
+    enough=jump_trace();add_observed_flight(enough,40,45)
+    selected=b.select_jump(enough)
+    assert selected['flight_sample_count']==5
+    assert selected['flight_s']==pytest.approx(.08)
+    assert selected['flight_nominal_bin_s']==pytest.approx(.10)

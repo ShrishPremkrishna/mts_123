@@ -165,11 +165,12 @@ def save_references(out, forward, backward, report, *, limits=None, frequency_mu
     return manifest
 
 
-JUMP_CAPTURE_GATE = dict(version="all_body_com_recovery_v2",min_flight_s=.08,min_total_rise_m=.02,
+JUMP_CAPTURE_GATE = dict(version="all_body_com_sample_span_v3",min_flight_s=.08,min_total_rise_m=.02,
     min_takeoff_com_velocity_m_s=.05,min_positive_com_rise_m=.0001,
-    continuous_recovery_s=.10,max_recovery_tilt_rad=.35,max_recovery_com_speed_m_s=.30,
+    min_observed_recovery_span_s=.10,max_recovery_tilt_rad=.35,max_recovery_com_speed_m_s=.30,
     max_window_tilt_rad=1.,max_capture_duration_exclusive_s=1.44,
-    note="The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen.")
+    duration_convention="First-to-last observed sample span; count-times-dt bin duration is reported separately. Between-sample continuity is not established.",
+    note="Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen.")
 
 
 def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, window=None):
@@ -199,8 +200,8 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
     vertical=np.asarray(trace["robot_com_vertical_velocity_m_s"] if use_com else trace["vertical_velocity"])
     if height.shape!=shape or vertical.shape!=shape:raise ValueError("Invalid COM trace shape")
     tilt=np.arccos(np.clip(1-2*(quat[:,:,1]**2+quat[:,:,2]**2),-1,1))
-    before=int(np.ceil(pre_s/dt));after=int(np.ceil(post_s/dt));settle=max(2,int(np.ceil(.10/dt)))
-    if before<2 or after<settle:raise ValueError("Capture needs loading and at least0.10s recovery")
+    before=int(np.ceil(pre_s/dt));after=int(np.ceil(post_s/dt));settle=max(2,int(np.ceil(.10/dt-1e-10))+1)
+    if before<2 or after+1<settle:raise ValueError("Capture needs loading and at least0.10s recovery")
     if window is not None:
         wa,wb,we=map(int,window)
         if not 0<=wa<wb<=shape[0] or not 0<=we<shape[1]:raise ValueError("Invalid requested capture window")
@@ -212,8 +213,8 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
         starts,ends=np.flatnonzero(edges==1),np.flatnonzero(edges==-1)
         for fs,fe in zip(starts,ends):
             flight_start,flight_end=int(fs),int(fe)
-            flight=(flight_end-flight_start)*dt
-            if flight<min_flight_s:continue
+            flight=(flight_end-flight_start-1)*dt
+            if flight+1e-12<min_flight_s:continue
             a=flight_start-before;b=max(flight_end+after,a+int(np.ceil(.80/dt))+1)
             if window is not None:a,b=wa,wb
             elif a>=0:
@@ -242,8 +243,8 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
             rise=peak-float(np.median(height[a:flight_start,env]))
             flight_rise=peak-float(height[flight_start,env]);takeoff=float(vertical[flight_start,env])
             if rise<.02 or flight_rise<=.0001 or takeoff<.05:continue
-            # A single toe touch is not a recovered landing. Require continuous
-            # final support, upright attitude and settled vertical motion.
+            # Require supported, upright, settled observations spanning>=100ms.
+            # Five50Hz samples only span80ms; no between-sample continuity claim.
             recovery=slice(b-settle,b)
             if not (np.all(contacts[recovery,env]>=2) and np.all(whole[recovery,env]>0)
                     and np.all(tilt[recovery,env]<.35) and np.all(np.abs(vertical[recovery,env])<.30)):continue
@@ -251,10 +252,11 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
                 try:validate_reference(q[a:b,env],limits=limits,cycle_s=(b-a-1)*dt,periodic=False)
                 except ValueError:continue
             candidates.append(dict(env=int(env),start=int(a),end=int(b),flight_start=flight_start,flight_end=flight_end,
-                flight_s=float(flight),touchdown_s=float((flight_end-a)*dt),peak_height_m=peak,rise_m=rise,
+                flight_s=float(flight),flight_sample_count=flight_end-flight_start,
+                flight_nominal_bin_s=float((flight_end-flight_start)*dt),touchdown_s=float((flight_end-a)*dt),peak_height_m=peak,rise_m=rise,
                 rise_after_liftoff_m=flight_rise,takeoff_vertical_velocity_m_s=takeoff,
                 height_signal="robot_com",all_body_contact_audited=True,gate=dict(JUMP_CAPTURE_GATE),
-                recovery_s=float(settle*dt),maximum_recovery_tilt_rad=float(np.max(tilt[recovery,env])),
+                recovery_s=float((settle-1)*dt),recovery_sample_count=settle,recovery_nominal_bin_s=float(settle*dt),maximum_recovery_tilt_rad=float(np.max(tilt[recovery,env])),
                 minimum_torso_clearance_m=float(torso.min()) if torso is not None else None))
     if not candidates:raise ValueError("No clean jump with loading, upward all-body flight and sustained landing found; do not fabricate a capture")
     return max(candidates,key=lambda c:c["rise_m"])
