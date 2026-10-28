@@ -36,6 +36,11 @@ def main():
         ('classical', [python,'-m','pytest','foundation/tests','-q','-p','no:cacheprovider']),
         ('tool_queue', [python,'-m','pytest','gemini_pupper/tests','-q','-p','no:cacheprovider']),
         ('compliance', [python,'-m','pytest','implicit_compliance/tests','-q','-p','no:cacheprovider']),
+        ('course_follow', [python,'follow_me_pupper/lab/test.py']),
+        ('course_color', [python,'follow_me_pupper/lab/test.py','step5']),
+        ('course_avoidance', [python,'follow_me_pupper/lab/test.py','step6']),
+        ('course_tools', [python,'gemini_pupper/lab/test.py']),
+        ('course_jump', [python,'gemini_pupper/lab/test.py','optional_jump']),
     ]
     numerical = ['test_pupper_foundation.py','test_pupper_tracking.py','test_pupper_spider.py',
                  'test_pupper_unimate.py','test_unimate_repair.py','test_unimate_worker.py',
@@ -49,14 +54,18 @@ def main():
     checks += [('motion_export', [python,'-m','pytest',*[f'pupper-mjlab/tests/{name}' for name in numerical],'-q','-p','no:cacheprovider']),
                ('controller_cpp', ['bash','pupper_gait_deploy/test/run_host_test.sh'])]
     revision = subprocess.run(['git','rev-parse','HEAD'],cwd=root,text=True,capture_output=True,check=False)
-    candidates = subprocess.run(['git','ls-files','--cached','--others','--exclude-standard','-z'],
-                                cwd=root,capture_output=True,check=True).stdout.decode().split('\0')
     watched = ('foundation/','forward_kinematics_lab/','pd_control_lab/','ik_heuristic_walking_lab/',
                'pupper-gait-tuner/','follow_me_pupper/','gemini_pupper/','implicit_compliance/',
-               'pupper_gait_deploy/','pupper-mjlab/src/','pupper-mjlab/tests/')
-    files = sorted({name for name in candidates if name.startswith(watched) and (root/name).is_file()
-                    and Path(name).suffix in ('.py','.cpp','.hpp','.sh','.json','.yaml','.xml')}
-                   | {str(path.relative_to(root)) for path in (root/'foundation').rglob('*.py')})
+               'pupper_gait_deploy/','pupper-mjlab/src/','pupper-mjlab/tests/','pupper-mjlab/configs/')
+    def watched_files():
+        candidates = subprocess.run(['git','ls-files','--cached','--others','--exclude-standard','-z'],
+                                    cwd=root,capture_output=True,check=True).stdout.decode().split('\0')
+        driver_sources = json.loads((root/'foundation/configs/class-driver-joint-limits.json').read_text())['sources']
+        return sorted({name for name in candidates if name.startswith(watched) and (root/name).is_file()
+                        and Path(name).suffix in ('.py','.cpp','.hpp','.h','.sh','.json','.yaml','.xml','.npz')}
+                      | {str(path.relative_to(root)) for path in (root/'foundation').rglob('*.py')}
+                      | {item['path'] for item in driver_sources})
+    files = watched_files()
     hashes = {name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in files}
     report = {'created_utc':stamp,'git_revision':revision.stdout.strip(),'python':sys.version,
               'scope':'offline regression and numerical contract checks; no hardware or trained-policy performance claim',
@@ -72,7 +81,13 @@ def main():
                                  'seconds':time.monotonic()-start,'log':str(log)})
         destination.write_text(json.dumps(report,indent=2)+'\n')
         print(f'{name}: {"PASS" if result.returncode == 0 else "FAIL"}', flush=True)
-    report['passed'] = all(check['returncode'] == 0 for check in report['checks'])
+    # A shared workspace can change while checks run. Keep that visible instead
+    # of labeling a mixture of revisions as a validated source snapshot.
+    report['changed_source_during_checks'] = [name for name, digest in hashes.items()
+        if not (root/name).is_file() or hashlib.sha256((root/name).read_bytes()).hexdigest() != digest]
+    report['added_source_during_checks'] = sorted(set(watched_files()) - set(files))
+    report['passed'] = (all(check['returncode'] == 0 for check in report['checks'])
+                        and not report['changed_source_during_checks'] and not report['added_source_during_checks'])
     destination.write_text(json.dumps(report,indent=2)+'\n')
     print(destination)
     return 0 if report['passed'] else 1
