@@ -126,7 +126,7 @@
     "new_default_stopping_limit": {
       "finding": "Selectedfull-hullweak-gain/inertial/biasworlds keepfixedshippeddefaultmovingafter8szero, evenfromfreshstandingwithoutSpider. Only4torso-onlyoriginalchainssettle;nochange toactualinstalledpolicy.",
       "evidence": "foundation/results/spider-default-startup-attribution-reviewed.json + independentreview",
-      "next": "Boundedgain/biasablation; do notassumeSpidersensingfixrepairssh ippedfallback. ActualPiapprovedbaselinebehaviorremainsunknown."
+      "next": "Boundedgain/biasablation; do notassumeSpidersensingfixrepairs shipped fallback. ActualPiapprovedbaselinebehaviorremainsunknown."
     }
   },
   "checkpoint_history": [
