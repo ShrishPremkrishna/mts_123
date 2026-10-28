@@ -1,3 +1,7 @@
+// Keep test assertions active in ROS RelWithDebInfo/Release builds.
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <cassert>
 #include <cmath>
 #include <iostream>

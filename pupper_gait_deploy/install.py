@@ -93,6 +93,11 @@ def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
       "Gait reference parity test",
     ),
     (
+      REPO / "test" / "test_neural_controller_safety.cpp",
+      pkg / "test" / "test_neural_controller_safety.cpp",
+      "Production controller stop and slew tests with in-memory ROS interfaces",
+    ),
+    (
       REPO / "test" / "test_position_target_slew.cpp",
       pkg / "test" / "test_position_target_slew.cpp",
       "Position target slew initialization, command, clock and metadata tests",

@@ -1,0 +1,40 @@
+{
+  "scope": "Software-only controller contract verification; no Pi or motor test. Fresh official ROS Jazzy ARM64 image matches class build.sh, installed Pi distro unverified.",
+  "base_image": "ros:jazzy-ros-base@sha256:8eed0a4669bbf43ee331878a4c39bd8ebddea8e3312a58b4fae8edb14526b617",
+  "image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44 arm64 linux",
+  "python_native_tests": {
+    "count": 35,
+    "passed": true
+  },
+  "host_cpp_suite_passed": true,
+  "ros_build": {
+    "passed": true,
+    "configuration": "RelWithDebInfo, C++17, ARM64, ROS Jazzy",
+    "container_network": "none during build/test",
+    "ctest_targets": 5,
+    "production_gtests": 6,
+    "colcon_summary": {
+      "tests": 11,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  },
+  "production_cases": [
+    "emergency damping preempts initialization (legacy and slew)",
+    "emergency damping preempts held inference (legacy and slew)",
+    "slew covers initialization and advances held request",
+    "legacy initialization/held command unchanged",
+    "runtime metadata ignores spoofed overrides and rejects mutation",
+    "tilt detection applies damping in same update"
+  ],
+  "rate_scope": "15 rad/s engineering target rate bound, not measured motor speed/acceleration cap or hardware approval.",
+  "sources": {
+    "pupper_gait_deploy/src/neural_controller.cpp": "74f3ac3eebbd53620ee2619735d189c209985fdd6c4d77fcdfe0ba6502d092a9",
+    "pupper_gait_deploy/src/neural_controller.hpp": "f23d88edc0d24655b9c2dccb5becbb055ed37bbf90f8768c2ac05c7d981984bb",
+    "pupper_gait_deploy/src/position_target_slew.hpp": "1ee40882f02151f35ca4627425c512a8239b1f4f3ae3d0fdb8a454bf56b8b36d",
+    "pupper_gait_deploy/test/test_neural_controller_safety.cpp": "7beb2259f212656ff8b19967b1dab1f7d8bce34bd37434a1201f5c14afa426b8",
+    "pupper_gait_deploy/src/CMakeLists.txt": "cfd1157145441637b1320b159f42e379e1529767ac1892b977f493a4d60c8ba9",
+    "pupper_gait_deploy/src/package.xml": "476a83a5ef02d0127f199989c8f6b59c809eb3ee0d4f591b990993c5d1db1b42"
+  }
+}
