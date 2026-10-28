@@ -136,9 +136,11 @@ exports omit joint names and retain the contract's fixed order; any supplied
 names must agree. This catches an accidental upright-policy/Spider pairing but
 does not validate physical controller handoff or tracking quality.
 
-The retained Sit policy has completed the recorded simulation suites, with an
-explicit forward-COM weakness under tighter driver limits. Spider refinements
-are separate experiments. The generated `secret_dance` artifact has completed
+The installed Sit policy passed the eight existing scenarios on both CPU and
+GPU with class driver limits after its torso x-COM training range was expanded
+to ±2 cm. The +2 cm case improved; +2.5 cm remains outside that range and shows
+a CPU/GPU disagreement. See the [review](../../foundation/results/lab6-sit-comx02-reviewed.json)
+for the exact policy and boundary. Spider refinements remain separate experiments. The generated `secret_dance` artifact has completed
 generation, repair, training and review; its actual movement is a gentle standing
 rise/sway/return. Its seven-scenario screen and native finite-clip activation/hold
 are documented in the [review](../../foundation/results/generated-motion-trained-review.json).
