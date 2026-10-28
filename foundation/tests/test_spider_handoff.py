@@ -47,6 +47,26 @@ def step(t):
                 quaternion=[1,0,0,0],angular_velocity=[0,0,0],command=[0,0,0])
 
 
+def test_inference_audit_captures_pre_rotation_input_without_changing_target(host):
+    outputs=[]
+    for audit in (False,True):
+        proc,rpc=session(host,'exit')
+        try:
+            rows=[]
+            for i in range(11):
+                request=step(.5+i/520);request['audit_inference']=audit;rows.append(rpc(request))
+            outputs.append(rows)
+        finally:
+            proc.stdin.close();assert proc.wait(timeout=5)==0
+    for plain,audited in zip(*outputs):
+        assert plain['target']==audited['target'] and plain['raw_action']==audited['raw_action']
+    first,last=outputs[1][0],outputs[1][-1]
+    assert len(first['model_input'])==69
+    np.testing.assert_array_equal(first['model_input'][57:],0)
+    np.testing.assert_allclose(last['model_input'][57:],1/.75,atol=1e-7)
+    assert first['effective_command']==[0,0,0] and first['gait_reference_offset']==[]
+
+
 def test_selected_exit_preserves_low_pose_then_fades_with_unclipped_history(host):
     proc,rpc=session(host,'exit')
     try:
@@ -93,3 +113,20 @@ def test_single_finite_motion_holds_without_restarting_reference():
     policy['trick']['clips']=[{'name':'loop','start':0,'end':298,'loop':True}]
     with pytest.raises(ValueError,match='finite clip'):
         handoff.stage_plan(policy,True)
+
+
+@pytest.mark.parametrize('angle',[0,-1,90,float('nan'),float('inf')])
+def test_body_angle_override_cannot_loosen_existing_stop(angle):
+    from types import SimpleNamespace
+    with pytest.raises(ValueError,match='Body-angle'):
+        handoff.run(SimpleNamespace(max_body_angle_deg=angle))
+
+
+def test_internal_reset_warning_refuses_finite_recovered_state():
+    model,_=handoff.make_model('full_hulls');data=handoff.mujoco.MjData(model)
+    assert handoff.numerical_failures(data)==[]
+    data.warning[handoff.mujoco.mjtWarning.mjWARN_BADQACC].number=1
+    assert handoff.numerical_failures(data)
+    data.warning[handoff.mujoco.mjtWarning.mjWARN_BADQACC].number=0
+    data.qvel[0]=float('nan')
+    assert handoff.numerical_failures(data)==['nonfinite state']

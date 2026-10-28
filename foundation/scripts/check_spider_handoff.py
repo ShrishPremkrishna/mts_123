@@ -87,7 +87,18 @@ def stage_plan(trick, single_motion=False):
             ('standing_hold','trick',1,[0,0,0],'')]
 
 
+def numerical_failures(data):
+    warnings=[mujoco.mjtWarning.mjWARN_BADQPOS,mujoco.mjtWarning.mjWARN_BADQVEL,
+              mujoco.mjtWarning.mjWARN_BADQACC,mujoco.mjtWarning.mjWARN_BADCTRL]
+    failures=[str(w) for w in warnings if data.warning[w].number]
+    if not np.isfinite(data.qpos).all() or not np.isfinite(data.qvel).all():failures.append('nonfinite state')
+    return failures
+
+
 def run(args):
+    angle_limit=float(getattr(args,'max_body_angle_deg',np.degrees(1.5)))
+    if not np.isfinite(angle_limit) or not 0<angle_limit<=np.degrees(1.5):
+        raise ValueError('Body-angle threshold must be positive and no looser than the1.5rad diagnostic stop')
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
                *sorted((ROOT/'pupper_gait_deploy/src').glob('*.hpp')),
@@ -131,7 +142,7 @@ def run(args):
         line=proc.stdout.readline()
         if not line: raise RuntimeError('controller exited; inspect controller.log')
         return json.loads(line)
-    samples=[]; activations=[]; previous_controller=None; activation_time=0.; previous_target=data.qpos[qadr].copy()
+    samples=[]; activations=[];inference_events=[]; previous_controller=None; activation_time=0.; previous_target=data.qpos[qadr].copy()
     # Interpolate between timestamped old targets to realize exactly 16ms at
     # 520Hz. Buffer persists through all controller switches; initial values are
     # measured standing joints, initialized once at the start of the world.
@@ -151,8 +162,13 @@ def run(args):
             for _ in range(round(duration*520)):
                 quat=data.qpos[root_q+3:root_q+7].copy()
                 state=rpc(dict(op='step',elapsed_s=current_time-activation_time,joint_pos=data.qpos[qadr].tolist(),
-                    joint_vel=data.qvel[vadr].tolist(),quaternion=quat.tolist(),angular_velocity=data.qvel[root_v+3:root_v+6].tolist(),command=command))
+                    joint_vel=data.qvel[vadr].tolist(),quaternion=quat.tolist(),angular_velocity=data.qvel[root_v+3:root_v+6].tolist(),command=command,
+                    audit_inference=getattr(args,'record_inference',False)))
                 target=np.asarray(state['target']); final_target=np.clip(target,lower,upper)
+                if state.get('inference') and getattr(args,'record_inference',False):
+                    inference_events.append(dict(time_s=current_time,stage=stage,controller=controller,command=command,
+                        measured_joint_pos=data.qpos[qadr].tolist(),measured_joint_vel=data.qvel[vadr].tolist(),
+                        previous_controller_target=previous_target.tolist(),driver_target=final_target.tolist(),**state))
                 interval_target_step=max(interval_target_step,float(np.max(np.abs(target-previous_target))))
                 delayed.append((current_time,final_target.copy())); cutoff=current_time-.016
                 while len(delayed)>2 and delayed[1][0]<=cutoff: delayed.popleft()
@@ -161,6 +177,10 @@ def run(args):
                 model.actuator_gainprm[controls,0]=state['kp']
                 model.actuator_biasprm[controls,1]=-state['kp'];model.actuator_biasprm[controls,2]=-state['kd']
                 mujoco.mj_step(model,data)
+                numerical=numerical_failures(data)
+                if numerical:
+                    failure=dict(time_s=current_time+1/520,reason='Numerical instability; possible MuJoCo internal reset',details=numerical)
+                    break
                 if tick%10==0:
                     w,x,y,z=data.qpos[root_q+3:root_q+7]
                     tilt=np.degrees(np.arccos(np.clip(1-2*(x*x+y*y),-1,1)))
@@ -179,8 +199,8 @@ def run(args):
                         command=command,tilt_deg=float(tilt),target_delta_max_rad=interval_target_step,
                         torque_max_nm=float(np.max(np.abs(data.actuator_force[controls]))),contacts=contacts))
                     interval_target_step=0.
-                    if not np.isfinite(data.qpos).all() or tilt>np.degrees(1.5):
-                        failure=dict(time_s=current_time,reason='nonfinite state or configured 1.5rad controller tilt stop'); break
+                    if not np.isfinite(data.qpos).all() or tilt>angle_limit:
+                        failure=dict(time_s=current_time,reason=f'nonfinite state or configured {angle_limit:g}deg body-angle stop'); break
                 previous_target=target.copy();tick+=1;current_time=tick/520
             if failure: break
             if stage=='entry' and state.get('clip')!='spider_idle':
@@ -192,6 +212,8 @@ def run(args):
     finally:
         proc.stdin.close();proc.wait(timeout=10)
     traces=output/'trajectory.json';traces.write_text(json.dumps(samples,separators=(',',':'))+'\n')
+    if getattr(args,'record_inference',False):
+        (output/'inference.json').write_text(json.dumps(inference_events,separators=(',',':'))+'\n')
     np.savez_compressed(output/'trajectory.npz',fps=52,actual_root_pos=np.array([s['root_pos'] for s in samples]),
                         actual_root_quat=np.array([s['root_quat'] for s in samples]),actual_joint_pos=np.array([s['joint_pos'] for s in samples]))
     summaries={}
@@ -216,6 +238,8 @@ def run(args):
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
+        numerical_instability_monitor='Check BADQPOS/BADQVEL/BADQACC/BADCTRL warnings and finite qpos/qvel after every physics step; stop rather than count automatic recovery as success.',
+        maximum_body_angle_deg=angle_limit,
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.',
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
@@ -226,6 +250,7 @@ def run(args):
         sources_start=source_before,sources_end=source_after,source_changed=source_before!=source_after,
         compiler_command=compile_command,activations=activations,stage_summaries=summaries,stop=failure,
         trajectory_sha256=sha(traces),completed_sequence=failure is None,
+        inference_audit_sha256=sha(output/'inference.json') if getattr(args,'record_inference',False) else None,
         model_sha256=sha(output/'model.mjb'),mass_kg=float(model.body_mass.sum()),
         collision_masks=[dict(name=model.geom(g).name,contype=int(model.geom_contype[g]),conaffinity=int(model.geom_conaffinity[g])) for g in range(model.ngeom) if model.geom(g).name.endswith(('_hull','_collision'))])
     (output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
@@ -240,4 +265,6 @@ if __name__=='__main__':
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)
     parser.add_argument('--clip-anchor',action='store_true',help='Compare selected-clip anchor proposal; default reproduces legacy controller.')
     parser.add_argument('--driver-limits',type=Path)
+    parser.add_argument('--record-inference',action='store_true',help='Save read-only actor inputs, raw outputs, references and target transitions at every inference step')
+    parser.add_argument('--max-body-angle-deg',type=float,default=float(np.degrees(1.5)),help='Optional tighter descriptor body-angle stop; may not exceed the existing1.5rad threshold')
     run(parser.parse_args())

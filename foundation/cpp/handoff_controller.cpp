@@ -22,7 +22,8 @@ struct Controller {
   std::map<std::string, int> offsets;
   std::vector<float> observation;
   std::vector<double> defaults, initial, anchor, lower, upper;
-  std::vector<float> target, before_clip, raw;
+  std::vector<float> target, before_clip, raw, model_input, reference_offset;
+  std::vector<double> effective_command;
   int width=0, history=1, repeat=-1, frame=-1;
   double init_s=0, fade_s=0, yaw_offset=0, scale=0;
   bool yaw_set=false, clip_anchor=false;
@@ -98,6 +99,11 @@ struct Controller {
       }
       if(gait.valid()) compute_gait_reference_offset(gait,defaults,fade_time,command[0],command[1],command[2],observation.data()+offsets.at("gait_reference"));
       for(float& v:observation) v=std::clamp(v,-100.f,100.f);
+      // Read-only audit copy before history rotation and last-action feedback.
+      // This lets the caller distinguish reference, actor and clamp transitions.
+      model_input=observation; effective_command=command;
+      reference_offset.clear();
+      if(gait.valid()) reference_offset.assign(observation.begin()+offsets.at("gait_reference"),observation.begin()+offsets.at("gait_reference")+12);
       model->forward(observation.data());
       std::rotate(observation.rbegin(),observation.rbegin()+width,observation.rend());
       for(int j=0;j<12;++j) {
@@ -109,6 +115,10 @@ struct Controller {
       }
     }
     Json result={{"target",target},{"before_clip",before_clip},{"raw_action",raw},{"kp",metadata.at("kp")},{"kd",metadata.at("kd")},{"inference",repeat==0},{"stage",alpha<1?"fade":"policy"},{"frame",frame}};
+    if(repeat==0 && r.value("audit_inference",false)) {
+      result["model_input"]=model_input; result["gait_reference_offset"]=reference_offset;
+      result["effective_command"]=effective_command; result["reference_time_s"]=fade_time;
+    }
     if(motion.frames) { result["clip"]=motion.clips[player.clip()].name; result["holding"]=player.holding(); }
     return result;
   }
