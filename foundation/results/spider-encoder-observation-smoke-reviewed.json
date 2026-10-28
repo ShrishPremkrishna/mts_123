@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "state": "passed_real_continuation_export_evaluation_smoke",
+  "reviewed_utc": "2026-10-28T12:22:34.585120+00:00",
+  "source_revision": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
+  "input_checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+  "scope": "Validates actual optimizer/normalizer continuation, coordinate-mode metadata and export/load/evaluation interoperability. The two-iteration,6-second rollouts do not establish policy benefit or hardware readiness.",
+  "artifact_directory": "artifacts/lab6/pupper-spider-encoder-smoke-v1",
+  "artifact_review_sha256": "93bbb3a2c9f9753634de49416412296c483d8be4045b5d93fe79ee2bf06d443f",
+  "archive": {
+    "archive": "/content/pupper-spider-encoder-smoke-v1-final.tar.gz",
+    "sha256": "fb3fe480846ead5f2d4aaacf76af7a2ff67ec716369f9cde82e7a3a28848a809",
+    "bytes": 40329746,
+    "utc": "2026-10-28T12:17:52.773323+00:00",
+    "source_revision": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81"
+  },
+  "preservation_manifests": [
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-spider-encoder-smoke-v1.json",
+      "sha256": "2357c36dd5e8d35ace0d97f77e73b70500a788e825f57a44b551076d28ffaf0f"
+    },
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-spider-encoder-smoke-archive-v1.json",
+      "sha256": "a8d15def1a50705b5de5af9a17b238fca6eefc6c0261096b22e90c1c54ffde96"
+    }
+  ],
+  "budget_each": {
+    "worlds": 32,
+    "additional_iterations": 2,
+    "seed": 42
+  },
+  "all_eight_child_processes_passed": true,
+  "only_training_environment_difference": [
+    {
+      "path": "observations.actor.terms.policy.params.encoder_observation_mode",
+      "legacy": "legacy_true",
+      "measured": "deployment_measured"
+    }
+  ],
+  "only_agent_differences": [
+    {
+      "path": "load_run",
+      "legacy": "foundation_spider_walk_deployclamp_driverclamp_slew15_composedcom_torsocontact_linstd0p316227766017_torsoload5_enclegacy_true_s42_20261028T121609Z_a7e855f1$",
+      "measured": "foundation_spider_walk_deployclamp_driverclamp_slew15_composedcom_torsocontact_linstd0p316227766017_torsoload5_encdeployment_measured_s42_20261028T121709Z_777583d4$"
+    },
+    {
+      "path": "run_name",
+      "legacy": "foundation_spider_walk_deployclamp_driverclamp_slew15_composedcom_torsocontact_linstd0p316227766017_torsoload5_enclegacy_true_s42_20261028T121609Z_a7e855f1",
+      "measured": "foundation_spider_walk_deployclamp_driverclamp_slew15_composedcom_torsocontact_linstd0p316227766017_torsoload5_encdeployment_measured_s42_20261028T121709Z_777583d4"
+    }
+  ],
+  "paired_startup_arrays_exact": {
+    "body_mass_kg": true,
+    "body_mass_ratio": true,
+    "base_com_offset_m": true,
+    "encoder_bias_rad": true,
+    "body_names": true,
+    "joint_names": true,
+    "foot_tangential_friction": true,
+    "foot_geom_priority": true,
+    "external_geom_priority": true,
+    "pd_stiffness": true,
+    "pd_damping": true,
+    "pd_target_names": true
+  },
+  "paired_command_episode_valid_exact": {
+    "command": true,
+    "episode": true,
+    "valid": true
+  },
+  "encoder_bias_observed_range_rad": [
+    -0.014943324029445648,
+    0.014956056140363216
+  ],
+  "arms": {
+    "legacy": {
+      "checkpoint_sha256": "45fd3a0eef1e65e9fd718df07f5ebd73011cbd0c7d77a7ff1b78286e4ad8a84c",
+      "policy_sha256": "0ce0c0aef1fea98fedac944ba3ed9596bcac6eba4bb3d020b6022074db783a81",
+      "standalone_export_byte_equal": true,
+      "standalone_export_json_equal": true,
+      "iteration_before": 8495,
+      "iteration_after": 8496,
+      "optimizer_parameter_states": 21,
+      "optimizer_steps_before": [
+        170000.0
+      ],
+      "optimizer_steps_after": [
+        170040.0
+      ],
+      "normalizer_count_before": 835584000.0,
+      "normalizer_count_after": 835585536.0,
+      "actor_weights_changed": true,
+      "encoder_contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "checkpoint_source_receipt": {
+        "checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+        "checkpoint_training_mode": "legacy_true",
+        "checkpoint_mode_tagged": false,
+        "active_observation_mode": "legacy_true",
+        "mode_changed_explicitly": false
+      },
+      "actual_training_load_receipt": {
+        "checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+        "checkpoint_training_mode": "legacy_true",
+        "checkpoint_mode_tagged": false,
+        "active_observation_mode": "legacy_true",
+        "mode_changed_explicitly": false
+      },
+      "evaluation_context": {
+        "contract": {
+          "contract": "pupper_encoder_observation_v1",
+          "mode": "deployment_measured",
+          "joint_position": "q+b-default",
+          "position_command_to_physical_target": "u-b",
+          "bias_definition": "measured_position_minus_true_position",
+          "fixed_reference_and_default_unchanged": true
+        },
+        "purpose": "evaluation",
+        "checkpoint_sha256": "45fd3a0eef1e65e9fd718df07f5ebd73011cbd0c7d77a7ff1b78286e4ad8a84c",
+        "checkpoint_training_mode": "legacy_true",
+        "checkpoint_mode_tagged": true,
+        "active_observation_mode": "deployment_measured",
+        "mode_changed_explicitly": true,
+        "mode_change_permission": {
+          "checkpoint_sha256": "45fd3a0eef1e65e9fd718df07f5ebd73011cbd0c7d77a7ff1b78286e4ad8a84c",
+          "from_mode": "legacy_true",
+          "to_mode": "deployment_measured",
+          "purpose": "evaluation"
+        },
+        "checkpoint_load_verified": true
+      },
+      "export_audit": {
+        "strict_actor_load_passed": true,
+        "metadata_differences": [],
+        "random_input_max_abs_error": 6.733118871338206e-06,
+        "live_input_max_abs_error": 1.8543584530128498e-06,
+        "passed": true
+      }
+    },
+    "measured": {
+      "checkpoint_sha256": "9c9d70d5151eab3f0e1ddc41b3df7e5428da3ca8f8d36af0b1191c98563798b2",
+      "policy_sha256": "afb52ece5dd1a2a66651d957491b9a5b0a21d675e21ec7e13fbfa3435e8a5301",
+      "standalone_export_byte_equal": true,
+      "standalone_export_json_equal": true,
+      "iteration_before": 8495,
+      "iteration_after": 8496,
+      "optimizer_parameter_states": 21,
+      "optimizer_steps_before": [
+        170000.0
+      ],
+      "optimizer_steps_after": [
+        170040.0
+      ],
+      "normalizer_count_before": 835584000.0,
+      "normalizer_count_after": 835585536.0,
+      "actor_weights_changed": true,
+      "encoder_contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "deployment_measured",
+        "joint_position": "q+b-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "checkpoint_source_receipt": {
+        "checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+        "checkpoint_training_mode": "legacy_true",
+        "checkpoint_mode_tagged": false,
+        "active_observation_mode": "deployment_measured",
+        "mode_changed_explicitly": true
+      },
+      "actual_training_load_receipt": {
+        "checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+        "checkpoint_training_mode": "legacy_true",
+        "checkpoint_mode_tagged": false,
+        "active_observation_mode": "deployment_measured",
+        "mode_changed_explicitly": true
+      },
+      "evaluation_context": {
+        "contract": {
+          "contract": "pupper_encoder_observation_v1",
+          "mode": "deployment_measured",
+          "joint_position": "q+b-default",
+          "position_command_to_physical_target": "u-b",
+          "bias_definition": "measured_position_minus_true_position",
+          "fixed_reference_and_default_unchanged": true
+        },
+        "purpose": "evaluation",
+        "checkpoint_sha256": "9c9d70d5151eab3f0e1ddc41b3df7e5428da3ca8f8d36af0b1191c98563798b2",
+        "checkpoint_training_mode": "deployment_measured",
+        "checkpoint_mode_tagged": true,
+        "active_observation_mode": "deployment_measured",
+        "mode_changed_explicitly": false,
+        "mode_change_permission": null,
+        "checkpoint_load_verified": true
+      },
+      "export_audit": {
+        "strict_actor_load_passed": true,
+        "metadata_differences": [],
+        "random_input_max_abs_error": 9.602285448551129e-06,
+        "live_input_max_abs_error": 1.6200679642253135e-06,
+        "passed": true
+      }
+    }
+  },
+  "full_study_proposal": "foundation/configs/spider-encoder-observation-study.json",
+  "smoke_outputs_must_not_seed_full_study": true,
+  "no_policy_promotion": true,
+  "hardware_validated": false,
+  "limitations": [
+    "Twoiterations and three2second commands are interoperability checks, not a policy improvement experiment.",
+    "Both full-study arms must restart from original stronger8495d789d17e checkpoint, not these smoke outputs.",
+    "Corrected encoder sensing does not itself resolve measured torso loading or the fixed-default full-hull zero-command drift observed in separate native studies."
+  ]
+}
