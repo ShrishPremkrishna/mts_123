@@ -1,0 +1,414 @@
+{
+  "reviewed_utc": "2026-10-28T13:11:51.391117+00:00",
+  "scope": "Root independently reduced all18finalGPU traces from verified content-addressed objects; not a reuse of the owner analysis implementation.",
+  "training_source": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
+  "initial_checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+  "actual_checkpoint_label": "model_9494.pt",
+  "policies": {
+    "legacy": {
+      "training_mode": "legacy_true",
+      "checkpoint_sha256": "9f848dc17c346c2b68c00706b458b0d8714a9b9c778343a477a5f58b5489b440",
+      "policy_sha256": "0d7da40c7a2d4f522c4d911c06ce97c786622af947507d778775702cf37ee34a"
+    },
+    "measured": {
+      "training_mode": "deployment_measured",
+      "checkpoint_sha256": "e0f546f3224ab5cc8c4eeda16acb2d42e2943e200a1380bf0686ea840f88b0ac",
+      "policy_sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0"
+    }
+  },
+  "common_evaluation_mode": "deployment_measured",
+  "pairing": {
+    "grid-s101": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "grid-s202": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "grid-s303": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "grid-s404": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "grid-s101-nominal-mechanics": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "stops-s101": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "stops-s202": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "stops-s303": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    },
+    "stops-s404": {
+      "startup_arrays_equal": {
+        "body_mass_kg": true,
+        "body_mass_ratio": true,
+        "base_com_offset_m": true,
+        "encoder_bias_rad": true,
+        "body_names": true,
+        "joint_names": true,
+        "foot_tangential_friction": true,
+        "foot_geom_priority": true,
+        "external_geom_priority": true,
+        "pd_stiffness": true,
+        "pd_damping": true,
+        "pd_target_names": true
+      },
+      "schedule_and_censor_masks_equal": {
+        "command": true,
+        "segment": true,
+        "dt": true,
+        "valid": true,
+        "episode": true,
+        "terminated": true,
+        "timeout": true
+      }
+    }
+  },
+  "summary": {
+    "legacy": {
+      "diagnostic": {
+        "moving": {
+          "mean_load_fraction": 0.03483471887158044,
+          "xy_error_m_s": 0.0537345922555044,
+          "yaw_error_rad_s": 0.06168582354676446,
+          "torque_squared_nm2": 0.2450800168600084,
+          "foot_site_slip_proxy_m_s": 0.09931366278065576
+        },
+        "idle": {
+          "mean_load_fraction": 0.0032546830986549618,
+          "xy_error_m_s": 0.0027246043922572044,
+          "yaw_error_rad_s": 0.009254306086849897,
+          "torque_squared_nm2": 0.16158281153756068,
+          "foot_site_slip_proxy_m_s": 0.004869258393430048
+        },
+        "failures": 0,
+        "timeouts": 0,
+        "settled_stops": 384,
+        "stop_total": 384,
+        "maximum_stop_time_s": 1.62,
+        "idle_tails_over_1pct_for_more_than_1s": 6,
+        "idle_tails_over_10pct_for_more_than_1s": 0
+      },
+      "study_holdout": {
+        "moving": {
+          "mean_load_fraction": 0.02546777231744829,
+          "xy_error_m_s": 0.053457621177992534,
+          "yaw_error_rad_s": 0.05887067272901319,
+          "torque_squared_nm2": 0.23832112866172986,
+          "foot_site_slip_proxy_m_s": 0.09733713045716286
+        },
+        "idle": {
+          "mean_load_fraction": 0.0008680105055623244,
+          "xy_error_m_s": 0.0026274744198777674,
+          "yaw_error_rad_s": 0.009037936143712849,
+          "torque_squared_nm2": 0.159619230763142,
+          "foot_site_slip_proxy_m_s": 0.004725984297692776
+        },
+        "failures": 0,
+        "timeouts": 0,
+        "settled_stops": 128,
+        "stop_total": 128,
+        "maximum_stop_time_s": 1.86,
+        "idle_tails_over_1pct_for_more_than_1s": 0,
+        "idle_tails_over_10pct_for_more_than_1s": 0
+      },
+      "all": {
+        "moving": {
+          "mean_load_fraction": 0.0324929822330474,
+          "xy_error_m_s": 0.053665349486126446,
+          "yaw_error_rad_s": 0.060982035842326636,
+          "torque_squared_nm2": 0.24339029481043878,
+          "foot_site_slip_proxy_m_s": 0.09881952969978253
+        },
+        "idle": {
+          "mean_load_fraction": 0.0026580149503818025,
+          "xy_error_m_s": 0.002700321899162345,
+          "yaw_error_rad_s": 0.009200213601065635,
+          "torque_squared_nm2": 0.161091916343956,
+          "foot_site_slip_proxy_m_s": 0.00483343986949573
+        },
+        "failures": 0,
+        "timeouts": 0,
+        "settled_stops": 512,
+        "stop_total": 512,
+        "maximum_stop_time_s": 1.86,
+        "idle_tails_over_1pct_for_more_than_1s": 6,
+        "idle_tails_over_10pct_for_more_than_1s": 0
+      }
+    },
+    "measured": {
+      "diagnostic": {
+        "moving": {
+          "mean_load_fraction": 0.03391984066337596,
+          "xy_error_m_s": 0.05392883457739506,
+          "yaw_error_rad_s": 0.06280661681700778,
+          "torque_squared_nm2": 0.24295737926397867,
+          "foot_site_slip_proxy_m_s": 0.09840684251652825
+        },
+        "idle": {
+          "mean_load_fraction": 0.004407311688557153,
+          "xy_error_m_s": 0.0023348931515075866,
+          "yaw_error_rad_s": 0.007844663554542308,
+          "torque_squared_nm2": 0.15918010051719225,
+          "foot_site_slip_proxy_m_s": 0.0044258044929140145
+        },
+        "failures": 0,
+        "timeouts": 0,
+        "settled_stops": 384,
+        "stop_total": 384,
+        "maximum_stop_time_s": 1.26,
+        "idle_tails_over_1pct_for_more_than_1s": 12,
+        "idle_tails_over_10pct_for_more_than_1s": 0
+      },
+      "study_holdout": {
+        "moving": {
+          "mean_load_fraction": 0.024787175221490414,
+          "xy_error_m_s": 0.053676628590882874,
+          "yaw_error_rad_s": 0.060208965738091355,
+          "torque_squared_nm2": 0.23631582511706836,
+          "foot_site_slip_proxy_m_s": 0.09657696411013603
+        },
+        "idle": {
+          "mean_load_fraction": 0.001890817311510986,
+          "xy_error_m_s": 0.002236267217984989,
+          "yaw_error_rad_s": 0.007571361821532399,
+          "torque_squared_nm2": 0.1569881666371149,
+          "foot_site_slip_proxy_m_s": 0.004301136980454127
+        },
+        "failures": 0,
+        "timeouts": 0,
+        "settled_stops": 128,
+        "stop_total": 128,
+        "maximum_stop_time_s": 1.08,
+        "idle_tails_over_1pct_for_more_than_1s": 0,
+        "idle_tails_over_10pct_for_more_than_1s": 0
+      },
+      "all": {
+        "moving": {
+          "mean_load_fraction": 0.03163667430290458,
+          "xy_error_m_s": 0.05386578308076701,
+          "yaw_error_rad_s": 0.06215720404727867,
+          "torque_squared_nm2": 0.24129699072725105,
+          "foot_site_slip_proxy_m_s": 0.09794937291493018
+        },
+        "idle": {
+          "mean_load_fraction": 0.0037781880942956113,
+          "xy_error_m_s": 0.0023102366681269373,
+          "yaw_error_rad_s": 0.007776338121289832,
+          "torque_squared_nm2": 0.15863211704717292,
+          "foot_site_slip_proxy_m_s": 0.004394637614799042
+        },
+        "failures": 0,
+        "timeouts": 0,
+        "settled_stops": 512,
+        "stop_total": 512,
+        "maximum_stop_time_s": 1.26,
+        "idle_tails_over_1pct_for_more_than_1s": 12,
+        "idle_tails_over_10pct_for_more_than_1s": 0
+      }
+    }
+  },
+  "decision": {
+    "promotion": false,
+    "interpretation": "Both arms pass512sampled base-velocity stop events without reset/timeouts. Measured-mode training reduces maximum stop time and slightly reduces moving torso load, torque-squared and GPU foot-site slip proxy, while increasing light idle support and slightly worsening XY/yaw tracking. These are one-training-seed conditional tradeoffs, not general superiority.",
+    "native_boundary": "Independent native10-chain study confirms improved support in four adverse pairs but worse turning in fivepairs and foot-contact slip in three. Only the two nominal cases settle after returning to the unchanged default; all eight adverse returns remain nonquiet.",
+    "future_training": "Use explicit deployment_measured mode for hardware-consistent new locomotion training. legacy_true remains reproducible historical training context; hardware always observes measured encoders. Export metadata records the training convention, not a way to remove unknown real bias."
+  },
+  "metric_definitions": {
+    "support": "Actual simulated torso force divided by randomized bodyweight. Means pool scoredworld/time withinsegment, average seeds equally, then average segments equally.",
+    "persistence": "First-to-last span of consecutive scored observations; report1%and10%BW thresholds, not continuous between-sample claims.",
+    "stops": "After nonzero command, all26observations over0.5s satisfy planar<=.02m/s andabsbodyyaw<=.05rad/s; resets/timeouts refused. Initialzero baseline is not a post-motion stop. Native finalquiet also checksjoint motion and is a different measurement.",
+    "slip": "GPU foot-site XYspeed gatedbycontact is a proxy; native force-weighted actualcontact tangentialspeed differs.",
+    "holdout": "404 was fixed before this study and not used to selectarms; has been used in otherclassstudies."
+  },
+  "evidence": {
+    "full_independent_reduction": "artifacts/review/spider-encoder-final-independent/review.json",
+    "sha256": "b661997bc7a09a6a7d27140581c4facc54129e1be6302e6075837c3da3ae8b3d",
+    "collector_index_sha256": "5a3b5df6c818f0e0da6e71a0c6176877f55174cf78651e9a60aa0580bf0a9eb7",
+    "input_identities_recorded": 74,
+    "lineage": "artifacts/lab6/pupper-spider-encoder-study-v1/exports/lineage.json",
+    "lineage_sha256": "b12f167f107663d17fb0290a10114a93d34232da751d4f56287f373ae1fbda05",
+    "preservation_receipt": "preservation-spider-encoder-final-independent-v1.json",
+    "preserved_files": 3,
+    "preserved_bytes": 925940
+  },
+  "hardware_validated": false,
+  "installed": false
+}
