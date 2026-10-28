@@ -1,5 +1,6 @@
 """Offline fault injection against the real queue/controller code and course fake ROS."""
 import asyncio
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -112,8 +113,12 @@ def test_local_second_policy_failure_keeps_previous_installation(tmp_path, monke
     (installed / 'marker').write_text('preserved baseline')
     bad_walk = tmp_path / 'not_a_walking_policy.json'
     bad_walk.write_text('{"trick": {}}')
+    limits = tmp_path / 'limits.json'
+    limits.write_text(json.dumps({'evaluation_source': 'test fixture; never hardware',
+        'walk_policy_sha256': hashlib.sha256(bad_walk.read_bytes()).hexdigest(),
+        'speed': .04, 'max_forward': .08, 'max_sideways': .04, 'turn': 15.}))
     monkeypatch.setattr(get_trick, 'TRICK_DIR', destination)
-    monkeypatch.setattr(sys, 'argv', ['get_trick.py', '--name', 'existing', '--policy-file', str(source), '--walk-policy-file', str(bad_walk)])
+    monkeypatch.setattr(sys, 'argv', ['get_trick.py', '--name', 'existing', '--policy-file', str(source), '--walk-policy-file', str(bad_walk), '--walk-limits', str(limits)])
     with pytest.raises(ValueError, match='velocity policy'):
         get_trick.main()
     assert sorted(p.name for p in installed.iterdir()) == ['marker']
