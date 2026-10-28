@@ -1,0 +1,4159 @@
+{
+  "schema_version": 1,
+  "protocol": "native_export_locomotion_screen_v1",
+  "hardware_validated": false,
+  "screening_only": true,
+  "policy_promotion": false,
+  "conclusion": "Retain the shipped default. New gait candidates do not establish an overall improvement in the common band and show configured tilt stops in the full-range screen. Jump capability was not measured; replacement candidates lack its trained reference contract.",
+  "additional_independent_review_caveat": "After mj_step, integrated qpos/qvel can be one 1/520s step ahead of derived xmat/geom/contact/actuator fields. These traces have up to1.923ms derived-field lag; contact-phase precision and absolute effort/slip comparisons to other evaluators require care.",
+  "validation": {
+    "command": ".venv/bin/python -B -m pytest -q -p no:cacheprovider foundation/tests/test_export_locomotion.py",
+    "passed": 11,
+    "scope": "Production native dense stack vs NumPy forward for actual shipped, Stable, Mixed and fast exports; per-policy references; history/reset/fade/pre-clamp feedback; heading isolation; range refusal; explicit no-jump requirement; full-hull physical smoke and driver limits."
+  },
+  "groups": {
+    "common_band": {
+      "artifact_directory": "artifacts/export-locomotion/native-screen-s101",
+      "plan_sha256": "82f196551b4b93d96c460c0974994d372bf63a4ddfe1e5143d99145d14ad75f2",
+      "status_sha256": "7fbe4a92418d23cea2854a5f8bd25fc76435841d2ea49733850132a4d3d0b9e7",
+      "source_hashes": {
+        "foundation/scripts/check_export_locomotion.py": "f5353e47a94441aed5d812b328c8f09b2f340ecd7ef7ba22399be82e998640e5",
+        "foundation/cpp/export_locomotion_controller.cpp": "800d126a4cdfad5d103b4772e827505164509878fb5c4880e2f893d7a415c821",
+        "foundation/scripts/check_spider_handoff.py": "8055e05abda6e365bb30d114c0536e8c2f1b743774d47e1d21f3c086ad24053e",
+        "pupper_gait_deploy/src/neural_controller.cpp": "e41230a0b0c009586bc0d052fa951db87699dca0338dc09d36619ee4b5544c8a",
+        "pupper_gait_deploy/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+        "pupper_gait_deploy/src/command_filter.hpp": "2513561c1f01613f1be6ccd2ce3acd494e5c60ee6f309887df8e4b30699a9c9d",
+        "pupper_gait_deploy/src/gait_reference.hpp": "59950dcd0786b52162db7a1e1eb8eef43293a57e02b05c0363a304e931f0ba16",
+        "pupper_gait_deploy/src/gait_reference_json.hpp": "ad7e898e21750bdd97f8e075f8f6ff97288f3483dcc248e904fd89ffafdeb751",
+        "pupper_gait_deploy/src/neural_controller.hpp": "5bbeb7ae4700ecd081a01665647f65d52d5258da6cf38fb7b00a343ecbab9414",
+        "pupper_gait_deploy/src/obs_spec.hpp": "e8fc46546ced273fe46baee265356b90a74e8c4794d66952811bdec07dac58a7",
+        "pupper_gait_deploy/src/trick_motion.hpp": "3d238b5a9e5737868772be7da4dca5291210532c30224d504a0ec9790c78da05",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/__init__.py": "870e55a5460821ddd0529b27f3b56472cb6b058381e14e16bea8582a2eb11d0e",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/export_trick.py": "43707389ff271f7dfc0905b8b205d2adf87e13f87c90161abe910a6cb4cf3280",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_design.py": "8bc443541a29c9a05a99acdb5465c12e726d15f4189e62661772b9e343b92edf",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_ops.py": "1d3c549682b5109a6747a326ec746c92afd04d737bfcc483f2605a3fe665f4f0",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/play_motion.py": "5322d6700db98c85accc2e8cacd9c9a091cbc07a1d5c7570581c162e04b423e5",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/rl_cfg.py": "6635456e4756a40e54ab7d559cdec5d207bd4833d39be0bd691f6218fb77e932",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/runner.py": "fd2381156f6cab495c3c2f05136090a6d9e58d1c8d657cabe81f7701140d98a0",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/upload_motion.py": "864e5ff8c2d4931038a0d0a3948c65361abd546068c88cc51a419206dd2ded39",
+        "pupper-mjlab/src/mjlab/tasks/pupper/deployment_contract.py": "388aec727d505aa3b9abe49223c9c216938aa06e3476d243e9b509244c28cb62",
+        "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b"
+      },
+      "commands": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0.3,
+          0,
+          0
+        ],
+        [
+          0.49,
+          0,
+          0
+        ],
+        [
+          0.51,
+          0,
+          0
+        ],
+        [
+          0.6,
+          0,
+          0
+        ],
+        [
+          0.7,
+          0,
+          0
+        ],
+        [
+          0.51,
+          0,
+          0
+        ],
+        [
+          0.49,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          -0.3,
+          0,
+          0
+        ],
+        [
+          -0.7,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          -1
+        ],
+        [
+          0,
+          0.3,
+          0
+        ],
+        [
+          0,
+          -0.3,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "initial_conditions": [
+        {
+          "replica": 0,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "initial_rpy": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "joint_offsets_rad": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "joint_position": [
+            0.25999999046325684,
+            0.0,
+            -0.5199999809265137,
+            -0.25999999046325684,
+            0.0,
+            0.5199999809265137,
+            0.25999999046325684,
+            0.0,
+            -0.5199999809265137,
+            -0.25999999046325684,
+            0.0,
+            0.5199999809265137
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "replica": 1,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            0.6256730834517478,
+            0.007743522940634169,
+            0.005160226297230118,
+            0.7800298728645022
+          ],
+          "initial_rpy": [
+            0.017741300224422156,
+            -0.005623158666337074,
+            1.7894851798949891
+          ],
+          "joint_offsets_rad": [
+            0.0018255637045882355,
+            -0.004113428776061436,
+            0.008454513728458287,
+            0.007386630893571389,
+            -0.002717231474189543,
+            0.009463536292657879,
+            -0.005509513385297375,
+            0.006109917358562442,
+            0.003617924625616882,
+            -0.0005787895754860007,
+            -0.009383890588979807,
+            0.007895964061655937
+          ],
+          "joint_position": [
+            0.2618255541678451,
+            -0.004113428776061436,
+            -0.5115454671980554,
+            -0.25261335956968545,
+            -0.002717231474189543,
+            0.5294635172191715,
+            0.25449047707795946,
+            0.006109917358562442,
+            -0.5163820563008968,
+            -0.26057878003874285,
+            -0.009383890588979807,
+            0.5278959449881696
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "replica": 2,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            0.897581804510765,
+            0.0003546850203262887,
+            -0.0026183542794530196,
+            -0.4408400193160808
+          ],
+          "initial_rpy": [
+            0.002945300952586991,
+            -0.0043876696938729065,
+            -0.9130785381965129
+          ],
+          "joint_offsets_rad": [
+            0.003039460389208102,
+            -0.0030594315077464816,
+            0.00015159816298339956,
+            -0.002581285945793779,
+            -0.008895942921055798,
+            -0.004991815993405992,
+            0.0068192607641570716,
+            0.006363088292506849,
+            0.00334650852471738,
+            -0.000588248178038322,
+            0.009396889854312895,
+            0.006805215079592015
+          ],
+          "joint_position": [
+            0.26303945085246494,
+            -0.0030594315077464816,
+            -0.5198483827635303,
+            -0.2625812764090506,
+            -0.008895942921055798,
+            0.5150081649331076,
+            0.2668192512274139,
+            0.006363088292506849,
+            -0.5166534724017963,
+            -0.26058823864129516,
+            0.009396889854312895,
+            0.5268051960061056
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "replica": 3,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            0.13793324839796042,
+            -0.0020413237460561117,
+            -0.004863533647157725,
+            0.9904274824661385
+          ],
+          "initial_rpy": [
+            -0.010197301549857771,
+            0.0027018835754881376,
+            2.8648261776185158
+          ],
+          "joint_offsets_rad": [
+            0.005712351291873379,
+            -0.002612994405362197,
+            -0.0006015266811731546,
+            0.00035653654569697715,
+            0.008037868033907984,
+            0.004285910912280853,
+            -0.0020372415297317415,
+            -0.000759173006624716,
+            -0.008153803878578772,
+            -0.00015930084393509737,
+            -0.005419552723668024,
+            -0.008137359440894155
+          ],
+          "joint_position": [
+            0.2657123417551302,
+            -0.002612994405362197,
+            -0.5206015076076869,
+            -0.2596434539175599,
+            0.008037868033907984,
+            0.5242858918387945,
+            0.2579627489335251,
+            -0.000759173006624716,
+            -0.5281537848050925,
+            -0.26015929130719195,
+            -0.005419552723668024,
+            0.5118626214856196
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "seed": 101,
+      "replicas": 4,
+      "seconds_per_segment": 10.0,
+      "warmup_per_segment": 2.0,
+      "physics_hz": 520,
+      "inference_hz": 52,
+      "initialization_s": 2,
+      "fade_s": 2,
+      "activation_wait_s": 4.2,
+      "target_delay_s": 0.016,
+      "full_hull_ground_contact": true,
+      "driver_limits_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+      "nominal_model_only": true,
+      "jump_capability_unmeasured": true,
+      "limitations": [
+        "No mass/friction/gain randomization, sensor noise/latency, encoder bias, external pushes or hardware tests.",
+        "Initial pose perturbations only; four replicas do not establish robustness.",
+        "Production RTNeural/reference/filter headers; explicit transcription of ROS lifecycle/history plumbing, not ROS execution.",
+        "Native CPU solver520Hz differs from training solver250Hz; inference52Hz differs from training50Hz.",
+        "Slip uses foot-site XY speed when any lower-leg geometry contacts ground, including hulls.",
+        "Stop criterion is configured Gemini tilt stop; metric is controller-stop incidents, not every possible physical failure.",
+        "No jumps or automatic controller/policy promotion."
+      ],
+      "policies": {
+        "shipped-default": {
+          "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+          "metrics_sha256": "373417a0aeec050b9295cbec510994759670b339bc68da4ef4d7e96aeaa94520",
+          "trace_sha256": "feb95298da99429cde17a6a0d5071b9367356bb3a01349ef50ced26adb04ee85",
+          "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+          "mass_kg": 3.17,
+          "failures": [],
+          "scored_samples": 26624,
+          "per_segment": [
+            {
+              "segment": 0,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -1.9599756292809686e-05,
+                1.3296856090151828e-05,
+                9.828377793299766e-05
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 3.2278356325025826e-05,
+              "mean_abs_yaw_error_rad_s": 0.0003030939469041536,
+              "mean_torque_squared_nm2": 0.03535352409606595,
+              "mean_contact_slip_m_s": 0.00014365648033173755,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12725889390879622,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.00858212753766411
+            },
+            {
+              "segment": 1,
+              "command": [
+                0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.26306147907015787,
+                0.008561336797927577,
+                0.001134426679680681
+              ],
+              "mean_effective_command": [
+                0.3000000000000079,
+                0.0,
+                0.03749637595853449
+              ],
+              "mean_xy_tracking_error_m_s": 0.07238709012077002,
+              "mean_abs_yaw_error_rad_s": 0.08626614533937879,
+              "mean_torque_squared_nm2": 0.29441394073773725,
+              "mean_contact_slip_m_s": 0.04713650973416989,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.00030048076923076925,
+              "min_torso_clearance_m": 0.1118868297742877,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13939458176469202
+            },
+            {
+              "segment": 2,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.3631568565681311,
+                0.0029134850321404305,
+                0.002694828063692805
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.01486784384617366
+              ],
+              "mean_xy_tracking_error_m_s": 0.1522716166331573,
+              "mean_abs_yaw_error_rad_s": 0.1266843989754243,
+              "mean_torque_squared_nm2": 0.4438814701790028,
+              "mean_contact_slip_m_s": 0.0904911331885357,
+              "controller_clipped_joint_fraction": 0.00015024038461538462,
+              "driver_clipped_joint_fraction": 0.009064503205128206,
+              "min_torso_clearance_m": 0.09768669714353764,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2325473013582269
+            },
+            {
+              "segment": 3,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.551362151852349,
+                -0.006543058764124219,
+                -0.001668910967791293
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.04681904308715119
+              ],
+              "mean_xy_tracking_error_m_s": 0.11413144810876377,
+              "mean_abs_yaw_error_rad_s": 0.5002314326409727,
+              "mean_torque_squared_nm2": 0.8994639773604669,
+              "mean_contact_slip_m_s": 0.21488856413213184,
+              "controller_clipped_joint_fraction": 0.027644230769230768,
+              "driver_clipped_joint_fraction": 0.05228365384615385,
+              "min_torso_clearance_m": 0.09590960888310877,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.17937724732440882
+            },
+            {
+              "segment": 4,
+              "command": [
+                0.6,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.6354638198319532,
+                -0.011388981022241037,
+                0.0034748597256747827
+              ],
+              "mean_effective_command": [
+                0.6000000000000159,
+                0.0,
+                0.07301554631644827
+              ],
+              "mean_xy_tracking_error_m_s": 0.11454735172955142,
+              "mean_abs_yaw_error_rad_s": 0.4943092678286015,
+              "mean_torque_squared_nm2": 0.9716155455249177,
+              "mean_contact_slip_m_s": 0.22002222321373596,
+              "controller_clipped_joint_fraction": 0.023137019230769232,
+              "driver_clipped_joint_fraction": 0.050881410256410256,
+              "min_torso_clearance_m": 0.0970590756708638,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1925595939062146
+            },
+            {
+              "segment": 5,
+              "command": [
+                0.7,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.7049527527589683,
+                -0.011968006802101274,
+                -0.015384151929943397
+              ],
+              "mean_effective_command": [
+                0.7000000000000219,
+                0.0,
+                0.0592202099144254
+              ],
+              "mean_xy_tracking_error_m_s": 0.1134548705630524,
+              "mean_abs_yaw_error_rad_s": 0.4498713639896141,
+              "mean_torque_squared_nm2": 1.1081003438968917,
+              "mean_contact_slip_m_s": 0.227531553863256,
+              "controller_clipped_joint_fraction": 0.018078926282051284,
+              "driver_clipped_joint_fraction": 0.052083333333333336,
+              "min_torso_clearance_m": 0.09289851517052548,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.23054434611545543
+            },
+            {
+              "segment": 6,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5504256765917857,
+                -0.00691304776324972,
+                0.00019592023794759694
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.058544245945311615
+              ],
+              "mean_xy_tracking_error_m_s": 0.11308750136769527,
+              "mean_abs_yaw_error_rad_s": 0.5163908224223464,
+              "mean_torque_squared_nm2": 0.890914711447898,
+              "mean_contact_slip_m_s": 0.20448356510906754,
+              "controller_clipped_joint_fraction": 0.026993189102564104,
+              "driver_clipped_joint_fraction": 0.05078125,
+              "min_torso_clearance_m": 0.09850249979202257,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.18494548697981628
+            },
+            {
+              "segment": 7,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.36341636257522614,
+                -0.0021964929012115598,
+                0.002218300671979344
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.018612711691895073
+              ],
+              "mean_xy_tracking_error_m_s": 0.15316914071461246,
+              "mean_abs_yaw_error_rad_s": 0.13755029659914794,
+              "mean_torque_squared_nm2": 0.4773614248655686,
+              "mean_contact_slip_m_s": 0.09578453035301927,
+              "controller_clipped_joint_fraction": 0.0006009615384615385,
+              "driver_clipped_joint_fraction": 0.0078125,
+              "min_torso_clearance_m": 0.09492601309631729,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.22583826705246038
+            },
+            {
+              "segment": 8,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                8.943489270209798e-05,
+                7.625893580320537e-05,
+                0.0005502730274018835
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00017539837542459308,
+              "mean_abs_yaw_error_rad_s": 0.0014804014976117423,
+              "mean_torque_squared_nm2": 0.04991298263111108,
+              "mean_contact_slip_m_s": 0.0005352344846535919,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12596554410650046,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.012055939367704506
+            },
+            {
+              "segment": 9,
+              "command": [
+                -0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.18991783173298757,
+                0.002459480740425154,
+                -0.008445945735704053
+              ],
+              "mean_effective_command": [
+                -0.3000000000000079,
+                0.0,
+                0.03927468964694713
+              ],
+              "mean_xy_tracking_error_m_s": 0.13881596107663016,
+              "mean_abs_yaw_error_rad_s": 0.18116886284120623,
+              "mean_torque_squared_nm2": 0.2959862203418243,
+              "mean_contact_slip_m_s": 0.06919115068188343,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.10403366024685876,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.11902741714898692
+            },
+            {
+              "segment": 10,
+              "command": [
+                -0.7,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.6687211522973704,
+                -0.006839657072153117,
+                0.020533414564983917
+              ],
+              "mean_effective_command": [
+                -0.7000000000000219,
+                0.0,
+                0.11158122569254399
+              ],
+              "mean_xy_tracking_error_m_s": 0.1411917202770857,
+              "mean_abs_yaw_error_rad_s": 0.3121471262926833,
+              "mean_torque_squared_nm2": 0.9920211300092107,
+              "mean_contact_slip_m_s": 0.3076254678727353,
+              "controller_clipped_joint_fraction": 0.021183894230769232,
+              "driver_clipped_joint_fraction": 0.036007612179487176,
+              "min_torso_clearance_m": 0.08134326179076087,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2987803283197589
+            },
+            {
+              "segment": 11,
+              "command": [
+                0,
+                0,
+                1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.023987508999477332,
+                -0.017423922042238037,
+                1.0094396563968224
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.057970856476205104,
+              "mean_abs_yaw_error_rad_s": 0.10330671076371621,
+              "mean_torque_squared_nm2": 0.24668280099371911,
+              "mean_contact_slip_m_s": 0.027818319510205154,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0005508814102564103,
+              "min_torso_clearance_m": 0.11442505284486933,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.06578519558512032
+            },
+            {
+              "segment": 12,
+              "command": [
+                0,
+                0,
+                -1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.018998957669708168,
+                0.015822048223620135,
+                -1.0220914869223294
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.05853548857300613,
+              "mean_abs_yaw_error_rad_s": 0.10567374858358562,
+              "mean_torque_squared_nm2": 0.2279401876148228,
+              "mean_contact_slip_m_s": 0.02749392903109334,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.11457823986980104,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.06275152055800087
+            },
+            {
+              "segment": 13,
+              "command": [
+                0,
+                0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.017784204780158425,
+                0.21071687315304038,
+                -0.0025696227403930187
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.3000000000000079,
+                0.011878912690600672
+              ],
+              "mean_xy_tracking_error_m_s": 0.12265349261632516,
+              "mean_abs_yaw_error_rad_s": 0.17187637057774652,
+              "mean_torque_squared_nm2": 0.3892678614355716,
+              "mean_contact_slip_m_s": 0.07659495201913948,
+              "controller_clipped_joint_fraction": 0.024639423076923076,
+              "driver_clipped_joint_fraction": 0.04902844551282051,
+              "min_torso_clearance_m": 0.10319797840244527,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1454387042755931
+            },
+            {
+              "segment": 14,
+              "command": [
+                0,
+                -0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.012168498543892382,
+                -0.20020083691473284,
+                -0.0003147079943510922
+              ],
+              "mean_effective_command": [
+                0.0,
+                -0.3000000000000079,
+                0.07600161973435016
+              ],
+              "mean_xy_tracking_error_m_s": 0.12281865334661737,
+              "mean_abs_yaw_error_rad_s": 0.13912214084436483,
+              "mean_torque_squared_nm2": 0.3576387731639297,
+              "mean_contact_slip_m_s": 0.06976067312799412,
+              "controller_clipped_joint_fraction": 0.022285657051282052,
+              "driver_clipped_joint_fraction": 0.06104767628205128,
+              "min_torso_clearance_m": 0.10260479639156261,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.12924173180473866
+            },
+            {
+              "segment": 15,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.00020673574881789844,
+                3.113891579857137e-05,
+                -0.0030194449280980013
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.0003624885310121021,
+              "mean_abs_yaw_error_rad_s": 0.003108984862073364,
+              "mean_torque_squared_nm2": 0.08680772694669944,
+              "mean_contact_slip_m_s": 0.0008851417571701956,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12337969733602629,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.021591297551371503
+            }
+          ],
+          "aggregate_withheld_due_to_stopped_replicas": false,
+          "minimum_scored_torso_clearance_m": 0.08134326179076087,
+          "metric_meaning": "Runner per-segment tracking errors use effective heading-conditioned commands. Explicit requested-command aggregate below uses raw requested yaw, enabling comparison without hiding differing heading correction. Slip uses any lower-leg-ground contact, including hulls.",
+          "aggregate": {
+            "mean_xy_error_to_requested_m_s": 0.09222533480413962,
+            "mean_abs_yaw_error_to_requested_rad_s": 0.20771192582401174,
+            "mean_abs_yaw_error_to_effective_rad_s": 0.20809319800033613,
+            "mean_torque_squared_nm2": 0.48546016382783985,
+            "mean_contact_slip_m_s": 0.08960880755722964,
+            "controller_clipped_joint_fraction": 0.010294596354166666,
+            "additional_driver_clipped_joint_fraction": 0.023115109174679488
+          }
+        },
+        "recovered-stable": {
+          "policy_sha256": "e897f150d1b7242ada9e85fe30a7dff1ca1c4db10c70358573334cd2a96b7732",
+          "metrics_sha256": "5afd64171624f3d8bf526edcbd696ae4dd9b83e216d7d9bcc88a86707db51a88",
+          "trace_sha256": "89eca26fdab5852c949436ba3530f9b0e18f8f29331a697bcedba02b8537e364",
+          "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+          "mass_kg": 3.17,
+          "failures": [],
+          "scored_samples": 26624,
+          "per_segment": [
+            {
+              "segment": 0,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.00012865202501518167,
+                -0.00017065295553064046,
+                -0.0005641226268778518
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00030760160646803753,
+              "mean_abs_yaw_error_rad_s": 0.0015878177260720812,
+              "mean_torque_squared_nm2": 0.05114908990142957,
+              "mean_contact_slip_m_s": 0.00027799235919082933,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1286464421995756,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.01705554281151624
+            },
+            {
+              "segment": 1,
+              "command": [
+                0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.24996625242317963,
+                0.00682476768535302,
+                -0.0012676886830091717
+              ],
+              "mean_effective_command": [
+                0.3000000000000079,
+                0.0,
+                -0.013105561142206247
+              ],
+              "mean_xy_tracking_error_m_s": 0.07988888777663451,
+              "mean_abs_yaw_error_rad_s": 0.1789832318638858,
+              "mean_torque_squared_nm2": 1.16024378938797,
+              "mean_contact_slip_m_s": 0.11544261383101705,
+              "controller_clipped_joint_fraction": 0.04121594551282051,
+              "driver_clipped_joint_fraction": 0.06099759615384615,
+              "min_torso_clearance_m": 0.11218818375760489,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.20923110410683446
+            },
+            {
+              "segment": 2,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.511467235715033,
+                0.02331914983492547,
+                -0.00576620028505243
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                -0.010458380859117572
+              ],
+              "mean_xy_tracking_error_m_s": 0.09927418053829475,
+              "mean_abs_yaw_error_rad_s": 0.27510754868751597,
+              "mean_torque_squared_nm2": 1.5131699167084312,
+              "mean_contact_slip_m_s": 0.1885288374347035,
+              "controller_clipped_joint_fraction": 0.04291866987179487,
+              "driver_clipped_joint_fraction": 0.06084735576923077,
+              "min_torso_clearance_m": 0.09522439969891958,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2617482403589376
+            },
+            {
+              "segment": 3,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5289640861291898,
+                0.016068801891634878,
+                0.0010353956968526333
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                -0.008447698946136253
+              ],
+              "mean_xy_tracking_error_m_s": 0.10927350694063212,
+              "mean_abs_yaw_error_rad_s": 0.2847922437247198,
+              "mean_torque_squared_nm2": 1.5600753401723564,
+              "mean_contact_slip_m_s": 0.19640950860165765,
+              "controller_clipped_joint_fraction": 0.043820112179487176,
+              "driver_clipped_joint_fraction": 0.06169871794871795,
+              "min_torso_clearance_m": 0.09944049418997863,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.23582819934741214
+            },
+            {
+              "segment": 4,
+              "command": [
+                0.6,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.6137364234350726,
+                -0.0012242283511657186,
+                0.002112053513707018
+              ],
+              "mean_effective_command": [
+                0.6000000000000159,
+                0.0,
+                0.02270569032888758
+              ],
+              "mean_xy_tracking_error_m_s": 0.14165287255083184,
+              "mean_abs_yaw_error_rad_s": 0.3565366904691383,
+              "mean_torque_squared_nm2": 1.7863807010124901,
+              "mean_contact_slip_m_s": 0.2225761682468206,
+              "controller_clipped_joint_fraction": 0.045072115384615384,
+              "driver_clipped_joint_fraction": 0.0673076923076923,
+              "min_torso_clearance_m": 0.08949974663799272,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.3043245624589349
+            },
+            {
+              "segment": 5,
+              "command": [
+                0.7,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.6894149160755328,
+                0.0018041838824491621,
+                0.010913070035231998
+              ],
+              "mean_effective_command": [
+                0.7000000000000219,
+                0.0,
+                0.06516227758465204
+              ],
+              "mean_xy_tracking_error_m_s": 0.17214386471455256,
+              "mean_abs_yaw_error_rad_s": 0.45141671208149287,
+              "mean_torque_squared_nm2": 1.9818466662464669,
+              "mean_contact_slip_m_s": 0.257819231866255,
+              "controller_clipped_joint_fraction": 0.04827724358974359,
+              "driver_clipped_joint_fraction": 0.0726161858974359,
+              "min_torso_clearance_m": 0.07803709583860159,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.37577846178647833
+            },
+            {
+              "segment": 6,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5285691566408188,
+                0.025086902246865692,
+                -0.0018013126810729817
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                -0.0030496930798382025
+              ],
+              "mean_xy_tracking_error_m_s": 0.09851692782984103,
+              "mean_abs_yaw_error_rad_s": 0.29581068652505627,
+              "mean_torque_squared_nm2": 1.5605919740612502,
+              "mean_contact_slip_m_s": 0.18820205118162125,
+              "controller_clipped_joint_fraction": 0.043619791666666664,
+              "driver_clipped_joint_fraction": 0.06270032051282051,
+              "min_torso_clearance_m": 0.10060919352591216,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.18960162197406577
+            },
+            {
+              "segment": 7,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5089595437205273,
+                0.015372288589848447,
+                -0.001991701867218358
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                -0.0084649248202212
+              ],
+              "mean_xy_tracking_error_m_s": 0.09838480131238114,
+              "mean_abs_yaw_error_rad_s": 0.2728261716689368,
+              "mean_torque_squared_nm2": 1.5056173545786375,
+              "mean_contact_slip_m_s": 0.18783364681306122,
+              "controller_clipped_joint_fraction": 0.04291866987179487,
+              "driver_clipped_joint_fraction": 0.061448317307692304,
+              "min_torso_clearance_m": 0.10095140328270814,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.18918009389764348
+            },
+            {
+              "segment": 8,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.0002399913457871448,
+                -0.00011978747777639536,
+                -0.000497268501067511
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00034288098289347814,
+              "mean_abs_yaw_error_rad_s": 0.0016775617181901735,
+              "mean_torque_squared_nm2": 0.05121902837212662,
+              "mean_contact_slip_m_s": 0.0002945330070200177,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1284245407945968,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.0188207070207662
+            },
+            {
+              "segment": 9,
+              "command": [
+                -0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.31282914924762834,
+                0.008840272480192004,
+                -0.00040984640954911154
+              ],
+              "mean_effective_command": [
+                -0.3000000000000079,
+                0.0,
+                -0.0010023756179658788
+              ],
+              "mean_xy_tracking_error_m_s": 0.05563477041687256,
+              "mean_abs_yaw_error_rad_s": 0.12719243986285186,
+              "mean_torque_squared_nm2": 1.228066576811907,
+              "mean_contact_slip_m_s": 0.12552278867937172,
+              "controller_clipped_joint_fraction": 0.04712540064102564,
+              "driver_clipped_joint_fraction": 0.06635616987179487,
+              "min_torso_clearance_m": 0.11611940627360665,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1221155198788213
+            },
+            {
+              "segment": 10,
+              "command": [
+                -0.7,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.6376667768289477,
+                0.04117598790539094,
+                0.0033341238003717303
+              ],
+              "mean_effective_command": [
+                -0.7000000000000219,
+                0.0,
+                -0.007204604024051426
+              ],
+              "mean_xy_tracking_error_m_s": 0.11599543482810284,
+              "mean_abs_yaw_error_rad_s": 0.2164377853401975,
+              "mean_torque_squared_nm2": 1.915553020400546,
+              "mean_contact_slip_m_s": 0.24435262173297392,
+              "controller_clipped_joint_fraction": 0.050931490384615384,
+              "driver_clipped_joint_fraction": 0.080078125,
+              "min_torso_clearance_m": 0.10338439356966941,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.18453276584431985
+            },
+            {
+              "segment": 11,
+              "command": [
+                0,
+                0,
+                1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.061554462254402115,
+                0.0007565295032242234,
+                1.0899951076445566
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.08173588317108213,
+              "mean_abs_yaw_error_rad_s": 0.19807176078984975,
+              "mean_torque_squared_nm2": 0.9406448372393373,
+              "mean_contact_slip_m_s": 0.08682088903871349,
+              "controller_clipped_joint_fraction": 0.034805689102564104,
+              "driver_clipped_joint_fraction": 0.05759214743589743,
+              "min_torso_clearance_m": 0.11572199628101046,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1330881688119065
+            },
+            {
+              "segment": 12,
+              "command": [
+                0,
+                0,
+                -1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.05557993543377529,
+                -0.011343792133165501,
+                -1.047195604707995
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.07092520085178024,
+              "mean_abs_yaw_error_rad_s": 0.19483612574974105,
+              "mean_torque_squared_nm2": 0.9766840146146416,
+              "mean_contact_slip_m_s": 0.09043967213351567,
+              "controller_clipped_joint_fraction": 0.034304887820512824,
+              "driver_clipped_joint_fraction": 0.06004607371794872,
+              "min_torso_clearance_m": 0.11499746370159487,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.16404682212263597
+            },
+            {
+              "segment": 13,
+              "command": [
+                0,
+                0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.018158230580582205,
+                0.2959801890805154,
+                0.004626403740493336
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.3000000000000079,
+                -0.025948053665064166
+              ],
+              "mean_xy_tracking_error_m_s": 0.1096179404179264,
+              "mean_abs_yaw_error_rad_s": 0.2802400543762852,
+              "mean_torque_squared_nm2": 1.510291443574243,
+              "mean_contact_slip_m_s": 0.15082887216898683,
+              "controller_clipped_joint_fraction": 0.06034655448717949,
+              "driver_clipped_joint_fraction": 0.10446714743589744,
+              "min_torso_clearance_m": 0.06556627002650292,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.4089830639649664
+            },
+            {
+              "segment": 14,
+              "command": [
+                0,
+                -0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.012155804432410995,
+                -0.27337398999658613,
+                0.00010661030433434528
+              ],
+              "mean_effective_command": [
+                0.0,
+                -0.3000000000000079,
+                -0.06587008883094742
+              ],
+              "mean_xy_tracking_error_m_s": 0.07357424172814188,
+              "mean_abs_yaw_error_rad_s": 0.2847130496487373,
+              "mean_torque_squared_nm2": 1.2084830594942748,
+              "mean_contact_slip_m_s": 0.13774290679661452,
+              "controller_clipped_joint_fraction": 0.06079727564102564,
+              "driver_clipped_joint_fraction": 0.08864182692307693,
+              "min_torso_clearance_m": 0.10052002007156287,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.21408330577784238
+            },
+            {
+              "segment": 15,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.00016466450621692945,
+                -2.742660787729378e-05,
+                -0.0010805750046121783
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00021478404341044243,
+              "mean_abs_yaw_error_rad_s": 0.0015164554614098145,
+              "mean_torque_squared_nm2": 0.04633188290662956,
+              "mean_contact_slip_m_s": 0.0003050205376618409,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1282944305753998,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.01986378684505875
+            }
+          ],
+          "aggregate_withheld_due_to_stopped_replicas": false,
+          "minimum_scored_torso_clearance_m": 0.06556627002650292,
+          "metric_meaning": "Runner per-segment tracking errors use effective heading-conditioned commands. Explicit requested-command aggregate below uses raw requested yaw, enabling comparison without hiding differing heading correction. Slip uses any lower-leg-ground contact, including hulls.",
+          "aggregate": {
+            "mean_xy_error_to_requested_m_s": 0.08171773623186537,
+            "mean_abs_yaw_error_to_requested_rad_s": 0.21499130522445148,
+            "mean_abs_yaw_error_to_effective_rad_s": 0.21385914598088004,
+            "mean_torque_squared_nm2": 1.187271793467671,
+            "mean_contact_slip_m_s": 0.11493217867763163,
+            "controller_clipped_joint_fraction": 0.037259615384615384,
+            "additional_driver_clipped_joint_fraction": 0.05654985476762821
+          }
+        },
+        "mixed-baseline4498": {
+          "policy_sha256": "47ef80321c5edf7eedff6daf6c20e4c1042a0a8f3b887cdd9b6ad8fdb3d18f38",
+          "metrics_sha256": "cb9ce7f1ea5e241a7a0aa33eeccc863042f0707f479cd67df386fd9cd57a6259",
+          "trace_sha256": "9074d561f111f075a3d7865338eff31019fff6fb9f35129a32844c9e0bca5f23",
+          "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+          "mass_kg": 3.17,
+          "failures": [],
+          "scored_samples": 26624,
+          "per_segment": [
+            {
+              "segment": 0,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                8.310986556334082e-05,
+                -1.9337999804144763e-05,
+                -0.0004084888468701468
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00012375621776592293,
+              "mean_abs_yaw_error_rad_s": 0.0014233564490217258,
+              "mean_torque_squared_nm2": 0.04830857109862819,
+              "mean_contact_slip_m_s": 0.00042586265393350196,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12793376335472903,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.018234556488242685
+            },
+            {
+              "segment": 1,
+              "command": [
+                0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.32482092056692635,
+                -0.03151648409031777,
+                0.000475283659210095
+              ],
+              "mean_effective_command": [
+                0.3000000000000079,
+                0.0,
+                0.018739000529490287
+              ],
+              "mean_xy_tracking_error_m_s": 0.0810442711805422,
+              "mean_abs_yaw_error_rad_s": 0.19628872873486747,
+              "mean_torque_squared_nm2": 1.0598269313409565,
+              "mean_contact_slip_m_s": 0.13479672232004525,
+              "controller_clipped_joint_fraction": 0.05999599358974359,
+              "driver_clipped_joint_fraction": 0.09324919871794872,
+              "min_torso_clearance_m": 0.11811529632194315,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.12010031377105221
+            },
+            {
+              "segment": 2,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5030647008197942,
+                -0.02228347130042546,
+                0.008345142112355968
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.06905813165340094
+              ],
+              "mean_xy_tracking_error_m_s": 0.11453356309265317,
+              "mean_abs_yaw_error_rad_s": 0.27729238418904456,
+              "mean_torque_squared_nm2": 1.5401966221159051,
+              "mean_contact_slip_m_s": 0.2005661955479727,
+              "controller_clipped_joint_fraction": 0.0674579326923077,
+              "driver_clipped_joint_fraction": 0.10692107371794872,
+              "min_torso_clearance_m": 0.11021813157078365,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.26819352089819776
+            },
+            {
+              "segment": 3,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5246418833041125,
+                -0.015359095565222029,
+                0.002834914425012073
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.052943509285495675
+              ],
+              "mean_xy_tracking_error_m_s": 0.1145224068625468,
+              "mean_abs_yaw_error_rad_s": 0.2921878055728201,
+              "mean_torque_squared_nm2": 1.5937354841315707,
+              "mean_contact_slip_m_s": 0.20859139052850845,
+              "controller_clipped_joint_fraction": 0.06650641025641026,
+              "driver_clipped_joint_fraction": 0.10566907051282051,
+              "min_torso_clearance_m": 0.10576000562719799,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2774797084196691
+            },
+            {
+              "segment": 4,
+              "command": [
+                0.6,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.6391123500393088,
+                0.0037710169277062407,
+                -0.007158751393661047
+              ],
+              "mean_effective_command": [
+                0.6000000000000159,
+                0.0,
+                0.038220548698055135
+              ],
+              "mean_xy_tracking_error_m_s": 0.1270808330434774,
+              "mean_abs_yaw_error_rad_s": 0.3458763602148908,
+              "mean_torque_squared_nm2": 1.8517585348044834,
+              "mean_contact_slip_m_s": 0.24883563676011156,
+              "controller_clipped_joint_fraction": 0.07281650641025642,
+              "driver_clipped_joint_fraction": 0.11368189102564102,
+              "min_torso_clearance_m": 0.09990063645355513,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.29164586918469926
+            },
+            {
+              "segment": 5,
+              "command": [
+                0.7,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.7475845665691345,
+                0.0028234129491811356,
+                0.019925643793093552
+              ],
+              "mean_effective_command": [
+                0.7000000000000219,
+                0.0,
+                -0.01637702860983858
+              ],
+              "mean_xy_tracking_error_m_s": 0.12879260773594683,
+              "mean_abs_yaw_error_rad_s": 0.3706067269632698,
+              "mean_torque_squared_nm2": 2.095229412440425,
+              "mean_contact_slip_m_s": 0.274685765175626,
+              "controller_clipped_joint_fraction": 0.07967748397435898,
+              "driver_clipped_joint_fraction": 0.11833934294871795,
+              "min_torso_clearance_m": 0.09842297442456092,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2850527274598426
+            },
+            {
+              "segment": 6,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5351875407305755,
+                -0.02196217293216842,
+                -0.004245402592092566
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.05372346279336092
+              ],
+              "mean_xy_tracking_error_m_s": 0.11198362001208749,
+              "mean_abs_yaw_error_rad_s": 0.30021762102766647,
+              "mean_torque_squared_nm2": 1.6035525935250756,
+              "mean_contact_slip_m_s": 0.21031091541575106,
+              "controller_clipped_joint_fraction": 0.06585536858974358,
+              "driver_clipped_joint_fraction": 0.10496794871794872,
+              "min_torso_clearance_m": 0.10589003297397981,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.24545716843724816
+            },
+            {
+              "segment": 7,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.502171142434602,
+                -0.019299626547834854,
+                -0.0013147130494969663
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.053095487285677034
+              ],
+              "mean_xy_tracking_error_m_s": 0.11296063980219893,
+              "mean_abs_yaw_error_rad_s": 0.2964604813452876,
+              "mean_torque_squared_nm2": 1.5508541894477612,
+              "mean_contact_slip_m_s": 0.20956566168095384,
+              "controller_clipped_joint_fraction": 0.0655048076923077,
+              "driver_clipped_joint_fraction": 0.10526842948717949,
+              "min_torso_clearance_m": 0.11325858544092214,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2505013937909758
+            },
+            {
+              "segment": 8,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                4.266854562824512e-05,
+                -3.9835130406889836e-05,
+                -0.0021383302508808104
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00011913869735057756,
+              "mean_abs_yaw_error_rad_s": 0.0022271593121324868,
+              "mean_torque_squared_nm2": 0.037066159704636274,
+              "mean_contact_slip_m_s": 0.0002686798411116845,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1280696418498132,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.019313953551249534
+            },
+            {
+              "segment": 9,
+              "command": [
+                -0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.30120059359386264,
+                -0.020105119937226697,
+                -0.0017347556533891149
+              ],
+              "mean_effective_command": [
+                -0.3000000000000079,
+                0.0,
+                0.027786578052468085
+              ],
+              "mean_xy_tracking_error_m_s": 0.09403087967186427,
+              "mean_abs_yaw_error_rad_s": 0.14658652774103104,
+              "mean_torque_squared_nm2": 1.0110202552180705,
+              "mean_contact_slip_m_s": 0.11623736340410452,
+              "controller_clipped_joint_fraction": 0.06109775641025641,
+              "driver_clipped_joint_fraction": 0.09455128205128205,
+              "min_torso_clearance_m": 0.1119930442680098,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13191552838144743
+            },
+            {
+              "segment": 10,
+              "command": [
+                -0.7,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.6836231451489019,
+                -0.06240081061603802,
+                0.011914449505365856
+              ],
+              "mean_effective_command": [
+                -0.7000000000000219,
+                0.0,
+                0.037478560894811636
+              ],
+              "mean_xy_tracking_error_m_s": 0.13902523723098525,
+              "mean_abs_yaw_error_rad_s": 0.19737420706696074,
+              "mean_torque_squared_nm2": 1.5665497496144747,
+              "mean_contact_slip_m_s": 0.2575952203363765,
+              "controller_clipped_joint_fraction": 0.0694110576923077,
+              "driver_clipped_joint_fraction": 0.09795673076923077,
+              "min_torso_clearance_m": 0.10049931069670592,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.21791973395643133
+            },
+            {
+              "segment": 11,
+              "command": [
+                0,
+                0,
+                1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.017219958024806855,
+                -0.021253803520310262,
+                1.0490875940438977
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.07152530747156798,
+              "mean_abs_yaw_error_rad_s": 0.16112498539220788,
+              "mean_torque_squared_nm2": 0.7713106021442844,
+              "mean_contact_slip_m_s": 0.07313841802813054,
+              "controller_clipped_joint_fraction": 0.064453125,
+              "driver_clipped_joint_fraction": 0.10036057692307693,
+              "min_torso_clearance_m": 0.11343610347690763,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13860096482790063
+            },
+            {
+              "segment": 12,
+              "command": [
+                0,
+                0,
+                -1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.04535472056263576,
+                -0.003045740668936599,
+                -1.0221858462566378
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.0728674173674534,
+              "mean_abs_yaw_error_rad_s": 0.173352602628133,
+              "mean_torque_squared_nm2": 0.7515860341558391,
+              "mean_contact_slip_m_s": 0.06161920936967021,
+              "controller_clipped_joint_fraction": 0.061448317307692304,
+              "driver_clipped_joint_fraction": 0.08723958333333333,
+              "min_torso_clearance_m": 0.11363163947832754,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1715419179217808
+            },
+            {
+              "segment": 13,
+              "command": [
+                0,
+                0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.02080539119777122,
+                0.3038537377856451,
+                -0.001974783155717142
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.3000000000000079,
+                -0.020781590315090255
+              ],
+              "mean_xy_tracking_error_m_s": 0.1418041097171486,
+              "mean_abs_yaw_error_rad_s": 0.28487710440960334,
+              "mean_torque_squared_nm2": 1.517691915372104,
+              "mean_contact_slip_m_s": 0.16234872347429255,
+              "controller_clipped_joint_fraction": 0.10116185897435898,
+              "driver_clipped_joint_fraction": 0.14372996794871795,
+              "min_torso_clearance_m": 0.05366068329299295,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.3961523813333312
+            },
+            {
+              "segment": 14,
+              "command": [
+                0,
+                -0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.017821011952548652,
+                -0.2734453696382922,
+                -0.012268919564359585
+              ],
+              "mean_effective_command": [
+                0.0,
+                -0.3000000000000079,
+                0.003745160332931703
+              ],
+              "mean_xy_tracking_error_m_s": 0.13978714725363098,
+              "mean_abs_yaw_error_rad_s": 0.32556411504279986,
+              "mean_torque_squared_nm2": 1.5522786428489599,
+              "mean_contact_slip_m_s": 0.17047648455984654,
+              "controller_clipped_joint_fraction": 0.0966045673076923,
+              "driver_clipped_joint_fraction": 0.13757011217948717,
+              "min_torso_clearance_m": 0.05678982666209856,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.5326969886743824
+            },
+            {
+              "segment": 15,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                1.5046389942431516e-05,
+                4.211066244434444e-05,
+                0.0014231147408116619
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 7.260999371647108e-05,
+              "mean_abs_yaw_error_rad_s": 0.0017409179399325411,
+              "mean_torque_squared_nm2": 0.03742178369098903,
+              "mean_contact_slip_m_s": 0.0002130069263642667,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1272875229150076,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.020452056504142467
+            }
+          ],
+          "aggregate_withheld_due_to_stopped_replicas": false,
+          "minimum_scored_torso_clearance_m": 0.05366068329299295,
+          "metric_meaning": "Runner per-segment tracking errors use effective heading-conditioned commands. Explicit requested-command aggregate below uses raw requested yaw, enabling comparison without hiding differing heading correction. Slip uses any lower-leg-ground contact, including hulls.",
+          "aggregate": {
+            "mean_xy_error_to_requested_m_s": 0.0906420965844335,
+            "mean_abs_yaw_error_to_requested_rad_s": 0.21249742506386052,
+            "mean_abs_yaw_error_to_effective_rad_s": 0.21082506775185433,
+            "mean_torque_squared_nm2": 1.1617742176033852,
+            "mean_contact_slip_m_s": 0.11106370396161595,
+            "controller_clipped_joint_fraction": 0.058249449118589744,
+            "additional_driver_clipped_joint_fraction": 0.08809407552083333
+          }
+        }
+      }
+    },
+    "full_range": {
+      "artifact_directory": "artifacts/export-locomotion/native-screen-full-s101",
+      "plan_sha256": "d9ca05494bc4fa4f67548907947d0bed382dc31aede08377b71f27cdb69c0c9a",
+      "status_sha256": "364aee4e9dbf6734f59494f0da1424a420d090cc019ec3c11da73c1fec816535",
+      "source_hashes": {
+        "foundation/scripts/check_export_locomotion.py": "f5353e47a94441aed5d812b328c8f09b2f340ecd7ef7ba22399be82e998640e5",
+        "foundation/cpp/export_locomotion_controller.cpp": "800d126a4cdfad5d103b4772e827505164509878fb5c4880e2f893d7a415c821",
+        "foundation/scripts/check_spider_handoff.py": "8055e05abda6e365bb30d114c0536e8c2f1b743774d47e1d21f3c086ad24053e",
+        "pupper_gait_deploy/src/neural_controller.cpp": "e41230a0b0c009586bc0d052fa951db87699dca0338dc09d36619ee4b5544c8a",
+        "pupper_gait_deploy/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+        "pupper_gait_deploy/src/command_filter.hpp": "2513561c1f01613f1be6ccd2ce3acd494e5c60ee6f309887df8e4b30699a9c9d",
+        "pupper_gait_deploy/src/gait_reference.hpp": "59950dcd0786b52162db7a1e1eb8eef43293a57e02b05c0363a304e931f0ba16",
+        "pupper_gait_deploy/src/gait_reference_json.hpp": "ad7e898e21750bdd97f8e075f8f6ff97288f3483dcc248e904fd89ffafdeb751",
+        "pupper_gait_deploy/src/neural_controller.hpp": "5bbeb7ae4700ecd081a01665647f65d52d5258da6cf38fb7b00a343ecbab9414",
+        "pupper_gait_deploy/src/obs_spec.hpp": "e8fc46546ced273fe46baee265356b90a74e8c4794d66952811bdec07dac58a7",
+        "pupper_gait_deploy/src/trick_motion.hpp": "3d238b5a9e5737868772be7da4dca5291210532c30224d504a0ec9790c78da05",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/__init__.py": "870e55a5460821ddd0529b27f3b56472cb6b058381e14e16bea8582a2eb11d0e",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/export_trick.py": "43707389ff271f7dfc0905b8b205d2adf87e13f87c90161abe910a6cb4cf3280",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_design.py": "8bc443541a29c9a05a99acdb5465c12e726d15f4189e62661772b9e343b92edf",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_ops.py": "1d3c549682b5109a6747a326ec746c92afd04d737bfcc483f2605a3fe665f4f0",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/play_motion.py": "5322d6700db98c85accc2e8cacd9c9a091cbc07a1d5c7570581c162e04b423e5",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/rl_cfg.py": "6635456e4756a40e54ab7d559cdec5d207bd4833d39be0bd691f6218fb77e932",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/runner.py": "fd2381156f6cab495c3c2f05136090a6d9e58d1c8d657cabe81f7701140d98a0",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/upload_motion.py": "864e5ff8c2d4931038a0d0a3948c65361abd546068c88cc51a419206dd2ded39",
+        "pupper-mjlab/src/mjlab/tasks/pupper/deployment_contract.py": "388aec727d505aa3b9abe49223c9c216938aa06e3476d243e9b509244c28cb62",
+        "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b"
+      },
+      "commands": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0.3,
+          0,
+          0
+        ],
+        [
+          0.49,
+          0,
+          0
+        ],
+        [
+          0.51,
+          0,
+          0
+        ],
+        [
+          1.0,
+          0,
+          0
+        ],
+        [
+          1.5,
+          0,
+          0
+        ],
+        [
+          0.51,
+          0,
+          0
+        ],
+        [
+          0.49,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          -0.3,
+          0,
+          0
+        ],
+        [
+          -1.5,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          -1
+        ],
+        [
+          0,
+          0.3,
+          0
+        ],
+        [
+          0,
+          -0.3,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "initial_conditions": [
+        {
+          "replica": 0,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "initial_rpy": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "joint_offsets_rad": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "joint_position": [
+            0.25999999046325684,
+            0.0,
+            -0.5199999809265137,
+            -0.25999999046325684,
+            0.0,
+            0.5199999809265137,
+            0.25999999046325684,
+            0.0,
+            -0.5199999809265137,
+            -0.25999999046325684,
+            0.0,
+            0.5199999809265137
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "replica": 1,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            0.6256730834517478,
+            0.007743522940634169,
+            0.005160226297230118,
+            0.7800298728645022
+          ],
+          "initial_rpy": [
+            0.017741300224422156,
+            -0.005623158666337074,
+            1.7894851798949891
+          ],
+          "joint_offsets_rad": [
+            0.0018255637045882355,
+            -0.004113428776061436,
+            0.008454513728458287,
+            0.007386630893571389,
+            -0.002717231474189543,
+            0.009463536292657879,
+            -0.005509513385297375,
+            0.006109917358562442,
+            0.003617924625616882,
+            -0.0005787895754860007,
+            -0.009383890588979807,
+            0.007895964061655937
+          ],
+          "joint_position": [
+            0.2618255541678451,
+            -0.004113428776061436,
+            -0.5115454671980554,
+            -0.25261335956968545,
+            -0.002717231474189543,
+            0.5294635172191715,
+            0.25449047707795946,
+            0.006109917358562442,
+            -0.5163820563008968,
+            -0.26057878003874285,
+            -0.009383890588979807,
+            0.5278959449881696
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "replica": 2,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            0.897581804510765,
+            0.0003546850203262887,
+            -0.0026183542794530196,
+            -0.4408400193160808
+          ],
+          "initial_rpy": [
+            0.002945300952586991,
+            -0.0043876696938729065,
+            -0.9130785381965129
+          ],
+          "joint_offsets_rad": [
+            0.003039460389208102,
+            -0.0030594315077464816,
+            0.00015159816298339956,
+            -0.002581285945793779,
+            -0.008895942921055798,
+            -0.004991815993405992,
+            0.0068192607641570716,
+            0.006363088292506849,
+            0.00334650852471738,
+            -0.000588248178038322,
+            0.009396889854312895,
+            0.006805215079592015
+          ],
+          "joint_position": [
+            0.26303945085246494,
+            -0.0030594315077464816,
+            -0.5198483827635303,
+            -0.2625812764090506,
+            -0.008895942921055798,
+            0.5150081649331076,
+            0.2668192512274139,
+            0.006363088292506849,
+            -0.5166534724017963,
+            -0.26058823864129516,
+            0.009396889854312895,
+            0.5268051960061056
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "replica": 3,
+          "root_position": [
+            0.0,
+            0.0,
+            0.18
+          ],
+          "root_quaternion": [
+            0.13793324839796042,
+            -0.0020413237460561117,
+            -0.004863533647157725,
+            0.9904274824661385
+          ],
+          "initial_rpy": [
+            -0.010197301549857771,
+            0.0027018835754881376,
+            2.8648261776185158
+          ],
+          "joint_offsets_rad": [
+            0.005712351291873379,
+            -0.002612994405362197,
+            -0.0006015266811731546,
+            0.00035653654569697715,
+            0.008037868033907984,
+            0.004285910912280853,
+            -0.0020372415297317415,
+            -0.000759173006624716,
+            -0.008153803878578772,
+            -0.00015930084393509737,
+            -0.005419552723668024,
+            -0.008137359440894155
+          ],
+          "joint_position": [
+            0.2657123417551302,
+            -0.002612994405362197,
+            -0.5206015076076869,
+            -0.2596434539175599,
+            0.008037868033907984,
+            0.5242858918387945,
+            0.2579627489335251,
+            -0.000759173006624716,
+            -0.5281537848050925,
+            -0.26015929130719195,
+            -0.005419552723668024,
+            0.5118626214856196
+          ],
+          "joint_velocity": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "seed": 101,
+      "replicas": 4,
+      "seconds_per_segment": 10.0,
+      "warmup_per_segment": 2.0,
+      "physics_hz": 520,
+      "inference_hz": 52,
+      "initialization_s": 2,
+      "fade_s": 2,
+      "activation_wait_s": 4.2,
+      "target_delay_s": 0.016,
+      "full_hull_ground_contact": true,
+      "driver_limits_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+      "nominal_model_only": true,
+      "jump_capability_unmeasured": true,
+      "limitations": [
+        "No mass/friction/gain randomization, sensor noise/latency, encoder bias, external pushes or hardware tests.",
+        "Initial pose perturbations only; four replicas do not establish robustness.",
+        "Production RTNeural/reference/filter headers; explicit transcription of ROS lifecycle/history plumbing, not ROS execution.",
+        "Native CPU solver520Hz differs from training solver250Hz; inference52Hz differs from training50Hz.",
+        "Slip uses foot-site XY speed when any lower-leg geometry contacts ground, including hulls.",
+        "Stop criterion is configured Gemini tilt stop; metric is controller-stop incidents, not every possible physical failure.",
+        "No jumps or automatic controller/policy promotion."
+      ],
+      "policies": {
+        "shipped-default": {
+          "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+          "metrics_sha256": "fc3ed72129e8b0405eac17c93586be7b2085d95fa03add9694aa79995c495e0f",
+          "trace_sha256": "ce887d6e3dda4482d4f86e6f1f2788604226b225bc8c6956f429c0a72f685999",
+          "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+          "mass_kg": 3.17,
+          "failures": [],
+          "scored_samples": 26624,
+          "per_segment": [
+            {
+              "segment": 0,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -1.9599756292809686e-05,
+                1.3296856090151828e-05,
+                9.828377793299766e-05
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 3.2278356325025826e-05,
+              "mean_abs_yaw_error_rad_s": 0.0003030939469041536,
+              "mean_torque_squared_nm2": 0.03535352409606595,
+              "mean_contact_slip_m_s": 0.00014365648033173755,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12725889390879622,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.00858212753766411
+            },
+            {
+              "segment": 1,
+              "command": [
+                0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.26306147907015787,
+                0.008561336797927577,
+                0.001134426679680681
+              ],
+              "mean_effective_command": [
+                0.3000000000000079,
+                0.0,
+                0.03749637595853449
+              ],
+              "mean_xy_tracking_error_m_s": 0.07238709012077002,
+              "mean_abs_yaw_error_rad_s": 0.08626614533937879,
+              "mean_torque_squared_nm2": 0.29441394073773725,
+              "mean_contact_slip_m_s": 0.04713650973416989,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.00030048076923076925,
+              "min_torso_clearance_m": 0.1118868297742877,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13939458176469202
+            },
+            {
+              "segment": 2,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.3631568565681311,
+                0.0029134850321404305,
+                0.002694828063692805
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.01486784384617366
+              ],
+              "mean_xy_tracking_error_m_s": 0.1522716166331573,
+              "mean_abs_yaw_error_rad_s": 0.1266843989754243,
+              "mean_torque_squared_nm2": 0.4438814701790028,
+              "mean_contact_slip_m_s": 0.0904911331885357,
+              "controller_clipped_joint_fraction": 0.00015024038461538462,
+              "driver_clipped_joint_fraction": 0.009064503205128206,
+              "min_torso_clearance_m": 0.09768669714353764,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2325473013582269
+            },
+            {
+              "segment": 3,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.551362151852349,
+                -0.006543058764124219,
+                -0.001668910967791293
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.04681904308715119
+              ],
+              "mean_xy_tracking_error_m_s": 0.11413144810876377,
+              "mean_abs_yaw_error_rad_s": 0.5002314326409727,
+              "mean_torque_squared_nm2": 0.8994639773604669,
+              "mean_contact_slip_m_s": 0.21488856413213184,
+              "controller_clipped_joint_fraction": 0.027644230769230768,
+              "driver_clipped_joint_fraction": 0.05228365384615385,
+              "min_torso_clearance_m": 0.09590960888310877,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.17937724732440882
+            },
+            {
+              "segment": 4,
+              "command": [
+                1.0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.9233658796742266,
+                -0.003476427878262915,
+                -0.027315606268740227
+              ],
+              "mean_effective_command": [
+                1.0,
+                0.0,
+                0.012396738428106664
+              ],
+              "mean_xy_tracking_error_m_s": 0.15450116080738455,
+              "mean_abs_yaw_error_rad_s": 0.40699175864445675,
+              "mean_torque_squared_nm2": 1.5711539365798026,
+              "mean_contact_slip_m_s": 0.29437846074251073,
+              "controller_clipped_joint_fraction": 0.01282051282051282,
+              "driver_clipped_joint_fraction": 0.03791065705128205,
+              "min_torso_clearance_m": 0.08180097551051412,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.4030688087225072
+            },
+            {
+              "segment": 5,
+              "command": [
+                1.5,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                1.1640967482288522,
+                -0.028358166847548858,
+                -0.02973415368510794
+              ],
+              "mean_effective_command": [
+                1.5,
+                0.0,
+                0.118467406231382
+              ],
+              "mean_xy_tracking_error_m_s": 0.35921986231517333,
+              "mean_abs_yaw_error_rad_s": 0.4485244389479771,
+              "mean_torque_squared_nm2": 1.8721110388280413,
+              "mean_contact_slip_m_s": 0.4469051474494565,
+              "controller_clipped_joint_fraction": 0.013721955128205128,
+              "driver_clipped_joint_fraction": 0.04902844551282051,
+              "min_torso_clearance_m": 0.08043631080326981,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.4122144441263192
+            },
+            {
+              "segment": 6,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5540652240194491,
+                -0.005599265924928547,
+                -0.004222870427752493
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.05210047898368805
+              ],
+              "mean_xy_tracking_error_m_s": 0.11335864622610761,
+              "mean_abs_yaw_error_rad_s": 0.4888725609704254,
+              "mean_torque_squared_nm2": 0.8891156698897286,
+              "mean_contact_slip_m_s": 0.21570549403567216,
+              "controller_clipped_joint_fraction": 0.027844551282051284,
+              "driver_clipped_joint_fraction": 0.052634214743589744,
+              "min_torso_clearance_m": 0.09776739126981704,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1736929103402692
+            },
+            {
+              "segment": 7,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.3601333469476135,
+                0.0011089859221467796,
+                0.0030665451293701083
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.018297531208938456
+              ],
+              "mean_xy_tracking_error_m_s": 0.1580362046060736,
+              "mean_abs_yaw_error_rad_s": 0.14338943126300221,
+              "mean_torque_squared_nm2": 0.4781990610190057,
+              "mean_contact_slip_m_s": 0.09795278754860444,
+              "controller_clipped_joint_fraction": 0.000250400641025641,
+              "driver_clipped_joint_fraction": 0.006911057692307692,
+              "min_torso_clearance_m": 0.097445252292304,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2321222758680615
+            },
+            {
+              "segment": 8,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                5.726979793551126e-05,
+                3.7891005010566025e-05,
+                0.00015160512508425388
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00017983596602431435,
+              "mean_abs_yaw_error_rad_s": 0.0012900408752630566,
+              "mean_torque_squared_nm2": 0.05325686953997767,
+              "mean_contact_slip_m_s": 0.0005813182245409777,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12598573975128008,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.012457452269702877
+            },
+            {
+              "segment": 9,
+              "command": [
+                -0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.19332331425081903,
+                0.006195629147755451,
+                -0.006764573571437855
+              ],
+              "mean_effective_command": [
+                -0.3000000000000079,
+                0.0,
+                0.03442448534734635
+              ],
+              "mean_xy_tracking_error_m_s": 0.13621774229590783,
+              "mean_abs_yaw_error_rad_s": 0.17081320815714301,
+              "mean_torque_squared_nm2": 0.3034225368836782,
+              "mean_contact_slip_m_s": 0.06941667391301984,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.10472206652880277,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.11743315980166408
+            },
+            {
+              "segment": 10,
+              "command": [
+                -1.5,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -1.3479831270024625,
+                -0.10685875044738821,
+                -0.00365603216419467
+              ],
+              "mean_effective_command": [
+                -1.5,
+                0.0,
+                0.012339033542211829
+              ],
+              "mean_xy_tracking_error_m_s": 0.27134117365695876,
+              "mean_abs_yaw_error_rad_s": 0.48538450235722785,
+              "mean_torque_squared_nm2": 1.8440323602069975,
+              "mean_contact_slip_m_s": 0.7457079127704811,
+              "controller_clipped_joint_fraction": 0.055038060897435896,
+              "driver_clipped_joint_fraction": 0.0869891826923077,
+              "min_torso_clearance_m": 0.043706906986009056,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.6950263562623439
+            },
+            {
+              "segment": 11,
+              "command": [
+                0,
+                0,
+                1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.024626542207342002,
+                -0.017329180394509227,
+                1.0114708046529015
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.0582206124173407,
+              "mean_abs_yaw_error_rad_s": 0.1039897133921121,
+              "mean_torque_squared_nm2": 0.2465449629889648,
+              "mean_contact_slip_m_s": 0.027284718714727547,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.00030048076923076925,
+              "min_torso_clearance_m": 0.11403546716902928,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.06854166543164546
+            },
+            {
+              "segment": 12,
+              "command": [
+                0,
+                0,
+                -1
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.01945317813562191,
+                0.015526722077075162,
+                -1.023720738689987
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.0580958908894413,
+              "mean_abs_yaw_error_rad_s": 0.10471893170897081,
+              "mean_torque_squared_nm2": 0.22733587747552259,
+              "mean_contact_slip_m_s": 0.02767640286905661,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.11452499236897054,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.06253799600835248
+            },
+            {
+              "segment": 13,
+              "command": [
+                0,
+                0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.009867197940403003,
+                0.21631448973084916,
+                -0.0002625405596082859
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.3000000000000079,
+                0.005146283395101207
+              ],
+              "mean_xy_tracking_error_m_s": 0.11696561959253689,
+              "mean_abs_yaw_error_rad_s": 0.19048519024838273,
+              "mean_torque_squared_nm2": 0.39968893666530125,
+              "mean_contact_slip_m_s": 0.08698155490648393,
+              "controller_clipped_joint_fraction": 0.028295272435897436,
+              "driver_clipped_joint_fraction": 0.05388621794871795,
+              "min_torso_clearance_m": 0.10619748674840195,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13785035368665072
+            },
+            {
+              "segment": 14,
+              "command": [
+                0,
+                -0.3,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.009322419767454588,
+                -0.20159466367977652,
+                -0.0028139475162987323
+              ],
+              "mean_effective_command": [
+                0.0,
+                -0.3000000000000079,
+                0.07145074604426765
+              ],
+              "mean_xy_tracking_error_m_s": 0.12025203347491195,
+              "mean_abs_yaw_error_rad_s": 0.15118116173813817,
+              "mean_torque_squared_nm2": 0.36681525534940645,
+              "mean_contact_slip_m_s": 0.07248773329408983,
+              "controller_clipped_joint_fraction": 0.022536057692307692,
+              "driver_clipped_joint_fraction": 0.05834334935897436,
+              "min_torso_clearance_m": 0.10224662659443715,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13522189699493906
+            },
+            {
+              "segment": 15,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.00015742014017734767,
+                1.2891312718238468e-05,
+                -0.0030435419418164767
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00031114611473742816,
+              "mean_abs_yaw_error_rad_s": 0.003116999867230576,
+              "mean_torque_squared_nm2": 0.08316028773177624,
+              "mean_contact_slip_m_s": 0.0008556830840712575,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12382989747081567,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.02030880551572815
+            }
+          ],
+          "aggregate_withheld_due_to_stopped_replicas": false,
+          "minimum_scored_torso_clearance_m": 0.043706906986009056,
+          "metric_meaning": "Runner per-segment tracking errors use effective heading-conditioned commands. Explicit requested-command aggregate below uses raw requested yaw, enabling comparison without hiding differing heading correction. Slip uses any lower-leg-ground contact, including hulls.",
+          "aggregate": {
+            "mean_xy_error_to_requested_m_s": 0.1178451475988509,
+            "mean_abs_yaw_error_to_requested_rad_s": 0.2109526159161406,
+            "mean_abs_yaw_error_to_effective_rad_s": 0.21326518806706313,
+            "mean_torque_squared_nm2": 0.6254968565957172,
+            "mean_contact_slip_m_s": 0.11031215401393155,
+            "controller_clipped_joint_fraction": 0.011768830128205128,
+            "additional_driver_clipped_joint_fraction": 0.025478265224358976
+          }
+        },
+        "mixed-baseline4498": {
+          "policy_sha256": "47ef80321c5edf7eedff6daf6c20e4c1042a0a8f3b887cdd9b6ad8fdb3d18f38",
+          "metrics_sha256": "b77049388ed7881f9253a3b387e8aaccb1e2a686d0fe392df04e51372df813e9",
+          "trace_sha256": "7b9df62429c68eca2fefde96be84fb63897451b730002883f8ae35a5f4ceb4bb",
+          "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+          "mass_kg": 3.17,
+          "failures": [
+            {
+              "replica": 2,
+              "time_s": 48.07692307692308,
+              "segment": 4,
+              "tilt_rad": 1.0345052319636696,
+              "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+            },
+            {
+              "replica": 1,
+              "time_s": 49.07692307692308,
+              "segment": 4,
+              "tilt_rad": 1.0796689530747143,
+              "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+            },
+            {
+              "replica": 3,
+              "time_s": 52.34615384615385,
+              "segment": 4,
+              "tilt_rad": 1.0105685555838058,
+              "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+            }
+          ],
+          "scored_samples": 12213,
+          "per_segment": [
+            {
+              "segment": 0,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                8.310986556334082e-05,
+                -1.9337999804144763e-05,
+                -0.0004084888468701468
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.00012375621776592293,
+              "mean_abs_yaw_error_rad_s": 0.0014233564490217258,
+              "mean_torque_squared_nm2": 0.04830857109862819,
+              "mean_contact_slip_m_s": 0.00042586265393350196,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.12793376335472903,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.018234556488242685
+            },
+            {
+              "segment": 1,
+              "command": [
+                0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.32482092056692635,
+                -0.03151648409031777,
+                0.000475283659210095
+              ],
+              "mean_effective_command": [
+                0.3000000000000079,
+                0.0,
+                0.018739000529490287
+              ],
+              "mean_xy_tracking_error_m_s": 0.0810442711805422,
+              "mean_abs_yaw_error_rad_s": 0.19628872873486747,
+              "mean_torque_squared_nm2": 1.0598269313409565,
+              "mean_contact_slip_m_s": 0.13479672232004525,
+              "controller_clipped_joint_fraction": 0.05999599358974359,
+              "driver_clipped_joint_fraction": 0.09324919871794872,
+              "min_torso_clearance_m": 0.11811529632194315,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.12010031377105221
+            },
+            {
+              "segment": 2,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5030647008197942,
+                -0.02228347130042546,
+                0.008345142112355968
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.06905813165340094
+              ],
+              "mean_xy_tracking_error_m_s": 0.11453356309265317,
+              "mean_abs_yaw_error_rad_s": 0.27729238418904456,
+              "mean_torque_squared_nm2": 1.5401966221159051,
+              "mean_contact_slip_m_s": 0.2005661955479727,
+              "controller_clipped_joint_fraction": 0.0674579326923077,
+              "driver_clipped_joint_fraction": 0.10692107371794872,
+              "min_torso_clearance_m": 0.11021813157078365,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.26819352089819776
+            },
+            {
+              "segment": 3,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5246418833041125,
+                -0.015359095565222029,
+                0.002834914425012073
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.052943509285495675
+              ],
+              "mean_xy_tracking_error_m_s": 0.1145224068625468,
+              "mean_abs_yaw_error_rad_s": 0.2921878055728201,
+              "mean_torque_squared_nm2": 1.5937354841315707,
+              "mean_contact_slip_m_s": 0.20859139052850845,
+              "controller_clipped_joint_fraction": 0.06650641025641026,
+              "driver_clipped_joint_fraction": 0.10566907051282051,
+              "min_torso_clearance_m": 0.10576000562719799,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2774797084196691
+            },
+            {
+              "segment": 4,
+              "command": [
+                1.0,
+                0,
+                0
+              ],
+              "samples": 981,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.9848203205499769,
+                0.011807636189845766,
+                0.10902968503063702
+              ],
+              "mean_effective_command": [
+                1.0,
+                0.0,
+                -0.06099944437251118
+              ],
+              "mean_xy_tracking_error_m_s": 0.20203238140747584,
+              "mean_abs_yaw_error_rad_s": 0.5304866244174516,
+              "mean_torque_squared_nm2": 2.552752766855654,
+              "mean_contact_slip_m_s": 0.3107137381353302,
+              "controller_clipped_joint_fraction": 0.081719334012912,
+              "driver_clipped_joint_fraction": 0.12249405368671423,
+              "min_torso_clearance_m": -0.006476804629759941,
+              "torso_penetration_state_fraction": 0.004077471967380225,
+              "max_tilt_rad": 0.9545799409984463
+            },
+            {
+              "segment": 5,
+              "command": [
+                1.5,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                1.1257098191497588,
+                0.0008281856757375655,
+                -0.07232275626673434
+              ],
+              "mean_effective_command": [
+                1.5,
+                0.0,
+                -0.11991246371027096
+              ],
+              "mean_xy_tracking_error_m_s": 0.42559389449343904,
+              "mean_abs_yaw_error_rad_s": 0.5120651961979618,
+              "mean_torque_squared_nm2": 2.6789188604095044,
+              "mean_contact_slip_m_s": 0.37133723506572885,
+              "controller_clipped_joint_fraction": 0.07712339743589744,
+              "driver_clipped_joint_fraction": 0.12299679487179487,
+              "min_torso_clearance_m": 0.08323035686786011,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.4023135021623122
+            },
+            {
+              "segment": 6,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                0.5074746519082944,
+                -0.007856343961176916,
+                -0.004238896818153526
+              ],
+              "mean_effective_command": [
+                0.5099999999999978,
+                0.0,
+                0.04975352224935425
+              ],
+              "mean_xy_tracking_error_m_s": 0.11913297189748032,
+              "mean_abs_yaw_error_rad_s": 0.3112490258551809,
+              "mean_torque_squared_nm2": 1.6139177997355352,
+              "mean_contact_slip_m_s": 0.2048263418825641,
+              "controller_clipped_joint_fraction": 0.06630608974358974,
+              "driver_clipped_joint_fraction": 0.11157852564102565,
+              "min_torso_clearance_m": 0.11240486836381504,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.22558250828928963
+            },
+            {
+              "segment": 7,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                0.4797218382845537,
+                -0.04581959147501809,
+                -0.012691374221311724
+              ],
+              "mean_effective_command": [
+                0.490000000000002,
+                0.0,
+                0.0699991640334571
+              ],
+              "mean_xy_tracking_error_m_s": 0.15436672907041246,
+              "mean_abs_yaw_error_rad_s": 0.31626524959222474,
+              "mean_torque_squared_nm2": 1.5545404911576806,
+              "mean_contact_slip_m_s": 0.2081893555313144,
+              "controller_clipped_joint_fraction": 0.06710737179487179,
+              "driver_clipped_joint_fraction": 0.1045673076923077,
+              "min_torso_clearance_m": 0.10962037479908075,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2544392560580839
+            },
+            {
+              "segment": 8,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                2.371733813154852e-05,
+                -4.8980286054964264e-05,
+                -0.0009088788289276401
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 5.535771027227611e-05,
+              "mean_abs_yaw_error_rad_s": 0.0011004567768254539,
+              "mean_torque_squared_nm2": 0.035896957416765095,
+              "mean_contact_slip_m_s": 0.0002041332358678537,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1282881918213039,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.01727960766655868
+            },
+            {
+              "segment": 9,
+              "command": [
+                -0.3,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                -0.30108776035310025,
+                -0.0158235159509657,
+                -0.00507395651366302
+              ],
+              "mean_effective_command": [
+                -0.299999999999998,
+                0.0,
+                0.020415633309679364
+              ],
+              "mean_xy_tracking_error_m_s": 0.0933719569101116,
+              "mean_abs_yaw_error_rad_s": 0.15362272737287386,
+              "mean_torque_squared_nm2": 1.015597924038866,
+              "mean_contact_slip_m_s": 0.11446989139878344,
+              "controller_clipped_joint_fraction": 0.06029647435897436,
+              "driver_clipped_joint_fraction": 0.09455128205128205,
+              "min_torso_clearance_m": 0.11224817082797077,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.13984203688192817
+            },
+            {
+              "segment": 10,
+              "command": [
+                -1.5,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                -0.6270067486914517,
+                -0.014666274894618084,
+                -0.001234310847523184
+              ],
+              "mean_effective_command": [
+                -1.5,
+                0.0,
+                0.0024537520504722696
+              ],
+              "mean_xy_tracking_error_m_s": 0.8874198709795643,
+              "mean_abs_yaw_error_rad_s": 0.28523006574984994,
+              "mean_torque_squared_nm2": 1.6539847933656593,
+              "mean_contact_slip_m_s": 0.2698498638707881,
+              "controller_clipped_joint_fraction": 0.06951121794871795,
+              "driver_clipped_joint_fraction": 0.09575320512820513,
+              "min_torso_clearance_m": 0.0546163873326459,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.5646619742978063
+            },
+            {
+              "segment": 11,
+              "command": [
+                0,
+                0,
+                1
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                -0.018808326008530087,
+                -0.021331878824151416,
+                1.0574856561205352
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.07253139986283673,
+              "mean_abs_yaw_error_rad_s": 0.1619166040802861,
+              "mean_torque_squared_nm2": 0.7691570648042421,
+              "mean_contact_slip_m_s": 0.07158262300414255,
+              "controller_clipped_joint_fraction": 0.06590544871794872,
+              "driver_clipped_joint_fraction": 0.09975961538461539,
+              "min_torso_clearance_m": 0.11310691616659604,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1263037970116384
+            },
+            {
+              "segment": 12,
+              "command": [
+                0,
+                0,
+                -1
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                -0.03790662954432478,
+                -0.00035420318740210657,
+                -1.0208486343000895
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.06529699774965257,
+              "mean_abs_yaw_error_rad_s": 0.17453032093079113,
+              "mean_torque_squared_nm2": 0.7432973368118777,
+              "mean_contact_slip_m_s": 0.06108700201522786,
+              "controller_clipped_joint_fraction": 0.06169871794871795,
+              "driver_clipped_joint_fraction": 0.08673878205128205,
+              "min_torso_clearance_m": 0.11847009984574605,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.11053573099308951
+            },
+            {
+              "segment": 13,
+              "command": [
+                0,
+                0.3,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                -0.014278751802913912,
+                0.29712173967315453,
+                -7.72174718240051e-05
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.299999999999998,
+                -0.05071605458130183
+              ],
+              "mean_xy_tracking_error_m_s": 0.1483486455114947,
+              "mean_abs_yaw_error_rad_s": 0.32417633281564273,
+              "mean_torque_squared_nm2": 1.353157139723629,
+              "mean_contact_slip_m_s": 0.15205067273817735,
+              "controller_clipped_joint_fraction": 0.10076121794871795,
+              "driver_clipped_joint_fraction": 0.14002403846153846,
+              "min_torso_clearance_m": 0.06644532099299746,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.4251117497743267
+            },
+            {
+              "segment": 14,
+              "command": [
+                0,
+                -0.3,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                -0.0050288113906753525,
+                -0.25693045109989315,
+                -0.009987015842118668
+              ],
+              "mean_effective_command": [
+                0.0,
+                -0.299999999999998,
+                0.019475155763531125
+              ],
+              "mean_xy_tracking_error_m_s": 0.13487993526375597,
+              "mean_abs_yaw_error_rad_s": 0.3226723528410709,
+              "mean_torque_squared_nm2": 1.5988576057485733,
+              "mean_contact_slip_m_s": 0.15581416985973215,
+              "controller_clipped_joint_fraction": 0.09294871794871795,
+              "driver_clipped_joint_fraction": 0.1360176282051282,
+              "min_torso_clearance_m": 0.06895244498527912,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.42753228731861775
+            },
+            {
+              "segment": 15,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 416,
+              "represented_replicas": [
+                0
+              ],
+              "mean_velocity_body": [
+                1.032491870795811e-05,
+                -7.163744860286863e-05,
+                -0.0020663009002913793
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 7.416112796336784e-05,
+              "mean_abs_yaw_error_rad_s": 0.0020663009002913793,
+              "mean_torque_squared_nm2": 0.03442066891786951,
+              "mean_contact_slip_m_s": 0.00019985023176081698,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.0,
+              "min_torso_clearance_m": 0.1283388433560308,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.017263933388604106
+            }
+          ],
+          "aggregate_withheld_due_to_stopped_replicas": true,
+          "minimum_scored_torso_clearance_m": -0.006476804629759941,
+          "metric_meaning": "Runner per-segment tracking errors use effective heading-conditioned commands. Explicit requested-command aggregate below uses raw requested yaw, enabling comparison without hiding differing heading correction. Slip uses any lower-leg-ground contact, including hulls."
+        },
+        "mixed-fast7496": {
+          "policy_sha256": "172c8e4ec6ec14b79cb31918349060afcab924767fee3fd9f65828ad00798ddf",
+          "metrics_sha256": "61e0f5d69485c2f47945149356c5dd7d1b2920cc072745c96255a49c21cbba4f",
+          "trace_sha256": "353032a5a636c6f78ae60531b03ca77c71c21a4b68fd36eea3e3f013aac7e3ff",
+          "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+          "mass_kg": 3.17,
+          "failures": [
+            {
+              "replica": 1,
+              "time_s": 104.76923076923077,
+              "segment": 10,
+              "tilt_rad": 1.0074918603211003,
+              "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+            },
+            {
+              "replica": 3,
+              "time_s": 106.75,
+              "segment": 10,
+              "tilt_rad": 1.0819178026916356,
+              "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+            }
+          ],
+          "scored_samples": 21660,
+          "per_segment": [
+            {
+              "segment": 0,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.0004769554057726195,
+                2.4057972898393748e-05,
+                0.005568561871416208
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.0004873372377783789,
+              "mean_abs_yaw_error_rad_s": 0.005568561871416207,
+              "mean_torque_squared_nm2": 0.1418354353598061,
+              "mean_contact_slip_m_s": 0.000928504054911159,
+              "controller_clipped_joint_fraction": 0.07181490384615384,
+              "driver_clipped_joint_fraction": 0.16666666666666666,
+              "min_torso_clearance_m": 0.12480352835996791,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.01522476468636948
+            },
+            {
+              "segment": 1,
+              "command": [
+                0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.3086162858466057,
+                0.03188119571001196,
+                0.012175100490930117
+              ],
+              "mean_effective_command": [
+                0.3000000000000079,
+                0.0,
+                -0.018018597316249805
+              ],
+              "mean_xy_tracking_error_m_s": 0.06975724110839902,
+              "mean_abs_yaw_error_rad_s": 0.21957811318342393,
+              "mean_torque_squared_nm2": 1.3027685834597662,
+              "mean_contact_slip_m_s": 0.14416895986550954,
+              "controller_clipped_joint_fraction": 0.16631610576923078,
+              "driver_clipped_joint_fraction": 0.20002003205128205,
+              "min_torso_clearance_m": 0.1059428700072703,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.19459645291718963
+            },
+            {
+              "segment": 2,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5480560256746675,
+                0.02009580148101869,
+                0.0014059784406663504
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.025208004373056352
+              ],
+              "mean_xy_tracking_error_m_s": 0.10006317115534771,
+              "mean_abs_yaw_error_rad_s": 0.21103809637150597,
+              "mean_torque_squared_nm2": 1.9574433353686391,
+              "mean_contact_slip_m_s": 0.23149316493232935,
+              "controller_clipped_joint_fraction": 0.17422876602564102,
+              "driver_clipped_joint_fraction": 0.2123898237179487,
+              "min_torso_clearance_m": 0.10167581521832068,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.32857149644065353
+            },
+            {
+              "segment": 3,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5041243168784766,
+                -0.0014255706208217112,
+                0.004709210290867559
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.0030999675086365915
+              ],
+              "mean_xy_tracking_error_m_s": 0.05427744716427238,
+              "mean_abs_yaw_error_rad_s": 0.21457627582948574,
+              "mean_torque_squared_nm2": 1.610674419038208,
+              "mean_contact_slip_m_s": 0.12530325789727623,
+              "controller_clipped_joint_fraction": 0.19586338141025642,
+              "driver_clipped_joint_fraction": 0.2503505608974359,
+              "min_torso_clearance_m": 0.09146150539291464,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.22006632226549552
+            },
+            {
+              "segment": 4,
+              "command": [
+                1.0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                1.1279933888604463,
+                0.01762057127034233,
+                -0.00662142017982692
+              ],
+              "mean_effective_command": [
+                1.0,
+                0.0,
+                -0.0024168147430582284
+              ],
+              "mean_xy_tracking_error_m_s": 0.18308185677851146,
+              "mean_abs_yaw_error_rad_s": 0.3021022997583355,
+              "mean_torque_squared_nm2": 2.5064072006104365,
+              "mean_contact_slip_m_s": 0.3385414165205923,
+              "controller_clipped_joint_fraction": 0.19586338141025642,
+              "driver_clipped_joint_fraction": 0.24554286858974358,
+              "min_torso_clearance_m": 0.06566732685922005,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.4095307121875091
+            },
+            {
+              "segment": 5,
+              "command": [
+                1.5,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                1.4499371098727887,
+                -0.008821879203874942,
+                -0.017374847906453307
+              ],
+              "mean_effective_command": [
+                1.5,
+                0.0,
+                0.022260613163755827
+              ],
+              "mean_xy_tracking_error_m_s": 0.295632299036325,
+              "mean_abs_yaw_error_rad_s": 0.4136909091501541,
+              "mean_torque_squared_nm2": 3.1025696851318076,
+              "mean_contact_slip_m_s": 0.4724705226186557,
+              "controller_clipped_joint_fraction": 0.20002003205128205,
+              "driver_clipped_joint_fraction": 0.2443409455128205,
+              "min_torso_clearance_m": 0.041232605102685546,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.5985744423129211
+            },
+            {
+              "segment": 6,
+              "command": [
+                0.51,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.5080546217236084,
+                -0.0024411135024690303,
+                -0.00010904343694591111
+              ],
+              "mean_effective_command": [
+                0.5099999999999926,
+                0.0,
+                0.0033923252019148744
+              ],
+              "mean_xy_tracking_error_m_s": 0.05480675184848808,
+              "mean_abs_yaw_error_rad_s": 0.2181483474663408,
+              "mean_torque_squared_nm2": 1.602853502018358,
+              "mean_contact_slip_m_s": 0.12317599043908461,
+              "controller_clipped_joint_fraction": 0.19451121794871795,
+              "driver_clipped_joint_fraction": 0.2516025641025641,
+              "min_torso_clearance_m": 0.0841473904818173,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.21265527499344178
+            },
+            {
+              "segment": 7,
+              "command": [
+                0.49,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                0.545346922045007,
+                0.011678091140116706,
+                0.011132251230437765
+              ],
+              "mean_effective_command": [
+                0.4900000000000073,
+                0.0,
+                0.02185907594059733
+              ],
+              "mean_xy_tracking_error_m_s": 0.09527029287587195,
+              "mean_abs_yaw_error_rad_s": 0.2139505323993009,
+              "mean_torque_squared_nm2": 1.9463662804624964,
+              "mean_contact_slip_m_s": 0.22825554467721507,
+              "controller_clipped_joint_fraction": 0.17422876602564102,
+              "driver_clipped_joint_fraction": 0.2143429487179487,
+              "min_torso_clearance_m": 0.10508563821012962,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.3241445864644631
+            },
+            {
+              "segment": 8,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -3.391254337777388e-05,
+                0.0002389266040063861,
+                0.008564707706421289
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.0006897260548872041,
+              "mean_abs_yaw_error_rad_s": 0.008631452624706134,
+              "mean_torque_squared_nm2": 0.0916861925392106,
+              "mean_contact_slip_m_s": 0.0004043806367703917,
+              "controller_clipped_joint_fraction": 0.0,
+              "driver_clipped_joint_fraction": 0.078125,
+              "min_torso_clearance_m": 0.12250541741595919,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.04105984226756991
+            },
+            {
+              "segment": 9,
+              "command": [
+                -0.3,
+                0,
+                0
+              ],
+              "samples": 1664,
+              "represented_replicas": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -0.31539879232748874,
+                -0.0026111112116032416,
+                -0.001679431229375966
+              ],
+              "mean_effective_command": [
+                -0.3000000000000079,
+                0.0,
+                0.026876167385281962
+              ],
+              "mean_xy_tracking_error_m_s": 0.07456542828262425,
+              "mean_abs_yaw_error_rad_s": 0.1789864359819626,
+              "mean_torque_squared_nm2": 1.2078797364470828,
+              "mean_contact_slip_m_s": 0.12778422833801603,
+              "controller_clipped_joint_fraction": 0.16631610576923078,
+              "driver_clipped_joint_fraction": 0.21153846153846154,
+              "min_torso_clearance_m": 0.11184378113227016,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.14070925774974727
+            },
+            {
+              "segment": 10,
+              "command": [
+                -1.5,
+                0,
+                0
+              ],
+              "samples": 860,
+              "represented_replicas": [
+                0,
+                2,
+                3
+              ],
+              "mean_velocity_body": [
+                -1.298160890891748,
+                0.024280869521583395,
+                0.08527468023152251
+              ],
+              "mean_effective_command": [
+                -1.5,
+                0.0,
+                -0.058287597958172746
+              ],
+              "mean_xy_tracking_error_m_s": 0.4128816121610535,
+              "mean_abs_yaw_error_rad_s": 0.7268022414861844,
+              "mean_torque_squared_nm2": 3.7165040362153983,
+              "mean_contact_slip_m_s": 0.6794111623589328,
+              "controller_clipped_joint_fraction": 0.1940891472868217,
+              "driver_clipped_joint_fraction": 0.23546511627906977,
+              "min_torso_clearance_m": 0.02737037307975046,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.9505078609236443
+            },
+            {
+              "segment": 11,
+              "command": [
+                0,
+                0,
+                1
+              ],
+              "samples": 832,
+              "represented_replicas": [
+                0,
+                2
+              ],
+              "mean_velocity_body": [
+                -0.008067436899517628,
+                -0.03549733073464681,
+                0.9533090437568487
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.06788674493572065,
+              "mean_abs_yaw_error_rad_s": 0.18686351378402927,
+              "mean_torque_squared_nm2": 0.9298752054217676,
+              "mean_contact_slip_m_s": 0.07415916823049647,
+              "controller_clipped_joint_fraction": 0.17377804487179488,
+              "driver_clipped_joint_fraction": 0.20923477564102563,
+              "min_torso_clearance_m": 0.11518113156850118,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1144406800683197
+            },
+            {
+              "segment": 12,
+              "command": [
+                0,
+                0,
+                -1
+              ],
+              "samples": 832,
+              "represented_replicas": [
+                0,
+                2
+              ],
+              "mean_velocity_body": [
+                -0.045229670454698015,
+                -0.005790215423345735,
+                -1.0007719678371059
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.06398351622638548,
+              "mean_abs_yaw_error_rad_s": 0.24399126905059024,
+              "mean_torque_squared_nm2": 0.8465416564190502,
+              "mean_contact_slip_m_s": 0.07072980017249776,
+              "controller_clipped_joint_fraction": 0.1723758012820513,
+              "driver_clipped_joint_fraction": 0.20502804487179488,
+              "min_torso_clearance_m": 0.1136836602980366,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.1852162254120122
+            },
+            {
+              "segment": 13,
+              "command": [
+                0,
+                0.3,
+                0
+              ],
+              "samples": 832,
+              "represented_replicas": [
+                0,
+                2
+              ],
+              "mean_velocity_body": [
+                -0.020565972413044524,
+                0.295067201267086,
+                0.0110176341703221
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.3000000000000045,
+                0.14597366680341686
+              ],
+              "mean_xy_tracking_error_m_s": 0.07724140562111119,
+              "mean_abs_yaw_error_rad_s": 0.2434144721596425,
+              "mean_torque_squared_nm2": 1.2253202519466306,
+              "mean_contact_slip_m_s": 0.14613186693582195,
+              "controller_clipped_joint_fraction": 0.1775841346153846,
+              "driver_clipped_joint_fraction": 0.20482772435897437,
+              "min_torso_clearance_m": 0.10284976203895606,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.2021914557504153
+            },
+            {
+              "segment": 14,
+              "command": [
+                0,
+                -0.3,
+                0
+              ],
+              "samples": 832,
+              "represented_replicas": [
+                0,
+                2
+              ],
+              "mean_velocity_body": [
+                -0.03516696733327806,
+                -0.31667015567121565,
+                0.006393453747763503
+              ],
+              "mean_effective_command": [
+                0.0,
+                -0.3000000000000045,
+                -0.03421669395071887
+              ],
+              "mean_xy_tracking_error_m_s": 0.09520056961408917,
+              "mean_abs_yaw_error_rad_s": 0.2865691229664814,
+              "mean_torque_squared_nm2": 1.6316005026600835,
+              "mean_contact_slip_m_s": 0.15405668372477468,
+              "controller_clipped_joint_fraction": 0.17868589743589744,
+              "driver_clipped_joint_fraction": 0.21264022435897437,
+              "min_torso_clearance_m": 0.06849753170728873,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.3875300302635633
+            },
+            {
+              "segment": 15,
+              "command": [
+                0,
+                0,
+                0
+              ],
+              "samples": 832,
+              "represented_replicas": [
+                0,
+                2
+              ],
+              "mean_velocity_body": [
+                -0.0005097370004017709,
+                -0.00039904894017293114,
+                0.018240659730790282
+              ],
+              "mean_effective_command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "mean_xy_tracking_error_m_s": 0.000732086489369166,
+              "mean_abs_yaw_error_rad_s": 0.01828690463803754,
+              "mean_torque_squared_nm2": 0.11978639525686269,
+              "mean_contact_slip_m_s": 0.0009246141958647901,
+              "controller_clipped_joint_fraction": 0.05048076923076923,
+              "driver_clipped_joint_fraction": 0.15524839743589744,
+              "min_torso_clearance_m": 0.12442742639059703,
+              "torso_penetration_state_fraction": 0.0,
+              "max_tilt_rad": 0.01568047226677614
+            }
+          ],
+          "aggregate_withheld_due_to_stopped_replicas": true,
+          "minimum_scored_torso_clearance_m": 0.02737037307975046,
+          "metric_meaning": "Runner per-segment tracking errors use effective heading-conditioned commands. Explicit requested-command aggregate below uses raw requested yaw, enabling comparison without hiding differing heading correction. Slip uses any lower-leg-ground contact, including hulls."
+        }
+      }
+    }
+  }
+}
