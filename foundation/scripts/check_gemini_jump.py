@@ -60,6 +60,36 @@ def verify_input_hashes(paths, expected):
         if sha(path)!=expected[name]:raise RuntimeError(f'diagnostic input changed: {name}')
 
 
+
+def nominal_return_window(trace, nominal_return_s, replicas):
+    """Describe the existing grid-aligned screen without implying ROS timing.
+
+    Retain the original at-most-one-physics-step endpoint allowance. Every
+    replica reports its actual sampled span, including censored replicas; the
+    historical ``complete_last_second`` criterion is a sample-count screen.
+    """
+    selected = trace['time_s'] <= nominal_return_s + 1 / HZ
+    window = {key: value[selected] for key, value in trace.items()}
+    evidence = []
+    for replica in range(replicas):
+        times = window['time_s'][window['replica'] == replica]
+        tail = times[times >= nominal_return_s - 1]
+        evidence.append(dict(replica=replica,
+            last_observed_elapsed_s=float(times[-1]) if len(times) else None,
+            endpoint_minus_nominal_return_s=float(times[-1] - nominal_return_s) if len(times) else None,
+            recovery_samples=int(len(tail)),
+            recovery_first_sample_elapsed_s=float(tail[0]) if len(tail) else None,
+            recovery_last_sample_elapsed_s=float(tail[-1]) if len(tail) else None,
+            recovery_first_to_last_span_s=float(tail[-1] - tail[0]) if len(tail) else None,
+            recovery_nominal_sample_bins_s=float(len(tail) / HZ)))
+    return window, dict(protocol='nominal_return_sample_grid_v1',
+        nominal_return_elapsed_s=float(nominal_return_s), physics_hz=HZ,
+        selection='time_s <= nominal_return_elapsed_s + 1/520; recovery samples also satisfy time_s >= nominal_return_elapsed_s - 1',
+        timing_scope='Nominal reference acceptance + Float32 playback_s + 1.2 s. Excludes completion status quantization, Python polling and DDS/ROS scheduling; not the actual API-return instant.',
+        coverage_scope='First-to-last observed spans and nominal sample-bin durations are separate. No continuous observation between samples is implied; historical complete_last_second uses at least520 samples plus endpoint/failure checks.',
+        replicas=evidence)
+
+
 def evaluate(screen,shared,binary,policy,metadata,initial,scenario,trigger,payload,recovery_s,lower,upper,output):
     import mujoco
     model,contact_contract=shared.make_model('full_hulls')
@@ -142,10 +172,10 @@ def evaluate(screen,shared,binary,policy,metadata,initial,scenario,trigger,paylo
     np.savez_compressed(output/'trace.npz',**trace)
     reports=jump.summarize(trace,len(initial),actual_start,float(payload[1]),end_s,failures)
     return_time=actual_start+float(payload[0])+1.2
-    return_trace={k:v[trace['time_s']<=return_time+1/HZ] for k,v in trace.items()}
+    return_trace,return_sampling=nominal_return_window(trace,return_time,len(initial))
     at_return=jump.summarize(return_trace,len(initial),actual_start,float(payload[1]),return_time,[f for f in failures if f['time_s']<=return_time],)
     result=dict(mode='api_reference' if trigger else 'gait_only',scenario=scenario,stop_command_elapsed_s=stop_at,requested_reference_elapsed_s=request_at,
-        accepted_reference_elapsed_s=actual_start,nominal_api_return_elapsed_s=return_time,api_return_window=[r['recovery'] for r in at_return],end_s=end_s,
+        accepted_reference_elapsed_s=actual_start,nominal_api_return_elapsed_s=return_time,api_return_sampling=return_sampling,api_return_window=[r['recovery'] for r in at_return],end_s=end_s,
         policy_sha256=sha(policy),model_sha256=sha(output/'model.mjb'),contact_contract=contact_contract,
         geometry_names={str(g):model.geom(g).name for g in range(model.ngeom)},mass_kg=float(model.body_mass.sum()),
         failures=failures,replicas=reports,trace_sha256=sha(output/'trace.npz'),contacts_sha256=sha(output/'contacts.jsonl.gz'))

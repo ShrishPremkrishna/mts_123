@@ -101,3 +101,52 @@ def test_input_mutation_is_not_accepted_as_a_completed_diagnostic(tmp_path):
     p.write_text(p.read_text()+' ')
     with pytest.raises(RuntimeError,match='input changed'):
         api.verify_input_hashes({'reference.json':p},expected)
+
+
+def test_nominal_return_window_reports_actual_grid_end_and_censoring():
+    # Nominal .9996s admits1.0s, and the last-second screen contains520
+    # observations spanning519/520s. A stopped replica cannot borrow them.
+    full = np.arange(1, 522) / 520
+    stopped = np.arange(1, 200) / 520
+    trace = {'time_s': np.concatenate([full, stopped]),
+             'replica': np.concatenate([np.zeros(len(full), dtype=int),
+                                        np.ones(len(stopped), dtype=int)]),
+             'value': np.arange(len(full) + len(stopped))}
+    window, evidence = api.nominal_return_window(trace, .9996, 3)
+    expected = trace['time_s'] <= .9996 + 1 / 520
+    for key in trace:
+        np.testing.assert_array_equal(window[key], trace[key][expected])
+    complete, censored, absent = evidence['replicas']
+    assert complete['last_observed_elapsed_s'] == 1.
+    assert complete['endpoint_minus_nominal_return_s'] == pytest.approx(.0004)
+    assert complete['recovery_samples'] == 520
+    assert complete['recovery_first_to_last_span_s'] == pytest.approx(519 / 520)
+    assert complete['recovery_nominal_sample_bins_s'] == 1.
+    assert censored['last_observed_elapsed_s'] == 199 / 520
+    assert censored['endpoint_minus_nominal_return_s'] < 0
+    assert censored['recovery_samples'] == 199
+    assert absent['last_observed_elapsed_s'] is None
+    assert absent['recovery_first_to_last_span_s'] is None
+    assert absent['recovery_samples'] == 0
+
+
+def test_exact_grid_return_keeps_and_discloses_legacy_step_allowance():
+    trace = {'time_s': np.array([1., 1. + 1 / 520, 1. + 2 / 520]),
+             'replica': np.zeros(3, dtype=int)}
+    window, evidence = api.nominal_return_window(trace, 1., 1)
+    assert len(window['time_s']) == 2
+    assert evidence['replicas'][0]['endpoint_minus_nominal_return_s'] == pytest.approx(1 / 520)
+    assert 'not the actual API-return instant' in evidence['timing_scope']
+
+
+def test_return_grid_with_full_prehistory_exposes_shifted_one_second_span():
+    times = np.arange(1, 1042) / 520
+    trace = {'time_s': times, 'replica': np.zeros(len(times), dtype=int)}
+    _, evidence = api.nominal_return_window(trace, 1.9996, 1)
+    observed = evidence['replicas'][0]
+    assert observed['recovery_samples'] == 521
+    assert observed['recovery_first_sample_elapsed_s'] == 1.
+    assert observed['recovery_last_sample_elapsed_s'] == 2.
+    assert observed['recovery_first_to_last_span_s'] == 1.
+    assert observed['recovery_nominal_sample_bins_s'] == pytest.approx(521 / 520)
+    assert observed['endpoint_minus_nominal_return_s'] == pytest.approx(.0004)

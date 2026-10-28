@@ -122,7 +122,57 @@
       "requested_reference_elapsed_s": 4.7,
       "accepted_reference_elapsed_s": 4.711538461538462,
       "nominal_api_return_elapsed_s": 6.851538459154276,
-      "end_s": 8.513461538461538
+      "end_s": 8.513461538461538,
+      "nominal_return_sampling": {
+        "protocol": "nominal_return_sample_grid_v1",
+        "nominal_return_elapsed_s": 6.851538459154276,
+        "physics_hz": 520,
+        "selection": "time_s <= nominal_return_elapsed_s + 1/520; recovery samples also satisfy time_s >= nominal_return_elapsed_s - 1",
+        "timing_scope": "Nominal reference acceptance + Float32 playback_s + 1.2 s. Excludes completion status quantization, Python polling and DDS/ROS scheduling; not the actual API-return instant.",
+        "coverage_scope": "First-to-last observed spans and nominal sample-bin durations are separate. No continuous observation between samples is implied; historical complete_last_second uses at least520 samples plus endpoint/failure checks.",
+        "replicas": [
+          {
+            "replica": 0,
+            "last_observed_elapsed_s": 6.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.00038461776880094334,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 5.851923076923077,
+            "recovery_last_sample_elapsed_s": 6.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 1,
+            "last_observed_elapsed_s": 6.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.00038461776880094334,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 5.851923076923077,
+            "recovery_last_sample_elapsed_s": 6.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 2,
+            "last_observed_elapsed_s": 6.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.00038461776880094334,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 5.851923076923077,
+            "recovery_last_sample_elapsed_s": 6.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 3,
+            "last_observed_elapsed_s": 6.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.00038461776880094334,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 5.851923076923077,
+            "recovery_last_sample_elapsed_s": 6.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          }
+        ]
+      }
     },
     "fresh-jump": {
       "replicas": [
@@ -304,7 +354,57 @@
       "requested_reference_elapsed_s": 4.7,
       "accepted_reference_elapsed_s": 4.711538461538462,
       "nominal_api_return_elapsed_s": 6.851538459154276,
-      "end_s": 8.513461538461538
+      "end_s": 8.513461538461538,
+      "nominal_return_sampling": {
+        "protocol": "nominal_return_sample_grid_v1",
+        "nominal_return_elapsed_s": 6.851538459154276,
+        "physics_hz": 520,
+        "selection": "time_s <= nominal_return_elapsed_s + 1/520; recovery samples also satisfy time_s >= nominal_return_elapsed_s - 1",
+        "timing_scope": "Nominal reference acceptance + Float32 playback_s + 1.2 s. Excludes completion status quantization, Python polling and DDS/ROS scheduling; not the actual API-return instant.",
+        "coverage_scope": "First-to-last observed spans and nominal sample-bin durations are separate. No continuous observation between samples is implied; historical complete_last_second uses at least520 samples plus endpoint/failure checks.",
+        "replicas": [
+          {
+            "replica": 0,
+            "last_observed_elapsed_s": 6.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.00038461776880094334,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 5.851923076923077,
+            "recovery_last_sample_elapsed_s": 6.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 1,
+            "last_observed_elapsed_s": 6.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.00038461776880094334,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 5.851923076923077,
+            "recovery_last_sample_elapsed_s": 6.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 2,
+            "last_observed_elapsed_s": 5.3076923076923075,
+            "endpoint_minus_nominal_return_s": -1.5438461514619686,
+            "recovery_samples": 0,
+            "recovery_first_sample_elapsed_s": null,
+            "recovery_last_sample_elapsed_s": null,
+            "recovery_first_to_last_span_s": null,
+            "recovery_nominal_sample_bins_s": 0.0
+          },
+          {
+            "replica": 3,
+            "last_observed_elapsed_s": 5.3076923076923075,
+            "endpoint_minus_nominal_return_s": -1.5438461514619686,
+            "recovery_samples": 0,
+            "recovery_first_sample_elapsed_s": null,
+            "recovery_last_sample_elapsed_s": null,
+            "recovery_first_to_last_span_s": null,
+            "recovery_nominal_sample_bins_s": 0.0
+          }
+        ]
+      }
     },
     "walk_then_stop-gait": {
       "replicas": [
@@ -421,7 +521,57 @@
       "requested_reference_elapsed_s": 6.7,
       "accepted_reference_elapsed_s": 6.711538461538462,
       "nominal_api_return_elapsed_s": 8.851538459154275,
-      "end_s": 10.513461538461538
+      "end_s": 10.513461538461538,
+      "nominal_return_sampling": {
+        "protocol": "nominal_return_sample_grid_v1",
+        "nominal_return_elapsed_s": 8.851538459154275,
+        "physics_hz": 520,
+        "selection": "time_s <= nominal_return_elapsed_s + 1/520; recovery samples also satisfy time_s >= nominal_return_elapsed_s - 1",
+        "timing_scope": "Nominal reference acceptance + Float32 playback_s + 1.2 s. Excludes completion status quantization, Python polling and DDS/ROS scheduling; not the actual API-return instant.",
+        "coverage_scope": "First-to-last observed spans and nominal sample-bin durations are separate. No continuous observation between samples is implied; historical complete_last_second uses at least520 samples plus endpoint/failure checks.",
+        "replicas": [
+          {
+            "replica": 0,
+            "last_observed_elapsed_s": 8.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.0003846177688018315,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 7.851923076923077,
+            "recovery_last_sample_elapsed_s": 8.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 1,
+            "last_observed_elapsed_s": 8.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.0003846177688018315,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 7.851923076923077,
+            "recovery_last_sample_elapsed_s": 8.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 2,
+            "last_observed_elapsed_s": 8.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.0003846177688018315,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 7.851923076923077,
+            "recovery_last_sample_elapsed_s": 8.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 3,
+            "last_observed_elapsed_s": 8.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.0003846177688018315,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 7.851923076923077,
+            "recovery_last_sample_elapsed_s": 8.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          }
+        ]
+      }
     },
     "walk_then_stop-jump": {
       "replicas": [
@@ -603,7 +753,57 @@
       "requested_reference_elapsed_s": 6.7,
       "accepted_reference_elapsed_s": 6.711538461538462,
       "nominal_api_return_elapsed_s": 8.851538459154275,
-      "end_s": 10.513461538461538
+      "end_s": 10.513461538461538,
+      "nominal_return_sampling": {
+        "protocol": "nominal_return_sample_grid_v1",
+        "nominal_return_elapsed_s": 8.851538459154275,
+        "physics_hz": 520,
+        "selection": "time_s <= nominal_return_elapsed_s + 1/520; recovery samples also satisfy time_s >= nominal_return_elapsed_s - 1",
+        "timing_scope": "Nominal reference acceptance + Float32 playback_s + 1.2 s. Excludes completion status quantization, Python polling and DDS/ROS scheduling; not the actual API-return instant.",
+        "coverage_scope": "First-to-last observed spans and nominal sample-bin durations are separate. No continuous observation between samples is implied; historical complete_last_second uses at least520 samples plus endpoint/failure checks.",
+        "replicas": [
+          {
+            "replica": 0,
+            "last_observed_elapsed_s": 8.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.0003846177688018315,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 7.851923076923077,
+            "recovery_last_sample_elapsed_s": 8.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 1,
+            "last_observed_elapsed_s": 8.851923076923077,
+            "endpoint_minus_nominal_return_s": 0.0003846177688018315,
+            "recovery_samples": 521,
+            "recovery_first_sample_elapsed_s": 7.851923076923077,
+            "recovery_last_sample_elapsed_s": 8.851923076923077,
+            "recovery_first_to_last_span_s": 1.0,
+            "recovery_nominal_sample_bins_s": 1.001923076923077
+          },
+          {
+            "replica": 2,
+            "last_observed_elapsed_s": 7.288461538461538,
+            "endpoint_minus_nominal_return_s": -1.5630769206927368,
+            "recovery_samples": 0,
+            "recovery_first_sample_elapsed_s": null,
+            "recovery_last_sample_elapsed_s": null,
+            "recovery_first_to_last_span_s": null,
+            "recovery_nominal_sample_bins_s": 0.0
+          },
+          {
+            "replica": 3,
+            "last_observed_elapsed_s": 7.288461538461538,
+            "endpoint_minus_nominal_return_s": -1.5630769206927368,
+            "recovery_samples": 0,
+            "recovery_first_sample_elapsed_s": null,
+            "recovery_last_sample_elapsed_s": null,
+            "recovery_first_to_last_span_s": null,
+            "recovery_nominal_sample_bins_s": 0.0
+          }
+        ]
+      }
     }
   },
   "raw_contact_audit": {
@@ -652,7 +852,7 @@
     "initialization": "switch_to(gemini_walk) waits 4.2 s after new activation; an already active controller retains its state/history",
     "zero_command": "Publishes zero then waits 0.5 s; this is not a measured-standstill check. Quiet joystick and stopped follower assumed. Higher-priority joystick input can override it.",
     "reference": "Actual class reference.json data converted to Float32; new receipt starts on next 52 Hz inference, without gamepad gait-grid snapping; forced jump table, never hop.",
-    "receipt": "Current protocol acknowledges applied reference playback, not physical flight or landing. Nominal return afteractive completion plus remaining playback+1.2s; transport/ROS scheduling is not exercised here."
+    "receipt": "Current protocol acknowledges applied reference playback, not physical flight or landing. Nominal timing here is accepted-reference time + Float32 playback_s +1.2s. Actual completion status is sampled at52Hz and Python polling/DDS/ROS scheduling add unmodeled latency; this is not an exact API-return physical-state measurement."
   },
   "difference_from_prior_native_screen": [
     "Prior screen used policy-embedded table, exact grid phase 3 s, elapsed 5 s and 520 Hz post-step tilt censoring; this screen uses actual rounded classFloat32 payload, immediate times 4.711538/6.711538 s and 52 Hz pre-inference tilt censoring.",
@@ -742,7 +942,8 @@
     "raw_samples": 72464,
     "visual_review": "Inspected paired COM-rise and tilt plot for every replica; stop censoring and nominal API-return window are visible. No full-video review claimed.",
     "focused_tests_before_physics": 39,
-    "focused_tests_after_hardening": 44
+    "focused_tests_after_hardening": 44,
+    "sampling_annotation_focused_tests_passed": 47
   },
   "limitations": [
     "Nominal full-hull MuJoCo mechanics; same four engineering initial poses as old screen, not domain-randomized trials.",
@@ -753,7 +954,8 @@
     "Message table/timing are actual Float32 transport values, including class table decimal rounding; no hop or table redesign.",
     "Four engineering initial poses per condition provide no hardware success probability. Three of four nonrecovering cases record landing before the tilt stop; landing alone is not recovery.",
     "Both successes and stops approach the inherited tilt limit; all jumpcases reach the nominal 3 Nm cap. Do not raise the tilt stop or limits to manufacture success.",
-    "The after-return stability screen uses actual simulator state; the current software success reply deliberately describes only reference playback."
+    "The after-return stability screen uses actual simulator state; the current software success reply deliberately describes only reference playback.",
+    "Nominal-return screening retains the original time_s<=nominal+1/520 endpoint allowance. Each surviving trace supplies521 last-second observations spanning1.0s, with the sampled interval shifted0.384618ms after the nominal interval. Per-replica endpoints and first-to-last spans are explicit; no continuous observation between samples or exact API-return state is claimed."
   ],
   "next_action": "Keep actual course reference and software path implemented, but describe standing jumping as an unresolved physical capability. No new default, forward-speed bypass or hardware promotion follows this screen. Further action should target standing pitch/landing robustness with preserved limits and an explicit bounded hypothesis.",
   "artifact_directory": "artifacts/shipped-jump/gemini-immediate-reference-v1",
@@ -763,5 +965,12 @@
     "class_table_vs_policy_table_max_absolute_difference_rad": 4.987163543801465e-07,
     "Float32_message_vs_Float32_policy_table_max_absolute_difference_rad": 5.066394805908203e-07,
     "explanation": "The class reference is rounded to six decimal places. The original screen used the embedded policy table; this exact-path screen uses the actual class Float32 message values. Both remain within the existing loader tolerance; no reference redesign occurred."
+  },
+  "timing_annotation": {
+    "artifact": "artifacts/shipped-jump/gemini-immediate-reference-v1/review/return-window-v2/annotation.json",
+    "sha256": "33056ff228fe7767d51cf64c97795b5abe11b974f9388670afd0313a6ca5af10",
+    "physical_simulation_rerun": false,
+    "recovery_decisions_changed": false,
+    "scope": "Legacy api_return_recovery fields describe a nominal timing screen, not an observed ROS/API return. Existing cutoff and recovery decisions are unchanged; actual grid endpoints and sampled spans are now explicit."
   }
 }
