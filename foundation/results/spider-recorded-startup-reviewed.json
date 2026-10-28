@@ -53,7 +53,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.0658219799620294,
-          "final_body_yaw_rate_rad_s": -0.006380496769670068,
           "mean_torso_load_bodyweight": 0.4231728414061013,
           "peak_torso_load_bodyweight": 13.404337022327548,
           "torso_load_quantiles_bodyweight": {
@@ -82,7 +81,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.0024294508650603936,
           "last_half_second_planar_speed_mean_m_s": 0.025639831663313142,
-          "last_half_second_peak_joint_speed_rad_s": 3.2625077184343043
+          "last_half_second_peak_joint_speed_rad_s": 3.2625077184343043,
+          "final_observed_world_yaw_rate_rad_s": -0.006380496769670068
         },
         "walk_activation": {
           "samples": 219,
@@ -104,7 +104,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.007602746797657625,
-          "final_body_yaw_rate_rad_s": 0.011056780418651851,
           "mean_torso_load_bodyweight": 0.04227974701563407,
           "peak_torso_load_bodyweight": 0.5867314469913183,
           "torso_load_quantiles_bodyweight": {
@@ -133,7 +132,8 @@
           "max_sampled_torque_nm": 1.2615516800774471,
           "final_planar_speed_m_s": 0.005262425452246044,
           "last_half_second_planar_speed_mean_m_s": 0.004761327578139767,
-          "last_half_second_peak_joint_speed_rad_s": 0.4862025622597319
+          "last_half_second_peak_joint_speed_rad_s": 0.4862025622597319,
+          "final_observed_world_yaw_rate_rad_s": 0.011056780418651851
         },
         "walk_forward": {
           "samples": 104,
@@ -155,7 +155,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.00405540366477453,
-          "final_body_yaw_rate_rad_s": -0.04293246424172498,
           "mean_torso_load_bodyweight": 0.29357884759304603,
           "peak_torso_load_bodyweight": 5.006232803159502,
           "torso_load_quantiles_bodyweight": {
@@ -184,7 +183,8 @@
           "max_sampled_torque_nm": 2.2691974898335046,
           "final_planar_speed_m_s": 0.05635539049820916,
           "last_half_second_planar_speed_mean_m_s": 0.056951113112325674,
-          "last_half_second_peak_joint_speed_rad_s": 10.70211732346675
+          "last_half_second_peak_joint_speed_rad_s": 10.70211732346675,
+          "final_observed_world_yaw_rate_rad_s": -0.04293246424172498
         },
         "walk_stop_1": {
           "samples": 52,
@@ -206,7 +206,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.019823703712303783,
-          "final_body_yaw_rate_rad_s": -0.04482386951171811,
           "mean_torso_load_bodyweight": 0.061592227930776934,
           "peak_torso_load_bodyweight": 1.5364759976084035,
           "torso_load_quantiles_bodyweight": {
@@ -235,7 +234,8 @@
           "max_sampled_torque_nm": 2.1785214448270347,
           "final_planar_speed_m_s": 0.02808443017990923,
           "last_half_second_planar_speed_mean_m_s": 0.026000319609420633,
-          "last_half_second_peak_joint_speed_rad_s": 1.8353808414559363
+          "last_half_second_peak_joint_speed_rad_s": 1.8353808414559363,
+          "final_observed_world_yaw_rate_rad_s": -0.04482386951171811
         },
         "walk_backward": {
           "samples": 104,
@@ -257,7 +257,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.013899033140657411,
-          "final_body_yaw_rate_rad_s": 0.12731622648030239,
           "mean_torso_load_bodyweight": 0.35446424592639486,
           "peak_torso_load_bodyweight": 8.524238832617508,
           "torso_load_quantiles_bodyweight": {
@@ -286,7 +285,8 @@
           "max_sampled_torque_nm": 2.280714566452333,
           "final_planar_speed_m_s": 0.07336180202292467,
           "last_half_second_planar_speed_mean_m_s": 0.13366490077479684,
-          "last_half_second_peak_joint_speed_rad_s": 9.963661184146344
+          "last_half_second_peak_joint_speed_rad_s": 9.963661184146344,
+          "final_observed_world_yaw_rate_rad_s": 0.12731622648030239
         },
         "walk_turn": {
           "samples": 104,
@@ -308,7 +308,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.21876080199499595,
-          "final_body_yaw_rate_rad_s": 0.18601684065266527,
           "mean_torso_load_bodyweight": 0.14540658499750497,
           "peak_torso_load_bodyweight": 3.59387219290695,
           "torso_load_quantiles_bodyweight": {
@@ -337,7 +336,8 @@
           "max_sampled_torque_nm": 2.1632890383855354,
           "final_planar_speed_m_s": 0.06900737385730163,
           "last_half_second_planar_speed_mean_m_s": 0.05978762163310963,
-          "last_half_second_peak_joint_speed_rad_s": 11.050156827955856
+          "last_half_second_peak_joint_speed_rad_s": 11.050156827955856,
+          "final_observed_world_yaw_rate_rad_s": 0.18601684065266527
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -359,7 +359,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.013489101177319664,
-          "final_body_yaw_rate_rad_s": -0.04556942267210823,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -388,7 +387,8 @@
           "max_sampled_torque_nm": 2.057388429318447,
           "final_planar_speed_m_s": 0.015162780090018417,
           "last_half_second_planar_speed_mean_m_s": 0.010974776165122494,
-          "last_half_second_peak_joint_speed_rad_s": 0.4134764263304542
+          "last_half_second_peak_joint_speed_rad_s": 0.4134764263304542,
+          "final_observed_world_yaw_rate_rad_s": -0.04556942267210823
         },
         "exit": {
           "samples": 488,
@@ -410,7 +410,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.004549650667990099,
-          "final_body_yaw_rate_rad_s": 0.1657087847924901,
           "mean_torso_load_bodyweight": 0.45681424130494136,
           "peak_torso_load_bodyweight": 4.293025380387698,
           "torso_load_quantiles_bodyweight": {
@@ -439,7 +438,8 @@
           "max_sampled_torque_nm": 1.7594443820661143,
           "final_planar_speed_m_s": 0.16898497098375714,
           "last_half_second_planar_speed_mean_m_s": 0.19133007094683116,
-          "last_half_second_peak_joint_speed_rad_s": 2.973193594848211
+          "last_half_second_peak_joint_speed_rad_s": 2.973193594848211,
+          "final_observed_world_yaw_rate_rad_s": 0.1657087847924901
         },
         "standing_hold": {
           "samples": 52,
@@ -461,7 +461,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.06226707586531403,
-          "final_body_yaw_rate_rad_s": 0.3301758611726462,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -490,7 +489,8 @@
           "max_sampled_torque_nm": 1.3050756778975132,
           "final_planar_speed_m_s": 0.06160713999430447,
           "last_half_second_planar_speed_mean_m_s": 0.14735398233782357,
-          "last_half_second_peak_joint_speed_rad_s": 1.7731904961349272
+          "last_half_second_peak_joint_speed_rad_s": 1.7731904961349272,
+          "final_observed_world_yaw_rate_rad_s": 0.3301758611726462
         },
         "default_activation": {
           "samples": 219,
@@ -512,7 +512,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.7269838557829185,
-          "final_body_yaw_rate_rad_s": 0.6768227544229777,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -541,7 +540,8 @@
           "max_sampled_torque_nm": 1.6405313025255297,
           "final_planar_speed_m_s": 0.24005725895011948,
           "last_half_second_planar_speed_mean_m_s": 0.2814520047634629,
-          "last_half_second_peak_joint_speed_rad_s": 2.7843014407874027
+          "last_half_second_peak_joint_speed_rad_s": 2.7843014407874027,
+          "final_observed_world_yaw_rate_rad_s": 0.6768227544229777
         },
         "default_forward": {
           "samples": 104,
@@ -563,7 +563,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0687860501205349,
-          "final_body_yaw_rate_rad_s": 0.43004460129711214,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -592,7 +591,8 @@
           "max_sampled_torque_nm": 2.504526475824999,
           "final_planar_speed_m_s": 0.15618151838962882,
           "last_half_second_planar_speed_mean_m_s": 0.1369014473981722,
-          "last_half_second_peak_joint_speed_rad_s": 8.671548677834751
+          "last_half_second_peak_joint_speed_rad_s": 8.671548677834751,
+          "final_observed_world_yaw_rate_rad_s": 0.43004460129711214
         },
         "default_stop": {
           "samples": 104,
@@ -614,7 +614,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.2924479035650457,
-          "final_body_yaw_rate_rad_s": 0.3502846566319911,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -643,7 +642,8 @@
           "max_sampled_torque_nm": 1.4577831892853856,
           "final_planar_speed_m_s": 0.22016120435364064,
           "last_half_second_planar_speed_mean_m_s": 0.22148301904649553,
-          "last_half_second_peak_joint_speed_rad_s": 2.5775981974037916
+          "last_half_second_peak_joint_speed_rad_s": 2.5775981974037916,
+          "final_observed_world_yaw_rate_rad_s": 0.3502846566319911
         }
       },
       "physical_state_resets": 0,
@@ -705,7 +705,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.0658219799620294,
-          "final_body_yaw_rate_rad_s": -0.006380496769670068,
           "mean_torso_load_bodyweight": 0.4231728414061013,
           "peak_torso_load_bodyweight": 13.404337022327548,
           "torso_load_quantiles_bodyweight": {
@@ -734,7 +733,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.0024294508650603936,
           "last_half_second_planar_speed_mean_m_s": 0.025639831663313142,
-          "last_half_second_peak_joint_speed_rad_s": 3.2625077184343043
+          "last_half_second_peak_joint_speed_rad_s": 3.2625077184343043,
+          "final_observed_world_yaw_rate_rad_s": -0.006380496769670068
         },
         "walk_activation": {
           "samples": 219,
@@ -756,7 +756,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.004779872238460671,
-          "final_body_yaw_rate_rad_s": -0.053485609127166205,
           "mean_torso_load_bodyweight": 0.03258590131644647,
           "peak_torso_load_bodyweight": 0.32968093977186225,
           "torso_load_quantiles_bodyweight": {
@@ -785,7 +784,8 @@
           "max_sampled_torque_nm": 1.4192995469464944,
           "final_planar_speed_m_s": 0.008721498492712018,
           "last_half_second_planar_speed_mean_m_s": 0.004981702356931163,
-          "last_half_second_peak_joint_speed_rad_s": 0.5697337806521274
+          "last_half_second_peak_joint_speed_rad_s": 0.5697337806521274,
+          "final_observed_world_yaw_rate_rad_s": -0.053485609127166205
         },
         "walk_forward": {
           "samples": 104,
@@ -807,7 +807,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.006850393417496258,
-          "final_body_yaw_rate_rad_s": -0.07945436442172332,
           "mean_torso_load_bodyweight": 0.2614495961539224,
           "peak_torso_load_bodyweight": 12.362564378965768,
           "torso_load_quantiles_bodyweight": {
@@ -836,7 +835,8 @@
           "max_sampled_torque_nm": 2.376227570852814,
           "final_planar_speed_m_s": 0.06633804733468067,
           "last_half_second_planar_speed_mean_m_s": 0.06378706892060716,
-          "last_half_second_peak_joint_speed_rad_s": 10.556142966625568
+          "last_half_second_peak_joint_speed_rad_s": 10.556142966625568,
+          "final_observed_world_yaw_rate_rad_s": -0.07945436442172332
         },
         "walk_stop_1": {
           "samples": 52,
@@ -858,7 +858,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.029219148318201583,
-          "final_body_yaw_rate_rad_s": -0.06576940091164638,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -887,7 +886,8 @@
           "max_sampled_torque_nm": 1.972465521328835,
           "final_planar_speed_m_s": 0.023385245635850503,
           "last_half_second_planar_speed_mean_m_s": 0.027571300240584802,
-          "last_half_second_peak_joint_speed_rad_s": 2.131594136363309
+          "last_half_second_peak_joint_speed_rad_s": 2.131594136363309,
+          "final_observed_world_yaw_rate_rad_s": -0.06576940091164638
         },
         "walk_backward": {
           "samples": 104,
@@ -909,7 +909,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.004047581392837969,
-          "final_body_yaw_rate_rad_s": -0.025679003936996528,
           "mean_torso_load_bodyweight": 0.21414084099019723,
           "peak_torso_load_bodyweight": 5.576182894405542,
           "torso_load_quantiles_bodyweight": {
@@ -938,7 +937,8 @@
           "max_sampled_torque_nm": 2.8193877539567853,
           "final_planar_speed_m_s": 0.0982721983683821,
           "last_half_second_planar_speed_mean_m_s": 0.14183746845645845,
-          "last_half_second_peak_joint_speed_rad_s": 11.656188480457006
+          "last_half_second_peak_joint_speed_rad_s": 11.656188480457006,
+          "final_observed_world_yaw_rate_rad_s": -0.025679003936996528
         },
         "walk_turn": {
           "samples": 104,
@@ -960,7 +960,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.28505209835239903,
-          "final_body_yaw_rate_rad_s": 0.10444333328136855,
           "mean_torso_load_bodyweight": 0.18236848897670985,
           "peak_torso_load_bodyweight": 5.871986697819701,
           "torso_load_quantiles_bodyweight": {
@@ -989,7 +988,8 @@
           "max_sampled_torque_nm": 2.244189029418444,
           "final_planar_speed_m_s": 0.07191022924102304,
           "last_half_second_planar_speed_mean_m_s": 0.08156864939726684,
-          "last_half_second_peak_joint_speed_rad_s": 10.723170742838793
+          "last_half_second_peak_joint_speed_rad_s": 10.723170742838793,
+          "final_observed_world_yaw_rate_rad_s": 0.10444333328136855
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -1011,7 +1011,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.029212717911306623,
-          "final_body_yaw_rate_rad_s": -0.10122660820134767,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1040,7 +1039,8 @@
           "max_sampled_torque_nm": 1.8690911226380695,
           "final_planar_speed_m_s": 0.020438889543613604,
           "last_half_second_planar_speed_mean_m_s": 0.014274636516034058,
-          "last_half_second_peak_joint_speed_rad_s": 0.4926189137474459
+          "last_half_second_peak_joint_speed_rad_s": 0.4926189137474459,
+          "final_observed_world_yaw_rate_rad_s": -0.10122660820134767
         },
         "exit": {
           "samples": 488,
@@ -1062,7 +1062,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.00374601706021286,
-          "final_body_yaw_rate_rad_s": 0.10464046560553884,
           "mean_torso_load_bodyweight": 0.44930974869168616,
           "peak_torso_load_bodyweight": 2.5221323164802447,
           "torso_load_quantiles_bodyweight": {
@@ -1091,7 +1090,8 @@
           "max_sampled_torque_nm": 2.084249830261145,
           "final_planar_speed_m_s": 0.17406198324516708,
           "last_half_second_planar_speed_mean_m_s": 0.21177486563198844,
-          "last_half_second_peak_joint_speed_rad_s": 2.262777879679556
+          "last_half_second_peak_joint_speed_rad_s": 2.262777879679556,
+          "final_observed_world_yaw_rate_rad_s": 0.10464046560553884
         },
         "standing_hold": {
           "samples": 52,
@@ -1113,7 +1113,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.028518524720944544,
-          "final_body_yaw_rate_rad_s": -0.14214021898827112,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1142,7 +1141,8 @@
           "max_sampled_torque_nm": 1.5626204462173334,
           "final_planar_speed_m_s": 0.23069577004498096,
           "last_half_second_planar_speed_mean_m_s": 0.1926564054652025,
-          "last_half_second_peak_joint_speed_rad_s": 1.5172188863033242
+          "last_half_second_peak_joint_speed_rad_s": 1.5172188863033242,
+          "final_observed_world_yaw_rate_rad_s": -0.14214021898827112
         },
         "default_activation": {
           "samples": 219,
@@ -1164,7 +1164,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.6343128321664279,
-          "final_body_yaw_rate_rad_s": 0.5260652351887595,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1193,7 +1192,8 @@
           "max_sampled_torque_nm": 1.9940044817098261,
           "final_planar_speed_m_s": 0.23687675669723285,
           "last_half_second_planar_speed_mean_m_s": 0.2871371324673651,
-          "last_half_second_peak_joint_speed_rad_s": 2.7372129696697534
+          "last_half_second_peak_joint_speed_rad_s": 2.7372129696697534,
+          "final_observed_world_yaw_rate_rad_s": 0.5260652351887595
         },
         "default_forward": {
           "samples": 104,
@@ -1215,7 +1215,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.08712218104235944,
-          "final_body_yaw_rate_rad_s": 0.8762814016402164,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1244,7 +1243,8 @@
           "max_sampled_torque_nm": 2.4908045616168017,
           "final_planar_speed_m_s": 0.08063425041718565,
           "last_half_second_planar_speed_mean_m_s": 0.15190254223402913,
-          "last_half_second_peak_joint_speed_rad_s": 9.918061634874196
+          "last_half_second_peak_joint_speed_rad_s": 9.918061634874196,
+          "final_observed_world_yaw_rate_rad_s": 0.8762814016402164
         },
         "default_stop": {
           "samples": 104,
@@ -1266,7 +1266,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.2991463431300634,
-          "final_body_yaw_rate_rad_s": 0.35629849204163727,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1295,7 +1294,8 @@
           "max_sampled_torque_nm": 1.3428835084148751,
           "final_planar_speed_m_s": 0.20466732168035762,
           "last_half_second_planar_speed_mean_m_s": 0.2150951372353188,
-          "last_half_second_peak_joint_speed_rad_s": 2.0522254723922653
+          "last_half_second_peak_joint_speed_rad_s": 2.0522254723922653,
+          "final_observed_world_yaw_rate_rad_s": 0.35629849204163727
         }
       },
       "physical_state_resets": 0,
@@ -1357,7 +1357,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.06655654336922187,
-          "final_body_yaw_rate_rad_s": -0.006607482493821755,
           "mean_torso_load_bodyweight": 0.4456048077589009,
           "peak_torso_load_bodyweight": 7.150778216396622,
           "torso_load_quantiles_bodyweight": {
@@ -1386,7 +1385,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.002571390914227499,
           "last_half_second_planar_speed_mean_m_s": 0.024342670323395963,
-          "last_half_second_peak_joint_speed_rad_s": 3.9681393441685584
+          "last_half_second_peak_joint_speed_rad_s": 3.9681393441685584,
+          "final_observed_world_yaw_rate_rad_s": -0.006607482493821755
         },
         "walk_activation": {
           "samples": 219,
@@ -1408,7 +1408,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.008227508258399152,
-          "final_body_yaw_rate_rad_s": -0.015014038632834374,
           "mean_torso_load_bodyweight": 0.04677858189709205,
           "peak_torso_load_bodyweight": 0.7420985443561423,
           "torso_load_quantiles_bodyweight": {
@@ -1437,7 +1436,8 @@
           "max_sampled_torque_nm": 1.1057717723571572,
           "final_planar_speed_m_s": 0.0081173065664963,
           "last_half_second_planar_speed_mean_m_s": 0.0054445429252288945,
-          "last_half_second_peak_joint_speed_rad_s": 0.3957285321726816
+          "last_half_second_peak_joint_speed_rad_s": 0.3957285321726816,
+          "final_observed_world_yaw_rate_rad_s": -0.015014038632834374
         },
         "walk_forward": {
           "samples": 104,
@@ -1459,7 +1459,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.01673510008254823,
-          "final_body_yaw_rate_rad_s": -0.21565217485907398,
           "mean_torso_load_bodyweight": 0.3628063663812991,
           "peak_torso_load_bodyweight": 7.454505645228334,
           "torso_load_quantiles_bodyweight": {
@@ -1488,7 +1487,8 @@
           "max_sampled_torque_nm": 2.3411257960567466,
           "final_planar_speed_m_s": 0.07596671740991573,
           "last_half_second_planar_speed_mean_m_s": 0.05626108897066115,
-          "last_half_second_peak_joint_speed_rad_s": 9.898427950902878
+          "last_half_second_peak_joint_speed_rad_s": 9.898427950902878,
+          "final_observed_world_yaw_rate_rad_s": -0.21565217485907398
         },
         "walk_stop_1": {
           "samples": 52,
@@ -1510,7 +1510,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.008514965407300843,
-          "final_body_yaw_rate_rad_s": -0.05153092017711016,
           "mean_torso_load_bodyweight": 0.11250386450100323,
           "peak_torso_load_bodyweight": 2.5973207076310767,
           "torso_load_quantiles_bodyweight": {
@@ -1539,7 +1538,8 @@
           "max_sampled_torque_nm": 1.8649054049411076,
           "final_planar_speed_m_s": 0.0184978992077709,
           "last_half_second_planar_speed_mean_m_s": 0.029631315720547287,
-          "last_half_second_peak_joint_speed_rad_s": 1.6404380364308524
+          "last_half_second_peak_joint_speed_rad_s": 1.6404380364308524,
+          "final_observed_world_yaw_rate_rad_s": -0.05153092017711016
         },
         "walk_backward": {
           "samples": 104,
@@ -1561,7 +1561,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.00046812006744823806,
-          "final_body_yaw_rate_rad_s": -0.0044532744722800876,
           "mean_torso_load_bodyweight": 0.31488455768279333,
           "peak_torso_load_bodyweight": 7.842796978781423,
           "torso_load_quantiles_bodyweight": {
@@ -1590,7 +1589,8 @@
           "max_sampled_torque_nm": 2.3604896340117385,
           "final_planar_speed_m_s": 0.1240182051265857,
           "last_half_second_planar_speed_mean_m_s": 0.1174669665229078,
-          "last_half_second_peak_joint_speed_rad_s": 10.149412745984655
+          "last_half_second_peak_joint_speed_rad_s": 10.149412745984655,
+          "final_observed_world_yaw_rate_rad_s": -0.0044532744722800876
         },
         "walk_turn": {
           "samples": 104,
@@ -1612,7 +1612,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.2348114834752808,
-          "final_body_yaw_rate_rad_s": 0.2482675365395642,
           "mean_torso_load_bodyweight": 0.23607799404968086,
           "peak_torso_load_bodyweight": 6.788501480637117,
           "torso_load_quantiles_bodyweight": {
@@ -1641,7 +1640,8 @@
           "max_sampled_torque_nm": 2.302112390079797,
           "final_planar_speed_m_s": 0.06414268173263803,
           "last_half_second_planar_speed_mean_m_s": 0.06720622439209982,
-          "last_half_second_peak_joint_speed_rad_s": 9.963554834969603
+          "last_half_second_peak_joint_speed_rad_s": 9.963554834969603,
+          "final_observed_world_yaw_rate_rad_s": 0.2482675365395642
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -1663,7 +1663,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.009095968899024894,
-          "final_body_yaw_rate_rad_s": -0.07835827312533737,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1692,7 +1691,8 @@
           "max_sampled_torque_nm": 1.7647452709872455,
           "final_planar_speed_m_s": 0.017395316874145843,
           "last_half_second_planar_speed_mean_m_s": 0.013248528949926841,
-          "last_half_second_peak_joint_speed_rad_s": 0.5119100965789476
+          "last_half_second_peak_joint_speed_rad_s": 0.5119100965789476,
+          "final_observed_world_yaw_rate_rad_s": -0.07835827312533737
         },
         "exit": {
           "samples": 488,
@@ -1714,7 +1714,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.004818377078461076,
-          "final_body_yaw_rate_rad_s": -0.03393007348730792,
           "mean_torso_load_bodyweight": 0.45186498021832927,
           "peak_torso_load_bodyweight": 2.460615188151684,
           "torso_load_quantiles_bodyweight": {
@@ -1743,7 +1742,8 @@
           "max_sampled_torque_nm": 1.813954691332397,
           "final_planar_speed_m_s": 0.22605897212764242,
           "last_half_second_planar_speed_mean_m_s": 0.19941018576456934,
-          "last_half_second_peak_joint_speed_rad_s": 3.081143825177883
+          "last_half_second_peak_joint_speed_rad_s": 3.081143825177883,
+          "final_observed_world_yaw_rate_rad_s": -0.03393007348730792
         },
         "standing_hold": {
           "samples": 52,
@@ -1765,7 +1765,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.04353310512950963,
-          "final_body_yaw_rate_rad_s": -0.14453998682418323,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1794,7 +1793,8 @@
           "max_sampled_torque_nm": 1.5279956573505915,
           "final_planar_speed_m_s": 0.26159759900335644,
           "last_half_second_planar_speed_mean_m_s": 0.18392804765536527,
-          "last_half_second_peak_joint_speed_rad_s": 2.64399939854086
+          "last_half_second_peak_joint_speed_rad_s": 2.64399939854086,
+          "final_observed_world_yaw_rate_rad_s": -0.14453998682418323
         },
         "default_activation": {
           "samples": 219,
@@ -1816,7 +1816,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.4932204516603583,
-          "final_body_yaw_rate_rad_s": 0.49525306063355606,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1845,7 +1844,8 @@
           "max_sampled_torque_nm": 1.6049156024188567,
           "final_planar_speed_m_s": 0.2183523739318489,
           "last_half_second_planar_speed_mean_m_s": 0.2709918493830899,
-          "last_half_second_peak_joint_speed_rad_s": 2.1297559687453083
+          "last_half_second_peak_joint_speed_rad_s": 2.1297559687453083,
+          "final_observed_world_yaw_rate_rad_s": 0.49525306063355606
         },
         "default_forward": {
           "samples": 104,
@@ -1867,7 +1867,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.029570918111108527,
-          "final_body_yaw_rate_rad_s": 0.6922476862893052,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1896,7 +1895,8 @@
           "max_sampled_torque_nm": 2.3012466123847686,
           "final_planar_speed_m_s": 0.08828253399418715,
           "last_half_second_planar_speed_mean_m_s": 0.09927197258739572,
-          "last_half_second_peak_joint_speed_rad_s": 7.267377724083303
+          "last_half_second_peak_joint_speed_rad_s": 7.267377724083303,
+          "final_observed_world_yaw_rate_rad_s": 0.6922476862893052
         },
         "default_stop": {
           "samples": 104,
@@ -1918,7 +1918,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.28031593815558714,
-          "final_body_yaw_rate_rad_s": 0.5304583255379038,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -1947,7 +1946,8 @@
           "max_sampled_torque_nm": 1.581824278540106,
           "final_planar_speed_m_s": 0.2050270375721508,
           "last_half_second_planar_speed_mean_m_s": 0.21553407430634644,
-          "last_half_second_peak_joint_speed_rad_s": 1.9389466586726674
+          "last_half_second_peak_joint_speed_rad_s": 1.9389466586726674,
+          "final_observed_world_yaw_rate_rad_s": 0.5304583255379038
         }
       },
       "physical_state_resets": 0,
@@ -2009,7 +2009,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.06655654336922187,
-          "final_body_yaw_rate_rad_s": -0.006607482493821755,
           "mean_torso_load_bodyweight": 0.4456048077589009,
           "peak_torso_load_bodyweight": 7.150778216396622,
           "torso_load_quantiles_bodyweight": {
@@ -2038,7 +2037,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.002571390914227499,
           "last_half_second_planar_speed_mean_m_s": 0.024342670323395963,
-          "last_half_second_peak_joint_speed_rad_s": 3.9681393441685584
+          "last_half_second_peak_joint_speed_rad_s": 3.9681393441685584,
+          "final_observed_world_yaw_rate_rad_s": -0.006607482493821755
         },
         "walk_activation": {
           "samples": 219,
@@ -2060,7 +2060,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.007699775375657815,
-          "final_body_yaw_rate_rad_s": -0.008068140421047965,
           "mean_torso_load_bodyweight": 0.04284272686818061,
           "peak_torso_load_bodyweight": 0.7420985443561423,
           "torso_load_quantiles_bodyweight": {
@@ -2089,7 +2088,8 @@
           "max_sampled_torque_nm": 1.3720117400993108,
           "final_planar_speed_m_s": 0.015238098062317029,
           "last_half_second_planar_speed_mean_m_s": 0.006868482866125463,
-          "last_half_second_peak_joint_speed_rad_s": 0.43157915711370387
+          "last_half_second_peak_joint_speed_rad_s": 0.43157915711370387,
+          "final_observed_world_yaw_rate_rad_s": -0.008068140421047965
         },
         "walk_forward": {
           "samples": 104,
@@ -2111,7 +2111,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.010124833019472658,
-          "final_body_yaw_rate_rad_s": -0.06781098532189378,
           "mean_torso_load_bodyweight": 0.29282022468623237,
           "peak_torso_load_bodyweight": 8.130131140398658,
           "torso_load_quantiles_bodyweight": {
@@ -2140,7 +2139,8 @@
           "max_sampled_torque_nm": 2.6015374010123544,
           "final_planar_speed_m_s": 0.07088597489312276,
           "last_half_second_planar_speed_mean_m_s": 0.052874133302990685,
-          "last_half_second_peak_joint_speed_rad_s": 9.192623501910864
+          "last_half_second_peak_joint_speed_rad_s": 9.192623501910864,
+          "final_observed_world_yaw_rate_rad_s": -0.06781098532189378
         },
         "walk_stop_1": {
           "samples": 52,
@@ -2162,7 +2162,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.025682716451508308,
-          "final_body_yaw_rate_rad_s": -0.08460023292359592,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -2191,7 +2190,8 @@
           "max_sampled_torque_nm": 1.7552594505540897,
           "final_planar_speed_m_s": 0.0185149366756187,
           "last_half_second_planar_speed_mean_m_s": 0.031982842276497725,
-          "last_half_second_peak_joint_speed_rad_s": 2.163619069217964
+          "last_half_second_peak_joint_speed_rad_s": 2.163619069217964,
+          "final_observed_world_yaw_rate_rad_s": -0.08460023292359592
         },
         "walk_backward": {
           "samples": 104,
@@ -2213,7 +2213,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0034048490412930017,
-          "final_body_yaw_rate_rad_s": -0.11944351899239193,
           "mean_torso_load_bodyweight": 0.07896241466048717,
           "peak_torso_load_bodyweight": 2.551038141819355,
           "torso_load_quantiles_bodyweight": {
@@ -2242,7 +2241,8 @@
           "max_sampled_torque_nm": 2.19664216028451,
           "final_planar_speed_m_s": 0.10977404547638733,
           "last_half_second_planar_speed_mean_m_s": 0.14835706366915313,
-          "last_half_second_peak_joint_speed_rad_s": 10.6953315919231
+          "last_half_second_peak_joint_speed_rad_s": 10.6953315919231,
+          "final_observed_world_yaw_rate_rad_s": -0.11944351899239193
         },
         "walk_turn": {
           "samples": 104,
@@ -2264,7 +2264,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.25252577720478353,
-          "final_body_yaw_rate_rad_s": 0.015199343637006164,
           "mean_torso_load_bodyweight": 0.3683656657765508,
           "peak_torso_load_bodyweight": 12.14137893034064,
           "torso_load_quantiles_bodyweight": {
@@ -2293,7 +2292,8 @@
           "max_sampled_torque_nm": 2.1516831048537917,
           "final_planar_speed_m_s": 0.13135438212731973,
           "last_half_second_planar_speed_mean_m_s": 0.07466139791010157,
-          "last_half_second_peak_joint_speed_rad_s": 9.663448272351491
+          "last_half_second_peak_joint_speed_rad_s": 9.663448272351491,
+          "final_observed_world_yaw_rate_rad_s": 0.015199343637006164
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -2315,7 +2315,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.024852020434875274,
-          "final_body_yaw_rate_rad_s": -0.11180894305921875,
           "mean_torso_load_bodyweight": 0.023028378443931664,
           "peak_torso_load_bodyweight": 2.394951358168893,
           "torso_load_quantiles_bodyweight": {
@@ -2344,7 +2343,8 @@
           "max_sampled_torque_nm": 1.6588681093302444,
           "final_planar_speed_m_s": 0.02363087807792988,
           "last_half_second_planar_speed_mean_m_s": 0.01587483610388687,
-          "last_half_second_peak_joint_speed_rad_s": 0.5471169541208182
+          "last_half_second_peak_joint_speed_rad_s": 0.5471169541208182,
+          "final_observed_world_yaw_rate_rad_s": -0.11180894305921875
         },
         "exit": {
           "samples": 488,
@@ -2366,7 +2366,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.003572789832280198,
-          "final_body_yaw_rate_rad_s": -0.1633152964614403,
           "mean_torso_load_bodyweight": 0.44882418821895703,
           "peak_torso_load_bodyweight": 6.697876418517412,
           "torso_load_quantiles_bodyweight": {
@@ -2395,7 +2394,8 @@
           "max_sampled_torque_nm": 1.7500817866211928,
           "final_planar_speed_m_s": 0.2215616572875091,
           "last_half_second_planar_speed_mean_m_s": 0.19651299088299815,
-          "last_half_second_peak_joint_speed_rad_s": 3.195417566643895
+          "last_half_second_peak_joint_speed_rad_s": 3.195417566643895,
+          "final_observed_world_yaw_rate_rad_s": -0.1633152964614403
         },
         "standing_hold": {
           "samples": 52,
@@ -2417,7 +2417,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.03276446471975267,
-          "final_body_yaw_rate_rad_s": -0.09974431456855412,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -2446,7 +2445,8 @@
           "max_sampled_torque_nm": 1.5431616068703629,
           "final_planar_speed_m_s": 0.24373040646989202,
           "last_half_second_planar_speed_mean_m_s": 0.17188103066813387,
-          "last_half_second_peak_joint_speed_rad_s": 1.962560808669701
+          "last_half_second_peak_joint_speed_rad_s": 1.962560808669701,
+          "final_observed_world_yaw_rate_rad_s": -0.09974431456855412
         },
         "default_activation": {
           "samples": 219,
@@ -2468,7 +2468,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.5046716641554332,
-          "final_body_yaw_rate_rad_s": 0.45130299256978507,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -2497,7 +2496,8 @@
           "max_sampled_torque_nm": 1.5604841602805615,
           "final_planar_speed_m_s": 0.24396541575682304,
           "last_half_second_planar_speed_mean_m_s": 0.2805947821428412,
-          "last_half_second_peak_joint_speed_rad_s": 2.7279842985189218
+          "last_half_second_peak_joint_speed_rad_s": 2.7279842985189218,
+          "final_observed_world_yaw_rate_rad_s": 0.45130299256978507
         },
         "default_forward": {
           "samples": 104,
@@ -2519,7 +2519,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.06570839496247557,
-          "final_body_yaw_rate_rad_s": 0.8141397962205034,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -2548,7 +2547,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.08828254539152733,
           "last_half_second_planar_speed_mean_m_s": 0.13902713812577086,
-          "last_half_second_peak_joint_speed_rad_s": 12.62371039490704
+          "last_half_second_peak_joint_speed_rad_s": 12.62371039490704,
+          "final_observed_world_yaw_rate_rad_s": 0.8141397962205034
         },
         "default_stop": {
           "samples": 104,
@@ -2570,7 +2570,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.19186061959110073,
-          "final_body_yaw_rate_rad_s": 0.470242275081899,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -2599,7 +2598,8 @@
           "max_sampled_torque_nm": 1.3409730575840304,
           "final_planar_speed_m_s": 0.1785841609202543,
           "last_half_second_planar_speed_mean_m_s": 0.1994152461789785,
-          "last_half_second_peak_joint_speed_rad_s": 1.6499335107271844
+          "last_half_second_peak_joint_speed_rad_s": 1.6499335107271844,
+          "final_observed_world_yaw_rate_rad_s": 0.470242275081899
         }
       },
       "physical_state_resets": 0,
@@ -2661,7 +2661,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": -0.004723568113744396,
-          "final_body_yaw_rate_rad_s": -0.0008437884570873162,
           "mean_torso_load_bodyweight": 0.491136354654523,
           "peak_torso_load_bodyweight": 1.2797442964487453,
           "torso_load_quantiles_bodyweight": {
@@ -2690,7 +2689,8 @@
           "max_sampled_torque_nm": 1.2574702918161489,
           "final_planar_speed_m_s": 0.00033155471817312065,
           "last_half_second_planar_speed_mean_m_s": 0.0010732826925028047,
-          "last_half_second_peak_joint_speed_rad_s": 1.6312339217243446
+          "last_half_second_peak_joint_speed_rad_s": 1.6312339217243446,
+          "final_observed_world_yaw_rate_rad_s": -0.0008437884570873162
         },
         "walk_activation": {
           "samples": 219,
@@ -2712,7 +2712,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 2.3374492877149125e-05,
-          "final_body_yaw_rate_rad_s": 0.00013556142011896788,
           "mean_torso_load_bodyweight": 0.5257429323212778,
           "peak_torso_load_bodyweight": 0.6990708717229315,
           "torso_load_quantiles_bodyweight": {
@@ -2741,7 +2740,8 @@
           "max_sampled_torque_nm": 1.0942530435211077,
           "final_planar_speed_m_s": 6.221083066544524e-05,
           "last_half_second_planar_speed_mean_m_s": 5.6680562393217336e-05,
-          "last_half_second_peak_joint_speed_rad_s": 0.053542631874239
+          "last_half_second_peak_joint_speed_rad_s": 0.053542631874239,
+          "final_observed_world_yaw_rate_rad_s": 0.00013556142011896788
         },
         "walk_forward": {
           "samples": 104,
@@ -2763,7 +2763,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0020844817852278172,
-          "final_body_yaw_rate_rad_s": -0.020164346469180028,
           "mean_torso_load_bodyweight": 0.10178430380139288,
           "peak_torso_load_bodyweight": 1.1984974718826564,
           "torso_load_quantiles_bodyweight": {
@@ -2792,7 +2791,8 @@
           "max_sampled_torque_nm": 1.778400381631613,
           "final_planar_speed_m_s": 0.05393826015057949,
           "last_half_second_planar_speed_mean_m_s": 0.06495661398086248,
-          "last_half_second_peak_joint_speed_rad_s": 13.485703929169668
+          "last_half_second_peak_joint_speed_rad_s": 13.485703929169668,
+          "final_observed_world_yaw_rate_rad_s": -0.020164346469180028
         },
         "walk_stop_1": {
           "samples": 52,
@@ -2814,7 +2814,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.012701704776986197,
-          "final_body_yaw_rate_rad_s": -0.005448453010657651,
           "mean_torso_load_bodyweight": 0.09513251715465651,
           "peak_torso_load_bodyweight": 0.6385626902399985,
           "torso_load_quantiles_bodyweight": {
@@ -2843,7 +2842,8 @@
           "max_sampled_torque_nm": 1.6444391554015345,
           "final_planar_speed_m_s": 0.000367670758101494,
           "last_half_second_planar_speed_mean_m_s": 0.0009461406144581239,
-          "last_half_second_peak_joint_speed_rad_s": 0.5038752829411748
+          "last_half_second_peak_joint_speed_rad_s": 0.5038752829411748,
+          "final_observed_world_yaw_rate_rad_s": -0.005448453010657651
         },
         "walk_backward": {
           "samples": 104,
@@ -2865,7 +2865,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.007631773629302847,
-          "final_body_yaw_rate_rad_s": 0.04993395436080065,
           "mean_torso_load_bodyweight": 0.12155563987449731,
           "peak_torso_load_bodyweight": 1.8455499214636968,
           "torso_load_quantiles_bodyweight": {
@@ -2894,7 +2893,8 @@
           "max_sampled_torque_nm": 1.6883794915692096,
           "final_planar_speed_m_s": 0.04294102526844199,
           "last_half_second_planar_speed_mean_m_s": 0.05543527029688599,
-          "last_half_second_peak_joint_speed_rad_s": 11.806375731609991
+          "last_half_second_peak_joint_speed_rad_s": 11.806375731609991,
+          "final_observed_world_yaw_rate_rad_s": 0.04993395436080065
         },
         "walk_turn": {
           "samples": 104,
@@ -2916,7 +2916,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.16468046579785564,
-          "final_body_yaw_rate_rad_s": 0.17196507790045978,
           "mean_torso_load_bodyweight": 0.0919527761151847,
           "peak_torso_load_bodyweight": 2.090066612068102,
           "torso_load_quantiles_bodyweight": {
@@ -2945,7 +2944,8 @@
           "max_sampled_torque_nm": 1.8792243542806195,
           "final_planar_speed_m_s": 0.022995328312844544,
           "last_half_second_planar_speed_mean_m_s": 0.027722320090412807,
-          "last_half_second_peak_joint_speed_rad_s": 12.243827945170425
+          "last_half_second_peak_joint_speed_rad_s": 12.243827945170425,
+          "final_observed_world_yaw_rate_rad_s": 0.17196507790045978
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -2967,7 +2967,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.003863283695631226,
-          "final_body_yaw_rate_rad_s": -0.0016205911617056953,
           "mean_torso_load_bodyweight": 0.12032737335937921,
           "peak_torso_load_bodyweight": 0.38075302836870056,
           "torso_load_quantiles_bodyweight": {
@@ -2996,7 +2995,8 @@
           "max_sampled_torque_nm": 1.5620495983368041,
           "final_planar_speed_m_s": 0.00016311431199874163,
           "last_half_second_planar_speed_mean_m_s": 0.0002569134255971992,
-          "last_half_second_peak_joint_speed_rad_s": 0.017039412872653707
+          "last_half_second_peak_joint_speed_rad_s": 0.017039412872653707,
+          "final_observed_world_yaw_rate_rad_s": -0.0016205911617056953
         },
         "exit": {
           "samples": 488,
@@ -3018,7 +3018,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.002809003675056275,
-          "final_body_yaw_rate_rad_s": 0.010195037074200339,
           "mean_torso_load_bodyweight": 0.555751440099892,
           "peak_torso_load_bodyweight": 2.0593221399712367,
           "torso_load_quantiles_bodyweight": {
@@ -3047,7 +3046,8 @@
           "max_sampled_torque_nm": 1.4360356333741837,
           "final_planar_speed_m_s": 0.008968109543548826,
           "last_half_second_planar_speed_mean_m_s": 0.04532191835822706,
-          "last_half_second_peak_joint_speed_rad_s": 1.4563592410923802
+          "last_half_second_peak_joint_speed_rad_s": 1.4563592410923802,
+          "final_observed_world_yaw_rate_rad_s": 0.010195037074200339
         },
         "standing_hold": {
           "samples": 52,
@@ -3069,7 +3069,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.005962728371347109,
-          "final_body_yaw_rate_rad_s": 0.00195387612097897,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3098,7 +3097,8 @@
           "max_sampled_torque_nm": 0.5837929971504934,
           "final_planar_speed_m_s": 0.0010137923987719047,
           "last_half_second_planar_speed_mean_m_s": 0.0015803599804962419,
-          "last_half_second_peak_joint_speed_rad_s": 0.04012416885770714
+          "last_half_second_peak_joint_speed_rad_s": 0.04012416885770714,
+          "final_observed_world_yaw_rate_rad_s": 0.00195387612097897
         },
         "default_activation": {
           "samples": 219,
@@ -3120,7 +3120,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.006226572349314203,
-          "final_body_yaw_rate_rad_s": 0.005952119659479151,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3149,7 +3148,8 @@
           "max_sampled_torque_nm": 0.7960036325334405,
           "final_planar_speed_m_s": 0.00332823816162635,
           "last_half_second_planar_speed_mean_m_s": 0.00398931656727214,
-          "last_half_second_peak_joint_speed_rad_s": 0.046583125205663746
+          "last_half_second_peak_joint_speed_rad_s": 0.046583125205663746,
+          "final_observed_world_yaw_rate_rad_s": 0.005952119659479151
         },
         "default_forward": {
           "samples": 104,
@@ -3171,7 +3171,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.017111190086693946,
-          "final_body_yaw_rate_rad_s": -0.11771016767588992,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3200,7 +3199,8 @@
           "max_sampled_torque_nm": 1.451299949469342,
           "final_planar_speed_m_s": 0.07139342109307872,
           "last_half_second_planar_speed_mean_m_s": 0.1071700908085637,
-          "last_half_second_peak_joint_speed_rad_s": 9.748101757136807
+          "last_half_second_peak_joint_speed_rad_s": 9.748101757136807,
+          "final_observed_world_yaw_rate_rad_s": -0.11771016767588992
         },
         "default_stop": {
           "samples": 104,
@@ -3222,7 +3222,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.004627890444547605,
-          "final_body_yaw_rate_rad_s": 0.0008182156662628697,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3251,7 +3250,8 @@
           "max_sampled_torque_nm": 1.4196484203256485,
           "final_planar_speed_m_s": 0.0009968988669431561,
           "last_half_second_planar_speed_mean_m_s": 0.0011704203686044063,
-          "last_half_second_peak_joint_speed_rad_s": 0.034830559382449534
+          "last_half_second_peak_joint_speed_rad_s": 0.034830559382449534,
+          "final_observed_world_yaw_rate_rad_s": 0.0008182156662628697
         }
       },
       "physical_state_resets": 0,
@@ -3313,7 +3313,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": -0.004723568113744396,
-          "final_body_yaw_rate_rad_s": -0.0008437884570873162,
           "mean_torso_load_bodyweight": 0.491136354654523,
           "peak_torso_load_bodyweight": 1.2797442964487453,
           "torso_load_quantiles_bodyweight": {
@@ -3342,7 +3341,8 @@
           "max_sampled_torque_nm": 1.2574702918161489,
           "final_planar_speed_m_s": 0.00033155471817312065,
           "last_half_second_planar_speed_mean_m_s": 0.0010732826925028047,
-          "last_half_second_peak_joint_speed_rad_s": 1.6312339217243446
+          "last_half_second_peak_joint_speed_rad_s": 1.6312339217243446,
+          "final_observed_world_yaw_rate_rad_s": -0.0008437884570873162
         },
         "walk_activation": {
           "samples": 219,
@@ -3364,7 +3364,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.00037379750125920367,
-          "final_body_yaw_rate_rad_s": 0.004786734611856793,
           "mean_torso_load_bodyweight": 0.48996385792701624,
           "peak_torso_load_bodyweight": 0.6865195082744822,
           "torso_load_quantiles_bodyweight": {
@@ -3393,7 +3392,8 @@
           "max_sampled_torque_nm": 1.0942530435211077,
           "final_planar_speed_m_s": 0.00037569230268019976,
           "last_half_second_planar_speed_mean_m_s": 0.00025758574521945674,
-          "last_half_second_peak_joint_speed_rad_s": 0.07080421086715108
+          "last_half_second_peak_joint_speed_rad_s": 0.07080421086715108,
+          "final_observed_world_yaw_rate_rad_s": 0.004786734611856793
         },
         "walk_forward": {
           "samples": 104,
@@ -3415,7 +3415,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.005897208720036365,
-          "final_body_yaw_rate_rad_s": -0.02513461912746585,
           "mean_torso_load_bodyweight": 0.07585596411705182,
           "peak_torso_load_bodyweight": 1.1661271548513055,
           "torso_load_quantiles_bodyweight": {
@@ -3444,7 +3443,8 @@
           "max_sampled_torque_nm": 1.8474806902896077,
           "final_planar_speed_m_s": 0.059389874610475214,
           "last_half_second_planar_speed_mean_m_s": 0.06316393048117332,
-          "last_half_second_peak_joint_speed_rad_s": 11.070046704142609
+          "last_half_second_peak_joint_speed_rad_s": 11.070046704142609,
+          "final_observed_world_yaw_rate_rad_s": -0.02513461912746585
         },
         "walk_stop_1": {
           "samples": 52,
@@ -3466,7 +3466,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.01488162677086883,
-          "final_body_yaw_rate_rad_s": -0.004947258642574987,
           "mean_torso_load_bodyweight": 0.03870037771769756,
           "peak_torso_load_bodyweight": 0.21624140337488776,
           "torso_load_quantiles_bodyweight": {
@@ -3495,7 +3494,8 @@
           "max_sampled_torque_nm": 1.601498758866705,
           "final_planar_speed_m_s": 0.0004390397350264486,
           "last_half_second_planar_speed_mean_m_s": 0.0016681268769627754,
-          "last_half_second_peak_joint_speed_rad_s": 0.625057559130879
+          "last_half_second_peak_joint_speed_rad_s": 0.625057559130879,
+          "final_observed_world_yaw_rate_rad_s": -0.004947258642574987
         },
         "walk_backward": {
           "samples": 104,
@@ -3517,7 +3517,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.010050145539288539,
-          "final_body_yaw_rate_rad_s": 0.08459135083482086,
           "mean_torso_load_bodyweight": 0.06266067219977355,
           "peak_torso_load_bodyweight": 0.9692190843857196,
           "torso_load_quantiles_bodyweight": {
@@ -3546,7 +3545,8 @@
           "max_sampled_torque_nm": 1.7359762411231932,
           "final_planar_speed_m_s": 0.05247012488544625,
           "last_half_second_planar_speed_mean_m_s": 0.06166040162599406,
-          "last_half_second_peak_joint_speed_rad_s": 10.496049569914266
+          "last_half_second_peak_joint_speed_rad_s": 10.496049569914266,
+          "final_observed_world_yaw_rate_rad_s": 0.08459135083482086
         },
         "walk_turn": {
           "samples": 104,
@@ -3568,7 +3568,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.17556459209595152,
-          "final_body_yaw_rate_rad_s": 0.20092856293678016,
           "mean_torso_load_bodyweight": 0.06299954043046632,
           "peak_torso_load_bodyweight": 1.1784184144681311,
           "torso_load_quantiles_bodyweight": {
@@ -3597,7 +3596,8 @@
           "max_sampled_torque_nm": 1.8368630470371814,
           "final_planar_speed_m_s": 0.03947730258780464,
           "last_half_second_planar_speed_mean_m_s": 0.028084462604063446,
-          "last_half_second_peak_joint_speed_rad_s": 9.914062212823278
+          "last_half_second_peak_joint_speed_rad_s": 9.914062212823278,
+          "final_observed_world_yaw_rate_rad_s": 0.20092856293678016
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -3619,7 +3619,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.00410834666557998,
-          "final_body_yaw_rate_rad_s": -0.0019705510715727617,
           "mean_torso_load_bodyweight": 0.07620544251482572,
           "peak_torso_load_bodyweight": 0.3427935372736994,
           "torso_load_quantiles_bodyweight": {
@@ -3648,7 +3647,8 @@
           "max_sampled_torque_nm": 1.4755838411536955,
           "final_planar_speed_m_s": 0.00020448800474194746,
           "last_half_second_planar_speed_mean_m_s": 0.0003144419631901271,
-          "last_half_second_peak_joint_speed_rad_s": 0.02281892361409083
+          "last_half_second_peak_joint_speed_rad_s": 0.02281892361409083,
+          "final_observed_world_yaw_rate_rad_s": -0.0019705510715727617
         },
         "exit": {
           "samples": 488,
@@ -3670,7 +3670,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.002809765417462084,
-          "final_body_yaw_rate_rad_s": 0.010184746550879097,
           "mean_torso_load_bodyweight": 0.5529981199298882,
           "peak_torso_load_bodyweight": 1.9495121680127192,
           "torso_load_quantiles_bodyweight": {
@@ -3699,7 +3698,8 @@
           "max_sampled_torque_nm": 1.4380400621571283,
           "final_planar_speed_m_s": 0.008968275776454225,
           "last_half_second_planar_speed_mean_m_s": 0.04532296282923428,
-          "last_half_second_peak_joint_speed_rad_s": 1.4565916413266833
+          "last_half_second_peak_joint_speed_rad_s": 1.4565916413266833,
+          "final_observed_world_yaw_rate_rad_s": 0.010184746550879097
         },
         "standing_hold": {
           "samples": 52,
@@ -3721,7 +3721,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.0059676720459814194,
-          "final_body_yaw_rate_rad_s": 0.001958723286941354,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3750,7 +3749,8 @@
           "max_sampled_torque_nm": 0.5838251391933149,
           "final_planar_speed_m_s": 0.0010132301766639059,
           "last_half_second_planar_speed_mean_m_s": 0.001579795094444775,
-          "last_half_second_peak_joint_speed_rad_s": 0.040119005290811645
+          "last_half_second_peak_joint_speed_rad_s": 0.040119005290811645,
+          "final_observed_world_yaw_rate_rad_s": 0.001958723286941354
         },
         "default_activation": {
           "samples": 219,
@@ -3772,7 +3772,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.006198131989067339,
-          "final_body_yaw_rate_rad_s": 0.005954751767254885,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3801,7 +3800,8 @@
           "max_sampled_torque_nm": 0.7960477606319292,
           "final_planar_speed_m_s": 0.0033285084178071864,
           "last_half_second_planar_speed_mean_m_s": 0.003989561468086483,
-          "last_half_second_peak_joint_speed_rad_s": 0.04658360153001888
+          "last_half_second_peak_joint_speed_rad_s": 0.04658360153001888,
+          "final_observed_world_yaw_rate_rad_s": 0.005954751767254885
         },
         "default_forward": {
           "samples": 104,
@@ -3823,7 +3823,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.016986972597982822,
-          "final_body_yaw_rate_rad_s": -0.1175535405731877,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3852,7 +3851,8 @@
           "max_sampled_torque_nm": 1.453842276354028,
           "final_planar_speed_m_s": 0.0713316685717241,
           "last_half_second_planar_speed_mean_m_s": 0.10701211175114231,
-          "last_half_second_peak_joint_speed_rad_s": 9.745004607003667
+          "last_half_second_peak_joint_speed_rad_s": 9.745004607003667,
+          "final_observed_world_yaw_rate_rad_s": -0.1175535405731877
         },
         "default_stop": {
           "samples": 104,
@@ -3874,7 +3874,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.004667974519502411,
-          "final_body_yaw_rate_rad_s": 0.0008017238012261572,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -3903,7 +3902,8 @@
           "max_sampled_torque_nm": 1.4201686033509067,
           "final_planar_speed_m_s": 0.0009962957668153383,
           "last_half_second_planar_speed_mean_m_s": 0.001169596968339696,
-          "last_half_second_peak_joint_speed_rad_s": 0.034848420302816194
+          "last_half_second_peak_joint_speed_rad_s": 0.034848420302816194,
+          "final_observed_world_yaw_rate_rad_s": 0.0008017238012261572
         }
       },
       "physical_state_resets": 0,
@@ -3965,7 +3965,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.05613452255506048,
-          "final_body_yaw_rate_rad_s": -0.015854672773451862,
           "mean_torso_load_bodyweight": 0.47632815531702527,
           "peak_torso_load_bodyweight": 12.04031864476438,
           "torso_load_quantiles_bodyweight": {
@@ -3994,7 +3993,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.0018074612886394765,
           "last_half_second_planar_speed_mean_m_s": 0.027205328331497605,
-          "last_half_second_peak_joint_speed_rad_s": 4.109039001238738
+          "last_half_second_peak_joint_speed_rad_s": 4.109039001238738,
+          "final_observed_world_yaw_rate_rad_s": -0.015854672773451862
         },
         "walk_activation": {
           "samples": 219,
@@ -4016,7 +4016,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0035766729825205045,
-          "final_body_yaw_rate_rad_s": -0.05412415431435704,
           "mean_torso_load_bodyweight": 0.047712239417991825,
           "peak_torso_load_bodyweight": 0.29286088182710923,
           "torso_load_quantiles_bodyweight": {
@@ -4045,7 +4044,8 @@
           "max_sampled_torque_nm": 1.436112231020505,
           "final_planar_speed_m_s": 0.014158888577501184,
           "last_half_second_planar_speed_mean_m_s": 0.006413944040912465,
-          "last_half_second_peak_joint_speed_rad_s": 0.9655505104261966
+          "last_half_second_peak_joint_speed_rad_s": 0.9655505104261966,
+          "final_observed_world_yaw_rate_rad_s": -0.05412415431435704
         },
         "walk_forward": {
           "samples": 104,
@@ -4067,7 +4067,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.005914029079732484,
-          "final_body_yaw_rate_rad_s": -0.14770877083088144,
           "mean_torso_load_bodyweight": 0.09185728587511789,
           "peak_torso_load_bodyweight": 2.025923656396101,
           "torso_load_quantiles_bodyweight": {
@@ -4096,7 +4095,8 @@
           "max_sampled_torque_nm": 2.883554729474549,
           "final_planar_speed_m_s": 0.05726533749754974,
           "last_half_second_planar_speed_mean_m_s": 0.06093677199213166,
-          "last_half_second_peak_joint_speed_rad_s": 10.585186213171808
+          "last_half_second_peak_joint_speed_rad_s": 10.585186213171808,
+          "final_observed_world_yaw_rate_rad_s": -0.14770877083088144
         },
         "walk_stop_1": {
           "samples": 52,
@@ -4118,7 +4118,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.04165098477593647,
-          "final_body_yaw_rate_rad_s": -0.10199357829050647,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -4147,7 +4146,8 @@
           "max_sampled_torque_nm": 2.039728118831808,
           "final_planar_speed_m_s": 0.03279633778705841,
           "last_half_second_planar_speed_mean_m_s": 0.02991484541106411,
-          "last_half_second_peak_joint_speed_rad_s": 1.468750798207749
+          "last_half_second_peak_joint_speed_rad_s": 1.468750798207749,
+          "final_observed_world_yaw_rate_rad_s": -0.10199357829050647
         },
         "walk_backward": {
           "samples": 104,
@@ -4169,7 +4169,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.023947798484535935,
-          "final_body_yaw_rate_rad_s": -0.06495472826577753,
           "mean_torso_load_bodyweight": 0.22209994814417838,
           "peak_torso_load_bodyweight": 3.7901945459786366,
           "torso_load_quantiles_bodyweight": {
@@ -4198,7 +4197,8 @@
           "max_sampled_torque_nm": 2.092480835277333,
           "final_planar_speed_m_s": 0.09052821726472321,
           "last_half_second_planar_speed_mean_m_s": 0.1049342087379926,
-          "last_half_second_peak_joint_speed_rad_s": 7.792514051187669
+          "last_half_second_peak_joint_speed_rad_s": 7.792514051187669,
+          "final_observed_world_yaw_rate_rad_s": -0.06495472826577753
         },
         "walk_turn": {
           "samples": 104,
@@ -4220,7 +4220,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.2057762340548103,
-          "final_body_yaw_rate_rad_s": 0.08372625817090372,
           "mean_torso_load_bodyweight": 0.1569192568557899,
           "peak_torso_load_bodyweight": 4.0081976752688036,
           "torso_load_quantiles_bodyweight": {
@@ -4249,7 +4248,8 @@
           "max_sampled_torque_nm": 2.2948755744336093,
           "final_planar_speed_m_s": 0.05831673276497326,
           "last_half_second_planar_speed_mean_m_s": 0.06212346217330391,
-          "last_half_second_peak_joint_speed_rad_s": 9.610525246198282
+          "last_half_second_peak_joint_speed_rad_s": 9.610525246198282,
+          "final_observed_world_yaw_rate_rad_s": 0.08372625817090372
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -4271,7 +4271,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.04580878600702591,
-          "final_body_yaw_rate_rad_s": -0.1066907602652204,
           "mean_torso_load_bodyweight": 0.013100561108512543,
           "peak_torso_load_bodyweight": 0.8579474199013825,
           "torso_load_quantiles_bodyweight": {
@@ -4300,7 +4299,8 @@
           "max_sampled_torque_nm": 1.547575840027291,
           "final_planar_speed_m_s": 0.02215711346955139,
           "last_half_second_planar_speed_mean_m_s": 0.027423358060131894,
-          "last_half_second_peak_joint_speed_rad_s": 0.4150259516160257
+          "last_half_second_peak_joint_speed_rad_s": 0.4150259516160257,
+          "final_observed_world_yaw_rate_rad_s": -0.1066907602652204
         },
         "exit": {
           "samples": 488,
@@ -4322,7 +4322,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.003690799728215435,
-          "final_body_yaw_rate_rad_s": 0.07608156197947555,
           "mean_torso_load_bodyweight": 0.4360872142316507,
           "peak_torso_load_bodyweight": 3.544003801005332,
           "torso_load_quantiles_bodyweight": {
@@ -4351,7 +4350,8 @@
           "max_sampled_torque_nm": 1.8324400911046297,
           "final_planar_speed_m_s": 0.15139474504833608,
           "last_half_second_planar_speed_mean_m_s": 0.17964987262429302,
-          "last_half_second_peak_joint_speed_rad_s": 2.4464418648372512
+          "last_half_second_peak_joint_speed_rad_s": 2.4464418648372512,
+          "final_observed_world_yaw_rate_rad_s": 0.07608156197947555
         },
         "standing_hold": {
           "samples": 52,
@@ -4373,7 +4373,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.21262995861451,
-          "final_body_yaw_rate_rad_s": 0.6185039548176917,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -4402,7 +4401,8 @@
           "max_sampled_torque_nm": 1.5907905310830734,
           "final_planar_speed_m_s": 0.04673206588883433,
           "last_half_second_planar_speed_mean_m_s": 0.03290020011645508,
-          "last_half_second_peak_joint_speed_rad_s": 1.3360059187597941
+          "last_half_second_peak_joint_speed_rad_s": 1.3360059187597941,
+          "final_observed_world_yaw_rate_rad_s": 0.6185039548176917
         },
         "default_activation": {
           "samples": 219,
@@ -4424,7 +4424,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.40219029297503195,
-          "final_body_yaw_rate_rad_s": -0.25482117047537467,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -4453,7 +4452,8 @@
           "max_sampled_torque_nm": 2.160674099610888,
           "final_planar_speed_m_s": 0.2901661664386153,
           "last_half_second_planar_speed_mean_m_s": 0.2900583265788862,
-          "last_half_second_peak_joint_speed_rad_s": 1.730209723534791
+          "last_half_second_peak_joint_speed_rad_s": 1.730209723534791,
+          "final_observed_world_yaw_rate_rad_s": -0.25482117047537467
         },
         "default_forward": {
           "samples": 104,
@@ -4475,7 +4475,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.06927952861306122,
-          "final_body_yaw_rate_rad_s": 0.6530657719348739,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -4504,7 +4503,8 @@
           "max_sampled_torque_nm": 1.943716659045065,
           "final_planar_speed_m_s": 0.11760042769473246,
           "last_half_second_planar_speed_mean_m_s": 0.14134213123932168,
-          "last_half_second_peak_joint_speed_rad_s": 7.958134415918558
+          "last_half_second_peak_joint_speed_rad_s": 7.958134415918558,
+          "final_observed_world_yaw_rate_rad_s": 0.6530657719348739
         },
         "default_stop": {
           "samples": 104,
@@ -4526,7 +4526,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.646469412026321,
-          "final_body_yaw_rate_rad_s": -0.9055175994891772,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -4555,7 +4554,8 @@
           "max_sampled_torque_nm": 1.2766816901067766,
           "final_planar_speed_m_s": 0.18614997633528385,
           "last_half_second_planar_speed_mean_m_s": 0.212218860949825,
-          "last_half_second_peak_joint_speed_rad_s": 1.7584234425319634
+          "last_half_second_peak_joint_speed_rad_s": 1.7584234425319634,
+          "final_observed_world_yaw_rate_rad_s": -0.9055175994891772
         }
       },
       "physical_state_resets": 0,
@@ -4617,7 +4617,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.05613452255506048,
-          "final_body_yaw_rate_rad_s": -0.015854672773451862,
           "mean_torso_load_bodyweight": 0.47632815531702527,
           "peak_torso_load_bodyweight": 12.04031864476438,
           "torso_load_quantiles_bodyweight": {
@@ -4646,7 +4645,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.0018074612886394765,
           "last_half_second_planar_speed_mean_m_s": 0.027205328331497605,
-          "last_half_second_peak_joint_speed_rad_s": 4.109039001238738
+          "last_half_second_peak_joint_speed_rad_s": 4.109039001238738,
+          "final_observed_world_yaw_rate_rad_s": -0.015854672773451862
         },
         "walk_activation": {
           "samples": 219,
@@ -4668,7 +4668,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.003972080085356292,
-          "final_body_yaw_rate_rad_s": -0.19452447391657937,
           "mean_torso_load_bodyweight": 0.04527621252483387,
           "peak_torso_load_bodyweight": 0.9183203184863604,
           "torso_load_quantiles_bodyweight": {
@@ -4697,7 +4696,8 @@
           "max_sampled_torque_nm": 1.5426141421172122,
           "final_planar_speed_m_s": 0.042732885324377815,
           "last_half_second_planar_speed_mean_m_s": 0.013042353987962815,
-          "last_half_second_peak_joint_speed_rad_s": 0.7339126667262823
+          "last_half_second_peak_joint_speed_rad_s": 0.7339126667262823,
+          "final_observed_world_yaw_rate_rad_s": -0.19452447391657937
         },
         "walk_forward": {
           "samples": 104,
@@ -4719,7 +4719,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.012389427120574219,
-          "final_body_yaw_rate_rad_s": -0.14009461030243944,
           "mean_torso_load_bodyweight": 0.2043628367259892,
           "peak_torso_load_bodyweight": 7.204503440912384,
           "torso_load_quantiles_bodyweight": {
@@ -4748,7 +4747,8 @@
           "max_sampled_torque_nm": 2.0652652269144167,
           "final_planar_speed_m_s": 0.06455002338882994,
           "last_half_second_planar_speed_mean_m_s": 0.046439273773079735,
-          "last_half_second_peak_joint_speed_rad_s": 8.271539447958382
+          "last_half_second_peak_joint_speed_rad_s": 8.271539447958382,
+          "final_observed_world_yaw_rate_rad_s": -0.14009461030243944
         },
         "walk_stop_1": {
           "samples": 52,
@@ -4770,7 +4770,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.06866694273598634,
-          "final_body_yaw_rate_rad_s": -0.09304851590845467,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -4799,7 +4798,8 @@
           "max_sampled_torque_nm": 1.7877641485415974,
           "final_planar_speed_m_s": 0.024216696353293144,
           "last_half_second_planar_speed_mean_m_s": 0.038290976316311294,
-          "last_half_second_peak_joint_speed_rad_s": 0.8874765666397612
+          "last_half_second_peak_joint_speed_rad_s": 0.8874765666397612,
+          "final_observed_world_yaw_rate_rad_s": -0.09304851590845467
         },
         "walk_backward": {
           "samples": 104,
@@ -4821,7 +4821,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.006490345396710876,
-          "final_body_yaw_rate_rad_s": -0.010663645996105798,
           "mean_torso_load_bodyweight": 0.03161207193619986,
           "peak_torso_load_bodyweight": 1.4583538821539197,
           "torso_load_quantiles_bodyweight": {
@@ -4850,7 +4849,8 @@
           "max_sampled_torque_nm": 2.7825335699670872,
           "final_planar_speed_m_s": 0.10231006821092488,
           "last_half_second_planar_speed_mean_m_s": 0.11763186513292458,
-          "last_half_second_peak_joint_speed_rad_s": 9.226881527419355
+          "last_half_second_peak_joint_speed_rad_s": 9.226881527419355,
+          "final_observed_world_yaw_rate_rad_s": -0.010663645996105798
         },
         "walk_turn": {
           "samples": 104,
@@ -4872,7 +4872,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.18563624298118667,
-          "final_body_yaw_rate_rad_s": -0.007407024080121744,
           "mean_torso_load_bodyweight": 0.03165190389753933,
           "peak_torso_load_bodyweight": 3.0324080032493215,
           "torso_load_quantiles_bodyweight": {
@@ -4901,7 +4900,8 @@
           "max_sampled_torque_nm": 2.635810746847101,
           "final_planar_speed_m_s": 0.03658701280196335,
           "last_half_second_planar_speed_mean_m_s": 0.04541516964114861,
-          "last_half_second_peak_joint_speed_rad_s": 9.02155040166566
+          "last_half_second_peak_joint_speed_rad_s": 9.02155040166566,
+          "final_observed_world_yaw_rate_rad_s": -0.007407024080121744
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -4923,7 +4923,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.04388523476854577,
-          "final_body_yaw_rate_rad_s": -0.1336482795414132,
           "mean_torso_load_bodyweight": 0.00638107361969335,
           "peak_torso_load_bodyweight": 0.6636316564481084,
           "torso_load_quantiles_bodyweight": {
@@ -4952,7 +4951,8 @@
           "max_sampled_torque_nm": 1.8601865981032848,
           "final_planar_speed_m_s": 0.0224194926563906,
           "last_half_second_planar_speed_mean_m_s": 0.02779355923324181,
-          "last_half_second_peak_joint_speed_rad_s": 0.3220391242505288
+          "last_half_second_peak_joint_speed_rad_s": 0.3220391242505288,
+          "final_observed_world_yaw_rate_rad_s": -0.1336482795414132
         },
         "exit": {
           "samples": 488,
@@ -4974,7 +4974,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.006486845419144067,
-          "final_body_yaw_rate_rad_s": 0.4089072878943,
           "mean_torso_load_bodyweight": 0.43885434877219737,
           "peak_torso_load_bodyweight": 3.334789969872964,
           "torso_load_quantiles_bodyweight": {
@@ -5003,7 +5002,8 @@
           "max_sampled_torque_nm": 1.7312908358420476,
           "final_planar_speed_m_s": 0.17444729434517733,
           "last_half_second_planar_speed_mean_m_s": 0.18130698787904762,
-          "last_half_second_peak_joint_speed_rad_s": 2.328737493340367
+          "last_half_second_peak_joint_speed_rad_s": 2.328737493340367,
+          "final_observed_world_yaw_rate_rad_s": 0.4089072878943
         },
         "standing_hold": {
           "samples": 52,
@@ -5025,7 +5025,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.3273337300942422,
-          "final_body_yaw_rate_rad_s": 0.13379202328168271,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5054,7 +5053,8 @@
           "max_sampled_torque_nm": 1.5637513272241153,
           "final_planar_speed_m_s": 0.18368030822395284,
           "last_half_second_planar_speed_mean_m_s": 0.16174698681989824,
-          "last_half_second_peak_joint_speed_rad_s": 1.7636323291502491
+          "last_half_second_peak_joint_speed_rad_s": 1.7636323291502491,
+          "final_observed_world_yaw_rate_rad_s": 0.13379202328168271
         },
         "default_activation": {
           "samples": 219,
@@ -5076,7 +5076,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.022950342817487458,
-          "final_body_yaw_rate_rad_s": -0.825502364237051,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5105,7 +5104,8 @@
           "max_sampled_torque_nm": 1.9052412148072988,
           "final_planar_speed_m_s": 0.2869059814694663,
           "last_half_second_planar_speed_mean_m_s": 0.28702380297069596,
-          "last_half_second_peak_joint_speed_rad_s": 2.3342379234162163
+          "last_half_second_peak_joint_speed_rad_s": 2.3342379234162163,
+          "final_observed_world_yaw_rate_rad_s": -0.825502364237051
         },
         "default_forward": {
           "samples": 104,
@@ -5127,7 +5127,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.02776575330471244,
-          "final_body_yaw_rate_rad_s": 0.4168686785828382,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5156,7 +5155,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.23426004227428127,
           "last_half_second_planar_speed_mean_m_s": 0.10688258575816476,
-          "last_half_second_peak_joint_speed_rad_s": 9.178530130065822
+          "last_half_second_peak_joint_speed_rad_s": 9.178530130065822,
+          "final_observed_world_yaw_rate_rad_s": 0.4168686785828382
         },
         "default_stop": {
           "samples": 104,
@@ -5178,7 +5178,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.7051509630687639,
-          "final_body_yaw_rate_rad_s": -0.829925888249834,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5207,7 +5206,8 @@
           "max_sampled_torque_nm": 1.567695948244927,
           "final_planar_speed_m_s": 0.19891931954026504,
           "last_half_second_planar_speed_mean_m_s": 0.21353981950173542,
-          "last_half_second_peak_joint_speed_rad_s": 2.1717465511325735
+          "last_half_second_peak_joint_speed_rad_s": 2.1717465511325735,
+          "final_observed_world_yaw_rate_rad_s": -0.829925888249834
         }
       },
       "physical_state_resets": 0,
@@ -5269,7 +5269,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.05149074273841743,
-          "final_body_yaw_rate_rad_s": -0.018371697228258925,
           "mean_torso_load_bodyweight": 0.4705019351522946,
           "peak_torso_load_bodyweight": 12.883558512664939,
           "torso_load_quantiles_bodyweight": {
@@ -5298,7 +5297,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.0019609364455515097,
           "last_half_second_planar_speed_mean_m_s": 0.02648034117509279,
-          "last_half_second_peak_joint_speed_rad_s": 3.4851304883674388
+          "last_half_second_peak_joint_speed_rad_s": 3.4851304883674388,
+          "final_observed_world_yaw_rate_rad_s": -0.018371697228258925
         },
         "walk_activation": {
           "samples": 219,
@@ -5320,7 +5320,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.005113874109600517,
-          "final_body_yaw_rate_rad_s": -0.04176758729582363,
           "mean_torso_load_bodyweight": 0.05018280994092014,
           "peak_torso_load_bodyweight": 0.34342384065993575,
           "torso_load_quantiles_bodyweight": {
@@ -5349,7 +5348,8 @@
           "max_sampled_torque_nm": 1.4393452033196996,
           "final_planar_speed_m_s": 0.003814914719644764,
           "last_half_second_planar_speed_mean_m_s": 0.006286741917482319,
-          "last_half_second_peak_joint_speed_rad_s": 0.9150488504639306
+          "last_half_second_peak_joint_speed_rad_s": 0.9150488504639306,
+          "final_observed_world_yaw_rate_rad_s": -0.04176758729582363
         },
         "walk_forward": {
           "samples": 104,
@@ -5371,7 +5371,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.013168502851455157,
-          "final_body_yaw_rate_rad_s": -0.030890815080912418,
           "mean_torso_load_bodyweight": 0.6345034575091019,
           "peak_torso_load_bodyweight": 19.481371909267143,
           "torso_load_quantiles_bodyweight": {
@@ -5400,7 +5399,8 @@
           "max_sampled_torque_nm": 2.1393646085289193,
           "final_planar_speed_m_s": 0.040278110387369385,
           "last_half_second_planar_speed_mean_m_s": 0.06090474123503783,
-          "last_half_second_peak_joint_speed_rad_s": 10.191314123511628
+          "last_half_second_peak_joint_speed_rad_s": 10.191314123511628,
+          "final_observed_world_yaw_rate_rad_s": -0.030890815080912418
         },
         "walk_stop_1": {
           "samples": 52,
@@ -5422,7 +5422,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.0449115536132084,
-          "final_body_yaw_rate_rad_s": -0.06571411256164991,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5451,7 +5450,8 @@
           "max_sampled_torque_nm": 1.8519103958066636,
           "final_planar_speed_m_s": 0.026350160353596407,
           "last_half_second_planar_speed_mean_m_s": 0.038272609223876715,
-          "last_half_second_peak_joint_speed_rad_s": 0.9032668547501408
+          "last_half_second_peak_joint_speed_rad_s": 0.9032668547501408,
+          "final_observed_world_yaw_rate_rad_s": -0.06571411256164991
         },
         "walk_backward": {
           "samples": 104,
@@ -5473,7 +5473,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.03543712481360699,
-          "final_body_yaw_rate_rad_s": 0.07362554881040892,
           "mean_torso_load_bodyweight": 0.5631132705800982,
           "peak_torso_load_bodyweight": 14.63849288197991,
           "torso_load_quantiles_bodyweight": {
@@ -5502,7 +5501,8 @@
           "max_sampled_torque_nm": 2.3439118244371584,
           "final_planar_speed_m_s": 0.07733237640470249,
           "last_half_second_planar_speed_mean_m_s": 0.10859925915718706,
-          "last_half_second_peak_joint_speed_rad_s": 9.015831514938794
+          "last_half_second_peak_joint_speed_rad_s": 9.015831514938794,
+          "final_observed_world_yaw_rate_rad_s": 0.07362554881040892
         },
         "walk_turn": {
           "samples": 104,
@@ -5524,7 +5524,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.21485180828065228,
-          "final_body_yaw_rate_rad_s": 0.19237169290378756,
           "mean_torso_load_bodyweight": 0.15176026744969823,
           "peak_torso_load_bodyweight": 3.8710110698731777,
           "torso_load_quantiles_bodyweight": {
@@ -5553,7 +5552,8 @@
           "max_sampled_torque_nm": 2.1659509284665686,
           "final_planar_speed_m_s": 0.05111650970129454,
           "last_half_second_planar_speed_mean_m_s": 0.05834210045543236,
-          "last_half_second_peak_joint_speed_rad_s": 8.83601087664633
+          "last_half_second_peak_joint_speed_rad_s": 8.83601087664633,
+          "final_observed_world_yaw_rate_rad_s": 0.19237169290378756
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -5575,7 +5575,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.08426220287440181,
-          "final_body_yaw_rate_rad_s": -0.16316426866692538,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5604,7 +5603,8 @@
           "max_sampled_torque_nm": 1.619775827662536,
           "final_planar_speed_m_s": 0.035847634945623874,
           "last_half_second_planar_speed_mean_m_s": 0.034977814471144134,
-          "last_half_second_peak_joint_speed_rad_s": 0.5200174880884483
+          "last_half_second_peak_joint_speed_rad_s": 0.5200174880884483,
+          "final_observed_world_yaw_rate_rad_s": -0.16316426866692538
         },
         "exit": {
           "samples": 488,
@@ -5626,7 +5626,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.007141707509873514,
-          "final_body_yaw_rate_rad_s": 0.0891478375124832,
           "mean_torso_load_bodyweight": 0.44236320260537343,
           "peak_torso_load_bodyweight": 2.7920310482250947,
           "torso_load_quantiles_bodyweight": {
@@ -5655,7 +5654,8 @@
           "max_sampled_torque_nm": 1.9690311858799638,
           "final_planar_speed_m_s": 0.18527822520330642,
           "last_half_second_planar_speed_mean_m_s": 0.14593195112533064,
-          "last_half_second_peak_joint_speed_rad_s": 2.197875463353717
+          "last_half_second_peak_joint_speed_rad_s": 2.197875463353717,
+          "final_observed_world_yaw_rate_rad_s": 0.0891478375124832
         },
         "standing_hold": {
           "samples": 52,
@@ -5677,7 +5677,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.3885049571270638,
-          "final_body_yaw_rate_rad_s": 0.2922899114437822,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5706,7 +5705,8 @@
           "max_sampled_torque_nm": 1.753151021824669,
           "final_planar_speed_m_s": 0.19081132280834234,
           "last_half_second_planar_speed_mean_m_s": 0.13756595785746328,
-          "last_half_second_peak_joint_speed_rad_s": 3.0819848805800856
+          "last_half_second_peak_joint_speed_rad_s": 3.0819848805800856,
+          "final_observed_world_yaw_rate_rad_s": 0.2922899114437822
         },
         "default_activation": {
           "samples": 219,
@@ -5728,7 +5728,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.23329123187613995,
-          "final_body_yaw_rate_rad_s": -0.2830376560256816,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5757,7 +5756,8 @@
           "max_sampled_torque_nm": 1.9767770806525877,
           "final_planar_speed_m_s": 0.29811206310879435,
           "last_half_second_planar_speed_mean_m_s": 0.3170923527053509,
-          "last_half_second_peak_joint_speed_rad_s": 2.681034905385073
+          "last_half_second_peak_joint_speed_rad_s": 2.681034905385073,
+          "final_observed_world_yaw_rate_rad_s": -0.2830376560256816
         },
         "default_forward": {
           "samples": 104,
@@ -5779,7 +5779,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.027562232692087282,
-          "final_body_yaw_rate_rad_s": 0.7650548785265398,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5808,7 +5807,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.23684201705407287,
           "last_half_second_planar_speed_mean_m_s": 0.138880039648119,
-          "last_half_second_peak_joint_speed_rad_s": 10.344224226093715
+          "last_half_second_peak_joint_speed_rad_s": 10.344224226093715,
+          "final_observed_world_yaw_rate_rad_s": 0.7650548785265398
         },
         "default_stop": {
           "samples": 104,
@@ -5830,7 +5830,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.6834600294113297,
-          "final_body_yaw_rate_rad_s": -0.5856224101344086,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -5859,7 +5858,8 @@
           "max_sampled_torque_nm": 1.5481563801831477,
           "final_planar_speed_m_s": 0.17787525842045088,
           "last_half_second_planar_speed_mean_m_s": 0.183238406564644,
-          "last_half_second_peak_joint_speed_rad_s": 2.4298371433801207
+          "last_half_second_peak_joint_speed_rad_s": 2.4298371433801207,
+          "final_observed_world_yaw_rate_rad_s": -0.5856224101344086
         }
       },
       "physical_state_resets": 0,
@@ -5921,7 +5921,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": 0.05149074273841743,
-          "final_body_yaw_rate_rad_s": -0.018371697228258925,
           "mean_torso_load_bodyweight": 0.4705019351522946,
           "peak_torso_load_bodyweight": 12.883558512664939,
           "torso_load_quantiles_bodyweight": {
@@ -5950,7 +5949,8 @@
           "max_sampled_torque_nm": 3.0,
           "final_planar_speed_m_s": 0.0019609364455515097,
           "last_half_second_planar_speed_mean_m_s": 0.02648034117509279,
-          "last_half_second_peak_joint_speed_rad_s": 3.4851304883674388
+          "last_half_second_peak_joint_speed_rad_s": 3.4851304883674388,
+          "final_observed_world_yaw_rate_rad_s": -0.018371697228258925
         },
         "walk_activation": {
           "samples": 219,
@@ -5972,7 +5972,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.000298805403185575,
-          "final_body_yaw_rate_rad_s": -0.10752756664653215,
           "mean_torso_load_bodyweight": 0.04796563840387941,
           "peak_torso_load_bodyweight": 0.7237571290144967,
           "torso_load_quantiles_bodyweight": {
@@ -6001,7 +6000,8 @@
           "max_sampled_torque_nm": 1.5388471363269338,
           "final_planar_speed_m_s": 0.032733008710175336,
           "last_half_second_planar_speed_mean_m_s": 0.009743908788729517,
-          "last_half_second_peak_joint_speed_rad_s": 0.6435069390308851
+          "last_half_second_peak_joint_speed_rad_s": 0.6435069390308851,
+          "final_observed_world_yaw_rate_rad_s": -0.10752756664653215
         },
         "walk_forward": {
           "samples": 104,
@@ -6023,7 +6023,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.017032393001196543,
-          "final_body_yaw_rate_rad_s": -0.08511869298008239,
           "mean_torso_load_bodyweight": 0.12782841908986056,
           "peak_torso_load_bodyweight": 4.6701771154847584,
           "torso_load_quantiles_bodyweight": {
@@ -6052,7 +6051,8 @@
           "max_sampled_torque_nm": 2.060977862373026,
           "final_planar_speed_m_s": 0.04923133591677124,
           "last_half_second_planar_speed_mean_m_s": 0.044112953195673515,
-          "last_half_second_peak_joint_speed_rad_s": 8.835114551629733
+          "last_half_second_peak_joint_speed_rad_s": 8.835114551629733,
+          "final_observed_world_yaw_rate_rad_s": -0.08511869298008239
         },
         "walk_stop_1": {
           "samples": 52,
@@ -6074,7 +6074,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.05128712186766726,
-          "final_body_yaw_rate_rad_s": -0.09042711724217081,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6103,7 +6102,8 @@
           "max_sampled_torque_nm": 1.81743196286677,
           "final_planar_speed_m_s": 0.029474834312426507,
           "last_half_second_planar_speed_mean_m_s": 0.03747691857117462,
-          "last_half_second_peak_joint_speed_rad_s": 0.9367791094873015
+          "last_half_second_peak_joint_speed_rad_s": 0.9367791094873015,
+          "final_observed_world_yaw_rate_rad_s": -0.09042711724217081
         },
         "walk_backward": {
           "samples": 104,
@@ -6125,7 +6125,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.005007431311354296,
-          "final_body_yaw_rate_rad_s": 0.08695323816747498,
           "mean_torso_load_bodyweight": 0.0864182910499648,
           "peak_torso_load_bodyweight": 5.992010013159578,
           "torso_load_quantiles_bodyweight": {
@@ -6154,7 +6153,8 @@
           "max_sampled_torque_nm": 1.9449846505153445,
           "final_planar_speed_m_s": 0.0710151288537177,
           "last_half_second_planar_speed_mean_m_s": 0.10579111197111446,
-          "last_half_second_peak_joint_speed_rad_s": 8.78836209098616
+          "last_half_second_peak_joint_speed_rad_s": 8.78836209098616,
+          "final_observed_world_yaw_rate_rad_s": 0.08695323816747498
         },
         "walk_turn": {
           "samples": 104,
@@ -6176,7 +6176,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.2070741532411849,
-          "final_body_yaw_rate_rad_s": 0.15708969066501408,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6205,7 +6204,8 @@
           "max_sampled_torque_nm": 2.2025703514406696,
           "final_planar_speed_m_s": 0.0192685866392521,
           "last_half_second_planar_speed_mean_m_s": 0.04870969477266826,
-          "last_half_second_peak_joint_speed_rad_s": 9.334041222579003
+          "last_half_second_peak_joint_speed_rad_s": 9.334041222579003,
+          "final_observed_world_yaw_rate_rad_s": 0.15708969066501408
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -6227,7 +6227,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.08844255726442049,
-          "final_body_yaw_rate_rad_s": -0.13989452204266042,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6256,7 +6255,8 @@
           "max_sampled_torque_nm": 1.5832719172763183,
           "final_planar_speed_m_s": 0.03398829560323759,
           "last_half_second_planar_speed_mean_m_s": 0.025052852830598465,
-          "last_half_second_peak_joint_speed_rad_s": 0.4966866598363236
+          "last_half_second_peak_joint_speed_rad_s": 0.4966866598363236,
+          "final_observed_world_yaw_rate_rad_s": -0.13989452204266042
         },
         "exit": {
           "samples": 488,
@@ -6278,7 +6278,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.0027307832783451157,
-          "final_body_yaw_rate_rad_s": 0.0064549780801154725,
           "mean_torso_load_bodyweight": 0.45513534474793405,
           "peak_torso_load_bodyweight": 5.067722714865406,
           "torso_load_quantiles_bodyweight": {
@@ -6307,7 +6306,8 @@
           "max_sampled_torque_nm": 1.634126689069706,
           "final_planar_speed_m_s": 0.20870248411404857,
           "last_half_second_planar_speed_mean_m_s": 0.1644470300297288,
-          "last_half_second_peak_joint_speed_rad_s": 3.3167415696185456
+          "last_half_second_peak_joint_speed_rad_s": 3.3167415696185456,
+          "final_observed_world_yaw_rate_rad_s": 0.0064549780801154725
         },
         "standing_hold": {
           "samples": 52,
@@ -6329,7 +6329,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": -0.009160778929493409,
-          "final_body_yaw_rate_rad_s": -0.3508201786493396,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6358,7 +6357,8 @@
           "max_sampled_torque_nm": 1.5575854157183953,
           "final_planar_speed_m_s": 0.2763256163851441,
           "last_half_second_planar_speed_mean_m_s": 0.16868121397063765,
-          "last_half_second_peak_joint_speed_rad_s": 1.6335918203889683
+          "last_half_second_peak_joint_speed_rad_s": 1.6335918203889683,
+          "final_observed_world_yaw_rate_rad_s": -0.3508201786493396
         },
         "default_activation": {
           "samples": 219,
@@ -6380,7 +6380,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.10151682259835366,
-          "final_body_yaw_rate_rad_s": 0.19312135138947678,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6409,7 +6408,8 @@
           "max_sampled_torque_nm": 1.5469318559242446,
           "final_planar_speed_m_s": 0.3114082781158469,
           "last_half_second_planar_speed_mean_m_s": 0.3137989328390965,
-          "last_half_second_peak_joint_speed_rad_s": 2.157905645011727
+          "last_half_second_peak_joint_speed_rad_s": 2.157905645011727,
+          "final_observed_world_yaw_rate_rad_s": 0.19312135138947678
         },
         "default_forward": {
           "samples": 104,
@@ -6431,7 +6431,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.05067111623500838,
-          "final_body_yaw_rate_rad_s": 0.7678032035019666,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6460,7 +6459,8 @@
           "max_sampled_torque_nm": 2.9744405017323476,
           "final_planar_speed_m_s": 0.06737671688270389,
           "last_half_second_planar_speed_mean_m_s": 0.14806816472077408,
-          "last_half_second_peak_joint_speed_rad_s": 9.035530132135184
+          "last_half_second_peak_joint_speed_rad_s": 9.035530132135184,
+          "final_observed_world_yaw_rate_rad_s": 0.7678032035019666
         },
         "default_stop": {
           "samples": 104,
@@ -6482,7 +6482,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.5761295335135204,
-          "final_body_yaw_rate_rad_s": -0.6784388099276935,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -6511,7 +6510,8 @@
           "max_sampled_torque_nm": 1.8892234272875088,
           "final_planar_speed_m_s": 0.1980485754776948,
           "last_half_second_planar_speed_mean_m_s": 0.1945451745878017,
-          "last_half_second_peak_joint_speed_rad_s": 1.88157882873544
+          "last_half_second_peak_joint_speed_rad_s": 1.88157882873544,
+          "final_observed_world_yaw_rate_rad_s": -0.6784388099276935
         }
       },
       "physical_state_resets": 0,
@@ -6573,7 +6573,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": -0.00721258885590968,
-          "final_body_yaw_rate_rad_s": -2.353600314569559e-05,
           "mean_torso_load_bodyweight": 0.49245538428392416,
           "peak_torso_load_bodyweight": 1.051112876164103,
           "torso_load_quantiles_bodyweight": {
@@ -6602,7 +6601,8 @@
           "max_sampled_torque_nm": 1.4349179389480677,
           "final_planar_speed_m_s": 0.00017812734854240523,
           "last_half_second_planar_speed_mean_m_s": 0.0006018894145775266,
-          "last_half_second_peak_joint_speed_rad_s": 1.7487605954050647
+          "last_half_second_peak_joint_speed_rad_s": 1.7487605954050647,
+          "final_observed_world_yaw_rate_rad_s": -2.353600314569559e-05
         },
         "walk_activation": {
           "samples": 219,
@@ -6624,7 +6624,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 1.206229659688318e-05,
-          "final_body_yaw_rate_rad_s": 5.462583768916829e-05,
           "mean_torso_load_bodyweight": 0.5750050960886965,
           "peak_torso_load_bodyweight": 0.7209540895166731,
           "torso_load_quantiles_bodyweight": {
@@ -6653,7 +6652,8 @@
           "max_sampled_torque_nm": 1.091841425292829,
           "final_planar_speed_m_s": 6.949134090492628e-06,
           "last_half_second_planar_speed_mean_m_s": 9.141043865747419e-06,
-          "last_half_second_peak_joint_speed_rad_s": 0.0509502740240966
+          "last_half_second_peak_joint_speed_rad_s": 0.0509502740240966,
+          "final_observed_world_yaw_rate_rad_s": 5.462583768916829e-05
         },
         "walk_forward": {
           "samples": 104,
@@ -6675,7 +6675,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.006144762941885591,
-          "final_body_yaw_rate_rad_s": -0.01825832060239868,
           "mean_torso_load_bodyweight": 0.18892340800903523,
           "peak_torso_load_bodyweight": 5.896773296713901,
           "torso_load_quantiles_bodyweight": {
@@ -6704,7 +6703,8 @@
           "max_sampled_torque_nm": 1.7290274375812014,
           "final_planar_speed_m_s": 0.06056347038178638,
           "last_half_second_planar_speed_mean_m_s": 0.0636148284535172,
-          "last_half_second_peak_joint_speed_rad_s": 9.254257843356509
+          "last_half_second_peak_joint_speed_rad_s": 9.254257843356509,
+          "final_observed_world_yaw_rate_rad_s": -0.01825832060239868
         },
         "walk_stop_1": {
           "samples": 52,
@@ -6726,7 +6726,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.004624579170998193,
-          "final_body_yaw_rate_rad_s": -0.0006100379970326048,
           "mean_torso_load_bodyweight": 0.10765348387127792,
           "peak_torso_load_bodyweight": 0.7495785057778935,
           "torso_load_quantiles_bodyweight": {
@@ -6755,7 +6754,8 @@
           "max_sampled_torque_nm": 1.507231640154955,
           "final_planar_speed_m_s": 4.517583145803678e-05,
           "last_half_second_planar_speed_mean_m_s": 0.00044786431844676225,
-          "last_half_second_peak_joint_speed_rad_s": 0.36743332772345305
+          "last_half_second_peak_joint_speed_rad_s": 0.36743332772345305,
+          "final_observed_world_yaw_rate_rad_s": -0.0006100379970326048
         },
         "walk_backward": {
           "samples": 104,
@@ -6777,7 +6777,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.007015585721582114,
-          "final_body_yaw_rate_rad_s": 0.00330301124556606,
           "mean_torso_load_bodyweight": 0.15249777467384293,
           "peak_torso_load_bodyweight": 1.4873045740015718,
           "torso_load_quantiles_bodyweight": {
@@ -6806,7 +6805,8 @@
           "max_sampled_torque_nm": 1.6349904544729332,
           "final_planar_speed_m_s": 0.046830074432387715,
           "last_half_second_planar_speed_mean_m_s": 0.05598459785730741,
-          "last_half_second_peak_joint_speed_rad_s": 10.31461270570548
+          "last_half_second_peak_joint_speed_rad_s": 10.31461270570548,
+          "final_observed_world_yaw_rate_rad_s": 0.00330301124556606
         },
         "walk_turn": {
           "samples": 104,
@@ -6828,7 +6828,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.14334350058070205,
-          "final_body_yaw_rate_rad_s": 0.17028212478157573,
           "mean_torso_load_bodyweight": 0.12714813939458375,
           "peak_torso_load_bodyweight": 1.4351175996939511,
           "torso_load_quantiles_bodyweight": {
@@ -6857,7 +6856,8 @@
           "max_sampled_torque_nm": 1.653790856063351,
           "final_planar_speed_m_s": 0.027841307462676438,
           "last_half_second_planar_speed_mean_m_s": 0.02610000675726116,
-          "last_half_second_peak_joint_speed_rad_s": 10.460773292565674
+          "last_half_second_peak_joint_speed_rad_s": 10.460773292565674,
+          "final_observed_world_yaw_rate_rad_s": 0.17028212478157573
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -6879,7 +6879,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.002997875302877666,
-          "final_body_yaw_rate_rad_s": -5.958713139519757e-05,
           "mean_torso_load_bodyweight": 0.12678009173488086,
           "peak_torso_load_bodyweight": 0.4920609908227442,
           "torso_load_quantiles_bodyweight": {
@@ -6908,7 +6907,8 @@
           "max_sampled_torque_nm": 1.4399714937192454,
           "final_planar_speed_m_s": 3.292179221148904e-05,
           "last_half_second_planar_speed_mean_m_s": 4.38816153578204e-05,
-          "last_half_second_peak_joint_speed_rad_s": 0.0250215160272328
+          "last_half_second_peak_joint_speed_rad_s": 0.0250215160272328,
+          "final_observed_world_yaw_rate_rad_s": -5.958713139519757e-05
         },
         "exit": {
           "samples": 488,
@@ -6930,7 +6930,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.0018293357086916707,
-          "final_body_yaw_rate_rad_s": 0.0060083999312903974,
           "mean_torso_load_bodyweight": 0.5620341784785732,
           "peak_torso_load_bodyweight": 1.0537981719376943,
           "torso_load_quantiles_bodyweight": {
@@ -6959,7 +6958,8 @@
           "max_sampled_torque_nm": 1.4065573048115017,
           "final_planar_speed_m_s": 0.007775615396177539,
           "last_half_second_planar_speed_mean_m_s": 0.045535995195208685,
-          "last_half_second_peak_joint_speed_rad_s": 1.481644662977022
+          "last_half_second_peak_joint_speed_rad_s": 1.481644662977022,
+          "final_observed_world_yaw_rate_rad_s": 0.0060083999312903974
         },
         "standing_hold": {
           "samples": 52,
@@ -6981,7 +6981,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.0077351085868041635,
-          "final_body_yaw_rate_rad_s": 0.004199007113138964,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7010,7 +7009,8 @@
           "max_sampled_torque_nm": 0.7038163135674629,
           "final_planar_speed_m_s": 0.0017519648383382202,
           "last_half_second_planar_speed_mean_m_s": 0.002270323914876903,
-          "last_half_second_peak_joint_speed_rad_s": 0.04484620635050017
+          "last_half_second_peak_joint_speed_rad_s": 0.04484620635050017,
+          "final_observed_world_yaw_rate_rad_s": 0.004199007113138964
         },
         "default_activation": {
           "samples": 219,
@@ -7032,7 +7032,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.007918676932962962,
-          "final_body_yaw_rate_rad_s": 0.0008504576125165928,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7061,7 +7060,8 @@
           "max_sampled_torque_nm": 0.9596395352738001,
           "final_planar_speed_m_s": 0.0032731571802528943,
           "last_half_second_planar_speed_mean_m_s": 0.0038312369232022213,
-          "last_half_second_peak_joint_speed_rad_s": 0.0452383729516201
+          "last_half_second_peak_joint_speed_rad_s": 0.0452383729516201,
+          "final_observed_world_yaw_rate_rad_s": 0.0008504576125165928
         },
         "default_forward": {
           "samples": 104,
@@ -7083,7 +7083,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0009386742300186372,
-          "final_body_yaw_rate_rad_s": 0.10728764744531796,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7112,7 +7111,8 @@
           "max_sampled_torque_nm": 1.456488114899045,
           "final_planar_speed_m_s": 0.12264389552554351,
           "last_half_second_planar_speed_mean_m_s": 0.14224757077037375,
-          "last_half_second_peak_joint_speed_rad_s": 9.669601663040126
+          "last_half_second_peak_joint_speed_rad_s": 9.669601663040126,
+          "final_observed_world_yaw_rate_rad_s": 0.10728764744531796
         },
         "default_stop": {
           "samples": 104,
@@ -7134,7 +7134,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.015002956866151364,
-          "final_body_yaw_rate_rad_s": -0.005999739489937895,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7163,7 +7162,8 @@
           "max_sampled_torque_nm": 1.2299067051255657,
           "final_planar_speed_m_s": 0.000832263478633713,
           "last_half_second_planar_speed_mean_m_s": 0.0009459856681065901,
-          "last_half_second_peak_joint_speed_rad_s": 0.030644465357225446
+          "last_half_second_peak_joint_speed_rad_s": 0.030644465357225446,
+          "final_observed_world_yaw_rate_rad_s": -0.005999739489937895
         }
       },
       "physical_state_resets": 0,
@@ -7225,7 +7225,6 @@
           "last_frame": 394,
           "last_holding": false,
           "mean_observed_world_yaw_rate_rad_s": -0.00721258885590968,
-          "final_body_yaw_rate_rad_s": -2.353600314569559e-05,
           "mean_torso_load_bodyweight": 0.49245538428392416,
           "peak_torso_load_bodyweight": 1.051112876164103,
           "torso_load_quantiles_bodyweight": {
@@ -7254,7 +7253,8 @@
           "max_sampled_torque_nm": 1.4349179389480677,
           "final_planar_speed_m_s": 0.00017812734854240523,
           "last_half_second_planar_speed_mean_m_s": 0.0006018894145775266,
-          "last_half_second_peak_joint_speed_rad_s": 1.7487605954050647
+          "last_half_second_peak_joint_speed_rad_s": 1.7487605954050647,
+          "final_observed_world_yaw_rate_rad_s": -2.353600314569559e-05
         },
         "walk_activation": {
           "samples": 219,
@@ -7276,7 +7276,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 9.544881326125724e-06,
-          "final_body_yaw_rate_rad_s": 0.00024983004267130674,
           "mean_torso_load_bodyweight": 0.5336002700889075,
           "peak_torso_load_bodyweight": 0.701647365826299,
           "torso_load_quantiles_bodyweight": {
@@ -7305,7 +7304,8 @@
           "max_sampled_torque_nm": 1.091841425292829,
           "final_planar_speed_m_s": 0.00015888682316872715,
           "last_half_second_planar_speed_mean_m_s": 7.944739532250673e-05,
-          "last_half_second_peak_joint_speed_rad_s": 0.05319374215230489
+          "last_half_second_peak_joint_speed_rad_s": 0.05319374215230489,
+          "final_observed_world_yaw_rate_rad_s": 0.00024983004267130674
         },
         "walk_forward": {
           "samples": 104,
@@ -7327,7 +7327,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.008436289159580987,
-          "final_body_yaw_rate_rad_s": -0.014491226344805812,
           "mean_torso_load_bodyweight": 0.0822456955126145,
           "peak_torso_load_bodyweight": 1.098097973518345,
           "torso_load_quantiles_bodyweight": {
@@ -7356,7 +7355,8 @@
           "max_sampled_torque_nm": 1.7889534016761663,
           "final_planar_speed_m_s": 0.06031097849499078,
           "last_half_second_planar_speed_mean_m_s": 0.0649334159647269,
-          "last_half_second_peak_joint_speed_rad_s": 8.947352276273087
+          "last_half_second_peak_joint_speed_rad_s": 8.947352276273087,
+          "final_observed_world_yaw_rate_rad_s": -0.014491226344805812
         },
         "walk_stop_1": {
           "samples": 52,
@@ -7378,7 +7378,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0024548883295076166,
-          "final_body_yaw_rate_rad_s": -0.00663751005859336,
           "mean_torso_load_bodyweight": 0.05256483426236364,
           "peak_torso_load_bodyweight": 0.7191840042369693,
           "torso_load_quantiles_bodyweight": {
@@ -7407,7 +7406,8 @@
           "max_sampled_torque_nm": 1.4306942325063532,
           "final_planar_speed_m_s": 0.0006816936365895781,
           "last_half_second_planar_speed_mean_m_s": 0.001977339252724359,
-          "last_half_second_peak_joint_speed_rad_s": 0.4896469195469116
+          "last_half_second_peak_joint_speed_rad_s": 0.4896469195469116,
+          "final_observed_world_yaw_rate_rad_s": -0.00663751005859336
         },
         "walk_backward": {
           "samples": 104,
@@ -7429,7 +7429,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.0040493794221398895,
-          "final_body_yaw_rate_rad_s": 0.03577505009649015,
           "mean_torso_load_bodyweight": 0.0629989343570932,
           "peak_torso_load_bodyweight": 1.3788724212107768,
           "torso_load_quantiles_bodyweight": {
@@ -7458,7 +7457,8 @@
           "max_sampled_torque_nm": 1.6934075437427154,
           "final_planar_speed_m_s": 0.07099238615756293,
           "last_half_second_planar_speed_mean_m_s": 0.061307183399495306,
-          "last_half_second_peak_joint_speed_rad_s": 8.807858519029029
+          "last_half_second_peak_joint_speed_rad_s": 8.807858519029029,
+          "final_observed_world_yaw_rate_rad_s": 0.03577505009649015
         },
         "walk_turn": {
           "samples": 104,
@@ -7480,7 +7480,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.14425652641682374,
-          "final_body_yaw_rate_rad_s": 0.18432005547484456,
           "mean_torso_load_bodyweight": 0.06068246805953308,
           "peak_torso_load_bodyweight": 0.8885262756315753,
           "torso_load_quantiles_bodyweight": {
@@ -7509,7 +7508,8 @@
           "max_sampled_torque_nm": 1.7693765551167537,
           "final_planar_speed_m_s": 0.02918393608390325,
           "last_half_second_planar_speed_mean_m_s": 0.031482794713228186,
-          "last_half_second_peak_joint_speed_rad_s": 8.971318089331728
+          "last_half_second_peak_joint_speed_rad_s": 8.971318089331728,
+          "final_observed_world_yaw_rate_rad_s": 0.18432005547484456
         },
         "walk_stop_before_exit": {
           "samples": 104,
@@ -7531,7 +7531,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.001843766967039977,
-          "final_body_yaw_rate_rad_s": -0.0004966519337354713,
           "mean_torso_load_bodyweight": 0.0606898264786737,
           "peak_torso_load_bodyweight": 0.2858550825514204,
           "torso_load_quantiles_bodyweight": {
@@ -7560,7 +7559,8 @@
           "max_sampled_torque_nm": 1.3948526889729176,
           "final_planar_speed_m_s": 5.0161527918115333e-05,
           "last_half_second_planar_speed_mean_m_s": 6.918458081884278e-05,
-          "last_half_second_peak_joint_speed_rad_s": 0.029192057665070124
+          "last_half_second_peak_joint_speed_rad_s": 0.029192057665070124,
+          "final_observed_world_yaw_rate_rad_s": -0.0004966519337354713
         },
         "exit": {
           "samples": 488,
@@ -7582,7 +7582,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.0017176778926188128,
-          "final_body_yaw_rate_rad_s": 0.006014778002508568,
           "mean_torso_load_bodyweight": 0.5594359739581952,
           "peak_torso_load_bodyweight": 1.053798152511156,
           "torso_load_quantiles_bodyweight": {
@@ -7611,7 +7610,8 @@
           "max_sampled_torque_nm": 1.4098783153695664,
           "final_planar_speed_m_s": 0.007779386054970518,
           "last_half_second_planar_speed_mean_m_s": 0.04554047879455511,
-          "last_half_second_peak_joint_speed_rad_s": 1.4809844032373718
+          "last_half_second_peak_joint_speed_rad_s": 1.4809844032373718,
+          "final_observed_world_yaw_rate_rad_s": 0.006014778002508568
         },
         "standing_hold": {
           "samples": 52,
@@ -7633,7 +7633,6 @@
           "last_frame": 860,
           "last_holding": true,
           "mean_observed_world_yaw_rate_rad_s": 0.007731286285337758,
-          "final_body_yaw_rate_rad_s": 0.004190884068984759,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7662,7 +7661,8 @@
           "max_sampled_torque_nm": 0.7036782166680489,
           "final_planar_speed_m_s": 0.0017538154461201765,
           "last_half_second_planar_speed_mean_m_s": 0.0022723300994527116,
-          "last_half_second_peak_joint_speed_rad_s": 0.04485329148289567
+          "last_half_second_peak_joint_speed_rad_s": 0.04485329148289567,
+          "final_observed_world_yaw_rate_rad_s": 0.004190884068984759
         },
         "default_activation": {
           "samples": 219,
@@ -7684,7 +7684,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.008050097271807872,
-          "final_body_yaw_rate_rad_s": 0.0008403929511695862,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7713,7 +7712,8 @@
           "max_sampled_torque_nm": 0.9594500183270198,
           "final_planar_speed_m_s": 0.0032728117840028713,
           "last_half_second_planar_speed_mean_m_s": 0.0038309190209464983,
-          "last_half_second_peak_joint_speed_rad_s": 0.045250615085924165
+          "last_half_second_peak_joint_speed_rad_s": 0.045250615085924165,
+          "final_observed_world_yaw_rate_rad_s": 0.0008403929511695862
         },
         "default_forward": {
           "samples": 104,
@@ -7735,7 +7735,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": 0.0009388356057444393,
-          "final_body_yaw_rate_rad_s": 0.10727311779206386,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7764,7 +7763,8 @@
           "max_sampled_torque_nm": 1.4566541274687872,
           "final_planar_speed_m_s": 0.12265353221238108,
           "last_half_second_planar_speed_mean_m_s": 0.14224608955797033,
-          "last_half_second_peak_joint_speed_rad_s": 9.669633952090123
+          "last_half_second_peak_joint_speed_rad_s": 9.669633952090123,
+          "final_observed_world_yaw_rate_rad_s": 0.10727311779206386
         },
         "default_stop": {
           "samples": 104,
@@ -7786,7 +7786,6 @@
           "last_frame": -1,
           "last_holding": null,
           "mean_observed_world_yaw_rate_rad_s": -0.015096118981159068,
-          "final_body_yaw_rate_rad_s": -0.006026251227888652,
           "mean_torso_load_bodyweight": 0.0,
           "peak_torso_load_bodyweight": 0.0,
           "torso_load_quantiles_bodyweight": {
@@ -7815,7 +7814,8 @@
           "max_sampled_torque_nm": 1.229880973357138,
           "final_planar_speed_m_s": 0.000827329837013487,
           "last_half_second_planar_speed_mean_m_s": 0.0009397238739509885,
-          "last_half_second_peak_joint_speed_rad_s": 0.03049089387482128
+          "last_half_second_peak_joint_speed_rad_s": 0.03049089387482128,
+          "final_observed_world_yaw_rate_rad_s": -0.006026251227888652
         }
       },
       "physical_state_resets": 0,
@@ -7981,5 +7981,9 @@
       "path": "artifacts/lab6/spider-recorded-startup-v1/default-stop-drift.png",
       "sha256": "75c147f1a8b5098f52a2b4b3623e291be6b92df13867bb11f9ef7d81ac020b35"
     }
+  },
+  "label_correction": {
+    "supersedes_report_sha256": "2b111a1043b80436c0a6329494a4d11ba4fddee1582eb0c70e9508a8ebae3f5e",
+    "correction": "Renamed per-stage final_body_yaw_rate_rad_s to final_observed_world_yaw_rate_rad_s: this is finite-difference world heading from saved quaternions. Numeric values, stopping verdicts and original raw trajectories are unchanged. Original artifact review.json remains retained."
   }
 }
