@@ -93,3 +93,38 @@ def test_physics_samples_are_aligned_full_contact_and_driver_bounded(binary,tmp_
     assert result['mass_kg']==pytest.approx(3.17)
     # The outcome is evidence, not a test that assumes the shipped policy can jump.
     assert all('flight_events' in x and 'recovery' in x for x in result['replicas'])
+
+
+@pytest.mark.parametrize('metadata',[{'action_types':['velocity']*12},{'action_types':['position']*11},
+    {'action_types':'position'},{'action_type':'velocity'},{'position_target_slew':{}},
+    {'required_controller_features':['position_target_slew_v1']}])
+def test_unsupported_actuation_contract_refused(metadata):
+    with pytest.raises(ValueError):screen.validate_position_contract(metadata)
+
+
+def test_legacy_and_explicit_position_contract_allowed():
+    screen.validate_position_contract({})
+    screen.validate_position_contract({'action_types':['position']*12})
+
+
+def test_native_host_rejects_velocity_metadata(binary,tmp_path):
+    p=json.loads(POLICY.read_text());p['action_types']=['velocity']*12
+    path=tmp_path/'unsupported.json';path.write_text(json.dumps(p))
+    result=subprocess.run([str(binary),str(path),'1','--no-jump'],input='',text=True,capture_output=True)
+    assert result.returncode and 'legacy position actions' in result.stderr
+
+
+def test_build_failure_persists_error_status(tmp_path,monkeypatch):
+    from types import SimpleNamespace
+    real_load=jump.load
+    def failed_build(output):raise RuntimeError('deliberate test build failure')
+    def intercepted(path,name):
+        value=real_load(path,name)
+        if path.name=='check_export_locomotion.py':value.build_controller=failed_build
+        return value
+    monkeypatch.setattr(jump,'load',intercepted)
+    args=SimpleNamespace(policy=POLICY,driver_limits=LIMITS,replicas=1,recovery_seconds=3.,slot_start=3.,
+                         seed=101,output=tmp_path/'failed-run',plan_only=False)
+    with pytest.raises(RuntimeError,match='deliberate test'):jump.run(args)
+    status=json.loads((args.output/'status.json').read_text())
+    assert status['status']=='error' and status['error_type']=='RuntimeError'

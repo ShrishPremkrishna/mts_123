@@ -45,6 +45,15 @@ def build_controller(output):
     return binary,command
 
 
+def validate_position_contract(metadata):
+    """This native host supports the legacy position target contract only."""
+    if ('action_types' in metadata and metadata['action_types'] != ['position']*12
+            or 'action_type' in metadata and metadata['action_type'] != 'position'):
+        raise ValueError('native host requires twelve position actions when action types are declared')
+    if 'position_target_slew' in metadata or metadata.get('required_controller_features'):
+        raise ValueError('native host does not implement additional controller features or position slew')
+
+
 def validate_inputs(policies,commands,driver_limits):
     validator=module(ROOT/'pupper_gait_deploy/download_policy.py','export_screen_validator')
     values=np.asarray(commands,dtype=float)
@@ -53,6 +62,7 @@ def validate_inputs(policies,commands,driver_limits):
     result={}
     for label,path in policies.items():
         d=validator.validate(path)
+        validate_position_contract(d)
         if d.get('contract_version')!=2 or d.get('single_observation_size')!=48 or 'motion' in d:
             raise ValueError(f'{label}: only fixed v2 locomotion exports are supported')
         if d['gait_reference']['joint_names']!=NAMES or not isinstance(d['action_scale'],(float,int)) or d['action_scale']<=0:

@@ -37,6 +37,11 @@ struct Controller {
     if (metadata.at("obs_spec").at("components") != expected ||
         metadata.at("obs_spec").at("frame_order") != "newest_first")
       throw std::runtime_error("unsupported observation layout");
+    if ((metadata.contains("action_types") && metadata.at("action_types") != Json(std::vector<std::string>(12,"position"))) ||
+        (metadata.contains("action_type") && metadata.at("action_type") != "position") ||
+        metadata.contains("position_target_slew") ||
+        (metadata.contains("required_controller_features") && !metadata.at("required_controller_features").empty()))
+      throw std::runtime_error("native host supports legacy position actions without additional controller features only");
     defaults = metadata.at("default_joint_pos").get<std::vector<double>>();
     lower = metadata.at("joint_lower_limits").get<std::vector<double>>();
     upper = metadata.at("joint_upper_limits").get<std::vector<double>>();

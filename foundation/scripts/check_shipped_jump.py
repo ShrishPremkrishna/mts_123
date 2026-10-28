@@ -180,7 +180,7 @@ def run(args):
     policies,lower,upper,driver=screen.validate_inputs({'shipped':args.policy},commands,args.driver_limits)
     metadata=policies['shipped'];slot=metadata.get('jump_slot')
     if not slot or args.slot_start<2 or abs(args.slot_start/slot['grid_s']-round(args.slot_start/slot['grid_s']))>1e-9:raise ValueError('actual shipped jump_slot and grid-aligned postfade slot required')
-    if metadata.get('position_target_slew') or metadata.get('action_type') not in (None,'position'):raise ValueError('this diagnostic supports the shipped position contract only')
+    screen.validate_position_contract(metadata)
     if slot.get('hop_speed',float('inf'))<=.3:raise ValueError('commands would select running hop rather than actual jump')
     initial=screen.initial_conditions(metadata['default_joint_pos'],args.replicas,args.seed)
     if any(np.any(np.array(x['joint_position'])<lower) or np.any(np.array(x['joint_position'])>upper) for x in initial):raise ValueError('initial pose exceeds driver limits')
@@ -208,32 +208,37 @@ def run(args):
             'Only actual jump table at vx0 and0.3; running-hop branch and altered reference tables excluded.'])
     write(output/'plan.json',plan)
     if args.plan_only:return
-    binary,build=screen.build_controller(output);results={};write(output/'status.json',dict(status='running'))
-    for command in commands:
-        tag='stand' if command[0]==0 else 'forward03'
-        for scheduled in (False,True):
-            name=tag+('-jump' if scheduled else '-gait');directory=output/name;directory.mkdir()
-            write(output/'status.json',dict(status='running',current=name,completed=list(results)))
-            results[name]=evaluate(screen,shared,binary,args.policy,metadata,initial,command,scheduled,args.slot_start,args.recovery_seconds,lower,upper,directory)
-            print(json.dumps(dict(case=name,failures=results[name]['failures'],replicas=[dict(replica=x['replica'],flight=x['flight_and_landing_evidence'],recovery=x['recovery']['meets_stability_screen']) for x in results[name]['replicas']])),flush=True)
-    if hashes!={str(p.relative_to(ROOT)):sha(p) for p in sources} or sha(args.policy)!=plan['policy']['sha256'] or sha(args.driver_limits)!=plan['driver_limits']['sha256']:raise RuntimeError('source/config/policy changed during run')
-    if len({x['model_sha256'] for x in results.values()})!=1:raise RuntimeError('paired compiled models differ')
-    paired=[]
-    for tag in ('stand','forward03'):
-        control=results[tag+'-gait'];jump=results[tag+'-jump']
-        with np.load(output/(tag+'-gait')/'trace.npz') as ctrace, np.load(output/(tag+'-jump')/'trace.npz') as jtrace:
-            cmask=ctrace['time_s']<=2+args.slot_start;jmask=jtrace['time_s']<=2+args.slot_start
-            if not np.array_equal(ctrace['replica'][cmask],jtrace['replica'][jmask]) or not np.array_equal(ctrace['time_s'][cmask],jtrace['time_s'][jmask]):raise RuntimeError('paired pre-slot trace coverage differs')
-            pre_slot_error=float(np.max(np.abs(ctrace['root_position'][cmask]-jtrace['root_position'][jmask])))
-            if pre_slot_error>1e-12:raise RuntimeError('paired states differ before scheduled jump')
-        for c,j in zip(control['replicas'],jump['replicas']):
-            paired.append(dict(command_tag=tag,replica=j['replica'],pre_slot_max_root_position_difference_m=pre_slot_error,jump_flight_and_landing=j['flight_and_landing_evidence'],gait_flight_and_landing=c['flight_and_landing_evidence'],
-                jump_recovery=j['recovery']['meets_stability_screen'],gait_recovery=c['recovery']['meets_stability_screen'],
-                jump_peak_com_rise_m=j['peak_com_rise_from_baseline_m'],gait_peak_com_rise_m=c['peak_com_rise_from_baseline_m'],
-                extra_peak_com_rise_m=j['peak_com_rise_from_baseline_m']-c['peak_com_rise_from_baseline_m'] if j['peak_com_rise_from_baseline_m'] is not None and c['peak_com_rise_from_baseline_m'] is not None else None))
-    report=dict(protocol=plan['protocol'],hardware_validated=False,policy_sha256=plan['policy']['sha256'],paired=paired,
-        cases=results,build_command=build,binary_sha256=sha(binary),plan_sha256=sha(output/'plan.json'),source_hashes_unchanged=True)
-    write(output/'report.json',report);write(output/'status.json',dict(status='completed',report_sha256=sha(output/'report.json')))
+    write(output/'status.json',dict(status='running'))
+    try:
+        binary,build=screen.build_controller(output);results={}
+        for command in commands:
+            tag='stand' if command[0]==0 else 'forward03'
+            for scheduled in (False,True):
+                name=tag+('-jump' if scheduled else '-gait');directory=output/name;directory.mkdir()
+                write(output/'status.json',dict(status='running',current=name,completed=list(results)))
+                results[name]=evaluate(screen,shared,binary,args.policy,metadata,initial,command,scheduled,args.slot_start,args.recovery_seconds,lower,upper,directory)
+                print(json.dumps(dict(case=name,failures=results[name]['failures'],replicas=[dict(replica=x['replica'],flight=x['flight_and_landing_evidence'],recovery=x['recovery']['meets_stability_screen']) for x in results[name]['replicas']])),flush=True)
+        if hashes!={str(p.relative_to(ROOT)):sha(p) for p in sources} or sha(args.policy)!=plan['policy']['sha256'] or sha(args.driver_limits)!=plan['driver_limits']['sha256']:raise RuntimeError('source/config/policy changed during run')
+        if len({x['model_sha256'] for x in results.values()})!=1:raise RuntimeError('paired compiled models differ')
+        paired=[]
+        for tag in ('stand','forward03'):
+            control=results[tag+'-gait'];jump=results[tag+'-jump']
+            with np.load(output/(tag+'-gait')/'trace.npz') as ctrace, np.load(output/(tag+'-jump')/'trace.npz') as jtrace:
+                cmask=ctrace['time_s']<=2+args.slot_start;jmask=jtrace['time_s']<=2+args.slot_start
+                if not np.array_equal(ctrace['replica'][cmask],jtrace['replica'][jmask]) or not np.array_equal(ctrace['time_s'][cmask],jtrace['time_s'][jmask]):raise RuntimeError('paired pre-slot trace coverage differs')
+                pre_slot_error=float(np.max(np.abs(ctrace['root_position'][cmask]-jtrace['root_position'][jmask])))
+                if pre_slot_error>1e-12:raise RuntimeError('paired states differ before scheduled jump')
+            for c,j in zip(control['replicas'],jump['replicas']):
+                paired.append(dict(command_tag=tag,replica=j['replica'],pre_slot_max_root_position_difference_m=pre_slot_error,jump_flight_and_landing=j['flight_and_landing_evidence'],gait_flight_and_landing=c['flight_and_landing_evidence'],
+                    jump_recovery=j['recovery']['meets_stability_screen'],gait_recovery=c['recovery']['meets_stability_screen'],
+                    jump_peak_com_rise_m=j['peak_com_rise_from_baseline_m'],gait_peak_com_rise_m=c['peak_com_rise_from_baseline_m'],
+                    extra_peak_com_rise_m=j['peak_com_rise_from_baseline_m']-c['peak_com_rise_from_baseline_m'] if j['peak_com_rise_from_baseline_m'] is not None and c['peak_com_rise_from_baseline_m'] is not None else None))
+        report=dict(protocol=plan['protocol'],hardware_validated=False,policy_sha256=plan['policy']['sha256'],paired=paired,
+            cases=results,build_command=build,binary_sha256=sha(binary),plan_sha256=sha(output/'plan.json'),source_hashes_unchanged=True)
+        write(output/'report.json',report);write(output/'status.json',dict(status='completed',report_sha256=sha(output/'report.json')))
+    except BaseException as error:
+        write(output/'status.json',dict(status='error',error_type=type(error).__name__,error=str(error)))
+        raise
 
 
 if __name__=='__main__':
