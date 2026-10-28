@@ -104,6 +104,10 @@ def audit(args):
   checkpoint_slew = checkpoint_position_target_slew(args.checkpoint)
   if checkpoint_slew is not None:
     restore_position_target_slew(cfg, checkpoint_slew)
+  encoder_context = None
+  if "motion" not in saved:
+    from mjlab.tasks.pupper.encoder_observation import configure as configure_encoder
+    encoder_context = configure_encoder(cfg, checkpoint=args.checkpoint, purpose="export")
   cfg.scene.num_envs, cfg.seed = 1, args.seed
   if "motion" in saved:
     if args.motion is None: raise ValueError("Tracking-policy audit requires its exact --motion NPZ")
@@ -113,6 +117,8 @@ def audit(args):
             "seed": args.seed, "device": "cpu", "random_inputs": 512, "live_steps": args.steps,
             "tolerance": 1e-4, "source": source_manifest(), "training_resume_validated": False,
             "policy_performance_validated": False, "approved_for_hardware": False}
+  if encoder_context is not None:
+    report["encoder_observation_context"] = encoder_context
   if checkpoint_slew is not None:
     report['checkpoint_position_target_slew'] = checkpoint_slew
     report['checkpoint_slew_export_differences'] = differences(checkpoint_slew, saved.get('position_target_slew'))
@@ -139,8 +145,15 @@ def audit(args):
     actor = runner.get_inference_policy(device="cpu")
     current_export = (export_trick_policy_from_env(actor, env, saved["trick"]["name"]) if "motion" in saved
                       else export_pupper_gait_policy_from_env(actor, env))
-    report["metadata_differences"] = differences({k: v for k, v in saved.items() if k != "layers"},
-                                               {k: v for k, v in current_export.items() if k != "layers"})
+    current_metadata = {k: v for k, v in current_export.items() if k != "layers"}
+    if (encoder_context is not None and not encoder_context["checkpoint_mode_tagged"]
+        and "encoder_observation_contract" not in saved):
+      # Historical files have no sensor-mode tag. Preserve their comparison,
+      # explicitly disclosing legacy compatibility rather than claiming proof
+      # of the original training source's sensing semantics.
+      current_metadata.pop("encoder_observation_contract", None)
+      report["encoder_metadata_compatibility"] = "Untagged historical checkpoint/policy: legacy_true compatibility assumed; original sensing semantics not independently established by absence of metadata"
+    report["metadata_differences"] = differences({k: v for k, v in saved.items() if k != "layers"}, current_metadata)
     history, frame = saved["observation_history"], saved["single_observation_size"]
     rng = torch.Generator().manual_seed(args.seed)
     varied = torch.randn((512, history * frame), generator=rng)

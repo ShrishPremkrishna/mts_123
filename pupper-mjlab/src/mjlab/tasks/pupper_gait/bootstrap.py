@@ -284,6 +284,11 @@ def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, 
         raise ValueError("Cannot compare different evaluation protocols: compose_com_randomization")
     if bool(baseline["provenance"].get("locomotion_torso_contact",False)) != bool(candidate["provenance"].get("locomotion_torso_contact",False)):
         raise ValueError("Cannot compare different evaluation protocols: locomotion_torso_contact")
+    def encoder_mode(provenance):
+        context=provenance.get("encoder_observation_context") or {}
+        return context.get("active_observation_mode", "legacy_true")
+    if encoder_mode(baseline["provenance"]) != encoder_mode(candidate["provenance"]):
+        raise ValueError("Cannot compare different evaluation protocols: encoder_observation_mode")
     def driver_identity(provenance):
         contract=provenance.get("driver_target_contract")
         if contract is None:return None

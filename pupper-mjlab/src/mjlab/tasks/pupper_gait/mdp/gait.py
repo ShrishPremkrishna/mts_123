@@ -234,6 +234,7 @@ def pupper_gait_actor_obs(
   asset_cfg: SceneEntityCfg = _ROBOT,
   imu_latency_distribution: Sequence[float] | None = None,
   gait: str = "trot",
+  encoder_observation_mode: str = "legacy_true",
 ) -> torch.Tensor:
   """36-dim proprio frame (includes velocity command) + 12 reference offset = 48.
 
@@ -241,7 +242,8 @@ def pupper_gait_actor_obs(
   its own phase clock, so it is never stale (see ``gait_reference.hpp``).
   """
   base = pupper_actor_obs(
-    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution
+    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution,
+    encoder_observation_mode=encoder_observation_mode
   )
   ref = reference_offset(
     env,

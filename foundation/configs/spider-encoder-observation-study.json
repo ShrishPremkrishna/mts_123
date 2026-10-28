@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "state": "proposed_full_training_not_authorized; short_smoke_authorized_after_frozen_source_and_checks",
+  "objective": "Isolate corrected measured-encoder actor sensing under unchanged SpiderWalk stance, reference, reward, actuation and fallback policy.",
+  "source_pin": "Exact reviewed and pushed implementation commit must be supplied before execution; never fetch or change source while workers remain active.",
+  "initial_checkpoint": {
+    "local_path": "artifacts/lab6/pupper-spider-torso-refinement/exports/torso/model_8495.pt",
+    "sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
+    "historical_encoder_mode": "untagged legacy_true compatibility; original source independently confirmed q-default"
+  },
+  "arms": {
+    "legacy": {
+      "training_mode": "legacy_true",
+      "torso_support_weight": -5.0
+    },
+    "measured": {
+      "training_mode": "deployment_measured",
+      "torso_support_weight": -5.0
+    }
+  },
+  "shared_training": {
+    "profile": "spider_walk",
+    "num_envs": 4096,
+    "iterations": 1000,
+    "seed": 42,
+    "linear_tracking_std": 0.31622776601683794,
+    "deployment_target_clamp": true,
+    "driver_limits": "foundation/configs/class-driver-joint-limits.json",
+    "driver_limits_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+    "target_slew_rad_s": 15.0,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "mode_override": "Measured arm requires explicit --encoder-observation-mode deployment_measured --allow-encoder-observation-mode-change bound to the exact initial checkpoint. Legacy arm explicitly names legacy_true.",
+    "unchanged": [
+      "fixed reference and default pose",
+      "all reward terms and weights",
+      "command sampling",
+      "mechanics and sensor noise distributions",
+      "noise RNG draw order",
+      "IMU latency",
+      "position-command u-b conversion",
+      "optimizer resume behavior",
+      "controller and driver limits",
+      "shipped fallback policy"
+    ]
+  },
+  "preflight_smoke": {
+    "output_prefix": "/content/pupper-spider-encoder-smoke-v1",
+    "num_envs": 32,
+    "iterations": 2,
+    "arms": [
+      "legacy",
+      "measured"
+    ],
+    "initial_checkpoint_same_as_full_study": true,
+    "purpose": "Actual GPU runner optimizer/normalizer resume, metadata save, export and strict reload; smoke outputs never seed or substitute for full arms.",
+    "common_evaluation_mode": "deployment_measured",
+    "checks": [
+      "exact initial and output checkpoint SHA",
+      "tagged checkpoint and exported policy mode",
+      "verified actual checkpoint-load receipt",
+      "mode-changing inherited infos save",
+      "unchanged action/reference contract",
+      "measured-mode rollout of both policies",
+      "stdout and metadata preserved durably"
+    ],
+    "continuation_gate": "Full1000iteration arms remain pending root review of smoke receipts and this concrete plan."
+  },
+  "evaluation": {
+    "mode": "deployment_measured",
+    "legacy_override": "Explicit mode-change flag required when evaluating the legacy-trained checkpoint; label checkpoint_training_mode separately from active_observation_mode.",
+    "diagnostic_seeds": [
+      101,
+      202,
+      303
+    ],
+    "selection_free_holdout_seeds": [
+      404
+    ],
+    "num_envs_each_seed": 32,
+    "command_grid": "pupper-mjlab/configs/foundation/spider_commands.json",
+    "grid_seconds_per_command": 10,
+    "grid_warmup_seconds": 2,
+    "stop_commands": "foundation/configs/spider-precision-stops.json",
+    "stop_seconds_per_command": 8,
+    "nominal_mechanics_companion": "Seed101 grid, preserving observation noise/latency/reset randomness.",
+    "reporting": [
+      "paired actual startup arrays and command schedules",
+      "per-command and per-world performance",
+      "all failures and timeouts",
+      "actual torso forces including light persistent support and sampled spans",
+      "stop displacement and endpoint-inclusive0.5s hold",
+      "foot-site slip labeled as proxy",
+      "sampled target bounds and slew",
+      "checkpoint/export identity and parity"
+    ],
+    "holdout_scope": "Seed404 is the predeclared holdout for this study and is not used to select these arms; other class studies have used this seed."
+  },
+  "native_followup": {
+    "sensing": "deployment_measured for every controller; training_by_controller only as a labeled attribution diagnostic",
+    "scope": "Repeat inspected adverse startup snapshots and full-hull materials through entry/walk/stops/exit/default without state resets, plus paired default-only and extended-zero controls already requested by parent.",
+    "criterion": "Report physical velocity, support, slip and settling; controller-clock completion alone is insufficient.",
+    "default_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+  },
+  "decision_rule": "No automatic promotion. A sensing correction may improve deployment consistency without solving belly support or fallback stopping. Preserve negative cases and exact limitations; do not alter stance/rewards/limits/defaults to manufacture improvement.",
+  "hardware_validated": false,
+  "automatic_installation": false,
+  "historical_artifacts_modified": false
+}

@@ -55,6 +55,8 @@ class PupperOnPolicyRunner(VelocityOnPolicyRunner):
       checkpoint_position_target_slew, target_slew_metadata,
       validate_position_target_slew_metadata,
     )
+    from mjlab.tasks.pupper.encoder_observation import check_load, record_successful_load
+    encoder_receipt = check_load(self.env.unwrapped, path)
     expected = checkpoint_position_target_slew(path)
     # An old checkpoint can deliberately warm-start a new-physics experiment.
     # Once training stamps a slew contract, silently dropping/changing it would
@@ -63,11 +65,16 @@ class PupperOnPolicyRunner(VelocityOnPolicyRunner):
       actual = target_slew_metadata(self.env.unwrapped)
       if actual is None or validate_position_target_slew_metadata(actual) != expected:
         raise ValueError('Checkpoint position-target slew contract differs from the active environment')
-    return super().load(path, load_cfg=load_cfg, strict=strict, map_location=map_location)
+    loaded_infos = super().load(path, load_cfg=load_cfg, strict=strict, map_location=map_location)
+    record_successful_load(self.env.unwrapped, encoder_receipt,
+        getattr(getattr(self, "logger", None), "log_dir", None), path=path)
+    return loaded_infos
 
   def save(self, path: str, infos=None):
     from mjlab.tasks.pupper.target_slew import checkpoint_infos_with_position_target_slew
     infos = checkpoint_infos_with_position_target_slew(self.env.unwrapped, infos)
+    from mjlab.tasks.pupper.encoder_observation import checkpoint_infos
+    infos = checkpoint_infos(self.env.unwrapped, infos)
     super().save(path, infos)
     self._try_export()
 

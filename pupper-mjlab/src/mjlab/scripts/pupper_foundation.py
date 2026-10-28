@@ -237,6 +237,19 @@ def train(args: argparse.Namespace) -> Path:
     check_generated_motion(motion_path)
   cfg = load_env_cfg(profile["task"])
   agent = load_rl_cfg(profile["task"])
+  encoder_context = None
+  encoder_mode = getattr(args, "encoder_observation_mode", None)
+  encoder_change = getattr(args, "allow_encoder_observation_mode_change", False)
+  if args.profile == "spider_walk":
+    if getattr(args, "resume_run", None) and encoder_mode is None:
+      raise ValueError("Remote --resume-run requires explicit --encoder-observation-mode; only local checkpoints can auto-inherit before environment construction")
+    if getattr(args, "resume_run", None) and encoder_change:
+      raise ValueError("Mode-changing continuation requires an exact local --initial-checkpoint, not --resume-run")
+    from mjlab.tasks.pupper.encoder_observation import configure as configure_encoder
+    encoder_context = configure_encoder(cfg, checkpoint=getattr(args,"initial_checkpoint",None),
+        requested_mode=encoder_mode, allow_change=encoder_change, purpose="training")
+  elif encoder_mode is not None or encoder_change:
+    raise ValueError("Foundation encoder mode experiment supports spider_walk; tracking already observes measured joints")
   deploy_clamp = getattr(args, "deployment_target_clamp", False)
   contract = {"contract": "legacy_unclipped_target"}
   if deploy_clamp:
@@ -312,6 +325,8 @@ def train(args: argparse.Namespace) -> Path:
     contract_suffix += "_comx" + format(com_x_half_range, ".12g").replace(".", "p")
   if torso_support_weight is not None:
     contract_suffix += "_torsoload" + format(abs(torso_support_weight), ".12g").replace(".", "p")
+  if encoder_context is not None and (encoder_mode is not None or encoder_context["active_observation_mode"] != "legacy_true"):
+    contract_suffix += "_enc" + encoder_context["active_observation_mode"]
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -341,6 +356,7 @@ def train(args: argparse.Namespace) -> Path:
     "profile_config": profile, "seed": args.seed,
     "actuation_contract": contract, "com_randomization_contract": com_contract,
     "position_target_slew_contract": slew_contract,
+    "encoder_observation_context": encoder_context,
     "collision_contract": collision_contract,
     "reward_parameter_overrides": reward_parameters,
     "domain_randomization_overrides": randomization_overrides,
@@ -454,6 +470,8 @@ def main() -> None:
   launch.add_argument("--driver-limits", type=Path, help="Named driver joint limits JSON; requires --deployment-target-clamp")
   launch.add_argument('--target-slew-rad-s', type=float, help='SpiderWalk-only continuous command slew, at most15rad/s; requires controller/driver clamps and matched native support')
   launch.add_argument("--linear-tracking-std", type=float, help="Explicit reward-width experiment in m/s; changes XY tracking AND body vertical-velocity tolerance, preserving reward weights")
+  launch.add_argument("--encoder-observation-mode", choices=("legacy_true","deployment_measured"), help="SpiderWalk: inherit tagged local checkpoint mode or legacy_true; remote resume requires explicit mode; measured actor reads q+b")
+  launch.add_argument("--allow-encoder-observation-mode-change", action="store_true", help="Explicit separate experiment changing a local initial checkpoint observation mode; exact bytes are recorded")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
   launch.add_argument("--tracking-com-x-half-range", type=float, help="Separate tracking experiment: torso X COM uniform +/-range in meters, at most 0.02; requires --compose-com-randomization and retains Y/Z +/-0.01")
   launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")

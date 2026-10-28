@@ -45,7 +45,7 @@ def main():
     numerical = ['test_pupper_foundation.py','test_pupper_tracking.py','test_pupper_spider.py',
                  'test_pupper_unimate.py','test_unimate_repair.py','test_unimate_worker.py',
                  'test_unimate_candidates.py','test_foundation_evaluation.py','test_pupper_export.py',
-                 'test_pupper_gait_export.py','test_pupper_latency.py','test_pupper_bootstrap.py',
+                 'test_pupper_gait_export.py','test_pupper_latency.py','test_pupper_bootstrap.py', 'test_pupper_encoder_observation.py',
                  'test_deployment_target_clamp.py','test_pupper_randomization_contract.py',
                  'test_foundation_training_contract.py','test_tracking_ground_hulls.py',
                  'test_locomotion_torso_contact.py','test_pupper_collision_audit.py',

@@ -433,6 +433,10 @@ def run_export(task_id: str, cfg: ExportConfig) -> Path:
     restore_position_target_slew(env_cfg, checkpoint_slew)
     print('[INFO]: Restored checkpoint position-target slew and effective joint bounds')
 
+  from mjlab.tasks.pupper.encoder_observation import configure as configure_encoder, metadata as encoder_metadata
+  if encoder_metadata(env_cfg) is not None:
+    configure_encoder(env_cfg, checkpoint=resume_path, purpose="export")
+
   env = ManagerBasedRlEnv(cfg=env_cfg, device=device)
   wrapped = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
   runner_cls = load_runner_cls(task_id) or MjlabOnPolicyRunner

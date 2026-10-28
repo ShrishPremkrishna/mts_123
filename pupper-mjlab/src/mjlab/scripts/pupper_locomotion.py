@@ -84,6 +84,12 @@ def settings(args,play):
     cfg=load_env_cfg(args.task,play=play)
     agent=load_rl_cfg(args.task)
     cfg.scene.num_envs=args.num_envs; cfg.seed=args.seed; agent.seed=args.seed
+    from mjlab.tasks.pupper.encoder_observation import configure as configure_encoder
+    args.encoder_observation_context=configure_encoder(
+        cfg, checkpoint=getattr(args,"checkpoint",None),
+        requested_mode=getattr(args,"encoder_observation_mode",None),
+        allow_change=getattr(args,"allow_encoder_observation_mode_change",False),
+        purpose="evaluation" if getattr(args,"command",None)=="evaluate" else "training")
     if getattr(args,"deployment_target_clamp",False):
         from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
         apply_deployment_target_clamp(cfg)
@@ -322,6 +328,8 @@ def main():
         parser.add_argument("--deployment-target-clamp",action="store_true",help="Opt in to the C++ joint-target clamp before simulation; preserves normalized last_action observations")
         parser.add_argument("--driver-limits",type=Path,help="Explicit JSON with named hardware-driver joint limits; composes a second clamp and requires --deployment-target-clamp")
         parser.add_argument("--target-slew-rad-s",type=float,help="Opt-in physics-step position-command slew (0<rate<=15); requires explicit controller/driver limits and matched deployment support")
+        parser.add_argument("--encoder-observation-mode", choices=("legacy_true","deployment_measured"), help="Inherit tagged checkpoint mode; untagged/no checkpoint defaults legacy_true. Measured mode observes q+b without changing u-b actuation.")
+        parser.add_argument("--allow-encoder-observation-mode-change", action="store_true", help="Authorize a separate train/evaluation experiment with an explicit mode and exact checkpoint; recorded in provenance")
         parser.add_argument("--compose-com-randomization",action="store_true",help="Opt in to preserving the independent base COM offset during density randomization; legacy behavior remains default")
         parser.add_argument("--locomotion-torso-contact",action="store_true",help="Opt in to one torso hull while retaining the original knee/foot spheres; new physical model requires reevaluation")
     tr.add_argument("--num-envs",type=int,default=4096); tr.add_argument("--iterations",type=int,default=3000)

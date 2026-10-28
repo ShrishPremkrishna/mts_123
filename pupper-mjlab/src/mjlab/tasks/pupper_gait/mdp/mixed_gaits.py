@@ -219,10 +219,12 @@ def mixed_gait_actor_obs(
   noise: PupperObsNoise = _DEFAULT_NOISE,
   asset_cfg: SceneEntityCfg = _ROBOT,
   imu_latency_distribution=None,
+  encoder_observation_mode: str = "legacy_true",
 ) -> torch.Tensor:
   """36-dim proprio frame + the 12-dim per-command reference offset = 48."""
   base = pupper_actor_obs(
-    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution
+    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution,
+    encoder_observation_mode=encoder_observation_mode
   )
   offset = mixed_reference_offset(
     env,
@@ -247,6 +249,7 @@ def zero_reference_actor_obs(
   noise: PupperObsNoise = _DEFAULT_NOISE,
   asset_cfg: SceneEntityCfg = _ROBOT,
   imu_latency_distribution=None,
+  encoder_observation_mode: str = "legacy_true",
 ) -> torch.Tensor:
   """The 48-dim gait frame with an empty reference: proprio + 12 zero dims.
 
@@ -259,7 +262,8 @@ def zero_reference_actor_obs(
   """
   del frequency, blend_speed, n_samples, gallop_speed, zero_reference
   base = pupper_actor_obs(
-    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution
+    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution,
+    encoder_observation_mode=encoder_observation_mode
   )
   return torch.cat([base, base.new_zeros(base.shape[0], 12)], dim=-1)
 

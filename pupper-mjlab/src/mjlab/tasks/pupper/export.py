@@ -290,6 +290,10 @@ def export_pupper_policy_from_env(
     obs_components=obs_components,
     command_clip=command_clip,
   )
+  from mjlab.tasks.pupper.encoder_observation import metadata as encoder_metadata
+  encoder = encoder_metadata(env)
+  if encoder is not None:
+    policy["encoder_observation_contract"] = encoder
   from mjlab.tasks.pupper.target_slew import target_slew_metadata
   slew = target_slew_metadata(env)
   if slew is not None:

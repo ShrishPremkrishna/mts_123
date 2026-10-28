@@ -91,6 +91,7 @@ def jump_actor_obs(
   noise: PupperObsNoise = _DEFAULT_NOISE,
   asset_cfg: SceneEntityCfg = _ROBOT,
   imu_latency_distribution: Sequence[float] | None = None,
+  encoder_observation_mode: str = "legacy_true",
 ) -> torch.Tensor:
   """36-dim proprio frame (incl. the zero twist command) + 12 reference = 48.
 
@@ -98,7 +99,8 @@ def jump_actor_obs(
   plumbing carries over once the controller can play a one-shot table.
   """
   base = pupper_actor_obs(
-    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution
+    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution,
+    encoder_observation_mode=encoder_observation_mode
   )
   ref = jump_reference_offset(env, frequency, n_samples, crouch_hold_s)
   return torch.cat([base, ref], dim=-1)

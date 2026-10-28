@@ -295,6 +295,7 @@ def mixed_jump_actor_obs(
   noise: PupperObsNoise = _DEFAULT_NOISE,
   asset_cfg: SceneEntityCfg = _ROBOT,
   imu_latency_distribution: Sequence[float] | None = None,
+  encoder_observation_mode: str = "legacy_true",
 ) -> torch.Tensor:
   """36-dim proprio frame (live twist command included) + 12 composite = 48.
 
@@ -302,7 +303,8 @@ def mixed_jump_actor_obs(
   is visible the moment it starts and not an instant before.
   """
   base = pupper_actor_obs(
-    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution
+    env, command_name, add_noise, noise, asset_cfg, imu_latency_distribution,
+    encoder_observation_mode=encoder_observation_mode
   )
   ref = mixed_jump_reference_offset(
     env,

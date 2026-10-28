@@ -90,6 +90,7 @@ def pupper_actor_obs(
   noise: PupperObsNoise = _DEFAULT_NOISE,
   asset_cfg: SceneEntityCfg = _ROBOT,
   imu_latency_distribution: Sequence[float] | None = None,
+  encoder_observation_mode: str = "legacy_true",
 ) -> torch.Tensor:
   """Assemble the deployable 36-dim Pupper observation frame.
 
@@ -126,7 +127,14 @@ def pupper_actor_obs(
 
   default_joint_pos = asset.data.default_joint_pos
   assert default_joint_pos is not None
-  joint_pos_rel = asset.data.joint_pos - default_joint_pos
+  # Legacy runs omitted the persistent calibration bias from actor inputs.
+  # New measured-mode experiments use the same encoder coordinate as deployment
+  # and the action target u-b. Keep fixed reference/default poses unchanged.
+  from mjlab.tasks.pupper.encoder_observation import validate_mode
+  validate_mode(encoder_observation_mode)
+  joint_pos = (asset.data.joint_pos_biased if encoder_observation_mode == "deployment_measured"
+               else asset.data.joint_pos)
+  joint_pos_rel = joint_pos - default_joint_pos
 
   last_action = env.action_manager.action
 

@@ -126,7 +126,7 @@ def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_
     (run_dir/'model_4999.pt').write_bytes(b'test fixture, no training')
     (run_dir/'policy.json').write_text('{}')
   monkeypatch.setattr(training,'run_train',fake_train)
-  checkpoint=tmp_path/'original-4000.pt';checkpoint.write_bytes(b'original fixture bytes')
+  checkpoint=tmp_path/'original-4000.pt';torch.save({'infos':None},checkpoint)
   args=argparse.Namespace(profile='spider_walk',motion=None,output=tmp_path/'continuation',
                          deployment_target_clamp=True,compose_com_randomization=True,
                          tracking_ground_hulls=False,locomotion_torso_contact=True,
