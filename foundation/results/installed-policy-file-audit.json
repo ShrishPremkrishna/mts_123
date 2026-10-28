@@ -1,7 +1,7 @@
 {
-  "checked_utc": "2026-10-28T06:31:48.135569+00:00",
+  "checked_utc": "2026-10-28T08:11:54.986622+00:00",
   "scope": "Native policy files, descriptors and reference contracts only; no simulated execution or hardware capability claim.",
-  "validator_sha256": "3ab508107d6ee8e9df292928d45ef780891bcff4000dff9029fd9eded31b37b1",
+  "validator_sha256": "c6edc2d2ea360f09ab67fc279406e144d4bc791a8cc9e87854a8877067920099",
   "policies": [
     {
       "path": "gemini_pupper/tricks/lie_downward_dog/policy.json",
@@ -36,7 +36,7 @@
     {
       "path": "gemini_pupper/tricks/sit_stay_shake/policy.json",
       "native_contract_valid": true,
-      "sha256": "9d545daa3394eaa7fd74899786d7138c373ef1e4bf14aeb753f9f979b375ddf5"
+      "sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429"
     },
     {
       "path": "gemini_pupper/tricks/sneeze/policy.json",
