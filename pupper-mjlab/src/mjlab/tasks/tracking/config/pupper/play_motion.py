@@ -67,6 +67,7 @@ def main(
   video_file: Path | None = None,
   deployment_target_clamp: bool = False,
   tracking_ground_hulls: bool = False,
+  driver_limits: Path | None = None,
 ) -> None:
   """mass_scale scales every link's mass and inertia (1.3: 30% heavier, like a
   payload); com_x, com_y, com_z move the torso's center of mass (x forward,
@@ -96,6 +97,12 @@ def main(
   if deployment_target_clamp:
     from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
     apply_deployment_target_clamp(cfg)
+  driver_contract = None
+  if driver_limits is not None:
+    if not deployment_target_clamp:
+      raise ValueError("--driver-limits requires --deployment-target-clamp")
+    from mjlab.tasks.pupper.deployment_contract import apply_driver_target_clamp
+    driver_contract = apply_driver_target_clamp(cfg, driver_limits)
   cfg.scene.sensors += (ContactSensorCfg(
     name="score_foot_ground", primary=ContactMatch(
       mode="geom", pattern=r"^leg_(front|back)_(r|l)_3_collision$", entity="robot"),
@@ -316,6 +323,7 @@ def main(
       "peak_joint_speed_rad_s": max(s["joint_speed_max_rad_s"] for s in samples),
       "peak_motor_torque_nm": max(s["motor_torque_max_nm"] for s in samples),
       "deployment_target_clamp": deployment_target_clamp,
+      "driver_target_contract": driver_contract,
       "collision_contract": collision_contract, "collision_geometry": collision_geometry,
       "peak_sampled_hull_vertex_penetration_m": max(0.0, -min(s["lowest_sampled_hull_vertex_m"] for s in samples)),
       "fraction_frames_with_body_ground_contact": float(np.mean([s["body_hulls_with_ground_contact"] > 0 for s in samples])),

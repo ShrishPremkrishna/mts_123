@@ -174,6 +174,11 @@ def train(args: argparse.Namespace) -> Path:
   if deploy_clamp:
     from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
     contract = apply_deployment_target_clamp(cfg)
+  if getattr(args, "driver_limits", None):
+    if not deploy_clamp:
+      raise ValueError("--driver-limits requires --deployment-target-clamp")
+    from mjlab.tasks.pupper.deployment_contract import apply_driver_target_clamp
+    contract = apply_driver_target_clamp(cfg, args.driver_limits)
   compose_com = getattr(args, "compose_com_randomization", False)
   com_contract = {"contract": "legacy_event_order"}
   if compose_com:
@@ -209,6 +214,8 @@ def train(args: argparse.Namespace) -> Path:
     cfg.commands["motion"].motion_file = str(motion_path)
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
   contract_suffix = "_deployclamp" if deploy_clamp else "_legacytargets"
+  if getattr(args, "driver_limits", None):
+    contract_suffix += "_driverclamp"
   contract_suffix += "_composedcom" if compose_com else "_legacycom"
   contract_suffix += "_groundhulls" if ground_hulls else "_torsocontact" if torso_contact else "_legacyhulls"
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
@@ -299,7 +306,8 @@ def score(args: argparse.Namespace) -> None:
       replay(args.motion.resolve(), checkpoint=args.checkpoint.resolve(), loops=args.loops,
              mass_scale=mass, com_x=x, com_y=y, seed=seed, randomize=randomized,
              report_file=report_file, deployment_target_clamp=getattr(args, "deployment_target_clamp", False),
-             tracking_ground_hulls=getattr(args, "tracking_ground_hulls", False))
+             tracking_ground_hulls=getattr(args, "tracking_ground_hulls", False),
+             driver_limits=getattr(args, "driver_limits", None))
       reports.append(json.loads(report_file.read_text()))
   if args.stress_profile:
     stress = prepare_stress(args.stress_profile, args.output)
@@ -307,7 +315,8 @@ def score(args: argparse.Namespace) -> None:
     replay(stress, checkpoint=args.checkpoint.resolve(), loops=1,
            seed=args.seeds[0], report_file=stress_report,
            deployment_target_clamp=getattr(args, "deployment_target_clamp", False),
-             tracking_ground_hulls=getattr(args, "tracking_ground_hulls", False))
+             tracking_ground_hulls=getattr(args, "tracking_ground_hulls", False),
+             driver_limits=getattr(args, "driver_limits", None))
     result = json.loads(stress_report.read_text())
     result["purpose"] = "continuous held-out long-idle/repeated-action sequence"
     reports.append(result)
@@ -316,6 +325,7 @@ def score(args: argparse.Namespace) -> None:
     "state": "simulation_evaluated", "approved_for_hardware": False,
     "checkpoint_sha256": sha256(args.checkpoint), "motion_sha256": sha256(args.motion),
     "deployment_target_clamp": getattr(args, "deployment_target_clamp", False),
+    "driver_limits_sha256": sha256(args.driver_limits) if getattr(args, "driver_limits", None) else None,
     "tracking_ground_hulls": getattr(args, "tracking_ground_hulls", False),
     "source": evaluation_source, "source_after": final_source,
     "source_changed_during_evaluation": evaluation_source["source_sha256"] != final_source["source_sha256"],
@@ -343,6 +353,7 @@ def main() -> None:
   launch.add_argument("--resume-checkpoint", help="Exact model_N.pt within --resume-run")
   launch.add_argument("--initial-checkpoint", type=Path, help="Exact local checkpoint for a separate finetune run; the original is retained")
   launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
+  launch.add_argument("--driver-limits", type=Path, help="Named driver joint limits JSON; requires --deployment-target-clamp")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
   launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")
   launch.add_argument("--locomotion-torso-contact", action="store_true", help="Separate SpiderWalk physics contract adding only the torso collider; preserve knee/foot spheres")
@@ -353,6 +364,7 @@ def main() -> None:
   evaluate.add_argument("--loops", type=int, default=1)
   evaluate.add_argument("--suite", action="store_true")
   evaluate.add_argument("--deployment-target-clamp", action="store_true")
+  evaluate.add_argument("--driver-limits", type=Path)
   evaluate.add_argument("--tracking-ground-hulls", action="store_true")
   evaluate.add_argument("--stress-profile", choices=("sit_stay_shake", "spider_clips"))
   evaluate.add_argument("--seeds", nargs="+", type=int, default=[101, 202, 303])

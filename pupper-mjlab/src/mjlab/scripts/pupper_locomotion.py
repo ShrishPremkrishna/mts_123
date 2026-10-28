@@ -8,6 +8,7 @@ import argparse
 import hashlib
 from dataclasses import asdict
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -18,6 +19,10 @@ BASE_WEIGHTS={"track_linear_velocity":10.,"track_yaw_velocity":7.,"gait_tracking
               "lin_vel_z_l2":-.5,"ang_vel_xy_l2":-.05,"action_rate_l2":-.02,"knee_ground_contact":-1.}
 # Hypotheses for the first controlled fast-gait comparison, not tuned results.
 FAST_WEIGHTS={**BASE_WEIGHTS,"track_linear_velocity":15.,"gait_tracking":5.,"roll_asymmetry":-2.,"foot_slip":-.1,"joint_torques_l2":-.0001}
+
+
+def evaluation_episode_length_s(current, seconds, command_count, step_dt):
+    return max(current, math.ceil(seconds/step_dt)*step_dt*command_count+10)
 
 
 def action_target_diagnostics(actions, action_term, robot, clip_actions=None):
@@ -68,6 +73,11 @@ def settings(args,play):
     if getattr(args,"deployment_target_clamp",False):
         from mjlab.tasks.pupper.deployment_contract import apply_deployment_target_clamp
         apply_deployment_target_clamp(cfg)
+    if getattr(args,"driver_limits",None):
+        if not args.deployment_target_clamp:
+            raise ValueError('--driver-limits requires --deployment-target-clamp')
+        from mjlab.tasks.pupper.deployment_contract import apply_driver_target_clamp
+        args.driver_target_contract=apply_driver_target_clamp(cfg,args.driver_limits)
     if getattr(args,"compose_com_randomization",False):
         from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
         compose_pupper_com_randomization(cfg)
@@ -136,7 +146,6 @@ def evaluate(args):
     from mjlab.utils.torch import configure_torch_backends
     cfg,agent=settings(args,not args.randomized)
     cfg.events.pop("hold_base_airborne",None); cfg.curriculum.pop("pretrain_rewards",None)
-    cfg.episode_length_s=max(cfg.episode_length_s,args.seconds*len(DEFAULT_SEQUENCE)+10)
     term_cfg=cfg.commands["twist"]
     term_cfg.resampling_time_range=(1e8,1e8)
     for name in ("rel_standing_envs","rel_heading_envs","rel_world_envs","rel_forward_envs","rel_turn_envs","init_velocity_prob"):
@@ -145,6 +154,10 @@ def evaluate(args):
     if args.no_heading_hold: term_cfg.heading_hold_kp=None
     commands=json.loads(args.commands.read_text()) if args.commands else DEFAULT_SEQUENCE
     if not commands or np.asarray(commands).ndim!=2 or np.asarray(commands).shape[1]!=3 or not np.isfinite(commands).all(): raise ValueError("commands JSON must be finite list of [vx,vy,yaw]")
+    # Long custom sweeps must not reset merely because the default sequence has
+    # fewer commands. Account for step rounding, including randomized configs.
+    dt=cfg.sim.mujoco.timestep*cfg.decimation
+    cfg.episode_length_s=evaluation_episode_length_s(cfg.episode_length_s,args.seconds,len(commands),dt)
     ranges=[term_cfg.ranges.lin_vel_x,term_cfg.ranges.lin_vel_y,term_cfg.ranges.ang_vel_z]
     if not args.allow_out_of_range and any(not lo<=float(cmd[j])<=hi for cmd in commands for j,(lo,hi) in enumerate(ranges)):
         raise ValueError(f"Commands exceed task training ranges {ranges}; supply a task-appropriate --commands JSON (or explicitly --allow-out-of-range)")
@@ -261,6 +274,7 @@ def main():
         parser.add_argument("--out",type=Path,required=True); parser.add_argument("--seed",type=int,default=42)
         parser.add_argument("--device",default="cuda:0")
         parser.add_argument("--deployment-target-clamp",action="store_true",help="Opt in to the C++ joint-target clamp before simulation; preserves normalized last_action observations")
+        parser.add_argument("--driver-limits",type=Path,help="Explicit JSON with named hardware-driver joint limits; composes a second clamp and requires --deployment-target-clamp")
         parser.add_argument("--compose-com-randomization",action="store_true",help="Opt in to preserving the independent base COM offset during density randomization; legacy behavior remains default")
         parser.add_argument("--locomotion-torso-contact",action="store_true",help="Opt in to one torso hull while retaining the original knee/foot spheres; new physical model requires reevaluation")
     tr.add_argument("--num-envs",type=int,default=4096); tr.add_argument("--iterations",type=int,default=3000)

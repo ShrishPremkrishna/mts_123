@@ -45,6 +45,7 @@ def main():
                  'test_foundation_training_contract.py','test_tracking_ground_hulls.py',
                  'test_locomotion_torso_contact.py','test_pupper_collision_audit.py',
                  'test_pupper_policy_audit.py']
+    numerical += ['test_driver_target_clamp.py']
     checks += [('motion_export', [python,'-m','pytest',*[f'pupper-mjlab/tests/{name}' for name in numerical],'-q','-p','no:cacheprovider']),
                ('controller_cpp', ['bash','pupper_gait_deploy/test/run_host_test.sh'])]
     revision = subprocess.run(['git','rev-parse','HEAD'],cwd=root,text=True,capture_output=True,check=False)

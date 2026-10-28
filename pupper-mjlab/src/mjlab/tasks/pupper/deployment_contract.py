@@ -7,6 +7,10 @@ Legacy training remains unchanged unless this helper is explicitly requested.
 """
 from __future__ import annotations
 
+import hashlib
+import json
+import math
+from pathlib import Path
 import mujoco
 
 from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES, get_spec
@@ -28,7 +32,56 @@ def apply_deployment_target_clamp(cfg) -> dict:
   action.clip = limits
   return {"contract": "deployment_joint_target_clamp_v1", "limits": limits,
           "order": "raw action retained; affine target; absolute joint clipping; encoder-bias correction; actuator latency",
+          "scope": "Neural controller limits only; an installed hardware driver can impose tighter bounds",
           "raw_action_history_preserved": True}
+
+
+def load_driver_target_limits(path) -> tuple[dict, dict]:
+  """Read named joint-coordinate command limits, never change model joint ranges."""
+  path = Path(path)
+  raw = path.read_bytes()
+  data = json.loads(raw)
+  limits = data.get("joint_limits") if isinstance(data, dict) else None
+  if not isinstance(limits, dict) or set(limits) != set(JOINT_NAMES):
+    raise ValueError("Driver limits must name exactly the twelve Pupper joints")
+  for name, pair in limits.items():
+    if (not isinstance(pair, list) or len(pair) != 2 or
+        any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in pair) or
+        pair[0] >= pair[1]):
+      raise ValueError(f"Invalid driver bounds for {name}")
+  if data.get("units") not in ("rad", "radians"):
+    raise ValueError("Driver limits require explicit radian units")
+  return {name: tuple(limits[name]) for name in JOINT_NAMES}, {
+    "path": str(path.resolve()), "sha256": hashlib.sha256(raw).hexdigest(),
+    "source_contract": data.get("contract"),
+    "installed_robot_verified": data.get("installed_robot_verified") is True,
+  }
+
+
+def apply_driver_target_clamp(cfg, path) -> dict:
+  """Compose controller clipping with a documented second driver clamp.
+
+  Both commands use joint coordinates before homing/encoder offsets. Affine
+  action and history remain unchanged. This is an explicit simulation variant,
+  not evidence that a particular robot has these driver limits installed.
+  """
+  action = cfg.actions.get("joint_pos")
+  if not isinstance(action, JointPositionActionCfg) or action.entity_name != "robot":
+    raise ValueError("Driver target clamp requires Pupper's robot joint-position action")
+  controller = deployment_target_limits()
+  if action.clip != controller:
+    raise ValueError("Apply the controller deployment target clamp before the driver clamp")
+  limits, source = load_driver_target_limits(path)
+  effective = {name: (max(controller[name][0], limits[name][0]), min(controller[name][1], limits[name][1]))
+               for name in JOINT_NAMES}
+  if any(lo >= hi for lo, hi in effective.values()):
+    raise ValueError("Driver and controller limits have an empty intersection")
+  action.clip = effective
+  return {"contract": "controller_then_driver_joint_target_clamp_v1",
+          "controller_limits": controller, "driver_limits": limits, "effective_limits": effective,
+          "source": source, "raw_action_history_preserved": True,
+          "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+          "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"}
 
 
 def _require_density_only(params):
