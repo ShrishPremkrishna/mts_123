@@ -114,5 +114,11 @@
     "pupper-mjlab/src/mjlab/tasks/pupper_gait/export.py:256",
     "pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp/mixed_jump.py:214",
     "pupper_gait_deploy/src/gait_reference.hpp"
-  ]
+  ],
+  "source_description_repair": {
+    "original_reference_sha256": "d36c609d21d395c4a80faa6d7ad905b2432f249d64590e36cf5c97fa0057cb87",
+    "corrected_reference_sha256": "0d98db362dfb4b80eef6378b3aa116075f7a63d493328617ab3b25e8fb6ebfdb",
+    "numerical_table_and_timing_unchanged": true,
+    "scope": "Only misleading about prose corrected. Earlier correct-array seed and remote16aeb67 runs retain original reference identity; their numerical reference remains identical."
+  }
 }

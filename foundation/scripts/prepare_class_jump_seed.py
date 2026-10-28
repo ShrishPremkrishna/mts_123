@@ -14,7 +14,7 @@ import json
 import numpy as np
 
 POLICY_SHA256 = 'ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712'
-REFERENCE_SHA256 = 'd36c609d21d395c4a80faa6d7ad905b2432f249d64590e36cf5c97fa0057cb87'
+REFERENCE_SHA256 = '0d98db362dfb4b80eef6378b3aa116075f7a63d493328617ab3b25e8fb6ebfdb'
 
 
 def sha(path):
@@ -48,7 +48,7 @@ def prepare(repo, out):
         'source_policy': str(policy.relative_to(repo)), 'source_policy_sha256': sha(policy),
         'source_reference': str(reference.relative_to(repo)), 'source_reference_sha256': sha(reference),
         'conversion': 'Exact absolute exported jump joint-angle table in canonical robot order. No default-pose addition, smoothing, scaling, clipping or invented motion.',
-        'source_description_correction': 'reference.json calls these offsets, but export.jump_slot_metadata stores the absolute table and both training mixed_jump_reference_offset and native gait_reference.hpp subtract the default pose when producing observation offsets.',
+        'source_description_correction': 'The original course reference.json description incorrectly called these offsets; that prose is corrected in this branch without changing numerical data. export.jump_slot_metadata stores the absolute table and both training mixed_jump_reference_offset and native gait_reference.hpp subtract the default pose when producing observation offsets.',
         'absolute_joint_table_contract': True,
         'format_note': 'captured_jump_gait.npz is the existing loader socket; this is not an observed physical jump.',
         'nominal_timing': {'playback_s': jump['playback_s'], 'active_s': jump['active_s'], 'cross_fade_s': jump['cross_fade_s'], 'legacy_touchdown_fallback_s': .84, 'touchdown_is_measured': False},
