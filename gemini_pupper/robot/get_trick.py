@@ -124,6 +124,16 @@ def copy_local_policy(source: Path, dest: Path, *, walking: bool = False) -> dic
   return policy
 
 
+def validate_walk_evidence(dest: Path, limits: dict) -> None:
+  """Bind reviewed operating limits to the exact staged walking export."""
+  claimed = limits.get("walk_policy_sha256") if isinstance(limits, dict) else None
+  if not isinstance(claimed, str) or not re.fullmatch(r"[0-9a-f]{64}", claimed):
+    raise ValueError("--walk-limits requires walk_policy_sha256 for the evaluated walking export")
+  actual = hashlib.sha256((dest / "walk_policy.json").read_bytes()).hexdigest()
+  if claimed != actual:
+    raise ValueError("--walk-limits walk_policy_sha256 does not match the staged walking policy; evaluate this export before selecting limits")
+
+
 def write_template(dest: Path, name: str, policy: dict, walks: bool = False, walk_limits: dict | None = None) -> None:
   spec = dest / "trick.yaml"
   if walk_limits is not None:
@@ -211,7 +221,7 @@ def main() -> None:
   parser.add_argument("--entity", default=None)
   parser.add_argument("--walk", default=None, help="a walking policy's run (Mjlab-SpiderWalk), for a trick that walks")
   parser.add_argument("--walk-policy-file", type=Path, help="local exported walking policy, paired with --policy-file")
-  parser.add_argument("--walk-limits", type=Path, help="JSON with evaluation_source and measured speed, max_forward, max_sideways (m/s), turn (deg/s)")
+  parser.add_argument("--walk-limits", type=Path, help="JSON with evaluation_source, walk_policy_sha256, and measured speed, max_forward, max_sideways (m/s), turn (deg/s)")
   parser.add_argument("--secret", action="store_true", help="hide the trick behind the local password gate")
   args = parser.parse_args()
   if bool(args.run) == bool(args.policy_file):
@@ -223,11 +233,14 @@ def main() -> None:
   if not re.fullmatch(r"[a-z][a-z0-9_]*", args.name):
     parser.error("--name must be lowercase letters, digits and underscores, starting with a letter")
   has_walk = bool(args.walk or args.walk_policy_file)
-  if args.name == "spider_walk" and (not has_walk or not args.walk_limits):
+  if args.name == "spider_walk" and not has_walk:
     parser.error("spider_walk requires both trained policies and --walk-limits from simulation evaluation")
+  if has_walk and not args.walk_limits:
+    parser.error("every walking-policy installation requires --walk-limits bound to its evaluated export")
   if args.walk_limits and not has_walk:
     parser.error("--walk-limits requires a walking policy")
-  limits = json.loads(args.walk_limits.read_text()) if args.walk_limits else None
+  limits_bytes = args.walk_limits.read_bytes() if args.walk_limits else None
+  limits = json.loads(limits_bytes) if limits_bytes is not None else None
   dest = TRICK_DIR / args.name
   run_path = resolve_run_path(args.run, args.project, args.entity) if args.run else None
   walk_run = resolve_run_path(args.walk, args.project, args.entity) if args.walk else None
@@ -244,6 +257,11 @@ def main() -> None:
       fetch_walk_policy(walk_run, staged)
     elif args.walk_policy_file:
       copy_local_policy(args.walk_policy_file, staged, walking=True)
+    if has_walk:
+      validate_walk_evidence(staged, limits)
+      # Keep the exact reviewed input with the installation; an external path may
+      # later move or be overwritten. The manifest hashes these preserved bytes.
+      (staged / "walk_limits.json").write_bytes(limits_bytes)
     write_template(staged, args.name, policy, walks=has_walk, walk_limits=limits)
     if args.secret:
       import yaml
@@ -262,7 +280,8 @@ def main() -> None:
                 "hardware_validated": False, "ta_approval_recorded": False}
     if args.walk_limits:
       manifest["walk_limits_source"] = {"path": str(args.walk_limits.resolve()),
-                                      "sha256": hashlib.sha256(args.walk_limits.read_bytes()).hexdigest()}
+                                      "sha256": manifest["files"]["walk_limits.json"],
+                                      "walk_policy_sha256": limits["walk_policy_sha256"]}
     manifest["policy_source"]["sha256"] = manifest["files"]["policy.json"]
     if manifest["walk_source"]:
       manifest["walk_source"]["sha256"] = manifest["files"]["walk_policy.json"]

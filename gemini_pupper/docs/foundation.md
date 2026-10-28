@@ -117,9 +117,13 @@ The completed `sit_stay_shake` descriptor is generated when its real policy is
 fetched. Its actions are `shake_left`, `shake_right`, `stand_up`; `stand_up` is the
 exit. No placeholder policy is shipped. `spider_walk` requires both the clip policy
 and its walking policy, plus `--walk-limits <file.json>` describing evaluated limits.
-That file contains `evaluation_source`, `speed`, `max_forward`, `max_sideways`
+That file contains `evaluation_source`, `walk_policy_sha256`, `speed`, `max_forward`, `max_sideways`
 (metres/second), and `turn` (degrees/second). Do not copy training command caps into
-it as if they were achieved performance. The loader also enforces the narrower
+it as if they were achieved performance. Every walking-policy import requires
+limits bound to that exact export's SHA-256; the reviewed JSON is preserved as
+`walk_limits.json` alongside the policies and hashed in the installation manifest.
+A matching hash identifies the reviewed model; it does not certify the review's
+quality or hardware approval. The loader also enforces the narrower
 side of asymmetric training ranges, since the tools use symmetric limits.
 
 Before accepting a walking pair, the loader compares its entry endpoint, every

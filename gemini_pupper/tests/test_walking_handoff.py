@@ -1,5 +1,6 @@
 """A structurally valid velocity policy must not change the trick's handoff pose."""
 import copy
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -93,6 +94,7 @@ def test_real_upright_policy_cannot_replace_spider_pair_and_preserves_previous_i
     upright = ROBOT.parents[1] / 'pupper_gait_deploy/policies/default_policy.json'
     limits = tmp_path / 'limits.json'
     limits.write_text(json.dumps({'evaluation_source': 'test fixture; never hardware',
+        'walk_policy_sha256': hashlib.sha256(upright.read_bytes()).hexdigest(),
         **{k: descriptor['walk'][k] for k in ('speed','max_forward','max_sideways','turn')}}))
     previous = {p.name: p.read_bytes() for p in folder.iterdir()}
     monkeypatch.setattr(get_trick, 'TRICK_DIR', folder.parent)
