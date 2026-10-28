@@ -98,8 +98,10 @@ they must not compete for the same motor command interfaces.
 In the learned stack, Gemini selects a bounded tool, the server checks and queues
 it, the current controller executes it, and feedback determines the outcome.
 Following is explicitly stopped before another motion. A seated trick exits
-through its standing clip; the spider hands off between its clip policy and its
-separate slow walking policy. Unknown service outcomes quarantine new motion
+through its standing clip. The Spider handoff between a clip policy and a
+separate slow walking policy is implemented and tested with staged pairs; no
+walking pair is installed in the current catalog, which retains the supplied
+finite Spider trick. Unknown service outcomes quarantine new motion
 instead of assuming that a timed-out request never happened.
 
 A [controller completion audit](results/controller-completion-v2-reviewed.json)
