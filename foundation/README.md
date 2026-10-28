@@ -21,12 +21,12 @@ the last two.
 | Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered team checkpoints/exports agree numerically. [Paired GPU comparison](results/lab4-stablegait-clamp-gpu-comparison.json) finds improved tracking after controller-clamp finetuning, but more effort/slip and no fall-count improvement. No promotion; tighter driver limits and the shipped policy remain separate comparisons |
 | Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
 | Lab 6 tools | Finite movement limits, turn/move/arc, follow interruption, serialized jobs, honest queued/completed outcomes, interactive actions and transitions | [Gemini behavior and operation](../gemini_pupper/docs/foundation.md); course checks and fault-injection tests cover stops, failures and late service responses. Live Gemini and ROS are separate tests |
-| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | [Expanded-COM policy](results/lab6-sit-comx02-reviewed.json) installed locally after all eight existing scenarios passed on CPU and GPU with class driver limits. The +2 cm weakness improved; +2.5 cm remains backend-sensitive and outside the training range. Hardware checks remain |
-| Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | [Five matched slew studies](results/lab6-spider-slew-review.json) meet the actuator-target rate contract and complete sampled stops, but retain tracking/turning tradeoffs, low-command undertracking and torso support. [Full return to the default controller](results/spider-default-return-reviewed.json) passes all five nominal chains. Torso support violates the class requirement to stay off its belly and is under controlled investigation; no walking pair promoted |
-| Supplied finite tricks | Twelve active finite course policies through native activation, playback and terminal hold | [Nominal screen](results/course-tricks-native-screen.json) completed all twelve with full hull contacts and driver limits. Sneeze peak speed and return-to-walking transitions remain separate checks; no hardware approval |
+| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | [Expanded-COM policy](results/lab6-sit-comx02-reviewed.json) installed locally after all eight existing scenarios passed on CPU and GPU with class driver limits. The +2 cm weakness improved; +2.5 cm remains backend-sensitive and outside the training range. [The full interactive sequence and actual default return](results/sit-interactive-default-return-reviewed.json) pass a nominal native check. Hardware checks remain |
+| Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | [Five matched slew studies](results/lab6-spider-slew-review.json) meet the actuator-target rate contract and complete sampled stops, but retain tracking/turning tradeoffs, low-command undertracking and torso support. [Full return to the default controller](results/spider-default-return-reviewed.json) passes all five nominal chains. [A matched torso-load penalty](results/lab6-spider-torso-review.json) reduced mean idle support from 67.4% to 3.9% of bodyweight, but sustained support remains in some randomized worlds and stopping/effort tradeoffs remain. A stronger matched study is active; no walking pair promoted |
+| Supplied finite tricks | Twelve active finite course policies through native activation, playback and terminal hold | [Nominal screen](results/course-tricks-native-screen.json) completed all twelve with full hull contacts and driver limits. [Five standing-ending tricks and the generated trick](results/finite-tricks-default-return-reviewed.json) return to actual default walking; [seven lying-ending tricks](results/lying-tricks-later-default-return-reviewed.json) return on a later explicit request. Sneeze peak speed and randomized/hardware performance remain limitations |
 | Supplied reference jump | Exact shipped table through native gait controller with paired no-jump controls | [Actual jump screen](results/shipped-jump-native-reviewed.json): all four forward0.3m/s trials land/recover; three of four standing trials reach the inherited tilt stop. Running-hop, repeated jumps and hardware remain untested |
 | Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
-| Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, configurable reward comparisons, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Corrected flat and Bumpy studies are complete with no promotion. Mystery has corrected absolute-reference training and an independent all-body flight/recovery audit; observed-capture continuation remains under review. Earlier altered-reference runs are explicitly labeled |
+| Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, configurable reward comparisons, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Corrected flat and Bumpy studies are complete with no promotion. [Final Mystery continuation](results/optional2-mystery-reviewed.json) reduces failures but produces only 0/0/1/1 strict flight-and-recovery events across four seeds. No reliable new jump policy or promotion; all nine complete archives preserved and its idle GPU released. Earlier altered-reference runs are explicitly labeled |
 | Optional Lab 3 | Pupper character/context, deterministic local hidden-trick gate, pinned UniMate generation, fitting/repair, candidate inspection, physics playback and trained tracking policy | [Reviewed standing trick](results/generated-motion-trained-review.json) is installed locally behind the secret gate: a modest rise/sway/return, not a complex dance. Seven CPU/GPU scenarios and native activation/hold passed; hardware approval remains |
 
 The course support sources are also present: the robot monorepo, class rebase
@@ -81,6 +81,11 @@ and independent exported-controller math. Capture acceptance now requires
 all-body contact-free flight, upward center-of-mass motion and sustained landing
 recovery; foot lift alone can happen while the torso supports the robot. See the
 [independent capture audit](results/optional2-capture-independent-review.json).
+The current gate uses observed first-to-last sample span: five 50 Hz samples
+cover 80 ms, not 100 ms. The earlier captured continuation input remains
+unchanged and explicitly fails the newer recovery gate. The
+[final four-seed audit](results/optional2-mystery-final-flight-audit.json) applies
+the corrected gate and retains the negative jump-reliability result.
 
 ## How the capabilities fit together
 
@@ -96,6 +101,16 @@ Following is explicitly stopped before another motion. A seated trick exits
 through its standing clip; the spider hands off between its clip policy and its
 separate slow walking policy. Unknown service outcomes quarantine new motion
 instead of assuming that a timed-out request never happened.
+
+A [controller completion audit](results/controller-completion-v1-reviewed.json)
+found that timers could report a reference or finite trick complete without
+matching controller feedback. Reference requests now carry unique IDs; finite
+policy receipts carry an ID frozen at activation and are emitted only after
+successful command application. The actual ROS Jazzy implementation passes
+18 isolated tests. A separate reproduced stale interactive-exit receipt is being
+closed with activation and per-clip correlation; do not treat that integration
+path as finished yet. Playback receipts establish controller progress, not
+measured physical posture, flight or landing.
 
 The new contact model augments the **single front-right leg trajectory** through
 `ik.py --contact-model <export-directory>`. It freezes trajectory time for one
