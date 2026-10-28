@@ -1,6 +1,6 @@
 {
   "state": "installed_as_local_simulation_foundation_asset",
-  "created_utc": "2026-10-28T07:45:05.542117+00:00",
+  "created_utc": "2026-10-28T07:46:47.432790+00:00",
   "decision": "Replace retained3998 local Sit export with the reviewed COM-X continuation, preserving the previous asset and all experiment evidence. No robot deployment or hardware/TA approval.",
   "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
   "checkpoint_sha256": "def7e1e02d8e989c261ad836db848e4e4996eab929d70de6edc4a1eebe404356",
@@ -76,7 +76,7 @@
     }
   },
   "controlled_comparison": "Same retained3998 warm start,1000 iterations,4096 environments,seed42,original reference/rewards,controller plus class driver clamps,composed COM andfullgroundhulls as prior driver4997. Only torso body-frame X COM training distribution changes from +/-1 cm to +/-2 cm; Y/Z remain +/-1 cm. Exact saved environment configs match apart from X range and copied motion path.",
-  "training_distribution_scope": "The original +2 cm course robustness case was outside the original +/-1 cm distribution. It is now the boundary of the explicit widened X distribution. Fixed +/-1.5 cm tests were not training trajectories but lie inside widened X support; +/-2.5 cm remains outside.",
+  "training_distribution_scope": "The original +2 cm course robustness case was outside the original +/-1 cm distribution. It is now the boundary of the explicit widened X distribution. Additional fixed-offset evaluations reuse the original training reference: +/-1.5 cm probes lie inside widened X support, while +/-2.5 cm remains outside. These are dynamics probes, not held-out motion trajectories.",
   "summary": {
     "original_eight_all_hold_up_cpu": true,
     "original_eight_all_hold_up_gpu": true,
@@ -1075,7 +1075,7 @@
     "A finite set of dynamics tests does not prove arbitrary payload,surface,push or indefinite-hold robustness.",
     "Local source changed only after the CPU review and its before/after source snapshots completed; future target-slew work is a separate untrained contract and is not part of this policy."
   ],
-  "post_install_preservation_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-sit-comx-reviewed-installed.json",
+  "post_install_preservation_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-sit-comx-reviewed-installed-v2.json",
   "hardware_validated": false,
   "ta_approval_recorded": false,
   "approved_for_hardware": false,

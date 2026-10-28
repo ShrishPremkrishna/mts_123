@@ -15,7 +15,7 @@
   "ta_approval_recorded": false,
   "evaluation": {
     "reference": "foundation/results/lab6-sit-comx02-reviewed.json",
-    "sha256": "b80563430f0659980a484aa24f367a6cbde888d7fb238fe536e46db3dcc3f983",
+    "sha256": "8138db7adc14011630481bcec8044db81e950b070d4a1c9cc446dfde65a78296",
     "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
     "scenario_count_cpu": 12,
     "scenario_count_gpu": 12,
