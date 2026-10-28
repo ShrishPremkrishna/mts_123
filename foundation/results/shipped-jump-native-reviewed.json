@@ -1,0 +1,741 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-28T08:46:15.154674+00:00",
+  "protocol": "shipped_jump_reference_physics_v1",
+  "screening_only": true,
+  "hardware_validated": false,
+  "policy_modified": false,
+  "promotion_authorized": false,
+  "conclusion": "The actual shipped jump table produces genuine flight in this native model. At forward command0.3m/s, all four paired initial poses land and recover; standing jumps launch in all four but only the nominal pose completes recovery, with three runs stopped at the inherited1.0rad tilt limit. This is conditional simulation capability, not robust jumping or hardware readiness.",
+  "capability_boundary": {
+    "measured": "Actual unchanged shipped jump reference through native RTNeural, controller52Hz, full-hull MuJoCo520Hz, class driver limits and16ms delay.",
+    "not_measured": [
+      "ROS/gamebutton scheduling or live controller lifecycle",
+      "Running hop branch",
+      "Other slot phases, repeated jumps, command speeds or domain randomization",
+      "Hardware motor behavior or physical landing margins"
+    ]
+  },
+  "actual_reference": {
+    "policy": "pupper_gait_deploy/policies/default_policy.json",
+    "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "table_samples": 100,
+    "playback_s": 0.9400000000000001,
+    "active_s": 0.8,
+    "slot_start_phase_s": 3.0,
+    "slot_start_elapsed_s": 5.0,
+    "hop": false,
+    "synthetic_fixture_used": false
+  },
+  "experiment": {
+    "seed": 101,
+    "replicas_per_case": 4,
+    "commands": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.3,
+        0.0,
+        0.0
+      ]
+    ],
+    "modes": [
+      "gait_only",
+      "scheduled_jump"
+    ],
+    "initial_conditions_scope": "Nominal first replica; three seeded poses with roll/pitch within\u00b10.02rad, joint offsets within\u00b10.01rad and yaw sampled over\u00b1pi. These are engineering perturbations, not training-domain coverage.",
+    "pre_slot_max_root_position_difference_m": 0.0,
+    "matched_compiled_model": true,
+    "source_hashes_unchanged_during_run": true
+  },
+  "interpretation": [
+    "All eight scheduled cases have an upward main flight. Two standing trajectories stop while airborne, so their missing landing is censored evidence, not evidence that no jump happened.",
+    "The early0.01\u20130.08s contact-free intervals during the initial crouch have downward COM velocity and are not counted as jumps.",
+    "Main forward flight lasts0.290\u20130.308s and rises0.153\u20130.170m from liftoff; gains over matching gait-only peak COM excursions are0.152\u20130.165m.",
+    "All jump cases reach the model3Nm torque cap. Forward peak body tilt is47.1\u201353.2degrees and nominal standing peak is55.0degrees, close to the57.3degree stop. Passing recovery here does not establish a generous landing margin.",
+    "No torso-ground contacts occurred in the recorded samples; every contact-free sample has exactly zero recorded ground normal force. Three stopped standing runs provide no post-stop recovery evidence."
+  ],
+  "suggested_next_work": "Treat standing landing stability and robustness across slot timing/dynamics as explicit foundation gaps. Diagnose pitch/angular momentum and command/reference timing before choosing a new training or motion-design experiment; keep the inherited stop and all driver/mechanical limits.",
+  "contact_criterion": {
+    "all_robot_ground_geometries": true,
+    "max_distance_m": 1e-06,
+    "force_filter": false,
+    "explanation": "Any robot-ground pair within1um counts as contact, including hulls and weak contact; active constraint and normal force recorded separately."
+  },
+  "flight_criteria": {
+    "min_duration_s": 0.02,
+    "min_rise_after_liftoff_m": 0.005,
+    "min_takeoff_vertical_velocity_m_s": 0.05,
+    "requires_grounded_before": true,
+    "landing_recorded_separately": true
+  },
+  "recovery_criteria": {
+    "last_second_complete": true,
+    "max_tilt_rad": 0.35,
+    "rms_angular_velocity_rad_s": 2.0,
+    "zero_torso_contact": true,
+    "final_grounded": true
+  },
+  "cases": {
+    "stand-gait": {
+      "launches": 0,
+      "landings_observed": 0,
+      "stable_recoveries": 4,
+      "failures": [],
+      "replicas": [
+        {
+          "replica": 0,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008348162416088371,
+            "rms_angular_velocity_rad_s": 5.6853634320856724e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.00013560827601000192,
+          "max_tilt_degrees": 1.9635246018274501,
+          "peak_abs_torque_nm": 2.0456358785147026,
+          "driver_clip_joint_fraction": 0.0
+        },
+        {
+          "replica": 1,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008057473503970678,
+            "rms_angular_velocity_rad_s": 9.839001160599131e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.00014389730614200458,
+          "max_tilt_degrees": 1.3441604528013427,
+          "peak_abs_torque_nm": 1.3542844722198129,
+          "driver_clip_joint_fraction": 0.0
+        },
+        {
+          "replica": 2,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008465103839996374,
+            "rms_angular_velocity_rad_s": 4.5118049489013884e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.0001358910834073357,
+          "max_tilt_degrees": 0.8445762911049551,
+          "peak_abs_torque_nm": 0.6447432656633598,
+          "driver_clip_joint_fraction": 0.0
+        },
+        {
+          "replica": 3,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008373263726118827,
+            "rms_angular_velocity_rad_s": 5.864171660585839e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.00012940446805587147,
+          "max_tilt_degrees": 2.0065237963799243,
+          "peak_abs_torque_nm": 1.775475389872181,
+          "driver_clip_joint_fraction": 0.0
+        }
+      ],
+      "compiled_model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "trace_sha256": "4618dc9edbe59ec43b4d8a14351a6abf06230ac0939dd8431c4644bb5e45f1ee",
+      "contacts_sha256": "5f54a1336a5204305b0cef1b4c8ecfbee5001821a53b981348f94c4e713b845f"
+    },
+    "stand-jump": {
+      "launches": 4,
+      "landings_observed": 2,
+      "stable_recoveries": 1,
+      "failures": [
+        {
+          "replica": 2,
+          "time_s": 5.575,
+          "reason": "inherited Gemini1.0rad tilt stop",
+          "tilt_rad": 1.00050036286727
+        },
+        {
+          "replica": 3,
+          "time_s": 5.586538461538462,
+          "reason": "inherited Gemini1.0rad tilt stop",
+          "tilt_rad": 1.0030304713623992
+        },
+        {
+          "replica": 1,
+          "time_s": 5.596153846153846,
+          "reason": "inherited Gemini1.0rad tilt stop",
+          "tilt_rad": 1.0005359899962363
+        }
+      ],
+      "replicas": [
+        {
+          "replica": 0,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.290384615384616,
+            "last_airborne_time_s": 5.588461538461538,
+            "duration_s": 0.2999999999999994,
+            "grounded_before": true,
+            "landed": true,
+            "landing_time_s": 5.5903846153846155,
+            "rise_after_liftoff_m": 0.16793644046715928,
+            "takeoff_vertical_velocity_m_s": 1.8402396662765481,
+            "apex_time_s": 5.475,
+            "meets_jump_evidence": true
+          },
+          "completed": true,
+          "landing_observed": true,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.0012497720429510404,
+            "rms_angular_velocity_rad_s": 0.0021904733693798185,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.16388050445646318,
+          "max_tilt_degrees": 54.985148058315254,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.006373834498834499
+        },
+        {
+          "replica": 1,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.290384615384616,
+            "last_airborne_time_s": 5.586538461538462,
+            "duration_s": 0.2980769230769229,
+            "grounded_before": true,
+            "landed": true,
+            "landing_time_s": 5.588461538461538,
+            "rise_after_liftoff_m": 0.16888467509896193,
+            "takeoff_vertical_velocity_m_s": 1.8473725592266983,
+            "apex_time_s": 5.475,
+            "meets_jump_evidence": true
+          },
+          "completed": false,
+          "landing_observed": true,
+          "recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "peak_com_rise_from_baseline_m": 0.16544770914125062,
+          "max_tilt_degrees": 57.32648947772789,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.009736540664375716
+        },
+        {
+          "replica": 2,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.288461538461538,
+            "last_airborne_time_s": 5.575,
+            "duration_s": 0.28846153846153877,
+            "grounded_before": true,
+            "landed": false,
+            "landing_time_s": null,
+            "rise_after_liftoff_m": 0.17168788536089705,
+            "takeoff_vertical_velocity_m_s": 1.8608504830331445,
+            "apex_time_s": 5.475,
+            "meets_jump_evidence": true
+          },
+          "completed": false,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": false,
+            "meets_stability_screen": false
+          },
+          "peak_com_rise_from_baseline_m": 0.1644737283797432,
+          "max_tilt_degrees": 57.32444819360196,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.00977348510980798
+        },
+        {
+          "replica": 3,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.288461538461538,
+            "last_airborne_time_s": 5.586538461538462,
+            "duration_s": 0.30000000000000027,
+            "grounded_before": true,
+            "landed": false,
+            "landing_time_s": null,
+            "rise_after_liftoff_m": 0.17586703484054655,
+            "takeoff_vertical_velocity_m_s": 1.8831632084924737,
+            "apex_time_s": 5.476923076923077,
+            "meets_jump_evidence": true
+          },
+          "completed": false,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": false,
+            "meets_stability_screen": false
+          },
+          "peak_com_rise_from_baseline_m": 0.1681526614626514,
+          "max_tilt_degrees": 57.469412732083065,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.008605851979345954
+        }
+      ],
+      "compiled_model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "trace_sha256": "a5bcf0f73905498aaf8708efa22a44e1590ada4da222bea190a54bf3956d7c7c",
+      "contacts_sha256": "d01f6ee7f24299ee0aa01d9c39956a409ca3ffd4286a82d365a326bccb3c3aa4"
+    },
+    "forward03-gait": {
+      "launches": 0,
+      "landings_observed": 0,
+      "stable_recoveries": 4,
+      "failures": [],
+      "replicas": [
+        {
+          "replica": 0,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.06508385363714966,
+            "rms_angular_velocity_rad_s": 0.19125795538940885,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.006135782864587297,
+          "max_tilt_degrees": 6.807707771507058,
+          "peak_abs_torque_nm": 2.0456358785147026,
+          "driver_clip_joint_fraction": 0.00018210955710955712
+        },
+        {
+          "replica": 1,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.049654667342294095,
+            "rms_angular_velocity_rad_s": 0.1654264270878464,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.0060328768728398485,
+          "max_tilt_degrees": 6.101948702519181,
+          "peak_abs_torque_nm": 1.7581060306260174,
+          "driver_clip_joint_fraction": 0.00018210955710955712
+        },
+        {
+          "replica": 2,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.04464234991423339,
+            "rms_angular_velocity_rad_s": 0.18419588398742984,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.005446898428817182,
+          "max_tilt_degrees": 2.7822783390414774,
+          "peak_abs_torque_nm": 1.780612550578422,
+          "driver_clip_joint_fraction": 0.0
+        },
+        {
+          "replica": 3,
+          "launch_evidence": false,
+          "primary_flight": null,
+          "completed": true,
+          "landing_observed": false,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.03391569036303713,
+            "rms_angular_velocity_rad_s": 0.18375454370113212,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.006617396534089159,
+          "max_tilt_degrees": 6.894369710810563,
+          "peak_abs_torque_nm": 2.114721089796896,
+          "driver_clip_joint_fraction": 0.0
+        }
+      ],
+      "compiled_model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "trace_sha256": "a9250387826e05a6b2c088a85cafa4e33cfc3338737e6f24db93e6e03d3f65a2",
+      "contacts_sha256": "78019730aeda88aea4ddda9b067d15cb75580357e6d343bfa4b84918241f5d11"
+    },
+    "forward03-jump": {
+      "launches": 4,
+      "landings_observed": 4,
+      "stable_recoveries": 4,
+      "failures": [],
+      "replicas": [
+        {
+          "replica": 0,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.301923076923077,
+            "last_airborne_time_s": 5.605769230769231,
+            "duration_s": 0.30576923076923057,
+            "grounded_before": true,
+            "landed": true,
+            "landing_time_s": 5.607692307692307,
+            "rise_after_liftoff_m": 0.16601858460145022,
+            "takeoff_vertical_velocity_m_s": 1.831417395901209,
+            "apex_time_s": 5.486538461538461,
+            "meets_jump_evidence": true
+          },
+          "completed": true,
+          "landing_observed": true,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.04617653320714619,
+            "rms_angular_velocity_rad_s": 0.16240117773775276,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.17158726312704045,
+          "max_tilt_degrees": 53.15592820916827,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.007466491841491841
+        },
+        {
+          "replica": 1,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.3,
+            "last_airborne_time_s": 5.5903846153846155,
+            "duration_s": 0.2923076923076926,
+            "grounded_before": true,
+            "landed": true,
+            "landing_time_s": 5.592307692307692,
+            "rise_after_liftoff_m": 0.16144308663253465,
+            "takeoff_vertical_velocity_m_s": 1.8065692492643621,
+            "apex_time_s": 5.480769230769231,
+            "meets_jump_evidence": true
+          },
+          "completed": true,
+          "landing_observed": true,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.07793427191912115,
+            "rms_angular_velocity_rad_s": 0.19076863924533505,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.1649298035211722,
+          "max_tilt_degrees": 47.44975409513822,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.006738053613053613
+        },
+        {
+          "replica": 2,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.298076923076923,
+            "last_airborne_time_s": 5.586538461538462,
+            "duration_s": 0.29038461538461524,
+            "grounded_before": true,
+            "landed": true,
+            "landing_time_s": 5.588461538461538,
+            "rise_after_liftoff_m": 0.15268001799702577,
+            "takeoff_vertical_velocity_m_s": 1.7588481244389813,
+            "apex_time_s": 5.475,
+            "meets_jump_evidence": true
+          },
+          "completed": true,
+          "landing_observed": true,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.037434910767868916,
+            "rms_angular_velocity_rad_s": 0.17229005541131492,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.15789353575245563,
+          "max_tilt_degrees": 47.147364109095754,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.007648601398601399
+        },
+        {
+          "replica": 3,
+          "launch_evidence": true,
+          "primary_flight": {
+            "liftoff_time_s": 5.298076923076923,
+            "last_airborne_time_s": 5.6038461538461535,
+            "duration_s": 0.30769230769230704,
+            "grounded_before": true,
+            "landed": true,
+            "landing_time_s": 5.605769230769231,
+            "rise_after_liftoff_m": 0.1699051260395621,
+            "takeoff_vertical_velocity_m_s": 1.8520242199622583,
+            "apex_time_s": 5.484615384615385,
+            "meets_jump_evidence": true
+          },
+          "completed": true,
+          "landing_observed": true,
+          "recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.06055739964676892,
+            "rms_angular_velocity_rad_s": 0.19674525710364377,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "peak_com_rise_from_baseline_m": 0.1698387781222795,
+          "max_tilt_degrees": 52.13725345887498,
+          "peak_abs_torque_nm": 3.0,
+          "driver_clip_joint_fraction": 0.007830710955710956
+        }
+      ],
+      "compiled_model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "trace_sha256": "768b7b7f8cecdef6828f4f31d80c2338c7bc0e8f6c4b1b6fe2d2dfac1f84baae",
+      "contacts_sha256": "124376453af67bb4d5e668ac4de93e584b4e55eef4930edbbc16b82448cced79"
+    }
+  },
+  "paired": [
+    {
+      "command_tag": "stand",
+      "replica": 0,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": true,
+      "gait_flight_and_landing": false,
+      "jump_recovery": true,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.16388050445646318,
+      "gait_peak_com_rise_m": 0.00013560827601000192,
+      "extra_peak_com_rise_m": 0.16374489618045318
+    },
+    {
+      "command_tag": "stand",
+      "replica": 1,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": true,
+      "gait_flight_and_landing": false,
+      "jump_recovery": false,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.16544770914125062,
+      "gait_peak_com_rise_m": 0.00014389730614200458,
+      "extra_peak_com_rise_m": 0.16530381183510862
+    },
+    {
+      "command_tag": "stand",
+      "replica": 2,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": false,
+      "gait_flight_and_landing": false,
+      "jump_recovery": false,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.1644737283797432,
+      "gait_peak_com_rise_m": 0.0001358910834073357,
+      "extra_peak_com_rise_m": 0.16433783729633586
+    },
+    {
+      "command_tag": "stand",
+      "replica": 3,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": false,
+      "gait_flight_and_landing": false,
+      "jump_recovery": false,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.1681526614626514,
+      "gait_peak_com_rise_m": 0.00012940446805587147,
+      "extra_peak_com_rise_m": 0.16802325699459553
+    },
+    {
+      "command_tag": "forward03",
+      "replica": 0,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": true,
+      "gait_flight_and_landing": false,
+      "jump_recovery": true,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.17158726312704045,
+      "gait_peak_com_rise_m": 0.006135782864587297,
+      "extra_peak_com_rise_m": 0.16545148026245315
+    },
+    {
+      "command_tag": "forward03",
+      "replica": 1,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": true,
+      "gait_flight_and_landing": false,
+      "jump_recovery": true,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.1649298035211722,
+      "gait_peak_com_rise_m": 0.0060328768728398485,
+      "extra_peak_com_rise_m": 0.15889692664833235
+    },
+    {
+      "command_tag": "forward03",
+      "replica": 2,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": true,
+      "gait_flight_and_landing": false,
+      "jump_recovery": true,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.15789353575245563,
+      "gait_peak_com_rise_m": 0.005446898428817182,
+      "extra_peak_com_rise_m": 0.15244663732363845
+    },
+    {
+      "command_tag": "forward03",
+      "replica": 3,
+      "pre_slot_max_root_position_difference_m": 0.0,
+      "jump_flight_and_landing": true,
+      "gait_flight_and_landing": false,
+      "jump_recovery": true,
+      "gait_recovery": true,
+      "jump_peak_com_rise_m": 0.1698387781222795,
+      "gait_peak_com_rise_m": 0.006617396534089159,
+      "extra_peak_com_rise_m": 0.16322138158819033
+    }
+  ],
+  "validation": {
+    "focused_command": ".venv/bin/python -m pytest -q foundation/tests/test_shipped_jump.py foundation/tests/test_export_locomotion.py",
+    "before_physics_tests_passed": 21,
+    "after_hardening_tests_passed": 30,
+    "tests_cover": [
+      "Actual shipped table boundary/interior reference and network parity",
+      "Immutable schedule/reset, replica isolation, invalid grid/phase/hop rejection",
+      "All existing no-jump regression tests",
+      "Aligned full-contact520Hz trace and driver-bound smoke",
+      "Unsupported action_types/controller features rejected in Python/native host",
+      "Build failure persists explicit error status"
+    ],
+    "raw_contact_audit": {
+      "stand-gait": {
+        "rows": 18304,
+        "max_normal_force_during_contact_free_samples_n": 0.0,
+        "all_finite": true,
+        "all_raw_contact_counts_and_timestamps_match": true
+      },
+      "stand-jump": {
+        "rows": 13290,
+        "max_normal_force_during_contact_free_samples_n": 0.0,
+        "all_finite": true,
+        "all_raw_contact_counts_and_timestamps_match": true
+      },
+      "forward03-gait": {
+        "rows": 18304,
+        "max_normal_force_during_contact_free_samples_n": 0.0,
+        "all_finite": true,
+        "all_raw_contact_counts_and_timestamps_match": true
+      },
+      "forward03-jump": {
+        "rows": 18304,
+        "max_normal_force_during_contact_free_samples_n": 0.0,
+        "all_finite": true,
+        "all_raw_contact_counts_and_timestamps_match": true
+      }
+    },
+    "raw_samples": 68202,
+    "visual_review": "Inspected paired COM/tilt/contact plots and24 native snapshots at5.15,5.34,5.475,5.57,6.5,8.8s for standing/forward replicas0/2. Stopped trajectories are labeled and held only for rendering; no full-video review claimed."
+  },
+  "provenance": {
+    "execution_revision": "773d63d2d35387c5f0eefdbd6734071f7aea5b8e",
+    "hardening_revision": "c965ec8e5b2b0741695eaac310d0b87e859e142c",
+    "hardening_note": "After the complete physics run, guards/status persistence were tightened without changing the evaluated physics. Original41 execution sources are preserved with matching hashes.",
+    "execution_source_count": 41,
+    "source_sha256": {
+      "foundation/scripts/check_shipped_jump.py": "92f54afe6ef45dfe54396198163cbbabda1e91d045e7f1fb69cb96540446ac31",
+      "foundation/scripts/check_export_locomotion.py": "a73667b0c6a3d6acb479e672651f6ee07b191d4bde9ee7d6530ae7e3d678224a",
+      "foundation/scripts/check_spider_handoff.py": "16d4be4f57aae9a5f868893fdf27f787d1dfa74026fe8f93810fc40b0319a7ac",
+      "foundation/cpp/export_locomotion_controller.cpp": "0fa92dcb0ed04b406c1d84d963786d71daff6fc6509206a03a18e118e66ae0dc",
+      "pupper_gait_deploy/src/neural_controller.cpp": "74f3ac3eebbd53620ee2619735d189c209985fdd6c4d77fcdfe0ba6502d092a9",
+      "pupper_gait_deploy/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+      "pupper_gait_deploy/src/command_filter.hpp": "2513561c1f01613f1be6ccd2ce3acd494e5c60ee6f309887df8e4b30699a9c9d",
+      "pupper_gait_deploy/src/gait_reference.hpp": "59950dcd0786b52162db7a1e1eb8eef43293a57e02b05c0363a304e931f0ba16",
+      "pupper_gait_deploy/src/gait_reference_json.hpp": "ad7e898e21750bdd97f8e075f8f6ff97288f3483dcc248e904fd89ffafdeb751",
+      "pupper_gait_deploy/src/neural_controller.hpp": "f23d88edc0d24655b9c2dccb5becbb055ed37bbf90f8768c2ac05c7d981984bb",
+      "pupper_gait_deploy/src/obs_spec.hpp": "e8fc46546ced273fe46baee265356b90a74e8c4794d66952811bdec07dac58a7",
+      "pupper_gait_deploy/src/position_target_slew.hpp": "1ee40882f02151f35ca4627425c512a8239b1f4f3ae3d0fdb8a454bf56b8b36d",
+      "pupper_gait_deploy/src/trick_motion.hpp": "3d238b5a9e5737868772be7da4dca5291210532c30224d504a0ec9790c78da05",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/__init__.py": "870e55a5460821ddd0529b27f3b56472cb6b058381e14e16bea8582a2eb11d0e",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/export_trick.py": "43707389ff271f7dfc0905b8b205d2adf87e13f87c90161abe910a6cb4cf3280",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_design.py": "8bc443541a29c9a05a99acdb5465c12e726d15f4189e62661772b9e343b92edf",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_ops.py": "1d3c549682b5109a6747a326ec746c92afd04d737bfcc483f2605a3fe665f4f0",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/play_motion.py": "5322d6700db98c85accc2e8cacd9c9a091cbc07a1d5c7570581c162e04b423e5",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/rl_cfg.py": "6635456e4756a40e54ab7d559cdec5d207bd4833d39be0bd691f6218fb77e932",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/runner.py": "fd2381156f6cab495c3c2f05136090a6d9e58d1c8d657cabe81f7701140d98a0",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/upload_motion.py": "864e5ff8c2d4931038a0d0a3948c65361abd546068c88cc51a419206dd2ded39",
+      "pupper-mjlab/src/mjlab/tasks/pupper/deployment_contract.py": "388aec727d505aa3b9abe49223c9c216938aa06e3476d243e9b509244c28cb62",
+      "pupper-mjlab/src/mjlab/tasks/pupper/locomotion_contact_contract.py": "23f3322826681da74e862a798ce2e176385bcd31dd4582803f7b87eb9c5abbc6",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/__init__.py": "9889fce7d2debc9fa72aaa63ac328b9dd60eb4a1fbcca8e0e65e50d21d1d1a89",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/BodyV4v70_001.stl": "703137e327683555c1f6d12d39b99fd721479af0e0785e61805ad755a8f782a8",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_001.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_002.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_003.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_005.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_006.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_007.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_010.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_011.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_012.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_013.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_014.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_015.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/pupper_v3.xml": "a62291bb236e3a92979ddbd772f3f6506bfded07a9ff939e48e6d5ffeeba611d"
+    },
+    "plan_sha256": "718727f540fcd2aed684f0e6b357bec17b74107578b6b56f44681f4b5b90d259",
+    "report_sha256": "185eb984ba1445f874afed2c68b6f9edd4d9633572f41789f8eb2dbc57b1ff13",
+    "binary_sha256": "367d85db70886115f87f222ea14e97d4eab2c16a14e7cd46a6ab0ed1e98248ef",
+    "execution_sources_archive_sha256": "338605fbbdd4994da72f7705593f811419359fc31243ff9c362d6d53679d133a",
+    "driver_limits_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+    "runtime": {
+      "python": "3.12.14",
+      "mujoco": "3.10.0",
+      "torch": "2.14.1",
+      "platform": "macOS-26.5.1-arm64-arm-64bit"
+    }
+  },
+  "artifact_directory": "artifacts/shipped-jump/native-actual-table-v1",
+  "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/shipped-jump/native-actual-table-v1",
+  "preservation_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-shipped-jump-native-reviewed-v1.json"
+}
