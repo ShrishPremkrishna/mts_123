@@ -1,0 +1,207 @@
+{
+  "created_utc": "2026-10-28T06:33:10.169741+00:00",
+  "purpose": "Engineering capability coverage against inspected course handouts; no deliverable completion, learning mastery, hardware approval or globally optimal policy claim.",
+  "sources_are_data_not_authorization": true,
+  "coverage": [
+    {
+      "lab": "Lab 1",
+      "source": {
+        "library_path": "Cs123/References/Lecture 1/Lab 1 - Instructions.txt",
+        "sha256": "262e04214a7915d288370b7b809ca3a07002aa6551bc854abe10b4867ff48bc3",
+        "locator": "PD exercise and delay experiment"
+      },
+      "implemented_or_available": [
+        "Signed bounded PD controller, measured-pose startup, position/velocity-consistent targets and sampled delay"
+      ],
+      "evidence_paths": [
+        "pd_control_lab/pd_control.py",
+        "foundation/tests/test_pd_runtime.py"
+      ],
+      "remaining_boundaries": [
+        "Actual gains, feedback timing, supported joint test and thermal response remain untested on this robot."
+      ]
+    },
+    {
+      "lab": "Lab 2",
+      "source": {
+        "library_path": "Cs123/References/Lecture 2/Lab 2 - Instructions.txt",
+        "sha256": "1853a4fb0eaf08be9132649367c92394063d0789e482f757ff1589d2e0ddab90",
+        "locator": "FK implementation; Additional Challenges (Optional), lines278\u2013285"
+      },
+      "implemented_or_available": [
+        "Four-leg FK and named EEF topics",
+        "Existing monorepo all-topic ROS bag recorder captures published joints and EEF topics"
+      ],
+      "evidence_paths": [
+        "forward_kinematics_lab/forward_kinematics.py",
+        "pupperv3-monorepo/scripts/mcap_to_csv.py"
+      ],
+      "remaining_boundaries": [
+        "Dedicated EEF-recording-to-Lab3-keyframe workflow is not yet present: existing CSV conversion extracts joint states only.",
+        "Frame/sign validation and physical calibration remain hardware work."
+      ]
+    },
+    {
+      "lab": "Lab 3",
+      "source": {
+        "library_path": "Cs123/References/Lecture 3/Lab 3 - Instructions.txt",
+        "sha256": "2f60e41d6675103f9d3d853d23f8da4d95f41c59179eab059d6d5ae0a7a95d69",
+        "locator": "Required Parts1\u20135; Part6 Exercises5\u20137 / TODO9\u201311"
+      },
+      "implemented_or_available": [
+        "Bounded IK, single-leg and four-leg interpolation, trotting cache validation",
+        "Optional pronk/reverse-crawl patterns, cycloidal swing, tuner-to-keyframe conversion"
+      ],
+      "evidence_paths": [
+        "ik_heuristic_walking_lab/kinematics.py",
+        "ik_heuristic_walking_lab/walking.py",
+        "pupper-gait-tuner/gait.py",
+        "ik_heuristic_walking_lab/extension/tuned_params_to_keyframes.py"
+      ],
+      "remaining_boundaries": [
+        "Reachability and joint bounds do not establish dynamic gait stability on hardware."
+      ]
+    },
+    {
+      "lab": "Lab 4",
+      "source": {
+        "library_path": "Cs123/References/Lecture 4/Lab 4 - Instructions - 2026-10-27.txt",
+        "sha256": "6058f1f584c6bccd57c76325e35fc0a094f032ce1daf7fda4e53f6317d36576e",
+        "locator": "Training, shaped rewards, reference design, deployment and multigait comparison"
+      },
+      "implemented_or_available": [
+        "PPO train/evaluate/export pipeline",
+        "Recovered StableGait and Tej from-scratch artifacts with compatibility audits",
+        "Paired StableGait continuation comparison and native shipped-default comparison"
+      ],
+      "evidence_paths": [
+        "foundation/results/lab4-stablegait-clamp-gpu-comparison.json",
+        "foundation/results/shipped-policy-native-screen.json",
+        "foundation/results/lab4-team-baseline-coverage.json"
+      ],
+      "remaining_boundaries": [
+        "No broad optimization of every historical team run.",
+        "Retain shipped default; tested new walking candidates have no demonstrated general promotion advantage.",
+        "Installed Pi policy identity and measured hardware performance remain unknown."
+      ]
+    },
+    {
+      "lab": "Lab 5",
+      "source": {
+        "library_path": "Cs123/References/Lecture 5/Lab 5 - Instructions.txt",
+        "sha256": "066b6ae40c1802a56be66166c5494119da65fe7bc203b7fe76da72b770b9e655",
+        "locator": "Required following and target lock; optional color and obstacle steps"
+      },
+      "implemented_or_available": [
+        "Target following, target persistence, stopping-distance logic",
+        "Optional clothing-color recovery and timed obstacle detours",
+        "Detection watchdog and combined Lab6 follower integration"
+      ],
+      "evidence_paths": [
+        "follow_me_pupper/lab/follow_me.py",
+        "follow_me_pupper/lab/target_lock.py",
+        "follow_me_pupper/lab/avoidance.py",
+        "follow_me_pupper/robot/follow_service.py"
+      ],
+      "remaining_boundaries": [
+        "Color and avoidance are opt-in, require camera/Hailo validation and do not establish robust person identity or geometric obstacle clearance."
+      ]
+    },
+    {
+      "lab": "Lab 6",
+      "source": {
+        "library_path": "Cs123/References/Lecture 6/Lab 6 - Instructions.txt",
+        "sha256": "2bd8527ef570026baef965bfc73e77f34a620f198b0c77f80194edeb11eaa4bd",
+        "locator": "Parts1\u20137 / TODO1\u201311; Optional: The Jump, lines1601\u20131616"
+      },
+      "implemented_or_available": [
+        "Prompt, bounded movement/turn/arc, follow interruption, serialized queue with truthful outcomes",
+        "Interactive Sit/Stay/Shake and Spider clip training tools",
+        "Corrected clip activation/handoff and separate Spider walking training",
+        "Existing reference jump enabled and contract-bound to shipped locomotion export"
+      ],
+      "evidence_paths": [
+        "gemini_pupper/docs/foundation.md",
+        "foundation/results/spider-continuous-handoff.json",
+        "foundation/results/lab6-sit-driver-corrected-review.json"
+      ],
+      "remaining_boundaries": [
+        "Sit retains forward-COM weakness under tighter driver limits; latest continuation was rejected.",
+        "Spider walking precision and stopping experiments require recovery and review.",
+        "Live Gemini, ROS integration and physical validation remain pending."
+      ]
+    },
+    {
+      "lab": "Optional Lab 1",
+      "source": {
+        "library_path": "Cs123/References/Optional Lab 1/Optional Lab 1 - Instructions.txt",
+        "sha256": "67fb5c2427c5bdc6bd6fa8d56c28e2796ec3df2ef638127aa91a7476b81d4d4c",
+        "locator": "Ablation Study; Deployment Challenge"
+      },
+      "implemented_or_available": [
+        "Timestamp-aligned recording-level data splits; explicit visual and implicit motor models",
+        "Trained contact export, conservative streaming gate and one-second single-leg pause",
+        "Read-only shadow logger for live calibration"
+      ],
+      "evidence_paths": [
+        "implicit_compliance/README.md",
+        "implicit_compliance/results/2026-10-27/Results.md",
+        "implicit_compliance/shadow.py"
+      ],
+      "remaining_boundaries": [
+        "Contact labels are weak detector-derived annotations, not human ground truth.",
+        "Terrain heads generalize poorly and do not control locomotion.",
+        "DenseTact tactile images differ from front-camera RGB; live effort semantics and contact event behavior need new robot measurements."
+      ]
+    },
+    {
+      "lab": "Optional Lab 2",
+      "source": {
+        "library_path": "Cs123/References/Optional Lab 2/Optional Lab 2 - Instructions.txt",
+        "sha256": "da18764f7809f43d7d00399245d65bcb6b234d78c0aacb06788ab4ea74ed311a",
+        "locator": "Parts0\u20134"
+      },
+      "implemented_or_available": [
+        "Stock/authored/fast reference comparisons, rollout capture and one trained legacy bootstrap round",
+        "Mixed-reference training and paired randomized evaluation infrastructure",
+        "Corrected driver/COM/torso flat continuation, Bumpy and Mystery workers implemented and smoke-tested"
+      ],
+      "evidence_paths": [
+        "pupper-mjlab/configs/optional2/README.md",
+        "foundation/results/optional2-clamped-batch-review.json",
+        "foundation/scripts/colab_optional_corrected.py"
+      ],
+      "remaining_boundaries": [
+        "Interrupted corrected flat GPU runs have no recovered final outputs; rerun from preserved exact inputs is required.",
+        "Bumpy and genuine flight/landing Mystery experiments remain to be executed.",
+        "Legacy fast comparison is not an isolated reward ablation: reference and prior optimization histories differ.",
+        "No measured hardware speed or jump approval."
+      ]
+    },
+    {
+      "lab": "Optional Lab 3",
+      "source": {
+        "library_path": "Cs123/References/Optional Lab 3/Optional Lab 3 - Instructions.txt",
+        "sha256": "4a61b7e4134f4ceb7f198886c7826f5d8a3c29b6deb758eea4509f19e072f8e4",
+        "locator": "Parts1\u20133, draft handout"
+      },
+      "implemented_or_available": [
+        "Three in-context prompt habits and deterministic secret-trick gating",
+        "Pinned UniMate generation, candidate selection, IK repair and trained generated-motion artifact"
+      ],
+      "evidence_paths": [
+        "gemini_pupper/lab/prompt.md",
+        "gemini_pupper/docs/foundation.md",
+        "foundation/results/generated-candidate-selection.json",
+        "gemini_pupper/tricks/secret_dance/trick.yaml"
+      ],
+      "remaining_boundaries": [
+        "Generated artifact review/installation was interrupted and must be verified from saved evidence.",
+        "Named complex secret dance is a stretch example; descriptor must describe actual trained movement.",
+        "Password is owner-provided outside repo; in-context memory is not persistent identity authentication."
+      ]
+    }
+  ],
+  "acceptance_rule": "A trained experiment can be completed and rejected. Only reviewed evidence, exact model/reference identities, and supervised hardware measurements support promoted capabilities.",
+  "newly_identified_implementation_gap": "Lab2 optional EEF recording and replay adapter; all-topic recording alone does not provide the full convenient Lab2-to-Lab3 workflow."
+}
