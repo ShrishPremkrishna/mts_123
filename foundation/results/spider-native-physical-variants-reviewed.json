@@ -1,0 +1,591 @@
+{
+  "recorded_utc": "2026-10-28T11:26:29.579494+00:00",
+  "status": "reviewed deterministic paired sensitivity; no policy promotion",
+  "hardware_validated": false,
+  "source_commit": "8d2da20ebe1920008b79dfab63c0cf17c3dada9c",
+  "artifact": "artifacts/lab6/spider-native-physical-variants-v1",
+  "batch_sha256": "53c08e2908368e20f3b7bdcf5fb800d3f6b321edf761ecc1dd14715537da33c6",
+  "raw_dispatch_label_sha256": "fff2e113b6513220bda987cfa23338ce08d68764204e958717845b0f69485f7d",
+  "policy_and_input_sha256": {
+    "artifacts/lab6/pupper-spider-torso-refinement/exports/control/policy.json": "7f6c9b8b967052adf0925838997888946f73c8cd78873d8da859d9c077498192",
+    "artifacts/lab6/pupper-spider-torso-refinement/exports/torso/policy.json": "b2022c814f5147e31c6ced028208a1e61db7975980d9fe71cd50454c48bd520b",
+    "artifacts/lab6/pupper-spider-torso-refinement/native/torso/trick-policy.json": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb",
+    "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "foundation/configs/class-driver-joint-limits.json": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3"
+  },
+  "design": {
+    "pairs": 8,
+    "sequences": 16,
+    "fixed_mechanics": "COM x +/-0.02 m; all nonworld mass and central inertia scale 0.9/1.3; heavy COM corners; two separate effective foot-end friction assumptions 0.6/1.4. Realized arrays and exact binary models retained.",
+    "controller": "Actual exported native networks, no state reset between entry/walk/exit/default; class driver clamps, fixed 16 ms target delay, full collision hulls; 15 rad/s walking target slew.",
+    "stop_contract": "Global 1.0 rad (57.29577951308232 deg) tilt bound sampled at 52 Hz after a 520 Hz integration step; conservative versus 60 deg trick bound, with up to 1/520 s phase difference versus production pre-inference check. Numerical/reset monitoring is every physics step (520 Hz). Trace censored at stop; no post-stop damping/recovery simulation.",
+    "distribution": "These are selected whole-chain corners, not a population estimate or uniformly in-distribution test. Walking trained with +/-2 cm x-COM; the paired a1be106 clip input predates explicit driver-clamp matching and used legacy COM overwrite behavior despite +/-1 cm configuration. Nominal sensing/gains; no external perturbation.",
+    "friction": "Sphere-only mu=0.6 leaves effective load-bearing hull mu=1.0. More than 99% of moving foot-end normal load lies on lower-leg hulls. Union cases change both sphere and hull mu plus hull priority; label as a separate material assumption, not exact training randomization."
+  },
+  "checks": {
+    "all_completed": true,
+    "tilt_or_numerical_stops": 0,
+    "changed_inputs_or_sources": false,
+    "paired_saved_models_and_entry_traces_identical": true,
+    "independently_recomputed_contact_rows": 212622,
+    "independent_review": "independent-review/physical-variants.json and tracking.json",
+    "independent_canonical_numeric_comparisons": 304
+  },
+  "findings": {
+    "stronger_moving_and_stop_torso_force_zero_in_saved_samples": true,
+    "scope": "Forward/back/turn and both stop stages after activation. Entry, walk activation and exit can have torso load. Sampled at52Hz; zero samples do not prove continuous contact absence.",
+    "forward_slower_stronger_cases": 8,
+    "reverse_magnitude_improved_stronger_cases": 8,
+    "foot_end_slip_worse_stronger_cases": 5,
+    "all_final_body_speed_max_m_s": 0.0008844121795605949,
+    "all_final_joint_speed_max_rad_s": 0.016418388746511935,
+    "sampled_impacts": "Individual contact peaks can be large under rigid contact; they are instantaneous model results, not calibrated motor or hardware load measurements."
+  },
+  "metrics": [
+    {
+      "case": "com_front",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.06086671634205872,
+      "moving_torso_peak_n": 311.3562129493521,
+      "moving_foot_end_forceweighted_slip_m_s": 0.056756503118244296,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.0,
+      "exit_torso_mean_bodyweight": 0.4066183122932552,
+      "final_body_speed_m_s": 0.0001691955480638768,
+      "final_joint_speed_rad_s": 0.010755263034830766,
+      "forward_vx": 0.08426660061095975,
+      "backward_vx": -0.021306869869640213,
+      "approx_world_yaw_rate_rad_s": 0.19314811579261493,
+      "foot_sphere_normal_load_share": 0.005214498818128623,
+      "foot_hull_normal_load_share": 0.9947855011818714,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 8.71333557409838
+    },
+    {
+      "case": "com_front",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.07544529639065706,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.0,
+      "exit_torso_mean_bodyweight": 0.4194055403250393,
+      "final_body_speed_m_s": 0.00022920827320375403,
+      "final_joint_speed_rad_s": 0.010438669362627856,
+      "forward_vx": 0.08243602037864325,
+      "backward_vx": -0.027412805661929242,
+      "approx_world_yaw_rate_rad_s": 0.1876333228180636,
+      "foot_sphere_normal_load_share": 0.006038727387715956,
+      "foot_hull_normal_load_share": 0.9939612726122841,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 8.65661454886423
+    },
+    {
+      "case": "com_rear",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.0009276349680840552,
+      "moving_torso_peak_n": 9.000361951460107,
+      "moving_foot_end_forceweighted_slip_m_s": 0.046975692823380655,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.017490113390809896,
+      "exit_torso_mean_bodyweight": 0.45244684722331746,
+      "final_body_speed_m_s": 0.0003684750110163777,
+      "final_joint_speed_rad_s": 0.013464917235980764,
+      "forward_vx": 0.07541429966231306,
+      "backward_vx": -0.052352943181823736,
+      "approx_world_yaw_rate_rad_s": 0.18716232766475707,
+      "foot_sphere_normal_load_share": 0.004934653986131226,
+      "foot_hull_normal_load_share": 0.9950653460138688,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.85754454619994
+    },
+    {
+      "case": "com_rear",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.047342029278231675,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.016836583548761525,
+      "exit_torso_mean_bodyweight": 0.4402978398700992,
+      "final_body_speed_m_s": 0.0004032859469469467,
+      "final_joint_speed_rad_s": 0.012833564769304468,
+      "forward_vx": 0.07009246714588704,
+      "backward_vx": -0.061663818311062296,
+      "approx_world_yaw_rate_rad_s": 0.20936552144108175,
+      "foot_sphere_normal_load_share": 0.0037886763798945333,
+      "foot_hull_normal_load_share": 0.9962113236201054,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.906371952945864
+    },
+    {
+      "case": "foot_end_high",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.007841791724710164,
+      "moving_torso_peak_n": 39.77311742332368,
+      "moving_foot_end_forceweighted_slip_m_s": 0.04054944683288608,
+      "idle_torso_mean_bodyweight": 0.01117131074790149,
+      "activation_torso_mean_bodyweight": 0.0035914288755404577,
+      "exit_torso_mean_bodyweight": 0.4213250188817079,
+      "final_body_speed_m_s": 0.00020307640973692487,
+      "final_joint_speed_rad_s": 0.016418388746511935,
+      "forward_vx": 0.08126953972468877,
+      "backward_vx": -0.029675669745709447,
+      "approx_world_yaw_rate_rad_s": 0.1852704050907346,
+      "foot_sphere_normal_load_share": 0.000808791877732383,
+      "foot_hull_normal_load_share": 0.9991912081222675,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.315342221030873
+    },
+    {
+      "case": "foot_end_high",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.05064708288637447,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.00373862369739043,
+      "exit_torso_mean_bodyweight": 0.41745492180434246,
+      "final_body_speed_m_s": 0.00021231624731219082,
+      "final_joint_speed_rad_s": 0.016181104825100896,
+      "forward_vx": 0.07806347924081557,
+      "backward_vx": -0.037484976448929404,
+      "approx_world_yaw_rate_rad_s": 0.2047932664561577,
+      "foot_sphere_normal_load_share": 0.0011911122606040405,
+      "foot_hull_normal_load_share": 0.9988088877393959,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.354356897617865
+    },
+    {
+      "case": "foot_end_low",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.005781661478613431,
+      "moving_torso_peak_n": 24.667040610205202,
+      "moving_foot_end_forceweighted_slip_m_s": 0.07313039678019417,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.002891841314354224,
+      "exit_torso_mean_bodyweight": 0.42168949362185737,
+      "final_body_speed_m_s": 0.00010110169776240919,
+      "final_joint_speed_rad_s": 0.008981864099014273,
+      "forward_vx": 0.08302266776842336,
+      "backward_vx": -0.03947538892812693,
+      "approx_world_yaw_rate_rad_s": 0.1856894308680435,
+      "foot_sphere_normal_load_share": 0.006020998656994428,
+      "foot_hull_normal_load_share": 0.9939790013430057,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.338371392519212
+    },
+    {
+      "case": "foot_end_low",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.06816150168943441,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.0026737173474652284,
+      "exit_torso_mean_bodyweight": 0.4138577837363942,
+      "final_body_speed_m_s": 0.0002233748283041913,
+      "final_joint_speed_rad_s": 0.007492672560125838,
+      "forward_vx": 0.07583075627317645,
+      "backward_vx": -0.0491209915201606,
+      "approx_world_yaw_rate_rad_s": 0.21097140877455747,
+      "foot_sphere_normal_load_share": 0.008481701731813602,
+      "foot_hull_normal_load_share": 0.9915182982681865,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.415017797595146
+    },
+    {
+      "case": "heavy",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.07539360365407176,
+      "moving_torso_peak_n": 722.5321626558018,
+      "moving_foot_end_forceweighted_slip_m_s": 0.06759221469242678,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.04233181483332364,
+      "exit_torso_mean_bodyweight": 0.42383858803320856,
+      "final_body_speed_m_s": 0.0002789465793348607,
+      "final_joint_speed_rad_s": 0.01069321709417997,
+      "forward_vx": 0.08292249302625859,
+      "backward_vx": -0.03665663099974634,
+      "approx_world_yaw_rate_rad_s": 0.21799685095427068,
+      "foot_sphere_normal_load_share": 0.0029214739876158346,
+      "foot_hull_normal_load_share": 0.9970785260123841,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.31965125608501
+    },
+    {
+      "case": "heavy",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.0487061747574838,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.04080500709127249,
+      "exit_torso_mean_bodyweight": 0.427741531995628,
+      "final_body_speed_m_s": 0.0002657077509148461,
+      "final_joint_speed_rad_s": 0.009687161551179926,
+      "forward_vx": 0.07334499431005029,
+      "backward_vx": -0.04198454732262739,
+      "approx_world_yaw_rate_rad_s": 0.2105871753680424,
+      "foot_sphere_normal_load_share": 0.0057756674645676135,
+      "foot_hull_normal_load_share": 0.9942243325354325,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.337305897859288
+    },
+    {
+      "case": "heavy_front_sphere_low",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.03695285549378166,
+      "moving_torso_peak_n": 167.47202929075337,
+      "moving_foot_end_forceweighted_slip_m_s": 0.06176706277524337,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.00783297567763228,
+      "exit_torso_mean_bodyweight": 0.42309384832552593,
+      "final_body_speed_m_s": 0.000266723471494927,
+      "final_joint_speed_rad_s": 0.009329007130831913,
+      "forward_vx": 0.08285254350469036,
+      "backward_vx": -0.027252942005443682,
+      "approx_world_yaw_rate_rad_s": 0.20903727753482682,
+      "foot_sphere_normal_load_share": 0.0073758975644979494,
+      "foot_hull_normal_load_share": 0.992624102435502,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 8.700155798006522
+    },
+    {
+      "case": "heavy_front_sphere_low",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.06357909067653644,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.007380625062635306,
+      "exit_torso_mean_bodyweight": 0.41399607737202365,
+      "final_body_speed_m_s": 0.00030862286093552815,
+      "final_joint_speed_rad_s": 0.00911941060970831,
+      "forward_vx": 0.07586251682758229,
+      "backward_vx": -0.030474509027698635,
+      "approx_world_yaw_rate_rad_s": 0.20025034520958768,
+      "foot_sphere_normal_load_share": 0.006994242062676015,
+      "foot_hull_normal_load_share": 0.993005757937324,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 8.730496474593952
+    },
+    {
+      "case": "heavy_rear_sphere_low",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.020010020392841926,
+      "moving_torso_peak_n": 135.46180093104527,
+      "moving_foot_end_forceweighted_slip_m_s": 0.04565431342278974,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.1017839094926702,
+      "exit_torso_mean_bodyweight": 0.45341242198644927,
+      "final_body_speed_m_s": 0.0008844121795605949,
+      "final_joint_speed_rad_s": 0.011825735549987426,
+      "forward_vx": 0.07894418242716306,
+      "backward_vx": -0.046835272763463304,
+      "approx_world_yaw_rate_rad_s": 0.20082210705204706,
+      "foot_sphere_normal_load_share": 0.009184075554174574,
+      "foot_hull_normal_load_share": 0.9908159244458254,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 10.244544393463098
+    },
+    {
+      "case": "heavy_rear_sphere_low",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.03364949043880522,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.09898780202062904,
+      "exit_torso_mean_bodyweight": 0.44077862225762876,
+      "final_body_speed_m_s": 0.0007731760543846842,
+      "final_joint_speed_rad_s": 0.013548444227294107,
+      "forward_vx": 0.07304461983076874,
+      "backward_vx": -0.05496802329165836,
+      "approx_world_yaw_rate_rad_s": 0.21907811083135073,
+      "foot_sphere_normal_load_share": 0.006792528201007128,
+      "foot_hull_normal_load_share": 0.9932074717989928,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 10.01026750830729
+    },
+    {
+      "case": "light",
+      "arm": "control",
+      "moving_torso_mean_bodyweight": 0.024853364302688197,
+      "moving_torso_peak_n": 136.97235783698522,
+      "moving_foot_end_forceweighted_slip_m_s": 0.054415676949967594,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.0,
+      "exit_torso_mean_bodyweight": 0.44230249530413823,
+      "final_body_speed_m_s": 0.0002424037675260165,
+      "final_joint_speed_rad_s": 0.014591414410030895,
+      "forward_vx": 0.09026135898294019,
+      "backward_vx": -0.033400756517788684,
+      "approx_world_yaw_rate_rad_s": 0.18186344224415743,
+      "foot_sphere_normal_load_share": 0.004317417471758102,
+      "foot_hull_normal_load_share": 0.9956825825282419,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.248379747432951
+    },
+    {
+      "case": "light",
+      "arm": "stronger",
+      "moving_torso_mean_bodyweight": 0.0,
+      "moving_torso_peak_n": 0.0,
+      "moving_foot_end_forceweighted_slip_m_s": 0.06282692005486284,
+      "idle_torso_mean_bodyweight": 0.0,
+      "activation_torso_mean_bodyweight": 0.0,
+      "exit_torso_mean_bodyweight": 0.4325923525876492,
+      "final_body_speed_m_s": 0.00024285794913616403,
+      "final_joint_speed_rad_s": 0.014822558664963447,
+      "forward_vx": 0.07970625068296637,
+      "backward_vx": -0.040427777058338735,
+      "approx_world_yaw_rate_rad_s": 0.21247820428888606,
+      "foot_sphere_normal_load_share": 0.004807771004407365,
+      "foot_hull_normal_load_share": 0.9951922289955927,
+      "forward_command": [
+        0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "backward_command": [
+        -0.0999999999999998,
+        0.0,
+        0.0
+      ],
+      "turn_command": [
+        0,
+        0,
+        0.2
+      ],
+      "whole_sequence_max_tilt_deg": 9.166293568112206
+    }
+  ],
+  "limitations": [
+    "Eight deterministic selected cases, one command ordering, no uncertainty interval or held-out population success claim.",
+    "Exact contact-point tangential velocity uses both bodies at the solved pre-integration contact; poses are post-integration by at most 1/520 s.",
+    "Native CPU MuJoCo520Hz differs from training Warp250Hz; do not pool their slip metrics (GPU metric is contacted foot-site horizontal speed).",
+    "Approximate world yaw-rate from saved orientation is a diagnostic, not a calibrated body yaw tracking metric.",
+    "Passing the full chain does not establish ROS controller-manager, sensing, communications or physical robot behavior."
+  ],
+  "decision": "Retain both exports as reviewed experiments. Stronger improves torso loading but is not uniformly better and randomized GPU still contains light idle support. Complete weak-gain/material sensitivity before considering a bounded local installation.",
+  "preservation": {
+    "root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27",
+    "complete_batch_receipt": "preservation-spider-native-physical-variants-v1.json",
+    "complete_batch_files": 224,
+    "complete_batch_bytes": 1169514309,
+    "additive_independent_review_receipt": "preservation-spider-physical-variants-independent-review-v2.json",
+    "additive_independent_review_files": 5,
+    "additive_independent_review_bytes": 292452
+  }
+}
