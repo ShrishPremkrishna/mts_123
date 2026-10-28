@@ -2,6 +2,8 @@
 
 Probe nominal mechanics versus randomized mechanics before training. Control and
 penalty arms share1000iterations4096worldsseed42; only torso-support weight differs.
+The explicit refinement study starts from the reviewed penalty7496 and compares
+unchanged weight -2 against -5 with the same budget.
 No source fetching, policy installation, limit relaxation or hardware approval.
 """
 import argparse
@@ -27,17 +29,26 @@ def verify_source(repo, revision):
 CHECKPOINT_SHA = '3889a2be7d883f188e25fdb7c30ab62da2bdc3e4bf38c4129af4c5fd27519ee5'
 
 
-def plan(repo, checkpoint, output, arm, revision):
+STUDIES = {
+    'initial': dict(checkpoint_sha256=CHECKPOINT_SHA, control_weight=0., torso_weight=-2.),
+    'refinement': dict(checkpoint_sha256='3f89d18a1ef4558520cac1d003abcd264afe1b4e1401261925020d0b112bb3de', control_weight=-2., torso_weight=-5.),
+}
+
+
+def plan(repo, checkpoint, output, arm, revision, study='initial'):
     if arm not in ('probe', 'control', 'torso'):
         raise ValueError('Unknown matched torso arm')
+    if study not in STUDIES:
+        raise ValueError('Unknown matched torso study')
+    specification = STUDIES[study]
     verify_source(repo, revision)
-    if original.sha(checkpoint) != CHECKPOINT_SHA:
-        raise ValueError('Requires exact reviewed slew baseline6497 checkpoint')
+    if original.sha(checkpoint) != specification['checkpoint_sha256']:
+        raise ValueError('Requires exact reviewed checkpoint for selected torso study')
     project=repo/'pupper-mjlab';python=project/'.venv/bin/python';driver=repo/'foundation/configs/class-driver-joint-limits.json'
-    weight=None if arm=='probe' else 0. if arm=='control' else -2.
+    weight=None if arm=='probe' else specification[f'{arm}_weight']
     common=['--deployment-target-clamp','--driver-limits',str(driver),'--compose-com-randomization','--locomotion-torso-contact','--target-slew-rad-s','15.0']
     train=None if arm=='probe' else list(map(str,[python,'-m','mjlab.scripts.pupper_foundation','train','spider_walk','--initial-checkpoint',checkpoint,'--output',output/arm/'training','--linear-tracking-std',repr(.1**.5),*common,'--torso-support-weight',str(weight),'--iterations','1000','--num-envs','4096','--seed','42','--logger','tensorboard']))
-    return dict(arm=arm,output=str(output/arm),std=.1**.5,torso_support_weight=weight,checkpoint_sha256=CHECKPOINT_SHA,source_revision=revision,driver_limits_sha256=original.sha(driver),training_command=train,training_iterations=0 if arm=='probe' else 1000,target_slew_rad_s=RATE,evaluation_seeds=[101] if arm=='probe' else list(SEEDS),hardware_validated=False,automatic_promotion=False,source_frozen=True,scope='Same pose/reference/controller/driver/slew physical contract; only bounded actual torso-load reward weight differs.'),common
+    return dict(arm=arm,study=study,output=str(output/arm),std=.1**.5,torso_support_weight=weight,checkpoint_sha256=specification['checkpoint_sha256'],source_revision=revision,driver_limits_sha256=original.sha(driver),training_command=train,training_iterations=0 if arm=='probe' else 1000,target_slew_rad_s=RATE,evaluation_seeds=[101] if arm=='probe' else list(SEEDS),hardware_validated=False,automatic_promotion=False,source_frozen=True,scope='Same pose/reference/controller/driver/slew physical contract; only bounded actual torso-load reward weight differs.'),common
 
 
 def check_contract(block, driver_sha):
@@ -48,7 +59,7 @@ def check_contract(block, driver_sha):
 
 
 def run_arm(args, arm):
-    record, common = plan(args.repo, args.checkpoint, args.output, arm, args.expected_revision)
+    record, common = plan(args.repo, args.checkpoint, args.output, arm, args.expected_revision, getattr(args, 'study', 'initial'))
     if args.plan_only:
         print(json.dumps(record, indent=2)); return
     out = Path(record['output']); out.mkdir(parents=True, exist_ok=False)
@@ -76,7 +87,7 @@ def run_arm(args, arm):
             if len(manifests) != 1: raise RuntimeError('Expected one isolated training run')
             manifest = json.loads(manifests[0].read_text())
             if (manifest['state'] != 'trained_unvalidated'
-                    or manifest['initial_checkpoint_sha256'] != CHECKPOINT_SHA
+                    or manifest['initial_checkpoint_sha256'] != record['checkpoint_sha256']
                     or manifest['reward_parameter_overrides']['track_linear_velocity.std']['value'] != record['std']
                     or manifest['torso_support_contract']['reward_weight'] != record['torso_support_weight']
                     or manifest['iterations'] != 1000 or manifest['num_envs'] != 4096 or manifest['seed'] != 42):
@@ -119,6 +130,7 @@ def main():
     parser.add_argument('--checkpoint', type=Path, required=True)
     parser.add_argument('--output', type=Path, default=Path('/content/pupper-spider-torso'))
     parser.add_argument('--expected-revision', required=True)
+    parser.add_argument('--study', choices=tuple(STUDIES), default='initial')
     parser.add_argument('--arm', choices=['probe', 'control', 'torso'], required=True)
     parser.add_argument('--plan-only', action='store_true')
     args = parser.parse_args()

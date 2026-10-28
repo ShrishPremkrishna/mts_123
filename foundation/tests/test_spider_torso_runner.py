@@ -26,3 +26,19 @@ def test_wrong_input_refused(monkeypatch,tmp_path):
     monkeypatch.setattr(runner,'verify_source',lambda *a:None)
     monkeypatch.setattr(runner.original,'sha',lambda p:'0'*64)
     with pytest.raises(ValueError,match='exact'):runner.plan(ROOT,tmp_path/'wrong',tmp_path,'control','a'*40)
+
+
+def test_refinement_uses_exact_penalty_input_and_only_changes_weight(monkeypatch,tmp_path):
+    monkeypatch.setattr(runner,'verify_source',lambda *a:None)
+    checkpoint=tmp_path/'model_7496.pt';checkpoint.touch()
+    spec=runner.STUDIES['refinement']
+    monkeypatch.setattr(runner.original,'sha',lambda p:spec['checkpoint_sha256'] if Path(p)==checkpoint else 'd'*64)
+    control,common=runner.plan(ROOT,checkpoint,tmp_path,'control','a'*40,'refinement')
+    penalty,other=runner.plan(ROOT,checkpoint,tmp_path,'torso','a'*40,'refinement')
+    assert common==other and control['torso_support_weight']==-2 and penalty['torso_support_weight']==-5
+    assert control['checkpoint_sha256']==penalty['checkpoint_sha256']==spec['checkpoint_sha256']
+    normalize=lambda command:[str(v).replace('/control/','/ARM/').replace('/torso/','/ARM/') for v in command]
+    a,b=normalize(control['training_command']),normalize(penalty['training_command']);i=a.index('--torso-support-weight')+1
+    assert a[:i]==b[:i] and a[i+1:]==b[i+1:]
+    with pytest.raises(ValueError,match='exact'):runner.plan(ROOT,checkpoint,tmp_path,'control','a'*40,'initial')
+    with pytest.raises(ValueError,match='Unknown'):runner.plan(ROOT,checkpoint,tmp_path,'control','a'*40,'typo')
