@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-28T11:34:48.769991+00:00",
+  "scope": "Local comparison package of existing repository policy/descriptor/configuration and contract source files. No robot access, deployment, new policy choice or complete ROS installation.",
+  "source_revision": "84e536761eeb63d40516087c978c5a58d71b5864",
+  "adversarial_helper_review": {
+    "original_commit": "716c981",
+    "hardening_commit": "1116d28",
+    "fixed": [
+      "Anchor new output writes to no-follow directory descriptors; reject output directory replacement.",
+      "Verify private 0700 directories and nonexecutable 0600 manifest/payload modes.",
+      "JSON plans/manifests share stable file and atomic path-replacement checks."
+    ],
+    "tests": "35 passed:31 backup/inventory fixtures plus4 description tests",
+    "remaining_boundary": "Caller-reviewed explicit files; common-secret screens are not exhaustive. Per-file stable captures are not an atomic multi-file/app snapshot. No automatic install/restore."
+  },
+  "package": {
+    "local_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/foundation-comparison-84e5367-v1/package",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/hardware/foundation-comparison-84e5367-v1/package",
+    "manifest_sha256": "41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9",
+    "files": 70,
+    "bytes": 33658967,
+    "no_executable_payloads": true,
+    "identity_pinned": true,
+    "selected_repository_files": 68,
+    "all_selected_sources_match_committed_revision": true,
+    "source_pins_reverified_after_capture": true,
+    "capture_end_revision": "84e536761eeb63d40516087c978c5a58d71b5864"
+  },
+  "catalog": {
+    "present": [
+      "jump",
+      "lie_downward_dog",
+      "lie_sit_lie",
+      "pee",
+      "push_up",
+      "secret_dance",
+      "sit",
+      "sit_stay_shake",
+      "sneeze",
+      "spider",
+      "stand_downward_dog",
+      "stand_sit_shake_sit_stand",
+      "stand_sit_stand",
+      "superman",
+      "swim",
+      "twerk",
+      "upward_dog"
+    ],
+    "active": [
+      "jump",
+      "lie_downward_dog",
+      "lie_sit_lie",
+      "pee",
+      "push_up",
+      "secret_dance",
+      "sit_stay_shake",
+      "sneeze",
+      "spider",
+      "stand_downward_dog",
+      "stand_sit_stand",
+      "superman",
+      "swim",
+      "twerk",
+      "upward_dog"
+    ],
+    "replacement_hidden": [
+      "sit",
+      "stand_sit_shake_sit_stand"
+    ],
+    "selection_rule": "All present tracked trick.yaml catalogs and their existing policy/reference companions, plus shipped default. Active state is recorded, not changed."
+  },
+  "excluded": [
+    "research candidates and training checkpoints under artifacts/",
+    "compiled ROS libraries/build/install output",
+    "credentials, secret stores, shell configuration/history",
+    "web build and API credentials",
+    "Hailo binaries and other optional model data",
+    "unavailable Pi calibration, package installation and launch state"
+  ],
+  "limitations": [
+    "Not a complete ROS installation, complete workspace backup or executable rollback.",
+    "All payloads are private nonexecutable copies for comparison.",
+    "No hardware approval, robot access or deployment candidate choice.",
+    "The retained local Sit asset remains simulation-reviewed only; including it records current repository state.",
+    "Unpromoted Spider/Optional2 candidates are absent; the present original finite spider policy is included.",
+    "Selected source hashes are pinned individually; capture is not an atomic running-application snapshot."
+  ],
+  "verification": {
+    "local_creation_receipt": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/foundation-comparison-84e5367-v1/creation-receipt.json",
+    "durable_verification_receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/hardware/foundation-comparison-84e5367-v1/durable-verification-receipt.json",
+    "preservation_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-hardware-foundation-comparison-84e5367-v1.json",
+    "preserved_total_files": 77,
+    "preserved_total_bytes": 33762677
+  },
+  "source_sha256": {
+    "artifacts/hardware/foundation-comparison-84e5367-v1/creation-receipt.json": "20e2bf718161a2614b9b6dbf71847f905f1da5ece32a54cd2603d861af44b794",
+    "artifacts/hardware/foundation-comparison-84e5367-v1/durable-verification-receipt.json": "e707c2da1ddf42449b2afa9cc54d22dc4a4ef830b4f1c289e630fede81a8ba6a",
+    "artifacts/hardware/foundation-comparison-84e5367-v1/source-identity-and-allowlist.json": "9d7376d19ee5d0d29b36c9cac4286cff3e36c97131139924a5c672b8a5efcac7",
+    "artifacts/hardware/foundation-comparison-84e5367-v1/reviewed-transfer-plan.json": "2e62082841452061daa045a4dd35aec19629c6968f73aa0b9a895c73c5801c6a",
+    "artifacts/hardware/foundation-comparison-84e5367-v1/policy-file-audit.json": "e6f30fa9317f93feebebcea8b0055a5f7b25dbad531e349035606dcad3cff9e7",
+    "artifacts/hardware/foundation-comparison-84e5367-v1/build-package.py": "4eaa4c972861a65221a03a856d5dbe21a6a264f5de7c30d91917d53f0f3b4c87",
+    "foundation/scripts/robot_artifact_backup.py": "a85752202ac0f05982fea557e19376c13fe24bf93ad84f36642845b990b5d5dc",
+    "foundation/tests/test_robot_artifact_backup.py": "965949792152b801558ed9a08e54193dde3f51ede507b2030ac93038b95f356a"
+  },
+  "hardware_validated": false,
+  "deployed": false,
+  "complete_ros_install_package": false,
+  "next_robot_step": "Read-only inventory of actual Pi paths/current loaded policies first, then verified off-Pi baseline capture. This local package cannot stand in for that unknown baseline."
+}
