@@ -1,0 +1,767 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-28T11:09:01.016512+00:00",
+  "protocol": "gemini_stopped_jump_physics_v1",
+  "hardware_validated": false,
+  "installed": false,
+  "policy_modified": false,
+  "conclusion": "The current Gemini stopped-jump path produces actual full-body flight but is not a reliable standing jump in this nominal screen. Fresh activation and prior walking followed byzero for 0.5 s each recover 2/4; both paired no-jump controls recover 4/4. Forward 0.3 m/s jump results from the earlier screen do not validate this tool.",
+  "cases": {
+    "fresh-gait": {
+      "replicas": [
+        {
+          "replica": 0,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.00834126894715145,
+            "rms_angular_velocity_rad_s": 5.866382532971581e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008501698183809397,
+            "rms_angular_velocity_rad_s": 0.0006221793726048486,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 1.96352460182745,
+          "peak_abs_torque_Nm": 2.0456358785147026,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013489579351633036,
+          "driver_clipped_joint_fraction": 0.0
+        },
+        {
+          "replica": 1,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008038645412915232,
+            "rms_angular_velocity_rad_s": 7.336977167264017e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008069707031986098,
+            "rms_angular_velocity_rad_s": 0.0005458106311138744,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 1.3441604528013424,
+          "peak_abs_torque_Nm": 1.3542844722198129,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013850574832011521,
+          "driver_clipped_joint_fraction": 0.0
+        },
+        {
+          "replica": 2,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.00846400899277776,
+            "rms_angular_velocity_rad_s": 7.422126500561887e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008665368414458956,
+            "rms_angular_velocity_rad_s": 0.0006640158512972454,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 0.8445762911049551,
+          "peak_abs_torque_Nm": 0.6447432656633598,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013315617763477812,
+          "driver_clipped_joint_fraction": 0.0
+        },
+        {
+          "replica": 3,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008366251183914979,
+            "rms_angular_velocity_rad_s": 4.922145801955715e-05,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008524406215212948,
+            "rms_angular_velocity_rad_s": 0.0005315077077793532,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 2.0065237963799243,
+          "peak_abs_torque_Nm": 1.775475389872181,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013314345606368334,
+          "driver_clipped_joint_fraction": 0.0
+        }
+      ],
+      "failures": [],
+      "launches": 0,
+      "landings_observed": 0,
+      "api_return_recoveries": 4,
+      "late_recoveries": 4,
+      "requested_reference_elapsed_s": 4.7,
+      "accepted_reference_elapsed_s": 4.711538461538462,
+      "nominal_api_return_elapsed_s": 6.851538459154276,
+      "end_s": 8.513461538461538
+    },
+    "fresh-jump": {
+      "replicas": [
+        {
+          "replica": 0,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 5.001923076923077,
+              "last_airborne_time_s": 5.298076923076923,
+              "duration_s": 0.2980769230769229,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 5.3,
+              "rise_after_liftoff_m": 0.16744868260997728,
+              "takeoff_vertical_velocity_m_s": 1.8384441646356788,
+              "apex_time_s": 5.186538461538461,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": true,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.002357540111228264,
+            "rms_angular_velocity_rad_s": 0.002198800209701096,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.013676744110137386,
+            "rms_angular_velocity_rad_s": 0.028098578130308572,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 55.54654893229671,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013489579351633036,
+          "driver_clipped_joint_fraction": 0.006588359310292899
+        },
+        {
+          "replica": 1,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 5.001923076923077,
+              "last_airborne_time_s": 5.301923076923077,
+              "duration_s": 0.30192307692307674,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 5.303846153846154,
+              "rise_after_liftoff_m": 0.1696587315390764,
+              "takeoff_vertical_velocity_m_s": 1.8511539564746744,
+              "apex_time_s": 5.188461538461539,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": true,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.0011056963171449951,
+            "rms_angular_velocity_rad_s": 0.0022052647000121244,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.02549903865273597,
+            "rms_angular_velocity_rad_s": 0.060817637433228856,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 56.85779762296144,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013850574832011521,
+          "driver_clipped_joint_fraction": 0.00640012047285596
+        },
+        {
+          "replica": 2,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 5.0,
+              "last_airborne_time_s": 5.3076923076923075,
+              "duration_s": 0.3096153846153844,
+              "grounded_before": true,
+              "landed": false,
+              "landing_time_s": null,
+              "rise_after_liftoff_m": 0.17849323412569115,
+              "takeoff_vertical_velocity_m_s": 1.8947311024420872,
+              "apex_time_s": 5.190384615384615,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": false,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": false,
+            "meets_stability_screen": false
+          },
+          "api_return_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": false,
+            "meets_stability_screen": false
+          },
+          "max_tilt_degrees": 60.901719045576364,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013315617763477812,
+          "driver_clipped_joint_fraction": 0.010265700483091788
+        },
+        {
+          "replica": 3,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 5.0,
+              "last_airborne_time_s": 5.2942307692307695,
+              "duration_s": 0.29615384615384643,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 5.296153846153846,
+              "rise_after_liftoff_m": 0.17287594413407298,
+              "takeoff_vertical_velocity_m_s": 1.8679289359890503,
+              "apex_time_s": 5.186538461538461,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": false,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "api_return_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "max_tilt_degrees": 57.928673189358385,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0013314345606368334,
+          "driver_clipped_joint_fraction": 0.009359903381642512
+        }
+      ],
+      "failures": [
+        {
+          "replica": 2,
+          "time_s": 5.3076923076923075,
+          "reason": "inherited Gemini1.0rad tilt stop checked at52Hz before inference; trace censored before damping",
+          "tilt_rad": 1.062935517469846
+        },
+        {
+          "replica": 3,
+          "time_s": 5.3076923076923075,
+          "reason": "inherited Gemini1.0rad tilt stop checked at52Hz before inference; trace censored before damping",
+          "tilt_rad": 1.0110460784660684
+        }
+      ],
+      "launches": 4,
+      "landings_observed": 3,
+      "api_return_recoveries": 2,
+      "late_recoveries": 2,
+      "requested_reference_elapsed_s": 4.7,
+      "accepted_reference_elapsed_s": 4.711538461538462,
+      "nominal_api_return_elapsed_s": 6.851538459154276,
+      "end_s": 8.513461538461538
+    },
+    "walk_then_stop-gait": {
+      "replicas": [
+        {
+          "replica": 0,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.007038607351024945,
+            "rms_angular_velocity_rad_s": 0.00015364845026785053,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.0073768996799364875,
+            "rms_angular_velocity_rad_s": 0.00143475131916151,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 6.807707771507058,
+          "peak_abs_torque_Nm": 2.0456358785147026,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0029435636304831836,
+          "driver_clipped_joint_fraction": 0.0
+        },
+        {
+          "replica": 1,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.00847743338057193,
+            "rms_angular_velocity_rad_s": 0.0010193308891338466,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008920629817631788,
+            "rms_angular_velocity_rad_s": 0.0008923797867080704,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 6.101948702519181,
+          "peak_abs_torque_Nm": 1.7581060306260174,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.006115555821323595,
+          "driver_clipped_joint_fraction": 0.00015242972989451862
+        },
+        {
+          "replica": 2,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.007831995549524096,
+            "rms_angular_velocity_rad_s": 0.0008514143101096998,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.008247067271837723,
+            "rms_angular_velocity_rad_s": 0.0008770231166594774,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 2.9358848743224817,
+          "peak_abs_torque_Nm": 1.7290059432732066,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.004868040986431601,
+          "driver_clipped_joint_fraction": 0.0
+        },
+        {
+          "replica": 3,
+          "genuine_flights": [],
+          "completed": true,
+          "landing_observed": false,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.003165570317968703,
+            "rms_angular_velocity_rad_s": 0.0015935110943606297,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.0034723787025490427,
+            "rms_angular_velocity_rad_s": 0.005780606355951514,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 6.894369710810563,
+          "peak_abs_torque_Nm": 2.114721089796896,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0019388667109631681,
+          "driver_clipped_joint_fraction": 0.0
+        }
+      ],
+      "failures": [],
+      "launches": 0,
+      "landings_observed": 0,
+      "api_return_recoveries": 4,
+      "late_recoveries": 4,
+      "requested_reference_elapsed_s": 6.7,
+      "accepted_reference_elapsed_s": 6.711538461538462,
+      "nominal_api_return_elapsed_s": 8.851538459154275,
+      "end_s": 10.513461538461538
+    },
+    "walk_then_stop-jump": {
+      "replicas": [
+        {
+          "replica": 0,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 7.003846153846154,
+              "last_airborne_time_s": 7.280769230769231,
+              "duration_s": 0.27884615384615374,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 7.282692307692308,
+              "rise_after_liftoff_m": 0.15288219163655645,
+              "takeoff_vertical_velocity_m_s": 1.7591091716219838,
+              "apex_time_s": 7.180769230769231,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": true,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.0018273347102099804,
+            "rms_angular_velocity_rad_s": 0.0006796399347390469,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.01181651977161467,
+            "rms_angular_velocity_rad_s": 0.03842043702273486,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 53.676277543307734,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0029435636304831836,
+          "driver_clipped_joint_fraction": 0.004877751356624596
+        },
+        {
+          "replica": 1,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 7.003846153846154,
+              "last_airborne_time_s": 7.280769230769231,
+              "duration_s": 0.27884615384615374,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 7.282692307692308,
+              "rise_after_liftoff_m": 0.15439431027549289,
+              "takeoff_vertical_velocity_m_s": 1.7687727107211728,
+              "apex_time_s": 7.180769230769231,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": true,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.004213483001106281,
+            "rms_angular_velocity_rad_s": 0.003976677447090869,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "api_return_recovery": {
+            "complete_last_second": true,
+            "max_tilt_rad": 0.012815485814422937,
+            "rms_angular_velocity_rad_s": 0.02879492774093023,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": true
+          },
+          "max_tilt_degrees": 52.94878414952502,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.006115555821323595,
+          "driver_clipped_joint_fraction": 0.005030181086519115
+        },
+        {
+          "replica": 2,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 6.998076923076923,
+              "last_airborne_time_s": 7.286538461538462,
+              "duration_s": 0.29038461538461613,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 7.288461538461538,
+              "rise_after_liftoff_m": 0.16992559611151514,
+              "takeoff_vertical_velocity_m_s": 1.8488422172128702,
+              "apex_time_s": 7.184615384615385,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": false,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "api_return_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "max_tilt_degrees": 58.05965282535053,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.004868040986431601,
+          "driver_clipped_joint_fraction": 0.007036059806508356
+        },
+        {
+          "replica": 3,
+          "genuine_flights": [
+            {
+              "liftoff_time_s": 7.0,
+              "last_airborne_time_s": 7.275,
+              "duration_s": 0.27692307692307727,
+              "grounded_before": true,
+              "landed": true,
+              "landing_time_s": 7.276923076923077,
+              "rise_after_liftoff_m": 0.15658288936602038,
+              "takeoff_vertical_velocity_m_s": 1.7750813658827498,
+              "apex_time_s": 7.178846153846154,
+              "meets_jump_evidence": true
+            }
+          ],
+          "completed": false,
+          "landing_observed": true,
+          "late_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "api_return_recovery": {
+            "complete_last_second": false,
+            "max_tilt_rad": null,
+            "rms_angular_velocity_rad_s": null,
+            "torso_contact_samples": 0,
+            "final_grounded": true,
+            "meets_stability_screen": false
+          },
+          "max_tilt_degrees": 59.13599073821353,
+          "peak_abs_torque_Nm": 3.0,
+          "pre_trigger_mean_planar_COM_speed_m_s": 0.0019388667109631681,
+          "driver_clipped_joint_fraction": 0.006376429199648197
+        }
+      ],
+      "failures": [
+        {
+          "replica": 2,
+          "time_s": 7.288461538461538,
+          "reason": "inherited Gemini1.0rad tilt stop checked at52Hz before inference; trace censored before damping",
+          "tilt_rad": 1.013332104367195
+        },
+        {
+          "replica": 3,
+          "time_s": 7.288461538461538,
+          "reason": "inherited Gemini1.0rad tilt stop checked at52Hz before inference; trace censored before damping",
+          "tilt_rad": 1.0321177448106982
+        }
+      ],
+      "launches": 4,
+      "landings_observed": 4,
+      "api_return_recoveries": 2,
+      "late_recoveries": 2,
+      "requested_reference_elapsed_s": 6.7,
+      "accepted_reference_elapsed_s": 6.711538461538462,
+      "nominal_api_return_elapsed_s": 8.851538459154275,
+      "end_s": 10.513461538461538
+    }
+  },
+  "raw_contact_audit": {
+    "fresh-gait": {
+      "aligned_contact_rows": 17708,
+      "all_arrays_finite": true,
+      "contact_free_max_normal_force_N": 0.0,
+      "trace_sha256": "c20bc68cc080efa57ff4cddd2ce20875a210a1529fe84ef92ff6fea0fa039077",
+      "contacts_sha256": "2f3a7ab4e2648853c227498069ce344fc168206aa092b506e3711de33b1ed417"
+    },
+    "fresh-jump": {
+      "aligned_contact_rows": 14374,
+      "all_arrays_finite": true,
+      "contact_free_max_normal_force_N": 0.0,
+      "trace_sha256": "a6538d76311dfc5cac5840341a833902cf434d3feed92f6c06ad085ec5fd1500",
+      "contacts_sha256": "2759a057ef68c9cbe75c024f748e3fa7f54f24a06a196c2bf50a59df2af2c6db"
+    },
+    "walk_then_stop-gait": {
+      "aligned_contact_rows": 21868,
+      "all_arrays_finite": true,
+      "contact_free_max_normal_force_N": 0.0,
+      "trace_sha256": "c4981b7881a608fe28611326f71755eaf4aaf82aa6081f3e69086163652d6a02",
+      "contacts_sha256": "af9f71838dfdc1ac0feee14a629e482ae5cd875bcaea680befe62495597af672"
+    },
+    "walk_then_stop-jump": {
+      "aligned_contact_rows": 18514,
+      "all_arrays_finite": true,
+      "contact_free_max_normal_force_N": 0.0,
+      "trace_sha256": "6b17fb05dd068342705a1351c36dde4e466d59a2c247b29db95095bd687b79f1",
+      "contacts_sha256": "3ab962656243935566c070f0d4288553c9998dd248b346ffcd20abd6061705d8"
+    }
+  },
+  "paired": [
+    {
+      "scenario": "fresh",
+      "pre_trigger_physical_states_exact": true
+    },
+    {
+      "scenario": "walk_then_stop",
+      "pre_trigger_physical_states_exact": true
+    }
+  ],
+  "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+  "actual_api_contract": {
+    "source": "gemini_pupper/robot/robot_api.py:play_reference_trick",
+    "initialization": "switch_to(gemini_walk) waits 4.2 s after new activation; an already active controller retains its state/history",
+    "zero_command": "Publishes zero then waits 0.5 s; this is not a measured-standstill check. Quiet joystick and stopped follower assumed. Higher-priority joystick input can override it.",
+    "reference": "Actual class reference.json data converted to Float32; new receipt starts on next 52 Hz inference, without gamepad gait-grid snapping; forced jump table, never hop.",
+    "receipt": "Current protocol acknowledges applied reference playback, not physical flight or landing. Nominal return afteractive completion plus remaining playback+1.2s; transport/ROS scheduling is not exercised here."
+  },
+  "difference_from_prior_native_screen": [
+    "Prior screen used policy-embedded table, exact grid phase 3 s, elapsed 5 s and 520 Hz post-step tilt censoring; this screen uses actual rounded classFloat32 payload, immediate times 4.711538/6.711538 s and 52 Hz pre-inference tilt censoring.",
+    "The old standing 1/4 and new 2/4 results are different protocol observations, not an isolated treatment or performance improvement.",
+    "Exactly zero commanded velocity makes the base gait offset zero independent of phase. Immediate versus grid-snapped phase alone is not an explanation after standing settles; residual state/history and inference/physical timing still matter."
+  ],
+  "source_locators": {
+    "class_optional_jump": "Cs123/References/Lecture 6/Lab 6 - Instructions.txt:1601\u20131617",
+    "course_source_actual_path": "Cs123/References/Lecture 6/Lab 6 - Instructions.txt",
+    "runtime_reference": "pupper_gait_deploy/src/neural_controller.cpp:reference_trick callback and compute_mixed_jump_reference_offset",
+    "mux": "pupperv3-monorepo/ros2_ws/src/cmd_vel_mux/src/cmd_vel_mux_node.cpp:cmdVelCallback/timerCallback"
+  },
+  "provenance": {
+    "execution_revision": "62141bf95726dca36a90fb619829141c161d62e9",
+    "source_sha256": {
+      "foundation/cpp/export_locomotion_controller.cpp": "5039f560c88e74deb29003666071471442dbb8c9c3f3405ac78bdc8e9bc29c0c",
+      "foundation/scripts/check_export_locomotion.py": "4e85ccf1b581d9b04bd520eb14175f9b79535efec5493d5e5873227da4a1e9f7",
+      "foundation/scripts/check_gemini_jump.py": "38312305ad52d3d261eb6dc739be0ae0719157379a613cdf97918c939f965a1a",
+      "foundation/scripts/check_shipped_jump.py": "c0448fa5b5fc7749a5e9f2dd43bcde3a2223bab449f57c3644df4000b4527f72",
+      "foundation/scripts/check_spider_handoff.py": "a08cf38bc90f04b00796e708e6cfe7e862857023f0e9f90468757bce4ae967a8",
+      "gemini_pupper/robot/launch/gemini_pupper.yaml": "1062909b25bed8e5c2504faeb71e1b9975411796d9a42df19c2a214997c0e244",
+      "gemini_pupper/robot/robot_api.py": "2ba11b0fc22b59b5fd6e2051fa8ca9957171a9ac4845e583ffff18cf053d6803",
+      "gemini_pupper/robot/tricks.py": "9789acae9d8d5edcda60a7b394953c93e1614592c62ca09b70ecb5e3f63d7ec8",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/__init__.py": "9889fce7d2debc9fa72aaa63ac328b9dd60eb4a1fbcca8e0e65e50d21d1d1a89",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/BodyV4v70_001.stl": "703137e327683555c1f6d12d39b99fd721479af0e0785e61805ad755a8f782a8",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_001.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_002.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_003.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_005.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_006.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_007.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_010.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_011.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_012.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_013.stl": "ef36b14858126b237f15c43d9176ffb9da25d98bdb903c49cf3623234bb79a0a",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_014.stl": "83d9b19ac0fb616cf2619228f851b01f3adac08b52344cf47080687f451fc474",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/assets/LegAssemblyForFlangedv26_015.stl": "175081bce9491118bedde36677989dee7c274a1c37022ffad33a70488cbcd835",
+      "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/xmls/pupper_v3.xml": "a62291bb236e3a92979ddbd772f3f6506bfded07a9ff939e48e6d5ffeeba611d",
+      "pupper-mjlab/src/mjlab/tasks/pupper/deployment_contract.py": "388aec727d505aa3b9abe49223c9c216938aa06e3476d243e9b509244c28cb62",
+      "pupper-mjlab/src/mjlab/tasks/pupper/locomotion_contact_contract.py": "23f3322826681da74e862a798ce2e176385bcd31dd4582803f7b87eb9c5abbc6",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/__init__.py": "870e55a5460821ddd0529b27f3b56472cb6b058381e14e16bea8582a2eb11d0e",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/export_trick.py": "43707389ff271f7dfc0905b8b205d2adf87e13f87c90161abe910a6cb4cf3280",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_design.py": "8bc443541a29c9a05a99acdb5465c12e726d15f4189e62661772b9e343b92edf",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_ops.py": "1d3c549682b5109a6747a326ec746c92afd04d737bfcc483f2605a3fe665f4f0",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/play_motion.py": "5322d6700db98c85accc2e8cacd9c9a091cbc07a1d5c7570581c162e04b423e5",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/rl_cfg.py": "6635456e4756a40e54ab7d559cdec5d207bd4833d39be0bd691f6218fb77e932",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/runner.py": "fd2381156f6cab495c3c2f05136090a6d9e58d1c8d657cabe81f7701140d98a0",
+      "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/upload_motion.py": "864e5ff8c2d4931038a0d0a3948c65361abd546068c88cc51a419206dd2ded39",
+      "pupper_gait_deploy/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+      "pupper_gait_deploy/src/command_filter.hpp": "2513561c1f01613f1be6ccd2ce3acd494e5c60ee6f309887df8e4b30699a9c9d",
+      "pupper_gait_deploy/src/gait_reference.hpp": "59950dcd0786b52162db7a1e1eb8eef43293a57e02b05c0363a304e931f0ba16",
+      "pupper_gait_deploy/src/gait_reference_json.hpp": "ad7e898e21750bdd97f8e075f8f6ff97288f3483dcc248e904fd89ffafdeb751",
+      "pupper_gait_deploy/src/neural_controller.cpp": "a89e951cf7f7ed8b7cfd4af577621f891210179de7b4284f5ad970017395f41c",
+      "pupper_gait_deploy/src/neural_controller.hpp": "eb8c24497045308b47933639e6955a807d206e205b9e7eeb0fcb6fb1f5ea6086",
+      "pupper_gait_deploy/src/obs_spec.hpp": "e8fc46546ced273fe46baee265356b90a74e8c4794d66952811bdec07dac58a7",
+      "pupper_gait_deploy/src/position_target_slew.hpp": "1ee40882f02151f35ca4627425c512a8239b1f4f3ae3d0fdb8a454bf56b8b36d",
+      "pupper_gait_deploy/src/reference_execution.hpp": "7eb46ded5ef59f1dce1a2275d14ca69dc5a6a1203ef586589b70d5909e5a6c7b",
+      "pupper_gait_deploy/src/trick_motion.hpp": "499aa1fc658b298c0d8b835921ff03a950c3ae029af831e473b4c0dcf00cc6f7",
+      "pupperv3-monorepo/ros2_ws/src/cmd_vel_mux/src/cmd_vel_mux_node.cpp": "9318f25a86c9225a75eb970937ce07e1da01cea6273ab18e5f97ab34d637ccda"
+    },
+    "inputs_sha256": {
+      "default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+      "reference.json": "0d98db362dfb4b80eef6378b3aa116075f7a63d493328617ab3b25e8fb6ebfdb",
+      "trick.yaml": "e96555c53c5f15696c74fa5812232948a2f0eb959937d4b1bd980e9952b96bdd",
+      "float32-message.json": "949e7bcd0111c74485f45670f32ec7f2c2cae86e37108982603b1c157fab7e28",
+      "driver-limits.json": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3"
+    },
+    "plan_sha256": "d04d6a49285f3a832d8c314d9e4ac93ed7d364acc71ef3d3accd1db065afecaa",
+    "report_sha256": "d7d48bbe12f07aa0375ae505b0a16c4d6d4fabcd2c91a3c06691fa2c7cf78ab9",
+    "binary_sha256": "abbc83ec31e250b588b9ad4c125355e2c4444674fc0f506d33ffbef853187a98",
+    "source_archive_sha256": "6e7772951046d95f94f33f200e26c9dc88cac2bb5d9ccfaaeada93743a57c1d7",
+    "source_hashes_unchanged": true,
+    "hardening_revision": "dc9e763882e2cf03bb8361f6078336a86a991bc5",
+    "hardening_note": "After the completed physics run, class-reference timing identity and input-change checks were strengthened without changing simulation semantics. All executed policy, reference, driver-limit and descriptor hashes were independently rechecked unchanged. Execution sources are preserved in the original source archive."
+  },
+  "descriptor_change": {
+    "path": "gemini_pupper/tricks/jump/trick.yaml",
+    "before_sha256": "9fe718ef6685eea77f276572ea8baf8e949fd35fc4ca678d9bfe8d8281302b82",
+    "after_sha256": "e96555c53c5f15696c74fa5812232948a2f0eb959937d4b1bd980e9952b96bdd",
+    "before": "# A reference trick: the running locomotion policy (the default policy, loaded as the\n# gemini_walk controller) is fed this absolute-joint-angle reference once, the same way the\n# joystick's game mode triggers its jump. Only policies trained with this reference\n# can follow it; the default policy was trained with this jump.\ndescription: Jumps straight up in place and lands standing using the course default locomotion policy's trained jump reference. Only when the user clearly asks for a jump, with clear space around the robot.\ntype: reference\nreference: reference.json\nstart_pose: standing\nend_pose: standing\n",
+    "after": "# A reference trick: the running locomotion policy (the default policy, loaded as the\n# gemini_walk controller) is fed this absolute-joint-angle reference once, the same way the\n# joystick's game mode triggers its jump. Only policies trained with this reference\n# can follow it; the default policy was trained with this jump.\ndescription: Plays the course default locomotion policy's jump reference from a stop. Standing-jump simulations have triggered the tilt stop; physical jump performance has not been validated. Only when the user clearly asks for a jump, with clear space around the robot.\ntype: reference\nreference: reference.json\nstart_pose: standing\nend_pose: standing\n"
+  },
+  "validation": {
+    "raw_samples": 72464,
+    "visual_review": "Inspected paired COM-rise and tilt plot for every replica; stop censoring and nominal API-return window are visible. No full-video review claimed.",
+    "focused_tests_before_physics": 39,
+    "focused_tests_after_hardening": 44
+  },
+  "limitations": [
+    "Nominal full-hull MuJoCo mechanics; same four engineering initial poses as old screen, not domain-randomized trials.",
+    "Offline native math/history host, not actual ROS service/topic/mux execution. Quiet joystick and stopped follower assumed; a live higher-priority joystick can override API zero commands.",
+    "Tilt checked before inference at52Hz, then trace censored. Production instead enters emergency damping; no post-stop recovery claim.",
+    "Perfect instantaneous joint/IMU feedback, fixed16ms target delay and model3Nm cap are assumptions, not verified robot hardware.",
+    "API waits0.5s after zero command, not a measured standing-state guard. Model return-time screen is independent evidence; actual receipt only confirms playback.",
+    "Message table/timing are actual Float32 transport values, including class table decimal rounding; no hop or table redesign.",
+    "Four engineering initial poses per condition provide no hardware success probability. Three of four nonrecovering cases record landing before the tilt stop; landing alone is not recovery.",
+    "Both successes and stops approach the inherited tilt limit; all jumpcases reach the nominal 3 Nm cap. Do not raise the tilt stop or limits to manufacture success.",
+    "The after-return stability screen uses actual simulator state; the current software success reply deliberately describes only reference playback."
+  ],
+  "next_action": "Keep actual course reference and software path implemented, but describe standing jumping as an unresolved physical capability. No new default, forward-speed bypass or hardware promotion follows this screen. Further action should target standing pitch/landing robustness with preserved limits and an explicit bounded hypothesis.",
+  "artifact_directory": "artifacts/shipped-jump/gemini-immediate-reference-v1",
+  "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/shipped-jump/gemini-immediate-reference-v1",
+  "preservation_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-gemini-immediate-reference-v1.json",
+  "transport_precision": {
+    "class_table_vs_policy_table_max_absolute_difference_rad": 4.987163543801465e-07,
+    "Float32_message_vs_Float32_policy_table_max_absolute_difference_rad": 5.066394805908203e-07,
+    "explanation": "The class reference is rounded to six decimal places. The original screen used the embedded policy table; this exact-path screen uses the actual class Float32 message values. Both remain within the existing loader tolerance; no reference redesign occurred."
+  }
+}
