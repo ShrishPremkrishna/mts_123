@@ -78,8 +78,8 @@ actors already model this correctly. Earlier randomized walking comparisons
 remain paired, but their calibration-robustness evidence is incomplete. Nominal
 zero-bias native tests cannot expose this mismatch. An explicit, versioned
 measured-angle training correction is implemented and passes the full offline
-regression plus [real GPU continuation/export/evaluation smoke tests](results/spider-encoder-observation-smoke-reviewed.json). The matched 1,000-iteration
-continuation is running, with both policies evaluated using measured angles.
+regression plus [real GPU continuation/export/evaluation smoke tests](results/spider-encoder-observation-smoke-reviewed.json). Both matched 1,000-iteration
+continuations have finished; evaluation uses measured angles for both policies.
 Completed policies and historical results remain unchanged. The [hardware-coordinate derivation](results/encoder-hardware-semantics-review.json) pins the source evidence.
 
 A separate reference audit caught a misleading class description: the exported
@@ -158,6 +158,18 @@ tracked forward speed better but lost stability in reverse. These are bounded
 simulation results using the policies' actual references, clocks and limits;
 they do not establish a hardware speed rating. The shipped gait also retains the
 reference-jump contract that the new flat-walking exports lack.
+
+The default also has a documented robustness boundary. In selected full-hull
+startup cases it keeps moving after eight seconds at zero command, even without
+a preceding Spider trick. [Independent controls and parameter restorations](results/spider-default-restoration-independent-review.json)
+confirm that nominal mechanics settle, while changing gains or encoder bias does
+not resolve these cases. With nominal gains and zero bias, restoring the entire
+mass/inertia group resolves all four cases; restoring the center of mass alone
+does not. These are simulated parameter combinations, not measurements of this
+Pupper, and no default policy was improved by those diagnostic interventions.
+[Stop and status messages](results/stop-reporting-reviewed.json) therefore describe
+commands and controller state without claiming unmeasured physical stopping or
+posture. This reporting correction leaves controller behavior unchanged.
 
 For a final project, freeze a reliable evaluated checkpoint first. Then choose
 one concrete missing behavior and a repeatable success measure, such as following
