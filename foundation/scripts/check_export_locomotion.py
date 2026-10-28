@@ -86,9 +86,13 @@ def initial_conditions(default,replicas,seed):
 
 
 class Host:
-    def __init__(self,binary,policy,replicas,log):
+    def __init__(self,binary,policy,replicas,log,*,scheduled_jump_start=None):
+        mode=['--no-jump']
+        if scheduled_jump_start is not None:
+            if not np.isfinite(scheduled_jump_start):raise ValueError('scheduled jump start must be finite')
+            mode=['--scheduled-jump',str(scheduled_jump_start)]
         self.log=log.open('w')
-        self.proc=subprocess.Popen([str(binary),str(policy),str(replicas),'--no-jump'],stdin=subprocess.PIPE,
+        self.proc=subprocess.Popen([str(binary),str(policy),str(replicas),*mode],stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,stderr=self.log,text=True,bufsize=1)
     def request(self,value):
         self.proc.stdin.write(json.dumps(value,allow_nan=False)+'\n');self.proc.stdin.flush()

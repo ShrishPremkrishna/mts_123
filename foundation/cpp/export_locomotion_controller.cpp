@@ -23,7 +23,9 @@ struct Controller {
   float scale;
   bool has_jump;
   double previous_time = -1;
-  explicit Controller(const char* path) {
+  const double scheduled_slot_start;
+  explicit Controller(const char* path, double slot_start = std::numeric_limits<double>::infinity())
+      : scheduled_slot_start(slot_start) {
     std::ifstream f(path); f >> metadata;
     std::ifstream n(path); network = RTNeural::json_parser::parseJson<float>(n, false);
     if (metadata.at("contract_version") != 2 || metadata.at("single_observation_size") != 48 ||
@@ -47,6 +49,10 @@ struct Controller {
     parse_heading_hold(metadata.at("heading_hold"),heading);
     has_jump=metadata.contains("jump_slot");
     if(has_jump) parse_jump_slot(metadata.at("jump_slot"),12,jump);
+    if(std::isfinite(scheduled_slot_start) &&
+       (!has_jump || !jump.valid() || scheduled_slot_start < 2.0 ||
+        std::abs(scheduled_slot_start/jump.grid_s - std::round(scheduled_slot_start/jump.grid_s)) > 1e-9))
+      throw std::runtime_error("scheduled jump requires a valid slot and a grid-aligned start after fade-in");
     reset();
   }
   void reset() {
@@ -71,12 +77,14 @@ struct Controller {
     command[0]=std::clamp(command[0],-1.5,1.5);
     if(has_jump) command[1]=std::clamp(command[1],-1.5,1.5);
     command[2]=heading.apply(quat_yaw(quat),command[0],command[1],command[2]);
+    if(std::isfinite(scheduled_slot_start) && jump.has_hop() && command[0] >= jump.hop_speed)
+      throw std::runtime_error("scheduled jump probe excludes commands that select the production hop branch");
     const double w=quat[0],x=quat[1],y=quat[2],z=quat[3];
     for(int k=0;k<3;++k) {history[k]=gyro[k];history[6+k]=command[k];history[9+k]=(k==2);}
     history[3]=2*(w*y-x*z);history[4]=-2*(y*z+w*x);history[5]=-(1-2*(x*x+y*y));
     for(int j=0;j<12;++j) history[12+j]=q[j]-defaults[j];
     if(has_jump) compute_mixed_jump_reference_offset(gait,jump,defaults,phase_time,
-        command[0],command[1],command[2],std::numeric_limits<double>::infinity(),false,history.data()+36);
+        command[0],command[1],command[2],scheduled_slot_start,false,history.data()+36);
     else compute_gait_reference_offset(gait,defaults,phase_time,command[0],command[1],command[2],history.data()+36);
     for(float& v:history) {if(!std::isfinite(v)) throw std::runtime_error("nonfinite observation");v=std::clamp(v,-100.f,100.f);}
     input=history;
@@ -91,6 +99,10 @@ struct Controller {
     Json result={{"target",target},{"before_clip",before},{"raw_action",raw},
       {"effective_action",effective},{"effective_command",command},{"fade",fade},
       {"reference",std::vector<float>(input.begin()+36,input.begin()+48)}};
+    if(std::isfinite(scheduled_slot_start)) {
+      result["scheduled_slot_start_s"]=scheduled_slot_start;
+      result["jump_reference_active"]=phase_time>=scheduled_slot_start && phase_time<scheduled_slot_start+jump.active_s;
+    }
     if(r.value("debug",false)) result["observation"]=input;
     return result;
   }
@@ -98,11 +110,16 @@ struct Controller {
 
 int main(int argc,char** argv) {
   try {
-    if(argc!=4 || std::string(argv[3])!="--no-jump")
-      throw std::runtime_error("usage: export_locomotion_controller POLICY REPLICAS --no-jump; jump capability unmeasured");
+    double slot_start=std::numeric_limits<double>::infinity();
+    if(argc==5 && std::string(argv[3])=="--scheduled-jump") {
+      std::size_t parsed=0;slot_start=std::stod(argv[4],&parsed);
+      if(parsed!=std::string(argv[4]).size() || !std::isfinite(slot_start))
+        throw std::runtime_error("scheduled jump start must be finite");
+    } else if(argc!=4 || std::string(argv[3])!="--no-jump")
+      throw std::runtime_error("usage: export_locomotion_controller POLICY REPLICAS --no-jump OR --scheduled-jump SLOT_START; without an explicit schedule jump capability unmeasured");
     const int count=std::stoi(argv[2]);if(count<1 || count>32) throw std::runtime_error("replica count outside 1..32");
     std::vector<std::unique_ptr<Controller>> controllers;
-    for(int i=0;i<count;++i) controllers.emplace_back(new Controller(argv[1]));
+    for(int i=0;i<count;++i) controllers.emplace_back(new Controller(argv[1],slot_start));
     std::string line;
     while(std::getline(std::cin,line)) {
       const auto r=Json::parse(line);
