@@ -62,6 +62,68 @@ def make_model(contact_model):
     return model, contract
 
 
+def validate_physical_variant(value):
+    """Explicit deterministic mechanics within the inspected training ranges.
+
+    Shared foot-end material is a separate contact-model sensitivity, because
+    native lower-leg hulls overlap foot spheres but do not share their priority.
+    This is not a draw from the GPU randomization distribution.
+    """
+    import re
+    required={'schema','name','base_com_offset_m','uniform_density_scale','foot_friction','foot_material'}
+    if not isinstance(value,dict) or set(value)!=required or type(value['schema']) is not int or value['schema']!=1:
+        raise ValueError('Physical variant requires the exact schema1 fields')
+    if not isinstance(value['name'],str) or not re.fullmatch(r'[a-z][a-z0-9_-]{0,63}',value['name']):
+        raise ValueError('Invalid physical variant name')
+    def number(x):
+        return type(x) in (int,float) and np.isfinite(x)
+    com=value['base_com_offset_m']
+    if not isinstance(com,list) or len(com)!=3 or any(not number(x) or abs(x)>limit for x,limit in zip(com,(.02,.005,.005))):
+        raise ValueError('COM offsets must stay within x +/- .02m and y/z +/- .005m')
+    scale=value['uniform_density_scale']
+    if not number(scale) or not np.exp(-.1054)<=scale<=np.exp(.2624):
+        raise ValueError('Density scale must stay within the configured exp(2*alpha) range')
+    friction=value['foot_friction']
+    if friction is not None and (not number(friction) or not .6<=friction<=1.4):
+        raise ValueError('Foot friction must be absent or within [.6,1.4]')
+    if value['foot_material'] not in ('sphere_only','foot_end_union'):
+        raise ValueError('Unknown foot material scope')
+    if value['foot_material']=='foot_end_union' and friction is None:
+        raise ValueError('Shared foot-end material requires an explicit friction value')
+    return dict(value)
+
+
+def apply_physical_variant(model, value):
+    """Modify a new model before creating live simulation state; log actual arrays."""
+    value=validate_physical_variant(value)
+    base=model.body('base_link').id
+    sphere_ids=[g for g in range(model.ngeom) if model.geom(g).name.startswith('leg_') and model.geom(g).name.endswith('_3_collision')]
+    hull_ids=[g for g in range(model.ngeom) if model.geom(g).name.startswith('leg_') and model.geom(g).name.endswith('_3_hull')]
+    if len(sphere_ids)!=4 or (value['foot_material']=='foot_end_union' and len(hull_ids)!=4):
+        raise ValueError('Expected exactly four foot spheres and four foot-end hulls')
+    def snapshot():
+        return dict(total_mass_kg=float(model.body_mass.sum()),
+            bodies=[dict(name=model.body(b).name,mass_kg=float(model.body_mass[b]),
+                com_body_m=model.body_ipos[b].tolist(),principal_inertia_kg_m2=model.body_inertia[b].tolist(),
+                inertial_quaternion_wxyz=model.body_iquat[b].tolist()) for b in range(1,model.nbody)],
+            foot_geoms=[dict(name=model.geom(g).name,friction=model.geom_friction[g].tolist(),
+                priority=int(model.geom_priority[g])) for g in sphere_ids+hull_ids])
+    before=snapshot()
+    model.body_mass[1:]*=value['uniform_density_scale']
+    model.body_inertia[1:]*=value['uniform_density_scale']
+    model.body_ipos[base]+=np.asarray(value['base_com_offset_m'])
+    if value['foot_friction'] is not None:
+        ids=sphere_ids+(hull_ids if value['foot_material']=='foot_end_union' else [])
+        model.geom_friction[ids,0]=value['foot_friction']
+        if value['foot_material']=='foot_end_union':model.geom_priority[ids]=1
+    # Recompute derived mass/inertia constants before any initial state exists.
+    scratch=mujoco.MjData(model);mujoco.mj_setConst(model,scratch)
+    return dict(requested=value,before=before,realized=snapshot(),
+        scope=('Deterministic mechanical corner using training parameter ranges; independent per-body training samples, gains, encoder bias and observation noise are not reproduced.'
+               if value['foot_material']=='sphere_only' else
+               'Separate foot-end material sensitivity: sphere and overlapping lower-leg hull share priority1 and sliding friction. This changes the native contact-material assumption and is not exact GPU domain randomization.'))
+
+
 def default_return_stages():
     return [('default_activation','default',4.2,[0,0,0],''),
             ('default_forward','default',2,[.10,0,0],''),
@@ -206,7 +268,11 @@ def run(args):
     if interactive_sit and default_path is None:raise ValueError('Interactive Sit requires explicit --return-default-policy')
     descriptor_bytes=(validate_interactive_return_descriptor(descriptor_path,args.trick_policy) if interactive_sit else
         validate_single_return_descriptor(descriptor_path,args.trick_policy,later_return_from_lying=later_return_from_lying) if single_motion and default_path is not None else None)
+    variant_path=getattr(args,'physical_variant',None)
+    variant_bytes=None if variant_path is None else variant_path.read_bytes()
+    variant_spec=None if variant_bytes is None else validate_physical_variant(json.loads(variant_bytes))
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
+    if variant_bytes is not None:(output/'physical-variant.json').write_bytes(variant_bytes)
     if descriptor_bytes is not None:(output/'trick-descriptor.yaml').write_bytes(descriptor_bytes)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
                *sorted((ROOT/'pupper_gait_deploy/src').glob('*.hpp')),
@@ -233,7 +299,9 @@ def run(args):
     preserved_hashes={name:sha(output/f'{name}-policy.json') for name in policy_bytes}
     if preserved_hashes!=policy_before:raise RuntimeError('Preserved policy identity mismatch')
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
-    model, contract = make_model(args.contact_model); data = mujoco.MjData(model)
+    model, contract = make_model(args.contact_model)
+    physical_variant=None if variant_spec is None else apply_physical_variant(model,variant_spec)
+    data = mujoco.MjData(model)
     contact_scratch = mujoco.MjData(model)
     mujoco.mj_saveModel(model,str(output/'model.mjb'),None)
     joints = [model.joint(name).id for name in JOINT_NAMES]
@@ -376,11 +444,15 @@ def run(args):
         declared_trick_end_pose=yaml.safe_load(descriptor_bytes)['end_pose'] if descriptor_bytes is not None else None,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_telemetry_contract='exact_preintegration_contact_point_velocity_v1',contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
+        physical_variant=physical_variant,
+        physical_variant_input_sha256=None if variant_bytes is None else hashlib.sha256(variant_bytes).hexdigest(),
+        physical_variant_input_changed=False if variant_path is None else sha(variant_path)!=hashlib.sha256(variant_bytes).hexdigest(),
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
         numerical_instability_monitor='Check BADQPOS/BADQVEL/BADQACC/BADCTRL warnings and finite qpos/qvel after every physics step; stop rather than count automatic recovery as success.',
         maximum_body_angle_deg=angle_limit,
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
-                 'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.',
+                 ('Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.' if physical_variant is None else
+                  'Explicit fixed mechanics/material variant; no observation noise, IMU delay, encoder bias, gain randomization or external push. Nominal trained policies and controller limits remain unchanged.'),
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
                  'Finite trick retains its declared lying endpoint through2s terminal hold; a separate later move request directly activates the default controller. No implicit standing-exit clip is invented.' if later_return_from_lying else
                  'Interactive Sit queues left shake, right shake and standing exit through production ClipPlayer with persistent actor history and clock; this does not execute ROS messages.' if interactive_sit else
@@ -416,6 +488,7 @@ if __name__=='__main__':
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)
     parser.add_argument('--clip-anchor',action='store_true',help='Compare selected-clip anchor proposal; default reproduces legacy controller.')
     parser.add_argument('--driver-limits',type=Path)
+    parser.add_argument('--physical-variant',type=Path,help='Explicit schema1 deterministic model-perturbation JSON; kept separate from nominal checks and GPU DR')
     parser.add_argument('--record-inference',action='store_true',help='Save read-only actor inputs, raw outputs, references and target transitions at every inference step')
     parser.add_argument('--max-body-angle-deg',type=float,default=float(np.degrees(1.5)),help='Optional tighter descriptor body-angle stop; may not exceed the existing1.5rad threshold')
     run(parser.parse_args())
