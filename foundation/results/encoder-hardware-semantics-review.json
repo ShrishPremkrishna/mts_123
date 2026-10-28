@@ -1,0 +1,461 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-28T11:48:25.760350+00:00",
+  "source_revision": "88d9b9a17cfb9ee86bd12d47805076684274391c",
+  "scope": "Independent read-only derivation from local class driver and production controller source, plus deterministic algebra. No robot access, ROS invocation, calibration measurement or hardware approval.",
+  "sources": {
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp": {
+      "locators": {
+        "homing_zero_initial_value": [
+          89,
+          91
+        ],
+        "normal_write_enables_limits": [
+          362,
+          365
+        ],
+        "homing_calibration": [
+          425,
+          434
+        ],
+        "command_clamp_then_zero": [
+          476,
+          500
+        ],
+        "state_zero_subtraction": [
+          532,
+          561
+        ]
+      },
+      "evidence": "Normal write clamps the requested position in named ROS coordinates when kp>0, then adds the stored homing zero. Read subtracts that same zero. Homing estimates zero from the detected stop and configured homed_position.",
+      "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e",
+      "bytes": 25030,
+      "matches_revision": true
+    },
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp": {
+      "locators": {
+        "homing_default_disables_command_limits": [
+          82,
+          82
+        ]
+      },
+      "evidence": "copy_actuator_commands defaults use_position_limits=false; do_homing uses this path. The native normal-control diagnostic does not reproduce homing.",
+      "sha256": "db1267b520ecefaf518847cae50e3bafe6749f8ae80344cd03b83dfee57938ad",
+      "bytes": 4767,
+      "matches_revision": true
+    },
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_spi.cpp": {
+      "locators": {
+        "local_signs_and_offsets": [
+          40,
+          48
+        ],
+        "outgoing_transform": [
+          245,
+          254
+        ],
+        "incoming_transform": [
+          276,
+          287
+        ]
+      },
+      "evidence": "Local signs are -1 and static offsets are zero. Forward and reverse transforms are inverse pairs. Bias defined after this transform requires no additional left/right sign flip.",
+      "sha256": "dcf50e0e2280b675e995fd575eda820ea3a0c10bdb520d2e6ed5db0deba2497b",
+      "bytes": 12312,
+      "matches_revision": true
+    },
+    "pupperv3-monorepo/ros2_ws/src/pupper_v3_description/description/components.xacro": {
+      "locators": {
+        "front_right_homing_and_limits": [
+          7,
+          24
+        ],
+        "front_right_hip": [
+          36,
+          53
+        ],
+        "front_right_knee": [
+          65,
+          82
+        ]
+      },
+      "evidence": "Homing stop coordinates and normal position_min/max are distinct; the normal clamp is 0.10rad inside the corresponding model bounds.",
+      "sha256": "dd37684786102fd8e4cf5135f0985e7321ae3005dccb8608e932cb0cd8001919",
+      "bytes": 14658,
+      "matches_revision": true
+    },
+    "pupper_gait_deploy/src/neural_controller.cpp": {
+      "locators": {
+        "activation_anchor": [
+          403,
+          415
+        ],
+        "measured_activation_seed": [
+          454,
+          465
+        ],
+        "initial_interpolation": [
+          717,
+          739
+        ],
+        "actor_measured_positions_and_velocity": [
+          1029,
+          1048
+        ],
+        "controller_target_clamp_and_action_history": [
+          1244,
+          1256
+        ]
+      },
+      "evidence": "All position-action actors read the same hardware position state minus fixed policy default. Activation reads that state too. Initial interpolation ends at the fixed activation anchor; actor targets are clamped before the downstream hardware write.",
+      "sha256": "a89e951cf7f7ed8b7cfd4af577621f891210179de7b4284f5ad970017395f41c",
+      "bytes": 64307,
+      "matches_revision": true
+    },
+    "pupper_gait_deploy/src/position_target_slew.hpp": {
+      "locators": {
+        "measured_reset_clamp": [
+          30,
+          39
+        ],
+        "bounded_command_step": [
+          41,
+          53
+        ]
+      },
+      "evidence": "Slew state is seeded from bounded measured joints and remains in encoder/controller coordinates. It precedes conversion to physical targets.",
+      "sha256": "1ee40882f02151f35ca4627425c512a8239b1f4f3ae3d0fdb8a454bf56b8b36d",
+      "bytes": 5874,
+      "matches_revision": true
+    },
+    "pupper-mjlab/src/mjlab/entity/data.py": {
+      "locators": {
+        "biased_joint_state_definition": [
+          369,
+          371
+        ]
+      },
+      "evidence": "joint_pos_biased = joint_pos + encoder_bias.",
+      "sha256": "fd1116692f82278bda721d44c015d27e253d2e866608c8e12824df039dfb4657",
+      "bytes": 22836,
+      "matches_revision": true
+    },
+    "pupper-mjlab/src/mjlab/tasks/pupper/mdp/observations.py": {
+      "locators": {
+        "reviewed_legacy_actor_joint_state": [
+          127,
+          142
+        ]
+      },
+      "evidence": "At this source snapshot the custom locomotion observation reads true joint_pos; later independent per-step observation noise does not reproduce a persistent calibration offset.",
+      "sha256": "1627f2ce38ec2ce7cb3e6abdf09a4d7a996e0cde61f06f9b0ab4fb65686ab74e",
+      "bytes": 7417,
+      "matches_revision": true
+    },
+    "pupper-mjlab/src/mjlab/tasks/tracking/tracking_env_cfg.py": {
+      "locators": {
+        "tracking_actor_joint_state": [
+          71,
+          74
+        ]
+      },
+      "evidence": "Tracking explicitly sets biased=True for its actor joint-position term.",
+      "sha256": "631b446ffc478c170ce5ef2a1a74b766e963f13a660f78b168060cd425cac243",
+      "bytes": 8929,
+      "matches_revision": true
+    },
+    "pupper-mjlab/src/mjlab/tasks/pupper/target_slew.py": {
+      "locators": {
+        "biased_seed_and_target_conversion": [
+          142,
+          153
+        ]
+      },
+      "evidence": "Matched slew action seeds q+b and converts its bounded controller target to physical target by subtracting bias.",
+      "sha256": "8143580ecc4a2c9a7729cb65c3b02aff69536bc69bcce0dd35f093e6a5169848",
+      "bytes": 10575,
+      "matches_revision": true
+    }
+  },
+  "coordinate_definition": {
+    "q": "True physical joint angle in the named ROS joint orientation, relative to the correct mechanical zero.",
+    "r": "Encoder angle after inverse SPI sign/static-offset conversion, before homing-zero subtraction.",
+    "z_true": "Correct zero in that same encoder coordinate, so r=q+z_true.",
+    "z_estimated": "Stored hw_actuator_zero_positions_ value after homing.",
+    "b": "z_true-z_estimated, a constant per-joint calibration error. This is not the raw motor-coordinate sign convention.",
+    "u": "Requested controller position in measured encoder/ROS joint coordinates."
+  },
+  "derived_contract": {
+    "observed_joint_position": "r-z_estimated = q+b",
+    "actor_joint_position_relative": "q+b-policy_default_joint_pos, for both locomotion and tracking position actors",
+    "physical_target": "driver_clamp(controller_target)+z_estimated-z_true = driver_clamp(controller_target)-b",
+    "constant_bias_velocity": "Constant b contributes no velocity term; measured velocity equals true velocity under this offset-only model.",
+    "ordering": [
+      "Actor affine target and controller clamp",
+      "Optional position-target slew in measured coordinates",
+      "Normal hardware driver clamp in measured coordinates, when kp>0",
+      "Subtract bias to express the physical target",
+      "Plant/actuator dynamics"
+    ],
+    "target_interval": "A driver encoder interval [L,U] becomes physical target interval [L-b,U-b]. Do not re-clamp after subtraction to the unshifted driver interval.",
+    "mechanical_limits": "True model joint stops stay fixed. A command clamp limits the target, not observed physical state or dynamic overshoot."
+  },
+  "initialization": {
+    "seed": "Activation reads q+b; with no intervening clamp, sending that seed back gives physical target q.",
+    "anchor": "The policy default/selected clip anchor remains fixed. Do not add b to it or to reference tables to cancel the observation.",
+    "slew": "Slew reset first clamps q+b. The exact initial-hold identity therefore applies only when the measured seed lies inside the selected bounds.",
+    "native_transfer_bookkeeping": "Keep previous controller-target metrics in q+b coordinates, separate from the physical delay-buffer seed q. Lab6 owner was notified and corrected this bookkeeping."
+  },
+  "training_implication": {
+    "finding": "The reviewed custom locomotion actor omits the persistent joint encoder bias, although position targets subtract it. Tracking actor includes it. This is a training/deployment observation mismatch.",
+    "narrow_repair": "Use measured biased joint positions in the affected actor observation through an explicit versioned opt-in contract; preserve historical training and checkpoint provenance.",
+    "keep_unchanged": [
+      "True-state rewards",
+      "Physical mechanical joint bounds",
+      "Fixed policy default and reference poses",
+      "Privileged critic terms unless explicitly intended to share actor sensing"
+    ],
+    "not_a_substitute": "Independent per-step uniform observation noise does not establish coverage of the missing persistent observation/action coupling."
+  },
+  "algebra_checks": {
+    "passed": true,
+    "request_cases": 27,
+    "spi_sign_cases_per_request": 2,
+    "bias_values_rad": [
+      -0.015,
+      0.0,
+      0.015
+    ],
+    "absolute_tolerance": 1e-14,
+    "scope": "Illustrative exact coordinate identities, not physical validation.",
+    "cases": [
+      {
+        "q": -0.4,
+        "bias": -0.015,
+        "request": -1.0,
+        "measured": -0.41500000000000004,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.485
+      },
+      {
+        "q": -0.4,
+        "bias": -0.015,
+        "request": 0.3,
+        "measured": -0.41500000000000004,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.31499999999999995
+      },
+      {
+        "q": -0.4,
+        "bias": -0.015,
+        "request": 2.0,
+        "measured": -0.41500000000000004,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.515
+      },
+      {
+        "q": -0.4,
+        "bias": 0.0,
+        "request": -1.0,
+        "measured": -0.4,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.5
+      },
+      {
+        "q": -0.4,
+        "bias": 0.0,
+        "request": 0.3,
+        "measured": -0.4,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.30000000000000004
+      },
+      {
+        "q": -0.4,
+        "bias": 0.0,
+        "request": 2.0,
+        "measured": -0.4,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.4999999999999998
+      },
+      {
+        "q": -0.4,
+        "bias": 0.015,
+        "request": -1.0,
+        "measured": -0.385,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.515
+      },
+      {
+        "q": -0.4,
+        "bias": 0.015,
+        "request": 0.3,
+        "measured": -0.385,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.2849999999999999
+      },
+      {
+        "q": -0.4,
+        "bias": 0.015,
+        "request": 2.0,
+        "measured": -0.385,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.485
+      },
+      {
+        "q": 0.2,
+        "bias": -0.015,
+        "request": -1.0,
+        "measured": 0.18499999999999994,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.485
+      },
+      {
+        "q": 0.2,
+        "bias": -0.015,
+        "request": 0.3,
+        "measured": 0.18499999999999994,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.31499999999999995
+      },
+      {
+        "q": 0.2,
+        "bias": -0.015,
+        "request": 2.0,
+        "measured": 0.18499999999999994,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.515
+      },
+      {
+        "q": 0.2,
+        "bias": 0.0,
+        "request": -1.0,
+        "measured": 0.19999999999999996,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.5
+      },
+      {
+        "q": 0.2,
+        "bias": 0.0,
+        "request": 0.3,
+        "measured": 0.19999999999999996,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.30000000000000004
+      },
+      {
+        "q": 0.2,
+        "bias": 0.0,
+        "request": 2.0,
+        "measured": 0.19999999999999996,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.4999999999999998
+      },
+      {
+        "q": 0.2,
+        "bias": 0.015,
+        "request": -1.0,
+        "measured": 0.21499999999999997,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.515
+      },
+      {
+        "q": 0.2,
+        "bias": 0.015,
+        "request": 0.3,
+        "measured": 0.21499999999999997,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.2849999999999999
+      },
+      {
+        "q": 0.2,
+        "bias": 0.015,
+        "request": 2.0,
+        "measured": 0.21499999999999997,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.485
+      },
+      {
+        "q": 1.3,
+        "bias": -0.015,
+        "request": -1.0,
+        "measured": 1.2850000000000001,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.485
+      },
+      {
+        "q": 1.3,
+        "bias": -0.015,
+        "request": 0.3,
+        "measured": 1.2850000000000001,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.31499999999999995
+      },
+      {
+        "q": 1.3,
+        "bias": -0.015,
+        "request": 2.0,
+        "measured": 1.2850000000000001,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.515
+      },
+      {
+        "q": 1.3,
+        "bias": 0.0,
+        "request": -1.0,
+        "measured": 1.3,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.5
+      },
+      {
+        "q": 1.3,
+        "bias": 0.0,
+        "request": 0.3,
+        "measured": 1.3,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.30000000000000004
+      },
+      {
+        "q": 1.3,
+        "bias": 0.0,
+        "request": 2.0,
+        "measured": 1.3,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.4999999999999998
+      },
+      {
+        "q": 1.3,
+        "bias": 0.015,
+        "request": -1.0,
+        "measured": 1.315,
+        "bounded_encoder_target": -0.5,
+        "true_target": -0.515
+      },
+      {
+        "q": 1.3,
+        "bias": 0.015,
+        "request": 0.3,
+        "measured": 1.315,
+        "bounded_encoder_target": 0.3,
+        "true_target": 0.2849999999999999
+      },
+      {
+        "q": 1.3,
+        "bias": 0.015,
+        "request": 2.0,
+        "measured": 1.315,
+        "bounded_encoder_target": 1.5,
+        "true_target": 1.485
+      }
+    ]
+  },
+  "limitations": [
+    "Installed Pi driver/controller/firmware/calibration identity remains unknown.",
+    "The reviewed +/-0.015rad experiment range is a chosen training stress range, not a measured distribution of this robot homing error.",
+    "The uniform independent per-joint bias model does not cover state-dependent backlash, compliance, encoder drift, sign/scale faults, or correlated homing errors.",
+    "Normal-control semantics do not reproduce homing, which intentionally bypasses position limits.",
+    "The source command-limit margin does not establish actual physical clearance, safe stopping, or bounded physical joint excursions.",
+    "This report does not establish or modify actuator/IMU latency or stochastic noise models.",
+    "Existing immutable hardware comparison package remains unchanged; these hashes identify the reviewed source snapshot."
+  ],
+  "hardware_validated": false,
+  "source_modified": false
+}
