@@ -128,12 +128,16 @@
       "evidence_paths": [
         "gemini_pupper/docs/foundation.md",
         "foundation/results/spider-continuous-handoff.json",
-        "foundation/results/lab6-sit-driver-corrected-review.json"
+        "foundation/results/lab6-sit-driver-corrected-review.json",
+        "foundation/results/lab6-sit-comx02-reviewed.json",
+        "foundation/results/lab6-spider-precision-recovery-review.json",
+        "foundation/results/course-tricks-native-screen.json"
       ],
       "remaining_boundaries": [
-        "Sit retains forward-COM weakness under tighter driver limits; latest continuation was rejected.",
-        "Spider walking precision and stopping experiments require recovery and review.",
-        "Live Gemini, ROS integration and physical validation remain pending."
+        "Reviewed Sit improvement passes original8cases onCPU/GPU; +2.5cmCOM is outside trainingrange and backend-sensitive.",
+        "Spider walking has large learned target jumps; new matched slew contract requires training/evaluation before walking-pair promotion.",
+        "Twelve finite supplied tricks pass nominal native screen; no randomized/full walking-handoff or hardware claim.",
+        "Live Gemini, installed Pi compatibility and physical validation remain pending."
       ]
     },
     {
@@ -177,10 +181,11 @@
         "foundation/scripts/colab_optional_corrected.py"
       ],
       "remaining_boundaries": [
-        "Interrupted corrected flat GPU runs have no recovered final outputs; rerun from preserved exact inputs is required.",
-        "Bumpy and genuine flight/landing Mystery experiments remain to be executed.",
+        "Corrected flat and heldout runs recovered/completed; faster candidates retain tradeoffs and have no demonstrated overall promotion advantage.",
+        "Bumpy original5cm terrain discretization caused contact truncation with torso hull; explicit10cm discretization and overflow-guard experiment pending.",
+        "Mystery500-iteration pilot and corrected slot-coverage probe yielded no admissible flight/landing; genuine jump capability remains unfinished, with a labeled class-reference seed experiment planned.",
         "Legacy fast comparison is not an isolated reward ablation: reference and prior optimization histories differ.",
-        "No measured hardware speed or jump approval."
+        "No measured hardware speed or new-policy jump approval."
       ]
     },
     {

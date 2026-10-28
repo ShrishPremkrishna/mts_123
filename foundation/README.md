@@ -21,8 +21,9 @@ the last two.
 | Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered team checkpoints/exports agree numerically. [Paired GPU comparison](results/lab4-stablegait-clamp-gpu-comparison.json) finds improved tracking after controller-clamp finetuning, but more effort/slip and no fall-count improvement. No promotion; tighter driver limits and the shipped policy remain separate comparisons |
 | Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
 | Lab 6 tools | Finite movement limits, turn/move/arc, follow interruption, serialized jobs, honest queued/completed outcomes, interactive actions and transitions | [Gemini behavior and operation](../gemini_pupper/docs/foundation.md); course checks and fault-injection tests cover stops, failures and late service responses. Live Gemini and ROS are separate tests |
-| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | Corrected export installed locally; [controller-limit evidence](results/lab6-sit-corrected.json) passes all eight scenarios on CPU/GPU and C++ inference parity. A [tighter driver-limit test](results/local-driver-tracking-evaluation.json) exposes a forward-COM weakness; further refinement and hardware checks remain pending |
-| Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | Both policies are necessary. [Command sweep](../pupper-mjlab/configs/foundation/spider_commands.json) supplies bounded evaluation requests; permitted operating speeds must come from successful evaluation, not training caps |
+| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | [Expanded-COM policy](results/lab6-sit-comx02-reviewed.json) installed locally after all eight existing scenarios passed on CPU and GPU with class driver limits. The +2 cm weakness improved; +2.5 cm remains backend-sensitive and outside the training range. Hardware checks remain |
+| Lab 6 spider | Entry/idle/exit library plus a separate walking policy with matching stance handoff | [Recovered paired study](results/lab6-spider-precision-recovery-review.json) found tracking tradeoffs and abrupt walking targets in both GPU/native execution. Matching command-slew training/deployment is under evaluation; no walking pair promoted |
+| Supplied finite tricks | Twelve active finite course policies through native activation, playback and terminal hold | [Nominal screen](results/course-tricks-native-screen.json) completed all twelve with full hull contacts and driver limits. Sneeze peak speed and return-to-walking transitions remain separate checks; no hardware approval |
 | Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
 | Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, configurable reward comparisons, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Each candidate must beat its matched baseline; rejected experiments stay rejected. Existing fast comparisons change reference and optimization history, so do not isolate reward effects. A captured jump must contain real flight and landing |
 | Optional Lab 3 | Pupper character/context, deterministic local hidden-trick gate, pinned UniMate generation, fitting/repair, candidate inspection, physics playback and trained tracking policy | [Reviewed standing trick](results/generated-motion-trained-review.json) is installed locally behind the secret gate: a modest rise/sway/return, not a complex dance. Seven CPU/GPU scenarios and native activation/hold passed; hardware approval remains |
@@ -57,12 +58,13 @@ retains one failed robustness case for Sit and eight passing Spider-clip cases;
 it does not establish Spider walking or a physical robot result.
 
 The corrected body-contact evaluation changed the original sit and spider tracking
-verdicts. The retained Sit continuation passes the controller-limit suite, but has
-a forward-COM weakness with tighter driver limits. The first driver-limit
-continuation was rejected, and a reference-margin sweep also worsened tracking.
-The stock training distribution covers torso x-COM offsets of ±1 cm; the difficult
-+2 cm test lies outside it. A separate bounded ±2 cm continuation tests that gap;
-it is an experiment, not an installed improvement. Spider refinements remain
+verdicts. The first driver-limit Sit continuation was rejected, and a
+reference-margin sweep also worsened tracking. The stock training distribution
+covered torso x-COM offsets of ±1 cm; the difficult +2 cm case lay outside it.
+Expanding only that axis to ±2 cm improved the case on both CPU and GPU while
+retaining the original reference and reward weights. That reviewed policy is now
+installed locally. At +2.5 cm, CPU still wobbles while GPU passes: this is an
+explicit boundary, not a claim of general robustness. Spider refinements remain
 under evaluation. Historical “HOLDS UP” labels describe the simulator used at the time. They are not
 sufficient evidence for deployment; new evaluations must name the actual contact,
 actuation and randomization contracts. A stable-looking animation can still be
