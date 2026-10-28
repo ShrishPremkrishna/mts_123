@@ -40,14 +40,16 @@ def prepare(repo, out):
     spec.loader.exec_module(bootstrap)
     if p['gait_reference']['joint_names'] != bootstrap.JOINT_ORDER:
         raise ValueError('Canonical robot joint order changed')
-    absolute = np.asarray(jump['jump_table']) + np.asarray(p['default_joint_pos'])
+    absolute = np.asarray(jump['jump_table'], dtype=np.float64)
     check = bootstrap.validate_reference(absolute, limits=bootstrap.robot_limits(), cycle_s=jump['playback_s'], periodic=False)
     metadata = {
         'created_utc': datetime.now(timezone.utc).isoformat(),
         'source_kind': 'imported_class_reference_template_not_measured_capture',
         'source_policy': str(policy.relative_to(repo)), 'source_policy_sha256': sha(policy),
         'source_reference': str(reference.relative_to(repo)), 'source_reference_sha256': sha(reference),
-        'conversion': 'Exact exported jump offsets plus the recorded default joint pose, in canonical robot order. No smoothing, scaling, clipping or invented motion.',
+        'conversion': 'Exact absolute exported jump joint-angle table in canonical robot order. No default-pose addition, smoothing, scaling, clipping or invented motion.',
+        'source_description_correction': 'reference.json calls these offsets, but export.jump_slot_metadata stores the absolute table and both training mixed_jump_reference_offset and native gait_reference.hpp subtract the default pose when producing observation offsets.',
+        'absolute_joint_table_contract': True,
         'format_note': 'captured_jump_gait.npz is the existing loader socket; this is not an observed physical jump.',
         'nominal_timing': {'playback_s': jump['playback_s'], 'active_s': jump['active_s'], 'cross_fade_s': jump['cross_fade_s'], 'legacy_touchdown_fallback_s': .84, 'touchdown_is_measured': False},
         'kinematic_validation': check, 'hardware_approved': False, 'physical_flight_validated': False,

@@ -1,0 +1,118 @@
+{
+  "status": "confirmed_semantic_error_preserved_and_corrected",
+  "discovered_by": "independent source review after e0e1638",
+  "incorrect_claim": "The exported jump_table was treated as offsets and default_joint_pos was added.",
+  "actual_contract": "jump_table already contains absolute joint angles. export.jump_slot_metadata returns _reference_table directly; training mixed_jump_reference_offset and native gait_reference.hpp subtract the default pose to produce the observation offset.",
+  "misleading_source_text": "gemini_pupper/tricks/jump/reference.json about text says offsets; executable semantics take precedence. Original source bytes retained for identity.",
+  "consequence": "Earlier seed table differs from the shipped class reference by one default-pose vector (up to0.52rad). It is an altered reference, not an exact class seed.",
+  "affected_seed_sha256": "0f964b20ca16aadfaf487fa3e2906f7c1678d3de88e7cb3971c0924563c9f0f4",
+  "affected_files": [
+    {
+      "path": "artifacts/optional2/class-jump-seed/captured_jump_gait.npz",
+      "sha256": "0f964b20ca16aadfaf487fa3e2906f7c1678d3de88e7cb3971c0924563c9f0f4"
+    },
+    {
+      "path": "artifacts/optional2/class-jump-seed/class_reference_manifest.json",
+      "sha256": "e557f92c9c3bd2ceb07dd27942c843130663611b600ccc0663165c7a2e8ad457"
+    },
+    {
+      "path": "artifacts/optional2/class-jump-seed/class-jump-seed.tar.gz",
+      "sha256": "6826c92866749081f5bfa16720b2f7d37a723990611fc11bc0a5cd7db838943a"
+    },
+    {
+      "path": "artifacts/optional2/prepare_class_jump_seed.py",
+      "sha256": "db0573532ab56a49ead58547586bd6abedda1b77f2fe89eb87cb360e0ff7a437"
+    },
+    {
+      "path": "artifacts/optional2/class_seed_mystery_worker.py",
+      "sha256": "3936829f91b36dc5f281a92d58b1d9c0839065fe780bbc4c15ffd0aaf4fe81df"
+    },
+    {
+      "path": "artifacts/optional2/captured_mystery_worker.py",
+      "sha256": "6db532b2ae2dc4147ebef8f805792ac325ccb99c8ffcaa6670d03f7bda4c91dd"
+    }
+  ],
+  "affected_remote_runs": [
+    "/content/pupper-optional-recovery-v2/mystery-class-seed-v2",
+    "/content/pupper-optional-recovery-v2/mystery-captured-v3"
+  ],
+  "unaffected": [
+    "flat continuation and heldout results",
+    "Bumpy experiments",
+    "shipped policy bytes and native controller",
+    "original no-reference Mystery pilot"
+  ],
+  "prior_artifact_preservation": "No checkpoint, manifest, archive, trace or old script was rewritten. This correction supersedes exact-class wording in old artifact metadata.",
+  "altered_reference_result": {
+    "training_iterations": 1000,
+    "failures_in_16_command_probe": 60,
+    "observed_candidate_windows": 205,
+    "model_bound_valid_windows": 99,
+    "driver_target_bound_valid_windows": 0,
+    "full_body_flight_status": "provisional pending independent whole-body/vertical-motion/landing audit",
+    "deployment_promoted": false
+  },
+  "corrective_action": "Build absolute reference by copying jump_table unchanged; test the actual loader and training reference output against the independently exported shipped reference runtime. Run exact-class correction in a new output root.",
+  "new_seed_manifest": {
+    "created_utc": "2026-10-28T09:00:41.708074+00:00",
+    "source_kind": "imported_class_reference_template_not_measured_capture",
+    "source_policy": "pupper_gait_deploy/policies/default_policy.json",
+    "source_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "source_reference": "gemini_pupper/tricks/jump/reference.json",
+    "source_reference_sha256": "d36c609d21d395c4a80faa6d7ad905b2432f249d64590e36cf5c97fa0057cb87",
+    "conversion": "Exact absolute exported jump joint-angle table in canonical robot order. No default-pose addition, smoothing, scaling, clipping or invented motion.",
+    "source_description_correction": "reference.json calls these offsets, but export.jump_slot_metadata stores the absolute table and both training mixed_jump_reference_offset and native gait_reference.hpp subtract the default pose when producing observation offsets.",
+    "absolute_joint_table_contract": true,
+    "format_note": "captured_jump_gait.npz is the existing loader socket; this is not an observed physical jump.",
+    "nominal_timing": {
+      "playback_s": 0.9400000000000001,
+      "active_s": 0.8,
+      "cross_fade_s": 0.06,
+      "legacy_touchdown_fallback_s": 0.84,
+      "touchdown_is_measured": false
+    },
+    "kinematic_validation": {
+      "samples": 100,
+      "duration_s": 0.9400000000000001,
+      "periodic": false,
+      "peak_joint_velocity_rad_s": 41.04106394534415,
+      "wrap_step_rad": 0.0,
+      "joint_min": [
+        -0.767340898513794,
+        -0.33217644691467285,
+        -2.055147409439087,
+        -1.594832181930542,
+        -0.8581085801124573,
+        -0.7099999785423279,
+        -0.8970616459846497,
+        -0.41999998688697815,
+        -1.4204368591308594,
+        -0.9945637583732605,
+        -0.9199477434158325,
+        -0.7099999785423279
+      ],
+      "joint_max": [
+        1.594832181930542,
+        0.8581085801124573,
+        0.7099999785423279,
+        0.767340898513794,
+        0.33217644691467285,
+        2.055147409439087,
+        0.9945637583732605,
+        0.9199477434158325,
+        0.7099999785423279,
+        0.8970616459846497,
+        0.41999998688697815,
+        1.4204368591308594
+      ]
+    },
+    "hardware_approved": false,
+    "physical_flight_validated": false,
+    "reference_sha256": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094"
+  },
+  "source_locators": [
+    "pupper-mjlab/src/mjlab/tasks/pupper_gait/export.py:256",
+    "pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp/mixed_jump.py:214",
+    "pupper_gait_deploy/src/gait_reference.hpp"
+  ]
+}

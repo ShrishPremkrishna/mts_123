@@ -21,7 +21,7 @@ def test_actual_class_seed_preserves_exact_motion_and_does_not_invent_touchdown(
     report = seed.prepare(ROOT, out)
     policy = json.loads((ROOT/'pupper_gait_deploy/policies/default_policy.json').read_text())
     with np.load(out/'captured_jump_gait.npz', allow_pickle=False) as capture:
-        np.testing.assert_array_equal(capture['jump'], np.asarray(policy['jump_slot']['jump_table'])+np.asarray(policy['default_joint_pos']))
+        np.testing.assert_array_equal(capture['jump'], np.asarray(policy['jump_slot']['jump_table']))
         assert 'touchdown_s' not in capture.files
         assert 'not_measured_capture' in str(capture['metadata_json'])
     assert not report['physical_flight_validated'] and not report['hardware_approved']
@@ -53,3 +53,30 @@ def test_coverage_protocol_cannot_silently_claim_short_or_warmup_only_slots():
         bad = SimpleNamespace(**vars(args));setattr(bad, field, invalid)
         with pytest.raises(ValueError):
             coverage.apply_coverage_schedule(bad, cfg)
+
+
+def test_class_seed_loader_matches_actual_training_and_exported_reference_runtime(tmp_path, monkeypatch):
+    import torch
+    from mjlab.tasks.pupper_gait.mdp import gait_reference, gait, mixed_jump
+    from mjlab.tasks.pupper_gait.export import mixed_jump_reference_offset_numpy
+    seed=load('prepare_class_jump_seed');out=tmp_path/'runtime-seed';seed.prepare(ROOT,out)
+    p=json.loads((ROOT/'pupper_gait_deploy/policies/default_policy.json').read_text())
+    monkeypatch.setattr(gait_reference,'_CAPTURED_JUMP_FILE',out/'captured_jump_gait.npz')
+    monkeypatch.setattr(gait_reference,'_TABLE_CACHE',{})
+    monkeypatch.setattr(gait,'_TABLE_CACHE',{})
+    # Exercise the actual capture loader, including its canonical order and clamp,
+    # then the real training schedule/reference path. Expected values come from
+    # the separately exported shipped policy, never from the builder formula.
+    loaded=gait_reference.build_joint_reference_table(100,'jump')
+    np.testing.assert_allclose(loaded,p['jump_slot']['jump_table'],rtol=0,atol=1e-7)
+    ticks=torch.arange(0,111,dtype=torch.int64);n=len(ticks);default=torch.tensor(p['default_joint_pos'],dtype=torch.float32)
+    limits=torch.tensor(np.array([[-10,10]]*12),dtype=torch.float32)
+    env=SimpleNamespace(device=torch.device('cpu'),num_envs=n,step_dt=.01,episode_length_buf=ticks,
+                        scene={'robot':SimpleNamespace(data=SimpleNamespace(default_joint_pos=default.expand(n,12),joint_pos_limits=limits[None]))},
+                        command_manager=SimpleNamespace(get_command=lambda _:torch.zeros(n,3)))
+    starts=torch.full((n,3),float('inf'));starts[:,0]=0;setattr(env,'_pupper_mixed_jump_slots',starts)
+    j=p['jump_slot'];g=p['gait_reference']
+    actual=mixed_jump.mixed_jump_reference_offset(env,'twist',1/.75,.1,100,.5,j['playback_s'],j['active_s'],j['cross_fade_s']).numpy()
+    t=(ticks.float()*.01).numpy();zeros=np.zeros(n)
+    expected=mixed_jump_reference_offset_numpy(g,j,np.asarray(p['default_joint_pos']),t,zeros,zeros,zeros,zeros)
+    np.testing.assert_allclose(actual,expected,rtol=0,atol=2e-6)
