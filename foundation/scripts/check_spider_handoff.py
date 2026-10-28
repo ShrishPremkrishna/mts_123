@@ -79,6 +79,39 @@ def validate_single_return_descriptor(path, policy_path):
     return content
 
 
+def validate_interactive_return_descriptor(path, policy_path):
+    if path is None:raise ValueError('Interactive Sit requires --trick-descriptor')
+    content=path.read_bytes();d=yaml.safe_load(content)
+    if (not isinstance(d,dict) or d.get('type')!='policy' or d.get('start_pose')!='standing'
+            or d.get('end_pose')!='sitting' or d.get('exit_clip')!='stand_up'
+            or not isinstance(d.get('actions'),dict) or not {'shake_left','shake_right','stand_up'}<=d['actions'].keys()):
+        raise ValueError('Interactive Sit requires sitting endpoint and explicit shake/standing-exit actions')
+    if not isinstance(d.get('policy'),str) or (path.parent/d['policy']).resolve()!=policy_path.resolve():
+        raise ValueError('Descriptor policy path does not match the evaluated input')
+    return content
+
+
+def interactive_sit_stages(trick):
+    clips={c['name']:c for c in trick['trick']['clips']};fps=float(trick['trick']['fps'])
+    if set(clips)!={'sit_down','sit_idle','shake_left','shake_right','stand_up'} or not np.isfinite(fps) or fps<=0:
+        raise ValueError('Interactive Sit requires the reviewed five-clip contract')
+    if (not clips['sit_idle'].get('loop') or clips['stand_up'].get('loop') or clips['stand_up'].get('next')
+            or any(clips[n].get('loop') or clips[n].get('next')!='sit_idle' for n in ('sit_down','shake_left','shake_right'))):
+        raise ValueError('Interactive Sit requires idle loops, shake returns and a finite standing exit')
+    durations={name:(c['end']-c['start']-1)/fps for name,c in clips.items()}
+    if any(v<=0 or not np.isfinite(v) for v in durations.values()):raise ValueError('Invalid interactive clip duration')
+    # Queued actions begin on the next idle boundary. Allow one full idle loop
+    # plus action duration, then observe idle/terminal hold before continuing.
+    return [('sit_entry','trick',.5+1+durations['sit_down']+.3,[0,0,0],'sit_down'),
+            ('sit_idle_before_left','trick',2.,[0,0,0],''),
+            ('shake_left','trick',durations['sit_idle']+durations['shake_left']+.3,[0,0,0],'shake_left'),
+            ('sit_idle_before_right','trick',2.,[0,0,0],''),
+            ('shake_right','trick',durations['sit_idle']+durations['shake_right']+.3,[0,0,0],'shake_right'),
+            ('sit_idle_before_exit','trick',2.,[0,0,0],''),
+            ('sit_stand_up','trick',durations['sit_idle']+durations['stand_up']+.3,[0,0,0],'stand_up'),
+            ('sit_standing_hold','trick',2.,[0,0,0],'')] + default_return_stages()
+
+
 def stage_plan(trick, single_motion=False, return_default=False):
     if single_motion:
         metadata=trick['trick'];clips=metadata.get('clips')
@@ -128,9 +161,13 @@ def run(args):
     if not np.isfinite(angle_limit) or not 0<angle_limit<=np.degrees(1.5):
         raise ValueError('Body-angle threshold must be positive and no looser than the1.5rad diagnostic stop')
     single_motion=getattr(args,'single_motion',False)
+    interactive_sit=getattr(args,'interactive_sit',False)
+    if single_motion and interactive_sit:raise ValueError('Choose finite single motion or interactive Sit, not both')
     default_path=getattr(args,'return_default_policy',None)
     descriptor_path=getattr(args,'trick_descriptor',None)
-    descriptor_bytes=validate_single_return_descriptor(descriptor_path,args.trick_policy) if single_motion and default_path is not None else None
+    if interactive_sit and default_path is None:raise ValueError('Interactive Sit requires explicit --return-default-policy')
+    descriptor_bytes=(validate_interactive_return_descriptor(descriptor_path,args.trick_policy) if interactive_sit else
+        validate_single_return_descriptor(descriptor_path,args.trick_policy) if single_motion and default_path is not None else None)
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     if descriptor_bytes is not None:(output/'trick-descriptor.yaml').write_bytes(descriptor_bytes)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
@@ -144,7 +181,7 @@ def run(args):
     if descriptor_bytes is not None:sources.append(descriptor_path.resolve())
     source_before = {str(p.relative_to(ROOT)):sha(p) for p in sources}
     binary, compile_command = build_controller(output)
-    if args.walk_policy is None and not single_motion:raise ValueError('--walk-policy required for Spider handoff')
+    if args.walk_policy is None and not (single_motion or interactive_sit):raise ValueError('--walk-policy required for Spider handoff')
     walk_path=args.walk_policy or args.trick_policy  # second host slot unused in single-motion mode
     # Read each original once. Parsing, preservation and native execution use
     # those exact bytes even if an external process changes the original path.
@@ -167,7 +204,7 @@ def run(args):
     root_q, root_v = int(model.jnt_qposadr[free]), int(model.jnt_dofadr[free])
     body = model.body('base_link').id
     data.qpos[root_q:root_q+7] = [0,0,.18,1,0,0,0]
-    data.qpos[qadr] = trick['default_joint_pos'] if single_motion else trick['motion']['joint_pos'][0]
+    data.qpos[qadr] = trick['default_joint_pos'] if single_motion or interactive_sit else trick['motion']['joint_pos'][0]
     mujoco.mj_forward(model,data)
     lower = np.full(12,-np.inf); upper=np.full(12,np.inf)
     if args.driver_limits:
@@ -178,7 +215,7 @@ def run(args):
         if lower.shape!=(12,) or upper.shape!=(12,) or not np.all(lower<upper): raise ValueError('invalid driver bounds')
     # Exact application timing: entry init/fade plus clip and .3s; walking
     # activation 2+2s plus .2s; bounded commands followed by a 2s zero stop.
-    stages=stage_plan(trick,single_motion,default_path is not None)
+    stages=interactive_sit_stages(trick) if interactive_sit else stage_plan(trick,single_motion,default_path is not None)
     host_command=[str(binary),str((output/'trick-policy.json').resolve()),str((output/'walk-policy.json').resolve())]
     if default_path is not None: host_command += ['--return-default-no-jump',str((output/'default-policy.json').resolve())]
     proc=subprocess.Popen(host_command,
@@ -188,7 +225,7 @@ def run(args):
         line=proc.stdout.readline()
         if not line: raise RuntimeError('controller exited; inspect controller.log')
         return json.loads(line)
-    samples=[]; activations=[];inference_events=[]; previous_controller=None; activation_time=0.; previous_target=data.qpos[qadr].copy()
+    samples=[]; activations=[];clip_requests=[];inference_events=[]; previous_controller=None; activation_time=0.; previous_target=data.qpos[qadr].copy()
     # Interpolate between timestamped old targets to realize exactly 16ms at
     # 520Hz. Buffer persists through all controller switches; initial values are
     # measured standing joints, initialized once at the start of the world.
@@ -205,11 +242,19 @@ def run(args):
                                         joint_pos=data.qpos[qadr].tolist(),joint_vel=data.qvel[vadr].tolist(),
                                         physical_state_reset=False,observation_history_reset=True))
                 previous_controller=controller
+            elif interactive_sit and start_clip:
+                response=rpc(dict(op='request_clip',clip=start_clip))
+                clip_requests.append(dict(stage=stage,time_s=current_time,clip=start_clip,**response,
+                    activation_clock_reset=False,observation_history_reset=False,physical_state_reset=False))
+                if not response['accepted']:
+                    failure=dict(time_s=current_time,reason='Interactive clip request refused',clip=start_clip);break
+            observed_stage_clips=set()
             for _ in range(round(duration*520)):
                 quat=data.qpos[root_q+3:root_q+7].copy()
                 state=rpc(dict(op='step',elapsed_s=current_time-activation_time,joint_pos=data.qpos[qadr].tolist(),
                     joint_vel=data.qvel[vadr].tolist(),quaternion=quat.tolist(),angular_velocity=data.qvel[root_v+3:root_v+6].tolist(),command=command,
                     audit_inference=getattr(args,'record_inference',False)))
+                if state.get('clip'):observed_stage_clips.add(state['clip'])
                 target=np.asarray(state['target']); final_target=np.clip(target,lower,upper)
                 if state.get('inference') and getattr(args,'record_inference',False):
                     inference_events.append(inference_event(state,time_s=current_time,stage=stage,controller=controller,command=command,
@@ -249,6 +294,13 @@ def run(args):
                         failure=dict(time_s=current_time,reason=f'nonfinite state or configured {angle_limit:g}deg body-angle stop'); break
                 previous_target=target.copy();tick+=1;current_time=tick/520
             if failure: break
+            if interactive_sit and stage in ('sit_entry','shake_left','shake_right'):
+                expected='sit_down' if stage=='sit_entry' else stage
+                if expected not in observed_stage_clips or state.get('clip')!='sit_idle':
+                    failure=dict(time_s=current_time,reason='Interactive action did not play and return to idle',stage=stage);break
+            if interactive_sit and stage in ('sit_stand_up','sit_standing_hold'):
+                if state.get('clip')!='stand_up' or not state.get('holding'):
+                    failure=dict(time_s=current_time,reason='Interactive standing exit did not reach final hold');break
             if stage=='entry' and state.get('clip')!='spider_idle':
                 failure=dict(time_s=current_time,reason='entry controller did not confirm spider_idle');break
             if stage=='exit' and not (state.get('clip')=='spider_up' and state.get('holding')):
@@ -281,9 +333,11 @@ def run(args):
             last_clip=rows[-1]['clip'],last_frame=rows[-1]['frame'],last_holding=rows[-1]['holding'])
     source_after={str(p.relative_to(ROOT)):sha(p) for p in sources}
     policy_after={name:sha(path) for name,path in policy_paths.items()}
-    report=dict(protocol=('finite_trick_to_default_nojump_v1' if single_motion and default_path is not None else
+    report=dict(protocol=('interactive_sit_to_default_nojump_v1' if interactive_sit else
+        'finite_trick_to_default_nojump_v1' if single_motion and default_path is not None else
         'exported_finite_trick_activation_and_hold_v1' if single_motion else
         'continuous_spider_to_default_nojump_v2' if default_path is not None else 'continuous_exported_controller_spider_handoff_v1'),hardware_validated=False,
+        interactive_sit=interactive_sit,clip_requests=clip_requests,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
@@ -292,12 +346,13 @@ def run(args):
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.',
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
+                 'Interactive Sit queues left shake, right shake and standing exit through production ClipPlayer with persistent actor history and clock; this does not execute ROS messages.' if interactive_sit else
                  'Single finite clip plus2s hold; no walking handoff tested.' if single_motion and default_path is None else
                  'Default controller returns after the finite terminal hold or Spider exit with its own measured-pose initialization, reset history, no scheduled jumps, 0.1m/s forward command and stop; no ROS services executed.' if default_path is not None else
                  'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.',
                  'MuJoCo derived contacts/forces accompany the forward solve immediately before integration; recorded qpos is after integration, at most1/520s later.'],
         trick_descriptor_sha256=hashlib.sha256(descriptor_bytes).hexdigest() if descriptor_bytes is not None else None,
-        trick_policy_sha256=policy_before['trick'],walk_policy_sha256=None if single_motion else policy_before['walk'],
+        trick_policy_sha256=policy_before['trick'],walk_policy_sha256=None if single_motion or interactive_sit else policy_before['walk'],
         default_policy_sha256=policy_before.get('default'),policy_hashes_start=policy_before,policy_hashes_end=policy_after,
         preserved_policy_hashes={name:sha(output/f'{name}-policy.json') for name in policy_bytes},
         policy_changed=policy_before!=policy_after,host_command=host_command,
@@ -317,6 +372,7 @@ if __name__=='__main__':
     parser.add_argument('--trick-policy',type=Path,required=True);parser.add_argument('--walk-policy',type=Path)
     parser.add_argument('--return-default-policy',type=Path,help='Continue after Spider exit or an explicitly described finite standing-ending trick into actual normal walking; no jumps, continuous physical state')
     parser.add_argument('--trick-descriptor',type=Path,help='Required for finite default return; confirms standing start/end and exact policy path')
+    parser.add_argument('--interactive-sit',action='store_true',help='Explicit sit/idle/left/right/standing-exit queue sequence followed by actual default walking')
     parser.add_argument('--single-motion',action='store_true',help='One finite trick plus2s terminal hold; append normal walking only with explicit --return-default-policy')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)

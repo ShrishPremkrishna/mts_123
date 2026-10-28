@@ -305,3 +305,37 @@ def test_finite_return_requires_matching_standing_descriptor(tmp_path):
         descriptor.write_text('type: policy\npolicy: policy.json\nstart_pose: standing\nend_pose: '+ending+'\n')
         with pytest.raises(ValueError,match='standing-to-standing'):
             handoff.validate_single_return_descriptor(descriptor,policy)
+
+
+def test_clip_request_preserves_actor_history_and_activation_clock(host):
+    proc,rpc=session(host,'entry')
+    try:
+        for tick in range(800):last=rpc({**step(.5+tick/520),'audit_inference':True})
+        # The finite entry is holding; a queued exit starts at the next inference.
+        assert last['holding'] and last['stage']=='policy'
+        prior_action=last['before_clip'][0]/.75
+        queued=rpc(dict(op='request_clip',clip='exit'));assert queued['accepted']
+        for tick in range(800,811):
+            result=rpc({**step(.5+tick/520),'audit_inference':True})
+            if result['inference']:
+                assert result['clip']=='exit' and result['stage']=='policy'
+                np.testing.assert_allclose(result['model_input'][57:],prior_action,atol=2e-6)
+                assert min(result['raw_action'])>10.5
+                break
+        else:raise AssertionError('No inference after clip request')
+        assert not rpc(dict(op='request_clip',clip='unknown'))['accepted']
+    finally:
+        proc.stdin.close();assert proc.wait(timeout=5)==0
+
+
+def test_interactive_plan_uses_actual_installed_clip_contract():
+    policy=json.loads((ROOT/'gemini_pupper/tricks/sit_stay_shake/policy.json').read_text())
+    stages=handoff.interactive_sit_stages(policy)
+    assert [x[4] for x in stages if x[4]]==['sit_down','shake_left','shake_right','stand_up']
+    assert [x[1] for x in stages[:8]]==['trick']*8
+    assert stages[-3:]==handoff.default_return_stages()
+    descriptor=ROOT/'gemini_pupper/tricks/sit_stay_shake/trick.yaml'
+    assert handoff.validate_interactive_return_descriptor(descriptor,descriptor.parent/'policy.json')==descriptor.read_bytes()
+    policy['trick']['clips'][2]['next']=None
+    with pytest.raises(ValueError,match='shake returns'):
+        handoff.interactive_sit_stages(policy)

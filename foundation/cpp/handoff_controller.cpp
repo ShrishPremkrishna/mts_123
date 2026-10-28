@@ -150,7 +150,7 @@ struct Controller {
       result["model_input"]=model_input; result["gait_reference_offset"]=reference_offset;
       result["effective_command"]=effective_command; result["reference_time_s"]=fade_time;
     }
-    if(motion.frames) { result["clip"]=motion.clips[player.clip()].name; result["holding"]=player.holding(); }
+    if(motion.frames) { result["clip"]=motion.clips[player.clip()].name; result["holding"]=player.holding(); result["queued"]=player.queued(); }
     limit_output(result,elapsed);
     return result;
   }
@@ -172,6 +172,11 @@ int main(int argc,char** argv) {
         else if(selected=="default" && normal) active=normal.get();
         else throw std::runtime_error("unknown or unavailable controller");
         active->activate(request);std::cout<<"{\"activated\":true}"<<std::endl;
+      } else if(request.at("op")=="request_clip") {
+        // Production uses this same queue before ClipPlayer::frame on the next
+        // inference. No activation, normalization/history, yaw or clock reset.
+        const bool accepted=active->motion.frames && active->player.request(active->motion,request.at("clip"));
+        std::cout<<Json({{"accepted",accepted},{"queued",active->player.queued()}}).dump()<<std::endl;
       } else if(request.at("op")=="step") std::cout<<active->step(request).dump()<<std::endl;
       else throw std::runtime_error("unknown operation");
     }
