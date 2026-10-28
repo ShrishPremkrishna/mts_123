@@ -130,3 +130,10 @@ def test_internal_reset_warning_refuses_finite_recovered_state():
     data.warning[handoff.mujoco.mjtWarning.mjWARN_BADQACC].number=0
     data.qvel[0]=float('nan')
     assert handoff.numerical_failures(data)==['nonfinite state']
+
+
+def test_inference_record_distinguishes_scenario_and_activation_stages():
+    state={'stage':'policy','raw_action':[1.]}
+    event=handoff.inference_event(state,stage='walk_forward',time_s=3)
+    assert event=={'stage':'walk_forward','activation_stage':'policy','time_s':3,'raw_action':[1.]}
+    assert state['stage']=='policy'

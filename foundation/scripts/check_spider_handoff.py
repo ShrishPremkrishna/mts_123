@@ -95,6 +95,12 @@ def numerical_failures(data):
     return failures
 
 
+def inference_event(state, **context):
+    # Scenario stage (e.g. walk_forward) and activation stage (fade/policy) are
+    # distinct. Preserve both without colliding dict keyword arguments.
+    return {**state,**context,'activation_stage':state['stage']}
+
+
 def run(args):
     angle_limit=float(getattr(args,'max_body_angle_deg',np.degrees(1.5)))
     if not np.isfinite(angle_limit) or not 0<angle_limit<=np.degrees(1.5):
@@ -166,9 +172,9 @@ def run(args):
                     audit_inference=getattr(args,'record_inference',False)))
                 target=np.asarray(state['target']); final_target=np.clip(target,lower,upper)
                 if state.get('inference') and getattr(args,'record_inference',False):
-                    inference_events.append(dict(time_s=current_time,stage=stage,controller=controller,command=command,
+                    inference_events.append(inference_event(state,time_s=current_time,stage=stage,controller=controller,command=command,
                         measured_joint_pos=data.qpos[qadr].tolist(),measured_joint_vel=data.qvel[vadr].tolist(),
-                        previous_controller_target=previous_target.tolist(),driver_target=final_target.tolist(),**state))
+                        previous_controller_target=previous_target.tolist(),driver_target=final_target.tolist()))
                 interval_target_step=max(interval_target_step,float(np.max(np.abs(target-previous_target))))
                 delayed.append((current_time,final_target.copy())); cutoff=current_time-.016
                 while len(delayed)>2 and delayed[1][0]<=cutoff: delayed.popleft()
