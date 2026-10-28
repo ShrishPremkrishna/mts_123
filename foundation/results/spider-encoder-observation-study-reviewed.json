@@ -17,7 +17,7 @@
     "initial_checkpoint_sha256": "d789d17ecadb80efb1e4ee29fc8570273209e182e8cca7bfcf814ecff7ca77d5",
     "initial_checkpoint_label": "model_8495.pt",
     "actual_final_checkpoint_label": "model_9494.pt",
-    "iteration_convention": "RSL performs 1000 updates with labels8495 through9494;9495 is the exclusive loop bound. Actual optimizer counters advance170000→190000, independently confirming the continued budget.",
+    "iteration_convention": "RSL performs 1000 updates with labels 8495 through 9494; 9495 is the exclusive loop bound. Actual optimizer counters advance 170000→190000, independently confirming the continued budget.",
     "worlds": 4096,
     "additional_iterations_each": 1000,
     "seed": 42,
@@ -69,9 +69,9 @@
     "grid_seconds_per_command": 10,
     "stop_seconds_per_command": 8,
     "metric_warmup_s": 2,
-    "holdout_scope": "Seed404 is the predeclared holdout for this study and was not used to select these arms. Other class studies have used this seed.",
-    "stop_criterion": "Body planar speed≤0.02m/s and absolute body yaw rate≤0.05rad/s for26 observations at50Hz, spanning0.5s from first to last. A reset or timeout refuses success. This is a sampled base-speed measurement, not proof that every joint is still or that the physical robot will remain stopped.",
-    "support_persistence": "Separate1% and10% body-weight thresholds; consecutive observed sample spans greater than1s, excluding invalid/reset rows. Mean prior-20ms physics-interval torso forces do not prove contact continuity between observations.",
+    "holdout_scope": "Seed 404 is the predeclared holdout for this study and was not used to select these arms. Other class studies have used this seed.",
+    "stop_criterion": "Body planar speed ≤ 0.02 m/s and absolute body yaw rate ≤ 0.05 rad/s for 26 observations at 50 Hz, spanning 0.5 s from first to last. A reset or timeout refuses success. This is a sampled base-speed measurement, not proof that every joint is still or that the physical robot will remain stopped.",
+    "support_persistence": "Separate 1% and 10% body-weight thresholds; consecutive observed sample spans greater than 1 s, excluding invalid/reset rows. Mean prior 20 ms physics-interval torso forces do not prove contact continuity between observations.",
     "slip_metric": "Horizontal foot-site speed gated by foot contact; a proxy distinct from native contact-point slip.",
     "pairing": {
       "grid-s101": {
@@ -1701,7 +1701,7 @@
     "installed": false,
     "hardware_validated": false,
     "finding": "Measured-sensing training improves the tail of the sampled base-speed stop criterion and slightly reduces moving mean support, effort and slip proxy. It slightly worsens XY/yaw tracking and increases idle mean support and persistent light support. The result does not establish general superiority or complete off-belly walking.",
-    "native_boundary": "The separate common-measured native comparison finds reduced moving torso support in four selected donor/material pairs, but directional tracking/slip tradeoffs and residual support remain. All eight adverse fixed-default tails fail both the original2s and extended8s quiet screens. Both nominal chains pass their scoped screen. The fixed default mass/inertia robustness issue is separate from this sensing correction.",
+    "native_boundary": "The separate common-measured native comparison finds reduced moving torso support in four selected donor/material pairs, but directional tracking/slip tradeoffs and residual support remain. All eight adverse fixed-default tails fail both the original 2 s and extended 8 s quiet screens. Both nominal chains pass their scoped screen. The fixed default mass/inertia robustness issue is separate from this sensing correction.",
     "next_training": "Use the explicit measured-sensing mode for new hardware-consistent training experiments. Keep legacy_true only when reproducing historical simulation semantics. No further optimization is launched from this comparison; physical calibration and supervised validation remain necessary."
   },
   "future_training_recipe": {
