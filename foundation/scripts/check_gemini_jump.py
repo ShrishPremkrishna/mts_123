@@ -44,6 +44,22 @@ def message_payload(reference):
     if not 0<payload[1]<=payload[0] or not 0<payload[2]<=payload[1]:raise ValueError('invalid reference timing')
     return payload.astype(float).tolist()
 
+def validate_class_reference(reference, policy):
+    payload=message_payload(reference)
+    slot=policy['jump_slot']
+    if (np.asarray(reference['table']).shape != np.asarray(slot['jump_table']).shape
+            or not np.allclose(reference['table'],slot['jump_table'],atol=1e-6,rtol=0)
+            or any(not np.isclose(reference[k],slot[k],atol=1e-6,rtol=0)
+                   for k in ('playback_s','active_s','cross_fade_s'))):
+        raise ValueError('reference must match actual class table and timing, without redesign')
+    return payload
+
+
+def verify_input_hashes(paths, expected):
+    for name,path in paths.items():
+        if sha(path)!=expected[name]:raise RuntimeError(f'diagnostic input changed: {name}')
+
+
 def evaluate(screen,shared,binary,policy,metadata,initial,scenario,trigger,payload,recovery_s,lower,upper,output):
     import mujoco
     model,contact_contract=shared.make_model('full_hulls')
@@ -141,8 +157,7 @@ def run(args):
     shared=load(ROOT/'foundation/scripts/check_spider_handoff.py','api_jump_model')
     if not 1<=args.replicas<=8 or not np.isfinite(args.recovery_seconds) or args.recovery_seconds<3:raise ValueError('bounded replicas and at least3s recovery required')
     values,lower,upper,driver=screen.validate_inputs({'shipped':args.policy},[[0,0,0],[.3,0,0]],args.driver_limits)
-    policy=values['shipped'];reference=json.loads(args.reference.read_text());payload=message_payload(reference)
-    if not np.allclose(np.asarray(reference['table']),policy['jump_slot']['jump_table'],atol=1e-6,rtol=0):raise ValueError('reference must match actual class table, without redesign')
+    policy=values['shipped'];reference=json.loads(args.reference.read_text());payload=validate_class_reference(reference,policy)
     initial=screen.initial_conditions(policy['default_joint_pos'],args.replicas,args.seed)
     if any(np.any(np.array(x['joint_position'])<lower) or np.any(np.array(x['joint_position'])>upper) for x in initial):raise ValueError('initial pose outside driver limits')
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
@@ -152,7 +167,8 @@ def run(args):
     sources.update([ROOT/'pupper-mjlab/src/mjlab/tasks/pupper/deployment_contract.py',ROOT/'pupper-mjlab/src/mjlab/tasks/pupper/locomotion_contact_contract.py'])
     hashes={str(p.relative_to(ROOT)):sha(p) for p in sorted(sources)}
     inputs=output/'inputs';inputs.mkdir()
-    for path,name in [(args.policy,'default_policy.json'),(args.reference,'reference.json'),(args.driver_limits,'driver-limits.json'),(ROOT/'gemini_pupper/tricks/jump/trick.yaml','trick.yaml')]:shutil.copy2(path,inputs/name)
+    original_inputs={'default_policy.json':args.policy,'reference.json':args.reference,'driver-limits.json':args.driver_limits,'trick.yaml':ROOT/'gemini_pupper/tricks/jump/trick.yaml'}
+    for name,path in original_inputs.items():shutil.copy2(path,inputs/name)
     write(inputs/'float32-message.json',payload)
     plan=dict(protocol='gemini_stopped_jump_physics_v1',source_revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),source_sha256=hashes,
       inputs_sha256={p.name:sha(p) for p in inputs.iterdir()},initial_conditions=initial,seed=args.seed,
@@ -176,6 +192,7 @@ def run(args):
         write(output/'status.json',dict(status='running',completed=list(results)))
         print(json.dumps({'case':name,'failures':results[name]['failures'],'recoveries':[x['recovery']['meets_stability_screen'] for x in results[name]['replicas']]}),flush=True)
       if hashes!={str(p.relative_to(ROOT)):sha(p) for p in sorted(sources)}:raise RuntimeError('source changed during diagnostic')
+      verify_input_hashes(original_inputs,plan['inputs_sha256'])
       pairs=[]
       for scenario in ['fresh','walk_then_stop']:
        with np.load(output/(scenario+'-gait')/'trace.npz') as a,np.load(output/(scenario+'-jump')/'trace.npz') as b:

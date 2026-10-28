@@ -84,3 +84,20 @@ def test_jump_descriptor_reports_evidence_boundary_and_preserves_loader_contract
     validate_locomotion_contract(POLICY,[trick])
     payload=reference_message_data(trick)
     np.testing.assert_array_equal(np.asarray(payload,np.float32),api.message_payload(json.loads(REFERENCE.read_text())))
+
+
+@pytest.mark.parametrize('field',['playback_s','active_s','cross_fade_s','table'])
+def test_diagnostic_refuses_motion_redesign_disguised_as_class_reference(field):
+    p=json.loads(POLICY.read_text());r=json.loads(REFERENCE.read_text())
+    if field=='table':r['table'][0][0]+=.01
+    else:r[field]*=.99
+    with pytest.raises(ValueError,match='class table and timing'):
+        api.validate_class_reference(r,p)
+
+
+def test_input_mutation_is_not_accepted_as_a_completed_diagnostic(tmp_path):
+    p=tmp_path/'reference.json';p.write_bytes(REFERENCE.read_bytes())
+    expected={'reference.json':api.sha(p)};api.verify_input_hashes({'reference.json':p},expected)
+    p.write_text(p.read_text()+' ')
+    with pytest.raises(RuntimeError,match='input changed'):
+        api.verify_input_hashes({'reference.json':p},expected)
