@@ -47,16 +47,17 @@
     "head": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
     "main_clean": true,
     "last_full_regression": {
-      "source": "b8216f7fd0f4e639ece60e58dc3004137620f803",
-      "pytest": 775,
+      "source": "3766cc0608b0bcc97ae5849c09cca040d4634565",
+      "pytest": 905,
       "course_checks": 225,
       "native_cpp_suite": true,
       "separate_ros_jazzy_tests": 21,
-      "source_hashes": 715,
+      "separate_ros_rerun": false,
+      "source_hashes": 735,
       "source_changed": false,
-      "raw": "artifacts/validation/offline-b8216f7/checks.json",
-      "review": "foundation/results/offline-validation-b8216f7.json",
-      "limitation": "No hardware or policy promotion claim. Subsequent code changes require appropriate checks; results/documentation updates alone do not invalidate the tested code snapshot."
+      "raw": "artifacts/validation/offline-encoder-20261028T1216/checks.json",
+      "review": "foundation/results/offline-validation-3766cc0.json",
+      "limitation": "No hardware orpolicy promotion. Later codechanges needappropriatechecks; documentation/results-onlychanges do not invalidate exactsource checks."
     },
     "completed_since_recovery": [
       "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
@@ -114,9 +115,10 @@
       "foundation/results/spider-recorded-startup-reviewed.json",
       "foundation/results/spider-recorded-startup-independent-review.json",
       "foundation/results/spider-default-startup-attribution-reviewed.json",
-      "foundation/results/spider-default-startup-attribution-independent-review.json"
+      "foundation/results/spider-default-startup-attribution-independent-review.json",
+      "foundation/results/offline-validation-3766cc0.json"
     ],
-    "latest_checkpoint_note": "The prior full regression remainsb8216f7(775pytest+225course+native;separate21actualROS). New helper changes have focused checks and need finalcurrent-source regression. Latest source head is the revision observed immediately before this checkpoint edit, not a self-referential commit claim.",
+    "latest_checkpoint_note": "Complete current-source regression3766cc0passes905pytest+225course+nativeC++;735unchangedhashes. Previous21actualROStestsremainseparateunchangedsourceevidence. Subsequentdocs/resultsupdatesare notnewcodevalidation.",
     "new_consequential_finding": {
       "name": "Persistent encoder calibration bias absent from locomotion actor observations",
       "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",

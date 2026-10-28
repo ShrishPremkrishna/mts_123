@@ -1,0 +1,26 @@
+{
+  "checked_utc": "2026-10-28T12:20:41.916934+00:00",
+  "source_revision": "3766cc0608b0bcc97ae5849c09cca040d4634565",
+  "passed": true,
+  "pytest": {
+    "foundation": 376,
+    "gemini": 237,
+    "implicit_compliance": 17,
+    "motion_export": 275,
+    "total": 905
+  },
+  "course_checks": 225,
+  "native_cpp_suite_passed": true,
+  "watched_source_files": 735,
+  "changed_or_added_source_during_checks": false,
+  "seconds": 91.22724575013854,
+  "evidence": "artifacts/validation/offline-encoder-20261028T1216/checks.json",
+  "evidence_sha256": "95dcd08b207a451b28511be507a5c40b0aaf0b04d5436b9b0b17c7520f85bead",
+  "preservation_receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-offline-encoder-3766cc0.json",
+  "separate_actual_ros_tests": {
+    "tests": 21,
+    "rerun_in_this_batch": false,
+    "source_note": "Previously checked controller-completion-v2 actual ROS Jazzy source is unchanged; this batch adds offline helper and training-sensing contracts."
+  },
+  "scope": "Code/data-contract regression only; not a trained-policy performance, controller-manager integration or physical robot approval. Adverse-case simulation failures remain separate explicit findings."
+}
