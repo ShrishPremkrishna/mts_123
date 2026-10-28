@@ -137,6 +137,15 @@ be copied out before releasing a runtime. Model hashes, configuration, seed and
 source provenance travel with each run; never replace them with a label such as
 `best` without preserving the actual checkpoint identity.
 
+The permanent local checkout is `/Users/shrish/workspace/cs123-foundation` on
+`pupper-foundation`; the coursework checkout remains on `main`. The
+[local environment inventory](results/local-environment.json) records the tested
+Python packages, browser build/type check and relocation verification. It is an
+observed macOS environment, not a cross-platform lock. Older result paths under
+`/private/tmp/cs123-pupper-foundation` remain historical provenance and map to the
+permanent checkout; full archives live separately in
+`/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27`.
+
 The [interruption recovery record](results/interruption-recovery.json) identifies
 exactly which temporary outputs were lost and which inputs survived. Current
 training runs also use a bounded local checkpoint collector:
