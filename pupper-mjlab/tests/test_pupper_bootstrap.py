@@ -117,6 +117,31 @@ def test_promotion_requires_same_deployment_clamp_contract():
         b.compare_evaluations(a,c)
 
 
+@pytest.mark.parametrize('change',['driver_added','bounds_changed','source_changed','torso_added'])
+def test_promotion_rejects_changed_driver_or_contact_physics(change):
+    import copy
+    a={'provenance':{},'segments':[]}
+    contract={'contract':'controller_then_driver_joint_target_clamp_v1',
+              'effective_limits':{'joint':[-1,1]},'source':{'path':'/one/limits.json','sha256':'same'}}
+    if change in ('bounds_changed','source_changed'):a['provenance']['driver_target_contract']=contract
+    c=copy.deepcopy(a)
+    if change=='driver_added':c['provenance']['driver_target_contract']=contract
+    if change=='bounds_changed':c['provenance']['driver_target_contract']['effective_limits']['joint']=[-.5,.5]
+    if change=='source_changed':c['provenance']['driver_target_contract']['source']['sha256']='different'
+    if change=='torso_added':c['provenance']['locomotion_torso_contact']=True
+    with pytest.raises(ValueError,match='driver_target_contract|locomotion_torso_contact'):
+        b.compare_evaluations(a,c)
+
+
+def test_driver_contract_comparison_ignores_only_location_and_description():
+    import copy
+    a={'provenance':{'driver_target_contract':{'effective_limits':{'joint':[-1,1]},
+         'source':{'path':'/old/path','sha256':'same'},'scope':'old description'}},'segments':[]}
+    c=copy.deepcopy(a);c['provenance']['driver_target_contract']['source']['path']='/restored/path'
+    c['provenance']['driver_target_contract']['scope']='new description'
+    assert not b.compare_evaluations(a,c)['promotable_for_this_seed']  # no high-speed data, but contracts match
+
+
 def test_jump_selection_requires_flight_and_landing_in_same_episode():
     t=trace(cycles=3); n,e=t['phase'].shape
     t.update(dt=np.asarray(.02),foot_contact=np.ones((n,e,4),bool),height=np.ones((n,e))*.15,

@@ -204,6 +204,15 @@ def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, 
         raise ValueError("Cannot compare different evaluation protocols: deployment_target_clamp")
     if bool(baseline["provenance"].get("compose_com_randomization",False)) != bool(candidate["provenance"].get("compose_com_randomization",False)):
         raise ValueError("Cannot compare different evaluation protocols: compose_com_randomization")
+    if bool(baseline["provenance"].get("locomotion_torso_contact",False)) != bool(candidate["provenance"].get("locomotion_torso_contact",False)):
+        raise ValueError("Cannot compare different evaluation protocols: locomotion_torso_contact")
+    def driver_identity(provenance):
+        contract=provenance.get("driver_target_contract")
+        if contract is None:return None
+        return ({k:v for k,v in contract.items() if k not in ("source","scope")},
+                {k:v for k,v in contract.get("source",{}).items() if k!="path"})
+    if driver_identity(baseline["provenance"]) != driver_identity(candidate["provenance"]):
+        raise ValueError("Cannot compare different evaluation protocols: driver_target_contract")
     if any(r["provenance"].get("zero_policy") for r in (baseline,candidate)):
         raise ValueError("An infrastructure smoke test cannot be promoted as a trained policy")
     if len(baseline["segments"]) != len(candidate["segments"]):
