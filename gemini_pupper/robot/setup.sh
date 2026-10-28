@@ -35,7 +35,7 @@ if grep -qs '^GEMINI_API_KEY=..' .env.local; then
   echo "      note: .env.local has a GEMINI_API_KEY, so the build embeds it in web/dist/. Never share it."
 fi
 npm ci --no-audit --no-fund --loglevel=error
-npm run build --silent 2>&1 | grep -vE "chunks are larger|dynamic import|manualChunks|chunkSizeWarningLimit|^$" || true
+npm run build --silent
 [ -f dist/index.html ] || { echo "build failed: no dist/index.html"; exit 1; }
 echo "      built web/dist/"
 

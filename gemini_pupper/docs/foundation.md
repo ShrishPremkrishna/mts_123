@@ -122,6 +122,16 @@ That file contains `evaluation_source`, `speed`, `max_forward`, `max_sideways`
 it as if they were achieved performance. The loader also enforces the narrower
 side of asymmetric training ranges, since the tools use symmetric limits.
 
+Before accepting a walking pair, the loader compares its entry endpoint, every
+idle-loop frame and exit-start joint pose with the walking policy's default
+stance. The 1e-6 rad tolerance covers six-decimal motion export and float32
+encoding; it is not a permitted physical mismatch. Both policies must use the
+fixed controller joint order of contract v2 and matching joint-limit arrays.
+The walking reference must name all 12 joints in that order. Earlier v2 trick
+exports omit joint names and retain the contract's fixed order; any supplied
+names must agree. This catches an accidental upright-policy/Spider pairing but
+does not validate physical controller handoff or tracking quality.
+
 Sit/Stay/Shake and Spider training, simulation scoring and TA review remain
 necessary before the first supervised hardware run. UniMate's generated secret
 motion also needs generation, cleanup, tracking training and evaluation. Existing

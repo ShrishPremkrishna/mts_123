@@ -85,6 +85,13 @@ REFERENCE_SETTLE_S = 1.2  # after a reference trick's playback, time to land and
 # A walking policy (gemini_walk, or a trick's walk_policy) holds its default pose for
 # init_duration, then fades the policy in over fade_in_duration (2 s + 2 s).
 WALK_READY_S = 4.2
+# Contract v2 exports action/motion arrays in this fixed controller order. Older
+# v2 trick exports omit names; walking references explicitly carry the names.
+ROBOT_JOINT_NAMES = [f"leg_{leg}_{joint}" for leg in ("front_r", "front_l", "back_r", "back_l")
+                     for joint in (1, 2, 3)]
+# export_trick.py rounds motion arrays to six decimals; walking defaults retain
+# float32 values. This covers encoding error, not a physical pose discrepancy.
+HANDOFF_ENCODING_TOLERANCE_RAD = 1e-6
 
 
 @dataclass
@@ -186,6 +193,60 @@ class Trick:
         return self.play_time + (WALK_READY_S if self.walks else 0.0)
 
 
+def validate_walking_handoff(policy: dict, walking: dict, exit_clip: str, source: Path) -> None:
+    """Refuse structurally valid policies that disagree at their stance handoff."""
+    def fail(reason):
+        raise ValueError(f"{source}: incompatible walking handoff: {reason}")
+
+    if policy.get("contract_version") != 2 or walking.get("contract_version") != 2:
+        fail("both policies must use the fixed robot joint order of contract v2")
+    named = walking.get("joint_names", walking.get("gait_reference", {}).get("joint_names"))
+    if named != ROBOT_JOINT_NAMES:
+        fail("walking policy must declare the canonical 12 named joints in controller order")
+    for label, block in (("clip policy", policy), ("clip motion", policy.get("motion", {})),
+                         ("walking policy", walking), ("walking reference", walking.get("gait_reference", {}))):
+        if "joint_names" in block and block["joint_names"] != ROBOT_JOINT_NAMES:
+            fail(f"{label} joint_names differ from controller order")
+
+    def vector(value, label):
+        if (not isinstance(value, list) or len(value) != len(ROBOT_JOINT_NAMES)
+                or any(isinstance(x, bool) or not isinstance(x, (float, int)) or not math.isfinite(x) for x in value)):
+            fail(f"{label} must contain 12 finite joint values")
+        return value
+
+    def same(left, right, label):
+        for name, a, b in zip(ROBOT_JOINT_NAMES, vector(left, label), vector(right, label)):
+            if abs(a - b) > HANDOFF_ENCODING_TOLERANCE_RAD:
+                fail(f"{label}: {name} differs by {abs(a-b):.9g} rad (encoding tolerance 1e-6 rad)")
+
+    for limits in ("joint_lower_limits", "joint_upper_limits"):
+        same(policy.get(limits), walking.get(limits), limits)
+    pose = vector(walking.get("default_joint_pos"), "walking default_joint_pos")
+    frames = policy.get("motion", {}).get("joint_pos", [])
+    clips = {c["name"]: c for c in policy["trick"]["clips"]}
+
+    def frame(index, label):
+        if not isinstance(frames, list) or not 0 <= index < len(frames):
+            fail(f"{label} is missing its motion frame")
+        return frames[index]
+
+    current, previous, seen = policy["trick"]["clips"][0], None, set()
+    while not current.get("loop") and current.get("next") is not None:
+        if current["name"] in seen:
+            fail("entry graph cycles without reaching an idle loop or held endpoint")
+        seen.add(current["name"])
+        previous, current = current, clips[current["next"]]
+    if previous is not None and current.get("loop"):
+        same(frame(previous["end"] - 1, "entry endpoint"), pose, "entry endpoint")
+    if current.get("loop"):
+        for index in range(current["start"], current["end"]):
+            same(frame(index, "idle loop"), pose, f"idle loop frame {index}")
+    else:
+        same(frame(current["end"] - 1, "held endpoint"), pose, "held endpoint")
+    leaving = clips[exit_clip]
+    same(frame(leaving["start"], "exit start"), pose, "exit start")
+
+
 def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
     tricks = {}
     replaced_by: dict[str, str] = {}  # trick -> the trick that replaces it
@@ -200,7 +261,8 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
         clips, fps = [], 50.0
         if kind == "policy":
             path = spec_path.parent / spec["policy"]
-            info = json.loads(path.read_text())["trick"]
+            policy = json.loads(path.read_text())
+            info = policy["trick"]
             duration = float(info["duration_s"])
             clips, fps = list(info.get("clips", [])), float(info.get("fps", 50.0))
         elif kind == "reference":
@@ -240,7 +302,8 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
                 raise ValueError(f"{spec_path}: walk run must be true or false")
             if any(not math.isfinite(v) or v <= 0 for v in (walk.speed, walk.max_forward, walk.max_sideways, walk.turn)):
                 raise ValueError(f"{spec_path}: walk speeds must be finite and positive")
-            clip_cmd = json.loads(walk_path.read_text())["command_clip"]  # what the policy was trained on
+            walking_policy = json.loads(walk_path.read_text())
+            clip_cmd = walking_policy["command_clip"]  # what the policy was trained on
             for axis in ("vx", "vy", "wz"):
                 bounds = clip_cmd[axis]
                 if (len(bounds) != 2 or any(not math.isfinite(v) for v in bounds)
@@ -256,6 +319,7 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
                     raise ValueError(f"{spec_path}: walk {what} {asked:g} is more than its policy was trained for ({top:g})")
             if walk.speed > walk.max_forward:
                 raise ValueError(f"{spec_path}: walk speed {walk.speed:g} is more than max_forward {walk.max_forward:g}")
+            validate_walking_handoff(policy, walking_policy, exit_clip, spec_path)
         if spec.get("replaced_by"):
             replaced_by[name] = str(spec["replaced_by"])
         description = str(spec.get("description", name)).strip()
