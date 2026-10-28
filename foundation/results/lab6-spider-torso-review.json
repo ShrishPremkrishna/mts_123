@@ -1399,7 +1399,8 @@
     "Peak contact impulses are simulator-specific; steady-state force calibration does not validate real impact loads.",
     "A sampled 0.1mm penetration threshold misses sustained static support; force history is the relevant metric.",
     "Native controller activation resets the slew seed to measured clipped joints: target change at the reset is distinct from within-activation slew bounds.",
-    "A stronger penalty must be evaluated jointly with tracking, stopping, tilt, flight, force peaks and effort; reward increase is not a promotion criterion."
+    "A stronger penalty must be evaluated jointly with tracking, stopping, tilt, flight, force peaks and effort; reward increase is not a promotion criterion.",
+    "GPU mean_contact_slip_m_s is the contacted foot-site horizontal-speed metric used in the class evaluator; it omits rigid-body rotation at the contact point. Exact native contact-point velocity is now separately measured and tested."
   ],
   "next_study": {
     "initial_checkpoint_sha256": "3f89d18a1ef4558520cac1d003abcd264afe1b4e1401261925020d0b112bb3de",
@@ -1411,5 +1412,77 @@
     "hypothesis": "A stronger bounded actual torso-load penalty reduces persistent support in randomized worlds without changing reference pose or deployed physical contract.",
     "evaluation": "Same three32-world command grids and384 stops per arm, plus nominal mechanics and exact native complete chain for selected candidates.",
     "metrics": "Persistent >10% bodyweight support episodes longer than1s, normal-load distribution and all command/stop/effort/flight/clipping metrics; no reset and finite target bounds remain necessary. No metric-alone automatic promotion."
+  },
+  "additional_validation": {
+    "independent_raw_recomputation": {
+      "path": "artifacts/lab6/pupper-spider-torso/raw-aggregation-audit/review.json",
+      "sha256": "25b7f472bbd1d58a222faa14d4485c926397cec21e0f676a77a2f24dbf143bd0",
+      "result": {
+        "method": "Second standalone raw-array recomputation; no summarize_trace, torso_support summary or previous analyzer functions imported. Float64 reductions; exhaustive endpoint-inclusive stop windows.",
+        "arms": {
+          "control": {
+            "audited_segments": 99,
+            "failures": 0,
+            "timeouts": 0,
+            "maximum_scored_actuator_torque_nm": 2.742861747741699,
+            "stops": 384,
+            "settled": 384,
+            "median_s": 0.12,
+            "maximum_s": 0.44,
+            "moving_means": {
+              "mean_xy_error_m_s": 0.06089019938571937,
+              "mean_abs_yaw_error_rad_s": 0.052671362193740114,
+              "mean_torque_squared_nm2": 0.18917914115675594,
+              "mean_normal_load_fraction": 0.48339428824945424
+            },
+            "idle_means": {
+              "mean_xy_error_m_s": 0.00023670315665088,
+              "mean_abs_yaw_error_rad_s": 0.0005916096010923333,
+              "mean_torque_squared_nm2": 0.018646813087490267,
+              "mean_normal_load_fraction": 0.6739813343205985
+            }
+          },
+          "torso": {
+            "audited_segments": 99,
+            "failures": 0,
+            "timeouts": 0,
+            "maximum_scored_actuator_torque_nm": 2.453951120376587,
+            "stops": 384,
+            "settled": 384,
+            "median_s": 0.36,
+            "maximum_s": 0.8,
+            "moving_means": {
+              "mean_xy_error_m_s": 0.05446537326188826,
+              "mean_abs_yaw_error_rad_s": 0.060515066774040796,
+              "mean_torque_squared_nm2": 0.254595177478789,
+              "mean_normal_load_fraction": 0.10502061358466276
+            },
+            "idle_means": {
+              "mean_xy_error_m_s": 0.0016867777756820789,
+              "mean_abs_yaw_error_rad_s": 0.006723296987237543,
+              "mean_torque_squared_nm2": 0.10604253959672653,
+              "mean_normal_load_fraction": 0.03927448450687503
+            }
+          }
+        },
+        "metric_caveat": "GPU mean_contact_slip_m_s is contacted foot SITE horizontal speed, not exact rigid-body contact-point slip. Native exact contact Jacobian telemetry is separate.",
+        "hardware_validated": false,
+        "passed": true
+      }
+    },
+    "exact_native_contact_measurement_invariance": {
+      "path": "artifacts/lab6/pupper-spider-torso/contact-telemetry-validation/review.json",
+      "sha256": "11001233f2dacd5d3910e97b002d8def7be6da6ee0d1efe9299b7d86e397347f",
+      "result": {
+        "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+        "helper_sha256": "a08cf38bc90f04b00796e708e6cfe7e862857023f0e9f90468757bce4ae967a8",
+        "steps": 2000,
+        "physics_hz": 520,
+        "sampled_contacts": 1201,
+        "max_contact_point_speed_m_s": 0.07475894624493098,
+        "qpos_qvel_solver_warmstart_bit_identical": true,
+        "scope": "Actual saved9hull Pupper model, fixed reviewed stop target; one trajectory samples isolated-copy contact telemetry every10physicssteps and the paired trajectory does not. No learned controller or ROS execution in this measurement-invariance check."
+      }
+    }
   }
 }
