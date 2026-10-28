@@ -100,6 +100,10 @@ def audit(args):
 
   saved = json.loads(args.policy.read_text())
   cfg, agent = load_env_cfg(args.task, play=True), load_rl_cfg(args.task)
+  from mjlab.tasks.pupper.target_slew import checkpoint_position_target_slew, restore_position_target_slew
+  checkpoint_slew = checkpoint_position_target_slew(args.checkpoint)
+  if checkpoint_slew is not None:
+    restore_position_target_slew(cfg, checkpoint_slew)
   cfg.scene.num_envs, cfg.seed = 1, args.seed
   if "motion" in saved:
     if args.motion is None: raise ValueError("Tracking-policy audit requires its exact --motion NPZ")
@@ -109,6 +113,9 @@ def audit(args):
             "seed": args.seed, "device": "cpu", "random_inputs": 512, "live_steps": args.steps,
             "tolerance": 1e-4, "source": source_manifest(), "training_resume_validated": False,
             "policy_performance_validated": False, "approved_for_hardware": False}
+  if checkpoint_slew is not None:
+    report['checkpoint_position_target_slew'] = checkpoint_slew
+    report['checkpoint_slew_export_differences'] = differences(checkpoint_slew, saved.get('position_target_slew'))
   if args.training_config:
     old = load_training_config(args.training_config.read_text())
     old = old["env_cfg"]["value"] if "env_cfg" in old else old
@@ -151,6 +158,7 @@ def audit(args):
         obs, *_ = wrapped.step(action)
       report["live_input_max_abs_error"] = max(errors)
     report["passed"] = (not report["metadata_differences"]
+                        and not report.get('checkpoint_slew_export_differences', [])
                         and not report.get("actor_observation_config_differences", [])
                         and report.get("actuator_config_equal", True)
                         and report["random_input_max_abs_error"] < report["tolerance"]

@@ -51,6 +51,8 @@ class PupperOnPolicyRunner(VelocityOnPolicyRunner):
   """Velocity runner that emits an on-robot deploy JSON at every checkpoint."""
 
   def save(self, path: str, infos=None):
+    from mjlab.tasks.pupper.target_slew import checkpoint_infos_with_position_target_slew
+    infos = checkpoint_infos_with_position_target_slew(self.env.unwrapped, infos)
     super().save(path, infos)
     self._try_export()
 

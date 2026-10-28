@@ -427,6 +427,12 @@ def run_export(task_id: str, cfg: ExportConfig) -> Path:
     )
   print(f"[INFO]: Loading checkpoint: {resume_path}")
 
+  from mjlab.tasks.pupper.target_slew import checkpoint_position_target_slew, restore_position_target_slew
+  checkpoint_slew = checkpoint_position_target_slew(resume_path)
+  if checkpoint_slew is not None:
+    restore_position_target_slew(env_cfg, checkpoint_slew)
+    print('[INFO]: Restored checkpoint position-target slew and effective joint bounds')
+
   env = ManagerBasedRlEnv(cfg=env_cfg, device=device)
   wrapped = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
   runner_cls = load_runner_cls(task_id) or MjlabOnPolicyRunner
