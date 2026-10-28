@@ -1,0 +1,751 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-28T12:10:42.375476+00:00",
+  "source_revision": "176672fdb4486b9b4acf3ad73a12183c4f5a6649",
+  "watched_sources_verified_against_frozen_files": 25,
+  "watched_sources_matching_git": 24,
+  "source_deviations_from_git": [
+    {
+      "path": "pupper-mjlab/src/mjlab/tasks/pupper/mdp/observations.py",
+      "snapshot_sha256": "0ec3487e0a92a69f53901ab23bdcf5ab5868225860fdf23c8c8b8b0934a418b4",
+      "commit_sha256": "1627f2ce38ec2ce7cb3e6abdf09a4d7a996e0cde61f06f9b0ab4fb65686ab74e"
+    }
+  ],
+  "owner_review_input_sha256": "7f24d522788eeabe316573c61e16d42985a3005ab29a4dc3f102caa67d371f11",
+  "scope": "Independent saved-output review of four default-only standing starts and eight extended post-Spider zero-command tails. No new simulation/hardware access.",
+  "runs": [
+    {
+      "kind": "after_spider",
+      "case": "seed101-world11-foot_end_union-full_hulls",
+      "arm": "control",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "e0281681c8160a477ea373e05ddeffb9ba62c0e117e72da28b3538b95b45d08e"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "4b773c47a504dce51bf0bc2ba0d1f33eb2c938d40219303b393dd6aa59c20103",
+        "trajectory.json": "49b2a8371cd17b5a357abf2b411f0e2e2186cc88f12bf6690e3e85a117f24987",
+        "inference.json": "87cf0523a19366fd63326436c4eb24aaaccab1dfc3411af6f466cf49836bbc1a",
+        "model.mjb": "949f15d35373b625a3e5c09626ce1eb324689828529ec0b882e6552742f6955b",
+        "startup-transfer.json": "2593a98e5af695901e3bcde5b5012a76ba966fd50dd0b5ba7a391b460d07592f",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.43833319935251686,
+        "world_xy_sampled_path_length_m": 0.4495141580765743,
+        "world_yaw_change_rad": 0.5792718089846103,
+        "final_half_second_world_xy_interval_mean_m_s": 0.2213921403594189,
+        "final_half_second_world_xy_interval_max_m_s": 0.22666181187086928,
+        "final_half_second_body_planar_mean_m_s": 0.22148301904649553,
+        "final_half_second_body_planar_max_m_s": 0.23039498798777647,
+        "final_half_second_yaw_interval_max_rad_s": 0.4939575081182875,
+        "final_half_second_joint_speed_max_rad_s": 2.5775981974037916,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.9993919647118473,
+        "world_xy_sampled_path_length_m": 1.599435103502548,
+        "world_yaw_change_rad": 2.9235676569073195,
+        "final_half_second_world_xy_interval_mean_m_s": 0.21558468835877728,
+        "final_half_second_world_xy_interval_max_m_s": 0.2281907118904441,
+        "final_half_second_body_planar_mean_m_s": 0.21598810967563972,
+        "final_half_second_body_planar_max_m_s": 0.23065281244976021,
+        "final_half_second_yaw_interval_max_rad_s": 0.6054229373195591,
+        "final_half_second_joint_speed_max_rad_s": 2.329714759227847,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "standing_start",
+      "case": "seed101-world11-foot_end_union-full_hulls",
+      "arm": null,
+      "completed": true,
+      "prefix": null,
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "2266cc440edd4c249cfa788c032345d6aa0113495ee3b11bf27f9c8acb1aa019",
+        "trajectory.json": "ae208a9007c0627d01d7ae6994cf318c60b94647cb3000c19fdd6b14b6a689c0",
+        "inference.json": "6e940a8a60e6a1b8e81bfedad5087dae0c0cf1ae78e14ec7db176d535a63589f",
+        "model.mjb": "949f15d35373b625a3e5c09626ce1eb324689828529ec0b882e6552742f6955b",
+        "startup-transfer.json": "2593a98e5af695901e3bcde5b5012a76ba966fd50dd0b5ba7a391b460d07592f",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 8.192307692307692,
+        "observed_span_s": 1.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.4999999999999991,
+        "world_xy_net_displacement_m": 0.444864481333997,
+        "world_xy_sampled_path_length_m": 0.4586193257619149,
+        "world_yaw_change_rad": 0.4354089622250785,
+        "final_half_second_world_xy_interval_mean_m_s": 0.22140674951737857,
+        "final_half_second_world_xy_interval_max_m_s": 0.24441399846300166,
+        "final_half_second_body_planar_mean_m_s": 0.22036959378894802,
+        "final_half_second_body_planar_max_m_s": 0.2417115464540974,
+        "final_half_second_yaw_interval_max_rad_s": 0.521830710433684,
+        "final_half_second_joint_speed_max_rad_s": 1.4854476167359856,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 14.192307692307692,
+        "observed_span_s": 7.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 1.0656649237072084,
+        "world_xy_sampled_path_length_m": 1.626582012374185,
+        "world_yaw_change_rad": 2.6151475856773665,
+        "final_half_second_world_xy_interval_mean_m_s": 0.1723366237941735,
+        "final_half_second_world_xy_interval_max_m_s": 0.20154390208076448,
+        "final_half_second_body_planar_mean_m_s": 0.17121883374142685,
+        "final_half_second_body_planar_max_m_s": 0.20455431242444996,
+        "final_half_second_yaw_interval_max_rad_s": 0.6090716404169517,
+        "final_half_second_joint_speed_max_rad_s": 2.826794864420189,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed101-world11-foot_end_union-full_hulls",
+      "arm": "torso",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "6d785e57a2a582379335a7cefd72085dd4bfdddbea354a278ca1d5308b8711b9"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "f4444e47f3d40c676c147dea0c0e502eef4473a788189a7bfae94a6d465c75cb",
+        "trajectory.json": "a1f371cc1b84c3f9954b6337072de6ff3e0288be220840e1bf57fbd584195d4f",
+        "inference.json": "7cfa03f1aee12cd999b8edea6a37d14660c24eb481b39e8a9f66518e35e89686",
+        "model.mjb": "949f15d35373b625a3e5c09626ce1eb324689828529ec0b882e6552742f6955b",
+        "startup-transfer.json": "2593a98e5af695901e3bcde5b5012a76ba966fd50dd0b5ba7a391b460d07592f",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.418221189965475,
+        "world_xy_sampled_path_length_m": 0.4316527193156716,
+        "world_yaw_change_rad": 0.5925398719691641,
+        "final_half_second_world_xy_interval_mean_m_s": 0.21586049502856705,
+        "final_half_second_world_xy_interval_max_m_s": 0.23624177576843963,
+        "final_half_second_body_planar_mean_m_s": 0.2150951372353188,
+        "final_half_second_body_planar_max_m_s": 0.23498784423495508,
+        "final_half_second_yaw_interval_max_rad_s": 0.5864116143014336,
+        "final_half_second_joint_speed_max_rad_s": 2.0522254723922653,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.9060264344662984,
+        "world_xy_sampled_path_length_m": 1.5728161528853712,
+        "world_yaw_change_rad": 3.1347022478651483,
+        "final_half_second_world_xy_interval_mean_m_s": 0.1829969096236655,
+        "final_half_second_world_xy_interval_max_m_s": 0.19553142170514723,
+        "final_half_second_body_planar_mean_m_s": 0.18401291542448645,
+        "final_half_second_body_planar_max_m_s": 0.19810966870816904,
+        "final_half_second_yaw_interval_max_rad_s": 0.6047886949896265,
+        "final_half_second_joint_speed_max_rad_s": 2.49794793842447,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed101-world11-sphere_only-full_hulls",
+      "arm": "control",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "311a9c290eca649dedf926de9b7ec833e58f03d7a35eeec58927bdaf2f68071a"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "71de0819cd18caef187d7a7705ca8b3b2b8a7354e61b96bbb91ff0534c9b7332",
+        "trajectory.json": "2e7ddcb7ad06f03bd5afcc42e3d4ceca67989f8134edf2c6b6b5eb444dcf0195",
+        "inference.json": "3fcda631bdd64b0eec1cbf39766315807d40507ecc91719b92767dff3d75010b",
+        "model.mjb": "e59cc41d8261f510c08e19b282e6e418a57e778933507e801c43ad25967997ad",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4546821070893139,
+        "world_xy_sampled_path_length_m": 0.46542759422545854,
+        "world_yaw_change_rad": 0.5552411851927994,
+        "final_half_second_world_xy_interval_mean_m_s": 0.2165432627533343,
+        "final_half_second_world_xy_interval_max_m_s": 0.2325706117654961,
+        "final_half_second_body_planar_mean_m_s": 0.21553407430634644,
+        "final_half_second_body_planar_max_m_s": 0.23299708192622695,
+        "final_half_second_yaw_interval_max_rad_s": 0.5794815480086697,
+        "final_half_second_joint_speed_max_rad_s": 1.9389466586726674,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.9715907665538313,
+        "world_xy_sampled_path_length_m": 1.6739304475144303,
+        "world_yaw_change_rad": 3.0329630318739627,
+        "final_half_second_world_xy_interval_mean_m_s": 0.20702558634523302,
+        "final_half_second_world_xy_interval_max_m_s": 0.2179407807178697,
+        "final_half_second_body_planar_mean_m_s": 0.20698377625705766,
+        "final_half_second_body_planar_max_m_s": 0.2168206736461322,
+        "final_half_second_yaw_interval_max_rad_s": 0.5962732673805774,
+        "final_half_second_joint_speed_max_rad_s": 2.30619375410673,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "standing_start",
+      "case": "seed101-world11-sphere_only-full_hulls",
+      "arm": null,
+      "completed": true,
+      "prefix": null,
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "9c889ec9ab870eb8353bc990cbb40870a8d875c801827369aacdd2587d101abe",
+        "trajectory.json": "6378e9160626644f9c37a5e3467d3745d8fae2b5fb61ff83b2a6298faf210f33",
+        "inference.json": "6e7783013ed89b81eab3fef6b99182f2cb4eeaced2b466cc57ad6e813d6c4a2c",
+        "model.mjb": "e59cc41d8261f510c08e19b282e6e418a57e778933507e801c43ad25967997ad",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 8.192307692307692,
+        "observed_span_s": 1.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.4999999999999991,
+        "world_xy_net_displacement_m": 0.43367177108168314,
+        "world_xy_sampled_path_length_m": 0.44437616468378704,
+        "world_yaw_change_rad": 0.39592479572697803,
+        "final_half_second_world_xy_interval_mean_m_s": 0.1941263529910367,
+        "final_half_second_world_xy_interval_max_m_s": 0.20248736478452978,
+        "final_half_second_body_planar_mean_m_s": 0.19330360141807484,
+        "final_half_second_body_planar_max_m_s": 0.2031170455320959,
+        "final_half_second_yaw_interval_max_rad_s": 0.6762871851229375,
+        "final_half_second_joint_speed_max_rad_s": 2.392102305723892,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 14.192307692307692,
+        "observed_span_s": 7.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 1.1013774496538227,
+        "world_xy_sampled_path_length_m": 1.630643825854867,
+        "world_yaw_change_rad": 2.5819842175397634,
+        "final_half_second_world_xy_interval_mean_m_s": 0.19148367658380588,
+        "final_half_second_world_xy_interval_max_m_s": 0.19961957144108422,
+        "final_half_second_body_planar_mean_m_s": 0.1912878582679889,
+        "final_half_second_body_planar_max_m_s": 0.20120767885477353,
+        "final_half_second_yaw_interval_max_rad_s": 0.6097871714548002,
+        "final_half_second_joint_speed_max_rad_s": 2.4176443871041506,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed101-world11-sphere_only-full_hulls",
+      "arm": "torso",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "3ee02cddc1942c3d8b93317cdd009e0e2f59890b78fc51146ff1d99d734c82b0"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "af241288101191b6f976fdb5f6a74d636b8a2e9782356d22a804ef2704695301",
+        "trajectory.json": "07bb991943407387de84188371e7c19149eb4de8ec2c18de8f4f57f4f9cbc8f2",
+        "inference.json": "43b7a0664d0d0214bf9ea372e9daaa9ca909aa15c5b07b02d8e178ed833ae9df",
+        "model.mjb": "e59cc41d8261f510c08e19b282e6e418a57e778933507e801c43ad25967997ad",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4275582906557194,
+        "world_xy_sampled_path_length_m": 0.43835347391470175,
+        "world_yaw_change_rad": 0.38003161188237167,
+        "final_half_second_world_xy_interval_mean_m_s": 0.20039913384023614,
+        "final_half_second_world_xy_interval_max_m_s": 0.22222648724417524,
+        "final_half_second_body_planar_mean_m_s": 0.1994152461789785,
+        "final_half_second_body_planar_max_m_s": 0.22649351811349863,
+        "final_half_second_yaw_interval_max_rad_s": 0.5628964272993536,
+        "final_half_second_joint_speed_max_rad_s": 1.6499335107271844,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 1.0531961676522485,
+        "world_xy_sampled_path_length_m": 1.6316918446551896,
+        "world_yaw_change_rad": 2.625031127894434,
+        "final_half_second_world_xy_interval_mean_m_s": 0.20692590615235176,
+        "final_half_second_world_xy_interval_max_m_s": 0.2301798771537234,
+        "final_half_second_body_planar_mean_m_s": 0.2073785926152919,
+        "final_half_second_body_planar_max_m_s": 0.2324186791517548,
+        "final_half_second_yaw_interval_max_rad_s": 0.5611722724543171,
+        "final_half_second_joint_speed_max_rad_s": 2.0629159840255613,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed303-world3-foot_end_union-full_hulls",
+      "arm": "control",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "35acd25688ade5d3a1a237a73d12239dd678371aef82e0f62f7a7db68d6b2cdf"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "bf693aacd1311b75b290f63d69a76f9c766cae51d4d26a379d9d36f799d1b164",
+        "trajectory.json": "e48700fa58129defa6fad60ea8c37a582d32b4cd265b0cabf50eb1506f3ad26c",
+        "inference.json": "1d722084278e7156d8ecbdd6da2d1dd567c816361c9783428e6674922472cc38",
+        "model.mjb": "184504839fcbbe47b4c3c2c65a97d9f38e333f720bb482f30ec8d8f8204f23d1",
+        "startup-transfer.json": "59ac7f00ec287a7cf892b785587df07f90d676903f9168aea5dd99ff9b0d6731",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4030304684291639,
+        "world_xy_sampled_path_length_m": 0.4486226068761179,
+        "world_yaw_change_rad": -1.2805067199752118,
+        "final_half_second_world_xy_interval_mean_m_s": 0.21276824364704408,
+        "final_half_second_world_xy_interval_max_m_s": 0.23089113670635056,
+        "final_half_second_body_planar_mean_m_s": 0.212218860949825,
+        "final_half_second_body_planar_max_m_s": 0.23127394202399867,
+        "final_half_second_yaw_interval_max_rad_s": 0.9055175994891772,
+        "final_half_second_joint_speed_max_rad_s": 1.7584234425319634,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.11242791141388837,
+        "world_xy_sampled_path_length_m": 1.587843720661516,
+        "world_yaw_change_rad": -5.785712910851846,
+        "final_half_second_world_xy_interval_mean_m_s": 0.18266376423022176,
+        "final_half_second_world_xy_interval_max_m_s": 0.19402939981505868,
+        "final_half_second_body_planar_mean_m_s": 0.18241944729078205,
+        "final_half_second_body_planar_max_m_s": 0.19661037405034007,
+        "final_half_second_yaw_interval_max_rad_s": 0.8665877584836293,
+        "final_half_second_joint_speed_max_rad_s": 2.016821026757561,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "standing_start",
+      "case": "seed303-world3-foot_end_union-full_hulls",
+      "arm": null,
+      "completed": true,
+      "prefix": null,
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "7f4e86fa9686d33992bfafcb2e19470b9c7f7d3fbad780774d111eec75324882",
+        "trajectory.json": "4c61e34a82a723e76983c8f3ca5e3678c05e428d85618acca7ef8d356b96fd13",
+        "inference.json": "ff9c8a250a1814ea01302757ed7a7df61dcab8e86fd686e767f3f1516fca62d6",
+        "model.mjb": "184504839fcbbe47b4c3c2c65a97d9f38e333f720bb482f30ec8d8f8204f23d1",
+        "startup-transfer.json": "59ac7f00ec287a7cf892b785587df07f90d676903f9168aea5dd99ff9b0d6731",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 8.192307692307692,
+        "observed_span_s": 1.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.4999999999999991,
+        "world_xy_net_displacement_m": 0.45826634573427816,
+        "world_xy_sampled_path_length_m": 0.50193998076023,
+        "world_yaw_change_rad": -1.2882014563829474,
+        "final_half_second_world_xy_interval_mean_m_s": 0.23822953730692992,
+        "final_half_second_world_xy_interval_max_m_s": 0.2616550181261698,
+        "final_half_second_body_planar_mean_m_s": 0.23751559739431782,
+        "final_half_second_body_planar_max_m_s": 0.2575288161969963,
+        "final_half_second_yaw_interval_max_rad_s": 0.8603202511524146,
+        "final_half_second_joint_speed_max_rad_s": 2.125018867165437,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 14.192307692307692,
+        "observed_span_s": 7.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.14707764587865677,
+        "world_xy_sampled_path_length_m": 1.5807852453028524,
+        "world_yaw_change_rad": -5.920699923467512,
+        "final_half_second_world_xy_interval_mean_m_s": 0.15632691914779465,
+        "final_half_second_world_xy_interval_max_m_s": 0.16352454860458343,
+        "final_half_second_body_planar_mean_m_s": 0.15558755846304742,
+        "final_half_second_body_planar_max_m_s": 0.16299716251671756,
+        "final_half_second_yaw_interval_max_rad_s": 0.8491272374492553,
+        "final_half_second_joint_speed_max_rad_s": 2.29000034557882,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed303-world3-foot_end_union-full_hulls",
+      "arm": "torso",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "e26057a09030fbfa1ef7ddf09c6eb7b31048aac4ba12272c6a36a3fc2e0930d1"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "04a4a0687388b24332ce7c5ce329d850a637f1d11ec05be32bc73e6ef076bb7d",
+        "trajectory.json": "0b0ea261589af3d514fd2236618a6b67f7aa7c8be918c80d48b6a07ffe090428",
+        "inference.json": "50007594d478bdf3c1e0084d36fb5a6a10699a0a0b0410e3e6e259930f9d270d",
+        "model.mjb": "184504839fcbbe47b4c3c2c65a97d9f38e333f720bb482f30ec8d8f8204f23d1",
+        "startup-transfer.json": "59ac7f00ec287a7cf892b785587df07f90d676903f9168aea5dd99ff9b0d6731",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4203812481572475,
+        "world_xy_sampled_path_length_m": 0.4714548901952215,
+        "world_yaw_change_rad": -1.3967413306938994,
+        "final_half_second_world_xy_interval_mean_m_s": 0.2141541175910879,
+        "final_half_second_world_xy_interval_max_m_s": 0.22890479335512623,
+        "final_half_second_body_planar_mean_m_s": 0.21353981950173542,
+        "final_half_second_body_planar_max_m_s": 0.22878126516827518,
+        "final_half_second_yaw_interval_max_rad_s": 0.9534813075869515,
+        "final_half_second_joint_speed_max_rad_s": 2.1717465511325735,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.0582296689786964,
+        "world_xy_sampled_path_length_m": 1.6231195454571452,
+        "world_yaw_change_rad": -5.608471284306223,
+        "final_half_second_world_xy_interval_mean_m_s": 0.1811229407654963,
+        "final_half_second_world_xy_interval_max_m_s": 0.19066344141567507,
+        "final_half_second_body_planar_mean_m_s": 0.18066537976047495,
+        "final_half_second_body_planar_max_m_s": 0.1915392091662762,
+        "final_half_second_yaw_interval_max_rad_s": 0.7936914381460064,
+        "final_half_second_joint_speed_max_rad_s": 2.070389564910645,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed303-world3-sphere_only-full_hulls",
+      "arm": "control",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "1358bb16f74116d4cff714384e752044481db7a101ce3ff897096389628b3faf"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "d4b7f394999a445ee3544aaebb9061d053be4c091948941946404e654679f136",
+        "trajectory.json": "293d91e8326687ea090543000476c2ab356a2f3f823bc16dde08411de59675dd",
+        "inference.json": "1dad073ac05023c0348fb24059d422c2c4f28e4bf09908670354fb0c188265a9",
+        "model.mjb": "0eaa2b5a44fcdecc3d2df929705340c2de48688c368f6983d126e08be568453a",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.38308251363798546,
+        "world_xy_sampled_path_length_m": 0.43683127127740806,
+        "world_yaw_change_rad": -1.3537765967185948,
+        "final_half_second_world_xy_interval_mean_m_s": 0.18391194201155847,
+        "final_half_second_world_xy_interval_max_m_s": 0.1975511524713333,
+        "final_half_second_body_planar_mean_m_s": 0.183238406564644,
+        "final_half_second_body_planar_max_m_s": 0.1968905412801488,
+        "final_half_second_yaw_interval_max_rad_s": 0.8535989949139942,
+        "final_half_second_joint_speed_max_rad_s": 2.4298371433801207,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.36831996958079266,
+        "world_xy_sampled_path_length_m": 1.640407413450737,
+        "world_yaw_change_rad": -4.847792786722024,
+        "final_half_second_world_xy_interval_mean_m_s": 0.22113535817983865,
+        "final_half_second_world_xy_interval_max_m_s": 0.2376748357491808,
+        "final_half_second_body_planar_mean_m_s": 0.221524448890805,
+        "final_half_second_body_planar_max_m_s": 0.23852607102426093,
+        "final_half_second_yaw_interval_max_rad_s": 0.7628004728828326,
+        "final_half_second_joint_speed_max_rad_s": 2.886768228744342,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "standing_start",
+      "case": "seed303-world3-sphere_only-full_hulls",
+      "arm": null,
+      "completed": true,
+      "prefix": null,
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "45ab5704bbdf2f5f3ef9e8977226d977547e98210e7e5f489d05660d3c73d670",
+        "trajectory.json": "928ca21c1fc770f4fd521c5b33bf425ef5a89020fa4d5c5d054e27e367daf592",
+        "inference.json": "a74cd82cf4438ca0265844a9a4c2e6fb120dd9d849276ae7e59e64141a672f14",
+        "model.mjb": "0eaa2b5a44fcdecc3d2df929705340c2de48688c368f6983d126e08be568453a",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 8.192307692307692,
+        "observed_span_s": 1.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.4999999999999991,
+        "world_xy_net_displacement_m": 0.3616599725190987,
+        "world_xy_sampled_path_length_m": 0.42567970604725136,
+        "world_yaw_change_rad": -1.3472556381501923,
+        "final_half_second_world_xy_interval_mean_m_s": 0.19035110348370482,
+        "final_half_second_world_xy_interval_max_m_s": 0.20246004936641032,
+        "final_half_second_body_planar_mean_m_s": 0.19069720502942447,
+        "final_half_second_body_planar_max_m_s": 0.20421864712539164,
+        "final_half_second_yaw_interval_max_rad_s": 0.7367961544386328,
+        "final_half_second_joint_speed_max_rad_s": 3.1843169014144257,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 6.211538461538462,
+        "last_sample_s": 14.192307692307692,
+        "observed_span_s": 7.98076923076923,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.14981354519439982,
+        "world_xy_sampled_path_length_m": 1.5608486112077848,
+        "world_yaw_change_rad": -5.5014316123977265,
+        "final_half_second_world_xy_interval_mean_m_s": 0.18773564576368817,
+        "final_half_second_world_xy_interval_max_m_s": 0.19978622389023357,
+        "final_half_second_body_planar_mean_m_s": 0.1877915371873252,
+        "final_half_second_body_planar_max_m_s": 0.19868559781451395,
+        "final_half_second_yaw_interval_max_rad_s": 0.8426594782961445,
+        "final_half_second_joint_speed_max_rad_s": 1.9799197456242177,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    },
+    {
+      "kind": "after_spider",
+      "case": "seed303-world3-sphere_only-full_hulls",
+      "arm": "torso",
+      "completed": true,
+      "prefix": {
+        "original_rows_bit_identical": 2143,
+        "original_inference_events_bit_identical": 1884,
+        "original_trajectory_sha256": "68f3b943da1d7bbe8130fc984ad39a7179cec6734af3198091a31e423b78020a"
+      },
+      "input_and_model_match_original": true,
+      "gain_bias_and_sampled_torque_checks_passed": true,
+      "model_force_limits_nm": [
+        -3,
+        3
+      ],
+      "hashes": {
+        "report.json": "1438017cb6f619dadcd128559e34f24d40d0a003dd38d34bc9150a2feb8f3949",
+        "trajectory.json": "44d66f28d922a09571b00997f3b0c5a01b5decb73295c39daacfeeee9846ee1a",
+        "inference.json": "907f19f5588c73817d3b91c8441eb0d8c1067dacb38a4dd2d7d4348d01a4cfe9",
+        "model.mjb": "0eaa2b5a44fcdecc3d2df929705340c2de48688c368f6983d126e08be568453a",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "default-policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "original_two_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 41.19230769230769,
+        "observed_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.3591588618486652,
+        "world_xy_sampled_path_length_m": 0.40976533934761933,
+        "world_yaw_change_rad": -1.1411796529210105,
+        "final_half_second_world_xy_interval_mean_m_s": 0.19425196695688451,
+        "final_half_second_world_xy_interval_max_m_s": 0.21793380584725247,
+        "final_half_second_body_planar_mean_m_s": 0.1945451745878017,
+        "final_half_second_body_planar_max_m_s": 0.21783876755405365,
+        "final_half_second_yaw_interval_max_rad_s": 0.7866637240311495,
+        "final_half_second_joint_speed_max_rad_s": 1.88157882873544,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      },
+      "extended_eight_second_window": {
+        "first_sample_s": 39.21153846153846,
+        "last_sample_s": 47.19230769230769,
+        "observed_span_s": 7.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.19393746198095532,
+        "world_xy_sampled_path_length_m": 1.5130366820379688,
+        "world_yaw_change_rad": -5.130519202490724,
+        "final_half_second_world_xy_interval_mean_m_s": 0.2049462800191099,
+        "final_half_second_world_xy_interval_max_m_s": 0.21341382217191643,
+        "final_half_second_body_planar_mean_m_s": 0.20458199669984808,
+        "final_half_second_body_planar_max_m_s": 0.21315960365025258,
+        "final_half_second_yaw_interval_max_rad_s": 0.8652717775776684,
+        "final_half_second_joint_speed_max_rad_s": 2.2665772853029336,
+        "owner_quiet_recomputed": false,
+        "world_xy_quiet": false
+      }
+    }
+  ],
+  "verdict": {
+    "total": 12,
+    "clock_complete": 12,
+    "standing_start_quiet_at_eight_seconds": 0,
+    "after_spider_quiet_at_eight_seconds": 0,
+    "preserved_original_after_spider_prefixes": 8,
+    "conclusion": "Under these two selected startup combinations and full-hull geometries, the fixed default policy also fails to settle from standing-only controls. The observed zero-command motion is not unique to Spider handoff, and an eight-second wait does not resolve it. This does not identify which startup field or interaction causes it."
+  },
+  "limitations": [
+    "Four standing controls share only two selected parameter worlds and two foot-material assumptions; not a population reliability estimate.",
+    "Standing starts use default pose at0.18m followed by actual initialization/fade, not an independently measured settled equilibrium.",
+    "Original2s failure remains;8s is a separate extended diagnostic, not a revised original pass criterion.",
+    "Only recorded52Hz states/contacts and inferred yaw intervals are reviewed; no unsampled continuity or hardware claim.",
+    "Body-plane instantaneous and worldXY interval speeds are separate quantities but produce the same failed settlement verdict.",
+    "Verified source snapshot reflects the watched25files, not alltransitive dependencies. One frozen observation-builder file differs from the stated Git revision; actual snapshot hashes are authoritative. The native diagnostic constructs actor observations independently of that training builder."
+  ],
+  "audit_script_sha256": "10d056597e96cb3671a231dd9a0caf78a6361f6032463672ac46aefc7f39b97b"
+}

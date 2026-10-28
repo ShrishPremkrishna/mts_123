@@ -41,10 +41,10 @@
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T11:44:39.273115+00:00",
+    "recorded_utc": "2026-10-28T12:15:47.359199+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
-    "head": "f774f19c4b9ed65805955a172811227a85f17058",
+    "head": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
     "main_clean": true,
     "last_full_regression": {
       "source": "b8216f7fd0f4e639ece60e58dc3004137620f803",
@@ -67,13 +67,13 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Integrated independent16case native mechanics/material review; preserved comparisonplot; reviewed70filecurrent-catalog comparisonpackage; corrected staged/installedSpiderwording. Coordinating consequential encoder-observation correction and independentnative/startup/training reviews. No robot.",
-      "lab6_recovery": "Full\u22122/\u22125refinementreviewe787075committed/pushed andindependentlyaudited. Exact2GPUstartuprecreations matchalloldarrays; fullbodyinertia/COM/quaternioncaptured. Ownsnewnative startuptransfer (deployment_measured default, explicittraining_by_controllerdiagnostic) and12matchedCPUchains afterrootreview. No newtraining yet.",
-      "optional_recovery": "Fullrefinementrawindependentauditpassed,6files733810bytespreserved. Ownsexplicitfuturetraining measured-encoder observationmode andCLI/run/export/evalmetadata; historicallegacydefault preserved. Preparingpairedlegacy-versus-measured continuation from\u22125model8495, evaluatedinCOMMONdeployment-measuredcontext. Rootreviewbeforelaunch.",
-      "sit_recovery": "70filecurrentcatalog package2818a21completedandrootindependentlyverified. Final9handoutauditfoundonlystagedSpiderwordingambiguity(nowfixed). Independentlyauditinghardwareencoderzero/clamp/initialization/slewsemantics fornewtraining/nativefix; nohardwareaccess."
+      "root": "Reviewed newencodercontract0ada364 andconcretepairedplan; exactinitialcheckpointd789\u2026verified. Independentstartup/defaultnegativeevidenceintegrated. Startingfullstable-source regression afterbriefcoordinatedfreeze;nohardware.",
+      "lab6_recovery": "Finished12recordedstartupand12defaultattributionnegativecontrols95ffd21, preservedandindependentlyreviewed. Owns16CPUdefault-onlyablationruns:2worlds\u00d72materials\u00d7(unchangedbaseline/zerobias/nominalgains/both), originalbadinertiaCOMfixed. NoGPUactions.",
+      "optional_recovery": "OwnsGPU1;0ada364frozenandpushed. 199relatedtestsand32encodercontracttests pass. Preparing32world2iterationrealrunner/export/loadsmokes at/content/pupper-spider-encoder-smoke-v1; rootapprovedsmokes, full1000iterationpairedarms awaitsmokereview. Useplanfoundation/configs/spider-encoder-observation-study.json.",
+      "sit_recovery": "Finishedindependentreviewofhardwaresemantics+bothnegative12casebatches; reportscommittedbyroot. Noactivejobsorwritespending."
     },
-    "gpu_state_at_checkpoint": "GPU1 pupper-foundation-recovery training/evaluations complete; owner preserving full refinement archives and evaluating need for bounded residual-support diagnostics. GPU2 confirmedreleased. Inspect exact exit and collector receipts before any remote action; do not rerun successful training.",
-    "backup_status": "Refinement full raw318files4,730,863,236bytes and nativeexports76files173,283,413bytes preserved; nativephysicalvariants224files1,169,514,309bytes preserved with full inputs/models/source snapshot and independentreview. Active refinementcollector4332 retention pending owner retirement after finalarchiveproof. Optional2 ninefullarchives and867fileindex preserved; GPU2released. Earlier fullregression/controllerreturn artifacts retained. Fullrefinementindependentaudit6files733810bytespreserved;currentcatalogcomparison77files~33.76MB,70payloadmanifest41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9. Sourcee787075pushedsuccessfully. Plot5files325477bytespreserved.",
+    "gpu_state_at_checkpoint": "GPU1pupper-foundation-recovery handedtooptionalforencoderGPUpreflight; priortraining/fullarchivescomplete. Previouscollector4332retired11:45UTC(final199fileindex); do notexpectitmonitornewoutputs. Newsmoke/fullcollector mustbeverifiedwithownerbeforetraining. GPU2released.",
+    "backup_status": "Refinement full raw318files4,730,863,236bytes and nativeexports76files173,283,413bytes preserved; nativephysicalvariants224files1,169,514,309bytes preserved with full inputs/models/source snapshot and independentreview. Active refinementcollector4332 retention pending owner retirement after finalarchiveproof. Optional2 ninefullarchives and867fileindex preserved; GPU2released. Earlier fullregression/controllerreturn artifacts retained. Fullrefinementindependentaudit6files733810bytespreserved;currentcatalogcomparison77files~33.76MB,70payloadmanifest41ea71fec1c269c00dc7e4918098fd0ff19a0170c5d4220e0cdbb3c77821c7c9. Sourcee787075pushedsuccessfully. Plot5files325477bytespreserved. Originalstartup225files908154983bytes andattribution192files882872717bytes durable; original12independentaudit2files70527bytes; attributionindependentaudit3files177081bytes. Originalprefixesbitidentical; exact25filesnapshot authoritative forattribution(base176672f plus1inprogressobservationfile, explicitlyrecorded).",
     "remaining_completion_gates": [
       "Close encoder observation mismatch for future training with explicit versioned contract, independent math/hardware review and a matched continuation/common deployment-measured evaluation; preserve all historical run identities. Do not silently relabel prior calibration robustness.",
       "Review exact worst-world startup transfer and bounded matched native diagnostics for residual Spider belly support; no claim of universal off-belly capability. Finish independent review and preserve all source/inputs/raw data.",
@@ -109,14 +109,24 @@
       "foundation/results/gemini-jump-api-reviewed.json",
       "foundation/results/lab6-spider-torso-refinement-review.json",
       "foundation/results/spider-native-physical-variants-reviewed.json",
-      "foundation/results/hardware-baseline-preparation-reviewed.json"
+      "foundation/results/hardware-baseline-preparation-reviewed.json",
+      "foundation/results/encoder-hardware-semantics-review.json",
+      "foundation/results/spider-recorded-startup-reviewed.json",
+      "foundation/results/spider-recorded-startup-independent-review.json",
+      "foundation/results/spider-default-startup-attribution-reviewed.json",
+      "foundation/results/spider-default-startup-attribution-independent-review.json"
     ],
     "latest_checkpoint_note": "The prior full regression remainsb8216f7(775pytest+225course+native;separate21actualROS). New helper changes have focused checks and need finalcurrent-source regression. Latest source head is the revision observed immediately before this checkpoint edit, not a self-referential commit claim.",
     "new_consequential_finding": {
       "name": "Persistent encoder calibration bias absent from locomotion actor observations",
       "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",
       "implication": "PriorGPUcomparisonsremaininternallymatched but calibration-robustnesstransferincomplete; nominalzero-biasnativecannotexpose. Neveraddtrueqdiagnosticsemanticsunderadeploymentlabel.",
-      "response": "Versionedfuture-trainingflagwithlegacydefault forreproducibility; pairedcontinuation andcommonmeasured-observationevaluationafterreview. Nativeposthocstartupcaseswillusemeasuredqforallactors; optionaltraining_by_controllermodeexplicitlylabeled."
+      "response": "Explicitfuture-trainingcontractimplemented0ada364; legacydefault preserved, taggedcheckpointinheritance/localSHA-boundmodechange andactual-loadreceipts. Nativecasesusemeasuredqforallactors. ShortGPUrealrunner/export/loadsmokesauthorized, thenrootreviewbeforefullmatchedarms."
+    },
+    "new_default_stopping_limit": {
+      "finding": "Selectedfull-hullweak-gain/inertial/biasworlds keepfixedshippeddefaultmovingafter8szero, evenfromfreshstandingwithoutSpider. Only4torso-onlyoriginalchainssettle;nochange toactualinstalledpolicy.",
+      "evidence": "foundation/results/spider-default-startup-attribution-reviewed.json + independentreview",
+      "next": "Boundedgain/biasablation; do notassumeSpidersensingfixrepairssh ippedfallback. ActualPiapprovedbaselinebehaviorremainsunknown."
     }
   },
   "checkpoint_history": [

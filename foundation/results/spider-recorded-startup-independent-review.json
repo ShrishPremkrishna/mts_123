@@ -1,0 +1,1406 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-28T12:04:51.387082+00:00",
+  "source_revision": "b60e087db70052eff2ec64edfab71917edf08486",
+  "owner_review_sha256": "2b111a1043b80436c0a6329494a4d11ba4fddee1582eb0c70e9508a8ebae3f5e",
+  "scope": "Independent recomputation from immutable saved traces/models/inputs; no new simulation, robot access, installation or promotion.",
+  "watched_sources_verified_against_frozen_files_and_git": 25,
+  "runs": [
+    {
+      "case": "seed101-world11-foot_end_union-full_hulls",
+      "arm": "control",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "d06612384a2a8493d772d0e07962cd664473c33fad744bef30672767a680f54d",
+        "trajectory.json": "e0281681c8160a477ea373e05ddeffb9ba62c0e117e72da28b3538b95b45d08e",
+        "model.mjb": "949f15d35373b625a3e5c09626ce1eb324689828529ec0b882e6552742f6955b",
+        "startup-transfer.json": "2593a98e5af695901e3bcde5b5012a76ba966fd50dd0b5ba7a391b460d07592f",
+        "inference.json": "93ad3d2c1b46190f7f7f1079535a5e021c47680b5d5d48a351582429ed62f82a"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1861967452730937e-07,
+        "walk": 2.967757861682685e-08,
+        "default": 2.943128152299579e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 8.344650268554688e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 7.152557373046875e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 2.950429916381836e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.43833319935251686,
+        "world_xy_sampled_path_length_m": 0.4495141580765743,
+        "body_planar_speed_tail_max_m_s": 0.23039498798777647,
+        "world_xy_interval_speed_tail_max_m_s": 0.22666181187086928,
+        "world_xy_interval_speed_tail_mean_m_s": 0.2213921403594189,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.4939575081182875,
+        "joint_speed_tail_max_rad_s": 2.5775981974037916,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.4231728414061013,
+          "torso_contact_sample_fraction": 0.48261758691206547,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.04227974701563407,
+          "torso_contact_sample_fraction": 0.3150684931506849,
+          "max_sampled_torque_nm": 1.2615516800774471
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.29357884759304603,
+          "torso_contact_sample_fraction": 0.20192307692307693,
+          "max_sampled_torque_nm": 2.2691974898335046
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.061592227930776934,
+          "torso_contact_sample_fraction": 0.07692307692307693,
+          "max_sampled_torque_nm": 2.1785214448270347
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.35446424592639486,
+          "torso_contact_sample_fraction": 0.21153846153846154,
+          "max_sampled_torque_nm": 2.280714566452333
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.14540658499750497,
+          "torso_contact_sample_fraction": 0.08653846153846154,
+          "max_sampled_torque_nm": 2.1632890383855354
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.057388429318447
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.45681424130494136,
+          "torso_contact_sample_fraction": 0.6045081967213115,
+          "max_sampled_torque_nm": 1.7594443820661143
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.3050756778975132
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.6405313025255297
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.504526475824999
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.4577831892853856
+        }
+      }
+    },
+    {
+      "case": "seed101-world11-foot_end_union-full_hulls",
+      "arm": "torso",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "84900f53a28543db77f1f86958097055b51affc646c342f5088d8a65613bef2b",
+        "trajectory.json": "6d785e57a2a582379335a7cefd72085dd4bfdddbea354a278ca1d5308b8711b9",
+        "model.mjb": "949f15d35373b625a3e5c09626ce1eb324689828529ec0b882e6552742f6955b",
+        "startup-transfer.json": "2593a98e5af695901e3bcde5b5012a76ba966fd50dd0b5ba7a391b460d07592f",
+        "inference.json": "ce0f8d52f1ac8b4ecd57715ea949bdc8b4527e08e0d8d381fe7b3327b30ec229"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1826418511162728e-07,
+        "walk": 2.9782575294845515e-08,
+        "default": 2.97555642347902e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 8.344650268554688e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 7.271766662597656e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 3.6656856536865234e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.418221189965475,
+        "world_xy_sampled_path_length_m": 0.4316527193156716,
+        "body_planar_speed_tail_max_m_s": 0.23498784423495508,
+        "world_xy_interval_speed_tail_max_m_s": 0.23624177576843963,
+        "world_xy_interval_speed_tail_mean_m_s": 0.21586049502856705,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.5864116143014336,
+        "joint_speed_tail_max_rad_s": 2.0522254723922653,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.4231728414061013,
+          "torso_contact_sample_fraction": 0.48261758691206547,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.03258590131644647,
+          "torso_contact_sample_fraction": 0.2420091324200913,
+          "max_sampled_torque_nm": 1.4192995469464944
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.2614495961539224,
+          "torso_contact_sample_fraction": 0.09615384615384616,
+          "max_sampled_torque_nm": 2.376227570852814
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.972465521328835
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.21414084099019723,
+          "torso_contact_sample_fraction": 0.1346153846153846,
+          "max_sampled_torque_nm": 2.8193877539567853
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.18236848897670985,
+          "torso_contact_sample_fraction": 0.11538461538461539,
+          "max_sampled_torque_nm": 2.244189029418444
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.8690911226380695
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.44930974869168616,
+          "torso_contact_sample_fraction": 0.5922131147540983,
+          "max_sampled_torque_nm": 2.084249830261145
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5626204462173334
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.9940044817098261
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.4908045616168017
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.3428835084148751
+        }
+      }
+    },
+    {
+      "case": "seed101-world11-sphere_only-full_hulls",
+      "arm": "control",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "31fa3b692fc5c2011255ee44a63b93fe84731b23921fd3d40601538ec5e19eb4",
+        "trajectory.json": "311a9c290eca649dedf926de9b7ec833e58f03d7a35eeec58927bdaf2f68071a",
+        "model.mjb": "e59cc41d8261f510c08e19b282e6e418a57e778933507e801c43ad25967997ad",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "inference.json": "c87242538ddde3d1e407d208033fae1b81edc2bcbec29cb27945cbfec39d352c"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1223546358962722e-07,
+        "walk": 2.7873910068976215e-08,
+        "default": 2.971852886002324e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 8.344650268554688e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 5.0067901611328125e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 2.8461217880249023e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4546821070893139,
+        "world_xy_sampled_path_length_m": 0.46542759422545854,
+        "body_planar_speed_tail_max_m_s": 0.23299708192622695,
+        "world_xy_interval_speed_tail_max_m_s": 0.2325706117654961,
+        "world_xy_interval_speed_tail_mean_m_s": 0.2165432627533343,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.5794815480086697,
+        "joint_speed_tail_max_rad_s": 1.9389466586726674,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.4456048077589009,
+          "torso_contact_sample_fraction": 0.4867075664621677,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.04677858189709205,
+          "torso_contact_sample_fraction": 0.3789954337899543,
+          "max_sampled_torque_nm": 1.1057717723571572
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.3628063663812991,
+          "torso_contact_sample_fraction": 0.17307692307692307,
+          "max_sampled_torque_nm": 2.3411257960567466
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.11250386450100323,
+          "torso_contact_sample_fraction": 0.09615384615384616,
+          "max_sampled_torque_nm": 1.8649054049411076
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.31488455768279333,
+          "torso_contact_sample_fraction": 0.16346153846153846,
+          "max_sampled_torque_nm": 2.3604896340117385
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.23607799404968086,
+          "torso_contact_sample_fraction": 0.11538461538461539,
+          "max_sampled_torque_nm": 2.302112390079797
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.7647452709872455
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.45186498021832927,
+          "torso_contact_sample_fraction": 0.6127049180327869,
+          "max_sampled_torque_nm": 1.813954691332397
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5279956573505915
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.6049156024188567
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.3012466123847686
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.581824278540106
+        }
+      }
+    },
+    {
+      "case": "seed101-world11-sphere_only-full_hulls",
+      "arm": "torso",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "013442813488ecbd9f2058ad2c68e350bc01d7062e58d693f98d0fb382118de7",
+        "trajectory.json": "3ee02cddc1942c3d8b93317cdd009e0e2f59890b78fc51146ff1d99d734c82b0",
+        "model.mjb": "e59cc41d8261f510c08e19b282e6e418a57e778933507e801c43ad25967997ad",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "inference.json": "13cdebe730f028afa2f80bdb0c2ce4ad5e774aad284db3e9b880b35c726515c9"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1595208571080207e-07,
+        "walk": 2.9771043519311036e-08,
+        "default": 4.227306460435898e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 8.344650268554688e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 5.0067901611328125e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 4.0531158447265625e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4275582906557194,
+        "world_xy_sampled_path_length_m": 0.43835347391470175,
+        "body_planar_speed_tail_max_m_s": 0.22649351811349863,
+        "world_xy_interval_speed_tail_max_m_s": 0.22222648724417524,
+        "world_xy_interval_speed_tail_mean_m_s": 0.20039913384023614,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.5628964272993536,
+        "joint_speed_tail_max_rad_s": 1.6499335107271844,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.4456048077589009,
+          "torso_contact_sample_fraction": 0.4867075664621677,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.04284272686818061,
+          "torso_contact_sample_fraction": 0.3424657534246575,
+          "max_sampled_torque_nm": 1.3720117400993108
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.29282022468623237,
+          "torso_contact_sample_fraction": 0.1346153846153846,
+          "max_sampled_torque_nm": 2.6015374010123544
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.7552594505540897
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.07896241466048717,
+          "torso_contact_sample_fraction": 0.0673076923076923,
+          "max_sampled_torque_nm": 2.19664216028451
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.3683656657765508,
+          "torso_contact_sample_fraction": 0.14423076923076922,
+          "max_sampled_torque_nm": 2.1516831048537917
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.023028378443931664,
+          "torso_contact_sample_fraction": 0.009615384615384616,
+          "max_sampled_torque_nm": 1.6588681093302444
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.44882418821895703,
+          "torso_contact_sample_fraction": 0.6024590163934426,
+          "max_sampled_torque_nm": 1.7500817866211928
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5431616068703629
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5604841602805615
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 3.0
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.3409730575840304
+        }
+      }
+    },
+    {
+      "case": "seed101-world11-sphere_only-torso_only",
+      "arm": "control",
+      "contact_model": "torso_only",
+      "verified_hashes": {
+        "report.json": "3887ea967f42270f51b6b498315584887b25e3ee381cf4c8d6f738a2cac7f992",
+        "trajectory.json": "e82895f3993beee75cb7fbfcd492c1f6248a37fa235dd404a1edebc230565b13",
+        "model.mjb": "bd2d48612d98b49c8cd7547dea3755dbb2e47405f30de5ceb4e2aec2d1d9a66b",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "inference.json": "56f4f463b0c33accba5f3f17f80a7ce028df43804f535db17f74b4e7c0cdc451"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1136127886501868e-07,
+        "walk": 2.9584059202392154e-08,
+        "default": 2.947622812499162e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 7.152557373046875e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 4.410743713378906e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 2.9206275939941406e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.01913047379711314,
+        "world_xy_sampled_path_length_m": 0.021058136728731146,
+        "body_planar_speed_tail_max_m_s": 0.001367526454844318,
+        "world_xy_interval_speed_tail_max_m_s": 0.0013764540591298783,
+        "world_xy_interval_speed_tail_mean_m_s": 0.0011772960177902651,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.0009110324734791379,
+        "joint_speed_tail_max_rad_s": 0.034830559382449534,
+        "owner_screen_recomputed": true,
+        "world_xy_interval_screen": true
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.491136354654523,
+          "torso_contact_sample_fraction": 0.5787321063394683,
+          "max_sampled_torque_nm": 1.2574702918161489
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.5257429323212778,
+          "torso_contact_sample_fraction": 1.0,
+          "max_sampled_torque_nm": 1.0942530435211077
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.10178430380139288,
+          "torso_contact_sample_fraction": 0.33653846153846156,
+          "max_sampled_torque_nm": 1.778400381631613
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.09513251715465651,
+          "torso_contact_sample_fraction": 0.8076923076923077,
+          "max_sampled_torque_nm": 1.6444391554015345
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.12155563987449731,
+          "torso_contact_sample_fraction": 0.36538461538461536,
+          "max_sampled_torque_nm": 1.6883794915692096
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.0919527761151847,
+          "torso_contact_sample_fraction": 0.19230769230769232,
+          "max_sampled_torque_nm": 1.8792243542806195
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.12032737335937921,
+          "torso_contact_sample_fraction": 0.8846153846153846,
+          "max_sampled_torque_nm": 1.5620495983368041
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.555751440099892,
+          "torso_contact_sample_fraction": 0.7028688524590164,
+          "max_sampled_torque_nm": 1.4360356333741837
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.5837929971504934
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.7960036325334405
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.451299949469342
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.4196484203256485
+        }
+      }
+    },
+    {
+      "case": "seed101-world11-sphere_only-torso_only",
+      "arm": "torso",
+      "contact_model": "torso_only",
+      "verified_hashes": {
+        "report.json": "f3d8cf950648b1426c4588119f49572a571bc32661f2c6c3a49402063866174c",
+        "trajectory.json": "a4bad15b2f1b9a625d5a962dd2bcecc894cc180f509c04d2ab51400fc98d1457",
+        "model.mjb": "bd2d48612d98b49c8cd7547dea3755dbb2e47405f30de5ceb4e2aec2d1d9a66b",
+        "startup-transfer.json": "5fe1250e068bf48761eb5c39f86f6abcab635d0936c3b5adabcf7c603d3b81e7",
+        "inference.json": "e729ac28e5bbdce45785f47382797ff8bbfbb82a7f93a8db2e97e06bed1c731d"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1136127886501868e-07,
+        "walk": 2.9213452767962167e-08,
+        "default": 2.9566176618089912e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 7.152557373046875e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 4.5299530029296875e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 3.933906555175781e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.019140819334554783,
+        "world_xy_sampled_path_length_m": 0.021059956559577552,
+        "body_planar_speed_tail_max_m_s": 0.001366430435163851,
+        "world_xy_interval_speed_tail_max_m_s": 0.0013753471049632107,
+        "world_xy_interval_speed_tail_mean_m_s": 0.0011764649668485946,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.0009340931632346824,
+        "joint_speed_tail_max_rad_s": 0.034848420302816194,
+        "owner_screen_recomputed": true,
+        "world_xy_interval_screen": true
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.491136354654523,
+          "torso_contact_sample_fraction": 0.5787321063394683,
+          "max_sampled_torque_nm": 1.2574702918161489
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.48996385792701624,
+          "torso_contact_sample_fraction": 1.0,
+          "max_sampled_torque_nm": 1.0942530435211077
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.07585596411705182,
+          "torso_contact_sample_fraction": 0.25961538461538464,
+          "max_sampled_torque_nm": 1.8474806902896077
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.03870037771769756,
+          "torso_contact_sample_fraction": 0.5,
+          "max_sampled_torque_nm": 1.601498758866705
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.06266067219977355,
+          "torso_contact_sample_fraction": 0.25961538461538464,
+          "max_sampled_torque_nm": 1.7359762411231932
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.06299954043046632,
+          "torso_contact_sample_fraction": 0.16346153846153846,
+          "max_sampled_torque_nm": 1.8368630470371814
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.07620544251482572,
+          "torso_contact_sample_fraction": 0.7980769230769231,
+          "max_sampled_torque_nm": 1.4755838411536955
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.5529981199298882,
+          "torso_contact_sample_fraction": 0.7049180327868853,
+          "max_sampled_torque_nm": 1.4380400621571283
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.5838251391933149
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.7960477606319292
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.453842276354028
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.4201686033509067
+        }
+      }
+    },
+    {
+      "case": "seed303-world3-foot_end_union-full_hulls",
+      "arm": "control",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "8720f99b6e3bed3f155cbfb5981b9894862f2e244b1debf576b86bc74f002823",
+        "trajectory.json": "35acd25688ade5d3a1a237a73d12239dd678371aef82e0f62f7a7db68d6b2cdf",
+        "model.mjb": "184504839fcbbe47b4c3c2c65a97d9f38e333f720bb482f30ec8d8f8204f23d1",
+        "startup-transfer.json": "59ac7f00ec287a7cf892b785587df07f90d676903f9168aea5dd99ff9b0d6731",
+        "inference.json": "7e8913e4d2c4f94c781afaa2d965c91b2d5232510010bd7d46c830fbfab4cf1c"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1521154741345185e-07,
+        "walk": 2.9688365321689503e-08,
+        "default": 2.9703395076907668e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 9.5367431640625e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 5.46872615814209e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 2.808868885040283e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4030304684291639,
+        "world_xy_sampled_path_length_m": 0.4486226068761179,
+        "body_planar_speed_tail_max_m_s": 0.23127394202399867,
+        "world_xy_interval_speed_tail_max_m_s": 0.23089113670635056,
+        "world_xy_interval_speed_tail_mean_m_s": 0.21276824364704408,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.9055175994891772,
+        "joint_speed_tail_max_rad_s": 1.7584234425319634,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.47632815531702527,
+          "torso_contact_sample_fraction": 0.4948875255623722,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.047712239417991825,
+          "torso_contact_sample_fraction": 0.3333333333333333,
+          "max_sampled_torque_nm": 1.436112231020505
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.09185728587511789,
+          "torso_contact_sample_fraction": 0.09615384615384616,
+          "max_sampled_torque_nm": 2.883554729474549
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.039728118831808
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.22209994814417838,
+          "torso_contact_sample_fraction": 0.1346153846153846,
+          "max_sampled_torque_nm": 2.092480835277333
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.1569192568557899,
+          "torso_contact_sample_fraction": 0.07692307692307693,
+          "max_sampled_torque_nm": 2.2948755744336093
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.013100561108512543,
+          "torso_contact_sample_fraction": 0.019230769230769232,
+          "max_sampled_torque_nm": 1.547575840027291
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.4360872142316507,
+          "torso_contact_sample_fraction": 0.5942622950819673,
+          "max_sampled_torque_nm": 1.8324400911046297
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5907905310830734
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.160674099610888
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.943716659045065
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.2766816901067766
+        }
+      }
+    },
+    {
+      "case": "seed303-world3-foot_end_union-full_hulls",
+      "arm": "torso",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "966ba011754aca3b32d22a332725c5c7c304bb55a4e98020cf4346651645e3fc",
+        "trajectory.json": "e26057a09030fbfa1ef7ddf09c6eb7b31048aac4ba12272c6a36a3fc2e0930d1",
+        "model.mjb": "184504839fcbbe47b4c3c2c65a97d9f38e333f720bb482f30ec8d8f8204f23d1",
+        "startup-transfer.json": "59ac7f00ec287a7cf892b785587df07f90d676903f9168aea5dd99ff9b0d6731",
+        "inference.json": "31aab71104ac8a8f2fd3ae47819a22e4f533491ce51ec77b937e9ac35ca2434a"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1521154741345185e-07,
+        "walk": 2.8577841648669278e-08,
+        "default": 2.9745341523224056e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 7.152557373046875e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 5.7220458984375e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 2.7418136596679688e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.4203812481572475,
+        "world_xy_sampled_path_length_m": 0.4714548901952215,
+        "body_planar_speed_tail_max_m_s": 0.22878126516827518,
+        "world_xy_interval_speed_tail_max_m_s": 0.22890479335512623,
+        "world_xy_interval_speed_tail_mean_m_s": 0.2141541175910879,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.9534813075869515,
+        "joint_speed_tail_max_rad_s": 2.1717465511325735,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.47632815531702527,
+          "torso_contact_sample_fraction": 0.4948875255623722,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.04527621252483387,
+          "torso_contact_sample_fraction": 0.2876712328767123,
+          "max_sampled_torque_nm": 1.5426141421172122
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.2043628367259892,
+          "torso_contact_sample_fraction": 0.07692307692307693,
+          "max_sampled_torque_nm": 2.0652652269144167
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.7877641485415974
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.03161207193619986,
+          "torso_contact_sample_fraction": 0.028846153846153848,
+          "max_sampled_torque_nm": 2.7825335699670872
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.03165190389753933,
+          "torso_contact_sample_fraction": 0.019230769230769232,
+          "max_sampled_torque_nm": 2.635810746847101
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.00638107361969335,
+          "torso_contact_sample_fraction": 0.009615384615384616,
+          "max_sampled_torque_nm": 1.8601865981032848
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.43885434877219737,
+          "torso_contact_sample_fraction": 0.5881147540983607,
+          "max_sampled_torque_nm": 1.7312908358420476
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5637513272241153
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.9052412148072988
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 3.0
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.567695948244927
+        }
+      }
+    },
+    {
+      "case": "seed303-world3-sphere_only-full_hulls",
+      "arm": "control",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "7f84489572365ce6644b77de52d1a723bfbd8ce3b686b31e5efbf6935de413c3",
+        "trajectory.json": "1358bb16f74116d4cff714384e752044481db7a101ce3ff897096389628b3faf",
+        "model.mjb": "0eaa2b5a44fcdecc3d2df929705340c2de48688c368f6983d126e08be568453a",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "inference.json": "0893513f26955fb74a6e403bce145dcc2e9da7c6f65c2edc842348ca114d5280"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.0789995075199954e-07,
+        "walk": 2.9752026731166836e-08,
+        "default": 2.9649611876791937e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 7.152557373046875e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 5.7220458984375e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 3.904104232788086e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.38308251363798546,
+        "world_xy_sampled_path_length_m": 0.43683127127740806,
+        "body_planar_speed_tail_max_m_s": 0.1968905412801488,
+        "world_xy_interval_speed_tail_max_m_s": 0.1975511524713333,
+        "world_xy_interval_speed_tail_mean_m_s": 0.18391194201155847,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.8535989949139942,
+        "joint_speed_tail_max_rad_s": 2.4298371433801207,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.4705019351522946,
+          "torso_contact_sample_fraction": 0.4948875255623722,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.05018280994092014,
+          "torso_contact_sample_fraction": 0.3607305936073059,
+          "max_sampled_torque_nm": 1.4393452033196996
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.6345034575091019,
+          "torso_contact_sample_fraction": 0.16346153846153846,
+          "max_sampled_torque_nm": 2.1393646085289193
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.8519103958066636
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.5631132705800982,
+          "torso_contact_sample_fraction": 0.15384615384615385,
+          "max_sampled_torque_nm": 2.3439118244371584
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.15176026744969823,
+          "torso_contact_sample_fraction": 0.08653846153846154,
+          "max_sampled_torque_nm": 2.1659509284665686
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.619775827662536
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.44236320260537343,
+          "torso_contact_sample_fraction": 0.5922131147540983,
+          "max_sampled_torque_nm": 1.9690311858799638
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.753151021824669
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.9767770806525877
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 3.0
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5481563801831477
+        }
+      }
+    },
+    {
+      "case": "seed303-world3-sphere_only-full_hulls",
+      "arm": "torso",
+      "contact_model": "full_hulls",
+      "verified_hashes": {
+        "report.json": "f32f5edda7deab0f4ac513511c042d8856bacd3602bf49c079e80994490fb156",
+        "trajectory.json": "68f3b943da1d7bbe8130fc984ad39a7179cec6734af3198091a31e423b78020a",
+        "model.mjb": "0eaa2b5a44fcdecc3d2df929705340c2de48688c368f6983d126e08be568453a",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "inference.json": "7a52a0469b352ef907887aaa70a3997eaa0392d9936af18ec636d19259a4c77b"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.0880548595437745e-07,
+        "walk": 2.965667000864869e-08,
+        "default": 2.938632159832366e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 7.152557373046875e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 4.76837158203125e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 3.159046173095703e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.3591588618486652,
+        "world_xy_sampled_path_length_m": 0.40976533934761933,
+        "body_planar_speed_tail_max_m_s": 0.21783876755405365,
+        "world_xy_interval_speed_tail_max_m_s": 0.21793380584725247,
+        "world_xy_interval_speed_tail_mean_m_s": 0.19425196695688451,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.7866637240311495,
+        "joint_speed_tail_max_rad_s": 1.88157882873544,
+        "owner_screen_recomputed": false,
+        "world_xy_interval_screen": false
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.4705019351522946,
+          "torso_contact_sample_fraction": 0.4948875255623722,
+          "max_sampled_torque_nm": 3.0
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.04796563840387941,
+          "torso_contact_sample_fraction": 0.3242009132420091,
+          "max_sampled_torque_nm": 1.5388471363269338
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.12782841908986056,
+          "torso_contact_sample_fraction": 0.04807692307692308,
+          "max_sampled_torque_nm": 2.060977862373026
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.81743196286677
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.0864182910499648,
+          "torso_contact_sample_fraction": 0.04807692307692308,
+          "max_sampled_torque_nm": 1.9449846505153445
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.2025703514406696
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5832719172763183
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.45513534474793405,
+          "torso_contact_sample_fraction": 0.5922131147540983,
+          "max_sampled_torque_nm": 1.634126689069706
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5575854157183953
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.5469318559242446
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 2.9744405017323476
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.8892234272875088
+        }
+      }
+    },
+    {
+      "case": "seed303-world3-sphere_only-torso_only",
+      "arm": "control",
+      "contact_model": "torso_only",
+      "verified_hashes": {
+        "report.json": "d66627381168306570054d23033dbed21c61d85d7418b29a07808ade2a5eecef",
+        "trajectory.json": "1cce0519d5b8c310e641391f9237ac410aaf21ce74eda3383c34a0bc8c54d11f",
+        "model.mjb": "f1b5844925d0287f215fbc4c61d23f68834acaf35aed28d001e3f6d6422074a7",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "inference.json": "1bd32d6897d73075e1ac3eb9ffedb131d99a44409deca4cd26693c1209249c54"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1125494081554166e-07,
+        "walk": 2.9688047464837553e-08,
+        "default": 2.9350668562244664e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 9.5367431640625e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 5.4836273193359375e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 4.887580871582031e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.013027467272660798,
+        "world_xy_sampled_path_length_m": 0.017155724034912227,
+        "body_planar_speed_tail_max_m_s": 0.0010703098933268925,
+        "world_xy_interval_speed_tail_max_m_s": 0.0010759128980257031,
+        "world_xy_interval_speed_tail_mean_m_s": 0.0009502785218518932,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.007036110503570624,
+        "joint_speed_tail_max_rad_s": 0.030644465357225446,
+        "owner_screen_recomputed": true,
+        "world_xy_interval_screen": true
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.49245538428392416,
+          "torso_contact_sample_fraction": 0.5766871165644172,
+          "max_sampled_torque_nm": 1.4349179389480677
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.5750050960886965,
+          "torso_contact_sample_fraction": 1.0,
+          "max_sampled_torque_nm": 1.091841425292829
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.18892340800903523,
+          "torso_contact_sample_fraction": 0.4423076923076923,
+          "max_sampled_torque_nm": 1.7290274375812014
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.10765348387127792,
+          "torso_contact_sample_fraction": 0.8653846153846154,
+          "max_sampled_torque_nm": 1.507231640154955
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.15249777467384293,
+          "torso_contact_sample_fraction": 0.4230769230769231,
+          "max_sampled_torque_nm": 1.6349904544729332
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.12714813939458375,
+          "torso_contact_sample_fraction": 0.3173076923076923,
+          "max_sampled_torque_nm": 1.653790856063351
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.12678009173488086,
+          "torso_contact_sample_fraction": 0.9326923076923077,
+          "max_sampled_torque_nm": 1.4399714937192454
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.5620341784785732,
+          "torso_contact_sample_fraction": 0.7090163934426229,
+          "max_sampled_torque_nm": 1.4065573048115017
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.7038163135674629
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.9596395352738001
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.456488114899045
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.2299067051255657
+        }
+      }
+    },
+    {
+      "case": "seed303-world3-sphere_only-torso_only",
+      "arm": "torso",
+      "contact_model": "torso_only",
+      "verified_hashes": {
+        "report.json": "b2baa2724d3427872bf49db742f3695af9509fac30737a6b1254b51b4bb68b20",
+        "trajectory.json": "f47b3c825288f9696e7e1c3108bd18c8ebbfa6d1ad56d9a16570d8630e25545d",
+        "model.mjb": "f1b5844925d0287f215fbc4c61d23f68834acaf35aed28d001e3f6d6422074a7",
+        "startup-transfer.json": "1008c0319a076d53a7a748d648bef0f6900525283764a7e863c4fe3c3539dcc6",
+        "inference.json": "6ea583f9c2512dd1937769733d341333355c04d320120b5950dc5823a08533e9"
+      },
+      "all_recorded_gain_and_bias_transforms_match": true,
+      "activation_measured_seed_matches": true,
+      "actor_joint_input_max_errors": {
+        "trick": 1.1765718310741136e-07,
+        "walk": 2.6866650570944728e-08,
+        "default": 2.964348189138377e-08
+      },
+      "independent_dense_numpy_parity": {
+        "trick": {
+          "samples": 17,
+          "max_abs_error": 9.5367431640625e-07
+        },
+        "walk": {
+          "samples": 17,
+          "max_abs_error": 6.4373016357421875e-06
+        },
+        "default": {
+          "samples": 17,
+          "max_abs_error": 3.516674041748047e-06
+        }
+      },
+      "clock_completed": true,
+      "physical_resets": 0,
+      "default_stop": {
+        "observed_zero_tail_span_s": 1.9807692307692335,
+        "selected_state_samples": 27,
+        "selected_state_first_to_last_span_s": 0.5,
+        "world_xy_net_displacement_m": 0.013007400600246142,
+        "world_xy_sampled_path_length_m": 0.017136819741525526,
+        "body_planar_speed_tail_max_m_s": 0.0010625122465143457,
+        "world_xy_interval_speed_tail_max_m_s": 0.0010680471457742292,
+        "world_xy_interval_speed_tail_mean_m_s": 0.0009439626347034656,
+        "world_yaw_interval_rate_tail_max_rad_s": 0.007068795424632959,
+        "joint_speed_tail_max_rad_s": 0.03049089387482128,
+        "owner_screen_recomputed": true,
+        "world_xy_interval_screen": true
+      },
+      "stages": {
+        "entry": {
+          "mean_torso_support_bodyweight": 0.49245538428392416,
+          "torso_contact_sample_fraction": 0.5766871165644172,
+          "max_sampled_torque_nm": 1.4349179389480677
+        },
+        "walk_activation": {
+          "mean_torso_support_bodyweight": 0.5336002700889075,
+          "torso_contact_sample_fraction": 1.0,
+          "max_sampled_torque_nm": 1.091841425292829
+        },
+        "walk_forward": {
+          "mean_torso_support_bodyweight": 0.0822456955126145,
+          "torso_contact_sample_fraction": 0.3173076923076923,
+          "max_sampled_torque_nm": 1.7889534016761663
+        },
+        "walk_stop_1": {
+          "mean_torso_support_bodyweight": 0.05256483426236364,
+          "torso_contact_sample_fraction": 0.5576923076923077,
+          "max_sampled_torque_nm": 1.4306942325063532
+        },
+        "walk_backward": {
+          "mean_torso_support_bodyweight": 0.0629989343570932,
+          "torso_contact_sample_fraction": 0.25,
+          "max_sampled_torque_nm": 1.6934075437427154
+        },
+        "walk_turn": {
+          "mean_torso_support_bodyweight": 0.06068246805953308,
+          "torso_contact_sample_fraction": 0.17307692307692307,
+          "max_sampled_torque_nm": 1.7693765551167537
+        },
+        "walk_stop_before_exit": {
+          "mean_torso_support_bodyweight": 0.0606898264786737,
+          "torso_contact_sample_fraction": 0.7980769230769231,
+          "max_sampled_torque_nm": 1.3948526889729176
+        },
+        "exit": {
+          "mean_torso_support_bodyweight": 0.5594359739581952,
+          "torso_contact_sample_fraction": 0.7090163934426229,
+          "max_sampled_torque_nm": 1.4098783153695664
+        },
+        "standing_hold": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.7036782166680489
+        },
+        "default_activation": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 0.9594500183270198
+        },
+        "default_forward": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.4566541274687872
+        },
+        "default_stop": {
+          "mean_torso_support_bodyweight": 0.0,
+          "torso_contact_sample_fraction": 0.0,
+          "max_sampled_torque_nm": 1.229880973357138
+        }
+      }
+    }
+  ],
+  "paired_cases": [
+    {
+      "case": "seed101-world11-foot_end_union-full_hulls",
+      "model_bytes_identical": true,
+      "entry_rows_bit_identical": 489,
+      "same_trick_and_default_policies": true,
+      "only_walk_policy_differs": true
+    },
+    {
+      "case": "seed101-world11-sphere_only-full_hulls",
+      "model_bytes_identical": true,
+      "entry_rows_bit_identical": 489,
+      "same_trick_and_default_policies": true,
+      "only_walk_policy_differs": true
+    },
+    {
+      "case": "seed101-world11-sphere_only-torso_only",
+      "model_bytes_identical": true,
+      "entry_rows_bit_identical": 489,
+      "same_trick_and_default_policies": true,
+      "only_walk_policy_differs": true
+    },
+    {
+      "case": "seed303-world3-foot_end_union-full_hulls",
+      "model_bytes_identical": true,
+      "entry_rows_bit_identical": 489,
+      "same_trick_and_default_policies": true,
+      "only_walk_policy_differs": true
+    },
+    {
+      "case": "seed303-world3-sphere_only-full_hulls",
+      "model_bytes_identical": true,
+      "entry_rows_bit_identical": 489,
+      "same_trick_and_default_policies": true,
+      "only_walk_policy_differs": true
+    },
+    {
+      "case": "seed303-world3-sphere_only-torso_only",
+      "model_bytes_identical": true,
+      "entry_rows_bit_identical": 489,
+      "same_trick_and_default_policies": true,
+      "only_walk_policy_differs": true
+    }
+  ],
+  "findings": [
+    "Owner stage field final_body_yaw_rate_rad_s is computed as finite-difference world heading rate, not body-z angular velocity. The dedicated final-stop diagnostic uses the correct world-yaw name; this naming issue does not affect verdicts."
+  ],
+  "verdict": {
+    "clock_sequences_completed": 12,
+    "settled_under_owner_screen": 4,
+    "settled_using_independent_world_xy": 4,
+    "all_full_hull_returns_unsettled": true,
+    "no_promotion": true
+  },
+  "limitations": [
+    "Only25 watched source files are byte-verified against the frozen snapshot and Git pin; this is not a claim of every transitive toolchain dependency.",
+    "Per-sample gain/bias transforms and activation seeds verified. The fixed16ms delay placement is inspected in frozen source;52Hz output samples cannot independently reconstruct every520Hz delayed target.",
+    "Saved torque_max_nm is a sampled maximum, not a continuous bound or a full torque-vector reconstruction. Actual compiled actuator force limits remain3Nm.",
+    "Owner speed uses instantaneous body-plane velocity; independent speed uses worldXY displacement intervals. Both produce the same4/12 settlement verdict.",
+    "The sampled final0.5s selection contains26state samples spanning25/52s; finite-difference windows and observed spans are reported explicitly, not continuous quietness.",
+    "The two selected worlds are posthoc stress cases, not an unbiased success rate. No cause is assigned to a specific randomization component; controls/longer-stop investigations are separate.",
+    "Contact telemetry is preintegration and state telemetry postintegration by1/520s. Neither data stream establishes unsampled continuity."
+  ],
+  "audit_script_sha256": "d3d32b4f32d912a2b0191973cb315dc809f0600ed0aad90385b7d03e8913139c"
+}
