@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "reviewed_at_utc": "2026-10-28T13:28:06.954842+00:00",
+  "status": "portable_inventory_kit_prepared_and_locally_verified",
+  "source_revision": "c3ad2065706e230064687144378f5d9dd0a6fc2c",
+  "source_files": [
+    {
+      "path": "foundation/scripts/robot_inventory.sh",
+      "sha256": "d762e82a292564b2e4a20e03a68939a842b6f50b97247f1626598c6945465d69",
+      "bytes": 15460,
+      "mode": "0600",
+      "source_revision": "c3ad2065706e230064687144378f5d9dd0a6fc2c"
+    },
+    {
+      "path": "foundation/scripts/inspect_robot_description.py",
+      "sha256": "9851765eab1985dac60017d81c12578c19604c38c7c1a58be6f039ad623c6845",
+      "bytes": 2202,
+      "mode": "0600",
+      "source_revision": "c3ad2065706e230064687144378f5d9dd0a6fc2c"
+    },
+    {
+      "path": "foundation/scripts/robot_artifact_backup.py",
+      "sha256": "a85752202ac0f05982fea557e19376c13fe24bf93ad84f36642845b990b5d5dc",
+      "bytes": 16644,
+      "mode": "0600",
+      "source_revision": "c3ad2065706e230064687144378f5d9dd0a6fc2c"
+    }
+  ],
+  "scope": "Exactly three unchanged committed tools are packaged with a JSON manifest. This prepares a first read-only inventory without cloning or installing the foundation branch. No SSH, ROS graph access, motor commands, Pi execution, policy execution, installer or restore action occurred.",
+  "kit_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1",
+  "archive": {
+    "path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1.tar.gz",
+    "sha256": "b5b139bd8f79ce0e43732f2fa09d054433932379db538fe82ea44c8e733a8fd7",
+    "bytes": 12422,
+    "manifest_sha256": "fb04b2ae3fbfce391c01f67d976912ab5e022690bababcfd67d7b80016bdc51f",
+    "payload": "Three reviewed tools under foundation/scripts, manifest.json, and containing directories only. Local smoke outputs and evidence are excluded from the transfer archive.",
+    "all_member_bytes_match_sources": true,
+    "all_member_types_and_modes_verified": true,
+    "directory_mode": "0700",
+    "file_mode": "0600; invoke the shell script using bash"
+  },
+  "dependencies": {
+    "base": "POSIX Bash and Python >=3.8 standard library; Linux/POSIX os.open dir_fd, O_DIRECTORY, O_NOFOLLOW and O_NONBLOCK support. Runtime validation here is local macOS only.",
+    "stdlib_modules": [
+      "__future__",
+      "argparse",
+      "datetime",
+      "hashlib",
+      "importlib",
+      "io",
+      "json",
+      "math",
+      "os",
+      "pathlib",
+      "platform",
+      "re",
+      "shutil",
+      "stat",
+      "subprocess",
+      "sys",
+      "time",
+      "xml"
+    ],
+    "bundled_local_modules": [
+      "inspect_robot_description",
+      "robot_artifact_backup"
+    ],
+    "imports_by_source": {
+      "foundation/scripts/robot_inventory.sh": [
+        "argparse",
+        "controller_manager_msgs",
+        "datetime",
+        "geometry_msgs",
+        "hashlib",
+        "importlib",
+        "inspect_robot_description",
+        "io",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "platform",
+        "rcl_interfaces",
+        "rclpy",
+        "robot_artifact_backup",
+        "rosidl_runtime_py",
+        "sensor_msgs",
+        "shutil",
+        "subprocess",
+        "sys",
+        "time"
+      ],
+      "foundation/scripts/inspect_robot_description.py": [
+        "__future__",
+        "hashlib",
+        "math",
+        "xml"
+      ],
+      "foundation/scripts/robot_artifact_backup.py": [
+        "__future__",
+        "argparse",
+        "datetime",
+        "hashlib",
+        "io",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "stat"
+      ]
+    },
+    "optional_ros_flag_only": [
+      "controller_manager_msgs",
+      "geometry_msgs",
+      "rcl_interfaces",
+      "rclpy",
+      "rosidl_runtime_py",
+      "sensor_msgs"
+    ],
+    "optional_external_inventory_commands": [
+      "git",
+      "vcgencmd get_throttled",
+      "vcgencmd measure_temp",
+      "hailortcli --version"
+    ],
+    "absent_optional_tools": "Recorded as unavailable; base inventory does not require them. Python package versions are queried through importlib.metadata without importing those packages.",
+    "shell_utilities": [
+      "dirname",
+      "cd (Bash builtin)",
+      "pwd (Bash builtin)"
+    ]
+  },
+  "local_validation": {
+    "host": {
+      "system": "Darwin",
+      "machine": "arm64",
+      "python": "3.15.2"
+    },
+    "bash_syntax": true,
+    "inventory_help": true,
+    "backup_helper_help": true,
+    "description_helper": "Library only; imported and exercised by non-ROS inventory and existing tests. No standalone CLI or --help interface.",
+    "explicit_repo_and_component_roots_used": true,
+    "inventory_imports_came_from_kit": true,
+    "file_hashes_success": 85,
+    "file_hashes_refused": 0,
+    "driver_description_documents": 1,
+    "ros_sampled": false,
+    "package_bytecode_not_created": true,
+    "existing_focused_tests_passed": 35,
+    "existing_focused_test_receipt_sha256": "4d8950684df185443caf0988142d57afdb0cabb2b1affb21e735cbc87c39a098",
+    "inventory_output_sha256": "c80421771a8705e458fa87e3a95f424ffc96cdf4e1fd2b5d472bc24f4f3bb37a",
+    "local_smoke_review_sha256": "95bf02f71461eb546cf93b6efc1b952f5a0260d82fc0bc560c57f91ddcea7a83"
+  },
+  "usage": {
+    "base_command": "PYTHONDONTWRITEBYTECODE=1 GIT_OPTIONAL_LOCKS=0 bash foundation/scripts/robot_inventory.sh --repo-root /absolute/discovered/working/checkout",
+    "component_paths": "Use --monorepo-dir, --gemini-dir, --follower-dir and --deployment-dir with independently discovered real paths when components live separately. Unspecified candidates are labeled unverified; a checkout path is not proof of active installation.",
+    "ros": "Do not add --ros until the existing approved ROS environment is known and read-only graph sampling is intentionally requested. The kit does not install ROS or launch anything."
+  },
+  "limitations": [
+    "The tested host is macOS arm64, not Pupper. Pi runtime, installed paths, active launch and ROS environment still need the first real inventory.",
+    "Python 3.8 syntax and standard-library API dependencies were inspected; actual smoke runtime was Python 3.15.2. No assertion of every supported interpreter or OS combination follows.",
+    "Package-version metadata and explicit local file hashes do not prove the active robot installation. The tool retains unverified path labels.",
+    "An inventory output contains local paths and software/runtime metadata and should remain private. No camera frames or credential values are deliberately captured.",
+    "The backup helper is bundled because inventory uses fingerprint_file; its separate explicit-copy CLI is not an installer or restore and was not invoked for backup creation here."
+  ],
+  "preservation": {
+    "directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/hardware/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1",
+    "manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1-reviewed.json"
+  },
+  "hardware_validated": false,
+  "executed_on_pi": false
+}
