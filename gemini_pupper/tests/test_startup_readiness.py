@@ -101,3 +101,24 @@ def test_start_checks_compatibility_before_replacing_any_server():
     assert source.index('if pgrep -f "[r]os2_control_node"') < inspect
     assert source.index('exec ros2 launch') < inspect  # new-stack launch path retained
     assert inspect < source.index('pkill -f "[r]obot/server.py"')
+
+
+@pytest.mark.parametrize('runtime', ['matching', 'old_binary', 'different_rate', 'invalid_json', 'inactive'])
+def test_slew_policy_requires_actual_loaded_controller_capability(stack, runtime):
+    policy = json.loads(stack.policy.read_text())
+    contract = {'contract':'pupper_position_target_slew_v1','max_rate_rad_s':15.,'max_step_s':.02}
+    policy['position_target_slew'] = contract
+    stack.policy.write_text(json.dumps(policy))
+    manifest = json.loads(stack.manifest.read_text())
+    manifest['policies']['gemini_walk']['sha256'] = readiness._sha(stack.policy)
+    stack.manifest.write_text(json.dumps(manifest))
+    actual = dict(stack.params['gemini_walk']['ros__parameters'])
+    if runtime != 'old_binary':
+        loaded = dict(contract)
+        if runtime == 'different_rate': loaded['max_rate_rad_s'] = 10.
+        actual['position_target_slew_active'] = runtime != 'inactive'
+        actual['position_target_slew_contract_json'] = 'invalid' if runtime == 'invalid_json' else json.dumps(loaded)
+    stack.responses[('param','dump','/gemini_walk')] = yaml.safe_dump({'/gemini_walk':{'ros__parameters':actual}})
+    result = readiness.inspect_running_stack(run=stack.run, path=stack.manifest)
+    assert result['compatible'] is (runtime == 'matching')
+    if runtime != 'matching': assert 'slew contract' in ' '.join(result['errors'])

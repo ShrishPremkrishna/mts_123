@@ -66,6 +66,7 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
     """Only list/get/dump operations; never launch, set, switch, publish or stop."""
     report = {'compatible': False, 'errors': []}
     errors = report['errors']
+    slew_requirements = {}
     try:
         manifest = json.loads(Path(path).read_text())
         config = follower_config()
@@ -81,6 +82,9 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         for name, policy in manifest['policies'].items():
             if _sha(policy['path']) != policy['sha256']:
                 errors.append(f'{name}: policy file changed since the combined launch')
+            data = json.loads(Path(policy['path']).read_text())
+            if 'position_target_slew' in data:
+                slew_requirements[name] = data['position_target_slew']
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         errors.append(f'missing or invalid combined-launch manifest: {exc}')
         return report
@@ -141,6 +145,16 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                 for key, value in entry['ros__parameters'].items():
                     if key != 'type' and actual.get(key) != value:
                         errors.append(f'{name}: running parameter {key} differs from this launch')
+                if name in slew_requirements:
+                    # These are read-only values declared by the loaded controller,
+                    # never launch overrides. Older binaries ignore unknown JSON
+                    # fields, so matching a model path alone is insufficient.
+                    try:
+                        loaded = json.loads(actual.get('position_target_slew_contract_json', 'null'))
+                    except (TypeError, ValueError):
+                        loaded = None
+                    if actual.get('position_target_slew_active') is not True or loaded != slew_requirements[name]:
+                        errors.append(f'{name}: loaded controller does not confirm the policy position-target slew contract')
     except (ValueError, KeyError, AttributeError, yaml.YAMLError) as exc:
         errors.append(str(exc))
     report['compatible'] = not errors

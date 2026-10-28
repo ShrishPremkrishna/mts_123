@@ -1,0 +1,698 @@
+{
+  "scope": "One nominal native activation, finite clip and 2s terminal hold per active supplied finite policy. Full collision hulls, class-source driver bounds, exact policy and descriptor tilt limit. No randomized trials, ROS execution, walking handoff or hardware test.",
+  "source_revision": "0e11aba",
+  "trials": [
+    {
+      "name": "lie_downward_dog",
+      "returncode": 0,
+      "policy_sha256": "57a3277c1a99cdbce17f1c35c2d9a4929bdbd9b600bd8a904760c9b974b2adf6",
+      "descriptor_sha256": "c6b8dd11d89ea769a480b6ba7ee9479e7ecb08439fca9042aa9250fabf8489b8",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 65.0,
+      "report_path": "lie_downward_dog/report.json",
+      "report_sha256": "46085d6a4be02502071b23102f8f2ae184e6c7919935c3fc05094e0a5000ea18",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 538,
+          "max_tilt_deg": 43.240229041761474,
+          "mean_velocity_body": [
+            -0.003685001161793397,
+            -0.000984441513272037,
+            -0.008662530739406735
+          ],
+          "min_height_m": 0.08122096370438119,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.010977296008894863,
+          "final_error_vs_controller_default_max_rad": 1.1816070855975815,
+          "final_error_vs_current_reference_max_rad": 0.09924691974872185,
+          "max_target_step_rad": 0.12461152672767639,
+          "driver_clipped_joint_fraction": 0.23296158612143741,
+          "last_clip": "all",
+          "last_frame": 441,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 0.6216737287304344,
+          "mean_velocity_body": [
+            -0.00010306991400136438,
+            0.00015093192915926226,
+            8.447869757015858e-05
+          ],
+          "min_height_m": 0.0813593426664077,
+          "max_height_m": 0.08152893084782435,
+          "max_joint_speed_rad_s": 0.011017715031067013,
+          "final_max_joint_speed_rad_s": 0.005456161558909472,
+          "final_error_vs_controller_default_max_rad": 1.180624318253833,
+          "final_error_vs_current_reference_max_rad": 0.08703963655683777,
+          "max_target_step_rad": 0.0003654956817626953,
+          "driver_clipped_joint_fraction": 0.4166666666666667,
+          "last_clip": "all",
+          "last_frame": 442,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "lie_sit_lie",
+      "returncode": 0,
+      "policy_sha256": "b3a7c3639d8239019881c91e02913775d490e9a2ff4b068b12ba961f7918f8c6",
+      "descriptor_sha256": "cacf7082f5eec1604f08c994e14c954de821d86f76ef40f8e85f7159b85717fd",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 65.0,
+      "report_path": "lie_sit_lie/report.json",
+      "report_sha256": "6423cf73dcb49085cbaaf734cfdbbe935799a33f7745d34d98181ac06e860d8c",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 667,
+          "max_tilt_deg": 43.73073709469867,
+          "mean_velocity_body": [
+            -0.0040402542360233025,
+            0.0014563412867147903,
+            -0.007416335260707887
+          ],
+          "min_height_m": 0.08031352875907,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.017090105405385022,
+          "final_error_vs_controller_default_max_rad": 1.1978800654987367,
+          "final_error_vs_current_reference_max_rad": 0.058371243351433955,
+          "max_target_step_rad": 0.10673153400421143,
+          "driver_clipped_joint_fraction": 0.1294352823588206,
+          "last_clip": "all",
+          "last_frame": 565,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 0.5394098677338196,
+          "mean_velocity_body": [
+            -4.842858275497038e-05,
+            0.00010421819130251186,
+            -0.00021112603581605597
+          ],
+          "min_height_m": 0.07989745750733318,
+          "max_height_m": 0.08030134925612877,
+          "max_joint_speed_rad_s": 0.0179914081716855,
+          "final_max_joint_speed_rad_s": 0.004109886525063514,
+          "final_error_vs_controller_default_max_rad": 1.1991674894390223,
+          "final_error_vs_current_reference_max_rad": 0.04994919000656868,
+          "max_target_step_rad": 0.0010223984718322754,
+          "driver_clipped_joint_fraction": 0.1233974358974359,
+          "last_clip": "all",
+          "last_frame": 566,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "pee",
+      "returncode": 0,
+      "policy_sha256": "f6b74dc086a7b20adf2eeb1cf25a336c44717a3aaea7e75bdd30e0eae5768e35",
+      "descriptor_sha256": "caca1c0439b9bcfda596bcbde80f43bfcd93e43aebefe71235d8b9ca43b2d48a",
+      "inputs_changed": false,
+      "declared_end_pose": "standing",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "pee/report.json",
+      "report_sha256": "43d0858c48cddd71ffd23d9506bda1103dbfe6c86a17bb78b4a87cf1804377c7",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 451,
+          "max_tilt_deg": 6.041662476857318,
+          "mean_velocity_body": [
+            0.00014885959780225225,
+            0.002013210277494354,
+            -0.00166909841241778
+          ],
+          "min_height_m": 0.15363299025740093,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.007968878144853761,
+          "final_error_vs_controller_default_max_rad": 0.9188265848015542,
+          "final_error_vs_current_reference_max_rad": 0.03280226184845392,
+          "max_target_step_rad": 0.07448670268058777,
+          "driver_clipped_joint_fraction": 0.030118255728011824,
+          "last_clip": "all",
+          "last_frame": 357,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 5.826549704380861,
+          "mean_velocity_body": [
+            -3.900139358563137e-05,
+            5.96202310819251e-05,
+            -4.390201869685284e-05
+          ],
+          "min_height_m": 0.16520461447151036,
+          "max_height_m": 0.1652809726083367,
+          "max_joint_speed_rad_s": 0.007821240801360986,
+          "final_max_joint_speed_rad_s": 0.003548749904623406,
+          "final_error_vs_controller_default_max_rad": 0.9228771466850669,
+          "final_error_vs_current_reference_max_rad": 0.039208027011056856,
+          "max_target_step_rad": 8.43629240989685e-05,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "all",
+          "last_frame": 358,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "push_up",
+      "returncode": 0,
+      "policy_sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+      "descriptor_sha256": "debd20770f3aa53d5fd203fcc844f52b971ce7c63e7ddab6e3ce06504c24889b",
+      "inputs_changed": false,
+      "declared_end_pose": "standing",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "push_up/report.json",
+      "report_sha256": "195bf66b280058038f67966d938e668139d54e28bff899ea9ec5537a308c40e4",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 638,
+          "max_tilt_deg": 13.274826468632746,
+          "mean_velocity_body": [
+            0.00272349494674242,
+            0.0008131140345200693,
+            -2.340066852156592e-05
+          ],
+          "min_height_m": 0.07980489164182787,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.019349274636185312,
+          "final_error_vs_controller_default_max_rad": 0.47754232410863207,
+          "final_error_vs_current_reference_max_rad": 0.04688530503514576,
+          "max_target_step_rad": 0.07704395055770874,
+          "driver_clipped_joint_fraction": 0.017241379310344827,
+          "last_clip": "all",
+          "last_frame": 537,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 4.8507325074833085,
+          "mean_velocity_body": [
+            -0.0006246803850309315,
+            7.291565679780934e-05,
+            5.429213121215305e-06
+          ],
+          "min_height_m": 0.1740756611528103,
+          "max_height_m": 0.1741940299918934,
+          "max_joint_speed_rad_s": 0.019043640385443938,
+          "final_max_joint_speed_rad_s": 0.002840523237462075,
+          "final_error_vs_controller_default_max_rad": 0.47899286979372724,
+          "final_error_vs_current_reference_max_rad": 0.04874090515452145,
+          "max_target_step_rad": 0.0004730224609375,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "all",
+          "last_frame": 538,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "sneeze",
+      "returncode": 0,
+      "policy_sha256": "baa87bd1137a35fc771783c82ee6e619a284f8f59021361a36d9b7a57ce4000e",
+      "descriptor_sha256": "4ab47ce6fc728ab0fac353455f4d7434c2a11885daca3d2de836ff726a1373fe",
+      "inputs_changed": false,
+      "declared_end_pose": "standing",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "sneeze/report.json",
+      "report_sha256": "01f928b522468015a8a34d1dbaf1c3f50d10512f014cb053d048261eb81a5031",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 201,
+          "max_tilt_deg": 20.896889155399304,
+          "mean_velocity_body": [
+            0.0022525887486207455,
+            -5.233899307849716e-05,
+            -0.002914073682558956
+          ],
+          "min_height_m": 0.13305241162135767,
+          "max_height_m": 0.18250538064827762,
+          "max_joint_speed_rad_s": 15.55790447280846,
+          "final_max_joint_speed_rad_s": 0.037217961013043865,
+          "final_error_vs_controller_default_max_rad": 0.19154053416547323,
+          "final_error_vs_current_reference_max_rad": 0.19579752462873007,
+          "max_target_step_rad": 0.6308369189500809,
+          "driver_clipped_joint_fraction": 0.0008291873963515755,
+          "last_clip": "all",
+          "last_frame": 117,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 1.0788037484350312,
+          "mean_velocity_body": [
+            -0.0012885849673025846,
+            -0.0003787856649624027,
+            -0.0005810018644719867
+          ],
+          "min_height_m": 0.16666587353182646,
+          "max_height_m": 0.16782639869702973,
+          "max_joint_speed_rad_s": 0.11643393866680517,
+          "final_max_joint_speed_rad_s": 0.023138556431882232,
+          "final_error_vs_controller_default_max_rad": 0.1910062876259383,
+          "final_error_vs_current_reference_max_rad": 0.19907026855245202,
+          "max_target_step_rad": 0.0033731237053871155,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "all",
+          "last_frame": 118,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "spider",
+      "returncode": 0,
+      "policy_sha256": "d52b1321fb140fd8918e155e6dfd43751a94bc09438f2f4b5e7895098ffece3e",
+      "descriptor_sha256": "97d21d259f01bac390b3b681fc4d9e4fc98568d5b02a0a8b4111aeda6fbeda6f",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "spider/report.json",
+      "report_sha256": "7d1a5ac16d7b8e37648b4f4db0c76522b1e4c05883e2e86d57b5ce1a62a40f3a",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 666,
+          "max_tilt_deg": 10.021747691047775,
+          "mean_velocity_body": [
+            -0.0042950276694353005,
+            0.0008438214035806212,
+            -0.0077772136336439
+          ],
+          "min_height_m": 0.031130206248369104,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 6.765807969650941,
+          "final_max_joint_speed_rad_s": 0.033110193968042496,
+          "final_error_vs_controller_default_max_rad": 1.1611342382121483,
+          "final_error_vs_current_reference_max_rad": 0.12129062024830783,
+          "max_target_step_rad": 0.2047322392463684,
+          "driver_clipped_joint_fraction": 0.10848348348348348,
+          "last_clip": "all",
+          "last_frame": 564,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 1.0311312616710202,
+          "mean_velocity_body": [
+            -6.96971664448873e-05,
+            0.0003163500530237693,
+            -0.00014702883553706218
+          ],
+          "min_height_m": 0.08310415274520012,
+          "max_height_m": 0.0834055029550058,
+          "max_joint_speed_rad_s": 0.03291815549152221,
+          "final_max_joint_speed_rad_s": 0.01395899515167264,
+          "final_error_vs_controller_default_max_rad": 1.1716748031539899,
+          "final_error_vs_current_reference_max_rad": 0.12090808065368985,
+          "max_target_step_rad": 0.00041007623076438904,
+          "driver_clipped_joint_fraction": 0.16666666666666666,
+          "last_clip": "all",
+          "last_frame": 565,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "stand_downward_dog",
+      "returncode": 0,
+      "policy_sha256": "4bd415c9d7a09cad99246a76b42f05236291e6088837a86d6a07b12c70cba4a0",
+      "descriptor_sha256": "ce880056f69741d6918e4ba4afd37a1224443204280fdd9d4a879d78e21677ba",
+      "inputs_changed": false,
+      "declared_end_pose": "standing",
+      "max_body_angle_deg": 65.0,
+      "report_path": "stand_downward_dog/report.json",
+      "report_sha256": "e9cb5d13f18c2467b2459993691b19c0ef429cd28f0f4a6e25d2d556f5e72405",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 799,
+          "max_tilt_deg": 40.2798254767772,
+          "mean_velocity_body": [
+            -0.0010238229256709869,
+            0.00053072899963125,
+            -0.0007194218657364603
+          ],
+          "min_height_m": 0.10843870655528627,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.00472422034343118,
+          "final_error_vs_controller_default_max_rad": 0.65346230189682,
+          "final_error_vs_current_reference_max_rad": 0.07089328282333374,
+          "max_target_step_rad": 0.10094854235649109,
+          "driver_clipped_joint_fraction": 0.0172090112640801,
+          "last_clip": "all",
+          "last_frame": 692,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 8.340293973127924,
+          "mean_velocity_body": [
+            -0.00010986328156033794,
+            0.00020828264455289436,
+            2.3086698961427096e-05
+          ],
+          "min_height_m": 0.16498068880340097,
+          "max_height_m": 0.16502491909485642,
+          "max_joint_speed_rad_s": 0.007353810356566659,
+          "final_max_joint_speed_rad_s": 0.0023275673458829187,
+          "final_error_vs_controller_default_max_rad": 0.6470371698349173,
+          "final_error_vs_current_reference_max_rad": 0.064469150761431,
+          "max_target_step_rad": 0.00023955106735229492,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "all",
+          "last_frame": 693,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "stand_sit_stand",
+      "returncode": 0,
+      "policy_sha256": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc",
+      "descriptor_sha256": "6edfc693c81355a0a63ba3ef4014c3d9d42afdf9122611d1b357a70349d14977",
+      "inputs_changed": false,
+      "declared_end_pose": "standing",
+      "max_body_angle_deg": 65.0,
+      "report_path": "stand_sit_stand/report.json",
+      "report_sha256": "d3314d0f8ce7360100db94b48e16b297436ebb734542f60ec2f4bf4f935e779b",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 693,
+          "max_tilt_deg": 41.892619233814195,
+          "mean_velocity_body": [
+            0.0017593145869365815,
+            -0.0006975470344656806,
+            -0.004100860696531797
+          ],
+          "min_height_m": 0.1174764074217553,
+          "max_height_m": 0.185299531881795,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.013635001466754414,
+          "final_error_vs_controller_default_max_rad": 0.6967711085677173,
+          "final_error_vs_current_reference_max_rad": 0.08710271220866417,
+          "max_target_step_rad": 0.1246747374534607,
+          "driver_clipped_joint_fraction": 0.045935545935545934,
+          "last_clip": "all",
+          "last_frame": 590,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 2.3804415647393644,
+          "mean_velocity_body": [
+            -0.0002546919747702101,
+            -0.00020778209297317424,
+            0.00011200779564346921
+          ],
+          "min_height_m": 0.1797393650801419,
+          "max_height_m": 0.1799522632406542,
+          "max_joint_speed_rad_s": 0.013300357743354242,
+          "final_max_joint_speed_rad_s": 0.0049763376036551475,
+          "final_error_vs_controller_default_max_rad": 0.7031605100953444,
+          "final_error_vs_current_reference_max_rad": 0.0902985440502686,
+          "max_target_step_rad": 0.00012886524200439453,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "all",
+          "last_frame": 591,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "superman",
+      "returncode": 0,
+      "policy_sha256": "56856ba6a02070936d0f12dfda57bd4a8e7c6f757d2ca0ab2bd58b956febb3a1",
+      "descriptor_sha256": "a12dbd2bcabfdc7b4a5eb99de293cd5d47e8e48c46b035d3a7b15776e0c56cb0",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "superman/report.json",
+      "report_sha256": "9075c8933526095c8d886ae06009382eb3a562e6610719046529504fd970aef0",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 815,
+          "max_tilt_deg": 31.069131762624348,
+          "mean_velocity_body": [
+            -0.0030590418462286212,
+            0.0032340818788970066,
+            -0.00456759444402157
+          ],
+          "min_height_m": 0.031243536659953903,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 9.491059156097831,
+          "final_max_joint_speed_rad_s": 0.027439728431813384,
+          "final_error_vs_controller_default_max_rad": 1.1948750396743504,
+          "final_error_vs_current_reference_max_rad": 0.10821743079175322,
+          "max_target_step_rad": 0.36646196246147156,
+          "driver_clipped_joint_fraction": 0.13210633946830266,
+          "last_clip": "all",
+          "last_frame": 707,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 0.8960837731999947,
+          "mean_velocity_body": [
+            0.0003260800610107084,
+            -0.00026203406924497604,
+            -0.0003211123654099144
+          ],
+          "min_height_m": 0.08066564031372546,
+          "max_height_m": 0.08127990653144954,
+          "max_joint_speed_rad_s": 0.02710056356242769,
+          "final_max_joint_speed_rad_s": 0.013899958739829386,
+          "final_error_vs_controller_default_max_rad": 1.201041887711339,
+          "final_error_vs_current_reference_max_rad": 0.09693070921152208,
+          "max_target_step_rad": 0.0002467632293701172,
+          "driver_clipped_joint_fraction": 0.25,
+          "last_clip": "all",
+          "last_frame": 708,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "swim",
+      "returncode": 0,
+      "policy_sha256": "110de063dd48b0ad0f837c0108fb95fde822401cd3fe556b7dce10b53ed1e5f7",
+      "descriptor_sha256": "1877dc1b50a66da75214264e4a0105f602981b877758f0ed7b14d936c5fafd6e",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "swim/report.json",
+      "report_sha256": "fd7ee6696a74b250f2e526418f11028e1fa2e0403c629ec0e4d4a76e458d6b85",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 584,
+          "max_tilt_deg": 13.430849021440242,
+          "mean_velocity_body": [
+            -0.004486059097460279,
+            0.0028518585416790225,
+            -0.009233826834780178
+          ],
+          "min_height_m": 0.031253631534848045,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.016622189243310857,
+          "final_error_vs_controller_default_max_rad": 1.2002690011360746,
+          "final_error_vs_current_reference_max_rad": 0.11432954156759112,
+          "max_target_step_rad": 0.19440993666648865,
+          "driver_clipped_joint_fraction": 0.059788812785388126,
+          "last_clip": "all",
+          "last_frame": 485,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 0.5493708085360101,
+          "mean_velocity_body": [
+            -5.2446955880274245e-05,
+            -7.285205426578879e-05,
+            1.9006752039371468e-05
+          ],
+          "min_height_m": 0.0808792623271554,
+          "max_height_m": 0.0809201785629545,
+          "max_joint_speed_rad_s": 0.017201562154912305,
+          "final_max_joint_speed_rad_s": 0.007886712233811596,
+          "final_error_vs_controller_default_max_rad": 1.198104212390874,
+          "final_error_vs_current_reference_max_rad": 0.09130508300732798,
+          "max_target_step_rad": 0.001850724220275879,
+          "driver_clipped_joint_fraction": 0.4166666666666667,
+          "last_clip": "all",
+          "last_frame": 486,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "twerk",
+      "returncode": 0,
+      "policy_sha256": "2294489e310aa05bd1a4e8915ba5cba7c8b4077cbf7937b7e726d760242f2aa2",
+      "descriptor_sha256": "5ab2dc4b4a8bbfdc3e4ea27cf6874ab485a827f455c5fc58362bb3a78419756d",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 59.99999999999999,
+      "report_path": "twerk/report.json",
+      "report_sha256": "f9c8e8958f23fd12eb1dbeaff139f778c44b23efb75523b528cbf508d954076a",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 604,
+          "max_tilt_deg": 32.554100522107404,
+          "mean_velocity_body": [
+            -0.009986500520252682,
+            -0.0005073513921287505,
+            -0.010160936759705946
+          ],
+          "min_height_m": 0.07889827041922157,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.016045919800819652,
+          "final_error_vs_controller_default_max_rad": 1.2172366719723378,
+          "final_error_vs_current_reference_max_rad": 0.053449075873297114,
+          "max_target_step_rad": 0.1829858124256134,
+          "driver_clipped_joint_fraction": 0.1157560706401766,
+          "last_clip": "all",
+          "last_frame": 504,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 1.293927485524503,
+          "mean_velocity_body": [
+            7.215734584318613e-05,
+            -0.0002163903929878154,
+            -0.00018980864253262603
+          ],
+          "min_height_m": 0.07852306114443484,
+          "max_height_m": 0.07889275515929381,
+          "max_joint_speed_rad_s": 0.01596834618762585,
+          "final_max_joint_speed_rad_s": 0.004971380276789064,
+          "final_error_vs_controller_default_max_rad": 1.2193053994773257,
+          "final_error_vs_current_reference_max_rad": 0.050117005835003836,
+          "max_target_step_rad": 0.0003275871276855469,
+          "driver_clipped_joint_fraction": 0.1266025641025641,
+          "last_clip": "all",
+          "last_frame": 505,
+          "last_holding": true
+        }
+      }
+    },
+    {
+      "name": "upward_dog",
+      "returncode": 0,
+      "policy_sha256": "9fb22f80d472790a0d9e1b7be986e5642b56ba076666aee997a2ef0c1ee212e8",
+      "descriptor_sha256": "dd30fe5ec018320b6dd36a5683d666e1c93f06b2462bad1d867ee1ffb5295979",
+      "inputs_changed": false,
+      "declared_end_pose": "lying",
+      "max_body_angle_deg": 70.0,
+      "report_path": "upward_dog/report.json",
+      "report_sha256": "77dc2dbc24de387e8689f1a13829722567efe9b62bd372075de3d8dc9600b427",
+      "source_changed": false,
+      "stop": null,
+      "completed_sequence": true,
+      "stage_summaries": {
+        "motion": {
+          "samples": 685,
+          "max_tilt_deg": 48.16405023132562,
+          "mean_velocity_body": [
+            -0.006808559895148117,
+            0.00075765107844854,
+            -0.00598483615347533
+          ],
+          "min_height_m": 0.08023874293727776,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 5.733389648401662,
+          "final_max_joint_speed_rad_s": 0.018625250965796692,
+          "final_error_vs_controller_default_max_rad": 1.2031841831466432,
+          "final_error_vs_current_reference_max_rad": 0.06855623471060968,
+          "max_target_step_rad": 0.21879050135612488,
+          "driver_clipped_joint_fraction": 0.06447688564476886,
+          "last_clip": "all",
+          "last_frame": 582,
+          "last_holding": false
+        },
+        "terminal_hold": {
+          "samples": 104,
+          "max_tilt_deg": 1.2033079705532919,
+          "mean_velocity_body": [
+            -0.00012216411071972106,
+            -0.00010461334060372088,
+            -0.0002849257010274303
+          ],
+          "min_height_m": 0.07966180591669607,
+          "max_height_m": 0.08023279764439532,
+          "max_joint_speed_rad_s": 0.018465336747374318,
+          "final_max_joint_speed_rad_s": 0.007502942028130915,
+          "final_error_vs_controller_default_max_rad": 1.207512886636017,
+          "final_error_vs_current_reference_max_rad": 0.06472015229396155,
+          "max_target_step_rad": 0.00029528141021728516,
+          "driver_clipped_joint_fraction": 0.33253205128205127,
+          "last_clip": "all",
+          "last_frame": 583,
+          "last_holding": true
+        }
+      }
+    }
+  ],
+  "evidence_complete": true,
+  "all_sequences_completed": true,
+  "summary_sha256": "25ca89b6866324df497711a2ec7307e6c66b211617a533c160d736fec40e991b",
+  "visual_review": {
+    "contact_sheets": [
+      "artifacts/course-tricks/native-driver-screen-reviewed/contact-sheet-1.png",
+      "artifacts/course-tricks/native-driver-screen-reviewed/contact-sheet-2.png",
+      "artifacts/course-tricks/native-driver-screen-reviewed/contact-sheet-3.png"
+    ],
+    "samples": "Peak torso tilt, peak joint speed and terminal hold for each of12tricks; fullbody framing inspected.",
+    "observation": "Sampled frames show intended standing/seated/lying motion shapes and settled terminal poses. Sparse images do not establish every transient."
+  },
+  "limitations": [
+    "One nominal initial condition per policy, no sensor noise/IMU delay/domain randomization/external push.",
+    "Sneeze reaches15.6rad/s measured peak joint speed; no hardware approval implied.",
+    "Stage duration/terminal hold does not by itself verify semantic completion or precise foot placement.",
+    "No ROS execution, actual Pi latency, return-to-locomotion handoff or hardware measurements.",
+    "Initial audit had one source-drift-flagged trial during a logging-only instrumentation fix; complete final12-trial suite rerun on consistent source, original retained."
+  ],
+  "hardware_validated": false
+}

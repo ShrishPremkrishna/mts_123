@@ -37,5 +37,43 @@
     "Lab2 recording-to-Lab3 replay gap with real saved recording",
     "Final regression, current evidence documentation and durable worktree migration"
   ],
-  "hardware": "User instructed continuing without Pupper access; no motor activation."
+  "hardware": "User instructed continuing without Pupper access; no motor activation.",
+  "latest_checkpoint": {
+    "recorded_utc": "2026-10-28T07:40:20.224225+00:00",
+    "branch": "pupper-foundation",
+    "worktree": "/private/tmp/cs123-pupper-foundation",
+    "head": "24b0c54516eef20f60167538b616bc3340a96e31",
+    "main_clean": true,
+    "last_full_regression": {
+      "source": "81a2eeb",
+      "pytest": 401,
+      "course_checks": 225,
+      "scope": "Earlier complete snapshot; newer changes need final full regression."
+    },
+    "completed_since_recovery": [
+      "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
+      "Lab2 recording-to-Lab3 replay with actual bag review",
+      "Generated standing secret trick reviewed/integrated",
+      "Twelve supplied finite trick native activation/hold screens with no tilt stops",
+      "Course Hailo8L detector downloaded and checksum pinned",
+      "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
+    ],
+    "active_work": {
+      "root": "Python physics-step target slew/export and runtime capability readiness;28targeted tests pass. Final integration/regression/docs/durable worktree relocation pending.",
+      "lab6_recovery": "C++ target slew/native host/validator/installer;host and25validator tests passed, final integration/review pending. Spider pairedreview24b0c54 durable, no promotion.",
+      "optional_recovery": "Flat/heldout complete. Mysterypilot no admissible flight/landing: capability unfinished. Bumpy original5cm terrain-grid contact overflow invalidated diagnostic;10cm resolution correction/guard and rerun pending.",
+      "sit_recovery": "Final durable report/provenance/local installation of improved Sit; no robot orTAapproval."
+    },
+    "gpu_state_at_checkpoint": "Both recovery runtimes had no active GPU workers per owning agents; preserve runtimes for justified corrected experiments. Remote source revisions remain isolated until new runs are frozen.",
+    "backup_status": "Spider/Sit full archives verified. Optionalflat full archive verified; periodiccollector has308 files and one120s timeout on heldout trace; final heldout/Mystery archive still required.",
+    "remaining_completion_gates": [
+      "Complete/review matched command-slew training and native Spider handoff",
+      "Correct and evaluate Bumpy without collision overflow",
+      "Diagnose and complete genuine Mystery flight/landing or explicitly retain unfinished capability",
+      "Final current-source regression, capability matrix and durable checkout",
+      "Later robot read-only inventory/backup and supervised physical validation"
+    ],
+    "robot": "Continue without Pupper per user; no motor activation.",
+    "session_management": "Three existing subagents resumed with their ownership/history; no new chat needed. Current new contract changes are uncommitted and under test; working snapshot being preserved separately."
+  }
 }

@@ -218,6 +218,8 @@ def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, 
                 {k:v for k,v in contract.get("source",{}).items() if k!="path"})
     if driver_identity(baseline["provenance"]) != driver_identity(candidate["provenance"]):
         raise ValueError("Cannot compare different evaluation protocols: driver_target_contract")
+    if baseline['provenance'].get('position_target_slew_contract') != candidate['provenance'].get('position_target_slew_contract'):
+        raise ValueError('Cannot compare different evaluation protocols: position_target_slew_contract')
     if any(r["provenance"].get("zero_policy") for r in (baseline,candidate)):
         raise ValueError("An infrastructure smoke test cannot be promoted as a trained policy")
     if len(baseline["segments"]) != len(candidate["segments"]):

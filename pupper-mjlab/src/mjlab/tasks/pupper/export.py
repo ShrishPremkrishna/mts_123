@@ -276,7 +276,7 @@ def export_pupper_policy_from_env(
   in_dim = _linear_layers(cast(nn.Module, actor.mlp))[0].in_features
   history = in_dim // single_obs_dim
 
-  return convert_pupper_policy(
+  policy = convert_pupper_policy(
     actor,
     action_scale=PUPPER_ACTION_SCALE,
     kp=float(kps[0]),
@@ -290,6 +290,13 @@ def export_pupper_policy_from_env(
     obs_components=obs_components,
     command_clip=command_clip,
   )
+  from mjlab.tasks.pupper.target_slew import target_slew_metadata
+  slew = target_slew_metadata(env)
+  if slew is not None:
+    policy['position_target_slew'] = slew
+    policy['required_controller_features'] = ['position_target_slew_v1']
+    policy['action_types'] = ['position'] * len(slew['joint_names'])
+  return policy
 
 
 def json_forward(policy: dict[str, Any], x: np.ndarray) -> np.ndarray:

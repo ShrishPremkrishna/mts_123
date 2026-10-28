@@ -92,6 +92,10 @@ def settings(args,play):
             raise ValueError('--driver-limits requires --deployment-target-clamp')
         from mjlab.tasks.pupper.deployment_contract import apply_driver_target_clamp
         args.driver_target_contract=apply_driver_target_clamp(cfg,args.driver_limits)
+    if getattr(args,"target_slew_rad_s",None) is not None:
+        from mjlab.tasks.pupper.target_slew import apply_position_target_slew
+        args.position_target_slew_contract=apply_position_target_slew(
+            cfg,args.target_slew_rad_s,getattr(args,'driver_target_contract',None))
     if getattr(args,"compose_com_randomization",False):
         from mjlab.tasks.pupper.deployment_contract import compose_pupper_com_randomization
         compose_pupper_com_randomization(cfg)
@@ -181,7 +185,7 @@ def evaluate(args):
     dump_yaml(args.out/"env.yaml",asdict(cfg))
     configure_torch_backends()
     env=ManagerBasedRlEnv(cfg,device=args.device)
-    samples={k:[] for k in ("joint_pos","root_position","root_quaternion","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm","raw_actions","unclipped_target_joint_pos","target_joint_pos","deployment_clipped_target_joint_pos","target_clipped","target_range_excess_rad","physical_target_joint_pos","actuator_input_target_joint_pos")}
+    samples={k:[] for k in ("joint_pos","root_position","root_quaternion","phase","episode","command","effective_command","valid","velocity","torque","foot_contact","foot_speed_xy","heading","terminated","timeout","segment","height","vertical_velocity","foot_force_norm","raw_actions","unclipped_target_joint_pos","target_joint_pos","deployment_clipped_target_joint_pos","target_clipped","target_range_excess_rad","physical_target_joint_pos","applied_target_joint_pos","actuator_input_target_joint_pos")}
     try:
         from mjlab.tasks.pupper.randomization_audit import write_randomization_snapshot
         from mjlab.tasks.pupper.collision_audit import collision_model_contract,flat_torso_clearance
@@ -209,7 +213,7 @@ def evaluate(args):
         action_ids=[action_term.target_names.index(n) for n in JOINT_NAMES]
         run["action_target_audit"]=dict(wrapper_clip_actions=agent.clip_actions,
             action_term_clip=action_term.cfg.clip,
-            meaning="raw actor actions; unclipped post-wrapper affine request; target_joint_pos after configured clip before latency/bias; physical_target_joint_pos subtracts bias before latency; actuator_input_target_joint_pos is post-step target after action-term latency/bias but before internal actuator delay (reset steps excluded); deployment target clamps affine request to model joint ranges; clipping fractions use unclipped request")
+            meaning="raw actor actions; unclipped post-wrapper affine request; target_joint_pos is DESIRED target after configured clip BEFORE optional slew/latency/bias; physical_target_joint_pos is that desired request minus bias, not filtered actuator input; applied_target_joint_pos is the last physics-step encoder-coordinate target AFTER optional slew/action-term latency; actuator_input_target_joint_pos subtracts encoder bias before internal actuator delay. Post-step reset rows are excluded. Samples at policy frequency do not demonstrate every physics-step rate bound; those are checked separately. Deployment counterfactual clamps the affine request to model joint ranges; clipping fractions use unclipped request")
         jump_windows=None
         if "Mystery" in args.task:
             jump_windows=(float(cfg.observations["actor"].terms["policy"].params["slot_s"]),
@@ -264,6 +268,8 @@ def evaluate(args):
                     samples["valid"].append((age>=args.warmup)&(step*dt>=args.warmup))
                     samples["segment"].append(segment)
                     _,_,done,_=wrapped.step(actions)
+                    applied_target=getattr(action_term,'applied_actions',action_term._processed_actions)
+                    samples['applied_target_joint_pos'].append(applied_target[:,action_ids].detach().cpu().numpy().copy())
                     samples["actuator_input_target_joint_pos"].append(robot.data.joint_pos_target[:,joint_ids].detach().cpu().numpy().copy())
                     terminated=env.reset_terminated.cpu().numpy().copy(); timeout=env.reset_time_outs.cpu().numpy().copy()
                     samples["terminated"].append(terminated); samples["timeout"].append(timeout)
@@ -297,6 +303,7 @@ def main():
         parser.add_argument("--device",default="cuda:0")
         parser.add_argument("--deployment-target-clamp",action="store_true",help="Opt in to the C++ joint-target clamp before simulation; preserves normalized last_action observations")
         parser.add_argument("--driver-limits",type=Path,help="Explicit JSON with named hardware-driver joint limits; composes a second clamp and requires --deployment-target-clamp")
+        parser.add_argument("--target-slew-rad-s",type=float,help="Opt-in physics-step position-command slew (0<rate<=15); requires explicit controller/driver limits and matched deployment support")
         parser.add_argument("--compose-com-randomization",action="store_true",help="Opt in to preserving the independent base COM offset during density randomization; legacy behavior remains default")
         parser.add_argument("--locomotion-torso-contact",action="store_true",help="Opt in to one torso hull while retaining the original knee/foot spheres; new physical model requires reevaluation")
     tr.add_argument("--num-envs",type=int,default=4096); tr.add_argument("--iterations",type=int,default=3000)
