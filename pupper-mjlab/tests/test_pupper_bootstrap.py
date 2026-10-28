@@ -87,6 +87,36 @@ def test_promotion_rejects_faster_failing_policy():
     with pytest.raises(ValueError): b.compare_evaluations(baseline,candidate)
 
 
+@pytest.mark.parametrize('key,value',[
+    ('mean_xy_error_m_s',float('nan')),
+    ('mean_torque_squared_nm2',None),
+    ('mean_contact_slip_m_s',float('inf')),
+    ('mean_abs_yaw_error_rad_s',-1.),
+    ('failures',float('nan')),
+    ('valid_samples',1000.5),
+    ('command',[1.5,0,float('nan')]),
+])
+def test_promotion_rejects_invalid_evidence(key,value):
+    import copy
+    segment=dict(command=[1.5,0,0],valid_samples=1000,failures=0,mean_xy_error_m_s=.2,
+                 mean_torque_squared_nm2=1.,mean_contact_slip_m_s=.1,mean_abs_yaw_error_rad_s=.1)
+    baseline=dict(provenance={},segments=[segment])
+    candidate=copy.deepcopy(baseline);candidate['segments'][0]['mean_xy_error_m_s']=.1
+    candidate['segments'][0][key]=value
+    with pytest.raises(ValueError,match='Promotion requires'):
+        b.compare_evaluations(baseline,candidate)
+
+
+def test_promotion_rejects_missing_cost_and_invalid_thresholds():
+    segment=dict(command=[1.5,0,0],valid_samples=1000,failures=0,mean_xy_error_m_s=.2,
+                 mean_contact_slip_m_s=.1,mean_abs_yaw_error_rad_s=.1)
+    report=dict(provenance={},segments=[segment])
+    with pytest.raises(ValueError,match='mean_torque_squared'):
+        b.compare_evaluations(report,report)
+    with pytest.raises(ValueError,match='thresholds'):
+        b.compare_evaluations(report,report,min_improvement=float('nan'))
+
+
 def test_target_audit_preserves_actor_history_and_exposes_preclip_request():
     import torch
     from types import SimpleNamespace

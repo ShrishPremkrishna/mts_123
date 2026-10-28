@@ -196,6 +196,11 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08):
 
 def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, max_cost_regression=.2):
     """A conservative per-seed promotion rule; multiple held-out seeds remain required."""
+    def finite_number(value):
+        return isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, (bool, np.bool_)) and np.isfinite(value)
+    if (not all(finite_number(v) for v in (min_speed,min_improvement,max_cost_regression))
+            or min_speed<=0 or min_improvement<0 or max_cost_regression<0):
+        raise ValueError("Invalid promotion thresholds")
     keys=("task", "seed", "num_envs", "seconds", "warmup", "commands", "randomized", "reset_each_command", "no_heading_hold")
     for key in keys:
         if baseline["provenance"].get(key) != candidate["provenance"].get(key):
@@ -219,19 +224,32 @@ def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, 
         raise ValueError("Different command sequences")
     reasons=[]; gains=[]
     for base,new in zip(baseline["segments"],candidate["segments"]):
+        for segment in (base,new):
+            command=segment.get("command")
+            if not isinstance(command,(list,tuple)) or len(command)!=3 or not all(finite_number(v) for v in command):
+                raise ValueError("Promotion requires finite three-axis commands")
+            for key in ("failures","valid_samples"):
+                value=segment.get(key)
+                if not finite_number(value) or value<0 or int(value)!=value:
+                    raise ValueError(f"Promotion requires nonnegative integer {key}")
         if base["command"] != new["command"]: raise ValueError("Different command sequence")
         label=str(base["command"])
         if new["failures"] > base["failures"]: reasons.append(f"more failures at {label}")
         if min(base["valid_samples"],new["valid_samples"]) < 100:
             reasons.append(f"too few steady-state samples at {label}"); continue
+        for segment in (base,new):
+            for key in ("mean_xy_error_m_s","mean_torque_squared_nm2","mean_contact_slip_m_s","mean_abs_yaw_error_rad_s"):
+                value=segment.get(key)
+                if not finite_number(value) or value<0:
+                    raise ValueError(f"Promotion requires finite nonnegative {key}")
         error=base["mean_xy_error_m_s"]; error_new=new["mean_xy_error_m_s"]
         if abs(base["command"][0]) >= min_speed:
             gains.append((error-error_new)/max(error,1e-6))
         elif error_new > max(.02,error)*(1+max_cost_regression):
             reasons.append(f"low-speed tracking regressed at {label}")
         for metric in ("mean_torque_squared_nm2","mean_contact_slip_m_s","mean_abs_yaw_error_rad_s"):
-            old,new_value=base.get(metric),new.get(metric)
-            if old is not None and new_value is not None and new_value>max(old,.01)*(1+max_cost_regression):
+            old,new_value=base[metric],new[metric]
+            if new_value>max(old,.01)*(1+max_cost_regression):
                 reasons.append(f"{metric} regressed at {label}")
     if not gains: reasons.append("no high-speed segments")
     if gains and min(gains)<min_improvement: reasons.append("not every high-speed direction/segment improved enough")
