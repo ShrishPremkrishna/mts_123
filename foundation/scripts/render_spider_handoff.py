@@ -12,7 +12,8 @@ from PIL import Image, ImageDraw
 def render(left, right, output):
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
     panels=[]
-    for folder,label in [(left,'Legacy activation'),(right,'Selected clip activation')]:
+    inputs=[(left,'Exported policy physics')] if right is None else [(left,'Legacy activation'),(right,'Selected clip activation')]
+    for folder,label in inputs:
         model=mujoco.MjModel.from_binary_path(str(folder/'model.mjb'))
         # Presentation only: brighten the headlight and floor; qpos/model physics
         # remain the exact saved rollout. Dark mesh materials otherwise hide feet.
@@ -42,7 +43,8 @@ def render(left, right, output):
                     images.append(np.asarray(im))
                 combined=np.concatenate(images,axis=1);writer.append_data(combined)
                 t=panels[0][2][i]['time_s']
-                if any(abs(t-target)<1/52 for target in (22.6,23.1,23.6,24.1,27.,32.)):
+                shot_times=(.5,1.5,2.5,4.,6.,9.) if right is None else (22.6,23.1,23.6,24.1,27.,32.)
+                if any(abs(t-target)<1/52 for target in shot_times):
                     shots.append(combined)
         if shots:
             imageio.imwrite(output.with_suffix('.contact-sheet.png'),np.concatenate(shots,axis=0))
@@ -52,5 +54,5 @@ def render(left, right, output):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('left',type=Path);parser.add_argument('right',type=Path);parser.add_argument('output',type=Path)
+    parser.add_argument('left',type=Path);parser.add_argument('right',type=Path,nargs='?');parser.add_argument('output',type=Path)
     args=parser.parse_args();render(args.left,args.right,args.output)

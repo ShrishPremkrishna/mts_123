@@ -61,6 +61,32 @@ def make_model(contact_model):
     return model, contract
 
 
+def stage_plan(trick, single_motion=False):
+    if single_motion:
+        metadata=trick['trick'];clips=metadata.get('clips')
+        if clips:
+            if len(clips)!=1 or clips[0].get('loop') or clips[0].get('next'):
+                raise ValueError('single-motion mode requires one finite clip without a next clip')
+            clip=clips[0];name=clip['name'];frames=clip['end']-clip['start']
+        else:
+            name='all';frames=len(trick['motion']['joint_pos'])
+        duration=(frames-1)/metadata['fps']
+        return [('motion','trick',.5+1+duration,[0,0,0],name),
+                ('terminal_hold','trick',2,[0,0,0],'')]
+    clips={c['name']:c for c in trick['trick']['clips']};fps=trick['trick']['fps']
+    down=(clips['spider_down']['end']-clips['spider_down']['start']-1)/fps
+    up=(clips['spider_up']['end']-clips['spider_up']['start']-1)/fps
+    return [('entry','trick',.5+1+down+.3,[0,0,0],'spider_down'),
+            ('walk_activation','walk',4.2,[0,0,0],''),
+            ('walk_forward','walk',2,[.10,0,0],''),
+            ('walk_stop_1','walk',1,[0,0,0],''),
+            ('walk_backward','walk',2,[-.10,0,0],''),
+            ('walk_turn','walk',2,[0,0,.2],''),
+            ('walk_stop_before_exit','walk',2,[0,0,0],''),
+            ('exit','trick',.5+1+up+.3,[0,0,0],'spider_up'),
+            ('standing_hold','trick',1,[0,0,0],'')]
+
+
 def run(args):
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
     sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
@@ -72,7 +98,10 @@ def run(args):
         'asset_zoo/robots/pupper_v3/pupper_constants.py','entity/entity.py','sim/sim.py')]
     source_before = {str(p.relative_to(ROOT)):sha(p) for p in sources}
     binary, compile_command = build_controller(output)
-    trick = json.loads(args.trick_policy.read_text()); walking = json.loads(args.walk_policy.read_text())
+    single_motion=getattr(args,'single_motion',False)
+    if args.walk_policy is None and not single_motion:raise ValueError('--walk-policy required for Spider handoff')
+    walk_path=args.walk_policy or args.trick_policy  # second host slot unused in single-motion mode
+    trick = json.loads(args.trick_policy.read_text()); walking = json.loads(walk_path.read_text())
     from mjlab.asset_zoo.robots.pupper_v3.pupper_constants import JOINT_NAMES
     model, contract = make_model(args.contact_model); data = mujoco.MjData(model)
     mujoco.mj_saveModel(model,str(output/'model.mjb'),None)
@@ -83,7 +112,7 @@ def run(args):
     root_q, root_v = int(model.jnt_qposadr[free]), int(model.jnt_dofadr[free])
     body = model.body('base_link').id
     data.qpos[root_q:root_q+7] = [0,0,.18,1,0,0,0]
-    data.qpos[qadr] = trick['motion']['joint_pos'][0]
+    data.qpos[qadr] = trick['default_joint_pos'] if single_motion else trick['motion']['joint_pos'][0]
     mujoco.mj_forward(model,data)
     lower = np.full(12,-np.inf); upper=np.full(12,np.inf)
     if args.driver_limits:
@@ -92,21 +121,10 @@ def run(args):
         lower=np.asarray([limits[name][0] for name in JOINT_NAMES])
         upper=np.asarray([limits[name][1] for name in JOINT_NAMES])
         if lower.shape!=(12,) or upper.shape!=(12,) or not np.all(lower<upper): raise ValueError('invalid driver bounds')
-    clips={c['name']:c for c in trick['trick']['clips']}; fps=trick['trick']['fps']
-    down=(clips['spider_down']['end']-clips['spider_down']['start']-1)/fps
-    up=(clips['spider_up']['end']-clips['spider_up']['start']-1)/fps
     # Exact application timing: entry init/fade plus clip and .3s; walking
     # activation 2+2s plus .2s; bounded commands followed by a 2s zero stop.
-    stages=[('entry','trick',.5+1+down+.3,[0,0,0],'spider_down'),
-            ('walk_activation','walk',4.2,[0,0,0],''),
-            ('walk_forward','walk',2,[.10,0,0],''),
-            ('walk_stop_1','walk',1,[0,0,0],''),
-            ('walk_backward','walk',2,[-.10,0,0],''),
-            ('walk_turn','walk',2,[0,0,.2],''),
-            ('walk_stop_before_exit','walk',2,[0,0,0],''),
-            ('exit','trick',.5+1+up+.3,[0,0,0],'spider_up'),
-            ('standing_hold','trick',1,[0,0,0],'')]
-    proc=subprocess.Popen([str(binary),str(args.trick_policy.resolve()),str(args.walk_policy.resolve())],
+    stages=stage_plan(trick,single_motion)
+    proc=subprocess.Popen([str(binary),str(args.trick_policy.resolve()),str(walk_path.resolve())],
                           stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=(output/'controller.log').open('w'),text=True,bufsize=1)
     def rpc(request):
         proc.stdin.write(json.dumps(request)+'\n'); proc.stdin.flush()
@@ -169,6 +187,8 @@ def run(args):
                 failure=dict(time_s=current_time,reason='entry controller did not confirm spider_idle');break
             if stage=='exit' and not (state.get('clip')=='spider_up' and state.get('holding')):
                 failure=dict(time_s=current_time,reason='exit controller did not confirm final hold');break
+            if stage=='terminal_hold' and not state.get('holding'):
+                failure=dict(time_s=current_time,reason='finite clip did not confirm terminal hold');break
     finally:
         proc.stdin.close();proc.wait(timeout=10)
     traces=output/'trajectory.json';traces.write_text(json.dumps(samples,separators=(',',':'))+'\n')
@@ -192,15 +212,16 @@ def run(args):
             driver_clipped_joint_fraction=float(np.mean(np.abs(np.array([s['driver_target'] for s in rows])-np.array([s['target'] for s in rows]))>1e-7)),
             last_clip=rows[-1]['clip'],last_frame=rows[-1]['frame'],last_holding=rows[-1]['holding'])
     source_after={str(p.relative_to(ROOT)):sha(p) for p in sources}
-    report=dict(protocol='continuous_exported_controller_spider_handoff_v1',hardware_validated=False,
+    report=dict(protocol='exported_finite_trick_activation_and_hold_v1' if single_motion else 'continuous_exported_controller_spider_handoff_v1',hardware_validated=False,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
         physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.',
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
-                 'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.'],
-        trick_policy_sha256=sha(args.trick_policy),walk_policy_sha256=sha(args.walk_policy),
+                 'Single finite clip plus2s hold; no walking handoff tested.' if single_motion else 'No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.',
+                 'MuJoCo derived contacts/forces accompany the forward solve immediately before integration; recorded qpos is after integration, at most1/520s later.'],
+        trick_policy_sha256=sha(args.trick_policy),walk_policy_sha256=None if single_motion else sha(args.walk_policy),
         driver_limits=None if args.driver_limits is None else dict(path=str(args.driver_limits),sha256=sha(args.driver_limits)),
         sources_start=source_before,sources_end=source_after,source_changed=source_before!=source_after,
         compiler_command=compile_command,activations=activations,stage_summaries=summaries,stop=failure,
@@ -213,7 +234,8 @@ def run(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--trick-policy',type=Path,required=True);parser.add_argument('--walk-policy',type=Path,required=True)
+    parser.add_argument('--trick-policy',type=Path,required=True);parser.add_argument('--walk-policy',type=Path)
+    parser.add_argument('--single-motion',action='store_true',help='One finite trick plus2s terminal hold; no walking controller used')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)
     parser.add_argument('--clip-anchor',action='store_true',help='Compare selected-clip anchor proposal; default reproduces legacy controller.')

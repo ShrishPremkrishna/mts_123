@@ -83,3 +83,13 @@ def test_compiled_contact_worlds_are_fixed_and_distinct():
         assert all((model.geom_contype[g],model.geom_conaffinity[g])==(0,1) for g in active_hulls)
         assert all((model.geom_contype[g],model.geom_conaffinity[g])==(1,1) for g in balls)
         assert model.opt.timestep==1/520
+
+
+def test_single_finite_motion_holds_without_restarting_reference():
+    policy={'trick':{'fps':50},'motion':{'joint_pos':[[0.]*12]*298}}
+    stages=handoff.stage_plan(policy,True)
+    assert stages[0]==('motion','trick',.5+1+297/50,[0,0,0],'all')
+    assert stages[1]==('terminal_hold','trick',2,[0,0,0],'')
+    policy['trick']['clips']=[{'name':'loop','start':0,'end':298,'loop':True}]
+    with pytest.raises(ValueError,match='finite clip'):
+        handoff.stage_plan(policy,True)

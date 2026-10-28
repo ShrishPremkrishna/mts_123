@@ -1,0 +1,8 @@
+description: A gentle standing sway and small body rise, followed by a return to a
+  quiet standing pose.
+type: policy
+policy: policy.json
+start_pose: standing
+end_pose: standing
+max_body_angle_deg: 60
+secret: true

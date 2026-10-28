@@ -1,0 +1,376 @@
+{
+  "reviewed_utc": "2026-10-28T06:31:48.074445+00:00",
+  "decision": "Install locally as a secret, simulation-reviewed finite trick; hardware approval remains pending.",
+  "capability": "Gentle standing sway and approximately1.2cm body rise, followed by a quiet standing pose; not a multi-step dance.",
+  "policy_sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+  "checkpoint_sha256": "3075679f7c809112d312f81423fba4d7e003603e457306fedf7fbe2d3d7b29e3",
+  "motion_sha256": "a56338afd2b8437b0bff96dc9f0b469e9b4ffd4262de89fb4f3af1f578eff5c6",
+  "training": {
+    "iterations": 3000,
+    "num_envs": 4096,
+    "seed": 42,
+    "source_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+    "actuation_contract": {
+      "contract": "deployment_joint_target_clamp_v1",
+      "limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "order": "raw action retained; affine target; absolute joint clipping; encoder-bias correction; actuator latency",
+      "raw_action_history_preserved": true
+    },
+    "com_randomization_contract": {
+      "contract": "density_preserving_independent_base_com_v1",
+      "rng_draw_order_preserved": true,
+      "event_order": [
+        "push_robot",
+        "base_com",
+        "encoder_bias",
+        "foot_friction",
+        "pd_gains",
+        "inertial"
+      ],
+      "effective_at": "startup; sampled once per world, retained across resets",
+      "scope": "density-only pseudo-inertia retaining the already sampled additive body-frame COM offset"
+    },
+    "collision_contract": {
+      "contract": "tracking_ground_hulls_v1",
+      "hull_count": 9,
+      "contype": 0,
+      "conaffinity": 1,
+      "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+    }
+  },
+  "suites": {
+    "gpu_controller_limits": {
+      "passed": 7,
+      "tested": 7,
+      "reports": {
+        "com_front-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.0073987278155982494,
+          "worst_orientation_error_deg": 1.071177018281931,
+          "rms_joint_error_rad": 0.020108310508987204,
+          "peak_joint_speed_rad_s": 2.4052329063415527,
+          "peak_motor_torque_nm": 1.7861984968185425,
+          "deployment_target_clamp": true
+        },
+        "com_left-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007602132391184568,
+          "worst_orientation_error_deg": 1.4477742729852159,
+          "rms_joint_error_rad": 0.020851138455048535,
+          "peak_joint_speed_rad_s": 3.3474693298339844,
+          "peak_motor_torque_nm": 2.048985481262207,
+          "deployment_target_clamp": true
+        },
+        "heavy-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.0075262365862727165,
+          "worst_orientation_error_deg": 1.1862861584954032,
+          "rms_joint_error_rad": 0.026489527353548235,
+          "peak_joint_speed_rad_s": 2.5605225563049316,
+          "peak_motor_torque_nm": 1.828608751296997,
+          "deployment_target_clamp": true
+        },
+        "nominal-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.0075895460322499275,
+          "worst_orientation_error_deg": 1.276542529260565,
+          "rms_joint_error_rad": 0.02141667644892449,
+          "peak_joint_speed_rad_s": 3.1302402019500732,
+          "peak_motor_torque_nm": 1.7864121198654175,
+          "deployment_target_clamp": true
+        },
+        "randomized-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007361319847404957,
+          "worst_orientation_error_deg": 2.1155384503972345,
+          "rms_joint_error_rad": 0.03449368748237914,
+          "peak_joint_speed_rad_s": 3.4219813346862793,
+          "peak_motor_torque_nm": 2.0635294914245605,
+          "deployment_target_clamp": true
+        },
+        "randomized-s202": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007103700656443834,
+          "worst_orientation_error_deg": 1.8443452804207554,
+          "rms_joint_error_rad": 0.03410363990135509,
+          "peak_joint_speed_rad_s": 3.1001436710357666,
+          "peak_motor_torque_nm": 1.9441139698028564,
+          "deployment_target_clamp": true
+        },
+        "randomized-s303": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.006839226000010967,
+          "worst_orientation_error_deg": 1.8434963114145035,
+          "rms_joint_error_rad": 0.03469855086056877,
+          "peak_joint_speed_rad_s": 2.1650118827819824,
+          "peak_motor_torque_nm": 2.0586419105529785,
+          "deployment_target_clamp": true
+        }
+      },
+      "full_report": "artifacts/generated/pupper-generated-trained/generated-composed/evaluation/evaluation.json"
+    },
+    "cpu_class_driver_limits": {
+      "passed": 7,
+      "tested": 7,
+      "reports": {
+        "com_front-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007609736640006304,
+          "worst_orientation_error_deg": 1.4665740908468727,
+          "rms_joint_error_rad": 0.02053262730118875,
+          "peak_joint_speed_rad_s": 4.114150047302246,
+          "peak_motor_torque_nm": 1.7761789560317993,
+          "deployment_target_clamp": true
+        },
+        "com_left-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007710302714258432,
+          "worst_orientation_error_deg": 1.4077555940406064,
+          "rms_joint_error_rad": 0.021874926965873513,
+          "peak_joint_speed_rad_s": 3.2158827781677246,
+          "peak_motor_torque_nm": 1.778719186782837,
+          "deployment_target_clamp": true
+        },
+        "heavy-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007973027415573597,
+          "worst_orientation_error_deg": 1.2598790167302225,
+          "rms_joint_error_rad": 0.02696419089990044,
+          "peak_joint_speed_rad_s": 2.8850536346435547,
+          "peak_motor_torque_nm": 1.8438305854797363,
+          "deployment_target_clamp": true
+        },
+        "nominal-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007809252943843603,
+          "worst_orientation_error_deg": 1.456398585773089,
+          "rms_joint_error_rad": 0.021610290338761492,
+          "peak_joint_speed_rad_s": 4.339042663574219,
+          "peak_motor_torque_nm": 1.783137321472168,
+          "deployment_target_clamp": true
+        },
+        "randomized-s101": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007626945152878761,
+          "worst_orientation_error_deg": 1.6874384915877667,
+          "rms_joint_error_rad": 0.028194012732115945,
+          "peak_joint_speed_rad_s": 2.172074556350708,
+          "peak_motor_torque_nm": 1.7655364274978638,
+          "deployment_target_clamp": true
+        },
+        "randomized-s202": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.006231049541383982,
+          "worst_orientation_error_deg": 1.8100759879071064,
+          "rms_joint_error_rad": 0.02398283906809785,
+          "peak_joint_speed_rad_s": 2.379253387451172,
+          "peak_motor_torque_nm": 1.3579620122909546,
+          "deployment_target_clamp": true
+        },
+        "randomized-s303": {
+          "reference_resets": 0,
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.007157477084547281,
+          "worst_orientation_error_deg": 1.6711250581665493,
+          "rms_joint_error_rad": 0.03138224906324285,
+          "peak_joint_speed_rad_s": 2.4121475219726562,
+          "peak_motor_torque_nm": 1.3363103866577148,
+          "deployment_target_clamp": true
+        }
+      },
+      "full_report": "artifacts/generated/pupper-generated-trained/evaluation-cpu-driver/evaluation.json"
+    }
+  },
+  "export_checks": {
+    "passed": true,
+    "strict_actor_load_passed": true,
+    "metadata_differences": [],
+    "random_input_max_abs_error": 1.6811178636944035e-06,
+    "live_input_max_abs_error": 1.3480772598217783e-07
+  },
+  "native_inference_parity": {
+    "backend": "vendored RTNeural Eigen float32",
+    "hardware_validated": false,
+    "input_dimension": 69,
+    "inputs": 512,
+    "max_abs_error_vs_json_float64": 7.721111421332694e-07,
+    "output_dimension": 12,
+    "passed": true,
+    "tolerance": 0.0001,
+    "policy_sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+    "fixture_sha256": "59720fd8745084185e0d4f076a527d9fe7aab9058c5ce5e4c41a00cdd1ab510a",
+    "binary_sha256": "17da1beaec524a376077810dd1b848dbdbcf2bb00e80a3c946f8b61ba70509d5"
+  },
+  "continuous_native_activation": {
+    "protocol": "exported_finite_trick_activation_and_hold_v1",
+    "contact_contract": {
+      "contract": "tracking_ground_hulls_v1",
+      "hull_count": 9,
+      "contype": 0,
+      "conaffinity": 1,
+      "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+    },
+    "clip_activation_anchor": "selected_clip_first_frame",
+    "physical_state_resets_after_initialization": 0,
+    "physics_hz": 520,
+    "controller_inference_hz": 52,
+    "action_delay_s": 0.016,
+    "driver_limits": {
+      "path": "foundation/configs/class-driver-joint-limits.json",
+      "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3"
+    },
+    "stage_summaries": {
+      "motion": {
+        "samples": 387,
+        "max_tilt_deg": 1.9615204645337976,
+        "mean_velocity_body": [
+          0.00024266527338792643,
+          0.0002517913835675761,
+          -0.0024937364643391395
+        ],
+        "min_height_m": 0.15378560854355097,
+        "max_height_m": 0.17996372041420117,
+        "max_joint_speed_rad_s": 5.591066750877284,
+        "final_max_joint_speed_rad_s": 0.044638892836807914,
+        "final_error_vs_controller_default_max_rad": 0.03679654089648465,
+        "final_error_vs_current_reference_max_rad": 0.044524521822998375,
+        "max_target_step_rad": 0.04211902618408203,
+        "driver_clipped_joint_fraction": 0.0,
+        "last_clip": "all",
+        "last_frame": 296,
+        "last_holding": false
+      },
+      "terminal_hold": {
+        "samples": 104,
+        "max_tilt_deg": 0.5375576776697604,
+        "mean_velocity_body": [
+          -0.0011838671249328025,
+          -0.00037747742885547325,
+          -0.0002823342847255996
+        ],
+        "min_height_m": 0.16165734921193667,
+        "max_height_m": 0.1622249670616827,
+        "max_joint_speed_rad_s": 0.048057984068431356,
+        "final_max_joint_speed_rad_s": 0.008281702519263193,
+        "final_error_vs_controller_default_max_rad": 0.03584464743318161,
+        "final_error_vs_current_reference_max_rad": 0.04357262835969533,
+        "max_target_step_rad": 0.002880530431866646,
+        "driver_clipped_joint_fraction": 0.0,
+        "last_clip": "all",
+        "last_frame": 297,
+        "last_holding": true
+      }
+    },
+    "source_changed": false,
+    "stop": null,
+    "completed_sequence": true,
+    "caveats": [
+      "Native CPU solver at520Hz differs from250Hz training Warp solver.",
+      "Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.",
+      "Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.",
+      "Single finite clip plus2s hold; no walking handoff tested.",
+      "MuJoCo derived contacts/forces accompany the forward solve immediately before integration; recorded qpos is after integration, at most1/520s later."
+    ]
+  },
+  "observed_motion": {
+    "active_policy_root_xyz_range_m": [
+      0.00808850924540805,
+      0.006789435584746872,
+      0.011747522392873494
+    ],
+    "peak_motor_torque_nm": 1.873382347513242,
+    "scope": "Nominal continuous native replay. Root displacement is not an intended travel capability."
+  },
+  "visual_review": {
+    "inspected": [
+      "artifacts/generated/pupper-generated-trained/physics-driver.contact-sheet.png",
+      "artifacts/generated/pupper-generated-trained/native-driver-activation.contact-sheet.png"
+    ],
+    "finding": "Saved frames show a modest standing rise/sway and return, without an apparent fall. Sparse sampled frames cannot establish every transient."
+  },
+  "integration": {
+    "descriptor": "gemini_pupper/tricks/secret_dance/trick.yaml",
+    "secret": true,
+    "password_created": false,
+    "robot_activated": false,
+    "targeted_regression": {
+      "command": "python -m pytest foundation/tests/test_spider_handoff.py gemini_pupper/tests -q -p no:cacheprovider",
+      "passed": 99,
+      "warnings": [
+        "torch.jit.script deprecation"
+      ],
+      "seconds": 13.58
+    }
+  },
+  "limitations": [
+    "Hardware, ROS process integration, live Gemini dialogue, thermal load and user-visible performance remain untested.",
+    "Training and GPU suite use controller limits only; tighter class-driver target limits were independently tested on CPU.",
+    "Seven selected scenarios are a bounded robustness screen; no external pushes or arbitrary terrain were tested.",
+    "Actual installed robot driver limits remain unverified; nominal native test does not include sensor/parameter randomization.",
+    "Generated motion is deliberately modest; its name secret_dance is an identifier, not a claim of a complex dance."
+  ],
+  "hardware_validated": false,
+  "ta_approval_recorded": false
+}

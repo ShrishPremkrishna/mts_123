@@ -1,5 +1,5 @@
 {
-  "checked_utc": "2026-10-28T00:46:45.627285+00:00",
+  "checked_utc": "2026-10-28T06:31:48.135569+00:00",
   "scope": "Native policy files, descriptors and reference contracts only; no simulated execution or hardware capability claim.",
   "validator_sha256": "3ab508107d6ee8e9df292928d45ef780891bcff4000dff9029fd9eded31b37b1",
   "policies": [
@@ -22,6 +22,11 @@
       "path": "gemini_pupper/tricks/push_up/policy.json",
       "native_contract_valid": true,
       "sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a"
+    },
+    {
+      "path": "gemini_pupper/tricks/secret_dance/policy.json",
+      "native_contract_valid": true,
+      "sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520"
     },
     {
       "path": "gemini_pupper/tricks/sit/policy.json",
@@ -91,6 +96,7 @@
     "lie_sit_lie",
     "pee",
     "push_up",
+    "secret_dance",
     "sit_stay_shake",
     "sneeze",
     "spider",

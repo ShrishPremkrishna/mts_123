@@ -1,0 +1,27 @@
+{
+  "policy_run": null,
+  "walk_run": null,
+  "policy_source": {
+    "type": "local",
+    "path": "/private/tmp/cs123-pupper-foundation/artifacts/generated/pupper-generated-trained/generated-composed/runs/foundation_generated_trick_deployclamp_composedcom_groundhulls_s42_20261027T234057Z_7613760a/policy.json",
+    "sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520"
+  },
+  "walk_source": null,
+  "files": {
+    "policy.json": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+    "trick.yaml": "b270228662732d33e7c4536b73ff28f569f641b6ed246517d2be31ad5f530861"
+  },
+  "hardware_validated": false,
+  "ta_approval_recorded": false,
+  "simulation_review": {
+    "summary": "foundation/results/generated-motion-trained-review.json",
+    "policy_sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+    "source_motion_sha256": "a56338afd2b8437b0bff96dc9f0b469e9b4ffd4262de89fb4f3af1f578eff5c6",
+    "checkpoint_sha256": "3075679f7c809112d312f81423fba4d7e003603e457306fedf7fbe2d3d7b29e3",
+    "gpu_controller_limit_suite": "7 of 7 HOLDS UP",
+    "cpu_class_driver_limit_suite": "7 of 7 HOLDS UP",
+    "native_export": "Continuous selected-clip activation, finite motion and2s terminal hold completed in nominal full-hull simulation with class-driver command bounds; no physical reset.",
+    "hardware_validated": false,
+    "ta_approval_recorded": false
+  }
+}
