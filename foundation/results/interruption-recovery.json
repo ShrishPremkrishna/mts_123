@@ -39,10 +39,10 @@
   ],
   "hardware": "User instructed continuing without Pupper access; no motor activation.",
   "latest_checkpoint": {
-    "recorded_utc": "2026-10-28T13:38:15.524001+00:00",
+    "recorded_utc": "2026-10-28T16:41:48.984708+00:00",
     "branch": "pupper-foundation",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
-    "head": "e06496bc3a6864dc3dcaca64dc521d6dda4e8a31",
+    "head": "be7ff878321f672366e225cecfbde53aa4ab6596",
     "main_clean": true,
     "last_full_regression": {
       "source": "3766cc0608b0bcc97ae5849c09cca040d4634565",
@@ -66,10 +66,10 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Canonical integration complete. Composite exact-source validation and bothGPU/native independent reviews are saved. Allcompute is closed; only documented robot/account gates and17:00UTC finalautomationhandoff remain. No policy promoted by finalencoderstudy.",
-      "optional_recovery": "Complete. Both final9494 arms, all18GPU evaluations, full250-file remote inventory, archives and analyses preserved. Collector retired and GPU1 released13:19:36UTC. No jobs or collectors remain.",
+      "root": "Overnight work closed at user request. Schedule confirmed PAUSED. No active training, collectors or subagent assignments. Read-only robot inventory/backup and supervised hardware/account validation are the next gates; no hardware-validated or globally optimized claim.",
+      "optional_recovery": "Complete. Both final9494 arms, all18GPU evaluations, full250-file remote inventory, archives and analyses preserved. Collector retired and GPU1 released13:19:36UTC. No jobs or collectors remain. Final read-only canonical-document review at be7ff878 found no actionable issues.",
       "lab6_recovery": "Complete. Final10native chains and visuals preserved. Portable12.4kB kit is root-verified and locally smoke-tested on macOS and isolatedARM64Linux/Python3.12.3, with matching85filehashes. No Pi/ROS execution and no jobs remain.",
-      "sit_recovery": "Independent restoration/native/stop-reporting reviews complete. Existing Google project imported in AIStudio; no key/payment/auth changes. OriginalCS123tab restored. No active work."
+      "sit_recovery": "Independent restoration/native/stop-reporting reviews complete. Existing Google project imported in AIStudio; no key/payment/auth changes. OriginalCS123tab restored. No active work. A final optional closure-review retry hit model capacity; optional_recovery completed that review instead. No experiment or implementation work was lost."
     },
     "gpu_state_at_checkpoint": "Both task-owned Colab runtimes released after verified complete archives. GPU2 retired10:20:35UTC; GPU1 pupper-foundation-recovery retired13:19:36UTC. All encoder32childjobs exit0,18evaluation suitescomplete. Do not relaunch or poll the deleted session as if it were active.",
     "backup_status": "Complete encoder runtime inventory250files recovered and SHA-matched; root independently rehashed258durable payload/archive/receipt files totaling3902784311bytes withzeroerrors. All18rawGPUtraces independently analyzed. Native10bundle193files848184587bytes preserved; independentnativeaudit9files740671bytes. Earlier Optional2ninearchives, torso/refinement, Sit, generatedmotion, controller and default-attribution archives remain preserved. Final233-file rollingindex retained withreceipts/logs aftercollector retirement; no activecheckpointcollector. Portableinventorykit archive12422bytesSHA b5b139bd8f79ce0e43732f2fa09d054433932379db538fe82ea44c8e733a8fd7 isroot-verified; sourcepayloadunchanged.",
@@ -77,8 +77,7 @@
       "When Pupper is available: read-only discovery and baseline backup, recover missing installed/team policy identities, inspect actual launch/controller/driver/calibration paths. Portable inventory kit avoids a full clone/install. Continue without robot until the user reconnects it.",
       "With user physically present and applicable TA approval: establish approved baseline standing/stopping, joint/IMU signs and timing, camera/Hailo, follower interruptions and actual controller receipts; validate newly trained Sit/generated candidates separately. No automaticmotoractivation.",
       "Live Gemini remains pending: existing importedproject showsPrepayrequired andAPIkeycontrols didnotpopulate. No key created/stored, no payment/authchanges. Resolve account/key access with user or use their configured key at the robot session; neverpastekeyinchat.",
-      "Known research boundaries remain: no promotedSpiderwalkingpair, no reliable new/standingjump, Bumpy/fastgaittradeoffs, defaultmass/inertiarobustness failure inselectedsimcases, contactclassifierlivecalibration. Further optimization should use actual calibration and targeted acceptance criteria, not repeat finished jobs or claim globalmaxima.",
-      "At17:00UTC: inspect actual newstate, preserve any new work, write the final overnight handoff and pauseautomation. No newcompute at/aftercutoff. Existingcompute is alreadyclosed."
+      "Known research boundaries remain: no promotedSpiderwalkingpair, no reliable new/standingjump, Bumpy/fastgaittradeoffs, defaultmass/inertiarobustness failure inselectedsimcases, contactclassifierlivecalibration. Further optimization should use actual calibration and targeted acceptance criteria, not repeat finished jobs or claim globalmaxima."
     ],
     "robot": "Continue without Pupper per user; no motor activation.",
     "session_management": "Same focused agents reused; one capacity/compaction failure recovered from saved artifacts with no simulation or training rerun. Canonical entrypoints and exact archive/receipt identities are durable. No new user chat or handoff is needed. The offline study pipeline is closed; do not spend remaining overnight time rerunning completed experiments merely to stay active.",
@@ -127,7 +126,7 @@
       "foundation/results/portable-inventory-kit-reviewed.json",
       "foundation/results/offline-validation-composite-c3ad206.json"
     ],
-    "latest_checkpoint_note": "Composite validation verifies730of735earlierwatched filesunchanged;2changedfilesarecanonicalreports and3Python changesarethe independentlyreviewed message/testassertion correction. Full905pytest+225course+nativeC++ evidence is retained; finalmessagingbytes separatelypass237Gemini+166course-toolchecks. ControlASTidentical afterstringnormalization. All17installedpolicyfilesunchanged andcourseworkmainclean13299faa. Seeoffline-validation-composite-c3ad206.json.",
+    "latest_checkpoint_note": "Source and canonical deliverable checkpoint before this handoff-only update; engineering branch clean and matched origin, coursework main clean at13299faa82f1c4dbd8a84b22867e99e3cfffba8a. User returned and explicitly requested stopping schedules.",
     "new_consequential_finding": {
       "name": "Persistent encoder calibration bias absent from locomotion actor observations",
       "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",
@@ -347,6 +346,11 @@
       "recorded_utc": "2026-10-28T12:59:36.420593+00:00",
       "head": "5893cc9d7dec918a329a9a49eca7616c6fd54fed",
       "checkpoint_summary": "Both encoder trainings had completed and final evaluations were running. All studies are now finished; immutable full archives, independent GPU/native reviews and release receipts supersede that active-job snapshot."
+    },
+    {
+      "recorded_utc": "2026-10-28T13:38:15.524001+00:00",
+      "head": "e06496bc3a6864dc3dcaca64dc521d6dda4e8a31",
+      "checkpoint_summary": "All planned offline studies and independent reviews complete; both GPUs and collectors retired with verified complete archives. Final portable inventory kit validated on Mac and isolated ARM64 Linux. Canonical closure committed and pushed as be7ff878321f672366e225cecfbde53aa4ab6596; later independent closure review found no material issues."
     }
   ],
   "recovery_entry_points": [
@@ -367,7 +371,7 @@
     "cutoff_utc": "2026-10-28T17:00:00+00:00",
     "cutoff_local": "2026-10-28 10:00 America/Los_Angeles",
     "automation_id": "pupper-overnight-foundation",
-    "status": "ACTIVE",
+    "status": "PAUSED",
     "cadence": "quarter-hour heartbeat in this same chat through cutoff, including cutoff run",
     "worktree": "/Users/shrish/workspace/cs123-foundation",
     "branch": "pupper-foundation",
@@ -378,12 +382,20 @@
         "-i",
         "-s"
       ],
-      "screen_lock_unchanged": true
+      "screen_lock_unchanged": true,
+      "closed_utc": "2026-10-28T16:41:48.984708+00:00",
+      "closure": {
+        "pid": 75848,
+        "observed_command": "/usr/bin/caffeinate -i -s -t 28673",
+        "action": "terminated task-owned overnight sleep inhibitor"
+      }
     },
     "authorization": "User explicitly requested roughly8h autonomous work and optional Gemini key setup, with earlier broad coding/compute/queue/Colab/policy-recovery approvals. Routine reversible work need not wait for user. Never weaken security/approval controls or activate robot.",
     "key_access": "Bounded existingChromeAIStudio followup importedexisting GenerativeLanguageClient project, observedTier1/Prepayrequired. Keylist/creationdialog didnotpopulate afterreload; no key/projectcreated, no payment/security/authchanges. Nonsecret statusreceipt preserved atartifacts/access/gemini-existing-project-import-20261028/status-receipt.json. Originaltab restoredtohttps://cs123-stanford.readthedocs.io/en/latest/. LiveGemini remainspending; doesnotblockofflinework.",
     "communication": "No routine unchanged notifications; meaningful results/completion/failure or genuine user action only. User sleeping; continue unaffected work when optional access unavailable.",
-    "cutoff_action": "Do not begin new jobs at/aftercutoff. Preserve/checkpoint active work and stop only task-owned idle/finished compute, provide clear handoff and pause this automation.",
-    "handoff": "Reuse current agents where healthy; after interruption inspect source/head, current jobs/exit receipts, and durable indexes before resuming. Never restart successful training merely because chat context changed."
+    "cutoff_action": "Superseded by explicit user stop before cutoff. Schedule is paused, both GPU runtimes already released, and final handoff saved. No new compute started.",
+    "handoff": "Resume in this same chat from foundation/README.md and latest_checkpoint here. Complete offline evidence and exact hashes are durable. Next perform read-only Pi discovery and baseline backup when available, then supervised approved validation. No need to repeat finished training or create a new chat.",
+    "stopped_by_user_at_utc": "2026-10-28T16:41:48.984708+00:00",
+    "stop_reason": "User returned and explicitly requested turning off the schedule; automation_update confirmed PAUSED."
   }
 }
