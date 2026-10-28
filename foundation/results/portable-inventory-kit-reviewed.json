@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "reviewed_at_utc": "2026-10-28T13:28:06.954842+00:00",
-  "status": "portable_inventory_kit_prepared_and_locally_verified",
+  "reviewed_at_utc": "2026-10-28T13:36:21.663244+00:00",
+  "status": "portable_inventory_kit_verified_on_macos_and_isolated_linux",
   "source_revision": "c3ad2065706e230064687144378f5d9dd0a6fc2c",
   "source_files": [
     {
@@ -37,10 +37,11 @@
     "all_member_bytes_match_sources": true,
     "all_member_types_and_modes_verified": true,
     "directory_mode": "0700",
-    "file_mode": "0600; invoke the shell script using bash"
+    "file_mode": "0600; invoke the shell script using bash",
+    "historical_manifest_note": "The unchanged archive manifest was created before the Linux smoke and retains its original macOS-only runtime note. This separate hashed Linux addendum expands validation without altering the transfer bytes."
   },
   "dependencies": {
-    "base": "POSIX Bash and Python >=3.8 standard library; Linux/POSIX os.open dir_fd, O_DIRECTORY, O_NOFOLLOW and O_NONBLOCK support. Runtime validation here is local macOS only.",
+    "base": "Bash and Python >=3.8 standard-library/POSIX file APIs. Actual base-path smokes passed on macOS arm64 Python 3.15.2 and isolated Linux aarch64 Python 3.12.3; no third-party Python package is imported by the base inventory.",
     "stdlib_modules": [
       "__future__",
       "argparse",
@@ -158,16 +159,156 @@
     "ros": "Do not add --ros until the existing approved ROS environment is known and read-only graph sampling is intentionally requested. The kit does not install ROS or launch anything."
   },
   "limitations": [
-    "The tested host is macOS arm64, not Pupper. Pi runtime, installed paths, active launch and ROS environment still need the first real inventory.",
-    "Python 3.8 syntax and standard-library API dependencies were inspected; actual smoke runtime was Python 3.15.2. No assertion of every supported interpreter or OS combination follows.",
+    "Tested on macOS and an isolated Linux aarch64 container, not Pupper. Pi runtime, installed paths, active launch and ROS environment still require the first real inventory.",
+    "Python 3.8 syntax and standard-library API dependencies were inspected; actual runtimes tested were Python 3.15.2 and 3.12.3. This does not establish every interpreter/OS combination.",
     "Package-version metadata and explicit local file hashes do not prove the active robot installation. The tool retains unverified path labels.",
     "An inventory output contains local paths and software/runtime metadata and should remain private. No camera frames or credential values are deliberately captured.",
     "The backup helper is bundled because inventory uses fingerprint_file; its separate explicit-copy CLI is not an installer or restore and was not invoked for backup creation here."
   ],
   "preservation": {
     "directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/hardware/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1",
-    "manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1-reviewed.json"
+    "manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1-reviewed.json",
+    "linux_addendum_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1-linux-reviewed-v2.json"
   },
   "hardware_validated": false,
-  "executed_on_pi": false
+  "executed_on_pi": false,
+  "linux_validation": {
+    "scope": "Additive isolated Linux portability receipt; no Pi validation, installation, ROS graph use or hardware actions. The transfer archive and original manifest remain byte-for-byte unchanged.",
+    "image_id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+    "host": {
+      "system": "Linux",
+      "release": "6.10.14-linuxkit",
+      "machine": "aarch64",
+      "python": "3.12.3",
+      "executable": "/usr/bin/python3",
+      "uid": 501,
+      "gid": 20
+    },
+    "isolation": {
+      "network_mode": "none",
+      "readonly_rootfs": true,
+      "privileged": false,
+      "devices": [],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges"
+      ],
+      "mounts": [
+        {
+          "Type": "bind",
+          "Source": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1",
+          "Destination": "/inventory-kit",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/Users/shrish/workspace/cs123-foundation",
+          "Destination": "/source",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        }
+      ],
+      "entrypoint": [
+        "/usr/bin/python3"
+      ],
+      "user": "501:20",
+      "image_pulled_or_built": false,
+      "ros_entrypoint_run": false
+    },
+    "help_and_import_and_json_inventory": "passed",
+    "modules": {
+      "inspect_robot_description": {
+        "file": "/inventory-kit/foundation/scripts/inspect_robot_description.py",
+        "sha256": "9851765eab1985dac60017d81c12578c19604c38c7c1a58be6f039ad623c6845"
+      },
+      "robot_artifact_backup": {
+        "file": "/inventory-kit/foundation/scripts/robot_artifact_backup.py",
+        "sha256": "a85752202ac0f05982fea557e19376c13fe24bf93ad84f36642845b990b5d5dc"
+      }
+    },
+    "optional_tools": {
+      "git": "/usr/bin/git",
+      "vcgencmd": null,
+      "hailortcli": null
+    },
+    "python_package_versions": {
+      "numpy": "1.26.4",
+      "torch": null,
+      "mujoco": null,
+      "onnxruntime": null,
+      "hailort": null,
+      "rclpy": null,
+      "fastapi": null,
+      "google-genai": null
+    },
+    "file_hashes_success": 85,
+    "file_hashes_refused": 0,
+    "driver_description_documents": 1,
+    "all_85_mac_and_linux_inventory_file_hashes_identical": true,
+    "git_metadata_limit": "The read-only source mount contains a Git worktree pointer to host metadata outside the mount. Git is present but reports returncode128 for commit/branch/status; these structured failures remain in the inventory. No extra mount or clone was added. File hashing and description inspection still succeed.",
+    "initial_harness_failure": "Attempt v1 completed help, bundled-module imports and inventory JSON/path/read-only assertions, then failed an invalid auxiliary assumption that /sys/class/net contains only lo. Linuxkit exposes default tunnel pseudo-interfaces and bonding_masters. Attempt v2 records these honestly and verifies the actual Docker NetworkMode=none, no passed devices, read-only mounts and an empty IPv4 route table. No network request or connection was attempted. The original failed stdout/stderr/receipt/script are preserved.",
+    "network_namespace_interfaces": [
+      [
+        1,
+        "lo"
+      ],
+      [
+        2,
+        "tunl0"
+      ],
+      [
+        3,
+        "gre0"
+      ],
+      [
+        4,
+        "gretap0"
+      ],
+      [
+        5,
+        "erspan0"
+      ],
+      [
+        6,
+        "ip_vti0"
+      ],
+      [
+        7,
+        "ip6_vti0"
+      ],
+      [
+        8,
+        "sit0"
+      ],
+      [
+        9,
+        "ip6tnl0"
+      ],
+      [
+        10,
+        "ip6gre0"
+      ]
+    ],
+    "network_namespace_ipv4_routes": "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT                                                       \n",
+    "archive_sha256_unchanged": "b5b139bd8f79ce0e43732f2fa09d054433932379db538fe82ea44c8e733a8fd7",
+    "archive_bytes": 12422,
+    "original_review_sha256": "50231b217213f21686fa4423be9ad453e31d8da521f1448e3b34c442fbf1d213",
+    "receipt_hashes": {
+      "linux-smoke-v1-execution.json": "9e8e1fb74a42bb703a92a80c3901f9b1e85bba5d1b24cfbcf68480d411a81bd8",
+      "linux-smoke-v1.stderr": "86206729f418acb8d5edc84a0878fbc0dbf6a00d2e4744952e10fdf28298730b",
+      "linux-smoke-v2-execution.json": "663125dd888dbacaf6a0f7a83ef55895aac4d1fec927022346ceaa16333df341",
+      "linux-smoke-v2.stdout.json": "238f4fbdf52f4e81b7c6cf1b186af9f36876f94e81b3255617a7b7f57868a8f6",
+      "linux-smoke-v2.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "linux-smoke-v2.py": "d8410ddb71e4cfd3ccf190ffa68e980347f37de54ebce28a057437ef3abac54d"
+    },
+    "broad_tests_repeated": false,
+    "executed_on_pi": false,
+    "hardware_validated": false,
+    "addendum_sha256": "793c4c9fb4e25c38c14fb125f2469cc0711ca96354fa202acb38a721de9de530"
+  }
 }
