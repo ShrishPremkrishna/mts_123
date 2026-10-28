@@ -213,8 +213,6 @@ def test_default_return_extends_identical_spider_sequence():
     assert extended[len(original):]==[('default_activation','default',4.2,[0,0,0],''),
                                      ('default_forward','default',2,[.1,0,0],''),
                                      ('default_stop','default',2,[0,0,0],'')]
-    with pytest.raises(ValueError,match='continuous Spider'):
-        handoff.stage_plan(policy,single_motion=True,return_default=True)
 
 
 def test_actual_default_return_matches_independent_native_host_and_numpy(host,tmp_path):
@@ -282,3 +280,28 @@ def test_handoff_rejects_unsupported_action_contract(host,tmp_path,field,value):
     bad=tmp_path/'bad.json';bad.write_text(json.dumps(metadata))
     proc=subprocess.run([str(binary),str(bad),str(path)],capture_output=True,text=True)
     assert proc.returncode==1 and 'position actions only' in proc.stderr
+
+
+def test_finite_default_return_extends_identical_terminal_hold():
+    policy={'trick':{'fps':50},'motion':{'joint_pos':[[0.]*12]*298}}
+    original=handoff.stage_plan(policy,single_motion=True)
+    extended=handoff.stage_plan(policy,single_motion=True,return_default=True)
+    assert extended[:2]==original
+    assert extended[2:]==handoff.default_return_stages()
+    policy['trick']['clips']=[{'name':'loop','start':0,'end':298,'loop':True}]
+    with pytest.raises(ValueError,match='finite clip'):
+        handoff.stage_plan(policy,single_motion=True,return_default=True)
+
+
+def test_finite_return_requires_matching_standing_descriptor(tmp_path):
+    policy=tmp_path/'policy.json';descriptor=tmp_path/'trick.yaml'
+    descriptor.write_text('type: policy\npolicy: policy.json\nstart_pose: standing\nend_pose: standing\n')
+    assert handoff.validate_single_return_descriptor(descriptor,policy)==descriptor.read_bytes()
+    with pytest.raises(ValueError,match='requires --trick-descriptor'):
+        handoff.validate_single_return_descriptor(None,policy)
+    with pytest.raises(ValueError,match='does not match'):
+        handoff.validate_single_return_descriptor(descriptor,tmp_path/'other.json')
+    for ending in ('lying','sitting'):
+        descriptor.write_text('type: policy\npolicy: policy.json\nstart_pose: standing\nend_pose: '+ending+'\n')
+        with pytest.raises(ValueError,match='standing-to-standing'):
+            handoff.validate_single_return_descriptor(descriptor,policy)
