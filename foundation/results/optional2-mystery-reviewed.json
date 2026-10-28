@@ -1,0 +1,1062 @@
+{
+  "created_utc": "2026-10-28T10:01:14.952577+00:00",
+  "status": "bounded_simulation_study_completed_no_general_or_hardware_promotion",
+  "scope": "Optional Lab2 Mystery: exact class seed, observed capture and one bounded captured-reference learning round. Failed and altered-reference history is retained.",
+  "source_contract": {
+    "revision": "16aeb67da63e024004565a602189719f4911f943",
+    "source_sha256": "4e5a09a1b029ddf347f6c1ed2d25c83c2b3667435104175565273e2ed81b3318",
+    "controller_target_clamp": true,
+    "named_driver_target_bounds": true,
+    "com_randomization_composed": true,
+    "torso_collision": true,
+    "target_slew_enabled": false,
+    "hardware_validated": false
+  },
+  "evaluation_protocol": {
+    "seeds": [
+      101,
+      202,
+      303,
+      404
+    ],
+    "independent_worlds_per_seed": 32,
+    "commands": 16,
+    "seconds_per_command": 10,
+    "warmup_seconds_per_command": 2,
+    "reset_each_command": true,
+    "forced_slots": {
+      "p_no_jump": 0.0,
+      "min_start_s": 2.25,
+      "end_margin_s": 24.0,
+      "min_separation_s": 3.0
+    },
+    "scope_note": "Startup parameter draws plus continuous step noise. Forced-slot protocol is distinct from ordinary continuous locomotion evaluation. Failures during warmup count."
+  },
+  "records": {
+    "seed_conversion_correction": "foundation/results/optional2-class-seed-correction.json",
+    "altered_capture_audit": "foundation/results/optional2-capture-independent-review.json",
+    "corrected_capture_audit": "foundation/results/optional2-corrected-capture-review.json",
+    "final_flight_audit": "foundation/results/optional2-mystery-final-flight-audit.json",
+    "full_local_lineage_review": "artifacts/optional2/mystery-lineage-review.json"
+  },
+  "runs": {
+    "mystery-class-seed-v2": {
+      "role": "altered_reference_default_pose_added_in_error",
+      "state": "failed_or_interrupted",
+      "source_sha256": "4e5a09a1b029ddf347f6c1ed2d25c83c2b3667435104175565273e2ed81b3318",
+      "plan_sha256": "332f9aea41b112e6b83b4402841c1f297c11ecd77548d6183faaf9c87aeaedc6",
+      "local_retrieval": {
+        "archive": "artifacts/optional2/recovery-v2-mystery-class-seed-v2-final.tar.gz",
+        "archive_sha256": "31e8d84657eb884c68593eda32a3bb3e49b9268aa7e2075c46a45437f51ddbc6",
+        "all_manifest_file_hashes_verified": true,
+        "files": 63,
+        "bytes": 235264644
+      },
+      "all_child_exits": {
+        "pre-s101": 0,
+        "train": 0,
+        "post-s101": 0,
+        "capture": 1
+      },
+      "candidate": null,
+      "evaluations": {
+        "pre-s101": {
+          "seed": 101,
+          "checkpoint_sha256": "d81a8791037b4a68ecd4f8e408df3a3efea3efb3563fef0d6e202af29cee71ef",
+          "references": {
+            "captured_jump_gait.npz": "0f964b20ca16aadfaf487fa3e2906f7c1678d3de88e7cb3971c0924563c9f0f4",
+            "class_reference_manifest.json": "e557f92c9c3bd2ceb07dd27942c843130663611b600ccc0663165c7a2e8ad457"
+          },
+          "failure_events": 690,
+          "mean_segment_xy_error_m_s": 0.10910569873178116,
+          "mean_segment_yaw_error_rad_s": 0.30824957981166834,
+          "mean_segment_torque_squared_nm2": 1.0316502917557955,
+          "mean_segment_contact_slip_m_s": 0.2904268712736666,
+          "peak_sampled_contact_force_n": 340969.1875,
+          "per_command_failures": [
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 33
+            },
+            {
+              "command": [
+                0.3,
+                0.0,
+                0.0
+              ],
+              "failures": 49
+            },
+            {
+              "command": [
+                0.49,
+                0.0,
+                0.0
+              ],
+              "failures": 51
+            },
+            {
+              "command": [
+                0.51,
+                0.0,
+                0.0
+              ],
+              "failures": 54
+            },
+            {
+              "command": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "failures": 52
+            },
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 53
+            },
+            {
+              "command": [
+                0.51,
+                0.0,
+                0.0
+              ],
+              "failures": 48
+            },
+            {
+              "command": [
+                0.49,
+                0.0,
+                0.0
+              ],
+              "failures": 53
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 32
+            },
+            {
+              "command": [
+                -0.3,
+                0.0,
+                0.0
+              ],
+              "failures": 36
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 42
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "failures": 48
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "failures": 30
+            },
+            {
+              "command": [
+                0.0,
+                0.3,
+                0.0
+              ],
+              "failures": 38
+            },
+            {
+              "command": [
+                0.0,
+                -0.3,
+                0.0
+              ],
+              "failures": 38
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 33
+            }
+          ]
+        },
+        "post-s101": {
+          "seed": 101,
+          "checkpoint_sha256": "46bd2644768736832837a8dba37e56603295ac6f933df98d41081aa8b5abd827",
+          "references": {
+            "captured_jump_gait.npz": "0f964b20ca16aadfaf487fa3e2906f7c1678d3de88e7cb3971c0924563c9f0f4",
+            "class_reference_manifest.json": "e557f92c9c3bd2ceb07dd27942c843130663611b600ccc0663165c7a2e8ad457"
+          },
+          "failure_events": 60,
+          "mean_segment_xy_error_m_s": 0.1056675428151893,
+          "mean_segment_yaw_error_rad_s": 0.28328950256433477,
+          "mean_segment_torque_squared_nm2": 0.9598139617592096,
+          "mean_segment_contact_slip_m_s": 0.27105674403719604,
+          "peak_sampled_contact_force_n": 15251.9921875,
+          "per_command_failures": [
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 46
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 11
+            },
+            {
+              "command": [
+                0.0,
+                0.3,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        }
+      }
+    },
+    "mystery-captured-v3": {
+      "role": "altered_reference_descendant_using_provisional_capture",
+      "state": "finished_requires_review",
+      "source_sha256": "4e5a09a1b029ddf347f6c1ed2d25c83c2b3667435104175565273e2ed81b3318",
+      "plan_sha256": "61be6bfbb60cdd542302088a9da5bd49f8ef39db865af94810a3add93138bdc1",
+      "local_retrieval": {
+        "archive": "artifacts/optional2/recovery-v2-mystery-captured-v3-final.tar.gz",
+        "archive_sha256": "ed29303b8e654a71ce7e115e12512b410f477854689746bca9d537f67fd2c1a3",
+        "all_manifest_file_hashes_verified": true,
+        "files": 89,
+        "bytes": 442947933
+      },
+      "all_child_exits": {
+        "capture": 0,
+        "captured-train": 0,
+        "captured-post-s101": 0,
+        "captured-post-s202": 0,
+        "captured-post-s303": 0,
+        "captured-post-s404": 0
+      },
+      "candidate": {
+        "checkpoint": "/content/pupper-optional-recovery-v2/mystery-captured-v3/jobs/captured-train/attempt-001/output/model_7495.pt",
+        "checkpoint_sha256": "665c560358033321f42640b4ab6d22c59e968961141b7ed16362c932fd110ac4",
+        "task": "Mjlab-Mystery-Flat-Pupper-v3",
+        "references": {
+          "captured_jump_gait.npz": "64d1d8f5a6a93bd5f680ed9e14af8c1e66d1b05068dfb96fe885681d9c81b8f6",
+          "jump_report.json": "85716dc323a4637d6679b8e40a94993eb57f75e5b72d97361f4efe329419b9ec"
+        },
+        "reference_dir": "/content/pupper-optional-recovery-v2/mystery-captured-v3/jobs/capture/attempt-001/output",
+        "requires_review": true,
+        "hardware_validated": false
+      },
+      "evaluations": {
+        "captured-post-s101": {
+          "seed": 101,
+          "checkpoint_sha256": "665c560358033321f42640b4ab6d22c59e968961141b7ed16362c932fd110ac4",
+          "references": {
+            "captured_jump_gait.npz": "64d1d8f5a6a93bd5f680ed9e14af8c1e66d1b05068dfb96fe885681d9c81b8f6",
+            "jump_report.json": "85716dc323a4637d6679b8e40a94993eb57f75e5b72d97361f4efe329419b9ec"
+          },
+          "failure_events": 3,
+          "mean_segment_xy_error_m_s": 0.07047201075597803,
+          "mean_segment_yaw_error_rad_s": 0.19755104466670853,
+          "mean_segment_torque_squared_nm2": 0.9178848005831242,
+          "mean_segment_contact_slip_m_s": 0.2691764796618372,
+          "peak_sampled_contact_force_n": 1026.11572265625,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 3
+            }
+          ]
+        },
+        "captured-post-s202": {
+          "seed": 202,
+          "checkpoint_sha256": "665c560358033321f42640b4ab6d22c59e968961141b7ed16362c932fd110ac4",
+          "references": {
+            "captured_jump_gait.npz": "64d1d8f5a6a93bd5f680ed9e14af8c1e66d1b05068dfb96fe885681d9c81b8f6",
+            "jump_report.json": "85716dc323a4637d6679b8e40a94993eb57f75e5b72d97361f4efe329419b9ec"
+          },
+          "failure_events": 13,
+          "mean_segment_xy_error_m_s": 0.07121525173306575,
+          "mean_segment_yaw_error_rad_s": 0.19716778280542263,
+          "mean_segment_torque_squared_nm2": 0.9248225037008524,
+          "mean_segment_contact_slip_m_s": 0.26859147113282233,
+          "peak_sampled_contact_force_n": 425.9143371582031,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 13
+            }
+          ]
+        },
+        "captured-post-s303": {
+          "seed": 303,
+          "checkpoint_sha256": "665c560358033321f42640b4ab6d22c59e968961141b7ed16362c932fd110ac4",
+          "references": {
+            "captured_jump_gait.npz": "64d1d8f5a6a93bd5f680ed9e14af8c1e66d1b05068dfb96fe885681d9c81b8f6",
+            "jump_report.json": "85716dc323a4637d6679b8e40a94993eb57f75e5b72d97361f4efe329419b9ec"
+          },
+          "failure_events": 9,
+          "mean_segment_xy_error_m_s": 0.07189099070781306,
+          "mean_segment_yaw_error_rad_s": 0.20006247122503332,
+          "mean_segment_torque_squared_nm2": 0.927951892837882,
+          "mean_segment_contact_slip_m_s": 0.26498383248690516,
+          "peak_sampled_contact_force_n": 325.5714111328125,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 9
+            }
+          ]
+        },
+        "captured-post-s404": {
+          "seed": 404,
+          "checkpoint_sha256": "665c560358033321f42640b4ab6d22c59e968961141b7ed16362c932fd110ac4",
+          "references": {
+            "captured_jump_gait.npz": "64d1d8f5a6a93bd5f680ed9e14af8c1e66d1b05068dfb96fe885681d9c81b8f6",
+            "jump_report.json": "85716dc323a4637d6679b8e40a94993eb57f75e5b72d97361f4efe329419b9ec"
+          },
+          "failure_events": 4,
+          "mean_segment_xy_error_m_s": 0.07034085123026462,
+          "mean_segment_yaw_error_rad_s": 0.19697472668877433,
+          "mean_segment_torque_squared_nm2": 0.9184711659327149,
+          "mean_segment_contact_slip_m_s": 0.26668509375303984,
+          "peak_sampled_contact_force_n": 217.49807739257812,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 4
+            }
+          ]
+        }
+      }
+    },
+    "mystery-class-absolute-v4": {
+      "role": "corrected_exact_absolute_class_reference",
+      "state": "finished_requires_review",
+      "source_sha256": "4e5a09a1b029ddf347f6c1ed2d25c83c2b3667435104175565273e2ed81b3318",
+      "plan_sha256": "999870509be03030bdfe9150ebe5cd54789ad8200d0bb1ce6a84eba5cbeb5f55",
+      "local_retrieval": {
+        "archive": "artifacts/optional2/recovery-v2-mystery-class-absolute-v4-final.tar.gz",
+        "archive_sha256": "3b1c12d604bc8e4d9ce249960f90bd735b9e331daa795c5eaaf1e864ff64aecd",
+        "all_manifest_file_hashes_verified": true,
+        "files": 93,
+        "bytes": 555737132
+      },
+      "all_child_exits": {
+        "pre-s101": 0,
+        "train": 0,
+        "post-s101": 0,
+        "post-s202": 0,
+        "post-s303": 0,
+        "post-s404": 0
+      },
+      "candidate": {
+        "checkpoint": "/content/pupper-optional-recovery-v2/mystery-class-absolute-v4/jobs/train/attempt-001/output/model_6496.pt",
+        "checkpoint_sha256": "f3ab25bd5ee6601fcce079eb1073676f810c2c2f1469d1ec47ddd9e296109767",
+        "task": "Mjlab-Mystery-Flat-Pupper-v3",
+        "references": {
+          "captured_jump_gait.npz": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094",
+          "class_reference_manifest.json": "4743fe380efd9f8b17cc2f15a1acea434c9f828a4477abf3739d5cc8c2859802"
+        },
+        "reference_dir": "/content/pupper-optional-recovery-v2/class-jump-seed-absolute-v4",
+        "requires_review": true,
+        "hardware_validated": false
+      },
+      "evaluations": {
+        "pre-s101": {
+          "seed": 101,
+          "checkpoint_sha256": "d81a8791037b4a68ecd4f8e408df3a3efea3efb3563fef0d6e202af29cee71ef",
+          "references": {
+            "captured_jump_gait.npz": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094",
+            "class_reference_manifest.json": "4743fe380efd9f8b17cc2f15a1acea434c9f828a4477abf3739d5cc8c2859802"
+          },
+          "failure_events": 709,
+          "mean_segment_xy_error_m_s": 0.10549741152193576,
+          "mean_segment_yaw_error_rad_s": 0.27441477328046016,
+          "mean_segment_torque_squared_nm2": 1.0049470905214548,
+          "mean_segment_contact_slip_m_s": 0.28677597269415855,
+          "peak_sampled_contact_force_n": 22106.29296875,
+          "per_command_failures": [
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 45
+            },
+            {
+              "command": [
+                0.3,
+                0.0,
+                0.0
+              ],
+              "failures": 56
+            },
+            {
+              "command": [
+                0.49,
+                0.0,
+                0.0
+              ],
+              "failures": 49
+            },
+            {
+              "command": [
+                0.51,
+                0.0,
+                0.0
+              ],
+              "failures": 49
+            },
+            {
+              "command": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "failures": 51
+            },
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 48
+            },
+            {
+              "command": [
+                0.51,
+                0.0,
+                0.0
+              ],
+              "failures": 53
+            },
+            {
+              "command": [
+                0.49,
+                0.0,
+                0.0
+              ],
+              "failures": 52
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 38
+            },
+            {
+              "command": [
+                -0.3,
+                0.0,
+                0.0
+              ],
+              "failures": 36
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 38
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "failures": 59
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                -1.0
+              ],
+              "failures": 29
+            },
+            {
+              "command": [
+                0.0,
+                0.3,
+                0.0
+              ],
+              "failures": 33
+            },
+            {
+              "command": [
+                0.0,
+                -0.3,
+                0.0
+              ],
+              "failures": 41
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 32
+            }
+          ]
+        },
+        "post-s101": {
+          "seed": 101,
+          "checkpoint_sha256": "f3ab25bd5ee6601fcce079eb1073676f810c2c2f1469d1ec47ddd9e296109767",
+          "references": {
+            "captured_jump_gait.npz": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094",
+            "class_reference_manifest.json": "4743fe380efd9f8b17cc2f15a1acea434c9f828a4477abf3739d5cc8c2859802"
+          },
+          "failure_events": 10,
+          "mean_segment_xy_error_m_s": 0.11004645207101407,
+          "mean_segment_yaw_error_rad_s": 0.29622258014298697,
+          "mean_segment_torque_squared_nm2": 0.9362718109041452,
+          "mean_segment_contact_slip_m_s": 0.26699714083224535,
+          "peak_sampled_contact_force_n": 493.7184143066406,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 9
+            }
+          ]
+        },
+        "post-s202": {
+          "seed": 202,
+          "checkpoint_sha256": "f3ab25bd5ee6601fcce079eb1073676f810c2c2f1469d1ec47ddd9e296109767",
+          "references": {
+            "captured_jump_gait.npz": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094",
+            "class_reference_manifest.json": "4743fe380efd9f8b17cc2f15a1acea434c9f828a4477abf3739d5cc8c2859802"
+          },
+          "failure_events": 10,
+          "mean_segment_xy_error_m_s": 0.11178804815937965,
+          "mean_segment_yaw_error_rad_s": 0.2907969624324323,
+          "mean_segment_torque_squared_nm2": 0.9385673869401217,
+          "mean_segment_contact_slip_m_s": 0.2643668386153877,
+          "peak_sampled_contact_force_n": 801.5985717773438,
+          "per_command_failures": [
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 2
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 2
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 5
+            },
+            {
+              "command": [
+                0.0,
+                0.3,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        },
+        "post-s303": {
+          "seed": 303,
+          "checkpoint_sha256": "f3ab25bd5ee6601fcce079eb1073676f810c2c2f1469d1ec47ddd9e296109767",
+          "references": {
+            "captured_jump_gait.npz": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094",
+            "class_reference_manifest.json": "4743fe380efd9f8b17cc2f15a1acea434c9f828a4477abf3739d5cc8c2859802"
+          },
+          "failure_events": 9,
+          "mean_segment_xy_error_m_s": 0.11088858900427656,
+          "mean_segment_yaw_error_rad_s": 0.2970930069489036,
+          "mean_segment_torque_squared_nm2": 0.941318167373538,
+          "mean_segment_contact_slip_m_s": 0.26320755551569164,
+          "peak_sampled_contact_force_n": 7842.53076171875,
+          "per_command_failures": [
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "failures": 2
+            },
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 5
+            }
+          ]
+        },
+        "post-s404": {
+          "seed": 404,
+          "checkpoint_sha256": "f3ab25bd5ee6601fcce079eb1073676f810c2c2f1469d1ec47ddd9e296109767",
+          "references": {
+            "captured_jump_gait.npz": "8b4ec355c90cab8949b2a227d4c57e2f3036222741f047409e1d1e881327c094",
+            "class_reference_manifest.json": "4743fe380efd9f8b17cc2f15a1acea434c9f828a4477abf3739d5cc8c2859802"
+          },
+          "failure_events": 13,
+          "mean_segment_xy_error_m_s": 0.11008098965065104,
+          "mean_segment_yaw_error_rad_s": 0.29411550118862656,
+          "mean_segment_torque_squared_nm2": 0.9361428711563349,
+          "mean_segment_contact_slip_m_s": 0.26645301515236497,
+          "peak_sampled_contact_force_n": 19770.65625,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 2
+            },
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 8
+            },
+            {
+              "command": [
+                0.0,
+                0.3,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                0.0,
+                -0.3,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        }
+      }
+    },
+    "mystery-strict-captured-v5": {
+      "role": "strict_audited_capture_from_corrected_class_lineage",
+      "state": "finished_requires_review",
+      "source_sha256": "4e5a09a1b029ddf347f6c1ed2d25c83c2b3667435104175565273e2ed81b3318",
+      "plan_sha256": "179bc1c056a77989cc495e05e079633286a4837a08607452369cefcd404e3de3",
+      "local_retrieval": {
+        "archive": "artifacts/optional2/recovery-v2-mystery-strict-captured-v5-final.tar.gz",
+        "archive_sha256": "beb2d4265b77b5eaf8ca139544b9779ad6b4a2ba89795e310542b54c4eb62c9c",
+        "all_manifest_file_hashes_verified": true,
+        "files": 84,
+        "bytes": 443357034
+      },
+      "all_child_exits": {
+        "captured-train": 0,
+        "captured-post-s101": 0,
+        "captured-post-s202": 0,
+        "captured-post-s303": 0,
+        "captured-post-s404": 0
+      },
+      "candidate": {
+        "checkpoint": "/content/pupper-optional-recovery-v2/mystery-strict-captured-v5/jobs/captured-train/attempt-001/output/model_7495.pt",
+        "checkpoint_sha256": "18304c3d38954661bb722120c1e5a1f266437c13df761eb9e6a19780237eaec9",
+        "task": "Mjlab-Mystery-Flat-Pupper-v3",
+        "references": {
+          "captured_jump_gait.npz": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+          "jump_report.json": "71dddffcd3e59d72eb8e0ce01dae762f3e2a89e6e696f97d649e13fa1dce695e",
+          "timing_audit.json": "eba624d679ec14ce39987d4bb53f9d2b761ac0718360ecb4873ad9a8a6a836fe"
+        },
+        "reference_dir": "/content/pupper-optional-recovery-v2/class-absolute-v4-selected471-reference",
+        "requires_review": true,
+        "hardware_validated": false
+      },
+      "evaluations": {
+        "captured-post-s101": {
+          "seed": 101,
+          "checkpoint_sha256": "18304c3d38954661bb722120c1e5a1f266437c13df761eb9e6a19780237eaec9",
+          "references": {
+            "captured_jump_gait.npz": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+            "timing_audit.json": "eba624d679ec14ce39987d4bb53f9d2b761ac0718360ecb4873ad9a8a6a836fe",
+            "jump_report.json": "71dddffcd3e59d72eb8e0ce01dae762f3e2a89e6e696f97d649e13fa1dce695e"
+          },
+          "failure_events": 1,
+          "mean_segment_xy_error_m_s": 0.07196830685355993,
+          "mean_segment_yaw_error_rad_s": 0.21900266142053182,
+          "mean_segment_torque_squared_nm2": 0.9195865346118808,
+          "mean_segment_contact_slip_m_s": 0.2659808212192729,
+          "peak_sampled_contact_force_n": 275.6845703125,
+          "per_command_failures": [
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        },
+        "captured-post-s202": {
+          "seed": 202,
+          "checkpoint_sha256": "18304c3d38954661bb722120c1e5a1f266437c13df761eb9e6a19780237eaec9",
+          "references": {
+            "captured_jump_gait.npz": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+            "timing_audit.json": "eba624d679ec14ce39987d4bb53f9d2b761ac0718360ecb4873ad9a8a6a836fe",
+            "jump_report.json": "71dddffcd3e59d72eb8e0ce01dae762f3e2a89e6e696f97d649e13fa1dce695e"
+          },
+          "failure_events": 1,
+          "mean_segment_xy_error_m_s": 0.07309979003750156,
+          "mean_segment_yaw_error_rad_s": 0.21752845913246094,
+          "mean_segment_torque_squared_nm2": 0.9313910100609064,
+          "mean_segment_contact_slip_m_s": 0.26541531505063176,
+          "peak_sampled_contact_force_n": 327.74249267578125,
+          "per_command_failures": [
+            {
+              "command": [
+                -1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        },
+        "captured-post-s303": {
+          "seed": 303,
+          "checkpoint_sha256": "18304c3d38954661bb722120c1e5a1f266437c13df761eb9e6a19780237eaec9",
+          "references": {
+            "captured_jump_gait.npz": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+            "timing_audit.json": "eba624d679ec14ce39987d4bb53f9d2b761ac0718360ecb4873ad9a8a6a836fe",
+            "jump_report.json": "71dddffcd3e59d72eb8e0ce01dae762f3e2a89e6e696f97d649e13fa1dce695e"
+          },
+          "failure_events": 1,
+          "mean_segment_xy_error_m_s": 0.07261848893593226,
+          "mean_segment_yaw_error_rad_s": 0.21784370729798264,
+          "mean_segment_torque_squared_nm2": 0.9299359507858753,
+          "mean_segment_contact_slip_m_s": 0.2625626140506938,
+          "peak_sampled_contact_force_n": 208.27508544921875,
+          "per_command_failures": [
+            {
+              "command": [
+                1.0,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        },
+        "captured-post-s404": {
+          "seed": 404,
+          "checkpoint_sha256": "18304c3d38954661bb722120c1e5a1f266437c13df761eb9e6a19780237eaec9",
+          "references": {
+            "captured_jump_gait.npz": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+            "timing_audit.json": "eba624d679ec14ce39987d4bb53f9d2b761ac0718360ecb4873ad9a8a6a836fe",
+            "jump_report.json": "71dddffcd3e59d72eb8e0ce01dae762f3e2a89e6e696f97d649e13fa1dce695e"
+          },
+          "failure_events": 2,
+          "mean_segment_xy_error_m_s": 0.07117144978211355,
+          "mean_segment_yaw_error_rad_s": 0.21741567147165736,
+          "mean_segment_torque_squared_nm2": 0.9232811015099287,
+          "mean_segment_contact_slip_m_s": 0.2648757630959153,
+          "peak_sampled_contact_force_n": 307.9946594238281,
+          "per_command_failures": [
+            {
+              "command": [
+                1.5,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            },
+            {
+              "command": [
+                0.49,
+                0.0,
+                0.0
+              ],
+              "failures": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  "corrected_before_after": {
+    "101": {
+      "startup_randomization_arrays_exactly_equal": true,
+      "failure_events_before": 10,
+      "failure_events_after": 1,
+      "mean_segment_xy_error_before_m_s": 0.11004645207101407,
+      "mean_segment_xy_error_after_m_s": 0.07196830685355993,
+      "interpretation": "Improved tracking and fewer failure events with a changed captured reference and derived timing. Not a shape-only ablation or proof of jump reliability."
+    },
+    "202": {
+      "startup_randomization_arrays_exactly_equal": true,
+      "failure_events_before": 10,
+      "failure_events_after": 1,
+      "mean_segment_xy_error_before_m_s": 0.11178804815937965,
+      "mean_segment_xy_error_after_m_s": 0.07309979003750156,
+      "interpretation": "Improved tracking and fewer failure events with a changed captured reference and derived timing. Not a shape-only ablation or proof of jump reliability."
+    },
+    "303": {
+      "startup_randomization_arrays_exactly_equal": true,
+      "failure_events_before": 9,
+      "failure_events_after": 1,
+      "mean_segment_xy_error_before_m_s": 0.11088858900427656,
+      "mean_segment_xy_error_after_m_s": 0.07261848893593226,
+      "interpretation": "Improved tracking and fewer failure events with a changed captured reference and derived timing. Not a shape-only ablation or proof of jump reliability."
+    },
+    "404": {
+      "startup_randomization_arrays_exactly_equal": true,
+      "failure_events_before": 13,
+      "failure_events_after": 2,
+      "mean_segment_xy_error_before_m_s": 0.11008098965065104,
+      "mean_segment_xy_error_after_m_s": 0.07117144978211355,
+      "interpretation": "Improved tracking and fewer failure events with a changed captured reference and derived timing. Not a shape-only ablation or proof of jump reliability."
+    }
+  },
+  "capture_and_timing": {
+    "reference_sha256": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+    "source_env": 25,
+    "source_steps": [
+      2832,
+      2875
+    ],
+    "source_command_m_s": [
+      1.5,
+      0,
+      0
+    ],
+    "source_is_running_jump": true,
+    "input_gate_version": "all_body_com_recovery_v2",
+    "input_recovery_convention": "Five 20ms samples: 100ms nominal window, 80ms first-to-last span. This is not 100ms observed continuous recovery. Input and completed training are preserved unchanged; final behavior is independently audited with a versioned stricter sample-span gate.",
+    "raw_samples": 43,
+    "raw_duration_s": 0.84,
+    "input_touchdown_s": 0.54,
+    "exported_timing": {
+      "n_samples": 100,
+      "playback_s": 0.84,
+      "active_s": 0.5,
+      "cross_fade_s": 0.06,
+      "grid_s": 0.75,
+      "busy_s": 0.8999999999999999,
+      "trigger_button": 0,
+      "run_button": 1,
+      "walk_speed_cap": 0.49,
+      "run_speed_cap": 1.5
+    },
+    "final_export_jump_table_equals_actual_resampled_input_float32": true,
+    "timing_report": {
+      "reference_sha256": "e0b97c2b9f6ff223080603806812c4ad38e29c75a85f8ba6d64e7c93128ad8c0",
+      "script_sha256": "bef66c750fe2359adc356282e1847ab370798c24cae5892addfa592d71f4b851",
+      "raw_samples": 43,
+      "raw_duration_s": 0.84,
+      "input_touchdown_s": 0.54,
+      "loader_samples": 100,
+      "loader_resample": "Linear, nonperiodic, endpoint-preserving interpolation from raw evenly spaced samples to 100 rows; model clamp has zero effect for this capture.",
+      "playback_s": 0.84,
+      "active_s": 0.5,
+      "cross_fade_s": 0.06,
+      "busy_s": 0.8999999999999999,
+      "reference_exit_fade_start_s": 0.44,
+      "reference_exit_complete_before_input_touchdown_s": 0.040000000000000036,
+      "training_vs_export_max_error_rad": 1.394166208368297e-06,
+      "parity_samples": 121,
+      "parity_command_m_s": [
+        0.3,
+        0,
+        0
+      ],
+      "effective_jump_reference_source_time_limit_s": 0.5050505050505051,
+      "interpretation": "Nominal playback retains input duration, but the course active reference returns to locomotion 40 ms before the input touchdown. Landing/recovery samples after that boundary are not commanded as the active jump tail. This timing audit does not itself establish that the source is a valid observed capture. N-based runtime lookup differs from N-1 endpoint resampling; this is not exact-time playback. The trained policy must be evaluated. No clipping, smoothing, or speed change was applied to the archived capture.",
+      "hardware_approved": false,
+      "physical_flight_validated_by_this_audit": false,
+      "inputs": {
+        "reference_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/optional2/class-absolute-v4-selected471-reference",
+        "default_policy": "/Users/shrish/workspace/cs123-foundation/pupper_gait_deploy/policies/default_policy.json",
+        "default_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "runtime_source_sha256": {
+        "pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp/gait_reference.py": "f19b626fc9e490b8b7cd7c34e3555c2043cba4c3311fc673d18ac33a2db5aec1",
+        "pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp/gait.py": "91e8aeb5680f8e7bd17d83d5f74c105bab5cb41a743bd7b7a21a44beb44136a5",
+        "pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp/mixed_jump.py": "ba6d9daeb774d8ffb68a2874d13e8d0e65abee4a5ca74065064699a8dedcc464",
+        "pupper-mjlab/src/mjlab/tasks/pupper_gait/mystery_env_cfg.py": "ff43d23d1f2f5c24b66ed0788a7454b8a0fa594e6e6ec8bffd21f1cc25b7b906"
+      },
+      "export_source_sha256": "9c47d5d97660ba71d9359271023e478cbcc9ec47e209f3dadf92c67650763532"
+    },
+    "note": "The active jump reference ends at0.50s,40ms before input touchdown0.54s; later source recovery is not replayed as the active reference tail. Measured source peak joint speed30.59rad/s and driver target-bound excess0.08456rad are research caveats. Actual joint speed is not the same signal as commanded target slew.",
+    "input_gate_v3_reassessment": "Original 43-frame input and later unchanged source context fail the version 3 recovery gate. The v2 training input remains preserved and explicitly qualified; no retroactive validation or additional training."
+  },
+  "metadata_qualification": "The v5 plan inherits the old checkpoint_training_references field from its v4 parent plan. Authoritative current input is its checkpoint path/SHA and continuation_checkpoint_provenance (f3ab25... trained on corrected class reference); current output provenance and reference hashes were independently verified. No training input or old plan was rewritten.",
+  "decisions": [
+    "The original no-reference500-iteration pilot had no admissible jump in its scored diagnostic. Preserve that negative result.",
+    "The altered-reference seed-v2 and its provisional-capture descendant-v3 are separate research lineages; they cannot establish exact-class behavior.",
+    "The corrected-class-v4 and bounded captured-v5 runs establish a reproducible learning pipeline and measurable improvement. No further training is planned in this bounded study.",
+    "The continuation improves velocity tracking and failure counts but does not establish a reliable new jump policy. Only two events meet the final physical/model-bound gate, both during -1.5m/s command segments. Stop this bounded experiment; retain the pipeline and negative result, not a promoted jumping capability.",
+    "Do not replace the shipped policy based on these aggregate metrics. Final policy still has failures and must meet actual flight/recovery, target-slew, physical driver and hardware checks.",
+    "No physical deployment or maximum real-world speed has been measured."
+  ],
+  "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/optional2",
+  "source_review_script_sha256": "be00ef9221f1286c89244e163c1f4e5ecee5d6109ded7560938a52a7ef884655",
+  "final_flight_decision": {
+    "gate_version": "all_body_com_sample_span_v3",
+    "accepted_unique_events_by_seed": {
+      "101": 0,
+      "202": 0,
+      "303": 1,
+      "404": 1
+    },
+    "audited_eligible_windows_by_seed": {
+      "101": 4,
+      "202": 3,
+      "303": 3,
+      "404": 5
+    },
+    "accepted_commands_by_seed": {
+      "101": [],
+      "202": [],
+      "303": [
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "events": 1
+        }
+      ],
+      "404": [
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "events": 1
+        }
+      ]
+    },
+    "conclusion": "The continuation improves velocity tracking and failure counts but does not establish a reliable new jump policy. Only two events meet the final physical/model-bound gate, both during -1.5m/s command segments. Stop this bounded experiment; retain the pipeline and negative result, not a promoted jumping capability.",
+    "original_v2_input_passes_v3_reassessment": false,
+    "scope_note": "Event counts are not per-request success rates. Sampled pose replay cannot establish between-sample continuity or contact forces."
+  }
+}
