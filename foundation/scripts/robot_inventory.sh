@@ -8,6 +8,7 @@ import argparse
 import datetime
 import hashlib
 import importlib.metadata
+import io
 import json
 import math
 import os
@@ -20,12 +21,19 @@ import time
 
 parser = argparse.ArgumentParser(description='Read-only Pupper inventory; --ros observes the already running local ROS graph.')
 parser.add_argument('repo', type=Path)
+parser.add_argument('--repo-root', type=Path, help='explicit discovered working checkout to inspect; defaults to this script checkout')
+for name in ('monorepo', 'gemini', 'follower', 'deployment'):
+    parser.add_argument('--' + name + '-dir', type=Path, help='explicit discovered component directory; fallback candidates are labeled')
 parser.add_argument('--ros', action='store_true', help='sample existing ROS topics and read controller state; never launch or command')
 parser.add_argument('--sample-seconds', type=float, default=3.0)
 parser.add_argument('--contact-export', type=Path, help='Optional Lab 1 exported model directory to hash; model is never executed')
 args = parser.parse_args()
 sys.path.insert(0, str(args.repo / 'foundation/scripts'))
 from inspect_robot_description import inspect_description
+from robot_artifact_backup import fingerprint_file
+tool_repo = args.repo
+if args.repo_root:
+    args.repo = args.repo_root.expanduser().absolute()
 if not 0 < args.sample_seconds <= 15:
     parser.error('--sample-seconds must be more than zero and at most 15')
 
@@ -45,22 +53,28 @@ def command(argv, timeout=8):
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {'error': type(exc).__name__}
 
-def component(name, variable):
-    explicit = os.environ.get(variable)
-    if explicit:
-        return Path(explicit).expanduser()
-    sibling = args.repo / name
-    return sibling if sibling.is_dir() else Path.home() / name
+component_sources = {}
+def component(label, name, variable=None):
+    explicit = getattr(args, label + '_dir', None)
+    if explicit is not None:
+        candidate, origin = explicit.expanduser().absolute(), 'explicit argument'
+    elif variable and os.environ.get(variable):
+        candidate, origin = Path(os.environ[variable]).expanduser().absolute(), 'explicit environment ' + variable
+    elif (args.repo / name).is_dir():
+        candidate, origin = args.repo / name, 'unverified in-checkout candidate'
+    else:
+        candidate, origin = Path.home() / name, 'unverified home-directory candidate'
+    component_sources[label] = origin
+    return candidate
 
-monorepo = component('pupperv3-monorepo', 'PUPPER_MONOREPO_DIR')
-gemini = args.repo / 'gemini_pupper'
-if not gemini.is_dir():
-    gemini = Path.home() / 'gemini_pupper'
-follower = component('follow_me_pupper', 'FOLLOW_ME_DIR')
-deploy = component('pupper_gait_deploy', 'PUPPER_GAIT_DEPLOY_DIR')
+monorepo = component('monorepo', 'pupperv3-monorepo', 'PUPPER_MONOREPO_DIR')
+gemini = component('gemini', 'gemini_pupper')
+follower = component('follower', 'follow_me_pupper', 'FOLLOW_ME_DIR')
+deploy = component('deployment', 'pupper_gait_deploy', 'PUPPER_GAIT_DEPLOY_DIR')
 report = {
     'captured_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    'scope': 'Local read-only inventory. No hardware capability or safety approval is implied.',
+    'scope': 'Local read-only inventory of explicit paths or labeled candidates; paths are not proof of the active installation. No hardware capability or safety approval is implied.',
+    'inventory_tool_root': str(tool_repo),
     'host': {'system': platform.system(), 'release': platform.release(), 'machine': platform.machine(),
              'python': platform.python_version(), 'model': (read('/proc/device-tree/model') or '').rstrip('\0'),
              'uptime': read('/proc/uptime'), 'loadavg': read('/proc/loadavg'),
@@ -83,7 +97,9 @@ for package in ('numpy', 'torch', 'mujoco', 'onnxruntime', 'hailort', 'rclpy', '
         report['versions'][package] = None
 for name, directory in {'foundation': args.repo, 'monorepo': monorepo, 'gemini': gemini,
                         'follower': follower, 'deployment': deploy}.items():
-    report['components'][name] = {'path': str(directory), 'exists': directory.is_dir()}
+    report['components'][name] = {'path': str(directory), 'exists': directory.is_dir(),
+        'path_source': component_sources.get(name, 'explicit repo-root argument' if args.repo_root else 'script checkout'),
+        'active_installation_verified': False}
     if directory.is_dir():
         report['repos'][name] = {'commit': command(['git', '-C', str(directory), 'rev-parse', 'HEAD']),
                                  'branch': command(['git', '-C', str(directory), 'branch', '--show-current']),
@@ -99,11 +115,14 @@ report['driver_descriptions'] = {}
 
 # Hash allowlisted policy/configuration areas. Never read credentials, .env, logs,
 # shell history, remote URLs, API responses or arbitrary configuration directories.
+# Symlinks (including ancestor links), special files and common credential payloads
+# are refused. Explicitly select reviewed real targets of symlink-install files.
 areas = [(gemini / 'tricks', {'.json', '.yaml', '.npz'}),
-         (gemini / 'robot/launch', {'.yaml'}),
+         (gemini / 'robot/launch', {'.yaml', '.py'}),
          (monorepo / 'ros2_ws/src/neural_controller/policies', {'.json', '.yaml'}),
-         (monorepo / 'ros2_ws/src/neural_controller/launch', {'.json', '.yaml'}),
-         (monorepo / 'ros2_ws/install/neural_controller/share/neural_controller/launch', {'.json', '.yaml'}),
+         (monorepo / 'ros2_ws/src/neural_controller/launch', {'.json', '.yaml', '.py'}),
+         (monorepo / 'ros2_ws/install/neural_controller/share/neural_controller/launch', {'.json', '.yaml', '.py'}),
+         (monorepo / 'ros2_ws/install/neural_controller/lib', {'.so'}),
          (deploy / 'policies', {'.json', '.yaml'})]
 areas += [(monorepo / 'ros2_ws/src/pupper_v3_description/description', {'.xacro', '.urdf'}),
           (monorepo / 'ros2_ws/install/pupper_v3_description/share/pupper_v3_description/description', {'.xacro', '.urdf'}),
@@ -113,16 +132,6 @@ files = {p for directory, suffixes in areas if directory.is_dir()
 for relative in ('src/control_board_hardware_interface.cpp', 'src/rt/rt_spi.cpp'):
     p = monorepo / 'ros2_ws/src/control_board_hardware_interface' / relative
     if p.is_file(): files.add(p)
-for p in sorted(files):
-    if p.suffix in ('.xacro', '.urdf'):
-        try:
-            source = p.read_text()
-        except (OSError, UnicodeError):
-            source = None
-        if source:
-            parsed = inspect_description(source)
-            if parsed['driver_joints'] or parsed['errors']:
-                report['driver_descriptions'][str(p)] = parsed
 for p in (gemini / 'robot/camera_params.yaml', follower / 'robot/camera_params.yaml',
           args.repo / 'ik_heuristic_walking_lab/ik.yaml', args.repo / 'ik_heuristic_walking_lab/walking.yaml',
           args.repo / 'pd_control_lab/pd_control.yaml'):
@@ -138,13 +147,15 @@ if args.contact_export:
         if p.is_file(): files.add(p)
 for p in sorted(files):
     try:
-        digest = hashlib.sha256()
-        with p.open('rb') as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
-                digest.update(chunk)
-        report['file_hashes'].append({'path': str(p), 'bytes': p.stat().st_size, 'sha256': digest.hexdigest()})
-    except OSError as exc:
-        report['file_hashes'].append({'path': str(p), 'error': type(exc).__name__})
+        description = io.BytesIO() if p.suffix in ('.xacro', '.urdf') else None
+        captured = fingerprint_file(p.absolute(), destination=description)
+        report['file_hashes'].append({'path': str(p), 'bytes': captured['bytes'], 'sha256': captured['sha256']})
+        if description is not None:
+            parsed = inspect_description(description.getvalue().decode('utf-8'))
+            if parsed['driver_joints'] or parsed['errors']:
+                report['driver_descriptions'][str(p)] = parsed
+    except (OSError, ValueError, UnicodeError) as exc:
+        report['file_hashes'].append({'path': str(p), 'error': type(exc).__name__, 'reason': str(exc)})
 
 if args.ros:
     ros = report['ros'] = {'note': 'Observes existing graph only; no launch, command publisher or parameter writes.'}

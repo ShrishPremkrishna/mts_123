@@ -32,11 +32,22 @@ the course TA's approval before their first hardware run.
 
 ## Collect the read-only inventory
 
-On the robot, from this checkout, first run:
+First discover the Pi's actual working checkout, launch entry point and installed
+ROS workspace. The user's proposed connection is `pi@mts`; reachability and the
+installed paths have not been established. Do not infer them from the laptop's
+layout. Stage this checkout separately; do not run its installer or setup script
+against the approved workspace while discovering it.
+
+On the robot, from the separately staged checkout, first run:
 
 ```bash
 bash foundation/scripts/robot_inventory.sh > /tmp/pupper-inventory-before.json
 ```
+
+The default component paths are labeled discovery candidates, not proof of the
+active installation. Repeat with the discovered paths using `--repo-root`,
+`--monorepo-dir`, `--gemini-dir`, `--follower-dir` and `--deployment-dir` as needed.
+These arguments inspect existing directories; they do not install anything.
 
 After sourcing the robot's existing approved ROS environment, observe the already
 running graph without launching or changing controllers:
@@ -53,14 +64,26 @@ stamps and encoded sizes, not photographs. It reads no credentials, environment
 dump, shell history, API keys, or remote repository URLs. It never launches ROS,
 publishes commands, switches controllers, sets parameters, or downloads anything.
 
-The inventory also hashes the source/installed robot descriptions and installed
-hardware-driver library, and extracts the declared motor target bounds and homing
-settings. In ROS mode it reads only the `robot_description` parameter from the
+The inventory also hashes source/installed launch Python files, the installed
+neural-controller and hardware-driver libraries, and robot descriptions. It
+extracts the declared motor target bounds and homing settings. In ROS mode it reads only the `robot_description` parameter from the
 controller manager and robot-state publisher, when available. Compare those named
 driver bounds against `configs/class-driver-joint-limits.json`; a model's mechanical
 joint range is a different quantity. Unexpanded xacro values, missing parameters,
 and source/installed differences remain visible. A description or library hash
-alone cannot prove which values a running process actually loaded.
+alone cannot prove which values a running process actually loaded. For each
+running neural controller, read its named `model_path` parameter and compare that
+exact file with the inventory; the allowlisted directory scan may miss a policy
+loaded from a different directory. Record the actual launch invocation separately
+without environment dumps or credentials.
+
+Symlinks, ancestor links, special files and common credential patterns are refused
+by the hash reader. A symlink-install workspace may therefore show explicit hash
+errors. Inspect each link target, then select its real reviewed file path for
+backup; retain the original link-to-target mapping as metadata. Do not silently
+follow links, ignore refused entries, or substitute a similarly named source
+file for the installed library. The screens reduce accidental credential capture;
+they cannot prove arbitrary file contents are free of secrets.
 
 Check the report against the running setup. Missing ROS packages or unavailable
 services are evidence gaps, not successful checks. Battery state and physical
@@ -69,6 +92,86 @@ velocities and efforts; inspect receipt rates, timestamp progression and gaps.
 The classical controllers deliberately stop after a 0.25-second sensor lapse;
 Optional Lab 1 additionally requires valid model windows at its recorded sample
 timing. Do not claim a model is ready just because `/joint_states` exists.
+
+## Make the baseline and staged transfer verifiable
+
+Use [robot_artifact_backup.py](scripts/robot_artifact_backup.py) after the inventory
+identifies the real files. It accepts only a reviewed list of absolute regular-file
+paths, never whole directories or globs. For the baseline, include the actual loaded
+policies and descriptors, launch/configuration/calibration files, installed neural
+and hardware-driver libraries, relevant locally changed source files, and a
+nonsecret record of the Git revision, package versions and exact previous launch
+procedure. Keep the original checkout and installed workspace intact. A backup of
+selected files does not preserve everything in a checkout or establish a runnable
+rollback by itself.
+
+Create a plan with this shape, replacing the example path with a file discovered
+on this robot and adding every needed file explicitly:
+
+```json
+{
+  "schema": "pupper_explicit_artifact_v1",
+  "purpose": "robot-baseline",
+  "files": [
+    {"label": "approved-locomotion", "path": "/actual/discovered/policy.json", "role": "policy"}
+  ]
+}
+```
+
+Supported roles are `policy`, `configuration`, `calibration`, `launch`,
+`controller_library`, `driver_library`, `source`, `model_metadata`, `inventory`
+and `build_identity`. Keep API keys, secret stores, shell history and private keys
+out of the plan and any freeform launch record. Do not archive a whole home folder,
+`.env`, raw environment dump or generic application configuration directory.
+
+```bash
+python3 foundation/scripts/robot_artifact_backup.py create \
+  --plan /absolute/path/reviewed-baseline-plan.json \
+  --output /absolute/path/new-baseline-artifact
+```
+
+The output directory must be new. Copies are private and nonexecutable; the
+manifest records original modes, exact source paths, sizes, per-file capture
+times and SHA256 digests. Capture only after relevant file writers are quiet.
+Each file is checked for changes and atomic path replacement while being copied;
+this is not an atomic snapshot of multiple files or a running application.
+A failed capture remains marked `INCOMPLETE` and cannot verify. Source changes
+during capture, linked paths and unexpected secret material are explicit failures.
+The tool never changes a source file, starts ROS, contacts the network, selects a
+policy, installs files or restores them.
+
+Record the printed `manifest_sha256` outside the artifact. Copy the artifact to
+a durable location off the Pi, then independently verify the copy using that
+recorded value:
+
+```bash
+python3 foundation/scripts/robot_artifact_backup.py verify \
+  /absolute/path/copied-baseline-artifact \
+  --expected-manifest-sha256 THE_RECORDED_64_HEX_DIGEST
+```
+
+Verification without the expected digest checks internal file integrity but does
+not pin the manifest's identity. Extra, missing, linked or altered files refuse
+verification. A matched file hash proves copied bytes, not that the file was
+loaded or that the robot can execute it safely.
+
+For a proposed transfer, create a separate explicit plan with purpose
+`staged-transfer`. Each file must additionally include `expected_sha256` from its
+reviewed artifact or source audit; a missing or mismatched pin refuses capture.
+Baseline plans may also pin inventory hashes this way. Capture only the reviewed
+revision/artifacts, then verify the recorded manifest digest after transfer. Leave it in a separate staging directory;
+creation/verification never installs it. Pair a policy with its descriptor,
+walking companion or contact-model metadata as applicable. Compare staged assets
+against [the local policy file audit](results/installed-policy-file-audit.json)
+and the experiment's reviewed report. Discover and back up the Pi baseline first;
+never substitute laptop candidate identities for unknown installed robot hashes.
+
+Before any replacement, write down the exact approved launch command and original
+workspace, the baseline files it resolves, and the operator's stop/restart
+procedure. Preserve symlink mappings and any required package/build environment.
+Rollback means stopping the changed stack and returning to that preserved setup,
+then confirming ownership and observed stopping; this helper deliberately has no
+automatic restore or motor-control command.
 
 ## Establish the current baseline first
 
@@ -79,8 +182,9 @@ timing. Do not claim a model is ready just because `/joint_states` exists.
    orientation and white balance, timestamps, Hailo availability, detector model,
    and an actual detection. The course Hailo8L model is now downloaded and
    [content-pinned](results/lab5-detector-model.json); this does not test accelerator
-   compatibility or inference. The laptop still lacks the installed ROS workspace;
-   discover the robot's real paths and versions before deploying.
+   compatibility or inference. An isolated ROS Jazzy build has exercised the
+   production controller, but the Pi's installed workspace and binaries remain
+   unverified; discover its real paths and versions before deploying.
 3. Compare the baseline's policy/configuration hashes with the intended branch.
    Confirm the controller that actually owns the motor command interfaces.
    Classical PD/IK nodes command `forward_command_controller`; the neural stack
@@ -92,6 +196,22 @@ timing. Do not claim a model is ready just because `/joint_states` exists.
    follower stop behavior, the physical e-stop, and a software stop separately.
    A new motion must stop following before it starts. A failed controller switch
    or unknown response must not authorize the next queued motion.
+5. Before reusing a newly installed Gemini stack, run `robot/startup_readiness.py`
+   from its Gemini robot directory in the intended ROS environment. It verifies
+   matching policy/configuration paths and loaded **read-only** capabilities:
+   reference acknowledgement (`pupper_reference_v1`), policy activation receipts
+   (`pupper_policy_v1`), interactive request receipts (`pupper_clip_v1`), and the
+   complete position-target-slew contract when a policy requires it. Old binaries
+   or writable/copied marker values must fail. Do not place these loaded capability
+   markers in launch YAML, and do not restore transient `execution_request_id`
+   values from a parameter dump. A successful check establishes software
+   compatibility; supervised motion and stopping checks remain separate.
+6. During short supervised tool trials, confirm request-correlated playback
+   receipts and interruption behavior. A finite or interactive trick must report
+   its current activation/request endpoint before a handoff; a published command
+   or elapsed timer is insufficient. A playback receipt is not measured standing,
+   flight or landing. Missing or inconsistent receipts quarantine further motion;
+   inspect the stack rather than bypassing the guard.
 
 ## Enable capabilities one at a time
 
@@ -112,6 +232,14 @@ timing. Do not claim a model is ready just because `/joint_states` exists.
 | Optional 2 faster reference gait and bootstrapping | Actual baseline/candidate checkpoints, captured reference manifests, multi-seed mixed-gait and bumpy evaluations, speed/torque/slip tradeoffs | Promote only after comparison; no claimed real speed from reference feasibility |
 | Optional 2 Mystery jump | A real successful simulated flight/landing trace, matching scheduler/export, landing-load and recovery inspection | Simulation experiment first; TA approval before first new-policy hardware run |
 | Optional 3 character/hidden tricks | Real Gemini session, deterministic unlock/lock behavior and real motion artifact | Password outside repo; identity claims never unlock; new motion still needs training/TA gate |
+
+The branch retains the shipped default gait/jump. The reviewed COM-X Sit export
+is a **local simulation foundation asset**, not a Pi-approved replacement; its
+CPU +2.5 cm COM case wobbles. Spider training variants and Optional 2 gait/jump
+experiments remain separately reviewed research artifacts unless an explicit
+reviewed report says otherwise. Their presence in `artifacts/` is not permission
+to install them. Verify current file hashes against the local file audit instead
+of relying on labels such as “best” or “latest.”
 
 For Gemini, use explicit component paths where needed. The default follower mode
 is `lab5`; `disabled` is an intentional mode for tests without following. Color
