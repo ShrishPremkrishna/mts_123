@@ -173,7 +173,7 @@ JUMP_CAPTURE_GATE = dict(version="all_body_com_sample_span_v3",min_flight_s=.08,
     note="Version3 requires at least80ms observed flight span and100ms observed recovery span. At50Hz these require5and6samples, respectively; version2 used4and5samples. The0.1mm positive COM-rise tolerance is a numerical evidence threshold, not a mechanical limit or the earlier proposed5mm screen.")
 
 
-def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, window=None):
+def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, window=None, return_all=False):
     """Select unmodified motion only with audited flight and sustained recovery.
 
     Foot-only traces are insufficient: ``robot_ground_contact_count`` must cover
@@ -259,7 +259,9 @@ def select_jump(trace, pre_s=.30, post_s=.30, min_flight_s=.08, *, limits=None, 
                 recovery_s=float((settle-1)*dt),recovery_sample_count=settle,recovery_nominal_bin_s=float(settle*dt),maximum_recovery_tilt_rad=float(np.max(tilt[recovery,env])),
                 minimum_torso_clearance_m=float(torso.min()) if torso is not None else None))
     if not candidates:raise ValueError("No clean jump with loading, upward all-body flight and sustained landing found; do not fabricate a capture")
-    return max(candidates,key=lambda c:c["rise_m"])
+    # Evaluation can enumerate every admissible event without selecting a new
+    # reference from held-out data. Capture CLI retains max-rise selection.
+    return candidates if return_all else max(candidates,key=lambda c:c["rise_m"])
 
 
 def compare_evaluations(baseline, candidate, min_speed=.5, min_improvement=.05, max_cost_regression=.2):

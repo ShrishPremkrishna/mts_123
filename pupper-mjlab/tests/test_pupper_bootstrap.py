@@ -310,3 +310,13 @@ def test_minimum_flight_uses_observed_span_not_count_times_dt():
     assert selected['flight_sample_count']==5
     assert selected['flight_s']==pytest.approx(.08)
     assert selected['flight_nominal_bin_s']==pytest.approx(.10)
+
+
+def test_evaluation_enumerates_all_admissible_events_before_any_ranking():
+    t=jump_trace();add_observed_flight(t,40,50,.25);add_observed_flight(t,100,110,.22)
+    all_events=b.select_jump(t,return_all=True)
+    assert [x['flight_start'] for x in all_events]==[40,100]
+    assert b.select_jump(t)==all_events[0]
+    t['joint_pos'][40,0,0]=1.1
+    bounded=b.select_jump(t,return_all=True,limits=np.tile([-1.,1.],(12,1)))
+    assert [x['flight_start'] for x in bounded]==[100]
