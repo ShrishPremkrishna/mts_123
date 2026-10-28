@@ -27,6 +27,8 @@ def test_stops_measure_sustained_motion_and_censor_resets(tmp_path):
     assert result['stops'][0]['time_to_sustained_stop_s']==pytest.approx(.3)
     assert result['stops'][1]['time_to_sustained_stop_s'] is None
     assert result['stops'][2]['reset_or_timeout']
+    assert result['stops'][2]['displacement_full_segment_m'] is None
+    assert result['stops'][2]['final_planar_speed_m_s'] is None
 
 
 def test_precision_plan_changes_only_std_and_isolated_destination(monkeypatch,tmp_path):

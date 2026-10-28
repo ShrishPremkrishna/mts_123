@@ -32,13 +32,20 @@ def analyze(trace, speed=.02, yaw=.05, hold=.5):
             first=None if reset or not len(starts) else int(starts[0])
             pos=arrays['root_position'][ids,world,:2];origin=pos[0]
             until=min(len(ids),int(np.floor(1/dt))+1)
-            stops.append(dict(segment=int(s),world=world,previous_command=prior[world].tolist(),reset_or_timeout=reset,
+            record=dict(segment=int(s),world=world,previous_command=prior[world].tolist(),reset_or_timeout=reset,
                 settled=first is not None,time_to_sustained_stop_s=None if first is None else first*dt,
                 displacement_first_second_m=float(np.linalg.norm(pos[:until]-origin,axis=1).max()),
                 displacement_full_segment_m=float(np.linalg.norm(pos-origin,axis=1).max()),
                 final_planar_speed_m_s=float(planar[-1]),final_abs_yaw_rate_rad_s=float(abs(velocity[ids[-1],world,2])),
                 mean_torque_squared_nm2=float(np.square(arrays['torque'][ids,world]).mean()),
-                sampled_torque_at_3nm_limit_fraction=float(np.mean(np.abs(arrays['torque'][ids,world])>=2.99))))
+                sampled_torque_at_3nm_limit_fraction=float(np.mean(np.abs(arrays['torque'][ids,world])>=2.99)))
+            if reset:
+                # A reset teleports the state. Neither displacement, end speed
+                # nor an effort average across that teleport describes stopping.
+                for key in ('displacement_first_second_m','displacement_full_segment_m','final_planar_speed_m_s',
+                            'final_abs_yaw_rate_rad_s','mean_torque_squared_nm2','sampled_torque_at_3nm_limit_fraction'):
+                    record[key]=None
+            stops.append(record)
     times=[r['time_to_sustained_stop_s'] for r in stops if r['settled']]
     return dict(protocol='continuous_zero_command_stop_measurement_v1',trace_sha256=hashlib.sha256(Path(trace).read_bytes()).hexdigest(),
                 thresholds=dict(planar_speed_m_s=speed,abs_yaw_rate_rad_s=yaw,continuous_hold_s=hold),
