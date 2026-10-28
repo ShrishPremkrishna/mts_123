@@ -17,6 +17,7 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
+import math
 import os
 import re
 import subprocess
@@ -144,6 +145,31 @@ def check_generated_motion(path: Path) -> None:
     raise ValueError("Generated motion failed geometry validation: " + "; ".join(issues))
 
 
+def set_linear_tracking_std(cfg, value: float | None) -> dict:
+  """Explicit experiment override; preserve task defaults and reward weights.
+
+  This reward combines XY tracking error and body vertical velocity, so narrowing
+  its standard deviation affects both. Refuse a changed reward implementation.
+  """
+  if value is None:
+    return {}
+  if isinstance(value, bool) or not math.isfinite(value) or value <= 0:
+    raise ValueError("--linear-tracking-std must be positive and finite")
+  from mjlab.tasks.velocity.mdp.rewards import track_linear_velocity
+  term = cfg.rewards.get("track_linear_velocity")
+  if term is None or term.func is not track_linear_velocity or term.weight <= 0:
+    raise ValueError("Linear std override requires the active standard linear-velocity reward")
+  previous = term.params.get("std")
+  if not isinstance(previous, (float, int)) or not math.isfinite(previous) or previous <= 0:
+    raise ValueError("Existing linear-velocity std must be positive and finite")
+  term.params["std"] = float(value)
+  return {"track_linear_velocity.std": {
+    "previous": float(previous), "value": float(value), "weight_unchanged": float(term.weight),
+    "units": "m/s", "error": "squared XY command error plus squared BODY vertical velocity",
+    "formula": "exp(-(xy_error_squared + body_vertical_velocity_squared) / std**2)",
+  }}
+
+
 def train(args: argparse.Namespace) -> Path:
   # run_train uses CUDA_VISIBLE_DEVICES to choose the device. An explicitly
   # disabled GPU must fail, not silently start 4096 CPU environments.
@@ -210,6 +236,8 @@ def train(args: argparse.Namespace) -> Path:
       raise ValueError(f"Unknown reward terms: {sorted(unknown)}")
     for name, reward in cfg.rewards.items():
       reward.weight = profile["rewards"].get(name, 0.0)
+  linear_std = getattr(args, "linear_tracking_std", None)
+  reward_parameters = set_linear_tracking_std(cfg, linear_std)
   if motion_path is not None:
     cfg.commands["motion"].motion_file = str(motion_path)
   stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -218,6 +246,8 @@ def train(args: argparse.Namespace) -> Path:
     contract_suffix += "_driverclamp"
   contract_suffix += "_composedcom" if compose_com else "_legacycom"
   contract_suffix += "_groundhulls" if ground_hulls else "_torsocontact" if torso_contact else "_legacyhulls"
+  if linear_std is not None:
+    contract_suffix += "_linstd" + format(linear_std, ".12g").replace(".", "p")
   agent.run_name = f"foundation_{args.profile}{contract_suffix}_s{args.seed}_{stamp}_{uuid.uuid4().hex[:8]}"
   run_dir = args.output.resolve() / "runs" / agent.run_name
   run_dir.mkdir(parents=True, exist_ok=False)
@@ -247,6 +277,7 @@ def train(args: argparse.Namespace) -> Path:
     "profile_config": profile, "seed": args.seed,
     "actuation_contract": contract, "com_randomization_contract": com_contract,
     "collision_contract": collision_contract,
+    "reward_parameter_overrides": reward_parameters,
     "num_envs": cfg.scene.num_envs, "iterations": agent.max_iterations,
     "resume_run": args.resume_run, "resume_checkpoint": args.resume_checkpoint,
     "initial_checkpoint": str(initial_checkpoint) if initial_checkpoint else None,
@@ -354,6 +385,7 @@ def main() -> None:
   launch.add_argument("--initial-checkpoint", type=Path, help="Exact local checkpoint for a separate finetune run; the original is retained")
   launch.add_argument("--deployment-target-clamp", action="store_true", help="New explicit actuation contract matching on-robot joint target clipping")
   launch.add_argument("--driver-limits", type=Path, help="Named driver joint limits JSON; requires --deployment-target-clamp")
+  launch.add_argument("--linear-tracking-std", type=float, help="Explicit reward-width experiment in m/s; changes XY tracking AND body vertical-velocity tolerance, preserving reward weights")
   launch.add_argument("--compose-com-randomization", action="store_true", help="Separate experiment preserving COM offsets after inertial randomization; legacy runs stay unchanged")
   launch.add_argument("--tracking-ground-hulls", action="store_true", help="Separate corrected body-contact contract for Pupper tracking; legacy course configuration disables these hulls")
   launch.add_argument("--locomotion-torso-contact", action="store_true", help="Separate SpiderWalk physics contract adding only the torso collider; preserve knee/foot spheres")

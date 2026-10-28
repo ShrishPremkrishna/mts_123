@@ -59,7 +59,8 @@ def test_tracking_finetune_keeps_frozen_motion_and_explicit_contracts(tmp_path, 
   assert list(default.events).index("base_com") < list(default.events).index("inertial")
 
 
-def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_path, monkeypatch):
+@pytest.mark.parametrize('linear_std',[None,0.08])
+def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_path, monkeypatch,linear_std):
   monkeypatch.setenv('CUDA_VISIBLE_DEVICES','0')
   monkeypatch.setattr(torch.cuda,'is_available',lambda:True)
   monkeypatch.setattr(torch.cuda,'get_device_name',lambda _: 'mock launcher test')
@@ -76,6 +77,7 @@ def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_
                          tracking_ground_hulls=False,locomotion_torso_contact=True,
                          num_envs=64,iterations=1500,seed=42,logger='tensorboard',project='test',
                          initial_checkpoint=checkpoint,resume_run=None,resume_checkpoint=None)
+  args.linear_tracking_std=linear_std
   run=foundation.train(args)
   cfg=captured['config'].env
   assert captured['task']=='Mjlab-SpiderWalk-Flat-Pupper-v3'
@@ -93,3 +95,30 @@ def test_spiderwalk_contact_continuation_keeps_full_original_reward_profile(tmp_
   assert '_torsocontact_' in run.name
   assert record['motion_file'] is None
   assert record['initial_checkpoint_sha256']==foundation.sha256(checkpoint)
+  if linear_std is None:
+    assert record['reward_parameter_overrides']=={}
+    assert cfg.rewards['track_linear_velocity'].params['std']==pytest.approx(.1**.5)
+  else:
+    assert cfg.rewards['track_linear_velocity'].params['std']==linear_std
+    assert '_linstd0p08_' in run.name
+    override=record['reward_parameter_overrides']['track_linear_velocity.std']
+    assert override['value']==linear_std and override['previous']==pytest.approx(.1**.5)
+    assert override['weight_unchanged']==10.
+  assert load_env_cfg('Mjlab-SpiderWalk-Flat-Pupper-v3').rewards['track_linear_velocity'].params['std']==pytest.approx(.1**.5)
+
+
+@pytest.mark.parametrize('value',[0.,-1.,float('nan'),float('inf'),True])
+def test_linear_tracking_override_rejects_invalid_values(value):
+  cfg=load_env_cfg('Mjlab-SpiderWalk-Flat-Pupper-v3')
+  with pytest.raises(ValueError,match='positive and finite'):
+    foundation.set_linear_tracking_std(cfg,value)
+
+
+def test_linear_tracking_override_refuses_other_reward_or_inactive_term():
+  cfg=load_env_cfg('Mjlab-SpiderWalk-Flat-Pupper-v3')
+  with pytest.raises(ValueError,match='active standard'):
+    foundation.set_linear_tracking_std(cfg,.08)
+  cfg.rewards['track_linear_velocity'].weight=10.
+  cfg.rewards['track_linear_velocity'].func=lambda *_:None
+  with pytest.raises(ValueError,match='active standard'):
+    foundation.set_linear_tracking_std(cfg,.08)
