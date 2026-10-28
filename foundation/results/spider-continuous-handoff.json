@@ -1,0 +1,1933 @@
+{
+  "protocol": "continuous_exported_controller_spider_handoff_v1",
+  "scope": "Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.",
+  "hardware_validated": false,
+  "approved_for_hardware": false,
+  "policy_installation_performed": false,
+  "trick_policy_sha256": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb",
+  "walk_policy_sha256": "ef57ca17655a38b998ed7f116bb197c4a7e3b815566d8dfd1b084913695c3155",
+  "controller_fix": "Initialization and fade start at the selected trick clip first joint pose. Network normalization/action defaults remain fixed; effective pre-clamp action goes into history. Ordinary walking/default-pose activation arithmetic is preserved; unknown clips and invalid anchors refuse activation.",
+  "sequence": "Standing -> Spider entry(0.5s init+1s fade+7.6s clip+0.3s) -> walking(2s init+2s fade+0.2s) -> forward0.10m/s2s -> stop1s -> backward0.10m/s2s -> yaw0.20rad/s2s -> stop2s -> selected Spider exit(0.5s init+1s fade+7.6s clip+0.3s) -> standing hold1s. Physical position/velocity and16ms target-delay buffer persist through all switches; activation resets controller observations and phase only.",
+  "physics": {
+    "native_mujoco_hz": 520,
+    "inference_hz": 52,
+    "nominal_robot_mass_kg": 3.17,
+    "target_delay_s": 0.016,
+    "driver_bounds_file": "foundation/configs/class-driver-joint-limits.json",
+    "driver_bounds_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+    "installed_robot_driver_bounds_verified": false
+  },
+  "interpretation": [
+    "All 8 bounded sequences completed without reaching the configured1.5rad tilt stop, with zero physical resets and unchanged watched sources. This is completion evidence, not an invented safe/unsafe score.",
+    "Legacy exit activation creates an unintended stand/drop excursion before playing the low-stance exit reference. Selected-clip anchoring removes that excursion under both contact models and both command-limit variants.",
+    "In torso-only+class-driver comparison, maximum fade tilt drops37.75 degrees to0.65 degrees; full-hull+class-driver drops11.51 degrees to2.82 degrees. Exit playback itself still reaches9.33 degrees with full hulls/class driver.",
+    "Fixed-activation forward speed averages 0.041\u20130.064m/s for a0.10m/s request over only 2 s. This short transition diagnostic does not validate the complete walking speed range.",
+    "Both worlds retain their chosen geometry for the whole sequence. Full-hull world includes additional leg-ground support that the walking policy was not trained with; torso-only world omits leg hull contacts used by the tracking policy. Neither mismatch is hidden by swapping models or resetting between phases."
+  ],
+  "limitations": [
+    "Native CPU solver at520Hz differs from250Hz training Warp solver.",
+    "Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.",
+    "Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.",
+    "No final walking-controller activation after standing exit; bounded diagnostic stops in trick standing hold.",
+    "Only one deterministic nominal world per variant; no timing jitter, stale command handling, ROS controller-manager process, hardware safety circuit or actuator temperature validation.",
+    "Ground contacts are compliant MuJoCo constraints; minimum distances are penetration diagnostics, not hard no-penetration guarantees.",
+    "The locally supplied class driver bounds are not verified as the installed robot bounds."
+  ],
+  "test_evidence": {
+    "compiled_exported_controller_and_geometry_tests": "4 passed: selected-exit low-pose initialization, unclipped last-action feedback, default-first-clip legacy parity, both compiled contact geometries.",
+    "cpp_host_suite": "All gait/jump/command/quaternion/clip tests passed, plus303 fade comparisons and invalid-anchor/zero-scale cases.",
+    "full_ros_build": "Not performed locally; ROS toolchain unavailable."
+  },
+  "source_sha256": {
+    "foundation/cpp/handoff_controller.cpp": "3028714e0673d989f1bc5559acebe873ab66aabca0864b5ed906acf1a5e1bc3f",
+    "foundation/scripts/check_spider_handoff.py": "8055e05abda6e365bb30d114c0536e8c2f1b743774d47e1d21f3c086ad24053e",
+    "pupper_gait_deploy/src/command_filter.hpp": "2513561c1f01613f1be6ccd2ce3acd494e5c60ee6f309887df8e4b30699a9c9d",
+    "pupper_gait_deploy/src/gait_reference.hpp": "59950dcd0786b52162db7a1e1eb8eef43293a57e02b05c0363a304e931f0ba16",
+    "pupper_gait_deploy/src/gait_reference_json.hpp": "ad7e898e21750bdd97f8e075f8f6ff97288f3483dcc248e904fd89ffafdeb751",
+    "pupper_gait_deploy/src/neural_controller.hpp": "5bbeb7ae4700ecd081a01665647f65d52d5258da6cf38fb7b00a343ecbab9414",
+    "pupper_gait_deploy/src/obs_spec.hpp": "e8fc46546ced273fe46baee265356b90a74e8c4794d66952811bdec07dac58a7",
+    "pupper_gait_deploy/src/trick_motion.hpp": "3d238b5a9e5737868772be7da4dca5291210532c30224d504a0ec9790c78da05",
+    "pupper_gait_deploy/src/neural_controller.cpp": "e41230a0b0c009586bc0d052fa951db87699dca0338dc09d36619ee4b5544c8a",
+    "pupper_gait_deploy/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+    "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+    "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+    "pupper-mjlab/src/mjlab/tasks/pupper/locomotion_contact_contract.py": "23f3322826681da74e862a798ce2e176385bcd31dd4582803f7b87eb9c5abbc6",
+    "pupper-mjlab/src/mjlab/tasks/pupper/deployment_contract.py": "388aec727d505aa3b9abe49223c9c216938aa06e3476d243e9b509244c28cb62",
+    "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b",
+    "pupper-mjlab/src/mjlab/entity/entity.py": "e6465ec1ff0215b0a9d442d533834d86cf100f5635760a2219690b4f1393c7c1",
+    "pupper-mjlab/src/mjlab/sim/sim.py": "2f7e3e1672b75fa3863c677dbbd3e6a62e49b97953db64f0d8a261a0d45e52bc"
+  },
+  "cases": {
+    "full_hulls-clip_anchor-class_driver": {
+      "report": "artifacts/handoff/corrected-walking-v1/full_hulls-clip_anchor-class_driver/report.json",
+      "report_sha256": "4b2397ca86012a6186d9209d7f11316852f65404b0805582bb8be6a42ce08a0a",
+      "trajectory_sha256": "06b153ab8f5646b1bb140fe3557b1903cee5fed79767ca281cddaba2d316de2c",
+      "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 7.8460103993216865,
+          "mean_velocity_body": [
+            -0.00116804802202567,
+            0.00023320661872706255,
+            -0.015026279625757775
+          ],
+          "min_height_m": 0.031177618743995793,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 8.19312894183194,
+          "final_max_joint_speed_rad_s": 0.054731639892385796,
+          "final_error_vs_controller_default_max_rad": 1.3071676268876118,
+          "final_error_vs_current_reference_max_rad": 0.18639535248441919,
+          "max_target_step_rad": 0.26338592171669006,
+          "driver_clipped_joint_fraction": 0.11639400136332652,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 3.2843923025769155,
+          "mean_velocity_body": [
+            -0.002491279521762952,
+            2.9777156048376094e-05,
+            -0.0014834352102297392
+          ],
+          "min_height_m": 0.035713732811951136,
+          "max_height_m": 0.0434050380297348,
+          "max_joint_speed_rad_s": 0.41449109949932367,
+          "final_max_joint_speed_rad_s": 0.03233051727857546,
+          "final_error_vs_controller_default_max_rad": 0.14386096652319758,
+          "final_error_vs_current_reference_max_rad": 0.14386096652319758,
+          "max_target_step_rad": 0.20586228370666504,
+          "driver_clipped_joint_fraction": 0.13470319634703196,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 6.368958131242446,
+          "mean_velocity_body": [
+            0.06422750910714152,
+            0.0011672997992659415,
+            0.005434859761144532
+          ],
+          "min_height_m": 0.03688554061265219,
+          "max_height_m": 0.04748681373580909,
+          "max_joint_speed_rad_s": 19.67275083919082,
+          "final_max_joint_speed_rad_s": 11.782854692315631,
+          "final_error_vs_controller_default_max_rad": 0.7283886054633837,
+          "final_error_vs_current_reference_max_rad": 0.7283886054633837,
+          "max_target_step_rad": 1.2710373997688293,
+          "driver_clipped_joint_fraction": 0.1578525641025641,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 5.114183173544088,
+          "mean_velocity_body": [
+            0.0012281313746682376,
+            9.282755255902395e-05,
+            -0.004512247952480738
+          ],
+          "min_height_m": 0.03784211023078767,
+          "max_height_m": 0.045584207051229474,
+          "max_joint_speed_rad_s": 9.885559968566664,
+          "final_max_joint_speed_rad_s": 0.03711655728758933,
+          "final_error_vs_controller_default_max_rad": 0.1618403340907142,
+          "final_error_vs_current_reference_max_rad": 0.1618403340907142,
+          "max_target_step_rad": 0.6111188530921936,
+          "driver_clipped_joint_fraction": 0.1794871794871795,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 5.193022350614214,
+          "mean_velocity_body": [
+            -0.034604872589264785,
+            0.011221989168060578,
+            0.002252879230883244
+          ],
+          "min_height_m": 0.037348069113233344,
+          "max_height_m": 0.04467523681635877,
+          "max_joint_speed_rad_s": 20.12977761560219,
+          "final_max_joint_speed_rad_s": 4.7945489134251895,
+          "final_error_vs_controller_default_max_rad": 0.30604082401259464,
+          "final_error_vs_current_reference_max_rad": 0.30604082401259464,
+          "max_target_step_rad": 0.8804915398359299,
+          "driver_clipped_joint_fraction": 0.14903846153846154,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 5.405930464343476,
+          "mean_velocity_body": [
+            0.003108914429476427,
+            0.008921601296571938,
+            -0.0008712174029948394
+          ],
+          "min_height_m": 0.03989120721565125,
+          "max_height_m": 0.04547475125728283,
+          "max_joint_speed_rad_s": 19.918174167397776,
+          "final_max_joint_speed_rad_s": 13.694644044474487,
+          "final_error_vs_controller_default_max_rad": 0.9338358321987303,
+          "final_error_vs_current_reference_max_rad": 0.9338358321987303,
+          "max_target_step_rad": 0.9335823357105255,
+          "driver_clipped_joint_fraction": 0.16105769230769232,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 4.307433505237173,
+          "mean_velocity_body": [
+            -0.0013006766711249648,
+            0.0032279973470875746,
+            -0.0017365489083825284
+          ],
+          "min_height_m": 0.03646548258991304,
+          "max_height_m": 0.043253822924355825,
+          "max_joint_speed_rad_s": 13.256523432217758,
+          "final_max_joint_speed_rad_s": 0.01319905137289326,
+          "final_error_vs_controller_default_max_rad": 0.1712197998699927,
+          "final_error_vs_current_reference_max_rad": 0.1712197998699927,
+          "max_target_step_rad": 0.4100725129246712,
+          "driver_clipped_joint_fraction": 0.16826923076923078,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 9.331876728516102,
+          "mean_velocity_body": [
+            0.002375173946474746,
+            0.002504038701257538,
+            0.012645701695109817
+          ],
+          "min_height_m": 0.029382362771451738,
+          "max_height_m": 0.15792696207637785,
+          "max_joint_speed_rad_s": 6.019621020202409,
+          "final_max_joint_speed_rad_s": 0.06093165001129637,
+          "final_error_vs_controller_default_max_rad": 0.17750004936188868,
+          "final_error_vs_current_reference_max_rad": 0.12204406843537502,
+          "max_target_step_rad": 0.21192458271980286,
+          "driver_clipped_joint_fraction": 0.16308060109289618,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 2.339725362395798,
+          "mean_velocity_body": [
+            -0.004313277371769091,
+            0.0008421791699074172,
+            -0.0010180996644655986
+          ],
+          "min_height_m": 0.15539449819032988,
+          "max_height_m": 0.15622079437477596,
+          "max_joint_speed_rad_s": 0.058252214697432116,
+          "final_max_joint_speed_rad_s": 0.019798116099327318,
+          "final_error_vs_controller_default_max_rad": 0.19908305473379223,
+          "final_error_vs_current_reference_max_rad": 0.14362707380727857,
+          "max_target_step_rad": 0.0001627206802368164,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.03484085889888055,
+          "root_height_max_m": 0.03651494907292298,
+          "max_tilt_deg": 2.5305696072965786,
+          "max_sampled_joint_speed_rad_s": 0.5221979831770927,
+          "minimum_ground_contact_distance_m": -0.0003419766156453098,
+          "final_foot_contacts": 4
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.03637895162920418,
+          "root_height_max_m": 0.040742310499750974,
+          "max_tilt_deg": 2.8157014623606194,
+          "max_sampled_joint_speed_rad_s": 0.23176294087382898,
+          "minimum_ground_contact_distance_m": -0.0005848947665110689,
+          "final_foot_contacts": 4
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.029382362771451738,
+          "root_height_max_m": 0.15792696207637785,
+          "max_tilt_deg": 9.331876728516102,
+          "max_sampled_joint_speed_rad_s": 6.019621020202409,
+          "minimum_ground_contact_distance_m": -0.0020722617222524477,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03646548258991304,
+          "root_height_max_m": 0.043253822924355825,
+          "max_tilt_deg": 4.307433505237173,
+          "max_sampled_joint_speed_rad_s": 13.256523432217758,
+          "minimum_ground_contact_distance_m": -0.004250423786022545,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.15539449819032988,
+          "root_height_max_m": 0.15622079437477596,
+          "max_tilt_deg": 2.339725362395798,
+          "max_sampled_joint_speed_rad_s": 0.058252214697432116,
+          "minimum_ground_contact_distance_m": -0.0007293391542025664,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "full_hulls-clip_anchor-controller_only": {
+      "report": "artifacts/handoff/corrected-walking-v1/full_hulls-clip_anchor-controller_only/report.json",
+      "report_sha256": "f3e7fc45a56d47059d9d893f89792cfffe7966b715eef53bc2c5eed45c37d83d",
+      "trajectory_sha256": "ed4b0d75b4a6e0f66b3cee61004eb11d00acae1473d410d39dff2c11a513254f",
+      "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 7.808891501277458,
+          "mean_velocity_body": [
+            -0.0009955898123232489,
+            -0.0008911915264923823,
+            -0.014983509426919185
+          ],
+          "min_height_m": 0.031148322210707114,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 8.48180111497712,
+          "final_max_joint_speed_rad_s": 0.04599669253360605,
+          "final_error_vs_controller_default_max_rad": 1.3112523535385128,
+          "final_error_vs_current_reference_max_rad": 0.14410623884463153,
+          "max_target_step_rad": 0.28511789441108704,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 2.886433522123416,
+          "mean_velocity_body": [
+            -0.002370655478326001,
+            -0.00020149569287098687,
+            -0.0015408844304254888
+          ],
+          "min_height_m": 0.03512372122146814,
+          "max_height_m": 0.04261745623566126,
+          "max_joint_speed_rad_s": 0.40645799951176304,
+          "final_max_joint_speed_rad_s": 0.02742279925291198,
+          "final_error_vs_controller_default_max_rad": 0.1434141950136536,
+          "final_error_vs_current_reference_max_rad": 0.1434141950136536,
+          "max_target_step_rad": 0.2116144895553589,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 6.265394893668641,
+          "mean_velocity_body": [
+            0.06191570609554963,
+            0.004683819017361429,
+            0.005309946908431483
+          ],
+          "min_height_m": 0.03592493349215894,
+          "max_height_m": 0.04768085991009802,
+          "max_joint_speed_rad_s": 20.204423202704202,
+          "final_max_joint_speed_rad_s": 12.826329655832284,
+          "final_error_vs_controller_default_max_rad": 0.7509547653358989,
+          "final_error_vs_current_reference_max_rad": 0.7509547653358989,
+          "max_target_step_rad": 1.1796766221523285,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 4.891344634863877,
+          "mean_velocity_body": [
+            0.0027549371770270005,
+            0.004366931501298765,
+            -0.00429660378513713
+          ],
+          "min_height_m": 0.036946824563636786,
+          "max_height_m": 0.04479708148840369,
+          "max_joint_speed_rad_s": 11.86623440863349,
+          "final_max_joint_speed_rad_s": 0.04422741238420917,
+          "final_error_vs_controller_default_max_rad": 0.16996060998349383,
+          "final_error_vs_current_reference_max_rad": 0.16996060998349383,
+          "max_target_step_rad": 0.5293213129043579,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 4.920419763997997,
+          "mean_velocity_body": [
+            -0.04071195158384828,
+            0.0027789557115392577,
+            0.002961892301447467
+          ],
+          "min_height_m": 0.03644373382681651,
+          "max_height_m": 0.045000011016099406,
+          "max_joint_speed_rad_s": 21.181998072343845,
+          "final_max_joint_speed_rad_s": 6.486956107815718,
+          "final_error_vs_controller_default_max_rad": 0.2171503141751132,
+          "final_error_vs_current_reference_max_rad": 0.2171503141751132,
+          "max_target_step_rad": 0.8837924599647522,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 4.426247726266002,
+          "mean_velocity_body": [
+            -0.01179047585789811,
+            0.005933362246442673,
+            -0.0004931270791954297
+          ],
+          "min_height_m": 0.038512194381301615,
+          "max_height_m": 0.045591253966162405,
+          "max_joint_speed_rad_s": 20.10824034881162,
+          "final_max_joint_speed_rad_s": 12.652731413817925,
+          "final_error_vs_controller_default_max_rad": 0.8679984164219219,
+          "final_error_vs_current_reference_max_rad": 0.8679984164219219,
+          "max_target_step_rad": 0.8806992173194885,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 4.7656421046640745,
+          "mean_velocity_body": [
+            -0.004081771262492726,
+            0.0019143442562483534,
+            -0.0030850115785895824
+          ],
+          "min_height_m": 0.03573947997435604,
+          "max_height_m": 0.04484783663861996,
+          "max_joint_speed_rad_s": 13.690380951885729,
+          "final_max_joint_speed_rad_s": 0.013024872607638746,
+          "final_error_vs_controller_default_max_rad": 0.16939598889498408,
+          "final_error_vs_current_reference_max_rad": 0.16939598889498408,
+          "max_target_step_rad": 0.4245084375143051,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 8.062539655962443,
+          "mean_velocity_body": [
+            0.00267323443107638,
+            0.0020533317573777406,
+            0.012656802612458575
+          ],
+          "min_height_m": 0.02894933600936149,
+          "max_height_m": 0.15811254987345252,
+          "max_joint_speed_rad_s": 7.5083078170894115,
+          "final_max_joint_speed_rad_s": 0.06295464606276954,
+          "final_error_vs_controller_default_max_rad": 0.17538001103388567,
+          "final_error_vs_current_reference_max_rad": 0.11992403010737201,
+          "max_target_step_rad": 0.23915648460388184,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 2.2596466419435557,
+          "mean_velocity_body": [
+            -0.004157315903152711,
+            0.0008803466353654429,
+            -0.0010195982705352466
+          ],
+          "min_height_m": 0.15551095694775086,
+          "max_height_m": 0.15635489119726084,
+          "max_joint_speed_rad_s": 0.06021438781803019,
+          "final_max_joint_speed_rad_s": 0.01944443382867075,
+          "final_error_vs_controller_default_max_rad": 0.1974070100023994,
+          "final_error_vs_current_reference_max_rad": 0.14195102907588575,
+          "max_target_step_rad": 0.00015267729759216309,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.03445157361490034,
+          "root_height_max_m": 0.035765748535621616,
+          "max_tilt_deg": 2.272386907497574,
+          "max_sampled_joint_speed_rad_s": 0.5492513695335697,
+          "minimum_ground_contact_distance_m": -0.0008055099498105629,
+          "final_foot_contacts": 4
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.03569522640916135,
+          "root_height_max_m": 0.03972484894113911,
+          "max_tilt_deg": 2.5589599582178826,
+          "max_sampled_joint_speed_rad_s": 0.4065214945610966,
+          "minimum_ground_contact_distance_m": -0.00102828075102979,
+          "final_foot_contacts": 4
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.02894933600936149,
+          "root_height_max_m": 0.15811254987345252,
+          "max_tilt_deg": 8.062539655962443,
+          "max_sampled_joint_speed_rad_s": 7.5083078170894115,
+          "minimum_ground_contact_distance_m": -0.0025996198003751317,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03573947997435604,
+          "root_height_max_m": 0.04484783663861996,
+          "max_tilt_deg": 4.7656421046640745,
+          "max_sampled_joint_speed_rad_s": 13.690380951885729,
+          "minimum_ground_contact_distance_m": -0.004993249935557501,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.15551095694775086,
+          "root_height_max_m": 0.15635489119726084,
+          "max_tilt_deg": 2.2596466419435557,
+          "max_sampled_joint_speed_rad_s": 0.06021438781803019,
+          "minimum_ground_contact_distance_m": -0.0006910616254181025,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "full_hulls-legacy-class_driver": {
+      "report": "artifacts/handoff/corrected-walking-v1/full_hulls-legacy-class_driver/report.json",
+      "report_sha256": "b36f640c27b24b7ca18018a912366607a01c0663e0f3c9300d65bdbb09c6f765",
+      "trajectory_sha256": "1b4c9147cec9c3ec5483eeef8d48f6435c823840a7dbeb34735787f037d6b2bf",
+      "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 7.6829769781364705,
+          "mean_velocity_body": [
+            -0.001201534242466948,
+            -0.0005744095384636565,
+            -0.0151270201124763
+          ],
+          "min_height_m": 0.030926249116556465,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 7.170345571220307,
+          "final_max_joint_speed_rad_s": 0.05766473065966525,
+          "final_error_vs_controller_default_max_rad": 1.3080094373454216,
+          "final_error_vs_current_reference_max_rad": 0.19097410964661576,
+          "max_target_step_rad": 0.2029590904712677,
+          "driver_clipped_joint_fraction": 0.11622358554873892,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 3.2877553202101195,
+          "mean_velocity_body": [
+            -0.002520374826548054,
+            3.4633839715142186e-05,
+            -0.0014863013894878378
+          ],
+          "min_height_m": 0.035721511793182135,
+          "max_height_m": 0.043449261371172554,
+          "max_joint_speed_rad_s": 0.41447748273028073,
+          "final_max_joint_speed_rad_s": 0.032560560288096195,
+          "final_error_vs_controller_default_max_rad": 0.14399136870711238,
+          "final_error_vs_current_reference_max_rad": 0.14399136870711238,
+          "max_target_step_rad": 0.20114266872406006,
+          "driver_clipped_joint_fraction": 0.1339421613394216,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 6.269463104673676,
+          "mean_velocity_body": [
+            0.06839735644544634,
+            -0.0014419792700485303,
+            0.005354434909722878
+          ],
+          "min_height_m": 0.03689883069382566,
+          "max_height_m": 0.0470935437140992,
+          "max_joint_speed_rad_s": 19.67018890501642,
+          "final_max_joint_speed_rad_s": 12.118687877415246,
+          "final_error_vs_controller_default_max_rad": 0.7498571846325623,
+          "final_error_vs_current_reference_max_rad": 0.7498571846325623,
+          "max_target_step_rad": 1.271468698978424,
+          "driver_clipped_joint_fraction": 0.15224358974358973,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 5.599897799852779,
+          "mean_velocity_body": [
+            0.0008530183180024922,
+            0.0009747001657089911,
+            -0.004732904632651963
+          ],
+          "min_height_m": 0.03778816901542537,
+          "max_height_m": 0.04537009460877072,
+          "max_joint_speed_rad_s": 10.099832534289716,
+          "final_max_joint_speed_rad_s": 0.03600357143106494,
+          "final_error_vs_controller_default_max_rad": 0.16411481080656487,
+          "final_error_vs_current_reference_max_rad": 0.16411481080656487,
+          "max_target_step_rad": 0.5602694749832153,
+          "driver_clipped_joint_fraction": 0.17147435897435898,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 5.428362652768066,
+          "mean_velocity_body": [
+            -0.029084193324045923,
+            0.007877366316529159,
+            0.0025088326110888665
+          ],
+          "min_height_m": 0.0372095212784803,
+          "max_height_m": 0.0449215671830466,
+          "max_joint_speed_rad_s": 20.015944315474204,
+          "final_max_joint_speed_rad_s": 3.282904389384353,
+          "final_error_vs_controller_default_max_rad": 0.32137449050009154,
+          "final_error_vs_current_reference_max_rad": 0.32137449050009154,
+          "max_target_step_rad": 0.8804400265216827,
+          "driver_clipped_joint_fraction": 0.14903846153846154,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 5.44133956503584,
+          "mean_velocity_body": [
+            0.00563573385291495,
+            0.011050731304680154,
+            -0.0012533700521092917
+          ],
+          "min_height_m": 0.039815322756215944,
+          "max_height_m": 0.045699662713790994,
+          "max_joint_speed_rad_s": 19.300608272306818,
+          "final_max_joint_speed_rad_s": 13.859854883844456,
+          "final_error_vs_controller_default_max_rad": 0.8910360812112629,
+          "final_error_vs_current_reference_max_rad": 0.8910360812112629,
+          "max_target_step_rad": 0.8841665685176849,
+          "driver_clipped_joint_fraction": 0.16185897435897437,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 4.376407741158578,
+          "mean_velocity_body": [
+            -0.002136900201865346,
+            0.002427192369252388,
+            -0.0015307829951504161
+          ],
+          "min_height_m": 0.03670367978079903,
+          "max_height_m": 0.043333898028678305,
+          "max_joint_speed_rad_s": 12.809850434246911,
+          "final_max_joint_speed_rad_s": 0.013985160680175699,
+          "final_error_vs_controller_default_max_rad": 0.1714764610675683,
+          "final_error_vs_current_reference_max_rad": 0.1714764610675683,
+          "max_target_step_rad": 0.4267071262001991,
+          "driver_clipped_joint_fraction": 0.1674679487179487,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 11.510122959288644,
+          "mean_velocity_body": [
+            0.00332163939765411,
+            -0.00044428286774431293,
+            0.012835245263159186
+          ],
+          "min_height_m": 0.030623956771629234,
+          "max_height_m": 0.15798413752213836,
+          "max_joint_speed_rad_s": 5.821162814103673,
+          "final_max_joint_speed_rad_s": 0.06166245045241734,
+          "final_error_vs_controller_default_max_rad": 0.1760214516305858,
+          "final_error_vs_current_reference_max_rad": 0.12056547070407214,
+          "max_target_step_rad": 0.20681160688400269,
+          "driver_clipped_joint_fraction": 0.13849043715846995,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 2.302611344651289,
+          "mean_velocity_body": [
+            -0.004248396194314205,
+            0.0008691181733622626,
+            -0.0010191683762254297
+          ],
+          "min_height_m": 0.15544193734199824,
+          "max_height_m": 0.15627596960112364,
+          "max_joint_speed_rad_s": 0.05896778910963368,
+          "final_max_joint_speed_rad_s": 0.020012938403217367,
+          "final_error_vs_controller_default_max_rad": 0.1978670368463885,
+          "final_error_vs_current_reference_max_rad": 0.14241105591987485,
+          "max_target_step_rad": 0.00016367435455322266,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.0366236882066689,
+          "root_height_max_m": 0.1343826055782629,
+          "max_tilt_deg": 8.361464833696227,
+          "max_sampled_joint_speed_rad_s": 4.475772264019488,
+          "minimum_ground_contact_distance_m": -0.0017775251889191428,
+          "final_foot_contacts": 4
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.0650250261646321,
+          "root_height_max_m": 0.14455003868997074,
+          "max_tilt_deg": 11.510122959288644,
+          "max_sampled_joint_speed_rad_s": 2.659343025964267,
+          "minimum_ground_contact_distance_m": -0.0018161266345330003,
+          "final_foot_contacts": 3
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.030623956771629234,
+          "root_height_max_m": 0.15798413752213836,
+          "max_tilt_deg": 9.239090930394566,
+          "max_sampled_joint_speed_rad_s": 5.821162814103673,
+          "minimum_ground_contact_distance_m": -0.0021424401227946623,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03670367978079903,
+          "root_height_max_m": 0.043333898028678305,
+          "max_tilt_deg": 4.376407741158578,
+          "max_sampled_joint_speed_rad_s": 12.809850434246911,
+          "minimum_ground_contact_distance_m": -0.0038361621042299794,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.15544193734199824,
+          "root_height_max_m": 0.15627596960112364,
+          "max_tilt_deg": 2.302611344651289,
+          "max_sampled_joint_speed_rad_s": 0.05896778910963368,
+          "minimum_ground_contact_distance_m": -0.0007111640976129076,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "full_hulls-legacy-controller_only": {
+      "report": "artifacts/handoff/corrected-walking-v1/full_hulls-legacy-controller_only/report.json",
+      "report_sha256": "e53eac59d8725e690c7e0143ac176f741ab6ecf83cbd58e599844f54a2aed014",
+      "trajectory_sha256": "aa7ef386596f41570bfd4bb60ac191f532b66c2c753b3101da95336523bc2d4d",
+      "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 7.769493369573348,
+          "mean_velocity_body": [
+            -0.001436690369560589,
+            -0.0006492324342088585,
+            -0.014991994624019261
+          ],
+          "min_height_m": 0.031078551852715325,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 8.253576696329281,
+          "final_max_joint_speed_rad_s": 0.04390183083539037,
+          "final_error_vs_controller_default_max_rad": 1.3125426515540621,
+          "final_error_vs_current_reference_max_rad": 0.14000644899179732,
+          "max_target_step_rad": 0.2888270616531372,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 2.8899426925462883,
+          "mean_velocity_body": [
+            -0.002293870188185756,
+            -0.00026476637068568185,
+            -0.0015256352567068557
+          ],
+          "min_height_m": 0.03512305910164277,
+          "max_height_m": 0.042705665008560295,
+          "max_joint_speed_rad_s": 0.39126990239039167,
+          "final_max_joint_speed_rad_s": 0.02736789222442529,
+          "final_error_vs_controller_default_max_rad": 0.1425759479575277,
+          "final_error_vs_current_reference_max_rad": 0.1425759479575277,
+          "max_target_step_rad": 0.20845186710357666,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 6.858232453553489,
+          "mean_velocity_body": [
+            0.062385498690579716,
+            0.004645839492620114,
+            0.006101797464818161
+          ],
+          "min_height_m": 0.03595553396720058,
+          "max_height_m": 0.04722551237356001,
+          "max_joint_speed_rad_s": 20.161598441325395,
+          "final_max_joint_speed_rad_s": 12.834790120705755,
+          "final_error_vs_controller_default_max_rad": 0.7051368068710836,
+          "final_error_vs_current_reference_max_rad": 0.7051368068710836,
+          "max_target_step_rad": 1.179557979106903,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 5.588008164141586,
+          "mean_velocity_body": [
+            -0.0011039298074981417,
+            0.005106259600925827,
+            -0.006439152107061029
+          ],
+          "min_height_m": 0.036799358378771324,
+          "max_height_m": 0.04458592910852365,
+          "max_joint_speed_rad_s": 11.013372766219318,
+          "final_max_joint_speed_rad_s": 0.02776393684996639,
+          "final_error_vs_controller_default_max_rad": 0.17501250048302186,
+          "final_error_vs_current_reference_max_rad": 0.17501250048302186,
+          "max_target_step_rad": 0.5224637985229492,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 5.009252673363675,
+          "mean_velocity_body": [
+            -0.041294995686398675,
+            0.0037114085510693193,
+            0.003121549321509925
+          ],
+          "min_height_m": 0.03647255550879842,
+          "max_height_m": 0.045085943062611177,
+          "max_joint_speed_rad_s": 20.963621294166206,
+          "final_max_joint_speed_rad_s": 5.731964830366661,
+          "final_error_vs_controller_default_max_rad": 0.23874341410396416,
+          "final_error_vs_current_reference_max_rad": 0.23874341410396416,
+          "max_target_step_rad": 0.8969521522521973,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 5.550321059642948,
+          "mean_velocity_body": [
+            -0.008374619860409651,
+            0.004847797172230577,
+            -0.00013337441914684206
+          ],
+          "min_height_m": 0.03846599232384295,
+          "max_height_m": 0.045464338695574244,
+          "max_joint_speed_rad_s": 20.02620713258587,
+          "final_max_joint_speed_rad_s": 12.354515316707577,
+          "final_error_vs_controller_default_max_rad": 0.8731501391767232,
+          "final_error_vs_current_reference_max_rad": 0.8731501391767232,
+          "max_target_step_rad": 0.8756150901317596,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 4.771316698863466,
+          "mean_velocity_body": [
+            -0.0032482173856314485,
+            0.0027563044167617356,
+            -0.003067326693577242
+          ],
+          "min_height_m": 0.03567166467797379,
+          "max_height_m": 0.04515422453340321,
+          "max_joint_speed_rad_s": 13.755838099346631,
+          "final_max_joint_speed_rad_s": 0.012814852410840995,
+          "final_error_vs_controller_default_max_rad": 0.17042040150833304,
+          "final_error_vs_current_reference_max_rad": 0.17042040150833304,
+          "max_target_step_rad": 0.43308695405721664,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 10.69395730373326,
+          "mean_velocity_body": [
+            0.003956451003042544,
+            -0.0001226023697992219,
+            0.01295393639395975
+          ],
+          "min_height_m": 0.030548688809644252,
+          "max_height_m": 0.15807987577434088,
+          "max_joint_speed_rad_s": 6.823649646063162,
+          "final_max_joint_speed_rad_s": 0.06268985950286246,
+          "final_error_vs_controller_default_max_rad": 0.1755495162648288,
+          "final_error_vs_current_reference_max_rad": 0.12009353533831513,
+          "max_target_step_rad": 0.2407461404800415,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 2.2650635756154998,
+          "mean_velocity_body": [
+            -0.004248349777967012,
+            0.0008659846288882467,
+            -0.0010134628813459538
+          ],
+          "min_height_m": 0.1554970160523139,
+          "max_height_m": 0.15633009787649416,
+          "max_joint_speed_rad_s": 0.05997346466834357,
+          "final_max_joint_speed_rad_s": 0.02023479631585149,
+          "final_error_vs_controller_default_max_rad": 0.19736656484923348,
+          "final_error_vs_current_reference_max_rad": 0.14191058392271982,
+          "max_target_step_rad": 0.00014787912368774414,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.03557727013644983,
+          "root_height_max_m": 0.13562402603477938,
+          "max_tilt_deg": 4.865896992126662,
+          "max_sampled_joint_speed_rad_s": 5.75688558943136,
+          "minimum_ground_contact_distance_m": -0.0018320549325386605,
+          "final_foot_contacts": 4
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.06445278556100191,
+          "root_height_max_m": 0.14599578403170577,
+          "max_tilt_deg": 10.69395730373326,
+          "max_sampled_joint_speed_rad_s": 3.479640248545813,
+          "minimum_ground_contact_distance_m": -0.001807523585332,
+          "final_foot_contacts": 3
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.030548688809644252,
+          "root_height_max_m": 0.15807987577434088,
+          "max_tilt_deg": 8.181039193815323,
+          "max_sampled_joint_speed_rad_s": 6.823649646063162,
+          "minimum_ground_contact_distance_m": -0.002068519262557994,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03567166467797379,
+          "root_height_max_m": 0.04515422453340321,
+          "max_tilt_deg": 4.771316698863466,
+          "max_sampled_joint_speed_rad_s": 13.755838099346631,
+          "minimum_ground_contact_distance_m": -0.005554994299030048,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.1554970160523139,
+          "root_height_max_m": 0.15633009787649416,
+          "max_tilt_deg": 2.2650635756154998,
+          "max_sampled_joint_speed_rad_s": 0.05997346466834357,
+          "minimum_ground_contact_distance_m": -0.0006887807614173909,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "torso_only-clip_anchor-class_driver": {
+      "report": "artifacts/handoff/corrected-walking-v1/torso_only-clip_anchor-class_driver/report.json",
+      "report_sha256": "8b60e7868be4da04970dd3c1c0c71a354f341e1109cd10d68ebbc285efa5ac66",
+      "trajectory_sha256": "5451dc65c69847a514343f35192cb06259351e2faa3d544c641e800ea25483c8",
+      "model_sha256": "aecaf8015b8d2fa5b6d229995aab3559388b18731f0f6a9c9dc86ed5890e7fa7",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 6.1767457319103105,
+          "mean_velocity_body": [
+            0.0004972563655020434,
+            0.0010051510063844545,
+            -0.015844838150391047
+          ],
+          "min_height_m": 0.031027913031885415,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 7.4438607843605356,
+          "final_max_joint_speed_rad_s": 0.05134958240010341,
+          "final_error_vs_controller_default_max_rad": 1.3069754344506017,
+          "final_error_vs_current_reference_max_rad": 0.11482845951057064,
+          "max_target_step_rad": 0.22163785994052887,
+          "driver_clipped_joint_fraction": 0.11486025903203817,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 0.9781567992407495,
+          "mean_velocity_body": [
+            -0.000456910017183028,
+            -0.00016414046756172408,
+            -0.0008876231116056628
+          ],
+          "min_height_m": 0.031459535713240956,
+          "max_height_m": 0.03534235864657967,
+          "max_joint_speed_rad_s": 0.879473845006799,
+          "final_max_joint_speed_rad_s": 0.016732407418437643,
+          "final_error_vs_controller_default_max_rad": 0.11515087295501725,
+          "final_error_vs_current_reference_max_rad": 0.11515087295501725,
+          "max_target_step_rad": 0.17795050144195557,
+          "driver_clipped_joint_fraction": 0.15753424657534246,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 2.067162256945159,
+          "mean_velocity_body": [
+            0.04101519267774357,
+            0.0008112443130730145,
+            0.002675056063970609
+          ],
+          "min_height_m": 0.03144575680592404,
+          "max_height_m": 0.03672628914620186,
+          "max_joint_speed_rad_s": 19.559626591486236,
+          "final_max_joint_speed_rad_s": 12.28688573636955,
+          "final_error_vs_controller_default_max_rad": 0.7628017238425274,
+          "final_error_vs_current_reference_max_rad": 0.7628017238425274,
+          "max_target_step_rad": 1.3213372230529785,
+          "driver_clipped_joint_fraction": 0.15064102564102563,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 1.9129457415323186,
+          "mean_velocity_body": [
+            0.0013080291347431316,
+            -0.0017431341683250832,
+            -0.003176600347440965
+          ],
+          "min_height_m": 0.031665532033880284,
+          "max_height_m": 0.036387779554536634,
+          "max_joint_speed_rad_s": 10.344201599016948,
+          "final_max_joint_speed_rad_s": 0.01897644875940351,
+          "final_error_vs_controller_default_max_rad": 0.11909101049719228,
+          "final_error_vs_current_reference_max_rad": 0.11909101049719228,
+          "max_target_step_rad": 0.6165680885314941,
+          "driver_clipped_joint_fraction": 0.1778846153846154,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 2.131514611513915,
+          "mean_velocity_body": [
+            -0.05316290588586546,
+            0.004300916866805989,
+            0.0014009116358554563
+          ],
+          "min_height_m": 0.031387634136447615,
+          "max_height_m": 0.036306371299978275,
+          "max_joint_speed_rad_s": 20.435235419679504,
+          "final_max_joint_speed_rad_s": 4.276432275933884,
+          "final_error_vs_controller_default_max_rad": 0.24182824704542322,
+          "final_error_vs_current_reference_max_rad": 0.24182824704542322,
+          "max_target_step_rad": 0.8215609192848206,
+          "driver_clipped_joint_fraction": 0.1466346153846154,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 2.591862020660042,
+          "mean_velocity_body": [
+            -0.008974799594045006,
+            0.0019257371565732464,
+            0.0001307160344588434
+          ],
+          "min_height_m": 0.03240038034995029,
+          "max_height_m": 0.03757729543741321,
+          "max_joint_speed_rad_s": 19.102649400888765,
+          "final_max_joint_speed_rad_s": 12.980078605887726,
+          "final_error_vs_controller_default_max_rad": 0.8644056281008459,
+          "final_error_vs_current_reference_max_rad": 0.8644056281008459,
+          "max_target_step_rad": 0.8551329672336578,
+          "driver_clipped_joint_fraction": 0.16266025641025642,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 1.6071435340855291,
+          "mean_velocity_body": [
+            -0.001371548763772047,
+            0.0007563124567168399,
+            -0.0013744074993636208
+          ],
+          "min_height_m": 0.03166609019602482,
+          "max_height_m": 0.03559380489273428,
+          "max_joint_speed_rad_s": 12.192506786906774,
+          "final_max_joint_speed_rad_s": 0.003741968272127776,
+          "final_error_vs_controller_default_max_rad": 0.12567256963079432,
+          "final_error_vs_current_reference_max_rad": 0.12567256963079432,
+          "max_target_step_rad": 0.4514341950416565,
+          "driver_clipped_joint_fraction": 0.16907051282051283,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 7.024331150162309,
+          "mean_velocity_body": [
+            0.0015220980769828122,
+            5.512756425116097e-05,
+            0.012221904865802567
+          ],
+          "min_height_m": 0.031154026497251623,
+          "max_height_m": 0.14825530562976882,
+          "max_joint_speed_rad_s": 5.724727278441632,
+          "final_max_joint_speed_rad_s": 0.1129764023076797,
+          "final_error_vs_controller_default_max_rad": 0.18712674075686808,
+          "final_error_vs_current_reference_max_rad": 0.13167075983035442,
+          "max_target_step_rad": 0.19369715452194214,
+          "driver_clipped_joint_fraction": 0.1606898907103825,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 3.28267556501137,
+          "mean_velocity_body": [
+            -0.0031472450507936947,
+            -0.0003239039874456851,
+            -0.0012134786141078891
+          ],
+          "min_height_m": 0.14544800640655547,
+          "max_height_m": 0.14646065716448378,
+          "max_joint_speed_rad_s": 0.10238521938191074,
+          "final_max_joint_speed_rad_s": 0.014557850907497507,
+          "final_error_vs_controller_default_max_rad": 0.21603890934403025,
+          "final_error_vs_current_reference_max_rad": 0.1605829284175166,
+          "max_target_step_rad": 0.0005581974983215332,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.031570093535874144,
+          "root_height_max_m": 0.03171359851540125,
+          "max_tilt_deg": 0.13776228175981162,
+          "max_sampled_joint_speed_rad_s": 0.19403490797155754,
+          "minimum_ground_contact_distance_m": -0.009853807850193314,
+          "final_foot_contacts": 4
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.03157234762565163,
+          "root_height_max_m": 0.032413586842920575,
+          "max_tilt_deg": 0.6474854580395925,
+          "max_sampled_joint_speed_rad_s": 0.1543380655133832,
+          "minimum_ground_contact_distance_m": -0.010599616275836544,
+          "final_foot_contacts": 4
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.031154026497251623,
+          "root_height_max_m": 0.14825530562976882,
+          "max_tilt_deg": 7.024331150162309,
+          "max_sampled_joint_speed_rad_s": 5.724727278441632,
+          "minimum_ground_contact_distance_m": -0.011193729874923977,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03166609019602482,
+          "root_height_max_m": 0.03559380489273428,
+          "max_tilt_deg": 1.6071435340855291,
+          "max_sampled_joint_speed_rad_s": 12.192506786906774,
+          "minimum_ground_contact_distance_m": -0.011196350099067585,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.14544800640655547,
+          "root_height_max_m": 0.14646065716448378,
+          "max_tilt_deg": 3.28267556501137,
+          "max_sampled_joint_speed_rad_s": 0.10238521938191074,
+          "minimum_ground_contact_distance_m": -0.010338252608382396,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "torso_only-clip_anchor-controller_only": {
+      "report": "artifacts/handoff/corrected-walking-v1/torso_only-clip_anchor-controller_only/report.json",
+      "report_sha256": "9e200c0c96928330f06e64182879658f2bece43a8e8d510deaa4b1eb14ac25ec",
+      "trajectory_sha256": "d154fd2f558d8a1a9c68030619727b9e769d991efbfe942d4e56a10266455056",
+      "model_sha256": "aecaf8015b8d2fa5b6d229995aab3559388b18731f0f6a9c9dc86ed5890e7fa7",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 6.128378700074217,
+          "mean_velocity_body": [
+            0.0005498032813330071,
+            0.0011547724372719772,
+            -0.01593266398681535
+          ],
+          "min_height_m": 0.031121870856417568,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 7.197512169634146,
+          "final_max_joint_speed_rad_s": 0.07187592878730223,
+          "final_error_vs_controller_default_max_rad": 1.3170028678223435,
+          "final_error_vs_current_reference_max_rad": 0.07551598901498102,
+          "max_target_step_rad": 0.2197279930114746,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 0.774009142718238,
+          "mean_velocity_body": [
+            -0.000412749082943532,
+            -0.0002607850620025187,
+            -0.0007712509383502425
+          ],
+          "min_height_m": 0.03142958058180411,
+          "max_height_m": 0.03466999142136557,
+          "max_joint_speed_rad_s": 0.9062504891118652,
+          "final_max_joint_speed_rad_s": 0.01829221528617185,
+          "final_error_vs_controller_default_max_rad": 0.1102160977254627,
+          "final_error_vs_current_reference_max_rad": 0.1102160977254627,
+          "max_target_step_rad": 0.1849575638771057,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 2.2370774747563846,
+          "mean_velocity_body": [
+            0.04219762888096841,
+            -0.000534510384873919,
+            0.0021902277286383015
+          ],
+          "min_height_m": 0.03125512306338741,
+          "max_height_m": 0.03562126015621411,
+          "max_joint_speed_rad_s": 20.25568642850761,
+          "final_max_joint_speed_rad_s": 12.622258370765724,
+          "final_error_vs_controller_default_max_rad": 0.7167441123584852,
+          "final_error_vs_current_reference_max_rad": 0.7167441123584852,
+          "max_target_step_rad": 1.226595163345337,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 1.6861319038168503,
+          "mean_velocity_body": [
+            0.0007751623357801208,
+            -0.0014807196878660006,
+            -0.002687739624313738
+          ],
+          "min_height_m": 0.03155989375320887,
+          "max_height_m": 0.0356151903956847,
+          "max_joint_speed_rad_s": 11.259489611326613,
+          "final_max_joint_speed_rad_s": 0.013842463375558212,
+          "final_error_vs_controller_default_max_rad": 0.1165579682609934,
+          "final_error_vs_current_reference_max_rad": 0.1165579682609934,
+          "max_target_step_rad": 0.6098113656044006,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 2.907550287420671,
+          "mean_velocity_body": [
+            -0.06430413466019555,
+            0.0004913448190427153,
+            0.0012392319656843532
+          ],
+          "min_height_m": 0.031365478867969754,
+          "max_height_m": 0.03563257848578661,
+          "max_joint_speed_rad_s": 20.809531941184666,
+          "final_max_joint_speed_rad_s": 4.051599117042762,
+          "final_error_vs_controller_default_max_rad": 0.19046742860914712,
+          "final_error_vs_current_reference_max_rad": 0.19046742860914712,
+          "max_target_step_rad": 0.7943997234106064,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 3.3377618791611456,
+          "mean_velocity_body": [
+            -0.012081787794416592,
+            -0.002082566076753572,
+            0.0008213602586065338
+          ],
+          "min_height_m": 0.03252038583964032,
+          "max_height_m": 0.03756311690993818,
+          "max_joint_speed_rad_s": 19.213711942320675,
+          "final_max_joint_speed_rad_s": 12.356407822682014,
+          "final_error_vs_controller_default_max_rad": 0.8162793701151522,
+          "final_error_vs_current_reference_max_rad": 0.8162793701151522,
+          "max_target_step_rad": 0.8227559328079224,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 1.5064770111540344,
+          "mean_velocity_body": [
+            -0.0011301231585089428,
+            0.0014742470111621638,
+            -0.0013778632218246312
+          ],
+          "min_height_m": 0.03140101363448464,
+          "max_height_m": 0.03457947558024631,
+          "max_joint_speed_rad_s": 12.842230771562509,
+          "final_max_joint_speed_rad_s": 0.003178259064401728,
+          "final_error_vs_controller_default_max_rad": 0.12141804952966684,
+          "final_error_vs_current_reference_max_rad": 0.12141804952966684,
+          "max_target_step_rad": 0.4379325211048126,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 6.277818198414355,
+          "mean_velocity_body": [
+            0.0014160329369696581,
+            0.00037239484647419874,
+            0.012191033583830306
+          ],
+          "min_height_m": 0.031106332699093787,
+          "max_height_m": 0.14828012737257043,
+          "max_joint_speed_rad_s": 6.001824230220468,
+          "final_max_joint_speed_rad_s": 0.11309173619541181,
+          "final_error_vs_controller_default_max_rad": 0.18646578796513064,
+          "final_error_vs_current_reference_max_rad": 0.13100980703861698,
+          "max_target_step_rad": 0.1895098090171814,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 3.2665321422179097,
+          "mean_velocity_body": [
+            -0.0031376749367327556,
+            -0.00032712280156157466,
+            -0.0012153608582635008
+          ],
+          "min_height_m": 0.14546206453138708,
+          "max_height_m": 0.14647789431117503,
+          "max_joint_speed_rad_s": 0.102515119708872,
+          "final_max_joint_speed_rad_s": 0.014551625030652241,
+          "final_error_vs_controller_default_max_rad": 0.21539521900407516,
+          "final_error_vs_current_reference_max_rad": 0.1599392380775615,
+          "max_target_step_rad": 0.0005587637424468994,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.03144147218969189,
+          "root_height_max_m": 0.03158001624183158,
+          "max_tilt_deg": 0.31293448277121716,
+          "max_sampled_joint_speed_rad_s": 0.2102301769211506,
+          "minimum_ground_contact_distance_m": -0.009588317300495353,
+          "final_foot_contacts": 4
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.03148274737194892,
+          "root_height_max_m": 0.032151197239341754,
+          "max_tilt_deg": 0.5535306695555731,
+          "max_sampled_joint_speed_rad_s": 0.14744161987643817,
+          "minimum_ground_contact_distance_m": -0.010572835519368124,
+          "final_foot_contacts": 4
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.031106332699093787,
+          "root_height_max_m": 0.14828012737257043,
+          "max_tilt_deg": 6.277818198414355,
+          "max_sampled_joint_speed_rad_s": 6.001824230220468,
+          "minimum_ground_contact_distance_m": -0.011199361144009327,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03140101363448464,
+          "root_height_max_m": 0.03457947558024631,
+          "max_tilt_deg": 1.5064770111540344,
+          "max_sampled_joint_speed_rad_s": 12.842230771562509,
+          "minimum_ground_contact_distance_m": -0.011097720099699965,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.14546206453138708,
+          "root_height_max_m": 0.14647789431117503,
+          "max_tilt_deg": 3.2665321422179097,
+          "max_sampled_joint_speed_rad_s": 0.102515119708872,
+          "minimum_ground_contact_distance_m": -0.01034053441428007,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "torso_only-legacy-class_driver": {
+      "report": "artifacts/handoff/corrected-walking-v1/torso_only-legacy-class_driver/report.json",
+      "report_sha256": "91ff07fe16ab5137a182d3d303062ba3cb4fd9f878879ad5689598ea73942367",
+      "trajectory_sha256": "6793dfadf81cafe4920744f442e5197219f12369989783b5bf30e2c13704ce82",
+      "model_sha256": "aecaf8015b8d2fa5b6d229995aab3559388b18731f0f6a9c9dc86ed5890e7fa7",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 6.194162736096697,
+          "mean_velocity_body": [
+            0.0005051100700948173,
+            0.0010161604709153524,
+            -0.01586891547658271
+          ],
+          "min_height_m": 0.031026935538774624,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 7.4419712043237345,
+          "final_max_joint_speed_rad_s": 0.05134910417129758,
+          "final_error_vs_controller_default_max_rad": 1.306948286847027,
+          "final_error_vs_current_reference_max_rad": 0.11483700119112839,
+          "max_target_step_rad": 0.22161859273910522,
+          "driver_clipped_joint_fraction": 0.11503067484662577,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 0.9746697048734349,
+          "mean_velocity_body": [
+            -0.00045751435586447494,
+            -0.0001625857094207945,
+            -0.0008887532931792703
+          ],
+          "min_height_m": 0.03145949406258527,
+          "max_height_m": 0.03534735412026411,
+          "max_joint_speed_rad_s": 0.8794423757523386,
+          "final_max_joint_speed_rad_s": 0.016732602795043305,
+          "final_error_vs_controller_default_max_rad": 0.11515082920405861,
+          "final_error_vs_current_reference_max_rad": 0.11515082920405861,
+          "max_target_step_rad": 0.17778998613357544,
+          "driver_clipped_joint_fraction": 0.15753424657534246,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 2.080028065177529,
+          "mean_velocity_body": [
+            0.041100843103639234,
+            0.0009511191033660964,
+            0.0027056393473303703
+          ],
+          "min_height_m": 0.03144602892105522,
+          "max_height_m": 0.03673298935701431,
+          "max_joint_speed_rad_s": 19.55941232121488,
+          "final_max_joint_speed_rad_s": 12.273936775268961,
+          "final_error_vs_controller_default_max_rad": 0.7629768636444517,
+          "final_error_vs_current_reference_max_rad": 0.7629768636444517,
+          "max_target_step_rad": 1.321336805820465,
+          "driver_clipped_joint_fraction": 0.15064102564102563,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 1.897067544535175,
+          "mean_velocity_body": [
+            0.0013220613383772945,
+            -0.0017989508170083832,
+            -0.0031305377900716774
+          ],
+          "min_height_m": 0.031663728313412826,
+          "max_height_m": 0.03635648181598145,
+          "max_joint_speed_rad_s": 10.341941368510488,
+          "final_max_joint_speed_rad_s": 0.019025443634685953,
+          "final_error_vs_controller_default_max_rad": 0.11909505067616855,
+          "final_error_vs_current_reference_max_rad": 0.11909505067616855,
+          "max_target_step_rad": 0.6161834597587585,
+          "driver_clipped_joint_fraction": 0.1778846153846154,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 2.130160125619367,
+          "mean_velocity_body": [
+            -0.05316409350639374,
+            0.004306787214128427,
+            0.0014011081858714104
+          ],
+          "min_height_m": 0.03138707212620369,
+          "max_height_m": 0.036305536795361096,
+          "max_joint_speed_rad_s": 20.43544707100086,
+          "final_max_joint_speed_rad_s": 4.332160621044853,
+          "final_error_vs_controller_default_max_rad": 0.2424746419471714,
+          "final_error_vs_current_reference_max_rad": 0.2424746419471714,
+          "max_target_step_rad": 0.8215648978948593,
+          "driver_clipped_joint_fraction": 0.1466346153846154,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 2.5024593492421094,
+          "mean_velocity_body": [
+            -0.009799940032522296,
+            0.0017917672321235874,
+            0.00022248457968414108
+          ],
+          "min_height_m": 0.03236169916674803,
+          "max_height_m": 0.03768850176692316,
+          "max_joint_speed_rad_s": 19.170168546217266,
+          "final_max_joint_speed_rad_s": 12.982851150865617,
+          "final_error_vs_controller_default_max_rad": 0.8643625801134476,
+          "final_error_vs_current_reference_max_rad": 0.8643625801134476,
+          "max_target_step_rad": 0.8506452441215515,
+          "driver_clipped_joint_fraction": 0.16346153846153846,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 1.643571950494969,
+          "mean_velocity_body": [
+            -0.0013548996469895434,
+            0.0008350546703885146,
+            -0.001337982770778986
+          ],
+          "min_height_m": 0.03166852051544267,
+          "max_height_m": 0.035578414772261965,
+          "max_joint_speed_rad_s": 12.27607632437378,
+          "final_max_joint_speed_rad_s": 0.0037252277198098383,
+          "final_error_vs_controller_default_max_rad": 0.1256784150668928,
+          "final_error_vs_current_reference_max_rad": 0.1256784150668928,
+          "max_target_step_rad": 0.442449115216732,
+          "driver_clipped_joint_fraction": 0.16907051282051283,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 37.75213590217827,
+          "mean_velocity_body": [
+            0.004720066576757491,
+            -0.0010048409768406725,
+            0.013271534085181487
+          ],
+          "min_height_m": 0.030654901259828143,
+          "max_height_m": 0.14823659695130798,
+          "max_joint_speed_rad_s": 5.789142960702172,
+          "final_max_joint_speed_rad_s": 0.1129326239993392,
+          "final_error_vs_controller_default_max_rad": 0.18760860845185434,
+          "final_error_vs_current_reference_max_rad": 0.13215262752534068,
+          "max_target_step_rad": 0.1929548978805542,
+          "driver_clipped_joint_fraction": 0.13866120218579234,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 3.2943275510644794,
+          "mean_velocity_body": [
+            -0.0031532312227777223,
+            -0.00032168452112218125,
+            -0.0012121804375814713
+          ],
+          "min_height_m": 0.14543703496334393,
+          "max_height_m": 0.14644750849378674,
+          "max_joint_speed_rad_s": 0.10232776469866141,
+          "final_max_joint_speed_rad_s": 0.014562910918399403,
+          "final_error_vs_controller_default_max_rad": 0.21651423977432144,
+          "final_error_vs_current_reference_max_rad": 0.16105825884780778,
+          "max_target_step_rad": 0.0005578845739364624,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.03170512513510141,
+          "root_height_max_m": 0.1282296487492724,
+          "max_tilt_deg": 16.015365817603886,
+          "max_sampled_joint_speed_rad_s": 2.914030636871044,
+          "minimum_ground_contact_distance_m": -0.010756721683108237,
+          "final_foot_contacts": 2
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.051206219737085786,
+          "root_height_max_m": 0.14018089776215115,
+          "max_tilt_deg": 37.75213590217827,
+          "max_sampled_joint_speed_rad_s": 2.229912853038702,
+          "minimum_ground_contact_distance_m": -0.011121400634244456,
+          "final_foot_contacts": 4
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.030654901259828143,
+          "root_height_max_m": 0.14823659695130798,
+          "max_tilt_deg": 6.862467319079226,
+          "max_sampled_joint_speed_rad_s": 5.789142960702172,
+          "minimum_ground_contact_distance_m": -0.011208322491361774,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03166852051544267,
+          "root_height_max_m": 0.035578414772261965,
+          "max_tilt_deg": 1.643571950494969,
+          "max_sampled_joint_speed_rad_s": 12.27607632437378,
+          "minimum_ground_contact_distance_m": -0.011194902522595408,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.14543703496334393,
+          "root_height_max_m": 0.14644750849378674,
+          "max_tilt_deg": 3.2943275510644794,
+          "max_sampled_joint_speed_rad_s": 0.10232776469866141,
+          "minimum_ground_contact_distance_m": -0.010336561344524462,
+          "final_foot_contacts": 4
+        }
+      }
+    },
+    "torso_only-legacy-controller_only": {
+      "report": "artifacts/handoff/corrected-walking-v1/torso_only-legacy-controller_only/report.json",
+      "report_sha256": "112f425d8b51da8b545578691aae91a7f577e247fad087ae8cee2422038a3071",
+      "trajectory_sha256": "83f03a114c200b2ee54f8b278dc4ac437107d556822043b4a31370334c7393c2",
+      "model_sha256": "aecaf8015b8d2fa5b6d229995aab3559388b18731f0f6a9c9dc86ed5890e7fa7",
+      "completed_sequence": true,
+      "source_changed": false,
+      "physical_state_resets_after_initialization": 0,
+      "stage_summaries": {
+        "entry": {
+          "samples": 489,
+          "max_tilt_deg": 6.115274849789963,
+          "mean_velocity_body": [
+            0.0005286121504874245,
+            0.0011545564073768683,
+            -0.015925546004469573
+          ],
+          "min_height_m": 0.031122785559406188,
+          "max_height_m": 0.17996372041420117,
+          "max_joint_speed_rad_s": 7.200219529768468,
+          "final_max_joint_speed_rad_s": 0.07193429563720619,
+          "final_error_vs_controller_default_max_rad": 1.3170512740082665,
+          "final_error_vs_current_reference_max_rad": 0.0759458615798021,
+          "max_target_step_rad": 0.2197330892086029,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_idle",
+          "last_frame": 394,
+          "last_holding": false
+        },
+        "walk_activation": {
+          "samples": 219,
+          "max_tilt_deg": 0.7756738850354146,
+          "mean_velocity_body": [
+            -0.00041261450160051243,
+            -0.00026329459717077135,
+            -0.0007716663125481493
+          ],
+          "min_height_m": 0.0314295812691661,
+          "max_height_m": 0.03466576657067639,
+          "max_joint_speed_rad_s": 0.906450390648308,
+          "final_max_joint_speed_rad_s": 0.018291765914079803,
+          "final_error_vs_controller_default_max_rad": 0.11021604197301804,
+          "final_error_vs_current_reference_max_rad": 0.11021604197301804,
+          "max_target_step_rad": 0.18516290187835693,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_forward": {
+          "samples": 104,
+          "max_tilt_deg": 2.213801407534801,
+          "mean_velocity_body": [
+            0.04265035100792068,
+            -0.0009035469591257318,
+            0.0021703843131545665
+          ],
+          "min_height_m": 0.031254755608655885,
+          "max_height_m": 0.035598433141266976,
+          "max_joint_speed_rad_s": 20.256002046616416,
+          "final_max_joint_speed_rad_s": 12.644686857617534,
+          "final_error_vs_controller_default_max_rad": 0.7164161291450988,
+          "final_error_vs_current_reference_max_rad": 0.7164161291450988,
+          "max_target_step_rad": 1.2265949845314026,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_1": {
+          "samples": 52,
+          "max_tilt_deg": 1.612227516958323,
+          "mean_velocity_body": [
+            0.0009995443121819415,
+            -0.0015383127531616847,
+            -0.0025905705903835185
+          ],
+          "min_height_m": 0.031557946421233496,
+          "max_height_m": 0.03545204643070292,
+          "max_joint_speed_rad_s": 11.244149546239349,
+          "final_max_joint_speed_rad_s": 0.013900386613805967,
+          "final_error_vs_controller_default_max_rad": 0.116450179002211,
+          "final_error_vs_current_reference_max_rad": 0.116450179002211,
+          "max_target_step_rad": 0.6053405404090881,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_backward": {
+          "samples": 104,
+          "max_tilt_deg": 2.921529283050243,
+          "mean_velocity_body": [
+            -0.06414713919416878,
+            0.0005948350646355115,
+            0.0013490072186416427
+          ],
+          "min_height_m": 0.031363822412708256,
+          "max_height_m": 0.035657545393818255,
+          "max_joint_speed_rad_s": 20.867147775490935,
+          "final_max_joint_speed_rad_s": 4.117016551221719,
+          "final_error_vs_controller_default_max_rad": 0.18594787123527257,
+          "final_error_vs_current_reference_max_rad": 0.18594787123527257,
+          "max_target_step_rad": 0.794521376490593,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_turn": {
+          "samples": 104,
+          "max_tilt_deg": 3.347040919534112,
+          "mean_velocity_body": [
+            -0.012543304518434387,
+            -0.002035268233777486,
+            0.0006017183657682166
+          ],
+          "min_height_m": 0.032447435293527234,
+          "max_height_m": 0.03754660974669442,
+          "max_joint_speed_rad_s": 19.159666084060973,
+          "final_max_joint_speed_rad_s": 12.361778276649217,
+          "final_error_vs_controller_default_max_rad": 0.8164039289684843,
+          "final_error_vs_current_reference_max_rad": 0.8164039289684843,
+          "max_target_step_rad": 0.8231854736804962,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "walk_stop_before_exit": {
+          "samples": 104,
+          "max_tilt_deg": 1.5728995615280057,
+          "mean_velocity_body": [
+            -0.001004364686923795,
+            0.001558748541071735,
+            -0.0014095908097762353
+          ],
+          "min_height_m": 0.03139688901849727,
+          "max_height_m": 0.03457012707652328,
+          "max_joint_speed_rad_s": 12.844537778083284,
+          "final_max_joint_speed_rad_s": 0.003205332136413148,
+          "final_error_vs_controller_default_max_rad": 0.12143838134110885,
+          "final_error_vs_current_reference_max_rad": 0.12143838134110885,
+          "max_target_step_rad": 0.4398798272013664,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": null,
+          "last_frame": -1,
+          "last_holding": null
+        },
+        "exit": {
+          "samples": 488,
+          "max_tilt_deg": 14.222377581767448,
+          "mean_velocity_body": [
+            0.004210712803465505,
+            -0.000785459163631128,
+            0.013025573211452524
+          ],
+          "min_height_m": 0.03065757133138839,
+          "max_height_m": 0.14827607530341877,
+          "max_joint_speed_rad_s": 6.002424483836699,
+          "final_max_joint_speed_rad_s": 0.11301900211838874,
+          "final_error_vs_controller_default_max_rad": 0.18657242564079157,
+          "final_error_vs_current_reference_max_rad": 0.1311164447142779,
+          "max_target_step_rad": 0.19012221693992615,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        },
+        "standing_hold": {
+          "samples": 52,
+          "max_tilt_deg": 3.269054331792197,
+          "mean_velocity_body": [
+            -0.0031394883347486712,
+            -0.0003264431233947338,
+            -0.0012149388142888226
+          ],
+          "min_height_m": 0.14545991544679215,
+          "max_height_m": 0.1464751019475947,
+          "max_joint_speed_rad_s": 0.10244334235197541,
+          "final_max_joint_speed_rad_s": 0.014550263406478189,
+          "final_error_vs_controller_default_max_rad": 0.21549500120081533,
+          "final_error_vs_current_reference_max_rad": 0.16003902027430167,
+          "max_target_step_rad": 0.0005584955215454102,
+          "driver_clipped_joint_fraction": 0.0,
+          "last_clip": "spider_up",
+          "last_frame": 860,
+          "last_holding": true
+        }
+      },
+      "phase_details": {
+        "exit:initialization": {
+          "root_height_min_m": 0.03156947349022694,
+          "root_height_max_m": 0.12985535402955914,
+          "max_tilt_deg": 14.222377581767448,
+          "max_sampled_joint_speed_rad_s": 2.959141789310202,
+          "minimum_ground_contact_distance_m": -0.010708055566008044,
+          "final_foot_contacts": 2
+        },
+        "exit:fade": {
+          "root_height_min_m": 0.05207233071124908,
+          "root_height_max_m": 0.14069002610807582,
+          "max_tilt_deg": 14.157160121430298,
+          "max_sampled_joint_speed_rad_s": 2.0199086088378913,
+          "minimum_ground_contact_distance_m": -0.010986795332464067,
+          "final_foot_contacts": 4
+        },
+        "exit:policy": {
+          "root_height_min_m": 0.03065757133138839,
+          "root_height_max_m": 0.14827607530341877,
+          "max_tilt_deg": 7.56346544235692,
+          "max_sampled_joint_speed_rad_s": 6.002424483836699,
+          "minimum_ground_contact_distance_m": -0.011208380032489588,
+          "final_foot_contacts": 4
+        },
+        "walk_stop_before_exit": {
+          "root_height_min_m": 0.03139688901849727,
+          "root_height_max_m": 0.03457012707652328,
+          "max_tilt_deg": 1.5728995615280057,
+          "max_sampled_joint_speed_rad_s": 12.844537778083284,
+          "minimum_ground_contact_distance_m": -0.011085000290683506,
+          "final_foot_contacts": 4
+        },
+        "standing_hold": {
+          "root_height_min_m": 0.14545991544679215,
+          "root_height_max_m": 0.1464751019475947,
+          "max_tilt_deg": 3.269054331792197,
+          "max_sampled_joint_speed_rad_s": 0.10244334235197541,
+          "minimum_ground_contact_distance_m": -0.010340189659747884,
+          "final_foot_contacts": 4
+        }
+      }
+    }
+  },
+  "visual_review": {
+    "video": "artifacts/handoff/corrected-walking-v1/full-hulls-driver-activation-comparison-bright.mp4",
+    "video_sha256": "310162e91df3c6c982302144c4ab0b2d2f8cee5275fb714b347b827f5fd988fb",
+    "contact_sheet": "artifacts/handoff/corrected-walking-v1/full-hulls-driver-activation-comparison-bright.contact-sheet.png",
+    "contact_sheet_sha256": "0dba1e2683324144a40aca569320f1e24f95085c7d66e3f2fd44cc708f39feea",
+    "reviewed": "Six paired rendered physics states inspected: low stance, legacy premature stand, fade, reference exit playback and final standing. Renderer only brightens presentation lighting; trajectories and physics are unchanged."
+  }
+}

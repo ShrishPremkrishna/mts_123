@@ -26,6 +26,34 @@ int main() {
   stream >> golden;
   int failures = 0;
 
+  // Walk -> selected Spider exit starts at a low pose although the tracking
+  // network's normalization/action default is standing. Initialization must
+  // hold that exit frame; fading must retain the pre-clamp effective action.
+  for (const float anchor : {-1.037f, .709f, -.52f}) {
+    const float default_pos = -.52f, scale = .75f, raw = .4f;
+    checked_activation_anchor(anchor, default_pos, scale, -2., 2.);
+    for (int step = 0; step <= 100; ++step) {
+      const float fade = step / 100.f;
+      const float effective = faded_position_action(raw, scale, default_pos, anchor, fade);
+      const float target = default_pos + scale * effective;
+      const float expected = (1-fade)*anchor + fade*(default_pos+scale*raw);
+      if (std::abs(target-expected)>2e-7f) ++failures;
+      if (anchor==default_pos && effective!=fade*raw) ++failures; // exact legacy path
+      if (step==100 && effective!=raw) ++failures;
+    }
+  }
+  if (faded_position_action(8.f, .75f, -.52f, .709f, 0.f) == 0.f) ++failures;
+  if (faded_position_action(8.f, 0.f, -.52f, -.52f, .5f) != 4.f) ++failures;
+  for (int invalid=0; invalid<3; ++invalid) {
+    bool rejected=false;
+    try {
+      checked_activation_anchor(invalid==0?3.:.709, -.52,
+                                invalid==1?0.:.75, -2., invalid==2?NAN:2.);
+    } catch(const std::runtime_error&) { rejected=true; }
+    if(!rejected) ++failures;
+  }
+  std::printf("activation fade: selected exit, default first clip, walking arithmetic, bounds and zero-scale checks\n");
+
   double worst = 0.0;
   for (const auto &c : golden["relative_orientation"]) {
     const Quat robot{c["robot_wxyz"][0], c["robot_wxyz"][1], c["robot_wxyz"][2], c["robot_wxyz"][3]};

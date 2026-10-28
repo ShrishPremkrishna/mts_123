@@ -152,6 +152,8 @@ class NeuralController : public controller_interface::ControllerInterface {
 
   // Initial joint positions
   std::array<double, kActionSize> init_joint_pos_ = {};
+  // Fade origin; distinct from the fixed network observation/action default.
+  std::array<double, kActionSize> activation_joint_pos_ = {};
 
   // Command velocities
   float cmd_x_vel_ = 0;

@@ -358,12 +358,30 @@ controller_interface::CallbackReturn NeuralController::on_activate(
       if (idx >= 0) {
         start_clip = idx;
       } else {
-        RCLCPP_WARN(get_node()->get_logger(), "start_clip '%s' is not a clip of this trick; starting from the first clip",
+        RCLCPP_ERROR(get_node()->get_logger(), "start_clip '%s' is not a clip of this trick; refusing activation",
                     name.c_str());
+        return controller_interface::CallbackReturn::ERROR;
       }
     }
   }
   clip_player_.reset(start_clip);
+  try {
+    for (int i = 0; i < kActionSize; ++i) {
+      activation_joint_pos_[i] = params_.default_joint_pos.at(i);
+      if (use_trick_) {
+        if (params_.action_types.at(i) != "position") {
+          throw std::runtime_error("trick activation requires position actions");
+        }
+        activation_joint_pos_[i] = checked_activation_anchor(
+            trick_.joint_pos.at(trick_.clips.at(start_clip).start * kActionSize + i),
+            params_.default_joint_pos.at(i), params_.action_scales.at(i),
+            params_.joint_lower_limits.at(i), params_.joint_upper_limits.at(i));
+      }
+    }
+  } catch (const std::exception &e) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Invalid activation pose: %s", e.what());
+    return controller_interface::CallbackReturn::ERROR;
+  }
   rt_clip_request_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<std_msgs::msg::String>>(nullptr);
   last_clip_request_ = nullptr;
@@ -614,7 +632,7 @@ controller_interface::CallbackReturn NeuralController::on_deactivate(
 
 controller_interface::return_type NeuralController::update(const rclcpp::Time &time,
                                                            const rclcpp::Duration &period) {
-  // When started, return to the default joint positions
+  // Initialize to the selected clip's first pose (or the walking default).
   double time_since_init = (time - init_time_).seconds();
   if (time_since_init < params_.init_duration) {
     for (int i = 0; i < kActionSize; i++) {
@@ -622,7 +640,7 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
       // positions
       double interpolated_joint_pos =
           init_joint_pos_.at(i) * (1 - time_since_init / params_.init_duration) +
-          params_.default_joint_pos.at(i) * (time_since_init / params_.init_duration);
+          activation_joint_pos_.at(i) * (time_since_init / params_.init_duration);
       command_interfaces_map_.at(params_.joint_names.at(i))
           .at("position")
           .get()
@@ -1131,13 +1149,18 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     float lower_limit = params_.joint_lower_limits.at(i);
     float upper_limit = params_.joint_upper_limits.at(i);
 
-    // Copy policy_output to the observation vector
+    // The network default remains fixed. Fade from the activation pose and
+    // retain the effective pre-clamp action in history, matching normal control.
+    const float effective_action = params_.action_types.at(i) == "position"
+        ? faded_position_action(action, action_scale, default_joint_pos,
+                                activation_joint_pos_.at(i), fade_in_multiplier)
+        : fade_in_multiplier * action;
     if (obs_layout_.last_action != -1) {
-      observation_.at(obs_layout_.last_action + i) = fade_in_multiplier * action;
+      observation_.at(obs_layout_.last_action + i) = effective_action;
     }
     // Scale and de-normalize to get the action vector
     if (params_.action_types.at(i) == "position") {
-      float unclipped = fade_in_multiplier * action * action_scale + default_joint_pos;
+      float unclipped = effective_action * action_scale + default_joint_pos;
       action_.at(i) = std::clamp(unclipped, lower_limit, upper_limit);
     } else {
       action_.at(i) = fade_in_multiplier * action * action_scale;

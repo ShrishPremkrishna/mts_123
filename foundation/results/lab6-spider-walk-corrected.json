@@ -1,0 +1,1723 @@
+{
+  "profile": "spider_walk",
+  "run": "foundation_spider_walk_deployclamp_composedcom_torsocontact_s42_20261027T234440Z_21b50aa9",
+  "training_iterations_added": 1500,
+  "training_worlds": 4096,
+  "checkpoint_sha256": "853db60aa5ba265b9e0c226b20d30c538887bc7267313004bbe5bd47161082f4",
+  "policy_sha256": "ef57ca17655a38b998ed7f116bb197c4a7e3b815566d8dfd1b084913695c3155",
+  "initial_checkpoint_sha256": "ddd69001c7a56c4467b2e57ce859d8e33d81f7c651f3fa2f93c5675c9bd33bbc",
+  "training_manifest": "artifacts/lab6/pupper-spider-walk-corrected/training/runs/foundation_spider_walk_deployclamp_composedcom_torsocontact_s42_20261027T234440Z_21b50aa9/foundation-run.json",
+  "training_manifest_sha256": "2cebb8027856ab47321eaa4d724133fc27c5f9f9876278a770396548007cf466",
+  "training_source_revision": "b1e55eef4117fff943551c254034955aa0493fdc",
+  "training_contracts": {
+    "actuation_contract": {
+      "contract": "deployment_joint_target_clamp_v1",
+      "limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "order": "raw action retained; affine target; absolute joint clipping; encoder-bias correction; actuator latency",
+      "raw_action_history_preserved": true
+    },
+    "com_randomization_contract": {
+      "contract": "density_preserving_independent_base_com_v1",
+      "rng_draw_order_preserved": true,
+      "event_order": [
+        "reset_base",
+        "reset_robot_joints",
+        "foot_friction",
+        "encoder_bias",
+        "base_com",
+        "pd_gains",
+        "inertial",
+        "reset_imu_latency",
+        "hold_base_airborne"
+      ],
+      "effective_at": "startup; sampled once per world, retained across resets",
+      "scope": "density-only pseudo-inertia retaining the already sampled additive body-frame COM offset"
+    },
+    "collision_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    }
+  },
+  "protocol": {
+    "worlds_per_run": 32,
+    "seeds": [
+      101,
+      202,
+      303
+    ],
+    "commands": 18,
+    "seconds_per_command": 10,
+    "warmup_seconds": 2,
+    "continuous_between_commands": true,
+    "fixed_heading_override": false,
+    "evaluation_contract": "Both original and corrected policies evaluated with controller target clamp, composed COM, torso-only contact; no class-driver clamp in these GPU sweeps.",
+    "randomization": "Seeded default-play startup physical randomization and observation noise retained despite randomized=False; each before/after pair has byte-identical realized physical randomization snapshots.",
+    "physical_failures_scope": "Zero configured failure terminations/timeouts, not evidence of precise commanded speed or hardware suitability."
+  },
+  "paired_randomization": [
+    {
+      "seed": 101,
+      "realized_randomization_exact_sha256_match": true
+    },
+    {
+      "seed": 202,
+      "realized_randomization_exact_sha256_match": true
+    },
+    {
+      "seed": 303,
+      "realized_randomization_exact_sha256_match": true
+    }
+  ],
+  "compatibility": {
+    "task": "Mjlab-SpiderWalk-Flat-Pupper-v3",
+    "checkpoint_sha256": "853db60aa5ba265b9e0c226b20d30c538887bc7267313004bbe5bd47161082f4",
+    "policy_sha256": "ef57ca17655a38b998ed7f116bb197c4a7e3b815566d8dfd1b084913695c3155",
+    "motion_sha256": null,
+    "seed": 42,
+    "device": "cpu",
+    "random_inputs": 512,
+    "live_steps": 100,
+    "tolerance": 0.0001,
+    "source": {
+      "git_revision": "5b4ab13c48e20fc342453dccdf926a6267486714",
+      "source_sha256": "036ecae42a302afb002b487b74b71e69fdde964f2ce2c17f15be9940c3100d53",
+      "files": {
+        "configs/foundation/training.json": "beb1f3b047f173e761a1466b2645575137982e06ec7b7e74dc816e8fc94b34e5",
+        "pyproject.toml": "bacf898d387ffbed473601bfaa5fa23558138409aaca1722782766240ff745d4",
+        "src/mjlab/__init__.py": "197bef85dd25b80b208074de8270e949b20be8c6e9eb3bff361bf11d4a38e6f3",
+        "src/mjlab/actuator/__init__.py": "ae89d8f9cab9ab238a881597ec94f729feee7058b0d9773dca83000783a790df",
+        "src/mjlab/actuator/actuator.py": "85c5744fe149d7a7886450f15e30317f4b01a3d2f1807730946fdd808e91716e",
+        "src/mjlab/actuator/builtin_actuator.py": "312d45a87a997ab66a711946c034c28ba9680f36083a022cbdac74b4a72761e2",
+        "src/mjlab/actuator/builtin_group.py": "f4429b846fc645c443734e45435618958d9f24502b2c627156e7d5a69cbbd9e3",
+        "src/mjlab/actuator/dc_actuator.py": "a24fc574b1606d66338bde4905e83d24ca2e66a2f7b11e0235fa441a81d253f6",
+        "src/mjlab/actuator/fused_group.py": "21a5d5ca68c0b886ba5d5abf89665bbc8c63991eb0bad9f4cb204f5300df46e1",
+        "src/mjlab/actuator/learned_actuator.py": "aefb27cc12881e67c87171cb94e38a5aee0171299ffd952e07053fbbd7fac487",
+        "src/mjlab/actuator/pd_actuator.py": "b2c36f1759827890055cb3549aa7b441a50abd914c883fde8bbfd631e6f2f101",
+        "src/mjlab/actuator/xml_actuator.py": "a8df6bbf07dda9e182d5ef248b0022816d1aa211ba321fa00ab676286b9c9548",
+        "src/mjlab/asset_zoo/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/asset_zoo/robots/__init__.py": "e8ba45eef7a111423da3276e2acf3531e25e13ae6f1e22e4ba8b6df34bf383b1",
+        "src/mjlab/asset_zoo/robots/i2rt_yam/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/asset_zoo/robots/i2rt_yam/xmls/yam.xml": "79078fe009fd31c90343d5240b6f7df475ea30848aa994108b90d342e5b37d06",
+        "src/mjlab/asset_zoo/robots/i2rt_yam/yam_constants.py": "988f1ed8b639610fb876f1b098299e9f99bfdf4e24c9519e80e6f74d87953aa9",
+        "src/mjlab/asset_zoo/robots/pupper_v3/__init__.py": "9889fce7d2debc9fa72aaa63ac328b9dd60eb4a1fbcca8e0e65e50d21d1d1a89",
+        "src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b",
+        "src/mjlab/asset_zoo/robots/pupper_v3/xmls/pupper_v3.xml": "a62291bb236e3a92979ddbd772f3f6506bfded07a9ff939e48e6d5ffeeba611d",
+        "src/mjlab/asset_zoo/robots/unitree_g1/__init__.py": "c11e649d6d5209becaf6dbca2d09dee83c17844b5d941c2e1cc6f16ba618bf14",
+        "src/mjlab/asset_zoo/robots/unitree_g1/g1_constants.py": "856492f9cd74b32e76fedafc583e284d14542eacd20261adcebe5c5c2345a258",
+        "src/mjlab/asset_zoo/robots/unitree_g1/xmls/g1.xml": "febdcbeffbbf84051556ae41a5ac1b43fb479a5d76bdb3f54824dbc2721c20aa",
+        "src/mjlab/asset_zoo/robots/unitree_go1/__init__.py": "976aec5cf5633d29630ae1ef74d1139504a22cdffc2ef18ba1617ae679144f2f",
+        "src/mjlab/asset_zoo/robots/unitree_go1/go1_constants.py": "553efdb07460a667b4b87bef8a0022f86b99073c8ef88d9c79fbb209e155ce36",
+        "src/mjlab/asset_zoo/robots/unitree_go1/xmls/go1.xml": "2f1856b0c83994c009cafbad1f5eac38d09efa1a64db73681ff72c9237822db3",
+        "src/mjlab/entity/__init__.py": "2718cbce89ff2c6549d855d096329a72a87d5d77e92daa18b257ee946489cba6",
+        "src/mjlab/entity/data.py": "fd1116692f82278bda721d44c015d27e253d2e866608c8e12824df039dfb4657",
+        "src/mjlab/entity/entity.py": "e6465ec1ff0215b0a9d442d533834d86cf100f5635760a2219690b4f1393c7c1",
+        "src/mjlab/entity/variants.py": "0147307f53ee0273b008568cb31882cf9dbb23c49395beaf1664a8a4ed4d46a8",
+        "src/mjlab/envs/__init__.py": "5c41a9f8cfb59196dbd322e81a54df719d74fd30ff4e1e1958b5778ebc9831a1",
+        "src/mjlab/envs/manager_based_rl_env.py": "df814fc0ad36b9a4099884f06dea04b43187eb80f3784b6306e2884bc62bfe92",
+        "src/mjlab/envs/mdp/__init__.py": "69d5a26435e69f8636093ef71a977bcb4f45ded4a4277c80c60defda41be1da9",
+        "src/mjlab/envs/mdp/actions/__init__.py": "af023e77e5e624d86121742acab67a3eae2d67a7d2f1c595c9a59ba168386859",
+        "src/mjlab/envs/mdp/actions/actions.py": "9cae83a2b0006320a8e15e040a0edbf5b4ae76d023832563f1ac36630f3b28d1",
+        "src/mjlab/envs/mdp/actions/differential_ik.py": "b8b9654921afb7a46abb57719e2429c2274653296ea345469df7b92bc101124d",
+        "src/mjlab/envs/mdp/curriculums.py": "844336b87cf71dfc6d6e60ba8001fdae42736deb9c8cd3e2cb81c1af0f7cb652",
+        "src/mjlab/envs/mdp/dr/__init__.py": "88bb1d76f11c352ea6671a876c66f237a72b8a0c4f699e1ec0921a5c77dc82bc",
+        "src/mjlab/envs/mdp/dr/_core.py": "aa8e54109663b72d5f195167ba5f0c1a42019e970811c733d5c4a57a1b463fb1",
+        "src/mjlab/envs/mdp/dr/_types.py": "0dadb1cbf88bdf97cd92f636742715520cc5d27c7a6b0a2863a1be703c8c044b",
+        "src/mjlab/envs/mdp/dr/actuator.py": "20ecdff1cb0d590726b1f5ed9d4e9d1de5a6380ca51ec7b05c0cf2ce34812b9f",
+        "src/mjlab/envs/mdp/dr/body.py": "7bcd4565f68ead70186c82d392befc2597b5a21ec9afbb832f13a4cf7eb774d5",
+        "src/mjlab/envs/mdp/dr/camera.py": "ee102f4a08fe984765cd6744c44b9a9a50f99229abc498002338b992835b38db",
+        "src/mjlab/envs/mdp/dr/geom.py": "07be4f166c68bb57f4145246be7518b8ec612614d01632e30662a36655e89e25",
+        "src/mjlab/envs/mdp/dr/joint.py": "8ca0f9626b5c8b5fedb57013d3ed229ca00fa397378cfde329ebbfe1b2617e19",
+        "src/mjlab/envs/mdp/dr/light.py": "9f1cbbda891bc0255bc90bda112cc277af8fcfb3cedddc5a0f05a81d401feda8",
+        "src/mjlab/envs/mdp/dr/material.py": "edc5867c0135368d0972ba7973c54dc69475d3d8573cc8dce6aea4e96cf5e9b4",
+        "src/mjlab/envs/mdp/dr/pair.py": "28ff3598286786919ba5e4636a86301e8d81e711e0dcf41f8647c35e41a413ce",
+        "src/mjlab/envs/mdp/dr/site.py": "a3ed4a1d072a7417653d37f5ddcd8474278901b57f5309d0955d335985bec694",
+        "src/mjlab/envs/mdp/dr/tendon.py": "eaf357196128be8c06af0e79715981509bd08ae427c367cdb0c6564c8f5ce42e",
+        "src/mjlab/envs/mdp/events.py": "31051f65785d7d7818443796c5b477266fc139ad94e7d7b6df445d81ff65dd53",
+        "src/mjlab/envs/mdp/metrics.py": "5a0d5582aa7fe8c2d530dc5afdf151eace17d529429176a2fbff003d7d60e1ba",
+        "src/mjlab/envs/mdp/observations.py": "610b2682fada5fbd7784416e53ba3375cd9e480542737ee4bd5b1f5af79b4b72",
+        "src/mjlab/envs/mdp/rewards.py": "02e42a1e15dc1a27a0cce4e3d2863a165094914118789a1ec4cfbf6ed97a9c60",
+        "src/mjlab/envs/mdp/terminations.py": "3c0d64bdc9aa69d8fd372f343e47ab6f9da59a77d2efd8e3d860eff2c1ebf68a",
+        "src/mjlab/envs/types.py": "9508db1d92998c2465bd24ff24b6966f5634a7b0ad7ecb0fcdb9df6e6fdf93d0",
+        "src/mjlab/managers/__init__.py": "6fd6c581b1f283290e1e03d8a9feb5516a4e505763885e870ea47af38ddf20ae",
+        "src/mjlab/managers/action_manager.py": "fec79f933fd9437dc9fcb784e4f214b9bae4aad2252c2d2d1387b11b605a5332",
+        "src/mjlab/managers/command_manager.py": "2d4c81aa5f62172cb0dacf6b534341f4b09b017180ddd7c1987cb0730dd21fd0",
+        "src/mjlab/managers/curriculum_manager.py": "cc34f5b0897ac148d1a51503a63d987e8b549549fcb1713cd35c12e20147cf0a",
+        "src/mjlab/managers/event_manager.py": "e6c2555e93951ecf9b9c17ee90bd2b0c49d55ad6ca7f3009e8a8b3ef68b55d66",
+        "src/mjlab/managers/manager_base.py": "90dedd602785e8a439a2eca5789137bb128674d181709a1be6ec42901a0326cd",
+        "src/mjlab/managers/metrics_manager.py": "64f2d934b4ff0fd8910e7ab25ed5086db9ed9a988318b9e41a8e1ef8669e322c",
+        "src/mjlab/managers/observation_manager.py": "cb46783dabcd91d3bd974cd9dfe6906d719d6593d24362f2fe6224a42fac845f",
+        "src/mjlab/managers/recorder_manager.py": "9c30862b75b2c2a77b49f331125be382912099147c6ae982aa682a58ce7c3e66",
+        "src/mjlab/managers/reward_manager.py": "a1e12ecdcacc8f90c5fe9e7bd014a6ddbc5afead45b822465257005865d9f401",
+        "src/mjlab/managers/scene_entity_config.py": "694c0ec06365e12d42f44159b53fbef7d555cf7d97c4ad58a59b3b0547c54f42",
+        "src/mjlab/managers/termination_manager.py": "87cc51aa9738e6d137ee936317d76d0b7472c24c58776b4f99dd1bde81d29a6a",
+        "src/mjlab/rl/__init__.py": "d67a01c3df70b1d481498bf8f258c3c7f589e9d163605a7dc70fee83e9189597",
+        "src/mjlab/rl/config.py": "7d391cc0d7a37a4f86c3c4f4a0adc6d75c546273085feed0ddf597aedba6134a",
+        "src/mjlab/rl/exporter_utils.py": "4841e3c17518e51286670d6e5e7ff11ec0faec12a6555216312d442f9c1c33be",
+        "src/mjlab/rl/runner.py": "12a8832355d9f3a73555d5ae2d15e03b29dc76e400a7fc378a8fa5a50b3fdcec",
+        "src/mjlab/rl/spatial_softmax.py": "413922be88fe797c528f59409f9975979cd1886d8ed51b17e28b9377ceadec7e",
+        "src/mjlab/rl/vecenv_wrapper.py": "d458aa421d72c979d0269a24e51a4b49a02e4ec8cb5a9d10e47290aa5d86a3e2",
+        "src/mjlab/scene/__init__.py": "ff411f5da07d192bd797040453398eb68f5577c35e41b1e8f41aef58a02b9610",
+        "src/mjlab/scene/scene.py": "ea3aaec0d501736084ba57a67fad089842dcdac0728dda5f098b44a3adddea11",
+        "src/mjlab/scene/scene.xml": "0fa9355112e117328986cda47e4fbf4f5d47904b7fccb805d70dccaccdd038a4",
+        "src/mjlab/scripts/_cli.py": "bcb1f4394126ee112578c905fb4ba89d8f8e67c9e7df55205e0c425ab3759219",
+        "src/mjlab/scripts/csv_to_npz.py": "09095a5c70d4cdb85a64cdfa3a2f2eb0da573a44028d7c4e9a6d03a201529710",
+        "src/mjlab/scripts/demo.py": "b20dec8c1e9c71fec5929294d242ea34a9e2fc7f81fb384346b13a5dcfa6917a",
+        "src/mjlab/scripts/export_pupper_policy.py": "9848ebc73bc137c6f6ad6fc64913959e73c5b71c8475eabe51b302ead3fc7a69",
+        "src/mjlab/scripts/export_scene.py": "da4519902a6e31a7883105d596521fd4db0bb1a14f55764c603e944a2ee2469b",
+        "src/mjlab/scripts/gcs.py": "521bfdbd95156026ec568a11e3da24caab3826d9ece8852d3a8d015fc6d82143",
+        "src/mjlab/scripts/list_envs.py": "0fd1214a8be3e0e757a620f4d547b6b733dee1203aac053c3e4bcf31bdc32e91",
+        "src/mjlab/scripts/nan_viz.py": "2766d372e6ae5f2250b2b781e1307a3ec26f87d7884a1a28a56b016a10aa0826",
+        "src/mjlab/scripts/play.py": "606f537c568247c5e9ba2e94ac1a197675411b360fb1db3231f1b46710539456",
+        "src/mjlab/scripts/pupper_foundation.py": "dcca8e5d1644df353604e2f5e83ddc3efe954296ab0f0a696ffb97127df06241",
+        "src/mjlab/scripts/pupper_generate.py": "0915bc869086ab9b5f810ae4924766c8b30ee047bf0fed55f2dd109b6276c61e",
+        "src/mjlab/scripts/pupper_locomotion.py": "dedfb56704249006de4fdf6def55dee07473c97ab6b43823f4df90ac587ae28e",
+        "src/mjlab/scripts/pupper_policy_audit.py": "d4088a7f12f9a9f826f7e87aad748b43e2131496c71bdc6bc062557d128f426d",
+        "src/mjlab/scripts/pupper_unimate_candidates.py": "5a54e697944da4cbdc047b28e565fd7dbf2a4e2e6a32edc18db8d558976e1b7b",
+        "src/mjlab/scripts/train.py": "abb1224536c4fc81156566392424ee70f6287bb4abcde8e2c60c7639f98b320e",
+        "src/mjlab/scripts/visualize_terrain.py": "8e260e01a2abf5acb1ca73f26e9e9aef668132a4bb2b934730ea44b95317c588",
+        "src/mjlab/sensor/__init__.py": "7961da9847ef0fe23e107bccf0b795cda90008e456e7dc85dfed000f86bfb332",
+        "src/mjlab/sensor/builtin_sensor.py": "401e495124fa96a89c87cd510da8f43c693db3f9110b93000dcb515171e57adf",
+        "src/mjlab/sensor/camera_sensor.py": "52e9761f838a224ea71c276aeddc11af47bee7050664fe0a88ede724471f1597",
+        "src/mjlab/sensor/contact_sensor.py": "8b55ab0d6a21d0256e2fc29187c00cbfe4412cd08993050386c6a1f08197fac7",
+        "src/mjlab/sensor/raycast_sensor.py": "08cda6b9363e7071a29ed9731e21cbe56fbbae8938a23221394e800a2a5900c4",
+        "src/mjlab/sensor/sensor.py": "c700983150dbd74fbceec7486b842af4dc8917a251af0277436aee09a69dd077",
+        "src/mjlab/sensor/sensor_context.py": "36fb512169b7aa2918b13681112cd195c49403d99f97027774c732338f11ad53",
+        "src/mjlab/sensor/terrain_height_sensor.py": "18a7b190a01fe57cf1e2dcf597dedc3da410eef1d571f4ae000edb6a68e5d692",
+        "src/mjlab/sim/__init__.py": "6c7e8c6d5bd848c06b243d54522ca446a94e023235c0c8cb8dd53e13551cf3e2",
+        "src/mjlab/sim/randomization.py": "96762d28662fea35c410245df8281fd45794ace4b69a2765f873d4c285dece94",
+        "src/mjlab/sim/sim.py": "2f7e3e1672b75fa3863c677dbbd3e6a62e49b97953db64f0d8a261a0d45e52bc",
+        "src/mjlab/sim/sim_data.py": "fe0191280f56e6a51c39f94363c1306d9dda65588a05a96177f6cf2ff8578667",
+        "src/mjlab/tasks/__init__.py": "310ff3bbeed45f4792394e36ff98eb4b5b70e0657c2e5ef67dd363d510133d9b",
+        "src/mjlab/tasks/cartpole/__init__.py": "161dd6cccab68333cd14fa206aba646b78ea2fb0ed191e59bdc943f9e761bd5a",
+        "src/mjlab/tasks/cartpole/cartpole.xml": "c4adb6759cea1f380d8b20c067339976ca21a5d824a515a3cd5f75e0969bdbe1",
+        "src/mjlab/tasks/cartpole/cartpole_env_cfg.py": "f37800dc7d21a22d2d8a6091958b07566000b0cbc9d6073b34531f94e52f4c35",
+        "src/mjlab/tasks/manipulation/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/tasks/manipulation/config/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/tasks/manipulation/config/yam/__init__.py": "9f5978bf241f6890a2b64459c8b365818ab22068c1100b0f97d1de67a64af36c",
+        "src/mjlab/tasks/manipulation/config/yam/env_cfgs.py": "d6358310e5a97e3d0254b249b6e19be9a1e30e42ed8ef348f3a0d6c11fdd7b5b",
+        "src/mjlab/tasks/manipulation/config/yam/rl_cfg.py": "c013e8f318d51c3cacf6198986dcd5c3781d10a618165d9681b54e9975d25cbe",
+        "src/mjlab/tasks/manipulation/lift_cube_env_cfg.py": "093b235694fb99d8c2bea79f9bf1ad0bc3078f0c97b981b46b8c10488206b390",
+        "src/mjlab/tasks/manipulation/mdp/__init__.py": "02b2ea12a27078ba3ab5c444da0cdb461a765b0fec17f06d9120c4f767568802",
+        "src/mjlab/tasks/manipulation/mdp/commands.py": "18680f033ef8ef3305ef3cd5510cee9028e94bc3bfcbfb04962d9909c50f187d",
+        "src/mjlab/tasks/manipulation/mdp/observations.py": "ef3a2dae26b4a626990474881d2daef485c9c7c26b78b0e873430767a2f04065",
+        "src/mjlab/tasks/manipulation/mdp/rewards.py": "716b20339ffbdfdd839b28f855da257ff3cada2db587bfed995fe483f3674345",
+        "src/mjlab/tasks/manipulation/mdp/terminations.py": "8da09eb99b1365c7e6bd5f7cf68e6b77a57da2c93975b265d6f211c757186186",
+        "src/mjlab/tasks/manipulation/rl/__init__.py": "52e7cb371a86b6f62d3d0df8ad4fe6ac08875858b2e0ae11d33ac401935628f6",
+        "src/mjlab/tasks/manipulation/rl/runner.py": "2dc605399d9230f38329d0528d09e304e1712d23620d3571afbf3420ddf511c5",
+        "src/mjlab/tasks/pupper/__init__.py": "af56808bf8758ef54a1fa2a8589f810ca635ad6ffbcbbba4fbfc68021b026398",
+        "src/mjlab/tasks/pupper/collision_audit.py": "a3d6f737433240f4bbadec4a0a8e29d7bc09233bac8b72e812a60ef483d4dbfd",
+        "src/mjlab/tasks/pupper/config/__init__.py": "2b54b5f7f6a42c097e5259309f01f4b6878c7bb05274fb970e80d8ec4b34af87",
+        "src/mjlab/tasks/pupper/deployment_contract.py": "388aec727d505aa3b9abe49223c9c216938aa06e3476d243e9b509244c28cb62",
+        "src/mjlab/tasks/pupper/export.py": "e4737c544e1174ae53f92fe4e820d867b49fa4d676d2e3c6b72d349f09af923f",
+        "src/mjlab/tasks/pupper/locomotion_contact_contract.py": "23f3322826681da74e862a798ce2e176385bcd31dd4582803f7b87eb9c5abbc6",
+        "src/mjlab/tasks/pupper/mdp/__init__.py": "ae6f60f6482ecaaa369aa978d3bf360e34868ce43cd0a4285bb06256378a78bc",
+        "src/mjlab/tasks/pupper/mdp/actions.py": "7994ff031fd28d3876ea33c0d9cd819d23b3f943af25b678ce6ae1f20e6da78e",
+        "src/mjlab/tasks/pupper/mdp/latency.py": "b5c61acbcb4f9303f35bc8f1f107e9ba9e3825f672d5ac1a28241abb3720f3c4",
+        "src/mjlab/tasks/pupper/mdp/observations.py": "1627f2ce38ec2ce7cb3e6abdf09a4d7a996e0cde61f06f9b0ab4fb65686ab74e",
+        "src/mjlab/tasks/pupper/mdp/rewards.py": "6b268608596733fdad1a0603a46478ce540f33905ca77a1bc333457be8dee5cc",
+        "src/mjlab/tasks/pupper/mdp/velocity_command.py": "827c5f441828e7967139b7254c2e61f3b99e591bdc75214ecbd045f849e16f8d",
+        "src/mjlab/tasks/pupper/pupper_env_cfg.py": "6e2b62c2dba811c0670fd059312e820a97d052b7532f9376a4a4ae8247283444",
+        "src/mjlab/tasks/pupper/randomization_audit.py": "2f652f5525ccf4d3ad71ad5ea8d057c7ceadcd20dc3caa97e718772a87c8cda1",
+        "src/mjlab/tasks/pupper/rl/__init__.py": "7655f91c17485127214833b5c838acba25b7c47fb9ffb5bff17df48e0d5a3788",
+        "src/mjlab/tasks/pupper/rl/runner.py": "aa9daebbf35de03ea946f55635fb0158ec9876e8521791b7152d6c9022f74d0f",
+        "src/mjlab/tasks/pupper/rl_cfg.py": "5e845e7883ee8a2add07192deafc70f8e706f9e8328c1ae477a3633d38de4100",
+        "src/mjlab/tasks/pupper_gait/__init__.py": "4a00673b77a0995843bd7f515a576a6217a0cd922c12920a557729e0a4bedb64",
+        "src/mjlab/tasks/pupper_gait/bootstrap.py": "288ebe6eb53eea8c6275295c4b5e1d18cc7d247baf6f4cff4a552770bbf95a10",
+        "src/mjlab/tasks/pupper_gait/config/__init__.py": "edb0a9f2805edca622bc40e5968f2bd0069e6e81c248aded5259e441cefae4e2",
+        "src/mjlab/tasks/pupper_gait/export.py": "9c47d5d97660ba71d9359271023e478cbcc9ec47e209f3dadf92c67650763532",
+        "src/mjlab/tasks/pupper_gait/mdp/__init__.py": "7abe298b5cdcb278c8291ec9152150bd0ba6410c6ed2ca184d17c664dae768ec",
+        "src/mjlab/tasks/pupper_gait/mdp/gait.py": "91e8aeb5680f8e7bd17d83d5f74c105bab5cb41a743bd7b7a21a44beb44136a5",
+        "src/mjlab/tasks/pupper_gait/mdp/gait_reference.py": "f19b626fc9e490b8b7cd7c34e3555c2043cba4c3311fc673d18ac33a2db5aec1",
+        "src/mjlab/tasks/pupper_gait/mdp/jump.py": "dcfe15d84a63cbfd7e120441f92db1076c11e29de1c80da13b5f1b622090c213",
+        "src/mjlab/tasks/pupper_gait/mdp/mixed_gaits.py": "8c39cd205025dbf8cdc291de811a606a5e3a8aa1af99f6855e2e5862e2e64121",
+        "src/mjlab/tasks/pupper_gait/mdp/mixed_jump.py": "ba6d9daeb774d8ffb68a2874d13e8d0e65abee4a5ca74065064699a8dedcc464",
+        "src/mjlab/tasks/pupper_gait/mdp/warmup.py": "3ef42512b9f9b71cb387cbcddee2028f61ca1eefdfa8727562a6ff95a164a9a8",
+        "src/mjlab/tasks/pupper_gait/mystery_env_cfg.py": "ff43d23d1f2f5c24b66ed0788a7454b8a0fa594e6e6ec8bffd21f1cc25b7b906",
+        "src/mjlab/tasks/pupper_gait/pupper_gait_env_cfg.py": "3a36e48c5b17d53411f30d2ece80a6c1556e640e9f586f478047f8afcd9193bb",
+        "src/mjlab/tasks/pupper_gait/rl_cfg.py": "1111a79e199c2596c47c5693f92d6e46d30de8e5436bd4437ff593c0c767002f",
+        "src/mjlab/tasks/pupper_gait/visualize_reference.py": "184bcaeba880529c36bb3c1718bddb52b400ba5615331d855a8fc7e8a64536b5",
+        "src/mjlab/tasks/registry.py": "f1c82c8f1ff5d24263787f4cfc2805b7b4103253fe59c054bf649d24c7cc9476",
+        "src/mjlab/tasks/tracking/__init__.py": "269e19fac2c24adc6064d7c868741fa265f12d78ca07dd12ef7333febde21adf",
+        "src/mjlab/tasks/tracking/config/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/tasks/tracking/config/g1/__init__.py": "fe1f3b8b0fb27d8a353f7d5875b1624c3bdbe04802e2f65c56231b3ccb72e590",
+        "src/mjlab/tasks/tracking/config/g1/env_cfgs.py": "ce67f0a0e4f8246aa13e7a1e855b30cbd5f5c40fec7ee8ee1c92ddf72ac44d50",
+        "src/mjlab/tasks/tracking/config/g1/rl_cfg.py": "88a8a0acc8052a4bb64957a93ab2a88fa345ee84f63e405ffc6fa70148c6e104",
+        "src/mjlab/tasks/tracking/config/pupper/__init__.py": "870e55a5460821ddd0529b27f3b56472cb6b058381e14e16bea8582a2eb11d0e",
+        "src/mjlab/tasks/tracking/config/pupper/contact_contract.py": "f012c7ef4f6041fe7e368fe2bc2fc50c56d184d4fc5a526a67de1990a971700b",
+        "src/mjlab/tasks/tracking/config/pupper/env_cfgs.py": "0c4475e21679e02d867cd9c24dff57577f92e62847da5316fab55eb13e72ac4d",
+        "src/mjlab/tasks/tracking/config/pupper/export_trick.py": "43707389ff271f7dfc0905b8b205d2adf87e13f87c90161abe910a6cb4cf3280",
+        "src/mjlab/tasks/tracking/config/pupper/motion_design.py": "8bc443541a29c9a05a99acdb5465c12e726d15f4189e62661772b9e343b92edf",
+        "src/mjlab/tasks/tracking/config/pupper/motion_ops.py": "1d3c549682b5109a6747a326ec746c92afd04d737bfcc483f2605a3fe665f4f0",
+        "src/mjlab/tasks/tracking/config/pupper/play_motion.py": "5322d6700db98c85accc2e8cacd9c9a091cbc07a1d5c7570581c162e04b423e5",
+        "src/mjlab/tasks/tracking/config/pupper/rl_cfg.py": "6635456e4756a40e54ab7d559cdec5d207bd4833d39be0bd691f6218fb77e932",
+        "src/mjlab/tasks/tracking/config/pupper/runner.py": "fd2381156f6cab495c3c2f05136090a6d9e58d1c8d657cabe81f7701140d98a0",
+        "src/mjlab/tasks/tracking/config/pupper/tricks/__init__.py": "19ecec8e49d7603b4c52c84f82a7ef5b0bb6c220a46e2721b8988960f2e81855",
+        "src/mjlab/tasks/tracking/config/pupper/tricks/sit.npz": "6fd8bb354535688d9ac6d5d2abad9276c3564f48dbfc19c096aa06ff42c37cdd",
+        "src/mjlab/tasks/tracking/config/pupper/tricks/sit.py": "828d057d5c1d42d8aab038f5d02387af38d2afbbadd571ae6257bac407879eba",
+        "src/mjlab/tasks/tracking/config/pupper/tricks/sit_stay_shake.py": "3b35ad6f3231793bd5e7141c976dca84437a38bc73d7f46aa77e3a211a726721",
+        "src/mjlab/tasks/tracking/config/pupper/tricks/spider.py": "00c164e8389dd2ddd8fe730e0a6ffd1d9f8d489505ee3a390e15393a735a372e",
+        "src/mjlab/tasks/tracking/config/pupper/tricks/spider_recorded.npz": "ffa909081471970b741564b1504dac95411157f6a81c8177056d1e97a113ddfa",
+        "src/mjlab/tasks/tracking/config/pupper/unimate/__init__.py": "d97ddf5b0afba3201404231f145746b46199c45131f7fb038cc998796484a587",
+        "src/mjlab/tasks/tracking/config/pupper/unimate/repair.py": "ad07f5148f9f94b9749494367f0ca6cb2ca04812f6443211a6fc990f46d52765",
+        "src/mjlab/tasks/tracking/config/pupper/unimate/worker.py": "5730c813cb02326d4acc48f3aac3ffabf84dc81ca56dcab110bc6c49161b73a3",
+        "src/mjlab/tasks/tracking/config/pupper/upload_motion.py": "864e5ff8c2d4931038a0d0a3948c65361abd546068c88cc51a419206dd2ded39",
+        "src/mjlab/tasks/tracking/mdp/__init__.py": "1c2637ed117786d35fc7a8b72fa36e11134268d8a2aaefa7109ed826c7eb75bf",
+        "src/mjlab/tasks/tracking/mdp/commands.py": "d9c144e69078b6b26c42344906d97ca5d0a13b1321b71ccf5830a92d163b063a",
+        "src/mjlab/tasks/tracking/mdp/metrics.py": "d13a3af779454b911eea976e01115d11f35da64f14c8cf3a83c8a9b934f4c23a",
+        "src/mjlab/tasks/tracking/mdp/observations.py": "af2cf6613d657529455eb254c7b13892ab67a0cf8ea5aec2d4df5fad6b4a5330",
+        "src/mjlab/tasks/tracking/mdp/rewards.py": "fd7ef49a8015ca19c12586c6b87afca8c8ee7c03c3bb4b3f0a4b58c1dde6c7d4",
+        "src/mjlab/tasks/tracking/mdp/terminations.py": "5f88576b5995408a744cde451c7e43982d2f03284cfeebb8856969ca3dc76019",
+        "src/mjlab/tasks/tracking/rl/__init__.py": "95fe9fdc0cf223f6415d67607fbd4b2c6653df184cbb15f36403d0cb5ff7052b",
+        "src/mjlab/tasks/tracking/rl/runner.py": "e164fea87e81810a691a82a2afbcb0f8f9212d79df971662d2329fe7045e278b",
+        "src/mjlab/tasks/tracking/scripts/evaluate.py": "5342462b39610bafb7c5cc78150ad0fc7c524c174ea2e55c43a94ea8dd4feb4b",
+        "src/mjlab/tasks/tracking/tracking_env_cfg.py": "631b446ffc478c170ce5ef2a1a74b766e963f13a660f78b168060cd425cac243",
+        "src/mjlab/tasks/velocity/__init__.py": "479a0ae48d56e95521d9cfd6ccb3bbcebc2bf985355d96879ce3a50d20a142ea",
+        "src/mjlab/tasks/velocity/config/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/tasks/velocity/config/g1/__init__.py": "f4482cf1f1bb27989b0de3f1f45c0c1568185a632c9eb36cc18595cf95ac79cf",
+        "src/mjlab/tasks/velocity/config/g1/env_cfgs.py": "5d891ef40987118d1bb2d4bb8791922387d8fdae22752f1e1420dc31f4ddeabf",
+        "src/mjlab/tasks/velocity/config/g1/rl_cfg.py": "dcf4a23e031064085e081798c4d3b5bd1cda6ec58ad0081907f2e72c9142a131",
+        "src/mjlab/tasks/velocity/config/go1/__init__.py": "9688ac3d4f925a59fcdfe5870753fb52ffc62c6944bb259bae6a3b7143f908cf",
+        "src/mjlab/tasks/velocity/config/go1/env_cfgs.py": "3fe9a3f2882d0bb627c791fd009447911bf02dcb977d739ee87c26355909a7af",
+        "src/mjlab/tasks/velocity/config/go1/rl_cfg.py": "ac9744e0a2c11db9e60f819c0e8423e6479e094c4aaebe189a6965b06bb90f63",
+        "src/mjlab/tasks/velocity/mdp/__init__.py": "231f35d88929e89ae17dbf403b6d049dd9f1f8bba21bfaf74a087bb9435e7dfe",
+        "src/mjlab/tasks/velocity/mdp/curriculums.py": "32626093891fa3a12dc4efa1394e90e423adc4b749f5bc3f20f9accd8764a3b1",
+        "src/mjlab/tasks/velocity/mdp/observations.py": "4e56cefa6481c42e641902cc124cfdd02c3c92b45d8b294253aad0fc87ec9134",
+        "src/mjlab/tasks/velocity/mdp/rewards.py": "5149776c24c8499c05c1f4941a295647779867efd645f78be02408fd85c96dfb",
+        "src/mjlab/tasks/velocity/mdp/terminations.py": "afebaf4170ed51e44e45626ed32e295d29dc43e96f93ca82ccb7b5c0c2c873cf",
+        "src/mjlab/tasks/velocity/mdp/terrain_utils.py": "cb03bece16e1848746738404a4070454c4f753261b1c6537dfb1549c3ef7e627",
+        "src/mjlab/tasks/velocity/mdp/velocity_command.py": "e97fcae0eb8bf34089033a51047fed90b6a6bdfe856ec01d1938c1831e1a422e",
+        "src/mjlab/tasks/velocity/rl/__init__.py": "998d67bb2c79979ed2999b14c74231e39a6d018f97c5429405b2991c36cdffa5",
+        "src/mjlab/tasks/velocity/rl/runner.py": "9f7176f6132f1819847aea7c71d4f7ca36d9a02123a6330efe112d42f1270969",
+        "src/mjlab/tasks/velocity/velocity_env_cfg.py": "8a272a8b3c81c4a0321027e404645c99a4143076522ed3521636bf293dd3137b",
+        "src/mjlab/terrains/__init__.py": "76c3c30dcc3027e9f8fc7929d9f473db22022eb2fc6cf68dcda556b74e30389a",
+        "src/mjlab/terrains/config.py": "3005acad2ae9420be19c0c3c6a8954a190d70cbf19952e86e51c1ce7ba5d06ab",
+        "src/mjlab/terrains/heightfield_terrains.py": "ca20050a02b650d61f7d32a7ca8fce4268a17693ddead1b29b7789f6f6fa128c",
+        "src/mjlab/terrains/primitive_terrains.py": "8c526781a1e757fa7af1e165283d9b03f059298fc6704f4f147fdafaf60fd4b7",
+        "src/mjlab/terrains/terrain_entity.py": "272a6e1c39f4221ded391f75792982c31f6ede8f44393f8a705d6acf83be9ca1",
+        "src/mjlab/terrains/terrain_generator.py": "9b637d2daae6e39ba224ab8e03a99ab8c43d817b343e912328187a96fd284dcd",
+        "src/mjlab/terrains/utils.py": "dab53f1a277ef3a3249a358e4db44ec402eece9ff56de1929215337abeb7f357",
+        "src/mjlab/utils/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/utils/actuator.py": "064435b65ac6f6c117c351882652ebe00a9cb36523d82f94a6aa9502276b1fbd",
+        "src/mjlab/utils/buffers/__init__.py": "bfe46ad1bdc8c29555f2f6d675e703d91b4698d1cc735d90ffb86d23b120a929",
+        "src/mjlab/utils/buffers/circular_buffer.py": "da3d1fb4fd6d8e4cb980832d6cb8c344f1eea9e2a1e6b557fc3dbd99c625a488",
+        "src/mjlab/utils/buffers/delay_buffer.py": "845e68da9e681adee1e93f90b4b1937c282a27f82a147f1fe3c19d83204049b5",
+        "src/mjlab/utils/color.py": "ac8c048df0c21ba48558f048d31a4298595105d02fefa1940b226d86f2188ef9",
+        "src/mjlab/utils/gpu.py": "73995a8a2f38323463101e2db2621173682709d4347d610a94f62cdccf3c6e7a",
+        "src/mjlab/utils/lab_api/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "src/mjlab/utils/lab_api/math.py": "b81948d420cf67a354c007a19ce6047c6e88ccbcaed5b445c2f8443b6c959b44",
+        "src/mjlab/utils/lab_api/string.py": "d0edaedbb1c0a6fed7dd4a72e1b0d8e7f2aa149bbc1ebc52547405e6f669371d",
+        "src/mjlab/utils/lab_api/tasks/importer.py": "350f36e86224bcbec60bf427cb53c5fa1de111b34e3c489f3ab67ba766c7839d",
+        "src/mjlab/utils/logging.py": "cbd7d5dceb22b84edc27a782925d080a0df2ee776df69d9df3d30c99af1a2200",
+        "src/mjlab/utils/mujoco.py": "879b8109e03c4a32143899be4648ef02aa57125a40b36658d1fb361dd74216de",
+        "src/mjlab/utils/nan_guard.py": "b3ba9d2c3f34c5e8f1c5249e28699141bd389971eed41cf8d05e0bf5f3199943",
+        "src/mjlab/utils/noise/__init__.py": "cd43d801881ad37bc9d34c5263cf1f0c4aaad12355b1a565dfba5d2a722fd958",
+        "src/mjlab/utils/noise/noise_cfg.py": "1132aa0bc88f498e5641504e9d79a26545513b123a526c91f61d5823693d54c8",
+        "src/mjlab/utils/noise/noise_model.py": "57b706914f33ecd425c947420bb9629b1df8fa703e72fce998e577e48ac9c4eb",
+        "src/mjlab/utils/os.py": "8364587683fd9c062e85a40302ed792b8ace389f64b6e0ebd5ec4dde1a9f6241",
+        "src/mjlab/utils/random.py": "5ba445435efa5f064aac4b572d035c6a6e98ca3ce459faf1f00dc6f73cbabbc8",
+        "src/mjlab/utils/spaces.py": "42eb28b6a48b06886df1c6b385243d340b14f89e71c0e407fda54e0907a53a60",
+        "src/mjlab/utils/spec.py": "3f7c2685fa05840b62bded190847cc4feaf8eec3086ec7de145ebeecfb6f434b",
+        "src/mjlab/utils/spec_config.py": "40068d81ceaac72b9da24a480d285d6102e16c4a200f9376d1718516b0785ea4",
+        "src/mjlab/utils/string.py": "702c5ee5bc6b9a3fc5b27a1419daa0653301494bda9f7e5981eda898a601f8bc",
+        "src/mjlab/utils/torch.py": "87e0673c850ae6cd5306c9533c928ddb570396323b904f7bbbab589990bc44b1",
+        "src/mjlab/utils/wandb.py": "5b427044cfc561255d184973f7f3b548147234a54ccbde708966b1c7c3b76d75",
+        "src/mjlab/utils/wrappers/__init__.py": "bd180f557c3fff4267fab0a7cc838c792a274b4f5d5e6590a3b694d2cad55fe6",
+        "src/mjlab/utils/wrappers/video_recorder.py": "7a7c9922c8a625d69fe31efeb503c1941a0bfaa24dc5c740058a0effa231aa9a",
+        "src/mjlab/utils/xml.py": "5976ce00b501a39b42ac5605c2ed9bd05ea4feb5fbf1a2d778a1656ec0caaa3b",
+        "src/mjlab/viewer/__init__.py": "6215875f50dd7fd1459682b707ce82da953f70dbcaedf0d363d55a49679b7d1f",
+        "src/mjlab/viewer/base.py": "7adae70e7a029d5acfe03bf66e2a75e7d4d558cd1b7394fa529eaf5cd7ab853b",
+        "src/mjlab/viewer/debug_visualizer.py": "d96616c4d9f0ace6921350da19fb6d2d011675e67cba32d42510a6b4ba4d1b3a",
+        "src/mjlab/viewer/model_sync.py": "e23e6a52adc8e4572fb65ac1b324201e01971c04863dbf4e7c47928f5f5e6b69",
+        "src/mjlab/viewer/native/__init__.py": "1cc4c390f38e36f2f708330fb39695a789d6ff5557503e5af64862ab2c29f928",
+        "src/mjlab/viewer/native/keys.py": "30cf4d7872f7af74d9c8238289d22c6ffca82a56767debe54f4074ec41db9cf9",
+        "src/mjlab/viewer/native/viewer.py": "95149f0266a546f9a9ba11215a6f13dcdafbe8324f38d07bbca49234d96a928c",
+        "src/mjlab/viewer/native/visualizer.py": "e1228a7c71f5a62460f7e12f2a45669d43c8a26454e3dffa48e023abb37ec616",
+        "src/mjlab/viewer/offscreen_renderer.py": "8e9635c1634cef683d86865ec458c9d1f474cee3a429f141af83e4eb2375c097",
+        "src/mjlab/viewer/viewer_config.py": "c488208f3607425215980de450aede52136807682154e7d8c4b49cafda2c66ae",
+        "src/mjlab/viewer/viser/__init__.py": "ea76203023f96327501a320fe3012632d0bee61174152beb98fe3cb556ed71c0",
+        "src/mjlab/viewer/viser/camera_viewer.py": "b60f0ed335e40f018847f172ce7e0f70c8ba152d61e2f25eda7092ac1e7fbca4",
+        "src/mjlab/viewer/viser/overlays.py": "f6184f1571964fbc94c81a9a607548b4a7d691e54c72ca74e06cf978f9a2eb56",
+        "src/mjlab/viewer/viser/reward_bar_panel.py": "bff4194a48f6deaf929ee4945d670d73946bb302e13bddca782179f6ec6a4872",
+        "src/mjlab/viewer/viser/scene.py": "a28ac0d4f628b9ae9afce6678c4e5304cef0da60e113d45075266bef05aacd1e",
+        "src/mjlab/viewer/viser/term_plotter.py": "4b2694fb5633fae6c01e71cf5e2c05a68ad2e5bbe6579f9339296572b6c5371d",
+        "src/mjlab/viewer/viser/viewer.py": "8f11f8a13f6240178dcd5ea00df7ca387fe9e136cef839393d8ebfd93138b17e"
+      },
+      "packages": {
+        "torch": "2.14.1",
+        "mujoco": "3.10.0",
+        "mujoco-warp": "3.10.0.3",
+        "warp-lang": "1.18.0",
+        "rsl-rl-lib": "5.4.0",
+        "numpy": "2.4.6"
+      },
+      "python": "3.12.14 (main, Aug 25 2026, 13:50:33) [Clang 22.1.3 ]"
+    },
+    "training_resume_validated": false,
+    "policy_performance_validated": false,
+    "approved_for_hardware": false,
+    "strict_actor_load_passed": true,
+    "metadata_differences": [],
+    "random_input_max_abs_error": 8.76579823216872e-06,
+    "live_input_max_abs_error": 1.5774991846129183e-06,
+    "passed": true
+  },
+  "actual_rtneural_parity": {
+    "backend": "vendored RTNeural Eigen float32",
+    "hardware_validated": false,
+    "input_dimension": 960,
+    "inputs": 512,
+    "max_abs_error_vs_json_float64": 2.521101678532034e-06,
+    "output_dimension": 12,
+    "passed": true,
+    "tolerance": 0.0001,
+    "policy_sha256": "ef57ca17655a38b998ed7f116bb197c4a7e3b815566d8dfd1b084913695c3155",
+    "fixture_sha256": "da7764f19536666ee2889b303a01265305a0c8a3543ba7792c379685b40b5deb",
+    "binary_sha256": "17da1beaec524a376077810dd1b848dbdbcf2bb00e80a3c946f8b61ba70509d5"
+  },
+  "cases": {
+    "corrected-evaluation-s101": {
+      "metrics": "artifacts/lab6/pupper-spider-walk-corrected/corrected-evaluation-s101/metrics.json",
+      "metrics_sha256": "537ef00af16ca10e4b627fc1f5b93e97b2f3d9635ffde54a08ca62252074e896",
+      "trace_sha256": "7c1e75fa6711be46e9aa37d8b01cac862acb644188e21bc89aff93fb6cfb97fe",
+      "provenance_sha256": "642d2c49db7afa3f7f42232943084fe19fd5f66622a03a23cd1a4c75e41e2d0f",
+      "realized_randomization_sha256": "d0f5d27241db613ec5e6e6441843b221a702ca2b8034b9b225498c460f548949",
+      "failures": 0,
+      "timeouts": 0,
+      "mean_segment_xy_error_m_s": 0.04908161955897791,
+      "mean_segment_absolute_yaw_error_rad_s": 0.045347773529128804,
+      "scored_geometry_penetration_fraction_over_0_1mm": 0.21638888888888888,
+      "maximum_scored_mesh_penetration_m": 0.0019945298644807527,
+      "per_command": [
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 7.806287527500899e-08,
+          "mean_xy_error_m_s": 0.00021475769317232376,
+          "mean_abs_yaw_error_rad_s": 0.00011601398211338709,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.00010057100735139102,
+          "mean_xy_error_m_s": 0.05004843616966854,
+          "mean_abs_yaw_error_rad_s": 0.003903945332698555,
+          "target_clipped_fraction": 0.13510416666666666
+        },
+        {
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.03214336931705475,
+          "mean_xy_error_m_s": 0.0726834328169029,
+          "mean_abs_yaw_error_rad_s": 0.0530347598290696,
+          "target_clipped_fraction": 0.11122395833333333
+        },
+        {
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.08135633170604706,
+          "mean_xy_error_m_s": 0.07746353353541395,
+          "mean_abs_yaw_error_rad_s": 0.06546676232746564,
+          "target_clipped_fraction": 0.09763020833333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 9.43957374488491e-08,
+          "mean_xy_error_m_s": 0.00021995056699858787,
+          "mean_abs_yaw_error_rad_s": 0.00011621201974065326,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.0007471705903299153,
+          "mean_xy_error_m_s": 0.04955710968109548,
+          "mean_abs_yaw_error_rad_s": 0.007592809670701044,
+          "target_clipped_fraction": 0.13533203125
+        },
+        {
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.04569166153669357,
+          "mean_xy_error_m_s": 0.06145823172766013,
+          "mean_abs_yaw_error_rad_s": 0.046852928108967976,
+          "target_clipped_fraction": 0.13485677083333333
+        },
+        {
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.06816588342189789,
+          "mean_xy_error_m_s": 0.0863465170157454,
+          "mean_abs_yaw_error_rad_s": 0.05501920361667146,
+          "target_clipped_fraction": 0.13485026041666667
+        },
+        {
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00012996868463233113,
+          "mean_xy_error_m_s": 0.0500747607510005,
+          "mean_abs_yaw_error_rad_s": 0.0035086575807713417,
+          "target_clipped_fraction": 0.13485677083333333
+        },
+        {
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.007438318803906441,
+          "mean_xy_error_m_s": 0.08883858345355847,
+          "mean_abs_yaw_error_rad_s": 0.056554949808237324,
+          "target_clipped_fraction": 0.13315104166666666
+        },
+        {
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.0003413240483496338,
+          "mean_xy_error_m_s": 0.04926490549283669,
+          "mean_abs_yaw_error_rad_s": 0.008190341411432395,
+          "target_clipped_fraction": 0.13508463541666665
+        },
+        {
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00548156863078475,
+          "mean_xy_error_m_s": 0.08712439223381625,
+          "mean_abs_yaw_error_rad_s": 0.054399976586094564,
+          "target_clipped_fraction": 0.11050130208333334
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_achieved_vx_m_s": -0.004798563662916422,
+          "mean_xy_error_m_s": 0.029464210843114416,
+          "mean_abs_yaw_error_rad_s": 0.08452814963849416,
+          "target_clipped_fraction": 0.13350911458333334
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_achieved_vx_m_s": -0.0028096630703657866,
+          "mean_xy_error_m_s": 0.04900929123754382,
+          "mean_abs_yaw_error_rad_s": 0.11102960507330134,
+          "target_clipped_fraction": 0.11826822916666667
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_achieved_vx_m_s": -0.010023844428360462,
+          "mean_xy_error_m_s": 0.030849941963393638,
+          "mean_abs_yaw_error_rad_s": 0.08063523151601296,
+          "target_clipped_fraction": 0.12342447916666667
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_achieved_vx_m_s": -0.00864493753761053,
+          "mean_xy_error_m_s": 0.04993182670475917,
+          "mean_abs_yaw_error_rad_s": 0.10100379863975104,
+          "target_clipped_fraction": 0.10825520833333334
+        },
+        {
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_achieved_vx_m_s": 0.010148868896067142,
+          "mean_xy_error_m_s": 0.05070384666939955,
+          "mean_abs_yaw_error_rad_s": 0.08419078608799747,
+          "target_clipped_fraction": 0.12326171875
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 4.9305938887300726e-08,
+          "mean_xy_error_m_s": 0.00021542350552265514,
+          "mean_abs_yaw_error_rad_s": 0.00011579229479759868,
+          "target_clipped_fraction": 0.16666666666666666
+        }
+      ]
+    },
+    "corrected-evaluation-s202": {
+      "metrics": "artifacts/lab6/pupper-spider-walk-corrected/corrected-evaluation-s202/metrics.json",
+      "metrics_sha256": "57f752e9d2d2999f30f3515a09373c97368d060f3835828adfb582d580c868c6",
+      "trace_sha256": "f978c90f27622be066eea2d69677f1864a59539cd25a4ca2f9b230569222c019",
+      "provenance_sha256": "98dbb6d40a87a300400eaa8b87d4846bc2a3293f3cbf2e3834b6a868ab96cd05",
+      "realized_randomization_sha256": "70b2d4e5b82ef31b7c54b7701c877788fdf07cfd9e9514e7fb21d79abf8e6b5c",
+      "failures": 0,
+      "timeouts": 0,
+      "mean_segment_xy_error_m_s": 0.050361171611455376,
+      "mean_segment_absolute_yaw_error_rad_s": 0.04554400562525378,
+      "scored_geometry_penetration_fraction_over_0_1mm": 0.22319444444444445,
+      "maximum_scored_mesh_penetration_m": 0.002024763125989988,
+      "per_command": [
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 3.987505010627501e-07,
+          "mean_xy_error_m_s": 0.00016349506783411383,
+          "mean_abs_yaw_error_rad_s": 0.00011037971608815256,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.00012784774298779666,
+          "mean_xy_error_m_s": 0.05002084413148174,
+          "mean_abs_yaw_error_rad_s": 0.0030193287894813414,
+          "target_clipped_fraction": 0.13529296875
+        },
+        {
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.028447957709431648,
+          "mean_xy_error_m_s": 0.07608010088446047,
+          "mean_abs_yaw_error_rad_s": 0.04780906998154251,
+          "target_clipped_fraction": 0.11173177083333333
+        },
+        {
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.07601550221443176,
+          "mean_xy_error_m_s": 0.0828818905852114,
+          "mean_abs_yaw_error_rad_s": 0.06434550392802407,
+          "target_clipped_fraction": 0.0966015625
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 2.5051886609617213e-07,
+          "mean_xy_error_m_s": 0.00016408457367128238,
+          "mean_abs_yaw_error_rad_s": 0.00010888645431780308,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.0007101409137248993,
+          "mean_xy_error_m_s": 0.04954973224734693,
+          "mean_abs_yaw_error_rad_s": 0.005364539735202847,
+          "target_clipped_fraction": 0.13514973958333334
+        },
+        {
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.039895303547382355,
+          "mean_xy_error_m_s": 0.0657182845299083,
+          "mean_abs_yaw_error_rad_s": 0.043784464054806446,
+          "target_clipped_fraction": 0.13501302083333333
+        },
+        {
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.06088379770517349,
+          "mean_xy_error_m_s": 0.09253446179163274,
+          "mean_abs_yaw_error_rad_s": 0.053002629292977874,
+          "target_clipped_fraction": 0.1349609375
+        },
+        {
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00013938109623268247,
+          "mean_xy_error_m_s": 0.050072844532347505,
+          "mean_abs_yaw_error_rad_s": 0.002652647107417523,
+          "target_clipped_fraction": 0.13473958333333333
+        },
+        {
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.006891468074172735,
+          "mean_xy_error_m_s": 0.09117003364726284,
+          "mean_abs_yaw_error_rad_s": 0.048292862266024486,
+          "target_clipped_fraction": 0.13192708333333333
+        },
+        {
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.0002577404666226357,
+          "mean_xy_error_m_s": 0.04941460114921384,
+          "mean_abs_yaw_error_rad_s": 0.005930683121938261,
+          "target_clipped_fraction": 0.13478515625
+        },
+        {
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.004319156054407358,
+          "mean_xy_error_m_s": 0.08729793615216601,
+          "mean_abs_yaw_error_rad_s": 0.04934138376694662,
+          "target_clipped_fraction": 0.11138671875
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_achieved_vx_m_s": -0.004294128622859716,
+          "mean_xy_error_m_s": 0.028633902194287936,
+          "mean_abs_yaw_error_rad_s": 0.09067398683909529,
+          "target_clipped_fraction": 0.13415364583333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_achieved_vx_m_s": -0.0033206648658961058,
+          "mean_xy_error_m_s": 0.04937856010710929,
+          "mean_abs_yaw_error_rad_s": 0.1155386557012098,
+          "target_clipped_fraction": 0.11767578125
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_achieved_vx_m_s": -0.009255144745111465,
+          "mean_xy_error_m_s": 0.0300182665779771,
+          "mean_abs_yaw_error_rad_s": 0.09047391675474684,
+          "target_clipped_fraction": 0.12373046875
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_achieved_vx_m_s": -0.008707565255463123,
+          "mean_xy_error_m_s": 0.05145497517807425,
+          "mean_abs_yaw_error_rad_s": 0.10558617756469175,
+          "target_clipped_fraction": 0.10903645833333334
+        },
+        {
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_achieved_vx_m_s": 0.009203209541738033,
+          "mean_xy_error_m_s": 0.051787434669251196,
+          "mean_abs_yaw_error_rad_s": 0.09364791584666556,
+          "target_clipped_fraction": 0.1233984375
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 8.991119671009073e-08,
+          "mean_xy_error_m_s": 0.00015964098695975682,
+          "mean_abs_yaw_error_rad_s": 0.00010907033339090932,
+          "target_clipped_fraction": 0.16666666666666666
+        }
+      ]
+    },
+    "corrected-evaluation-s303": {
+      "metrics": "artifacts/lab6/pupper-spider-walk-corrected/corrected-evaluation-s303/metrics.json",
+      "metrics_sha256": "1cc8c8110c1c262bc481515cf007e5aaae3ae0ef128ac9d25481936c16765029",
+      "trace_sha256": "c0a0bd8068645cca588c78abd1bdf99721a004851221335fca0d2f6c3de07aa5",
+      "provenance_sha256": "a41f94645afe3e1df2922b8ea48f1b2864c3c0673badd194ac2f823570bd4738",
+      "realized_randomization_sha256": "79efd20b4cadfca3ba1bc486212c2262420f008add5ac9681b541b60a3325afd",
+      "failures": 0,
+      "timeouts": 0,
+      "mean_segment_xy_error_m_s": 0.04944055548761898,
+      "mean_segment_absolute_yaw_error_rad_s": 0.04585761260131981,
+      "scored_geometry_penetration_fraction_over_0_1mm": 0.21248697916666667,
+      "maximum_scored_mesh_penetration_m": 0.002237682857223311,
+      "per_command": [
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.7212832403856737e-07,
+          "mean_xy_error_m_s": 0.0002178585774342377,
+          "mean_abs_yaw_error_rad_s": 0.00011919443441851585,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 7.462372741429135e-05,
+          "mean_xy_error_m_s": 0.05005322242911375,
+          "mean_abs_yaw_error_rad_s": 0.0024841660866559857,
+          "target_clipped_fraction": 0.135703125
+        },
+        {
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.031772635877132416,
+          "mean_xy_error_m_s": 0.07347777538199668,
+          "mean_abs_yaw_error_rad_s": 0.054572208750303164,
+          "target_clipped_fraction": 0.11302083333333333
+        },
+        {
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.07979761809110641,
+          "mean_xy_error_m_s": 0.07962318154628374,
+          "mean_abs_yaw_error_rad_s": 0.06758819929828633,
+          "target_clipped_fraction": 0.09778645833333334
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.9236892967455788e-07,
+          "mean_xy_error_m_s": 0.00021607956305256488,
+          "mean_abs_yaw_error_rad_s": 0.00011659191076987096,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.000507164397276938,
+          "mean_xy_error_m_s": 0.04975744502039991,
+          "mean_abs_yaw_error_rad_s": 0.0062676446021218265,
+          "target_clipped_fraction": 0.13564453125
+        },
+        {
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.044326718896627426,
+          "mean_xy_error_m_s": 0.06208463345467024,
+          "mean_abs_yaw_error_rad_s": 0.04784287734215127,
+          "target_clipped_fraction": 0.13534505208333333
+        },
+        {
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.06548608094453812,
+          "mean_xy_error_m_s": 0.08854986364247482,
+          "mean_abs_yaw_error_rad_s": 0.05619131343261216,
+          "target_clipped_fraction": 0.13525390625
+        },
+        {
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00010799835581565276,
+          "mean_xy_error_m_s": 0.050033317578653376,
+          "mean_abs_yaw_error_rad_s": 0.0023835029259921957,
+          "target_clipped_fraction": 0.13494791666666667
+        },
+        {
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00737431924790144,
+          "mean_xy_error_m_s": 0.08925430084428815,
+          "mean_abs_yaw_error_rad_s": 0.05438401511862292,
+          "target_clipped_fraction": 0.13392578125
+        },
+        {
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00020646538177970797,
+          "mean_xy_error_m_s": 0.04949535106303147,
+          "mean_abs_yaw_error_rad_s": 0.00626203208312841,
+          "target_clipped_fraction": 0.13484375
+        },
+        {
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.005114095285534859,
+          "mean_xy_error_m_s": 0.08652064671414665,
+          "mean_abs_yaw_error_rad_s": 0.051704568034994194,
+          "target_clipped_fraction": 0.11155598958333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_achieved_vx_m_s": -0.005077745299786329,
+          "mean_xy_error_m_s": 0.02933678420765685,
+          "mean_abs_yaw_error_rad_s": 0.08915937272657903,
+          "target_clipped_fraction": 0.13444010416666666
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_achieved_vx_m_s": -0.003346833633258939,
+          "mean_xy_error_m_s": 0.04909813471814526,
+          "mean_abs_yaw_error_rad_s": 0.1145237650218187,
+          "target_clipped_fraction": 0.11910807291666667
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_achieved_vx_m_s": -0.009741552174091339,
+          "mean_xy_error_m_s": 0.030733731919946564,
+          "mean_abs_yaw_error_rad_s": 0.08179396287085548,
+          "target_clipped_fraction": 0.1251953125
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_achieved_vx_m_s": -0.008207190781831741,
+          "mean_xy_error_m_s": 0.050514017495119336,
+          "mean_abs_yaw_error_rad_s": 0.1000443611302762,
+          "target_clipped_fraction": 0.10899088541666667
+        },
+        {
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_achieved_vx_m_s": 0.010705112479627132,
+          "mean_xy_error_m_s": 0.050741996713435586,
+          "mean_abs_yaw_error_rad_s": 0.08987957293295874,
+          "target_clipped_fraction": 0.124765625
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.477349940159911e-07,
+          "mean_xy_error_m_s": 0.0002216579072924237,
+          "mean_abs_yaw_error_rad_s": 0.00011967812121159049,
+          "target_clipped_fraction": 0.16666666666666666
+        }
+      ]
+    },
+    "original-evaluation-s101": {
+      "metrics": "artifacts/lab6/pupper-spider-walk-corrected/original-evaluation-s101/metrics.json",
+      "metrics_sha256": "1d6da7a4c88ff699de7b7c8f925ac9664c17e37e437b00ace20660d51aefb70c",
+      "trace_sha256": "4851744fe2b082a70ec148e195653385dd504de4ebd9d3ae55d41a0822e0cccd",
+      "provenance_sha256": "6478c76cbf2e166495968cde19d962857b2febb15c45c1a3bf8e0307c4fc7210",
+      "realized_randomization_sha256": "d0f5d27241db613ec5e6e6441843b221a702ca2b8034b9b225498c460f548949",
+      "failures": 0,
+      "timeouts": 0,
+      "mean_segment_xy_error_m_s": 0.05649969589968165,
+      "mean_segment_absolute_yaw_error_rad_s": 0.15111717142791667,
+      "scored_geometry_penetration_fraction_over_0_1mm": 0.27544270833333334,
+      "maximum_scored_mesh_penetration_m": 0.003045775055442179,
+      "per_command": [
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 2.9783926947857253e-05,
+          "mean_xy_error_m_s": 0.0006070070944858649,
+          "mean_abs_yaw_error_rad_s": 0.0032732319683549172,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.005299695767462254,
+          "mean_xy_error_m_s": 0.05399832207235409,
+          "mean_abs_yaw_error_rad_s": 0.10594125306511629,
+          "target_clipped_fraction": 0.12170572916666667
+        },
+        {
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.02607596479356289,
+          "mean_xy_error_m_s": 0.08888097959802749,
+          "mean_abs_yaw_error_rad_s": 0.17846295115486668,
+          "target_clipped_fraction": 0.11247395833333333
+        },
+        {
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.05845829099416733,
+          "mean_xy_error_m_s": 0.10782974091849507,
+          "mean_abs_yaw_error_rad_s": 0.17694093494622393,
+          "target_clipped_fraction": 0.10775390625
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 2.450913416396361e-05,
+          "mean_xy_error_m_s": 0.0005975050147177588,
+          "mean_abs_yaw_error_rad_s": 0.003320232991010501,
+          "target_clipped_fraction": 0.16666666666666666
+        },
+        {
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.015177387744188309,
+          "mean_xy_error_m_s": 0.04484932190048714,
+          "mean_abs_yaw_error_rad_s": 0.11061337840913239,
+          "target_clipped_fraction": 0.12575520833333334
+        },
+        {
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.04092857241630554,
+          "mean_xy_error_m_s": 0.071288388241749,
+          "mean_abs_yaw_error_rad_s": 0.15080876821747743,
+          "target_clipped_fraction": 0.12319661458333334
+        },
+        {
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.053294163197278976,
+          "mean_xy_error_m_s": 0.1027930858114599,
+          "mean_abs_yaw_error_rad_s": 0.14588773558146387,
+          "target_clipped_fraction": 0.12389973958333333
+        },
+        {
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.006417668890208006,
+          "mean_xy_error_m_s": 0.05157796304999184,
+          "mean_abs_yaw_error_rad_s": 0.1096839350854622,
+          "target_clipped_fraction": 0.12550130208333332
+        },
+        {
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.014180636033415794,
+          "mean_xy_error_m_s": 0.0969713240907811,
+          "mean_abs_yaw_error_rad_s": 0.1638716850358304,
+          "target_clipped_fraction": 0.12057942708333333
+        },
+        {
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.00495752040296793,
+          "mean_xy_error_m_s": 0.05162370439532802,
+          "mean_abs_yaw_error_rad_s": 0.10192058576774947,
+          "target_clipped_fraction": 0.12075520833333334
+        },
+        {
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.009316920302808285,
+          "mean_xy_error_m_s": 0.09833477272713148,
+          "mean_abs_yaw_error_rad_s": 0.1662497371181513,
+          "target_clipped_fraction": 0.1092578125
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_achieved_vx_m_s": -0.009326250292360783,
+          "mean_xy_error_m_s": 0.03695681305004257,
+          "mean_abs_yaw_error_rad_s": 0.22816116070704268,
+          "target_clipped_fraction": 0.1226171875
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_achieved_vx_m_s": -0.006869463250041008,
+          "mean_xy_error_m_s": 0.04854607920994306,
+          "mean_abs_yaw_error_rad_s": 0.3225637558569292,
+          "target_clipped_fraction": 0.11404947916666666
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_achieved_vx_m_s": -0.014168395660817623,
+          "mean_xy_error_m_s": 0.039951540609604055,
+          "mean_abs_yaw_error_rad_s": 0.21587823081042823,
+          "target_clipped_fraction": 0.11975911458333334
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_achieved_vx_m_s": -0.01652507297694683,
+          "mean_xy_error_m_s": 0.05442084781619769,
+          "mean_abs_yaw_error_rad_s": 0.3244368331010824,
+          "target_clipped_fraction": 0.1159765625
+        },
+        {
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_achieved_vx_m_s": 0.0037981970235705376,
+          "mean_xy_error_m_s": 0.06716821585878846,
+          "mean_abs_yaw_error_rad_s": 0.2088235276940005,
+          "target_clipped_fraction": 0.11746744791666666
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.8325303244637325e-05,
+          "mean_xy_error_m_s": 0.0005989147346850788,
+          "mean_abs_yaw_error_rad_s": 0.0032711481921772955,
+          "target_clipped_fraction": 0.16666015625
+        }
+      ]
+    },
+    "original-evaluation-s202": {
+      "metrics": "artifacts/lab6/pupper-spider-walk-corrected/original-evaluation-s202/metrics.json",
+      "metrics_sha256": "b6c0b6827f9ed9f11d2acaebdb8eb452f0a0fbf8a40e1fdbcc86000a281d10d1",
+      "trace_sha256": "9b62a35c37c5ee1f06760c8c546fb18dc374b10cb8a5c1b2b8726e6c7e3c36cf",
+      "provenance_sha256": "c574ec3feab39c4c4e1ca411e365ff242dd08f0e34e1aceb3dd786b73ff24fcc",
+      "realized_randomization_sha256": "70b2d4e5b82ef31b7c54b7701c877788fdf07cfd9e9514e7fb21d79abf8e6b5c",
+      "failures": 0,
+      "timeouts": 0,
+      "mean_segment_xy_error_m_s": 0.05635415116122913,
+      "mean_segment_absolute_yaw_error_rad_s": 0.14016093352583084,
+      "scored_geometry_penetration_fraction_over_0_1mm": 0.2829123263888889,
+      "maximum_scored_mesh_penetration_m": 0.0027758486932920393,
+      "per_command": [
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 2.487770871084649e-06,
+          "mean_xy_error_m_s": 0.0004908813786337991,
+          "mean_abs_yaw_error_rad_s": 0.002681583322924661,
+          "target_clipped_fraction": 0.16666015625
+        },
+        {
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.0046609933488070965,
+          "mean_xy_error_m_s": 0.05247256921620476,
+          "mean_abs_yaw_error_rad_s": 0.08798638256628592,
+          "target_clipped_fraction": 0.12216145833333333
+        },
+        {
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.023680618032813072,
+          "mean_xy_error_m_s": 0.0894829080819357,
+          "mean_abs_yaw_error_rad_s": 0.16398552549838827,
+          "target_clipped_fraction": 0.111171875
+        },
+        {
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.05412784218788147,
+          "mean_xy_error_m_s": 0.1110935821548782,
+          "mean_abs_yaw_error_rad_s": 0.16650399746377162,
+          "target_clipped_fraction": 0.10756510416666666
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.0573816325631924e-05,
+          "mean_xy_error_m_s": 0.0004976542808997661,
+          "mean_abs_yaw_error_rad_s": 0.0027538318572198992,
+          "target_clipped_fraction": 0.16665364583333334
+        },
+        {
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.011609086766839027,
+          "mean_xy_error_m_s": 0.046475178304812535,
+          "mean_abs_yaw_error_rad_s": 0.0925154080240747,
+          "target_clipped_fraction": 0.12561197916666667
+        },
+        {
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.035225171595811844,
+          "mean_xy_error_m_s": 0.0745606593385632,
+          "mean_abs_yaw_error_rad_s": 0.12931572833995658,
+          "target_clipped_fraction": 0.123046875
+        },
+        {
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.04620758444070816,
+          "mean_xy_error_m_s": 0.1088145449499073,
+          "mean_abs_yaw_error_rad_s": 0.12512978969960697,
+          "target_clipped_fraction": 0.12375
+        },
+        {
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.004836084321141243,
+          "mean_xy_error_m_s": 0.05145704778239739,
+          "mean_abs_yaw_error_rad_s": 0.09018587400182267,
+          "target_clipped_fraction": 0.12524739583333333
+        },
+        {
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.012793614529073238,
+          "mean_xy_error_m_s": 0.09763628130833941,
+          "mean_abs_yaw_error_rad_s": 0.14446216460430647,
+          "target_clipped_fraction": 0.12060546875
+        },
+        {
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.0034946859814226627,
+          "mean_xy_error_m_s": 0.04931734610317516,
+          "mean_abs_yaw_error_rad_s": 0.08517374551719566,
+          "target_clipped_fraction": 0.12136067708333333
+        },
+        {
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.007736219093203545,
+          "mean_xy_error_m_s": 0.09687500196167222,
+          "mean_abs_yaw_error_rad_s": 0.14807470821638347,
+          "target_clipped_fraction": 0.11094401041666667
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_achieved_vx_m_s": -0.007780239451676607,
+          "mean_xy_error_m_s": 0.03354012638394818,
+          "mean_abs_yaw_error_rad_s": 0.22155732119900493,
+          "target_clipped_fraction": 0.12224609375
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_achieved_vx_m_s": -0.005848219618201256,
+          "mean_xy_error_m_s": 0.046631739321819465,
+          "mean_abs_yaw_error_rad_s": 0.3183269330878884,
+          "target_clipped_fraction": 0.11331380208333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_achieved_vx_m_s": -0.012719878926873207,
+          "mean_xy_error_m_s": 0.03693374704640032,
+          "mean_abs_yaw_error_rad_s": 0.21436384120701407,
+          "target_clipped_fraction": 0.1197265625
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_achieved_vx_m_s": -0.015659278258681297,
+          "mean_xy_error_m_s": 0.051985406958266936,
+          "mean_abs_yaw_error_rad_s": 0.33092396309806005,
+          "target_clipped_fraction": 0.11682291666666667
+        },
+        {
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_achieved_vx_m_s": 0.003609379753470421,
+          "mean_xy_error_m_s": 0.0656251975123681,
+          "mean_abs_yaw_error_rad_s": 0.19630603149894682,
+          "target_clipped_fraction": 0.11643880208333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 4.523366897046799e-06,
+          "mean_xy_error_m_s": 0.0004848488179019367,
+          "mean_abs_yaw_error_rad_s": 0.002649974262104151,
+          "target_clipped_fraction": 0.16666015625
+        }
+      ]
+    },
+    "original-evaluation-s303": {
+      "metrics": "artifacts/lab6/pupper-spider-walk-corrected/original-evaluation-s303/metrics.json",
+      "metrics_sha256": "9e6d8434382cb0a0948585bd18c34caa3361ea5cedc04d290da4c297117672cb",
+      "trace_sha256": "63579b07af98db86495a92f053c4c63ac763796dcf44f380e2c72a3869ecd8e9",
+      "provenance_sha256": "c8cfc9baa9d421f71ad293350177549dbfd45c9752d1dc0bdacac271994c4958",
+      "realized_randomization_sha256": "79efd20b4cadfca3ba1bc486212c2262420f008add5ac9681b541b60a3325afd",
+      "failures": 0,
+      "timeouts": 0,
+      "mean_segment_xy_error_m_s": 0.05618742927572124,
+      "mean_segment_absolute_yaw_error_rad_s": 0.14801074540703632,
+      "scored_geometry_penetration_fraction_over_0_1mm": 0.276328125,
+      "maximum_scored_mesh_penetration_m": 0.0029401078961247273,
+      "per_command": [
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.2773313756042626e-05,
+          "mean_xy_error_m_s": 0.000572439034026105,
+          "mean_abs_yaw_error_rad_s": 0.0031324915831659928,
+          "target_clipped_fraction": 0.16666015625
+        },
+        {
+          "command": [
+            0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.005760475527495146,
+          "mean_xy_error_m_s": 0.05309531911202216,
+          "mean_abs_yaw_error_rad_s": 0.10388333394431214,
+          "target_clipped_fraction": 0.12231119791666667
+        },
+        {
+          "command": [
+            0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.027422048151493073,
+          "mean_xy_error_m_s": 0.08705423792655699,
+          "mean_abs_yaw_error_rad_s": 0.17186546958464077,
+          "target_clipped_fraction": 0.11249348958333333
+        },
+        {
+          "command": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 0.05884025990962982,
+          "mean_xy_error_m_s": 0.1075072652577991,
+          "mean_abs_yaw_error_rad_s": 0.17619369953357364,
+          "target_clipped_fraction": 0.10862630208333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 1.5780527974129654e-05,
+          "mean_xy_error_m_s": 0.0005512326159415747,
+          "mean_abs_yaw_error_rad_s": 0.003015259228225624,
+          "target_clipped_fraction": 0.16666015625
+        },
+        {
+          "command": [
+            -0.05,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.014229705557227135,
+          "mean_xy_error_m_s": 0.045285772062798685,
+          "mean_abs_yaw_error_rad_s": 0.10420728279426526,
+          "target_clipped_fraction": 0.12567708333333333
+        },
+        {
+          "command": [
+            -0.1,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.03910369798541069,
+          "mean_xy_error_m_s": 0.07230874481336258,
+          "mean_abs_yaw_error_rad_s": 0.1434593419244851,
+          "target_clipped_fraction": 0.12319010416666666
+        },
+        {
+          "command": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.05152523145079613,
+          "mean_xy_error_m_s": 0.10441179999916486,
+          "mean_abs_yaw_error_rad_s": 0.13960621153688849,
+          "target_clipped_fraction": 0.12385416666666667
+        },
+        {
+          "command": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.0058387266471982,
+          "mean_xy_error_m_s": 0.05155911478679103,
+          "mean_abs_yaw_error_rad_s": 0.10478525662916355,
+          "target_clipped_fraction": 0.12581380208333334
+        },
+        {
+          "command": [
+            0.0,
+            0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.013808459974825382,
+          "mean_xy_error_m_s": 0.09630846995506091,
+          "mean_abs_yaw_error_rad_s": 0.16243701359741522,
+          "target_clipped_fraction": 0.12070963541666667
+        },
+        {
+          "command": [
+            0.0,
+            -0.05,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.003913191147148609,
+          "mean_xy_error_m_s": 0.050911521258504136,
+          "mean_abs_yaw_error_rad_s": 0.09792943034832476,
+          "target_clipped_fraction": 0.12111979166666667
+        },
+        {
+          "command": [
+            0.0,
+            -0.1,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": -0.008408901281654835,
+          "mean_xy_error_m_s": 0.09799185760381045,
+          "mean_abs_yaw_error_rad_s": 0.16496725760085865,
+          "target_clipped_fraction": 0.10963541666666667
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.3
+          ],
+          "mean_achieved_vx_m_s": -0.008276646956801414,
+          "mean_xy_error_m_s": 0.03579783816370599,
+          "mean_abs_yaw_error_rad_s": 0.22841342253334326,
+          "target_clipped_fraction": 0.12265625
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.6
+          ],
+          "mean_achieved_vx_m_s": -0.006175830494612455,
+          "mean_xy_error_m_s": 0.04822190020054502,
+          "mean_abs_yaw_error_rad_s": 0.32061207268321346,
+          "target_clipped_fraction": 0.1148828125
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.3
+          ],
+          "mean_achieved_vx_m_s": -0.013589010573923588,
+          "mean_xy_error_m_s": 0.03934681417128667,
+          "mean_abs_yaw_error_rad_s": 0.21162388601541196,
+          "target_clipped_fraction": 0.12029296875
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            -0.6
+          ],
+          "mean_achieved_vx_m_s": -0.015274863690137863,
+          "mean_xy_error_m_s": 0.05350633239345228,
+          "mean_abs_yaw_error_rad_s": 0.3182925449195468,
+          "target_clipped_fraction": 0.11686197916666667
+        },
+        {
+          "command": [
+            0.05,
+            0.03,
+            0.2
+          ],
+          "mean_achieved_vx_m_s": 0.004509517922997475,
+          "mean_xy_error_m_s": 0.06636830803646708,
+          "mean_abs_yaw_error_rad_s": 0.2066424175417951,
+          "target_clipped_fraction": 0.11778645833333333
+        },
+        {
+          "command": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "mean_achieved_vx_m_s": 6.626327376579866e-06,
+          "mean_xy_error_m_s": 0.000574759571686652,
+          "mean_abs_yaw_error_rad_s": 0.003127025328024369,
+          "target_clipped_fraction": 0.16666015625
+        }
+      ]
+    }
+  },
+  "interpretation": [
+    "The continuation improves measured velocity/yaw tracking under corrected torso contact, but slow translation remains poor. At seed101, forward0.05m/s yields0.00010m/s, forward0.10m/s yields0.0321m/s, and forward0.15m/s yields0.0807m/s.",
+    "The actor requests front knee positions outside controller limits in many states; the configured controller clamp is active. The separate class driver further restricts these same knee targets. No command range is enlarged to hide this.",
+    "Corrected torso geometry scored penetration is at most2.24mm, compared with at most3.05mm for the original policy under the SAME corrected contact model. These compliant contacts differ from the prior32.7mm pass-through under a disabled torso.",
+    "The policy can support bounded continuous entry/walking/exit experiments after the activation fix, but speed fidelity and physical model mismatch prevent claiming a fully validated Spider walking capability."
+  ],
+  "next_step": "Verify installed driver bounds and robot geometry; then evaluate a separately versioned Spider reference with additional torso/foot clearance and feasible knee targets before another training experiment. Preserve current references and measured comparisons.",
+  "hardware_validated": false,
+  "approved_for_hardware": false,
+  "installed": false,
+  "archive_sha256": "88286269175d8505f9338b172c6e0bd0c7626e7d25fa014d70bd8d75496ad31c"
+}

@@ -10,6 +10,31 @@
 
 namespace neural_controller {
 
+/** A selected clip may start away from the network's normalization pose.
+ * Initialize/fade from that clip pose without changing the observation default.
+ * Return the effective *unclipped* affine action for next-step history. */
+inline double checked_activation_anchor(double anchor, double default_position,
+                                        double scale, double lower, double upper) {
+  if (!std::isfinite(anchor) || !std::isfinite(default_position) || !std::isfinite(scale) ||
+      !std::isfinite(lower) || !std::isfinite(upper) || lower > upper ||
+      anchor < lower - 1e-6 || anchor > upper + 1e-6) {
+    throw std::runtime_error("activation anchor is nonfinite or outside controller joint bounds");
+  }
+  anchor = std::min(std::max(anchor, lower), upper);  // export rounding only
+  if (scale == 0.0 && anchor != default_position) {
+    throw std::runtime_error("nondefault activation anchor requires nonzero action scale");
+  }
+  return anchor;
+}
+
+inline float faded_position_action(float raw_action, float scale, float default_position,
+                                   float anchor, float fade) {
+  // Retain exact legacy arithmetic for walking and default-pose first clips.
+  if (anchor == default_position) return fade * raw_action;
+  if (scale == 0.0) throw std::runtime_error("cannot normalize nondefault zero-scale anchor");
+  return (1.0f - fade) * ((anchor - default_position) / scale) + fade * raw_action;
+}
+
 /**
  * A trick's reference motion, from a tracking ("trick") policy JSON's "motion"
  * block (exported by pupper-mjlab's export_trick.py). One row per frame at
