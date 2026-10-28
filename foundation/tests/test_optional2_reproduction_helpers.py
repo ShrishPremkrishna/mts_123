@@ -96,3 +96,32 @@ def test_coverage_short_randomized_horizon_still_schedules_real_slots():
     assert torch.isfinite(slots).any(dim=1).all()
     first=slots[:,0]
     assert (first>2.).all() and (first+.8<10.).all()
+
+
+def test_timing_audit_records_actual_loader_contract_without_claiming_physical_flight(tmp_path):
+    import subprocess
+    import sys
+    refs=tmp_path/'timing-only-fixture';refs.mkdir()
+    policy=ROOT/'pupper_gait_deploy/policies/default_policy.json'
+    data=json.loads(policy.read_text())
+    # A shortened class-table fixture tests resampling/math only. It is never a
+    # physical capture, a training input, or an admissible bootstrap selection.
+    rows=np.asarray(data['jump_slot']['jump_table'])[np.linspace(0,99,43).astype(int)]
+    capture=refs/'captured_jump_gait.npz'
+    np.savez_compressed(capture,jump=rows,duration_s=.84,touchdown_s=.54)
+    before=capture.read_bytes();out=tmp_path/'timing.json'
+    result=subprocess.run([sys.executable,str(ROOT/'foundation/scripts/audit_jump_reference_timing.py'),str(refs),
+        '--default-policy',str(policy),'--out',str(out)],capture_output=True,text=True,timeout=60)
+    assert result.returncode==0,result.stderr
+    report=json.loads(out.read_text())
+    assert report['raw_samples']==43 and report['loader_samples']==100
+    assert report['playback_s']==.84 and report['active_s']==.5
+    assert report['busy_s']==pytest.approx(.9)
+    assert report['reference_exit_fade_start_s']==pytest.approx(.44)
+    assert report['training_vs_export_max_error_rad']<2e-6
+    assert not report['physical_flight_validated_by_this_audit'] and not report['hardware_approved']
+    assert len(report['runtime_source_sha256'])==4 and len(report['export_source_sha256'])==64
+    assert capture.read_bytes()==before
+    again=subprocess.run([sys.executable,str(ROOT/'foundation/scripts/audit_jump_reference_timing.py'),str(refs),
+        '--default-policy',str(policy),'--out',str(out)],capture_output=True,text=True,timeout=60)
+    assert again.returncode!=0 and 'FileExistsError' in again.stderr
