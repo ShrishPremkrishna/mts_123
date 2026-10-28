@@ -11,6 +11,7 @@
 #include "hardware_interface/loaned_command_interface.hpp"
 #include "rclcpp/logging.hpp"
 #include "rclcpp/qos.hpp"
+#include "rcl_interfaces/msg/parameter_descriptor.hpp"
 
 namespace neural_controller {
 NeuralController::NeuralController()
@@ -126,6 +127,20 @@ controller_interface::CallbackReturn NeuralController::on_init() {
     set_param_from_json_vector("default_joint_pos", params_.default_joint_pos);
     set_param_from_json_vector("joint_lower_limits", params_.joint_lower_limits);
     set_param_from_json_vector("joint_upper_limits", params_.joint_upper_limits);
+    if (!check_param_vector_size()) return controller_interface::CallbackReturn::ERROR;
+    position_target_slew_ = parse_position_target_slew(j,params_.joint_lower_limits,
+        params_.joint_upper_limits,params_.joint_names,params_.action_types);
+    // Runtime capability evidence is derived from the parsed policy. Parameter
+    // overrides cannot spoof support, and it cannot be changed while loaded.
+    rcl_interfaces::msg::ParameterDescriptor slew_descriptor;
+    slew_descriptor.read_only=true;
+    slew_descriptor.description="Parsed position-target slew contract; runtime evidence, not a configurable override";
+    get_node()->declare_parameter("position_target_slew_active",position_target_slew_.enabled,slew_descriptor,true);
+    get_node()->declare_parameter("position_target_slew_contract_json",
+        position_target_slew_.enabled ? j.at("position_target_slew").dump() : std::string("{}"),slew_descriptor,true);
+    get_node()->declare_parameter("position_target_slew_max_rate_rad_s",position_target_slew_.max_rate_rad_s,slew_descriptor,true);
+    get_node()->declare_parameter("position_target_slew_max_step_s",position_target_slew_.max_step_s,slew_descriptor,true);
+    get_node()->declare_parameter("position_target_slew_driver_limits_sha256",position_target_slew_.driver_limits_sha256,slew_descriptor,true);
 
     // Warn user that use_imu should be set in the robot description
     if (j.find("use_imu") != j.end()) {
@@ -426,6 +441,13 @@ controller_interface::CallbackReturn NeuralController::on_activate(
   estop_active_ = false;
 
   init_time_ = get_node()->now();
+  try {
+    position_target_slew_.reset(init_joint_pos_);
+    slew_last_command_time_=init_time_;
+  } catch(const std::exception& e) {
+    RCLCPP_ERROR(get_node()->get_logger(),"Invalid slew activation state: %s",e.what());
+    return controller_interface::CallbackReturn::ERROR;
+  }
   repeat_action_counter_ = -1;
 
   cmd_x_vel_ = 0.0;
@@ -632,19 +654,44 @@ controller_interface::CallbackReturn NeuralController::on_deactivate(
 
 controller_interface::return_type NeuralController::update(const rclcpp::Time &time,
                                                            const rclcpp::Duration &period) {
+  auto apply_emergency_damping = [&]() {
+    for (auto &command_interface : command_interfaces_) command_interface.set_value(0.0);
+    for (int i = 0; i < kActionSize; ++i)
+      command_interfaces_map_.at(params_.joint_names.at(i)).at("kd").get().set_value(params_.estop_kd);
+  };
+  // A stop must take effect at the command-update rate, including initialization
+  // and cycles that hold the actor's last inference. It bypasses position slew:
+  // zero stiffness/effort plus damping must never wait for a position trajectory.
+  if (estop_active_) {
+    apply_emergency_damping();
+    return controller_interface::return_type::OK;
+  }
+  auto limit_position_commands = [&](std::array<double,kActionSize>& command) {
+    if (!position_target_slew_.enabled) return true;
+    try {
+      command=position_target_slew_.step(command,(time-slew_last_command_time_).seconds());
+      slew_last_command_time_=time;
+      return true;
+    } catch(const std::exception& e) {
+      RCLCPP_ERROR(get_node()->get_logger(),"Position-target slew refused command: %s",e.what());
+      return false;
+    }
+  };
   // Initialize to the selected clip's first pose (or the walking default).
   double time_since_init = (time - init_time_).seconds();
   if (time_since_init < params_.init_duration) {
+    std::array<double,kActionSize> commands{};
+    for(int i=0;i<kActionSize;++i) commands[i]=
+        init_joint_pos_.at(i)*(1-time_since_init/params_.init_duration)+
+        activation_joint_pos_.at(i)*(time_since_init/params_.init_duration);
+    if(!limit_position_commands(commands)) return controller_interface::return_type::ERROR;
     for (int i = 0; i < kActionSize; i++) {
       // Interpolate between the initial joint positions and the default joint
       // positions
-      double interpolated_joint_pos =
-          init_joint_pos_.at(i) * (1 - time_since_init / params_.init_duration) +
-          activation_joint_pos_.at(i) * (time_since_init / params_.init_duration);
       command_interfaces_map_.at(params_.joint_names.at(i))
           .at("position")
           .get()
-          .set_value(interpolated_joint_pos);
+          .set_value(commands[i]);
       command_interfaces_map_.at(params_.joint_names.at(i))
           .at("kp")
           .get()
@@ -665,6 +712,12 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   repeat_action_counter_ += 1;
   repeat_action_counter_ %= params_.repeat_action;
   if (repeat_action_counter_ != 0) {
+    if(position_target_slew_.enabled && !estop_active_) {
+      std::array<double,kActionSize> commands{};
+      std::copy(action_.begin(),action_.end(),commands.begin());
+      if(!limit_position_commands(commands)) return controller_interface::return_type::ERROR;
+      for(int i=0;i<kActionSize;++i) command_interfaces_map_.at(params_.joint_names.at(i)).at("position").get().set_value(commands[i]);
+    }
     return controller_interface::return_type::OK;
   }
 
@@ -812,21 +865,6 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     slot_button_prev_ = trigger_pressed;
   }
 
-  // If an emergency stop has been triggered, set all commands to 0, set damping, and return
-  // TODO: use deactivate instead?
-  if (estop_active_) {
-    for (auto &command_interface : command_interfaces_) {
-      command_interface.set_value(0.0);
-    }
-    for (int i = 0; i < kActionSize; i++) {
-      command_interfaces_map_.at(params_.joint_names.at(i))
-          .at("kd")
-          .get()
-          .set_value(params_.estop_kd);
-    }
-    return controller_interface::return_type::OK;
-  }
-
   // Get the latest observation
   double ang_vel_x = 0;
   double ang_vel_y = 0;
@@ -897,6 +935,7 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     // If the maximum body angle is exceeded, trigger an emergency stop
     if (-projected_gravity_vector[2] < cos(params_.max_body_angle)) {
       estop_active_ = true;
+      apply_emergency_damping();
       RCLCPP_INFO(get_node()->get_logger(), "Emergency stop triggered");
       return controller_interface::return_type::OK;
     }
@@ -1170,14 +1209,19 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
       RCLCPP_ERROR(get_node()->get_logger(), "action_[%d] is NaN", i);
       return controller_interface::return_type::ERROR;
     }
+  }
+  std::array<double,kActionSize> commands{};
+  std::copy(action_.begin(),action_.end(),commands.begin());
+  if(!limit_position_commands(commands)) return controller_interface::return_type::ERROR;
 
+  for(int i=0;i<kActionSize;++i) {
     // Send the action to the hardware interface
     // Multiply by the gain multiplier to scale the gains to account for real2sim gap,
     // and by the per-joint kp_scale to compensate for this robot's motors
     command_interfaces_map_.at(params_.joint_names.at(i))
         .at(params_.action_types.at(i))
         .get()
-        .set_value((double)action_.at(i));
+        .set_value(commands[i]);
     command_interfaces_map_.at(params_.joint_names.at(i))
         .at("kp")
         .get()
@@ -1192,7 +1236,7 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   if (rt_position_command_publisher_->trylock()) {
     rt_position_command_publisher_->msg_.data.resize(kActionSize, 0.0);
     for (int i = 0; i < kActionSize; i++) {
-      rt_position_command_publisher_->msg_.data.at(i) = action_.at(i);
+      rt_position_command_publisher_->msg_.data.at(i) = commands[i];
     }
     // rt_position_command_publisher_->msg_.header.stamp = time;
     rt_position_command_publisher_->unlockAndPublish();

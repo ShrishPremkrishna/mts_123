@@ -9,6 +9,7 @@
 #include "trick_motion.hpp"
 #include "gait_reference_json.hpp"
 #include "command_filter.hpp"
+#include "position_target_slew.hpp"
 using Json = nlohmann::json;
 using namespace neural_controller;
 struct Controller {
@@ -19,6 +20,8 @@ struct Controller {
   GaitReference gait;
   CommandClip command_clip;
   HeadingHold heading;
+  PositionTargetSlew position_slew;
+  double last_command_elapsed=0;
   std::map<std::string, int> offsets;
   std::vector<float> observation;
   std::vector<double> defaults, initial, anchor, lower, upper;
@@ -45,6 +48,7 @@ struct Controller {
     if(metadata.contains("command_clip")) parse_command_clip(metadata.at("command_clip"),command_clip);
     if(metadata.contains("heading_hold")) parse_heading_hold(metadata.at("heading_hold"),heading);
     if(metadata.contains("jump_slot")) throw std::runtime_error("jump-slot controller outside bounded Spider diagnostic");
+    position_slew=parse_position_target_slew(metadata,lower,upper,position_slew_joint_names(),std::vector<std::string>(12,"position"));
   }
   void activate(const Json& request) {
     initial=request.at("joint_pos").get<std::vector<double>>();
@@ -61,13 +65,22 @@ struct Controller {
     observation.assign(width*history,0);
     if(offsets.count("projected_gravity")) for(int h=0;h<history;++h) observation[h*width+offsets.at("projected_gravity")+2]=-1;
     target.assign(initial.begin(),initial.end()); before_clip=target; raw.assign(12,0);
+    position_slew.reset(initial);last_command_elapsed=0;
+  }
+  void limit_output(Json& result,double elapsed) {
+    if(!position_slew.enabled) return;
+    const auto limited=position_slew.step(target,elapsed-last_command_elapsed);
+    last_command_elapsed=elapsed;
+    result["requested_target"]=target;result["target"]=limited;
+    result["position_target_slew_active"]=true;
   }
   Json step(const Json& r) {
     const double elapsed=r.at("elapsed_s");
     if(elapsed<init_s) {
       for(int j=0;j<12;++j) target[j]=initial[j]*(1-elapsed/init_s)+anchor[j]*elapsed/init_s;
       before_clip=target;
-      return {{"target",target},{"before_clip",before_clip},{"kp",7.5},{"kd",.25},{"inference",false},{"stage","initialization"},{"frame",frame}};
+      Json result={{"target",target},{"before_clip",before_clip},{"kp",7.5},{"kd",.25},{"inference",false},{"stage","initialization"},{"frame",frame}};
+      limit_output(result,elapsed);return result;
     }
     repeat=(repeat+1)%10;
     const double fade_time=elapsed-init_s, alpha=std::min(fade_time/fade_s,1.0);
@@ -120,6 +133,7 @@ struct Controller {
       result["effective_command"]=effective_command; result["reference_time_s"]=fade_time;
     }
     if(motion.frames) { result["clip"]=motion.clips[player.clip()].name; result["holding"]=player.holding(); }
+    limit_output(result,elapsed);
     return result;
   }
 };

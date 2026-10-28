@@ -6,6 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 add_library(neural_controller SHARED src/neural_controller.cpp)
+set_target_properties(neural_controller PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -14,6 +15,7 @@ find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(realtime_tools REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -43,6 +45,7 @@ ament_target_dependencies(
   pluginlib
   realtime_tools
   rclcpp
+  rcl_interfaces
   rclcpp_lifecycle
   geometry_msgs
   sensor_msgs
@@ -110,6 +113,12 @@ if(BUILD_TESTING)
       include
       modules/RTNeural/modules/json)
     add_test(NAME command_filter COMMAND test_command_filter)
+  endif()
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_position_target_slew.cpp)
+    add_executable(test_position_target_slew test/test_position_target_slew.cpp)
+    set_target_properties(test_position_target_slew PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+    target_include_directories(test_position_target_slew PRIVATE include modules/RTNeural/modules/json)
+    add_test(NAME position_target_slew COMMAND test_position_target_slew)
   endif()
 endif()
 

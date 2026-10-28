@@ -137,3 +137,68 @@ def test_inference_record_distinguishes_scenario_and_activation_stages():
     event=handoff.inference_event(state,stage='walk_forward',time_s=3)
     assert event=={'stage':'walk_forward','activation_stage':'policy','time_s':3,'raw_action':[1.]}
     assert state['stage']=='policy'
+
+
+@pytest.fixture
+def slew_host(host, tmp_path):
+    binary, source = host
+    policy = json.loads(source.read_text())
+    names = [f'leg_{leg}_{j}' for leg in ('front_r', 'front_l', 'back_r', 'back_l') for j in (1,2,3)]
+    policy.update(required_controller_features=['position_target_slew_v1'], action_types=['position']*12,
+                  position_target_slew=dict(contract='pupper_position_target_slew_v1', max_rate_rad_s=.4,
+                      max_step_s=.02, joint_names=names, lower_limits=[-1.2]*12, upper_limits=[1.2]*12,
+                      driver_limits_sha256='a'*64))
+    path=tmp_path/'slew-policy.json'; path.write_text(json.dumps(policy))
+    return binary, path
+
+
+def test_slew_covers_initialization_and_held_inference_without_changing_history(host, slew_host):
+    results=[]
+    for selected in (host,slew_host):
+        proc,rpc=session(selected,'entry')
+        try:
+            rows=[]
+            for i in range(1041):
+                request=step(i/520);request['audit_inference']=True;rows.append(rpc(request))
+            results.append(rows)
+        finally:
+            proc.stdin.close();assert proc.wait(timeout=5)==0
+    plain,filtered=results
+    targets=np.asarray([r['target'] for r in filtered])
+    np.testing.assert_array_equal(targets[0],1.)
+    assert np.max(np.abs(np.diff(targets,axis=0))) <= .4/520+1e-12
+    assert np.all(np.abs(targets)<=1.2)
+    # Before/after fade history still contains the effective unclipped actor
+    # request; no filtered target gets fed back in place of last_action.
+    for legacy,row in zip(plain,filtered):
+        assert row['requested_target']==legacy['target']
+        if 'raw_action' in row:assert row['raw_action']==legacy['raw_action']
+        if 'model_input' in row:assert row['model_input']==legacy['model_input']
+    assert filtered[260]['stage']=='fade' and filtered[260]['target'][0] > .79
+    held=[(a,b) for a,b in zip(filtered[261:-1],filtered[262:])
+          if not b['inference'] and a['requested_target']==b['requested_target']]
+    assert any(a['target']!=b['target'] for a,b in held)
+    assert any(abs(r['requested_target'][0]-r['target'][0])>.5 for r in filtered)
+
+
+def test_slew_activation_reset_zero_time_and_scheduler_gap(slew_host):
+    proc,rpc=session(slew_host,'entry')
+    try:
+        start=rpc(step(0));np.testing.assert_array_equal(start['target'],1.)
+        same=rpc(step(0));assert same['target']==start['target']
+        delayed=rpc(step(.4))
+        # A missing scheduler interval cannot accrue an unsafe catch-up jump.
+        np.testing.assert_allclose(delayed['target'],1-.4*.02,atol=1e-12)
+        rpc(dict(op='activate',controller='trick',joint_pos=[-2.]*12,init_s=.5,fade_s=1.,start_clip='entry',clip_anchor=True))
+        reset=rpc(step(0));np.testing.assert_array_equal(reset['target'],-1.2)
+    finally:
+        proc.stdin.close();assert proc.wait(timeout=5)==0
+
+
+def test_slew_backward_clock_refuses_without_another_command(slew_host):
+    proc,rpc=session(slew_host,'entry')
+    rpc(step(.1))
+    proc.stdin.write(json.dumps(step(.09))+'\n');proc.stdin.flush()
+    assert proc.stdout.readline()==''
+    proc.stdin.close();assert proc.wait(timeout=5)==1
+    assert 'invalid slew command clock' in proc.stderr.read()

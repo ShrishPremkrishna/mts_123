@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -59,6 +60,36 @@ KNOWN_COMPONENTS = {
   "motion_command": 2 * ACTION_SIZE,
   "motion_anchor_ori_b": 6,
 }
+
+
+def position_slew_problems(policy):
+  """Fail closed on required features; metadata alone cannot upgrade an old binary."""
+  feature='position_target_slew_v1';features=policy.get('required_controller_features',[])
+  if not isinstance(features,list) or any(f!=feature for f in features) or len(features)!=len(set(features)):
+    return ['unknown, duplicate or malformed required_controller_features']
+  block=policy.get('position_target_slew')
+  if ('position_target_slew' in policy)!=(feature in features):
+    return ['position_target_slew and its required controller feature must appear together']
+  if 'position_target_slew' not in policy:return []
+  errors=[]
+  if not isinstance(block,dict):return ['position_target_slew must be an object']
+  if block.get('contract')!='pupper_position_target_slew_v1':errors.append('unknown position target slew contract')
+  if block.get('joint_names')!=EXPECTED_JOINT_NAMES:errors.append('slew named joints differ from canonical controller order')
+  if policy.get('action_types')!=['position']*ACTION_SIZE:errors.append('slew policy must explicitly declare12 position actions')
+  def number(x):return isinstance(x,(int,float)) and not isinstance(x,bool) and math.isfinite(x)
+  for key,maximum in [('max_rate_rad_s',15.),('max_step_s',.02)]:
+    value=block.get(key)
+    if not number(value) or not 0<value<=maximum:errors.append(f'position_target_slew.{key} must be finite and within(0,{maximum}]')
+  lower,upper=block.get('lower_limits'),block.get('upper_limits')
+  model_lower,model_upper=policy.get('joint_lower_limits'),policy.get('joint_upper_limits')
+  arrays=(lower,upper,model_lower,model_upper)
+  if any(not isinstance(a,list) or len(a)!=ACTION_SIZE or not all(number(v) for v in a) for a in arrays):
+    errors.append('slew and model bounds must each contain12 finite numbers')
+  elif any(not ml<=lo<hi<=mu for ml,lo,hi,mu in zip(model_lower,lower,upper,model_upper)):
+    errors.append('slew bounds must be ordered and contained in model bounds')
+  digest=block.get('driver_limits_sha256')
+  if not isinstance(digest,str) or re.fullmatch('[0-9a-f]{64}',digest) is None:errors.append('invalid slew driver-limits SHA256')
+  return errors
 
 
 def resolve_run_path(run: str, project: str | None, entity: str | None) -> str:
@@ -159,6 +190,7 @@ def validate(path: Path) -> dict:
   spec = policy.get("obs_spec")
 
   problems = []
+  problems.extend(position_slew_problems(policy))
 
   # The frame layout is declared by the policy, and the controller follows it.
   has_gait_component = False
@@ -319,6 +351,8 @@ def validate(path: Path) -> dict:
   print(f"  observation history: {history}  -> input {in_dim}")
   print(f"  kp / kd:             {policy.get('kp')} / {policy.get('kd')}")
   print(f"  action scale:        {policy.get('action_scale')}")
+  if 'position_target_slew' in policy:
+    print('  position target slew: requires rebuilt controller and verified read-only runtime contract; older binaries may ignore metadata')
   if spec is not None:
     print(f"  obs layout (v2):     {' + '.join(c['name'] for c in spec['components'])}")
   if gait:

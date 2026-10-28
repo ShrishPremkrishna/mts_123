@@ -53,6 +53,11 @@ def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
       "Command clip + IMU-yaw heading hold (from the policy JSON)",
     ),
     (
+      REPO / "src" / "position_target_slew.hpp",
+      pkg / "include" / "neural_controller" / "position_target_slew.hpp",
+      "Opt-in physical target slew contract shared with training and native tests",
+    ),
+    (
       REPO / "src" / "trick_motion.hpp",
       pkg / "include" / "neural_controller" / "trick_motion.hpp",
       "Trick reference motion + relative-orientation math (new header)",
@@ -73,6 +78,11 @@ def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
       "Controller parameter declarations (adds kp_scale)",
     ),
     (
+      REPO / "src" / "package.xml",
+      pkg / "package.xml",
+      "Controller package dependencies, including read-only runtime contract parameters",
+    ),
+    (
       REPO / "src" / "CMakeLists.txt",
       pkg / "CMakeLists.txt",
       "Package CMakeLists (adds the gait parity test)",
@@ -81,6 +91,11 @@ def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
       REPO / "test" / "test_gait_reference.cpp",
       pkg / "test" / "test_gait_reference.cpp",
       "Gait reference parity test",
+    ),
+    (
+      REPO / "test" / "test_position_target_slew.cpp",
+      pkg / "test" / "test_position_target_slew.cpp",
+      "Position target slew initialization, command, clock and metadata tests",
     ),
     (
       REPO / "test" / "test_command_filter.cpp",
