@@ -1,6 +1,6 @@
 {
   "created_utc": "2026-10-28T00:26:10.394941+00:00",
-  "status": "proposal_not_launched",
+  "status": "approved_validated_ready_for_frozen_launch",
   "purpose": "Redirect new Optional2 optimization to an explicit local class-driver contract while retaining all completed original comparisons.",
   "inputs": {
     "baseline": {
@@ -31,14 +31,13 @@
   "contracts": {
     "required": [
       "--deployment-target-clamp",
-      "--driver-limits foundation/configs/class-driver-joint-limits.json"
-    ],
-    "recommended_new_branch": [
-      "--compose-com-randomization"
+      "--driver-limits foundation/configs/class-driver-joint-limits.json",
+      "--compose-com-randomization",
+      "--locomotion-torso-contact"
     ],
     "com_decision": "Use the verified corrected independent COM composition in both new candidates and every matched pre/post evaluation. This is a final engineering comparison with all named corrections, not a driver-only causal ablation. The already completed CPU screen isolates driver limits under legacy COM.",
-    "flat_collision_decision": "Retain the documented original foot/knee collision model for flat training unless root chooses torso contact across the entire new branch. The four local screens had positive mesh/plane clearance in all 64,000 scored states; this is limited evidence, not a guarantee.",
-    "bumpy_mystery_collision_decision": "Before terrain/jump training, evaluate the selected flat checkpoint with --locomotion-torso-contact and freeze the same torso-contact contract for both pre-finetune baseline and finetuned candidate. Body contact at rough terrain/landings should have a physical response. Do not claim validated mesh/heightfield distance; exact contact probes and same-scene rollout comparisons are the evidence.",
+    "flat_collision_decision": "Approved: one torso contact hull consistently across the complete new flat/Bumpy/Mystery branch and every matched pre/post evaluation. Foot/knee spheres remain unchanged; no leg hulls are added.",
+    "bumpy_mystery_collision_decision": "Use the identical approved torso-contact contract across all phases. Compare pre/post on identical terrain worlds and realized randomized parameters. Direct torso/heightfield distance remains unvalidated and is not used as a success metric.",
     "unchanged": [
       "named joint order",
       "exact stock or authored reference bytes per candidate",
@@ -51,7 +50,7 @@
   "parallel_schedule": [
     {
       "phase": 1,
-      "runtime": "GPU1 after Sit validation",
+      "runtime": "GPU2 after both generated-motion and legacy bootstrap children finish; the two flat arms may share it only after measured free/peak memory supports this.",
       "job": "driver-base",
       "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
       "initial_checkpoint": "baseline",
@@ -66,7 +65,7 @@
     },
     {
       "phase": 1,
-      "runtime": "GPU2 after explicitly authorized legacy scheduler stop; otherwise next available runtime",
+      "runtime": "GPU2 after both generated-motion and legacy bootstrap children finish; the two flat arms may share it only after measured free/peak memory supports this.",
       "job": "driver-fast",
       "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
       "initial_checkpoint": "fast",
@@ -91,7 +90,7 @@
     },
     {
       "phase": 3,
-      "runtime": "GPU1",
+      "runtime": "GPU1 after bounded Spider precision comparison and required evaluation; otherwise next available runtime.",
       "job": "driver-bumpy",
       "task": "Mjlab-MixedGaits-Bumpy-Pupper-v3",
       "iterations": 1500,
@@ -133,11 +132,16 @@
     }
   ],
   "resource_estimate": "Recent G4 locomotion runs took about 22 minutes per 1500 iterations: about 15 minutes for each parallel 1000-iteration flat continuation, then about 22 minutes Bumpy in parallel with 7+15 minutes Mystery pilot/captured. Add evaluation/export time; estimates are not guarantees.",
-  "legacy_preservation": "After the user directly approved the specific queue-control request, scheduler PID 12173 was paused at 2026-10-28T00:26:38Z. Its current bootstrap-1 training child PID 33782 continues untouched. Original batch_status.json was preserved unchanged; separate control records are in /content/pupper-clamp-results/optional2-control/20261028T002638Z. After this child finishes and outputs are verified, terminate only the paused scheduler without manufacturing completion markers.",
+  "legacy_preservation": "Authorized queue closure complete: bootstrap-1 child finished and its final files/logs/references were hash-verified and durably preserved. Only paused scheduler PID 12173 was terminated with SIGTERM then SIGCONT at 2026-10-28T00:36:30Z. Original batch_status remains unchanged and still says running; separate control records explain the intentional stop and absent scheduler returncode/done marker. No training child or unrelated job was signaled.",
   "bootstrap_policy": "Do not repeat two blind bootstrap rounds in the corrected branch. First evaluate the completed legacy bootstrap output independently under its recorded original references and corrected target contract; only schedule a new fold after measured improvement and stable capture justify it.",
   "limitations": [
     "No installation or hardware approval. Installed driver bounds/calibration are unknown.",
     "Candidates have different prior optimization histories; compare engineering outcomes, not isolated causal effects.",
     "All outputs, source hashes, exact references, selection decisions and scheduler-control records remain separate from original batch evidence."
-  ]
+  ],
+  "implementation": {
+    "worker": "foundation/scripts/colab_optional_corrected.py",
+    "supervisor": "foundation/scripts/supervised_job.py",
+    "state": "Independent read-only review complete;47 targeted tests and real CPU pre-eval/train/post-eval smoke passed with actual child exits and matched randomized physics. No remote corrected training launch yet."
+  }
 }

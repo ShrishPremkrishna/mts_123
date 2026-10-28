@@ -1,13 +1,14 @@
 {
   "updated_utc": "2026-10-28T00:15:37.034937+00:00",
-  "status": "partial_batch_in_progress",
+  "status": "legacy_queue_ended_after_bootstrap_training_pending_independent_evaluation",
   "reviewed_completed_stages": [
     "mixed-baseline",
     "mixed-baseline-eval",
     "mixed-authored",
     "mixed-authored-eval",
     "mixed-fast-rewards",
-    "mixed-fast-rewards-eval"
+    "mixed-fast-rewards-eval",
+    "bootstrap-1 training and final exports (not evaluated)"
   ],
   "artifact_retrieval": {
     "local_root": "artifacts/optional2/clamped-batch",
@@ -18,7 +19,7 @@
     "complete_artifacts_verified_against_remote_sha256": true,
     "preserved": "Final checkpoints, policy JSON, ONNX, parameters, provenance, eval metrics/traces/effective randomization, source hashes, comparison/complete markers, original baseline provenance, and authored references. Active status snapshots remain timestamped.",
     "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/optional2/clamped-batch",
-    "durable_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-optional2-clamped-through-fast-20261028T0020.json"
+    "durable_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-optional2-legacy-final-with-control-records.json"
   },
   "protocol": {
     "seed": 101,
@@ -4123,5 +4124,527 @@
     "Existing traces lack full root orientation/position needed for signed torso geometry audit. Prior plane screens on other checkpoint versions cannot certify these artifacts. Bumpy body-distance diagnostics remain unvalidated.",
     "Local class hardware driver adds a second position clamp 0.10 rad inside policy limits. See local-driver-position-limit-audit.json; controller-clamp simulation is not exact physical parity and installed Pi limits are unknown."
   ],
-  "next_steps": "Preserve ongoing batch and its original contracts; inspect fast/bootstrap/heldout outcomes as they finish. Follow-on evaluations use explicit frozen artifacts and matched randomization, with no automatic installation or promotion."
+  "next_steps": "Evaluate the completed folded-reference policy independently if useful. Continue new optimization with driver bounds, composed COM and torso contact; retain all legacy comparisons and their limitations.",
+  "bootstrap_training": {
+    "provenance": {
+      "command": "train",
+      "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+      "reference_dir": "/content/pupper-clamp-results/optional2/bootstrap-reference-1",
+      "checkpoint": "/content/pupper-clamp-results/optional2/mixed-baseline/model_4498.pt",
+      "out": "/content/pupper-clamp-results/optional2/bootstrap-1",
+      "seed": 42,
+      "device": "cuda:0",
+      "deployment_target_clamp": true,
+      "compose_com_randomization": false,
+      "num_envs": 4096,
+      "iterations": 1500,
+      "profile": "baseline",
+      "weights": null,
+      "logger": "tensorboard",
+      "git_revision": "7b5d539ac5dea3ed31e14e478ff28f66adc69e5c",
+      "source_sha256": "cbd59667e7f36c2e0030380f3c49d0c71b9eaaf2120a261da163882dd2f9b4c8",
+      "source_files_hashed": 257,
+      "checkpoint_sha256": "9607b28bff6f66fd08d9c06fd509a0de14c6496cca75c64d872370349d7231f4",
+      "references": {
+        "reference_manifest.json": "18a4491faab8b96d1c43c9113ef6bb0b25f47e50171c0dcf2fb2a28d48263b6f",
+        "captured_reach_gaits.npz": "b97883d17e0d016ac2b2c33d4c32134cbf06c39210655f126d1af9d02d66d7c3"
+      },
+      "rewards": {
+        "track_linear_velocity": 10.0,
+        "track_yaw_velocity": 7.0,
+        "gait_tracking": 10.0,
+        "upright": 1.0,
+        "lin_vel_z_l2": -0.5,
+        "ang_vel_xy_l2": -0.05,
+        "action_rate_l2": -0.02,
+        "knee_ground_contact": -1.0
+      },
+      "status": "training_finished_not_evaluated",
+      "reference_claim": "candidate, not a measured improvement",
+      "domain_randomization": {
+        "worlds": 4096,
+        "event_order": [
+          {
+            "name": "reset_base",
+            "mode": "reset",
+            "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+          },
+          {
+            "name": "reset_robot_joints",
+            "mode": "reset",
+            "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+          },
+          {
+            "name": "foot_friction",
+            "mode": "startup",
+            "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+          },
+          {
+            "name": "encoder_bias",
+            "mode": "startup",
+            "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+          },
+          {
+            "name": "base_com",
+            "mode": "startup",
+            "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+          },
+          {
+            "name": "pd_gains",
+            "mode": "startup",
+            "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+          },
+          {
+            "name": "inertial",
+            "mode": "startup",
+            "function": "mjlab.envs.mdp.dr.body.pseudo_inertia"
+          },
+          {
+            "name": "reset_imu_latency",
+            "mode": "reset",
+            "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+          }
+        ],
+        "realized_fields": {
+          "body_mass_kg": {
+            "shape": [
+              4096,
+              13
+            ],
+            "minimum": [
+              1.3555465936660767,
+              0.16199524700641632,
+              0.16740210354328156,
+              0.04499875381588936,
+              0.1620061844587326,
+              0.16741089522838593,
+              0.04500078409910202,
+              0.1620064675807953,
+              0.16741421818733215,
+              0.04501809552311897,
+              0.1619974970817566,
+              0.16740508377552032,
+              0.04500223696231842
+            ],
+            "maximum": [
+              1.957740306854248,
+              0.23395976424217224,
+              0.24179771542549133,
+              0.06499402970075607,
+              0.23394706845283508,
+              0.24178005754947662,
+              0.06499844044446945,
+              0.2340051680803299,
+              0.2417995035648346,
+              0.0650017186999321,
+              0.23397870361804962,
+              0.2417980134487152,
+              0.06498648226261139
+            ],
+            "mean": [
+              1.6354961395263672,
+              0.19584541022777557,
+              0.2019263207912445,
+              0.05441785231232643,
+              0.19602227210998535,
+              0.2019468992948532,
+              0.05435448884963989,
+              0.1960136592388153,
+              0.20276255905628204,
+              0.05436355620622635,
+              0.1956816166639328,
+              0.20215582847595215,
+              0.05439872667193413
+            ],
+            "std": [
+              0.17293280363082886,
+              0.020865419879555702,
+              0.02150324173271656,
+              0.005726601462811232,
+              0.0207307618111372,
+              0.021580465137958527,
+              0.005776789505034685,
+              0.020887166261672974,
+              0.021641144528985023,
+              0.005697628948837519,
+              0.02082374319434166,
+              0.021429402753710747,
+              0.0056928410194814205
+            ]
+          },
+          "body_mass_ratio": {
+            "shape": [
+              4096,
+              13
+            ],
+            "minimum": [
+              0.9000973105430603,
+              0.8999735713005066,
+              0.9000113010406494,
+              0.899975061416626,
+              0.9000343084335327,
+              0.9000585675239563,
+              0.900015652179718,
+              0.9000359177589417,
+              0.9000764489173889,
+              0.9003618955612183,
+              0.8999860882759094,
+              0.900027334690094,
+              0.9000447392463684
+            ],
+            "maximum": [
+              1.2999603748321533,
+              1.2997764348983765,
+              1.2999876737594604,
+              1.2998806238174438,
+              1.2997058629989624,
+              1.299892783164978,
+              1.2999688386917114,
+              1.300028681755066,
+              1.299997329711914,
+              1.3000344038009644,
+              1.2998815774917603,
+              1.2999893426895142,
+              1.299729585647583
+            ],
+            "mean": [
+              1.0859858989715576,
+              1.0880306959152222,
+              1.0856274366378784,
+              1.088355541229248,
+              1.0890135765075684,
+              1.0857336521148682,
+              1.0870871543884277,
+              1.0889660120010376,
+              1.0901226997375488,
+              1.087271809577942,
+              1.0871204137802124,
+              1.0868579149246216,
+              1.0879771709442139
+            ],
+            "std": [
+              0.11482925713062286,
+              0.11591894179582596,
+              0.11560886353254318,
+              0.11453208327293396,
+              0.11517103761434555,
+              0.116023950278759,
+              0.1155356764793396,
+              0.11603975296020508,
+              0.11635007709264755,
+              0.11395256221294403,
+              0.11568747460842133,
+              0.11521181464195251,
+              0.11385684460401535
+            ]
+          },
+          "base_com_offset_m": {
+            "shape": [
+              4096,
+              3
+            ],
+            "minimum": [
+              -7.450580596923828e-09,
+              0.0,
+              -3.725290298461914e-09
+            ],
+            "maximum": [
+              3.725290298461914e-09,
+              0.0,
+              2.7939677238464355e-09
+            ],
+            "mean": [
+              -2.4597284209448844e-09,
+              0.0,
+              -3.396962711121887e-10
+            ],
+            "std": [
+              1.8245576161035615e-09,
+              0.0,
+              1.0981504594553826e-09
+            ]
+          },
+          "encoder_bias_rad": {
+            "shape": [
+              4096,
+              12
+            ],
+            "minimum": [
+              -0.014983904547989368,
+              -0.014983709901571274,
+              -0.01499159075319767,
+              -0.014992408454418182,
+              -0.014995003119111061,
+              -0.014997701160609722,
+              -0.014994761906564236,
+              -0.014999676495790482,
+              -0.014992434531450272,
+              -0.014994741417467594,
+              -0.014997515827417374,
+              -0.014989511109888554
+            ],
+            "maximum": [
+              0.014992318116128445,
+              0.014983360655605793,
+              0.014999651350080967,
+              0.014989740215241909,
+              0.014992129988968372,
+              0.01499974075704813,
+              0.0149926682934165,
+              0.01499893981963396,
+              0.014990600757300854,
+              0.01499637495726347,
+              0.01496869046241045,
+              0.01499051321297884
+            ],
+            "mean": [
+              0.00020873478206340224,
+              -7.838490273570642e-05,
+              -7.56907174945809e-05,
+              3.231307346140966e-05,
+              -0.00022195439669303596,
+              0.00012937068822793663,
+              -2.5988078050431795e-05,
+              -5.644857083098032e-06,
+              7.070847641443834e-05,
+              0.0001785099448170513,
+              -7.969873695401475e-05,
+              3.015167203557212e-05
+            ],
+            "std": [
+              0.008686428889632225,
+              0.008541390299797058,
+              0.008755569346249104,
+              0.008581108413636684,
+              0.008699662983417511,
+              0.008565548807382584,
+              0.00870697945356369,
+              0.00874301791191101,
+              0.00863481406122446,
+              0.008686077781021595,
+              0.008665268309414387,
+              0.008605985902249813
+            ]
+          },
+          "foot_tangential_friction": {
+            "shape": [
+              4096,
+              4
+            ],
+            "minimum": [
+              0.6001343727111816,
+              0.6001343727111816,
+              0.6001343727111816,
+              0.6001343727111816
+            ],
+            "maximum": [
+              1.3999805450439453,
+              1.3999805450439453,
+              1.3999805450439453,
+              1.3999805450439453
+            ],
+            "mean": [
+              1.0022274255752563,
+              1.0022274255752563,
+              1.0022274255752563,
+              1.0022274255752563
+            ],
+            "std": [
+              0.23093022406101227,
+              0.23093022406101227,
+              0.23093022406101227,
+              0.23093022406101227
+            ]
+          },
+          "pd_stiffness": {
+            "shape": [
+              4096,
+              12
+            ],
+            "minimum": [
+              3.3011085987091064,
+              3.300532579421997,
+              3.3002891540527344,
+              3.3012280464172363,
+              3.3015949726104736,
+              3.30098032951355,
+              3.3008272647857666,
+              3.300036907196045,
+              3.3012466430664062,
+              3.3005216121673584,
+              3.30084228515625,
+              3.30167818069458
+            ],
+            "maximum": [
+              6.049683570861816,
+              6.049323081970215,
+              6.049439430236816,
+              6.049050331115723,
+              6.049895763397217,
+              6.0495758056640625,
+              6.049144744873047,
+              6.0494513511657715,
+              6.049635410308838,
+              6.049890518188477,
+              6.049923419952393,
+              6.049936294555664
+            ],
+            "mean": [
+              4.691129207611084,
+              4.676361083984375,
+              4.683431148529053,
+              4.68373441696167,
+              4.661457538604736,
+              4.673354148864746,
+              4.661534786224365,
+              4.690802097320557,
+              4.6871209144592285,
+              4.658432960510254,
+              4.679102897644043,
+              4.6962480545043945
+            ],
+            "std": [
+              0.7934215664863586,
+              0.7896688580513,
+              0.7925098538398743,
+              0.7901546955108643,
+              0.7955681681632996,
+              0.7845996618270874,
+              0.7979306578636169,
+              0.7922336459159851,
+              0.7939672470092773,
+              0.7904528975486755,
+              0.7902057766914368,
+              0.7868199944496155
+            ]
+          },
+          "pd_damping": {
+            "shape": [
+              4096,
+              12
+            ],
+            "minimum": [
+              0.20002037286758423,
+              0.2000051736831665,
+              0.20009955763816833,
+              0.2000148743391037,
+              0.20001615583896637,
+              0.20000901818275452,
+              0.20000585913658142,
+              0.20021530985832214,
+              0.20005735754966736,
+              0.20001621544361115,
+              0.20000006258487701,
+              0.20000365376472473
+            ],
+            "maximum": [
+              0.3747735917568207,
+              0.3749898672103882,
+              0.374955415725708,
+              0.3749431371688843,
+              0.37499815225601196,
+              0.3749755620956421,
+              0.3749695420265198,
+              0.3749714493751526,
+              0.3749697804450989,
+              0.37494274973869324,
+              0.37497255206108093,
+              0.37491923570632935
+            ],
+            "mean": [
+              0.28616777062416077,
+              0.28754398226737976,
+              0.2870928943157196,
+              0.2882498800754547,
+              0.28762489557266235,
+              0.287665456533432,
+              0.28744611144065857,
+              0.286679208278656,
+              0.2882378399372101,
+              0.2865335941314697,
+              0.28772035241127014,
+              0.2874448299407959
+            ],
+            "std": [
+              0.05054013803601265,
+              0.05042150616645813,
+              0.05056334286928177,
+              0.05060160532593727,
+              0.05097952112555504,
+              0.050787076354026794,
+              0.05057699605822563,
+              0.05081755295395851,
+              0.05063343793153763,
+              0.05037996172904968,
+              0.050803523510694504,
+              0.050520747900009155
+            ]
+          }
+        },
+        "warnings": [
+          "Legacy event order: pseudo_inertia overwrites the earlier base_com offset; sampled COM robustness is absent."
+        ],
+        "physics_randomization_events_configured": true,
+        "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+        "observation_noise": {
+          "actor": {
+            "policy": true
+          },
+          "critic": {}
+        },
+        "imu_latency_distributions": {
+          "actor": {
+            "policy": [
+              0.5,
+              0.5
+            ]
+          },
+          "critic": {}
+        },
+        "geom_priorities": {
+          "foot_geom_priority": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "external_geom_priority": [
+            0
+          ]
+        },
+        "actuator_delays": [
+          {
+            "type": "BuiltinPositionActuator",
+            "physics_steps_min": 4,
+            "physics_steps_max": 4
+          }
+        ],
+        "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+        "snapshot": "randomization_snapshot.npz",
+        "snapshot_sha256": "60b3a091386db0bf3aa48458d2f7a0cf3e723bfd418bac89c188dc292464fa58"
+      }
+    },
+    "final_checkpoint": "artifacts/optional2/clamped-batch/bootstrap-1/model_5997.pt",
+    "files_sha256": {
+      "bootstrap-1/policy.json": "bf44ae2cdc20ac8e289c78511b9cc1649f2981ded5595a2b97da3548d60fc1d8",
+      "bootstrap-1/provenance.json": "efb0bf129181d2bd582d864842699a0cc720afaf08283bcefdb4719915248bdb",
+      "bootstrap-1/randomization_snapshot.npz": "60b3a091386db0bf3aa48458d2f7a0cf3e723bfd418bac89c188dc292464fa58",
+      "bootstrap-1/model_5997.pt": "0793646de4e1c297e5017597a7f51fc70d15b1d5c3d454f2430b17ef8f8ffedd",
+      "bootstrap-1/bootstrap-1.onnx": "7ee4367149e46929686c7185c66bbbe28804dc2713119bc5b969d96caa809a2b",
+      "bootstrap-1/params/agent.yaml": "d90ce6f26da326025a56a0dd7d3dc7adab88ab6c45e6deb1fe3dea212716a722",
+      "bootstrap-1/params/env.yaml": "31d4dfa9f3287a0c1416196802fa39b519a3790a3a8589cd593723524efa1de8",
+      "bootstrap-1/git/pupper-foundation.diff": "d9fec491e72b4821b63a73b03435499564151522f19a25cb06aae9484f50acbf"
+    },
+    "evaluation_status": "not run by legacy scheduler; no quality/promotion claim"
+  },
+  "scheduler_control": {
+    "records": "artifacts/optional2/clamped-batch/control_records/20261028T002638Z",
+    "original_status_unchanged": true,
+    "original_status_still_says": "running",
+    "scheduler_terminated_after_training_child_exited": true,
+    "child_signaled": false,
+    "scheduler_child_returncode_collected": false,
+    "completion_marker_manufactured": false,
+    "authorization": "User direct reply to specific pause/child-finish/scheduler-stop request; performed through reviewed tools after approval."
+  }
 }
