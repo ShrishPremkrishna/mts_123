@@ -35,8 +35,9 @@ from tricks import (WALK_CONTROLLER, controller_params, load_tricks, walk_contro
                     walk_policy_params, validate_locomotion_contract)  # noqa: E402
 from runtime_config import follower_config  # noqa: E402
 from startup_readiness import write_launch_manifest  # noqa: E402
+from controller_coverage import combined_course_config  # noqa: E402
 
-COURSE_CONFIG = PathJoinSubstitution([FindPackageShare("neural_controller"), "launch", "config.yaml"])
+COMBINED_COURSE_CONFIG = TRICK_PARAMS.parent / "course_controllers.yaml"
 
 
 def gemini_controllers():
@@ -47,10 +48,19 @@ def gemini_controllers():
     from ament_index_python.packages import get_package_share_directory
 
     course = Path(get_package_share_directory("neural_controller")) / "launch" / "config.yaml"
-    base = yaml.safe_load(course.read_text())["neural_controller_default"]["ros__parameters"]
+    course_config = yaml.safe_load(course.read_text())
+    base = course_config["neural_controller_default"]["ros__parameters"]
+    tricks = [t for t in load_tricks().values() if t.kind == "policy"]
+    names = [WALK_CONTROLLER]
+    for trick in tricks:
+        names.append(trick.controller)
+        if trick.walks:
+            names.append(trick.walk_controller)
+    # Validate the unsquashed list before building a dict: normalized trick names
+    # must not silently overwrite a controller or leave it outside stop coverage.
+    combined = combined_course_config(course_config, names)
     kind = {"type": "neural_controller/NeuralController"}
     params = {WALK_CONTROLLER: {"ros__parameters": {**kind, **walk_controller_params(base)}}}
-    tricks = [t for t in load_tricks().values() if t.kind == "policy"]
     for t in tricks:
         params[t.controller] = {"ros__parameters": {**kind, **controller_params(t, base)}}
         if t.walks:  # a trick that walks in its own stance: its walking policy too
@@ -76,9 +86,11 @@ def gemini_controllers():
             return True
 
     TRICK_PARAMS.write_text(yaml.dump(params, Dumper=NoAliasDumper, sort_keys=False))
+    COMBINED_COURSE_CONFIG.write_text(yaml.dump(combined, Dumper=NoAliasDumper, sort_keys=False))
     # The policies are validated before launch actions run. This captures the
     # exact files/configuration a later server restart is allowed to reuse.
-    write_launch_manifest(params, follower_config())
+    write_launch_manifest(params, follower_config(), course_config_path=course,
+                          combined_config_path=COMBINED_COURSE_CONFIG)
     # After the course's own controllers, and checked one by one: see spawn_controllers.py.
     spawn = HERE.parent / "spawn_controllers.py"
     return [ExecuteProcess(cmd=["python3", "-u", str(spawn), str(TRICK_PARAMS), *params], output="both")]
@@ -132,19 +144,21 @@ def person_follower():
 
 
 def generate_launch_description():
+    # Prepare/validate both files before constructing any launch actions.
+    controller_actions = gemini_controllers()
     course = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([FindPackageShare("neural_controller"), "launch", "launch.py"])),
-        launch_arguments={"teleop": "False"}.items(),  # re-added below, routed through the mux
+        launch_arguments={"teleop": "False", "config_file": str(COMBINED_COURSE_CONFIG)}.items(),  # re-added below, routed through the mux
     )
     return LaunchDescription([
         course,
         Node(package="teleop_twist_joy", executable="teleop_node", name="teleop_twist_joy_node",
-             parameters=[COURSE_CONFIG], remappings=[("cmd_vel", "teleop_cmd_vel")], output="both"),
+             parameters=[str(COMBINED_COURSE_CONFIG)], remappings=[("cmd_vel", "teleop_cmd_vel")], output="both"),
         Node(package="cmd_vel_mux", executable="cmd_vel_mux_node", parameters=[PARAMS], output="both"),
         Node(package="topic_tools", executable="throttle", name="joint_state_throttler",
              parameters=[PARAMS], arguments=["messages"], output="both"),
         *camera_white_balance(),
         *person_follower(),
-        *gemini_controllers(),
+        *controller_actions,
     ])

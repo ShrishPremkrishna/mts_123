@@ -44,6 +44,16 @@ def generate_launch_description():
     )
 
 
+    # Optional explicit configuration for a combined stack. Omitting it keeps
+    # the installed course configuration and its button mappings unchanged.
+    declare_config_arg = DeclareLaunchArgument(
+        name="config_file",
+        default_value=PathJoinSubstitution(
+            [FindPackageShare("neural_controller"), "launch", "config.yaml"]
+        ),
+        description="Controller/joystick parameter file (course config by default).",
+    )
+
     #
     # 2. Construct the path to the URDF file using IfElseSubstitution
 
@@ -85,9 +95,7 @@ def generate_launch_description():
     # 5. Common controller parameters
     #
     robot_controllers = ParameterFile(
-        PathJoinSubstitution(
-            [FindPackageShare("neural_controller"), "launch", "config.yaml"]
-        ),
+        LaunchConfiguration("config_file"),
         allow_substs=True,
     )
 
@@ -290,5 +298,5 @@ def generate_launch_description():
     #
     # 8. Return the LaunchDescription with the declared arg + all nodes
     #
-    return LaunchDescription([declare_sim_arg, declare_teleop_arg, *nodes])
+    return LaunchDescription([declare_sim_arg, declare_teleop_arg, declare_config_arg, *nodes])
 

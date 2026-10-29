@@ -18,6 +18,7 @@ import sys
 
 import yaml
 
+from controller_coverage import NEURAL_TYPE, combined_course_config, estop_parameters
 from runtime_config import component_dir, follower_config
 from tricks import WALK_CONTROLLER, load_tricks, validate_locomotion_contract
 
@@ -76,9 +77,24 @@ def _catalog(tricks):
     return result
 
 
-def write_launch_manifest(params, config, path=MANIFEST):
+def _joystick_contract(params, course_config_path, combined_config_path):
+    course_path = Path(course_config_path).resolve()
+    combined_path = Path(combined_config_path).resolve()
+    if course_path == combined_path:
+        raise ValueError('combined config must not overwrite the course configuration')
+    expected = combined_course_config(yaml.safe_load(course_path.read_text()), params)
+    actual = yaml.safe_load(combined_path.read_text())
+    if actual != expected:
+        raise ValueError('combined joystick configuration differs from current course config/controller set')
+    return {'source_path': str(course_path), 'source_sha256': _sha(course_path),
+            'combined_path': str(combined_path), 'combined_sha256': _sha(combined_path),
+            'parameters': estop_parameters(expected)}
+
+
+def write_launch_manifest(params, config, path=MANIFEST, *, course_config_path, combined_config_path):
     """Validate every resolved native policy before any launch actions execute."""
     _reject_capability_overrides(params)
+    joystick = _joystick_contract(params, course_config_path, combined_config_path)
     validator_path = component_dir('pupper_gait_deploy', 'PUPPER_GAIT_DEPLOY_DIR') / 'download_policy.py'
     spec = importlib.util.spec_from_file_location('pupper_startup_policy_validator', validator_path)
     validator = importlib.util.module_from_spec(spec)
@@ -92,7 +108,7 @@ def write_launch_manifest(params, config, path=MANIFEST):
     tricks = load_tricks()
     validate_locomotion_contract(Path(policies[WALK_CONTROLLER]['path']),
                                  [t for t in tricks.values() if t.kind == 'reference'])
-    manifest = {'schema': 1, 'parameters': params, 'policies': policies,
+    manifest = {'schema': 2, 'parameters': params, 'policies': policies, 'joystick': joystick,
                 'tricks': _catalog(tricks), 'follower': _follower(config)}
     Path(path).write_text(json.dumps(manifest, indent=2, allow_nan=False) + '\n')
 
@@ -111,8 +127,11 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         interactive_controllers = {t.controller for t in tricks.values() if t.kind == 'policy' and t.interactive}
         expected = {WALK_CONTROLLER} | {t.controller for t in tricks.values() if t.kind == 'policy'}
         expected |= {t.walk_controller for t in tricks.values() if t.walks}
-        if manifest.get('schema') != 1 or set(manifest['parameters']) != expected or set(manifest['policies']) != expected:
+        if manifest.get('schema') != 2 or set(manifest['parameters']) != expected or set(manifest['policies']) != expected:
             errors.append('launch manifest does not match the installed controller set')
+        joystick = manifest['joystick']
+        if joystick != _joystick_contract(manifest['parameters'], joystick['source_path'], joystick['combined_path']):
+            errors.append('joystick launch configuration changed since the combined launch')
         if manifest.get('follower') != _follower(config):
             errors.append('running launch used different follower mode, paths or feature flags')
         if manifest.get('tricks') != _catalog(tricks):
@@ -123,7 +142,7 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
             data = json.loads(Path(policy['path']).read_text())
             if 'position_target_slew' in data:
                 slew_requirements[name] = data['position_target_slew']
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, yaml.YAMLError) as exc:
         errors.append(f'missing or invalid combined-launch manifest: {exc}')
         return report
     if errors:
@@ -156,13 +175,15 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
             if kind != 'neural_controller/NeuralController' or state not in ('inactive', 'active'):
                 errors.append(f'{name}: expected a configured neural controller, found {state}')
         for name, (kind, state) in controllers.items():
+            if kind == NEURAL_TYPE and name not in joystick['parameters']['controller_names']:
+                errors.append(f'{name}: configured neural controller is outside joystick stop coverage')
             if state == 'active' and 'forward_command_controller/' in kind:
                 errors.append(f'{name}: a classical command controller is active; use separate operating modes')
         for name in ('imu_sensor_broadcaster', 'joint_state_broadcaster'):
             if controllers.get(name, ('', 'missing'))[1] != 'active':
                 errors.append(f'{name}: required feedback broadcaster is not active')
         nodes = read('node', 'list').splitlines()
-        required_nodes = {'/controller_manager', '/cmd_vel_mux', '/teleop_twist_joy_node', '/camera'}
+        required_nodes = {'/controller_manager', '/cmd_vel_mux', '/teleop_twist_joy_node', '/camera', '/estop_controller'}
         if config.mode != 'disabled':
             required_nodes.add('/person_follower_node')
         for name in sorted(required_nodes):
@@ -177,6 +198,7 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         # Refuse an old/differently configured controller despite matching names.
         if not errors:
             required_parameters = dict(manifest['parameters'])
+            required_parameters['estop_controller'] = {'ros__parameters': joystick['parameters']}
             required_parameters['cmd_vel_mux'] = {'ros__parameters': {
                 'deadband': 0.05, 'timeout_ms': 500,
                 'inputs': ['/teleop_cmd_vel', '/llm_cmd_vel', '/person_following_cmd_vel']}}
@@ -187,6 +209,8 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
             for name, entry in required_parameters.items():
                 dump = yaml.safe_load(read('param', 'dump', '/' + name))
                 actual = (dump.get('/' + name) or dump.get(name) or {}).get('ros__parameters', {})
+                if name == 'estop_controller':
+                    estop_parameters({'estop_controller': {'ros__parameters': actual}})
                 for key, value in entry['ros__parameters'].items():
                     if key != 'type' and actual.get(key) != value:
                         errors.append(f'{name}: running parameter {key} differs from this launch')

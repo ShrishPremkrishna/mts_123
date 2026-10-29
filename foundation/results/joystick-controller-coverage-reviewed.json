@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "created_utc": "2026-10-29T23:50:50.745316+00:00",
+  "scope": "Local source review and ROS-free tests; no SSH, ROS initialization/launch or motor action.",
+  "change": "Course launch accepts an optional config_file. Gemini preserves baseline face-button prefix and control settings, explicitly retains stop/release indices, and extends deactivation coverage to default_alt and all generated policy/walk controllers. Runtime manifest v2 rejects incomplete or stale coverage.",
+  "source_sha256": {
+    "pupper_gait_deploy/launch.py": "b76b665a819f5e0245527e665a69e2d9e464987f8cdbaa79b434a483c715d25f",
+    "gemini_pupper/robot/launch/gemini_pupper.launch.py": "48b9cfe1ba518e93833ec0c5ee20e9839af11810491dfa5898dda10022d5af3f",
+    "gemini_pupper/robot/controller_coverage.py": "3ca8de42affca135e16979be95c06d0465d242dac1278076e1d66e5ac6b8ff26",
+    "gemini_pupper/robot/startup_readiness.py": "77ad6e110a6a312b9d4bf58ebeb2d8f22cdd7c1b0f201a39651c251ba34043b1",
+    "gemini_pupper/tests/test_controller_coverage.py": "73ef5dc31315498df460a1682d8ba5203009984a4138f00c1c2cf4575506e142",
+    "gemini_pupper/tests/test_startup_readiness.py": "55f982bbac0f4537eb854cd5fbfe31e4f4d9eb1bfb16008aa29296c8379914ae"
+  },
+  "unchanged_baseline": {
+    "pupper_gait_deploy/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+    "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/src/estop_controller.cpp": "cddf4f3bde543949b0de0172127e46d5bb9118ea0db576fba4bbb714580cfa01"
+  },
+  "validation": [
+    {
+      "command": ".venv/bin/python -m pytest gemini_pupper/tests/test_controller_coverage.py gemini_pupper/tests/test_startup_readiness.py -q",
+      "result": "111 passed in 16.54s"
+    },
+    {
+      "command": ".venv/bin/python -m pytest gemini_pupper/tests -q",
+      "result": "278 passed, 1 skipped in 20.61s"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "bash -n overlay-env-candidate-v2.sh; ast.parse(verifier, feature_version=(3,11))",
+      "result": "passed locally; environment wrapper not sourced on Mac"
+    }
+  ],
+  "readiness_checks": [
+    "Exact source and combined config file SHA256 plus re-derived configuration",
+    "Exactly one live /estop_controller node",
+    "Ordered controller_names and switch_button_indices",
+    "Explicit estop_index and estop_release_index",
+    "Reject all loaded neural controllers absent from coverage",
+    "Reject old manifests and config drift without any mutating ROS command"
+  ],
+  "physical_gate": "The preserved Pi driver calls do_homing during hardware activation. Launching the hardware manager may move joints even when neural policies start inactive. No actual stack launch while operator away; constructor-only smoke is distinct.",
+  "staging": "Copy the four changed/new production Python files into isolated staging/overlay launch share only. Do not run the installer or change baseline underlay. Wrapper v2 selects existing session/venv after ROS setup and pins new launch/helper/readiness hashes. Prior v1 artifacts remain immutable.",
+  "limitations": [
+    "Tests use captured/stubbed ROS interfaces; actual ROS launch construction and live read-only parameter checks are separate root-owned steps.",
+    "Software coverage does not verify the physical joystick, controller switching, motor torque or emergency-stop response.",
+    "No C++ or controller gains/caps/policies changed."
+  ],
+  "implementation_base_revision": "dce08f1966f9a8380db3c40ddddbbf2dc034c58b",
+  "staging_artifacts": {
+    "artifacts/hardware/2026-10-29/lab6-staging-review/joystick-coverage-v2/verify-overlay-environment-v2.py": {
+      "sha256": "f62a5cae44df08e95ef799e0bed3c91b98933dd3e9ba7e4d1c5fca6f2403642f",
+      "bytes": 3103
+    },
+    "artifacts/hardware/2026-10-29/lab6-staging-review/joystick-coverage-v2/overlay-env-candidate-v2.sh": {
+      "sha256": "47a1b05547540dd7d138a367489da20057edba28585870b5312ad6b6bfd8f7f7",
+      "bytes": 2332
+    },
+    "artifacts/hardware/2026-10-29/lab6-staging-review/joystick-coverage-v2/construct-launch-only.py": {
+      "sha256": "528529e3c2b907152de8622de549f8e3674e3cc35654259295ef6f6c3f4ad850",
+      "bytes": 7918
+    }
+  },
+  "root_review": "Parent independently read helper and readiness/launch diff; no logic changes requested. Actual installed ROS constructor smoke prepared but not executed by this agent.",
+  "artifact_review": "artifacts/hardware/2026-10-29/lab6-staging-review/joystick-coverage-v2/review.json",
+  "artifact_review_sha256": "728b10ea1569e2d29accbbd7c707ce1b6875b541f4285834dd398a520fc3ab08"
+}
