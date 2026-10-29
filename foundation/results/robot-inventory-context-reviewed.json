@@ -1,0 +1,26 @@
+{
+  "reviewed_at_utc": "2026-10-29T23:30:49.119625+00:00",
+  "source_base_revision": "0e934c3fcbd09b302964f5634e406b6a1c1b89bd",
+  "problem": "The inventory initializes an explicit rclpy.Context but called global spin helpers without an executor. Those helpers use a default executor/context, which remains uninitialized and can raise before ROS inventory sampling. Parent reproduced this context mismatch during separate read-only Pi discovery.",
+  "change": "Use one SingleThreadedExecutor bound to the explicitly initialized context. Add the node once, spin service futures and sampling on that executor, then remove the node and shut down the executor before destroying the node and context. Nested cleanup still destroys node/context if executor cleanup raises.",
+  "scope": "Read-only inventory behavior unchanged; no launch, publisher, parameter write or controller switch added. Non-ROS path unchanged.",
+  "source_sha256": {
+    "foundation/scripts/robot_inventory.sh": "d8c1b4eedb62ef161a6034fb01410a4f736da9acea3275ea35dc681901e70268",
+    "foundation/tests/test_robot_inventory_context.py": "788744ee0299ed97fa5df156f82381d029c90fd3553a5f1f29682e1807ee07fd"
+  },
+  "regression": {
+    "before_fix": "Both new cases failed: the success case hit the uninitialized-default-context guard; cleanup expectations lacked the explicit executor lifecycle.",
+    "after_fix": "37 passed in1.14s:2new subprocess regressions plus35existing artifact-backup/description tests.",
+    "command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider foundation/tests/test_robot_inventory_context.py foundation/tests/test_robot_artifact_backup.py foundation/tests/test_robot_description.py",
+    "mechanism": "The actual shell helper runs in a child Python process with controlled rclpy modules. Default-context global spins raise; only the custom-context executor can complete four allowlisted service futures and deliver joint/camera metadata samples. The second case raises during graph discovery and verifies executor/node/context cleanup. Camera bytes must never appear in output.",
+    "actual_ros_runtime_test_by_this_agent": false
+  },
+  "immutable_portable_kit": {
+    "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1/inventory-kit-c3ad2065706e230064687144378f5d9dd0a6fc2c-v1.tar.gz",
+    "sha256": "b5b139bd8f79ce0e43732f2fa09d054433932379db538fe82ea44c8e733a8fd7",
+    "unchanged": true,
+    "limitation": "Existing archive was validated only in non-ROS mode. Its ROS path retains this context bug; root will stage this corrected helper separately before the actual read-only Pi ROS smoke. Do not silently replace the immutable archive."
+  },
+  "validation_pending": "Root-owned actual read-only Pi ROS inventory; no SSH, ROS launch, device or network action was performed by this agent.",
+  "review_artifact": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/lab6-staging-review/inventory-context-fix-review.json"
+}

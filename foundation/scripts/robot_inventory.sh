@@ -159,10 +159,11 @@ for p in sorted(files):
 
 if args.ros:
     ros = report['ros'] = {'note': 'Observes existing graph only; no launch, command publisher or parameter writes.'}
-    node = context = None
+    node = context = executor = None
     try:
         import rclpy
         from rclpy.context import Context
+        from rclpy.executors import SingleThreadedExecutor
         from rclpy.qos import qos_profile_sensor_data
         from sensor_msgs.msg import JointState, Imu, CompressedImage
         from geometry_msgs.msg import Twist
@@ -171,7 +172,10 @@ if args.ros:
         from rosidl_runtime_py.convert import message_to_ordereddict
         context = Context()
         rclpy.init(args=[], context=context)
+        # Global rclpy.spin helpers default to a separate, uninitialized context.
+        executor = SingleThreadedExecutor(context=context)
         node = rclpy.create_node('foundation_readonly_inventory', context=context, enable_rosout=False)
+        executor.add_node(node)
         time.sleep(0.25)
         ros['nodes'] = node.get_node_names_and_namespaces()
         ros['topics'] = node.get_topic_names_and_types()
@@ -184,7 +188,7 @@ if args.ros:
                 ros['robot_descriptions'][owner] = {'error': 'parameter service unavailable'}
                 continue
             future = client.call_async(GetParameters.Request(names=['robot_description']))
-            rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
+            executor.spin_until_future_complete(future, timeout_sec=2.0)
             response = future.result() if future.done() else None
             if response and len(response.values) == 1 and response.values[0].type == 4:
                 ros['robot_descriptions'][owner] = inspect_description(response.values[0].string_value)
@@ -194,7 +198,7 @@ if args.ros:
             client = node.create_client(service_type, '/controller_manager/' + suffix)
             if client.wait_for_service(timeout_sec=1.0):
                 future = client.call_async(service_type.Request())
-                rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
+                executor.spin_until_future_complete(future, timeout_sec=2.0)
                 ros[suffix] = message_to_ordereddict(future.result()) if future.done() and future.result() is not None else {'error': 'no response'}
             else:
                 ros[suffix] = {'error': 'service unavailable'}
@@ -222,7 +226,7 @@ if args.ros:
                 lambda msg, topic=topic, kind=kind: receive(topic, kind, msg), qos_profile_sensor_data))
         deadline = time.monotonic() + args.sample_seconds
         while time.monotonic() < deadline:
-            rclpy.spin_once(node, timeout_sec=min(0.1, max(0., deadline-time.monotonic())))
+            executor.spin_once(timeout_sec=min(0.1, max(0., deadline-time.monotonic())))
         ros['observation_seconds'] = args.sample_seconds
         ros['samples'] = {}
         for topic, entry in samples.items():
@@ -236,8 +240,15 @@ if args.ros:
     except Exception as exc:
         ros['error'] = f'{type(exc).__name__}: {exc}'
     finally:
-        if node is not None: node.destroy_node()
-        if context is not None and context.ok(): context.shutdown()
+        try:
+            if executor is not None:
+                if node is not None: executor.remove_node(node)
+                executor.shutdown(timeout_sec=2.0)
+        finally:
+            try:
+                if node is not None: node.destroy_node()
+            finally:
+                if context is not None and context.ok(): context.shutdown()
 else:
     report['ros'] = {'sampled': False, 'reason': 'Pass --ros after sourcing the existing approved ROS environment on the robot.'}
 def finite_json(value):
