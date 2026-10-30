@@ -20,6 +20,9 @@
 
 class IMUManager {
  public:
+  // Join the sampler before member destruction releases its sensor or thread.
+  ~IMUManager();
+
   // whether IMU is enabled on robot
   bool enabled;
 
@@ -63,7 +66,7 @@ class IMUManager {
   // ptr to thread for imu reading
   std::unique_ptr<std::thread> imu_read_thread_ = nullptr;
   // signal to stop read thread
-  std::atomic<bool> stop_imu_read_thread_;
+  std::atomic<bool> stop_imu_read_thread_{true};
 
   // Imu reader
   std::unique_ptr<BNO055> imu_ = nullptr;

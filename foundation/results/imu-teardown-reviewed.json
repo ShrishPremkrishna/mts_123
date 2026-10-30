@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "created_utc": "2026-10-30T04:57:25.321261+00:00",
+  "status": "minimal_fix_verified_without_hardware_native_pi_validation_pending",
+  "source_revision_before_patch": "dabe5cecb9a3d325e5747e29b078d44f2773532b",
+  "observed_failure": {
+    "trace_path": "artifacts/hardware/2026-10-29/supervised-2140/homing-and-shutdown-console.log",
+    "trace_sha256": "b9323dc636988c3147af330cae5d516a6d8106de273fe1068d64d30d0c52f3a9",
+    "line_locators": [
+      46,
+      72,
+      77,
+      78,
+      89,
+      90,
+      91,
+      98
+    ],
+    "facts": "Preserved baseline completed all twelve homing actuators; shutdown logged motor deactivation twice, then terminate called without an active exception from ControlBoardHardwareInterface destruction; process exit -6. Parent reports operator observed relaxed legs. This report did not perform that session."
+  },
+  "diagnosis": {
+    "finding": "The exact preserved IMUManager has a joinable thread owner and stop()/join() but no destructor; no driver call to stop() exists. Normal member destruction releases its sensor before destroying the joinable std::thread, whose destructor invokes std::terminate. It also permits destruction of a sensor while a sample is in flight.",
+    "confidence": "Matching defect reproduced with the exact original production IMU sources and a fake BNO055; consistent with actual shutdown trace. No claim that other driver lifecycle defects are thereby excluded."
+  },
+  "production_change": "Add IMUManager destructor calling existing stop() before any member is destroyed; initialize its stop flag true before begin. No alteration to BNO055 sampling implementation, driver activation/deactivation, homing loops/gains/targets, policy or calibration.",
+  "source_sha256": {
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp": "81136b5a1b351036e627063952ddf01a385a09dbfa1cd8d27b62e033d02ff2c6",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/imu_manager.cpp": "12573a880c745184d86b6fd399a4f7112d0c19dffdf3481cab81fd57843d7bd2",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/CMakeLists.txt": "3a64594190ec5661b35d3f3ae8ecf39ca76e53b4f545fa62cd8038e1ca420a31",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_imu_manager_lifecycle.cpp": "b7eb6ab8baa1c4843ce247cb20ba11ac30e3e7efd648397a526e7a093c86eb94"
+  },
+  "source_identity": {
+    "all_11_selected_pi_driver_files_match_local_prepatch": true,
+    "original_imu_header": "242f3dd1e5da25bd7fc14af64248d21666c26f9bba96eabe2aac8d77336bc257",
+    "original_imu_source": "667f94e63237f8d819296999d4d2d928945adcbd85ecef225adda3ba3562e0f6",
+    "motion_driver_unchanged_sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e",
+    "motion_driver_matches_copied_pi": true,
+    "cmake_pi_identity_pending": true
+  },
+  "validation": {
+    "environment": "Existing pinned ROS Jazzy container, --network none --cap-drop ALL --security-opt no-new-privileges; no devices mapped. No ROS node/executor or hardware code is executed by tests.",
+    "docker_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+    "full_patched_driver_library_build": "passed",
+    "lifecycle_test_design": "Compile actual production IMUManager, replacing only the three BNO055 sensor functions at link time; no rt_bno055.cpp, SPI or I2C linked into test. Five separate CTest processes with ten-second test timeouts.",
+    "patched": {
+      "passed": 5,
+      "failed": 0,
+      "scenarios": [
+        "never_started",
+        "implicit_destroy",
+        "explicit_stop_twice",
+        "restart_after_stop",
+        "destroy_during_sample"
+      ]
+    },
+    "original": {
+      "passed": 3,
+      "failed": 2,
+      "aborted_scenarios": [
+        "implicit_destroy",
+        "destroy_during_sample"
+      ],
+      "matching_abort_message": "terminate called without an active exception"
+    },
+    "checks": "Active destruction joins the sampler; destruction during a deliberately blocked sample waits until its release, then destroys the sensor; explicit stop is idempotent; stop-and-restart remains supported; no sensor/polling thread survives manager destruction."
+  },
+  "staging": {
+    "archive_path": "artifacts/hardware/2026-10-29/imu-teardown-review/imu-teardown-patch-v1.tar.gz",
+    "archive_sha256": "dde71f76c427f2db3d7a89cafbb13b9b4fc9c001e6aae9026629007510e1b726",
+    "archive_bytes": 4627,
+    "manifest_sha256": "a9fca4cb3b9a040792fe5cea8a2ba34852e300148241882104c2aaa02722dab9",
+    "plan": "Root verifies original CMake hash, copies original Pi package into a new separate driver overlay, applies only these pinned files, builds/tests natively without opening hardware, and records library/source identity before considering another explicitly supervised homing/shutdown session. Baseline workspace remains unchanged."
+  },
+  "limits": [
+    "The fake sensor proves thread ownership/ordering, not actual I2C timing or a bound on shutdown latency. stop() joins after an in-progress real sample returns.",
+    "This does not add a homing timeout/cancellation path or prove joystick/electrical-stop behavior.",
+    "No native Pi patched-library test or repeat physical shutdown has yet been performed.",
+    "Existing driver destructor releases its process lock before deactivation, and failed/partial initialization teardown is not covered by this narrowly scoped IMU test; those separate concerns are not silently claimed fixed."
+  ],
+  "evidence": {
+    "source-provenance.json": "3784bcfef07d635d208ae9d6f5206a2a09d041dae9b11bd2ecc6a167801d5693",
+    "check-container.sh": "7596dfabbb831a90db556637af04bf4fcc21f06efc396feabe4ef941420d2f47",
+    "patched-configure.log": "27fae6d9dd390cece949dd9a8e761c34e2ff1f055fe04f835962b3997ed75a2c",
+    "patched-build.log": "981c0e056fc95e5ab6e0c300e081c0fe590320a78db3707bc8bd1c0420401d9b",
+    "patched-test.log": "97eef09c8e3b78cfac3f68d0f8c36dc2b22ddd96a153ab4ad518e77975eb44ea",
+    "original-configure.log": "0da73673093bd6b515d2cc1077478b1343ea8bb9dc07a4d6eedeb6b73bbf05cc",
+    "original-build.log": "07d30b9b4cdba63cabb8b93380a5acf915714a7b48d9f108b02a97cdbe0c9497",
+    "original-test.log": "0fcc7acb1b29d093ad96bb2d341a7cc8784b2d54afac65144bac53296458e9ae",
+    "original-ctest-exit.txt": "aa67a169b0bba217aa0aa88a65346920c84c42447c36ba5f7ea65f422c1fe5d8",
+    "staging-manifest.json": "a9fca4cb3b9a040792fe5cea8a2ba34852e300148241882104c2aaa02722dab9"
+  }
+}

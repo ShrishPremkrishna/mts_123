@@ -53,6 +53,17 @@ install(
 )
 
 if(BUILD_TESTING)
+  # Link the real thread owner to a fake BNO055; no hardware implementation is
+  # linked or invoked by these lifecycle tests.
+  add_executable(test_imu_manager_lifecycle test/test_imu_manager_lifecycle.cpp src/imu_manager.cpp)
+  target_include_directories(test_imu_manager_lifecycle PRIVATE include)
+  ament_target_dependencies(test_imu_manager_lifecycle rclcpp tf2)
+  enable_testing()
+  foreach(scenario never_started implicit_destroy explicit_stop_twice restart_after_stop destroy_during_sample)
+    add_test(NAME imu_manager_${scenario} COMMAND test_imu_manager_lifecycle ${scenario})
+    set_tests_properties(imu_manager_${scenario} PROPERTIES TIMEOUT 10)
+  endforeach()
+
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files

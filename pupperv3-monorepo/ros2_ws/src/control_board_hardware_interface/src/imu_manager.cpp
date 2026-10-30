@@ -1,5 +1,7 @@
 #include "control_board_hardware_interface/imu_manager.hpp"
 
+IMUManager::~IMUManager() { stop(); }
+
 // set rotation matrix based on roll, pitch, yaw
 void IMUManager::set_imu_offset(double roll, double pitch, double yaw) {
   offset_quaternion.setRPY(roll, pitch, yaw);
