@@ -15,12 +15,20 @@ int main(int argc, char **argv) {
   const char *override_args[] = {"estop_parameter_contract_test", "--ros-args",
     "-p", "estop_index:=11", "-p", "estop_release_index:=8",
     "-p", "switch_button_indices:=[0,1,2,3]",
-    "-p", "controller_names:=[neural_controller_default,neural_controller_three_legged,neural_controller,neural_controller_student,neural_controller_default_alt,gemini_walk,trick_sit_stay,walk_spider]"};
+    "-p", "controller_names:=[neural_controller_default,neural_controller_three_legged,neural_controller,neural_controller_student,neural_controller_default_alt,gemini_walk,trick_sit_stay,walk_spider]",
+    "-p", "stop_arbitration_protocol:=spoof", "-p", "stop_arbitration_instance_id:=spoof"};
   const char *default_args[] = {"estop_parameter_contract_test"};
-  rclcpp::init(overrides ? 10 : 1, overrides ? override_args : default_args);
+  rclcpp::init(overrides ? 14 : 1, overrides ? override_args : default_args);
   int result = 0;
   try {
     auto node = std::make_shared<EStopController>();
+    require(node->get_parameter("stop_arbitration_protocol").as_string() == "pupper_stop_v1", "protocol override must be ignored");
+    const auto instance = node->get_parameter("stop_arbitration_instance_id").as_string();
+    require(std::regex_match(instance, std::regex("[0-9a-f]{32}")), "fresh instance marker");
+    for (const auto *name : {"stop_arbitration_protocol", "stop_arbitration_instance_id"}) {
+      require(node->describe_parameter(name).read_only, "authority marker must be read-only");
+      require(!node->set_parameter(rclcpp::Parameter(name, "spoof")).successful, "authority marker mutation refused");
+    }
     const std::vector<std::string> expected_names = overrides
       ? std::vector<std::string>{"neural_controller_default", "neural_controller_three_legged",
           "neural_controller", "neural_controller_student", "neural_controller_default_alt",

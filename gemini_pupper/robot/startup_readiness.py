@@ -20,9 +20,16 @@ import yaml
 
 from controller_coverage import NEURAL_TYPE, combined_course_config, estop_parameters
 from runtime_config import component_dir, follower_config
+from stop_status import PROTOCOL as STOP_PROTOCOL, TOPIC as STOP_TOPIC, StopStatus
 from tricks import WALK_CONTROLLER, load_tricks, validate_locomotion_contract
 
 MANIFEST = Path('/tmp/gemini-pupper/runtime_manifest.json')
+STOP_STATUS_READ = ('topic', 'echo', STOP_TOPIC, 'std_msgs/msg/String', '--once',
+                    '--qos-reliability', 'reliable', '--qos-durability', 'volatile')
+STOP_LAUNCH_CONTRACT = {'protocol': STOP_PROTOCOL,
+    'public_service': '/controller_manager/switch_controller',
+    'backend_service': '/controller_manager/switch_controller_backend',
+    'manager_node': '/controller_manager', 'authority_node': '/estop_controller'}
 
 # These values are declared by the loaded controller, with overrides ignored.
 # Copying them into launch YAML must never stand in for actual binary support.
@@ -86,7 +93,9 @@ def _joystick_contract(params, course_config_path, combined_config_path):
     actual = yaml.safe_load(combined_path.read_text())
     if actual != expected:
         raise ValueError('combined joystick configuration differs from current course config/controller set')
+    launch_path = course_path.parent / 'launch.py'
     return {'source_path': str(course_path), 'source_sha256': _sha(course_path),
+            'launch_path': str(launch_path), 'launch_sha256': _sha(launch_path),
             'combined_path': str(combined_path), 'combined_sha256': _sha(combined_path),
             'parameters': estop_parameters(expected)}
 
@@ -108,13 +117,14 @@ def write_launch_manifest(params, config, path=MANIFEST, *, course_config_path, 
     tricks = load_tricks()
     validate_locomotion_contract(Path(policies[WALK_CONTROLLER]['path']),
                                  [t for t in tricks.values() if t.kind == 'reference'])
-    manifest = {'schema': 2, 'parameters': params, 'policies': policies, 'joystick': joystick,
+    manifest = {'schema': 3, 'parameters': params, 'policies': policies, 'joystick': joystick,
+                'stop_contract': STOP_LAUNCH_CONTRACT,
                 'tricks': _catalog(tricks), 'follower': _follower(config)}
     Path(path).write_text(json.dumps(manifest, indent=2, allow_nan=False) + '\n')
 
 
 def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
-    """Only list/get/dump/describe operations; never change the running stack."""
+    """Only inspect/list/describe/subscribe operations; never change the stack."""
     report = {'compatible': False, 'errors': []}
     errors = report['errors']
     slew_requirements = {}
@@ -127,8 +137,10 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
         interactive_controllers = {t.controller for t in tricks.values() if t.kind == 'policy' and t.interactive}
         expected = {WALK_CONTROLLER} | {t.controller for t in tricks.values() if t.kind == 'policy'}
         expected |= {t.walk_controller for t in tricks.values() if t.walks}
-        if manifest.get('schema') != 2 or set(manifest['parameters']) != expected or set(manifest['policies']) != expected:
+        if manifest.get('schema') != 3 or set(manifest['parameters']) != expected or set(manifest['policies']) != expected:
             errors.append('launch manifest does not match the installed controller set')
+        if manifest.get('stop_contract') != STOP_LAUNCH_CONTRACT:
+            errors.append('launch manifest lacks the current shared stop gateway contract')
         joystick = manifest['joystick']
         if joystick != _joystick_contract(manifest['parameters'], joystick['source_path'], joystick['combined_path']):
             errors.append('joystick launch configuration changed since the combined launch')
@@ -179,9 +191,11 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                 errors.append(f'{name}: configured neural controller is outside joystick stop coverage')
             if state == 'active' and 'forward_command_controller/' in kind:
                 errors.append(f'{name}: a classical command controller is active; use separate operating modes')
-        for name in ('imu_sensor_broadcaster', 'joint_state_broadcaster'):
-            if controllers.get(name, ('', 'missing'))[1] != 'active':
-                errors.append(f'{name}: required feedback broadcaster is not active')
+        for name, expected_type in {
+                'imu_sensor_broadcaster': 'imu_sensor_broadcaster/IMUSensorBroadcaster',
+                'joint_state_broadcaster': 'joint_state_broadcaster/JointStateBroadcaster'}.items():
+            if controllers.get(name, ('', 'missing')) != [expected_type, 'active']:
+                errors.append(f'{name}: required feedback broadcaster must be active with type {expected_type}')
         nodes = read('node', 'list').splitlines()
         required_nodes = {'/controller_manager', '/cmd_vel_mux', '/teleop_twist_joy_node', '/camera', '/estop_controller'}
         if config.mode != 'disabled':
@@ -190,11 +204,33 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
             if nodes.count(name) != 1:
                 errors.append(f'{name}: expected exactly one node in the combined stack')
         services = set(read('service', 'list').splitlines())
-        required_services = {'/controller_manager/list_controllers', '/controller_manager/switch_controller'}
+        required_services = {'/controller_manager/list_controllers', '/controller_manager/switch_controller',
+                             '/controller_manager/switch_controller_backend'}
         if config.mode != 'disabled':
             required_services |= {'/activate_person_following', '/deactivate_person_following'}
         for name in sorted(required_services - services):
             errors.append(f'missing service {name}')
+        # A matching gateway node beside an unremapped manager is insufficient:
+        # normal clients could randomly reach the raw service and bypass its latch.
+        def server_names(node_name):
+            result, collecting = set(), False
+            for line in read('node', 'info', node_name).splitlines():
+                stripped = line.strip()
+                if stripped == 'Service Servers:':
+                    collecting = True
+                elif collecting and stripped.endswith(':') and not stripped.startswith('/'):
+                    break
+                elif collecting and stripped.startswith('/'):
+                    result.add(stripped.split(':', 1)[0])
+            return result
+        if not errors:
+            manager_servers = server_names('/controller_manager')
+            authority_servers = server_names('/estop_controller')
+            public, backend = STOP_LAUNCH_CONTRACT['public_service'], STOP_LAUNCH_CONTRACT['backend_service']
+            if backend not in manager_servers or public in manager_servers:
+                errors.append('controller_manager switch service must use only the scoped backend endpoint')
+            if public not in authority_servers or backend in authority_servers:
+                errors.append('estop_controller must own only the public guarded switch endpoint')
         # Refuse an old/differently configured controller despite matching names.
         if not errors:
             required_parameters = dict(manifest['parameters'])
@@ -216,6 +252,26 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                     require_readonly_markers(name, [('controller_names', 'string array'),
                         ('switch_button_indices', 'integer array'), ('estop_index', 'integer'),
                         ('estop_release_index', 'integer')])
+                    if (actual.get('stop_arbitration_protocol') != STOP_PROTOCOL
+                            or not isinstance(actual.get('stop_arbitration_instance_id'), str)
+                            or not re.fullmatch('[0-9a-f]{32}', actual['stop_arbitration_instance_id'])):
+                        errors.append('estop_controller: loaded shared stop authority markers are missing or invalid')
+                    else:
+                        require_readonly_markers(name, [('stop_arbitration_protocol', 'string'),
+                                                       ('stop_arbitration_instance_id', 'string')])
+                        # Volatile subscription waits for a newly published heartbeat
+                        # instead of accepting transient-local cached startup data.
+                        documents = [doc for doc in yaml.safe_load_all(read(*STOP_STATUS_READ)) if doc is not None]
+                        tracker = StopStatus()
+                        if (len(documents) != 1 or not isinstance(documents[0], dict)
+                                or not tracker.accept(documents[0].get('data'), 0.0)
+                                or tracker.state['instance_id'] != actual['stop_arbitration_instance_id']):
+                            errors.append('estop_controller: fresh shared stop status is missing, invalid or from another instance')
+                        elif any(tracker.state[key] for key in ('fault', 'unknown_remote_submission', 'shutting_down')):
+                            errors.append('estop_controller: shared stop authority is faulted or shutting down')
+                        # Healthy latched/stop-required status is allowed for startup
+                        # inspection. It does not authorize motion or release the latch.
+
                 for key, value in entry['ros__parameters'].items():
                     if key != 'type' and actual.get(key) != value:
                         errors.append(f'{name}: running parameter {key} differs from this launch')

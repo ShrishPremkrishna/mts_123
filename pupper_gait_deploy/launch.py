@@ -2,7 +2,9 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch.substitutions import (
     Command,
     FindExecutable,
@@ -123,6 +125,10 @@ def generate_launch_description():
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
+        # Node-scoped: neural controllers created in this same process must keep
+        # calling the public guarded endpoint (e.g. their joystick chord client).
+        remappings=[("controller_manager:/controller_manager/switch_controller",
+                     "/controller_manager/switch_controller_backend")],
         parameters=[robot_controllers],
         output="both",
     )
@@ -264,6 +270,14 @@ def generate_launch_description():
     )
 
 
+    # Losing the stop authority must tear down this whole launched stack,
+    # including a policy that was already active. This is orderly process
+    # shutdown, not an independent physical e-stop or proof homing can interrupt.
+    gateway_exit_shutdown = RegisterEventHandler(OnProcessExit(
+        target_action=joy_util_node,
+        on_exit=[EmitEvent(event=Shutdown(reason="stop authority exited; shutting down robot stack"))],
+    ))
+
     camera_node = Node(
         package="camera_ros",
         executable="camera_node",
@@ -288,6 +302,7 @@ def generate_launch_description():
         # Comment/uncomment as needed:
         imu_sensor_broadcaster_spawner,
         foxglove_bridge,
+        gateway_exit_shutdown,
         joy_util_node,
         joy_node,
         teleop_twist_joy_node,

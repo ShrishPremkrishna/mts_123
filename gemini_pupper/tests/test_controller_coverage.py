@@ -32,7 +32,7 @@ def test_every_real_catalog_controller_is_covered_without_new_face_button_mappin
     baseline = original['estop_controller']['ros__parameters']
     expected_prefix = ['neural_controller_default', 'neural_controller_three_legged',
                        'neural_controller', 'neural_controller_student']
-    assert actual['controller_names'][:4] == baseline['controller_names'] == expected_prefix
+    assert actual['controller_names'][:4] == baseline['controller_names'][:4] == expected_prefix
     assert actual['switch_button_indices'] == baseline['switch_button_indices'] == [0, 1, 2, 3]
     assert actual['controller_names'] == expected_prefix + ['neural_controller_default_alt'] + names
     # joy_utils uses the first four entries for buttons; switch-away and estop
@@ -51,7 +51,7 @@ def test_every_real_catalog_controller_is_covered_without_new_face_button_mappin
 def test_explicit_stop_indices_retain_actual_reviewed_cpp_defaults(course):
     source = (ROOT / 'pupperv3-monorepo/ros2_ws/src/joy_utils/src/estop_controller.cpp').read_text()
     for key, value in ESTOP_DEFAULTS.items():
-        assert re.search(r'declare_parameter<int>\(\s*"' + key + r'",\s*' + str(value) + r',\s*cached_configuration\)', source)
+        assert re.search(r'declare_parameter<int>\(\s*"' + key + r'",\s*' + str(value) + r',\s*[A-Za-z_][A-Za-z0-9_]*\)', source)
     params = estop_parameters(combined_course_config(course, ['gemini_walk']))
     assert params['estop_index'] == 12 and params['estop_release_index'] == 9
     course['estop_controller']['ros__parameters'].update(estop_index=11, estop_release_index=8)
@@ -61,7 +61,7 @@ def test_explicit_stop_indices_retain_actual_reviewed_cpp_defaults(course):
 
 def test_absent_alternate_is_not_invented_or_existing_alternate_duplicated(course):
     base = course['estop_controller']['ros__parameters']
-    base['controller_names'].append('neural_controller_default_alt')
+    # The course config now covers its always-spawned alternate already.
     assert estop_parameters(combined_course_config(course, ['gemini_walk']))['controller_names'].count('neural_controller_default_alt') == 1
     base['controller_names'].pop()
     del course['controller_manager']['ros__parameters']['neural_controller_default_alt']
@@ -85,7 +85,7 @@ def test_invalid_baseline_mapping_is_rejected(course, fault):
     elif fault == 'invalid_name': params['controller_names'][0] = '/namespaced'
     elif fault == 'undeclared_name': params['controller_names'][0] = 'missing'
     elif fault == 'empty_buttons': params['switch_button_indices'] = []
-    elif fault == 'too_many_buttons': params['switch_button_indices'] = list(range(5))
+    elif fault == 'too_many_buttons': params['switch_button_indices'] = list(range(len(params['controller_names']) + 1))
     elif fault == 'duplicate_button': params['switch_button_indices'][1] = 0
     elif fault == 'negative_button': params['switch_button_indices'][0] = -1
     elif fault == 'boolean_button': params['switch_button_indices'][0] = False
@@ -107,7 +107,8 @@ def launch_modules(monkeypatch, tmp_path):
         def __init__(self, *args, **kwargs): self.args, self.kwargs = args, kwargs
     modules = {
         'launch': ['LaunchDescription'],
-        'launch.actions': ['DeclareLaunchArgument', 'ExecuteProcess', 'IncludeLaunchDescription'],
+        'launch.actions': ['DeclareLaunchArgument', 'ExecuteProcess', 'IncludeLaunchDescription', 'EmitEvent', 'RegisterEventHandler'],
+        'launch.event_handlers': ['OnProcessExit'], 'launch.events': ['Shutdown'],
         'launch.launch_description_sources': ['PythonLaunchDescriptionSource'],
         'launch.substitutions': ['Command', 'FindExecutable', 'PathJoinSubstitution', 'LaunchConfiguration',
                                  'PythonExpression', 'TextSubstitution', 'IfElseSubstitution'],
@@ -152,6 +153,9 @@ def test_course_launch_default_is_unchanged_and_override_reaches_all_config_cons
             assert type(parameter.args[0]).__name__ == 'LaunchConfiguration'
             assert parameter.args[0].args == ('config_file',)
             covered.add(entity.kwargs['executable'])
+            if entity.kwargs['executable'] == 'ros2_control_node':
+                assert entity.kwargs['remappings'] == [
+                    ('controller_manager:/controller_manager/switch_controller', '/controller_manager/switch_controller_backend')]
         if entity.kwargs['executable'] == 'spawner' and entity.kwargs['arguments'][0].startswith('neural_controller'):
             assert '--inactive' in entity.kwargs['arguments']
     assert covered == {'joy_node', 'teleop_node', 'ros2_control_node', 'estop_controller'}
@@ -183,7 +187,32 @@ def test_gemini_passes_generated_file_explicitly_and_validates_all_names_before_
     args, kwargs = manifests[0]
     assert list(args[0]) == ['gemini_walk', 'trick_finite', 'trick_interactive', 'walk_interactive']
     assert kwargs == {'course_config_path': launch_modules.share / 'launch/config.yaml', 'combined_config_path': module.COMBINED_COURSE_CONFIG}
-    assert yaml.safe_load((launch_modules.share / 'launch/config.yaml').read_text())['estop_controller']['ros__parameters']['controller_names'] == estop_parameters(combined)['controller_names'][:4]
+    assert yaml.safe_load((launch_modules.share / 'launch/config.yaml').read_text())['estop_controller']['ros__parameters']['controller_names'] == estop_parameters(combined)['controller_names'][:5]
     # Dictionary construction must not hide a duplicate normalized trick name.
     tricks['interactive'].controller = 'trick_finite'
     with pytest.raises(ValueError, match='duplicate'): module.generate_launch_description()
+
+
+@pytest.mark.parametrize('marker', ['stop_arbitration_protocol', 'stop_arbitration_instance_id'])
+def test_course_yaml_cannot_supply_loaded_stop_capability_markers(course, marker):
+    course['estop_controller']['ros__parameters'][marker] = 'spoof'
+    with pytest.raises(ValueError, match='capability markers'):
+        combined_course_config(course, ['gemini_walk'])
+
+
+def test_only_gateway_exit_requests_whole_stack_shutdown_and_handler_is_registered_first(launch_modules):
+    module = launch_modules.load('pupper_gait_deploy/launch.py', 'course_launch_gateway_lifetime_test')
+    entities = module.generate_launch_description().args[0]
+    gateway = next(e for e in entities if type(e).__name__ == 'Node' and e.kwargs.get('executable') == 'estop_controller')
+    handlers = [e for e in entities if type(e).__name__ == 'RegisterEventHandler']
+    assert len(handlers) == 1
+    handler = handlers[0].args[0]
+    assert type(handler).__name__ == 'OnProcessExit'
+    assert handler.kwargs['target_action'] is gateway
+    on_exit = handler.kwargs['on_exit']
+    assert len(on_exit) == 1 and type(on_exit[0]).__name__ == 'EmitEvent'
+    event = on_exit[0].kwargs['event']
+    assert type(event).__name__ == 'Shutdown' and 'stop authority exited' in event.kwargs['reason']
+    assert entities.index(handlers[0]) < entities.index(gateway)
+    assert all(handler.kwargs['target_action'] is not e for e in entities
+               if type(e).__name__ == 'Node' and e.kwargs.get('executable') in ('spawner', 'camera_node'))

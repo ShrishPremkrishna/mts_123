@@ -58,6 +58,8 @@ def combined_course_config(course, added_controllers):
         manager = result['controller_manager']['ros__parameters']
         if not isinstance(params, dict) or not isinstance(manager, dict):
             raise TypeError('expected parameter mappings')
+        if {'stop_arbitration_protocol', 'stop_arbitration_instance_id'}.intersection(params):
+            raise ValueError('launch cannot override loaded stop-authority capability markers')
         for key, default in ESTOP_DEFAULTS.items():
             params.setdefault(key, default)
     except (KeyError, TypeError) as exc:

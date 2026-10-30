@@ -30,7 +30,8 @@ ROBOT_TRIMS = REPO / "robot_trims.yaml"
 # divergent source copy inside the deployment helper.
 JOY_SOURCE = REPO.parent / "pupperv3-monorepo" / "ros2_ws" / "src" / "joy_utils"
 JOY_FILES = ("src/estop_controller.cpp", "CMakeLists.txt", "package.xml",
-             "test/test_estop_parameter_contract.cpp")
+             "test/test_estop_parameter_contract.cpp", "include/joy_utils/stop_arbiter.hpp",
+             "test/test_stop_arbiter.cpp", "test/test_stop_gateway_dds.cpp", "test/test_inventory_barrier.cpp")
 
 
 def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:

@@ -1,213 +1,261 @@
+#include "joy_utils/stop_arbiter.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
-#include "rclcpp/rclcpp.hpp"
+#include "controller_manager_msgs/srv/list_controllers.hpp"
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/empty.hpp"
-#include <mutex>
-#include <thread>
+#include "std_msgs/msg/string.hpp"
+#include <future>
+#include <iomanip>
+#include <map>
+#include <random>
+#include <regex>
+#include <sstream>
 
-class EStopController : public rclcpp::Node {
-public:
-  EStopController()
-      : Node("estop_controller"), prev_estop_state_(false),
-        prev_estop_release_state_(false), service_call_in_progress_(false) {
-    // These values are cached below. Retain startup YAML/CLI overrides, but
-    // reject later writes so parameter inspection describes the active mapping.
-    rcl_interfaces::msg::ParameterDescriptor cached_configuration;
-    cached_configuration.read_only = true;
-    cached_configuration.description = "Joystick mapping cached at startup; restart to change";
+namespace pupper_stop {
+constexpr char PROTOCOL[] = "pupper_stop_v1";
+constexpr char PUBLIC_SWITCH[] = "/controller_manager/switch_controller";
+constexpr char BACKEND_SWITCH[] = "/controller_manager/switch_controller_backend";
 
-    // Declare parameters for button indices
-    this->declare_parameter<int>(
-        "estop_index", 12, cached_configuration); // Default index for pressing in right joystick
-    this->declare_parameter<int>("estop_release_index",
-                                 9, cached_configuration); // Default index for start button
-    this->declare_parameter<std::vector<long>>(
-        "switch_button_indices",
-        {0, 1}, cached_configuration); // Default indices for 'x' and 'o' buttons
-
-    // Declare parameters for controller names
-    this->declare_parameter<std::vector<std::string>>(
-        "controller_names",
-        {"neural_controller", "neural_controller_three_legged"}, cached_configuration);
-
-    // Get parameter values
-    this->get_parameter("estop_index", estop_index_);
-    this->get_parameter("estop_release_index", estop_release_index_);
-    this->get_parameter("switch_button_indices", switch_button_indices_);
-    this->get_parameter("controller_names", controller_names_);
-
-    latest_active_controller_ = controller_names_.at(0);
-
-    // Initialize previous switch states
-    prev_switch_states_.resize(switch_button_indices_.size(), false);
-
-    // Publishers
-    pub_estop_ =
-        this->create_publisher<std_msgs::msg::Empty>("/emergency_stop", 10);
-
-    // Subscriber to /joy
-    joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
-        "/joy", 10,
-        std::bind(&EStopController::joy_callback, this, std::placeholders::_1));
-
-    // Service client for switching controllers
-    switch_controller_client_ =
-        this->create_client<controller_manager_msgs::srv::SwitchController>(
-            "/controller_manager/switch_controller");
-
-    RCLCPP_INFO(this->get_logger(), "EStopController node has been started.");
+class RosSwitchPort final : public Port {
+ public:
+  using Service = controller_manager_msgs::srv::SwitchController;
+  using Client = rclcpp::Client<Service>;
+  using Inventory = controller_manager_msgs::srv::ListControllers;
+  using InventoryClient = rclcpp::Client<Inventory>;
+  RosSwitchPort(Client::SharedPtr client, InventoryClient::SharedPtr inventory,
+                rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher)
+      : client_(std::move(client)), inventory_client_(std::move(inventory)), publisher_(std::move(publisher)) {}
+  void emergency() override { publisher_->publish(std_msgs::msg::Empty{}); }
+  bool ready() override {
+    // The manager can advertise services before resources/controllers are ready.
+    // Query fresh state before dispatch, without timing startup/homing as a
+    // failed motion request. An unanswered read may be retried safely.
+    if (!client_->service_is_ready() || !inventory_client_->service_is_ready()) return false;
+    const auto now = std::chrono::steady_clock::now();
+    if (inventory_ready_) return true;
+    try {
+      if (!inventory_pending_) {
+        inventory_pending_.emplace(inventory_client_->async_send_request(std::make_shared<Inventory::Request>()));
+        inventory_deadline_ = now + std::chrono::seconds(1);
+        return false;
+      }
+      // Even a ready response is stale if no consumer polled it until after
+      // its deadline (for example a queued command expired while idle).
+      if (now >= inventory_deadline_) { clear_inventory(); return false; }
+      if (inventory_pending_->wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) return false;
+      const auto response = inventory_pending_->get(); clear_inventory();
+      if (!response) return false;
+      active_.clear(); types_.clear();
+      for (const auto &controller : response->controller) {
+        types_[controller.name] = controller.type;
+        if (controller.state == "active") active_.push_back(controller.name);
+      }
+      inventory_ready_ = true;
+      return true;
+    } catch (...) { clear_inventory(); return false; }
   }
-
-private:
-  std::string latest_active_controller_ = "";
-
-  void switch_to_controller(std::string controller_to_switch_to) {
-    std::vector<std::string> deactivate_controllers;
-    for (const auto &controller : controller_names_) {
-      if (controller != controller_to_switch_to) {
-        deactivate_controllers.push_back(controller);
+  uint64_t start(const Request &command) override {
+    if (pending_ || synthetic_.has_value()) throw std::logic_error("only one outstanding switch is permitted");
+    if (!inventory_ready_) throw std::logic_error("fresh controller inventory required");
+    inventory_ready_ = false;
+    token_ = ++next_token_;
+    // A familiar name alone cannot exempt a misconfigured motion plugin from
+    // the latch. Refuse known type mismatch locally, without a backend mutation.
+    for (const auto &name : command.activate) {
+      const char *expected = name == "joint_state_broadcaster" ? "joint_state_broadcaster/JointStateBroadcaster"
+          : name == "imu_sensor_broadcaster" ? "imu_sensor_broadcaster/IMUSensorBroadcaster" : nullptr;
+      if (expected && (types_.find(name) == types_.end() || types_.at(name) != expected)) {
+        synthetic_ = false; return token_;
       }
     }
-    latest_active_controller_ = controller_to_switch_to;
-    std::thread(&EStopController::switch_controllers_sync, this,
-                std::vector<std::string>{controller_to_switch_to},
-                deactivate_controllers,
-                /*strict=*/false)
-        .detach();
-  }
-
-  void deactivate_all_controllers_and_estop() {
-    auto empty_msg = std_msgs::msg::Empty();
-    pub_estop_->publish(empty_msg);
-    RCLCPP_INFO(this->get_logger(),
-                "Button %d pressed: Published to estop topic", estop_index_);
-    std::thread(&EStopController::switch_controllers_sync, this,
-                std::vector<std::string>{}, controller_names_,
-                /*strict=*/false)
-        .detach();
-  }
-
-  void joy_callback(const sensor_msgs::msg::Joy::SharedPtr msg) {
-    // Check if estop button is pressed
-    // TODO: Log warning if buttons is not the right size
-    bool estop_pressed = msg->buttons.size() > estop_index_ &&
-                         msg->buttons.at(estop_index_) == 1;
-    if (estop_pressed && !prev_estop_state_) {
-      deactivate_all_controllers_and_estop();
+    auto request = std::make_shared<Service::Request>();
+    request->activate_controllers = command.activate;
+    request->deactivate_controllers = command.deactivate;
+    if (command.stop) {
+      request->deactivate_controllers.clear();
+      for (const auto &name : command.deactivate)
+        if (std::find(active_.begin(), active_.end(), name) != active_.end()) request->deactivate_controllers.push_back(name);
+      if (request->deactivate_controllers.empty()) { synthetic_ = true; return token_; }
     }
-    prev_estop_state_ = estop_pressed;
-
-    // Check if estop release button is pressed
-    bool estop_release_pressed = msg->buttons.size() > estop_release_index_ &&
-                                 msg->buttons.at(estop_release_index_) == 1;
-    if (estop_release_pressed && !prev_estop_release_state_) {
-      RCLCPP_INFO(this->get_logger(),
-                  "Button %d pressed: Published to estop release topic. "
-                  "Activating latest controller: %s.",
-                  estop_release_index_, latest_active_controller_.c_str());
-      switch_to_controller(latest_active_controller_);
-    }
-    prev_estop_release_state_ = estop_release_pressed;
-
-    // Check if any controller switch buttons are pressed
-    for (size_t i = 0; i < switch_button_indices_.size(); ++i) {
-      bool button_pressed =
-          msg->buttons.size() > switch_button_indices_.at(i) &&
-          msg->buttons.at(switch_button_indices_.at(i)) == 1;
-      if (button_pressed && !prev_switch_states_.at(i)) {
-        RCLCPP_INFO(this->get_logger(), "Button %ld pressed: Switching to %s",
-                    switch_button_indices_.at(i),
-                    controller_names_.at(i).c_str());
-        switch_to_controller(controller_names_.at(i));
-      }
-      prev_switch_states_.at(i) = button_pressed;
+    request->strictness = command.strictness == 0 ? Service::Request::BEST_EFFORT : command.strictness;
+    request->timeout.sec = 1; // finite remote budget; cannot prove remote cancellation
+    pending_.emplace(client_->async_send_request(request));
+    return token_;
+  }
+  std::optional<bool> poll(uint64_t token) override {
+    if (token != token_) throw std::logic_error("response token does not identify outstanding switch");
+    if (synthetic_.has_value()) return *synthetic_;
+    if (!pending_) throw std::logic_error("missing outstanding switch");
+    if (pending_->wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) return std::nullopt;
+    auto response = pending_->get();
+    if (!response) throw std::runtime_error("missing response is an ambiguous remote outcome");
+    return response->ok;
+  }
+  void forget(uint64_t token) noexcept override {
+    if (token == token_) {
+      if (pending_) { try { client_->remove_pending_request(pending_->request_id); } catch (...) {} }
+      pending_.reset(); synthetic_.reset();
     }
   }
-
-  /**
-   * @brief Synchronously switches the active and inactive controllers.
-   *
-   * This function locks a mutex to ensure that only one service call is in
-   * progress at a time. It then creates a request to switch controllers, waits
-   * for the switch controller service to be available, and sends the request.
-   * The function logs the result of the service call.
-   *
-   * @param activate_controllers A vector of controllers to activate. If {} then
-   * none activated.
-   * @param deactivate_controllers A vector of controller names to be
-   * deactivated.
-   * @param strict A boolean indicating whether to use strict mode (true) or
-   * best effort mode (false) for switching controllers.
-   */
-  void switch_controllers_sync(
-      const std::vector<std::string> &activate_controllers,
-      const std::vector<std::string> &deactivate_controllers, bool strict) {
-    std::lock_guard<std::mutex> lock(service_call_mutex_);
-    if (service_call_in_progress_) {
-      RCLCPP_WARN(this->get_logger(), "Service call already in progress");
-      return;
-    }
-    service_call_in_progress_ = true;
-
-    auto request = std::make_shared<
-        controller_manager_msgs::srv::SwitchController::Request>();
-
-    request->activate_controllers = activate_controllers;
-    request->deactivate_controllers = deactivate_controllers;
-    request->strictness =
-        strict ? controller_manager_msgs::srv::SwitchController::Request::STRICT
-               : controller_manager_msgs::srv::SwitchController::Request::
-                     BEST_EFFORT;
-
-    if (!switch_controller_client_->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_WARN(this->get_logger(),
-                  "Switch controller service is not available");
-      service_call_in_progress_ = false;
-      return;
-    }
-
-    auto result = switch_controller_client_->async_send_request(request).get();
-    if (result->ok) {
-      RCLCPP_INFO(this->get_logger(), "Switched controllers successfully");
-    } else {
-      RCLCPP_ERROR(this->get_logger(), "Failed to switch controllers");
-    }
-    service_call_in_progress_ = false;
+ private:
+  void clear_inventory() noexcept {
+    if (inventory_pending_) { try { inventory_client_->remove_pending_request(inventory_pending_->request_id); } catch (...) {} }
+    inventory_pending_.reset();
   }
-
-  // Parameters for button indices
-  int estop_index_;
-  int estop_release_index_;
-  std::vector<long> switch_button_indices_;
-
-  // Parameters for controller names
-  std::vector<std::string> controller_names_;
-
-  // Previous button states
-  bool prev_estop_state_;
-  bool prev_estop_release_state_;
-  std::vector<bool> prev_switch_states_;
-
-  // ROS 2 publishers
-  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr pub_estop_;
-
-  // ROS 2 subscriber
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
-
-  // ROS 2 service client
-  rclcpp::Client<controller_manager_msgs::srv::SwitchController>::SharedPtr
-      switch_controller_client_;
-
-  // Mutex for service call
-  std::mutex service_call_mutex_;
-  bool service_call_in_progress_;
+  Client::SharedPtr client_;
+  InventoryClient::SharedPtr inventory_client_;
+  std::optional<InventoryClient::FutureAndRequestId> inventory_pending_;
+  std::chrono::steady_clock::time_point inventory_deadline_{};
+  std::vector<std::string> active_;
+  std::map<std::string,std::string> types_;
+  bool inventory_ready_ = false;
+  std::optional<bool> synthetic_;
+  uint64_t token_ = 0, next_token_ = 0;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_;
+  std::optional<Client::FutureAndRequestId> pending_;
 };
 
+// Weakly captured by all ROS callbacks. It owns response headers until a bounded
+// arbiter completion, and never holds a raw Node pointer or detached thread.
+class StopBridge {
+ public:
+  using Service = RosSwitchPort::Service;
+  using Server = rclcpp::Service<Service>;
+  StopBridge(std::shared_ptr<StopArbiter> worker, std::string instance,
+             rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status)
+      : worker_(std::move(worker)), instance_(std::move(instance)), publisher_(std::move(status)) {}
+  void joy(const std::vector<int32_t> &buttons) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    worker_->joy(buttons); finish(); publish();
+  }
+  void tick() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    worker_->tick(StopArbiter::Time::clock::now()); finish(); publish();
+  }
+  void request(Server::SharedPtr service, std::shared_ptr<rmw_request_id_t> header,
+               Service::Request::SharedPtr request) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (request->strictness != 0 && request->strictness != Service::Request::STRICT &&
+        request->strictness != Service::Request::BEST_EFFORT) {
+      answer(service, header, false); return;
+    }
+    Request command{false, 0, request->activate_controllers, request->deactivate_controllers};
+    command.strictness = request->strictness;
+    const auto id = worker_->submit(std::move(command), StopArbiter::Time::clock::now());
+    if (!id) answer(service, header, false);
+    else responses_.emplace(id, Response{std::move(service), std::move(header)});
+    publish();
+  }
+  void shutdown() noexcept {
+    std::lock_guard<std::mutex> lock(mutex_);
+    worker_->shutdown();
+    try { finish(); publish(); } catch (...) {}
+    for (auto &entry : responses_) answer(entry.second.service, entry.second.header, false);
+    responses_.clear();
+  }
+ private:
+  struct Response { Server::SharedPtr service; std::shared_ptr<rmw_request_id_t> header; };
+  static void answer(const Server::SharedPtr &service, const std::shared_ptr<rmw_request_id_t> &header, bool ok) noexcept {
+    try { Service::Response response; response.ok = ok; service->send_response(*header, response); } catch (...) {}
+  }
+  void finish() {
+    for (const auto &done : worker_->take_completions()) {
+      auto it = responses_.find(done.command_id);
+      if (it != responses_.end()) {
+        answer(it->second.service, it->second.header, done.ok); responses_.erase(it);
+      }
+    }
+  }
+  void publish() {
+    const auto state = worker_->status();
+    std::ostringstream json;
+    json << std::boolalpha << "{\"protocol\":\"" << PROTOCOL << "\",\"instance_id\":\"" << instance_
+         << "\",\"sequence\":" << ++sequence_ << ",\"epoch\":" << state.epoch
+         << ",\"latched\":" << state.latched << ",\"fault\":" << state.fault
+         << ",\"stop_required\":" << state.stop_required << ",\"in_flight\":" << state.in_flight
+         << ",\"unknown_remote_submission\":" << state.unknown_remote_submission
+         << ",\"shutting_down\":" << state.shutdown << "}";
+    std_msgs::msg::String message; message.data = json.str(); publisher_->publish(message);
+  }
+  std::mutex mutex_;
+  std::shared_ptr<StopArbiter> worker_;
+  std::string instance_;
+  uint64_t sequence_ = 0;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+  std::map<uint64_t, Response> responses_;
+};
+
+static std::string boot_instance() {
+  std::random_device entropy;
+  std::ostringstream value;
+  value << std::hex << std::setfill('0');
+  for (int i=0; i<4; ++i) value << std::setw(8) << static_cast<uint32_t>(entropy());
+  return value.str();
+}
+
+class EStopController : public rclcpp::Node {
+ public:
+  EStopController() : Node("estop_controller") {
+    rcl_interfaces::msg::ParameterDescriptor immutable;
+    immutable.read_only = true;
+    immutable.description = "Joystick configuration cached at startup; restart to change";
+    const int stop = declare_parameter<int>("estop_index", 12, immutable);
+    const int release = declare_parameter<int>("estop_release_index", 9, immutable);
+    const auto raw_buttons = declare_parameter<std::vector<int64_t>>("switch_button_indices", {0,1}, immutable);
+    const auto names = declare_parameter<std::vector<std::string>>("controller_names",
+        {"neural_controller", "neural_controller_three_legged"}, immutable);
+    if (stop < 0 || release < 0) throw std::invalid_argument("negative stop/release index");
+    std::vector<size_t> buttons;
+    for (auto button : raw_buttons) {
+      if (button < 0) throw std::invalid_argument("negative face-button index");
+      buttons.push_back(static_cast<size_t>(button));
+    }
+    for (const auto &name : names)
+      if (!std::regex_match(name, std::regex("[A-Za-z_][A-Za-z0-9_]*"))) throw std::invalid_argument("invalid controller name");
+    const auto instance = boot_instance();
+    declare_parameter<std::string>("stop_arbitration_protocol", PROTOCOL, immutable, true);
+    declare_parameter<std::string>("stop_arbitration_instance_id", instance, immutable, true);
+    auto port = std::make_shared<RosSwitchPort>(
+        create_client<RosSwitchPort::Service>(BACKEND_SWITCH),
+        create_client<RosSwitchPort::Inventory>("/controller_manager/list_controllers"),
+        create_publisher<std_msgs::msg::Empty>("/emergency_stop", 10));
+    auto worker = std::make_shared<StopArbiter>(port, names, buttons, stop, release,
+        std::chrono::milliseconds(1500), true); // restart never silently clears an old stop
+    auto status = create_publisher<std_msgs::msg::String>("/estop_controller/stop_status",
+        rclcpp::QoS(1).reliable().transient_local());
+    bridge_ = std::make_shared<StopBridge>(worker, instance, status);
+    std::weak_ptr<StopBridge> weak = bridge_;
+    subscription_ = create_subscription<sensor_msgs::msg::Joy>("/joy", 10,
+      [weak](sensor_msgs::msg::Joy::ConstSharedPtr message) { if (auto bridge=weak.lock()) bridge->joy(message->buttons); });
+    gateway_ = create_service<RosSwitchPort::Service>(PUBLIC_SWITCH,
+      [weak](StopBridge::Server::SharedPtr service, std::shared_ptr<rmw_request_id_t> header,
+             RosSwitchPort::Service::Request::SharedPtr request) {
+        if (auto bridge=weak.lock()) bridge->request(std::move(service),std::move(header),std::move(request));
+        else { RosSwitchPort::Service::Response response; response.ok=false; service->send_response(*header,response); }
+      });
+    timer_ = create_wall_timer(std::chrono::milliseconds(50), [weak]() { if (auto bridge=weak.lock()) bridge->tick(); });
+    bridge_->tick();
+  }
+  ~EStopController() override { stop_worker(); }
+  void stop_worker() noexcept {
+    try { if (timer_) timer_->cancel(); } catch (...) {}
+    subscription_.reset(); gateway_.reset();
+    if (bridge_) bridge_->shutdown(); bridge_.reset();
+  }
+ private:
+  std::shared_ptr<StopBridge> bridge_;
+  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
+  StopBridge::Server::SharedPtr gateway_;
+  rclcpp::TimerBase::SharedPtr timer_;
+};
+} // namespace pupper_stop
+using EStopController = pupper_stop::EStopController;
+#ifndef PUPPER_STOP_TEST
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<EStopController>();
-  rclcpp::spin(node);
-  rclcpp::shutdown();
-  return 0;
+  auto node=std::make_shared<EStopController>(); rclcpp::spin(node);
+  node->stop_worker(); node.reset(); rclcpp::shutdown(); return 0;
 }
+#endif

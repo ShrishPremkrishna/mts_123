@@ -15,6 +15,16 @@ import startup_readiness as readiness
 from runtime_config import FollowerConfig
 from controller_coverage import combined_course_config, estop_parameters
 
+STOP_INSTANCE = "0123456789abcdef0123456789abcdef"
+
+def live_estop(params):
+    return {**params, "stop_arbitration_protocol": "pupper_stop_v1", "stop_arbitration_instance_id": STOP_INSTANCE}
+
+def heartbeat(**changes):
+    return json.dumps({"protocol":"pupper_stop_v1", "instance_id":STOP_INSTANCE, "sequence":1, "epoch":1,
+        "latched":True,"fault":False,"stop_required":False,"in_flight":False,
+        "unknown_remote_submission":False,"shutting_down":False, **changes})
+
 
 def descriptor(parameter, ros_type, *, readonly=True):
     # Exact ros2cli DescribeVerb output, not YAML or a fabricated service format.
@@ -40,6 +50,7 @@ def stack(tmp_path, monkeypatch):
     manifest = tmp_path / 'runtime_manifest.json'
     course = tmp_path / 'course.yaml'
     shutil.copyfile(ROBOT_DIR.parents[1] / 'pupper_gait_deploy/config.yaml', course)
+    shutil.copyfile(ROBOT_DIR.parents[1] / 'pupper_gait_deploy/launch.py', tmp_path / 'launch.py')
     combined = tmp_path / 'combined.yaml'
     combined.write_text(yaml.safe_dump(combined_course_config(yaml.safe_load(course.read_text()), params)))
     readiness.write_launch_manifest(params, config, path=manifest,
@@ -50,16 +61,20 @@ def stack(tmp_path, monkeypatch):
             'joint_state_broadcaster joint_state_broadcaster/JointStateBroadcaster active',
             'imu_sensor_broadcaster imu_sensor_broadcaster/IMUSensorBroadcaster active']),
         ('node', 'list'): '/controller_manager\n/cmd_vel_mux\n/teleop_twist_joy_node\n/camera\n/estop_controller\n',
-        ('service', 'list'): '/controller_manager/list_controllers\n/controller_manager/switch_controller\n',
+        ('service', 'list'): '/controller_manager/list_controllers\n/controller_manager/switch_controller\n/controller_manager/switch_controller_backend\n',
         ('param', 'dump', '/estop_controller'): yaml.safe_dump({'/estop_controller': {
-            'ros__parameters': estop_parameters(yaml.safe_load(combined.read_text()))}}),
+            'ros__parameters': live_estop(estop_parameters(yaml.safe_load(combined.read_text())))}}),
+        ('node', 'info', '/controller_manager'): '/controller_manager\n  Service Servers:\n    /controller_manager/switch_controller_backend: controller_manager_msgs/srv/SwitchController\n  Service Clients:\n',
+        ('node', 'info', '/estop_controller'): '/estop_controller\n  Service Servers:\n    /controller_manager/switch_controller: controller_manager_msgs/srv/SwitchController\n  Service Clients:\n    /controller_manager/switch_controller_backend: controller_manager_msgs/srv/SwitchController\n',
+        readiness.STOP_STATUS_READ: yaml.safe_dump({'data': heartbeat()}) + '---\n',
         ('param', 'dump', '/gemini_walk'): yaml.safe_dump({'/gemini_walk': params['gemini_walk']}),
         ('param', 'dump', '/cmd_vel_mux'): yaml.safe_dump({'/cmd_vel_mux': {'ros__parameters': {
             'deadband': .05, 'timeout_ms': 500,
             'inputs': ['/teleop_cmd_vel', '/llm_cmd_vel', '/person_following_cmd_vel']}}}),
     }
     for parameter, ros_type in [('controller_names', 'string array'), ('switch_button_indices', 'integer array'),
-                                ('estop_index', 'integer'), ('estop_release_index', 'integer')]:
+                                ('estop_index', 'integer'), ('estop_release_index', 'integer'),
+                                ('stop_arbitration_protocol', 'string'), ('stop_arbitration_instance_id', 'string')]:
         responses[('param', 'describe', '/estop_controller', parameter)] = descriptor(parameter, ros_type)
     calls = []
     def run(args, **kwargs):
@@ -273,7 +288,7 @@ def policy_stack(stack, monkeypatch):
         yaml.safe_load(stack.course.read_text()), manifest['parameters'])))
     manifest['joystick'] = readiness._joystick_contract(manifest['parameters'], stack.course, stack.combined)
     stack.responses[('param', 'dump', '/estop_controller')] = yaml.safe_dump({
-        '/estop_controller': {'ros__parameters': manifest['joystick']['parameters']}})
+        '/estop_controller': {'ros__parameters': live_estop(manifest['joystick']['parameters'])}})
     stack.manifest.write_text(json.dumps(manifest))
     readonly_markers(stack, 'trick_test', [('policy_execution_status_protocol', 'string'),
                                          ('policy_execution_status_active', 'boolean')])
@@ -388,3 +403,50 @@ def test_matching_joystick_dump_does_not_prove_cached_mapping_on_old_writable_no
     assert not result['compatible'] and any('estop_controller' in error and 'descriptor' in error for error in result['errors'])
     assert all(p.read_bytes() == data for p, data in before.items())
     assert key in stack.calls  # unchanged matching values alone cannot authorize reuse
+
+
+@pytest.mark.parametrize('fault', ['manager_public', 'missing_backend', 'wrong_owner', 'old_protocol',
+    'marker_writable', 'wrong_instance', 'faulted', 'unknown', 'shutdown', 'malformed', 'missing_contract'])
+def test_shared_stop_gateway_must_be_real_and_current_without_mutations(stack, fault):
+    if fault == 'manager_public':
+        stack.responses[('node', 'info', '/controller_manager')] = 'Service Servers:\n  /controller_manager/switch_controller: controller_manager_msgs/srv/SwitchController\n'
+    elif fault == 'missing_backend':
+        stack.responses[('service', 'list')] = stack.responses[('service', 'list')].replace('/controller_manager/switch_controller_backend\n', '')
+    elif fault == 'wrong_owner':
+        stack.responses[('node', 'info', '/estop_controller')] = 'Service Servers:\n  /controller_manager/switch_controller_backend: controller_manager_msgs/srv/SwitchController\n'
+    elif fault == 'old_protocol':
+        key = ('param', 'dump', '/estop_controller'); data = yaml.safe_load(stack.responses[key])
+        data['/estop_controller']['ros__parameters']['stop_arbitration_protocol'] = 'old'
+        stack.responses[key] = yaml.safe_dump(data)
+    elif fault == 'marker_writable':
+        stack.responses[('param','describe','/estop_controller','stop_arbitration_protocol')] = descriptor('stop_arbitration_protocol','string',readonly=False)
+    elif fault == 'missing_contract':
+        manifest = json.loads(stack.manifest.read_text()); manifest.pop('stop_contract'); stack.manifest.write_text(json.dumps(manifest))
+    else:
+        changes = {'wrong_instance': {'instance_id':'f'*32}, 'faulted': {'fault':True},
+                   'unknown': {'unknown_remote_submission':True}, 'shutdown': {'shutting_down':True}}
+        payload = '{}' if fault == 'malformed' else heartbeat(**changes[fault])
+        stack.responses[readiness.STOP_STATUS_READ] = yaml.safe_dump({'data':payload})
+    before = {p:p.read_bytes() for p in (stack.manifest,stack.course,stack.combined,stack.policy)}
+    result = readiness.inspect_running_stack(run=stack.run, path=stack.manifest)
+    assert not result['compatible'] and result['errors']
+    assert all(p.read_bytes()==data for p,data in before.items())
+
+
+def test_readiness_accepts_healthy_latched_startup_without_releasing_it(stack):
+    stack.responses[readiness.STOP_STATUS_READ] = yaml.safe_dump({'data':heartbeat(latched=True,stop_required=True)})
+    assert readiness.inspect_running_stack(run=stack.run,path=stack.manifest)['compatible']
+    assert readiness.STOP_STATUS_READ in stack.calls
+    assert '--qos-durability' in readiness.STOP_STATUS_READ and 'volatile' in readiness.STOP_STATUS_READ
+
+
+@pytest.mark.parametrize('name,type_name', [
+    ('joint_state_broadcaster','joint_state_broadcaster/JointStateBroadcaster'),
+    ('imu_sensor_broadcaster','imu_sensor_broadcaster/IMUSensorBroadcaster')])
+def test_broadcaster_name_cannot_hide_a_motion_plugin(stack, name, type_name):
+    key = ('control','list_controllers')
+    stack.responses[key] = stack.responses[key].replace(name + ' ' + type_name,
+                                                       name + ' neural_controller/NeuralController')
+    result = readiness.inspect_running_stack(run=stack.run,path=stack.manifest)
+    assert not result['compatible']
+    assert any(name in error and 'type' in error for error in result['errors'])

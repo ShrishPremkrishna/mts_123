@@ -79,8 +79,9 @@ is validated before the combined launch executes. The manifest proves file and
 configuration consistency, not loaded binary compatibility or physical readiness.
 
 The combined deployment also requires the rebuilt `joy_utils` package. The
-installer stages its source, CMake, package manifest and constructor test from
-the bundled monorepo; missing inputs cause refusal before installation writes.
+installer stages its source, arbitration header, CMake, package manifest and
+constructor/core/ROS tests from the bundled monorepo; missing inputs cause
+refusal before installation writes.
 Readiness requires exactly one `/estop_controller` with the generated ordered
 `controller_names`, `switch_button_indices`, `estop_index` and
 `estop_release_index`, all with read-only parameter descriptors. Startup overrides
@@ -94,13 +95,42 @@ configured stop is right-stick press (index 12); Start (index 9) activates the
 last face-button-selected controller, initially the default. It does not restore
 the last Gemini-selected trick or merely clear a passive stop flag.
 
-The inherited joystick stop remains non-latching: holding it does not prohibit
-later activation. Same-frame face/release events and earlier detached switch
-requests can race with deactivation. The coverage/immutability fix does not
-resolve that ordering; a parameter/readiness pass is not proof that stop wins
-those cases. Keep this limit explicit during supervised testing; the
+The rebuilt joystick node is now a shared, latched software stop authority. It
+starts latched. Stop wins a whole joystick frame and cancels queued activations;
+holding Stop blocks face/Start activation. After acknowledged deactivation, let
+go and press Start freshly to activate the last face-selected controller. An
+early Start press is consumed, not saved for automatic rearming. A timeout,
+ambiguous submission or failed motion switch remains faulted until the stack is
+inspected/restarted; Start does not clear a fault.
+
+All ordinary controller switches use the public gateway. The launch remaps only
+the controller-manager node to its backend service, so controller clients in the
+same process still use the gateway. Fresh controller inventory precedes each
+switch. Only the exact joint-state and IMU broadcaster types may activate while
+latched. Direct backend access is unsupported; this is not a ROS security boundary.
+STRICT/BEST_EFFORT is retained, with a one-second backend budget and a 1.5-second
+local queue/response budget. Unknown remote outcomes are retained rather than
+retried as if no request had been sent. A known late activation is followed by a
+fresh deactivation request; software acknowledgement is not physical stopping.
+
+Readiness requires the immutable `pupper_stop_v1` marker, a fresh matching runtime
+instance, the gateway service ownership and the exact broadcaster types. The
+Gemini server blocks motion on missing/stale status (over 0.5 seconds), a latch,
+a fault or a changed authority instance. It also inhibits immediately on the
+emergency topic; repeated stop messages do not enqueue repeated switches. A
+healthy startup latch is compatible with structural readiness, but still blocks
+motion until the explicit physical release. Gateway exit requests whole-stack
+shutdown; it is not an independent physical emergency stop and need not interrupt
+hardware homing immediately.
+
+Neither an empty controller inventory nor a latched status means motor power or
+holding torque is off. The original driver retains homing targets even without
+an active motion controller. Use the operator's physical power stop when needed.
+The [isolated ROS integration evidence](../../artifacts/hardware/2026-10-29/stop-gateway-integration/reviewed-v1/review.json)
+covers arbitration and transport failure cases, not robot motion or a measured
+stopping guarantee. The earlier
 [independent joystick review](../../artifacts/hardware/2026-10-29/joystick-independent-review/review.json)
-records the unresolved behavior and required isolated tests.
+remains the historical record of the replaced non-latching implementation.
 
 ## One explicit follower
 
@@ -125,8 +155,8 @@ and timed detours are experiments, not general person identity or collision-free
 navigation. Validate their operating conditions before turning them on.
 
 Following cannot start in a walking trick or after a fall. A failure to confirm
-that following stopped refuses new motion; the stop path also tries to relax the
-controllers and reports whether that request succeeded. A physical e-stop remains
+that following stopped refuses new motion; an explicit stop also requests
+controller deactivation through the gateway and reports whether it succeeded. A physical e-stop remains
 necessary if ROS or the hardware stops responding. On a tool-server restart,
 the server first turns off any follower left running by its predecessor. It
 refuses motion until shutdown is confirmed; use stop to retry after service repair.

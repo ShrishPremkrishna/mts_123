@@ -412,6 +412,8 @@ estop_controller:
         "neural_controller_three_legged",
         "neural_controller",
         "neural_controller_student",
+        # No additional face button: trailing names extend stop coverage only.
+        "neural_controller_default_alt",
       ]
 
 

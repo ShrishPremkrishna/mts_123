@@ -15,6 +15,8 @@
 
   <depend>rclcpp</depend>
   <depend>rcl_interfaces</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>controller_manager_msgs</depend>
 
