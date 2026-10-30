@@ -22,14 +22,19 @@ fix builds in a separate Pi overlay and passes five lifecycle tests. A subsequen
 passed without enabling motors or homing; full activated-stack shutdown remains a
 separate check. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
 
-The robot is currently inactive. No neural gait, trick or following policy has run.
+The robot is currently inactive, with relaxed legs confirmed by the operator.
+The [first combined console trial](results/console-motion-trial-20261029-reviewed.json)
+completed homing, activated the preserved default controller briefly, then logged
+emergency stop and hardware deactivation. Its recorder failed on a real ROS array
+type, losing detailed telemetry; the trial is incomplete. Repeated SIGINT during
+shutdown ended the manager with exit -2, so graceful activated-driver teardown
+also remains unproven. The frozen inputs and all surviving logs are preserved;
+recorder and shutdown review are in progress before any further motion.
+
 The [shared gamepad/Gemini stop gateway](results/shared-stop-v4-pi-reviewed.json)
 has passed independent review and is staged in v4: all ten native ROS test groups,
-366 Gemini tests and 166 course checks pass on the Pi. Physical stop behavior remains
-unverified; the previous v3 software does not resolve the stop/queued-activation race.
-The [bounded console trial](results/console-motion-trial-prepared.json) is prepared
-and independently reviewed; fresh operator approval is pending. The physical
-gamepad remains untested. New trained policies still
+366 Gemini tests and 166 course checks pass on the Pi. The physical gamepad,
+walking performance, tricks and following remain untested. New trained policies still
 need applicable course approval. The [stationary preparation record](results/hardware-session-20261029-reviewed.json)
 preserves earlier backups, policy recovery, native builds, CPU policy comparisons
 and synthetic Hailo inference. Live camera following and Gemini remain separate

@@ -402,13 +402,13 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T05:58:39.939786+00:00",
-    "authorization": "User returned and authorized original homing while beside power disconnect. Homing and shutdown observations confirmed. Software integration and nonmoving checks authorized; announce and obtain readiness for another concrete motion step.",
+    "updated_utc": "2026-10-30T06:09:13.417304+00:00",
+    "authorization": "Combined homing/0.75-second partial stock-pose/stop trial explicitly approved and executed once. Operator confirms normal motion and relaxed legs. Routine software repair and read-only checks authorized; no automatic motion retry.",
     "automation_status": "PAUSED",
     "ssh": "mts",
     "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "canonical_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
-    "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically.",
+    "canonical_report": "foundation/results/console-motion-trial-20261029-reviewed.json",
+    "current_state": "Owned manager/launch/probe/supervisor absent; driver lock absent on fresh read-only check. Operator confirms legs relaxed. No robot motion process active.",
     "first_homing": {
       "nodes": [
         "baseline robot_state_publisher",
@@ -424,26 +424,27 @@
       "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically."
     },
     "agents": {
-      "lab6_recovery": "Completed and independently reviewed; no active delegated job.",
-      "optional_recovery": "Completed and independently reviewed; no active delegated job.",
-      "sit_recovery": "Completed and independently reviewed; no active delegated job."
+      "lab6_recovery": "Additive recorder repair and actual ROS serialization tests; no hardware actions.",
+      "optional_recovery": "Independent recorder and repeated-SIGINT review; no hardware actions.",
+      "sit_recovery": "Narrow activated-driver teardown evidence review; no hardware actions."
     },
     "next": [
-      "Obtain fresh explicit readiness for the prepared combined homing/0.75second partial-pose/stop/shutdown trial.",
-      "Only after approval invoke exact prepared supervisor command once; inspect live run records before retrying anything.",
-      "Collect user observation and raw telemetry, verify all owned processes exited and motor holding disabled.",
-      "Continue conservatively; new trained policies still need applicable course approval."
+      "Preserve frozen v1; additive recorder repair must pass actual ROS message serialization without ROS initialization/hardware.",
+      "Resolve or explicitly isolate repeated SIGINT shutdown behavior before claiming graceful driver teardown.",
+      "Independent review and native non-hardware checks before proposing any further motion.",
+      "No automatic retry; next concrete motor test needs fresh operator readiness."
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
     "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
-    "jobs": "All builds/tests/native harmless-process checks/preservation complete. No robot manager or policy active. Fresh combined motion approval pending.",
+    "jobs": "Recorder v5 and shutdown failure review in progress locally; no hardware execution pending or scheduled.",
     "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
     "gamepad_preference": "Unavailable in kernel input inventory. User has one but prefers console operation for now. No physical-gamepad claim.",
     "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later.",
-    "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json"
+    "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json",
+    "console_trial_result": "foundation/results/console-motion-trial-20261029-reviewed.json"
   },
   "current_phase": "hardware_session",
-  "current_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
+  "current_report": "foundation/results/console-motion-trial-20261029-reviewed.json",
   "previous_hardware_sessions": [
     {
       "date": "2026-10-29",

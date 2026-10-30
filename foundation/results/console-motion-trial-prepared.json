@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "updated_utc": "2026-10-30T05:58:39.939786+00:00",
-  "status": "prepared_awaiting_fresh_combined_motion_approval",
+  "updated_utc": "2026-10-30T06:09:13.417304+00:00",
+  "status": "executed_once_see_actual_result",
   "user_preference": "User has a gamepad but prefers proceeding without configuring it. Console-generated Joy is explicit operator testing, not a physical-gamepad validation.",
   "planned_trial": [
     "Original unchanged driver homing on stand.",
@@ -63,5 +63,6 @@
     "checked_files": 62,
     "mismatches": [],
     "scope": "Read-only rehash of selected original baseline files after v4 staging"
-  }
+  },
+  "actual_result": "foundation/results/console-motion-trial-20261029-reviewed.json"
 }

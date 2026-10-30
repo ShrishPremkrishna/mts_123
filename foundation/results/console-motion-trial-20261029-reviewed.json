@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T06:09:13.417304+00:00",
+  "status": "executed_once_incomplete_recording_failed",
+  "run": "20261030T060218Z-583f001414ae405bac5681f5ef59084c",
+  "approval": "User explicitly approved combined original homing, 0.75-second partial stock-pose initialization, automatic stop and shutdown immediately before this one execution.",
+  "operator_observation": {
+    "answer": "Looked normal; legs are relaxed",
+    "scope": "Operator observation after trial; not an instrumented trajectory or force measurement."
+  },
+  "observed": {
+    "homing": "All twelve actuator homing messages followed by Finished homing and successful hardware activation.",
+    "homing_log_duration_s": 3.891376533,
+    "default_activation_log_unix_s": 1793340148.8652673,
+    "first_emergency_stop_log_unix_s": 1793340149.457621,
+    "controller_deactivation_log_unix_s": 1793340149.5446253,
+    "activation_to_first_emergency_log_s": 0.592353836,
+    "activation_to_controller_deactivation_log_s": 0.679357908,
+    "hardware_deactivation_log_unix_s": 1793340150.106618,
+    "destructor_side_deactivation_log_unix_s": 1793340150.1443295,
+    "manager_exit_code": -2,
+    "manager_exit_interpretation": "Terminated by SIGINT. No old std::terminate/exit -6 observed, but this is not proof of complete graceful destructor/thread cleanup.",
+    "supervisor_cleanup": "Manager and launch exited; nonblocking driver-lock check available.",
+    "fresh_read_only_process_check_utc": "2026-10-30T06:06:32.301040+00:00",
+    "fresh_manager_or_owned_process_matches": [],
+    "driver_lock_path_exists_at_fresh_check": false
+  },
+  "failure": {
+    "cause": "console_init_stop_probe.py stores real sensor_msgs/Joy.buttons as array.array; final json.dumps raises TypeError.",
+    "consequence": "probe.json absent; raw joint/IMU/status/command receipts lived only in process memory and are unavailable.",
+    "test_gap": "Fake/static probe and mocked supervisor tests did not exercise final serialization with actual ROS message containers.",
+    "sequence_verdict": "Incomplete. Cannot certify exact Start-to-Stop publication interval, fresh inactive/latch dwell, target/actual joint excursion, or measured physical stopping from the surviving logs.",
+    "shutdown_review": "First launch SIGINT logged1793340150.0990748; second1793340150.2073359; manager -2 logged1793340150.2099421. Consistent with probe finally then fixed watchdog re-signaling during teardown; causal diagnosis remains under review."
+  },
+  "claims": {
+    "physical_gamepad_tested": false,
+    "new_trained_policy_executed": false,
+    "gait_performance_validated": false,
+    "full_graceful_activated_stack_shutdown_proven": false,
+    "foundation_hardware_validated": false
+  },
+  "preservation": {
+    "local_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/console-trial-20261030T060218Z",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/console-trial-20261030T060218Z",
+    "archive": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T060218Z-583f001414ae405bac5681f5ef59084c.tar.gz",
+      "bytes": 13447,
+      "sha256": "46f73c13d10f11a566e7e1480ead3444a15df9b28aa663c90d0be0f0c7d0d9ce"
+    },
+    "files_verified": 21,
+    "collection_sha256": "af9e4397a4c55b15fd40776a5d4e46c9499c3a5c7ca5a49b5655637f4d7600a1"
+  },
+  "next": [
+    "Preserve frozen v1; additive recorder repair must pass actual ROS message serialization without ROS initialization/hardware.",
+    "Resolve or explicitly isolate repeated SIGINT shutdown behavior before claiming graceful driver teardown.",
+    "Independent review and native non-hardware checks before proposing any further motion.",
+    "No automatic retry; next concrete motor test needs fresh operator readiness."
+  ]
+}
