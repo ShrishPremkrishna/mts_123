@@ -369,18 +369,23 @@ def test_graceful_shutdown_stops_autonomous_work_and_finishes_worker(autonomous)
     run_case(case)
 
 
-def test_gamepad_stop_does_not_erase_fall_evidence(monkeypatch):
+def test_gamepad_stop_does_not_erase_fall_evidence():
     async def case(rig):
-        scheduled = []
-        def remember(coroutine, loop):
-            scheduled.append(coroutine)
-        monkeypatch.setattr(robot_api.asyncio, 'run_coroutine_threadsafe', remember)
         rig.ts.fallen = LOCOMOTION_CONTROLLER
         rig.ts._on_estop(None)
         assert rig.ts.fallen == LOCOMOTION_CONTROLLER
-        await scheduled[0]
+        for _ in range(10):
+            await asyncio.sleep(0)
         assert rig.ts.fallen == LOCOMOTION_CONTROLLER
-        # No IMU evidence: stand-up must still be refused after the e-stop.
+        # Simulate a later physical release; shared stop clearance must not erase
+        # independent fall evidence or substitute for the required IMU checks.
+        rig.robot.stop_status.update(epoch=2, latched=True, stop_required=True)
+        rig.robot.emit_stop_status()
+        for _ in range(10):
+            await asyncio.sleep(0)
+        rig.robot.stop_status.update(latched=False, stop_required=False)
+        rig.robot.emit_stop_status()
+        assert rig.ts.motion_block_reason() is None
         assert not (await rig.ts.switch_to(LOCOMOTION_CONTROLLER)).ok
     run_case(case)
 

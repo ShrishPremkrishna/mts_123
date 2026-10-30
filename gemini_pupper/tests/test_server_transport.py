@@ -291,3 +291,31 @@ def test_lifespan_uses_explicit_fake_and_shuts_down_without_hardware(server, mon
         assert server.tools is None
         assert state == {"constructed": 1, "shutdown": 1, "detection_cancelled": True}
     asyncio.run(case())
+
+
+@pytest.mark.parametrize('condition', ['latched', 'fault', 'stale', 'empty_before_status'])
+def test_browser_and_gemini_transport_obey_shared_stop_while_stop_stays_available(server, condition):
+    async def case():
+        async with client_with_rig(server) as (client, rig):
+            if condition == 'stale':
+                rig.robot.stop_status_enabled = False
+                rig.clock.now += .501
+            elif condition == 'empty_before_status':
+                rig.robot.send('/emergency_stop', harness._Msg())
+            else:
+                rig.robot.stop_status.update(epoch=2, latched=True, stop_required=True,
+                                             fault=condition == 'fault')
+                rig.robot.emit_stop_status()
+            before = list(rig.robot.switches)
+            for endpoint, body in [('/tools/stand_up', {}), ('/move/velocity', {
+                    'forward_backward_velocity': .2, 'right_left_velocity': 0.,
+                    'turning_velocity': 0., 'duration': .1})]:
+                response = await client.post(endpoint, json=body)
+                assert response.status_code == 200 and response.json()['success'] is False
+            stopped = await client.post('/stop/immediate')
+            assert stopped.status_code == 200
+            assert isinstance(stopped.json()['success'], bool)
+            assert await rig.settle()
+            assert rig.robot.switches == before
+            assert not harness.walk_twists(rig)
+    asyncio.run(case())

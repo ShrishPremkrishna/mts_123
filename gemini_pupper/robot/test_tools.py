@@ -80,6 +80,13 @@ class FakeRobot:
 
     def __init__(self, clock: "VirtualClock"):
         self.clock = clock
+        # Offline fixture explicitly starts physically released. Production starts
+        # latched; tests can disable heartbeats or inject every blocked state.
+        self.stop_status_enabled = True
+        self.stop_status = dict(protocol="pupper_stop_v1", instance_id="1" * 32,
+            sequence=0, epoch=1, latched=False, fault=False, stop_required=False,
+            in_flight=False, unknown_remote_submission=False, shutting_down=False)
+        self.clock.on_advance.append(self.emit_stop_status)
         self.controllers: dict[str, str] = {}
         self.published: list[tuple[float, str, object]] = []  # (time, topic, msg)
         self.switches: list[tuple[float, list[str], list[str]]] = []  # (time, deactivated, activated)
@@ -96,6 +103,12 @@ class FakeRobot:
         self.clock.on_advance.append(self.emit_finite_status)
         self.pending_reference = None
         self.clock.on_advance.append(self.emit_reference_status)
+
+    def emit_stop_status(self) -> None:
+        if not self.stop_status_enabled:
+            return
+        self.stop_status["sequence"] += 1
+        self.send("/estop_controller/stop_status", _DataMsg(json.dumps(self.stop_status)))
 
     def emit_finite_status(self) -> None:
         """Finite ClipPlayer feedback follows virtual time, not service success."""
@@ -177,6 +190,9 @@ class FakeRobot:
         if service.endswith("list_controllers"):
             return _Msg(controller=[_Msg(name=n, state=s) for n, s in self.controllers.items()])
         if service.endswith("switch_controller"):
+            if req.activate_controllers and any(self.stop_status[k] for k in
+                    ("latched", "fault", "stop_required", "unknown_remote_submission", "shutting_down")):
+                return _Msg(ok=False)  # public gateway remains authoritative at dispatch
             for c in req.deactivate_controllers:
                 self.controllers[c] = "inactive"
                 self.finite_started.pop(c, None)
@@ -302,6 +318,19 @@ class _Node:
 
     def create_subscription(self, msg_type, topic, cb, qos):
         ROBOT.subs.setdefault(topic, []).append(cb)
+        if topic == "/estop_controller/stop_status":
+            ROBOT.emit_stop_status()  # transient-local initial state
+
+    def create_timer(self, period, callback):
+        timer = _Msg(cancelled=False, next_at=ROBOT.clock.now + period)
+        timer.cancel = lambda: setattr(timer, "cancelled", True)
+        clock = ROBOT.clock
+        def tick():
+            if not timer.cancelled and clock.now >= timer.next_at:
+                timer.next_at = clock.now + period
+                callback()
+        clock.on_advance.append(tick)
+        return timer
 
 
 class _Executor:
@@ -320,6 +349,8 @@ def _install_fake_ros() -> None:
 
     mod("rclpy", ok=lambda: True, init=lambda: None)
     mod("rclpy.node", Node=_Node)
+    mod("rclpy.qos", QoSProfile=lambda **kwargs: _Msg(**kwargs),
+        ReliabilityPolicy=_Msg(RELIABLE=1), DurabilityPolicy=_Msg(TRANSIENT_LOCAL=1))
     mod("rclpy.executors", SingleThreadedExecutor=_Executor)
     mod("controller_manager_msgs")
     mod("controller_manager_msgs.srv", ListControllers=_Srv, SwitchController=_SwitchController)
@@ -476,8 +507,13 @@ class Rig:
             self.robot.send("/imu_sensor_broadcaster/imu", _Msg(
                 orientation=_Quat(x=math.sin(h), w=math.cos(h)), angular_velocity=_Vec(x=spin)))
             self.clock.now += 0.01
+            self.robot.emit_stop_status()
 
     def close(self):
+        self.ts.closing = True
+        self.ts._stop_timer.cancel()
+        if self.ts._stop_cleanup_task is not None:
+            self.ts._stop_cleanup_task.cancel()
         self.ts.worker.cancel()
 
 

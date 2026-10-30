@@ -67,6 +67,7 @@ from controller_manager_msgs.srv import ListControllers, SwitchController
 from geometry_msgs.msg import Twist
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rcl_interfaces.msg import Log, Parameter, ParameterType, ParameterValue
 from rcl_interfaces.srv import SetParameters
 from sensor_msgs.msg import CompressedImage, Imu
@@ -75,9 +76,15 @@ from std_srvs.srv import Trigger
 
 from spawn_controllers import LOADED, spawn
 from secret_gate import SecretGate
+from stop_status import StopStatus, TOPIC as STOP_STATUS_TOPIC
 from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
 
 log = logging.getLogger("robot_api")
+
+
+class MotionBlockedError(RuntimeError):
+    """No motion command was sent because the shared stop authority refused it."""
+
 
 # The locomotion controller Gemini drives: gemini_walk, the course default policy
 # (the joystick's X button) loaded by our launch file with running allowed and
@@ -227,7 +234,6 @@ class Robot:
 
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(self.node)
-        threading.Thread(target=self.executor.spin, daemon=True).start()
 
         self.tricks: dict[str, Trick] = load_tricks()
         self.secret_gate = SecretGate()
@@ -250,10 +256,14 @@ class Robot:
         self.busy_until = 0.0  # monotonic time when the queued work should finish
         self.stops = 0  # how many times stop (or the e-stop) has run
         self.worker = asyncio.get_event_loop().create_task(self._run_queue())
-        # The gamepad e-stop (right-stick press) relaxes the course's joystick
-        # controllers and publishes /emergency_stop. The controllers used here
-        # (walking, tricks) are not on its list, so relax them too.
+        # The shared gateway owns controller deactivation for a gamepad stop.
+        # Unknown/stale status blocks motion even when this server just restarted.
         self.loop = asyncio.get_event_loop()
+        self._stop_status = StopStatus()
+        self._stop_lock = threading.RLock()
+        self._stop_cleanup_scheduled = False
+        self._stop_cleanup_episode = None
+        self._stop_cleanup_task = None
         self.node.create_subscription(Empty, "/emergency_stop", self._on_estop, 10)
         self.gamepad_estop_at = 0.0  # monotonic time of the last gamepad e-stop
         # Tilt e-stops: the controller that latched one, until a safe stand-up clears it.
@@ -261,7 +271,106 @@ class Robot:
         self.imu: collections.deque = collections.deque()  # (monotonic t, tilt deg, gyro rad/s)
         self.node.create_subscription(Imu, "/imu_sensor_broadcaster/imu", self._on_imu, 10)
         self.node.create_subscription(Log, "/rosout", self._on_rosout, 100)
+        stop_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                              durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.node.create_subscription(String, STOP_STATUS_TOPIC, self._on_stop_status, stop_qos)
+        self._stop_timer = self.node.create_timer(0.1, self._stop_watchdog)
+        threading.Thread(target=self.executor.spin, daemon=True).start()
         log.info("tool server ready: %d tricks, locomotion controller %s", len(self.tricks), LOCOMOTION_CONTROLLER)
+
+    def motion_block_reason(self) -> str | None:
+        if self.closing:
+            return "tool server is shutting down; no new motion is accepted"
+        if self.startup_error:
+            return self.startup_error
+        if self.controller_fault:
+            return self.controller_fault
+        if self.follow_state_uncertain:
+            return "follower state is unknown; stop following and inspect the service before new motion"
+        with self._stop_lock:
+            reason = self._stop_status.reason(time.monotonic())
+            if reason:
+                return reason
+            if self._stop_cleanup_scheduled:
+                return "shared-stop command cleanup is still in progress"
+        return None
+
+    def _require_motion(self) -> None:
+        reason = self.motion_block_reason()
+        if reason:
+            raise MotionBlockedError(reason)
+
+    def _publish_motion(self, publisher, message) -> None:
+        # Serialize local receipt processing with the final publish decision.
+        # Already-published ROS messages cannot be recalled; the gateway remains
+        # authoritative for activation and physical stopping is not inferred.
+        with self._stop_lock:
+            self._require_motion()
+            publisher.publish(message)
+
+    def _on_stop_status(self, msg: String) -> None:
+        with self._stop_lock:
+            self._stop_status.accept(str(msg.data), time.monotonic())
+            blocked = self._stop_status.reason(time.monotonic()) is not None
+            if not blocked:
+                self._stop_cleanup_episode = None
+        if blocked:
+            self._request_shared_stop_cleanup()
+
+    def _stop_watchdog(self) -> None:
+        if self.closing:
+            return
+        with self._stop_lock:
+            blocked = self._stop_status.reason(time.monotonic()) is not None
+        if blocked:
+            self._request_shared_stop_cleanup()
+
+    def _request_shared_stop_cleanup(self) -> None:
+        # ROS callbacks run on a different thread: inhibit and coalesce before
+        # scheduling anything on asyncio. Repeated 20 Hz status/10 Hz Empty
+        # messages never create an unbounded family of cleanup coroutines.
+        with self._stop_lock:
+            if self.closing:
+                return
+        self.send_speed(0, 0, 0)
+        with self._stop_lock:
+            episode = self._stop_status.episode()
+            if self.closing or self._stop_cleanup_episode == episode:
+                return
+            self._stop_cleanup_episode = episode
+            if self._stop_cleanup_scheduled:
+                return  # the single cleanup already covers this later stop
+            self._stop_cleanup_scheduled = True
+        self.loop.call_soon_threadsafe(self._start_shared_stop_cleanup)
+
+    def _start_shared_stop_cleanup(self) -> None:
+        if self.closing:
+            with self._stop_lock:
+                self._stop_cleanup_scheduled = False
+            return
+        async def cleanup():
+            try:
+                self.stops += 1
+                self.secret_gate.lock()
+                self.send_speed(0, 0, 0)
+                await self.clear_queue()
+                if self.current is not None and not self.current.done():
+                    self.current.cancel()
+                self.state_after_queue = self.state_now
+                follower = await self.stop_following()
+                self.send_speed(0, 0, 0)
+                if not follower.ok:
+                    log.warning("shared stop follower cleanup: %s", follower.message)
+                # Never send a switch RPC here. The gateway owns stop ordering;
+                # an old cleanup must not deactivate a subsequent physical release.
+            except Exception:
+                self.follow_state_uncertain = True
+                log.exception("shared stop command cleanup failed; motion remains blocked")
+            finally:
+                with self._stop_lock:
+                    self._stop_cleanup_scheduled = False
+                self._stop_cleanup_task = None
+        self._stop_cleanup_task = asyncio.create_task(cleanup())
 
     # ---------------------------------------------------------------- time
     def now(self) -> float:
@@ -399,15 +508,33 @@ class Robot:
 
     async def _call(self, client, request, timeout: float = 3.0):
         # A blocking wait here would prevent the stop tool from being handled.
+        follower_activation = client is self.follow_on
+        activation = follower_activation or (client is self.switch_client and bool(getattr(request, "activate_controllers", [])))
+        if activation:
+            self._require_motion()
         deadline = time.monotonic() + timeout
         while not client.wait_for_service(timeout_sec=0.0):
+            if activation:
+                self._require_motion()
             if time.monotonic() >= deadline:
                 return None
             await asyncio.sleep(0.02)
-        future = client.call_async(request)
+        if activation:
+            self._require_motion()
+        try:
+            if activation:
+                with self._stop_lock:
+                    self._require_motion()
+                    future = client.call_async(request)
+            else:
+                future = client.call_async(request)
+        except MotionBlockedError:
+            raise  # known local refusal, not an unknown remote submission
+        except Exception:
+            if activation:
+                self.controller_fault = "activation submission failed with unknown outcome; inspect/restart the stack before new motion"
+            raise
         deadline = time.monotonic() + timeout
-        follower_activation = client is self.follow_on
-        activation = follower_activation or (client is self.switch_client and bool(getattr(request, "activate_controllers", [])))
         try:
             while not future.done() and time.monotonic() < deadline:
                 await asyncio.sleep(0.02)
@@ -472,8 +599,8 @@ class Robot:
         keeping robot.state_now up to date.
         """
         generation = self.stops
-        if controller and self.controller_fault:
-            return Result(False, self.controller_fault)
+        if controller and (reason := self.motion_block_reason()):
+            return Result(False, reason)
         if controller and self.stopped_during_call():
             return Result(False, "controller change cancelled by a stop")
         activate = [controller] if controller else []
@@ -556,6 +683,8 @@ class Robot:
                 await self._wait_walk_ready()
             if activate and generation != self.stops:
                 return Result(False, "controller change cancelled by a stop")
+            if activate and (reason := self.motion_block_reason()):
+                return Result(False, reason)
             if recovered:
                 self.fallen = None
             return Result(True, recovered + "already in that state")
@@ -571,7 +700,10 @@ class Robot:
             self.clip_status.pop(controller, None)
             self.clip_requests[controller] = "none"
             self.policy_activation_since[controller] = time.monotonic()
-        res = await self._call(self.switch_client, req)
+        try:
+            res = await self._call(self.switch_client, req)
+        except MotionBlockedError as error:
+            return Result(False, str(error))
         if activate and generation != self.stops:
             # A ROS request already in flight can finish after a stop; explicitly
             # remove that late activation before accepting another request.
@@ -591,8 +723,6 @@ class Robot:
                 return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
             return Result(False, f"controller switch failed (activate {activate}): {why}")
         self.state_now = self.state_of(controller)
-        if recovered:
-            self.fallen = None
         if LOCOMOTION_CONTROLLER in req.activate_controllers:
             self.walk_since = time.monotonic()
         if LOCOMOTION_CONTROLLER in req.deactivate_controllers:
@@ -601,6 +731,10 @@ class Robot:
             await self._wait_walk_ready()
         if activate and generation != self.stops:
             return Result(False, "controller change cancelled by a stop")
+        if activate and (reason := self.motion_block_reason()):
+            return Result(False, reason)
+        if recovered:
+            self.fallen = None
         return Result(True, recovered + "ok")
 
     def state_of(self, controller: str | None) -> str | Trick:
@@ -680,8 +814,14 @@ class Robot:
         """One speed command to the locomotion policy: vx forward m/s, vy left m/s,
         wz_deg counter-clockwise deg/s. cmd_vel_mux forgets it after 0.5 s."""
         t = Twist()
-        t.linear.x, t.linear.y, t.angular.z = float(vx), float(vy), float(wz_deg) / 57.2958
-        self.cmd_pub.publish(t)
+        values = (float(vx), float(vy), float(wz_deg))
+        with self._stop_lock:
+            reason = self.motion_block_reason() if any(values) else None
+            if any(values) and (reason or self.fallen):
+                self.cmd_pub.publish(t)  # clear a previous velocity before refusing
+                raise MotionBlockedError(reason or "motion refused after a fall")
+            t.linear.x, t.linear.y, t.angular.z = values[0], values[1], values[2] / 57.2958
+            self.cmd_pub.publish(t)
 
     async def _adopt_running_state(self) -> None:
         """A restarted server finds the legs as the last one left them: start from
@@ -717,7 +857,11 @@ class Robot:
             name, job, then = await self.commands.get()
             self._running_job_then = then
             token = CALL_STOPS.set(self.stops)
-            self.current = asyncio.create_task(job())
+            async def guarded_job():
+                if then != MOTORS_IDLE and (reason := self.motion_block_reason()):
+                    return Result(False, reason)
+                return await job()
+            self.current = asyncio.create_task(guarded_job())
             CALL_STOPS.reset(token)
             try:
                 res = await self.current
@@ -766,6 +910,8 @@ class Robot:
             return Result(False, f"{name} not queued: a stop came in while this request was being handled")
         if self.follow_state_uncertain:
             return Result(False, "motion blocked: could not confirm that the follower stopped; use stop and check the follower service")
+        if then != MOTORS_IDLE and (reason := self.motion_block_reason()):
+            return Result(False, reason)
         if not math.isfinite(seconds) or seconds < 0:
             return Result(False, "queue duration estimate must be finite and nonnegative")
         if then is not UNCHANGED:
@@ -865,8 +1011,10 @@ class Robot:
 
     async def play_clip(self, trick: Trick, clip: str) -> Result:
         """Require playback feedback for this explicit clip request and activation."""
-        if self.fallen or self.stopped_during_call() or self.controller_fault:
-            return Result(False, self.controller_fault or "clip refused after a fall or stop")
+        if reason := self.motion_block_reason():
+            return Result(False, reason)
+        if self.fallen or self.stopped_during_call():
+            return Result(False, "clip refused after a fall or stop")
         try:
             endpoint, minimum_playback = self._clip_endpoint(trick, clip)
         except (ValueError, StopIteration) as error:
@@ -878,11 +1026,16 @@ class Robot:
         requested_at = time.monotonic()
         generation = self.stops
         longest = max((trick.clip_length(c["name"]) for c in trick.clips), default=0.0)
-        self.clip_pubs[trick.controller].publish(String(data=f"pupper_clip_v1 {request_id} {clip}"))
+        try:
+            self._publish_motion(self.clip_pubs[trick.controller], String(data=f"pupper_clip_v1 {request_id} {clip}"))
+        except MotionBlockedError as error:
+            return Result(False, str(error))
         deadline = requested_at + longest + minimum_playback + 1.0
         while True:
-            if generation != self.stops or self.fallen or self.stopped_during_call() or self.controller_fault:
-                return Result(False, self.controller_fault or "clip interrupted by a fall or stop")
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
+            if generation != self.stops or self.fallen or self.stopped_during_call():
+                return Result(False, "clip interrupted by a fall or stop")
             if self._matches_clip_endpoint(trick.controller, endpoint, request_id, requested_at + minimum_playback):
                 return Result(True, f"played {clip}")
             if time.monotonic() >= deadline:
@@ -903,6 +1056,8 @@ class Robot:
             return Result(False, "finite playback endpoint metadata unavailable")
         deadline = time.monotonic() + 1.0
         while True:
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
             if self.fallen or self.stopped_during_call() or self.controller_fault:
                 return Result(False, self.controller_fault or "finite playback interrupted by a fall or stop")
             receipt = self.clip_receipts.get(trick.controller)
@@ -932,6 +1087,8 @@ class Robot:
         earliest = (began + TRICK_INIT_S + TRICK_FADE_S + minimum_playback) if began is not None else float("inf")
         deadline = time.monotonic() + 1.0
         while True:
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
             if self.fallen or self.stopped_during_call() or self.controller_fault:
                 return Result(False, self.controller_fault or "clip transition interrupted by a fall or stop")
             if self._matches_clip_endpoint(trick.controller, endpoint, "none", earliest):
@@ -949,16 +1106,16 @@ class Robot:
         A receipt confirms the reference clock completed, not physical flight,
         landing or posture. Missing receipts leave motion outcome uncertain.
         """
-        if self.controller_fault:
-            return Result(False, self.controller_fault)
+        if reason := self.motion_block_reason():
+            return Result(False, reason)
         reference = reference_message_data(trick)
         res = await self.switch_to(LOCOMOTION_CONTROLLER)
         if not res.ok:
             return res
         self.send_speed(0, 0, 0)
         await asyncio.sleep(0.5)
-        if self.controller_fault:
-            return Result(False, self.controller_fault)
+        if reason := self.motion_block_reason():
+            return Result(False, reason)
         if self.fallen or self.stopped_during_call():
             return Result(False, "reference motion cancelled by a fall or stop")
         generation = self.stops
@@ -974,12 +1131,15 @@ class Robot:
             relaxed = await self._relax_controllers()
             return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
         try:
-            self.ref_pub.publish(request)
+            try:
+                self._publish_motion(self.ref_pub, request)
+            except MotionBlockedError as error:
+                return Result(False, str(error))
             acknowledgement_deadline = time.monotonic() + 1.0
             completion_deadline = time.monotonic() + float(reference[1]) + 2.0
             while True:
-                if self.controller_fault:
-                    return Result(False, self.controller_fault)
+                if reason := self.motion_block_reason():
+                    return Result(False, reason)
                 if generation != self.stops or self.stopped_during_call() or self.fallen:
                     return Result(False, "reference playback interrupted by a fall or stop")
                 receipt = self.reference_status
@@ -999,8 +1159,8 @@ class Robot:
             # Preserve the class's post-reference settle interval. It is a wait,
             # not evidence of measured posture or a successful physical landing.
             await asyncio.sleep(max(0.0, trick.total_time - float(reference[1])))
-            if self.controller_fault:
-                return Result(False, self.controller_fault)
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
             if generation != self.stops or self.stopped_during_call() or self.fallen:
                 return Result(False, "reference playback interrupted by a fall or stop")
             return Result(True, f"controller completed {trick.name} reference playback")
@@ -1024,8 +1184,8 @@ class Robot:
         await self.ready.wait()
         if enabled and self.startup_error:
             return Result(False, self.startup_error)
-        if enabled and self.controller_fault:
-            return Result(False, self.controller_fault)
+        if enabled and (reason := self.motion_block_reason()):
+            return Result(False, reason)
         if not enabled:
             result = await self.stop_following()
             self.send_speed(0, 0, 0)
@@ -1056,7 +1216,10 @@ class Robot:
         self.state_after_queue = LOCOMOTION
         if self.stopped_during_call():  # stop came in while the legs were switching
             return Result(False, "stopped before follow mode started; not following")
-        r = await self._call(self.follow_on, Trigger.Request())
+        try:
+            r = await self._call(self.follow_on, Trigger.Request())
+        except MotionBlockedError as error:
+            return Result(False, str(error))
         if r is None or not r.success:
             # A timed-out activation might still have reached the service. Confirm
             # deactivation before future movement; don't equate no reply with off.
@@ -1067,7 +1230,7 @@ class Robot:
             return Result(False, "person_follower did not confirm startup; " + stopped.message
                           + (f". {self.controller_fault}" if self.controller_fault else ""))
         self.following = True
-        if self.stopped_during_call():  # ... or while the follower was starting
+        if self.stopped_during_call() or self.motion_block_reason():  # ... or while the follower was starting
             stopped = await self.stop_following()
             if not stopped.ok:
                 relaxed = await self._relax_controllers()
@@ -1078,11 +1241,16 @@ class Robot:
     # ---------------------------------------------------------------- stopping
     def _on_estop(self, _msg: Empty) -> None:
         self.gamepad_estop_at = time.monotonic()
-        # Stopping is not evidence that a previously fallen robot is upright.
-        asyncio.run_coroutine_threadsafe(self.emergency_stop(), self.loop)
+        with self._stop_lock:
+            self._stop_status.inhibit()
+        # Synchronous inhibit precedes asyncio cleanup. Only authoritative fresh
+        # release status can rearm; the Empty message itself carries no epoch.
+        self._request_shared_stop_cleanup()
 
     async def emergency_stop(self) -> Result:
-        """Gamepad e-stop: cancel everything and relax every leg controller."""
+        """Explicit supervisor stop; automatic arbiter events use coalesced cleanup."""
+        with self._stop_lock:
+            self._stop_status.inhibit()
         await self.immediate_stop()
         return await self._relax_controllers()
 
@@ -1172,6 +1340,8 @@ class Robot:
         remains a fault requiring the physical stop and controller inspection.
         """
         self.closing = True
+        if self._stop_timer is not None:
+            self._stop_timer.cancel()
         self.startup_error = "tool server is shutting down; no new motion is accepted"
         try:
             result = await self.immediate_stop(relax_playing_trick=True)
@@ -1182,6 +1352,12 @@ class Robot:
                     result = Result(False, "remote activation still pending at shutdown; use the physical e-stop and restart the controller stack")
             return result
         finally:
+            if self._stop_cleanup_task is not None:
+                self._stop_cleanup_task.cancel()
+                try:
+                    await self._stop_cleanup_task
+                except asyncio.CancelledError:
+                    pass
             self.worker.cancel()
             try:
                 await self.worker
@@ -1196,8 +1372,8 @@ class Robot:
 
     async def mode(self) -> Result:
         """What the robot is doing right now, in words (the robot_status tool)."""
-        if self.controller_fault:
-            return Result(False, self.controller_fault)
+        if reason := self.motion_block_reason():
+            return Result(False, reason + "; this is software command state, not measured physical stopping")
         states = await self.controller_states()
         if not states:
             return Result(False, "controller_manager is not running")

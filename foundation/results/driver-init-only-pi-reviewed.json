@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T05:17:34.599886+00:00",
+  "status": "passed_actual_device_init_and_destruction_only",
+  "authorization": "After automatic approval review requested fresh readiness for this distinct device test, user explicitly replied: Run it\u2014I\u2019m beside the power disconnect. No operation was executed before that reply.",
+  "actual_probe": {
+    "created_utc": "2026-10-30T05:14:15.430533+00:00",
+    "status": "passed_init_and_destruction_only",
+    "hardware_probe_requested": true,
+    "probe_manifest_sha256": "4aff057a7be0a41076f6b505fb0be332f583d27d11a4847a0b590edbd3b91324",
+    "scope": "Explicit non-enabling device initialization/destruction probe; operator present, no other hardware owner. No configuration/activation/homing/read/write/node/executor/motion controller.",
+    "source_verification_before": true,
+    "platform": "Linux-6.12.47+rpt-rpi-2712-aarch64-with-glibc2.36",
+    "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+    "binary_sha256": "0290a4628d0b4d6ab9152d0bcdd8cd1edec3c46a78d2d25e588c9f1a1632fd86",
+    "source_verification_before_optional_run": true,
+    "hardware_probe_command": [
+      "/home/pi/pupper-foundation-session-20261029/driver-init-probe-run-v1/build/driver_init_only_probe",
+      "/home/pi/pupper-foundation-session-20261029/driver-init-only-probe/baseline-expanded.urdf",
+      "/home/pi/pupper-foundation-session-20261029/driver-overlay-v1/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so"
+    ],
+    "probe_exit_code": 0,
+    "probe_pass_line": "PROBE_PASS on_init_calls=1 configure_calls=0 activate_calls=0 read_calls=0 write_calls=0 spi_driver_iterations_before_destroy=0 spi_driver_iterations_after_destroy=1 command_bytes_zero=1 teardown_ms=1.62228",
+    "source_verification_after": true
+  },
+  "input_archive_sha256": "821929a2427a279676c58b51fd500c181fe8650085b34e52c54f9c5ce140e0d9",
+  "driver_library_sha256": "0cf5509982246d664e9a2a4d231fa9455bc4c47a7753862faa2d1f877301ea96",
+  "independent_review": "Root inspected actual on_init, destructor, motor-disable and SPI initialization/transfer code plus pinned probe/wrapper. on_init opens/configures SPI without SPI message transfer; enabled IMU starts a sampling thread; destructor sends flags0 before joining that thread. Actual probe validated zero command bytes before/after, zero pre-destruction driver iterations and one destruction iteration (two board ioctl transfers).",
+  "findings": [
+    "Native five fake-sensor lifecycle tests passed before actual-device probe.",
+    "Actual BNO055 connected and initialization/destruction probe exited0 without the original abort; measured one teardown at1.62228ms.",
+    "No configure, activate, homing, driver read/write callback, ROS node, executor, or motion policy was invoked.",
+    "After probe: exact /proc argv inspection found no ros2_control_node and /tmp/control_board_hardware.lock was absent."
+  ],
+  "limits": [
+    "One successful initialization/destruction test is not a full repeated activated-manager shutdown test or shutdown-latency guarantee.",
+    "Original driver homing timeout/cancellation, partial-initialization destruction and lock-release ordering remain separate limitations.",
+    "The initial shell pgrep -x check warned because its pattern exceeded Linux15-character comm names. It did not establish process absence; lock-path refusal and actual driver flock were the ownership guards. Follow-up used exact /proc cmdline inspection. Future probes must use that correct process check.",
+    "A source-level disabled command does not measure actuator current or prove physical emergency-stop performance."
+  ],
+  "evidence": {
+    "artifacts/hardware/2026-10-29/driver-init-only-probe/pi-run-v1/report.json": {
+      "sha256": "e3f30f9cff69df354f6cd5d0869215a0daa55a4e844b17965cbf37ff8ffd13e9",
+      "bytes": 1413
+    },
+    "artifacts/hardware/2026-10-29/driver-init-only-probe/pi-run-v1/probe.log": {
+      "sha256": "f07185ff873ae18f540065617bf930d814cc20a8dd4ee113a1b532524510b2d5",
+      "bytes": 619
+    },
+    "artifacts/hardware/2026-10-29/driver-init-only-probe/pi-run-v1/build.log": {
+      "sha256": "0f7abfb83c74ca05b5dd97755cfc45e423e88556744da7d2743481e1d80eb1dd",
+      "bytes": 2323
+    }
+  }
+}

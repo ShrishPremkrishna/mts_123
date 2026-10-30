@@ -13,27 +13,23 @@ the last two.
 
 ## Current robot preparation
 
-Pupper is now reachable through `ssh mts`. The [29 October stationary-session
-report](results/hardware-session-20261029-reviewed.json) is the current hardware
-handoff. The original working directories are retained, 62 selected original
-files were backed up and rechecked unchanged, and the original joystick source
-and executable have a separate verified backup. Team policy files were recovered
-and compared by content; unknown training lineage remains labeled unknown.
+The first supervised baseline homing completed on 29 October. All twelve motors
+reported homed, the operator observed normal motion, and joint/IMU feedback was
+captured. Shutdown disabled holding (confirmed by the operator), but the original
+driver then aborted while destroying a joinable IMU thread. The minimal cleanup
+fix builds in a separate Pi overlay and passes five lifecycle tests. A subsequent
+[actual IMU/SPI initialization/destruction probe](results/driver-init-only-pi-reviewed.json)
+passed without enabling motors or homing; full activated-stack shutdown remains a
+separate check. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
 
-The isolated Pi workspace builds the neural controller and joystick package.
-Its final Gemini suite passes 313 tests, native controller/parameter checks pass,
-and three policy exports pass CPU numerical comparisons. Installed ROS launch
-construction passes without executing a launch. Synthetic Hailo inference works;
-the camera was left alone because existing media services own its devices.
-These results do not validate movement, live Gemini, or camera following.
-
-Coverage and immutable-parameter fixes now include the Gemini actors in gamepad
-stop configuration. **The inherited stop-priority/queued-activation race remains
-unresolved in the staged v3 software.** An experimental arbitration candidate is
-kept separate until reviewed. Hardware activation also performs homing, even
-when neural policies start inactive. Finish the stop review and establish the
-physical power-stop procedure before the supervised motor session. No motors
-were activated during this preparation.
+The robot is currently inactive. No neural gait, trick or following policy has run.
+The shared gamepad/Gemini stop gateway is being independently reviewed before
+staging; the previous v3 software does not resolve the stop/queued-activation race.
+Another motor test requires a concrete supervised step. New trained policies still
+need applicable course approval. The [stationary preparation record](results/hardware-session-20261029-reviewed.json)
+preserves earlier backups, policy recovery, native builds, CPU policy comparisons
+and synthetic Hailo inference. Live camera following and Gemini remain separate
+validation steps. The original working directories and coursework main remain preserved.
 
 ## Course coverage and where it lives
 

@@ -1,0 +1,260 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T05:05:47.064479+00:00",
+  "phase": "first_supervised_baseline_homing_complete_driver_and_shared_stop_fixes_under_review",
+  "operator_observations": {
+    "specific_homing_authorization": "Start homing\u2014I\u2019m beside the power disconnect",
+    "homing": "Yes, it looked normal",
+    "after_shutdown": "Yes, the legs are relaxed"
+  },
+  "execution": {
+    "nodes": [
+      "baseline robot_state_publisher",
+      "baseline controller_manager/ros2_control_node"
+    ],
+    "motor_action": "Original driver homing only; all twelve actuators reported homed. No neural policy, gait, trick, teleop, Gemini or follower activated.",
+    "homing_duration_seconds_approx": 5.41,
+    "feedback_controllers": [
+      "joint_state_broadcaster",
+      "imu_sensor_broadcaster"
+    ],
+    "shutdown": "SIGINT deactivated hardware and shut down controller manager; destructor logged another successful deactivation then std::terminate, process exit -6. Operator subsequently confirmed relaxed legs.",
+    "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically."
+  },
+  "sensor_receipt_evidence": {
+    "/joint_states": {
+      "last": {
+        "names": [
+          "leg_front_r_2",
+          "leg_front_l_1",
+          "leg_front_l_2",
+          "leg_front_r_1",
+          "leg_front_l_3",
+          "leg_front_r_3",
+          "leg_back_r_1",
+          "leg_back_r_3",
+          "leg_back_l_1",
+          "leg_back_r_2",
+          "leg_back_l_2",
+          "leg_back_l_3"
+        ],
+        "positions": [
+          0.004582481384277359,
+          -0.03925064086914065,
+          -0.003056602478027415,
+          0.04001453399658206,
+          -0.6111974334716797,
+          0.6203527069091797,
+          0.03391006469726565,
+          0.6054753875732422,
+          -0.03658130645751956,
+          0.0034380722045898593,
+          -0.006108360290527415,
+          -0.6115798568725586
+        ],
+        "velocities": [
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125,
+          0.01587677001953125
+        ],
+        "efforts": [
+          -0.028379001617431725,
+          0.21270317077636733,
+          0.013635959625244531,
+          -0.22325529098510757,
+          -0.546589469909668,
+          0.4898847579956055,
+          -0.18968070983886734,
+          0.5717100143432617,
+          0.1980218315124513,
+          -0.022084751129150475,
+          0.030420627593994533,
+          -0.544486141204834
+        ]
+      },
+      "count": 746,
+      "estimated_receipt_hz": 248.6080937555111,
+      "maximum_receipt_gap": 0.006073140000012245,
+      "first_header_stamp": 1793335844.1241796,
+      "last_header_stamp": 1793335847.1289542,
+      "nonincreasing_stamps": 0
+    },
+    "/imu_sensor_broadcaster/imu": {
+      "last": {
+        "header": {
+          "stamp": {
+            "sec": 1793335847,
+            "nanosec": 128948421
+          },
+          "frame_id": "base_link"
+        },
+        "orientation": {
+          "x": -0.021257859085167818,
+          "y": -0.007980114142744235,
+          "z": -0.6723849788039352,
+          "w": 0.7398532702395897
+        },
+        "orientation_covariance": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "angular_velocity": {
+          "x": -0.0013810617307303966,
+          "y": 0.0,
+          "z": 0.0013810741332517095
+        },
+        "angular_velocity_covariance": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_acceleration": {
+          "x": -0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "linear_acceleration_covariance": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "count": 746,
+      "estimated_receipt_hz": 248.59127528657018,
+      "maximum_receipt_gap": 0.006194120999907682,
+      "first_header_stamp": 1793335844.1261609,
+      "last_header_stamp": 1793335847.1289485,
+      "nonincreasing_stamps": 0
+    }
+  },
+  "limits": [
+    "Receipt rates near 248.6 Hz over three seconds do not establish the actual 520 Hz configured control-loop timing.",
+    "Joint effort fields are PD estimates, not measured motor torque. Identical 0.01587677 rad/s readings may be quantized zero, not established actual movement.",
+    "Zero IMU acceleration fields reflect implementation semantics, not absence of gravity.",
+    "No gait/trick, command handoff, camera following, live Gemini or new trained policy has been hardware-validated.",
+    "Original homing has no bounded timeout/cancel path; physical power cutoff remains necessary.",
+    "Existing baseline originals preserved; cleanup fix changes IMU thread lifetime only."
+  ],
+  "input_identity": {
+    "scope": "Xacro expansion and launch construction only; no launch execution/hardware action",
+    "baseline_original_files_unchanged": 62,
+    "prefixes": {
+      "neural_controller": "/home/pi/pupperv3-monorepo/ros2_ws/install/neural_controller",
+      "control_board_hardware_interface": "/home/pi/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface",
+      "pupper_v3_description": "/home/pi/pupperv3-monorepo/ros2_ws/install/pupper_v3_description"
+    },
+    "nodes": [
+      {
+        "package": "robot_state_publisher",
+        "executable": "robot_state_publisher"
+      },
+      {
+        "package": "controller_manager",
+        "executable": "ros2_control_node"
+      }
+    ],
+    "files": {
+      "baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+      "first-homing.launch.py": "020b9e7011301172e0fc44d9a1d0de84afb27abdd42b7858665f59a654f44de5"
+    },
+    "motor_action_pending": true
+  },
+  "driver_fix": {
+    "commit": "c82778f",
+    "separate_pi_overlay": "/home/pi/pupper-foundation-session-20261029/driver-overlay-v1",
+    "native_build": "passed",
+    "native_fake_sensor_ctests": {
+      "passed": 5,
+      "failed": 0
+    },
+    "installed_library_sha256": "0cf5509982246d664e9a2a4d231fa9455bc4c47a7753862faa2d1f877301ea96",
+    "actual_device_lifecycle": "pending; proposed non-activating init/destruction probe under source review"
+  },
+  "archive": {
+    "name": "supervised-2140-evidence-v1.tar.gz",
+    "sha256": "9d5405ffb71c7b2f162f7a56af2b9e95236704954e457fb0bb07f4fa84b1461a",
+    "member_count": 62
+  },
+  "evidence": {
+    "artifacts/hardware/2026-10-29/supervised-2140/baseline-expanded.urdf": {
+      "bytes": 27294,
+      "sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/cm-empty-probe/CMakeLists.txt": {
+      "bytes": 451,
+      "sha256": "ca69c3f2bcb89939ca333de975a06256ed4123b69d43467443c0492088d30204"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/cm-empty-probe/pi-console.log": {
+      "bytes": 900,
+      "sha256": "55704bff02a9a9d366eccd272c9357f8a85683d4d47a9a4f68411d3fcca7d2b7"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/cm-empty-probe/probe.cpp": {
+      "bytes": 1564,
+      "sha256": "c811bd79065fb5a9216bb8ff0176f4dd9daf99ff796a9c285ca716168246ad9a"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/feedback-activation.log": {
+      "bytes": 2342,
+      "sha256": "caf18cdda01e4b9a9b69362b058b748e65d9f862ebc964fcc528980dfacad768"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/first-homing.launch.py": {
+      "bytes": 920,
+      "sha256": "020b9e7011301172e0fc44d9a1d0de84afb27abdd42b7858665f59a654f44de5"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/homing-and-shutdown-console.log": {
+      "bytes": 12004,
+      "sha256": "b9323dc636988c3147af330cae5d516a6d8106de273fe1068d64d30d0c52f3a9"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/homing-preparation.json": {
+      "bytes": 920,
+      "sha256": "23baa4afd47e777c7d5414b81c3399e3bd96b355fae83b7e2b5a20717b5fd346"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/inventory-after-homing.json": {
+      "bytes": 72164,
+      "sha256": "25fb45f6ebccaa5f977442de660ac61d277b23d7f1ca29c472d4297fbf5634ec"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/inventory-before.json": {
+      "bytes": 33849,
+      "sha256": "b456366176578f234d99fa62b3082fdd82adf79c05249d1ab062084bfd61f656"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/remote-archive-members.json": {
+      "bytes": 11413,
+      "sha256": "dfafa8c71f3ae5504fbfea8355d559a03d7de84ec2beda178f6bc9086533781c"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/remote-archive-sha.txt": {
+      "bytes": 145,
+      "sha256": "6ee8f35b68c4c0322f6e93a3417ff47e6dcacf43452753c73a594362f3080685"
+    },
+    "artifacts/hardware/2026-10-29/supervised-2140/supervised-2140-evidence-v1.tar.gz": {
+      "bytes": 96754,
+      "sha256": "9d5405ffb71c7b2f162f7a56af2b9e95236704954e457fb0bb07f4fa84b1461a"
+    }
+  }
+}
