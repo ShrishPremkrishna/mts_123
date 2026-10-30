@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T05:28:09.529978+00:00",
+  "status": "reviewed_and_staged_native_tests_pass_no_motion_policy_activated",
+  "source_revision": "2fd7af8b868cd524b2928c90966066533ab500ce",
+  "changes": [
+    "All normal switch-controller clients use a serialized public gateway; controller-manager backend is node-scoped to avoid remapping same-process neural clients around the gate.",
+    "Startup is latched; stop cancels queued motion, waits for known in-flight completion and then deactivates. Timeout/unknown submission remains a fault. Fresh inventory precedes every dispatch.",
+    "Feedback broadcaster exemption validates exact plugin types, not only names. Gateway process exit shuts down the launched stack.",
+    "Gemini gates queue/execution, controller activation, nonzero velocity, clips, references and following on fresh shared authority. Repeated automatic stop cleanup is coalesced and sends no competing switch RPC."
+  ],
+  "review": "Root independently reviewed API/gateway/probe source. Optional reviewer found and verified repair of name-only broadcaster exemption. Lab6 added gateway-exit stack teardown following root review.",
+  "validation": {
+    "local_full_gemini": {
+      "passed": 366,
+      "seconds": 26.48
+    },
+    "native_pi_full_gemini": {
+      "passed": 366,
+      "seconds": 89.23
+    },
+    "native_pi_course_checks": {
+      "passed": 166
+    },
+    "native_pi_ros_ctest_groups": {
+      "passed": 10,
+      "failed": 0,
+      "seconds": 12.98
+    },
+    "independent_docker_ros_ctest_groups": {
+      "passed": 10,
+      "seconds": 12.47
+    },
+    "native_environment": {
+      "binaries": {
+        "control_board_hardware_interface": {
+          "bytes": 4780616,
+          "path": "/home/pi/pupper-foundation-session-20261029/driver-overlay-v1/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+          "sha256": "0cf5509982246d664e9a2a4d231fa9455bc4c47a7753862faa2d1f877301ea96"
+        },
+        "joy_utils": {
+          "bytes": 17277832,
+          "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/joy_utils/lib/joy_utils/estop_controller",
+          "sha256": "0bf9b273603199ec6f6eb593eae7bb18e1b9b25707bbd4826018d76dfaa05633"
+        },
+        "neural_controller": {
+          "bytes": 50013768,
+          "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/lib/libneural_controller.so",
+          "sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91"
+        }
+      },
+      "critical_source_allowlist_sha256": {
+        "gemini_pupper/robot/controller_coverage.py": "6da12e6e494acc298e3237ae8e695a4d126b4e37c0a9a5c0951635e918f76f26",
+        "gemini_pupper/robot/launch/gemini_pupper.launch.py": "48b9cfe1ba518e93833ec0c5ee20e9839af11810491dfa5898dda10022d5af3f",
+        "gemini_pupper/robot/launch/gemini_pupper.yaml": "1062909b25bed8e5c2504faeb71e1b9975411796d9a42df19c2a214997c0e244",
+        "gemini_pupper/robot/preflight.py": "52581517317caa63b409ae073a497221b8a4a0c48c5fa756ce5576b13a687343",
+        "gemini_pupper/robot/robot_api.py": "4061ff0655c304bc6b755f6acfe426f29d38f6e563c88fb85f59933fef26f229",
+        "gemini_pupper/robot/runtime_config.py": "e2e563dee8c2612d135768c44f31e52f9dbd54bf16c7c89a840c23172e0a2135",
+        "gemini_pupper/robot/server.py": "072b9845352eb197e2bb1a3755c307153eeec111670cbc1eb5bdfbc1b3d68560",
+        "gemini_pupper/robot/spawn_controllers.py": "b3766dff9fe8f6a2265ca19faaee8fa46f27c2a6fbe3037b70e2a57fc77ec697",
+        "gemini_pupper/robot/startup_readiness.py": "76c3160d639e81c10adaad3a3e809bc62063af5d2869942286601f5348255143",
+        "gemini_pupper/robot/stop_status.py": "ccebd758a101f15023946363114c0b32f3b5717914326cac77605058ca0bb9ca",
+        "gemini_pupper/robot/tricks.py": "9789acae9d8d5edcda60a7b394953c93e1614592c62ca09b70ecb5e3f63d7ec8",
+        "pupper_gait_deploy/config.yaml": "6b25c2a68b99b99f1679e701dce49fc72ce7992c9754a517f70a983cfb4c4661",
+        "pupper_gait_deploy/launch.py": "b98b1727260b6b202bb8da244f36c48f199003d22b41a758a7c08ab29d741129",
+        "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+      },
+      "follower_mode": "disabled",
+      "hardware_readiness_proven": false,
+      "installed_helper_parity": {
+        "launch/config.yaml": {
+          "bytes": 10265,
+          "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/share/neural_controller/launch/config.yaml",
+          "sha256": "6b25c2a68b99b99f1679e701dce49fc72ce7992c9754a517f70a983cfb4c4661"
+        },
+        "launch/default_policy.json": {
+          "bytes": 6807363,
+          "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/share/neural_controller/launch/default_policy.json",
+          "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+        },
+        "launch/launch.py": {
+          "bytes": 9075,
+          "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/share/neural_controller/launch/launch.py",
+          "sha256": "b98b1727260b6b202bb8da244f36c48f199003d22b41a758a7c08ab29d741129"
+        }
+      },
+      "limits": [
+        "Critical source allowlist only, not a complete ROS install audit.",
+        "Quiescent file inspection; no atomic cross-file snapshot or protection against later mutation.",
+        "Existing v3 and baseline installations are not modified."
+      ],
+      "live_readonly_parameters_proven": false,
+      "live_shared_stop_protocol_proven": false,
+      "loaded_library_identity_proven": false,
+      "pins_sha256": "5163a183672f36aa4cf0e88618541ff2175f53882e3f1cb0bff9767b30df46a7",
+      "prefixes": {
+        "camera_ros": "/home/pi/pupperv3-monorepo/ros2_ws/install/camera_ros",
+        "cmd_vel_mux": "/home/pi/pupperv3-monorepo/ros2_ws/install/cmd_vel_mux",
+        "control_board_hardware_interface": "/home/pi/pupper-foundation-session-20261029/driver-overlay-v1/install/control_board_hardware_interface",
+        "controller_manager": "/opt/ros/jazzy",
+        "imu_sensor_broadcaster": "/opt/ros/jazzy",
+        "joint_state_broadcaster": "/opt/ros/jazzy",
+        "joy": "/opt/ros/jazzy",
+        "joy_utils": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/joy_utils",
+        "neural_controller": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller",
+        "pupper_v3_description": "/home/pi/pupperv3-monorepo/ros2_ws/install/pupper_v3_description",
+        "teleop_twist_joy": "/opt/ros/jazzy",
+        "topic_tools": "/home/pi/pupperv3-monorepo/ros2_ws/install/topic_tools"
+      },
+      "python_executable": "/home/pi/pupper-foundation-session-20261029/venv/bin/python3",
+      "python_prefix": "/home/pi/pupper-foundation-session-20261029/venv",
+      "scope": "Pinned file and ament resolution only; no product imports, ROS initialization, launch, controller load, SPI/I2C access, or motor action.",
+      "source_revision": "2fd7af8b868cd524b2928c90966066533ab500ce",
+      "status": "PASS",
+      "system_site_packages": true
+    },
+    "environment_fix": "Pi system launch_testing pytest plugin is incompatible with isolated pytest9.2 hook API. Original failed collection log retained; successful rerun uses PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 for fake-robot suite only. No system dependency was changed."
+  },
+  "physical_status": {
+    "original_homing": "Completed normally per operator; original shutdown disabled holding but then aborted.",
+    "imu_cleanup": "User-approved real-device init/destruction-only probe passed; no motor activation during that probe.",
+    "motion_policies_activated": false,
+    "gamepad": "Unavailable in kernel input inventory. User has one but prefers console operation for now. No physical-gamepad claim.",
+    "next": "Prepare independently reviewed bounded console-generated Joy test of0.75seconds of unchanged stock2second pose initialization, then stop and owned-stack shutdown. Requires concrete fresh motion approval before execution."
+  },
+  "limits": [
+    "Software latch/empty inventory ACK does not establish disabled motor power; original homing leaves gains holding even with no active neural controller.",
+    "Native fake-service tests do not prove physical stop latency or motor safety; physical power disconnect remains independent fallback.",
+    "Direct backend access is unsupported, not prevented as a security boundary.",
+    "Full manager-loaded identity, activated-stack teardown and policy motion remain to be verified.",
+    "No new trained policy has course approval or hardware validation."
+  ],
+  "preservation": {
+    "archive": {
+      "archive": "/home/pi/pupper-foundation-session-20261029/supervised-v4-complete.tar.gz",
+      "bytes": 197642521,
+      "sha256": "d1c43885915965817148317e2191fd43b3f6ac7a4838ae69bf6b9e3537320750",
+      "manifest_sha256": "33097ed4243c1095bd9faa70e5b3623329cdd56557af3c0fcd797b505c368943",
+      "regular_file_count": 664,
+      "uncompressed_regular_bytes": 587533199
+    },
+    "regular_members_individually_verified": 664,
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/shared-stop-v4-native-complete",
+    "receipt_sha256": "de0f7025acb848ac27e0c0e96075b4eb6873a43e20a8f063b3751aa9a7e6cdae"
+  },
+  "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later.",
+  "evidence": {
+    "build.log": {
+      "sha256": "4931d1af4773f8436c2b2bcc0ef8af6a289ddc725e7d25bdac6c96aeb2bddec0",
+      "bytes": 97
+    },
+    "course-checks.log": {
+      "sha256": "e8fe4511d453e30746212a0bc8bee4c2249670eed521dbaef8d78dc4f4029165",
+      "bytes": 10733
+    },
+    "gemini-tests-pytest-plugin-collision.log": {
+      "sha256": "5fcc3fb99bfe820f6e11ee64bf78342b0d382d57956ab76b08a801b04f68fdd6",
+      "bytes": 291
+    },
+    "gemini-tests.log": {
+      "sha256": "d6e1dd19211aa67f7c5fdf523c16ae3aaacec5e053ee048d871927730afcad07",
+      "bytes": 511
+    },
+    "payload-manifest.json": {
+      "sha256": "aeb2ba1a3c1b2f3a55cf3e02b49288a0f6a8fb4b8690c015bbcc36b769dc721e",
+      "bytes": 5396
+    },
+    "pi-environment-verification.json": {
+      "sha256": "a2fd424dd73e78ce40ea47fc444bab9aaa4ccd3e720210da67bbd8c8c61453ed",
+      "bytes": 5310
+    },
+    "shared-stop-v4-inputs.tar.gz": {
+      "sha256": "1a0de7df3a404bdeb9d43eef091d5fb050a7e68ad0e30bae4b446eacd26a8f87",
+      "bytes": 95276
+    },
+    "supervised-v4-archive-receipt.json": {
+      "sha256": "c63b2bb7103ddd554ff07bd6509bfddb5623273b3c61299efc72957fdfddadf3",
+      "bytes": 356
+    },
+    "supervised-v4-complete-manifest.json": {
+      "sha256": "33097ed4243c1095bd9faa70e5b3623329cdd56557af3c0fcd797b505c368943",
+      "bytes": 132893
+    },
+    "supervised-v4-complete.tar.gz": {
+      "sha256": "d1c43885915965817148317e2191fd43b3f6ac7a4838ae69bf6b9e3537320750",
+      "bytes": 197642521
+    },
+    "test.log": {
+      "sha256": "e17947dc82cc9ffa30d527ae428ccb4a7af9b7b404dc39367cacdf1bf0bf468a",
+      "bytes": 1419
+    }
+  }
+}

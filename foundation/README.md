@@ -23,8 +23,10 @@ passed without enabling motors or homing; full activated-stack shutdown remains 
 separate check. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
 
 The robot is currently inactive. No neural gait, trick or following policy has run.
-The shared gamepad/Gemini stop gateway is being independently reviewed before
-staging; the previous v3 software does not resolve the stop/queued-activation race.
+The [shared gamepad/Gemini stop gateway](results/shared-stop-v4-pi-reviewed.json)
+has passed independent review and is staged in v4: all ten native ROS test groups,
+366 Gemini tests and166 course checks pass on the Pi. Physical stop behavior remains
+unverified; the previous v3 software does not resolve the stop/queued-activation race.
 Another motor test requires a concrete supervised step. New trained policies still
 need applicable course approval. The [stationary preparation record](results/hardware-session-20261029-reviewed.json)
 preserves earlier backups, policy recovery, native builds, CPU policy comparisons

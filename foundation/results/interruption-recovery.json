@@ -402,12 +402,12 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T05:17:34.599886+00:00",
+    "updated_utc": "2026-10-30T05:28:09.529978+00:00",
     "authorization": "User returned and authorized original homing while beside power disconnect. Homing and shutdown observations confirmed. Software integration and nonmoving checks authorized; announce and obtain readiness for another concrete motion step.",
     "automation_status": "PAUSED",
     "ssh": "mts",
     "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "canonical_report": "foundation/results/supervised-homing-20261029-reviewed.json",
+    "canonical_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
     "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically.",
     "first_homing": {
       "nodes": [
@@ -424,9 +424,9 @@
       "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically."
     },
     "agents": {
-      "lab6_recovery": "Production shared-stop gateway, remap, inventory barrier and readiness final tests; not staged on Pi.",
-      "optional_recovery": "RobotAPI shared-stop guard frozen for root review; 158 focused tests passed.",
-      "sit_recovery": "IMU cleanup committed and native Pi five tests pass; preparing source-reviewed nonactivating lifecycle probe."
+      "lab6_recovery": "Preparing minimal feedback-only launch and bounded console initialization/stop test. No SSH/actions.",
+      "optional_recovery": "Independent timing/ownership/stop review of console artifact. No robot actions.",
+      "sit_recovery": "Completed exact environment-v4 verifier; native invocation PASS."
     },
     "next": [
       "Complete native Pi gateway/software validation and environment pinning.",
@@ -435,10 +435,13 @@
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
     "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
-    "jobs": "Native gateway overlay v4 build/test running; no hardware manager or motion policy active. Full local Gemini regression366passed."
+    "jobs": "No build/test/archive job remains. Minimal console motion probe under agent preparation/review only; no runtime started.",
+    "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
+    "gamepad_preference": "Unavailable in kernel input inventory. User has one but prefers console operation for now. No physical-gamepad claim.",
+    "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later."
   },
   "current_phase": "hardware_session",
-  "current_report": "foundation/results/supervised-homing-20261029-reviewed.json",
+  "current_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
   "previous_hardware_sessions": [
     {
       "date": "2026-10-29",
