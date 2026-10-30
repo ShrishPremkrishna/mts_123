@@ -910,7 +910,8 @@ class Robot:
             return Result(False, f"{name} not queued: a stop came in while this request was being handled")
         if self.follow_state_uncertain:
             return Result(False, "motion blocked: could not confirm that the follower stopped; use stop and check the follower service")
-        if then != MOTORS_IDLE and (reason := self.motion_block_reason()):
+        effective_then = self.state_after_queue if then is UNCHANGED else then
+        if effective_then != MOTORS_IDLE and (reason := self.motion_block_reason()):
             return Result(False, reason)
         if not math.isfinite(seconds) or seconds < 0:
             return Result(False, "queue duration estimate must be finite and nonnegative")
@@ -942,6 +943,16 @@ class Robot:
         if isinstance(duration, bool) or not math.isfinite(duration) or not 0 < duration <= 60:
             return Result(False, "wait duration must be finite, more than 0 and at most 60 seconds")
         async def job():
+            if reason := self.motion_block_reason():
+                # A queued UNCHANGED destination can become stale before this
+                # job runs. Recheck actual inventory without switching anything.
+                response = await self._call(self.list_client, ListControllers.Request())
+                feedback_types = {"joint_state_broadcaster/JointStateBroadcaster",
+                                  "imu_sensor_broadcaster/IMUSensorBroadcaster"}
+                if (self.state_now != MOTORS_IDLE or response is None
+                        or any(c.state == "active" and getattr(c, "type", "") not in feedback_types
+                               for c in response.controller)):
+                    return Result(False, reason + "; idle wait could not be confirmed")
             await asyncio.sleep(duration)
             return Result(True, f"waited {duration} s")
 
@@ -1381,6 +1392,20 @@ class Robot:
         walking = next((t for t in self.tricks.values() if t.walks and states.get(t.walk_controller) == "active"), None)
         if self.fallen:
             return Result(True, f"mode: fallen over (tilt e-stop in {self.fallen}). {FELL_MESSAGE}")
+        described = {LOCOMOTION_CONTROLLER}
+        described.update(t.controller for t in self.tricks.values() if t.kind == "policy")
+        described.update(t.walk_controller for t in self.tricks.values() if t.walks)
+        other_legs = sorted(c for c in self.leg_controllers - described if states.get(c) == "active")
+        # A name outside this catalog does not establish what joints it owns.
+        # Report it rather than equating an unfamiliar controller with no motion.
+        other_active = sorted(c for c, state in states.items()
+                              if state == "active" and c not in self.leg_controllers)
+        fallback = (
+            f"active leg controllers: {', '.join(other_legs)}; behavior is not identified by this tool"
+            if other_legs else
+            f"unclassified active controllers: {', '.join(other_active)}; leg ownership is not established by this tool"
+            if other_active else "no active leg controller reported"
+        ) + "; physical stopping and posture have not been measured"
         mode = (
             "locomotion, following a person" if self.following
             else "locomotion" if states.get(LOCOMOTION_CONTROLLER) == "active"
@@ -1388,10 +1413,17 @@ class Robot:
                   f"actions: {', '.join(walking.actions)})") if walking
             else f"trick {trick.name} ({trick.end_pose}; actions: {', '.join(trick.actions)})" if trick and trick.actions
             else f"trick {trick.name}, holding its end pose ({trick.end_pose})" if trick
-            else "no active leg controller; physical stopping and posture have not been measured"
+            else fallback
         )
         if (trick and not self.trick_available(trick)) or (walking and not self.trick_available(walking)):
             mode = "locked trick controller active; stand_up leaves it, stop cancels commands and requests stopping"
+        if mode != fallback:
+            if other_legs:
+                mode += f". Also active leg controllers: {', '.join(other_legs)}; behavior is not identified by this tool"
+            if other_active:
+                mode += f". Other active controllers: {', '.join(other_active)}; their leg ownership is not established by this tool"
+        elif other_legs and other_active:
+            mode += f". Other active controllers: {', '.join(other_active)}"
         outcome = self.public_outcome()
         detail = (f" Last queued action {outcome['name']}: "
                   f"{'completed' if outcome['success'] else 'failed'}: {outcome['message']}.") if outcome else ""
