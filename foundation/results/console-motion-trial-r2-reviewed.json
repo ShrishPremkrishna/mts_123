@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T06:38:36.890486+00:00",
+  "status": "PASS_bounded_stock_initialization_and_clean_shutdown",
+  "run": "20261030T063244Z-8299b8a8b5e540d2b23e05395c4c836d",
+  "operator_observation": "Normal motion; legs relaxed",
+  "authorization": "User reaffirmed presence and readiness for supervised tests; exact repeat scope was announced before one execution.",
+  "actual_scope": "Original homing, brief stock-controller initialization, latched stop and clean whole-stack teardown. No full actor operation or floor-gait validation.",
+  "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+  "result": {
+    "passed_software_sequence": true,
+    "start_to_stop_s": 0.7500596150002821,
+    "publication_start_to_stop_upper_s": 0.6521917559994108,
+    "activation_observed": true,
+    "inactive_after_stop_observed": true,
+    "errors": [],
+    "shutdown_coordinator_result": {
+      "fallback": false,
+      "launch_state": "exited",
+      "manager_deadline_monotonic": 6877.243080429,
+      "manager_signal_monotonic": 6877.127877043,
+      "manager_state": "exited",
+      "passed_cleanup": true,
+      "physical_stopping_proven": false,
+      "protocol": "pupper_console_shutdown_v2"
+    },
+    "evidence_journal": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T063244Z-8299b8a8b5e540d2b23e05395c4c836d/probe.evidence.jsonl",
+      "records": 2776,
+      "complete_record_bytes": 1306872,
+      "file_bytes": 1306872,
+      "synced_through_sequence": 2776,
+      "finalized": true,
+      "max_append_s": 0.0003959799996664515,
+      "append_timing_scope": "normalization+encoding+completed os.write loop; excludes fsync",
+      "write_error": null,
+      "sha256": "d9685be4029f0f69eda695c2b6c7740de8630c33bade165277090f0f0f353647",
+      "durability": "No per-sensor fsync. Pre-release and final checkpoints synced; power-loss tail may be absent."
+    }
+  },
+  "process_result": "Manager, stop gateway and robot_state_publisher logged clean exits. Supervisor passed, manager/launch absent and driver lock available; fresh read-only inventory found no manager.",
+  "independent_raw_review": {
+    "journal_records": 2776,
+    "raw_streams_exactly_match_journal": true,
+    "joint_rows": 585,
+    "imu_rows": 585,
+    "accepted_status_rows": 560,
+    "exact_start_count": 1,
+    "stop_count": 18,
+    "all_cmd_vel_zero": true,
+    "post_stop_first_inactive_s": 0.095322,
+    "post_stop_settled_authority_s": 0.13558,
+    "max_measured_excursion_all_receipts_rad": 0.43984,
+    "max_reported_joint_speed_rad_s": 1.222222,
+    "max_finite_difference_joint_speed_rad_s": 1.41651,
+    "max_tilt_deg": 2.535,
+    "post_start_max_callback_gap_s": {
+      "joint": 0.00781,
+      "imu": 0.00744
+    },
+    "caveats": [
+      "Three knees began slightly beyond driver command bounds before Start (FR3 +0.010734rad, FL3 -0.000053rad, BL3 -0.001580rad); excess disappeared by Start+0.162s with no new later excess. Command bounds are not a sensor calibration guarantee.",
+      "Pre-release file/arming work produced164-168ms callback gaps; source header gaps stayed within17ms.",
+      "Reported velocity remained nonzero as deactivated legs relaxed; latched/inactive state is not instrumented physical standstill."
+    ]
+  },
+  "native_preparation": {
+    "recorder_actual_ros_message_roundtrip": "PASS; native520sensor+2Joy command records and parameter arrays, including failed final formatter with retained finalized journal",
+    "final_shutdown_fixture": "8 cases formally passed, including actual ROS LaunchService with clean manager+launcher exits. Delayed-readiness fault case recovered original owner PermissionError via serialized fallback without duplicate signals; both fixtures exited0 but its strict worker-exit assertion failed. Keep this recovered failure and deliberately missed pre-release deadline explicit.",
+    "source_archive_sha256": "561c807df97c7d2aabc56beb4b355fcd7cd6169dd1cc0074aec318b69dd2fa38",
+    "supervisor_sha256": "2dff1076fab758913f8f98b85a8661e706c814b21000200dbb5ec4900a8d8f54",
+    "candidate_probe_sha256": "de998f4327e5a70f607008db9061a3626f658267bcd23bc72517a8faa000cbc0",
+    "coordinator_sha256": "a9f585717a07ff360f2d62aaee9173cb693266810d089988ef196db92089a662"
+  },
+  "preservation": {
+    "files_verified": 29,
+    "archive": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T063244Z-8299b8a8b5e540d2b23e05395c4c836d.tar.gz",
+      "bytes": 214301,
+      "sha256": "41d8f8190d4c477af08785b80a4ff725a7c42133180ee04c216409873589334a"
+    },
+    "local_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/console-trial-20261030T063244Z",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/console-trial-20261030T063244Z"
+  },
+  "not_established": [
+    "physical gamepad operation",
+    "floor walking/standing performance",
+    "new trained policy hardware suitability",
+    "full foundation hardware validation"
+  ]
+}

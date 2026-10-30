@@ -402,13 +402,13 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T06:09:13.417304+00:00",
+    "updated_utc": "2026-10-30T06:38:36.890486+00:00",
     "authorization": "Combined homing/0.75-second partial stock-pose/stop trial explicitly approved and executed once. Operator confirms normal motion and relaxed legs. Routine software repair and read-only checks authorized; no automatic motion retry.",
     "automation_status": "PAUSED",
     "ssh": "mts",
     "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "canonical_report": "foundation/results/console-motion-trial-20261029-reviewed.json",
-    "current_state": "Owned manager/launch/probe/supervisor absent; driver lock absent on fresh read-only check. Operator confirms legs relaxed. No robot motion process active.",
+    "canonical_report": "foundation/results/console-motion-trial-r2-reviewed.json",
+    "current_state": "Robot inactive; successful short stock-initialization trial shut down cleanly. Operator confirms normal motion and relaxed legs.",
     "first_homing": {
       "nodes": [
         "baseline robot_state_publisher",
@@ -429,22 +429,22 @@
       "sit_recovery": "Narrow activated-driver teardown evidence review; no hardware actions."
     },
     "next": [
-      "Preserve frozen v1; additive recorder repair must pass actual ROS message serialization without ROS initialization/hardware.",
-      "Resolve or explicitly isolate repeated SIGINT shutdown behavior before claiming graceful driver teardown.",
-      "Independent review and native non-hardware checks before proposing any further motion.",
-      "No automatic retry; next concrete motor test needs fresh operator readiness."
+      "Complete narrow full-stock-zero mode and review.",
+      "Announce exact full stock-pose motion and run once with current supervising operator authorization.",
+      "Inspect actual actor outputs/command/IMU/joint telemetry and operator observation before floor or Lab6 movement.",
+      "Continue actual Lab6 ROS/API integration; new trained policies still need applicable course approval."
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
     "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
-    "jobs": "Recorder v5 and shutdown failure review in progress locally; no hardware execution pending or scheduled.",
+    "jobs": "Preparing distinct full-stock-zero mode: unchanged2s init+2s fade+~0.5s actor, StopfirstACTIVE+4.5s, absolute6s manager shutdown cap; not executed yet. No hardware process active.",
     "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
     "gamepad_preference": "Unavailable in kernel input inventory. User has one but prefers console operation for now. No physical-gamepad claim.",
     "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later.",
     "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json",
-    "console_trial_result": "foundation/results/console-motion-trial-20261029-reviewed.json"
+    "console_trial_result": "foundation/results/console-motion-trial-r2-reviewed.json"
   },
   "current_phase": "hardware_session",
-  "current_report": "foundation/results/console-motion-trial-20261029-reviewed.json",
+  "current_report": "foundation/results/console-motion-trial-r2-reviewed.json",
   "previous_hardware_sessions": [
     {
       "date": "2026-10-29",

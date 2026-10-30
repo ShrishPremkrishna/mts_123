@@ -22,14 +22,14 @@ fix builds in a separate Pi overlay and passes five lifecycle tests. A subsequen
 passed without enabling motors or homing; full activated-stack shutdown remains a
 separate check. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
 
-The robot is currently inactive, with relaxed legs confirmed by the operator.
-The [first combined console trial](results/console-motion-trial-20261029-reviewed.json)
-completed homing, activated the preserved default controller briefly, then logged
-emergency stop and hardware deactivation. Its recorder failed on a real ROS array
-type, losing detailed telemetry; the trial is incomplete. Repeated SIGINT during
-shutdown ended the manager with exit -2, so graceful activated-driver teardown
-also remains unproven. The frozen inputs and all surviving logs are preserved;
-recorder and shutdown review are in progress before any further motion.
+The robot is currently inactive, with normal motion and relaxed legs confirmed by
+the operator. The [corrected bounded console trial](results/console-motion-trial-r2-reviewed.json)
+passed: stock-controller initialization, latched stop, complete telemetry capture,
+and clean manager/launcher shutdown. The actual Start-to-Stop publication interval
+was 0.652 seconds. This validates a brief initialization/stop sequence, not full
+policy operation or floor walking. The earlier recorder failure and interrupted
+cleanup are preserved in the [first trial record](results/console-motion-trial-20261029-reviewed.json).
+A longer, bounded stock-pose/zero-command test is being prepared next.
 
 The [shared gamepad/Gemini stop gateway](results/shared-stop-v4-pi-reviewed.json)
 has passed independent review and is staged in v4: all ten native ROS test groups,
