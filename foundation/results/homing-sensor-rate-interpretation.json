@@ -1,0 +1,197 @@
+{
+  "collector_findings": [
+    "One SingleThreadedExecutor processes subscriptions. The while loop calls spin_once with at most0.1s timeout; this timeout is a wait bound, not an unconditional100ms sleep or10Hz throttle.",
+    "Each callback stores monotonic receipt time and header stamp; joints copy arrays and IMU converts the message to a dictionary. No explicit per-message sleep exists. Finite processing time can still matter.",
+    "The subscription uses qos_profile_sensor_data. Its effective QoS and publisher endpoints were not recorded; loss/backlog cannot be excluded.",
+    "The final report discards full receipt/header arrays and retains count, first/last stamps, maximum receipt gap, monotonicity count, and only the last payload. Thus no interval histogram, correlation of missing intervals, jitter, per-message delivery lag, or repeated-sample timing can be reconstructed.",
+    "Header span is slightly longer than callback span; bounded discovery/startup backlog can compress receipt density. This does not explain or diagnose the residual rate shortfall."
+  ],
+  "conclusion": "The approximately249Hz receipt counts do not establish a520Hz controller-loop failure. Both broadcasters were explicitly configured260Hz. The sensor reports are separately requested100Hz. A short lossy observer summary cannot distinguish controller scheduling/decimation, realtime publication skips, DDS loss, or callback backlog.",
+  "created_utc": "2026-10-30T05:38:14.993812+00:00",
+  "driver_and_publication_findings": [
+    "Each normal driver read invokes one spi_driver_run, which performs two board ioctl transfers, then copies actuator states. write copies commands for a subsequent read transfer. There is no normal-path fixed sleep that directly sets250Hz in the inspected driver.",
+    "IMU read returns the mutex-protected cached sampler result; it computes measurement age from a host packet receipt timestamp minus device-provided age. The age is exported as imu_sensor/time_since_measurement_seconds; raw packet/measurement timestamp state exports are commented out.",
+    "The IMU message does not include this age state or independent sensor sequence identity. Equal quaternion/gyro values alone cannot prove stale sampling, because a stationary quantized sensor may legitimately repeat them.",
+    "Accelerometer reporting is deliberately not enabled in the inspected transport; the zero acceleration payload is not a new observed publication-rate fault.",
+    "The actual console records failure to obtain FIFO scheduling. This is a real configuration observation, but causation of the249Hz receipts is unproven and no permission/RT changes are justified by this analysis."
+  ],
+  "explicit_nonclaims": [
+    "No diagnosed controller-rate failure.",
+    "No verified fresh IMU sampling rate.",
+    "No conclusion that FIFO denial caused the message-rate shortfall.",
+    "No multiplier-based estimate of actual manager rate from249Hz receipts.",
+    "No hardware or policy readiness approval."
+  ],
+  "identity_checks": {
+    "actual_inventory_tool_root": "/home/pi/pupper-foundation-session-20261029/corrected-inventory",
+    "baseline_preparation_reports_62_original_files_unchanged": true,
+    "collector_sha256": "d8c1b4eedb62ef161a6034fb01410a4f736da9acea3275ea35dc681901e70268",
+    "collector_sha_matches_transferred_corrected_inventory": true,
+    "configuration_scope": "Launch selects installed baseline config. Saved baseline resolution maps it to the preserved0019source; post-homing inventory verifies that source SHA. Its strict nofollow installed-path read reports symlink rejection, not file corruption. Live broadcaster update_rate parameters were not separately retained."
+  },
+  "inputs": {
+    "actual_console": {
+      "locator": "lines10-12 requested520Hz/FIFO scheduling failure; line24 sensor10000us;53-62 broadcaster configuration",
+      "path": "artifacts/hardware/2026-10-29/supervised-2140/homing-and-shutdown-console.log",
+      "sha256": "b9323dc636988c3147af330cae5d516a6d8106de273fe1068d64d30d0c52f3a9"
+    },
+    "baseline_controller_config_source": {
+      "locator": "manager update_rate line5; IMU update_rate line42; joint broadcaster update_rate line451",
+      "path": "artifacts/hardware/2026-10-29/baseline-artifact/files/0019-config.yaml",
+      "sha256": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3"
+    },
+    "baseline_install_resolution": {
+      "locator": "symlinks entry for install/neural_controller/share/neural_controller/launch/config.yaml -> ros2_ws/src/neural_controller/launch/config.yaml",
+      "path": "artifacts/hardware/2026-10-29/baseline-proposal.json",
+      "sha256": "cc684592eb0467d180ed2406785a8f7e545ab8197bef321d9ea0dbfd99050290"
+    },
+    "collector": {
+      "locator": "lines164-178 explicit executor;205-238 callback/QoS/spin and reduction",
+      "path": "artifacts/hardware/2026-10-29/lab6-staging-review/robot_inventory-context-fixed.sh",
+      "sha256": "d8c1b4eedb62ef161a6034fb01410a4f736da9acea3275ea35dc681901e70268"
+    },
+    "collector_transfer_receipt": {
+      "locator": "exact remote corrected-inventory collector SHA256",
+      "path": "artifacts/hardware/2026-10-29/corrected-inventory-transfer.json",
+      "sha256": "6bc88ec20463ee0d70bb2d57bf62b308151e8e430b446388c0a6275f051fed73"
+    },
+    "first_launch": {
+      "locator": "baseline config path; manager and robot_state_publisher only",
+      "path": "artifacts/hardware/2026-10-29/supervised-2140/first-homing.launch.py",
+      "sha256": "020b9e7011301172e0fc44d9a1d0de84afb27abdd42b7858665f59a654f44de5"
+    },
+    "launch_preparation": {
+      "locator": "baseline_original_files_unchanged62 and exact selected package prefixes",
+      "path": "artifacts/hardware/2026-10-29/supervised-2140/homing-preparation.json",
+      "sha256": "23baa4afd47e777c7d5414b81c3399e3bd96b355fae83b7e2b5a20717b5fd346"
+    },
+    "observation": {
+      "locator": "ros.samples and ros.observation_seconds; captured_at_utc; inventory_tool_root",
+      "path": "artifacts/hardware/2026-10-29/supervised-2140/inventory-after-homing.json",
+      "sha256": "25fb45f6ebccaa5f977442de660ac61d277b23d7f1ca29c472d4297fbf5634ec"
+    },
+    "original_driver": {
+      "locator": "line114 IMU10000us;161-168 measurement-age state;275-307 read and freshness;361-365 write",
+      "path": "artifacts/hardware/2026-10-29/baseline-artifact/files/0046-control_board_hardware_interface.cpp",
+      "sha256": "4c021ba860ff34b92798ba1627787ad5e619c9feab49528bd4e57a3c0e3fb39e"
+    },
+    "original_imu_manager": {
+      "locator": "41-67 poll/cache/mutex/thread/1ms sleep",
+      "path": "artifacts/hardware/2026-10-29/baseline-artifact/files/0047-imu_manager.cpp",
+      "sha256": "667f94e63237f8d819296999d4d2d928945adcbd85ecef225adda3ba3562e0f6"
+    },
+    "original_imu_transport": {
+      "locator": "48-54 sensor report settings;452-476 latest sample and host packet timestamps",
+      "path": "artifacts/hardware/2026-10-29/baseline-artifact/files/0048-rt_bno055.cpp",
+      "sha256": "11c9661c0c5e4e2a136ebfa45480f320e75cba7d850688117509e2337b28f7b3"
+    },
+    "original_spi_transport": {
+      "locator": "311-320 counter/two-board loop;346-363 transfers;386-395 run",
+      "path": "artifacts/hardware/2026-10-29/baseline-artifact/files/0049-rt_spi.cpp",
+      "sha256": "dcf50e0e2280b675e995fd575eda820ea3a0c10bdb520d2e6ed5db0deba2497b"
+    }
+  },
+  "minimum_next_passive_capture": [
+    {
+      "action": "During an already authorized supervised session, retain every JointState and Imu header sec/nanosec plus monotonic_ns receipt, callback count, sample payload, and recording start/end. Warmup and analyzed interval must be explicit. Write after collection, not per-callback console printing.",
+      "current_preparation": "Root reports the new console harness already retains all joint/IMU timestamps; reuse it rather than start a separate hardware job.",
+      "priority": 1
+    },
+    {
+      "action": "Read exact update_rate/is_async/use_sim_time parameters for manager and broadcasters, actual publisher/subscriber QoS/endpoints, and installed package versions. No parameter writes.",
+      "priority": 2
+    },
+    {
+      "action": "If manager periodicity/execution diagnostics or statistics are already published by the installed version, record them in the same interval. Their direct cycle-rate evidence is more informative than multiplying topic counts. Do not add a new controller, enable instrumentation, or change configuration for this capture.",
+      "priority": 3
+    },
+    {
+      "action": "If an existing dynamic-state publisher already exposes imu_sensor/time_since_measurement_seconds, record its full values/timestamps. Otherwise mark IMU age unavailable; do not pretend the Imu header supplies sample identity. Adding an age publisher would be a separate reviewed instrumentation change.",
+      "priority": 4
+    },
+    {
+      "action": "Compare receipt and header delta distributions, cross-topic synchronized gaps, and direct manager statistics if available. Preserve the manager console for overruns. If only topic timestamps exist, report publication/delivery behavior and keep exact control-loop rate unresolved.",
+      "priority": 5
+    }
+  ],
+  "observed_metrics": {
+    "/imu_sensor_broadcaster/imu": {
+      "callback_span_seconds_reconstructed": 2.9968871560000707,
+      "first_header_stamp_seconds_as_saved": 1793335844.1261609,
+      "header_span_seconds": 3.0027875900268555,
+      "last_header_stamp_seconds_as_saved": 1793335847.1289485,
+      "maximum_callback_gap_seconds": 0.006194120999907682,
+      "messages": 746,
+      "nonincreasing_header_stamps": 0,
+      "received_hz": 248.59127528657018,
+      "received_hz_fraction_of_requested_broadcaster260": 0.9561202895637315,
+      "received_message_density_per_header_second": 248.10279703911294,
+      "requested_observation_seconds": 3.0
+    },
+    "/joint_states": {
+      "callback_span_seconds_reconstructed": 2.9966844150000043,
+      "first_header_stamp_seconds_as_saved": 1793335844.1241796,
+      "header_span_seconds": 3.004774570465088,
+      "last_header_stamp_seconds_as_saved": 1793335847.1289542,
+      "maximum_callback_gap_seconds": 0.006073140000012245,
+      "messages": 746,
+      "nonincreasing_header_stamps": 0,
+      "received_hz": 248.6080937555111,
+      "received_hz_fraction_of_requested_broadcaster260": 0.956184975982735,
+      "received_message_density_per_header_second": 247.9387330160634,
+      "requested_observation_seconds": 3.0
+    }
+  },
+  "rate_layers": [
+    {
+      "layer": "controller manager",
+      "meaning": "Requested read/update/write cadence. Startup log confirms requested value, not achieved periodicity. No manager cycle counter, periodicity distribution, read/write timing trace, or equivalent was retained.",
+      "measured_hz": null,
+      "requested_hz": 520
+    },
+    {
+      "layer": "joint and IMU broadcaster controller updates",
+      "meaning": "Both baseline controller sections explicitly set260Hz. This separates topic-rate expectations from manager520Hz. Their actual callback/publication counts were not directly instrumented.",
+      "measured_hz": null,
+      "requested_hz": 260
+    },
+    {
+      "layer": "IMU rotation-vector and gyro reports",
+      "meaning": "The driver passes10000us to enableRotationVector and enableGyro. Independent sampler polls then sleeps1ms and caches latest values. This is not1000Hz fresh sensor data; topic values may repeat between sensor reports.",
+      "measured_hz": null,
+      "requested_hz": 100
+    },
+    {
+      "layer": "observer delivered messages",
+      "meaning": "Counts are callback receipts using host monotonic time. Header endpoints are separately preserved; they are not IMU sample-identity timestamps.",
+      "measured_hz": {
+        "/imu_sensor_broadcaster/imu": 248.59127528657018,
+        "/joint_states": 248.6080937555111
+      }
+    }
+  ],
+  "schema": "pupper_homing_sensor_rate_interpretation_v1",
+  "scope": "Independent read-only analysis of saved original-baseline first-homing telemetry, exact transferred collector, and preserved driver/config. No SSH, ROS initialization, hardware job, permissions, gain/rate changes, or training.",
+  "status": "RATE_SEMANTICS_EXPLAINED_CAUSE_OF_260_TO_249_GAP_UNRESOLVED",
+  "upstream_semantics_crosscheck": {
+    "caveat": "Official current Jazzy docs/source were consulted only for general semantics; they are not asserted byte-identical to the Pi build. Do not choose a specific scheduler-decimation bug or current diagnostic API based on this crosscheck.",
+    "exact_installed_ros2_control_broadcaster_versions_captured": false,
+    "sources": [
+      {
+        "finding": "Manager update_rate is the read/update/write loop request. Modern Jazzy exposes periodicity diagnostics, if the installed version supports them.",
+        "locator": "update_rate; diagnostics controller_manager periodicity/controllers periodicity",
+        "url": "https://control.ros.org/jazzy/doc/ros2_control/controller_manager/doc/userdoc.html"
+      },
+      {
+        "finding": "Current upstream copies cached interface values and stamps controller time when realtime publisher trylock succeeds; publication is not proof of a new IMU report.",
+        "locator": "update lines101-109",
+        "url": "https://raw.githubusercontent.com/ros-controls/ros2_controllers/jazzy/imu_sensor_broadcaster/src/imu_sensor_broadcaster.cpp"
+      },
+      {
+        "finding": "Current upstream stamps update time and uses realtime try_publish. Requested controller updates are distinct from delivered DDS callbacks.",
+        "locator": "update lines383-427",
+        "url": "https://raw.githubusercontent.com/ros-controls/ros2_controllers/jazzy/joint_state_broadcaster/src/joint_state_broadcaster.cpp"
+      }
+    ]
+  }
+}

@@ -402,7 +402,7 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T05:28:09.529978+00:00",
+    "updated_utc": "2026-10-30T05:58:39.939786+00:00",
     "authorization": "User returned and authorized original homing while beside power disconnect. Homing and shutdown observations confirmed. Software integration and nonmoving checks authorized; announce and obtain readiness for another concrete motion step.",
     "automation_status": "PAUSED",
     "ssh": "mts",
@@ -424,21 +424,23 @@
       "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically."
     },
     "agents": {
-      "lab6_recovery": "Preparing minimal feedback-only launch and bounded console initialization/stop test. No SSH/actions.",
-      "optional_recovery": "Independent timing/ownership/stop review of console artifact. No robot actions.",
-      "sit_recovery": "Completed exact environment-v4 verifier; native invocation PASS."
+      "lab6_recovery": "Completed and independently reviewed; no active delegated job.",
+      "optional_recovery": "Completed and independently reviewed; no active delegated job.",
+      "sit_recovery": "Completed and independently reviewed; no active delegated job."
     },
     "next": [
-      "Complete native Pi gateway/software validation and environment pinning.",
-      "Preserve exact v4 binaries, sources and evidence; do not use old v3 wrapper for new stack.",
-      "Prepare a concrete supervised loaded-controller/stop test; fresh readiness required before another motor activation."
+      "Obtain fresh explicit readiness for the prepared combined homing/0.75second partial-pose/stop/shutdown trial.",
+      "Only after approval invoke exact prepared supervisor command once; inspect live run records before retrying anything.",
+      "Collect user observation and raw telemetry, verify all owned processes exited and motor holding disabled.",
+      "Continue conservatively; new trained policies still need applicable course approval."
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
     "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
-    "jobs": "No build/test/archive job remains. Minimal console motion probe under agent preparation/review only; no runtime started.",
+    "jobs": "All builds/tests/native harmless-process checks/preservation complete. No robot manager or policy active. Fresh combined motion approval pending.",
     "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
     "gamepad_preference": "Unavailable in kernel input inventory. User has one but prefers console operation for now. No physical-gamepad claim.",
-    "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later."
+    "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later.",
+    "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json"
   },
   "current_phase": "hardware_session",
   "current_report": "foundation/results/shared-stop-v4-pi-reviewed.json",

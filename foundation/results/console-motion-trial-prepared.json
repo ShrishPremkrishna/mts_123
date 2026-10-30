@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T05:58:39.939786+00:00",
+  "status": "prepared_awaiting_fresh_combined_motion_approval",
+  "user_preference": "User has a gamepad but prefers proceeding without configuring it. Console-generated Joy is explicit operator testing, not a physical-gamepad validation.",
+  "planned_trial": [
+    "Original unchanged driver homing on stand.",
+    "Wait for exact feedback broadcasters and healthy latched gateway, then load preserved default inactive.",
+    "Verify actual default parameters, policy hash, loaded driver/neural mapped-file identities and fresh joint/IMU data.",
+    "Publish zero velocity and one console Start; request Stop0.75seconds later during original2second initialization.",
+    "Independent detached watchdog targets only owned manager/launch at1.5seconds; confirm stop/dwell/process exit/driver lock and shut down whole owned test stack."
+  ],
+  "motion_scope": "Real partial movement toward stock pose; previous homed telemetry predicts up to24.50degrees nominal knee target progression by0.75seconds, not a physical excursion bound. No walking-performance, gamepad, new-policy or complete-foundation claim.",
+  "approval_requirement": "Do not execute the operator-approved command until user explicitly approves this concrete combined homing+partial-pose+stop/shutdown trial while beside physical power disconnect, stand secure and legs clear. One fresh approval covers immediate phases; do not require redundant approvals unless interrupted or scope changes.",
+  "planned_command_after_approval": "ROS_DOMAIN_ID=168 bash /home/pi/pupper-foundation-session-20261029/console-supervisor-v1/run_once.sh --operator-approved --candidate /home/pi/pupper-foundation-session-20261029/minimal-supervised-v4",
+  "exact_inputs": {
+    "probe_sha256": "8c06d3467ae1923cf788950ad37dc4db6d1c8df318294163199f0af7c486ab63",
+    "supervisor_sha256": "5161cd8fb41963dacb6b538a998d6b5bcb849fb834ec06b940f45fa29a31dcba",
+    "probe_archive_sha256": "25b538b40402d57c6fb8451e32ac5596d15ac5033d10fb6581064b693ef5f089",
+    "supervisor_archive_sha256": "9b061769d368e63a02c5a2462705edb25d430a9c4eb4c5dae6a203fea7881b5a",
+    "environment_pins_sha256": "5163a183672f36aa4cf0e88618541ff2175f53882e3f1cb0bff9767b30df46a7"
+  },
+  "review": {
+    "probe_static_fake_tests": 22,
+    "supervisor_mock_tests": 12,
+    "independent_source_reviews": "Root and optional_recovery approved; relevant findings fixed.",
+    "actual_pi_software_only": [
+      "Actual ROS launch construction without LaunchService passed.",
+      "Detached watchdog survived probe crash; separate orphan-manager case passed with harmless Python stand-ins.",
+      "Canonical environment and supervisor --check-only passed; no hardware initialization."
+    ]
+  },
+  "recovery": {
+    "remote_run_directory": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs",
+    "inspect_before_retry": [
+      "supervisor.json events/PIDs/startticks/session UUID",
+      "probe.json and independent watchdog receipt",
+      "stack.log and run/roslogs",
+      "actual /proc identity and driver-lock state"
+    ],
+    "retry": "No automatic repeat. Failed/partial motion trial needs inspection and user physical feedback before proposing another."
+  },
+  "evidence": {
+    "environment-before-software-checks.json": {
+      "bytes": 5310,
+      "sha256": "a2fd424dd73e78ce40ea47fc444bab9aaa4ccd3e720210da67bbd8c8c61453ed"
+    },
+    "native-construct-only.json": {
+      "bytes": 328,
+      "sha256": "b3a4cd2f30aaf622d668c5a27af492d4486d027038cc2de59375ffa3a78a405c"
+    },
+    "native-watchdog-test.json": {
+      "bytes": 1857,
+      "sha256": "d5092f32b9bff5b75e9182d1308344f311b00ccfb288f1598c565afcad63de35"
+    },
+    "supervisor-check-only.jsons": {
+      "bytes": 10839,
+      "sha256": "3e6b3918bf46cb98cb717236e266dae765679f841f8ed71009186768658970c7"
+    }
+  },
+  "baseline_recheck": {
+    "verified_at_utc": "2026-10-30T05:46:36.015231+00:00",
+    "checked_files": 62,
+    "mismatches": [],
+    "scope": "Read-only rehash of selected original baseline files after v4 staging"
+  }
+}
