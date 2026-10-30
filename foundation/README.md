@@ -33,10 +33,13 @@ tests and a supervised short stock-pose comparison: clean process exit, and the
 operator confirmed normal motion and relaxed joints while still powered.
 No floor-gait, mechanical-health or whole-foundation validation is claimed.
 
-The actual Lab 6 HTTP server also passed a stationary Pi test with synthetic,
-permanently latched ROS peers. Status reporting and harmless idle waits were fixed;
-383 Gemini tests and 166 course checks passed. This establishes HTTP/ROS protocol
-behavior, not actual motor-controller tool execution. The
+The [actual Lab 6 API stand test](results/lab6-stand-hardware-reviewed.json)
+now passed on this robot: HTTP `stand_up` was queued and completed, the shared
+gateway handed control to `gemini_walk`, the multiplexer output stayed zero, and
+normal shutdown left the legs relaxed according to the operator. This is a bounded
+supported-stand test; floor standing/walking and live Gemini remain separate.
+Earlier stationary synthetic-peer tests and the 383 Gemini/166 course checks are
+preserved. Status reporting and harmless idle waits were fixed. The
 [earlier short trial](results/console-motion-trial-r2-reviewed.json) and
 [first recorder failure](results/console-motion-trial-20261029-reviewed.json)
 remain preserved.
@@ -51,6 +54,9 @@ preserves earlier backups, policy recovery, native builds, CPU policy comparison
 and synthetic Hailo inference. [Live camera and Hailo perception](results/live-camera-perception-reviewed.json)
 now passed a bounded six-frame check, detecting two people in every frame. Actual
 following, color calibration, and live Gemini remain separate validation steps. The original working directories and coursework main remain preserved.
+The [battery-monitor source fix](results/battery-monitor-reviewed.json) corrects
+stale voltage readings, boundary percentages and repeated shutdown scheduling;
+21 mocked tests pass. Robot service deployment is still pending.
 
 ## Course coverage and where it lives
 

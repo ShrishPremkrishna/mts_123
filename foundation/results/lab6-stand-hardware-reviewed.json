@@ -1,0 +1,304 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T07:52:16.648830+00:00",
+  "status": "passed_supported_stand_zero_velocity_api_sequence_with_normal_relaxed_operator_observation",
+  "run_id": "20261030T074438Z-9cdcb459176f4c7c8e474d80e98a386f",
+  "scope": "Single supervised supported-stand zero-velocity Lab6 HTTP stand_up through actual shared controller gateway; not floor locomotion, physical gamepad, Google/Gemini model or trick validation",
+  "evidence": {
+    "artifact_root": "artifacts/hardware/2026-10-30/lab6-stand-trial-v1",
+    "archive_sha256": "828469a27f7c1cd53cc197f751b10a883cf2a2deb886bec96032519894c26087",
+    "archive_bytes": 600035,
+    "archive_regular_files_verified": 37,
+    "manifest_files_verified": 36,
+    "archive_symlinks_preserved_not_materialized": [
+      {
+        "path": "20261030T074438Z-9cdcb459176f4c7c8e474d80e98a386f/roslogs/latest",
+        "target": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T074438Z-9cdcb459176f4c7c8e474d80e98a386f/roslogs/2026-10-30-00-44-39-354067-mts-33336"
+      }
+    ],
+    "journal_sha256": "f40c7be5f9a3f47b11d6dd7966c9e69db91dc7c59e5bb7ad335499cebf26fa84",
+    "journal_records": 4265,
+    "raw_arrays_exactly_match_sequential_journal": true,
+    "probe_sha256": "605569a4a3163dccaa09fbf728d899db1b6b7db7cfdd463257120f674b20dd65",
+    "passive_mux_capture_sha256": "dafc73d7df2f5827dded2be8cf9478a1241e90fccdcfd1e9f09734b1cd01104d"
+  },
+  "identities": {
+    "mapped_libraries": {
+      "/home/pi/pupper-foundation-session-20261029/driver-overlay-v2/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so": {
+        "sha256": "925954b1b0c773bedb483da77bcad5c08aa707b0baac9ca16db50772df14e4e2",
+        "inode": 1595293,
+        "device": 2050
+      },
+      "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/lib/libneural_controller.so": {
+        "sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91",
+        "inode": 1594420,
+        "device": 2050
+      }
+    },
+    "all_three_loaded_identity_checks_equal": true,
+    "runtime_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "runtime_parameters": {
+      "init_duration": 2.0,
+      "fade_in_duration": 2.0,
+      "gain_multiplier": 1.0,
+      "max_body_angle": 1.0,
+      "game_buttons": false,
+      "init_kps": [
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5,
+        7.5
+      ],
+      "init_kds": [
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25,
+        0.25
+      ],
+      "kp_scale": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "speed_cap": 0.0,
+      "max_vx_forward": 0.49,
+      "max_vx_backward": 0.3,
+      "reference_tricks": true,
+      "use_sim_time": false,
+      "model_path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/share/neural_controller/launch/default_policy.json"
+    },
+    "identity_scope": "Exact process ownership and mapped-file inode/on-disk hash; not an in-memory byte hash"
+  },
+  "api_and_controller_sequence": {
+    "one_stand_request_accepted": true,
+    "queue_job_completed_successfully": true,
+    "completion_receipt_monotonic": 3361.345926929,
+    "one_stop_tool_succeeded": true,
+    "no_worker_or_api_error": true,
+    "controller_state_transitions": [
+      {
+        "monotonic": 3355.915913253,
+        "active_leg_controllers": []
+      },
+      {
+        "monotonic": 3356.8808612,
+        "active_leg_controllers": [
+          "neural_controller_default"
+        ]
+      },
+      {
+        "monotonic": 3357.062634804,
+        "active_leg_controllers": [
+          "gemini_walk"
+        ]
+      },
+      {
+        "monotonic": 3361.654998205,
+        "active_leg_controllers": []
+      }
+    ],
+    "no_simultaneous_or_unexpected_active_leg_controller": true,
+    "no_post_stop_reactivation": true,
+    "all_statuses_accepted_increasing_same_instance_no_fault": true,
+    "synthetic_start_count": 1,
+    "synthetic_stop_count": 18,
+    "actual_gemini_active_receipt_to_stop_s": 4.500112887999876,
+    "start_publication_to_stop_upper_s": 4.796975013000065,
+    "first_all_inactive_after_stop_s": 0.09143886599986217
+  },
+  "zero_velocity_path": {
+    "mux_output_samples": 126,
+    "every_observed_six_component_output_exactly_zero": true,
+    "actual_llm_mux_source_observed": true,
+    "physical_gamepad_wired": false,
+    "speed_cap_zero_semantics": "Use stock policy-slot limit; not a hard zero clamp."
+  },
+  "telemetry": {
+    "counts": {
+      "joint_states": 1499,
+      "imu": 1492,
+      "status": 222,
+      "controller_states": 111,
+      "commands": 231,
+      "policy_output": 125,
+      "position_command": 125,
+      "imu_latency": 125,
+      "policy_inference_latency": 125,
+      "mux_output": 126,
+      "mux_source": 1,
+      "api_receipts": 78
+    },
+    "all_joint_policy_target_imu_values_finite": true,
+    "max_joint_excursion_rad": 1.2088956832885742,
+    "max_abs_reported_joint_velocity_rad_s": 1.25396728515625,
+    "max_imu_tilt_deg": 1.9899916966468765,
+    "quaternion_norm_range": [
+      0.9999999999999998,
+      1.0000000000000002
+    ],
+    "joint_timing": {
+      "max_source_stamp_gap_s": 0.028715464,
+      "nonincreasing_source_stamps": 0,
+      "max_receipt_gap_s": 0.17974267999989024
+    },
+    "imu_timing": {
+      "max_source_stamp_gap_s": 0.028719427,
+      "nonincreasing_source_stamps": 0,
+      "max_receipt_gap_s": 0.17902764399968873
+    },
+    "initial_measured_command_bound_excess_rad": {
+      "leg_front_r_3": 0.010353660583496072,
+      "leg_front_l_3": 5.3024291992165296e-05
+    },
+    "max_measured_command_bound_excess_rad": {
+      "leg_front_r_3": 0.010353660583496072,
+      "leg_front_l_3": 5.3024291992165296e-05
+    },
+    "all_published_targets_within_driver_command_bounds": true,
+    "fully_faded_target_samples": 26,
+    "fully_faded_target_receipt_span_s": 0.4936154689999057,
+    "nearest_joint_receipt_alignment_max_s": 0.0021120159999554744,
+    "fully_faded_target_tracking_receipt_aligned": {
+      "mean_absolute_rad": 0.014707460925997928,
+      "rms_rad": 0.016347559201111937,
+      "max_absolute_rad": 0.032628415822982815,
+      "per_joint_mean_absolute_rad": {
+        "leg_front_r_1": 0.017707167863845852,
+        "leg_front_r_2": 0.013560859125394103,
+        "leg_front_r_3": 0.01490584098375757,
+        "leg_front_l_1": 0.020530646764315118,
+        "leg_front_l_2": 0.014489594056056111,
+        "leg_front_l_3": 0.008373651046019299,
+        "leg_back_r_1": 0.03145700573921206,
+        "leg_back_r_2": 0.007157877914320949,
+        "leg_back_r_3": 0.007018358340630129,
+        "leg_back_l_1": 0.022777107426753436,
+        "leg_back_l_2": 0.008614156875902659,
+        "leg_back_l_3": 0.009897264975767834
+      },
+      "scope": "Nearest receipt-time alignment; not synchronized actuator-timestamp error."
+    },
+    "imu_age_seconds": {
+      "min": 0.0011220000451430678,
+      "median": 0.006618000101298094,
+      "p95": 0.010133799724280834,
+      "max": 0.011134999804198742
+    },
+    "inference_seconds": {
+      "min": 0.0001900000061141327,
+      "median": 0.00025400001322850585,
+      "p95": 0.0004415999923367053,
+      "max": 0.0009840000420808792
+    },
+    "post_stop_relaxation": {
+      "0": {
+        "samples": 152,
+        "max_abs_velocity_rad_s": 1.0,
+        "remaining_joint_span_max_rad": 0.30060291290283203
+      },
+      "0.1": {
+        "samples": 127,
+        "max_abs_velocity_rad_s": 1.0,
+        "remaining_joint_span_max_rad": 0.2517738342285156
+      },
+      "0.3": {
+        "samples": 77,
+        "max_abs_velocity_rad_s": 0.6825408935546875,
+        "remaining_joint_span_max_rad": 0.11367988586425781
+      },
+      "0.5": {
+        "samples": 29,
+        "max_abs_velocity_rad_s": 0.5873031616210938,
+        "remaining_joint_span_max_rad": 0.033951759338378906
+      }
+    },
+    "effort_scope": "Host PD estimate, not measured torque.",
+    "maximum_evidence_append_seconds": 0.06251316199995927,
+    "receipt_gap_phase_context": {
+      "joint_states": {
+        "largest_receipt_gap": {
+          "receipt_gap_s": 0.17974267999989024,
+          "from_start_s": -0.177421774999857,
+          "to_start_s": 0.0023209050000332354
+        },
+        "fully_faded_max_receipt_gap_s": 0.006252454999867041
+      },
+      "imu": {
+        "largest_receipt_gap": {
+          "receipt_gap_s": 0.17902764399968873,
+          "from_start_s": -0.17635394299986729,
+          "to_start_s": 0.002673700999821449
+        },
+        "fully_faded_max_receipt_gap_s": 0.006467788999998447
+      },
+      "position_command": {
+        "largest_receipt_gap": {
+          "receipt_gap_s": 0.026778595999985555,
+          "from_start_s": 3.6295680809998885,
+          "to_start_s": 3.656346676999874
+        },
+        "fully_faded_max_receipt_gap_s": 0.0228810080002404
+      },
+      "policy_output": {
+        "largest_receipt_gap": {
+          "receipt_gap_s": 0.026924837000024127,
+          "from_start_s": 3.629299822000121,
+          "to_start_s": 3.656224659000145
+        },
+        "fully_faded_max_receipt_gap_s": 0.022540619000210427
+      }
+    }
+  },
+  "cleanup": {
+    "fallback": false,
+    "launch_state": "exited",
+    "manager_deadline_monotonic": 3362.66309916,
+    "manager_signal_monotonic": 3362.190435862,
+    "manager_state": "exited",
+    "passed_cleanup": true,
+    "physical_stopping_proven": false,
+    "protocol": "pupper_console_shutdown_v2",
+    "manager_gateway_mux_rsp_clean_exit_logs": true,
+    "supervisor_helpers_cleaned_without_survivor_report": true,
+    "manager_absent_and_lock_available": true
+  },
+  "operator_observation": {
+    "state": "received",
+    "text": "Normal motion; legs relaxed",
+    "source": "User explicitly confirmed to root after this exact Lab6 trial; relayed to independent reviewer after initial raw review.",
+    "independent_from_telemetry": true
+  },
+  "limits": [
+    "Zero commanded speed on a supported stand does not establish reliable standing on a floor or walking.",
+    "Timing is observed software timing; no hard realtime or physical emergency-stop guarantee.",
+    "No electrical current measurement or motor firmware disable acknowledgment.",
+    "Controller inactive and API stop confirm software state; joints still relax after Stop.",
+    "26 fully-faded target samples cover about0.49s; this is a bounded integration check, not long-duration policy validation.",
+    "Recorder append peaked at62.5ms and sensor receipt gaps occurred; reported inference time is not end-to-end real-time latency."
+  ]
+}

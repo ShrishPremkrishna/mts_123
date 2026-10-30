@@ -402,13 +402,13 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T07:41:24.596428+00:00",
+    "updated_utc": "2026-10-30T07:54:13.741581+00:00",
     "authorization": "User is present and explicitly authorizes supervised conservative iterative tests. Announce concrete motion tests and obtain needed physical observations; avoid redundant permission loops. No raised gains/limits or random motions.",
     "automation_status": "PAUSED",
     "ssh": "mts",
     "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "canonical_report": "foundation/results/full-stock-release-investigation.json",
-    "current_state": "Driver2 short supervised comparison completed; user confirms normal motion and powered joints relaxed. Manager and launch exited, no fallback, driver lock available. No motor job active.",
+    "canonical_report": "foundation/results/lab6-stand-hardware-reviewed.json",
+    "current_state": "Actual Lab6 standtrial passed: APIaccepted/completed, default->gemini_walk handoff, zero muxoutput, cleanshutdownnofallback; operatornormal+relaxed. No motor job active. UserworksGeminiLivekey; wantsnotificationwhenfloortrialready.",
     "first_homing": {
       "nodes": [
         "baseline robot_state_publisher",
@@ -429,13 +429,14 @@
       "lab6_recovery": "NativeAPIpreservation anddriver2environment/probepin preparation."
     },
     "next": [
-      "Review and stage minimal actual Lab6 API + cmd_vel_mux + gemini_walk integration; preserve stock gains/policy and conservative velocity limits.",
-      "Supervised zero-speed on-stand API execution, timed Stop and shutdown; inspect physical motion/release.",
-      "Live camera/Hailo perception test without movement; later supervised floor gait and only approved trick validation."
+      "Finish minimalfloorstandcandidate/review; homeonstand then waituserfloorplacement beforeenablingphysicalJoy.",
+      "Supervisedstockfloorstanding and actualR3stop, followedlaterbyshortslowwalk.",
+      "Stage/testfixedbatteryutilitynatively; onlythenreversibleserviceoverride whilemotorstackinactive.",
+      "LiveGeminikeyuserconfiguring; testmodelwithfakerobotfirst. NewlytrainedSit/generatedtricksstillneedstaffapproval;nohardwaredeploymentofthoseyet."
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
     "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
-    "jobs": "Lab6 finalizes additive stand/API candidate and tests; optional independentlyreviews; sitprepares capability order andactualcourseapprovalrequirements. No remotehardware/build/GPUjob.",
+    "jobs": "Lab6 prepares stockfloorstand withhomingonstand, boundedinactiveplacementpause, singlephysicalJoysource andindependent20sstopguard. Optionalreviews. Sitpackagesnativebatteryfix/source-preservingservicedropinproposal. No remotejob.",
     "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
     "gamepad_preference": "Existing trusted DualSense reconnected via PS button. Isolateddomain170 input-only check: userR3 produced solebutton12, matchingStopmapping. Reader exited. ManualStopthroughactualgateway remainspending.",
     "github_backup": "Push succeeded: origin/pupper-foundation at9a0eff9b557f322fbeb43eecd608bee1e08c262a. Local recovery bundle also verified.",
@@ -444,7 +445,7 @@
     "live_camera": "foundation/results/live-camera-perception-reviewed.json:6/6freshframeswith2persons, normalcameraacquisition, noROS/motionpublishers/servicechanges, exactexecutedsource78419preserved. Following/colorcalibration remainunverified."
   },
   "current_phase": "hardware_session",
-  "current_report": "foundation/results/full-stock-release-investigation.json",
+  "current_report": "foundation/results/lab6-stand-hardware-reviewed.json",
   "previous_hardware_sessions": [
     {
       "date": "2026-10-29",
