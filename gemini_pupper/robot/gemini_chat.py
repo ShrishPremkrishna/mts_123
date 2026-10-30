@@ -6,6 +6,7 @@ answers and calls tools, and this script runs each call and sends the reply
 back, the same loop the web app runs when you talk to Pupper.
 
     python3 lab/chat.py            # YOUR tools, on a fake robot (a laptop is enough)
+    python3 lab/chat.py --realtime # fake robot with real queue timing/cancellation
     python3 lab/chat.py --robot    # your tools on the real Pupper (it moves!)
 
 (default)  Your lab/prompt.md, and your tools from lab/, exactly as the web app
@@ -13,6 +14,10 @@ back, the same loop the web app runs when you talk to Pupper.
            a queued job finishes at once: you see the reply Gemini hears
            (accepted or refused), then what the job did (the outcome) and what
            the fake robot was told. Nothing moves; no Pupper needed.
+--realtime Fake robot only, using real elapsed time. Calls return acceptance
+           immediately; queued work continues while Gemini answers. Stop can
+           cancel pending/running work. This checks queue timing, not physics,
+           ROS transport latency or real-controller completion.
 --robot    The same, but every call goes to the robot server
            (http://localhost:8000, on the Pupper or through your ssh tunnel),
            the exact path a voice command takes. Pupper on the ground, your hand
@@ -29,10 +34,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextlib import suppress
 import json
 import os
 import re
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -47,10 +54,35 @@ def prompt_text(path: Path = HERE.parent / "lab" / "prompt.md") -> str:
     return re.sub(r"<!--.*?-->", "", path.read_text(), flags=re.S).strip()
 
 
+class _RealtimeClock:
+    """The existing fake rig's clock interface, paced by actual elapsed time."""
+
+    def __init__(self):
+        self.on_advance = []
+
+    @property
+    def now(self):
+        return time.monotonic()
+
+    def monotonic(self):
+        return self.now
+
+    async def sleep(self, seconds, result=None):
+        await asyncio.sleep(seconds)
+        return result
+
+
 class DeskBackend:
     """Your lab/ tools and behaviors on the fake robot from test_tools.py."""
 
-    name = "your tools on a fake robot (nothing moves)"
+    name = "your tools on a fake robot (accelerated per-call completion; nothing moves)"
+
+    def __init__(self, *, realtime: bool = False):
+        self.realtime = realtime
+        self._ticker = None
+        self._closed = False
+        if realtime:
+            self.name = "your tools on a fake robot (real queue timing; no physics or hardware)"
 
     def setup(self) -> tuple[str, list[dict]]:
         import test_tools  # installs a fake ROS before robot_api is imported
@@ -58,18 +90,64 @@ class DeskBackend:
         import tool_registry
 
         self.tt, self.registry = test_tools, tool_registry
-        self.rig = test_tools.Rig(tricks=tricks.load_tricks)  # the real tricks/ folder
+        self._previous_bindings = {name: getattr(test_tools.robot_api, name)
+                                   for name in ("time", "asyncio", "load_tricks")}
+        self._previous_robot = test_tools.ROBOT
+        original_clock = test_tools.VirtualClock
+        try:
+            if self.realtime:
+                test_tools.VirtualClock = _RealtimeClock
+            # The real tricks/ folder; only the fake clock construction changes.
+            self.rig = test_tools.Rig(tricks=tricks.load_tricks)
+        finally:
+            test_tools.VirtualClock = original_clock
         self.seen_pub = self.seen_switch = self.seen_log = self.seen_follow = 0
         self.what_happened()  # forget the start-up
+        if self.realtime:
+            self._ticker = asyncio.create_task(self._tick_feedback())
         return prompt_text(), tool_registry.declarations(self.rig.ts)
 
     async def call(self, name: str, args: dict) -> dict:
         res = await self.registry.call(self.rig.ts, name, args)
-        await self.rig.settle()  # fake time: every queued job runs to the end now
+        if not self.realtime:
+            await self.rig.settle()  # accelerated demonstration mode only
         return res.as_dict()
 
+    async def _tick_feedback(self) -> None:
+        # Reuse fake gateway/clip feedback and watchdogs while jobs or the model
+        # are waiting. This never simulates contact or actuator behavior.
+        previous_outcome = None
+        while True:
+            for callback in tuple(self.rig.clock.on_advance):
+                callback()
+            outcome = self.rig.ts.last_outcome
+            if outcome is not previous_outcome:
+                previous_outcome = outcome
+                self.after()
+            await asyncio.sleep(0.02)
+
+    async def aclose(self) -> None:
+        if self._closed or not hasattr(self, "rig"):
+            return
+        self._closed = True
+        # All of these objects are fake. Cancel pending work rather than silently
+        # completing a requested sequence when the diagnostic connection closes.
+        self.rig.close()
+        with suppress(asyncio.CancelledError):
+            await self.rig.ts.worker
+        if self.rig.ts._stop_cleanup_task is not None:
+            with suppress(asyncio.CancelledError):
+                await self.rig.ts._stop_cleanup_task
+        if self._ticker is not None:
+            self._ticker.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._ticker
+        for name, value in self._previous_bindings.items():
+            setattr(self.tt.robot_api, name, value)
+        self.tt.ROBOT = self._previous_robot
+
     def after(self) -> None:
-        """Print what the robot did: this happens later, after Gemini has its reply."""
+        """Print observed fake activity; these logs are not extra Gemini replies."""
         lines = self.what_happened()
         if lines:
             print("     ...later, when the queue gets to it:")
@@ -89,8 +167,9 @@ class DeskBackend:
                              for _, m in moving})
             span = moving[-1][0] - moving[0][0]
             lines.append(f"speed: {len(moving)} commands over {span:.1f} s, (vx, vy, wz_deg) = "
-                         + ", ".join(map(str, speeds)) + ("; then a zero (stand still)" if twists[-1][1].linear.x == 0
-                                                         and twists[-1][1].angular.z == 0 else ""))
+                         + ", ".join(map(str, speeds)) + ("; then a zero command (physical stopping unmeasured)"
+                         if all(v == 0 for v in (twists[-1][1].linear.x, twists[-1][1].linear.y,
+                                                twists[-1][1].angular.z)) else ""))
         for _, topic, m in robot.published[self.seen_pub:]:
             if topic.endswith("/clip"):
                 lines.append(f"clip: {topic.split('/')[1]} plays {m.data}")
@@ -147,6 +226,14 @@ def show(prompt: str, tools: list[dict], full: bool) -> None:
 
 
 async def chat(backend, model: str, full: bool) -> None:
+    try:
+        await _chat(backend, model, full)
+    finally:
+        if isinstance(backend, DeskBackend):
+            await backend.aclose()
+
+
+async def _chat(backend, model: str, full: bool) -> None:
     try:
         from google import genai
         from google.genai import types
@@ -205,13 +292,15 @@ async def chat(backend, model: str, full: bool) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--realtime", action="store_true",
+                      help="fake robot only: real elapsed queue timing, immediate acceptance and Stop cancellation")
     mode.add_argument("--robot", nargs="?", const="http://localhost:8000", metavar="URL",
                       help="your tools on the real robot server (default http://localhost:8000)")
     ap.add_argument("--show", action="store_true", help="print the whole prompt and every tool declaration first")
     ap.add_argument("--model", default=MODEL, help=f"Gemini Live model (default {MODEL})")
     args = ap.parse_args()
     sys.path.insert(0, str(HERE))
-    backend = RobotBackend(args.robot) if args.robot else DeskBackend()
+    backend = RobotBackend(args.robot) if args.robot else DeskBackend(realtime=args.realtime)
     try:
         asyncio.run(chat(backend, args.model, args.show))
     except (KeyboardInterrupt, EOFError):

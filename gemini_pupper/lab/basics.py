@@ -93,9 +93,11 @@ async def lie_down_tool(robot: Robot) -> Result:
     "stop",
     "Cancel queued actions, end following and request zero walking speed immediately."
     " Interrupt a playing trick by deactivating its controller; stand_up is then"
-    " required before another motion. The reply confirms commands, not that the"
-    " robot is motionless. This is an interrupt, never a delayed final step;"
-    " it can cancel actions and waits accepted earlier in the same request.",
+    " required before another motion. The reply confirms commands, not physical"
+    " stillness or posture. This is an interrupt, never a delayed final step."
+    " Only report cancellation of a named action when a tool/status result confirms"
+    " it; never invent cancellation of an unsubmitted action. Cleared queued-command"
+    " counts do not describe running-job cancellation; check robot_status for that.",
 )
 async def stop_tool(robot: Robot) -> Result:
     return await robot.immediate_stop(relax_playing_trick=True)
