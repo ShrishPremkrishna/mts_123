@@ -11,6 +11,28 @@ weights, simulation results, and performance on this particular robot are
 separate claims. A passing unit test or a training reward curve cannot establish
 the last two.
 
+## Session stopped — 30 October
+
+Work is stopped at the user's request; scheduled work remains paused. The latest
+[floor attempt](results/floor-stock-trial-20261030.json) aborted at the joystick
+publisher check **before floor policy activation**. Cleanup completed in the
+recorded run. Fresh SSH/Tailscale checks then timed out, so current process state
+has not been reverified and the complete failed-run archive still needs recovery.
+Do not restart automatically; confirm stand placement before any later homing.
+
+The Gemini key works: a real Live connection reached the fake-robot tools. That
+check exposed a missing wait tool and inaccurate sequence narration. The
+[reviewed queued-wait correction](results/gemini-live-wait-reviewed.json) passes
+400 Gemini tests and 166 course checks; an independent reviewer also passed its
+17 focused tests. It is committed locally, **not deployed or live-rechecked**.
+Stop remains immediate; delayed-stop sequences are not supported.
+
+Resume with the Joy graph/fallback diagnosis using motors inactive, then supervised
+stock floor standing/R3 stopping and a short conservative walk. Following and
+live Gemini on the robot remain to be validated. New trained tricks still need
+applicable course approval. This is a tested software foundation with partial
+hardware validation, not a finished or globally optimized robot release.
+
 ## Current robot preparation
 
 The first supervised baseline homing completed on 29 October. All twelve motors

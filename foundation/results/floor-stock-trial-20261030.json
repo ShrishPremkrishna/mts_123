@@ -1,0 +1,31 @@
+{
+  "schema": "floor_stock_trial_interrupted_record_v1",
+  "recorded_utc": "2026-10-30T08:16:34.933950+00:00",
+  "status": "aborted_before_floor_policy_activation; remote_archive_recovery_pending",
+  "evidence_basis": "Results observed during the preceding live session and retained in session recovery context. Remote raw files could not be re-read or archived at wrap-up because SSH and Tailscale ping timed out. Do not treat this record as a new independent raw-data review.",
+  "remote_run_dir": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T080848Z-9bd71fc07753469e969fc2f49e325fa5",
+  "session_id": "9bd71fc07753469e969fc2f49e325fa5",
+  "input_archive": {
+    "path": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
+    "bytes": 41037,
+    "sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
+  },
+  "observed_sequence": [
+    "Normal homing on stand; stock controller remained inactive.",
+    "Operator confirmed floor placement.",
+    "Physical Joy child started; graph gate aborted before controller-ready signal and before any Options activation.",
+    "Probe reported unexpected or multiple Joy publishers.",
+    "Joy process exited 0; manager and launch exited; driver lock was available. Shutdown coordinator reported fallback true and passed_cleanup true. Supervisor exited 1."
+  ],
+  "motion_claim": "Homing only. No floor stock-policy activation or walking was observed; floor standing and physical gateway R3 remain unvalidated.",
+  "unresolved": [
+    "Read exact distinct Joy publisher names/namespaces and physical Joy receipts; do not infer whether renaming, discovery, device selection or another publisher caused the rejection.",
+    "Inspect shutdown-coordinator-v2 logs/receipts to explain fallback true before another trial.",
+    "Retrieve complete run archive and verify hashes before any Pi cleanup."
+  ],
+  "resume": [
+    "Check current physical placement, power, processes and driver lock. User intended to put robot back on stand; actual placement is not verified.",
+    "Reproduce joystick naming/device selection on an isolated input-only ROS domain without motor software.",
+    "Review correction before another supervised floor test; homing must start on stand, never automatically on floor."
+  ]
+}

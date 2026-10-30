@@ -1,0 +1,106 @@
+{
+  "schema": "gemini_queued_wait_contract_review_v1",
+  "created_utc": "2026-10-30T08:11:41.115423+00:00",
+  "source_base": "8bdcc48b34600409a0b5b7064fa8e1e813d7c641",
+  "status": "local_implementation_and_regression_passed_live_recheck_pending_not_deployed",
+  "scope": "Local source review and fake-ROS tests only. This agent did not access keys, network, robot or installed service.",
+  "trigger": {
+    "path": "artifacts/access/gemini-live-fake-20261030-v1/result.json",
+    "sha256": "87fe34a3ec4070b20809383cedd31df591d9103a2ac4e11e2b700ae124d9397f",
+    "request": "Stand up, wait one second, then stop.",
+    "observed": "Live model called stand_up then immediate stop, had no declared wait tool, and narrated an unsupported ordering. Prior smoke is preserved unchanged."
+  },
+  "findings": [
+    {
+      "file": "gemini_pupper/robot/robot_api.py",
+      "lines": [
+        942,
+        959
+      ],
+      "finding": "Backend already has validated finite0<duration<=60 queued pause; it immediately returns acceptance and uses existing cancellation/safety checks."
+    },
+    {
+      "file": "gemini_pupper/robot/server.py",
+      "lines": [
+        235,
+        237
+      ],
+      "finding": "HTTP queue/wait already exists, but the prior Gemini registry lacked any wait decorator."
+    },
+    {
+      "file": "gemini_pupper/robot/tool_registry.py",
+      "lines": [
+        185,
+        205
+      ],
+      "finding": "Stop bypasses request serialization; it must not be converted to a delayed queue action."
+    },
+    {
+      "file": "gemini_pupper/robot/gemini_chat.py",
+      "lines": [
+        66,
+        69
+      ],
+      "finding": "DeskBackend settles every fake job after each tool call before returning acceptance. This illustrates outcomes but does not reproduce real web queue timing or same-batch cancellation."
+    },
+    {
+      "file": "gemini_pupper/web/services/geminiLive.ts",
+      "lines": [
+        432,
+        480
+      ],
+      "finding": "Web returns each acceptance/result to Live; completed queue outcomes are not automatically pushed into that model context. robot_status exposes the latest queued outcome."
+    }
+  ],
+  "change": [
+    "Add wait(duration) tool forwarding directly to existing Robot.wait. Existing backend bounds, current-mode retention and Stop timing are unchanged.",
+    "Description and prompt distinguish accepted queued pause from elapsed time, physical stillness, follower stopping or motor relaxation.",
+    "Prompt explicitly treats Stop as immediate even in a requested delayed-final-step sequence, refuses to promise that unsupported sequence, and forbids claiming cancelled actions completed.",
+    "No completion barrier, delayed Stop tool, new queue framework, RobotAPI, transport, web or registry changes."
+  ],
+  "tests": {
+    "focused_passed": 17,
+    "gemini_regression_passed": 400,
+    "gemini_skipped": 0,
+    "course_checks_passed": 166,
+    "environment": "artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
+    "coverage": [
+      "Required numeric duration declaration and invalid types/bounds/nonfinite inputs",
+      "Acceptance precedes elapsed time and completion appears in status",
+      "Three actual queue submissions stand\u2192wait\u2192move without DeskBackend.settle between calls",
+      "Wait delays movement after full activation readiness",
+      "Immediate Stop clears queued pause and cancels current pause without waiting60s or holding request lock",
+      "Following/current controller remain unchanged during wait"
+    ],
+    "initial_test_adjustment": "The first queue-order fixture requested0.1m/s, below the unchanged0.2m/s minimum. It was corrected to0.2m/s; the initial16pass/1failure log is preserved. No product limit was changed."
+  },
+  "source_sha256": {
+    "gemini_pupper/lab/basics.py": "ca8df4b2fd54c6eb44c55c0129f95e950fe26270fe7b1a0491269cd78b096cd8",
+    "gemini_pupper/lab/prompt.md": "e959a39245e6476da6868973c00493eb13effce6237f1ee0eaefc9792f29bc13",
+    "gemini_pupper/tests/test_wait_tool.py": "f381f01886880b8aa61ddc068a03c917a3388383732b22e6cfe60243ca4ce4ac",
+    "gemini_pupper/robot/tool_registry.py": "900cbca48afbb765a0adb48340a504a9f7df73537b643352355f99298a01e353",
+    "gemini_pupper/robot/robot_api.py": "4713b207818392cb9886d66507948e1ca2d35a5941073c9fbe65e19decc72e28",
+    "gemini_pupper/robot/gemini_chat.py": "5dc19a0231c44a2ba634fcb98676d43039f1318716086ca47aff2d4f584ca026",
+    "gemini_pupper/robot/server.py": "072b9845352eb197e2bb1a3755c307153eeec111670cbc1eb5bdfbc1b3d68560",
+    "gemini_pupper/web/services/geminiLive.ts": "91a5540396602978b53fd8e9718c1932b2f89c25ba2536938ccc123409ec31bb",
+    "gemini_pupper/web/services/robotBridge.ts": "810c3591244df0ad31dab1fd300d76fbc1bb23321f3b703633e4f45180c4cc4f"
+  },
+  "log_sha256": {
+    "course-checks.log": "e8fe4511d453e30746212a0bc8bee4c2249670eed521dbaef8d78dc4f4029165",
+    "focused-tests-v2.log": "05f0c6f8a7918aee199f9622e29aae29357785ab3b2b8a549a713423a2946786",
+    "focused-tests.log": "3090cc962068c98f4d9b3109916ed057db0a16c9138201c347d6784cc2313c83",
+    "gemini-regression.log": "8a747cd7b930ad0446b789a2a0529ab763176ff199482ad094abf8d9ca11f474"
+  },
+  "limitations": [
+    "A queued wait tool does not make a subsequent immediate Stop run later. Timed-stop requests remain unsupported and must be reported honestly.",
+    "This source change cannot guarantee stochastic model compliance; root owns the new fake-only Live retest.",
+    "No model completion notifications or automatic polling were added. A latest outcome can be superseded by later work; no per-job completion subscription is claimed.",
+    "No new software has been staged onto the robot for this change."
+  ],
+  "independent_review": {
+    "agent": "optional_recovery",
+    "result": "No material findings; all 17 new tests independently passed and 9 source, 4 log and original Live-trigger hashes matched.",
+    "reviewed_utc": "2026-10-30T08:16:34.933950+00:00"
+  },
+  "wrap_up": "User requested stop. No further live test or robot staging; these remain explicitly pending."
+}

@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from part3_follow import prepare_to_move
 from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER, MOTORS_IDLE, WALK_READY_S, Result, Robot, with_note
-from tool_registry import tool
+from tool_registry import Param, tool
 
 # Added to the description of every tool that calls prepare_to_move, which ends follow mode (Part 3).
 PREPARES_MOVE = (
@@ -94,10 +94,23 @@ async def lie_down_tool(robot: Robot) -> Result:
     "Cancel queued actions, end following and request zero walking speed immediately."
     " Interrupt a playing trick by deactivating its controller; stand_up is then"
     " required before another motion. The reply confirms commands, not that the"
-    " robot is motionless.",
+    " robot is motionless. This is an interrupt, never a delayed final step;"
+    " it can cancel actions and waits accepted earlier in the same request.",
 )
 async def stop_tool(robot: Robot) -> Result:
     return await robot.immediate_stop(relax_playing_trick=True)
+
+
+@tool(
+    "wait",
+    "Queue a pause after earlier queued actions, keeping the current mode."
+    " The reply means accepted, not that time has elapsed; use robot_status for"
+    " completion. This does not stop following, relax motors or prove physical"
+    " stillness. Stop interrupts this pause and is never delayed by it.",
+    duration=Param("number", "Pause duration in seconds, greater than 0 and at most 60."),
+)
+async def wait_tool(robot: Robot, duration: float) -> Result:
+    return await robot.wait(duration)
 
 
 @tool("robot_status", "Check active walking/trick controllers, following, queued work and detected falls. Controller status does not measure physical stopping or posture.")
