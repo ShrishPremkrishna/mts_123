@@ -90,7 +90,7 @@
       "remaining_boundaries": [
         "No broad optimization of every historical team run.",
         "Retain shipped default; tested new walking candidates have no demonstrated general promotion advantage.",
-        "Installed Pi policy identity and measured hardware performance remain unknown.",
+        "Installed Pi policy-file identities are now preserved and compared; actually loaded policy state and measured physical performance remain unverified.",
         "Inspected mjlab locomotion actor omitted persistent encoder calibration bias from observation while applying it to actuator targets. Future measured-angle mode is versioned and optional; old checkpoints preserve legacy compatibility. The Lab6 matched sensing study is complete with common measured-mode evaluations and tradeoffs; no claim this changes the unknown original training provenance or measured hardware behavior of the shipped default."
       ]
     },
@@ -110,10 +110,11 @@
         "follow_me_pupper/lab/follow_me.py",
         "follow_me_pupper/lab/target_lock.py",
         "follow_me_pupper/lab/avoidance.py",
-        "follow_me_pupper/robot/follow_service.py"
+        "follow_me_pupper/robot/follow_service.py",
+        "foundation/results/hardware-session-20261029-reviewed.json"
       ],
       "remaining_boundaries": [
-        "Color and avoidance are opt-in, require camera/Hailo validation and do not establish robust person identity or geometric obstacle clearance."
+        "Synthetic Hailo inference passes on the Pi with the pinned class HEF. Camera acquisition, positive detections and the full follower path remain unvalidated; color and avoidance are opt-in and do not establish robust person identity or geometric obstacle clearance."
       ]
     },
     {
@@ -166,18 +167,20 @@
         "foundation/results/spider-encoder-gpu-independent-review.json",
         "foundation/results/spider-encoder-native-reviewed.json",
         "foundation/results/spider-encoder-native-independent-review.json",
-        "foundation/results/portable-inventory-kit-reviewed.json"
+        "foundation/results/portable-inventory-kit-reviewed.json",
+        "foundation/results/hardware-session-20261029-reviewed.json"
       ],
       "remaining_boundaries": [
         "Reviewed Sit improvement passes original eight cases on CPU/GPU; +2.5cm COM remains outside training range and backend-sensitive.",
         "The actual Gemini stopped-jump path recovers only 2/4 fresh and 2/4 prior-walk trials; no-jump controls recover4/4each. All8jump trials achieve flight, but4reach inherited tilt stop. Earlier forward0.3m/s success does not validate this tool. No reliable standing-jump, repeated-jump or hardware claim.",
-        "Live Gemini, installed Pi compatibility and physical validation remain pending.",
+        "The isolated Pi controller/joystick builds, Gemini tests and launch construction pass. Live Gemini, actual ROS stack/manager integration and physical validation remain pending.",
         "All nominal native finite, generated, interactive Sit and Spider returns to actual default walking are checked; seven lying-ending returns require a later explicit request. Eight paired Spider mechanics/material corners also complete. These selected cases do not establish random-population reliability, ROS manager integration or hardware.",
         "Equal-budget -2/-5 refinement reduces idle support from4.14%to0.82%BW. Both384/384stops settle(max.98s); no sampled >10%BW support span exceeds1s in the stronger arm, yet lighter persistent support remains, worst idle world-segment mean10.50%BW. Eight paired native mechanics/material cases complete16/16whole chains; stronger removes sampled moving/stop torso load but slows forward8/8and increases exact foot-end slip5/8. No walking pair installed; recorded-world transfer exposed further limitations listed below.",
         "Reference, finite and interactive playback now require activation/request-correlated controller receipts after successful action application. The reproduced stale-exit failure is closed, with21 isolated actualROS tests; Pi integration and measured physical outcomes remain separate.",
         "New independent sensor audit: locomotion actor omits persistent encoder bias although physical target subtraction includes it; real controller observes measured joint angles. Prior randomized comparisons remain paired but do not fully model calibration robustness. Explicit future-training correction0ada364passes full regression and realGPU smoke. Both matched1,000iterationcontinuations andcommon measured-modeGPU/native evaluations arecomplete:512/512basequietstopsperarm, fastermeasuredstoptailbutgreateridle support andslightlyworse tracking. No promotion. Historical policy bytes remain unchanged.",
         "Two selected recorded weak-gain/high-friction/inertial/calibration worlds expose further limits: only4/12originalwhole-chaincases settle (alltorso-only). All8full-hullcases keepmovingafter2szero. Fourstanding-start fixed-defaultcontrols and8extendedpost-Spidercases alsofailthe quiet-state screen after8szero, independently confirmingthis isnotuniquetoSpiderhandoff. These areposthoc selectedphysicscases, not robotmeasurements orapopulationfailurerate. Independent30-case attribution: gain/bias restorations do not resolve it; nominalcontrols pass. Withzero bias/unitgains, restoring mass+centralinertia+frame settles4/4, COMalone0/4. These areconditional group effects; the defaultpolicy remains unchanged.",
-        "Finalencoder native10chains:bothnominalreturnsquiet;all8adversefixed-defaultreturnsnonquietat2sand8s. Measuredtrainingreducesmovingtorsoload4/4adversepairs,but worsens turnerror5/5andfoot-contactslip3/5. Physicaltargetslewcontracts do notguaranteeactualjointbounds; sampledsoftjointrangeexcursion.00459rad remains recorded. No walkingpairinstalled."
+        "Finalencoder native10chains:bothnominalreturnsquiet;all8adversefixed-defaultreturnsnonquietat2sand8s. Measuredtrainingreducesmovingtorsoload4/4adversepairs,but worsens turnerror5/5andfoot-contactslip3/5. Physicaltargetslewcontracts do notguaranteeactualjointbounds; sampledsoftjointrangeexcursion.00459rad remains recorded. No walkingpairinstalled.",
+        "Gamepad coverage and cached-parameter immutability are fixed. Inherited stop priority/queued activation remains unresolved in staged v3; the separate arbitration candidate is not integrated or promoted. See current_hardware_evidence for exact status."
       ]
     },
     {
@@ -267,11 +270,12 @@
   ],
   "acceptance_rule": "A trained experiment can be completed and rejected. Only reviewed evidence, exact model/reference identities, and supervised hardware measurements support promoted capabilities.",
   "newly_identified_implementation_gap": "Closed in f13fa65: Lab2 recording-to-Lab3 adapter with real-bag review; source-linked boundaries above remain explicit.",
-  "updated_utc": "2026-10-28T13:38:15.524001+00:00",
+  "updated_utc": "2026-10-30T00:24:37.746338+00:00",
   "source_integrity_check": {
     "checked_utc": "2026-10-28T11:30:48.432539+00:00",
     "handouts": 9,
     "all_present_and_sha256_match": true,
     "scope": "Exact saved course sources only; no inference about newer unpublished source revisions."
-  }
+  },
+  "current_hardware_evidence": "foundation/results/hardware-session-20261029-reviewed.json"
 }

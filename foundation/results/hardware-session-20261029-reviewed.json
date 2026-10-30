@@ -63,7 +63,8 @@
     "driver_and_description_from": "unchanged baseline underlay",
     "python": "private venv with existing system packages; no system upgrade/global pip changes",
     "pip_check_exit": 0,
-    "runtime_loaded_identity_proven": false
+    "runtime_loaded_identity_proven": false,
+    "standalone_installed_library_dlopen": "Passed with RTLD_NOW and exact installed SHA; no controller instantiated or manager loaded."
   },
   "pi_validation": {
     "gemini_pytest": {
@@ -138,7 +139,7 @@
     "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/camera-hailo-addendum-v1"
   },
   "unresolved_high_priority": [
-    "Inherited joystick implementation has no stop-priority latch and can queue activation with or after stop; detached switch ordering also needs correction. V3 only fixes configuration coverage/immutability. A separate arbitration candidate is under investigation and is not staged or promoted.",
+    "Inherited joystick implementation in staged v3 has no stop-priority latch and can queue activation with or after stop. The separately preserved candidate passes core and bounded actual DDS tests but is not integrated/promoted; remaining fault-injection and production integration are explicit.",
     "Hardware on_activate enables actuators and performs homing. No proof that joystick stop interrupts homing; operator must be present with known physical power-stop procedure before any launch.",
     "Actual joint/IMU signs, calibrated zero positions, effort semantics, update timing, baseline standing/stopping and new-policy motion remain unmeasured.",
     "Live Gemini/API-key path and camera/follower integration remain pending.",
@@ -158,7 +159,8 @@
       "sha256": "31eb8d0a38607b916f1a0e07a17ee0049421bd0eae224310563b2aa7d28046be"
     },
     "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/prepared-pi-v3",
-    "excluded": "Disposable Python environments, intermediate build objects and environment dumps; exact source, installed binaries, package reports, selected test binaries/logs and artifacts preserved. Vision/model addendum and baseline archives retained separately."
+    "excluded": "Disposable Python environments, intermediate build objects and environment dumps; exact source, installed binaries, package reports, selected test binaries/logs and artifacts preserved. Vision/model addendum and baseline archives retained separately.",
+    "final_metadata_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/preservation-final-session-metadata.json"
   },
   "evidence": [
     {
@@ -192,6 +194,10 @@
     {
       "path": "artifacts/hardware/2026-10-29/pi-completion/local-manifest.json",
       "sha256": "c04c2853550055019af8710da66d3702c3a57a772e79b6978fc0c89fb596c955"
+    },
+    {
+      "path": "artifacts/hardware/2026-10-29/installed-library-load-probe.json",
+      "sha256": "ff35f70cb9c3158b10fbd27873b402ff28614f6a5d2d0e2957a0018ccb0fe154"
     }
   ],
   "next_supervised_session": "Review/finish the stop arbitration gap first; confirm physical power-stop/homing procedure. Then use retained approved baseline for small, measured tests and loaded-controller identity checks. Resolve camera ownership and live Gemini access independently. New trained motions require course approval and conservative separately observed tests.",
@@ -199,5 +205,53 @@
     "head": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
     "clean": true
   },
-  "cutoff_utc": "2026-10-30T00:30:00+00:00"
+  "cutoff_utc": "2026-10-30T00:30:00+00:00",
+  "updated_utc": "2026-10-30T00:27:58.684878+00:00",
+  "stop_arbitration_candidate": {
+    "status": "Isolated and independently reviewed; not in tracked production or Pi staging.",
+    "core_and_constructor": {
+      "core_scenarios": 9,
+      "additional_independent_cases": 3,
+      "actual_jazzy_constructor_test": "passed"
+    },
+    "actual_dds_integration": {
+      "passed": 3,
+      "seconds": 4.22,
+      "cases": [
+        "300ms delayed activation, immediate emergency and corrective deactivation, then deliberate fresh release",
+        "1800ms timeout, permanent quarantine, late cleanup and refusal of release",
+        "Pending-response shutdown0ms, late fake response completes, no later RPC"
+      ],
+      "environment": "Pinned Jazzy container, network none, no devices, ROS domain165; actual candidate plus fake manager/joystick, not the robot."
+    },
+    "review": {
+      "path": "artifacts/hardware/2026-10-29/joystick-arbitration-candidate/tests-v2/evidence/review.json",
+      "sha256": "b997efe53945ebd9f5aad8038655eb1aa4be56fdfc750c4ee2a5c74615238d55"
+    },
+    "independent_review": {
+      "path": "artifacts/hardware/2026-10-29/joystick-independent-review/arbitration-dds-v2/review.json",
+      "sha256": "f8f5a7d7c7062518ea7d71694a6da070d3ae1bb6754273dc087a0e545ca5691e"
+    },
+    "source_archive_sha256": "5284727e8720f16ad87076815a5253c0d5ddb57d9561c12311c5ffc5cd3ccac8",
+    "dds_evidence_archive_sha256": "aba8037cbe29a4a0381a6f2cd1a98a97648bdd4cb4b5ac2a76e63ce1801904f2",
+    "durable_manifests": [
+      "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-hardware-20261029-joystick-arbitration-candidate-v1.json",
+      "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-hardware-20261029-joystick-arbitration-dds-v2.json",
+      "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/preservation-joystick-arbitration-dds-independent-review-v2.json"
+    ],
+    "remaining": [
+      "Actual DDS service-loss/ambiguous submission fault injection",
+      "Full coverage, readiness and production-node integration",
+      "Explain changed stop/release controls and verify with operator physically present before motor testing"
+    ],
+    "authorization": "Further coding and reviewed integration are already authorized. Technical gaps, not an additional software-permission requirement, prevent promotion.",
+    "limitation": "An already-submitted remote activation cannot be recalled. Permanent fault/quarantine and emergency reassertion are software behavior, not proof of physical stopping."
+  },
+  "closed_utc": "2026-10-30T00:30:54.135225+00:00",
+  "automation": {
+    "id": "pupper-overnight-foundation",
+    "status": "PAUSED",
+    "cutoff_utc": "2026-10-30T00:30:00+00:00"
+  },
+  "active_work_at_close": "None. No active Pi build/test, GPU training or local candidate test. Existing robot services remain untouched. Resume authorized engineering work from next_supervised_session and stop_arbitration_candidate."
 }
