@@ -1,0 +1,203 @@
+{
+  "schema": 1,
+  "recorded_utc": "2026-10-30T00:16:29.971676+00:00",
+  "status": "Reviewed stationary Pi preparation; not released or validated for physical motion.",
+  "source_revision": "b415af86ce5d4615d98c85b511ad7cf4dbb60db0",
+  "scope": "Read-only inventory and backups, isolated native builds, ROS constructor/parameter tests without execution or spinning, fake-robot Gemini tests, CPU policy checks, and synthetic Hailo inference. No robot launch, motor command, homing, controller activation, live Gemini request, camera capture or service change.",
+  "robot": {
+    "ssh": "mts",
+    "hostname": "mts",
+    "architecture": "aarch64",
+    "os": "Debian12",
+    "python": "3.11.2",
+    "ros": "/opt/ros/jazzy",
+    "coursework": "/home/pi/workspace/mts_123",
+    "baseline": "/home/pi/pupperv3-monorepo",
+    "deployment": "/home/pi/pupper_gait_deploy",
+    "staged": "/home/pi/pupper-foundation-session-20261029",
+    "standard_robot_only": "User reports no Optional1 tactile/single-leg apparatus."
+  },
+  "backups": {
+    "selected_baseline": {
+      "files": 62,
+      "bytes": 455876592,
+      "archive_sha256": "15766f399bfc61407a679f434945ac5752c8edaebe4ab65529f39a575fe94408",
+      "manifest_sha256": "f5d2b2823629ce13fc2e40414b514e4d0d94ab51d5b61d5f75e308c4c3704da0",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/robot-baseline",
+      "all62_original_files_unchanged": true
+    },
+    "additional_original_joystick": {
+      "archive": "/home/pi/pupper-foundation-session-20261029/joy-baseline-backup.tar.gz",
+      "sha256": "b3b4336a845dc4b61f1e6bc2ec8b9b62ab1675606a64db5c6653dc522c16a704",
+      "bytes": 2593074,
+      "manifest_sha256": "29e09ce767df5a5226fde6aaef5e2731e1cdea9793b438b807f03bffab84074a",
+      "files": 4
+    },
+    "limitation": "Selected exact files and retained working directories, not a disk image or proven executable rollback."
+  },
+  "recovered_policy_summary": {
+    "files": 22,
+    "unique_exports": 12,
+    "shrish": "Exact 4hkyvuxh export",
+    "tej": "Exact vt55ode8 export",
+    "ryan": "Equals previous_test_policy; original training lineage unknown",
+    "markus": "Four distinct actor exports recovered; current student-slot test_policy equals Markus bumpy; reward ablation/run lineage unknown",
+    "validation": "Eight modern unique exports pass current validator. Four old-format exports lack current metadata; finite/shape checks pass, and historical compatibility is not disproven. No policy promoted from filename or static validation.",
+    "review": {
+      "path": "artifacts/hardware/2026-10-29/policy-recovery-review/review.json",
+      "sha256": "ddcef04fdfca3c5bb67387e884dac945d2001d7e5282033660a5837e131ffc68"
+    }
+  },
+  "implemented_fixes": [
+    "Read-only inventory uses its explicit rclpy Context executor.",
+    "Combined Gemini launch includes every generated/alternate actor in gamepad stop and switch-away coverage, preserving four face-button mappings and existing gains/limits.",
+    "Four cached joystick configuration parameters are immutable after startup; readiness requires exact values and read-only descriptors. Installer includes the joy_utils dependency and refuses missing inputs before writes.",
+    "Actual FastAPI/SDK HTTP tests verify request validation, fault handling, response envelopes, concurrent stop and lifecycle using fake robot interfaces."
+  ],
+  "isolated_environment": {
+    "neural_controller_library_sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91",
+    "joy_executable_sha256": "22f00e5908f1cd65c12b86f31f5d553b53278e8e752250b703310126a71037d8",
+    "wrapper": "/home/pi/pupper-foundation-session-20261029/checks-v3/overlay-env-candidate-v3.sh",
+    "wrapper_scope": "Source only verifies file/package resolution. It does not start ROS. Do not follow with stock start.sh, which may restore baseline precedence or launch hardware.",
+    "neural_and_joy_from": "isolated overlay",
+    "driver_and_description_from": "unchanged baseline underlay",
+    "python": "private venv with existing system packages; no system upgrade/global pip changes",
+    "pip_check_exit": 0,
+    "runtime_loaded_identity_proven": false
+  },
+  "pi_validation": {
+    "gemini_pytest": {
+      "passed": 313,
+      "seconds": 78.62,
+      "includes_http_transport_tests": 19
+    },
+    "course_checks": {
+      "default": 166,
+      "robot": 36,
+      "optional_jump_fake": 1,
+      "scope": "Earlier stage, unchanged tool implementation; not physical execution."
+    },
+    "neural_native": {
+      "standalone_ctest_groups_passed": 5,
+      "ros_gtest_cases_passed": 15,
+      "scope": "Actual Pi compiled controller with synthetic/in-memory interfaces; no hardware manager. Initial ROS test needed corrected sourced environment."
+    },
+    "joystick_native": {
+      "ctest_cases_passed": 2,
+      "scope": "Actual node constructor and parameter mutation rejection; isolated domain164, no spin/Joy publication/controller calls."
+    },
+    "ros_launch_construction": {
+      "passed": true,
+      "source_files_unchanged": 83,
+      "scope": "Installed ROS constructors only, all action execution blocked; not actual stack readiness."
+    },
+    "preflight": "File/default-policy contract passes. Read-only graph found no running robot manager or telemetry in the sampled environment."
+  },
+  "cpu_policy_review": {
+    "inputs_verified": 472,
+    "synthetic_steps": 6965,
+    "inference_records": 493,
+    "independent_numeric_comparisons": 201531,
+    "policies": {
+      "default": {
+        "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+        "max_absolute_error": 7.152557373046875e-07,
+        "median_us": 68.704,
+        "p99_us": 115.649
+      },
+      "sit": {
+        "sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+        "max_absolute_error": 3.5762786865234375e-07,
+        "median_us": 14.759,
+        "p99_us": 16.259
+      },
+      "generated": {
+        "sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+        "max_absolute_error": 9.685754776000977e-08,
+        "median_us": 14.611,
+        "p99_us": 14.852
+      }
+    },
+    "limitation": "RTNeural forward timing excludes ROS update, IO, scheduling and actuator response; not a deadline or physical safety result."
+  },
+  "vision": {
+    "synthetic_hailo_status": "passed_synthetic_sdk_probe_only",
+    "calls": 2,
+    "tensors_per_call": 10,
+    "sdk_ms": [
+      25.886058807373047,
+      22.56011962890625
+    ],
+    "device_closed": true,
+    "camera": "Not opened; PipeWire/WirePlumber own camera/media devices. Existing services unchanged.",
+    "limitations": [
+      "Synthetic input had zero detections: no positive detection, mask/NMS accuracy or scene robustness conclusion.",
+      "Actual Hailo8 reports compatibility/performance warning for class Hailo8L-compiled HEF. No architecture optimization or end-to-end timing claim.",
+      "Camera-to-follower path, color/avoidance settings and physical interruption remain untested."
+    ],
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/camera-hailo-addendum-v1"
+  },
+  "unresolved_high_priority": [
+    "Inherited joystick implementation has no stop-priority latch and can queue activation with or after stop; detached switch ordering also needs correction. V3 only fixes configuration coverage/immutability. A separate arbitration candidate is under investigation and is not staged or promoted.",
+    "Hardware on_activate enables actuators and performs homing. No proof that joystick stop interrupts homing; operator must be present with known physical power-stop procedure before any launch.",
+    "Actual joint/IMU signs, calibrated zero positions, effort semantics, update timing, baseline standing/stopping and new-policy motion remain unmeasured.",
+    "Live Gemini/API-key path and camera/follower integration remain pending.",
+    "Optional1 tactile calibration requires hardware the user does not have; Spider walking, reliable standing jumps and other recorded robustness failures remain research boundaries."
+  ],
+  "preservation": {
+    "prepared_pi_archive": {
+      "archive": "/home/pi/pupper-foundation-session-20261029/prepared-artifacts-v3.tar.gz",
+      "sha256": "43729079be2788abb3700e72121193dd055cd334b7052c04c60d2c2876fb8f19",
+      "bytes": 293304443,
+      "manifest_sha256": "08a9be6933f12bfe98e2270e7fd749091c88fac484f4a9cd60aef32230f60436",
+      "files": 1129,
+      "payload_bytes": 733774812
+    },
+    "local_verification": {
+      "path": "artifacts/hardware/2026-10-29/prepared-artifacts-local-verification.json",
+      "sha256": "31eb8d0a38607b916f1a0e07a17ee0049421bd0eae224310563b2aa7d28046be"
+    },
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/prepared-pi-v3",
+    "excluded": "Disposable Python environments, intermediate build objects and environment dumps; exact source, installed binaries, package reports, selected test binaries/logs and artifacts preserved. Vision/model addendum and baseline archives retained separately."
+  },
+  "evidence": [
+    {
+      "path": "foundation/results/robot-inventory-context-reviewed.json",
+      "sha256": "cdab185acbaa3483c72ec09ea73cd3bc3582fac7564d5655d68b500fc95a5344"
+    },
+    {
+      "path": "foundation/results/joystick-controller-coverage-reviewed.json",
+      "sha256": "6135114725d3b8702b4a614fa726427f6770f500fefc8f093003ecbd65f0531d"
+    },
+    {
+      "path": "foundation/results/joystick-immutable-parameters-reviewed.json",
+      "sha256": "efab532b0c251b85988fe385210981e3830893d35d7695181315ae4da8107c3f"
+    },
+    {
+      "path": "artifacts/hardware/2026-10-29/joystick-independent-review/review.json",
+      "sha256": "bf9fd9d61e09d22863c42b9344e8bcd071bb7c0766afbb780ba079f2803f891d"
+    },
+    {
+      "path": "artifacts/hardware/2026-10-29/pi-inference-results-v1/independent-review.json",
+      "sha256": "35ea26520693ad4be9d96eb084793c0138b34fc3d145a4b1742dca69a862fa19"
+    },
+    {
+      "path": "artifacts/hardware/2026-10-29/camera-hailo-review/independent-final-review.json",
+      "sha256": "84ee7bf59b149d27dda9e9f0eff4f626a98a6adcd4248d22bf8721dfd3dd1461"
+    },
+    {
+      "path": "artifacts/hardware/2026-10-29/baseline-after-verification.json",
+      "sha256": "30d7a72d832c1d8104e8853cadbcdc217376c54d205a557e392f61bd9013433f"
+    },
+    {
+      "path": "artifacts/hardware/2026-10-29/pi-completion/local-manifest.json",
+      "sha256": "c04c2853550055019af8710da66d3702c3a57a772e79b6978fc0c89fb596c955"
+    }
+  ],
+  "next_supervised_session": "Review/finish the stop arbitration gap first; confirm physical power-stop/homing procedure. Then use retained approved baseline for small, measured tests and loaded-controller identity checks. Resolve camera ownership and live Gemini access independently. New trained motions require course approval and conservative separately observed tests.",
+  "coursework_main": {
+    "head": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
+    "clean": true
+  },
+  "cutoff_utc": "2026-10-30T00:30:00+00:00"
+}

@@ -11,6 +11,30 @@ weights, simulation results, and performance on this particular robot are
 separate claims. A passing unit test or a training reward curve cannot establish
 the last two.
 
+## Current robot preparation
+
+Pupper is now reachable through `ssh mts`. The [29 October stationary-session
+report](results/hardware-session-20261029-reviewed.json) is the current hardware
+handoff. The original working directories are retained, 62 selected original
+files were backed up and rechecked unchanged, and the original joystick source
+and executable have a separate verified backup. Team policy files were recovered
+and compared by content; unknown training lineage remains labeled unknown.
+
+The isolated Pi workspace builds the neural controller and joystick package.
+Its final Gemini suite passes 313 tests, native controller/parameter checks pass,
+and three policy exports pass CPU numerical comparisons. Installed ROS launch
+construction passes without executing a launch. Synthetic Hailo inference works;
+the camera was left alone because existing media services own its devices.
+These results do not validate movement, live Gemini, or camera following.
+
+Coverage and immutable-parameter fixes now include the Gemini actors in gamepad
+stop configuration. **The inherited stop-priority/queued-activation race remains
+unresolved in the staged v3 software.** An experimental arbitration candidate is
+kept separate until reviewed. Hardware activation also performs homing, even
+when neural policies start inactive. Finish the stop review and establish the
+physical power-stop procedure before the supervised motor session. No motors
+were activated during this preparation.
+
 ## Course coverage and where it lives
 
 | Source | Capability implemented here | Evidence and remaining boundary |
@@ -49,7 +73,10 @@ reproducible without being mistaken for corrected results. See the
 
 The source class hardware driver adds a **second, tighter joint target clamp**,
 0.10 radians inside the exported controller limits on all twelve joints. Its
-coordinate transform was checked, but the installed Pi revision remains unknown.
+coordinate transform was checked. The captured Pi description now matches all
+twelve named class limits; its source and installed libraries are preserved in
+the [stationary-session report](results/hardware-session-20261029-reviewed.json).
+Actual loaded values and physical calibration remain unverified.
 The original `--deployment-target-clamp` flag matches the neural controller only.
 New runs can additionally specify `--driver-limits foundation/configs/class-driver-joint-limits.json`;
 the exact named limits and file hash become part of the run contract. See the
@@ -252,7 +279,9 @@ layout and clip playback without connecting to a robot. Missing dependencies are
 reported as an environment gap, not counted as passing tests.
 
 Use the [hardware checklist](HARDWARE_CHECKLIST.md) and
-[read-only inventory](scripts/robot_inventory.sh) when Pupper is available.
+[read-only inventory](scripts/robot_inventory.sh) for later state changes. Start
+from the current stationary-session report rather than repeating completed
+backups and builds.
 Before any motion, a person beside the robot must approve that specific test and
 be ready to use the physical stop. The course requires TA approval before a new
 policy's first hardware run. Keep the current approved robot setup intact until

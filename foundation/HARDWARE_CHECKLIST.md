@@ -32,11 +32,19 @@ the course TA's approval before their first hardware run.
 
 ## Collect the read-only inventory
 
-First discover the Pi's actual working checkout, launch entry point and installed
-ROS workspace. The user's proposed connection is `pi@mts`; reachability and the
-installed paths have not been established. Do not infer them from the laptop's
-layout. Stage this checkout separately; do not run its installer or setup script
-against the approved workspace while discovering it.
+The [29 October stationary-session report](results/hardware-session-20261029-reviewed.json)
+records successful `ssh mts`, discovered working paths, preserved baselines, an
+isolated build, and completed nonmoving checks. Start there; repeat discovery
+only when state has changed. The actual robot controller graph was not running
+in the sampled environment. Do not infer loaded settings from files or launch
+hardware merely to obtain telemetry.
+
+The captured driver enables actuators and performs homing during hardware
+activation. This is a motor operation even with policies inactive, and the
+joystick has not been shown to interrupt it. Establish the physical power-stop
+procedure before a supervised launch. The staged v3 joystick configuration is
+complete and immutable, but inherited stop-priority/queued-activation behavior
+still needs correction and validation; see the current report.
 
 The [portable inventory kit](results/portable-inventory-kit-reviewed.json) bundles
 only the three reviewed inspection helpers in a 12.4 kB archive. It avoids a full
@@ -45,6 +53,11 @@ archive and source hashes. Verify the archive, extract into a new private stagin
 directory, and preserve its `foundation/scripts` layout. The tools use the Python
 standard library for the base inventory; ROS is optional. The kit is not a policy
 installation, a complete robot backup, or proof of compatibility with this Pi.
+
+The original kit is immutable historical evidence. For ROS inspection use the
+current `foundation/scripts/robot_inventory.sh`, which fixes explicit rclpy
+Context/executor handling and has been checked on this Pi. Do not substitute the
+older kit script for that corrected ROS path.
 
 From either that kit or the separately staged checkout, run the inventory with
 `--repo-root /absolute/discovered/working/checkout` once the real path is known.

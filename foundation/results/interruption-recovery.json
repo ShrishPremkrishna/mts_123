@@ -66,7 +66,7 @@
       "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
     ],
     "active_work": {
-      "root": "Overnight work closed at user request. Schedule confirmed PAUSED. No active training, collectors or subagent assignments. Read-only robot inventory/backup and supervised hardware/account validation are the next gates; no hardware-validated or globally optimized claim.",
+      "root": "Hardware session now active. Follow hardware_session and artifacts/hardware/2026-10-29 for current jobs. User away; motors inactive. Read-only baseline backup, isolated build and no-hardware tests only.",
       "optional_recovery": "Complete. Both final9494 arms, all18GPU evaluations, full250-file remote inventory, archives and analyses preserved. Collector retired and GPU1 released13:19:36UTC. No jobs or collectors remain. Final read-only canonical-document review at be7ff878 found no actionable issues.",
       "lab6_recovery": "Complete. Final10native chains and visuals preserved. Portable12.4kB kit is root-verified and locally smoke-tested on macOS and isolatedARM64Linux/Python3.12.3, with matching85filehashes. No Pi/ROS execution and no jobs remain.",
       "sit_recovery": "Independent restoration/native/stop-reporting reviews complete. Existing Google project imported in AIStudio; no key/payment/auth changes. OriginalCS123tab restored. No active work. A final optional closure-review retry hit model capacity; optional_recovery completed that review instead. No experiment or implementation work was lost."
@@ -201,7 +201,8 @@
       "course_tool_checks": 166,
       "behavior_control_AST_unchanged": true
     },
-    "latest_composite_validation": "foundation/results/offline-validation-composite-c3ad206.json"
+    "latest_composite_validation": "foundation/results/offline-validation-composite-c3ad206.json",
+    "current_followup": "This dated checkpoint preserves the completed Oct28 offline evidence. Current robot access, jobs, actions and remaining gates are owned by hardware_session and current_report; do not use the historical robot-unavailable state to restart finished work."
   },
   "checkpoint_history": [
     {
@@ -355,7 +356,8 @@
   ],
   "recovery_entry_points": [
     "foundation/README.md",
-    "foundation/results/interruption-recovery.json latest_checkpoint",
+    "foundation/results/interruption-recovery.json hardware_session",
+    "foundation/results/hardware-session-20261029-reviewed.json",
     "foundation/results/course-capability-coverage.json",
     "foundation/results/local-environment.json"
   ],
@@ -397,5 +399,37 @@
     "handoff": "Resume in this same chat from foundation/README.md and latest_checkpoint here. Complete offline evidence and exact hashes are durable. Next perform read-only Pi discovery and baseline backup when available, then supervised approved validation. No need to repeat finished training or create a new chat.",
     "stopped_by_user_at_utc": "2026-10-28T16:41:48.984708+00:00",
     "stop_reason": "User returned and explicitly requested turning off the schedule; automation_update confirmed PAUSED."
-  }
+  },
+  "hardware_session": {
+    "date": "2026-10-29",
+    "updated_utc": "2026-10-30T00:18:41.426887+00:00",
+    "authorization": "User authorized implementation, SSH/staging, backups and conservative iteration; then departed for approximately one hour. Root committed to motors inactive while user away. No camera needed. No robot ROS stack/controller launch or motor command has occurred.",
+    "cutoff_utc": "2026-10-30T00:30:00+00:00",
+    "automation_id": "pupper-overnight-foundation",
+    "automation_name": "Pupper stationary preparation",
+    "automation_status": "ACTIVE",
+    "ssh": "mts",
+    "robot": "/home/pi/pupperv3-monorepo; coursework /home/pi/workspace/mts_123; deployment /home/pi/pupper_gait_deploy",
+    "staging_root": "/home/pi/pupper-foundation-session-20261029",
+    "local_artifacts": "artifacts/hardware/2026-10-29",
+    "baseline": "Complete:62explicit files455876592bytes. Local +Pi manifest verified f5d2b2823629ce13fc2e40414b514e4d0d94ab51d5b61d5f75e308c4c3704da0. Complete181121264bytearchiveSHA15766f399bfc61407a679f434945ac5752c8edaebe4ab65529f39a575fe94408 also preserved /Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/robot-baseline.",
+    "ros": "Corrected explicit rclpy Context/executor read-only discovery passes; actual robot/controller nodes absent in sampled domain. No robot hardware stack launched.",
+    "environment": "Native Pi toolchain builds neural_controller successfully. Isolated venv+systemsitepackages provides google-genai2.33.0/pytest9.2.0/FastAPI0.141.1/Pydantic2.14.2; allimports pass. No globalpipinstall, systemupgrade, GUI/service change or motor action.",
+    "jobs": "No Pi compute, camera, ROS stack or motor job remains. V3 neural+joy builds and all stationary validation completed; all313 Gemini tests,6neural CTest groups(15ROSgtestcases),2joy constructor tests,203coursechecks pass. CPU3policy and syntheticHailo2call checks pass. Exact prepared archive1129files733774812payloadbytes independently verified and durably copied. Artifact-only stop-arbitration candidate under local agent investigation; not promoted/staged.",
+    "agents": {
+      "lab6_recovery": "Artifact-only prioritized stop arbitration candidate, deadline00:25; tracked production/Pi v3 unchanged.",
+      "optional_recovery": "Independent candidate review pending; completed policy, joystick and Hailo evidence preserved.",
+      "sit_recovery": "Completed independent CPU parity review and supervised next-step proposal; no active jobs."
+    },
+    "next": [
+      "Review and preserve arbitration candidate without premature integration.",
+      "Preserve final metadata, commit/push reports; no robot activation.",
+      "At00:30UTC stop new work, save handoff and pause stationary automation.",
+      "On user return: stop gap and physical power-stop/homing review first, then conservative approved baseline measurements."
+    ],
+    "user_constraints": "User emphasized sim-to-real mismatch and motor damage risk: iterate conservatively, small changes, no aggressive/random motion and no raised limits/gains to force success. Robot is on a stand. User away for this block; root promised motors inactive and no camera access needed.",
+    "canonical_report": "foundation/results/hardware-session-20261029-reviewed.json"
+  },
+  "current_phase": "hardware_session",
+  "current_report": "foundation/results/hardware-session-20261029-reviewed.json"
 }
