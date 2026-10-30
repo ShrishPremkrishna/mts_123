@@ -34,6 +34,7 @@ def main():
     python = sys.executable
     checks = [
         ('classical', [python,'-m','pytest','foundation/tests','-q','-p','no:cacheprovider']),
+        ('floor_input', [python,'-m','pytest','foundation/hardware/floor_stock','-q','-p','no:cacheprovider']),
         ('tool_queue', [python,'-m','pytest','gemini_pupper/tests','-q','-p','no:cacheprovider']),
         ('compliance', [python,'-m','pytest','implicit_compliance/tests','-q','-p','no:cacheprovider']),
         ('course_follow', [python,'follow_me_pupper/lab/test.py']),

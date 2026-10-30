@@ -11,27 +11,30 @@ weights, simulation results, and performance on this particular robot are
 separate claims. A passing unit test or a training reward curve cannot establish
 the last two.
 
-## Session stopped — 30 October
+## Start here
 
-Work is stopped at the user's request; scheduled work remains paused. The latest
-[floor attempt](results/floor-stock-trial-20261030.json) aborted at the joystick
-publisher check **before floor policy activation**. Cleanup completed in the
-recorded run. Fresh SSH/Tailscale checks then timed out, so current process state
-has not been reverified and the complete failed-run archive still needs recovery.
-Do not restart automatically; confirm stand placement before any later homing.
+Run `python3 foundation/scripts/session_status.py` for current activity, the tested
+interpreter, blockers and next actions. Add `--verify-inputs` to check the frozen
+floor input archive and historical recovery record. This command is local and
+never starts or contacts the robot. The compact
+[current-state record](results/interruption-recovery.json) is the sole owner of
+operational status; completed experiment reports retain their dated evidence.
 
-The Gemini key works: a real Live connection reached the fake-robot tools. That
-check exposed a missing wait tool and inaccurate sequence narration. The
-[reviewed queued-wait correction](results/gemini-live-wait-reviewed.json) passes
-400 Gemini tests and 166 course checks; an independent reviewer also passed its
-17 focused tests. It is committed locally, **not deployed or live-rechecked**.
-Stop remains immediate; delayed-stop sequences are not supported.
+The [offline workflow changes](results/offline-workflow-improvements-20261030.json)
+record the continuity, preservation, input-preflight and Gemini timing fixes with
+their exact test evidence and remaining native limitations.
 
-Resume with the Joy graph/fallback diagnosis using motors inactive, then supervised
-stock floor standing/R3 stopping and a short conservative walk. Following and
-live Gemini on the robot remain to be validated. New trained tricks still need
-applicable course approval. This is a tested software foundation with partial
-hardware validation, not a finished or globally optimized robot release.
+Use the [next robot session checklist](HARDWARE_CHECKLIST.md) when supervision is
+available. Native joystick readiness and the failed shutdown fallback must be
+resolved before another floor test. The [failed attempt](results/floor-stock-trial-20261030.json)
+remains a failure, and its complete remote archive still needs recovery.
+
+The [real-time fake Gemini checks](results/gemini-realtime-live-reviewed.json)
+now exercise real elapsed queue timing. Wait/cancel and wait/move/status examples
+worked, but two delayed-stop requests produced unsupported narration; one claimed
+a stop without making any tool call. The accurate wording and diagnostic client
+are retained, but live model reliability is **not accepted for robot integration**.
+The physical/controller stop path remains independent.
 
 ## Current robot preparation
 
@@ -59,7 +62,7 @@ The [actual Lab 6 API stand test](results/lab6-stand-hardware-reviewed.json)
 now passed on this robot: HTTP `stand_up` was queued and completed, the shared
 gateway handed control to `gemini_walk`, the multiplexer output stayed zero, and
 normal shutdown left the legs relaxed according to the operator. This is a bounded
-supported-stand test; floor standing/walking and live Gemini remain separate.
+supported-stand test; floor standing/walking and live Gemini on the robot remain separate.
 Earlier stationary synthetic-peer tests and the 383 Gemini/166 course checks are
 preserved. Status reporting and harmless idle waits were fixed. The
 [earlier short trial](results/console-motion-trial-r2-reviewed.json) and
@@ -75,7 +78,7 @@ need applicable course approval. The [stationary preparation record](results/har
 preserves earlier backups, policy recovery, native builds, CPU policy comparisons
 and synthetic Hailo inference. [Live camera and Hailo perception](results/live-camera-perception-reviewed.json)
 now passed a bounded six-frame check, detecting two people in every frame. Actual
-following, color calibration, and live Gemini remain separate validation steps. The original working directories and coursework main remain preserved.
+following, color calibration, and live Gemini on the robot remain separate validation steps. The original working directories and coursework main remain preserved.
 The [battery-monitor source fix](results/battery-monitor-reviewed.json) corrects
 stale voltage readings, boundary percentages and repeated shutdown scheduling;
 21 mocked tests pass locally and on the Pi. A reversible service override is now
@@ -284,7 +287,7 @@ permanent checkout; full archives live separately in
 
 The [interruption recovery record](results/interruption-recovery.json) identifies
 exactly which temporary outputs were lost and which inputs survived. Current
-training runs also use a bounded local checkpoint collector:
+long training runs must use a bounded local checkpoint collector (none is currently running):
 
 ```sh
 python foundation/scripts/preserve_colab_run.py --colab .venv/bin/colab \
@@ -292,6 +295,20 @@ python foundation/scripts/preserve_colab_run.py --colab .venv/bin/colab \
   --out /durable/NEW-ARCHIVE --hours 6
 python foundation/scripts/restore_colab_snapshot.py /durable/NEW-ARCHIVE /new/recovered-run
 ```
+
+For an existing periodic index, verify its current objects without restoring or
+starting any job:
+
+```sh
+python3 foundation/scripts/restore_colab_snapshot.py /durable/EXISTING-ARCHIVE --verify
+```
+
+Verification covers that current index, not remote completion or every historical
+version. `--once` now exits nonzero on transfer/manifest errors, unchanged objects
+are rehashed, and an OS lock prevents concurrent index writers. Corrupt objects
+are reported and preserved rather than silently replaced. Large final archives
+use `foundation/scripts/download_colab_archive.py` for bounded verified chunks;
+the periodic collector still has a bounded whole-file transfer limit.
 
 The collector verifies downloads against remote SHA-256 hashes, retains earlier
 versions by content hash and receipt history, and downloads the latest two visible

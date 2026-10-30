@@ -1,0 +1,201 @@
+{
+  "schema": "floor_stock_offline_diagnosis_v1",
+  "recorded_utc": "2026-10-30T10:32:14.381754+00:00",
+  "status": "offline_source_prepared; motion_disabled; native_failure_unresolved",
+  "ownership": "Local canonical floor sources and this review only. No SSH, network, ROS/device execution, deployment, motor action, commit or repackaging performed.",
+  "retained_trial": {
+    "record": "foundation/results/floor-stock-trial-20261030.json",
+    "record_sha256": "2b3cb0c94da4d142efad2405a786a1ff25a78bdcb8e541e5526331453915dff4",
+    "basis": "Retained session summary only, not an independent raw-trace audit",
+    "remote_raw_archive_available_locally": false,
+    "reported_gate_error": "unexpected or multiple Joy publishers",
+    "reported_cleanup": {
+      "fallback": true,
+      "passed_cleanup": true,
+      "supervisor_exit": 1
+    },
+    "floor_policy_activation_observed": false
+  },
+  "frozen_input_archive": {
+    "path": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
+    "sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
+    "bytes": 41037,
+    "preservation": "Original frozen files and archive remain unchanged"
+  },
+  "verified_source_findings": [
+    {
+      "finding": "Detached coordinator parent-inspection exception can exit the owner before any verified manager stop signal",
+      "evidence": "Injected PermissionError into the actual old and canonical coordinate functions using identical deterministic Hooks",
+      "reproduction": {
+        "frozen_original": {
+          "error": "PermissionError('injected parent process inspection failure')",
+          "signals": [],
+          "result": null
+        },
+        "canonical_fix": {
+          "error": null,
+          "signals": [
+            [
+              1,
+              0.0
+            ],
+            [
+              2,
+              0.8
+            ]
+          ],
+          "result": {
+            "protocol": "pupper_console_shutdown_v2",
+            "fallback": false,
+            "passed_cleanup": true,
+            "physical_stopping_proven": false,
+            "manager_deadline_monotonic": 1.5,
+            "probe_monitor_error": "PermissionError('injected parent process inspection failure')",
+            "early_shutdown_reason": "probe_identity_unavailable",
+            "manager_signal_monotonic": 0.0,
+            "manager_state": "exited",
+            "launch_state": "exited"
+          }
+        }
+      },
+      "native_attribution": "This is a confirmed source defect, not proof of the unrecovered native fallback cause"
+    },
+    {
+      "finding": "Original Joy graph error merged distinct identity/discovery failures and no exact child preflight preceded homing",
+      "correction": "Shared command, graph/type/QoS/GID/shape contract; explicit root namespace; exact native input-only diagnostic before the disabled hardware path",
+      "native_attribution": "Native name, namespace, extra endpoint and device/runtime-parameter causes remain unknown; no single-source/name guard was relaxed"
+    },
+    {
+      "finding": "A successful fallback cleanup could be treated as a successful readiness result",
+      "correction": "Nominal readiness requires explicit fallback false, no signal ambiguity and no parent-monitor error; owner-process stderr and fallback causes are retained"
+    },
+    {
+      "finding": "New graph-only diagnostic initially omitted cleanup/source failures from its verdict",
+      "correction": "Final common integrity gate rejects input errors, cleanup errors and changed sources; input errors checked before early graph completion",
+      "scope": "Caught and fixed by offline independent review before native use"
+    }
+  ],
+  "shared_input_contract": {
+    "node_name": "floor_physical_joy",
+    "namespace": "/",
+    "topic": "/joy",
+    "type": "sensor_msgs/msg/Joy",
+    "device_name": "DualSense Wireless Controller",
+    "command_template": [
+      "<selected joy prefix>/lib/joy/joy_node",
+      "--ros-args",
+      "-r",
+      "__node:=floor_physical_joy",
+      "-r",
+      "__ns:=/",
+      "-p",
+      "device_name:=DualSense Wireless Controller",
+      "-p",
+      "autorepeat_rate:=50.0",
+      "-p",
+      "coalesce_interval:=0.02"
+    ],
+    "parameters": {
+      "device_name": "DualSense Wireless Controller",
+      "autorepeat_rate": 50.0,
+      "coalesce_interval": 0.02
+    },
+    "shape": "13 binary buttons and 8 finite axes",
+    "button_neutral": "No pressed buttons; trigger axes may rest at nonzero",
+    "subscriber": "RELIABLE VOLATILE depth10",
+    "origin_validation": "Both input preflight and floor callback accept only MessageInfo publisher GID matching the exact single endpoint. Endpoint GID is pinned after discovery; initial unqualified samples never establish readiness and later unexpected sources abort.",
+    "native_parameter_validation_pending": "Installed executable and actual parameter names/types, including coalesce_interval, are not inferred; native preflight requires exact response and fails before homing on mismatch."
+  },
+  "input_only_modes": {
+    "default": "Describe-only; no ROS imports/init, Popen or devices",
+    "graph_device": "Explicit --run-input-only discovers/consumes exact real Joy; no synthetic Joy, controller manager, hardware plugins, launch or motion calls. Exit0 means graph/device diagnostic only, not physical button verification.",
+    "button_exercise": "Separately requires --exercise-buttons --no-motor-stack-confirmed after root current host-wide no-motor-stack confirmation. Prompts Options/R3 only after exact graph/params/fresh qualified input and known-process screen.",
+    "cross_domain_limit": "ROS isolation does not isolate the physical gamepad. Stdlib /proc known-process screen has limited scope; inspection failures block button exercise. No independent motor-power-disconnect capability is assumed.",
+    "cleanup": "Only owned input-only Joy child: bounded SIGINT, then SIGTERM and SIGKILL if necessary, reaped and recorded; any escalation/survivor is non-nominal. No motor-manager escalation added."
+  },
+  "commands": {
+    "safe_help": "python3 foundation/hardware/floor_stock/input_preflight.py --help",
+    "safe_describe": "python3 foundation/hardware/floor_stock/input_preflight.py",
+    "safe_source_inventory": "python3 foundation/hardware/floor_stock/run_once.py --check-only",
+    "future_graph_only_under_selected_verified_ROS_environment": "python3 foundation/hardware/floor_stock/input_preflight.py --run-input-only --report <fresh-absolute-report.json>",
+    "future_explicit_button_exercise_after_root_no_motor_stack_confirmation": "python3 foundation/hardware/floor_stock/input_preflight.py --run-input-only --exercise-buttons --no-motor-stack-confirmed --report <different-fresh-absolute-report.json>",
+    "offline_tests": ".venv/bin/python -m pytest -q foundation/hardware/floor_stock --disable-warnings"
+  },
+  "validation": {
+    "targeted_tests": 100,
+    "passed": 100,
+    "failed": 0,
+    "native_input_preflight_executed": false,
+    "safe_cli_checks": {
+      "help": {
+        "exit_code": 0,
+        "stdout_sha256": "3b565f43f032d92537aad3a29f73451d7848f5eab1bf9329500bf126e7eddc61",
+        "scope": "No ROS initialization, input child, device or network operation"
+      },
+      "describe_only": {
+        "exit_code": 0,
+        "stdout_sha256": "7c31925e394f9156e5df62152822e729c00d98450c71a9ff3ab757557ce4f473",
+        "scope": "No ROS initialization, input child, device or network operation",
+        "result": {
+          "schema": "pupper_exact_input_preflight_v1",
+          "scope": "Input-only; default description does not initialize ROS or start processes",
+          "domain": 170,
+          "node": "floor_physical_joy",
+          "namespace": "/",
+          "topic": "/joy",
+          "message_type": "sensor_msgs/msg/Joy",
+          "parameters": {
+            "device_name": "DualSense Wireless Controller",
+            "autorepeat_rate": 50.0,
+            "coalesce_interval": 0.02
+          },
+          "subscriber_qos": "RELIABLE VOLATILE depth10, identical to the floor consumer",
+          "optional_physical_sequence": "Release buttons, press/release Options(index9), press/release R3(index12), release buttons; trigger/stick centering is not required",
+          "external_domain_limit": "ROS domain isolation does not isolate the physical gamepad from another running motor stack. Button exercise requires current root confirmation plus a read-only known-process check.",
+          "motion_enabled": false,
+          "source_sha256": {
+            "joy_contract.py": "963bd8b713a67f56eddce2a4b58e24134784a9eb531a8b402f5dfca3efe60c2d",
+            "input_preflight.py": "5057fe2ae9cf48c303459a3ad9d8b35440a33ec844265b2b67e2dc670bb984d9",
+            "probe_recording.py": "83375eb6d99b2a33ec961aa5ed78ced2d3b48ab98dc5f27ad42a8d175f331744"
+          }
+        }
+      },
+      "source_inventory_only": {
+        "exit_code": 0,
+        "stdout_sha256": "e3c8b626f9a93c199999c5ca17affdf7959ac5bed911db5b17f73120f412d289",
+        "scope": "No ROS initialization, input child, device or network operation"
+      }
+    },
+    "source_reproduction_passed": true
+  },
+  "motion_release": {
+    "enabled": false,
+    "blockers": [
+      "Reviewed deployment identity pins and installed-runtime verification must be restored; source hash inventory is not environment validation.",
+      "Failed native floor raw archive has not been recovered or independently reviewed.",
+      "Exact joystick input-only preflight has not passed on the next session runtime.",
+      "Detached-owner failure/fallback cause has not been reconciled with native receipts."
+    ],
+    "integration_boundary": "Enabling one boolean is insufficient. Restore reviewed installed-environment/library/config/source pins and runtime verification; resolve failed native evidence/fallback; pass exact current input-only preflight. Current supervisor intentionally runs graph-only preflight but requires full passed=true, so cannot continue to homing until the operator/root button precondition is explicitly integrated and reviewed. Existing hardware gains, joint limits, stock policy, time bounds and manager-only SIGINT teardown are not widened.",
+    "remaining_process_limit": "Frozen floor Joy cleanup is probe-owned; abrupt probe death can leave its Joy child while independent manager deadline runs. Verify no Joy survivor before future launch. No new rendezvous framework introduced."
+  },
+  "source_sha256": {
+    "foundation/hardware/floor_stock/baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+    "foundation/hardware/floor_stock/conftest.py": "a4d1dec569e641466808daf0157969fd8494913f3ceca707d47cacb6ade24862",
+    "foundation/hardware/floor_stock/console_init_stop_probe.py": "78fa140daa6a0950c0666fb6205296fb9fa5c6de4215f3ce2e901e12b96941bb",
+    "foundation/hardware/floor_stock/course-config-v4.yaml": "6b25c2a68b99b99f1679e701dce49fc72ce7992c9754a517f70a983cfb4c4661",
+    "foundation/hardware/floor_stock/feedback-only.launch.py": "d49b04a364cb5bf090e3a7e2e0c967c61824820b8b7d2608a49d7f189bc6c2aa",
+    "foundation/hardware/floor_stock/input_preflight.py": "5057fe2ae9cf48c303459a3ad9d8b35440a33ec844265b2b67e2dc670bb984d9",
+    "foundation/hardware/floor_stock/joy_contract.py": "963bd8b713a67f56eddce2a4b58e24134784a9eb531a8b402f5dfca3efe60c2d",
+    "foundation/hardware/floor_stock/motion_gate.py": "4f031f84f5e3d2a4ff3549fd5e9c2fda634f19a48ccfc6dc45943d55e6535388",
+    "foundation/hardware/floor_stock/probe_recording.py": "83375eb6d99b2a33ec961aa5ed78ced2d3b48ab98dc5f27ad42a8d175f331744",
+    "foundation/hardware/floor_stock/run_once.py": "aec29dfab3874d65cb1f9f4e9439080981f051a911f16e7d41231e70c7a4d841",
+    "foundation/hardware/floor_stock/shutdown_coordinator.py": "dc409ebbc16e0cd8fb2903962dc1404c8fe9fbdf1176bfdcd13d5a1dd9f97b58",
+    "foundation/hardware/floor_stock/test_floor_probe.py": "add4808b44b97cb89e614161402ea925301d2862a36ebef021c74bc391574e49",
+    "foundation/hardware/floor_stock/test_input_preflight.py": "580fb7304cab00e8fac8575d410212ad27138e63668dff04f88dcd9cc39f5140",
+    "foundation/hardware/floor_stock/test_recording.py": "feb0f7eccafdeb946d13ebc5fd1d857173ed141d18f79a438d425bf77f4417c5",
+    "foundation/hardware/floor_stock/test_shutdown_coordinator.py": "11830147e03e34daa2750b649fecd8ae6c5a5b0266ebd82e4e23a831e56a239b",
+    "foundation/hardware/floor_stock/test_supervisor.py": "80f43e96c38ce9b135003dab4a0905c10a5d35f39037ed75872a05f9ae2b0699",
+    "foundation/hardware/floor_stock/wait_feedback.py": "356720ff5feaba3d3ee18213db5c9299c1a1336b4d01d9a8bd9e8d5746b74230"
+  }
+}

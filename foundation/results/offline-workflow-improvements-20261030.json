@@ -1,0 +1,60 @@
+{
+  "schema": "offline_workflow_improvements_v1",
+  "recorded_utc": "2026-10-30T10:34:11.735646+00:00",
+  "status": "offline_changes_reviewed_and_checked; native_robot_diagnostics_pending",
+  "scope": "No successful SSH connection, motor action, ROS device run, new GPU training or schedule activation in this session.",
+  "improvements": [
+    {
+      "area": "continuity",
+      "change": "Compact current-state owner plus read-only session_status.py; exact former 41,659-byte mixed recovery record preserved under history. Short next-session checklist replaces repeated first-inventory procedure."
+    },
+    {
+      "area": "ownership_and_testing",
+      "change": "Root AGENTS.md defines file ownership, source freeze before integration, targeted checks, bounded output, current authorization and no speculative new training sweeps. Verified test commands saved in current state."
+    },
+    {
+      "area": "hardware_preparation",
+      "change": "Previously ignored frozen trial helpers adopted as canonical tracked source. Same exact Joy contract used for passive preflight and disabled floor consumer, including per-message publisher identity. Physical button exercise separate from passive diagnostics."
+    },
+    {
+      "area": "shutdown",
+      "change": "Reproduced probe-parent inspection exception that killed the shutdown owner before manager signaling; corrected to initiate verified-manager teardown and report nonnominal cleanup. This is not proof of the native fallback cause."
+    },
+    {
+      "area": "preservation",
+      "change": "Rehash cached objects, surface bad/partial transfers and nonzero one-shot failure, single-writer OS lock, atomic index publication, verified restore copies, offline current-index verification."
+    },
+    {
+      "area": "Gemini",
+      "change": "Real-time fake mode preserves immediate queue acceptance, actual elapsed pauses and cancellation; corrected contract wording. Actual Live checks preserve two unsupported narration cases, including a claimed Stop with no tool call. Model reliability remains unaccepted."
+    }
+  ],
+  "validation": {
+    "gemini_tests": 409,
+    "course_checks": 166,
+    "preservation_tests": 32,
+    "floor_tests": 100,
+    "unchanged_selected_source_during_checks": true,
+    "checks": "artifacts/validation/offline-workflow-20261030-v1/checks.json",
+    "floor_checks": "artifacts/validation/offline-workflow-20261030-v1/floor-checks.json",
+    "command_correction": "Initial preservation invocation accidentally passed literal None instead of the actual archive test path; no tests ran. Original log retained. Only this failed invocation was rerun with verified paths.",
+    "snapshot": {
+      "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/periodic/spider-encoder-study-v1",
+      "verified_files": 233,
+      "indexed_bytes": 1924006512,
+      "index_sha256": "5a3b5df6c818f0e0da6e71a0c6176877f55174cf78651e9a60aa0580bf0a9eb7",
+      "scope": "Current indexed objects only; no remote completion or historical-version claim."
+    }
+  },
+  "review_records": {
+    "floor": "foundation/results/floor-stock-offline-diagnosis.json",
+    "live_model": "foundation/results/gemini-realtime-live-reviewed.json"
+  },
+  "remaining": [
+    "Pi unreachable: recover failed native archive, determine actual publisher mismatch/fallback cause, and execute exact no-motor preflight.",
+    "Canonical motor entrypoints deliberately disabled until reviewed deployed-library identity checks and native readiness are restored.",
+    "Realtime fake tests do not prove physical control or reliable model narration.",
+    "Laptop-local periodic preservation still depends on collector/network availability; keep final complete archives and use existing chunk downloader for large transfers.",
+    "Physical floor standing/stopping/walking, following, live conversation and approved new tricks remain separate work."
+  ]
+}

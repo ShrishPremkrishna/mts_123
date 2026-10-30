@@ -1,0 +1,487 @@
+{
+  "recorded_utc": "2026-10-28T06:49:50.192415+00:00",
+  "objective": "Complete and audit the class-provided Pupper foundation, including required/optional labs and justified training; preserve coursework main and distinguish measured capabilities from experiments.",
+  "main_preserved_at": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
+  "pushed_recovery_checkpoint": "58a5f9c440744a66f42489b4b297e08cb1621cff",
+  "verified_durable_files": 168,
+  "durable_hash_mismatches": 0,
+  "lost_remote_outputs": [
+    "pupper-spider-precision (original baseline/precision continuation outputs never downloaded)",
+    "pupper-optional-corrected-v1 (original corrected baseline/fast outputs never downloaded)"
+  ],
+  "loss_boundary": "Original runtime assignments absent from Colab server; no success/completion inferred for unretrieved jobs. Exact starting checkpoints and source/configuration identities survived.",
+  "restored_sessions": {
+    "pupper-foundation-recovery": {
+      "source": "845db7df059d47c4895ef3a05e391817dd41e2b5",
+      "output": "/content/pupper-spider-precision-recovery"
+    },
+    "pupper-optional-recovery": {
+      "source": "287000ad8a4ec45f1f67e8b1549ac57be0128ba9",
+      "output": "/content/pupper-optional-recovery-v2"
+    }
+  },
+  "periodic_preservation": {
+    "script": "foundation/scripts/preserve_colab_run.py",
+    "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/periodic",
+    "interval_s": 120,
+    "scope": "Latest two currently visible checkpoints per folder plus metadata, logs and rollouts. Previously downloaded versions preserved by hash. Final complete archives still required.",
+    "real_probe_passed": true,
+    "training_checkpoints_already_received": true,
+    "limitations": "Local collector needs this laptop running and network access. Runtime termination before next download can lose the most recent interval; no absolute durability guarantee.",
+    "drive_mount": "Not enabled; it requested additional broader Google access. Used existing approved downloads instead."
+  },
+  "continuing_work": [],
+  "hardware": "Last recorded floor attempt shut down before activation; fresh connection unavailable at wrap-up. User intends stand placement. No automatic restart.",
+  "latest_checkpoint": {
+    "recorded_utc": "2026-10-28T16:41:48.984708+00:00",
+    "branch": "pupper-foundation",
+    "worktree": "/Users/shrish/workspace/cs123-foundation",
+    "head": "be7ff878321f672366e225cecfbde53aa4ab6596",
+    "main_clean": true,
+    "last_full_regression": {
+      "source": "3766cc0608b0bcc97ae5849c09cca040d4634565",
+      "pytest": 905,
+      "course_checks": 225,
+      "native_cpp_suite": true,
+      "separate_ros_jazzy_tests": 21,
+      "separate_ros_rerun": false,
+      "source_hashes": 735,
+      "source_changed": false,
+      "raw": "artifacts/validation/offline-encoder-20261028T1216/checks.json",
+      "review": "foundation/results/offline-validation-3766cc0.json",
+      "limitation": "No hardware orpolicy promotion. Later codechanges needappropriatechecks; documentation/results-onlychanges do not invalidate exactsource checks."
+    },
+    "completed_since_recovery": [
+      "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
+      "Lab2 recording-to-Lab3 replay with actual bag review",
+      "Generated standing secret trick reviewed/integrated",
+      "Twelve supplied finite trick native activation/hold screens with no tilt stops",
+      "Course Hailo8L detector downloaded and checksum pinned",
+      "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
+    ],
+    "active_work": {
+      "root": "Stopped/completed; resume from hardware_session after new user request.",
+      "optional_recovery": "Stopped/completed; resume from hardware_session after new user request.",
+      "lab6_recovery": "Stopped/completed; resume from hardware_session after new user request.",
+      "sit_recovery": "Stopped/completed; resume from hardware_session after new user request."
+    },
+    "gpu_state_at_checkpoint": "Both task-owned Colab runtimes released after verified complete archives. GPU2 retired10:20:35UTC; GPU1 pupper-foundation-recovery retired13:19:36UTC. All encoder32childjobs exit0,18evaluation suitescomplete. Do not relaunch or poll the deleted session as if it were active.",
+    "backup_status": "Complete encoder runtime inventory250files recovered and SHA-matched; root independently rehashed258durable payload/archive/receipt files totaling3902784311bytes withzeroerrors. All18rawGPUtraces independently analyzed. Native10bundle193files848184587bytes preserved; independentnativeaudit9files740671bytes. Earlier Optional2ninearchives, torso/refinement, Sit, generatedmotion, controller and default-attribution archives remain preserved. Final233-file rollingindex retained withreceipts/logs aftercollector retirement; no activecheckpointcollector. Portableinventorykit archive12422bytesSHA b5b139bd8f79ce0e43732f2fa09d054433932379db538fe82ea44c8e733a8fd7 isroot-verified; sourcepayloadunchanged.",
+    "remaining_completion_gates": [
+      "When Pupper is available: read-only discovery and baseline backup, recover missing installed/team policy identities, inspect actual launch/controller/driver/calibration paths. Portable inventory kit avoids a full clone/install. Continue without robot until the user reconnects it.",
+      "With user physically present and applicable TA approval: establish approved baseline standing/stopping, joint/IMU signs and timing, camera/Hailo, follower interruptions and actual controller receipts; validate newly trained Sit/generated candidates separately. No automaticmotoractivation.",
+      "Live Gemini remains pending: existing importedproject showsPrepayrequired andAPIkeycontrols didnotpopulate. No key created/stored, no payment/authchanges. Resolve account/key access with user or use their configured key at the robot session; neverpastekeyinchat.",
+      "Known research boundaries remain: no promotedSpiderwalkingpair, no reliable new/standingjump, Bumpy/fastgaittradeoffs, defaultmass/inertiarobustness failure inselectedsimcases, contactclassifierlivecalibration. Further optimization should use actual calibration and targeted acceptance criteria, not repeat finished jobs or claim globalmaxima."
+    ],
+    "robot": "Continue without Pupper per user; no motor activation.",
+    "session_management": "Same focused agents reused; one capacity/compaction failure recovered from saved artifacts with no simulation or training rerun. Canonical entrypoints and exact archive/receipt identities are durable. No new user chat or handoff is needed. The offline study pipeline is closed; do not spend remaining overnight time rerunning completed experiments merely to stay active.",
+    "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review.",
+    "latest_reviewed_results": [
+      "foundation/results/lab6-spider-slew-review.json (allfivearms complete, noinstallation)",
+      "foundation/results/spider-default-return-reviewed.json (allfivecontinuouschains complete, zeroreset/stops, exactprefixparity, finalsettling)",
+      "foundation/results/optional2-checked-bumpy-review.json (zerooverflow420ksteps, failuretradeoff, nopromotion)",
+      "foundation/results/optional2-class-seed-correction.json (originalalteredruns preserved; absolute-table runtimeparity fix)",
+      "foundation/results/optional2-capture-independent-review.json (fullbody/COM/recovery gate, originalv3capture rejected)",
+      "foundation/results/optional2-corrected-capture-review.json (corrected-v4 seed101 audit15c7fe2)",
+      "foundation/results/shipped-jump-native-reviewed.json (conditional forward success, threeof fourstanding trialsstop)",
+      "foundation/results/lab6-spider-torso-diagnosis.json (actual-force calibration and class-behavior gap)",
+      "foundation/results/finite-tricks-default-return-reviewed.json (six finite/generated chains reviewed238ec48)",
+      "foundation/results/offline-validation-238ec48.json",
+      "foundation/results/installed-policy-file-audit.json",
+      "foundation/results/lab6-spider-torso-review.json",
+      "foundation/results/optional2-mystery-reviewed.json",
+      "foundation/results/optional2-mystery-final-flight-audit.json",
+      "foundation/results/sit-interactive-default-return-reviewed.json",
+      "foundation/results/lying-tricks-later-default-return-reviewed.json",
+      "foundation/results/controller-completion-v1-reviewed.json",
+      "foundation/results/controller-completion-v2-reviewed.json",
+      "foundation/results/offline-validation-b8216f7.json",
+      "foundation/results/gemini-jump-api-reviewed.json",
+      "foundation/results/lab6-spider-torso-refinement-review.json",
+      "foundation/results/spider-native-physical-variants-reviewed.json",
+      "foundation/results/hardware-baseline-preparation-reviewed.json",
+      "foundation/results/encoder-hardware-semantics-review.json",
+      "foundation/results/spider-recorded-startup-reviewed.json",
+      "foundation/results/spider-recorded-startup-independent-review.json",
+      "foundation/results/spider-default-startup-attribution-reviewed.json",
+      "foundation/results/spider-default-startup-attribution-independent-review.json",
+      "foundation/results/offline-validation-3766cc0.json",
+      "foundation/results/spider-encoder-observation-smoke-reviewed.json",
+      "foundation/results/hardware-comparison-package-reviewed.json",
+      "foundation/results/spider-default-parameter-ablation-reviewed.json",
+      "foundation/results/spider-default-nominal-control-reviewed.json",
+      "foundation/results/spider-default-inertial-ablation-reviewed.json",
+      "foundation/results/spider-default-restoration-independent-review.json",
+      "foundation/results/stop-reporting-reviewed.json",
+      "foundation/results/spider-encoder-observation-study-reviewed.json",
+      "foundation/results/spider-encoder-gpu-independent-review.json",
+      "foundation/results/spider-encoder-native-reviewed.json",
+      "foundation/results/spider-encoder-native-independent-review.json",
+      "foundation/results/portable-inventory-kit-reviewed.json",
+      "foundation/results/offline-validation-composite-c3ad206.json"
+    ],
+    "latest_checkpoint_note": "Source and canonical deliverable checkpoint before this handoff-only update; engineering branch clean and matched origin, coursework main clean at13299faa82f1c4dbd8a84b22867e99e3cfffba8a. User returned and explicitly requested stopping schedules.",
+    "new_consequential_finding": {
+      "name": "Persistent encoder calibration bias absent from locomotion actor observations",
+      "evidence": "Pupper actor usestrueq-default; entitydefinesjoint_pos_biased=q+b; trainingpositiontargetsubtractsb; hardwareobservesstate_pos-estimatedzeroandclampstargetbeforeaddingzero. Trackingactoralreadyusesbiased=True. Walkingstartupbiasrange+/-.015rad. Independenttrainingandhardwarecodereviewsagree.",
+      "implication": "PriorGPUcomparisonsremaininternallymatched but calibration-robustnesstransferincomplete; nominalzero-biasnativecannotexpose. Neveraddtrueqdiagnosticsemanticsunderadeploymentlabel.",
+      "response": "Measured-angle contract implemented and independently validated. Finalpaired1000iterationstudy complete: both512/512basequietstops; max1.86to1.26s, but idle torso support.266%to.378%BW andslightlyworseXY/yawtracking. Nativeadverse torso support improves, turning/sliptradeoffs andall8failedadverse defaultreturnsremain. No promotion."
+    },
+    "new_default_stopping_limit": {
+      "finding": "Selected full-hull startup cases keep the fixed shipped default moving after8s at zero command, including fresh standing starts. This is not uniquely caused by Spider history.",
+      "evidence": [
+        "foundation/results/spider-default-parameter-ablation-reviewed.json",
+        "foundation/results/spider-default-nominal-control-reviewed.json",
+        "foundation/results/spider-default-inertial-ablation-reviewed.json",
+        "foundation/results/spider-default-restoration-independent-review.json"
+      ],
+      "attribution": "Gain/bias restorations0/16quiet; exact nominalcontrols2/2quiet. Conditional onzero bias/unitgains/capturedmaterials: restoring COMonly0/4quiet, restoring fullmass+centralinertia+frame4/4, restoringboth4/4. Donors totalmass1.116x/1.130xnominal, withinperbodydensityrange. This isolates a conditional group effect, not an individual parameter or hardware diagnosis.",
+      "next": "No further parameter sweep now. Preserve failures; actual robot calibration and matched policy evaluation are needed. Do not replace real mechanics with nominal values to obtain a pass."
+    },
+    "encoder_study": {
+      "started_utc": "2026-10-28T12:26:11+00:00",
+      "remote_root": "/content/pupper-spider-encoder-study-v1",
+      "source": "0ada364cf29d6e61d9f774e94f8f7b41349d1e81",
+      "collector_deadline_utc": "2026-10-28T17:00:00+00:00",
+      "collector_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/periodic/spider-encoder-study-v1",
+      "local_dispatch": "artifacts/lab6/pupper-spider-encoder-study-v1/dispatch",
+      "worker_sha256": "5b01206ab483446b61a901b2842cea529fcb8687c075c92a5fbca4a090e74b51",
+      "plan_sha256": "b2b2b4817b73f038784d3242a326f5c749fa99c334949230bfd5a886015c95c1",
+      "dispatch_preservation": "preservation-spider-encoder-study-dispatch-v3.json",
+      "collector_handoff_index_sha256": "92994a86d71f13fad30085e4319e86c19a07d1d9981c3485244495536b07bcfe",
+      "observed_collection": "Finalindex233filesSHA5a3b5df6c818f0e0da6e71a0c6176877f55174cf78651e9a60aa0580bf0a9eb7. Fullruntime250fileinventory andcompletearchives areauthoritative finalpreservation; rootverified258durablefiles includingarchives/receipts.",
+      "old_collectors_retired": [
+        21202,
+        22946,
+        4332
+      ],
+      "authorization": "User broadcomputeauthorization; root internalqualityreviewapprovedfullarms after8successfulrealGPUsmokejobs andindependentreceipt/math/sourcechecks. No newuserpermissionneeded.",
+      "training_state": "Complete; allGPU/nativeevaluation and preservation complete; runtime released",
+      "final_checkpoint_label": "model_9494.pt",
+      "iteration_convention": "RSL labels8495..9494, upper9495exclusive; optimizer170000to190000 confirms1000PPOiterations.",
+      "final_export_lineage": "artifacts/lab6/pupper-spider-encoder-study-v1/exports/lineage.json",
+      "final_exports_preservation": "preservation-spider-encoder-study-final-exports-v1.json",
+      "authorization_amendment": "artifacts/lab6/pupper-spider-encoder-study-v1/dispatch/authorization-amendment.json",
+      "worker_pids_historical": [
+        162474,
+        162475
+      ],
+      "training_child_pids_historical": [
+        162596,
+        162604
+      ],
+      "collector_pid_historical": 23439,
+      "collector_state": "retired13:19:33UTC betweenquietcycles",
+      "runtime_released_utc": "2026-10-28T13:19:36+00:00",
+      "runtime_closure": "artifacts/lab6/pupper-spider-encoder-study-v1/runtime-closure",
+      "runtime_closure_preservation": "preservation-spider-encoder-study-runtime-closure-v1.json",
+      "final_reviews": [
+        "foundation/results/spider-encoder-observation-study-reviewed.json",
+        "foundation/results/spider-encoder-gpu-independent-review.json",
+        "foundation/results/spider-encoder-native-reviewed.json",
+        "foundation/results/spider-encoder-native-independent-review.json"
+      ]
+    },
+    "morning_visuals": [
+      "artifacts/lab6/pupper-spider-encoder-study-v1/analysis/comparison.png",
+      "artifacts/lab6/spider-encoder-native-v1/native-tradeoffs.png",
+      "artifacts/lab6/spider-default-inertial-ablation-v1/inertial-ablation.png",
+      "artifacts/shipped-jump/gemini-immediate-reference-v1/review/paired-api-jump.png"
+    ],
+    "latest_targeted_validation": {
+      "commit": "5893cc9",
+      "review": "foundation/results/stop-reporting-reviewed.json",
+      "gemini_pytest": 237,
+      "course_tool_checks": 166,
+      "behavior_control_AST_unchanged": true
+    },
+    "latest_composite_validation": "foundation/results/offline-validation-composite-c3ad206.json",
+    "current_followup": "This dated checkpoint preserves the completed Oct28 offline evidence. Current robot access, jobs, actions and remaining gates are owned by hardware_session and current_report; do not use the historical robot-unavailable state to restart finished work."
+  },
+  "checkpoint_history": [
+    {
+      "recorded_utc": "2026-10-28T07:40:20.224225+00:00",
+      "branch": "pupper-foundation",
+      "worktree": "/private/tmp/cs123-pupper-foundation",
+      "head": "24b0c54516eef20f60167538b616bc3340a96e31",
+      "main_clean": true,
+      "last_full_regression": {
+        "source": "81a2eeb",
+        "pytest": 401,
+        "course_checks": 225,
+        "scope": "Earlier complete snapshot; newer changes need final full regression."
+      },
+      "completed_since_recovery": [
+        "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
+        "Lab2 recording-to-Lab3 replay with actual bag review",
+        "Generated standing secret trick reviewed/integrated",
+        "Twelve supplied finite trick native activation/hold screens with no tilt stops",
+        "Course Hailo8L detector downloaded and checksum pinned",
+        "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
+      ],
+      "active_work": {
+        "root": "Python physics-step target slew/export and runtime capability readiness;28targeted tests pass. Final integration/regression/docs/durable worktree relocation pending.",
+        "lab6_recovery": "C++ target slew/native host/validator/installer;host and25validator tests passed, final integration/review pending. Spider pairedreview24b0c54 durable, no promotion.",
+        "optional_recovery": "Flat/heldout complete. Mysterypilot no admissible flight/landing: capability unfinished. Bumpy original5cm terrain-grid contact overflow invalidated diagnostic;10cm resolution correction/guard and rerun pending.",
+        "sit_recovery": "Final durable report/provenance/local installation of improved Sit; no robot orTAapproval."
+      },
+      "gpu_state_at_checkpoint": "Both recovery runtimes had no active GPU workers per owning agents; preserve runtimes for justified corrected experiments. Remote source revisions remain isolated until new runs are frozen.",
+      "backup_status": "Spider/Sit full archives verified. Optionalflat full archive verified; periodiccollector has308 files and one120s timeout on heldout trace; final heldout/Mystery archive still required.",
+      "remaining_completion_gates": [
+        "Complete/review matched command-slew training and native Spider handoff",
+        "Correct and evaluate Bumpy without collision overflow",
+        "Diagnose and complete genuine Mystery flight/landing or explicitly retain unfinished capability",
+        "Final current-source regression, capability matrix and durable checkout",
+        "Later robot read-only inventory/backup and supervised physical validation"
+      ],
+      "robot": "Continue without Pupper per user; no motor activation.",
+      "session_management": "Three existing subagents resumed with their ownership/history; no new chat needed. Current new contract changes are uncommitted and under test; working snapshot being preserved separately."
+    },
+    {
+      "recorded_utc": "2026-10-28T08:11:54.951941+00:00",
+      "branch": "pupper-foundation",
+      "worktree": "/private/tmp/cs123-pupper-foundation",
+      "head": "9949381e213de07257952b32932394bdc63d528f",
+      "main_clean": true,
+      "last_full_regression": {
+        "source": "8ffd0c4",
+        "pytest": 536,
+        "course_checks": 225,
+        "native_cpp_suite": true,
+        "separate_ros_jazzy_tests": 11,
+        "source_hashes": 672,
+        "source_changed": false
+      },
+      "completed_since_recovery": [
+        "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
+        "Lab2 recording-to-Lab3 replay with actual bag review",
+        "Generated standing secret trick reviewed/integrated",
+        "Twelve supplied finite trick native activation/hold screens with no tilt stops",
+        "Course Hailo8L detector downloaded and checksum pinned",
+        "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
+      ],
+      "active_work": {
+        "root": "Consolidation, current source validation, durable worktree relocation after coordination; no robot access needed.",
+        "lab6_recovery": "GPU1 exact8ffd0c4: matched baseline/precision15rad/s training active; shared prefiltered5498 control, then grid/stops/native reviews.",
+        "optional_recovery": "GPU2 exact16aeb67: supervised corrected10cm-grid Bumpy1500iterations and explicitly class-jump-reference-seeded Mystery1000iterations; overflow and genuineflight gates retained.",
+        "sit_recovery": "Sit locally installed and documented; checkpoint/export/load contract completed; now preparing read-only worktree relocation plan."
+      },
+      "gpu_state_at_checkpoint": "GPU1 supervisor52204: baseline52207 and precision52676 in real PPO learning, prefiltered52208 evaluating; CUDA smoke passed. GPU2 Mystery correction training and Bumpy matched pre-evaluation underway, zero overflow in first completed seed. No robot motors activated.",
+      "backup_status": "Full recovered Spider/Sit/flat archives verified. Optionalcollector restarted65672 with per-file failures isolated; newSpider collector66878 watches /content/pupper-spider-slew. In-progresssource snapshot saved at working-snapshots/20261028T074138Z; validatedsource pushedthrough8ffd0c4. Optional2 heldout98files and Mystery pilot/probe73files SHA-verified and preserved with complete archives.",
+      "remaining_completion_gates": [
+        "Complete/review matched command-slew training and native Spider handoff",
+        "Correct and evaluate Bumpy without collision overflow",
+        "Diagnose and complete genuine Mystery flight/landing or explicitly retain unfinished capability",
+        "Final current-source regression, capability matrix and durable checkout",
+        "Later robot read-only inventory/backup and supervised physical validation"
+      ],
+      "robot": "Continue without Pupper per user; no motor activation.",
+      "session_management": "Same3subagents reused; exactsource/output/checkpoint records persistent. No new chat/handoff needed. Source changes after this record must be tested as appropriate before final release.",
+      "environment": "Docker started; isolated classJazzy ARM64 production build/tests pass. Current chat writable root is notes vault, so originalrepoGitwrites require automatic review; one timeout retried successfully."
+    },
+    {
+      "recorded_utc": "2026-10-28T08:33:21.141500+00:00",
+      "branch": "pupper-foundation",
+      "worktree": "/Users/shrish/workspace/cs123-foundation",
+      "head": "08964a30c4500c00e642a5c0c7fdfd8cb69d6905",
+      "main_clean": true,
+      "last_full_regression": {
+        "source": "8ffd0c4",
+        "pytest": 536,
+        "course_checks": 225,
+        "native_cpp_suite": true,
+        "separate_ros_jazzy_tests": 11,
+        "source_hashes": 672,
+        "source_changed": false
+      },
+      "completed_since_recovery": [
+        "Exact-input reruns and full preservation of corrected flat gait and Spider precision pairs",
+        "Lab2 recording-to-Lab3 replay with actual bag review",
+        "Generated standing secret trick reviewed/integrated",
+        "Twelve supplied finite trick native activation/hold screens with no tilt stops",
+        "Course Hailo8L detector downloaded and checksum pinned",
+        "Targeted Sit COM expansion trained;36GPU/12CPU comparisons complete; +2cm weakness improved, +2.5cm backend disagreement retained"
+      ],
+      "active_work": {
+        "root": "Final consolidation and offline environment verification at permanent worktree; live Gemini awaits local credential or later robot session.",
+        "lab6_recovery": "GPU1 exact8ffd0c4: matched baseline/precision15rad/s training active; shared prefiltered5498 control, then grid/stops/native reviews.",
+        "optional_recovery": "GPU2 exact16aeb67: supervised corrected10cm-grid Bumpy1500iterations and explicitly class-jump-reference-seeded Mystery1000iterations; overflow and genuineflight gates retained.",
+        "sit_recovery": "Native actual shipped jump reference-window probe with paired gait-only controls; improved Sit already installed and reviewed."
+      },
+      "gpu_state_at_checkpoint": "GPU1 paired slew PPO workers active; GPU2 Mystery correction nearing end of training, Bumpy training active after all three pre-seeds passed zero-overflow audit. Remote jobs unaffected by relocation.",
+      "backup_status": "All recovered flat/heldout/Mysterypilot/Sit/Spiderprecision archives verified durably. Optional2 collector restarted70076 with same499-file index; Spider slew collector restarted70138 with same49-file index. Old precision collector retired. Remote jobs never stopped during relocation.",
+      "remaining_completion_gates": [
+        "Complete/review matched command-slew training and native Spider handoff",
+        "Correct and evaluate Bumpy without collision overflow",
+        "Diagnose and complete genuine Mystery flight/landing or explicitly retain unfinished capability",
+        "Later robot read-only inventory/backup and supervised physical validation",
+        "Final current-source regression and capability matrix after remaining experiment reviews",
+        "Live Gemini test when credential available; browser microphone/camera and actual ROS integration later"
+      ],
+      "robot": "Continue without Pupper per user; no motor activation.",
+      "session_management": "Same3subagents reused; exactsource/output/checkpoint records persistent. No new chat/handoff needed. Source changes after this record must be tested as appropriate before final release.",
+      "environment": "Permanent worktree move verified77,784unchanged file identities;71venv prefix files,39package RECORDs,47compiler include links repaired. FiveCLI/import smokechecks passed. Gemini browser build/typecheck and actualPython SDK schema serialization pass;166package inventory saved and pipcheck clean. Current chat root still notes vault, so new project writes use automatic approval review."
+    },
+    {
+      "recorded_utc": "2026-10-28T09:11:39.465196+00:00",
+      "head": "5787691f7d32ab31eb160868dac8fff0993b7eaa",
+      "checkpoint_summary": "Overnight continuation authorized; source593100e saved prior state. Subsequent exact studies and independent corrections are linked in latest_checkpoint and their immutable reports."
+    },
+    {
+      "recorded_utc": "2026-10-28T09:58:58.816240+00:00",
+      "head": "b079adb088230998b78f7ce64d372402f04c7602",
+      "checkpoint_summary": "Earlier regression and native-return state retained in linked immutable reports; superseded by final Optional2 negative result, completed returns, torso intervention and controller-acknowledgement fixes."
+    },
+    {
+      "recorded_utc": "2026-10-28T12:33:21.600086+00:00",
+      "head": "b857497a7ae3771498bc9f0a0b6b85e797c2706c",
+      "checkpoint_summary": "Paired encoder study dispatched and final exports subsequently verified; exact prior metadata remain in immutable dispatch/lineage and linked reports."
+    },
+    {
+      "recorded_utc": "2026-10-28T12:59:36.420593+00:00",
+      "head": "5893cc9d7dec918a329a9a49eca7616c6fd54fed",
+      "checkpoint_summary": "Both encoder trainings had completed and final evaluations were running. All studies are now finished; immutable full archives, independent GPU/native reviews and release receipts supersede that active-job snapshot."
+    },
+    {
+      "recorded_utc": "2026-10-28T13:38:15.524001+00:00",
+      "head": "e06496bc3a6864dc3dcaca64dc521d6dda4e8a31",
+      "checkpoint_summary": "All planned offline studies and independent reviews complete; both GPUs and collectors retired with verified complete archives. Final portable inventory kit validated on Mac and isolated ARM64 Linux. Canonical closure committed and pushed as be7ff878321f672366e225cecfbde53aa4ab6596; later independent closure review found no material issues."
+    }
+  ],
+  "recovery_entry_points": [
+    "foundation/README.md",
+    "foundation/results/interruption-recovery.json hardware_session",
+    "foundation/results/hardware-session-20261029-reviewed.json",
+    "foundation/results/course-capability-coverage.json",
+    "foundation/results/local-environment.json"
+  ],
+  "relocation": {
+    "from": "/private/tmp/cs123-pupper-foundation",
+    "to": "/Users/shrish/workspace/cs123-foundation",
+    "durable_record": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/relocation-20261028/attempt-001/relocation.json",
+    "phase": "verified",
+    "historical_paths": "Historical result paths remain unchanged as provenance; resolve the old worktree prefix using this map."
+  },
+  "overnight": {
+    "authorized_at_utc": "2026-10-28T09:11:39.465196+00:00",
+    "cutoff_utc": "2026-10-28T17:00:00+00:00",
+    "cutoff_local": "2026-10-28 10:00 America/Los_Angeles",
+    "automation_id": "pupper-overnight-foundation",
+    "status": "PAUSED",
+    "cadence": "quarter-hour heartbeat in this same chat through cutoff, including cutoff run",
+    "worktree": "/Users/shrish/workspace/cs123-foundation",
+    "branch": "pupper-foundation",
+    "sleep_inhibitor": {
+      "pid": 75848,
+      "expires_utc": "2026-10-28T17:00:00+00:00",
+      "flags": [
+        "-i",
+        "-s"
+      ],
+      "screen_lock_unchanged": true,
+      "closed_utc": "2026-10-28T16:41:48.984708+00:00",
+      "closure": {
+        "pid": 75848,
+        "observed_command": "/usr/bin/caffeinate -i -s -t 28673",
+        "action": "terminated task-owned overnight sleep inhibitor"
+      }
+    },
+    "authorization": "User explicitly requested roughly8h autonomous work and optional Gemini key setup, with earlier broad coding/compute/queue/Colab/policy-recovery approvals. Routine reversible work need not wait for user. Never weaken security/approval controls or activate robot.",
+    "key_access": "Bounded existingChromeAIStudio followup importedexisting GenerativeLanguageClient project, observedTier1/Prepayrequired. Keylist/creationdialog didnotpopulate afterreload; no key/projectcreated, no payment/security/authchanges. Nonsecret statusreceipt preserved atartifacts/access/gemini-existing-project-import-20261028/status-receipt.json. Originaltab restoredtohttps://cs123-stanford.readthedocs.io/en/latest/. LiveGemini remainspending; doesnotblockofflinework.",
+    "communication": "No routine unchanged notifications; meaningful results/completion/failure or genuine user action only. User sleeping; continue unaffected work when optional access unavailable.",
+    "cutoff_action": "Superseded by explicit user stop before cutoff. Schedule is paused, both GPU runtimes already released, and final handoff saved. No new compute started.",
+    "handoff": "Resume in this same chat from foundation/README.md and latest_checkpoint here. Complete offline evidence and exact hashes are durable. Next perform read-only Pi discovery and baseline backup when available, then supervised approved validation. No need to repeat finished training or create a new chat.",
+    "stopped_by_user_at_utc": "2026-10-28T16:41:48.984708+00:00",
+    "stop_reason": "User returned and explicitly requested turning off the schedule; automation_update confirmed PAUSED."
+  },
+  "hardware_session": {
+    "date": "2026-10-29",
+    "updated_utc": "2026-10-30T08:16:34.933950+00:00",
+    "authorization": "User requested natural stopping point and wrap-up; no further autonomous work or hardware tests. Resume only after a new user request.",
+    "automation_status": "PAUSED",
+    "ssh": "mts",
+    "staging_root": "/home/pi/pupper-foundation-session-20261029",
+    "canonical_report": "foundation/results/floor-stock-trial-20261030.json",
+    "current_state": "Stopped at user request. Last floor attempt aborted before readiness/activation; recorded shutdown completed. Fresh read-only SSH and Tailscale ping timed out during wrap-up, so current remote process state is not independently reverified. No new motion or compute jobs launched. User intends to return robot to stand; placement unverified.",
+    "first_homing": {
+      "nodes": [
+        "baseline robot_state_publisher",
+        "baseline controller_manager/ros2_control_node"
+      ],
+      "motor_action": "Original driver homing only; all twelve actuators reported homed. No neural policy, gait, trick, teleop, Gemini or follower activated.",
+      "homing_duration_seconds_approx": 5.41,
+      "feedback_controllers": [
+        "joint_state_broadcaster",
+        "imu_sensor_broadcaster"
+      ],
+      "shutdown": "SIGINT deactivated hardware and shut down controller manager; destructor logged another successful deactivation then std::terminate, process exit -6. Operator subsequently confirmed relaxed legs.",
+      "current_state": "No hardware manager or motion process running; isolated build only. Do not restart hardware automatically."
+    },
+    "agents": {
+      "lab6_recovery": "Completed floor candidate; native floor attempt blocked before activation.",
+      "optional_recovery": "Completed independent queued-wait review; no findings.",
+      "sit_recovery": "Queued-wait patch frozen; 400 Gemini and 166 course checks passed; local only."
+    },
+    "next": [
+      "Recover complete failed floor-run archive from Pi; diagnose Joy graph identity and shutdown fallback with motors inactive.",
+      "Repeat supervised stock floor standing and physical R3 stop after correction, then short conservative straight walking.",
+      "Recheck Gemini Live against fake backend with corrected wait/prompt before physical conversation integration.",
+      "Validate following/color reacquisition on the robot; obtain applicable course approval before newly trained Sit/generated policies. Optional1 requires hardware not available on this standard robot."
+    ],
+    "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
+    "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
+    "jobs": "No new jobs. Prior floor supervisor session 72612 exited 1 with cleanup reported complete. All agents completed. GPU runtimes previously released; automation remains PAUSED.",
+    "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
+    "gamepad_preference": "Existing trusted DualSense reconnected via PS button. Isolateddomain170 input-only check: userR3 produced solebutton12, matchingStopmapping. Reader exited. ManualStopthroughactualgateway remainspending.",
+    "github_backup": "Push succeeded: origin/pupper-foundation at9a0eff9b557f322fbeb43eecd608bee1e08c262a. Local recovery bundle also verified.",
+    "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json",
+    "console_trial_result": "foundation/results/console-motion-trial-r2-reviewed.json",
+    "live_camera": "foundation/results/live-camera-perception-reviewed.json:6/6freshframeswith2persons, normalcameraacquisition, noROS/motionpublishers/servicechanges, exactexecutedsource78419preserved. Following/colorcalibration remainunverified.",
+    "battery_monitor": "Corrected utilityf0e445... active via99-pupper-foundation-20261030.conf drop-in; originalunit/utilityuntouched. Native21mocktests+actual18.55Vreadpassed, samePID39846healthy147.74s/no restart. Canonical foundation/results/battery-monitor-reviewed.json hasbackup/rollback. No reallowvoltageshutdowntest.",
+    "gemini_live": "Key configured privately and real Gemini Live fake-robot connection succeeded. Initial stand/wait/stop request revealed absent wait tool and inaccurate narration. Reviewed minimal wait/prompt fix passes 400 Gemini and 166 course checks; independent 17 focused tests pass. Not deployed or live-rechecked. See foundation/results/gemini-live-wait-reviewed.json.",
+    "wrap_up_utc": "2026-10-30T08:16:34.933950+00:00"
+  },
+  "current_phase": "stopped_at_user_request",
+  "current_report": "foundation/results/floor-stock-trial-20261030.json",
+  "previous_hardware_sessions": [
+    {
+      "date": "2026-10-29",
+      "updated_utc": "2026-10-30T00:30:54.135225+00:00",
+      "authorization": "User authorized implementation, SSH/staging, backups and conservative iteration; then departed for approximately one hour. Root committed to motors inactive while user away. No camera needed. No robot ROS stack/controller launch or motor command has occurred.",
+      "cutoff_utc": "2026-10-30T00:30:00+00:00",
+      "automation_id": "pupper-overnight-foundation",
+      "automation_name": "Pupper stationary preparation",
+      "automation_status": "PAUSED",
+      "ssh": "mts",
+      "robot": "/home/pi/pupperv3-monorepo; coursework /home/pi/workspace/mts_123; deployment /home/pi/pupper_gait_deploy",
+      "staging_root": "/home/pi/pupper-foundation-session-20261029",
+      "local_artifacts": "artifacts/hardware/2026-10-29",
+      "baseline": "Complete:62explicit files455876592bytes. Local +Pi manifest verified f5d2b2823629ce13fc2e40414b514e4d0d94ab51d5b61d5f75e308c4c3704da0. Complete181121264bytearchiveSHA15766f399bfc61407a679f434945ac5752c8edaebe4ab65529f39a575fe94408 also preserved /Users/shrish/workspace/pupper-foundation-artifacts/2026-10-29/robot-baseline.",
+      "ros": "Corrected explicit rclpy Context/executor read-only discovery passes; actual robot/controller nodes absent in sampled domain. No robot hardware stack launched.",
+      "environment": "Native Pi toolchain builds neural_controller successfully. Isolated venv+systemsitepackages provides google-genai2.33.0/pytest9.2.0/FastAPI0.141.1/Pydantic2.14.2; allimports pass. No globalpipinstall, systemupgrade, GUI/service change or motor action.",
+      "jobs": "No active Pi, GPU, Docker test or training job. Stagedv3 validation and exactarchives are complete. Separate stop-arbitration candidate passedboundedactualDDS tests and is preserved forremainingfaultinjection/integration; it was not installed.",
+      "agents": {
+        "lab6_recovery": "Complete. Isolated stop-arbitration candidate preserved with9core scenarios, constructor and3actualDDS tests. Notintegrated/promoted; all compute stopped.",
+        "optional_recovery": "Complete. Independent policy/stop/Hailo/actualDDS reviews preserved.",
+        "sit_recovery": "Complete. Independent Pi CPU numerical review and supervised sequence proposal preserved."
+      },
+      "next": [
+        "Resume from canonical report; no need to repeat successful backup/build/training.",
+        "Complete remaining stop-candidate fault-injection and production readiness integration before considering promotion.",
+        "With user present: establish physical power-stop/homing procedure, then conservative approved baseline measurements.",
+        "Resolve camera ownership and live Gemini/API access independently; Optional1 apparatus remains unavailable."
+      ],
+      "user_constraints": "User emphasized sim-to-real mismatch and motor damage risk: iterate conservatively, small changes, no aggressive/random motion and no raised limits/gains to force success. Robot is on a stand. User away for this block; root promised motors inactive and no camera access needed.",
+      "canonical_report": "foundation/results/hardware-session-20261029-reviewed.json",
+      "closed_utc": "2026-10-30T00:30:54.135225+00:00",
+      "closure": "Authorized unattended hour ended. All experiment/build jobs complete, focused agents finished, no active task-owned compute to stop. Pi and existing services remain on. Current source/reports pushed on foundation branch; exact archives and recovery inputs preserved. No motor action."
+    }
+  ],
+  "previous_continuing_work_at_wrap_up": [
+    "Finish/review pairedencoder-sensingcontinuation fromexactoriginal8495; botharmsmustbe evaluatedundercommon deployment-measuredinputs. Preserveallcompletedcheckpoints/fullarchives; neveruse shortsmokesasfullarmstartingpoints.",
+    "Complete independent default-body-parameter attribution and update truthful installed/staged/rejected capability boundaries. Fixed-default drifting counterexamples are not solved by source correction or passing unit tests.",
+    "Repeat relevant nativeadversewhole-chain screens forfinaltrainedcandidates; no automaticpromotionorhardwarevalidationclaim.",
+    "Verifyfinalcurrentcatalog/stagedpackage andlatestsourcechecks afteranycodechange; preservecourseworkmain. ActualPiidentity,calibration,loadedbinaries,physicalstop andTA/newpolicytestsremainpending.",
+    "At17:00UTC beginnonewcompute, preserveactivework/checkpoints, stoponlytask-ownedidle/finishedcompute, retirecollectorsappropriately, writeclearhandoff andpauseautomation."
+  ]
+}
