@@ -71,10 +71,36 @@ parameters. A course-only or stale stack is refused before any server is replace
 With the operator beside the robot, preserve the approved baseline and use the
 course stop/setup procedure before explicitly launching the combined stack; never
 start a second competing motor stack. When no manager is running, `start.sh`
-launches normally and applies the same inspection before starting the server.
+starts hardware as part of the launch. The driver's `on_activate()` performs
+homing even if every neural policy is spawned inactive, so an operator must be
+present before this launch. The same inspection runs before the server starts.
 Every resolved native JSON policy, including the installed locomotion policy,
 is validated before the combined launch executes. The manifest proves file and
 configuration consistency, not loaded binary compatibility or physical readiness.
+
+The combined deployment also requires the rebuilt `joy_utils` package. The
+installer stages its source, CMake, package manifest and constructor test from
+the bundled monorepo; missing inputs cause refusal before installation writes.
+Readiness requires exactly one `/estop_controller` with the generated ordered
+`controller_names`, `switch_button_indices`, `estop_index` and
+`estop_release_index`, all with read-only parameter descriptors. Startup overrides
+remain supported; changing exposed parameters on an old node cannot repair its
+cached mapping. See the [immutable configuration review](../../foundation/results/joystick-immutable-parameters-reviewed.json).
+
+The four face-button mappings remain X → default, circle → three-legged,
+triangle → original walk, square → student. `default_alt` and every Gemini
+policy/walking controller are appended only for deactivation coverage. The
+configured stop is right-stick press (index 12); Start (index 9) activates the
+last face-button-selected controller, initially the default. It does not restore
+the last Gemini-selected trick or merely clear a passive stop flag.
+
+The inherited joystick stop remains non-latching: holding it does not prohibit
+later activation. Same-frame face/release events and earlier detached switch
+requests can race with deactivation. The coverage/immutability fix does not
+resolve that ordering; a parameter/readiness pass is not proof that stop wins
+those cases. Keep this limit explicit during supervised testing; the
+[independent joystick review](../../artifacts/hardware/2026-10-29/joystick-independent-review/review.json)
+records the unresolved behavior and required isolated tests.
 
 ## One explicit follower
 
