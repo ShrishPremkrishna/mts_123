@@ -1,9 +1,9 @@
 {
-  "schema": "battery_monitor_local_review_v1",
+  "schema": "battery_monitor_review_v2",
   "created_utc": "2026-10-30T07:45:08.928686+00:00",
   "source_base": "59480911714c7d3913a661faea138094608a7f10",
-  "status": "local_mocked_tests_passed_not_deployed",
-  "scope": "Repository source only; no SSH, I2C access, shutdown command execution, service installation or restart.",
+  "status": "native_mocked_tests_and_one_shot_passed_reversibly_deployed_service_active",
+  "scope": "Root performed the authorized Pi staging, real one-shot I2C read, systemd drop-in installation and inactive-motor-stack service restart. This independent review inspected fetched receipts and hashes locally; it performed no SSH, service changes or hardware actions.",
   "files": {
     "pupperv3-monorepo/robot/utils/check_batt_voltage.py": "f0e445aeff543142cecf42ef5679a6d231477fca948cb2534225f81f0baa0eb3",
     "foundation/tests/test_battery_monitor.py": "f5f10e8e26c44196c23913a14914045ed5db78821aa891d0b6d258affe0b4377",
@@ -92,10 +92,125 @@
     ]
   },
   "limitations": [
-    "Actual installed utility remains original until separately staged; no physical low-battery/shutdown test was performed.",
+    "No physical low-battery or actual shutdown test was performed. Healthy service state does not directly measure individual polling transactions; repeated fresh reads and scheduling decisions were validated with mocks.",
     "Successful subprocess return records scheduling acceptance, not proof that shutdown later occurs.",
     "Once-per-process flag is intentionally not persistent across service restart; existing systemdRestart=always remains unchanged.",
     "No automatic cancellation on voltage recovery; existing shutdown policy retained.",
-    "Existing I2C lock busywait, read errors and wall command behavior remain unchanged; this is not a broader battery failsafe redesign."
-  ]
+    "Existing I2C lock busywait, read errors and wall command behavior remain unchanged; this is not a broader battery failsafe redesign.",
+    "Native mocked tests used the existing session virtualenv; actual one-shot and installed service used /usr/bin/python3. No claim that the virtualenv test executable itself was the service executable."
+  ],
+  "updated_utc": "2026-10-30T08:00:22.314813+00:00",
+  "implementation_commit": "c8d2ecd5030130cd46d007cd1a934a47c9ec6c20",
+  "history": {
+    "predeployment_review": "artifacts/hardware/2026-10-30/battery-monitor-native/predeployment-canonical-review.json",
+    "sha256": "e569d5430123288d13606ade137e114201e281451794669f1ff7ba820c893b36",
+    "retained_local_evidence_directory": "artifacts/hardware/2026-10-30/battery-monitor-review"
+  },
+  "native_validation": {
+    "receipt": "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-v1-native-checks.json",
+    "sha256": "178b971c7f43eb973bb449ccaaf027775e957822b8af9fca6f9fdd3d3e32a5af",
+    "mocked_tests": {
+      "passed": 21,
+      "failed": 0,
+      "python": "/home/pi/pupper-foundation-session-20261029/venv/bin/python3",
+      "hardware_access": false
+    },
+    "system_python_help": {
+      "returncode": 0,
+      "python": "/usr/bin/python3",
+      "hardware_access": false
+    },
+    "one_shot": {
+      "returncode": 0,
+      "python": "/usr/bin/python3",
+      "reported_voltage_v": 18.55,
+      "reported_percent": 74,
+      "actual_i2c_read": true,
+      "service_mode": false,
+      "shutdown_command_executed": false
+    }
+  },
+  "deployment": {
+    "receipt": "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/deployment.json",
+    "sha256": "397a2289e215d0ce64a3d9643eb8f0626782ec0d6a096146dc41ca419fe9cf5b",
+    "started_utc": "2026-10-30T07:56:25.832282+00:00",
+    "motor_stack_inactive_at_restart_recorded": true,
+    "service": "battery_monitor.service",
+    "before": {
+      "Restart": "always",
+      "MainPID": "723",
+      "NRestarts": "0",
+      "ExecStart": "{ path=/usr/bin/python3 ; argv[]=/usr/bin/python3 /home/pi/pupperv3-monorepo/robot/utils/check_batt_voltage.py --service_mode ; ignore_errors=no ; start_time=[Thu 2026-10-29 23:47:36 PDT] ; stop_time=[n/a] ; pid=723 ; code=(null) ; status=0/0 }",
+      "User": "root",
+      "Group": "root",
+      "ActiveState": "active",
+      "SubState": "running",
+      "FragmentPath": "/etc/systemd/system/battery_monitor.service",
+      "DropInPaths": "",
+      "UnitFileState": "enabled"
+    },
+    "after": {
+      "Restart": "always",
+      "MainPID": "39846",
+      "NRestarts": "0",
+      "ExecStart": "{ path=/usr/bin/python3 ; argv[]=/usr/bin/python3 /home/pi/pupper-foundation-session-20261029/battery-monitor-v1/pupperv3-monorepo/robot/utils/check_batt_voltage.py --service_mode ; ignore_errors=no ; start_time=[Fri 2026-10-30 00:56:26 PDT] ; stop_time=[n/a] ; pid=39846 ; code=(null) ; status=0/0 }",
+      "User": "root",
+      "Group": "root",
+      "ActiveState": "active",
+      "SubState": "running",
+      "FragmentPath": "/etc/systemd/system/battery_monitor.service",
+      "DropInPaths": "/etc/systemd/system/battery_monitor.service.d/99-pupper-foundation-20261030.conf",
+      "UnitFileState": "enabled"
+    },
+    "actual_cmdline": [
+      "/usr/bin/python3",
+      "/home/pi/pupper-foundation-session-20261029/battery-monitor-v1/pupperv3-monorepo/robot/utils/check_batt_voltage.py",
+      "--service_mode"
+    ],
+    "replacement_source_sha256": "f0e445aeff543142cecf42ef5679a6d231477fca948cb2534225f81f0baa0eb3",
+    "original_fragment_resolved": "/home/pi/pupperv3-monorepo/robot/utils/battery_monitor.service",
+    "original_fragment_sha256": "cff03d8017ff8ecc9ac717e4ced5adbe2e47961965b787dc3f05e531dc877f86",
+    "original_utility_unchanged_sha256": "1177086544fb1d01ee250c57a04e3626b0c98849acd1013143e233163ee8283c",
+    "only_added_drop_in": "/etc/systemd/system/battery_monitor.service.d/99-pupper-foundation-20261030.conf",
+    "drop_in_sha256": "90f7043e4ec2816ff5e0f72b750874bd680a6014d1331f82b456ad1cd03e68a6",
+    "inherited_settings_verified_unchanged": [
+      "Restart=always",
+      "User=root",
+      "Group=root",
+      "FragmentPath=/etc/systemd/system/battery_monitor.service",
+      "UnitFileState=enabled"
+    ]
+  },
+  "post_restart_health": {
+    "receipt": "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/health.json",
+    "sha256": "ff0b0d76d46415072651d0a66d3f3af2932164bfcd22070d5a42669addbbff74",
+    "checked_utc": "2026-10-30T07:58:55.819874+00:00",
+    "same_pid": 39846,
+    "process_age_s": 147.74000000000024,
+    "state": "active/running",
+    "nrestarts": 0,
+    "original_unchanged": true,
+    "claim_limit": "Pinned replacement remained alive beyond two poll intervals with no recorded restart. Its healthy silent journal does not directly establish repeated I2C reads or exercise low-voltage shutdown."
+  },
+  "rollback": {
+    "status": "prepared_not_executed",
+    "backup_directory": "/home/pi/pupper-foundation-session-20261029/battery-monitor-deployment-v1",
+    "plan": "artifacts/hardware/2026-10-30/battery-monitor-staging-v1/battery-monitor-v1/deployment-plan.json",
+    "steps": [
+      "Require motor/control stack inactive; stop battery_monitor.service before replacing its effective executable.",
+      "Verify then remove only /etc/systemd/system/battery_monitor.service.d/99-pupper-foundation-20261030.conf; do not use systemctl revert or remove other drop-ins.",
+      "Run systemctl daemon-reload and confirm original effective ExecStart and original117708 utility hash match captured backup.",
+      "Restore the recorded active/running state with systemctl start battery_monitor.service; preserve enabled state, root user/group and Restart=always.",
+      "Inspect status and exact process command line. Do not silently cancel a pending low-battery shutdown."
+    ]
+  },
+  "evidence_files": {
+    "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/deployment.json": "397a2289e215d0ce64a3d9643eb8f0626782ec0d6a096146dc41ca419fe9cf5b",
+    "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/health.json": "ff0b0d76d46415072651d0a66d3f3af2932164bfcd22070d5a42669addbbff74",
+    "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/original-fragment.service": "cff03d8017ff8ecc9ac717e4ced5adbe2e47961965b787dc3f05e531dc877f86",
+    "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/original-unit.txt": "62b1592abcc1d21b6e4012ec5f995cae529db967c7c87890bbc2ce0eaed8c059",
+    "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-deployment-v1/original-utility.py": "1177086544fb1d01ee250c57a04e3626b0c98849acd1013143e233163ee8283c",
+    "artifacts/hardware/2026-10-30/battery-monitor-native/battery-monitor-v1-native-checks.json": "178b971c7f43eb973bb449ccaaf027775e957822b8af9fca6f9fdd3d3e32a5af",
+    "artifacts/hardware/2026-10-30/battery-monitor-native/predeployment-canonical-review.json": "e569d5430123288d13606ade137e114201e281451794669f1ff7ba820c893b36"
+  }
 }

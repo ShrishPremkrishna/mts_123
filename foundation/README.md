@@ -56,7 +56,9 @@ now passed a bounded six-frame check, detecting two people in every frame. Actua
 following, color calibration, and live Gemini remain separate validation steps. The original working directories and coursework main remain preserved.
 The [battery-monitor source fix](results/battery-monitor-reviewed.json) corrects
 stale voltage readings, boundary percentages and repeated shutdown scheduling;
-21 mocked tests pass. Robot service deployment is still pending.
+21 mocked tests pass locally and on the Pi. A reversible service override is now
+active; the original utility/unit remain preserved, and an actual one-shot read
+returned 18.55 V. Low-voltage shutdown was not exercised on the robot.
 
 ## Course coverage and where it lives
 

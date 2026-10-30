@@ -402,7 +402,7 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T07:54:13.741581+00:00",
+    "updated_utc": "2026-10-30T08:01:10.521191+00:00",
     "authorization": "User is present and explicitly authorizes supervised conservative iterative tests. Announce concrete motion tests and obtain needed physical observations; avoid redundant permission loops. No raised gains/limits or random motions.",
     "automation_status": "PAUSED",
     "ssh": "mts",
@@ -431,7 +431,6 @@
     "next": [
       "Finish minimalfloorstandcandidate/review; homeonstand then waituserfloorplacement beforeenablingphysicalJoy.",
       "Supervisedstockfloorstanding and actualR3stop, followedlaterbyshortslowwalk.",
-      "Stage/testfixedbatteryutilitynatively; onlythenreversibleserviceoverride whilemotorstackinactive.",
       "LiveGeminikeyuserconfiguring; testmodelwithfakerobotfirst. NewlytrainedSit/generatedtricksstillneedstaffapproval;nohardwaredeploymentofthoseyet."
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
@@ -442,7 +441,8 @@
     "github_backup": "Push succeeded: origin/pupper-foundation at9a0eff9b557f322fbeb43eecd608bee1e08c262a. Local recovery bundle also verified.",
     "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json",
     "console_trial_result": "foundation/results/console-motion-trial-r2-reviewed.json",
-    "live_camera": "foundation/results/live-camera-perception-reviewed.json:6/6freshframeswith2persons, normalcameraacquisition, noROS/motionpublishers/servicechanges, exactexecutedsource78419preserved. Following/colorcalibration remainunverified."
+    "live_camera": "foundation/results/live-camera-perception-reviewed.json:6/6freshframeswith2persons, normalcameraacquisition, noROS/motionpublishers/servicechanges, exactexecutedsource78419preserved. Following/colorcalibration remainunverified.",
+    "battery_monitor": "Corrected utilityf0e445... active via99-pupper-foundation-20261030.conf drop-in; originalunit/utilityuntouched. Native21mocktests+actual18.55Vreadpassed, samePID39846healthy147.74s/no restart. Canonical foundation/results/battery-monitor-reviewed.json hasbackup/rollback. No reallowvoltageshutdowntest."
   },
   "current_phase": "hardware_session",
   "current_report": "foundation/results/lab6-stand-hardware-reviewed.json",
