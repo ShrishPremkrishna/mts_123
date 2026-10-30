@@ -13,7 +13,7 @@ remains historical reference for backups and inventory details.
 
 ## Finish before asking for supervision
 
-1. Recover the complete failed floor run identified in current state. Inspect
+1. Use the complete recovered floor run linked in current state. Inspect
    distinct Joy node names/namespaces, endpoint count, physical input receipts,
    joystick child log and shutdown-coordinator exit/logs. Preserve and hash the
    complete output before cleanup. The generic publisher error is not a diagnosis.

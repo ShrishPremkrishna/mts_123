@@ -1,0 +1,182 @@
+{
+  "recorded_utc": "2026-10-30T21:17:37.342169+00:00",
+  "scope": "Read-only recovery of complete saved run directory, not a new hardware test",
+  "remote_run_dir": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T080848Z-9bd71fc07753469e969fc2f49e325fa5",
+  "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-30/floor-stock-recovered-v1.tar.gz",
+  "durable_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/floor-stock-recovered-v1/floor-stock-recovered-v1.tar.gz",
+  "archive_bytes": 89134,
+  "archive_sha256": "090249b564a9b9585d6cfa40f4da52b0e839ee81e4bf915827ab1f9ccacaa803",
+  "file_count": 33,
+  "files": [
+    {
+      "path": "./configured.json",
+      "bytes": 930,
+      "sha256": "70b2dd19a791dd2c6c7c09d8cf169d5ea957b9842c7517421bb6c1fc278b8916"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/request.json",
+      "bytes": 57,
+      "sha256": "5a4bc5a3862ed73df018b3c578bbd95f1bff7af6351ea694b6618454e4b2ccfd"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/result.json",
+      "bytes": 263,
+      "sha256": "ca8a553847e8f715d919f6d88f24a2f3eed23fdeae5a474a16074d48890d2e50"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/execution.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/spawned-owner.json",
+      "bytes": 276,
+      "sha256": "dc5cffac6b920993a143f96e546afa61ac6c948c6f5f290d83717da409cd0279"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/targets.json",
+      "bytes": 742,
+      "sha256": "da91a1f47d27db83961adc5fe3768b386a84cbcd1bacf4429a65034a92f2d50d"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/owner.json",
+      "bytes": 238,
+      "sha256": "2f82a4e864dfba9d979e425cbee6fe279210363b222dc6fe5fddfc9100a1d53c"
+    },
+    {
+      "path": "./shutdown-coordinator-v2/events.jsonl",
+      "bytes": 583,
+      "sha256": "094cb339c8a1428e8589ac7bff141b5da4a91165c24a42da581feae9fbcac1f4"
+    },
+    {
+      "path": "./environment.json",
+      "bytes": 5225,
+      "sha256": "d0159bc869ded51be233a63beab4eedb44334b37983c092a001830dd73bec5e9"
+    },
+    {
+      "path": "./feedback.log",
+      "bytes": 300,
+      "sha256": "844221ead783b79b43bac00b63cf13c50e5477bfcc73ee568c4bf6e95d7ef7a8"
+    },
+    {
+      "path": "./probe.json",
+      "bytes": 1512905,
+      "sha256": "1918e10f3ae45f1d53a4f33f325d815803597412dd209b5e6ec614805199c925"
+    },
+    {
+      "path": "./physical-joy.log",
+      "bytes": 365,
+      "sha256": "c64299fa5d57c0861f77b1e9d24593efa77c5b8c9729587d8a09cede91839b7b"
+    },
+    {
+      "path": "./input-pins.json",
+      "bytes": 937,
+      "sha256": "ddd3be9fb71f90489b4c5b8970caa02f26fb301a982c2f9b1831c701d84d8a47"
+    },
+    {
+      "path": "./stack.log",
+      "bytes": 16208,
+      "sha256": "a74454e688de3972783976acded79f8cc2c542223ab69aa4dca602667554a10f"
+    },
+    {
+      "path": "./single-console-probe.log",
+      "bytes": 510,
+      "sha256": "1c1192056fdf6b26c7a9932ee82a274118c378ba709d5ae96089ef297cf1add4"
+    },
+    {
+      "path": "./physical-input-enabled.json",
+      "bytes": 193,
+      "sha256": "9981cc32b2c3e6aa9b490f14672a0b4a1e7bc76fac81f21ca66132694f10e761"
+    },
+    {
+      "path": "./configured.log",
+      "bytes": 300,
+      "sha256": "95bda5db0a2b15601be63609fa7e9cd5c8be888a5a68a73422a045c6d6681692"
+    },
+    {
+      "path": "./inactive-default.log",
+      "bytes": 560,
+      "sha256": "a472ad06e68a42eac3b9b7f164bfcd07aa6a7df98cb19491a098176900d824a1"
+    },
+    {
+      "path": "./supervisor.json",
+      "bytes": 5053,
+      "sha256": "ef7cd126e3aa1c935c46320a31fcd133ff62516c581d38a96e3eb80290a23934"
+    },
+    {
+      "path": "./roslogs/python3_47282_1793347736032.log",
+      "bytes": 260,
+      "sha256": "335662ad1fc72ba0f75be827febb8b570fdfc2e281b80830b9edc302720616e7"
+    },
+    {
+      "path": "./roslogs/robot_state_publisher_47118_1793347729746.log",
+      "bytes": 256,
+      "sha256": "542caa64ba032a9e5aabbcaa667c40865ce4f9bba9f6eef1e37420df0a660525"
+    },
+    {
+      "path": "./roslogs/python3_47124_1793347730378.log",
+      "bytes": 381,
+      "sha256": "2b51821e208eb377b217cbeb6d52c61dd2e28883061e596192513431dd1bcd7a"
+    },
+    {
+      "path": "./roslogs/python3_47316_1793347737361.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "./roslogs/python3_47126_1793347730434.log",
+      "bytes": 376,
+      "sha256": "a7fcba9ae415923522af762b1698c986f14737e5137b2e7d518e63ea05e4debd"
+    },
+    {
+      "path": "./roslogs/python3_47138_1793347730236.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "./roslogs/python3_47888_1793347792311.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "./roslogs/joy_node_47922_1793347793589.log",
+      "bytes": 65,
+      "sha256": "299f76fa07b7649871bf5fe2b24219926e0f08eb497739e251df68589d2a9df2"
+    },
+    {
+      "path": "./roslogs/2026-10-30-01-08-49-286266-mts-47108/launch.log",
+      "bytes": 1351,
+      "sha256": "152dca3708583c70fa9215ff53da44cf42d84fdecd78aeecbf940a3fd5139098"
+    },
+    {
+      "path": "./roslogs/ros2_control_node_47120_1793347729747.log",
+      "bytes": 9355,
+      "sha256": "b2735323c7e6d96e6d582d7638a704d50510a6531a82b2ef3119ee270eb44011"
+    },
+    {
+      "path": "./roslogs/estop_controller_47122_1793347729726.log",
+      "bytes": 65,
+      "sha256": "457902e94f239c3d6b9908844d92f934d7949d933d4bf9f343822dc4b85e5a9d"
+    },
+    {
+      "path": "./feedback.json",
+      "bytes": 809,
+      "sha256": "cabd14eeed2fcc628c1040885a79c0e74bb716d097ffbf9d2debba251e1db42d"
+    },
+    {
+      "path": "./probe.evidence.jsonl",
+      "bytes": 987122,
+      "sha256": "5fb5b5b49dd06c1523780ecbe928775495cb5188d5e56be791d535720f604067"
+    },
+    {
+      "path": "./placement-ready.json",
+      "bytes": 84,
+      "sha256": "7d4f8800a1f114417a23d30d1ac3f110b9870cd5e75104f069532095c1c4bf10"
+    }
+  ],
+  "findings": {
+    "joy": "24 empty endpoint observations, then one endpoint with _NODE_NAME_UNKNOWN_ and _NODE_NAMESPACE_UNKNOWN_; no physical Joy samples. This is not evidence of duplicate publishers. Exact discovery/device cause pending native input-only diagnosis.",
+    "shutdown": "owner_failed PermissionError(13, Permission denied) after original_manager_exited; fallback cleanup passed. No traceback recorded, exact failing operation remains unresolved."
+  },
+  "no_ros_or_motor_process_started": true
+}

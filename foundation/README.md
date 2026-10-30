@@ -27,7 +27,7 @@ their exact test evidence and remaining native limitations.
 Use the [next robot session checklist](HARDWARE_CHECKLIST.md) when supervision is
 available. Native joystick readiness and the failed shutdown fallback must be
 resolved before another floor test. The [failed attempt](results/floor-stock-trial-20261030.json)
-remains a failure, and its complete remote archive still needs recovery.
+remains a failure. Its [complete raw run is now recovered](results/floor-stock-raw-recovery-20261030.json): the input gate saw an unnamed endpoint, and shutdown recorded a permission error after manager exit. Native diagnosis remains pending.
 
 The [real-time fake Gemini checks](results/gemini-realtime-live-reviewed.json)
 now exercise real elapsed queue timing. Wait/cancel and wait/move/status examples

@@ -1,8 +1,8 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-10-30T10:34:11.735646+00:00",
+  "updated_utc": "2026-10-30T21:17:37.342169+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "offline_preparation_complete_native_diagnostics_pending",
+  "mode": "team_planning_native_input_diagnostics_pending",
   "authorization": "User requested reducing operational inefficiencies and completing useful work before the next robot session. No motor activation in this session; schedules remain paused.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
@@ -23,15 +23,16 @@
   "hardware_session": {
     "ssh": "mts",
     "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "status": "No motion authorized now. Latest read-only SSH attempt timed out; last recorded floor run cleaned up before policy activation. Current remote process state and physical placement are unverified.",
-    "pending_remote_archive": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T080848Z-9bd71fc07753469e969fc2f49e325fa5",
+    "status": "Read-only SSH succeeded; prior failed floor run recovered completely. No ROS or motor process started this session. Current running motor-stack state and physical placement have not been checked.",
     "last_verified_environment": {
       "script": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/overlay-env-v5.sh",
       "pins": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/environment-v5-pins.json",
       "pins_sha256": "cfc5447581cd0d6f47221499bb91ae8143a4bc07d48346a7c5647beef5367929",
       "meaning": "Previously verified staged environment, not fresh proof of loaded processes or latest local-source deployment."
     },
-    "policy": "Keep shipped stock policy, limits and gains. New trained policies require applicable course approval. User has standard Pupper, no tactile rig."
+    "policy": "Keep shipped stock policy, limits and gains. New trained policies require applicable course approval. User has standard Pupper, no tactile rig.",
+    "recovered_remote_archive": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T080848Z-9bd71fc07753469e969fc2f49e325fa5",
+    "recovery_receipt": "foundation/results/floor-stock-raw-recovery-20261030.json"
   },
   "activity": {
     "automation": "PAUSED",
@@ -51,13 +52,14 @@
     "offline_capabilities": "foundation/results/course-capability-coverage.json",
     "gemini_live": "foundation/results/gemini-realtime-live-reviewed.json",
     "floor_preparation": "foundation/results/floor-stock-offline-diagnosis.json",
-    "workflow": "foundation/results/offline-workflow-improvements-20261030.json"
+    "workflow": "foundation/results/offline-workflow-improvements-20261030.json",
+    "floor_raw_recovery": "foundation/results/floor-stock-raw-recovery-20261030.json"
   },
   "next": [
     {
       "id": "floor_input",
-      "action": "Recover failed native run and explain exact Joy graph mismatch plus shutdown fallback; run exact input-only preflight before any homing.",
-      "done_when": "Native archive preserved, exact Joy graph/device and separate physical button exercise pass with clean child shutdown, fallback cause reconciled, and reviewed deployed-library/input pins restored before motion release."
+      "action": "Diagnose the recovered unnamed Joy endpoint and post-manager-exit shutdown PermissionError; run exact native input-only preflight before homing.",
+      "done_when": "Recovered archive is preserved. Exact Joy graph/device and separate physical button exercise must pass with clean child shutdown, fallback cause must be reconciled, and reviewed deployed-library/input pins restored before motion release."
     },
     {
       "id": "stock_floor",
@@ -78,6 +80,11 @@
       "id": "tricks",
       "action": "After applicable course approval, Sit entry/hold/exit, shake and modest generated motion.",
       "done_when": "Physical evidence supports each capability; Spider/jump failures remain excluded."
+    },
+    {
+      "id": "required_spider",
+      "action": "Resolve required Lab 6 Spider walking/exit failures offline with a specific hypothesis, then obtain applicable course approval before physical trials. Jump remains optional.",
+      "done_when": "An evidence-supported clip/walking pair passes defined entry, low-stance walking, stopping and return checks, then supervised hardware checks; no belly-supported walking accepted as success."
     }
   ],
   "do_not_repeat": [
