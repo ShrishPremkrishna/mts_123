@@ -94,7 +94,7 @@ class Probe:
             return
         fresh=inventory is not None and inventory_at is not None and 0<=now-inventory_at<=.5
         if not fresh:self.fail(now,'inventory stale during physical test');return
-        if (self.last_joy is None and now-self.enabled_at>3.) or (self.last_joy is not None and now-self.last_joy>.25):self.fail(now,'physical gamepad missing/stale');return
+        if (self.last_joy is None and now-self.enabled_at>joy_contract.STARTUP_TIMEOUT_S) or (self.last_joy is not None and now-self.last_joy>.25):self.fail(now,'physical gamepad missing/stale');return
         if any(v['state']=='active' and n not in BROADCASTERS and n!=DEFAULT for n,v in inventory.items()):self.fail(now,'unexpected motion controller active');return
         active=inventory.get(DEFAULT,{}).get('state')=='active'
         if active:
@@ -332,12 +332,12 @@ def main():
             for kind,topic in [('imu_latency','imu_latency_seconds'),('policy_inference_latency','policy_inference_latency_seconds')]:
                 node.create_subscription(Float32,'/'+DEFAULT+'/'+topic,lambda msg,k=kind:latency_receipt(k,msg),sensor_qos)
         def physical_joy(msg,info):
-            now=time.monotonic();gid=bytes(info.publisher_gid).hex()
-            qualified=joy_contract.source_matches(joy_graph,gid)
+            now=time.monotonic();gid=joy_contract.message_gid(info)
+            qualified=joy_contract.source_matches(joy_graph,gid,allow_graph_only=gid is None)
             if not joy_contract.valid_joy(list(msg.buttons),list(msg.axes)):probe.fail(now,'physical Joy shape/value differs from exact input contract')
             elif qualified:probe.joy(now,list(msg.buttons))
             elif probe.neutral_seen:probe.fail(now,'unexpected Joy source after readiness qualification')
-            record('physical_joy',{'monotonic':now,'publisher_gid':gid,'qualified_exact_source':qualified,'buttons':list(msg.buttons),'axes':list(msg.axes),'stamp_sec':msg.header.stamp.sec,'stamp_nanosec':msg.header.stamp.nanosec})
+            record('physical_joy',{'monotonic':now,'publisher_gid':gid,'qualified_exact_source':qualified and gid is not None,'qualified_single_endpoint':qualified,'source_validation':'single_endpoint_graph' if gid is None else 'message_gid','buttons':list(msg.buttons),'axes':list(msg.axes),'stamp_sec':msg.header.stamp.sec,'stamp_nanosec':msg.header.stamp.nanosec})
         node.create_subscription(Joy,joy_contract.TOPIC,physical_joy,joy_contract.SUBSCRIBER_DEPTH)
         def cmd_check(msg):
             values=[msg.linear.x,msg.linear.y,msg.linear.z,msg.angular.x,msg.angular.y,msg.angular.z]
@@ -395,16 +395,21 @@ def main():
             if probe.phase!='preflight' and not sensors_ready:fault='joint/IMU feedback stale or invalid'
             if probe.phase=='preflight' and not fault and parameters_verified and release_evidence_ready(now,state,tracker.received,inventory,inventory_at,last_sensor):
                 if node.get_publishers_info_by_topic('/joy'):raise RuntimeError('Joy already has a publisher; single-source test refused')
-                data['loaded_library_before_release']=manager_identity(args.manager_pid,args.stack_pid,args.session_id)
-                from ament_index_python.packages import get_package_prefix
-                joy_executable=Path(get_package_prefix('joy'))/'lib/joy/joy_node'
-                command=joy_contract.command(joy_executable)
-                joy_sha=hashlib.sha256(joy_executable.read_bytes()).hexdigest()
-                recorder.checkpoint('pre_physical_enable',data)
-                try:shutdown_handle=arm_shutdown(args,identity,initial_manager)
-                except _shutdown.ArmError as error:shutdown_handle=error.handle;raise
-                data['shutdown_coordinator_handle']=shutdown_handle
-                if not release_evidence_ready(time.monotonic(),tracker.state,tracker.received,inventory,inventory_at,last_sensor):raise RuntimeError('feedback became stale while arming; physical Joy not enabled')
+                if shutdown_handle is None:
+                    data['loaded_library_before_release']=manager_identity(args.manager_pid,args.stack_pid,args.session_id)
+                    from ament_index_python.packages import get_package_prefix
+                    joy_executable=Path(get_package_prefix('joy'))/'lib/joy/joy_node'
+                    command=joy_contract.command(joy_executable)
+                    joy_sha=hashlib.sha256(joy_executable.read_bytes()).hexdigest()
+                    recorder.checkpoint('pre_physical_enable',data)
+                    try:shutdown_handle=arm_shutdown(args,identity,initial_manager)
+                    except _shutdown.ArmError as error:shutdown_handle=error.handle;raise
+                    data['shutdown_coordinator_handle']=shutdown_handle
+                    # Arming/hash/checkpoint work blocks callback processing.
+                    # Refresh all feedback in the executor before input release.
+                    continue
+                if time.monotonic()>=shutdown_handle['spec']['deadline_monotonic']-.1:
+                    raise RuntimeError('physical-input deadline expired before Joy release')
                 joy_log=(args.report.parent/'physical-joy.log').open('x')
                 probe.enable(time.monotonic(),state['epoch'])
                 joy_child=subprocess.Popen(command,stdout=joy_log,stderr=subprocess.STDOUT)
@@ -419,7 +424,8 @@ def main():
                     if diagnostic['ready'] and bound_joy_gid is None:bound_joy_gid=diagnostic['gid']
                     joy_graph=diagnostic
                     record('joy_publishers',{'monotonic':now,**diagnostic});next_graph=now+.1
-                    if rows and not diagnostic['ready']:fault='Joy graph rejected: '+diagnostic['reason']
+                    graph_error=joy_contract.graph_fault(diagnostic,bound_joy_gid)
+                    if graph_error:fault=graph_error
                     if (diagnostic['ready'] and not fault
                             and physical_input_ready(now,probe,state,tracker.received,inventory,inventory_at,last_sensor)
                             and not (args.report.parent/'physical-input-ready.json').exists()):

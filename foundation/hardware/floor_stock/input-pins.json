@@ -1,0 +1,20 @@
+{
+  "candidate": {
+    "run_once.py": "e915d6df67e461a522c19ca1cb2d85d120f64f8ac2effc8f8bb98b872862889a",
+    "console_init_stop_probe.py": "e797ca732fff470ee504c906ea7a432df035a03444b1173c9d63040acf5b68be",
+    "shutdown_coordinator.py": "0a2e9825b912319bbb1a0bb200be251b297ef6e08bf9a7286f9408b098e8ee12",
+    "probe_recording.py": "83375eb6d99b2a33ec961aa5ed78ced2d3b48ab98dc5f27ad42a8d175f331744",
+    "joy_contract.py": "a43515e6787dc25a78bb6f7588abcfa3267537ad125426f7bbb677f69c610e59",
+    "input_preflight.py": "861fd0364aa1eb374cea6fc1c66a57b019fbbd5b05f117f8179047b06c1d2f92",
+    "motion_gate.py": "ebb9d400aa13f54752182dd23f28ef7402671b9ba00727a309d0c443d05914a6",
+    "feedback-only.launch.py": "8d05364bf6b22a582476ec2b49fbb7fa243be49cbee7f407dd6e9005aeed31c7",
+    "course-config-v4.yaml": "840404488225fc2970a033fe5cc33a2858be6600c5060c7330a3c371c5ad443e",
+    "baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+    "wait_feedback.py": "356720ff5feaba3d3ee18213db5c9299c1a1336b4d01d9a8bd9e8d5746b74230"
+  },
+  "environment": {
+    "overlay-env-v5.sh": "4b9bc797866577539cc6bd5e2d37093bb17ccf3cc335892705c7a7ab3cf607e7",
+    "verify-overlay-environment-v5.py": "436b2fa6a49c26b4f1d289da109c8d85ea90f7705820570658465db800c0eff1",
+    "environment-v5-pins.json": "cfc5447581cd0d6f47221499bb91ae8143a4bc07d48346a7c5647beef5367929"
+  }
+}

@@ -3,6 +3,7 @@ import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } f
 import { createPcmBlob, decodeAudioData, blobToBase64 } from './audioUtils';
 import { AppConfig, LogEntry } from '../types';
 import RobotBridge from './robotBridge';
+import { toolResponseStatus, type ToolDispatch } from './executionStatus';
 
 /**
  * Gemini's tools and system prompt come from the robot (GET /tools): they are
@@ -42,6 +43,8 @@ export class GeminiLiveService {
   private queuedSources: AudioBufferSourceNode[] = [];
   private connected = false;
   private config: AppConfig;
+  private robotToolsPaused = false;
+  onToolDispatch: (entry: ToolDispatch) => void;
 
   public robotBridge: RobotBridge;
 
@@ -54,14 +57,21 @@ export class GeminiLiveService {
     config: AppConfig,
     onLog: (entry: LogEntry) => void,
     onAudioLevel: (level: number) => void,
-    onDisconnect: () => void
+    onDisconnect: () => void,
+    onToolDispatch: (entry: ToolDispatch) => void = () => {}
   ) {
     this.config = config;
     this.robotBridge = new RobotBridge(config.robotApiUrl);
     this.onLog = onLog;
     this.onAudioLevel = onAudioLevel;
     this.onDisconnect = onDisconnect;
+    this.onToolDispatch = onToolDispatch;
     this.queuedSources = [];
+  }
+
+  /** Synchronous: later model motion calls cannot rearm; stop/status remain available. */
+  public pauseRobotTools() {
+    this.robotToolsPaused = true;
   }
 
   async connect(apiKey: string, config: AppConfig, videoElement: HTMLVideoElement) {
@@ -457,10 +467,19 @@ export class GeminiLiveService {
               break;
             default:
               // Every other tool is defined and run on the robot (the tools in lab/).
+              if (this.robotToolsPaused && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                result = { success: false, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
+                break;
+              }
+              const dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
+              this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
               result = await this.robotBridge.callTool(fc.name, args ?? {});
+              const status = toolResponseStatus(result);
+              if (status === 'unknown') this.pauseRobotTools();
+              if (this.connected) this.onToolDispatch({ ...dispatch, status, message: result?.message || 'No response details', timestamp: Date.now() });
           }
         } catch (e: any) {
-          result = { error: e.message };
+          result = { success: false, error: e.message };
         }
 
         this.log(result?.success === false ? 'error' : 'function', `Result: ${fc.name} -> ${result?.message ?? JSON.stringify(result)}`);
@@ -502,6 +521,9 @@ export class GeminiLiveService {
    */
   private cleanup() {
     this.connected = false;
+    // An old onmessage handler may still be waiting for a tool response.
+    // Do not let the remainder of that message dispatch motion after close.
+    this.pauseRobotTools();
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();

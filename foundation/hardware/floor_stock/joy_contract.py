@@ -1,5 +1,6 @@
 """One exact input contract for native no-motor preflight and the disabled floor path."""
 import hashlib,math
+from collections.abc import Mapping
 from pathlib import Path
 
 NODE_NAME='floor_physical_joy'
@@ -8,12 +9,13 @@ TOPIC='/joy'
 MESSAGE_TYPE='sensor_msgs/msg/Joy'
 DEVICE_NAME='DualSense Wireless Controller'
 SUBSCRIBER_DEPTH=10
-PARAMETERS={'device_name':DEVICE_NAME,'autorepeat_rate':50.0,'coalesce_interval':0.02}
+STARTUP_TIMEOUT_S=5.0
+PARAMETERS={'device_name':DEVICE_NAME,'autorepeat_rate':50.0,'coalesce_interval_ms':20}
 
 def command(executable):
     # Explicit namespace removes an ambient/default namespace assumption.
     return [str(executable),'--ros-args','-r','__node:='+NODE_NAME,'-r','__ns:=/',
-            '-p','device_name:='+DEVICE_NAME,'-p','autorepeat_rate:=50.0','-p','coalesce_interval:=0.02']
+            '-p','device_name:='+DEVICE_NAME,'-p','autorepeat_rate:=50.0','-p','coalesce_interval_ms:=20']
 
 def executable_identity(executable):
     p=Path(executable).resolve(strict=True)
@@ -48,5 +50,35 @@ def valid_joy(buttons,axes):
     return len(buttons)==13 and len(axes)==8 and all(type(x) is int and x in (0,1) for x in buttons) and all(math.isfinite(x) for x in axes)
 
 
-def source_matches(diagnostic,gid):
-    return diagnostic.get('ready') is True and isinstance(gid,str) and gid==diagnostic.get('gid')
+def source_matches(diagnostic,gid,allow_graph_only=False):
+    if diagnostic.get('ready') is not True:return False
+    if gid is None:return allow_graph_only
+    return isinstance(gid,str) and gid==diagnostic.get('gid')
+
+
+def message_gid(info):
+    """Jazzy supplies message info as a mapping; tolerate object-form adapters."""
+    # Jazzy subscription.cpp returns timestamps/sequence numbers, no publisher GID.
+    # https://github.com/ros2/rclpy/blob/jazzy/rclpy/src/rclpy/subscription.cpp
+    if isinstance(info, Mapping) and 'publisher_gid' not in info:
+        if {'source_timestamp','received_timestamp'} <= set(info):return None
+        raise KeyError('unsupported message metadata')
+    value = info['publisher_gid'] if isinstance(info, Mapping) else info.publisher_gid
+    data=bytes(value)
+    if not data or not any(data):raise ValueError('malformed message publisher GID')
+    return data.hex()
+
+
+def graph_fault(diagnostic, bound_gid=None):
+    """Allow incomplete discovery before qualification, never a competing source."""
+    if diagnostic['ready']:
+        return None
+    rows = diagnostic.get('publishers', [])
+    if not rows and bound_gid is None:
+        return None
+    if bound_gid is None and len(rows) == 1:
+        row = rows[0]
+        if (row.get('name') == '_NODE_NAME_UNKNOWN_' and
+                row.get('namespace') == '_NODE_NAMESPACE_UNKNOWN_'):
+            return None
+    return 'Joy graph rejected: ' + diagnostic['reason']

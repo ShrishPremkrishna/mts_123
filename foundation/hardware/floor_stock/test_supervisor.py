@@ -171,3 +171,111 @@ def test_physical_ready_is_forwarded_once_with_exact_session(tmp_path,monkeypatc
     assert len(rows)==1 and rows[0]['event']=='physical-input-ready' and rows[0]['session_id']=='a'*32
     assert len(calls)==2 and max(calls)<=.1
     for stream in o.logs:stream.close()
+
+
+def input_success():
+    return dict(passed=True,graph_contract_passed=True,physical_buttons_verified=True,
+                button_exercise_requested=True,no_motor_stack_confirmed=True,integrity_ok=True,
+                child_running_after_cleanup=False,child_cleanup={'nominal':True},publishers_after_cleanup=[])
+
+
+def test_input_exercise_requires_current_operator_approval(tmp_path,monkeypatch):
+    o=m.Operations(tmp_path,tmp_path,'a'*32,SimpleNamespace())
+    monkeypatch.setattr(o,'bounded',lambda *args:pytest.fail('must not start input child'))
+    with pytest.raises(RuntimeError,match='explicit supervised'):o.preflight_input()
+
+
+@pytest.mark.parametrize('failure',[None,'passed','graph_contract_passed','physical_buttons_verified',
+    'button_exercise_requested','no_motor_stack_confirmed','integrity_ok','survivor','escalation','publisher'])
+def test_input_exercise_checks_physical_result_and_owned_cleanup(tmp_path,monkeypatch,failure):
+    o=m.Operations(tmp_path,tmp_path,'a'*32,SimpleNamespace(),operator_approved=True)
+    report=input_success();calls=[]
+    if failure in report:report[failure]=False
+    if failure=='survivor':report['child_running_after_cleanup']=True
+    if failure=='escalation':report['child_cleanup']['nominal']=False
+    if failure=='publisher':report['publishers_after_cleanup']=[{'name':'leftover'}]
+    def bounded(command,label,seconds):
+        calls.append((command,label,seconds));(tmp_path/'input-preflight.json').write_text(json.dumps(report))
+    monkeypatch.setattr(o,'bounded',bounded)
+    if failure:
+        with pytest.raises(RuntimeError,match='hardware not started'):o.preflight_input()
+    else:o.preflight_input()
+    command,label,seconds=calls[0]
+    assert '--exercise-buttons' in command and '--no-motor-stack-confirmed' in command
+    assert label=='input-preflight' and seconds==130 and len(calls)==1
+
+
+def test_input_ready_log_waits_for_complete_json_and_rejects_changed_contract(tmp_path):
+    p=tmp_path/'input.log';p.write_text('a native warning\n{"event":"input-only-ready"')
+    assert m.input_ready_receipt(p) is None
+    ready={'event':'input-only-ready','domain':170,'motor_software':False,'instructions':'Options then R3'}
+    p.write_text('a native warning\n'+json.dumps(ready)+'\n')
+    assert m.input_ready_receipt(p)==ready
+    ready['motor_software']=True;p.write_text(json.dumps(ready))
+    with pytest.raises(RuntimeError,match='contract differs'):m.input_ready_receipt(p)
+
+
+def test_input_ready_is_forwarded_once_before_child_completion(tmp_path,monkeypatch,capsys):
+    o=m.Operations(tmp_path,tmp_path,'a'*32,SimpleNamespace());calls=[]
+    def wait(timeout):
+        calls.append(timeout)
+        if len(calls)==1:
+            with (tmp_path/'input-preflight.log').open('a') as stream:
+                stream.write(json.dumps({'event':'input-only-ready','domain':170,'motor_software':False,'instructions':'Options then R3'})+'\n')
+        if len(calls)<3:raise m.subprocess.TimeoutExpired(['fake'],timeout)
+        return 0
+    child=SimpleNamespace(pid=99999,wait=wait)
+    monkeypatch.setattr(m.subprocess,'Popen',lambda *args,**kw:child)
+    o.bounded(['fake'],'input-preflight',2.)
+    rows=[json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert len(rows)==1 and rows[0]['event']=='input-only-ready' and rows[0]['session_id']=='a'*32
+    assert rows[0]['motor_software'] is False and len(calls)==3
+    for stream in o.logs:stream.close()
+
+
+def environment_fixture(tmp_path,monkeypatch):
+    import sys,types,hashlib
+    root=tmp_path/'candidate';root.mkdir();env=tmp_path/'environment';env.mkdir()
+    for name in m.CANDIDATE_FILES:(root/name).write_text('selected '+name)
+    (env/'overlay-env-v5.sh').write_text('pinned wrapper')
+    (env/'environment-v5-pins.json').write_text('{"schema":"test-pins"}')
+    (env/'verify-overlay-environment-v5.py').write_text('''def verify(pins, **kwargs):
+    assert pins == {"schema":"test-pins"}
+    assert kwargs['package_prefix']('neural_controller') == '/expected/prefix'
+    assert kwargs['package_share']('neural_controller') == '/expected/share'
+    return {'status':'PASS','python_executable':kwargs['python_executable']}
+''')
+    pins={'candidate':{n:hashlib.sha256((root/n).read_bytes()).hexdigest() for n in m.CANDIDATE_FILES},
+          'environment':{n:hashlib.sha256((env/n).read_bytes()).hexdigest() for n in m.ENVIRONMENT_PINS}}
+    (root/'input-pins.json').write_text(json.dumps(pins))
+    packages=types.ModuleType('ament_index_python.packages')
+    packages.get_package_prefix=lambda name:'/expected/prefix'
+    packages.get_package_share_directory=lambda name:'/expected/share'
+    monkeypatch.setitem(sys.modules,'ament_index_python',types.ModuleType('ament_index_python'))
+    monkeypatch.setitem(sys.modules,'ament_index_python.packages',packages)
+    monkeypatch.setattr(m,'ROOT',root);monkeypatch.setattr(m,'ENVIRONMENT_ROOT',env)
+    monkeypatch.setattr(m,'ENVIRONMENT_PINS',dict(pins['environment']))
+    return root,env,pins
+
+
+def test_environment_validation_runs_pinned_verifier_and_retains_inputs(tmp_path,monkeypatch):
+    root,env,pins=environment_fixture(tmp_path,monkeypatch)
+    result=m.validate_files_and_environment(root)
+    assert result['status']=='PASS' and result['python_executable']==m.sys.executable
+    assert result['candidate_sources']==pins['candidate']
+    assert result['environment_sources']==pins['environment']
+
+
+@pytest.mark.parametrize('change',['candidate','environment','omitted_candidate','unreviewed_environment','helper'])
+def test_changed_input_or_environment_refused_before_verifier(tmp_path,monkeypatch,change):
+    import shutil
+    root,env,pins=environment_fixture(tmp_path,monkeypatch);candidate=root
+    if change=='candidate':(root/'course-config-v4.yaml').write_text('changed')
+    elif change=='environment':(env/'verify-overlay-environment-v5.py').write_text('raise AssertionError("must not execute")')
+    elif change=='omitted_candidate':del pins['candidate']['joy_contract.py']
+    elif change=='unreviewed_environment':pins['environment']['environment-v5-pins.json']='0'*64
+    elif change=='helper':
+        candidate=tmp_path/'other';shutil.copytree(root,candidate)
+        (root/'input_preflight.py').write_text('changed running helper')
+    (root/'input-pins.json').write_text(json.dumps(pins))
+    with pytest.raises(RuntimeError):m.validate_files_and_environment(candidate)

@@ -42,6 +42,8 @@ def test_both_consumers_use_the_identical_command_namespace_device_and_subscribe
     command=c.command('/prefix/lib/joy/joy_node')
     assert command[0]=='/prefix/lib/joy/joy_node' and '__ns:=/' in command
     assert '__node:='+c.NODE_NAME in command and 'device_name:='+c.DEVICE_NAME in command
+    assert 'coalesce_interval_ms:=20' in command
+    assert c.PARAMETERS['coalesce_interval_ms']==20 and 'coalesce_interval' not in c.PARAMETERS
 
 
 def native_fakes(tmp_path,monkeypatch,*,graph_change=None,parameter_bad=False,preexisting=False,motor=False,stuck=False,interrupt=False,exercise=True,host_errors=False,graph_cleanup_error=False,context_error=False,source_change=False,malformed=False):
@@ -73,7 +75,7 @@ def native_fakes(tmp_path,monkeypatch,*,graph_change=None,parameter_bad=False,pr
             assert topic==c.TOPIC and qos==c.SUBSCRIBER_DEPTH;callbacks.append(callback)
         def create_client(self,typ,name):
             assert name=='/'+c.NODE_NAME+'/get_parameters'
-            values=[SimpleNamespace(type=4,string_value=c.DEVICE_NAME),SimpleNamespace(type=3,double_value=50.),SimpleNamespace(type=3,double_value=.02)]
+            values=[SimpleNamespace(type=4,string_value=c.DEVICE_NAME),SimpleNamespace(type=3,double_value=50.),SimpleNamespace(type=2,integer_value=20)]
             if parameter_bad:values[-1]=SimpleNamespace(type=0)
             return SimpleNamespace(service_is_ready=lambda:True,call_async=lambda request:SimpleNamespace(done=lambda:(not malformed or clock[0]>=.84),result=lambda:SimpleNamespace(values=values)))
         def get_publishers_info_by_topic(self,topic):
@@ -137,6 +139,7 @@ def test_existing_input_or_motor_graph_refuses_before_any_child(tmp_path,monkeyp
 
 def test_default_input_command_and_canonical_motion_are_unavailable_without_execution_flag(monkeypatch,capsys):
     import motion_gate,run_once
+    monkeypatch.setattr(motion_gate,'MOTION_EXECUTION_ENABLED',False)
     monkeypatch.setattr(sys,'argv',['input_preflight.py'])
     monkeypatch.setattr(p,'run_native',lambda *a:pytest.fail('default may not initialize ROS'))
     assert p.main()==0 and json.loads(capsys.readouterr().out)['motion_enabled'] is False
@@ -241,3 +244,31 @@ def test_actual_floor_callback_ignores_unqualified_initial_input_then_aborts_cha
     events.clear();receive(msg,SimpleNamespace(publisher_gid=bytes.fromhex('ab'*16)));assert events==['accepted','record']
     probe.neutral_seen=True;events.clear();receive(msg,SimpleNamespace(publisher_gid=bytes.fromhex('cd'*16)))
     assert events==['abort','record']
+
+
+def test_native_mapping_message_info_and_object_adapter_bind_same_gid():
+    value=bytes.fromhex('ab'*16)
+    assert c.message_gid({'publisher_gid':value})==c.message_gid(SimpleNamespace(publisher_gid=value))=='ab'*16
+    with pytest.raises(KeyError):c.message_gid({})
+
+
+def test_unknown_discovery_waits_only_before_first_qualified_endpoint():
+    unknown=c.graph_diagnostic([endpoint(name='_NODE_NAME_UNKNOWN_',namespace='_NODE_NAMESPACE_UNKNOWN_')])
+    assert c.graph_fault(unknown) is None
+    assert c.graph_fault(unknown,'ab'*16)
+    assert c.graph_fault(c.graph_diagnostic([endpoint(name='other')]))
+    assert c.graph_fault(c.graph_diagnostic([endpoint(),endpoint()]))
+    assert c.graph_fault(c.graph_diagnostic([]),'ab'*16)
+    assert c.graph_fault(c.graph_diagnostic([endpoint()])) is None
+
+
+def test_jazzy_metadata_uses_explicit_graph_contract_without_origin_claim():
+    assert c.message_gid({'source_timestamp':1,'received_timestamp':2}) is None
+    diagnostic=c.graph_diagnostic([endpoint()])
+    assert not c.source_matches(diagnostic,None)
+    assert c.source_matches(diagnostic,None,allow_graph_only=True)
+    assert not c.source_matches(c.graph_diagnostic([endpoint(gid='cd'*16)],'ab'*16),None,allow_graph_only=True)
+    evidence=p.InputEvidence();evidence.receive(1.,[0]*13,[0.]*8,None,diagnostic)
+    assert evidence.last_received==1. and not evidence.samples[0]['qualified_exact_source']
+    assert evidence.samples[0]['source_validation']=='single_endpoint_graph'
+    with pytest.raises(ValueError):c.message_gid({'publisher_gid':bytes(16)})

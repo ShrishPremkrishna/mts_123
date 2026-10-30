@@ -29,8 +29,11 @@ class InputEvidence:
         self.last_received=None;self.samples=[];self.errors=[]
     def receive(self,now,buttons,axes,gid,diagnostic):
         row={'monotonic':now,'buttons':list(buttons),'axes':list(axes),'publisher_gid':gid}
-        qualified=contract.source_matches(diagnostic,gid)
-        row['qualified_exact_source']=qualified;self.samples.append(row)
+        qualified=contract.source_matches(diagnostic,gid,allow_graph_only=gid is None)
+        row['qualified_exact_source']=qualified and gid is not None
+        row['qualified_single_endpoint']=qualified
+        row['source_validation']='single_endpoint_graph' if gid is None else 'message_gid'
+        self.samples.append(row)
         if not contract.valid_joy(list(buttons),list(axes)):
             self.errors.append('invalid Joy shape/value');return
         if not qualified:
@@ -130,7 +133,7 @@ def run_native(args):
         rclpy.init(context=context);node=rclpy.create_node('floor_input_preflight',context=context)
         executor=SingleThreadedExecutor(context=context);executor.add_node(node)
         def receive(msg,info):
-            evidence.receive(time.monotonic(),list(msg.buttons),list(msg.axes),bytes(info.publisher_gid).hex(),diagnostic)
+            evidence.receive(time.monotonic(),list(msg.buttons),list(msg.axes),contract.message_gid(info),diagnostic)
         node.create_subscription(Joy,contract.TOPIC,receive,contract.SUBSCRIBER_DEPTH)
         # Bounded discovery before opening the gamepad; still no publishers here.
         until=time.monotonic()+.75
@@ -169,18 +172,19 @@ def run_native(args):
                 report['graphs'].append({'monotonic':now,**diagnostic});next_graph=now+.1
                 unsafe=unsafe_graph(node)
                 if unsafe['motor_nodes'] or unsafe['motor_services']:raise RuntimeError('motor software appeared in input-only domain')
-                if len(rows)>1:raise RuntimeError('multiple Joy publishers; strict source gate refused')
+                graph_error=contract.graph_fault(diagnostic,bound_gid)
+                if graph_error:raise RuntimeError(graph_error)
             if pending is None and parameters is None and client.service_is_ready():
                 request=GetParameters.Request();request.names=list(contract.PARAMETERS);pending=client.call_async(request);sent=now
             if pending is not None:
                 if pending.done():
                     response=pending.result();pending=None
                     if response is None or len(response.values)!=len(contract.PARAMETERS):raise RuntimeError('Joy parameters unavailable')
-                    parameters={n:(v.string_value if v.type==4 else v.double_value if v.type==3 else None)
+                    parameters={n:(v.string_value if v.type==4 else v.double_value if v.type==3 else v.integer_value if v.type==2 else None)
                                 for n,v in zip(contract.PARAMETERS,response.values)}
                     report['runtime_parameters']=parameters
                     if parameters!=contract.PARAMETERS:parameter_error='Joy runtime parameters do not match exact requested contract'
-                elif now-sent>1.:raise RuntimeError('Joy parameter response timeout')
+                elif now-sent>contract.STARTUP_TIMEOUT_S:raise RuntimeError('Joy parameter response timeout during bounded input startup')
             if evidence.errors:raise RuntimeError(evidence.errors[-1])
             graph_ok=(diagnostic['ready'] and parameters==contract.PARAMETERS and evidence.last_received is not None
                       and 0<=now-evidence.last_received<=.25)
@@ -222,6 +226,9 @@ def run_native(args):
         if log:log.close()
         report['samples']=evidence.samples
         report['input_errors']=list(evidence.errors)
+        report['message_origin_verified']=bool(evidence.samples and all(row['publisher_gid'] is not None for row in evidence.samples))
+        report['source_validation']='message_gid' if report['message_origin_verified'] else 'single_endpoint_graph'
+        report['source_validation_limit']='Installed Jazzy metadata does not identify each message publisher; graph mode relies on the owned joy process and one pinned endpoint, and cannot authenticate individual message origin.'
         report['physical_button_cycles']={'button_neutral_seen':evidence.button_neutral,'pressed':sorted(evidence.pressed),'released':sorted(evidence.released)}
         cleanup_nominal=report.get('child_cleanup',{}).get('nominal') is True
         report['graph_contract_passed']=bool(graph_ok and cleanup_nominal and not report.get('publishers_after_cleanup') and not report.get('error'))
@@ -254,7 +261,8 @@ def main():
         print(json.dumps(describe(),indent=2));return 0
     if args.exercise_buttons and not args.no_motor_stack_confirmed:parser.error('--exercise-buttons requires a current explicit --no-motor-stack-confirmed confirmation')
     if args.report is None:parser.error('--report is required for native input-only execution')
-    if not 3<=args.seconds<=30:parser.error('input interval must be within3..30seconds')
+    maximum=120 if args.exercise_buttons else 30
+    if not 3<=args.seconds<=maximum:parser.error('input interval exceeds bounded graph/button allowance')
     return run_native(args)
 
 if __name__=='__main__':raise SystemExit(main())

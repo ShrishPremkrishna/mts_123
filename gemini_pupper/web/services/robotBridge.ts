@@ -1,4 +1,4 @@
-import { MoveCommand, SystemStatus } from "../types";
+import type { MoveCommand, SystemStatus } from "../types";
 import { robotBaseUrl } from "../constants";
 
 // This service talks to the Python FastAPI backend running on the robot
@@ -10,8 +10,11 @@ class RobotBridge {
   }
 
   private async request(endpoint: string, method: 'GET' | 'POST', body?: any, returnBlob: boolean = false) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
     try {
       const options: RequestInit = {
+        signal: controller.signal,
         method,
         headers: body && method === 'POST' ? { 'Content-Type': 'application/json' } : {},
       };
@@ -32,17 +35,19 @@ class RobotBridge {
       return await response.json();
     } catch (e) {
       // Suppress log spam for polling
-      if(endpoint !== '/system/status' && endpoint !== '/camera/image') {
+      if(endpoint !== '/system/status' && endpoint !== '/camera/image' && endpoint !== '/queue/status') {
          console.error(`[RobotBridge] Error calling ${endpoint}`, e);
       }
-      return { success: false, message: `robot unreachable: ${(e as Error)?.message || e}` };
+      // Aborting a client request does not establish whether a POST ran.
+      return { success: false, outcome_unknown: method === 'POST', message: `robot response unavailable: ${(e as Error)?.message || e}` };
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
   async getSystemStatus(): Promise<SystemStatus | null> {
     const res = await this.request('/system/status', 'GET');
-    if (res && !res.error) {
-      console.log("Returned value from /system/status is", JSON.stringify(res, null, 2));
+    if (res && res.success !== false && res.battery && res.cpu && res.services) {
       return res as SystemStatus;
     }
     return null;

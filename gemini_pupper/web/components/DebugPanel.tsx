@@ -1,7 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { LogEntry, MoveCommand, SystemStatus, CameraSource } from '../types';
+import { LogEntry, SystemStatus, CameraSource } from '../types';
 import { ANIMATION_NAMES, DEFAULT_CONFIG } from '../constants';
 import RobotBridge from '../services/robotBridge';
+import { MANUAL_DEFAULTS, MANUAL_SPEEDS, MANUAL_TURNS, MANUAL_DURATIONS, manualMove, type ManualDirection } from '../services/manualControls';
+import { toolResponseStatus } from '../services/executionStatus';
 
 // --- Icons ported from Rust SVGs ---
 const StatusIcon: React.FC<{status: 'active' | 'inactive' | 'loading' | 'unknown'}> = ({ status }) => {
@@ -43,13 +45,18 @@ interface DebugPanelProps {
   systemStatus: SystemStatus | null;
   onStatusUpdate: (status: SystemStatus | null) => void;
   cameraSource: CameraSource;
+  onStop: () => Promise<void>;
 }
 
-const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge, systemStatus, onStatusUpdate, cameraSource }) => {
+const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge, systemStatus, onStatusUpdate, cameraSource, onStop }) => {
   const logEndRef = useRef<HTMLDivElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const leftColRef = useRef<HTMLDivElement>(null);
+  const [manualSettings, setManualSettings] = useState({ ...MANUAL_DEFAULTS });
+  const [manualResult, setManualResult] = useState('No manual command sent');
+  const [manualPending, setManualPending] = useState(false);
+  const manualBusy = useRef(false);
 
   // Tricks the robot reports as installed (falls back to the built-in list)
   const [tricks, setTricks] = useState(ANIMATION_NAMES);
@@ -186,8 +193,23 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
     }
   }, [videoElement, cameraSource]);
 
-  const handleManualMove = (cmd: MoveCommand) => {
-    robotBridge.queueMove(cmd);
+  const runManual = async (label: string, send: () => Promise<any>) => {
+    if (manualBusy.current) return;
+    manualBusy.current = true;
+    setManualPending(true);
+    setManualResult(`${label}: sending request`);
+    try {
+      const result = await send();
+      setManualResult(`${label}: ${toolResponseStatus(result)} — ${result?.message || 'No response details'}`);
+    } catch {
+      setManualResult(`${label}: response unknown; check the robot and use Stop if needed`);
+    } finally {
+      manualBusy.current = false;
+      setManualPending(false);
+    }
+  };
+  const handleManualMove = (direction: ManualDirection) => {
+    void runManual(direction, () => robotBridge.queueMove(manualMove(direction, manualSettings)));
   };
   
   const handleViewSource = () => {
@@ -305,14 +327,15 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
             {/* Header & Main Actions */}
             <div className="flex gap-2 shrink-0">
                 <button 
-                    onClick={() => robotBridge.queueActivateWalking()} 
+                    onClick={() => { void runManual('Stand', () => robotBridge.queueActivateWalking()); }}
+                    disabled={manualPending}
                     className="flex-1 bg-green-900/50 border border-green-800 hover:bg-green-800 p-2 rounded text-green-100 transition-colors text-center"
-                    title="Activate Motors"
+                    title="Request standing through the walking controller"
                 >
-                    ACTIVATE
+                    STAND
                 </button>
                 <button 
-                    onClick={() => handleManualMove({vx: 0, vy: 0, wz: 0, duration: 0})} 
+                    onClick={() => { void onStop(); }}
                     className="flex-1 bg-red-900/50 border border-red-800 hover:bg-red-800 p-2 rounded text-red-100 transition-colors font-bold text-center"
                 >
                     STOP
@@ -342,11 +365,32 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
 
             <div className="h-px bg-gray-700 shrink-0" />
 
+            <div className="shrink-0 grid grid-cols-3 gap-1 text-[10px]">
+              <label>Speed m/s
+                <select aria-label="Manual speed" value={manualSettings.speed} onChange={e => setManualSettings({ ...manualSettings, speed: Number(e.target.value) })} className="block w-full bg-gray-700 rounded p-1">
+                  {MANUAL_SPEEDS.map(value => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              <label>Turn °/s
+                <select aria-label="Manual turn rate" value={manualSettings.turn} onChange={e => setManualSettings({ ...manualSettings, turn: Number(e.target.value) })} className="block w-full bg-gray-700 rounded p-1">
+                  {MANUAL_TURNS.map(value => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              <label>Duration s
+                <select aria-label="Manual duration" value={manualSettings.duration} onChange={e => setManualSettings({ ...manualSettings, duration: Number(e.target.value) })} className="block w-full bg-gray-700 rounded p-1">
+                  {MANUAL_DURATIONS.map(value => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="shrink-0 text-[10px] text-cyan-200" aria-live="polite">Last manual request: {manualResult}</div>
+
             {/* Arrow Keys Grid */}
             <div className="shrink-0 flex flex-col items-center gap-1 py-1">
                 {/* Up */}
                 <button 
-                    onClick={() => handleManualMove({vx: 0.5, vy: 0, wz: 0, duration: 1})} 
+                    onClick={() => handleManualMove('forward')}
+                    disabled={manualPending}
+                    aria-label="Move forward"
                     className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                 >
                     ▲
@@ -355,19 +399,25 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                 {/* Left Down Right */}
                 <div className="flex gap-1">
                     <button 
-                        onClick={() => handleManualMove({vx: 0, vy: 0, wz: 45, duration: 1})} 
+                        onClick={() => handleManualMove('left')}
+                        disabled={manualPending}
+                        aria-label="Turn left"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
                         ◄
                     </button>
                     <button 
-                        onClick={() => handleManualMove({vx: -0.5, vy: 0, wz: 0, duration: 1})} 
+                        onClick={() => handleManualMove('backward')}
+                        disabled={manualPending}
+                        aria-label="Move backward"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
                         ▼
                     </button>
                     <button 
-                        onClick={() => handleManualMove({vx: 0, vy: 0, wz: -45, duration: 1})} 
+                        onClick={() => handleManualMove('right')}
+                        disabled={manualPending}
+                        aria-label="Turn right"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
                         ►

@@ -38,7 +38,7 @@ def test_faults_do_not_publish_or_retry(case):
  if case=='no_neutral':p=m.Probe(0);p.enable(.1,1);p.joy(.2,buttons(9))
  elif case=='second_options':p=running();p.joy(.5,buttons(9))
  elif case=='face':p.joy(.3,buttons(0))
- elif case=='missing_input':p=m.Probe(0);p.enable(.1,1);p.tick(3.2,state(),inv(),3.2,status_at=3.2)
+ elif case=='missing_input':p=m.Probe(0);p.enable(.1,1);p.tick(5.2,state(),inv(),5.2,status_at=5.2)
  elif case=='stale_input':p.tick(.5,state(),inv(),.5,status_at=.5)
  elif case=='unobserved_activation':tick(p,.3,True,state(latched=False))
  elif case=='unknown_actor':v=inv();v['other']={'state':'active','type':'neural_controller/NeuralController'};p.tick(.3,state(),v,.3,status_at=.3)

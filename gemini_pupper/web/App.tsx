@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ConnectionState, AppConfig, LogEntry, SystemStatus } from './types';
 import { DEFAULT_CONFIG } from './constants';
 import DogFace from './components/DogFace';
@@ -6,6 +6,8 @@ import DebugPanel from './components/DebugPanel';
 import Settings from './components/Settings';
 import { GeminiLiveService } from './services/geminiLive';
 import RobotBridge from './services/robotBridge';
+import ExecutionStatus from './components/ExecutionStatus';
+import { requestIndependentStop, updateLatestDispatch, type ToolDispatch } from './services/executionStatus';
 
 // Icons
 const CogIcon = () => (
@@ -64,6 +66,10 @@ const App: React.FC = () => {
   // Runtime State
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [lastDispatch, setLastDispatch] = useState<ToolDispatch | null>(null);
+  const [modelActionsPaused, setModelActionsPaused] = useState(false);
+  const [stopMessage, setStopMessage] = useState('');
+  const stopSequence = useRef(0);
   
   // Create a persistent video element
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -124,12 +130,8 @@ const App: React.FC = () => {
   }, [view]);
 
   const geminiRef = useRef<GeminiLiveService | null>(null);
-  // Persistent bridge instance for polling
-  const bridgeRef = useRef<RobotBridge>(new RobotBridge(config.robotApiUrl));
-
-  useEffect(() => {
-    bridgeRef.current = new RobotBridge(config.robotApiUrl);
-  }, [config.robotApiUrl]);
+  // Stable for polling; changing the configured server immediately replaces it.
+  const robotBridge = useMemo(() => new RobotBridge(config.robotApiUrl), [config.robotApiUrl]);
 
   const addLog = useCallback((entry: LogEntry) => {
     setLogs(prev => [...prev.slice(-99), entry]); // Keep last 100 logs
@@ -138,12 +140,12 @@ const App: React.FC = () => {
   // Background System Polling Loop (Slow, for critical battery alerts)
   useEffect(() => {
     const interval = setInterval(async () => {
-        const status = await bridgeRef.current.getSystemStatus();
+        const status = await robotBridge.getSystemStatus();
         setSystemStatus(status);
         // Do not log here to avoid spam. DebugPanel will handle its own fast polling.
     }, 60000); // Poll every 60s
     return () => clearInterval(interval);
-  }, [addLog]);
+  }, [addLog, robotBridge]);
 
   const handleConnect = async () => {
     if (!apiKey) {
@@ -159,16 +161,23 @@ const App: React.FC = () => {
 
     try {
       setConnState(ConnectionState.CONNECTING);
+      setLastDispatch(null);
       
       const service = new GeminiLiveService(
         config,
         addLog,
         (level) => setAudioLevel(level),
-        () => setConnState(ConnectionState.DISCONNECTED)
+        () => setConnState(ConnectionState.DISCONNECTED),
+        (entry) => {
+          setLastDispatch(current => updateLatestDispatch(current, entry));
+          if (entry.status === 'unknown') setModelActionsPaused(true);
+        }
       );
 
-      await service.connect(apiKey, config, videoElement);
+      // Store before awaiting so Stop can pause dispatch even while connecting.
       geminiRef.current = service;
+      setModelActionsPaused(false);
+      await service.connect(apiKey, config, videoElement);
       setConnState(ConnectionState.CONNECTED);
     } catch (err: any) {
       console.error(err);
@@ -177,11 +186,23 @@ const App: React.FC = () => {
     }
   };
 
+  const handleStop = async () => {
+    // This does not wait for a model turn and future model calls remain paused.
+    setModelActionsPaused(true);
+    const request = ++stopSequence.current;
+    setStopMessage('Request sent; waiting for server response');
+    const bridge = geminiRef.current?.robotBridge ?? robotBridge;
+    const result = await requestIndependentStop(geminiRef.current, bridge);
+    if (request !== stopSequence.current) return;
+    setStopMessage(result?.outcome_unknown
+      ? 'No confirmed response. Physical stopping is unknown; use R3/power.'
+      : result?.message || 'No confirmed response. Check the robot and use R3/power if needed.');
+  };
+
   const handleDisconnect = async () => {
     if (geminiRef.current) {
-      try {
-        await geminiRef.current.robotBridge.queueDeactivate();
-      } catch (e) { console.error(e); }
+      // Disconnecting voice must not queue a posture change (lie_down).
+      await handleStop();
       await geminiRef.current.disconnect();
       geminiRef.current = null;
     }
@@ -201,6 +222,14 @@ const App: React.FC = () => {
         style={{ position: 'absolute', top: 0, left: 0, width: '1px', height: '1px', opacity: 0, overflow: 'hidden', pointerEvents: 'none' }} 
       />
 
+      <ExecutionStatus
+        robotBridge={geminiRef.current?.robotBridge ?? robotBridge}
+        lastDispatch={lastDispatch}
+        modelActionsPaused={modelActionsPaused}
+        onStop={handleStop}
+        stopMessage={stopMessage}
+      />
+
       <main 
         className="flex-1 relative overflow-hidden"
       >
@@ -217,14 +246,15 @@ const App: React.FC = () => {
           <DebugPanel 
             logs={logs} 
             videoElement={videoElement}
-            robotBridge={geminiRef.current ? (geminiRef.current as any).robotBridge : bridgeRef.current} 
+            robotBridge={geminiRef.current ? (geminiRef.current as any).robotBridge : robotBridge}
             systemStatus={systemStatus}
             onStatusUpdate={setSystemStatus}
             cameraSource={config.cameraSource}
+            onStop={handleStop}
           />
         )}
 
-        {connState === ConnectionState.DISCONNECTED && (
+        {connState === ConnectionState.DISCONNECTED && view === 'face' && (
            <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 pointer-events-auto">
               <button 
                 onClick={handleConnect}
@@ -258,6 +288,8 @@ const App: React.FC = () => {
           </button>
           <button 
             onClick={() => setView('debug')}
+            aria-label="Robot controls"
+            title="Robot controls without voice"
             className={`p-2 rounded ${view === 'debug' ? 'bg-gray-700 text-cyan-400' : 'text-gray-500'}`}
           >
             <TerminalIcon />

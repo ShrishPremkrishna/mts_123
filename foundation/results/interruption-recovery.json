@@ -1,9 +1,9 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-10-30T21:17:37.342169+00:00",
+  "updated_utc": "2026-10-30T22:23:03.648720+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "team_planning_native_input_diagnostics_pending",
-  "authorization": "User requested reducing operational inefficiencies and completing useful work before the next robot session. No motor activation in this session; schedules remain paused.",
+  "mode": "workstream1_persistent_lab6_active",
+  "authorization": "User freshly confirmed stand readiness before persistent-session homing. User is supervised and has been prompted to lower to floor then press physical Options once, without countdown. Awaiting physical standing result. Root alone owns live processes and eventual manager-first cleanup; no restart or homing without root.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
@@ -23,7 +23,7 @@
   "hardware_session": {
     "ssh": "mts",
     "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "status": "Read-only SSH succeeded; prior failed floor run recovered completely. No ROS or motor process started this session. Current running motor-stack state and physical placement have not been checked.",
+    "status": "OPERATIONALLY ACTIVE: persistent Lab 6 session started after fresh stand confirmation at 2026-10-30T22:21:04Z. Native launch --show-args passed before start; homing completed; stock and Gemini walking controllers confirmed inactive. API healthy on Pi localhost:18090 through local SSH tunnel. Manual Robot controls open in browser; Gemini disconnected. User prompted to lower to floor and press Options once; physical floor standing result pending. No floor-success claim.",
     "last_verified_environment": {
       "script": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/overlay-env-v5.sh",
       "pins": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/environment-v5-pins.json",
@@ -32,15 +32,58 @@
     },
     "policy": "Keep shipped stock policy, limits and gains. New trained policies require applicable course approval. User has standard Pupper, no tactile rig.",
     "recovered_remote_archive": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T080848Z-9bd71fc07753469e969fc2f49e325fa5",
-    "recovery_receipt": "foundation/results/floor-stock-raw-recovery-20261030.json"
+    "recovery_receipt": "foundation/results/floor-stock-raw-recovery-20261030.json",
+    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6",
+    "persistent_profile": {
+      "launch": "foundation/hardware/lab6_session.launch.py",
+      "launch_sha256": "6b2e4b1dde4bdc4903d4aeb03cb820e68665f69a0d221043fa78131a44fddbfe",
+      "config": "foundation/hardware/lab6-session.yaml",
+      "config_sha256": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
+      "urdf": "foundation/hardware/floor_stock/baseline-expanded.urdf",
+      "urdf_sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+      "state": "Frozen sources deployed. Local construction/configuration parity and native --show-args passed. Persistent launch homed; both walking controllers confirmed inactive. Live supervised operation active; floor standing and motion proof pending.",
+      "operation": "Fresh launch homes; stock and gemini_walk initially inactive; one physical Options release then direct API/UI commands without repeated homing. R3 latches abort; API Stop zeros/cancels without session shutdown. No teleop velocity publisher or timed trial shutdown; required-process exit tears down launch."
+    },
+    "previous_floor_attempt3_archive": {
+      "path": "artifacts/hardware/2026-10-30/workstream1-floor-attempt3.tar.gz",
+      "sha256": "aace6e1c04946eee743e7cd6e376259a86af2b2831a901b73469bed7b773e3ae",
+      "result": "Not a floor-policy test: activation_observed=false; input window expired; nominal cleanup, no fallback."
+    },
+    "live_processes": {
+      "owner": "root",
+      "observation_source": "Root native session report; do not infer current liveness from this saved record. Recheck exact process identities before any cleanup.",
+      "launch": {
+        "pid": 27141,
+        "create_time_epoch_s": 1793398863.24
+      },
+      "manager": {
+        "pid": 27146,
+        "create_time_epoch_s": 1793398863.98
+      },
+      "api": {
+        "pid": 27345,
+        "create_time_epoch_s": 1793398886.06
+      },
+      "shutdown": "Root-owned manager-first cleanup; never start another stack or home on reconnect."
+    },
+    "manual_ui": {
+      "url": "http://127.0.0.1:18090",
+      "api_binding": "Pi localhost:18090 via SSH local tunnel",
+      "state": "Manual Robot controls open; real API healthy; no Gemini session.",
+      "bundle": "index-DFsX71Sq.js",
+      "bundle_sha256": "b68feb99b790dc05b7daa78e3c57b67015368606604c0131a7b37f03b5a4ce8f",
+      "review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json",
+      "validation": "15 mocked tests, typecheck and build passed; deployed. Native physical command outcomes still pending."
+    }
   },
   "activity": {
     "automation": "PAUSED",
     "compute": "No GPU training or checkpoint collectors active at last closure; no new jobs this session.",
-    "root": "Offline integration complete. No active subprocess/API job. Next work requires native read-only recovery and input diagnostics.",
-    "lab6_recovery": "Completed canonical floor source and100 offline tests; motion remains disabled.",
+    "root": "Operating existing persistent Lab 6 session; owns live launch/manager/API, user supervision, evidence and eventual manager-first cleanup. Do not restart, rehome or launch competing processes.",
+    "lab6_recovery": "Timed floor choreography retired. Persistent profile native construction and inactive-controller startup passed; root is awaiting supervised floor standing result.",
     "sit_recovery": "Completed timing-faithful fake mode and contract wording; actual Live failures recorded.",
-    "optional_recovery": "Completed preservation fixes and independent source reviews."
+    "optional_recovery": "Completed preservation fixes and independent source reviews.",
+    "web": "Manual UI v2 deployed and open through live API tunnel; 15 mocked tests, typecheck/build passed. Bundle index-DFsX71Sq.js SHA b68feb99b790dc05b7daa78e3c57b67015368606604c0131a7b37f03b5a4ce8f. Gemini disconnected; physical outcomes pending."
   },
   "evidence": {
     "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
@@ -53,23 +96,21 @@
     "gemini_live": "foundation/results/gemini-realtime-live-reviewed.json",
     "floor_preparation": "foundation/results/floor-stock-offline-diagnosis.json",
     "workflow": "foundation/results/offline-workflow-improvements-20261030.json",
-    "floor_raw_recovery": "foundation/results/floor-stock-raw-recovery-20261030.json"
+    "floor_raw_recovery": "foundation/results/floor-stock-raw-recovery-20261030.json",
+    "floor_attempt3_archive": "artifacts/hardware/2026-10-30/workstream1-floor-attempt3.tar.gz",
+    "floor_attempts12_input_review": "artifacts/hardware/2026-10-30/workstream1-floor-attempts-1-2-independent-input-review.json",
+    "web_manual_review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json"
   },
   "next": [
     {
-      "id": "floor_input",
-      "action": "Diagnose the recovered unnamed Joy endpoint and post-manager-exit shutdown PermissionError; run exact native input-only preflight before homing.",
-      "done_when": "Recovered archive is preserved. Exact Joy graph/device and separate physical button exercise must pass with clean child shutdown, fallback cause must be reconciled, and reviewed deployed-library/input pins restored before motion release."
-    },
-    {
       "id": "stock_floor",
-      "action": "Supervised stock floor standing, R3 stop, short conservative straight walking and clean shutdown.",
-      "done_when": "Repeatable observed behavior, bounded commands, controller/telemetry evidence and operator observations agree."
+      "action": "Continue the already-running supervised session: await operator lowering to floor and one physical Options release, observe standing, then direct manual bounded movement and API Stop/R3 checks as root directs. Reuse this homed session.",
+      "done_when": "Recorded command/controller/telemetry evidence agrees with operator-observed floor behavior and stop behavior, followed by explicit root-owned manager-first shutdown. No countdown, repeated homing or competing stack."
     },
     {
       "id": "lab6",
-      "action": "Resolve/contain live Gemini unsupported-action claims using fake tests; separately validate direct bounded API movement/cancellation before any live robot conversation.",
-      "done_when": "Direct API behavior physically verified and selected live requests dispatch the promised tools with truthful outcomes; voice is never the physical stop path."
+      "action": "After direct UI/API baseline passes, verify selected live Gemini requests with truthful execution status and Stop independent of voice.",
+      "done_when": "Physically verified direct command/cancellation paths plus selected live requests dispatching supported tools; narration alone never counts as completion."
     },
     {
       "id": "following",
@@ -91,7 +132,8 @@
     "Do not restart completed Colab studies or rediscover baseline backups without a changed dependency.",
     "Do not treat on-stand, mock, simulation or model-acceptance evidence as floor success.",
     "Do not run broad suites or create another staged copy while owners still edit; first freeze the selected source.",
-    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence."
+    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
+    "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. Persistent session is the current plan; it is not yet hardware proof."
   ],
   "validation_commands": {
     "interpreter": "Use environment.python for these commands; they make no hardware/API calls.",

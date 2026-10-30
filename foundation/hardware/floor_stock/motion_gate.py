@@ -1,11 +1,10 @@
-"""Canonical source is reviewable offline; no motor path is released by this adoption."""
-MOTION_EXECUTION_ENABLED = False
-BLOCKERS = [
-    'Reviewed deployment identity pins and installed-runtime verification must be restored; source hash inventory is not environment validation.',
-    'Failed native floor raw archive has not been recovered or independently reviewed.',
-    'Exact joystick input-only preflight has not passed on the next session runtime.',
-    'Detached-owner failure/fallback cause has not been reconciled with native receipts.',
-]
+"""Released for explicit supervised stock stand/R3 trials after native input review.
+
+The supervisor still requires operator approval, verified deployed identities,
+current physical input exercise and explicit floor placement. No automatic start.
+"""
+MOTION_EXECUTION_ENABLED = True
+BLOCKERS = []
 
 def require_motion_enabled():
     if not MOTION_EXECUTION_ENABLED:

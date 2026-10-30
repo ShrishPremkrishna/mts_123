@@ -15,6 +15,7 @@ import signal
 import subprocess
 import sys
 import time
+import traceback
 
 PROTOCOL = 'pupper_console_shutdown_v2'
 POLL_S = .01
@@ -59,6 +60,17 @@ def process_state(target, session_id, proc_root=Path('/proc')):
         current = capture_process(target['pid'], session_id, target.get('required_arg'), proc_root)
     except (FileNotFoundError, ProcessLookupError):
         return 'exited'
+    except PermissionError:
+        # /proc metadata can become unreadable between the first stat read and
+        # process exit. Prove disappearance/zombie/reuse from a fresh stat;
+        # denied identity access on a still-live original remains an error.
+        try:
+            fields = (proc / 'stat').read_text().rsplit(')', 1)[1].split()
+        except FileNotFoundError:
+            return 'exited'
+        if fields[19] != target['start_ticks']: return 'reused'
+        if fields[0] == 'Z': return 'exited'
+        raise
     if current['start_ticks'] != target['start_ticks']: return 'reused'
     if current['executable'] != target['executable']:
         raise ValueError('captured process changed executable')
@@ -117,12 +129,36 @@ def coordinate(spec, hooks, previous=(), fallback=False):
                 result['early_shutdown_reason']='probe_no_longer_running'
                 break
             hooks.sleep(min(POLL_S, max(0., spec['deadline_monotonic'] - hooks.now())))
+    terminal = {'exited', 'reused'}
+    def inspect(target, label):
+        try:
+            state = hooks.state(target)
+            if state not in terminal | {'running'}:
+                raise ValueError('unexpected process state: ' + repr(state))
+            return state
+        except Exception as error:
+            # Retain uncertainty without killing the only shutdown owner. No
+            # disk I/O precedes the deadline-critical manager signal. Coalesce
+            # repeats so bounded polling cannot create unbounded diagnostics.
+            errors = result.setdefault('identity_inspection_errors', {})
+            item = errors.setdefault(label, {'pid': target['pid'], 'count': 0,
+                                             'first_error': repr(error)})
+            item.update(count=item['count'] + 1, last_error=repr(error))
+            return 'unverified'
+
+    def send(target, label):
+        try:
+            return hooks.send(target)  # revalidates identity at the syscall
+        except Exception as error:
+            result.setdefault('signal_errors', {})[label] = repr(error)
+            return False
+
     manager = spec['manager']
-    manager_state = hooks.state(manager)
+    manager_state = inspect(manager, 'manager')
     if manager_state == 'running' and 'manager_sigint_sent' not in sent:
         # No disk write is allowed ahead of the deadline-critical signal.
         # Only a record written AFTER the syscall acknowledges its delivery.
-        actually_sent = hooks.send(manager)
+        actually_sent = send(manager, 'manager')
         if actually_sent:
             sent['manager_sigint_sent'] = hooks.event('manager_sigint_sent')
     hooks.event('shutdown_triggered', fallback=fallback)
@@ -131,33 +167,36 @@ def coordinate(spec, hooks, previous=(), fallback=False):
     signal_time = sent.get('manager_sigint_sent', {}).get('monotonic', hooks.now())
     result['manager_signal_monotonic'] = sent.get('manager_sigint_sent', {}).get('monotonic')
     limit = signal_time + spec['manager_exit_allowance_s']
-    while hooks.state(manager) == 'running' and hooks.now() < limit:
+    manager_state = inspect(manager, 'manager')
+    while manager_state not in terminal and hooks.now() < limit:
         hooks.sleep(min(POLL_S, max(0., limit - hooks.now())))
-    result['manager_state'] = hooks.state(manager)
-    if result['manager_state'] == 'running':
-        result['failure'] = 'manager remains alive after cleanup allowance; no repeated signal or launch-forwarding'
-        hooks.event('manager_exit_allowance_exhausted')
+        manager_state = inspect(manager, 'manager')
+    result['manager_state'] = manager_state
+    if manager_state not in terminal:
+        result['failure'] = 'manager exit unconfirmed after cleanup allowance; no repeated signal or launch-forwarding'
+        hooks.event('manager_exit_allowance_exhausted', state=manager_state)
         return result
-    exit_record = hooks.event('original_manager_exited', state=result['manager_state'])
+    exit_record = hooks.event('original_manager_exited', state=manager_state)
     prior_exit = next((r for r in previous if r['event'] == 'original_manager_exited'), exit_record)
     launch = spec['launch']
-    # The launch may already be finishing its OnProcessExit shutdown. Let that
-    # complete naturally before signaling; the grace stays INSIDE the original
-    # total launch allowance and cannot extend the manager's signal deadline.
+    # Natural exit and identity-inspection retries share the original allowance.
+    # The launch is signaled only after proven manager exit and fresh identity
+    # validation. An unknown state is never success or permission to signal.
     limit = prior_exit['monotonic'] + spec['launch_exit_allowance_s']
     natural_until = min(limit, prior_exit['monotonic'] + .5)
-    if 'launch_sigint_sent' not in sent:
-        while hooks.state(launch) == 'running' and hooks.now() < natural_until:
-            hooks.sleep(min(POLL_S, max(0., natural_until - hooks.now())))
-        if hooks.state(launch) == 'running':
+    launch_attempted = 'launch_sigint_sent' in sent
+    launch_state = inspect(launch, 'launch')
+    while launch_state not in terminal and hooks.now() < limit:
+        if launch_state == 'running' and not launch_attempted and hooks.now() >= natural_until:
+            launch_attempted = True
             hooks.event('launch_signal_attempt')
-            if hooks.send(launch):
+            if send(launch, 'launch'):
                 sent['launch_sigint_sent'] = hooks.event('launch_sigint_sent')
-    while hooks.state(launch) == 'running' and hooks.now() < limit:
         hooks.sleep(min(POLL_S, max(0., limit - hooks.now())))
-    result['launch_state'] = hooks.state(launch)
-    result['passed_cleanup'] = result['launch_state'] != 'running'
-    if not result['passed_cleanup']: result['failure'] = 'launch remains alive after cleanup allowance'
+        launch_state = inspect(launch, 'launch')
+    result['launch_state'] = launch_state
+    result['passed_cleanup'] = launch_state in terminal
+    if not result['passed_cleanup']: result['failure'] = 'launch exit unconfirmed after cleanup allowance'
     hooks.event('shutdown_finished', passed_cleanup=result['passed_cleanup'])
     return result
 
@@ -238,7 +277,8 @@ def request(handle, reason):
 
 def nominal_cleanup(result):
     return (result.get('passed_cleanup') is True and result.get('fallback') is False
-            and not result.get('prior_signal_delivery_ambiguous') and not result.get('probe_monitor_error'))
+            and not result.get('prior_signal_delivery_ambiguous') and not result.get('probe_monitor_error')
+            and not result.get('identity_inspection_errors') and not result.get('signal_errors'))
 
 
 def request_and_wait(handle, reason):
@@ -312,7 +352,7 @@ def worker(directory):
     except BaseException as error:
         # Absence of a success receipt is intentional: request_and_wait must
         # recover after actual worker exit rather than accept unverified cleanup.
-        try: hooks.event('owner_failed', error=repr(error))
+        try: hooks.event('owner_failed', error=repr(error), traceback=traceback.format_exc(limit=8))
         except Exception: pass
         return 1
     return 0 if result['passed_cleanup'] else 1

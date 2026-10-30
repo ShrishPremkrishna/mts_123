@@ -14,7 +14,7 @@ from launch.events import Shutdown
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile
 ROOT = Path(__file__).resolve().parent
-CONFIG_SHA = '6b25c2a68b99b99f1679e701dce49fc72ce7992c9754a517f70a983cfb4c4661'
+CONFIG_SHA = '840404488225fc2970a033fe5cc33a2858be6600c5060c7330a3c371c5ad443e'
 URDF_SHA = '4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44'
 
 def generate_launch_description():

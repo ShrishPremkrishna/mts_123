@@ -3,7 +3,28 @@ import argparse,hashlib,importlib.util,json,os,signal,subprocess,sys,time,uuid
 from datetime import datetime,timezone
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent
-from motion_gate import BLOCKERS,require_motion_enabled
+from motion_gate import require_motion_enabled
+
+ENVIRONMENT_ROOT=Path("/home/pi/pupper-foundation-session-20261029/environment-v5-review")
+CANDIDATE_FILES=("run_once.py","console_init_stop_probe.py","shutdown_coordinator.py",
+    "probe_recording.py","joy_contract.py","input_preflight.py","motion_gate.py",
+    "feedback-only.launch.py","course-config-v4.yaml","baseline-expanded.urdf","wait_feedback.py")
+ENVIRONMENT_PINS={
+    "overlay-env-v5.sh":"4b9bc797866577539cc6bd5e2d37093bb17ccf3cc335892705c7a7ab3cf607e7",
+    "verify-overlay-environment-v5.py":"436b2fa6a49c26b4f1d289da109c8d85ea90f7705820570658465db800c0eff1",
+    "environment-v5-pins.json":"cfc5447581cd0d6f47221499bb91ae8143a4bc07d48346a7c5647beef5367929",
+}
+
+def input_ready_receipt(path):
+    """Only relay a complete ready event from our own input-only helper log."""
+    for line in path.read_text().splitlines():
+        try:row=json.loads(line)
+        except json.JSONDecodeError:continue
+        if not isinstance(row,dict) or row.get("event")!="input-only-ready":continue
+        if row.get("domain")!=170 or row.get("motor_software") is not False or not isinstance(row.get("instructions"),str):
+            raise RuntimeError("input-only ready receipt contract differs")
+        return row
+    return None
 
 def execute_once(ops):
     """Small lifecycle boundary used by real operations and failure-path tests."""
@@ -26,7 +47,8 @@ def signal_owned_unreaped_child(child):
     child.send_signal(signal.SIGINT);return True
 
 class Operations:
-    def __init__(self,candidate,run_dir,session_id,probe,mode='floor-stock-zero'):
+    def __init__(self,candidate,run_dir,session_id,probe,mode='floor-stock-zero',operator_approved=False):
+        self.operator_approved=operator_approved
         self.mode=mode;self.candidate=candidate;self.run_dir=run_dir;self.session_id=session_id;self.probe=probe
         self.launch=None;self.launch_identity=None;self.manager=None;self.logs=[];self.children=[]
         self.report={'supervisor_pid':os.getpid(),'session_id':session_id,'supervised_mode':mode,'events':[],'passed':False,'hardware_execution_requested':True}
@@ -44,6 +66,10 @@ class Operations:
             while True:
                 remaining=deadline-time.monotonic()
                 if remaining<=0:raise subprocess.TimeoutExpired(command,seconds)
+                if label=='input-preflight' and not ready_announced:
+                    ready=input_ready_receipt(self.run_dir/(label+'.log'))
+                    if ready is not None:
+                        print(json.dumps({**ready,'run_dir':str(self.run_dir),'session_id':self.session_id}),flush=True);ready_announced=True
                 if label=='single-console-probe' and not ready_announced:
                     ready_path=self.run_dir/'physical-input-ready.json'
                     if ready_path.exists():
@@ -76,15 +102,21 @@ class Operations:
         if len(candidates)>1:raise RuntimeError('multiple direct manager children')
         return candidates[0] if candidates else None
     def preflight_input(self):
-        # This completes before hardware launch or homing. No cached previous
-        # session report can stand in for the exact current child/input path.
+        # Operator approval includes the current root host-wide no-motor check.
+        # The child repeats the native host/graph screen before prompting buttons.
+        if self.operator_approved is not True:
+            raise RuntimeError('explicit supervised input/button and motion approval required')
         report=self.run_dir/'input-preflight.json'
-        self.bounded([sys.executable,str(ROOT/'input_preflight.py'),'--run-input-only','--report',str(report)],'input-preflight',40)
-        # Graph-only is deliberately insufficient: reviewed future integration
-        # must carry the current explicit operator/host button-test precondition.
+        self.bounded([sys.executable,str(ROOT/'input_preflight.py'),'--run-input-only',
+            '--exercise-buttons','--no-motor-stack-confirmed','--seconds','120','--report',str(report)],'input-preflight',130)
         result=json.loads(report.read_text())
-        if result.get('passed') is not True or result.get('child_running_after_cleanup') is not False:
-            raise RuntimeError('exact input-only preflight failed; hardware not started')
+        required=('passed','graph_contract_passed','physical_buttons_verified',
+                  'button_exercise_requested','no_motor_stack_confirmed','integrity_ok')
+        if (any(result.get(k) is not True for k in required)
+                or result.get('child_running_after_cleanup') is not False
+                or result.get('child_cleanup',{}).get('nominal') is not True
+                or result.get('publishers_after_cleanup') != []):
+            raise RuntimeError('exact input/button preflight failed; hardware not started')
     def start_stack(self):
         lock=self.probe.check_driver_lock()
         if not lock['available']:raise RuntimeError('driver lock already held')
@@ -206,14 +238,29 @@ class Operations:
         for stream in self.logs:stream.close()
 
 def validate_files_and_environment(candidate):
-    # Source inspection only. A later reviewed deployment must bind actual
-    # installed library identities; adopting source is not deployment approval.
-    names=['console_init_stop_probe.py','shutdown_coordinator.py','probe_recording.py',
-           'joy_contract.py','input_preflight.py','motion_gate.py','feedback-only.launch.py',
-           'course-config-v4.yaml','baseline-expanded.urdf','wait_feedback.py']
-    return {'scope':'Canonical source hashes only; no ROS initialization or devices',
-            'motion_enabled':False,'blockers':BLOCKERS,
-            'sources':{n:hashlib.sha256((candidate/n).read_bytes()).hexdigest() for n in names}}
+    pins=json.loads((ROOT/'input-pins.json').read_text())
+    if set(pins.get('candidate',{}))!=set(CANDIDATE_FILES):
+        raise RuntimeError('selected candidate pin allowlist differs')
+    if pins.get('environment')!=ENVIRONMENT_PINS:
+        raise RuntimeError('reviewed environment pin selection differs')
+    for name,digest in pins['candidate'].items():
+        if hashlib.sha256((candidate/name).read_bytes()).hexdigest()!=digest:
+            raise RuntimeError('selected candidate differs: '+name)
+    # These files execute from the supervisor directory even with --candidate.
+    for name in ('run_once.py','input_preflight.py','joy_contract.py','probe_recording.py','motion_gate.py','wait_feedback.py'):
+        if hashlib.sha256((ROOT/name).read_bytes()).hexdigest()!=pins['candidate'][name]:
+            raise RuntimeError('running supervisor/helper differs: '+name)
+    for name,digest in ENVIRONMENT_PINS.items():
+        if hashlib.sha256((ENVIRONMENT_ROOT/name).read_bytes()).hexdigest()!=digest:
+            raise RuntimeError('canonical environment input differs: '+name)
+    spec=importlib.util.spec_from_file_location('canonical_environment',ENVIRONMENT_ROOT/'verify-overlay-environment-v5.py')
+    verifier=importlib.util.module_from_spec(spec);spec.loader.exec_module(verifier)
+    from ament_index_python.packages import get_package_prefix,get_package_share_directory
+    result=verifier.verify(json.loads((ENVIRONMENT_ROOT/'environment-v5-pins.json').read_text()),
+        package_prefix=get_package_prefix,package_share=get_package_share_directory,env=os.environ,
+        python_prefix=sys.prefix,python_base_prefix=sys.base_prefix,python_executable=sys.executable)
+    if result.get('status')!='PASS':raise RuntimeError('installed environment verifier did not pass')
+    return {**result,'candidate_sources':pins['candidate'],'environment_sources':pins['environment']}
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--operator-approved',action='store_true');parser.add_argument('--check-only',action='store_true')
@@ -221,12 +268,12 @@ def main():
     parser.add_argument('--mode',choices=('floor-stock-zero',),default='floor-stock-zero')
     parser.add_argument('--runs-dir',type=Path,default=Path('/home/pi/pupper-foundation-session-20261029/supervised-console-runs'))
     args=parser.parse_args()
-    if not args.check_only and not args.operator_approved:parser.error('explicit approval of combined homing+placement+physical stock floor stand+R3 trial required')
+    if not args.check_only and not args.operator_approved:parser.error('explicit approval of input/button exercise after root no-motor check, then homing+placement+physical stock floor stand+R3 trial required')
     if not args.check_only:require_motion_enabled()
-    if not args.check_only and os.environ.get('ROS_DOMAIN_ID')!='168':parser.error('explicit ROS_DOMAIN_ID=168 required')
+    if os.environ.get('ROS_DOMAIN_ID')!='168':parser.error('explicit ROS_DOMAIN_ID=168 required')
     candidate=args.candidate.resolve();environment_receipt=validate_files_and_environment(candidate)
     if args.check_only:
-        print(json.dumps({'passed':True,'supervised_mode':args.mode,'scope':'Canonical source hash inventory only; no installed environment validation, ROS initialization, Popen, device or lock access','environment':environment_receipt},indent=2));return 0
+        print(json.dumps({'passed':True,'supervised_mode':args.mode,'scope':'Pinned source and installed environment verification; no ROS initialization, Popen, device or lock access','environment':environment_receipt},indent=2));return 0
     spec=importlib.util.spec_from_file_location('frozen_probe',candidate/'console_init_stop_probe.py')
     probe=importlib.util.module_from_spec(spec);spec.loader.exec_module(probe)
     session_id=uuid.uuid4().hex;os.environ['PUPPER_PROBE_SESSION_ID']=session_id
@@ -234,15 +281,18 @@ def main():
     run_dir.mkdir(parents=True,mode=0o700);os.chmod(run_dir,0o700)
     (run_dir/'roslogs').mkdir(mode=0o700)
     os.environ['ROS_LOG_DIR']=str(run_dir/'roslogs')
-    ops=Operations(candidate,run_dir,session_id,probe,mode=args.mode)
+    ops=Operations(candidate,run_dir,session_id,probe,mode=args.mode,operator_approved=args.operator_approved)
     (run_dir/'environment.json').write_text(json.dumps(environment_receipt,indent=2)+'\n')
-    (run_dir/'source-inspection.json').write_text(json.dumps(environment_receipt,indent=2)+'\n')
+    (run_dir/'input-pins.json').write_bytes((ROOT/'input-pins.json').read_bytes())
     ops.save('combined trial accepted; fresh owned session',candidate=str(candidate))
     def interrupted(signum,frame):raise KeyboardInterrupt('supervisor signal '+str(signum))
     for signum in (signal.SIGTERM,signal.SIGHUP):signal.signal(signum,interrupted)
     try:execute_once(ops)
     except BaseException as error:
         ops.report['passed']=False;ops.save('trial failed; no retry',error=repr(error))
-    print(json.dumps({'run_dir':str(run_dir),'passed':ops.report['passed']},indent=2))
+    print(json.dumps({'run_dir':str(run_dir),'passed':ops.report['passed'],
+        'homing_started':any(e['event']=='stack launch requested; hardware homing begins' for e in ops.report['events']),
+        'last_event':ops.report['events'][-1],
+        'cleanup':next((e for e in reversed(ops.report['events']) if e['event']=='final owned cleanup'),None)},indent=2))
     return 0 if ops.report['passed'] else 1
 if __name__=='__main__':raise SystemExit(main())

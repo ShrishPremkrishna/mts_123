@@ -149,3 +149,92 @@ def test_dead_owner_fallback_preserves_cause_and_original_failure_receipt(tmp_pa
     assert result['fallback_reason']=='owner_exited'
     assert result['owner_failures'][0]['error']=='PermissionError example'
     assert not m.nominal_cleanup(result)
+
+
+@pytest.mark.parametrize('failure', [PermissionError('launch metadata denied'), ValueError('launch identity changed')])
+def test_launch_inspection_failure_is_bounded_and_never_signals_unknown_identity(failure):
+    h=Hooks(requested=True); state=h.state
+    def inspect(target):
+        if target['pid']==2: raise failure
+        return state(target)
+    h.state=inspect
+    result=m.coordinate(spec_for(),h)
+    assert not result['passed_cleanup'] and result['launch_state']=='unverified'
+    assert h.signals==[(1,0.)]
+    assert h.t==pytest.approx(.3+1.)
+    assert result['identity_inspection_errors']['launch']['count']>0
+    assert not m.nominal_cleanup(result)
+
+
+def test_transient_launch_inspection_failure_does_not_kill_owner_or_repeat_manager_signal():
+    h=Hooks(requested=True); state=h.state
+    def inspect(target):
+        if target['pid']==2 and h.t<.4: raise PermissionError('exit transition')
+        return state(target)
+    h.state=inspect
+    result=m.coordinate(spec_for(),h)
+    assert result['passed_cleanup'] and result['fallback'] is False
+    assert [pid for pid,_ in h.signals]==[1,2]
+    assert h.signals[1][1]>=.8 and h.t<=1.3
+    assert not m.nominal_cleanup(result), 'Recovered uncertainty is retained for review'
+
+
+def test_unknown_manager_exit_never_allows_launch_signal():
+    h=Hooks(requested=True);state=h.state
+    def inspect(target):
+        if target['pid']==1 and h.signals: raise PermissionError('manager inspection denied')
+        return state(target)
+    h.state=inspect
+    result=m.coordinate(spec_for(),h)
+    assert not result['passed_cleanup'] and result['manager_state']=='unverified'
+    assert h.signals==[(1,0.)] and h.t==pytest.approx(1.)
+    assert 'original_manager_exited' not in [e['event'] for e in h.events]
+
+
+def test_initial_unverified_manager_is_never_signaled_or_mistaken_for_exit():
+    h=Hooks(requested=True);state=h.state
+    def inspect(target):
+        if target['pid']==1: raise PermissionError('manager inspection denied')
+        return state(target)
+    h.state=inspect
+    result=m.coordinate(spec_for(),h)
+    assert not result['passed_cleanup'] and h.signals==[]
+    assert result['manager_state']=='unverified' and h.t==pytest.approx(1.)
+
+
+def test_launch_signal_identity_race_is_recorded_without_repeated_attempt():
+    h=Hooks(requested=True);send=h.send;attempts=[]
+    def send_with_race(target):
+        if target['pid']==2:
+            attempts.append(h.t)
+            raise PermissionError('changed before syscall')
+        return send(target)
+    h.send=send_with_race
+    result=m.coordinate(spec_for(),h)
+    assert not result['passed_cleanup'] and len(attempts)==1
+    assert h.signals==[(1,0.)]
+    assert 'PermissionError' in result['signal_errors']['launch']
+    assert h.t==pytest.approx(1.3)
+
+
+@pytest.mark.parametrize('after', ['exited','reused','running'])
+def test_proc_permission_race_requires_fresh_terminal_proof(tmp_path,monkeypatch,after):
+    proc=tmp_path/'42';proc.mkdir()
+    def stat(state='S',start='100'):
+        return '42 (python) '+ ' '.join([state]+['0']*18+[start])
+    (proc/'stat').write_text(stat())
+    target={'pid':42,'start_ticks':'100','executable':'/python'}
+    def denied(*args):
+        if after=='exited': (proc/'stat').write_text(stat('Z'))
+        if after=='reused': (proc/'stat').write_text(stat(start='101'))
+        raise PermissionError('metadata unavailable')
+    monkeypatch.setattr(m,'capture_process',denied)
+    if after=='running':
+        with pytest.raises(PermissionError):m.process_state(target,'session',tmp_path)
+    else:
+        assert m.process_state(target,'session',tmp_path)==after
+
+
+@pytest.mark.parametrize('field',['identity_inspection_errors','signal_errors'])
+def test_inspection_or_signal_recovery_is_not_nominal_readiness(field):
+    assert not m.nominal_cleanup({'passed_cleanup':True,'fallback':False,field:{'launch':'denied'}})
