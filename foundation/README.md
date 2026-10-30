@@ -13,6 +13,8 @@ the last two.
 
 ## Start here
 
+Use the [three workstream handoff](WORKSTREAMS.md) for team ownership, deliverables, completion evidence and work with or without the robot.
+
 Run `python3 foundation/scripts/session_status.py` for current activity, the tested
 interpreter, blockers and next actions. Add `--verify-inputs` to check the frozen
 floor input archive and historical recovery record. This command is local and
