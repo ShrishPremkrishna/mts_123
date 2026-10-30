@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "updated_utc": "2026-10-30T07:29:09.063006+00:00",
+  "status": "minimal_neutral_shutdown_fix_passed_short_supervised_comparison",
+  "full_trial": {
+    "run": "20261030T064320Z-4dfc63d18d3a40cea76d493e6be15579",
+    "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "active_receipt_to_stop_s": 4.5025076609999815,
+    "publication_start_to_stop_upper_s": 4.609989438000412,
+    "full_stock_phase_evidence": {
+      "scope": "Finite 12-value policy and final-target receipts in the fully-faded window; receipt times, not controller timestamps or physical tracking",
+      "streams": {
+        "policy_output": {
+          "samples": 25,
+          "observed_span_s": 0.47841567900013615,
+          "passed": true
+        },
+        "position_command": {
+          "samples": 25,
+          "observed_span_s": 0.478414031000284,
+          "passed": true
+        }
+      },
+      "passed": true
+    },
+    "shutdown": {
+      "fallback": false,
+      "launch_state": "exited",
+      "manager_deadline_monotonic": 7516.784923891,
+      "manager_signal_monotonic": 7516.116746121,
+      "manager_state": "exited",
+      "passed_cleanup": true,
+      "physical_stopping_proven": false,
+      "protocol": "pupper_console_shutdown_v2"
+    },
+    "journal": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T064320Z-4dfc63d18d3a40cea76d493e6be15579/probe.evidence.jsonl",
+      "records": 3747,
+      "complete_record_bytes": 2327043,
+      "file_bytes": 2327043,
+      "synced_through_sequence": 3747,
+      "finalized": true,
+      "max_append_s": 0.06653694099986751,
+      "append_timing_scope": "normalization+encoding+completed os.write loop; excludes fsync",
+      "write_error": null,
+      "sha256": "56001f1cf0f8912c9c5bbed64648252b1e2869ed2dbd59f225ed903617e774ae",
+      "durability": "No per-sensor fsync. Pre-release and final checkpoints synced; power-loss tail may be absent."
+    },
+    "archive": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T064320Z-4dfc63d18d3a40cea76d493e6be15579.tar.gz",
+      "bytes": 572246,
+      "sha256": "a5cbd842c088cde9743b6371b6f1cbe584834db19f9b1f5bb6aacbb33ab6347f"
+    },
+    "files_verified": 29,
+    "operator_visual_observation": "User was not watching during movement; physical appearance is not confirmed normal.",
+    "telemetry_review": {
+      "all_streams_match_journal": true,
+      "joint_imu_samples_each": 1355,
+      "policy_target_latency_samples_each": 127,
+      "knee_excursions_rad_FR_FL_BR_BL": [
+        1.194,
+        1.188,
+        1.213,
+        1.149
+      ],
+      "fully_faded_knee_mean_abs_tracking_error_rad_FR_FL_BR_BL": [
+        0.013,
+        0.0126,
+        0.0069,
+        0.0053
+      ],
+      "fully_faded_all_joint_rms_error_rad": 0.01631,
+      "max_measured_joint_velocity_rad_s": 1.22222,
+      "max_body_tilt_deg": 2.503,
+      "imu_age_median_max_ms": [
+        6.169,
+        12.121
+      ],
+      "inference_median_max_ms": [
+        0.213,
+        0.839
+      ],
+      "post_stop_inactive_receipt_s": 0.0997,
+      "limits": [
+        "Finite-dimensional sampled on-stand trace, not floor gait validation or mechanical diagnosis.",
+        "One88ms policy/target receipt gap during fade; fully-faded target gaps within22ms and sensor gaps within6.3ms. No universal realtime claim.",
+        "Estimated effort is host PD calculation, not a torque/friction sensor.",
+        "Legs continued relaxing after deactivation; no physical standstill claim from inactive state."
+      ]
+    }
+  },
+  "powered_resistance": {
+    "user_report": "All four lower joints mildly sticky when powered; less sticky after turning robot off; turned back on and connected.",
+    "after_reboot_read_only_state": "No ros2_control_node, no driver lock, no process with SPI open (root /proc scan). Pupper GUI running; one Python process had I2C-1 open.",
+    "no_unsupported_claim": "No host sender does not prove board/motor firmware boot state or whether motor supply was fully removed. No firmware source/installed identity established.",
+    "disable_only_probe": {
+      "scope": "One supervised non-enabling initialization/destruction probe; only all-zero flags0 SPI disable request; no configure/activate/homing/read/write",
+      "started_utc": "2026-10-30T07:03:52.833027+00:00",
+      "inputs": {
+        "/home/pi/pupper-foundation-session-20261029/driver-init-probe-run-v1/build/driver_init_only_probe": "0290a4628d0b4d6ab9152d0bcdd8cd1edec3c46a78d2d25e588c9f1a1632fd86",
+        "/home/pi/pupper-foundation-session-20261029/driver-overlay-v1/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so": "0cf5509982246d664e9a2a4d231fa9455bc4c47a7753862faa2d1f877301ea96",
+        "/home/pi/pupper-foundation-session-20261029/driver-init-only-probe/baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+      },
+      "passed": true,
+      "returncode": 0,
+      "log": "PROBE_BEGIN on_init_only; no configure/activate/read/write\n[BNO055] Using device name /dev/i2c-1\nConnected\nFirst receive finished\nsecond receive finished\nReset\nSent first packet\nCorrect Product ID\nEnabling rot vec + gyro. Micros between reports: 10000\n[INFO] [1793343833.706561906] [ControlBoardHardwareInterface]: Successfully deactivated!\n[RT SPI] command size good\n[RT SPI] data size good\n[RT SPI] Open\nPROBE_PASS on_init_calls=1 configure_calls=0 activate_calls=0 read_calls=0 write_calls=0 spi_driver_iterations_before_destroy=0 spi_driver_iterations_after_destroy=1 command_bytes_zero=1 teardown_ms=1.20844\n",
+      "driver_lock_path_exists": false
+    },
+    "operator_after_disable": "Clearly less resistant now, with robot still powered.",
+    "interpretation": "Resistance reportedly decreased after the non-enabling probe, which reinitializes SPI/IMU and sends an all-zero disable packet. This is consistent with a powered control-state contribution but is not an isolated damping-versus-flags experiment and does not establish firmware semantics, calibrated torque or mechanical health.",
+    "source_finding": "Neural controller deactivation retainskd0.1 damping. Hardware deactivate_motors clearsflags only; last command fields can remain. Init-only probe sends entirelyzero command includinggains.",
+    "work_in_progress": "Minimal host neutral-shutdown fix committed and independently reviewed; native10/10tests and old-source negative control support code behavior. Short ordinary-shutdown hardware comparison completed.",
+    "remaining": "Observe release again during forthcoming actual Lab6 controller test; no separate disable-only probe needed for ordinary shutdown in the completed comparison.",
+    "neutral_shutdown_build": {
+      "exit_code": 0,
+      "native_tests": "10/10 passed, fake I/O only",
+      "library_sha256": "925954b1b0c773bedb483da77bcad5c08aa707b0baac9ca16db50772df14e4e2",
+      "library_bytes": 4780464,
+      "receipt": "artifacts/hardware/2026-10-30/driver-neutral-disable-review/native-result/driver-neutral-disable-job-v2/build-exit.json",
+      "scope": "All command fields cleared before existing send; active control unchanged. Does not acknowledge board disable or establish physical release."
+    },
+    "neutral_shutdown_trial": {
+      "run": "20261030T072352Z-04ffb3b21105443c8de984a4d929b865",
+      "driver_source_commit": "4312e79",
+      "mapped_driver_sha256": "925954b1b0c773bedb483da77bcad5c08aa707b0baac9ca16db50772df14e4e2",
+      "software_sequence_passed": true,
+      "ordinary_shutdown": {
+        "manager_exited": true,
+        "launch_exited": true,
+        "lock_available": true,
+        "fallback": false
+      },
+      "start_to_stop_s": 0.7510312179997527,
+      "publication_start_to_stop_upper_s": 0.6588972969998395,
+      "journal_records": 2278,
+      "journal_sha256": "1dc15192cda54298abe9b7e8c51efd05d996a28c3821166dd27213cc3ac64b50",
+      "archive_sha256": "ad7e9fbf639d274059eb7ba699f549a6d673bf77968cf8bcb895938fe6e68d1c",
+      "local": "artifacts/hardware/2026-10-30/driver-v2-short-trial",
+      "operator_confirmation": "Normal motion; joints relaxed, while still powered.",
+      "scope": "One on-stand normal homing and partial-initialization trial. No full actor, floor locomotion, firmware acknowledgment or mechanical-health claim."
+    }
+  },
+  "lab6_api": {
+    "source_commit": "355efaefe44b6e6fc677131d6a3ad1932583b287",
+    "changes": "Status exposes stock/unclassified active controllers truthfully; idle waits under latchedStop resolveUNCHANGED and verify currentidle/typedinventory at execution.",
+    "regression": "383 Gemini tests +166 course checks passed, including actualFastAPI/SDKtransport tests; no skips.",
+    "native_result": "Actual Pi HTTPserver passed isolateddomain169 tests with syntheticlatchedROS peers;24HTTPrequests,39zero-velocityreceipts,0switchRPC,0sensors, cleanexit0. This is not actual motorcontroller integration.",
+    "evidence": "artifacts/hardware/2026-10-29/lab6-api-stationary-v2/native-output/report.json"
+  },
+  "hardware_validated_foundation": false
+}
