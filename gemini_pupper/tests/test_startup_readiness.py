@@ -58,6 +58,9 @@ def stack(tmp_path, monkeypatch):
             'deadband': .05, 'timeout_ms': 500,
             'inputs': ['/teleop_cmd_vel', '/llm_cmd_vel', '/person_following_cmd_vel']}}}),
     }
+    for parameter, ros_type in [('controller_names', 'string array'), ('switch_button_indices', 'integer array'),
+                                ('estop_index', 'integer'), ('estop_release_index', 'integer')]:
+        responses[('param', 'describe', '/estop_controller', parameter)] = descriptor(parameter, ros_type)
     calls = []
     def run(args, **kwargs):
         assert args[0] == 'ros2'
@@ -369,3 +372,19 @@ def test_stale_joystick_evidence_refuses_before_ros_queries(stack, fault):
     result = readiness.inspect_running_stack(run=stack.run, path=stack.manifest)
     assert not result['compatible'] and result['errors']
     assert stack.calls == []
+
+
+@pytest.mark.parametrize('parameter,ros_type', [('controller_names', 'string array'),
+    ('switch_button_indices', 'integer array'), ('estop_index', 'integer'), ('estop_release_index', 'integer')])
+@pytest.mark.parametrize('fault', ['writable', 'wrong_type', 'missing', 'wrong_name'])
+def test_matching_joystick_dump_does_not_prove_cached_mapping_on_old_writable_node(stack, parameter, ros_type, fault):
+    key = ('param', 'describe', '/estop_controller', parameter)
+    if fault == 'missing': stack.responses[key] = ''
+    else:
+        stack.responses[key] = descriptor('other' if fault == 'wrong_name' else parameter,
+            'string' if fault == 'wrong_type' else ros_type, readonly=fault != 'writable')
+    before = {p: p.read_bytes() for p in (stack.manifest, stack.course, stack.combined, stack.policy)}
+    result = readiness.inspect_running_stack(run=stack.run, path=stack.manifest)
+    assert not result['compatible'] and any('estop_controller' in error and 'descriptor' in error for error in result['errors'])
+    assert all(p.read_bytes() == data for p, data in before.items())
+    assert key in stack.calls  # unchanged matching values alone cannot authorize reuse

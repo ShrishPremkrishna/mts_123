@@ -49,7 +49,7 @@ def _readonly_descriptor_matches(text, parameter, ros_type):
 
     The CLI calls the node's DescribeParameters service. Its output is not YAML:
     the indented fields follow a scalar Parameter name. Accept only the actual
-    string/bool descriptor form used by these markers, including read_only=True.
+    scalar/array descriptor forms used by these checks, including read_only=True.
     Unexpected output or CLI format changes require inspection, never a pass.
     """
     lines = [line.rstrip() for line in text.splitlines() if line.strip()]
@@ -211,6 +211,11 @@ def inspect_running_stack(*, run=subprocess.run, path=MANIFEST):
                 actual = (dump.get('/' + name) or dump.get(name) or {}).get('ros__parameters', {})
                 if name == 'estop_controller':
                     estop_parameters({'estop_controller': {'ros__parameters': actual}})
+                    # joy_utils caches these values in its constructor. A writable
+                    # parameter dump can diverge from that cache on old binaries.
+                    require_readonly_markers(name, [('controller_names', 'string array'),
+                        ('switch_button_indices', 'integer array'), ('estop_index', 'integer'),
+                        ('estop_release_index', 'integer')])
                 for key, value in entry['ros__parameters'].items():
                     if key != 'type' and actual.get(key) != value:
                         errors.append(f'{name}: running parameter {key} differs from this launch')

@@ -25,13 +25,22 @@ REPO = Path(__file__).resolve().parent
 DEFAULT_MONOREPO = Path("/home/pi/pupperv3-monorepo")
 # Per-robot motor trims, kept out of git (see robot_trims.example.yaml).
 ROBOT_TRIMS = REPO / "robot_trims.yaml"
+# Gemini readiness requires the joystick mapping to be immutable after startup.
+# Keep the actual joy_utils implementation in its package, rather than a second
+# divergent source copy inside the deployment helper.
+JOY_SOURCE = REPO.parent / "pupperv3-monorepo" / "ros2_ws" / "src" / "joy_utils"
+JOY_FILES = ("src/estop_controller.cpp", "CMakeLists.txt", "package.xml",
+             "test/test_estop_parameter_contract.cpp")
 
 
 def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
   """(source, destination, description), in install order."""
   pkg = monorepo / "ros2_ws" / "src" / "neural_controller"
   launch = pkg / "launch"
-  return [
+  joy = monorepo / "ros2_ws" / "src" / "joy_utils"
+  return [(JOY_SOURCE / relative, joy / relative,
+           "Joystick immutable startup configuration: " + relative)
+          for relative in JOY_FILES] + [
     (
       REPO / "src" / "gait_reference.hpp",
       pkg / "include" / "neural_controller" / "gait_reference.hpp",
@@ -167,6 +176,16 @@ def install(monorepo: Path, dry_run: bool) -> bool:
   if dry_run:
     print("\nDRY RUN - nothing will be written\n")
 
+  missing_joy = [str(JOY_SOURCE / relative) for relative in JOY_FILES
+                 if not (JOY_SOURCE / relative).is_file()]
+  if missing_joy:
+    print("ERROR: required immutable joy_utils sources are missing. Nothing was installed.")
+    print("Use the complete CS123 foundation checkout with sibling pupperv3-monorepo,")
+    print("or stage/build the reviewed joy_utils package explicitly before deployment.")
+    for missing in missing_joy:
+      print("  missing: " + missing)
+    return False
+
   errors = 0
   for source, destination, description in file_mappings(monorepo):
     print(f"\n{description}")
@@ -183,6 +202,10 @@ def install(monorepo: Path, dry_run: bool) -> bool:
         continue
       print("  ERROR: source file does not exist")
       errors += 1
+      continue
+
+    if source.resolve() == destination.resolve():
+      print("  already the package source; rebuild still required")
       continue
 
     if dry_run:

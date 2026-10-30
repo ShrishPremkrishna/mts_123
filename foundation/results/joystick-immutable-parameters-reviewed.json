@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "created_utc": "2026-10-30T00:03:00.425435+00:00",
+  "scope": "Readonly configuration closure and isolated constructor tests; no robot, controller-manager, Joy publication, executor spin or motion by this agent.",
+  "problem": "joy_utils cached four writable parameters in its constructor. A later parameter update could make a matching dump disagree with the cached controller list/button mapping.",
+  "change": "All four cached parameters now declare read_only=true while retaining startup overrides. Readiness requires exact values plus actual read-only ROS descriptors. The normal installer includes the complete joy_utils dependency and refuses missing source before any install writes.",
+  "source_sha256": {
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/src/estop_controller.cpp": "f4ac054baab1d47e2adca3034b98090034b453c76a7f57b0327e65921afe4667",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/CMakeLists.txt": "4e8f27dea82ba7f79f889a5403d41997c8b7e481268baafa9373da4b5eb1a001",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/package.xml": "6210aa9e75d28bf0c6f74951c03a4858025ce0db10070c57eb30a674164c9e3b",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/test/test_estop_parameter_contract.cpp": "05559d499a7830464a1c39836ef9662935b2fce229b4544d8db8e3bc38629e6d",
+    "pupper_gait_deploy/install.py": "7e2ccd43cb27e4f357055f3a998a17353b468e04ceaad40af0c8689ef11494ed",
+    "gemini_pupper/robot/startup_readiness.py": "b3bebd9ff1c606d1b50acee6e2605857395bc96edf3a2fb006a0c42b9fe61c77",
+    "gemini_pupper/tests/test_controller_coverage.py": "bc6c7b987dad69a0e3473113b7b8751a0cd585ba9dfab1b5a213dd113310907e",
+    "gemini_pupper/tests/test_startup_readiness.py": "f78b82d16707b3cfcbefbad8127963c45bc8dac7701190640b4a6cb5719f86f5",
+    "foundation/tests/test_joy_install.py": "52480f6a9241a1038d5646fc8993b2048a556e65a10c2e5aeffb07721ea96983"
+  },
+  "motion_preservation": {
+    "unchanged_from": "d92b855 / exact preserved Pi source SHA cddf4f3bde543949b0de0172127e46d5bb9118ea0db576fba4bbb714580cfa01",
+    "cached_read_and_callbacks_byte_identical": true,
+    "unchanged_suffix_sha256": "4a9f61367964f1e9e82b25f1cb30abd4231b75a5fc1bf617e3eed17db45b631e",
+    "default_values_and_startup_overrides_preserved": true
+  },
+  "validation": [
+    {
+      "command": "Focused controller coverage + readiness pytest",
+      "result": "127 passed in 19.44s"
+    },
+    {
+      "command": "cmake/build + ctest actual joy_utils in existing pinned ROS Jazzy container",
+      "result": "2 passed; defaults and explicit startup overrides; each individual and atomic mapping write rejected"
+    },
+    {
+      "command": "Same native tests against pre-fix production source",
+      "result": "Both fail with estop_index must be read-only; preserved logs/source"
+    },
+    {
+      "command": "Real ros2param.api.get_parameter_type_string in installed Jazzy",
+      "result": {
+        "PARAMETER_INTEGER": "integer",
+        "PARAMETER_INTEGER_ARRAY": "integer array",
+        "PARAMETER_STRING_ARRAY": "string array"
+      }
+    },
+    {
+      "command": "bash syntax + Python3.11 AST for v3 wrapper/verifier/smoke",
+      "result": "passed; wrapper not sourced locally"
+    },
+    {
+      "command": ".venv/bin/python -m pytest foundation/tests/test_joy_install.py foundation/tests/test_policy_slew_contract.py gemini_pupper/tests/test_controller_coverage.py gemini_pupper/tests/test_startup_readiness.py -q",
+      "result": "149 passed in 19.99s; installer writes only disposable pytest target directories"
+    }
+  ],
+  "isolation": {
+    "docker_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+    "network": "none",
+    "hardware_devices": [],
+    "ROS_DOMAIN_ID": 164,
+    "ROS_LOCALHOST_ONLY": 1,
+    "executor_spun": false,
+    "controller_service_requests": 0
+  },
+  "independent_review": "Optional recovery agent and root reviewed production diff/tests; no blocker. No callback/switch logic change.",
+  "required_staging": [
+    "Copy joy_utils source, CMakeLists.txt, package.xml, test/test_estop_parameter_contract.cpp to isolated overlay src/joy_utils; build/test only that package against existing Jazzy underlay.",
+    "Retain v2 course launch/helper/Gemini launch; stage current startup_readiness.py.",
+    "Use v3 environment wrapper/verifier: neural_controller and joy_utils resolve to isolated overlay; driver/description remain baseline; select existing session venv after ROS sourcing.",
+    "Run read-only runtime readiness before reuse; an old writable joy_utils binary must fail even when all dumped values match."
+  ],
+  "limitations": [
+    "Constructor tests establish parameter immutability, not physical emergency-stop behavior.",
+    "Existing stop/release ordering and non-latched behavior are unchanged.",
+    "Hardware activation invokes driver homing, so no actual stack launch while operator away.",
+    "Container binaries are not Pi deployment artifacts; root owns native Pi build/runtime verification.",
+    "Prior v2 evidence remains unchanged."
+  ],
+  "staging_artifacts": {
+    "overlay-env-candidate-v3.sh": {
+      "sha256": "4660d41c622024bc5ef9687116010f52d781300ffdb23c0081887625f7b2047e",
+      "bytes": 2332
+    },
+    "verify-overlay-environment-v3.py": {
+      "sha256": "66fa2de91a0abd60297e703c38f8d136f46af9922e5f0d51e40dd64b8528fcbf",
+      "bytes": 3449
+    },
+    "construct-launch-only.py": {
+      "sha256": "528529e3c2b907152de8622de549f8e3674e3cc35654259295ef6f6c3f4ad850",
+      "bytes": 7918
+    }
+  },
+  "artifact_review": "artifacts/hardware/2026-10-29/lab6-staging-review/joystick-coverage-v3/evidence/review.json",
+  "artifact_review_sha256": "bb4febcf8ace61cbe42cfe585853dbca1351ef7f2bb8345acdacbd1b16eefc36"
+}

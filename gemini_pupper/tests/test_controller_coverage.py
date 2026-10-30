@@ -51,7 +51,7 @@ def test_every_real_catalog_controller_is_covered_without_new_face_button_mappin
 def test_explicit_stop_indices_retain_actual_reviewed_cpp_defaults(course):
     source = (ROOT / 'pupperv3-monorepo/ros2_ws/src/joy_utils/src/estop_controller.cpp').read_text()
     for key, value in ESTOP_DEFAULTS.items():
-        assert re.search(r'declare_parameter<int>\(\s*"' + key + r'",\s*' + str(value) + r'\)', source)
+        assert re.search(r'declare_parameter<int>\(\s*"' + key + r'",\s*' + str(value) + r',\s*cached_configuration\)', source)
     params = estop_parameters(combined_course_config(course, ['gemini_walk']))
     assert params['estop_index'] == 12 and params['estop_release_index'] == 9
     course['estop_controller']['ros__parameters'].update(estop_index=11, estop_release_index=8)

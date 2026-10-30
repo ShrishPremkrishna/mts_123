@@ -1,5 +1,6 @@
 #include "controller_manager_msgs/srv/switch_controller.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rcl_interfaces/msg/parameter_descriptor.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/empty.hpp"
 #include <mutex>
@@ -10,19 +11,25 @@ public:
   EStopController()
       : Node("estop_controller"), prev_estop_state_(false),
         prev_estop_release_state_(false), service_call_in_progress_(false) {
+    // These values are cached below. Retain startup YAML/CLI overrides, but
+    // reject later writes so parameter inspection describes the active mapping.
+    rcl_interfaces::msg::ParameterDescriptor cached_configuration;
+    cached_configuration.read_only = true;
+    cached_configuration.description = "Joystick mapping cached at startup; restart to change";
+
     // Declare parameters for button indices
     this->declare_parameter<int>(
-        "estop_index", 12); // Default index for pressing in right joystick
+        "estop_index", 12, cached_configuration); // Default index for pressing in right joystick
     this->declare_parameter<int>("estop_release_index",
-                                 9); // Default index for start button
+                                 9, cached_configuration); // Default index for start button
     this->declare_parameter<std::vector<long>>(
         "switch_button_indices",
-        {0, 1}); // Default indices for 'x' and 'o' buttons
+        {0, 1}, cached_configuration); // Default indices for 'x' and 'o' buttons
 
     // Declare parameters for controller names
     this->declare_parameter<std::vector<std::string>>(
         "controller_names",
-        {"neural_controller", "neural_controller_three_legged"});
+        {"neural_controller", "neural_controller_three_legged"}, cached_configuration);
 
     // Get parameter values
     this->get_parameter("estop_index", estop_index_);
