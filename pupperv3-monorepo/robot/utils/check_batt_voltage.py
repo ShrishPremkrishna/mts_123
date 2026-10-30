@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 
-import busio
-import board
 import os
 import sys
 import time
 import argparse
+import subprocess
+
+
+# Existing five-cell Dewalt thresholds and percentage calibration.
+NUM_CELLS = 5
+SHUTDOWN_VOLTAGE = 3.1 * NUM_CELLS
+MIN_VOLTAGE = 3.3 * NUM_CELLS
+CELL_VOLTAGES = [4.05, 3.6, 3.4, 3.3]
+CELL_PERCENTAGES = [100, 66, 33, 0]
 
 
 # Function to read data from I2C device
@@ -44,6 +51,57 @@ def broadcast_message(message):
     os.system(f'wall "{message}"')
 
 
+def battery_percentage(bat_voltage):
+    cell_voltage = bat_voltage / NUM_CELLS
+    if cell_voltage <= CELL_VOLTAGES[-1]:
+        return CELL_PERCENTAGES[-1]
+    if cell_voltage >= CELL_VOLTAGES[0]:
+        return CELL_PERCENTAGES[0]
+    for i in range(len(CELL_VOLTAGES) - 1):
+        if CELL_VOLTAGES[i + 1] <= cell_voltage <= CELL_VOLTAGES[i]:
+            proportion = (cell_voltage - CELL_VOLTAGES[i + 1]) / (
+                CELL_VOLTAGES[i] - CELL_VOLTAGES[i + 1]
+            )
+            return (
+                proportion * CELL_PERCENTAGES[i]
+                + (1 - proportion) * CELL_PERCENTAGES[i + 1]
+            )
+
+
+def monitor_battery(i2c):
+    shutdown_scheduled = False
+    while True:
+        time.sleep(10)
+        bat_voltage = get_battery_voltage(i2c)
+
+        # Less than 5V indicates pi is connected to a wall power supply.
+        if bat_voltage < 5.0:
+            continue
+
+        if bat_voltage < MIN_VOLTAGE:
+            broadcast_message(
+                f"********WARNING: Battery voltage {bat_voltage:0.2f} is below threshold {MIN_VOLTAGE}!********"
+            )
+        if bat_voltage < SHUTDOWN_VOLTAGE and not shutdown_scheduled:
+            # Reissuing +1 every poll can keep postponing shutdown. Retry a
+            # failed command, but do not replace a successfully scheduled one.
+            try:
+                result = subprocess.run(["sudo", "shutdown", "-h", "+1"], check=False)
+            except OSError as error:
+                print(f"Failed to schedule battery shutdown: {error}", file=sys.stderr)
+            else:
+                shutdown_scheduled = result.returncode == 0
+                if shutdown_scheduled:
+                    broadcast_message(
+                        f"********WARNING: Battery voltage {bat_voltage:0.2f} is below threshold {SHUTDOWN_VOLTAGE}! Shutdown scheduled for 60 seconds from now...********"
+                    )
+                else:
+                    print(
+                        f"Failed to schedule battery shutdown: exit {result.returncode}; will retry after the next low-voltage reading",
+                        file=sys.stderr,
+                    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -53,61 +111,27 @@ def main():
     )
     parser.add_argument("--percentage_only", action="store_true")
     args = parser.parse_args()
-    
+
+    # Hardware bindings are needed only when the CLI actually reads the bus.
+    import busio
+    import board
+
     try:
         i2c = busio.I2C(board.SCL, board.SDA)
     except (PermissionError, OSError) as e:
         print(f"Error accessing I2C bus: {e}", file=sys.stderr)
         print("Run: sudo usermod -a -G i2c pi && sudo reboot", file=sys.stderr)
         sys.exit(1)
-    NUM_CELLS = 5
-
-    # Data specific to Dewalt battery
-    SHUTDOWN_VOLTAGE = 3.1 * NUM_CELLS
-    MIN_VOLTAGE = 3.3 * NUM_CELLS
-    MAX_VOLTAGE = 4.05 * NUM_CELLS
-    CELL_VOLTAGES = [4.05, 3.6, 3.4, 3.3]
-    CELL_PERCENTAGES = [100, 66, 33, 0]
-
-    bat_voltage = get_battery_voltage(i2c)
-    cell_voltage = bat_voltage / NUM_CELLS
-    cell_percentage = 100
-    if cell_voltage < CELL_VOLTAGES[-1]:
-        cell_percentage = CELL_PERCENTAGES[-1]
-    else:
-        for i in range(len(CELL_VOLTAGES) - 1):
-            if CELL_VOLTAGES[i + 1] < cell_voltage < CELL_VOLTAGES[i]:
-                proportion = (cell_voltage - CELL_VOLTAGES[i + 1]) / (
-                    CELL_VOLTAGES[i] - CELL_VOLTAGES[i + 1] + 1e-6
-                )
-                cell_percentage = (
-                    proportion * CELL_PERCENTAGES[i]
-                    + (1 - proportion) * CELL_PERCENTAGES[i + 1]
-                )
-                break
 
     if args.service_mode:
-        while True:
-            time.sleep(10)
-
-            # Less than 5V indicates pi is connected to a wall power supply
-            if bat_voltage < 5.0:
-                continue
-
-            if bat_voltage < MIN_VOLTAGE:
-                broadcast_message(
-                    f"********WARNING: Battery voltage {bat_voltage:0.2f} is below threshold {MIN_VOLTAGE}!********"
-                )
-            if bat_voltage < SHUTDOWN_VOLTAGE:
-                broadcast_message(
-                    f"********WARNING: Battery voltage {bat_voltage:0.2f} is below threshold {SHUTDOWN_VOLTAGE}! Scheduling a shutdown for 60 seconds from now...********"
-                )
-                os.system("sudo shutdown -h +1")
-
-    elif args.percentage_only:
-        print(f"{int(cell_percentage)}")
+        monitor_battery(i2c)
     else:
-        print(f"Battery:\t{int(cell_percentage)}%\t{bat_voltage:0.2f}V")
+        bat_voltage = get_battery_voltage(i2c)
+        cell_percentage = battery_percentage(bat_voltage)
+        if args.percentage_only:
+            print(f"{int(cell_percentage)}")
+        else:
+            print(f"Battery:\t{int(cell_percentage)}%\t{bat_voltage:0.2f}V")
 
 
 if __name__ == "__main__":

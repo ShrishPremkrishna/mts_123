@@ -1,0 +1,101 @@
+{
+  "schema": "battery_monitor_local_review_v1",
+  "created_utc": "2026-10-30T07:45:08.928686+00:00",
+  "source_base": "59480911714c7d3913a661faea138094608a7f10",
+  "status": "local_mocked_tests_passed_not_deployed",
+  "scope": "Repository source only; no SSH, I2C access, shutdown command execution, service installation or restart.",
+  "files": {
+    "pupperv3-monorepo/robot/utils/check_batt_voltage.py": "f0e445aeff543142cecf42ef5679a6d231477fca948cb2534225f81f0baa0eb3",
+    "foundation/tests/test_battery_monitor.py": "f5f10e8e26c44196c23913a14914045ed5db78821aa891d0b6d258affe0b4377",
+    "artifacts/hardware/2026-10-30/battery-monitor-review/original-check_batt_voltage.py": "1177086544fb1d01ee250c57a04e3626b0c98849acd1013143e233163ee8283c",
+    "artifacts/hardware/2026-10-30/battery-monitor-review/focused-tests.log": "a43b1c44dd1e7077494364be64b82b24c56360825914f2412562a9c3c39cbf49",
+    "artifacts/hardware/2026-10-30/battery-monitor-review/original-behavior-reproduction.json": "926b65aca6a06b629f91534fec4861151330d388881559ad0b8ff3f9b7f38a01"
+  },
+  "original_defects": [
+    {
+      "source_lines": [
+        72,
+        91
+      ],
+      "finding": "Service repeatedly checked the startup reading; three fake polls produced one sensor read."
+    },
+    {
+      "source_lines": [
+        74,
+        87
+      ],
+      "finding": "Exact3.6/3.4/3.3V cell anchors fell through to100%; reproduced CLI18/17/16.5V all100."
+    },
+    {
+      "source_lines": [
+        101,
+        105
+      ],
+      "finding": "Every critical-voltage poll reissued shutdown +1; three fake polls produced three scheduling commands, and return status was ignored."
+    }
+  ],
+  "correction": [
+    "One fresh sensor reading after every existing10s poll sleep.",
+    "Closed calibration intervals, exact anchors and piecewise interpolation without unnecessary denominator epsilon; five-cell percentage output remains integer.",
+    "Shutdown scheduling once per process after command returncode0; failures reported tostderr and retried only on a later low reading.",
+    "Hardware imports moved intoCLI after argument parsing; importing utility for tests does not import hardware bindings."
+  ],
+  "preserved_contract": {
+    "cell_count": 5,
+    "warning_voltage_v": 16.5,
+    "shutdown_voltage_v": 15.5,
+    "strict_threshold_comparison": "<",
+    "wall_power_skip_below_v": 5.0,
+    "poll_sleep_s": 10,
+    "shutdown_command": [
+      "sudo",
+      "shutdown",
+      "-h",
+      "+1"
+    ],
+    "i2c_address": 72,
+    "register": 140,
+    "bytes": 2,
+    "scale_v_per_unit": 0.0013125,
+    "calibration_cell_volts": [
+      4.05,
+      3.6,
+      3.4,
+      3.3
+    ],
+    "calibration_percent": [
+      100,
+      66,
+      33,
+      0
+    ],
+    "unchanged_function_ast": {
+      "read_from_i2c": true,
+      "get_battery_voltage": true,
+      "broadcast_message": true
+    }
+  },
+  "tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m pytest -q -p no:cacheprovider foundation/tests/test_battery_monitor.py",
+    "passed": 21,
+    "failed": 0,
+    "hardware_access": false,
+    "coverage": [
+      "all calibration anchors and interpolation midpoints",
+      "monotonic small neighborhoods around allanchors",
+      "realCLI servicebranch freshpolls",
+      "wallpower-to-battery and strictthresholds",
+      "one success acrosspersistentlow/recovery/low",
+      "nonzeroexit andOSError retries",
+      "single-read CLIoutput compatibility",
+      "register address,conversion andunlock"
+    ]
+  },
+  "limitations": [
+    "Actual installed utility remains original until separately staged; no physical low-battery/shutdown test was performed.",
+    "Successful subprocess return records scheduling acceptance, not proof that shutdown later occurs.",
+    "Once-per-process flag is intentionally not persistent across service restart; existing systemdRestart=always remains unchanged.",
+    "No automatic cancellation on voltage recovery; existing shutdown policy retained.",
+    "Existing I2C lock busywait, read errors and wall command behavior remain unchanged; this is not a broader battery failsafe redesign."
+  ]
+}
