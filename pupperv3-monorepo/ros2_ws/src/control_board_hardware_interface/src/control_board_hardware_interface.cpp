@@ -244,11 +244,9 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
 }
 
 void ControlBoardHardwareInterface::deactivate_motors() {
-  // Disable actuators
-  spi_command_->flags[0] = 0;
-  spi_command_->flags[1] = 0;
-  spi_command_->flags[2] = 0;
-  spi_command_->flags[3] = 0;
+  // Send a neutral disable packet; flags alone leave the previous targets,
+  // gains and feed-forward torques in the command sent to both boards.
+  *spi_command_ = spi_command_t{};
   spi_driver_run();
 }
 
