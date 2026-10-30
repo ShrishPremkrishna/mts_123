@@ -268,6 +268,7 @@ class Robot:
         self.gamepad_estop_at = 0.0  # monotonic time of the last gamepad e-stop
         # Tilt e-stops: the controller that latched one, until a safe stand-up clears it.
         self.fallen: str | None = None
+        self._fall_generation = 0
         self.imu: collections.deque = collections.deque()  # (monotonic t, tilt deg, gyro rad/s)
         self.node.create_subscription(Imu, "/imu_sensor_broadcaster/imu", self._on_imu, 10)
         self.node.create_subscription(Log, "/rosout", self._on_rosout, 100)
@@ -468,14 +469,27 @@ class Robot:
             return
         if time.monotonic() - self.gamepad_estop_at < 2.0:
             return  # the gamepad e-stop, which relaxes everything itself
-        asyncio.run_coroutine_threadsafe(self._on_fall(name), self.loop)
+        # Record receipt in the ROS thread: recovery must see a newer event even
+        # before asyncio has run its cleanup, and must never erase that event.
+        generation = self._record_fall(name)
+        asyncio.run_coroutine_threadsafe(self._on_fall(name, generation), self.loop)
 
-    async def _on_fall(self, controller: str) -> None:
-        if self.fallen:
-            return
-        self.fallen = controller
+    def _record_fall(self, controller: str) -> int:
+        with self._stop_lock:
+            self._fall_generation += 1
+            self.fallen = controller
+            return self._fall_generation
+
+    async def _on_fall(self, controller: str, generation: int | None = None) -> None:
+        if generation is None:
+            generation = self._record_fall(controller)
+        with self._stop_lock:
+            if generation != self._fall_generation or self.fallen is None:
+                return  # a newer event or completed recovery superseded this cleanup
         await self.immediate_stop()
-        self.state_now = self.state_after_queue = FALLEN
+        with self._stop_lock:
+            if generation == self._fall_generation and self.fallen is not None:
+                self.state_now = self.state_after_queue = FALLEN
         log.warning("tilt e-stop in %s: the robot fell over; waiting for a safe stand-up", controller)
 
     def upright(self) -> tuple[bool, str]:
@@ -599,6 +613,7 @@ class Robot:
         keeping robot.state_now up to date.
         """
         generation = self.stops
+        fall_generation = self._fall_generation
         if controller and (reason := self.motion_block_reason()):
             return Result(False, reason)
         if controller and self.stopped_during_call():
@@ -670,7 +685,7 @@ class Robot:
             # Completion feedback from a previous activation is not evidence that
             # this entry/exit motion has reached its endpoint.
             self.clip_status[controller] = ("", False)
-        if activate and (generation != self.stops or self.stopped_during_call()):
+        if activate and (generation != self.stops or fall_generation != self._fall_generation or self.stopped_during_call()):
             return Result(False, "controller change cancelled by a stop")
         req = SwitchController.Request()
         req.activate_controllers = [c for c in activate if states[c] != "active"]
@@ -681,19 +696,22 @@ class Robot:
             self.state_now = self.state_of(controller)
             if controller == LOCOMOTION_CONTROLLER:
                 await self._wait_walk_ready()
-            if activate and generation != self.stops:
+            if activate and (generation != self.stops or fall_generation != self._fall_generation):
                 return Result(False, "controller change cancelled by a stop")
             if activate and (reason := self.motion_block_reason()):
                 return Result(False, reason)
-            if recovered:
-                self.fallen = None
-            return Result(True, recovered + "already in that state")
+            with self._stop_lock:
+                if activate and fall_generation != self._fall_generation:
+                    return Result(False, "controller change cancelled by a new tilt stop")
+                if recovered:
+                    self.fallen = None
+                return Result(True, recovered + "already in that state")
         req.strictness = SwitchController.Request.STRICT
         if controller in req.activate_controllers and isinstance(trick, Trick) and controller == trick.controller:
             configured = await self._set_policy_execution_request(controller)
             if not configured.ok:
                 return configured
-            if generation != self.stops or self.stopped_during_call():
+            if generation != self.stops or fall_generation != self._fall_generation or self.stopped_during_call():
                 self.policy_execution_requests.pop(controller, None)
                 return Result(False, "controller change cancelled by a stop")
             self.clip_receipts.pop(controller, None)
@@ -704,7 +722,7 @@ class Robot:
             res = await self._call(self.switch_client, req)
         except MotionBlockedError as error:
             return Result(False, str(error))
-        if activate and generation != self.stops:
+        if activate and (generation != self.stops or fall_generation != self._fall_generation):
             # A ROS request already in flight can finish after a stop; explicitly
             # remove that late activation before accepting another request.
             relaxed = await self._relax_controllers()
@@ -729,13 +747,16 @@ class Robot:
             self.walk_since = None
         if controller == LOCOMOTION_CONTROLLER:
             await self._wait_walk_ready()
-        if activate and generation != self.stops:
+        if activate and (generation != self.stops or fall_generation != self._fall_generation):
             return Result(False, "controller change cancelled by a stop")
         if activate and (reason := self.motion_block_reason()):
             return Result(False, reason)
-        if recovered:
-            self.fallen = None
-        return Result(True, recovered + "ok")
+        with self._stop_lock:
+            if activate and fall_generation != self._fall_generation:
+                return Result(False, "controller change cancelled by a new tilt stop")
+            if recovered:
+                self.fallen = None
+            return Result(True, recovered + "ok")
 
     def state_of(self, controller: str | None) -> str | Trick:
         """The state a controller holding the legs means (None: MOTORS_IDLE). A walking

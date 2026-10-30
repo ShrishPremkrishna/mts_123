@@ -26,10 +26,16 @@ The [offline workflow changes](results/offline-workflow-improvements-20261030.js
 record the continuity, preservation, input-preflight and Gemini timing fixes with
 their exact test evidence and remaining native limitations.
 
-Use the [next robot session checklist](HARDWARE_CHECKLIST.md) when supervision is
-available. Native joystick readiness and the failed shutdown fallback must be
-resolved before another floor test. The [failed attempt](results/floor-stock-trial-20261030.json)
-remains a failure. Its [complete raw run is now recovered](results/floor-stock-raw-recovery-20261030.json): the input gate saw an unnamed endpoint, and shutdown recorded a permission error after manager exit. Native diagnosis remains pending.
+The [30 October floor baseline](results/lab6-floor-basic-20261030.json) records
+observed standing, bounded forward/backward and left/right movement, and cancellation
+of active and queued commands through Lab 6. Reuse the persistent Lab 6 session
+profile: home once, then operate the direct controls between trials. The earlier
+chat-timed floor trial workflow is retired. Consult the
+[robot session checklist](HARDWARE_CHECKLIST.md) for physical setup, but use the
+current-state record for the selected workflow and exact deployed versions.
+The [earlier failed attempt](results/floor-stock-trial-20261030.json) and its
+[recovered raw evidence](results/floor-stock-raw-recovery-20261030.json) remain
+historical failures, not instructions to repeat those setup cycles.
 
 The [real-time fake Gemini checks](results/gemini-realtime-live-reviewed.json)
 now exercise real elapsed queue timing. Wait/cancel and wait/move/status examples
@@ -58,13 +64,13 @@ The host shutdown had cleared enable flags while retaining prior command fields;
 the minimal fix now clears every command field before shutdown. It passes ten native
 tests and a supervised short stock-pose comparison: clean process exit, and the
 operator confirmed normal motion and relaxed joints while still powered.
-No floor-gait, mechanical-health or whole-foundation validation is claimed.
+That supported-stand trial did not validate floor gait or mechanical health; the later bounded floor evidence is linked above. The whole foundation remains unvalidated.
 
 The [actual Lab 6 API stand test](results/lab6-stand-hardware-reviewed.json)
 now passed on this robot: HTTP `stand_up` was queued and completed, the shared
 gateway handed control to `gemini_walk`, the multiplexer output stayed zero, and
 normal shutdown left the legs relaxed according to the operator. This is a bounded
-supported-stand test; floor standing/walking and live Gemini on the robot remain separate.
+supported-stand test; subsequent bounded floor evidence is linked above. Live Gemini on the robot remains unvalidated.
 Earlier stationary synthetic-peer tests and the 383 Gemini/166 course checks are
 preserved. Status reporting and harmless idle waits were fixed. The
 [earlier short trial](results/console-motion-trial-r2-reviewed.json) and
@@ -74,8 +80,8 @@ remain preserved.
 The [shared gamepad/Gemini stop gateway](results/shared-stop-v4-pi-reviewed.json)
 has passed independent review and is staged in v4: all ten native ROS test groups,
 366 Gemini tests and 166 course checks pass on the Pi. The paired DualSense and its R3/button-12 input have now been observed in isolation.
-Physical gamepad stopping through the running gateway, floor walking, tricks and
-following remain untested. New trained policies still
+Subsequent bounded floor walking and direct API cancellation are recorded above;
+tricks, following and broader stop reliability remain unvalidated. New trained policies still
 need applicable course approval. The [stationary preparation record](results/hardware-session-20261029-reviewed.json)
 preserves earlier backups, policy recovery, native builds, CPU policy comparisons
 and synthetic Hailo inference. [Live camera and Hailo perception](results/live-camera-perception-reviewed.json)

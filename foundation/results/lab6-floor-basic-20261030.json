@@ -1,0 +1,312 @@
+{
+  "schema": "pupper_lab6_bounded_floor_evidence_v1",
+  "updated_utc": "2026-10-30T22:44:46.492720+00:00",
+  "status": "Supervised bounded direct-API floor baseline demonstrated; owned processes shut down, session paused for battery/teammate handoff. Broader Lab 6 incomplete.",
+  "scope": "Standard class Pupper, shipped stock policy, unchanged reviewed gains and limits, one persistent homed session. Root operated direct API; user observed physical behavior.",
+  "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6",
+  "inputs": {
+    "frozen_manifest": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/selected-inputs/manifest.json",
+    "manifest_scope": "Launch, configuration, expanded URDF, web HTML and JS: 5 selected files.",
+    "persistent_profile": {
+      "launch": "foundation/hardware/lab6_session.launch.py",
+      "launch_sha256": "6b2e4b1dde4bdc4903d4aeb03cb820e68665f69a0d221043fa78131a44fddbfe",
+      "config": "foundation/hardware/lab6-session.yaml",
+      "config_sha256": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
+      "urdf": "foundation/hardware/floor_stock/baseline-expanded.urdf",
+      "urdf_sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+    },
+    "web_bundle": "index-DFsX71Sq.js",
+    "web_bundle_sha256": "b68feb99b790dc05b7daa78e3c57b67015368606604c0131a7b37f03b5a4ce8f",
+    "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "native_environment": {
+      "script": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/overlay-env-v5.sh",
+      "pins": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/environment-v5-pins.json",
+      "pins_sha256": "cfc5447581cd0d6f47221499bb91ae8143a4bc07d48346a7c5647beef5367929",
+      "meaning": "Previously verified staged environment, not fresh proof of loaded processes or latest local-source deployment."
+    }
+  },
+  "observations": {
+    "stock_floor_stand": "User confirmed normal rise and standing.",
+    "uncontrolled_pushes": "Some recovery, described as weak. No controlled force, displacement, repeat count or recovery benchmark; do not infer a robust push-recovery capability.",
+    "first_forward_0_5s": "User confirmed 0.2 m/s forward for 0.5 s looked normal and stopped.",
+    "short_direction_screen": "Backward and left/right turns for 0.5 s reported software completion, zero requests and no faults; user said movement was too small to judge. These are NOT physical direction passes.",
+    "visible_direction_trials": [
+      {
+        "direction": "forward",
+        "request": {
+          "forward_backward_velocity": 0.2,
+          "right_left_velocity": 0,
+          "turning_velocity": 0,
+          "duration": 2
+        },
+        "accepted_epoch_s": 1793399466.799501,
+        "first_completion_receipt_epoch_s": 1793399468.909573,
+        "api_outcome": {
+          "name": "move vx=0.2 vy=-0 wz=-0 2s",
+          "success": true,
+          "message": "moved vx=0.2 vy=-0 wz=-0 for 2.00 s"
+        },
+        "operator_observation": "Clear and stable, confirmed by user via root.",
+        "claim": "Qualitative supervised pass at this command and duration only."
+      },
+      {
+        "direction": "backward",
+        "request": {
+          "forward_backward_velocity": -0.2,
+          "right_left_velocity": 0,
+          "turning_velocity": 0,
+          "duration": 2
+        },
+        "accepted_epoch_s": 1793399471.530964,
+        "first_completion_receipt_epoch_s": 1793399473.641033,
+        "api_outcome": {
+          "name": "move vx=-0.2 vy=-0 wz=-0 2s",
+          "success": true,
+          "message": "moved vx=-0.2 vy=-0 wz=-0 for 2.00 s"
+        },
+        "operator_observation": "Clear and stable, confirmed by user via root.",
+        "claim": "Qualitative supervised pass at this command and duration only."
+      },
+      {
+        "direction": "left turn",
+        "request": {
+          "forward_backward_velocity": 0,
+          "right_left_velocity": 0,
+          "turning_velocity": -20,
+          "duration": 2
+        },
+        "accepted_epoch_s": 1793399476.2369878,
+        "first_completion_receipt_epoch_s": 1793399478.348716,
+        "api_outcome": {
+          "name": "move vx=0 vy=-0 wz=20 2s",
+          "success": true,
+          "message": "moved vx=0 vy=-0 wz=20 for 2.00 s"
+        },
+        "operator_observation": "Clear and stable, confirmed by user via root.",
+        "claim": "Qualitative supervised pass at this command and duration only."
+      },
+      {
+        "direction": "right turn",
+        "request": {
+          "forward_backward_velocity": 0,
+          "right_left_velocity": 0,
+          "turning_velocity": 20,
+          "duration": 2
+        },
+        "accepted_epoch_s": 1793399480.959023,
+        "first_completion_receipt_epoch_s": 1793399483.058783,
+        "api_outcome": {
+          "name": "move vx=0 vy=-0 wz=-20 2s",
+          "success": true,
+          "message": "moved vx=0 vy=-0 wz=-20 for 2.00 s"
+        },
+        "operator_observation": "Clear and stable, confirmed by user via root.",
+        "claim": "Qualitative supervised pass at this command and duration only."
+      }
+    ],
+    "cancellation": {
+      "active_request": {
+        "forward_backward_velocity": 0.2,
+        "right_left_velocity": 0,
+        "turning_velocity": 0,
+        "duration": 3
+      },
+      "queued_request": {
+        "forward_backward_velocity": 0,
+        "right_left_velocity": 0,
+        "turning_velocity": -20,
+        "duration": 1
+      },
+      "before_stop": {
+        "queued": 1,
+        "running": true,
+        "seconds_left": 3.3,
+        "following": false,
+        "controller_fault": null,
+        "state": "locomotion",
+        "state_after_queue": "locomotion",
+        "last_outcome": {
+          "name": "move vx=0 vy=-0 wz=-20 2s",
+          "success": true,
+          "message": "moved vx=0 vy=-0 wz=-20 for 2.00 s"
+        }
+      },
+      "stop_request_epoch_s": 1793399540.424727,
+      "stop_response_epoch_s": 1793399540.565182,
+      "stop_response": {
+        "success": true,
+        "message": "commands stopped; zero walking speed requested. Physical stopping has not been measured. cleared 1 queued commands"
+      },
+      "delay_from_forward_acceptance_to_stop_request_s": 0.7406919002532959,
+      "post_stop": {
+        "queued": 0,
+        "running": false,
+        "seconds_left": 0.0,
+        "following": false,
+        "controller_fault": null,
+        "state": "locomotion",
+        "state_after_queue": "locomotion",
+        "last_outcome": {
+          "name": "move vx=0.2 vy=-0 wz=-0 3s",
+          "success": false,
+          "message": "cancelled"
+        }
+      },
+      "operator_observation": "User confirmed prompt stopping and no queued turn.",
+      "claim": "This active command was cancelled and one queued command was cleared. Timing fields are HTTP receipts, not physical stopping latency."
+    }
+  },
+  "native_checks": {
+    "pretrial": "Root reported tilt 0.04984765 rad, stop latch false, fault false and all gamepad buttons released.",
+    "controller_switch": "Native default deactivation and gemini_walk activation observed for direct API stand.",
+    "stop_monitoring": "Filtered native-stop review confirmed for first forward trial only. Later batches had healthy API status and good physical observations; no blanket native-log review. Recovered metadata spans all trial HTTP windows; missing index/footer and final 31.08 s gap limit quantitative analysis."
+  },
+  "receipts": {
+    "lab6-forward-20261030.jsonl": {
+      "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/lab6-forward-20261030.jsonl",
+      "sha256": "8cbc6fda66bd09b2b7bf27d2f5958060a9392bf775b16ebe3cfe1cdb7eb7581e",
+      "records": 12,
+      "preservation": "Both repository artifact copy and durable copy independently SHA256-verified against the inspected original receipt.",
+      "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/lab6-forward-20261030.jsonl"
+    },
+    "lab6-directions-20261030.jsonl": {
+      "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/lab6-directions-20261030.jsonl",
+      "sha256": "ac0990a4565c9430df6212afa6ca80118774dfbe0316b89f1ef6848e3ef51623",
+      "records": 12,
+      "preservation": "Both repository artifact copy and durable copy independently SHA256-verified against the inspected original receipt.",
+      "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/lab6-directions-20261030.jsonl"
+    },
+    "lab6-directions-visible-20261030.jsonl": {
+      "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/lab6-directions-visible-20261030.jsonl",
+      "sha256": "180f3663a7b1ae6035d93d3ca9f8e9dac316d5f11396b86ed33200992e2f33eb",
+      "records": 32,
+      "preservation": "Both repository artifact copy and durable copy independently SHA256-verified against the inspected original receipt.",
+      "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/lab6-directions-visible-20261030.jsonl"
+    },
+    "lab6-cancel-20261030.jsonl": {
+      "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/lab6-cancel-20261030.jsonl",
+      "sha256": "e4f160ae8d18849cd821e7393f9e7ee5c7e885906a2d5d50aa0ee61a42dcc544",
+      "records": 7,
+      "preservation": "Both repository artifact copy and durable copy independently SHA256-verified against the inspected original receipt.",
+      "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/lab6-cancel-20261030.jsonl"
+    }
+  },
+  "cleanup": {
+    "state": "Complete per root verified owned-process exits. User told robot may be powered off; actual power-off not observed.",
+    "requested_reason": "User requested natural stopping point for battery/teammate handoff. No more tests.",
+    "api_stop": "Succeeded before manager-first shutdown.",
+    "closed_processes": {
+      "manager": {
+        "pid": 27146,
+        "exited_epoch_s": 1793399753.4334595
+      },
+      "api": {
+        "pid": 27345,
+        "exited_epoch_s": 1793399754.0355675
+      },
+      "recorder": {
+        "pid": 27750,
+        "exited_epoch_s": 1793399754.2367826
+      },
+      "launch": {
+        "pid": 27141,
+        "already_exited_observed_epoch_s": 1793399754.2368824
+      }
+    },
+    "receipt": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/session-shutdown.json",
+    "browser": "Closed to disconnect voice/microphone; Live voice not validated.",
+    "receipt_status": "Archived session-shutdown.json is zero bytes. Confirmed exit timestamps come from original root process-shutdown stdout, not that file. Reindexed telemetry ends approximately 31.08 s before recorder exit and does not prove shutdown."
+  },
+  "limitations": [
+    "Single supervised session with qualitative physical observation; no measured distance, yaw accuracy, speed tracking, slip rate or repeatability benchmark.",
+    "No physical stop-latency certification; HTTP timing is not motor stopping timing.",
+    "No validation of arbitrary floor surfaces, high speeds, long durations, collisions or perturbation envelope.",
+    "Live Gemini voice was not validated; Chrome voice tab closed before Live connection was confirmed.",
+    "R3 input and prior abort evidence do not establish a new measured floor R3 test in this report.",
+    "Sit/shake, person following, Spider and broader Lab 6 integration remain outstanding.",
+    "No claim of all hardware capabilities, global optimization or complete Lab 6."
+  ],
+  "known_defect": {
+    "description": "Second fall during a recovery path can produce a false-success outcome.",
+    "state": "Root independently reviewed local 99-test fix and owns final commit; not deployed in ended hardware session. Next action is deployment/native check, not more commit planning.",
+    "required_next": "Independent review and deliberate deployment/native recheck before relying on repaired reporting."
+  },
+  "handoff": [
+    "Next owner starts with read-only current-process/environment inventory and confirms ownership, physical placement and battery before appropriate approved startup. No auto-homing.",
+    "Preserve exact original archive/API receipts and separately labeled recovered metadata/log. Movement-test timestamps fall within recovered span; final 31.08 s telemetry/shutdown record remains missing. Optional offline analysis can continue; no physical retest required solely for this log gap.",
+    "Deploy/native-check the reviewed recovery-reporting fix deliberately, then finish Live Gemini, Sit/approved tricks and follower workflows."
+  ],
+  "archive": {
+    "state": "Original archive preserved and hash-verified in both stores; incomplete finalization disclosed. Separate metadata recovery succeeded, with approximately 31.08 s final telemetry gap remaining.",
+    "remote": "/home/pi/pupper-foundation-session-20261029/lab6-persistent-20261030-complete.tar.gz",
+    "command_exit_code": 0,
+    "sha256": "11e57a8237208d3f36dbac97018b0d551a8c9ea67bb3ca7fa687a9a83ac6d159",
+    "reported_size": "24M",
+    "closed_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6",
+    "shutdown_receipt": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/session-shutdown.json",
+    "download": "Original download and durable copy remain byte/hash verified and must be preserved unchanged.",
+    "local_api_receipts": {
+      "directory": "artifacts/hardware/2026-10-30/persistent-lab6-local",
+      "manifest": "artifacts/hardware/2026-10-30/persistent-lab6-local/manifest.json",
+      "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local",
+      "durable_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/manifest.json",
+      "verification": "All 4 receipt files SHA256-verified in both locations."
+    },
+    "recovery": [
+      "Preserve original archive and separate recovered metadata/log with recorded hashes.",
+      "Optional offline quantitative analysis can inspect the movement-test time range; account for missing index/footer and final 31.08 s gap.",
+      "Do not treat recovered metadata as complete MCAP repair or shutdown telemetry. No physical retest required solely for the logging gap."
+    ],
+    "local": "artifacts/hardware/2026-10-30/lab6-persistent-20261030-complete.tar.gz",
+    "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/lab6-persistent-20261030-complete.tar.gz",
+    "size_bytes": 25085526,
+    "content_review": {
+      "zero_byte_files": [
+        "session-shutdown.json",
+        "telemetry/metadata.yaml"
+      ],
+      "cause": "Unconfirmed; no storage/power-off cause asserted.",
+      "state": "Metadata reindex completed offline with exit 0; final telemetry gap remains. No further recovery work planned now.",
+      "original_archive": "Preserved exact with existing SHA256; recovered metadata/log are separately labeled."
+    },
+    "telemetry_recovery": {
+      "operation": "Native ros2 bag reindex -s mcap telemetry",
+      "exit_code": 0,
+      "motor_operation": false,
+      "original_mcap_size_bytes": 209145793,
+      "original_condition": "Zeroed tail; footer absent. Original archive preserved unchanged.",
+      "recovered_messages": 495296,
+      "recovered_start_epoch_s": 1793399006.691505,
+      "recovered_end_epoch_s": 1793399723.1549826,
+      "recovered_duration_s": 716.463477718,
+      "recorder_exit_epoch_s": 1793399754.2367826,
+      "missing_final_span_s": 31.08179998397827,
+      "trial_window_statement": "Recovered timestamp range contains all direct-trial HTTP windows (approximately 1793399280 through 1793399544). This establishes time-range coverage, not every expected sample or synchronized metric.",
+      "limitations": [
+        "Reindex warned of missing message index and read file order; this is metadata recovery, not full MCAP repair.",
+        "Approximately31.08 s before recorder exit are missing, including finalization/shutdown telemetry.",
+        "Archived session-shutdown.json remains empty; confirmed process exits are supported by original shutdown stdout."
+      ],
+      "artifacts": [
+        {
+          "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/telemetry-metadata-reindexed.yaml",
+          "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/telemetry-metadata-reindexed.yaml",
+          "sha256": "3a87d524082de4bce3e71102f4abdf3138bc03791c8b190ffbc866f7e8040896",
+          "label": "Recovered metadata/log; separate from original archive."
+        },
+        {
+          "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/telemetry-reindex.log",
+          "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/telemetry-reindex.log",
+          "sha256": "adb37d5d5766bf4cae9d321956d099ff004ada062b9d02405f4f39b7185e964d",
+          "label": "Recovered metadata/log; separate from original archive."
+        }
+      ],
+      "next": "No further recovery work planned now. Optional offline quantitative analysis may use available data with these limits; physical retests are not required solely for this log gap."
+    }
+  },
+  "hardware_followup": {
+    "battery": "User reported dying battery. Prior /system/status showed 16.49 V and 0 percent: inconsistent gauge; no inference that pack is healthy. Investigate percentage display offline.",
+    "pi_temperature_c": 75,
+    "source": "Root-reported prior status; not a fresh measurement."
+  }
+}
