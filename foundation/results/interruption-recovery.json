@@ -402,7 +402,7 @@
   },
   "hardware_session": {
     "date": "2026-10-29",
-    "updated_utc": "2026-10-30T07:29:09.063006+00:00",
+    "updated_utc": "2026-10-30T07:41:24.596428+00:00",
     "authorization": "User is present and explicitly authorizes supervised conservative iterative tests. Announce concrete motion tests and obtain needed physical observations; avoid redundant permission loops. No raised gains/limits or random motions.",
     "automation_status": "PAUSED",
     "ssh": "mts",
@@ -435,12 +435,13 @@
     ],
     "user_constraints": "Small deliberate changes; no raised gains or limits; standard Pupper without optional tactile rig. No scheduled work resumed.",
     "driver_cleanup_validation": "foundation/results/driver-init-only-pi-reviewed.json",
-    "jobs": "Lab6 prepares additive minimal stock-controller/API stand test; optional reviews short-trial raw evidence and next integration; sit prepares camera/Hailo perception-only check. No active remote hardware/build/GPU job.",
+    "jobs": "Lab6 finalizes additive stand/API candidate and tests; optional independentlyreviews; sitprepares capability order andactualcourseapprovalrequirements. No remotehardware/build/GPUjob.",
     "native_v4_report": "foundation/results/shared-stop-v4-pi-reviewed.json",
-    "gamepad_preference": "Unavailable in kernel input inventory. User has one but prefers console operation for now. No physical-gamepad claim.",
-    "github_backup": "Push of current foundation commits failed because github.com:443 was unreachable (75second connection timeout). Local commits and durable full artifact archive are intact; retry a bounded connection check later.",
+    "gamepad_preference": "Existing trusted DualSense reconnected via PS button. Isolateddomain170 input-only check: userR3 produced solebutton12, matchingStopmapping. Reader exited. ManualStopthroughactualgateway remainspending.",
+    "github_backup": "Push succeeded: origin/pupper-foundation at9a0eff9b557f322fbeb43eecd608bee1e08c262a. Local recovery bundle also verified.",
     "console_trial_preparation": "foundation/results/console-motion-trial-prepared.json",
-    "console_trial_result": "foundation/results/console-motion-trial-r2-reviewed.json"
+    "console_trial_result": "foundation/results/console-motion-trial-r2-reviewed.json",
+    "live_camera": "foundation/results/live-camera-perception-reviewed.json:6/6freshframeswith2persons, normalcameraacquisition, noROS/motionpublishers/servicechanges, exactexecutedsource78419preserved. Following/colorcalibration remainunverified."
   },
   "current_phase": "hardware_session",
   "current_report": "foundation/results/full-stock-release-investigation.json",

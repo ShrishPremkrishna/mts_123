@@ -19,8 +19,8 @@ captured. Shutdown disabled holding (confirmed by the operator), but the origina
 driver then aborted while destroying a joinable IMU thread. The minimal cleanup
 fix builds in a separate Pi overlay and passes five lifecycle tests. A subsequent
 [actual IMU/SPI initialization/destruction probe](results/driver-init-only-pi-reviewed.json)
-passed without enabling motors or homing; full activated-stack shutdown remains a
-separate check. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
+passed without enabling motors or homing; subsequent supervised stock-controller
+trials also exited cleanly, as recorded below. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
 
 The [full stock-policy test and release investigation](results/full-stock-release-investigation.json)
 completed normal initialization/fade, about half a second of fully active zero-speed
@@ -43,12 +43,14 @@ remain preserved.
 
 The [shared gamepad/Gemini stop gateway](results/shared-stop-v4-pi-reviewed.json)
 has passed independent review and is staged in v4: all ten native ROS test groups,
-366 Gemini tests and 166 course checks pass on the Pi. The physical gamepad,
-walking performance, tricks and following remain untested. New trained policies still
+366 Gemini tests and 166 course checks pass on the Pi. The paired DualSense and its R3/button-12 input have now been observed in isolation.
+Physical gamepad stopping through the running gateway, floor walking, tricks and
+following remain untested. New trained policies still
 need applicable course approval. The [stationary preparation record](results/hardware-session-20261029-reviewed.json)
 preserves earlier backups, policy recovery, native builds, CPU policy comparisons
-and synthetic Hailo inference. Live camera following and Gemini remain separate
-validation steps. The original working directories and coursework main remain preserved.
+and synthetic Hailo inference. [Live camera and Hailo perception](results/live-camera-perception-reviewed.json)
+now passed a bounded six-frame check, detecting two people in every frame. Actual
+following, color calibration, and live Gemini remain separate validation steps. The original working directories and coursework main remain preserved.
 
 ## Course coverage and where it lives
 

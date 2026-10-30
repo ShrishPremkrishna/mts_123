@@ -1,0 +1,108 @@
+{
+  "schema": "pupper_live_camera_perception_review_v1",
+  "recorded_utc": "2026-10-30T07:40:37.659982+00:00",
+  "status": "bounded_live_camera_and_positive_person_detection_passed",
+  "scope": "Actual Pi camera capture, existing calibrated projection and class Hailo detector in one scene. No ROS publisher, person-following controller or motor commands.",
+  "executed_script": {
+    "path": "artifacts/hardware/2026-10-30/live-perception-v1/executed-capture-perception-v1.py",
+    "sha256": "78419f3d15b9a34f0152dfd6310d8391447eaf501a11566d5ab778a2041af58f",
+    "bytes": 10650
+  },
+  "raw_report": {
+    "path": "artifacts/hardware/2026-10-30/live-perception-v1/live-perception-v1/report.json",
+    "sha256": "335495103cf898ca32f6f44d99c81ec145cdc036af53350201a974cfee873884",
+    "bytes": 26492
+  },
+  "independent_review": {
+    "path": "artifacts/hardware/2026-10-30/live-perception-v1/independent-review.json",
+    "sha256": "bc1b678d3c4098e901ac6780c85a09e7dc82f2c33499f91205fcaf3da2bd41a4",
+    "bytes": 4223
+  },
+  "archive": {
+    "path": "artifacts/hardware/2026-10-30/live-perception-v1/reviewed-live-perception-v1.tar.gz",
+    "sha256": "4e952de5bf60a18ebaef08df1ae40d20d22ebe598c9b7bbeeafcc38e3876b2d9",
+    "bytes": 2126257
+  },
+  "preservation_receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27/preservation-live-perception-independently-reviewed-v1.json",
+  "source_inputs": {
+    "yolo_seg.py": {
+      "path": "/home/pi/pupper-foundation-session-20261029/software/follow_me_pupper/robot/yolo_seg.py",
+      "sha256": "8290bd34a4f0a6406437d65b6085460b9c8289b0f731bf4be522c5fee9df9b87",
+      "bytes": 15817
+    },
+    "coco.txt": {
+      "path": "/home/pi/pupper-foundation-session-20261029/software/follow_me_pupper/robot/coco.txt",
+      "sha256": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a",
+      "bytes": 621
+    },
+    "yolov8n_seg.hef": {
+      "path": "/home/pi/pupper-foundation-session-20261029/software/follow_me_pupper/robot/yolov8n_seg.hef",
+      "sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
+      "bytes": 11467618
+    },
+    "fisheye_converter.py": {
+      "path": "/home/pi/pupper-foundation-session-20261029/software/follow_me_pupper/robot/fisheye_converter.py",
+      "sha256": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385",
+      "bytes": 4096
+    },
+    "camera_params.yaml": {
+      "path": "/home/pi/pupper-foundation-session-20261029/software/follow_me_pupper/robot/camera_params.yaml",
+      "sha256": "a6ab2537a1751571139c9a596fe422a3acfc7472fd3ec50c74442359ec9ff5a7",
+      "bytes": 581
+    }
+  },
+  "observed": {
+    "exit_code": 0,
+    "fresh_frames": 6,
+    "sensor_timestamp_span_s": 1.934634,
+    "person_positive_frames": 6,
+    "people_per_frame": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "reported_finite_output_tensors": 60,
+    "sdk_inference_latency_ms": {
+      "minimum": 22.40920066833496,
+      "mean": 23.72165520985921,
+      "maximum": 26.215314865112305
+    },
+    "camera_and_detector_close_returned": true,
+    "example_raw_rgb_matches_recorded_frame_hash": true,
+    "example_pngs": {
+      "example-detections.png": {
+        "path": "artifacts/hardware/2026-10-30/live-perception-v1/live-perception-v1/example-detections.png",
+        "sha256": "74e8f2568b9148f68be9f602c712ad815c7fd47226f330187b27f477bc158fd6",
+        "bytes": 570451
+      },
+      "example-camera.png": {
+        "path": "artifacts/hardware/2026-10-30/live-perception-v1/live-perception-v1/example-camera.png",
+        "sha256": "4eee6ecf8bb4a23f8be44a39bc4679f91be50ee9cbc36cc09a15c946972c3d8d",
+        "bytes": 1555127
+      }
+    }
+  },
+  "visual_review": "Two seated people are visible in the raw image; the saved projected example has plausible separate person boxes and masks. Bright ceiling lighting and a color cast are visible. Existing intrinsics and fixed white balance were used, not calibrated or validated by this test.",
+  "ownership": "Normal camera acquisition succeeded with the previously observed PipeWire/WirePlumber media handles present; no service changes were needed. No camera-owner process was stopped by the capture.",
+  "hardware_warning": "The native log reports a Hailo8L-targeted HEF running on Hailo8 with a lower-performance warning; successful compatibility here is not a performance guarantee.",
+  "version_boundary": {
+    "native_executed_sha256": "78419f3d15b9a34f0152dfd6310d8391447eaf501a11566d5ab778a2041af58f",
+    "later_prepared_sha256": "61c9a0152b18e7849ad07b11ea031104cfe20528146d98ae49d8e55ab1ea4a7e",
+    "later_changes": "Extra projection shape/dtype refusal plus frame and latency reporting; acquisition, detector, calibration, input and cleanup code unchanged.",
+    "later_version_native_tested": false,
+    "diff": {
+      "path": "artifacts/hardware/2026-10-30/live-perception-v1/executed-versus-final.diff",
+      "sha256": "30c276a36819a755cd26f52ac02be68dfddba3fbb787cde26b416d395833fc5e",
+      "bytes": 2388
+    }
+  },
+  "limits": [
+    "Six samples with deliberate pauses and image writes are not a sustained throughput or reliability benchmark.",
+    "Only one example raw frame and annotated projection were saved; remaining frame/tensor/mask checks rely on the executed source and recorded hashes.",
+    "No target lock, tracking identity, color reidentification, range/stopping distance, obstacle avoidance, command routing, physical following or autonomous safety was validated.",
+    "General detection accuracy and color calibration remain unmeasured; later cup predictions were not independently visually reviewed."
+  ]
+}
