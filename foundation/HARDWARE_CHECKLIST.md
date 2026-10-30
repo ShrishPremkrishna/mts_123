@@ -2,76 +2,96 @@
 date: 2026-10-27T15:31
 tags: [cs123, foundation]
 ---
-# Next robot session
+# Next Workstream 1 robot session
 
-The objective is a repeatable stock floor baseline, then Lab 6 integration.
-Current state and exact environment paths live in
-[interruption-recovery.json](results/interruption-recovery.json). Do not repeat
-completed inventory, builds, policy recovery or training unless a dependency
-changed. The [original discovery checklist](results/history/HARDWARE_CHECKLIST-before-20261030.md)
-remains historical reference for backups and inventory details.
+Extend the [observed basic floor controls](results/lab6-floor-basic-20261030.json)
+to Live Gemini and approved interactive skills. Exact current deployment,
+ownership and unfinished work belong in
+[interruption-recovery.json](results/interruption-recovery.json). Earlier failed
+floor-input trials are historical; do not restart their timed choreography.
 
-## Finish before asking for supervision
+## Prepare without the robot
 
-1. Use the complete recovered floor run linked in current state. Inspect
-   distinct Joy node names/namespaces, endpoint count, physical input receipts,
-   joystick child log and shutdown-coordinator exit/logs. Preserve and hash the
-   complete output before cleanup. The generic publisher error is not a diagnosis.
-2. Use the canonical input-only preflight in `foundation/hardware/floor_stock/`
-   once reviewed. It must use the selected joystick executable, device name,
-   node name and parameters, with no motor manager or hardware plugin loaded.
-   Confirm a single expected Joy source, fresh valid input, and complete child
-   shutdown. Passive diagnostics never prompt for buttons. The separate
-   Options/R3 exercise needs current host-wide no-motor confirmation; an isolated
-   ROS domain does not isolate the physical gamepad. A disconnected controller
-   may require the user's PS button later; report that dependency without starting
-   motor software.
-3. Explain and resolve the prior shutdown fallback. Passing local tests or a
-   graph preflight alone does not establish this. Reuse the current verified
-   environment and unchanged stock policy, limits and gains. Restore the reviewed
-   installed-library/deployment identity checks before releasing the canonical
-   motion gate; a source inventory alone is insufficient. Freeze and review
-   the corrected selected input set once, after all owners finish editing.
-4. Have the exact launch, bounded stop/cleanup, capture destination and prior
-   baseline available. Run relevant offline tests before the user arrives.
-   No broad rebuilds or new experimental policy selection during this session.
+1. Finish the relevant software checks and web build before supervision. The
+   existing course tests and `gemini_pupper/lab/test_skill_sequences.py` exercise
+   actual installed descriptors through fake ROS: Sit, ten-second stay, both paws,
+   exit/walk, finite endpoints and the hidden generated trick. They establish
+   software sequencing, not physical balance or Live speech behavior.
+2. Select the exact controllers for the session. The persistent launch in
+   `foundation/hardware/lab6_session.launch.py` is one available workflow; an
+   equivalent reviewed workflow is fine. It requires an explicit selection:
+   `PUPPER_SESSION_SKILLS=''` selects stock locomotion only; leaving the variable unset refuses startup.
+   `PUPPER_SESSION_SKILLS='sit_stay_shake'` adds only Sit. Set the same explicit
+   value for launch and API server, and use the same `PUPPER_GEMINI_DIR` checkout.
+   The generated runtime manifest binds selection, policies, descriptors and
+   configuration. A mismatched/unscoped API refuses the selected profile; missing
+   selected controllers are not spawned on demand. This is configuration, not
+   hardware approval. Reference jumps and research walking pairs are excluded.
+3. Preserve the tested stock caps, gains, physical Joy settings and stop paths.
+   The prepared profile and recent server fixes still require native integration
+   checks on the Pi; a local test pass is not deployment evidence. Generic
+   `start.sh`/`stop.sh` are not interchangeable with the reviewed staged setup.
+   Have source/model identities, recording destination and owned shutdown ready.
+4. Obtain the applicable course approval for new trained Sit/generated policies
+   before their first hardware trial. Use the existing
+   [Sit sequence](results/sit-interactive-default-return-reviewed.json),
+   [finite return](results/finite-tricks-default-return-reviewed.json),
+   [lying return](results/lying-tricks-later-default-return-reviewed.json) and
+   [generated-motion](results/generated-motion-trained-review.json) evidence.
+   Nominal simulation success does not justify blanket approval of every trick.
+5. Prepare a small voice request set against fake execution: correct dispatch,
+   unsupported requests, interruption, and the three Optional Lab 3 conversation
+   habits. Check wrong/right secret access and reconnect behavior. Keep production
+   secrets outside Git, prompts and logs; the test-only password is not a robot
+   credential. Fake text checks do not establish live speech interruption.
 
-## Supervised sequence
+## Supervised work blocks
 
-1. Confirm Pupper is on the stand, legs clear, controller connected, battery
-   healthy and the user beside the physical power disconnect. Announce the
-   specific bounded trial and use the user's authorization; do not repeatedly
-   ask to approve unchanged software preparation. Homing itself moves motors.
-2. Home only on the stand. Keep walking inactive for placement. Ask for actual
-   floor placement/readiness before enabling the physical controller path;
-   never infer placement from elapsed time or an old confirmation.
-3. Demonstrate stock standing and physical R3 stopping. Record actual active
-   controller, zero-command path, sensors, stop transition, cleanup and the
-   user's observation. Inactive status does not prove physical stillness or
-   zero torque. Repeat only to check reproducibility or resolve a specific issue.
-4. After standing/stopping succeeds, run one short conservative forward movement,
-   then stopping. Use existing allowed command ranges and limits. Change one
-   thing at a time; extend duration or add turning only after observed success.
-5. Use the same baseline for direct Lab 6 API standing, movement and cancellation.
-   Test controller handoffs and stop ownership before introducing live Gemini.
-6. With fake-only Gemini checks complete, try a small supervised request set and
-   compare requested, accepted, completed and observed behavior. Add following,
-   target loss/reacquisition and optional color/detour behavior in separate trials.
+1. Begin with a read-only inventory and confirm who owns the robot now. Check
+   placement, battery, controller and physical power-stop readiness. Reuse the
+   established environment; repeat input diagnostics only when something changed
+   or actual evidence requires it. The prior 16.49 V / 0% display is consistent with the software
+   model's five-cell, 3.3 V-per-cell floor. The actual pack was not independently
+   inspected; that estimate is not proof of battery health.
+2. If a fresh hardware launch is needed, home on the stand with legs clear. Keep
+   walking inactive for placement. When the operator is ready on the floor, one
+   physical Options press releases the existing gateway; there is no chat-timed
+   countdown. Reuse that homed session between actions. API Stop cancels work and
+   requests zero velocity while holding the walking controller; physical R3 latches
+   its abort. Explicit manager-first shutdown ends the owned hardware session.
+3. Briefly confirm the current direct-control baseline, then spend the block on
+   missing behavior: bounded arc/wait sequences and Live requests whose actual
+   tool calls, status and physical outcomes agree. Reuse the demonstrated short
+   forward/back/turn commands instead of repeating the entire discovery process.
+   Include cancellation with pending work; voice narration is not stopping evidence.
+4. With the selected approved Sit profile, request `sit_stay_shake`, hold at least
+   ten seconds, `shake_left`, `shake_right`, and the interactive `stand_up` exit;
+   then make a bounded walk and stop. Also check that an ordinary move from Sit
+   uses the exit first. Compare observed paw/pose behavior with clip receipts.
+   Use a separate bounded interruption case; do not force a recovery through strain.
+5. Select supplied finite tricks by their recorded behavior and limits. A
+   standing-ending trick returns to locomotion; a lying-ending trick holds that
+   endpoint until a later explicit request. The existing finite `spider` is not
+   the required research Spider walking pair. Known high-speed/robustness limits
+   remain relevant when choosing what to exercise.
+6. For approved `secret_dance`, demonstrate denial while locked, unlocking without
+   motion, explicit playback and return, then relocking on Stop. The installed
+   motion is a gentle sway/rise, not a complex dance. Test Optional Lab 3's context
+   habits by voice, including a different request resetting the handshake streak
+   and reconnect losing conversational history. Receive following and Spider
+   integration from their owners rather than replacing their workstreams.
 
-Stop on strain, abnormal motion, heat, sensor loss or uncertain ownership. If a
-new issue needs substantial software work, release the user from supervision,
-leave the robot stopped, and prepare the next concrete trial offline.
+Batch prepared cases while the user is available. Stop on unexpected strain,
+loss of feedback or uncertain ownership; if substantial coding is needed, finish
+that offline instead of consuming supervision time. No higher limits or gains
+are needed to establish the next baseline.
 
-## What remains excluded
+## Finish and hand off
 
-New trained Sit/generated policies need applicable course approval before their
-first hardware run. Spider walking and standing jumps retain known simulation
-failures and are not promoted. Optional Lab 1 tactile work requires the missing
-single-leg/sensor setup. Do not raise limits or gains to obtain a pass.
-
-## Finish a session
-
-Preserve complete run outputs, exact input identities and the operator's actual
-observations. Record missing evidence explicitly. Update the one current-state
-record with the next blocker, process/exit state, and pending archives. Leave no
-implicit job running and no schedule active unless the user requested it.
+Stop the owned session, verify process exits, and preserve the actual observations
+and exact inputs. Check archive contents as well as hashes: the last session's
+archive matched byte-for-byte but had empty finalization files and a truncated
+telemetry tail. Keep originals and label any recovered metadata separately.
+Update the one current-state record; leave no implicit running job or schedule.
+Missing tactile hardware, unpromoted Spider walking and unresolved standing-jump
+reliability remain explicit exclusions, not hidden completion claims.

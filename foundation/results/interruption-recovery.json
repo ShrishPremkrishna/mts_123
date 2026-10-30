@@ -1,13 +1,13 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-10-30T22:44:46.492720+00:00",
+  "updated_utc": "2026-10-30T23:27:57.897636+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "workstream1_paused_teammate_handoff",
-  "authorization": "User requested natural stop for battery/teammate handoff. All owned session processes exited; no further tests, homing or robot commands. Next owner starts with read-only inventory and current physical readiness.",
+  "mode": "workstream1_offline_candidate_ready_native_and_live_checks_pending",
+  "authorization": "User authorized autonomous offline Workstream 1 completion using subagents and existing configured Gemini access. Robot is teammate-owned: no SSH, deployment or motor operations in this session.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
-  "current_report": "foundation/results/lab6-floor-basic-20261030.json",
+  "current_report": "foundation/results/workstream1-offline-20261030.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261030-before-workflow.json",
     "sha256": "5538fd47a8b99522ede4b25d8830c59a9b7a4058857e4721c17b1b873178f5ad",
@@ -128,7 +128,7 @@
     "known_live_limit": {
       "finding": "A second fall during recovery can produce latent false-success in server reporting.",
       "owner": "/root/native_shutdown_fix",
-      "state": "Local 99-test second-fall reporting fix independently reviewed; root owns final commit, and deployment/native check is next. Ended hardware session used prior server.",
+      "state": "Recovery-reporting fix committed8dcc24c; expanded offline runtime/profile/cap/voice fixes reviewed and bundled in current report. None deployed in ended session.",
       "operating_constraint": "Review/deploy deliberately in next session; do not treat historical API success as physical completion."
     },
     "closed_processes": {
@@ -222,20 +222,16 @@
       }
     },
     "hardware_followup": {
-      "battery": "User reported dying battery. Prior /system/status showed 16.49 V and 0 percent: inconsistent gauge; no inference that pack is healthy. Investigate percentage display offline.",
+      "battery": "16.49V/0% matches bundled five-cell calibration; user reported low battery. Earlier inconsistent-gauge claim corrected; actual pack not independently inspected.",
       "pi_temperature_c": 75,
       "source": "Root-reported prior status; not a fresh measurement."
     }
   },
   "activity": {
     "automation": "PAUSED",
-    "compute": "No GPU training or checkpoint collectors active at last closure; no new jobs this session.",
-    "root": "Final offline commit/handoff only. Hardware session ended. Original archive and local API receipts preserved; motor-free metadata reindex succeeded with final 31.08 s telemetry gap disclosed. No further recovery work planned now.",
-    "lab6_recovery": "Bounded direct floor standing, four directions and queue cancellation observed; full evidence report prepared. Voice/Sit/follower and broader validation remain.",
-    "sit_recovery": "Completed timing-faithful fake mode and contract wording; actual Live failures recorded.",
-    "optional_recovery": "Completed preservation fixes and independent source reviews.",
-    "web": "Manual UI deployed for ended session; browser/API now closed. Live Gemini connection was not confirmed or validated.",
-    "native_shutdown_fix": "Local 99-test second-fall reporting fix reviewed; root owns final commit. Not deployed in ended hardware session; next action is deliberate deployment/native check."
+    "compute": "No GPU jobs/collectors; all owned Gemini experiments exited; fake server never bound; no SSH/robot access this session.",
+    "root": "Offline implementation integrated/reviewed; final source/evidence preserved; current candidate not deployed.",
+    "agents": "All3 focused agents completed; no ongoing source owner edits."
   },
   "evidence": {
     "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
@@ -252,38 +248,34 @@
     "floor_attempt3_archive": "artifacts/hardware/2026-10-30/workstream1-floor-attempt3.tar.gz",
     "floor_attempts12_input_review": "artifacts/hardware/2026-10-30/workstream1-floor-attempts-1-2-independent-input-review.json",
     "web_manual_review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json",
-    "lab6_floor_basic": "foundation/results/lab6-floor-basic-20261030.json"
+    "lab6_floor_basic": "foundation/results/lab6-floor-basic-20261030.json",
+    "ws1_offline": "foundation/results/workstream1-offline-20261030.json"
   },
   "next": [
     {
-      "id": "teammate_handoff",
-      "action": "Next robot owner starts with read-only process/environment inventory and confirms current owner, physical placement and battery before appropriate approved startup. Do not auto-home or interfere with teammate-owned processes.",
-      "done_when": "Ownership/readiness explicit; exact preserved sources reused deliberately. Archive/recovered-metadata limitations recorded; no physical retests required solely for logging gap."
+      "id": "offline_browser_and_live",
+      "action": "Actual Chrome fake-API manual rehearsal; final Gemini delayed-stop/cancel and sit-memory cases after connection service is usable. Retain failed narration/handshake cases.",
+      "done_when": "Actual fake Chrome route/manual control verified and missing Gemini cases recorded; no unsupported reliability promotion."
     },
     {
-      "id": "lab6_reporting_fix",
-      "action": "Deploy the reviewed 99-test recovery-reporting fix and perform targeted native checks at the next approved session.",
-      "done_when": "Exact deployed server identity preserved and normal/second-fall recovery reporting verified; ended session remains linked to its original sources."
+      "id": "native_integration",
+      "action": "When robot ownership returns: inventory teammate changes, stage exact candidate, verify selected profile/native controller markers/limits/source identities without motors; old environment pins are historical.",
+      "done_when": "Exact source/policy/config/binary identities and selected-profile limits validated; teammate changes preserved."
     },
     {
-      "id": "lab6",
-      "action": "Finish Live Gemini voice using the demonstrated direct manual control baseline, then review broader timing/accuracy and repeatability gaps.",
-      "done_when": "Selected supported voice requests demonstrably dispatch the promised tools and actual physical outcomes agree; direct Stop remains independent of voice."
+      "id": "lab6_live",
+      "action": "Supervised persistent session: bounded direct arc/wait, Live speech dispatch/refusal/interruptions/reconnect and camera understanding; keep explicit0.2m/s/short commands initially, independent R3/Stop.",
+      "done_when": "Physical outcomes and dispatched calls agree in stated cases; accepted/complete/cancelled/failure remain distinct."
     },
     {
-      "id": "following",
-      "action": "Person following, target loss/reacquisition, then color/detour options separately.",
-      "done_when": "Measured live behavior and stop paths pass in recorded scenes."
+      "id": "approved_skills",
+      "action": "With applicable course approval: selected Sit entry10s/both paws/exit, ordinary move from Sit, selected finite endpoints, hidden generated trick unlock/play/relock; record actual physical evidence.",
+      "done_when": "Supervised repeated sequences and interruption evidence saved; no generic simulation-to-real claim."
     },
     {
-      "id": "tricks",
-      "action": "After applicable course approval, Sit entry/hold/exit, shake and modest generated motion.",
-      "done_when": "Physical evidence supports each capability; Spider/jump failures remain excluded."
-    },
-    {
-      "id": "required_spider",
-      "action": "Resolve required Lab 6 Spider walking/exit failures offline with a specific hypothesis, then obtain applicable course approval before physical trials. Jump remains optional.",
-      "done_when": "An evidence-supported clip/walking pair passes defined entry, low-stance walking, stopping and return checks, then supervised hardware checks; no belly-supported walking accepted as success."
+      "id": "stream_integration",
+      "action": "Receive measured gait/Spider and following changes from their workstream owners and integrate after their evidence. Required Spider walking remains unresolved; no new policy promotion or speculative training here.",
+      "done_when": "Evidence-supported gait/Spider/follower contracts integrated, then combined physical cases checked."
     }
   ],
   "do_not_repeat": [
@@ -323,5 +315,12 @@
     "course": [
       "gemini_pupper/lab/test.py"
     ]
+  },
+  "offline_candidate": {
+    "path": "artifacts/access/ws1-offline-20261030/candidate/source.tar.gz",
+    "sha256": "b158bfa526731a5886bb38a63cafbb5bfa98ac99a7c592a19a6aa7ec970c38d8",
+    "source_manifest": "artifacts/access/ws1-offline-20261030/candidate/source-manifest.json",
+    "file_count": 198,
+    "native_limit": "Existing staged v5 pins refer to older files; deliberately stage/validate new source and pins, preserving teammate changes. This bundle is not an auto-deployment or ROS/motor launcher."
   }
 }

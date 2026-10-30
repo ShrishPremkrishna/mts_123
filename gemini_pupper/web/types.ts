@@ -51,11 +51,11 @@ export interface SystemStatus {
     voltage: number | null;
   };
   cpu: {
-    usage: number;
+    usage: number | null;
     temperature: number | null;
   };
   services: {
-    robot: 'active' | 'inactive' | 'unknown';
-    internet: 'online' | 'offline' | 'unknown';
+    robot: 'active' | 'inactive' | 'unknown' | 'simulated';
+    internet: 'online' | 'offline' | 'unknown' | 'not_checked';
   };
 }

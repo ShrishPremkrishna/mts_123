@@ -33,8 +33,19 @@ export function isAudioOutputModel(modelName: string): boolean {
 export class GeminiLiveService {
   private ai: GoogleGenAI | null = null;
   private sessionPromise: Promise<any> | null = null;
+  private closedSession: any = null;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  private inputAudioContext: AudioContext | null = null;
+  private inputSource: MediaStreamAudioSourceNode | null = null;
+  private disposed = false;
+  private connecting = false;
+  private playbackGeneration = 0;
+  private apiKey = '';
+  private cancelledToolIds = new Set<string>();
+  private dispatchedActionIds = new Set<string>();
+  private automaticStop: Promise<void> | null = null;
+  private speechVisualInterval: number | null = null;
   private inputScriptProcessor: ScriptProcessorNode | null = null;
   private mediaStream: MediaStream | null = null;
   private nextStartTime = 0;
@@ -58,7 +69,8 @@ export class GeminiLiveService {
     onLog: (entry: LogEntry) => void,
     onAudioLevel: (level: number) => void,
     onDisconnect: () => void,
-    onToolDispatch: (entry: ToolDispatch) => void = () => {}
+    onToolDispatch: (entry: ToolDispatch) => void = () => {},
+    private onAutomaticStop: (message: string) => void = () => {}
   ) {
     this.config = config;
     this.robotBridge = new RobotBridge(config.robotApiUrl);
@@ -75,6 +87,39 @@ export class GeminiLiveService {
   }
 
   async connect(apiKey: string, config: AppConfig, videoElement: HTMLVideoElement) {
+    if (this.disposed || this.connecting || this.connected) throw new Error('Create a new voice session to reconnect.');
+    this.connecting = true;
+    this.apiKey = apiKey;
+    try {
+      await this.openSession(apiKey, config, videoElement);
+    } catch (error: any) {
+      const failedWhileOpen = !this.disposed;
+      this.cleanup();
+      if (failedWhileOpen && this.dispatchedActionIds.size) await this.requestAutomaticStop('Voice connection failed after an action request');
+      // Do not expose a reconnect while an automatic Stop is still outstanding.
+      if (this.automaticStop) await this.automaticStop;
+      throw new Error(this.safeMessage(error?.message || String(error)));
+    } finally {
+      this.connecting = false;
+    }
+  }
+
+  private ensureOpen() {
+    if (this.disposed) throw new Error('Voice connection cancelled.');
+  }
+
+  private async acquireMedia(constraints: MediaStreamConstraints) {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    if (this.disposed) {
+      stream.getTracks().forEach(track => track.stop());
+      this.ensureOpen();
+    }
+    // Own each track immediately: a later camera/SDK failure must release the mic.
+    if (!this.mediaStream) this.mediaStream = new MediaStream();
+    stream.getTracks().forEach(track => this.mediaStream!.addTrack(track));
+  }
+
+  private async openSession(apiKey: string, config: AppConfig, videoElement: HTMLVideoElement) {
     this.config = config;
     this.ai = new GoogleGenAI({ apiKey: apiKey });
 
@@ -88,49 +133,24 @@ export class GeminiLiveService {
 
     this.startOutputVolumeMonitoring();
 
-    const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      const tracks: MediaStreamTrack[] = [];
-
-      // Try acquiring audio
+    if (config.enableAudio || (config.enableVideo && config.cameraSource === 'browser')) {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('MediaDevices unavailable. Use HTTPS or localhost.');
       if (config.enableAudio) {
-        try {
-          const audioStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-            }
-          });
-          tracks.push(...audioStream.getAudioTracks());
-          this.log('info', 'Microphone connected successfully');
-        } catch (audioErr: any) {
-          this.log('error', `Microphone access failed: ${audioErr.message || audioErr}`);
-          console.warn('Microphone error:', audioErr);
-        }
+        await this.acquireMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+        this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        this.log('info', 'Microphone connected');
       }
-
-      // Try acquiring video
       if (config.enableVideo && config.cameraSource === 'browser') {
         try {
-          const videoStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 } }
-          });
-          tracks.push(...videoStream.getVideoTracks());
-          this.log('info', 'Camera connected successfully');
-        } catch (videoErr: any) {
-          this.log('error', `Camera access failed: ${videoErr.message || videoErr}`);
-          console.warn('Camera error:', videoErr);
+          await this.acquireMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } } });
+          this.log('info', 'Camera connected');
+        } catch (error: any) {
+          this.ensureOpen();
+          this.log('error', `Camera unavailable: ${error.message || error}`);
         }
       }
-
-      if (tracks.length > 0) {
-        this.mediaStream = new MediaStream(tracks);
-      }
-    } else {
-      this.log('error', 'MediaDevices API not available. Ensure you are on HTTPS or http://localhost');
-      console.warn('MediaDevices API not available. Ensure you are on HTTPS or http://localhost');
     }
+    this.ensureOpen();
 
     if (config.enableVideo && config.cameraSource === 'browser' && videoElement && this.mediaStream && this.mediaStream.getVideoTracks().length > 0) {
       videoElement.srcObject = this.mediaStream;
@@ -144,6 +164,7 @@ export class GeminiLiveService {
 
     // Ask the robot for Gemini's system prompt and tools (lab/prompt.md, the tools in lab/).
     const spec: any = await this.robotBridge.getTools();
+    this.ensureOpen();
     const robotTools: FunctionDeclaration[] = Array.isArray(spec?.tools) ? spec.tools : [];
     if (robotTools.length) {
       this.log('info', `Robot offers ${robotTools.length} tools: ${robotTools.map(t => t.name).join(', ')}`);
@@ -187,10 +208,11 @@ export class GeminiLiveService {
       config: liveConfig,
       callbacks: {
         onopen: () => {
+          if (this.disposed) return;
           this.connected = true;
           this.log('info', 'Session connected');
-          if (this.mediaStream) {
-            this.setupAudioInput(inputCtx, this.mediaStream);
+          if (this.inputAudioContext && this.mediaStream?.getAudioTracks().length) {
+            this.setupAudioInput(this.inputAudioContext, this.mediaStream);
           }
           if (config.enableVideo) {
             this.setupVideoInput(videoElement, config.cameraSource);
@@ -200,25 +222,32 @@ export class GeminiLiveService {
           if (!this.connected) return;
           await this.handleMessage(msg);
         },
-        onclose: (event: CloseEvent) => {
+        onclose: async (event: CloseEvent) => {
+          if (this.disposed) return;
           const details = [
             event.code ? `code ${event.code}` : '',
             event.reason || '',
           ].filter(Boolean).join(': ');
           this.log('error', `Session closed${details ? ` (${details})` : ''}`);
           this.cleanup();
+          if (this.dispatchedActionIds.size) await this.requestAutomaticStop('Voice connection closed after an action request');
           this.onDisconnect();
         },
         onerror: (err: ErrorEvent) => {
+          if (this.disposed) return;
           const details = err.message || err.error?.message || String(err.error || 'WebSocket error');
           this.log('error', `Session error: ${details}`);
-          console.log(err);
+
         }
       }
     });
 
     // Wait for connection to ensure validity
-    await this.sessionPromise;
+    const session = await this.sessionPromise;
+    if (this.disposed) {
+      this.closeSession(session);
+      this.ensureOpen();
+    }
   }
 
   private startOutputVolumeMonitoring() {
@@ -242,6 +271,7 @@ export class GeminiLiveService {
 
   private setupAudioInput(ctx: AudioContext, stream: MediaStream) {
     const source = ctx.createMediaStreamSource(stream);
+    this.inputSource = source;
     this.inputScriptProcessor = ctx.createScriptProcessor(4096, 1, 1);
     
     this.inputScriptProcessor.onaudioprocess = (e) => {
@@ -323,15 +353,15 @@ export class GeminiLiveService {
   }
 
   private async playAudioBase64(audioData: string): Promise<void> {
-    if (!this.audioContext || !this.analyser) return;
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
-    }
-    this.nextStartTime = Math.max(this.nextStartTime, this.audioContext.currentTime);
-    const buffer = await decodeAudioData(audioData, this.audioContext);
-    const source = this.audioContext.createBufferSource();
+    const ctx = this.audioContext, analyser = this.analyser, generation = this.playbackGeneration;
+    if (!ctx || !analyser || this.disposed) return;
+    if (ctx.state === 'suspended') await ctx.resume();
+    const buffer = await decodeAudioData(audioData, ctx);
+    if (this.disposed || generation !== this.playbackGeneration || ctx !== this.audioContext) return;
+    this.nextStartTime = Math.max(this.nextStartTime, ctx.currentTime);
+    const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(this.analyser);
+    source.connect(analyser);
     source.start(this.nextStartTime);
     this.queuedSources.push(source);
     this.nextStartTime += buffer.duration;
@@ -347,6 +377,8 @@ export class GeminiLiveService {
   }
 
   private async synthesizeAndPlaySpeech(text: string): Promise<void> {
+    const generation = this.playbackGeneration;
+    const cancelled = () => this.disposed || generation !== this.playbackGeneration;
     try {
       if (!this.ai) return;
       const configuredModel = this.config.ttsModelName || "gemini-3.1-flash-tts-preview";
@@ -375,6 +407,7 @@ export class GeminiLiveService {
       if (supportsStreaming) {
         const responseStream = await this.ai.models.generateContentStream(request);
         for await (const chunk of responseStream) {
+          if (cancelled()) return;
           const parts = chunk.candidates?.[0]?.content?.parts || [];
           for (const part of parts) {
             const audioData = part.inlineData?.data;
@@ -386,6 +419,7 @@ export class GeminiLiveService {
         }
       } else {
         const response = await this.ai.models.generateContent(request);
+        if (cancelled()) return;
         const parts = response.candidates?.[0]?.content?.parts || [];
         for (const part of parts) {
           const audioData = part.inlineData?.data;
@@ -396,11 +430,13 @@ export class GeminiLiveService {
         }
       }
 
+      if (cancelled()) return;
       if (!receivedAudio) {
         console.warn("No audio data returned by TTS model, using browser speech fallback");
         this.speakWithWebSpeech(text);
       }
     } catch (err: any) {
+      if (cancelled()) return;
       this.log("error", "TTS error: " + (err.message || err) + ". Using browser speech fallback.");
       this.speakWithWebSpeech(text);
     }
@@ -410,14 +446,16 @@ export class GeminiLiveService {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      let interval: number | null = null;
+      const generation = this.playbackGeneration;
       utterance.onstart = () => {
-        interval = window.setInterval(() => {
+        if (this.disposed || generation !== this.playbackGeneration) return;
+        this.speechVisualInterval = window.setInterval(() => {
           this.onAudioLevel(0.2 + Math.random() * 0.3);
         }, 100);
       };
       const stopVisual = () => {
-        if (interval) clearInterval(interval);
+        if (this.speechVisualInterval) clearInterval(this.speechVisualInterval);
+        this.speechVisualInterval = null;
         this.onAudioLevel(0);
       };
       utterance.onend = stopVisual;
@@ -427,11 +465,19 @@ export class GeminiLiveService {
   }
 
   private async handleMessage(message: LiveServerMessage) {
-    // Check for native audio output
-    const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-    if (audioData && this.audioContext && this.analyser) {
-      await this.playAudioBase64(audioData);
+    if (this.disposed) return;
+    // Interruption must invalidate pending decodes/TTS before any awaits.
+    if (message.serverContent?.interrupted) {
+      this.log('info', 'Model speech interrupted; robot actions are unchanged');
+      this.stopPlayback();
     }
+    let cancelSentAction = false;
+    for (const id of message.toolCallCancellation?.ids ?? []) {
+      this.cancelledToolIds.add(id);
+      if (this.dispatchedActionIds.has(id)) cancelSentAction = true;
+    }
+    if (cancelSentAction) await this.requestAutomaticStop('Live cancelled an already-dispatched action');
+    const generation = this.playbackGeneration;
 
     // Check for text output (useful for ER2 streaming / text models)
     const textPart = message.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
@@ -440,7 +486,17 @@ export class GeminiLiveService {
     }
 
     if (message.toolCall) {
-      for (const fc of message.toolCall.functionCalls) {
+      const calls = message.toolCall.functionCalls ?? [];
+      const hasStop = calls.some(call => call.name === 'stop' && !(call.id && this.cancelledToolIds.has(call.id)));
+      // Stop is an interrupt, never the tail of a queued sequence. Dispatch it
+      // first and reject other actions in that same model batch before HTTP.
+      const ordered = hasStop ? [...calls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : calls;
+      for (const fc of ordered) {
+        if (this.disposed) break;
+        if (fc.id && this.cancelledToolIds.has(fc.id)) {
+          this.log('info', `Cancelled before dispatch: ${fc.name}`);
+          continue;
+        }
         this.log('function', `Call: ${fc.name}(${fc.name === 'unlock' ? '[redacted]' : JSON.stringify(fc.args)})`);
         let result: any = { success: true };
         
@@ -467,11 +523,16 @@ export class GeminiLiveService {
               break;
             default:
               // Every other tool is defined and run on the robot (the tools in lab/).
+              if (hasStop && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                result = { success: false, message: 'Not dispatched: Stop takes priority over other actions in the same batch. No delayed Stop was scheduled.' };
+                break;
+              }
               if (this.robotToolsPaused && fc.name !== 'stop' && fc.name !== 'robot_status') {
                 result = { success: false, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
                 break;
               }
               const dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
+              if (!['stop', 'robot_status', 'unlock', 'lock_tricks'].includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
               this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
               result = await this.robotBridge.callTool(fc.name, args ?? {});
               const status = toolResponseStatus(result);
@@ -483,7 +544,7 @@ export class GeminiLiveService {
         }
 
         this.log(result?.success === false ? 'error' : 'function', `Result: ${fc.name} -> ${result?.message ?? JSON.stringify(result)}`);
-        if (this.connected && this.sessionPromise) {
+        if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
           this.sessionPromise.then(session => {
             if (!this.connected) return;
             try {
@@ -502,17 +563,43 @@ export class GeminiLiveService {
       }
     }
 
-    if (message.serverContent?.interrupted) {
-      this.log('info', 'Model interrupted');
-      this.queuedSources.forEach(s => {
-        try { s.stop(); } catch (e) {}
-      });
-      this.queuedSources = [];
-      this.nextStartTime = 0;
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+    // Dispatch tool requests (especially Stop) before waiting for audio decoding.
+    for (const part of message.serverContent?.modelTurn?.parts ?? []) {
+      if (generation !== this.playbackGeneration || this.disposed) break;
+      if (part.inlineData?.data) await this.playAudioBase64(part.inlineData.data);
     }
+
+  }
+
+  private requestAutomaticStop(reason: string): Promise<void> {
+    this.pauseRobotTools();
+    if (this.automaticStop) return this.automaticStop;
+    // No per-job cancellation IDs exist. This deliberately cancels the whole
+    // robot queue/follow, never retries a command, and requires manual reconnect.
+    this.onAutomaticStop(`${reason}. Global Stop requested; waiting for server response.`);
+    this.automaticStop = (async () => {
+      let result: any;
+      try { result = await this.robotBridge.immediateStop(); }
+      catch { result = { outcome_unknown: true }; }
+      const status = toolResponseStatus(result);
+      const message = status === 'unknown'
+        ? 'Global Stop response unknown. Observe the robot and use R3/power if needed.'
+        : `Global Stop ${status}: ${result.message || 'No details'}. This does not prove physical stillness.`;
+      this.log(status === 'accepted' ? 'info' : 'error', message);
+      this.onAutomaticStop(message);
+    })();
+    return this.automaticStop;
+  }
+
+  private stopPlayback() {
+    this.playbackGeneration++;
+    if (this.speechVisualInterval) clearInterval(this.speechVisualInterval);
+    this.speechVisualInterval = null;
+    this.queuedSources.forEach(source => { try { source.stop(); } catch {} });
+    this.queuedSources = [];
+    this.nextStartTime = 0;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    this.onAudioLevel(0);
   }
 
   /**
@@ -520,7 +607,9 @@ export class GeminiLiveService {
    * Called both on explicit disconnect and on server-side onclose.
    */
   private cleanup() {
+    this.disposed = true;
     this.connected = false;
+    this.stopPlayback();
     // An old onmessage handler may still be waiting for a tool response.
     // Do not let the remainder of that message dispatch motion after close.
     this.pauseRobotTools();
@@ -529,7 +618,10 @@ export class GeminiLiveService {
       window.speechSynthesis.cancel();
     }
 
+    this.inputSource?.disconnect();
+    this.inputSource = null;
     if (this.inputScriptProcessor) {
+      this.inputScriptProcessor.onaudioprocess = null;
       this.inputScriptProcessor.disconnect();
       this.inputScriptProcessor = null;
     }
@@ -546,32 +638,31 @@ export class GeminiLiveService {
       this.mediaStream = null;
     }
     this.analyser = null;
-    this.queuedSources = [];
-    this.nextStartTime = 0;
+    for (const ctx of [this.audioContext, this.inputAudioContext]) {
+      if (ctx && ctx.state !== 'closed') void ctx.close().catch(() => {});
+    }
+    this.audioContext = null;
+    this.inputAudioContext = null;
   }
 
   public async disconnect() {
-    // Set flag first to stop all in-flight sends immediately
-    this.connected = false;
     this.cleanup();
-
-    if (this.audioContext) {
-      await this.audioContext.close();
-      this.audioContext = null;
-    }
-
-    // Critical: Close the session to allow reconnection
-    if (this.sessionPromise) {
-      try {
-        const session = await this.sessionPromise;
-        await session.close();
-      } catch (e) {
-        console.error("Error closing session", e);
-      }
-    }
-
+    // Never wait for a hung SDK connection. A session that opens late is closed.
+    const pending = this.sessionPromise;
     this.sessionPromise = null;
     this.ai = null;
+    if (pending) void pending.then(session => this.closeSession(session)).catch(() => {});
+  }
+
+  private closeSession(session: any) {
+    if (session === this.closedSession) return;
+    this.closedSession = session;
+    try { session.close(); } catch { /* Already closed by the remote peer. */ }
+  }
+
+  private safeMessage(message: string) {
+    const redacted = this.apiKey ? message.split(this.apiKey).join('[redacted]') : message;
+    return redacted.replace(/([?&]key=)[^&\s]+/gi, '$1[redacted]');
   }
 
   private log(type: LogEntry['type'], message: string) {
@@ -579,7 +670,7 @@ export class GeminiLiveService {
       id: Math.random().toString(36),
       timestamp: Date.now(),
       type,
-      message
+      message: this.safeMessage(message)
     });
   }
 }

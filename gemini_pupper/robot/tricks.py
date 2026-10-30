@@ -284,12 +284,24 @@ def validate_policy_timing(policy: dict, source: Path) -> tuple[int, float, floa
 
 
 def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
+    from runtime_config import session_skill_names
+    selected = session_skill_names()
+    if selected == ():
+        return {}
+    specs = sorted(trick_dir.glob("*/trick.yaml"))
+    present = {path.parent.name for path in specs}
+    if selected is not None and (missing := set(selected) - present):
+        raise ValueError(f"PUPPER_SESSION_SKILLS names unavailable/replaced tricks: {sorted(missing)}")
     tricks = {}
     replaced_by: dict[str, str] = {}  # trick -> the trick that replaces it
-    for spec_path in sorted(trick_dir.glob("*/trick.yaml")):
+    for spec_path in specs:
+        if selected is not None and spec_path.parent.name not in selected:
+            continue
         spec = yaml.safe_load(spec_path.read_text())
         if not isinstance(spec, dict):
             raise ValueError(f"{spec_path}: expected a mapping")
+        if selected is not None and spec.get("replaced_by") in present:
+            raise ValueError(f"PUPPER_SESSION_SKILLS names unavailable/replaced tricks: {[spec_path.parent.name]}")
         if not isinstance(spec.get("secret", False), bool):
             raise ValueError(f"{spec_path}: secret must be true or false")
         name = spec_path.parent.name
@@ -382,7 +394,15 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             walk=walk,
             secret=spec.get("secret", False),
         )
-    return {name: t for name, t in tricks.items() if replaced_by.get(name) not in tricks}
+    catalog = {name: t for name, t in tricks.items() if replaced_by.get(name) not in tricks}
+    # One explicit selector is shared by launch and server. Filtering never
+    # unlocks secret tricks; their code gate still applies at dispatch/execution.
+    if selected is None:
+        return catalog
+    missing = set(selected) - set(catalog)
+    if missing:
+        raise ValueError(f"PUPPER_SESSION_SKILLS names unavailable/replaced tricks: {sorted(missing)}")
+    return {name: catalog[name] for name in selected}
 
 
 def controller_params(trick: Trick, base: dict) -> dict:

@@ -130,6 +130,7 @@ const App: React.FC = () => {
   }, [view]);
 
   const geminiRef = useRef<GeminiLiveService | null>(null);
+  const disconnectingRef = useRef<GeminiLiveService | null>(null);
   // Stable for polling; changing the configured server immediately replaces it.
   const robotBridge = useMemo(() => new RobotBridge(config.robotApiUrl), [config.robotApiUrl]);
 
@@ -148,6 +149,8 @@ const App: React.FC = () => {
   }, [addLog, robotBridge]);
 
   const handleConnect = async () => {
+    // Ref is synchronous, so repeated clicks cannot create overlapping sessions.
+    if (geminiRef.current) return;
     if (!apiKey) {
       addLog({ id: 'err-key', timestamp: Date.now(), type: 'error', message: 'API Key missing' });
       setShowSettings(true);
@@ -159,18 +162,32 @@ const App: React.FC = () => {
         return;
     }
 
+    let service: GeminiLiveService | null = null;
+    let automaticStopSequence: number | null = null;
     try {
       setConnState(ConnectionState.CONNECTING);
       setLastDispatch(null);
       
-      const service = new GeminiLiveService(
+      service = new GeminiLiveService(
         config,
-        addLog,
-        (level) => setAudioLevel(level),
-        () => setConnState(ConnectionState.DISCONNECTED),
+        entry => { if (geminiRef.current === service) addLog(entry); },
+        level => { if (geminiRef.current === service) setAudioLevel(level); },
+        () => {
+          if (geminiRef.current !== service || disconnectingRef.current === service) return;
+          geminiRef.current = null;
+          setConnState(ConnectionState.DISCONNECTED);
+        },
         (entry) => {
+          if (geminiRef.current !== service) return;
           setLastDispatch(current => updateLatestDispatch(current, entry));
           if (entry.status === 'unknown') setModelActionsPaused(true);
+        },
+        message => {
+          if (geminiRef.current !== service) return;
+          if (automaticStopSequence === null) automaticStopSequence = ++stopSequence.current;
+          if (automaticStopSequence !== stopSequence.current) return;
+          setModelActionsPaused(true);
+          setStopMessage(message);
         }
       );
 
@@ -178,9 +195,11 @@ const App: React.FC = () => {
       geminiRef.current = service;
       setModelActionsPaused(false);
       await service.connect(apiKey, config, videoElement);
-      setConnState(ConnectionState.CONNECTED);
+      if (geminiRef.current === service) setConnState(ConnectionState.CONNECTED);
     } catch (err: any) {
-      console.error(err);
+      // Explicit disconnect owns this session until its independent Stop settles.
+      if (geminiRef.current !== service || disconnectingRef.current === service) return;
+      geminiRef.current = null;
       addLog({ id: 'conn-err', timestamp: Date.now(), type: 'error', message: err.message });
       setConnState(ConnectionState.ERROR);
     }
@@ -200,10 +219,16 @@ const App: React.FC = () => {
   };
 
   const handleDisconnect = async () => {
-    if (geminiRef.current) {
-      // Disconnecting voice must not queue a posture change (lie_down).
-      await handleStop();
-      await geminiRef.current.disconnect();
+    const service = geminiRef.current;
+    if (service) {
+      if (disconnectingRef.current === service) return;
+      disconnectingRef.current = service;
+      // Pause/stop immediately, and release local media without waiting for HTTP.
+      const stop = handleStop();
+      await service.disconnect();
+      await stop;
+      disconnectingRef.current = null;
+      if (geminiRef.current !== service) return;
       geminiRef.current = null;
     }
     
@@ -254,7 +279,7 @@ const App: React.FC = () => {
           />
         )}
 
-        {connState === ConnectionState.DISCONNECTED && view === 'face' && (
+        {(connState === ConnectionState.DISCONNECTED || connState === ConnectionState.ERROR) && view === 'face' && (
            <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 pointer-events-auto">
               <button 
                 onClick={handleConnect}
@@ -297,7 +322,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-2 w-32 justify-end">
-          {connState === ConnectionState.CONNECTED ? (
+          {(connState === ConnectionState.CONNECTED || connState === ConnectionState.CONNECTING) ? (
              <button 
                onClick={handleDisconnect}
                title="Sleep / Disconnect"

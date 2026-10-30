@@ -11,12 +11,12 @@ async function load(relative, stubSdk = false) {
     plugins: stubSdk ? [{ name: 'no-network-sdk', setup(builder) {
       builder.onResolve({ filter: /^@google\/genai$/ }, () => ({ path: 'sdk', namespace: 'test' }));
       builder.onLoad({ filter: /.*/, namespace: 'test' }, () => ({ contents:
-        "export class GoogleGenAI {} export const Modality={AUDIO:'AUDIO',TEXT:'TEXT'}; export const Type={OBJECT:'OBJECT',STRING:'STRING'};" }));
+        "export class GoogleGenAI { constructor(options) { return globalThis.__fakeLiveSdkFactory(options); } } export const Modality={AUDIO:'AUDIO',TEXT:'TEXT'}; export const Type={OBJECT:'OBJECT',STRING:'STRING'};" }));
     }}] : [],
   });
   return import('data:text/javascript;base64,' + Buffer.from(result.outputFiles[0].text).toString('base64'));
 }
-const { parseQueueStatus, queueSummary, toolResponseStatus, requestIndependentStop, updateLatestDispatch } = await load('../services/executionStatus.ts');
+const { parseQueueStatus, queueSummary, toolResponseStatus, requestIndependentStop, updateLatestDispatch, runtimeSummary } = await load('../services/executionStatus.ts');
 const { default: RobotBridge } = await load('../services/robotBridge.ts');
 const { GeminiLiveService } = await load('../services/geminiLive.ts', true);
 
@@ -150,11 +150,10 @@ test('unknown command outcome pauses later motion but preserves stop and status 
       ? { success: false, outcome_unknown: true, message: 'link lost' }
       : { success: true, message: 'server response' };
   };
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'a', name: 'move', args: {} }] } });
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'b', name: 'move', args: {} }] } });
   await s.handleMessage({ toolCall: { functionCalls: [
-    { id: 'a', name: 'move', args: {} },
-    { id: 'b', name: 'move', args: {} },
-    { id: 'c', name: 'stop', args: {} },
-    { id: 'd', name: 'robot_status', args: {} },
+    { id: 'c', name: 'stop', args: {} }, { id: 'd', name: 'robot_status', args: {} },
   ] } });
   assert.deepEqual(calls, ['move', 'stop', 'robot_status']);
   assert.equal(dispatches[1].status, 'unknown');
@@ -232,4 +231,248 @@ print(json.dumps([scope['check_move'](c['vx'], -c['vy'], -c['wz'], c['duration']
     fileURLToPath(new URL('../../robot/robot_api.py', import.meta.url)),
     fileURLToPath(new URL('../../lab/part2_walk.py', import.meta.url)), JSON.stringify(commands)], { encoding: 'utf8' });
   assert.deepEqual(JSON.parse(output), commands.map(() => null));
+});
+
+
+test('runtime labels distinguish fake queues from observed hardware', () => {
+  assert.match(runtimeSummary({ ...valid, runtime: 'fake', hardware_connected: false }), /FAKE REHEARSAL.*no robot hardware/);
+  assert.match(runtimeSummary({ ...valid, runtime: 'robot', hardware_connected: null }), /require observation/);
+  assert.match(runtimeSummary(valid), /not identified/);
+});
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((a, b) => { resolve = a; reject = b; });
+  return { promise, resolve, reject };
+}
+function replaceGlobal(t, name, value) {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+  Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+  t.after(() => descriptor ? Object.defineProperty(globalThis, name, descriptor) : delete globalThis[name]);
+}
+function mediaEnvironment(t, sdkConnect, getUserMedia) {
+  const contexts = [], tracks = [];
+  class FakeStream {
+    constructor(owned = []) { this.tracks = owned; }
+    addTrack(track) { this.tracks.push(track); }
+    getTracks() { return this.tracks; }
+    getAudioTracks() { return this.tracks.filter(t => t.kind === 'audio'); }
+    getVideoTracks() { return this.tracks.filter(t => t.kind === 'video'); }
+  }
+  const track = { kind: 'audio', stopped: 0, stop() { this.stopped++; } }; tracks.push(track);
+  const node = () => ({ connect() {}, disconnect() {} });
+  class FakeAudioContext {
+    constructor() { this.state = 'running'; this.destination = {}; contexts.push(this); }
+    createAnalyser() { return { ...node(), getByteTimeDomainData() {} }; }
+    createMediaStreamSource() { return node(); }
+    createScriptProcessor() { return node(); }
+    async close() { this.state = 'closed'; }
+  }
+  replaceGlobal(t, 'window', { AudioContext: FakeAudioContext, setInterval, speechSynthesis: { cancel() {} } });
+  replaceGlobal(t, 'MediaStream', FakeStream);
+  replaceGlobal(t, 'navigator', { mediaDevices: { getUserMedia: getUserMedia ?? (async () => new FakeStream([track])) } });
+  replaceGlobal(t, '__fakeLiveSdkFactory', () => ({ live: { connect: sdkConnect } }));
+  const logs = [], stops = [];
+  const config = { modelName: 'gemini-3.1-flash-live-preview', robotApiUrl: 'http://test-server', enableAudio: true, enableVideo: false };
+  const s = new GeminiLiveService(config, e => logs.push(e), () => {}, () => {}, () => {}, message => stops.push(message));
+  s.robotBridge.getTools = async () => ({ tools: [] });
+  t.after(() => s.disconnect());
+  return { s, config, contexts, tracks, logs, stops, FakeStream };
+}
+
+test('SDK failure releases mic and both contexts, scrubs key, and permits a fresh session', async t => {
+  const env = mediaEnvironment(t, async () => { throw new Error('failed ?key=TEST_SECRET&x=1 TEST_SECRET'); });
+  await assert.rejects(env.s.connect('TEST_SECRET', env.config, {}), error => {
+    assert.doesNotMatch(error.message, /TEST_SECRET/);
+    return true;
+  });
+  assert.equal(env.tracks[0].stopped, 1);
+  assert.equal(env.contexts.length, 2);
+  assert.ok(env.contexts.every(c => c.state === 'closed'));
+  assert.equal(env.s.volumeInterval, null);
+  assert.equal(env.s.connected, false);
+  globalThis.__fakeLiveSdkFactory = () => ({ live: { connect: async ({ callbacks }) => {
+    callbacks.onopen(); return { close() {} };
+  } } });
+  const fresh = new GeminiLiveService(env.config, () => {}, () => {}, () => {});
+  fresh.robotBridge.getTools = async () => ({ tools: [] });
+  await fresh.connect('TEST_SECRET', env.config, {});
+  assert.equal(fresh.connected, true);
+  await fresh.disconnect();
+});
+
+test('microphone denial fails voice connection instead of displaying listening', async t => {
+  let connections = 0;
+  const env = mediaEnvironment(t, () => { connections++; }, async () => { throw new Error('permission denied'); });
+  await assert.rejects(env.s.connect('test', env.config, {}), /permission denied/);
+  assert.equal(connections, 0);
+  assert.ok(env.contexts.every(c => c.state === 'closed'));
+});
+
+test('disconnect while microphone permission is pending stops late tracks and never opens SDK', async t => {
+  const permission = deferred(); let connections = 0;
+  const env = mediaEnvironment(t, () => { connections++; }, () => permission.promise);
+  const pending = env.s.connect('test', env.config, {});
+  const rejection = assert.rejects(pending, /cancelled/);
+  await env.s.disconnect();
+  permission.resolve(new env.FakeStream(env.tracks));
+  await rejection;
+  assert.equal(env.tracks[0].stopped, 1);
+  assert.equal(connections, 0);
+});
+
+test('disconnect never waits for pending SDK; late open cannot revive microphone or session', async t => {
+  const connection = deferred(), started = deferred(); let callbacks, closed = 0;
+  const env = mediaEnvironment(t, request => { callbacks = request.callbacks; started.resolve(); return connection.promise; });
+  const pending = env.s.connect('test', env.config, {});
+  const rejection = assert.rejects(pending, /cancelled/);
+  await started.promise;
+  await env.s.disconnect();
+  assert.equal(env.tracks[0].stopped, 1);
+  callbacks.onopen();
+  assert.equal(env.s.connected, false);
+  assert.equal(env.s.inputScriptProcessor, null);
+  connection.resolve({ close() { closed++; } });
+  await rejection;
+  assert.equal(closed, 1);
+});
+
+test('interruption invalidates an already decoding audio buffer without stopping robot actions', async () => {
+  const { s } = service(); const decoded = deferred(); let sources = 0, stops = 0;
+  s.audioContext = { state: 'running', currentTime: 0, decodeAudioData: () => decoded.promise,
+    createBufferSource() { sources++; throw new Error('stale audio must not start'); } };
+  s.analyser = {};
+  s.robotBridge.immediateStop = async () => { stops++; };
+  const pending = s.playAudioBase64(Buffer.from('RIFF').toString('base64'));
+  await s.handleMessage({ serverContent: { interrupted: true } });
+  decoded.resolve({ duration: 1 });
+  await pending;
+  assert.equal(sources, 0);
+  assert.equal(stops, 0);
+});
+
+test('interrupted pending TTS never resumes speech or falls back to browser speech', async () => {
+  const { s } = service(); const response = deferred(); let playback = 0;
+  s.config.ttsModelName = 'gemini-2.5-flash-preview-tts';
+  s.ai = { models: { generateContent: () => response.promise } };
+  s.playAudioBase64 = async () => { playback++; };
+  s.speakWithWebSpeech = () => { playback++; };
+  const pending = s.synthesizeAndPlaySpeech('stale response');
+  await s.handleMessage({ serverContent: { interrupted: true } });
+  response.resolve({ candidates: [{ content: { parts: [{ inlineData: { data: 'stale' } }] } }] });
+  await pending;
+  assert.equal(playback, 0);
+});
+
+test('all native audio parts are played, not only the first', async () => {
+  const { s } = service(); const seen = [];
+  s.playAudioBase64 = async audio => seen.push(audio);
+  await s.handleMessage({ serverContent: { modelTurn: { parts: [
+    { text: 'speech' }, { inlineData: { data: 'first' } }, { inlineData: { data: 'second' } }
+  ] } } });
+  assert.deepEqual(seen, ['first', 'second']);
+});
+
+test('Live cancellation skips buffered tool before dispatch without inventing cancellation outcome', async () => {
+  const { s, responses } = service(); const first = deferred(); const names = [];
+  s.robotBridge.callTool = name => { names.push(name); return first.promise; };
+  const pending = s.handleMessage({ toolCall: { functionCalls: [
+    { id: 'a', name: 'wait', args: {} }, { id: 'b', name: 'move', args: {} }
+  ] } });
+  await s.handleMessage({ toolCallCancellation: { ids: ['b'] } });
+  first.resolve({ success: true, message: 'queued' });
+  await pending;
+  assert.deepEqual(names, ['wait']);
+  assert.equal(responses.length, 1);
+});
+
+test('cancellation of a sent action pauses dispatch and requests exactly one global Stop', async () => {
+  const { s } = service(); const first = deferred(); const messages = []; let stops = 0;
+  s.onAutomaticStop = message => messages.push(message);
+  s.robotBridge.callTool = () => first.promise;
+  s.robotBridge.immediateStop = async () => { stops++; return { success: false, outcome_unknown: true }; };
+  const pending = s.handleMessage({ toolCall: { functionCalls: [{ id: 'a', name: 'move', args: {} }] } });
+  await s.handleMessage({ toolCallCancellation: { ids: ['a'] } });
+  await s.handleMessage({ toolCallCancellation: { ids: ['a'] } });
+  assert.equal(stops, 1);
+  assert.equal(s.robotToolsPaused, true);
+  assert.match(messages.at(-1), /unknown/);
+  first.resolve({ success: true, message: 'queued' });
+  await pending;
+});
+
+test('unexpected Live close after a sent action releases resources and requests global Stop', async t => {
+  let callbacks, stops = 0, disconnected = 0;
+  const env = mediaEnvironment(t, async request => { callbacks = request.callbacks; callbacks.onopen(); return { close() {} }; });
+  env.s.onDisconnect = () => { disconnected++; };
+  env.s.robotBridge.callTool = async () => ({ success: true, message: 'queued' });
+  env.s.robotBridge.immediateStop = async () => { stops++; return { success: true, message: 'zero requested' }; };
+  await env.s.connect('test', env.config, {});
+  await env.s.handleMessage({ toolCall: { functionCalls: [{ id: 'a', name: 'move', args: {} }] } });
+  await callbacks.onclose({ code: 1006, reason: 'link lost' });
+  assert.equal(stops, 1);
+  assert.equal(disconnected, 1);
+  assert.equal(env.s.robotToolsPaused, true);
+  assert.equal(env.tracks[0].stopped, 1);
+  assert.match(env.stops.at(-1), /does not prove physical stillness/);
+});
+
+test('failed pending connection does not allow reconnect before its global Stop response', async t => {
+  const connection = deferred(), started = deferred(), stop = deferred(); let callbacks, settled = false;
+  const env = mediaEnvironment(t, request => {
+    callbacks = request.callbacks; callbacks.onopen(); started.resolve(); return connection.promise;
+  });
+  env.s.robotBridge.callTool = async () => ({ success: true, message: 'queued' });
+  env.s.robotBridge.immediateStop = () => stop.promise;
+  const pending = env.s.connect('test', env.config, {}).finally(() => { settled = true; });
+  const rejection = assert.rejects(pending, /cancelled/);
+  await started.promise;
+  await env.s.handleMessage({ toolCall: { functionCalls: [{ id: 'a', name: 'move', args: {} }] } });
+  const closing = callbacks.onclose({ code: 1006, reason: 'gone' });
+  connection.resolve({ close() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false);
+  stop.resolve({ success: true, message: 'zero requested' });
+  await closing;
+  await rejection;
+});
+
+test('close before any action does not send an unsolicited global Stop', async t => {
+  let callbacks, stops = 0;
+  const env = mediaEnvironment(t, async request => { callbacks = request.callbacks; callbacks.onopen(); return { close() {} }; });
+  env.s.robotBridge.immediateStop = async () => { stops++; };
+  await env.s.connect('test', env.config, {});
+  await callbacks.onclose({ code: 1006, reason: 'gone' });
+  assert.equal(stops, 0);
+});
+
+
+test('Stop anywhere in one Live batch runs first and prevents partial motion dispatch', async () => {
+  const { s, dispatches, responses } = service(); const calls = [];
+  s.robotBridge.callTool = async name => { calls.push(name); return { success: true, message: 'accepted' }; };
+  await s.handleMessage({ toolCall: { functionCalls: [
+    { id: 'a', name: 'stand_up', args: {} }, { id: 'b', name: 'wait', args: { duration: 1 } },
+    { id: 'c', name: 'stop', args: {} }, { id: 'd', name: 'robot_status', args: {} },
+    { id: 'e', name: 'move', args: {} },
+  ] } });
+  assert.deepEqual(calls, ['stop', 'robot_status']);
+  assert.deepEqual(dispatches.filter(d => d.status === 'sending').map(d => d.name), ['stop', 'robot_status']);
+  const blocked = responses.map(r => r.functionResponses).filter(r => ['a', 'b', 'e'].includes(r.id));
+  assert.equal(blocked.length, 3);
+  assert.ok(blocked.every(r => !r.response.result.success && /Not dispatched/.test(r.response.result.message)));
+});
+
+
+test('audio decode in a mixed Live packet cannot delay Stop dispatch', async () => {
+  const { s } = service(); const audio = deferred(), events = [];
+  s.robotBridge.callTool = async name => { events.push(name); return { success: true, message: 'zero requested' }; };
+  s.playAudioBase64 = () => { events.push('audio-decode'); return audio.promise; };
+  const pending = s.handleMessage({
+    serverContent: { modelTurn: { parts: [{ inlineData: { data: 'audio' } }] } },
+    toolCall: { functionCalls: [{ id: 'stop', name: 'stop', args: {} }] },
+  });
+  assert.deepEqual(events, ['stop']);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(events, ['stop', 'audio-decode']);
+  audio.resolve(); await pending;
 });

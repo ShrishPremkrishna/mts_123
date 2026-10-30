@@ -62,7 +62,11 @@ def check_move(vx: float, vy: float, wz_deg: float, duration: float, limits: Mov
     values = (vx, vy, wz_deg, duration)
     if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in values):
         return "motion values must be finite numbers (m/s, degrees/s and seconds)"
-    if abs(vx) > limits.vx_max or abs(vy) > limits.vy_max or abs(wz_deg) > limits.wz_max:
+    forward = limits.vx_forward_max if limits.vx_forward_max is not None else limits.vx_max
+    backward = limits.vx_backward_max if limits.vx_backward_max is not None else limits.vx_max
+    if vx > forward or vx < -backward or abs(vy) > limits.vy_max or abs(wz_deg) > limits.wz_max:
+        if limits.vx_forward_max is not None or limits.vx_backward_max is not None:
+            return f"too fast: -{backward}<=vx<={forward} m/s, |vy|<={limits.vy_max} m/s, |wz|<={limits.wz_max} deg/s"
         return f"too fast: |vx|<={limits.vx_max} m/s, |vy|<={limits.vy_max} m/s, |wz|<={limits.wz_max} deg/s"
     if abs(vx) < limits.vx_min and abs(vy) < limits.vy_min and abs(wz_deg) < limits.wz_min:
         return f"too slow: at least |vx|>={limits.vx_min} m/s, |vy|>={limits.vy_min} m/s or |wz|>={limits.wz_min} deg/s"
@@ -138,6 +142,12 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
                 await robot.sleep(min(1.0 / LLM_CMD_RATE, end - robot.now()))
         finally:
             robot.send_speed(0, 0, 0)  # also stop on cancellation or a failed publish/sleep
+        # A sensor/stop callback can arrive during the last sleep, after the
+        # loop's final check and before asynchronous cancellation cleans up.
+        if robot.fallen:
+            return Result(False, FELL_MESSAGE)
+        if robot.stopped_during_call():
+            return Result(False, "movement interrupted by a stop")
         return Result(True, f"moved {what} for {duration:.2f} s")  # the outcome (debug log)
 
     # What Gemini hears NOW: the job was accepted.
@@ -191,9 +201,8 @@ async def turn_tool(robot: Robot, direction: str, angle: float = 90.0) -> Result
 
 @tool(
     "move",
-    f"Move in one direction for a duration (default 1.5 s). Default walking speed is 0.4 m/s; forward/backward"
-    f" running uses at least {RUN_MIN_SPEED} m/s, default {RUN_DEFAULT_SPEED}, maximum {LIMITS.vx_max}."
-    " Sideways always walks (maximum 0.5 m/s). Walking tricks use their own lower limits and may refuse running."
+    "Move in one direction for a duration (default 1.5 s). {locomotion_motion_contract}"
+    " Sideways always walks. Walking tricks use their own lower limits and may refuse running."
     + PREPARES_MOVE,
     direction=Param("string", "Direction relative to Pupper; left is positive sideways.", enum=["forward", "backward", "left", "right"]),
     run=Param("boolean", "Request a run forward/backward; sideways walks instead. Default false.", required=False),
@@ -289,9 +298,8 @@ async def move_tool(
 # ========== TODO 4: YOUR CODE HERE ==========
 @tool(
     "arc",
-    f"Walk forward along a left/right circular arc. Specify the positive angle in degrees (360 for a circle)."
-    f" Radius defaults to 0.5 m; radius 0 turns in place. At speed v, radius must be at least v/{math.radians(LIMITS.wz_max):.3g}"
-    f" in locomotion (turn cap {LIMITS.wz_max} deg/s). One arc travels at most {LIMITS.distance_max} m."
+    "Walk forward along a left/right circular arc. Specify the positive angle in degrees (360 for a circle)."
+    " Radius defaults to 0.5 m; radius 0 turns in place. {locomotion_arc_contract}"
     " Walking tricks have their own lower limits." + PREPARES_MOVE,
     direction=Param("string", "Which way the arc bends, relative to Pupper.", enum=["left", "right"]),
     angle=Param("number", "Positive degrees around the arc; required (90 is a quarter circle)."),

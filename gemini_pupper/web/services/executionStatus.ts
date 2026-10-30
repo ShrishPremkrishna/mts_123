@@ -8,6 +8,8 @@ export interface ToolDispatch {
 }
 
 export interface QueueStatus {
+  runtime?: 'fake' | 'robot';
+  hardware_connected?: boolean | null;
   queued: number;
   running: boolean;
   following: boolean;
@@ -51,4 +53,11 @@ export function requestIndependentStop(
 /** A late response may update only the request currently displayed. */
 export function updateLatestDispatch(current: ToolDispatch | null, entry: ToolDispatch): ToolDispatch | null {
   return entry.status === 'sending' || current?.id === entry.id ? entry : current;
+}
+
+/** API mode is not evidence of physical connectivity. Missing metadata stays unknown. */
+export function runtimeSummary(status: QueueStatus): string {
+  if (status.runtime === 'fake') return 'FAKE REHEARSAL — no robot hardware; commands simulate queue behavior only';
+  if (status.runtime === 'robot') return 'ROBOT API — physical connection and motion require observation';
+  return 'Runtime not identified — do not infer hardware from this server response';
 }

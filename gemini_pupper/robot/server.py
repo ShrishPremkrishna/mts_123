@@ -21,8 +21,6 @@ import subprocess
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
-import cv2
-import numpy as np
 import psutil
 import uvicorn
 from fastapi import Body, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
@@ -31,8 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import tool_registry as gemini_tools
-from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
-from robot_api import LIMITS, Robot
+from robot_api import Robot
 from runtime_config import component_dir, follower_config
 
 behaviors = gemini_tools.load_lab()  # lab/: every tool, and the behaviors they call
@@ -46,6 +43,12 @@ PROMPT_FILE = REPO / "lab" / "prompt.md"
 BATTERY_SCRIPT = component_dir("pupperv3-monorepo", "PUPPER_MONOREPO_DIR") / "robot/utils/check_batt_voltage.py"
 
 tools: Robot | None = None
+FAKE_MODE = False  # only the explicit localhost fake_server.py entrypoint sets this
+
+
+def runtime_info() -> dict:
+    # A constructed API object does not prove a physical robot is connected.
+    return {"runtime": "fake" if FAKE_MODE else "robot", "hardware_connected": False if FAKE_MODE else None}
 
 
 class Detections:
@@ -84,18 +87,39 @@ detections = Detections()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global tools
+    if FAKE_MODE:
+        from gemini_chat import DeskBackend
+        backend = DeskBackend(realtime=True)
+        try:
+            backend.setup()
+            tools = backend.rig.ts
+            await tools.ready.wait()
+            log.warning("FAKE runtime: real queue timing, no physics, ROS transport or hardware")
+            yield
+        finally:
+            try:
+                await backend.aclose()
+            finally:
+                tools = None
+        return
+    follow_available = follower_config().mode != "disabled"
     tools = Robot()
-    tools.follow_available = follower_config().mode != "disabled"
+    tools.follow_available = follow_available
     task = asyncio.create_task(detections.run())
     try:
         yield
     finally:
         task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
-        stopped = await tools.shutdown()
-        (log.info if stopped.ok else log.error)("tool-server shutdown: %s", stopped.message)
-        tools = None
+        try:
+            with suppress(asyncio.CancelledError):
+                await task
+        except Exception:
+            log.exception("detection forwarding failed; continuing robot shutdown")
+        try:
+            stopped = await tools.shutdown()
+            (log.info if stopped.ok else log.error)("tool-server shutdown: %s", stopped.message)
+        finally:
+            tools = None
 
 
 app = FastAPI(title="Gemini Pupper robot server", lifespan=lifespan)
@@ -250,7 +274,7 @@ async def stop_immediate():
 
 @app.get("/queue/status")
 def queue_status():
-    return T().status()
+    return {**T().status(), **runtime_info()}
 
 
 @app.post("/following/activate")
@@ -270,7 +294,7 @@ async def system_mode():
 
 @app.get("/limits")
 def limits():
-    return LIMITS.__dict__
+    return T().speeds().limits.__dict__
 
 
 # ------------------------------------------------------------------ sensing
@@ -284,6 +308,9 @@ camera_model = None
 
 
 def undistort_jpeg(data: bytes) -> bytes | None:
+    import cv2
+    import numpy as np
+    from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
     global camera_model
     frame = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if frame is None:
@@ -300,6 +327,8 @@ def undistort_jpeg(data: bytes) -> bytes | None:
 
 @app.get("/camera/image")
 def camera_image():
+    if FAKE_MODE:
+        return Response(status_code=503, content="camera unavailable in fake mode")
     try:
         msg = T().latest_image.get_nowait()
     except Exception:
@@ -326,16 +355,26 @@ async def ws_detections(ws: WebSocket):
 
 @app.get("/system/status")
 def system_status():
+    if FAKE_MODE:
+        return {
+            **runtime_info(),
+            "battery": {"percentage": None, "is_charging": None, "voltage": None},
+            "cpu": {"usage": None, "temperature": None},
+            "services": {"robot": "simulated" if tools else "inactive", "internet": "not_checked"},
+        }
     pct = volts = None
     if BATTERY_SCRIPT.exists():
         try:
-            out = subprocess.run(["python3", str(BATTERY_SCRIPT)], capture_output=True, text=True, timeout=2).stdout
-            m = re.search(r"(\d+(?:\.\d+)?)V", out)
-            volts = float(m.group(1)) if m else None
-            out = subprocess.run(["python3", str(BATTERY_SCRIPT), "--percentage_only"], capture_output=True, text=True, timeout=2).stdout
-            pct = float(out.strip())
-        except Exception:
-            pass
+            reading = subprocess.run(["python3", str(BATTERY_SCRIPT)], capture_output=True, text=True, timeout=2)
+            # The class helper reports both from one I2C sample, using its own
+            # pack calibration. Never combine two independent sensor readings.
+            match = re.fullmatch(r"Battery:\s*(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)V\s*", reading.stdout)
+            if reading.returncode == 0 and match:
+                percentage, voltage = map(float, match.groups())
+                if 0 <= percentage <= 100 and 0 <= voltage < float("inf"):
+                    pct, volts = percentage, voltage
+        except (OSError, subprocess.SubprocessError, ValueError):
+            pass  # unavailable is different from a measured zero percent
     temps = psutil.sensors_temperatures()
     cpu_temp = temps["cpu_thermal"][0].current if "cpu_thermal" in temps else None
     try:
@@ -344,6 +383,7 @@ def system_status():
     except OSError:
         internet = "offline"
     return {
+        **runtime_info(),
         "battery": {"percentage": pct, "is_charging": False, "voltage": volts},
         "cpu": {"usage": psutil.cpu_percent(), "temperature": cpu_temp},
         "services": {"robot": "active" if tools else "inactive", "internet": internet},
@@ -352,6 +392,8 @@ def system_status():
 
 @app.post("/system/volume")
 def system_volume(req: Volume):
+    if FAKE_MODE:
+        return {"success": False, "message": "volume control unavailable in fake mode"}
     level = max(0.0, min(req.volume / 100.0, 1.5))
     r = subprocess.run(["wpctl", "set-volume", "@DEFAULT_SINK@", str(level)], capture_output=True, text=True)
     return {"success": r.returncode == 0, "message": f"volume set to {req.volume}%" if r.returncode == 0 else r.stderr}
@@ -359,7 +401,7 @@ def system_volume(req: Volume):
 
 @app.get("/health")
 def health():
-    return {"status": "running", "tools": tools is not None}
+    return {"status": "running", "tools": tools is not None, **runtime_info()}
 
 
 # The built web app (npm run build in web/ -> web/dist/) is served at /, so the robot's own

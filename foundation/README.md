@@ -22,6 +22,13 @@ never starts or contacts the robot. The compact
 [current-state record](results/interruption-recovery.json) is the sole owner of
 operational status; completed experiment reports retain their dated evidence.
 
+The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
+adds selected skill profiles, truthful controller limits, lifecycle/cancellation
+fixes and an explicit fake HTTP runtime. Final software checks and actual Gemini
+experiments are preserved separately: synthetic speech dispatched tools, but
+model planning/narration failures remain. This candidate is not deployed; native
+integration, actual browser rehearsal and supervised skills/Live voice remain.
+
 The [offline workflow changes](results/offline-workflow-improvements-20261030.json)
 record the continuity, preservation, input-preflight and Gemini timing fixes with
 their exact test evidence and remaining native limitations.

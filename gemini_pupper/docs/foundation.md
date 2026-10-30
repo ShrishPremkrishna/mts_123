@@ -56,6 +56,31 @@ From `gemini_pupper/`, using the workspace virtual environment:
 ../.venv/bin/python -B robot/preflight.py
 ```
 
+For browser/API development without the Pi, use the explicit fake server with the
+tested interpreter from the current-state record:
+
+```bash
+PUPPER_SESSION_SKILLS=sit_stay_shake,secret_dance python -B robot/fake_server.py --port 18091
+```
+
+Open `http://127.0.0.1:18091` and verify **FAKE REHEARSAL** before using the
+controls. This process installs fake ROS before importing the real API, binds
+localhost only and uses real elapsed queue timing. It never accesses motors,
+SPI, camera, battery hardware or native controllers. Explicit empty selection
+(`PUPPER_SESSION_SKILLS=''`) tests the baseline catalog; unset uses the full
+ordinary catalog. A Gemini key is unnecessary for manual controls. Voice has its
+own Google connection and microphone permission; keep those disabled unless the
+session calls for them. `lab/chat.py --realtime` exercises actual Gemini with the
+same fake backend without recording a microphone. Neither mode validates physics.
+
+The browser dispatches tools before decoding speech. A Stop in one model tool
+batch suppresses other motion in that batch; cancelling a sent action requests
+global Stop and pauses model dispatch. Cancelling an unsent action skips it.
+Ordinary speech interruption stops playback only. These deterministic safeguards
+cannot repair incorrect model planning or narration, and closing/crashing a tab
+cannot guarantee that Stop reaches a real robot. Direct Stop and the physical
+controller remain independent controls.
+
 The preflight reads files and validates policy data contracts; it never starts
 ROS or moves anything. On a laptop it should report the missing installed ROS
 workspace and may report the missing Hailo model. `robot/start.sh` runs this check

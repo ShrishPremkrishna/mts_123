@@ -228,7 +228,7 @@
   ],
   "known_defect": {
     "description": "Second fall during a recovery path can produce a false-success outcome.",
-    "state": "Root independently reviewed local 99-test fix and owns final commit; not deployed in ended hardware session. Next action is deployment/native check, not more commit planning.",
+    "state": "Recovery-reporting fix committed in8dcc24c; not deployed in the ended hardware session. Additional offline changes are recorded separately; deliberate native deployment/check remains.",
     "required_next": "Independent review and deliberate deployment/native recheck before relying on repaired reporting."
   },
   "handoff": [
@@ -305,8 +305,10 @@
     }
   },
   "hardware_followup": {
-    "battery": "User reported dying battery. Prior /system/status showed 16.49 V and 0 percent: inconsistent gauge; no inference that pack is healthy. Investigate percentage display offline.",
+    "battery": "Correction after source review:16.49 V/0% is consistent with the bundled five-cell calibration (0% at3.3V/cell). The user reported a low battery. The actual pack was not independently inspected; no inference that it is healthy.",
     "pi_temperature_c": 75,
-    "source": "Root-reported prior status; not a fresh measurement."
+    "source": "Root-reported prior status; not a fresh measurement.",
+    "battery_original_interpretation": "User reported dying battery. Prior /system/status showed 16.49 V and 0 percent: inconsistent gauge; no inference that pack is healthy. Investigate percentage display offline.",
+    "battery_correction_source": "pupperv3-monorepo/robot/utils/check_batt_voltage.py: NUM_CELLS=5; MIN_VOLTAGE=3.3*NUM_CELLS; CELL_VOLTAGES/CELL_PERCENTAGES; server percentage and voltage now share one sample."
   }
 }

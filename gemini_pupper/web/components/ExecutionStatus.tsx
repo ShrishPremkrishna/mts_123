@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type RobotBridge from '../services/robotBridge';
-import { parseQueueStatus, queueSummary, type QueueStatus, type ToolDispatch } from '../services/executionStatus';
+import { parseQueueStatus, queueSummary, runtimeSummary, type QueueStatus, type ToolDispatch } from '../services/executionStatus';
 
 interface Props {
   robotBridge: RobotBridge;
@@ -56,6 +56,7 @@ export default function ExecutionStatus({ robotBridge, lastDispatch, modelAction
         <div className={error ? 'text-amber-300' : 'text-cyan-200'}>
           {report ? `Server report ${new Date(report.received).toLocaleTimeString()}: ${queueSummary(report.status)}` : error}
         </div>
+        {report && <div className={report.status.runtime === 'fake' ? 'font-bold text-amber-300' : 'text-gray-300'}>{runtimeSummary(report.status)}</div>}
         {report?.status.controller_fault && <div className="text-red-300">Controller fault: {report.status.controller_fault}</div>}
         <div>Latest Gemini request: {lastDispatch ? `${lastDispatch.name} — ${lastDispatch.status}: ${lastDispatch.message}` : 'none sent in this voice session'}</div>
         {report?.status.last_outcome && <div>

@@ -1,0 +1,63 @@
+{
+  "schema": "pupper_workstream1_offline_completion_v1",
+  "updated_utc": "2026-10-30T23:27:57.897636+00:00",
+  "status": "Reviewed offline implementation candidate ready for native integration; Workstream1 and physical Lab6 remain incomplete.",
+  "scope": "No SSH, robot API, motors, microphone, training or deployment in this session. Real Google experiments used isolated fake robots and synthetic/test inputs only.",
+  "changes": [
+    "Runtime startup refuses missing/ambiguous controller inventory; actual controller selection determines interactive exit rather than stale API state.",
+    "Final movement interval detects late fall/stop; detector-task failure cannot skip shutdown; follower configuration validates before ROS allocation.",
+    "Selected persistent profile binds policies/descriptors/configuration/source identities; explicit empty selects baseline; unset refuses before launch; missing selected controllers are not auto-spawned.",
+    "Selected commands, declarations and /limits match stock caps: forward0.49/backward0.30/sideways0.49m/s, yaw114deg/s, default0.30m/s; over-cap/run requests refused without widening limits/gains.",
+    "Actual-catalog fake checks cover Sit10s, both paws, exit/walk, all12 finite policies and secret generated skill; restart/fall/stop relock the gate.",
+    "Voice client cleans resources on failed connection, protects against stale callbacks/reconnect races, skips cancelled unsent tools, and requests global Stop when sent motion is cancelled or its Live connection unexpectedly closes.",
+    "Same-batch Stop precedes/suppresses other motion; tool dispatch precedes audio decode; stale interrupted audio cannot resume; latest Stop receipts cannot be overwritten.",
+    "Explicit localhost fake HTTP runtime uses the real API and real queue timing, labeled FAKE REHEARSAL; no hardware fallback.",
+    "Battery percentage and voltage share one sample; prior16.49V/0% is consistent with existing5-cell calibration, correcting the earlier interpretation."
+  ],
+  "validation": {
+    "final_receipt": "ws1-final-regression-postcap/receipt.json",
+    "artifact_receipt": "artifacts/access/ws1-offline-20261030/validation/ws1-final-regression-postcap/receipt.json",
+    "combined_output": "........................................................................ [ 14%]\n........................................................................ [ 29%]\n........................................................................ [ 44%]\n........................................................................ [ 58%]\n........................................................................ [ 73%]\n........................................................................ [ 88%]\n.........................................................                [100%]\n489 passed in 50.60s",
+    "course": "166 course checks passed; see final raw output",
+    "web": "33 mocked tests, TypeScript and production build passed; independent review complete",
+    "scope": "Software validation only; no native/physical/Chrome-media proof."
+  },
+  "gemini": {
+    "model": "gemini-3.1-flash-live-preview",
+    "source": "Baseline8dcc24c with frozen prompt-only revisions1 and2. Full integrated candidate was not used for these Google runs; see individual source manifests.",
+    "baseline": "Reproduced unsupported delayed-stop narration with zero tool calls.",
+    "prompt1": "Finite timed move, immediate cancellation and hypothetical-stop dispatch worked in sampled text cases; delayed posture/stop still misplanned into immediate cancellation.",
+    "synthetic_audio": "Prompt1: generated spoken move and Stop were transcribed and dispatched correctly to fake backend. Audio source/hashes and tool replies preserved. No human microphone/barge-in/robot claim.",
+    "prompt2": "Finite timed move dispatched and completed in fake backend; hypothetical Stop made no call. Still used unsupported physical-stillness narration. Delayed posture and explicit-cancel cases failed connection handshake twice and remain untested on revision2.",
+    "optional3_habits": "Alex greeting/offer with no motion and fourth-consecutive-request joke observed. Handshake added a stand-up action; next repeat tried an unavailable interactive action and was refused. Later requests resat/shook/exited. Reset-after-math inconclusive. Sit-count and fresh-conversation cases failed connection handshakes and remain untested.",
+    "conclusion": "Model narration/planning reliability NOT accepted. Deterministic limits/queue/Stop checks contain some failures but do not establish correct voice intent or physical completion. No further prompt tuning hidden behind selected successful samples."
+  },
+  "browser_rehearsal": {
+    "status": "Not performed",
+    "reason": "Automatic permission review timed out twice before elevated fake-server execution. Restricted fallback initialized fake runtime but localhost bind was denied; process exited3 and shut down. No listener/tab was left running.",
+    "next": "Run documented fake server and verify actual Chrome FAKE banner/manual commands before native voice block; no microphone needed for this rehearsal."
+  },
+  "source_bundle": {
+    "path": "artifacts/access/ws1-offline-20261030/candidate/source.tar.gz",
+    "sha256": "b158bfa526731a5886bb38a63cafbb5bfa98ac99a7c592a19a6aa7ec970c38d8",
+    "source_manifest": "artifacts/access/ws1-offline-20261030/candidate/source-manifest.json",
+    "file_count": 198,
+    "native_limit": "Existing staged v5 pins refer to older files; deliberately stage/validate new source and pins, preserving teammate changes. This bundle is not an auto-deployment or ROS/motor launcher."
+  },
+  "remaining": [
+    "Actual Chrome fake-API manual rehearsal; final Gemini delayed-stop/cancel and sit-memory cases after connection service is usable. Retain failed narration/handshake cases.",
+    "When robot ownership returns: inventory teammate changes, stage exact candidate, verify selected profile/native controller markers/limits/source identities without motors; old environment pins are historical.",
+    "Supervised persistent session: bounded direct arc/wait, Live speech dispatch/refusal/interruptions/reconnect and camera understanding; keep explicit0.2m/s/short commands initially, independent R3/Stop.",
+    "With applicable course approval: selected Sit entry10s/both paws/exit, ordinary move from Sit, selected finite endpoints, hidden generated trick unlock/play/relock; record actual physical evidence.",
+    "Receive measured gait/Spider and following changes from their workstream owners and integrate after their evidence. Required Spider walking remains unresolved; no new policy promotion or speculative training here."
+  ],
+  "inefficiencies_and_limits": [
+    "Automatic permission review latency blocked the browser listener; restricted fallback was checked and stopped. Other code/test work continued.",
+    "Google Live intermittently failed opening handshakes; failed connections retained, bounded retry once, no pass inferred.",
+    "Independent review exposed scoped cap/declaration/HTTP mismatch late; corrected and final regression rerun only after sources froze.",
+    "Synthetic speech generation initially returned empty files under sandbox; actual nonempty audio was regenerated and validated.",
+    "No percentage-complete or globally-optimized claim; all physical and missing-interface boundaries remain explicit."
+  ],
+  "artifacts": "artifacts/access/ws1-offline-20261030",
+  "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/ws1-offline"
+}

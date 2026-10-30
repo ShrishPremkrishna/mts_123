@@ -194,8 +194,8 @@ def test_http_not_initialized_is_503_and_health_does_not_claim_robot_ready(serve
     async def case():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
                                      base_url="http://in-process.invalid") as client:
-            assert (await client.get("/health")).json() == {"status": "running", "tools": False}
-            for endpoint in ("/tools", "/queue/status"):
+            assert (await client.get("/health")).json() == {"status": "running", "tools": False, "runtime": "robot", "hardware_connected": None}
+            for endpoint in ("/tools", "/queue/status", "/limits"):
                 response = await client.get(endpoint)
                 assert response.status_code == 503
             response = await client.post("/tools/stop", json={})
@@ -287,7 +287,7 @@ def test_lifespan_uses_explicit_fake_and_shuts_down_without_hardware(server, mon
             assert server.tools.follow_available is False
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
                                          base_url="http://in-process.invalid") as client:
-                assert (await client.get("/health")).json() == {"status": "running", "tools": True}
+                assert (await client.get("/health")).json() == {"status": "running", "tools": True, "runtime": "robot", "hardware_connected": None}
         assert server.tools is None
         assert state == {"constructed": 1, "shutdown": 1, "detection_cancelled": True}
     asyncio.run(case())
@@ -318,4 +318,142 @@ def test_browser_and_gemini_transport_obey_shared_stop_while_stop_stays_availabl
             assert await rig.settle()
             assert rig.robot.switches == before
             assert not harness.walk_twists(rig)
+    asyncio.run(case())
+
+
+@pytest.mark.parametrize("output,returncode,expected", [
+    ("Battery:\t0%\t16.49V\n", 0, (0., 16.49)),
+    ("Battery:\t100%\t20.50V\n", 0, (100., 20.50)),
+    ("Battery:\t50%\t18.00V\n", 1, (None, None)),
+    ("Battery:\t101%\t18.00V\n", 0, (None, None)),
+    ("malformed output\n", 0, (None, None)),
+])
+def test_system_battery_uses_one_validated_reading(server, monkeypatch, tmp_path, output, returncode, expected):
+    script = tmp_path / "battery.py"
+    script.write_text("# Never executed: subprocess is stubbed.\n")
+    monkeypatch.setattr(server, "BATTERY_SCRIPT", script)
+    calls = []
+    def read(args, **kwargs):
+        calls.append(args)
+        # An independent second read could differ; it is not the same sample.
+        return types.SimpleNamespace(returncode=returncode, stdout=output if len(calls) == 1 else "77\n")
+    monkeypatch.setattr(server.subprocess, "run", read)
+    monkeypatch.setattr(server.psutil, "sensors_temperatures", lambda: {}, raising=False)
+    monkeypatch.setattr(server.psutil, "cpu_percent", lambda: 0.)
+    monkeypatch.setattr(server.socket, "create_connection", lambda *a, **kw: types.SimpleNamespace(close=lambda: None))
+    result = server.system_status()["battery"]
+    assert (result["percentage"], result["voltage"]) == expected
+    assert calls == [["python3", str(script)]]
+
+
+def test_detection_task_failure_does_not_skip_robot_shutdown(server, monkeypatch):
+    async def case():
+        shutdowns = []
+        class FakeRobot:
+            async def shutdown(self):
+                shutdowns.append(True)
+                return robot_api.Result(True, "fake shutdown")
+        async def broken_detections():
+            raise RuntimeError("injected detector transport failure")
+        monkeypatch.setattr(server, "Robot", FakeRobot)
+        monkeypatch.setattr(server.detections, "run", broken_detections)
+        monkeypatch.setattr(server, "follower_config", lambda: types.SimpleNamespace(mode="disabled"))
+        try:
+            async with server.app.router.lifespan_context(server.app):
+                await asyncio.sleep(0)
+        finally:
+            # Preserve fixture cleanup even when the old implementation fails.
+            server.tools = None
+        assert shutdowns == [True]
+    asyncio.run(case())
+
+
+@pytest.mark.parametrize("scope", [None, "", "sit_stay_shake"])
+def test_fake_lifespan_uses_real_routes_and_realtime_cancel_without_native_access(server, monkeypatch, scope):
+    async def case():
+        if scope is None:
+            monkeypatch.delenv("PUPPER_SESSION_SKILLS", raising=False)
+        else:
+            monkeypatch.setenv("PUPPER_SESSION_SKILLS", scope)
+        # Fake mode honors the catalog selector but never consumes a physical
+        # deployment manifest, including a stale path left in this environment.
+        monkeypatch.setenv("PUPPER_SESSION_MANIFEST", "/nonexistent/fake-only-no-deployment.json")
+        monkeypatch.setattr(server, "FAKE_MODE", True)
+        # Fixture forbids subprocess, network, camera, native Robot construction
+        # and native detections. Fake mode must not call any of those hooks.
+        async with server.app.router.lifespan_context(server.app):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
+                                         base_url="http://in-process.invalid") as client:
+                health = (await client.get("/health")).json()
+                assert health["runtime"] == "fake" and health["hardware_connected"] is False
+                assert health["tools"] is True
+                assert (await client.get("/tools")).json()["tools"]
+                if scope is not None:
+                    assert set((await client.get("/animations")).json()) == ({scope} if scope else set())
+                system = (await client.get("/system/status")).json()
+                assert system["runtime"] == "fake" and system["hardware_connected"] is False
+                assert system["battery"]["voltage"] is None
+                assert system["services"]["robot"] == "simulated"
+                assert (await client.get("/camera/image")).status_code == 503
+                assert not (await client.post("/system/volume", json={"volume": 50})).json()["success"]
+                accepted = await client.post("/tools/wait", json={"duration": 10.})
+                assert accepted.json()["success"] and "queued" in accepted.json()["message"]
+                await asyncio.sleep(.03)
+                before = (await client.get("/queue/status")).json()
+                assert before["running"] and before["runtime"] == "fake"
+                assert before["hardware_connected"] is False
+                assert (await client.post("/stop/immediate")).json()["success"]
+                await asyncio.sleep(.03)
+                after = (await client.get("/queue/status")).json()
+                assert after["queued"] == 0 and not after["running"]
+                assert after["last_outcome"]["success"] is False
+                assert after["last_outcome"]["message"] == "cancelled"
+                assert not any(abs(m.linear.x) + abs(m.linear.y) + abs(m.angular.z)
+                               for _, m in harness.ROBOT.twists())
+        assert server.tools is None
+    asyncio.run(case())
+
+
+def test_invalid_follower_configuration_does_not_construct_robot(server, monkeypatch):
+    async def case():
+        constructed = []
+        def construct():
+            constructed.append(True)
+            return types.SimpleNamespace()
+        def bad_config():
+            raise ValueError("injected invalid follower configuration")
+        monkeypatch.setattr(server, "Robot", construct)
+        monkeypatch.setattr(server, "follower_config", bad_config)
+        try:
+            with pytest.raises(ValueError, match="invalid follower configuration"):
+                async with server.app.router.lifespan_context(server.app):
+                    raise AssertionError("invalid startup unexpectedly reached serving state")
+            assert constructed == [], "Robot resources were allocated before configuration validation"
+            assert server.tools is None
+        finally:
+            server.tools = None
+    asyncio.run(case())
+
+
+@pytest.mark.parametrize("scoped", [False, True])
+def test_http_limits_reports_current_runtime_envelope(server, monkeypatch, scoped):
+    async def case():
+        if scoped:
+            monkeypatch.setenv("PUPPER_SESSION_SKILLS", "")
+        else:
+            monkeypatch.delenv("PUPPER_SESSION_SKILLS", raising=False)
+        async with client_with_rig(server) as (client, rig):
+            response = await client.get("/limits")
+            assert response.status_code == 200
+            limits = response.json()
+            if scoped:
+                assert limits["vx_max"] == pytest.approx(.49)
+                assert limits["vx_forward_max"] == pytest.approx(.49)
+                assert limits["vx_backward_max"] == pytest.approx(.30)
+                assert limits["vy_max"] == pytest.approx(.49)
+            else:
+                assert limits["vx_max"] == pytest.approx(1.5)
+                assert limits["vx_forward_max"] is None
+                assert limits["vx_backward_max"] is None
+            assert not rig.robot.switches and not harness.walk_twists(rig)
     asyncio.run(case())

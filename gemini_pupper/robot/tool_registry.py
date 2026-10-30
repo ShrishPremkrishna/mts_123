@@ -112,6 +112,22 @@ def _action_list(robot: Robot) -> str:
 
 
 def _describe(text: str, robot: Robot) -> str:
+    if "{locomotion_motion_contract}" in text:
+        speeds = robot.speeds("locomotion")
+        limits = speeds.limits
+        forward = limits.vx_forward_max if limits.vx_forward_max is not None else limits.vx_max
+        backward = limits.vx_backward_max if limits.vx_backward_max is not None else limits.vx_max
+        running = ("Running needs at least 1.0 m/s (default 1.2) and is refused in directions below that cap."
+                   if max(forward, backward) >= 1.0 else "Running is unavailable in this selected profile.")
+        contract = (f"Default walking speed is {speeds.walk} m/s. Forward maximum {forward} m/s; "
+                    f"backward maximum {backward} m/s; sideways maximum {limits.vy_max} m/s. "
+                    + running)
+        text = text.replace("{locomotion_motion_contract}", contract)
+    if "{locomotion_arc_contract}" in text:
+        limits = robot.speeds("locomotion").limits
+        text = text.replace("{locomotion_arc_contract}",
+            f"At speed v, radius must be at least v/{math.radians(limits.wz_max):.3g} "
+            f"in locomotion (turn cap {limits.wz_max} deg/s). One arc travels at most {limits.distance_max} m.")
     if "{tricks}" in text:
         text = text.replace("{tricks}", _trick_list(robot))
     if "{actions}" in text:

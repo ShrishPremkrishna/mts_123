@@ -468,7 +468,7 @@ class Rig:
             lg.handlers[:] = [handler]
             lg.setLevel(logging.INFO)
             lg.propagate = False
-        self.ts = Robot()
+        self.ts = Robot(validate_session_manifest=False)  # fake ROS never consumes a physical deployment manifest
 
     async def settle(self, limit: int = 200_000) -> bool:
         """Let the queue run until it is empty. False if it never empties."""

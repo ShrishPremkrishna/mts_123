@@ -18,7 +18,7 @@ The ambition is roughly 90–100% coverage of the usable class capabilities on o
 
 **Goal:** A coherent robot experience: ask Pupper to move, follow, perform a skill or describe its surroundings, and get correct execution and status.
 
-**Starting point:** Most tool/queue code exists. API standing worked on the supported robot. Sit and a modest generated motion have simulation evidence. Actual Gemini tests exposed claims of actions that were never dispatched; voice and physical integration still need work.
+**Starting point:** [Bounded direct floor controls and queue cancellation](results/lab6-floor-basic-20261030.json) were observed on the robot. Live Gemini voice remains unvalidated. Sit and the modest generated motion have reviewed simulation evidence and actual-catalog offline sequence checks; their hardware sequences remain. Earlier Gemini tests exposed claims of actions that were never dispatched, so distinguish accepted commands, controller outcomes and physical observations.
 
 | Deliverable | Proof of completion |
 |---|---|
@@ -27,13 +27,13 @@ The ambition is roughly 90–100% coverage of the usable class capabilities on o
 | Optional Lab 3 personality, context, hidden-trick gate and generated motion | Demonstrate the intended conversation behavior, allowed/denied hidden-trick access, and the generated motion with a clean return. Keep secrets outside the repository. |
 | One integrated behavior interface | Following can be interrupted by a new command. The Spider pair from stream 2 works through Lab 6, including entry, walking, stop and return. No stale queued action starts after cancellation. |
 
-**Without the robot:** Finish tools/UI/prompt behavior; test actual Gemini against fake execution; fix sequencing and cancellation; evaluate or retrain Sit/generated-motion candidates where needed; prepare complete demonstration sequences. Fake text tests do not establish live speech interruption.
+**Without the robot:** Finish tools/UI/prompt behavior; test actual Gemini against fake execution; fix sequencing and cancellation; prepare exact selected controllers and demonstration sequences. Reuse `lab/test_skill_sequences.py` for the installed Sit, both paws, exit/walk, finite endpoints and secret-trick gate. Existing reviewed Sit/generated candidates do not need speculative retraining: identify a concrete failed case first. Fake text tests do not establish live speech interruption.
 
-**With the robot:** Exercise direct tools, then live speech; test full skill sequences and transitions; verify camera understanding and physical stopping.
+**With the robot:** Build on the observed direct baseline with bounded arc/wait and live speech; test approved Sit/both paws/exit and selected finite/generated skills. Verify camera understanding and physical stopping. The [hardware checklist](HARDWARE_CHECKLIST.md) describes one persistent workflow with explicit skill selection; keep the same homed session between commands. Owners may choose equivalent tools and methods that preserve the actual runtime contract and evidence.
 
 **Ownership and handoff:** Owns Sit/generated-motion training and Lab 6 action arbitration. Receives the follower service from stream 3 and Spider assets from stream 2; does not independently rewrite those components. Hands over one working Lab 6 entry point, configuration and demonstrated repertoire.
 
-**Start in:** `gemini_pupper/`, its [foundation guide](../gemini_pupper/docs/foundation.md), [Gemini findings](results/gemini-realtime-live-reviewed.json), [Sit evidence](results/lab6-sit-comx02-reviewed.json) and [generated-motion evidence](results/generated-motion-trained-review.json).
+**Start in:** `gemini_pupper/`, its [foundation guide](../gemini_pupper/docs/foundation.md), [floor baseline](results/lab6-floor-basic-20261030.json), [Gemini findings](results/gemini-realtime-live-reviewed.json), [full Sit sequence](results/sit-interactive-default-return-reviewed.json) and [generated-motion evidence](results/generated-motion-trained-review.json).
 
 ## 2 Locomotion and sim-to-real
 
@@ -80,7 +80,7 @@ The ambition is roughly 90–100% coverage of the usable class capabilities on o
 ## Shared working agreement
 
 - Work concurrently in separate branches/worktrees with clear file ownership. Share the robot in focused blocks; prepare batches of configurations/scenarios before each block. Isolate variables when diagnosing a failure, rather than serializing all development.
-- The integration agent owns shared runtime/deployment fixes. The current joystick discovery/shutdown issue gates motor testing, not offline work in any stream. Only one stack owns motor commands at a time.
+- The integration agent owns shared runtime/deployment fixes. Check current state for actual blockers; earlier joystick discovery/timed-floor issues are historical, not instructions to repeat them. Only one stack owns motor commands at a time.
 - Each claimed capability needs the exact code/model/configuration, repeatable launch/test instructions, logs and video, measured results and stated limitations. Use at least three clean repetitions of each agreed core scenario as an initial acceptance screen, plus relevant stop/interruption cases; broader reliability testing follows.
 - Newly trained policies need the applicable course approval. Homing starts on the stand, with a present operator. This document assigns work; it does not authorize unattended motor tests.
 - Integrate working increments throughout. Required Spider behavior and physical evidence cannot be deferred while declaring all three streams complete.
