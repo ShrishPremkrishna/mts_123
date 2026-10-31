@@ -111,3 +111,62 @@ test('remote-close callback cannot release explicit Disconnect ownership before 
   await disconnecting;
   assert.ok(wake(render()));
 });
+
+
+function controls(render) {
+  find(render(), n => n.props['aria-label'] === 'Robot controls').props.onClick();
+  return find(render(), n => n.type === 'DebugPanel');
+}
+
+test('header Stop shares a synchronous gate with manual controls and releases on response', async t => {
+  const { render, instances } = await app(t);
+  const connecting = wake(render()).props.onClick();
+  const service = instances[0]; service.connection.resolve(); await connecting;
+  const panel = controls(render);
+  assert.equal(panel.props.isStopPending(), false);
+  const stopping = find(render(), n => n.type === 'ExecutionStatus').props.onStop();
+  assert.equal(panel.props.isStopPending(), true, 'stale panel callback sees gate before render');
+  assert.equal(find(render(), n => n.type === 'DebugPanel').props.stopPending, true);
+  service.stop.resolve({ success: true, message: 'zero requested' }); await stopping;
+  assert.equal(panel.props.isStopPending(), false);
+  assert.equal(find(render(), n => n.type === 'DebugPanel').props.stopPending, false);
+});
+
+test('overlapping automatic/direct Stops keep manual gate until both settle, including a stale session', async t => {
+  const { render, instances } = await app(t);
+  const connecting = wake(render()).props.onClick();
+  const service = instances[0]; service.connection.resolve(); await connecting;
+  const panel = controls(render);
+  service.callbacks[6](true);
+  service.callbacks[5]('automatic Stop pending');
+  const disconnecting = find(render(), n => n.props.title === 'Sleep / Disconnect').props.onClick();
+  service.stop.resolve({ success: true, message: 'explicit Stop accepted' }); await disconnecting;
+  assert.equal(panel.props.isStopPending(), true, 'older automatic request is still pending');
+  service.callbacks[5]('automatic Stop response after session disconnected');
+  service.callbacks[6](false);
+  assert.equal(panel.props.isStopPending(), false, 'stale session still releases its own Stop ownership');
+});
+
+test('failed direct Stop releases only the temporary pending gate and reports unknown outcome', async t => {
+  const { render, instances } = await app(t);
+  const connecting = wake(render()).props.onClick();
+  const service = instances[0]; service.connection.resolve(); await connecting;
+  const panel = controls(render);
+  const stopping = find(render(), n => n.type === 'ExecutionStatus').props.onStop();
+  service.stop.reject(new Error('offline')); await stopping;
+  assert.equal(panel.props.isStopPending(), false);
+  assert.match(find(render(), n => n.type === 'ExecutionStatus').props.stopMessage, /No confirmed response/);
+});
+
+
+test('model Stop typed lifecycle gates manual controls independent of skipped voice receipts', async t => {
+  const { render, instances } = await app(t);
+  const connecting = wake(render()).props.onClick();
+  const service = instances[0]; service.connection.resolve(); await connecting;
+  const panel = controls(render);
+  service.callbacks[6](true); // model Stop sent
+  assert.equal(panel.props.isStopPending(), true);
+  service.callbacks[3](); // service closed; final UI dispatch receipt will be skipped
+  service.callbacks[6](false); // actual HTTP request settled nonetheless
+  assert.equal(panel.props.isStopPending(), false);
+});

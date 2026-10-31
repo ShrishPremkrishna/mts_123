@@ -1,13 +1,13 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-10-30T23:27:57.897636+00:00",
+  "updated_utc": "2026-10-31T03:27:38.272198+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "workstream1_offline_candidate_ready_native_and_live_checks_pending",
+  "mode": "workstream1_offline_rehearsal_complete_native_integration_pending",
   "authorization": "User authorized autonomous offline Workstream 1 completion using subagents and existing configured Gemini access. Robot is teammate-owned: no SSH, deployment or motor operations in this session.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
-  "current_report": "foundation/results/workstream1-offline-20261030.json",
+  "current_report": "foundation/results/workstream1-offline-rehearsal-20261030.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261030-before-workflow.json",
     "sha256": "5538fd47a8b99522ede4b25d8830c59a9b7a4058857e4721c17b1b873178f5ad",
@@ -229,9 +229,9 @@
   },
   "activity": {
     "automation": "PAUSED",
-    "compute": "No GPU jobs/collectors; all owned Gemini experiments exited; fake server never bound; no SSH/robot access this session.",
-    "root": "Offline implementation integrated/reviewed; final source/evidence preserved; current candidate not deployed.",
-    "agents": "All3 focused agents completed; no ongoing source owner edits."
+    "compute": "No GPU jobs or collectors; all owned boundedGoogle probes ended. Localfake servers exited0 and localhost18092 verified closed.",
+    "root": "Offlinefollow-up integrated/reviewed/archived; no SSH or robot operations. Chrome fake-rehearsal tabclosed; candidate not deployed.",
+    "agents": "Focusedagents complete; no active code edits. Final report integration only."
   },
   "evidence": {
     "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
@@ -249,33 +249,25 @@
     "floor_attempts12_input_review": "artifacts/hardware/2026-10-30/workstream1-floor-attempts-1-2-independent-input-review.json",
     "web_manual_review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json",
     "lab6_floor_basic": "foundation/results/lab6-floor-basic-20261030.json",
-    "ws1_offline": "foundation/results/workstream1-offline-20261030.json"
+    "ws1_offline": "foundation/results/workstream1-offline-20261030.json",
+    "ws1_offline_rehearsal": "foundation/results/workstream1-offline-rehearsal-20261030.json"
   },
   "next": [
     {
-      "id": "offline_browser_and_live",
-      "action": "Actual Chrome fake-API manual rehearsal; final Gemini delayed-stop/cancel and sit-memory cases after connection service is usable. Retain failed narration/handshake cases.",
-      "done_when": "Actual fake Chrome route/manual control verified and missing Gemini cases recorded; no unsupported reliability promotion."
-    },
-    {
       "id": "native_integration",
-      "action": "When robot ownership returns: inventory teammate changes, stage exact candidate, verify selected profile/native controller markers/limits/source identities without motors; old environment pins are historical.",
-      "done_when": "Exact source/policy/config/binary identities and selected-profile limits validated; teammate changes preserved."
+      "action": "When ownership returns, inventory teammate changes and stage reviewed Python/UI/profile. Verify native protocol/selected-profile markers and regenerate source/config/policy pins. No C++ changed in this follow-up; reuse compatible reviewed native overlay, rebuilding only if needed."
     },
     {
       "id": "lab6_live",
-      "action": "Supervised persistent session: bounded direct arc/wait, Live speech dispatch/refusal/interruptions/reconnect and camera understanding; keep explicit0.2m/s/short commands initially, independent R3/Stop.",
-      "done_when": "Physical outcomes and dispatched calls agree in stated cases; accepted/complete/cancelled/failure remain distinct."
+      "action": "Supervised persistent session: briefly confirm direct controls, then real browser speech dispatch/refusal/reconnect and in-flight interruption, plus camera understanding. DirectStop/R3 stay independent; narration is never physical proof."
     },
     {
       "id": "approved_skills",
-      "action": "With applicable course approval: selected Sit entry10s/both paws/exit, ordinary move from Sit, selected finite endpoints, hidden generated trick unlock/play/relock; record actual physical evidence.",
-      "done_when": "Supervised repeated sequences and interruption evidence saved; no generic simulation-to-real claim."
+      "action": "With applicable course approval, physically test Sit10s/both paws/exit, ordinary move fromSit, chosen finite endpoints and generated trick unlock/play/relock. Save actual observations against receipts."
     },
     {
       "id": "stream_integration",
-      "action": "Receive measured gait/Spider and following changes from their workstream owners and integrate after their evidence. Required Spider walking remains unresolved; no new policy promotion or speculative training here.",
-      "done_when": "Evidence-supported gait/Spider/follower contracts integrated, then combined physical cases checked."
+      "action": "Integrate gait/Spider and following work from other owners after their evidence. No new policy promotion, limits or gains were changed here."
     }
   ],
   "do_not_repeat": [
@@ -317,10 +309,10 @@
     ]
   },
   "offline_candidate": {
-    "path": "artifacts/access/ws1-offline-20261030/candidate/source.tar.gz",
-    "sha256": "b158bfa526731a5886bb38a63cafbb5bfa98ac99a7c592a19a6aa7ec970c38d8",
-    "source_manifest": "artifacts/access/ws1-offline-20261030/candidate/source-manifest.json",
-    "file_count": 198,
-    "native_limit": "Existing staged v5 pins refer to older files; deliberately stage/validate new source and pins, preserving teammate changes. This bundle is not an auto-deployment or ROS/motor launcher."
+    "path": "artifacts/access/ws1-offline-20261030-r2/candidate/source.tar.gz",
+    "sha256": "29079c2d70e00b129b772f035833007a75f604091e2b482863fad8cd7749a82c",
+    "source_manifest": "artifacts/access/ws1-offline-20261030-r2/candidate/source-manifest.json",
+    "file_count": 200,
+    "native_limit": "Not deployed. Prior v5 pins remain historical; preserve teammate changes before staging."
   }
 }

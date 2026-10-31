@@ -151,7 +151,7 @@ def test_close_cancels_work_ticker_and_restores_fake_bindings():
 
 def test_chat_failure_still_closes_fake_tasks_without_key_access(monkeypatch):
     backend = gemini_chat.DeskBackend(realtime=True)
-    async def fail(backend, model, full):
+    async def fail(backend, model, full, **_config):
         backend.setup()
         await backend.rig.ts.ready.wait()
         await backend.call('wait', {'duration': 30.})
@@ -180,4 +180,27 @@ def test_diagnostic_does_not_label_sideways_velocity_as_zero():
         backend.rig.ts.send_speed(0., 0., 0.)
         lines = backend.what_happened()
         assert any('zero command (physical stopping unmeasured)' in line for line in lines)
+    run_case(case)
+
+
+def test_completed_move_is_distinct_from_current_wait_in_tool_evidence():
+    async def case(backend):
+        assert (await backend.call('move', {'direction': 'forward', 'speed': .2, 'duration': .05}))['success']
+        await complete(backend)
+        assert (await backend.call('wait', {'duration': 10}))['success']
+        await asyncio.sleep(.03)
+        status = await backend.call('robot_status', {})
+        details = status['details']
+        assert details['current_action'] == {'name': 'wait 10s', 'state': 'running'}
+        assert details['running'] is True
+        assert details['last_outcome']['name'].startswith('move vx=0.2')
+        assert details['last_outcome']['success'] is True
+        assert details['physical_observation'] == {'pose': None, 'speed': None, 'stopped': None}
+        assert 'Current action wait 10s: running' in status['message']
+        assert 'Latest finished action move' in status['message']
+        assert (await backend.call('stop', {}))['success']
+        await complete(backend)
+        stopped = await backend.call('robot_status', {})
+        assert stopped['details']['current_action'] is None
+        assert stopped['details']['last_outcome'] == {'name': 'wait 10s', 'success': False, 'message': 'cancelled'}
     run_case(case)

@@ -132,7 +132,7 @@ def test_installed_finite_skill_holds_declared_endpoint_until_later_request(name
             else:
                 assert rig.robot.active() == {trick.controller}
                 assert rig.ts.state_now is trick
-                assert "holds its final pose" in rig.ts.last_outcome["message"]
+                assert "holding final controller frame" in rig.ts.last_outcome["message"]
                 assert (await call_and_settle(rig, "stand_up")).ok
                 assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
             assert not rig.failures(), rig.outcomes()

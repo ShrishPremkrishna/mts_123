@@ -70,6 +70,11 @@ const App: React.FC = () => {
   const [modelActionsPaused, setModelActionsPaused] = useState(false);
   const [stopMessage, setStopMessage] = useState('');
   const stopSequence = useRef(0);
+  const pendingStops = useRef(0);
+  const [stopPending, setStopPending] = useState(false);
+  const isStopPending = useCallback(() => pendingStops.current > 0, []);
+  const beginStop = () => { pendingStops.current += 1; setStopPending(true); };
+  const endStop = () => { pendingStops.current -= 1; setStopPending(pendingStops.current > 0); };
   
   // Create a persistent video element
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -150,7 +155,7 @@ const App: React.FC = () => {
 
   const handleConnect = async () => {
     // Ref is synchronous, so repeated clicks cannot create overlapping sessions.
-    if (geminiRef.current) return;
+    if (geminiRef.current || isStopPending()) return;
     if (!apiKey) {
       addLog({ id: 'err-key', timestamp: Date.now(), type: 'error', message: 'API Key missing' });
       setShowSettings(true);
@@ -183,11 +188,15 @@ const App: React.FC = () => {
           if (entry.status === 'unknown') setModelActionsPaused(true);
         },
         message => {
-          if (geminiRef.current !== service) return;
           if (automaticStopSequence === null) automaticStopSequence = ++stopSequence.current;
-          if (automaticStopSequence !== stopSequence.current) return;
+          if (geminiRef.current !== service || automaticStopSequence !== stopSequence.current) return;
           setModelActionsPaused(true);
           setStopMessage(message);
+        },
+        pending => {
+          // Model-issued and automatic Stops use the same typed lifecycle;
+          // an old service must still release its pending request after closing.
+          if (pending) beginStop(); else endStop();
         }
       );
 
@@ -208,14 +217,21 @@ const App: React.FC = () => {
   const handleStop = async () => {
     // This does not wait for a model turn and future model calls remain paused.
     setModelActionsPaused(true);
+    beginStop();
     const request = ++stopSequence.current;
     setStopMessage('Request sent; waiting for server response');
     const bridge = geminiRef.current?.robotBridge ?? robotBridge;
-    const result = await requestIndependentStop(geminiRef.current, bridge);
-    if (request !== stopSequence.current) return;
-    setStopMessage(result?.outcome_unknown
-      ? 'No confirmed response. Physical stopping is unknown; use R3/power.'
-      : result?.message || 'No confirmed response. Check the robot and use R3/power if needed.');
+    try {
+      const result = await requestIndependentStop(geminiRef.current, bridge);
+      if (request !== stopSequence.current) return;
+      setStopMessage(result?.outcome_unknown
+        ? 'No confirmed response. Physical stopping is unknown; use R3/power.'
+        : result?.message || 'No confirmed response. Check the robot and use R3/power if needed.');
+    } catch {
+      if (request === stopSequence.current) setStopMessage('No confirmed response. Physical stopping is unknown; use R3/power.');
+    } finally {
+      endStop();
+    }
   };
 
   const handleDisconnect = async () => {
@@ -276,6 +292,8 @@ const App: React.FC = () => {
             onStatusUpdate={setSystemStatus}
             cameraSource={config.cameraSource}
             onStop={handleStop}
+            stopPending={stopPending}
+            isStopPending={isStopPending}
           />
         )}
 

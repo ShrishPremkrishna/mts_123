@@ -1,9 +1,19 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { LogEntry, SystemStatus, CameraSource } from '../types';
-import { ANIMATION_NAMES, DEFAULT_CONFIG } from '../constants';
 import RobotBridge from '../services/robotBridge';
 import { MANUAL_DEFAULTS, MANUAL_SPEEDS, MANUAL_TURNS, MANUAL_DURATIONS, manualMove, type ManualDirection } from '../services/manualControls';
 import { toolResponseStatus } from '../services/executionStatus';
+
+type CatalogEntry = { id: string; label: string; description: string; trick?: string };
+
+function parseCatalog(value: unknown, interactive = false): CatalogEntry[] | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || 'success' in value) return null;
+  const entries = Object.entries(value);
+  if (entries.some(([, entry]) => !entry || typeof entry !== 'object'
+      || typeof entry.description !== 'string' || (interactive && typeof entry.trick !== 'string'))) return null;
+  return entries.map(([id, entry]) => ({ id, label: id.replace(/_/g, ' '),
+    description: entry.description, ...(interactive ? { trick: entry.trick } : {}) }));
+}
 
 // --- Icons ported from Rust SVGs ---
 const StatusIcon: React.FC<{status: 'active' | 'inactive' | 'loading' | 'unknown'}> = ({ status }) => {
@@ -46,9 +56,11 @@ interface DebugPanelProps {
   onStatusUpdate: (status: SystemStatus | null) => void;
   cameraSource: CameraSource;
   onStop: () => Promise<void>;
+  stopPending: boolean;
+  isStopPending: () => boolean;
 }
 
-const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge, systemStatus, onStatusUpdate, cameraSource, onStop }) => {
+const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge, systemStatus, onStatusUpdate, cameraSource, onStop, stopPending, isStopPending }) => {
   const logEndRef = useRef<HTMLDivElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,18 +69,34 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
   const [manualResult, setManualResult] = useState('No manual command sent');
   const [manualPending, setManualPending] = useState(false);
   const manualBusy = useRef(false);
-
-  // Tricks the robot reports as installed (falls back to the built-in list)
-  const [tricks, setTricks] = useState(ANIMATION_NAMES);
+  const pendingStops = useRef(0);
+  const catalogGeneration = useRef(0);
+  const currentBridge = useRef(robotBridge);
+  currentBridge.current = robotBridge;
+  const manualRequest = useRef(0);
+  const mounted = useRef(true);
+  const manualDisabled = manualPending || stopPending || pendingStops.current > 0;
   useEffect(() => {
-    robotBridge.getAnimations().then((res: any) => {
-      if (res && !('success' in res)) {
-        setTricks(Object.entries(res).map(([id, t]: [string, any]) => ({
-          id, label: id.replace(/_/g, ' '), description: t.description,
-        })));
-      }
-    });
+    mounted.current = true;
+    return () => { mounted.current = false; manualRequest.current += 1; };
+  }, []);
+  useEffect(() => {
+    manualRequest.current += 1;
+    manualBusy.current = false;
+    setManualPending(false);
+    setManualResult('No manual command sent on this server');
   }, [robotBridge]);
+
+  // Only the current API catalog can authorize showing a skill. An empty
+  // selection is valid; an unavailable/malformed response is not a fallback.
+  const [tricks, setTricks] = useState<CatalogEntry[]>([]);
+  const [actions, setActions] = useState<CatalogEntry[]>([]);
+  const [catalogMessage, setCatalogMessage] = useState('Loading available skills');
+  const [catalogRefresh, setCatalogRefresh] = useState(0);
+  const refreshCatalog = () => {
+    catalogGeneration.current += 1;
+    setCatalogRefresh(value => value + 1);
+  };
 
   // Layout State (Percentages)
   const [leftWidth, setLeftWidth] = useState(70);
@@ -80,18 +108,36 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
   const [serverImage, setServerImage] = useState<string | null>(null);
   const lastUrlRef = useRef<string | null>(null);
 
-  // Polling Effect
+  // Share the status poll with catalog refresh, including changes made by
+  // voice tools (unlock/Stop). Schedule after completion so requests cannot pile up.
   useEffect(() => {
-    const fetchStatus = async () => {
-        const status = await robotBridge.getSystemStatus();
-        onStatusUpdate(status);
+    let active = true;
+    catalogGeneration.current += 1;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setTricks([]);
+    setActions([]);
+    setCatalogMessage('Loading available skills');
+    const poll = async () => {
+      const generation = catalogGeneration.current;
+      const [status, animations, interactive] = await Promise.allSettled([
+        robotBridge.getSystemStatus(), robotBridge.getAnimations(), robotBridge.getInteractiveActions(),
+      ]);
+      if (!active) return;
+      onStatusUpdate(status.status === 'fulfilled' ? status.value : null);
+      const installed = animations.status === 'fulfilled' ? parseCatalog(animations.value) : null;
+      const availableActions = interactive.status === 'fulfilled' ? parseCatalog(interactive.value, true) : null;
+      if (pendingStops.current === 0 && !isStopPending() && generation === catalogGeneration.current) {
+        setTricks(installed ?? []);
+        setActions(availableActions ?? []);
+        setCatalogMessage(installed === null || availableActions === null
+        ? 'Skill catalog unavailable; use Refresh to retry'
+        : installed.length === 0 ? 'No skills available in this profile' : 'Available skills from the current server');
+      }
+      timer = setTimeout(poll, 5000);
     };
-
-    fetchStatus(); // Initial
-    const interval = setInterval(fetchStatus, 5000); // 5s poll
-    
-    return () => clearInterval(interval);
-  }, [robotBridge, onStatusUpdate]);
+    void poll();
+    return () => { active = false; if (timer) clearTimeout(timer); };
+  }, [robotBridge, onStatusUpdate, catalogRefresh, stopPending, isStopPending]);
 
   // Polling Effect for Server Image (2Hz)
   useEffect(() => {
@@ -194,19 +240,34 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
   }, [videoElement, cameraSource]);
 
   const runManual = async (label: string, send: () => Promise<any>) => {
-    if (manualBusy.current) return;
+    if (!mounted.current || currentBridge.current !== robotBridge || manualBusy.current
+        || pendingStops.current > 0 || isStopPending()) return;
+    const request = ++manualRequest.current;
+    const current = () => mounted.current && currentBridge.current === robotBridge && manualRequest.current === request;
     manualBusy.current = true;
     setManualPending(true);
     setManualResult(`${label}: sending request`);
     try {
       const result = await send();
-      setManualResult(`${label}: ${toolResponseStatus(result)} — ${result?.message || 'No response details'}`);
+      if (current()) setManualResult(`${label}: ${toolResponseStatus(result)} — ${result?.message || 'No response details'}`);
     } catch {
-      setManualResult(`${label}: response unknown; check the robot and use Stop if needed`);
+      if (current()) setManualResult(`${label}: response unknown; check the robot and use Stop if needed`);
     } finally {
-      manualBusy.current = false;
-      setManualPending(false);
+      if (current()) {
+        manualBusy.current = false;
+        setManualPending(false);
+        refreshCatalog();
+      }
     }
+  };
+  const stopAndRefresh = async () => {
+    // Stop is never gated by manualBusy. Hide any unlocked entries immediately.
+    pendingStops.current += 1;
+    catalogGeneration.current += 1;
+    setTricks([]);
+    setActions([]);
+    setCatalogMessage('Refreshing skills after Stop');
+    try { await onStop(); } finally { pendingStops.current -= 1; refreshCatalog(); }
   };
   const handleManualMove = (direction: ManualDirection) => {
     void runManual(direction, () => robotBridge.queueMove(manualMove(direction, manualSettings)));
@@ -328,14 +389,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
             <div className="flex gap-2 shrink-0">
                 <button 
                     onClick={() => { void runManual('Stand', () => robotBridge.queueActivateWalking()); }}
-                    disabled={manualPending}
+                    disabled={manualDisabled}
                     className="flex-1 bg-green-900/50 border border-green-800 hover:bg-green-800 p-2 rounded text-green-100 transition-colors text-center"
                     title="Request standing through the walking controller"
                 >
                     STAND
                 </button>
                 <button 
-                    onClick={() => { void onStop(); }}
+                    onClick={() => { void stopAndRefresh(); }}
                     className="flex-1 bg-red-900/50 border border-red-800 hover:bg-red-800 p-2 rounded text-red-100 transition-colors font-bold text-center"
                 >
                     STOP
@@ -349,13 +410,15 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                 <div className="text-gray-400 text-[10px] uppercase font-bold mb-1">Follow Mode</div>
                 <div className="flex gap-1">
                     <button 
-                        onClick={() => robotBridge.setFollowMode(true)}
+                        onClick={() => { void runManual('Follow on', () => robotBridge.setFollowMode(true)); }}
+                        disabled={manualDisabled}
                         className="flex-1 bg-gray-700 hover:bg-cyan-900 hover:text-cyan-200 p-1.5 rounded text-[10px] transition-colors"
                     >
                         ON
                     </button>
                     <button 
-                        onClick={() => robotBridge.setFollowMode(false)}
+                        onClick={() => { void runManual('Follow off', () => robotBridge.setFollowMode(false)); }}
+                        disabled={manualDisabled}
                         className="flex-1 bg-gray-700 hover:bg-gray-600 p-1.5 rounded text-[10px] transition-colors"
                     >
                         OFF
@@ -383,13 +446,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
               </label>
             </div>
             <div className="shrink-0 text-[10px] text-cyan-200" aria-live="polite">Last manual request: {manualResult}</div>
+            {stopPending && <div className="shrink-0 text-[10px] text-amber-300">Stop response pending; new manual motion is temporarily blocked.</div>}
 
             {/* Arrow Keys Grid */}
             <div className="shrink-0 flex flex-col items-center gap-1 py-1">
                 {/* Up */}
                 <button 
                     onClick={() => handleManualMove('forward')}
-                    disabled={manualPending}
+                    disabled={manualDisabled}
                     aria-label="Move forward"
                     className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                 >
@@ -400,7 +464,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                 <div className="flex gap-1">
                     <button 
                         onClick={() => handleManualMove('left')}
-                        disabled={manualPending}
+                        disabled={manualDisabled}
                         aria-label="Turn left"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
@@ -408,7 +472,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                     </button>
                     <button 
                         onClick={() => handleManualMove('backward')}
-                        disabled={manualPending}
+                        disabled={manualDisabled}
                         aria-label="Move backward"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
@@ -416,7 +480,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                     </button>
                     <button 
                         onClick={() => handleManualMove('right')}
-                        disabled={manualPending}
+                        disabled={manualDisabled}
                         aria-label="Turn right"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
@@ -427,19 +491,35 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
 
             <div className="h-px bg-gray-700 shrink-0" />
             
-            <div className="text-gray-400 font-bold text-[10px] uppercase tracking-wider shrink-0">Animations</div>
+            <div className="flex items-center justify-between shrink-0">
+              <div className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Skills</div>
+              <button onClick={refreshCatalog} className="text-cyan-300 text-[10px]" aria-label="Refresh skill catalog">Refresh</button>
+            </div>
+            <div className="text-gray-400 text-[10px] shrink-0" aria-live="polite">{catalogMessage}</div>
             
             {/* Scrollable Animation List */}
             <div className="flex flex-col gap-1 overflow-y-auto flex-1 min-h-0 pr-1">
                 {tricks.map(anim => (
                 <button 
                     key={anim.id}
-                    onClick={() => robotBridge.queueAnimation(anim.id)}
+                    onClick={() => { void runManual(anim.label, () => robotBridge.queueAnimation(anim.id)); }}
+                    disabled={manualDisabled}
+                    aria-label={`Play ${anim.label}`}
                     className="bg-gray-700/50 p-2 rounded text-[10px] hover:bg-gray-700 text-left transition-all border border-gray-600/50 hover:border-gray-500 group"
                 >
                     <div className="font-bold text-cyan-400 group-hover:text-cyan-300">{anim.label}</div>
                     <div className="text-gray-500 group-hover:text-gray-400 text-[9px] truncate">{anim.description}</div>
                 </button>
+                ))}
+                {actions.length > 0 && <div className="text-gray-400 text-[10px] mt-1">Actions require their listed skill to be active or queued.</div>}
+                {actions.map(action => (
+                  <button key={action.id} disabled={manualDisabled}
+                    aria-label={`Action ${action.label}`}
+                    onClick={() => { void runManual(action.label, () => robotBridge.interactiveAction(action.id)); }}
+                    className="bg-gray-700/50 p-2 rounded text-[10px] hover:bg-gray-700 text-left border border-gray-600/50">
+                    <div className="font-bold text-cyan-300">{action.label}</div>
+                    <div className="text-gray-400">{action.trick}: {action.description}</div>
+                  </button>
                 ))}
             </div>
         </div>

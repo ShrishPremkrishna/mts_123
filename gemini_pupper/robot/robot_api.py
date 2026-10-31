@@ -119,9 +119,10 @@ SAFE_GYRO_RAD_S = 0.5
 SAFE_STILL_S = 1.0
 SAFE_WAIT_S = 4.0  # how long standing up waits for the robot to settle
 ESTOP_LOG = "Emergency stop triggered"
+PHYSICAL_STATE_UNKNOWN = "Physical pose, speed and stopping have not been measured."
 FELL_MESSAGE = (
-    "the robot fell over: its tilt e-stop tripped and the motors only damp now. "
-    "A person should set it upright on its feet; then call stand_up"
+    "a tilt/fall stop was reported; physical posture and motor torque have not been measured. "
+    "A person should check and set the robot upright on its feet; then call stand_up when ready"
 )
 
 
@@ -163,14 +164,18 @@ class Result:
 
     ok: bool
     message: str
+    details: dict | None = None
 
     def as_dict(self) -> dict:
-        return {"success": self.ok, "message": self.message}
+        result = {"success": self.ok, "message": self.message}
+        if self.details is not None:
+            result["details"] = self.details
+        return result
 
 
 def with_note(note: str, res: Result) -> Result:
     """``res`` with ``note`` (e.g. "Stopped following the person first.") in front."""
-    return Result(res.ok, f"{note.strip()} {res.message}") if note.strip() else res
+    return Result(res.ok, f"{note.strip()} {res.message}", res.details) if note.strip() else res
 
 
 def not_written(todo: str, where: str) -> Result:
@@ -271,6 +276,7 @@ class Robot:
         self.ready = asyncio.Event()
         self.commands: asyncio.Queue = asyncio.Queue()
         self.current: asyncio.Task | None = None
+        self.current_action_name: str | None = None
         self.busy_until = 0.0  # monotonic time when the queued work should finish
         self.stops = 0  # how many times stop (or the e-stop) has run
         self.worker = asyncio.get_event_loop().create_task(self._run_queue())
@@ -508,7 +514,7 @@ class Robot:
         with self._stop_lock:
             if generation == self._fall_generation and self.fallen is not None:
                 self.state_now = self.state_after_queue = FALLEN
-        log.warning("tilt e-stop in %s: the robot fell over; waiting for a safe stand-up", controller)
+        log.warning("tilt/fall stop reported by %s; waiting for supervised recovery", controller)
 
     def upright(self) -> tuple[bool, str]:
         """Whether the robot is level and still enough to restart a controller."""
@@ -664,7 +670,7 @@ class Robot:
                     return Result(False, "could not confirm fall-latched controllers inactive; fall remains latched")
             self.walk_since = None
             log.info("recovering from the fall in %s: %s", self.fallen, why)
-            recovered = "recovered from the fall and stood back up; "
+            recovered = "fall recovery command completed after an upright IMU check; "
         not_ready = [c for c in activate if states.get(c) not in LOADED]
         if not_ready:  # the launch's spawner missed it: load it now (a few seconds)
             if self._session_scoped:
@@ -915,6 +921,7 @@ class Robot:
                     return Result(False, reason)
                 return await job()
             self.current = asyncio.create_task(guarded_job())
+            self.current_action_name = name
             CALL_STOPS.reset(token)
             try:
                 res = await self.current
@@ -938,6 +945,7 @@ class Robot:
                 self.last_outcome = {"name": name, "success": False, "message": f"job failed: {type(exc).__name__}"}
             finally:
                 self.current = None
+                self.current_action_name = None
                 if self.commands.empty():
                     self.state_after_queue = self.state_now
                     self.busy_until = time.monotonic()
@@ -973,7 +981,7 @@ class Robot:
         now = time.monotonic()
         self.busy_until = max(self.busy_until, now) + seconds
         await self.commands.put((name, job, self.state_after_queue))
-        return Result(True, f"{name} queued; the queue should finish in {self.busy_until - now:.1f} s")
+        return Result(True, f"{name} queued (accepted, not completed); estimated queue time {self.busy_until - now:.1f} s")
 
     def stopped_during_call(self) -> bool:
         """Did a stop come in after the tool call being handled began?"""
@@ -984,6 +992,8 @@ class Robot:
         return {
             "queued": self.commands.qsize(),
             "running": self.current is not None,
+            "current_action": self.public_current_action(),
+            "physical_observation": {"pose": None, "speed": None, "stopped": None},
             "seconds_left": round(max(0.0, self.busy_until - time.monotonic()), 1),
             "following": self.following,
             "controller_fault": self.controller_fault,
@@ -1037,6 +1047,16 @@ class Robot:
 
     def public_state_name(self, state) -> str:
         return "locked trick" if isinstance(state, Trick) and not self.trick_available(state) else state_name(state)
+
+    def public_current_action(self) -> dict | None:
+        if self.current is None or self.current_action_name is None:
+            return None
+        name = self.current_action_name
+        if not self.secret_gate.unlocked and any(
+                t.secret and (t.name in name or any(clip in name for clip in t.actions))
+                for t in self.tricks.values()):
+            name = "locked trick"
+        return {"name": name, "state": "running"}
 
     def public_outcome(self) -> dict | None:
         outcome = self.last_outcome
@@ -1435,16 +1455,17 @@ class Robot:
                 rclpy.try_shutdown()
 
     async def mode(self) -> Result:
-        """What the robot is doing right now, in words (the robot_status tool)."""
+        """Observed controller/queue state; never measured physical pose or speed."""
         if reason := self.motion_block_reason():
-            return Result(False, reason + "; this is software command state, not measured physical stopping")
+            return Result(False, reason + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, self.status())
         states = await self.controller_states()
         if not states:
-            return Result(False, "controller_manager is not running")
+            return Result(False, "controller_manager is not running. " + PHYSICAL_STATE_UNKNOWN, self.status())
         trick = next((t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"), None)
         walking = next((t for t in self.tricks.values() if t.walks and states.get(t.walk_controller) == "active"), None)
         if self.fallen:
-            return Result(True, f"mode: fallen over (tilt e-stop in {self.fallen}). {FELL_MESSAGE}")
+            return Result(True, f"controller mode: tilt/fall stop recorded in {self.fallen}. {PHYSICAL_STATE_UNKNOWN} "
+                                "Have a person check and set the robot upright; call stand_up only when ready.", self.status())
         described = {LOCOMOTION_CONTROLLER}
         described.update(t.controller for t in self.tricks.values() if t.kind == "policy")
         described.update(t.walk_controller for t in self.tricks.values() if t.walks)
@@ -1458,14 +1479,14 @@ class Robot:
             if other_legs else
             f"unclassified active controllers: {', '.join(other_active)}; leg ownership is not established by this tool"
             if other_active else "no active leg controller reported"
-        ) + "; physical stopping and posture have not been measured"
+        )
         mode = (
-            "locomotion, following a person" if self.following
-            else "locomotion" if states.get(LOCOMOTION_CONTROLLER) == "active"
-            else (f"trick {walking.name}, walking in its {walking.end_pose} stance (move, turn and arc walk slowly in it; "
-                  f"actions: {', '.join(walking.actions)})") if walking
-            else f"trick {trick.name} ({trick.end_pose}; actions: {', '.join(trick.actions)})" if trick and trick.actions
-            else f"trick {trick.name}, holding its end pose ({trick.end_pose})" if trick
+            "locomotion controller active; following enabled" if self.following
+            else "locomotion controller active" if states.get(LOCOMOTION_CONTROLLER) == "active"
+            else (f"trick {walking.name} walking controller active; configured target pose: {walking.end_pose} "
+                  f"(move, turn and arc use its limited walking policy; actions: {', '.join(walking.actions)})") if walking
+            else f"trick {trick.name} controller active; configured target pose: {trick.end_pose}; actions: {', '.join(trick.actions)}" if trick and trick.actions
+            else f"trick {trick.name} controller active; configured target pose: {trick.end_pose}" if trick
             else fallback
         )
         if (trick and not self.trick_available(trick)) or (walking and not self.trick_available(walking)):
@@ -1477,10 +1498,14 @@ class Robot:
                 mode += f". Other active controllers: {', '.join(other_active)}; their leg ownership is not established by this tool"
         elif other_legs and other_active:
             mode += f". Other active controllers: {', '.join(other_active)}"
-        outcome = self.public_outcome()
-        detail = (f" Last queued action {outcome['name']}: "
-                  f"{'completed' if outcome['success'] else 'failed'}: {outcome['message']}.") if outcome else ""
-        return Result(True, f"mode: {mode}. {self.commands.qsize()} queued; running: {self.current is not None}.{detail}")
+        facts = self.status()
+        current = facts["current_action"]
+        active = f" Current action {current['name']}: running (not completed)." if current else " No action is currently running."
+        outcome = facts["last_outcome"]
+        detail = (f" Latest finished action {outcome['name']}: "
+                  f"{'software command completed' if outcome['success'] else 'failed'}: {outcome['message']}.") if outcome else ""
+        return Result(True, f"controller mode: {mode}. {facts['queued']} queued; running: {facts['running']}."
+                            f"{active}{detail} {PHYSICAL_STATE_UNKNOWN}", facts)
 
 
 # The old name, for staff scripts written against tool_server.ToolServer.

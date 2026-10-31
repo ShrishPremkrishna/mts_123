@@ -23,11 +23,13 @@ never starts or contacts the robot. The compact
 operational status; completed experiment reports retain their dated evidence.
 
 The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
-adds selected skill profiles, truthful controller limits, lifecycle/cancellation
-fixes and an explicit fake HTTP runtime. Final software checks and actual Gemini
-experiments are preserved separately: synthetic speech dispatched tools, but
-model planning/narration failures remain. This candidate is not deployed; native
-integration, actual browser rehearsal and supervised skills/Live voice remain.
+adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
+The [browser and Gemini follow-up](results/workstream1-offline-rehearsal-20261030.json)
+completed actual Chrome fake rehearsals, corrected status/receipt wording and Stop
+coordination, and compared Gemini thinking settings. HIGH produced the expected
+actions in 27 fixed cases, but unsupported posture narration and an 8.776-second
+Stop-response outlier remain. This is an undeployed software candidate; native
+integration, actual microphone/camera and supervised skills still need testing.
 
 The [offline workflow changes](results/offline-workflow-improvements-20261030.json)
 record the continuity, preservation, input-preflight and Gemini timing fixes with

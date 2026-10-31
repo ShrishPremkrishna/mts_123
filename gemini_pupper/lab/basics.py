@@ -75,7 +75,9 @@ async def lie_down(robot: Robot) -> Result:
 
 
 # ============================================================ what Gemini reads
-@tool("stand_up", "Stand up, ready to walk. Needed before moving, and to stand up after a trick." + PREPARES_MOVE)
+@tool("stand_up", "Queue a transition to the locomotion controller for an explicit stand-up request or supervised fall recovery. "
+      "Move, turn and arc already prepare their controller and exit an active trick when needed; "
+      "do not add stand_up before or after another action unless requested." + PREPARES_MOVE)
 async def stand_up_tool(robot: Robot) -> Result:
     return await stand_up(robot)
 

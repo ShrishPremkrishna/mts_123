@@ -45,6 +45,7 @@ export class GeminiLiveService {
   private cancelledToolIds = new Set<string>();
   private dispatchedActionIds = new Set<string>();
   private automaticStop: Promise<void> | null = null;
+  private stopRequestsPending = 0;
   private speechVisualInterval: number | null = null;
   private inputScriptProcessor: ScriptProcessorNode | null = null;
   private mediaStream: MediaStream | null = null;
@@ -70,7 +71,8 @@ export class GeminiLiveService {
     onAudioLevel: (level: number) => void,
     onDisconnect: () => void,
     onToolDispatch: (entry: ToolDispatch) => void = () => {},
-    private onAutomaticStop: (message: string) => void = () => {}
+    private onAutomaticStop: (message: string) => void = () => {},
+    private onStopPending: (pending: boolean) => void = () => {}
   ) {
     this.config = config;
     this.robotBridge = new RobotBridge(config.robotApiUrl);
@@ -184,6 +186,13 @@ export class GeminiLiveService {
       tools: [{ functionDeclarations }],
       contextWindowCompression: { slidingWindow: {} },
     };
+
+    // 3.1 Live otherwise defaults to MINIMAL. Keep the tested HIGH setup
+    // explicit, without sending an unsupported option to other models.
+    // https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-live-preview
+    if (modelName.toLowerCase().replace(/^models\//, '') === 'gemini-3.1-flash-live-preview') {
+      liveConfig.thinkingConfig = { thinkingLevel: 'HIGH' };
+    }
 
     if (isAudioOutput) {
       liveConfig.speechConfig = {
@@ -527,6 +536,10 @@ export class GeminiLiveService {
                 result = { success: false, message: 'Not dispatched: Stop takes priority over other actions in the same batch. No delayed Stop was scheduled.' };
                 break;
               }
+              if (this.stopRequestsPending > 0 && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                result = { success: false, message: 'Not dispatched: a Stop response is pending. Check status before requesting a new action.' };
+                break;
+              }
               if (this.robotToolsPaused && fc.name !== 'stop' && fc.name !== 'robot_status') {
                 result = { success: false, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
                 break;
@@ -534,7 +547,12 @@ export class GeminiLiveService {
               const dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
               if (!['stop', 'robot_status', 'unlock', 'lock_tricks'].includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
               this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
-              result = await this.robotBridge.callTool(fc.name, args ?? {});
+              // This lifecycle remains balanced even after disconnect suppresses
+              // UI receipts. A late Stop must not race new manual motion.
+              const stopping = fc.name === 'stop';
+              if (stopping) this.reportStopPending(true);
+              try { result = await this.robotBridge.callTool(fc.name, args ?? {}); }
+              finally { if (stopping) this.reportStopPending(false); }
               const status = toolResponseStatus(result);
               if (status === 'unknown') this.pauseRobotTools();
               if (this.connected) this.onToolDispatch({ ...dispatch, status, message: result?.message || 'No response details', timestamp: Date.now() });
@@ -571,22 +589,32 @@ export class GeminiLiveService {
 
   }
 
+  private reportStopPending(pending: boolean) {
+    this.stopRequestsPending += pending ? 1 : -1;
+    this.onStopPending(pending);
+  }
+
   private requestAutomaticStop(reason: string): Promise<void> {
     this.pauseRobotTools();
     if (this.automaticStop) return this.automaticStop;
     // No per-job cancellation IDs exist. This deliberately cancels the whole
     // robot queue/follow, never retries a command, and requires manual reconnect.
+    this.reportStopPending(true);
     this.onAutomaticStop(`${reason}. Global Stop requested; waiting for server response.`);
     this.automaticStop = (async () => {
-      let result: any;
-      try { result = await this.robotBridge.immediateStop(); }
-      catch { result = { outcome_unknown: true }; }
-      const status = toolResponseStatus(result);
-      const message = status === 'unknown'
-        ? 'Global Stop response unknown. Observe the robot and use R3/power if needed.'
-        : `Global Stop ${status}: ${result.message || 'No details'}. This does not prove physical stillness.`;
-      this.log(status === 'accepted' ? 'info' : 'error', message);
-      this.onAutomaticStop(message);
+      try {
+        let result: any;
+        try { result = await this.robotBridge.immediateStop(); }
+        catch { result = { outcome_unknown: true }; }
+        const status = toolResponseStatus(result);
+        const message = status === 'unknown'
+          ? 'Global Stop response unknown. Observe the robot and use R3/power if needed.'
+          : `Global Stop ${status}: ${result.message || 'No details'}. This does not prove physical stillness.`;
+        this.log(status === 'accepted' ? 'info' : 'error', message);
+        this.onAutomaticStop(message);
+      } finally {
+        this.reportStopPending(false);
+      }
     })();
     return this.automaticStop;
   }

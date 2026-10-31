@@ -10,40 +10,46 @@ ownership and unfinished work belong in
 [interruption-recovery.json](results/interruption-recovery.json). Earlier failed
 floor-input trials are historical; do not restart their timed choreography.
 
-## Prepare without the robot
+## Ready offline; next Pi integration
 
-1. Finish the relevant software checks and web build before supervision. The
-   existing course tests and `gemini_pupper/lab/test_skill_sequences.py` exercise
-   actual installed descriptors through fake ROS: Sit, ten-second stay, both paws,
-   exit/walk, finite endpoints and the hidden generated trick. They establish
-   software sequencing, not physical balance or Live speech behavior.
-2. Select the exact controllers for the session. The persistent launch in
-   `foundation/hardware/lab6_session.launch.py` is one available workflow; an
-   equivalent reviewed workflow is fine. It requires an explicit selection:
-   `PUPPER_SESSION_SKILLS=''` selects stock locomotion only; leaving the variable unset refuses startup.
-   `PUPPER_SESSION_SKILLS='sit_stay_shake'` adds only Sit. Set the same explicit
-   value for launch and API server, and use the same `PUPPER_GEMINI_DIR` checkout.
-   The generated runtime manifest binds selection, policies, descriptors and
-   configuration. A mismatched/unscoped API refuses the selected profile; missing
-   selected controllers are not spawned on demand. This is configuration, not
-   hardware approval. Reference jumps and research walking pairs are excluded.
-3. Preserve the tested stock caps, gains, physical Joy settings and stop paths.
-   The prepared profile and recent server fixes still require native integration
-   checks on the Pi; a local test pass is not deployment evidence. Generic
+The [offline rehearsal](results/workstream1-offline-rehearsal-20261030.json) is
+complete: software checks/build, actual Chrome against the fake API, repeated
+Gemini comparisons, and installed-descriptor sequencing through fake ROS. Reuse
+those prepared cases. They do not establish physical balance, real browser
+microphone/camera behavior or in-flight speech interruption.
+
+1. Inventory teammate changes before integrating the final Python, UI and selected
+   session profile on the Pi. Preserve the previously reviewed native overlay;
+   no C++ changed in this offline iteration. Rebuild native packages only if
+   compatibility requires it, then verify the selected controller/protocol markers
+   and repin exact source, executable, configuration and policy hashes. Preserve
+   stock caps, gains, physical Joy settings and stop paths. Generic
    `start.sh`/`stop.sh` are not interchangeable with the reviewed staged setup.
-   Have source/model identities, recording destination and owned shutdown ready.
-4. Obtain the applicable course approval for new trained Sit/generated policies
-   before their first hardware trial. Use the existing
+2. Select the exact controllers for the session. The persistent launch in
+   `foundation/hardware/lab6_session.launch.py` requires an explicit selection:
+   `PUPPER_SESSION_SKILLS=''` selects stock locomotion only; unset refuses startup.
+   `PUPPER_SESSION_SKILLS='sit_stay_shake'` adds only Sit. Set the same selection
+   for launch and API, using the same `PUPPER_GEMINI_DIR` checkout. The runtime
+   manifest binds selection, policies, descriptors and configuration; mismatched
+   APIs are refused and missing controllers are not spawned on demand. Reference
+   jumps and research walking pairs are excluded. Have recording and owned
+   shutdown ready before motion.
+3. Obtain applicable course approval before new trained Sit/generated policies'
+   first hardware trials. Use the existing
    [Sit sequence](results/sit-interactive-default-return-reviewed.json),
    [finite return](results/finite-tricks-default-return-reviewed.json),
    [lying return](results/lying-tricks-later-default-return-reviewed.json) and
    [generated-motion](results/generated-motion-trained-review.json) evidence.
-   Nominal simulation success does not justify blanket approval of every trick.
-5. Prepare a small voice request set against fake execution: correct dispatch,
-   unsupported requests, interruption, and the three Optional Lab 3 conversation
-   habits. Check wrong/right secret access and reconnect behavior. Keep production
-   secrets outside Git, prompts and logs; the test-only password is not a robot
-   credential. Fake text checks do not establish live speech interruption.
+   Simulation and native receipts do not establish physical performance.
+
+The final Gemini 3.1 Flash Live default uses HIGH thinking. The diagnostic's
+`--thinking-level MINIMAL` reproduces the comparison; other models are unchanged
+by default. HIGH improved tool selection but retained two unsupported posture
+claims and one unsupported sensor claim. One text request took 8.776 s from
+submission to the fake Stop response; physical/audio Stop timing remains
+unmeasured. Use actual action receipts and observation; keep direct Stop and
+physical R3 independent of speech. `current_action` is current work, `last_outcome` is history,
+and physical pose/speed/stopped fields remain unknown.
 
 ## Supervised work blocks
 
@@ -63,7 +69,9 @@ floor-input trials are historical; do not restart their timed choreography.
    missing behavior: bounded arc/wait sequences and Live requests whose actual
    tool calls, status and physical outcomes agree. Reuse the demonstrated short
    forward/back/turn commands instead of repeating the entire discovery process.
-   Include cancellation with pending work; voice narration is not stopping evidence.
+   Include actual microphone input, camera understanding and in-flight speech
+   interruption/cancellation with pending work. These remain unvalidated; voice
+   narration is not stopping evidence.
 4. With the selected approved Sit profile, request `sit_stay_shake`, hold at least
    ten seconds, `shake_left`, `shake_right`, and the interactive `stand_up` exit;
    then make a bounded walk and stop. Also check that an ordinary move from Sit

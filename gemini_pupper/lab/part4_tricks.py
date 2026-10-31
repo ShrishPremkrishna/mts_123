@@ -127,7 +127,7 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
     if not robot.trick_available(trick):
         return Result(False, "This trick is locked; unlock it first.")
     if trick.interactive and robot.state_now is trick:  # 1. already in it
-        return Result(True, f"already doing {trick.name}")
+        return Result(True, f"{trick.name} controller already selected; no new entry playback")
     if not trick.interactive and robot.state_now is trick:
         # 2. Still holding this trick's end pose: relax, so switching to it restarts it.
         res = await robot.switch_to(None)
@@ -156,15 +156,16 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
             await robot.sleep(WALK_READY_S)  # it eases into the stance, then fades its policy in
             if robot.fallen or robot.stopped_during_call():
                 return Result(False, "walking trick interrupted by a fall or stop")
-            return Result(True, f"played {trick.name}; it now stays in its {trick.end_pose} stance."
-                                f" {trick.walk.describe()} Interactive actions: {actions}.{leave}")
-        return Result(True, f"played {trick.name}; it now stays {trick.end_pose}. Interactive actions: {actions}.{leave}")
+            return Result(True, f"controller entry playback confirmed for {trick.name}; walking controller active, "
+                                f"configured target pose: {trick.end_pose}. {trick.walk.describe()} "
+                                f"Interactive actions: {actions}.{leave}")
+        return Result(True, f"controller entry playback confirmed for {trick.name}; configured target pose: {trick.end_pose}. Interactive actions: {actions}.{leave}")
     if trick.end_pose == "standing":  # 4. hand back to the locomotion policy
         res = await robot.switch_to(LOCOMOTION_CONTROLLER)
         if not res.ok:
             return Result(False, f"played {trick.name} but could not return to locomotion mode: {res.message}")
-        return Result(True, f"played {trick.name}; back in locomotion mode")
-    return Result(True, f"played {trick.name}; it holds its final pose ({trick.end_pose})")  # 4. it stays
+        return Result(True, f"controller playback completed for {trick.name}; locomotion controller active")
+    return Result(True, f"controller playback completed for {trick.name}; holding final controller frame (configured target pose: {trick.end_pose})")  # 4. it stays
 
 
 # ============================================================ what Gemini reads

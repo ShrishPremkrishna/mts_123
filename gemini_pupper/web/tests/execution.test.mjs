@@ -476,3 +476,79 @@ test('audio decode in a mixed Live packet cannot delay Stop dispatch', async () 
   assert.deepEqual(events, ['stop', 'audio-decode']);
   audio.resolve(); await pending;
 });
+
+
+test('model Stop pending lifecycle is balanced after disconnect without a final dispatch receipt', async () => {
+  const { s, dispatches } = service(); const pending = deferred(), lifecycle = [];
+  s.onStopPending = value => lifecycle.push(value);
+  s.robotBridge.callTool = () => pending.promise;
+  const handling = s.handleMessage({ toolCall: { functionCalls: [{ id: 'model-stop', name: 'stop', args: {} }] } });
+  assert.deepEqual(lifecycle, [true]);
+  s.connected = false; s.disposed = true;
+  pending.resolve({ success: true, message: 'zero requested' }); await handling;
+  assert.deepEqual(lifecycle, [true, false]);
+  assert.deepEqual(dispatches.map(d => d.status), ['sending']);
+});
+
+test('throwing model Stop still releases its lifecycle gate', async () => {
+  const { s } = service(); const lifecycle = [];
+  s.onStopPending = value => lifecycle.push(value);
+  s.robotBridge.callTool = async () => { throw new Error('transport failed'); };
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'failed-stop', name: 'stop', args: {} }] } });
+  assert.deepEqual(lifecycle, [true, false]);
+});
+
+test('automatic Stop emits one typed lifecycle for a coalesced request even if its receipt fails', async () => {
+  const { s } = service(); const pending = deferred(), lifecycle = [];
+  s.onStopPending = value => lifecycle.push(value);
+  s.robotBridge.immediateStop = () => pending.promise;
+  const first = s.requestAutomaticStop('cancelled action');
+  const second = s.requestAutomaticStop('connection closed');
+  assert.deepEqual(lifecycle, [true]);
+  s.connected = false; s.disposed = true;
+  pending.reject(new Error('transport lost')); await Promise.all([first, second]);
+  assert.deepEqual(lifecycle, [true, false]);
+});
+
+
+test('overlapping Live packets cannot send new motion while model Stop is pending', async () => {
+  const { s, responses } = service(); const pending = deferred(), calls = [];
+  s.robotBridge.callTool = async name => {
+    calls.push(name);
+    return name === 'stop' ? pending.promise : { success: true, message: 'accepted' };
+  };
+  const stopping = s.handleMessage({ toolCall: { functionCalls: [{ id: 'stop-pending', name: 'stop', args: {} }] } });
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'overlap', name: 'move', args: { direction: 'forward' } }] } });
+  assert.deepEqual(calls, ['stop']);
+  assert.match(JSON.stringify(responses), /Stop response is pending/);
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'check', name: 'robot_status', args: {} }] } });
+  assert.deepEqual(calls, ['stop', 'robot_status']);
+  pending.resolve({ success: true, message: 'zero requested' }); await stopping;
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'new-request', name: 'move', args: { direction: 'forward' } }] } });
+  assert.deepEqual(calls, ['stop', 'robot_status', 'move']);
+});
+
+
+test('Live setup selects HIGH only for the tested 3.1 Flash Live model', async t => {
+  for (const [model, thinking] of [
+    ['gemini-3.1-flash-live-preview', { thinkingLevel: 'HIGH' }],
+    ['models/gemini-3.1-flash-live-preview', { thinkingLevel: 'HIGH' }],
+    ['gemini-2.5-flash-native-audio-preview', undefined],
+    ['gemini-3.1-flash-tts-preview', undefined],
+    ['gemini-robotics-er-1.5-preview', undefined],
+  ]) {
+    await t.test(model, async t => {
+      let setup;
+      const env = mediaEnvironment(t, async request => {
+        setup = request;
+        request.callbacks.onopen();
+        return { close() {} };
+      });
+      env.config.modelName = model;
+      await env.s.connect('test', env.config, {});
+      assert.deepEqual(setup.config.thinkingConfig, thinking);
+      assert.equal(setup.model, model === 'gemini-2.5-flash-native-audio-preview'
+        ? 'gemini-2.5-flash-native-audio-preview-12-2025' : model);
+    });
+  }
+});

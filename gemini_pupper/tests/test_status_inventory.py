@@ -32,7 +32,7 @@ def test_status_names_active_controller_without_inventing_behavior(controller):
         result = await rig.ts.mode()
         assert result.ok and controller in result.message
         assert 'no active' not in result.message
-        assert 'physical stopping and posture have not been measured' in result.message
+        assert 'Physical pose, speed and stopping have not been measured' in result.message
         if controller == 'unfamiliar_joint_controller':
             assert 'unclassified active controllers' in result.message
             assert 'leg ownership is not established' in result.message
@@ -59,7 +59,7 @@ def test_status_reports_no_active_legs_only_when_no_active_controller_is_reporte
                                  'unfamiliar_joint_controller': 'inactive'}
         result = await rig.ts.mode()
         assert result.ok and 'no active leg controller reported' in result.message
-        assert 'physical stopping and posture have not been measured' in result.message
+        assert 'Physical pose, speed and stopping have not been measured' in result.message
     run_case(case)
 
 
@@ -92,7 +92,7 @@ def test_latched_status_stays_a_blocked_result_not_a_physical_stop_claim(control
         await latch(rig)
         result = await rig.ts.mode()
         assert not result.ok and 'shared stop authority blocks motion' in result.message
-        assert 'not measured physical stopping' in result.message
+        assert 'Physical pose, speed and stopping have not been measured' in result.message
         assert 'no active' not in result.message
     run_case(case)
 
@@ -178,4 +178,141 @@ def test_latched_idle_wait_allows_exact_feedback_types_without_assuming_names():
         assert (await rig.ts.wait(.25)).ok
         assert await rig.settle()
         assert rig.ts.last_outcome['success']
+    run_case(case)
+
+
+def test_completed_move_status_distinguishes_commands_from_physical_motion():
+    async def case(rig):
+        accepted = await rig.call("move", direction="forward", speed=.2, duration=.1)
+        assert accepted.ok
+        assert "accepted, not completed" in accepted.message
+        assert rig.ts.last_outcome["success"]
+        status = await rig.ts.mode()
+        assert "locomotion controller active" in status.message
+        assert "software command completed" in status.message
+        assert "sent velocity commands" in status.message
+        assert "then requested zero velocity" in status.message
+        assert "moved vx=" not in status.message
+        assert "Physical pose, speed and stopping have not been measured" in status.message
+        assert "standing still" not in status.message
+    run_case(case)
+
+
+@pytest.mark.parametrize("name", ["hold_pose", "roll_over"])
+def test_active_trick_status_labels_its_target_pose_not_measured_posture(name):
+    async def case(rig):
+        trick = rig.ts.tricks[name]
+        rig.robot.controllers[robot_api.LOCOMOTION_CONTROLLER] = "inactive"
+        rig.robot.controllers[trick.controller] = "active"
+        status = await rig.ts.mode()
+        assert status.ok
+        assert "controller active" in status.message
+        assert "configured target pose" in status.message
+        assert "Physical pose, speed and stopping have not been measured" in status.message
+        assert "holding its end pose" not in status.message
+    run_case(case)
+
+
+def test_fall_status_reports_detected_stop_and_recovery_command_without_pose_claim():
+    async def case(rig):
+        rig.ts.fallen = robot_api.LOCOMOTION_CONTROLLER
+        status = await rig.ts.mode()
+        assert "tilt/fall stop recorded" in status.message
+        assert "Physical pose, speed and stopping have not been measured" in status.message
+        assert "motors only damp" not in status.message
+        rig.imu(0, seconds=2)
+        recovered = await rig.ts.switch_to(robot_api.LOCOMOTION_CONTROLLER)
+        assert recovered.ok
+        assert "recovery command completed" in recovered.message
+        assert "stood back up" not in recovered.message
+    run_case(case)
+
+
+def test_stand_declaration_does_not_require_an_extra_stand_before_moving():
+    async def case(rig):
+        import tool_registry
+        description = next(d["description"] for d in tool_registry.declarations(rig.ts)
+                           if d["name"] == "stand_up")
+        assert "Needed before moving" not in description
+        assert "Move, turn and arc already prepare" in description
+        assert "unless requested" in description
+    run_case(case)
+
+
+@pytest.mark.parametrize("name", ["hold_pose", "roll_over", "bow"])
+def test_trick_completion_reports_controller_playback_and_distinguishes_repeat(name):
+    async def case(rig):
+        import tool_registry
+        assert (await tool_registry.call(rig.ts, "play_trick", {"name": name})).ok
+        assert await rig.settle()
+        outcome = rig.ts.last_outcome
+        assert outcome["success"], outcome
+        assert "controller" in outcome["message"] and "playback" in outcome["message"]
+        assert "it now stays" not in outcome["message"]
+        assert "holds its final pose" not in outcome["message"]
+        if name == "hold_pose":
+            assert "entry playback confirmed" in outcome["message"]
+            assert (await tool_registry.call(rig.ts, "play_trick", {"name": name})).ok
+            assert await rig.settle()
+            assert "no new entry playback" in rig.ts.last_outcome["message"]
+    run_case(case)
+
+
+def test_result_details_are_additive_and_survive_note_wrapping():
+    assert robot_api.Result(True, 'legacy').as_dict() == {'success': True, 'message': 'legacy'}
+    facts = {'physical_observation': {'pose': None, 'speed': None, 'stopped': None}}
+    result = robot_api.with_note('Note.', robot_api.Result(True, 'status', details=facts))
+    assert result.as_dict() == {'success': True, 'message': 'Note. status', 'details': facts}
+
+
+@pytest.mark.parametrize('ending', ['success', 'refusal', 'exception', 'cancel'])
+def test_current_action_label_follows_owned_job_and_clears_on_every_ending(ending):
+    async def case(rig):
+        release = asyncio.Event()
+        async def job():
+            await release.wait()
+            if ending == 'exception':
+                raise RuntimeError('synthetic offline failure')
+            return robot_api.Result(ending != 'refusal', 'test result')
+        assert (await rig.ts.queue('bounded test job', job, 1., then=robot_api.UNCHANGED)).ok
+        for _ in range(5):
+            await asyncio.sleep(0)
+        running = rig.ts.status()
+        assert running['current_action'] == {'name': 'bounded test job', 'state': 'running'}
+        if ending == 'cancel':
+            await rig.ts.immediate_stop()
+        else:
+            release.set()
+        assert await rig.settle()
+        ended = rig.ts.status()
+        assert ended['current_action'] is None
+        assert not ended['running']
+        assert ended['last_outcome']['name'] == 'bounded test job'
+        assert ended['last_outcome']['success'] is (ending == 'success')
+        # The next action must replace, not inherit, the previous label.
+        await rig.ts.wait(.1)
+        for _ in range(3):
+            await asyncio.sleep(0)
+        assert rig.ts.status()['current_action']['name'] == 'wait 0.1s'
+        assert await rig.settle()
+        assert rig.ts.status()['current_action'] is None
+    run_case(case)
+
+
+def test_locked_current_action_details_do_not_leak_hidden_trick_names():
+    async def case(rig):
+        rig.ts.tricks['hold_pose'].secret = True
+        release = asyncio.Event()
+        async def job():
+            await release.wait()
+            return robot_api.Result(True, 'finished')
+        assert (await rig.ts.queue('hold_pose wave_left', job, 1., then=robot_api.UNCHANGED)).ok
+        for _ in range(3):
+            await asyncio.sleep(0)
+        status = await rig.ts.mode()
+        assert status.as_dict()['details']['current_action'] == {'name': 'locked trick', 'state': 'running'}
+        assert 'hold_pose' not in str(status.as_dict())
+        assert 'wave_left' not in str(status.as_dict())
+        release.set()
+        assert await rig.settle()
     run_case(case)

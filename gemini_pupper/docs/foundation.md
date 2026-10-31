@@ -12,9 +12,12 @@ submission. Original creation credit remains with Peng Xu and the CS123 staff.
 The tools validate motion limits, walk/turn/arc, stop following before a new
 movement, play policy or reference tricks, and sequence interactive clips. The
 queue distinguishes acceptance from completion. `robot_status` and `/queue/status`
-include the latest outcome. A failed job cancels dependent queued work; a stop
-preempts request acceptance. Failed exit transitions and missing clip completion
-feedback are reported rather than treated as successful movement.
+separate `current_action` (running now) from `last_outcome` (the latest finished
+job); a previous completed move does not mean a current wait finished.
+`physical_observation` reports pose, speed and stopped state as unknown. A failed
+job cancels dependent queued work; a stop preempts request acceptance. Failed exit
+transitions and missing clip completion feedback are reported rather than treated
+as successful movement.
 
 Reference playback carries a unique request ID; finite policies carry an ID
 frozen at activation; interactive clips additionally carry a per-request ID
@@ -42,18 +45,22 @@ a request already sent to ROS.
 
 The proposed Pupper character is in `lab/prompt.md`. Its greeting/handshake,
 handshake joke and conversation-local memory are in-context behavior, not learned
-weights or persistent memory. Voice behavior and visual interpretation still need
-a live Gemini session; the offline tests do not demonstrate them.
+weights or persistent memory. Actual Gemini conversations and synthetic spoken
+input have been exercised against fake execution. Real browser microphone/camera,
+in-flight speech interruption and physical voice-controlled behavior remain
+unvalidated; see the [current rehearsal evidence](../../foundation/results/workstream1-offline-rehearsal-20261030.json).
 
 ## Offline checks
 
-From `gemini_pupper/`, using the workspace virtual environment:
+From `gemini_pupper/`, use the tested interpreter recorded in
+[the current-state file](../../foundation/results/interruption-recovery.json)
+for these commands:
 
 ```bash
-../.venv/bin/python -B lab/test.py
-../.venv/bin/python -B lab/test.py optional_jump
-../.venv/bin/python -B -m pytest -q tests/test_foundation.py -p no:cacheprovider
-../.venv/bin/python -B robot/preflight.py
+python -B lab/test.py
+python -B lab/test.py optional_jump
+python -B -m pytest -q tests/test_foundation.py -p no:cacheprovider
+python -B robot/preflight.py
 ```
 
 For browser/API development without the Pi, use the explicit fake server with the
@@ -72,6 +79,20 @@ ordinary catalog. A Gemini key is unnecessary for manual controls. Voice has its
 own Google connection and microphone permission; keep those disabled unless the
 session calls for them. `lab/chat.py --realtime` exercises actual Gemini with the
 same fake backend without recording a microphone. Neither mode validates physics.
+The actual Chrome rehearsal against this localhost fake API is complete; it is
+not Pi deployment or microphone/camera evidence.
+
+The browser and text diagnostic now explicitly request HIGH thinking for
+`gemini-3.1-flash-live-preview` (also with the `models/` prefix); other models keep
+their existing defaults. `lab/chat.py --realtime --thinking-level MINIMAL` selects
+the comparison setting; `AUTO` is the conditional HIGH default, and explicit
+`LOW`, `MEDIUM` or `HIGH` are also supported. The diagnostic prints the selected
+level. The repeated comparison improved action selection, but retained two
+unsupported posture claims and one unsupported sensor claim. One text request
+took 8.776 s from submission to the fake Stop response, including network,
+inference and fake execution; this is not a physical or audio Stop measurement. HIGH is an improvement, not a
+guarantee of truthful speech or prompt stopping. The [rehearsal report](../../foundation/results/workstream1-offline-rehearsal-20261030.json)
+preserves the comparison and failures; older reports describe older candidates.
 
 The browser dispatches tools before decoding speech. A Stop in one model tool
 batch suppresses other motion in that batch; cancelling a sent action requests
@@ -79,7 +100,9 @@ global Stop and pauses model dispatch. Cancelling an unsent action skips it.
 Ordinary speech interruption stops playback only. These deterministic safeguards
 cannot repair incorrect model planning or narration, and closing/crashing a tab
 cannot guarantee that Stop reaches a real robot. Direct Stop and the physical
-controller remain independent controls.
+controller's R3 remain independent controls. Pending direct, model and automatic
+Stop requests block new manual/model motion until their replies settle; Stop
+itself stays usable. An acknowledgement still does not prove physical stopping.
 
 The preflight reads files and validates policy data contracts; it never starts
 ROS or moves anything. On a laptop it should report the missing installed ROS

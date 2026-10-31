@@ -1,0 +1,405 @@
+{
+  "schema": "pupper_workstream1_offline_rehearsal_v1",
+  "updated_utc": "2026-10-31T03:27:38.272198+00:00",
+  "status": "Offline browser rehearsal and previously missing Google checks complete; reviewed candidate ready for native integration. Voice reliability and physical Lab6 remain incomplete.",
+  "scope": "No SSH, deployment, native controller, motor, microphone or camera recording. Actual Google used test text/synthetic speech and fake robot execution only.",
+  "base_commit": "413c6c4a04692d5a3b22b86f3088fd31175ee70d",
+  "prior_report": "foundation/results/workstream1-offline-20261030.json",
+  "permission_resolution": "Earlier automatic approval-review timeouts blocked the listener. The renewed explicitly requested localhost fake-server operation was approved and executed normally. No security settings or permissions were weakened; no user action remains for this offline workflow.",
+  "changes": [
+    "Structured current_action is distinct from last_outcome; physical pose/speed/stopped remain explicitly unknown. Queue ownership, cancellation and hidden-skill redaction are covered.",
+    "Tool receipts say accepted, commands sent or playback completed, instead of asserting measured standing/sitting/stopping. Repeated Sit correctly reports that no new entry occurred.",
+    "Browser catalogs and interactive buttons come only from the active server; empty/missing catalogs clear controls, unlock/relock refreshes, and stale responses cannot overwrite a new bridge.",
+    "Manual actions display accepted/rejected/unknown. Header, panel, model and automatic Stop share a typed pending lifecycle; further motion is blocked until the Stop response resolves, including stale/disconnect cases.",
+    "Compact prompt distinguishes immediate cancellation, finite movement followed by zero-speed request, and unsupported scheduled future Stop; status checks and explicit intent guide Sit/paw/exit ordering.",
+    "Browser and Python diagnostics select HIGH thinking only for Gemini3.1FlashLive; Python AUTO preserves this default with explicit override. No model migration."
+  ],
+  "validation": {
+    "api_lab_profile": "504 tests and166 course checks passed on frozen inputs; exact117-file archive and hashes retained.",
+    "later_cli_change": "Full regression preceded only gemini_chat.py/test_gemini_chat_timing.py thinking changes and new config test;19focused tests plus actual currentCLI smoke cover those deltas. No runtime/lab/profile drift.",
+    "web": "56 tests, TypeScript and production build passed on unchanged27inputs; finalsource and build archive retained.",
+    "independent_review": "Separate owners reviewed runtime traces, prompt/CLI setup, Stop lifecycle and final hashes. No unexplained input drift or broad rerun needed.",
+    "receipt_paths": [
+      "validation/ws1-r2-final-python/receipt.json",
+      "validation/ws1-r2-final-web/receipt.json",
+      "validation/pupper-thinking-integration-freeze.json"
+    ],
+    "scope": "Software correctness evidence; not native/physical/media validation."
+  },
+  "browser": {
+    "environment": "Actual user Chrome window, localhost18092, explicit FAKE REHEARSAL, no key/mic/camera use.",
+    "observed": [
+      "Manual bounded move and Stand acceptance; Stop feedback.",
+      "Unavailable API clears catalog and displays unknown request outcome.",
+      "Explicit empty profile shows no fallback skills or actions.",
+      "Paw action rejected before Sit; Sit, left paw, right paw and explicit exit accepted with fake queue completion.",
+      "Test-only secret unlock reveals skill; explicit fake playback then Stop cancels it and relocks/hides it."
+    ],
+    "version_boundary": "Full selected-skill/failure flows exercised reviewed intermediate UI bundles. Final build replayed bounded forward and direct Stop; final56tests and independent source comparison cover later typed Stop/HIGH integration. Do not claim every interactive flow was repeated on final bundle.",
+    "final_bundle": "gemini_pupper/web/dist/assets/index-rKhDnZUn.js",
+    "sha256": "7f1740bdc84b895a94f5445473c97e5c035d57e4e4b8a46f796020f2e33816e4",
+    "receipt": "browser/ws1-browser-final-http.json",
+    "screenshot": "browser/ws1-browser-final.jpg",
+    "scope_limit": "Model/automatic Stop races are mocked tests; real browser microphone, WebAudio, camera, barge-in and native effects remain pending."
+  },
+  "gemini": {
+    "model": "gemini-3.1-flash-live-preview",
+    "final_prompt_raw_sha256": "5e2d2325ea3fc71418d36b8537b3d00d878d9049869d949569e1ba283f171959",
+    "final_prompt_served_sha256": "3d6b171c2f1415865facb7bdac567a32534767a0a017346fbb9038e937d5ce11",
+    "baseline_missing_checks": "Previously connection-blocked delayedStop/cancel/sit-memory/fresh-memory cases completed. Unsupported current-sitting narration remained.",
+    "rejected_prompt3": {
+      "completed_cases": 27,
+      "all_connected_first_attempt": true,
+      "case_verdict_counts": {
+        "pass": 15,
+        "pass_with_narration_issue": 1,
+        "fail": 11
+      },
+      "issue_event_counts": {
+        "missing_requested_action": 7,
+        "unsupported_sensor_claim": 1,
+        "false_completion": 2,
+        "current_vs_historical_confusion": 3,
+        "unsupported_physical_prediction": 1,
+        "unsupported_time_claim": 1,
+        "unsolicited_mutating_tool": 1,
+        "unsupported_posture_claim": 3,
+        "unsupported_physical_claim": 2,
+        "false_claimed_dispatch": 2
+      },
+      "case_counts": {
+        "delayed_stop": {
+          "pass": 3,
+          "pass_with_narration_issue": 0,
+          "fail": 0
+        },
+        "cancel": {
+          "pass": 2,
+          "pass_with_narration_issue": 0,
+          "fail": 1
+        },
+        "finite": {
+          "pass": 0,
+          "pass_with_narration_issue": 0,
+          "fail": 3
+        },
+        "physical_claim": {
+          "pass": 2,
+          "pass_with_narration_issue": 1,
+          "fail": 0
+        },
+        "hypothetical_stop": {
+          "pass": 3,
+          "pass_with_narration_issue": 0,
+          "fail": 0
+        },
+        "stale_outcome": {
+          "pass": 0,
+          "pass_with_narration_issue": 0,
+          "fail": 3
+        },
+        "handshake": {
+          "pass": 0,
+          "pass_with_narration_issue": 0,
+          "fail": 3
+        },
+        "sit_memory": {
+          "pass": 2,
+          "pass_with_narration_issue": 0,
+          "fail": 1
+        },
+        "fresh_memory": {
+          "pass": 3,
+          "pass_with_narration_issue": 0,
+          "fail": 0
+        }
+      },
+      "critical_unsolicited_actions": 1,
+      "false_dispatch_turns": 2,
+      "missing_requested_action_turns": 7,
+      "explicit_false_wait_completion_repeats": 2,
+      "all_stale_outcome_repeats_mishandled": 3,
+      "correct_sit_entry_counts": {
+        "repeats": 3,
+        "checks": 6
+      },
+      "total_elapsed_case_seconds": 715.1585124569974,
+      "median_elapsed_case_seconds": 23.68569408300027,
+      "timing_limit": "Call at_s is measured from case start, not turn input. Do not infer per-turn Stop latency from it. Parallel file elapsed sums are not wall duration."
+    },
+    "prompt3_conclusion": "Rejected: one unrequested stand_up on status-only input, missing/false dispatches, finite-command refusals and stale-outcome/current-action confusion. All raw traces retained.",
+    "paired_candidate4": {
+      "MINIMAL": {
+        "core_behavior_failure_cases": 4,
+        "unsupported_present_posture_events": 2,
+        "unsolicited_mutating_tools": 0,
+        "false_dispatch_receipt_turns": 0,
+        "stale_outcome_current_state_misreports": 0,
+        "case_attempts": 27,
+        "connected": 27,
+        "completed": 26,
+        "verdict_counts": {
+          "pass": 19,
+          "pass_with_narration_issue": 1,
+          "fail": 6,
+          "incomplete": 1
+        },
+        "issue_counts": {
+          "missing_requested_action": 3,
+          "unsupported_posture_claim": 1,
+          "unsupported_physical_claim": 1,
+          "misleading_stand_prerequisite": 1,
+          "wrong_tool_order": 1,
+          "requested_action_not_accepted": 1
+        },
+        "errors": [
+          {
+            "case": "handshake",
+            "repeat": 1,
+            "error": "TimeoutError: "
+          }
+        ],
+        "stop_latencies": {
+          "samples": [
+            {
+              "case": "stale_outcome",
+              "repeat": 1,
+              "turn": 4,
+              "tool_delivery_latency_seconds": 0.43833120899944333,
+              "software_response_latency_seconds": 0.5396984170001815,
+              "fake_stop_handling_seconds": 0.10136720800073817
+            },
+            {
+              "case": "cancel",
+              "repeat": 1,
+              "turn": 2,
+              "tool_delivery_latency_seconds": 0.540046333000646,
+              "software_response_latency_seconds": 0.6405800410029769,
+              "fake_stop_handling_seconds": 0.10053370800233097
+            },
+            {
+              "case": "stale_outcome",
+              "repeat": 2,
+              "turn": 4,
+              "tool_delivery_latency_seconds": 0.4913402079982916,
+              "software_response_latency_seconds": 0.5928190409977105,
+              "fake_stop_handling_seconds": 0.10147883299941896
+            },
+            {
+              "case": "cancel",
+              "repeat": 2,
+              "turn": 2,
+              "tool_delivery_latency_seconds": 0.42774329100211617,
+              "software_response_latency_seconds": 0.5283588330021303,
+              "fake_stop_handling_seconds": 0.1006155420000141
+            },
+            {
+              "case": "stale_outcome",
+              "repeat": 3,
+              "turn": 4,
+              "tool_delivery_latency_seconds": 0.40951745900019887,
+              "software_response_latency_seconds": 0.5116288749995874,
+              "fake_stop_handling_seconds": 0.10211141599938856
+            },
+            {
+              "case": "cancel",
+              "repeat": 3,
+              "turn": 2,
+              "tool_delivery_latency_seconds": 0.3680631249990256,
+              "software_response_latency_seconds": 0.47030575000098906,
+              "fake_stop_handling_seconds": 0.10224262500196346
+            }
+          ],
+          "software_response_seconds": {
+            "count": 6,
+            "median": 0.5340286250011559,
+            "min": 0.47030575000098906,
+            "max": 0.6405800410029769
+          },
+          "tool_delivery_seconds": {
+            "median": 0.43303725000077975,
+            "min": 0.3680631249990256,
+            "max": 0.540046333000646
+          }
+        }
+      },
+      "HIGH": {
+        "core_behavior_failure_cases": 0,
+        "unsupported_present_posture_events": 2,
+        "unsolicited_mutating_tools": 0,
+        "false_dispatch_receipt_turns": 0,
+        "stale_outcome_current_state_misreports": 0,
+        "case_attempts": 27,
+        "connected": 27,
+        "completed": 27,
+        "verdict_counts": {
+          "pass": 24,
+          "pass_with_narration_issue": 1,
+          "fail": 2,
+          "incomplete": 0
+        },
+        "issue_counts": {
+          "unsupported_posture_claim": 2,
+          "unsupported_sensor_claim": 1
+        },
+        "errors": [],
+        "stop_latencies": {
+          "samples": [
+            {
+              "case": "stale_outcome",
+              "repeat": 1,
+              "turn": 4,
+              "tool_delivery_latency_seconds": 0.907837249997101,
+              "software_response_latency_seconds": 1.0080590420002409,
+              "fake_stop_handling_seconds": 0.10022179200313985
+            },
+            {
+              "case": "cancel",
+              "repeat": 1,
+              "turn": 2,
+              "tool_delivery_latency_seconds": 8.674225916001888,
+              "software_response_latency_seconds": 8.775726416002726,
+              "fake_stop_handling_seconds": 0.10150050000083866
+            },
+            {
+              "case": "stale_outcome",
+              "repeat": 2,
+              "turn": 4,
+              "tool_delivery_latency_seconds": 0.682768209000642,
+              "software_response_latency_seconds": 0.7851339999979245,
+              "fake_stop_handling_seconds": 0.1023657909972826
+            },
+            {
+              "case": "cancel",
+              "repeat": 2,
+              "turn": 2,
+              "tool_delivery_latency_seconds": 0.773733166999591,
+              "software_response_latency_seconds": 0.8760010000005423,
+              "fake_stop_handling_seconds": 0.10226783300095121
+            },
+            {
+              "case": "stale_outcome",
+              "repeat": 3,
+              "turn": 4,
+              "tool_delivery_latency_seconds": 0.6998851670032309,
+              "software_response_latency_seconds": 0.8019852090001223,
+              "fake_stop_handling_seconds": 0.10210004199689138
+            },
+            {
+              "case": "cancel",
+              "repeat": 3,
+              "turn": 2,
+              "tool_delivery_latency_seconds": 0.7545224999994389,
+              "software_response_latency_seconds": 0.8569277499991586,
+              "fake_stop_handling_seconds": 0.10240524999971967
+            }
+          ],
+          "software_response_seconds": {
+            "count": 6,
+            "median": 0.8664643749998504,
+            "min": 0.7851339999979245,
+            "max": 8.775726416002726
+          },
+          "tool_delivery_seconds": {
+            "median": 0.764127833499515,
+            "min": 0.682768209000642,
+            "max": 8.674225916001888
+          }
+        }
+      }
+    },
+    "high_decision": "Adopted for better observed action planning:27/27 expected action sequences, no unwanted tool calls or falsely claimed dispatches in fixed suite. Overall not27fully clean passes:2present-posture claims and1invented sensor explanation remain. Small fixed suite, not general reliability proof.",
+    "latency_limit": "HIGH Stop response median0.866s, one8.776s outlier across6samples; MINIMAL median0.534s,max0.641s. Measures text-send to fakeStop response; outlier tool delivery8.674s plus0.102s fakehandling. Includes network/inference; not causal proof of thinking-level cost, speech latency or physical stopping. Voice must not be the emergency-stop channel.",
+    "selected_profile": {
+      "completed_cases": 6,
+      "behavior_passes": 6,
+      "unsupported_current_posture_statements": 1,
+      "unrequested_mutating_tools": 0,
+      "false_dispatch_receipts": 0,
+      "tool_refusals": 0,
+      "transport_errors": 0,
+      "sit_entry_counts_confirmed": [
+        1,
+        1,
+        2
+      ],
+      "duplicate_sit_tool_dispatched": false,
+      "requested_left_shakes_dispatched": 6,
+      "stop_samples": [
+        {
+          "case": "stale_outcome",
+          "turn": 4,
+          "tool_delivery_latency_seconds": 0.7071802079990448,
+          "software_response_latency_seconds": 0.8094639999981155
+        },
+        {
+          "case": "cancel",
+          "turn": 2,
+          "tool_delivery_latency_seconds": 1.0836576250003418,
+          "software_response_latency_seconds": 1.184867125000892
+        }
+      ],
+      "duration_seconds": {
+        "sum_case_elapsed_not_wall": 231.42645479199928,
+        "median_case_elapsed": 26.389228208499844
+      }
+    },
+    "selected_profile_limit": "Six action cases passed with1additional unsupported current-sitting statement. Sitcounts1\u21921\u21922; duplicateSit was a model no-op, not a runtime duplicate-path test. Secret remained locked in these Google cases; actual Chrome fake rehearsal separately exercised unlock/play/relock.",
+    "synthetic_audio": "Generated spoken move(.2m/s,.5s) and Stop correctly dispatched with HIGH. Move had already completed before Stop; no in-flight interruption, live mic or physics proof.",
+    "javascript_sdk": "Actual installed productionJS SDK accepted HIGH and correctly called read-only robot_status through fakeHTTP. Diagnostic refused mutations. Not a browserMedia proof.",
+    "python_cli": "Actual final lab/chat.py --realtime with AUTO default connected usingHIGH, answered hypotheticalStop without tools, exit0.",
+    "source_limitations": [
+      "Baseline probe source was reconstructed after an in-flight edit by removing two added unused cases; executed case inputs/results are retained. Candidate3 and paired/selected probes retain frozen script identities.",
+      "FinalCLI and JS smoke JSONs lack embedded source hashes; packaging binds their files alongside frozen thinking-source receipt, not independent per-run attestation.",
+      "Actual Google paired probes used frozen candidate4 with explicit thinking, before client defaultHIGH integration. Final client acceptance was checked separately."
+    ]
+  },
+  "remaining": [
+    "When ownership returns, inventory teammate changes and stage reviewed Python/UI/profile. Verify native protocol/selected-profile markers and regenerate source/config/policy pins. No C++ changed in this follow-up; reuse compatible reviewed native overlay, rebuilding only if needed.",
+    "Supervised persistent session: briefly confirm direct controls, then real browser speech dispatch/refusal/reconnect and in-flight interruption, plus camera understanding. DirectStop/R3 stay independent; narration is never physical proof.",
+    "With applicable course approval, physically test Sit10s/both paws/exit, ordinary move fromSit, chosen finite endpoints and generated trick unlock/play/relock. Save actual observations against receipts.",
+    "Integrate gait/Spider and following work from other owners after their evidence. No new policy promotion, limits or gains were changed here."
+  ],
+  "rejected_shortcuts": [
+    "Longer prompt3 was rejected on observed failures, not silently replaced in the evidence.",
+    "No speculative model upgrade or brittle partial-transcription/substr Stop trigger. No audio filtering that conceals false claims.",
+    "No new full-suite rerun after final freeze without a relevant change; focusedCLI delta checks are disclosed."
+  ],
+  "source_bundle": {
+    "path": "artifacts/access/ws1-offline-20261030-r2/candidate/source.tar.gz",
+    "sha256": "29079c2d70e00b129b772f035833007a75f604091e2b482863fad8cd7749a82c",
+    "source_manifest": "artifacts/access/ws1-offline-20261030-r2/candidate/source-manifest.json",
+    "file_count": 200,
+    "native_limit": "Not deployed. Prior v5 pins remain historical; preserve teammate changes before staging."
+  },
+  "artifacts": "artifacts/access/ws1-offline-20261030-r2",
+  "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/ws1-offline-r2",
+  "artifact_index": "artifacts/access/ws1-offline-20261030-r2/artifact-index.json",
+  "shutdown": {
+    "utc": "2026-10-31T03:27:38.272198+00:00",
+    "scope": "Owned local fake servers and API probes only",
+    "fake_server_sessions": [
+      {
+        "exec_session": 1546,
+        "exit_code": 0
+      },
+      {
+        "exec_session": 46703,
+        "exit_code": 0
+      },
+      {
+        "exec_session": 62931,
+        "exit_code": 0
+      },
+      {
+        "exec_session": 82556,
+        "exit_code": 0
+      }
+    ],
+    "final_listener": "localhost:18092 verified closed",
+    "browser": "Ephemeral Chrome tab360980954 closed",
+    "google_probes": "All listed bounded probe processes completed with exit0; transport timeout inside MINIMAL handshake remains a failed/incomplete case, not a process-success pass.",
+    "limitations": "First baseline fake-server stdout was tool-truncated during shutdown; do not claim a complete raw log for exec1546. Later servers redirected complete logs to files.",
+    "robot_operations": "None; no SSH/native/motor/microphone/camera recording."
+  }
+}

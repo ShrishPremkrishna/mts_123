@@ -685,7 +685,8 @@ async def provided_walk() -> None:
             check("and ends with a zero command (stand still)",
                   abs(last.linear.x) + abs(last.linear.y) + abs(last.angular.z) < 1e-9)
             check("at roughly LLM_CMD_RATE", len(twists) >= 0.8 * 2.0 * LLM_CMD_RATE, f"{len(twists)} commands in 2 s")
-        check("the outcome (in the debug log) says what it did", any("moved" in o for o in rig.outcomes(start)),
+        check("the outcome reports velocity commands and the final zero request",
+              any("sent velocity commands" in o and "requested zero velocity" in o for o in rig.outcomes(start)),
               f"log: {rig.outcomes(start)}")
         rig.robot.published.clear()
         await behaviors.walk(rig.ts, 0.0, 0.0, 60.0, 1.0)
@@ -707,11 +708,11 @@ async def provided_walk() -> None:
         check("if the robot falls while walking, it stops sending the speed",
               bool(twists) and twists[-1][0] - t0 < 2.0, f"kept sending until {twists[-1][0] - t0 if twists else 0:.1f} s")
         check("... ends on a zero command", bool(twists) and abs(twists[-1][1].linear.x) < 1e-9)
-        check("... and the outcome says it fell", any("fell" in o for o in rig.outcomes(start)),
+        check("... and the outcome reports the tilt/fall stop", any("tilt/fall stop" in o for o in rig.outcomes(start)),
               f"log: {rig.outcomes(start)}")
         res = await behaviors.walk(rig.ts, 0.4, 0.0, 0.0, 1.0)
         check("a walk asked for while fallen is refused right away, saying so",
-              not res.ok and "fell" in res.message, f"got {res}")
+              not res.ok and "tilt/fall stop" in res.message, f"got {res}")
     finally:
         rig.close()
 

@@ -7,6 +7,7 @@ back, the same loop the web app runs when you talk to Pupper.
 
     python3 lab/chat.py            # YOUR tools, on a fake robot (a laptop is enough)
     python3 lab/chat.py --realtime # fake robot with real queue timing/cancellation
+    python3 lab/chat.py --realtime --thinking-level MINIMAL # explicit comparison
     python3 lab/chat.py --robot    # your tools on the real Pupper (it moves!)
 
 (default)  Your lab/prompt.md, and your tools from lab/, exactly as the web app
@@ -46,6 +47,18 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 KEY_FILE = Path.home() / ".config" / "gemini-pupper" / "api_key"
 MODEL = "gemini-3.1-flash-live-preview"  # the web app's default (constants.ts)
+THINKING_LEVELS = ("AUTO", "MINIMAL", "LOW", "MEDIUM", "HIGH")
+
+
+def resolved_thinking_level(model: str, level: str = "AUTO") -> str | None:
+    """AUTO matches the browser's 3.1 Live setting; other models keep defaults."""
+    level = level.upper()
+    if level not in THINKING_LEVELS:
+        raise ValueError(f"unknown thinking level {level!r}; choose {', '.join(THINKING_LEVELS)}")
+    if level != "AUTO":
+        return level
+    # https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-live-preview
+    return "HIGH" if model.lower().removeprefix("models/") == MODEL else None
 
 
 # ============================================================ your tools, on the fake robot
@@ -225,21 +238,22 @@ def show(prompt: str, tools: list[dict], full: bool) -> None:
         print("Gemini's tools: " + ", ".join(t["name"] for t in tools) + "   (--show prints everything Gemini reads)")
 
 
-async def chat(backend, model: str, full: bool) -> None:
+async def chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO") -> None:
     try:
-        await _chat(backend, model, full)
+        await _chat(backend, model, full, thinking_level=thinking_level)
     finally:
         if isinstance(backend, DeskBackend):
             await backend.aclose()
 
 
-async def _chat(backend, model: str, full: bool) -> None:
+async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO") -> None:
     try:
         from google import genai
         from google.genai import types
     except ImportError:
         sys.exit("Needs the google-genai package: python3 -m pip install --user --break-system-packages google-genai")
 
+    selected_thinking = resolved_thinking_level(model, thinking_level)
     prompt, tools = backend.setup()
     show(prompt, tools, full)
     config = types.LiveConnectConfig(
@@ -248,6 +262,9 @@ async def _chat(backend, model: str, full: bool) -> None:
         tools=[types.Tool(function_declarations=[types.FunctionDeclaration(**t) for t in tools])],
         system_instruction=types.Content(parts=[types.Part(text=prompt)]),
     )
+    if selected_thinking is not None:
+        config.thinking_config = types.ThinkingConfig(thinking_level=selected_thinking)
+    print(f"Thinking level: {selected_thinking or 'model default (not overridden)'}")
     client = genai.Client(api_key=api_key())
     async with client.aio.live.connect(model=model, config=config) as session:
         print(f"Connected to {model}, with {backend.name}. Type 'quit' to exit.\n")
@@ -298,11 +315,14 @@ def main() -> None:
                       help="your tools on the real robot server (default http://localhost:8000)")
     ap.add_argument("--show", action="store_true", help="print the whole prompt and every tool declaration first")
     ap.add_argument("--model", default=MODEL, help=f"Gemini Live model (default {MODEL})")
+    ap.add_argument("--thinking-level", type=str.upper, choices=THINKING_LEVELS, default="AUTO",
+                    help="AUTO uses HIGH for Gemini 3.1 Flash Live and leaves other models unchanged; "
+                         "an explicit level overrides the model default for reproducible comparisons")
     args = ap.parse_args()
     sys.path.insert(0, str(HERE))
     backend = RobotBackend(args.robot) if args.robot else DeskBackend(realtime=args.realtime)
     try:
-        asyncio.run(chat(backend, args.model, args.show))
+        asyncio.run(chat(backend, args.model, args.show, thinking_level=args.thinking_level))
     except (KeyboardInterrupt, EOFError):
         print()
 

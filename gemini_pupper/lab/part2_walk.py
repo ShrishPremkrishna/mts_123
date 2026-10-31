@@ -148,7 +148,7 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
             return Result(False, FELL_MESSAGE)
         if robot.stopped_during_call():
             return Result(False, "movement interrupted by a stop")
-        return Result(True, f"moved {what} for {duration:.2f} s")  # the outcome (debug log)
+        return Result(True, f"sent velocity commands {what} for {duration:.2f} s; then requested zero velocity")  # the outcome (debug log)
 
     # What Gemini hears NOW: the job was accepted.
     what = f"vx={vx:g} vy={vy:g} wz={wz_deg:.3g}"  # 45.836623610465864 -> 45.8: Gemini reads this
