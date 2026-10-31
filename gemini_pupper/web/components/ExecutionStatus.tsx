@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toolLabel } from '../services/operatorFeedback';
 import type RobotBridge from '../services/robotBridge';
 import { parseQueueStatus, queueSummary, runtimeSummary, type QueueStatus, type ToolDispatch } from '../services/executionStatus';
 
@@ -58,7 +59,7 @@ export default function ExecutionStatus({ robotBridge, lastDispatch, modelAction
         </div>
         {report && <div className={report.status.runtime === 'fake' ? 'font-bold text-amber-300' : 'text-gray-300'}>{runtimeSummary(report.status)}</div>}
         {report?.status.controller_fault && <div className="text-red-300">Controller fault: {report.status.controller_fault}</div>}
-        <div>Latest Gemini request: {lastDispatch ? `${lastDispatch.name} — ${lastDispatch.status}: ${lastDispatch.message}` : 'none sent in this voice session'}</div>
+        <div>Latest Gemini request: {lastDispatch ? `${toolLabel(lastDispatch.name)} — ${lastDispatch.status}: ${lastDispatch.message}` : 'none sent in this voice session'}</div>
         {report?.status.last_outcome && <div>
           Latest server result, not matched to this request: {report.status.last_outcome.name} — {report.status.last_outcome.success ? 'completed' : 'failed/cancelled'}: {report.status.last_outcome.message}
         </div>}

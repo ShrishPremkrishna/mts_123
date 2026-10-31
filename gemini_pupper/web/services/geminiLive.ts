@@ -1,8 +1,9 @@
 
 import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
 import { createPcmBlob, decodeAudioData, blobToBase64 } from './audioUtils';
-import { AppConfig, LogEntry } from '../types';
+import { AppConfig, LogEntry, OutputPolicy } from '../types';
 import RobotBridge from './robotBridge';
+import { normalizeOutputPolicy, operatorFeedback, ReceiptSpeaker, toolLabel } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
 
 /**
@@ -48,6 +49,10 @@ export class GeminiLiveService {
   private disposed = false;
   private connecting = false;
   private playbackGeneration = 0;
+  public readonly outputPolicy: OutputPolicy;
+  private receiptSpeaker = new ReceiptSpeaker();
+  private feedbackGeneration = 0;
+  private feedbackRequest = 0;
   private apiKey = '';
   private cancelledToolIds = new Set<string>();
   private dispatchedActionIds = new Set<string>();
@@ -86,6 +91,7 @@ export class GeminiLiveService {
     private onTiming?: (event: LiveTimingEvent) => void
   ) {
     this.config = config;
+    this.outputPolicy = normalizeOutputPolicy(config.outputPolicy);
     this.robotBridge = new RobotBridge(config.robotApiUrl);
     this.onLog = onLog;
     this.onAudioLevel = onAudioLevel;
@@ -97,6 +103,7 @@ export class GeminiLiveService {
   /** Synchronous: later model motion calls cannot rearm; stop/status remain available. */
   public pauseRobotTools() {
     this.robotToolsPaused = true;
+    this.stopPlayback();
   }
 
   async connect(apiKey: string, config: AppConfig, videoElement: HTMLVideoElement) {
@@ -184,18 +191,23 @@ export class GeminiLiveService {
     // Ask the robot for Gemini's system prompt and tools (lab/prompt.md, the tools in lab/).
     const spec: any = await this.robotBridge.getTools();
     this.ensureOpen();
-    const robotTools: FunctionDeclaration[] = Array.isArray(spec?.tools) ? spec.tools : [];
+    const offeredTools: FunctionDeclaration[] = Array.isArray(spec?.tools) ? spec.tools : [];
+    const robotTools = this.outputPolicy === 'conversation'
+      ? offeredTools.filter(tool => tool.name === 'stop' || tool.name === 'robot_status') : offeredTools;
     if (robotTools.length) {
       this.log('info', `Robot offers ${robotTools.length} tools: ${robotTools.map(t => t.name).join(', ')}`);
     } else {
-      this.log('error', `Could not get tools from the robot (${spec?.message ?? 'no tools'}); Gemini can talk but not move.`);
+      this.log('error', `Could not get tools from the robot (${spec?.message ?? 'no tools'}); no robot tools are available.`);
     }
     let systemInstruction = [spec?.prompt, config.extraInstructions].filter(Boolean).join('\n\n');
-    if (!isAudioOutput) {
+    if (!isAudioOutput && this.outputPolicy === 'conversation') {
       systemInstruction += '\n\nIMPORTANT: You do not have direct voice audio output. To speak out loud to the user or narrate your actions, you MUST invoke the "speak" function tool with your response text.';
     }
 
-    const functionDeclarations = isAudioOutput ? robotTools : [...robotTools, SPEAK_TOOL];
+    const functionDeclarations = !isAudioOutput && this.outputPolicy === 'conversation' ? [...robotTools, SPEAK_TOOL] : robotTools;
+    systemInstruction += this.outputPolicy === 'receipts'
+      ? '\n\nThe operator is using receipt-only control. Your free-form speech and text are muted; tool receipts are presented by the application. Continue using tools for requests.'
+      : '\n\nThis is unverified conversation mode. You cannot move the robot or change gates. Only Stop and robot status tools are available; do not imply that conversation has executed an action.';
 
     const liveConfig: any = {
       responseModalities: isAudioOutput ? [Modality.AUDIO] : [Modality.TEXT],
@@ -228,6 +240,7 @@ export class GeminiLiveService {
     }
 
     // Connect and store the promise
+    this.log('info', this.outputPolicy === 'receipts' ? 'Receipt-only control: model narration is muted.' : 'UNVERIFIED CONVERSATION: model movement and gate tools are disabled.');
     this.log('info', `Connecting to ${modelName} (Audio Output: ${isAudioOutput ? 'Native' : 'Flash TTS via speak tool'})...`);
     this.sessionPromise = this.ai.live.connect({
       model: modelName,
@@ -385,6 +398,7 @@ export class GeminiLiveService {
   }
 
   private async playAudioBase64(audioData: string): Promise<void> {
+    if (this.outputPolicy !== 'conversation') return;
     const ctx = this.audioContext, analyser = this.analyser, generation = this.playbackGeneration;
     if (!ctx || !analyser || this.disposed) return;
     if (ctx.state === 'suspended') await ctx.resume();
@@ -409,6 +423,7 @@ export class GeminiLiveService {
   }
 
   private async synthesizeAndPlaySpeech(text: string): Promise<void> {
+    if (this.outputPolicy !== 'conversation') return;
     const generation = this.playbackGeneration;
     const cancelled = () => this.disposed || generation !== this.playbackGeneration;
     try {
@@ -475,7 +490,8 @@ export class GeminiLiveService {
   }
 
   private speakWithWebSpeech(text: string): void {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (this.outputPolicy !== 'conversation' || this.disposed) return;
+    try { if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       const generation = this.playbackGeneration;
@@ -493,7 +509,7 @@ export class GeminiLiveService {
       utterance.onend = stopVisual;
       utterance.onerror = stopVisual;
       window.speechSynthesis.speak(utterance);
-    }
+    } } catch { /* Conversation audio is optional; never block tools or Stop. */ }
   }
 
   private async handleMessage(message: LiveServerMessage) {
@@ -518,12 +534,13 @@ export class GeminiLiveService {
       this.cancelledToolIds.add(id);
       if (this.dispatchedActionIds.has(id)) cancelSentAction = true;
     }
+    if (message.toolCallCancellation?.ids?.length) this.stopPlayback();
     if (cancelSentAction) await this.requestAutomaticStop('Live cancelled an already-dispatched action');
     const generation = this.playbackGeneration;
 
     // Check for text output (useful for ER2 streaming / text models)
     const textPart = message.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
-    if (textPart) {
+    if (textPart && this.outputPolicy === 'conversation') {
       this.log('model', `Text: ${textPart}`);
     }
 
@@ -535,12 +552,16 @@ export class GeminiLiveService {
       const ordered = hasStop ? [...calls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : calls;
       for (const fc of ordered) {
         if (this.disposed) break;
+        if (fc.name === 'stop') this.stopPlayback();
+        let feedbackGeneration = this.feedbackGeneration;
+        const feedbackRequest = ++this.feedbackRequest;
         if (fc.id && this.cancelledToolIds.has(fc.id)) {
-          this.log('info', `Cancelled before dispatch: ${fc.name}`);
+          this.log('info', `Cancelled before dispatch: ${toolLabel(fc.name)}`);
           continue;
         }
-        this.log('function', `Call: ${fc.name}(${fc.name === 'unlock' ? '[redacted]' : JSON.stringify(fc.args)})`);
+        this.log('function', `Request: ${toolLabel(fc.name)}`);
         let result: any = { success: true };
+        let dispatch: { id: string; name: string; timestamp: number } | null = null;
         
         try {
           // Helper args
@@ -550,6 +571,10 @@ export class GeminiLiveService {
             case 'speak':
             case 'say':
             case 'narrate':
+              if (this.outputPolicy === 'receipts') {
+                result = { success: false, message: 'Free-form speech is muted in receipt-only control.' };
+                break;
+              }
               if (isAudioOutputModel(this.config.modelName)) {
                 result = { success: false, error: 'Native-audio models must speak through their Live API audio response' };
                 break;
@@ -564,20 +589,25 @@ export class GeminiLiveService {
               }
               break;
             default:
+              // This is enforced locally even if a model calls an unadvertised tool.
+              if (this.outputPolicy === 'conversation' && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                result = { success: false, not_dispatched: true, message: 'Conversation mode cannot move the robot or change gates.' };
+                break;
+              }
               // Every other tool is defined and run on the robot (the tools in lab/).
               if (hasStop && fc.name !== 'stop' && fc.name !== 'robot_status') {
-                result = { success: false, message: 'Not dispatched: Stop takes priority over other actions in the same batch. No delayed Stop was scheduled.' };
+                result = { success: false, not_dispatched: true, message: 'Not dispatched: Stop takes priority over other actions in the same batch. No delayed Stop was scheduled.' };
                 break;
               }
               if (this.stopRequestsPending > 0 && fc.name !== 'stop' && fc.name !== 'robot_status') {
-                result = { success: false, message: 'Not dispatched: a Stop response is pending. Check status before requesting a new action.' };
+                result = { success: false, not_dispatched: true, message: 'Not dispatched: a Stop response is pending. Check status before requesting a new action.' };
                 break;
               }
               if (this.robotToolsPaused && fc.name !== 'stop' && fc.name !== 'robot_status') {
-                result = { success: false, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
+                result = { success: false, not_dispatched: true, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
                 break;
               }
-              const dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
+              dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
               if (!['stop', 'robot_status', 'unlock', 'lock_tricks'].includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
               this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
               // This lifecycle remains balanced even after disconnect suppresses
@@ -591,14 +621,30 @@ export class GeminiLiveService {
               finally { if (stopping) this.reportStopPending(false); }
               const status = toolResponseStatus(result);
               this.trace('tool_call_resolved', { ...timing, status });
-              if (status === 'unknown' || (result?.success === false && result?.command_epoch_required === true)) this.pauseRobotTools();
-              if (this.connected) this.onToolDispatch({ ...dispatch, status, message: result?.message || 'No response details', timestamp: Date.now() });
+
           }
         } catch (e: any) {
-          result = { success: false, error: e.message };
+          result = { success: false, outcome_unknown: true, error: e.message };
         }
 
-        this.log(result?.success === false ? 'error' : 'function', `Result: ${fc.name} -> ${result?.message ?? JSON.stringify(result)}`);
+        const currentFeedback = () => this.connected && !this.disposed && feedbackGeneration === this.feedbackGeneration
+          && feedbackRequest === this.feedbackRequest && !(fc.id && this.cancelledToolIds.has(fc.id));
+        if (dispatch) {
+          const status = toolResponseStatus(result);
+          if (status === 'unknown' || (result?.success === false && result?.command_epoch_required === true)) {
+            const wasCurrent = currentFeedback();
+            this.pauseRobotTools();
+            // Keep this current unknown/error receipt, while invalidating older speech.
+            if (wasCurrent) feedbackGeneration = this.feedbackGeneration;
+          }
+          if (currentFeedback()) this.onToolDispatch({ ...dispatch, status, message: operatorFeedback(fc.name, result), timestamp: Date.now() });
+        }
+        const speechAlias = ['speak', 'say', 'narrate'].includes(fc.name || '');
+        if (!speechAlias && currentFeedback()) {
+          const feedback = operatorFeedback(fc.name, result);
+          this.log('receipt', feedback);
+          if (this.outputPolicy === 'receipts') this.receiptSpeaker.say(feedback);
+        }
         if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
           this.sessionPromise.then(session => {
             if (!this.connected) return;
@@ -625,7 +671,7 @@ export class GeminiLiveService {
     }
 
     // Dispatch tool requests (especially Stop) before waiting for audio decoding.
-    for (const part of message.serverContent?.modelTurn?.parts ?? []) {
+    for (const part of this.outputPolicy === 'conversation' ? message.serverContent?.modelTurn?.parts ?? [] : []) {
       if (generation !== this.playbackGeneration || this.disposed) break;
       if (part.inlineData?.data) {
         this.trace('output_audio_handle_start', { message_sequence: messageSequence });
@@ -656,9 +702,7 @@ export class GeminiLiveService {
         catch { result = { outcome_unknown: true }; }
         const status = toolResponseStatus(result);
         this.trace('automatic_stop_call_resolved', { status });
-        const message = status === 'unknown'
-          ? 'Global Stop response unknown. Observe the robot and use R3/power if needed.'
-          : `Global Stop ${status}: ${result.message || 'No details'}. This does not prove physical stillness.`;
+        const message = operatorFeedback('stop', result);
         this.log(status === 'accepted' ? 'info' : 'error', message);
         this.onAutomaticStop(message);
       } finally {
@@ -669,13 +713,15 @@ export class GeminiLiveService {
   }
 
   private stopPlayback() {
+    this.feedbackGeneration++;
+    this.receiptSpeaker.cancel();
     this.playbackGeneration++;
     if (this.speechVisualInterval) clearInterval(this.speechVisualInterval);
     this.speechVisualInterval = null;
     this.queuedSources.forEach(source => { try { source.stop(); } catch {} });
     this.queuedSources = [];
     this.nextStartTime = 0;
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    try { if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); } catch { /* Audio cleanup cannot block Stop. */ }
     this.onAudioLevel(0);
   }
 
@@ -692,9 +738,7 @@ export class GeminiLiveService {
     // Do not let the remainder of that message dispatch motion after close.
     this.pauseRobotTools();
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    try { if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); } catch { /* Optional audio. */ }
 
     this.inputSource?.disconnect();
     this.inputSource = null;
@@ -744,6 +788,10 @@ export class GeminiLiveService {
   }
 
   private log(type: LogEntry['type'], message: string) {
+    if (type === 'model') {
+      if (this.outputPolicy !== 'conversation') return;
+      message = `UNVERIFIED CONVERSATION: ${message}`;
+    }
     this.onLog({
       id: Math.random().toString(36),
       timestamp: Date.now(),

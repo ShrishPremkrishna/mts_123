@@ -1,3 +1,4 @@
+import { hasMalformedOutcomeFlags } from './operatorFeedback';
 /** Execution evidence comes only from actual requests and robot responses. */
 export interface ToolDispatch {
   id: string;
@@ -31,8 +32,9 @@ export function parseQueueStatus(value: unknown): QueueStatus | null {
 }
 
 export function toolResponseStatus(result: unknown): ToolDispatch['status'] {
-  const r = result as { success?: boolean; outcome_unknown?: boolean } | null;
-  if (!r || r.outcome_unknown || typeof r.success !== 'boolean') return 'unknown';
+  const r = result as { success?: boolean; outcome_unknown?: boolean; superseded?: boolean; not_dispatched?: boolean } | null;
+  if (!r || hasMalformedOutcomeFlags(r) || r.outcome_unknown || r.superseded || typeof r.success !== 'boolean') return 'unknown';
+  if (r.not_dispatched) return 'rejected';
   return r.success ? 'accepted' : 'rejected';
 }
 

@@ -30,7 +30,7 @@ def no_access(monkeypatch):
     monkeypatch.setattr(gc, "KEY_FILE", SimpleNamespace(exists=forbidden))
 
 
-async def actual_chat(monkeypatch, backend, script, *, send_error=False, inputs=("test", "quit")):
+async def actual_chat(monkeypatch, backend, script, *, send_error=False, inputs=("test", "quit"), **chat_options):
     from google import genai
     replies = []
     async def send_tool_response(**kwargs):
@@ -50,7 +50,7 @@ async def actual_chat(monkeypatch, backend, script, *, send_error=False, inputs=
         aio=SimpleNamespace(live=SimpleNamespace(connect=connect))))
     iterator = iter(inputs)
     monkeypatch.setattr("builtins.input", lambda _prompt: next(iterator))
-    await asyncio.wait_for(gc.chat(backend, gc.MODEL, False), 2)
+    await asyncio.wait_for(gc.chat(backend, gc.MODEL, False, **chat_options), 2)
     return replies
 
 
@@ -162,7 +162,7 @@ def test_unknown_stop_blocks_motion_in_later_user_turn_and_cleanup_reports_retry
         await actual_chat(monkeypatch, fake(call), script, inputs=("stop", "move", "quit"))
         assert calls == ["stop", "robot_status", "stop"]
     asyncio.run(check())
-    assert "connection cleanup Stop" in capsys.readouterr().out
+    assert "Connection cleanup: The Stop response is unknown" in capsys.readouterr().out
 
 
 def test_confirmed_stop_allows_a_new_explicit_user_turn(monkeypatch):

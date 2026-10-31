@@ -24,6 +24,16 @@ operational status; completed experiment reports retain their dated evidence.
 
 The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
 adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
+The [code-enforced feedback follow-up](results/workstream1-code-feedback-20261030.json)
+replaces default model narration with fixed client receipts after matching API
+responses. “Queued” requires a typed marker after actual queue insertion;
+generic success supports only acceptance, never completion or physical state.
+Stale replies and Stop races cannot refresh current operator acknowledgments.
+Optional unverified conversation retains natural speech but blocks model movement
+and gate tools. The frozen candidate passes 660 Python, 166 course and 102 web
+checks; an independent 57-case corpus agrees across both clients. This is an
+undeployed output-boundary improvement, not a claim that Gemini's interpretation
+or the robot's physical execution is always correct.
 The [Stop, grounding and media follow-up](results/workstream1-stop-grounding-20261030.json)
 closes reproduced delayed-command, CLI interruption, video ordering and stale-camera
 defects. Stop receipts now distinguish a cancelled running job from removed waiting
@@ -31,8 +41,9 @@ jobs. The reviewed candidate passes 609 Python checks, 166 course checks and 80 
 checks; actual Gemini fake conversations and synthetic-media checks are preserved.
 The earlier 8.776-second Stop mostly elapsed before tool-handler entry; its exact
 service/network/pre-send cause remains unknown and cloud latency has no proven bound.
-Grounded wording reduced false claims, but occasional premature acceptance narration
-remains. HIGH is retained; two alternatives were rejected on measured regressions.
+Grounded wording reduced false claims, but that earlier study still found premature
+acceptance narration; this motivated the code boundary above. HIGH is retained;
+two alternatives were rejected on measured regressions.
 This is an undeployed software candidate. Native integration, actual microphone/camera
 and supervised skills still need testing. The [prior browser study](results/workstream1-offline-rehearsal-20261030.json)
 retains the original outlier and earlier evidence.

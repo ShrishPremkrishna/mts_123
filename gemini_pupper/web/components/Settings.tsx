@@ -10,9 +10,10 @@ interface SettingsProps {
   config: AppConfig;
   setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
   onClose: () => void;
+  sessionActive?: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfig, onClose }) => {
+const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfig, onClose, sessionActive = false }) => {
   const isRoboticsER = !isAudioOutputModel(config.modelName);
 
   return (
@@ -20,6 +21,16 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
       <div className="bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-2xl border border-gray-700">
         <h2 className="text-xl font-bold mb-4 text-white">System Configuration</h2>
 
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-300 mb-1">Output mode</label>
+          <select aria-label="Output mode" disabled={sessionActive} value={config.outputPolicy}
+            onChange={e => setConfig({ ...config, outputPolicy: e.target.value === 'conversation' ? 'conversation' : 'receipts' })}
+            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white disabled:opacity-50">
+            <option value="receipts">Receipt-only robot control</option>
+            <option value="conversation">Unverified conversation — no model movement</option>
+          </select>
+          <p className="text-xs text-amber-200 mt-1">Disconnect before changing modes. Receipt mode mutes model narration and speaks only fixed server feedback. Conversation/vision output is unverified; manual controls remain available.</p>
+        </div>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Gemini API Key</label>
@@ -43,12 +54,12 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
             </select>
             {isRoboticsER && (
               <p className="mt-1 text-[11px] text-cyan-400">
-                Robotics ER 2 Streaming uses text modality; audio is synthesized via Flash TTS and the <code className="bg-gray-900 px-1 rounded text-yellow-300">speak</code> tool.
+                In conversation mode, Robotics ER 2 Streaming uses text modality; audio is synthesized via Flash TTS and the <code className="bg-gray-900 px-1 rounded text-yellow-300">speak</code> tool.
               </p>
             )}
           </div>
 
-          {isRoboticsER && (
+          {isRoboticsER && config.outputPolicy === 'conversation' && (
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">TTS Model (Robotics ER Speech)</label>
               <select

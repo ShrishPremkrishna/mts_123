@@ -1,0 +1,103 @@
+{
+  "schema": "pupper_workstream1_code_feedback_v1",
+  "updated_utc": "2026-10-31T05:11:13.248250+00:00",
+  "base_commit": "497c1e2a8c7651e90a4f28e13cbd42c222ec9c0e",
+  "verdict": "Reviewed offline candidate; deterministic operator output boundary implemented and tested. Not deployed or hardware validated.",
+  "scope": "No SSH, motors, native deployment, real microphone/camera capture, cloud requests, or credential access in this pass. Browser used synthetic streams, mock Google messages and localhost fake API.",
+  "problem": {
+    "observed_counterexamples": "Earlier live fake traces contain queue acceptance narration before the matching tool reply and a queued sit-and-stay claim with zero tool calls. Full-turn buffering alone cannot validate no-tool claims.",
+    "prior_evidence": "foundation/results/workstream1-stop-grounding-20261030.json"
+  },
+  "implementation": {
+    "default_mode": "Receipt-only/verified control, frozen for connection; missing/invalid mode uses receipts. Model native audio, text, output transcription, speak/say/narrate and generated TTS cannot produce operator action claims.",
+    "receipt_source": "Code-owned closed labels/templates from the matched current API reply. Raw model prose, arbitrary tool names/arguments, raw server message and unrelated last_outcome never authorize a receipt.",
+    "queued": "Only Robot.queue after successful commands.put emits details.submission={schema:pupper_submission_v1,state:queued}. Only a successful current queueable-tool reply with this marker says Server queued. Historical insertion only; no current occupancy, new interactive entry, terminal completion or physical success assertion.",
+    "other_success": "Server accepted the request. Completion is unconfirmed. Stop adds Physical stopping is unverified.",
+    "other_outcomes": "Separate local not-dispatched, server failure, unknown/malformed and superseded outcomes. Failure does not imply no earlier effects.",
+    "lifecycle": "Stop/cancellation/disconnect invalidate pending speech and older operator cards; request generation prevents a reused model call ID from refreshing a newer card. Unknown current response remains visible while motion pauses.",
+    "speech": "Fixed local browser WebSpeech only, one active plus one newest pending receipt, expiry and nonblocking dispatch. Constructor/speak/cancel errors cannot block Stop. Text remains if speech is unavailable; acoustic output not established.",
+    "conversation": "Explicit labeled unverified natural speech/vision; only Stop/status robot declarations and local dispatch allowed. Movement and gate calls refused even if invented. Manual controls remain available.",
+    "cli": "Same default suppression and fixed receipts. --conversation exposes unverified text with Stop/status only; --show labels raw diagnostics separately.",
+    "prompt_scope": "No changes to lab/prompt.md; browser session tells model selected mode, but enforcement is independent of compliance."
+  },
+  "validation": {
+    "python": 660,
+    "course": 166,
+    "web": 102,
+    "typecheck_and_production_build": "PASS",
+    "frozen_sources_unchanged_during_full_suite": true,
+    "raw_receipt": "artifacts/access/ws1-code-feedback-20261030/validation/ws1-code-feedback-validation/receipt.json",
+    "independent_review": {
+      "verdict": "No remaining blocker in reviewed narrow output contract after owner fixes",
+      "formatter_cases": 57,
+      "exact_python_ts_matches": 57,
+      "independent_cli_checks": 53,
+      "sources": {
+        "gemini_pupper/robot/operator_feedback.py": "6cc2f059e13968b21485f8e8797ee2ffed41f714d00ad8222702cd3f0fc631f4",
+        "gemini_pupper/robot/gemini_chat.py": "f7f6097afbd13572bc50a6860ad4c9c65982a034ede224f419c73437967aaa5e",
+        "gemini_pupper/tests/test_operator_feedback.py": "64a9016d4efb9e3287747b40cd02e82ec4fb7f330d379a8df5ac28841c732c03",
+        "gemini_pupper/web/services/operatorFeedback.ts": "206b1613828006584e80409219f59a36b4af20a64b4bfe8fb33726203a10e5e2",
+        "gemini_pupper/web/services/geminiLive.ts": "5f3f1e987a81e054358d4c2e5e282fb72ec0f68fa31d491a33ae8f4d376dd920",
+        "gemini_pupper/web/services/executionStatus.ts": "cb2a34685e7f18073176a955d73ca3c8884eeae1daf9b66899ebd28cc085ce99",
+        "gemini_pupper/web/App.tsx": "ff51125e8387ac942b588aa49ff5c3e7da242d4b94d8f5fcb69dab3f4b3a1cad",
+        "gemini_pupper/web/components/Settings.tsx": "13f8e74b44a86024465ac55b02b1c050effe3521e7074be13df50063142ca394",
+        "gemini_pupper/robot/robot_api.py": "4f12d61037e6e3fac493d9c84dddaa2d7dac1805902b78181780314422829a20"
+      },
+      "artifact": "artifacts/access/ws1-code-feedback-20261030/evidence/ws1-operator-provenance-peer-review.json"
+    },
+    "chrome": {
+      "result": "PASS",
+      "checks": {
+        "initialized_fake_api": true,
+        "real_webaudio_capture_encoded_nonzero_pcm": true,
+        "synthetic_browser_video_is_decodable_red_jpeg": true,
+        "changed_canvas_frame_reaches_production_video_path": true,
+        "strict_no_tool_and_speech_alias_output_suppressed": true,
+        "strict_no_acceptance_before_http_reply": true,
+        "strict_fixed_receipt_after_actual_http_reply": true,
+        "fake_wait_accepted": true,
+        "fake_wait_pending_or_running": true,
+        "conversation_fresh_video_ready_and_sent": true,
+        "conversation_advertises_only_stop_and_status": true,
+        "conversation_blocks_movement_and_gate_calls": true,
+        "stop_reply_before_audio_decode_release": true,
+        "fake_queue_cancelled": true,
+        "typed_stop_lifecycle_balanced": true,
+        "real_native_wav_decode_completed": true,
+        "video_stops_and_late_conversion_never_sends_after_disconnect": true,
+        "synthetic_video_tracks_ended": true,
+        "synthetic_capture_stopped_after_disconnect": true,
+        "owned_tracks_ended": true,
+        "mock_sdk_closed": true
+      },
+      "receipt": "artifacts/access/ws1-code-feedback-20261030/evidence/ws1-code-feedback-browser-pass.json",
+      "screenshot": "artifacts/access/ws1-code-feedback-20261030/evidence/ws1-code-feedback-browser-pass.png",
+      "fake_stop_callback_to_reply_ms": 113,
+      "interpretation": "Browser callback to fake API reply only; not speech recognition, cloud inference, physical Stop, or acoustic proof."
+    }
+  },
+  "failed_findings_preserved": [
+    "Initial strict-output tests failed on original raw output paths.",
+    "Initial submission tests failed before marker implementation; original fixture correction and exact HTTP expectation update are preserved.",
+    "Independent JSON corpus found 2 Python/TS malformed-flag differences, fixed with conservative boolean validation.",
+    "Late status/operator card after Stop and reused call IDs, self-suppressed unknown response, local refusal attribution and speech exceptions were fixed with regressions.",
+    "First Chrome run passed15 checks including all strict claim checks, then failed synthetic-video reconnect coverage; failed receipt and exact build preserved, final isolated rehearsal rerun recorded separately."
+  ],
+  "archive": {
+    "local": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-code-feedback-20261030",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/ws1-code-feedback",
+    "files": 86,
+    "bytes": 107586788,
+    "manifest_sha256": "031bb9d32ba80ce18710832cb2fcedd488b30a46b3b2037edd925749becca627",
+    "candidate_sha256": "5615da49a4bacfaf246f88d5809b8b76ee98b2c6f073b02fdfb4e3bce1c3d357",
+    "candidate_files": 221,
+    "verified_both": true
+  },
+  "remaining": [
+    "Reconcile teammate Pi changes and deploy reviewed Python/browser/CLI together, preserving stock limits/gains and current native overlay.",
+    "Supervised real microphone, camera, local receipt audibility, command intent and physical stopping/skill behavior still require robot access.",
+    "Unverified conversation can still hallucinate; verified mode prevents its free-form claims from reaching the operator, not erroneous internal reasoning or wrong tool selection.",
+    "No new job completion protocol, globally optimized policy or maxed-out hardware claim."
+  ],
+  "active_work": "None after owned local servers/tab are closed; no remote compute or schedule started."
+}

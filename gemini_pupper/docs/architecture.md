@@ -8,6 +8,14 @@ Gemini Pupper is a browser-based voice and vision interface for a robot dog. The
 
 The upstream cloud deployment serves the web application; it does not proxy robot commands or media. This checkout also serves the built app directly from the local FastAPI server. The browser is the coordinator between Gemini and the robot.
 
+The default verified control mode mutes model-generated output. A separate client
+formatter emits fixed receipts only after matching server replies; local browser
+speech synthesis reads those receipts. Queue wording requires the server's
+`pupper_submission_v1` marker after queue insertion. Optional unverified
+conversation enables model speech but filters and locally blocks all model robot
+tools except Stop/status. Manual controls remain independent. See
+[operator feedback modes](foundation.md#operator-feedback-modes) for exact limits.
+
 ## System at a glance
 
 ```mermaid
@@ -17,7 +25,7 @@ flowchart LR
     subgraph Cloud["Public cloud"]
         CloudRun["Cloud Run<br/>nginx + static React app"]
         GeminiLive["Gemini Live API<br/>audio, video, reasoning"]
-        GeminiTTS["Gemini Flash TTS<br/>text-output models only"]
+        GeminiTTS["Gemini Flash TTS<br/>conversation + text-output only"]
     end
 
     subgraph Client["Browser"]
@@ -39,7 +47,7 @@ flowchart LR
     CloudRun -->|downloads HTML, JS, assets| Browser
     Media --> LiveService
     LiveService <-->|Live WebSocket<br/>audio, video, tool calls| GeminiLive
-    GeminiLive -->|native audio| LiveService
+    GeminiLive -->|native audio, conversation only| LiveService
     LiveService -->|text to speech request| GeminiTTS
     GeminiTTS -->|streamed audio| LiveService
     LiveService --> Face
@@ -81,14 +89,14 @@ sequenceDiagram
 
     Person->>Browser: Speaks and appears on camera
     Browser->>Gemini: Streams PCM audio and JPEG frames
-    Gemini-->>Browser: Native audio response
-    Browser-->>Person: Plays response and animates mouth
+    Gemini-->>Browser: Model audio/text (muted in verified control)
 
     Gemini-->>Browser: Function call: play_trick or move
     Browser->>RobotAPI: POST /tools/play_trick or /tools/move
     RobotAPI->>ROS: Check the request, queue a job
     ROS-->>RobotAPI: Result: accepted (queued) or refused, with a reason
     RobotAPI-->>Browser: JSON result
+    Browser-->>Person: Fixed receipt, completion unconfirmed
     Browser->>Gemini: Tool response
     ROS->>Pupper: Later, when the queue gets there: switch to the walking or trick policy
     Pupper-->>ROS: Outcome, in the debug log and robot_status
@@ -114,7 +122,13 @@ pose, speed and stopping fields stay unknown. Model narration is not a sensor.
 
 ## Audio and model modes
 
-The application supports two response patterns:
+Verified control uses fixed local receipt speech and suppresses both model output
+patterns below. Missing local speech synthesis leaves visible receipt text; it
+does not enable model audio as a fallback. Receipt speech is bounded and never
+awaited by dispatch. Stop/disconnect invalidate pending receipts.
+
+Explicit unverified conversation supports two model response patterns. Its model
+tool access is limited to Stop/status, independently of what the prompt requests:
 
 ### Native-audio Live models
 

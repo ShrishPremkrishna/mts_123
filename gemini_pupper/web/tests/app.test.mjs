@@ -95,7 +95,7 @@ test('late automatic Stop response cannot overwrite a newer direct Stop receipt'
   service.stop.resolve({ success: true, message: 'new explicit Stop accepted' });
   await stopping;
   service.callbacks[5]('old automatic response');
-  assert.equal(find(render(), n => n.type === 'ExecutionStatus').props.stopMessage, 'new explicit Stop accepted');
+  assert.equal(find(render(), n => n.type === 'ExecutionStatus').props.stopMessage, 'Server accepted the Stop request. Completion is unconfirmed. Physical stopping is unverified.');
 });
 
 
@@ -169,4 +169,16 @@ test('model Stop typed lifecycle gates manual controls independent of skipped vo
   service.callbacks[3](); // service closed; final UI dispatch receipt will be skipped
   service.callbacks[6](false); // actual HTTP request settled nonetheless
   assert.equal(panel.props.isStopPending(), false);
+});
+
+
+test('App output mode defaults to receipts and cannot be changed through connected Settings',async t=>{
+ const {render,instances}=await app(t);
+ find(render(),n=>n.props.title==='Settings').props.onClick();
+ assert.equal(find(render(),n=>n.type==='Settings').props.config.outputPolicy,'receipts');
+ assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,false);
+ const connecting=wake(render()).props.onClick();
+ assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,true);
+ instances[0].connection.resolve();await connecting;
+ assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,true);
 });

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Talk to Gemini in text, and watch every tool call it makes.
 
-A text diagnostic for Gemini Live: no browser or microphone. You type, Gemini
+A text diagnostic for Gemini Live: no browser or microphone. By default only
+receipt-based operator feedback is printed; arbitrary model prose is suppressed.
+Use --conversation for labeled unverified prose with only Stop/status tools.
+You type, Gemini
 answers and calls tools, and this script runs each call and sends the reply
 back through the same tool API used by the web app. A received model Stop can
 bypass a slow tool call. Input is still one user utterance per model turn; this
@@ -48,6 +51,8 @@ import time
 import urllib.request
 import urllib.error
 from pathlib import Path
+
+from operator_feedback import CONVERSATION_TOOLS, receipt_feedback, sending_feedback
 
 HERE = Path(__file__).resolve().parent
 KEY_FILE = Path.home() / ".config" / "gemini-pupper" / "api_key"
@@ -99,6 +104,7 @@ class DeskBackend:
         self.realtime = realtime
         self._ticker = None
         self._closed = False
+        self.diagnostic_output = False
         if realtime:
             self.name = "your tools on a fake robot (real queue timing; no physics or hardware)"
 
@@ -170,9 +176,11 @@ class DeskBackend:
 
     def after(self) -> None:
         """Print observed fake activity; these logs are not extra Gemini replies."""
+        if not self.diagnostic_output:
+            return
         lines = self.what_happened()
         if lines:
-            print("     ...later, when the queue gets to it:")
+            print("DIAGNOSTIC fake activity (not physical evidence):")
         for line in lines:
             print(f"     [fake robot] {line}")
 
@@ -267,16 +275,16 @@ class RobotBackend:
         try:
             if protected:
                 if self._stops_pending or self._stop_unknown or self._epoch_invalidated:
-                    return {"success": False, "message": "No command submitted: Stop is pending/unconfirmed or the command epoch changed; use Stop or reconnect after checking status."}
+                    return {"success": False, "not_dispatched": True, "message": "No command submitted: Stop is pending/unconfirmed or the command epoch changed; use Stop or reconnect after checking status."}
                 epoch = self._command_epoch
                 if epoch is None:
                     health = await asyncio.to_thread(self._get, "/health")
                     epoch = self._epoch(health)
                 # A Stop while obtaining metadata invalidates this original intent.
                 if serial != self._stop_serial or self._stops_pending:
-                    return {"success": False, "message": "No command submitted: Stop superseded this request."}
+                    return {"success": False, "not_dispatched": True, "message": "No command submitted: Stop superseded this request."}
                 if epoch is None:
-                    return {"success": False, "message": "No command submitted: server command-epoch support is unavailable."}
+                    return {"success": False, "not_dispatched": True, "message": "No command submitted: server command-epoch support is unavailable."}
                 self._command_epoch = epoch
             else:
                 epoch = None
@@ -304,7 +312,7 @@ class RobotBackend:
         except Exception as exc:
             if stopping and serial == self._stop_serial:
                 self._stop_unknown = True
-            return {"success": False, "outcome_unknown": dispatched,
+            return {"success": False, "outcome_unknown": dispatched, "not_dispatched": not dispatched,
                     "message": ("Request outcome unknown" if dispatched else "No command submitted")
                     + f": {type(exc).__name__}: {exc}"}
         finally:
@@ -324,15 +332,15 @@ def api_key() -> str:
 
 def show(prompt: str, tools: list[dict], full: bool) -> None:
     if full:
-        print("=== What Gemini reads: the prompt ===\n" + prompt + "\n")
-        print("=== ... and the tools ===\n" + json.dumps(tools, indent=2) + "\n")
+        print("=== DIAGNOSTIC prompt (not operator evidence) ===\n" + prompt + "\n")
+        print("=== DIAGNOSTIC tool declarations ===\n" + json.dumps(tools, indent=2) + "\n=== END DIAGNOSTIC CONFIGURATION ===")
     else:
-        print("Gemini's tools: " + ", ".join(t["name"] for t in tools) + "   (--show prints everything Gemini reads)")
+        print("Tool definitions loaded. --show displays diagnostic configuration, not execution evidence.")
 
 
-async def chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO") -> None:
+async def chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO", conversation: bool = False) -> None:
     try:
-        await _chat(backend, model, full, thinking_level=thinking_level)
+        await _chat(backend, model, full, thinking_level=thinking_level, conversation=conversation)
     finally:
         if isinstance(backend, DeskBackend):
             await backend.aclose()
@@ -348,8 +356,10 @@ class _ToolDispatcher:
     RobotBackend/server command epoch remains the transport fence.
     """
 
-    def __init__(self, backend, session, response_type):
+    def __init__(self, backend, session, response_type, *, conversation=False, diagnostics=False):
         self.backend, self.session, self.response_type = backend, session, response_type
+        self.conversation, self.diagnostics = bool(conversation), bool(diagnostics)
+        self.turn_calls = 0
         self.normal_lock = asyncio.Lock()
         self.tasks = []
         self.failure = asyncio.get_running_loop().create_future()
@@ -358,11 +368,13 @@ class _ToolDispatcher:
 
     def begin_turn(self):
         self.stopped_in_turn = False
+        self.turn_calls = 0
 
     def submit(self, calls):
         if self.closed:
             return
         calls = list(calls)
+        self.turn_calls += len(calls)
         has_stop = any(fc.name == "stop" for fc in calls)
         if has_stop:
             self.generation += 1
@@ -387,20 +399,26 @@ class _ToolDispatcher:
                     return
                 args = dict(fc.args or {})
                 shown_args = "[redacted]" if fc.name == "unlock" else json.dumps(args)
-                print(f"  -> Gemini calls {fc.name}({shown_args})")
+                if self.diagnostics:
+                    print(f"DIAGNOSTIC model tool request: {fc.name}({shown_args})")
+                dispatched = False
                 protected = fc.name not in ("stop", "robot_status")
-                if protected and has_stop:
+                if self.conversation and fc.name not in CONVERSATION_TOOLS:
+                    result = {"success": False, "message": "Not dispatched: conversation permits only Stop and status."}
+                elif protected and has_stop:
                     result = {"success": False, "message": "Not dispatched: Stop takes priority over other actions in this batch. No delayed Stop was scheduled."}
                 elif protected and (generation != self.generation or self.stopped_in_turn
                                     or self.pending_stops or self.paused):
                     result = {"success": False, "message": "Not dispatched: Stop superseded this turn, or an outcome is unknown. Ask again in a later turn after a confirmed Stop; reconnect if an outcome remains unknown."}
                 else:
+                    dispatched = True
+                    print(sending_feedback(fc.name))
                     if fc.name != "robot_status":
                         self.needs_stop = True
                     try:
                         result = await self.backend.call(fc.name, args)
                     except Exception as exc:
-                        result = {"success": False, "outcome_unknown": fc.name != "robot_status",
+                        result = {"success": False, "outcome_unknown": True,
                                   "message": f"{type(exc).__name__}: {exc}"}
                     if self.closed:
                         return
@@ -417,9 +435,12 @@ class _ToolDispatcher:
                             self.paused = True
                         elif generation == self.generation:
                             self.needs_stop = False
-                print(f"  <- reply Gemini hears now: {json.dumps(result)}")
-                if hasattr(self.backend, "after"):
-                    self.backend.after()
+                print(receipt_feedback(fc.name, result, current=generation == self.generation,
+                                       dispatched=dispatched))
+                if self.diagnostics:
+                    print(f"DIAGNOSTIC raw tool reply (not operator evidence): {json.dumps(result)}")
+                    if hasattr(self.backend, "after"):
+                        self.backend.after()
                 replies.append(self.response_type(id=fc.id, name=fc.name, response={"result": result}))
             if not self.closed:
                 await self.session.send_tool_response(function_responses=replies)
@@ -456,20 +477,22 @@ class _ToolDispatcher:
             # it never establishes that the robot physically stopped.
             try:
                 result = await asyncio.wait_for(self.backend.call("stop", {}), timeout=5)
-                print(f"  <- connection cleanup Stop: {json.dumps(result)}")
-            except Exception as exc:
-                print(f"  <- connection cleanup Stop outcome unknown: {type(exc).__name__}: {exc}")
+                print("Connection cleanup: " + receipt_feedback("stop", result))
+                if self.diagnostics:
+                    print(f"DIAGNOSTIC raw cleanup reply: {json.dumps(result)}")
+            except Exception:
+                print("Connection cleanup: " + receipt_feedback("stop", None))
 
 
 async def _receive_turn(session, dispatcher):
     said = False
     async for msg in session.receive():
         content = msg.server_content
-        if content and content.output_transcription and content.output_transcription.text:
+        if dispatcher.conversation and content and content.output_transcription and content.output_transcription.text:
             if not said:
-                print("Pupper > ", end="")
+                print("Unverified conversation > ", end="")
                 said = True
-            print(content.output_transcription.text, end="", flush=True)
+            print(content.output_transcription.text.replace("\n", "\nUnverified conversation > "), end="", flush=True)
         if msg.tool_call:
             if said:
                 print()
@@ -479,9 +502,11 @@ async def _receive_turn(session, dispatcher):
             print("\n" if said else "")
             break
     await dispatcher.drain()
+    if not dispatcher.conversation and dispatcher.turn_calls == 0:
+        print("This voice turn submitted no robot commands.")
 
 
-async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO") -> None:
+async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO", conversation: bool = False) -> None:
     try:
         from google import genai
         from google.genai import types
@@ -490,6 +515,12 @@ async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO"
 
     selected_thinking = resolved_thinking_level(model, thinking_level)
     prompt, tools = backend.setup()
+    if isinstance(backend, DeskBackend):
+        backend.diagnostic_output = full
+    if conversation:
+        tools = [tool for tool in tools if tool.get("name") in CONVERSATION_TOOLS]
+    print("UNVERIFIED CONVERSATION: only Stop/status tools are available." if conversation
+          else "RECEIPT-ONLY CONTROL: model narration is suppressed; confirmations are API evidence, not physical proof.")
     show(prompt, tools, full)
     config = types.LiveConnectConfig(
         response_modalities=["AUDIO"],  # Live models answer in audio...
@@ -503,7 +534,7 @@ async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO"
     client = genai.Client(api_key=api_key())
     async with client.aio.live.connect(model=model, config=config) as session:
         print(f"Connected to {model}, with {backend.name}. Type 'quit' to exit.\n")
-        dispatcher = _ToolDispatcher(backend, session, types.FunctionResponse)
+        dispatcher = _ToolDispatcher(backend, session, types.FunctionResponse, conversation=conversation, diagnostics=full)
         try:
             while True:
                 user = (await asyncio.to_thread(input, "You > ")).strip()
@@ -536,7 +567,8 @@ def main() -> None:
                       help="fake robot only: real elapsed queue timing, immediate acceptance and Stop cancellation")
     mode.add_argument("--robot", nargs="?", const="http://localhost:8000", metavar="URL",
                       help="your tools on the real robot server (default http://localhost:8000)")
-    ap.add_argument("--show", action="store_true", help="print the whole prompt and every tool declaration first")
+    ap.add_argument("--show", action="store_true", help="show clearly labeled raw diagnostic configuration and tool replies")
+    ap.add_argument("--conversation", action="store_true", help="show labeled unverified model prose; advertise and allow only Stop/status, never movement or gate changes")
     ap.add_argument("--model", default=MODEL, help=f"Gemini Live model (default {MODEL})")
     ap.add_argument("--thinking-level", type=str.upper, choices=THINKING_LEVELS, default="AUTO",
                     help="AUTO uses HIGH for Gemini 3.1 Flash Live and leaves other models unchanged; "
@@ -545,7 +577,10 @@ def main() -> None:
     sys.path.insert(0, str(HERE))
     backend = RobotBackend(args.robot) if args.robot else DeskBackend(realtime=args.realtime)
     try:
-        asyncio.run(chat(backend, args.model, args.show, thinking_level=args.thinking_level))
+        options = {"thinking_level": args.thinking_level}
+        if args.conversation:
+            options["conversation"] = True
+        asyncio.run(chat(backend, args.model, args.show, **options))
     except (KeyboardInterrupt, EOFError):
         print()
 

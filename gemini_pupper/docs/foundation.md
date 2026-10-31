@@ -53,6 +53,38 @@ They are not an end-to-end real-media test. Real microphone, camera and physical
 voice-controlled behavior remain pending; see the
 [Stop and grounding evidence](../../foundation/results/workstream1-stop-grounding-20261030.json).
 
+## Operator feedback modes
+
+The default **verified control** mode accepts Gemini tool requests but suppresses
+all free-form model text, audio and output transcription, including `speak`, `say`
+and `narrate`. Only fixed client wording from the matching API reply is displayed
+and, when available, spoken using local browser speech synthesis. It does not use
+generative TTS for these receipts. A receipt never establishes physical success.
+
+- A successful reply without explicit submission evidence says **“Server accepted
+  the … request. Completion is unconfirmed.”**
+- **“Server queued …”** requires `details.submission` with schema
+  `pupper_submission_v1` and state `queued`, produced after successful insertion
+  into the server queue. This records past insertion, not present occupancy,
+  execution, a new interactive entry, or completion.
+- Failure, unknown outcome, local non-dispatch and superseded replies have
+  distinct wording. A failure does not prove that no earlier effects occurred.
+  Stop acceptance explicitly leaves physical stopping unverified.
+
+The optional **conversation (unverified)** mode preserves model speech and vision
+conversation but exposes and locally permits only Stop and status robot tools.
+Model movement and gate changes are blocked even if the model invents such a call.
+Manual controls remain available. Settings require disconnecting to change mode;
+unknown or missing saved mode values select verified control. Conversation claims
+are unverified even when they sound like factual action acknowledgments.
+
+The terminal diagnostic has the same default; use `--conversation` explicitly
+for unverified model text with model movement disabled. Diagnostic output is
+separate from the fixed operator feedback. No prompt wording is relied on to
+enforce either boundary. These controls prevent unsupported model claims reaching
+the operator in verified mode; they do not establish that a selected tool matches
+the user's intent or that hardware performed it. Keep direct Stop and R3 available.
+
 ## Offline checks
 
 From `gemini_pupper/`, use the tested interpreter recorded in

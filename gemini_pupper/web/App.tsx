@@ -6,6 +6,7 @@ import DebugPanel from './components/DebugPanel';
 import Settings from './components/Settings';
 import { GeminiLiveService } from './services/geminiLive';
 import RobotBridge from './services/robotBridge';
+import { normalizeOutputPolicy, operatorFeedback } from './services/operatorFeedback';
 import ExecutionStatus from './components/ExecutionStatus';
 import { requestIndependentStop, updateLatestDispatch, type ToolDispatch } from './services/executionStatus';
 
@@ -45,7 +46,7 @@ const App: React.FC = () => {
         const parsed = JSON.parse(saved);
         // The system prompt moved to the robot (lab/prompt.md); drop the old saved one.
         delete parsed.systemInstruction;
-        return { ...DEFAULT_CONFIG, ...parsed };
+        return { ...DEFAULT_CONFIG, ...parsed, outputPolicy: normalizeOutputPolicy(parsed.outputPolicy) };
       } catch (e) {
         console.error("Failed to parse saved config", e);
       }
@@ -172,6 +173,7 @@ const App: React.FC = () => {
     try {
       setConnState(ConnectionState.CONNECTING);
       setLastDispatch(null);
+      setLogs(current => current.filter(entry => entry.type !== 'receipt'));
       
       service = new GeminiLiveService(
         config,
@@ -224,9 +226,7 @@ const App: React.FC = () => {
     try {
       const result = await requestIndependentStop(geminiRef.current, bridge);
       if (request !== stopSequence.current) return;
-      setStopMessage(result?.outcome_unknown
-        ? 'No confirmed response. Physical stopping is unknown; use R3/power.'
-        : result?.message || 'No confirmed response. Check the robot and use R3/power if needed.');
+      setStopMessage(operatorFeedback('stop', result));
     } catch {
       if (request === stopSequence.current) setStopMessage('No confirmed response. Physical stopping is unknown; use R3/power.');
     } finally {
@@ -263,6 +263,14 @@ const App: React.FC = () => {
         style={{ position: 'absolute', top: 0, left: 0, width: '1px', height: '1px', opacity: 0, overflow: 'hidden', pointerEvents: 'none' }} 
       />
 
+      <div role="status" className="shrink-0 px-3 py-2 text-xs bg-gray-900 text-amber-200">
+        {(geminiRef.current?.outputPolicy ?? normalizeOutputPolicy(config.outputPolicy)) === 'receipts'
+          ? 'Receipt-only control — model narration is muted. Feedback describes server responses, not observed motion.'
+          : 'UNVERIFIED CONVERSATION — speech and vision descriptions may be wrong. Model movement/gate tools are disabled; manual controls and Stop remain available.'}
+        {logs.filter(entry => entry.type === 'receipt').at(-1)?.message && <div aria-live="polite">
+          Latest response: {logs.filter(entry => entry.type === 'receipt').at(-1)?.message}
+        </div>}
+      </div>
       <ExecutionStatus
         robotBridge={geminiRef.current?.robotBridge ?? robotBridge}
         lastDispatch={lastDispatch}
@@ -375,6 +383,7 @@ const App: React.FC = () => {
           setApiKey={setApiKey} 
           config={config} 
           setConfig={setConfig} 
+          sessionActive={!!geminiRef.current}
           onClose={() => setShowSettings(false)} 
         />
       )}

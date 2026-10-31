@@ -127,7 +127,8 @@ def test_http_declarations_and_tool_response_round_trip_through_sdk_types(server
             reply = await client.post(f"/tools/{wire_call['name']}", json=wire_call["args"])
             payload = reply.json()
             assert reply.status_code == 200
-            assert set(payload) == {"success", "message"}
+            assert set(payload) == {"success", "message", "details"}
+            assert payload["details"] == {"submission": {"schema": "pupper_submission_v1", "state": "queued"}}
             assert payload["success"] is True and isinstance(payload["message"], str)
             await rig.settle()
             moving = harness.walk_twists(rig)

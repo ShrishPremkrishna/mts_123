@@ -9,6 +9,8 @@ export const mock = {
   videoFrames: [] as { data: string; mimeType: string }[],
   responses: [] as any[],
   closed: 0,
+  setups: [] as any[],
+  ttsCalls: 0,
   emit(message: any): Promise<void> {
     if (!this.callbacks) throw new Error('Mock Live session is not connected.');
     // Like the real SDK, one callback does not await a previous callback.
@@ -17,7 +19,8 @@ export const mock = {
 };
 export class GoogleGenAI {
   constructor(_options: any) {}
-  live = { connect: async ({ callbacks }: any) => {
+  live = { connect: async ({ callbacks, config }: any) => {
+    mock.setups.push(config);
     mock.callbacks = callbacks;
     const session = {
       sendRealtimeInput(value: any) {
@@ -38,7 +41,7 @@ export class GoogleGenAI {
     return session;
   } };
   models = {
-    generateContent() { throw new Error('TTS network access is prohibited in rehearsal.'); },
-    generateContentStream() { throw new Error('TTS network access is prohibited in rehearsal.'); },
+    generateContent() { mock.ttsCalls++; throw new Error('TTS network access is prohibited in rehearsal.'); },
+    generateContentStream() { mock.ttsCalls++; throw new Error('TTS network access is prohibited in rehearsal.'); },
   };
 }

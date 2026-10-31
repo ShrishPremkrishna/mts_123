@@ -984,7 +984,9 @@ class Robot:
         now = time.monotonic()
         self.busy_until = max(self.busy_until, now) + seconds
         await self.commands.put((name, job, self.state_after_queue))
-        return Result(True, f"{name} queued (accepted, not completed); estimated queue time {self.busy_until - now:.1f} s")
+        # Historical submission only: not current queue state, completion, or physical motion.
+        return Result(True, f"{name} queued (accepted, not completed); estimated queue time {self.busy_until - now:.1f} s",
+                      {"submission": {"schema": "pupper_submission_v1", "state": "queued"}})
 
     @property
     def command_epoch(self) -> str:

@@ -79,9 +79,9 @@ test('status request has a bounded timeout', async (t) => {
   assert.equal(parseQueueStatus(result), null);
 });
 
-function service() {
+function service(outputPolicy = 'receipts') {
   const dispatches = [], logs = [], responses = [];
-  const config = { modelName: 'gemini-3.1-flash-live-preview', robotApiUrl: 'http://test-server' };
+  const config = { modelName: 'gemini-3.1-flash-live-preview', robotApiUrl: 'http://test-server', outputPolicy };
   const s = new GeminiLiveService(config, e => logs.push(e), () => {}, () => {}, e => dispatches.push(e));
   s.connected = true;
   s.sessionPromise = Promise.resolve({ sendToolResponse: r => responses.push(r) });
@@ -120,7 +120,7 @@ test('pausing dispatch blocks remaining buffered calls after an in-flight respon
   await pending;
   await Promise.resolve();
   assert.equal(calls, 1);
-  assert.equal(dispatches.length, 2);
+  assert.deepEqual(dispatches.map(entry => entry.status), ['sending']); // Late acceptance is stale after Stop/pause.
   assert.equal(responses[1].functionResponses.response.result.success, false);
   assert.match(responses[1].functionResponses.response.result.message, /paused/);
 });
@@ -251,7 +251,7 @@ function replaceGlobal(t, name, value) {
   Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
   t.after(() => descriptor ? Object.defineProperty(globalThis, name, descriptor) : delete globalThis[name]);
 }
-function mediaEnvironment(t, sdkConnect, getUserMedia) {
+function mediaEnvironment(t, sdkConnect, getUserMedia, outputPolicy = 'receipts') {
   const contexts = [], tracks = [];
   class FakeStream {
     constructor(owned = []) { this.tracks = owned; }
@@ -274,7 +274,7 @@ function mediaEnvironment(t, sdkConnect, getUserMedia) {
   replaceGlobal(t, 'navigator', { mediaDevices: { getUserMedia: getUserMedia ?? (async () => new FakeStream([track])) } });
   replaceGlobal(t, '__fakeLiveSdkFactory', () => ({ live: { connect: sdkConnect } }));
   const logs = [], stops = [];
-  const config = { modelName: 'gemini-3.1-flash-live-preview', robotApiUrl: 'http://test-server', enableAudio: true, enableVideo: false };
+  const config = { modelName: 'gemini-3.1-flash-live-preview', robotApiUrl: 'http://test-server', enableAudio: true, enableVideo: false, outputPolicy };
   const s = new GeminiLiveService(config, e => logs.push(e), () => {}, () => {}, () => {}, message => stops.push(message));
   s.robotBridge.getTools = async () => ({ tools: [] });
   t.after(() => s.disconnect());
@@ -339,7 +339,7 @@ test('disconnect never waits for pending SDK; late open cannot revive microphone
 });
 
 test('interruption invalidates an already decoding audio buffer without stopping robot actions', async () => {
-  const { s } = service(); const decoded = deferred(); let sources = 0, stops = 0;
+  const { s } = service('conversation'); const decoded = deferred(); let sources = 0, stops = 0;
   s.audioContext = { state: 'running', currentTime: 0, decodeAudioData: () => decoded.promise,
     createBufferSource() { sources++; throw new Error('stale audio must not start'); } };
   s.analyser = {};
@@ -353,7 +353,7 @@ test('interruption invalidates an already decoding audio buffer without stopping
 });
 
 test('interrupted pending TTS never resumes speech or falls back to browser speech', async () => {
-  const { s } = service(); const response = deferred(); let playback = 0;
+  const { s } = service('conversation'); const response = deferred(); let playback = 0;
   s.config.ttsModelName = 'gemini-2.5-flash-preview-tts';
   s.ai = { models: { generateContent: () => response.promise } };
   s.playAudioBase64 = async () => { playback++; };
@@ -366,7 +366,7 @@ test('interrupted pending TTS never resumes speech or falls back to browser spee
 });
 
 test('all native audio parts are played, not only the first', async () => {
-  const { s } = service(); const seen = [];
+  const { s } = service('conversation'); const seen = [];
   s.playAudioBase64 = async audio => seen.push(audio);
   await s.handleMessage({ serverContent: { modelTurn: { parts: [
     { text: 'speech' }, { inlineData: { data: 'first' } }, { inlineData: { data: 'second' } }
@@ -415,7 +415,7 @@ test('unexpected Live close after a sent action releases resources and requests 
   assert.equal(disconnected, 1);
   assert.equal(env.s.robotToolsPaused, true);
   assert.equal(env.tracks[0].stopped, 1);
-  assert.match(env.stops.at(-1), /does not prove physical stillness/);
+  assert.match(env.stops.at(-1), /Physical stopping is unverified/);
 });
 
 test('failed pending connection does not allow reconnect before its global Stop response', async t => {
@@ -465,7 +465,7 @@ test('Stop anywhere in one Live batch runs first and prevents partial motion dis
 
 
 test('audio decode in a mixed Live packet cannot delay Stop dispatch', async () => {
-  const { s } = service(); const audio = deferred(), events = [];
+  const { s } = service('conversation'); const audio = deferred(), events = [];
   s.robotBridge.callTool = async name => { events.push(name); return { success: true, message: 'zero requested' }; };
   s.playAudioBase64 = () => { events.push('audio-decode'); return audio.promise; };
   const pending = s.handleMessage({
@@ -474,7 +474,7 @@ test('audio decode in a mixed Live packet cannot delay Stop dispatch', async () 
   });
   assert.deepEqual(events, ['stop']);
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(events, ['stop', 'audio-decode']);
+  assert.deepEqual(events, ['stop']); // Stop invalidates this packet's obsolete speech.
   audio.resolve(); await pending;
 });
 
@@ -556,7 +556,7 @@ test('Live setup selects HIGH only for the tested 3.1 Flash Live model', async t
 
 
 test('timing separates incoming Stop dispatch from a prior blocked audio handler', async () => {
-  const { s } = service(); const audio = deferred(), timing = [], calls = [];
+  const { s } = service('conversation'); const audio = deferred(), timing = [], calls = [];
   s.onTiming = event => timing.push(event);
   s.playAudioBase64 = () => audio.promise;
   s.robotBridge.callTool = async name => { calls.push(name); return { success: true, message: 'zero requested' }; };
@@ -709,4 +709,24 @@ test('camera failure arriving after disconnect emits neither a frame nor availab
   env.s.robotBridge.getCameraImage = () => response.promise;
   const pending = env.tick(); await env.s.disconnect(); response.resolve(null); await pending;
   assert.deepEqual(env.sent, []); assert.deepEqual(env.logs, []);
+});
+
+
+test('conversation advertises only status/Stop and freezes policy before connect', async t => {
+  let setup;
+  const env = mediaEnvironment(t, async request => { setup = request; request.callbacks.onopen(); return {close(){}}; }, undefined, 'conversation');
+  env.s.robotBridge.getTools = async()=>({tools:['stand_up','move','unlock','lock_tricks','play_trick','follow','stop','robot_status'].map(name=>({name}))});
+  env.config.outputPolicy = 'receipts'; // Mutating settings cannot widen an existing session.
+  await env.s.connect('test',env.config,{});
+  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['stop','robot_status']);
+  assert.equal(env.s.outputPolicy,'conversation');
+});
+
+test('receipt-only text model never advertises generative speak', async t => {
+  let setup;
+  const env = mediaEnvironment(t, async request => {setup=request;request.callbacks.onopen();return {close(){}};});
+  env.config.modelName='gemini-robotics-er-2-streaming-preview';
+  env.s.robotBridge.getTools=async()=>({tools:[{name:'move'},{name:'stop'}]});
+  await env.s.connect('test',env.config,{});
+  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['move','stop']);
 });

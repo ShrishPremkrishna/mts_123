@@ -16,14 +16,17 @@ export enum RobotMode {
 export interface LogEntry {
   id: string;
   timestamp: number;
-  type: 'info' | 'error' | 'function' | 'user' | 'model';
+  type: 'info' | 'error' | 'function' | 'user' | 'model' | 'receipt';
   message: string;
 }
 
 export type EyeTrackingSource = 'mouse' | 'server' | 'mediapipe';
 export type CameraSource = 'browser' | 'server';
 
+export type OutputPolicy = 'receipts' | 'conversation';
+
 export interface AppConfig {
+  outputPolicy: OutputPolicy;
   modelName: string;
   ttsModelName?: string;
   voiceName: string;
