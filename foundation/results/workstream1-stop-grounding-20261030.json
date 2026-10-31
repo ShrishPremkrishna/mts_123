@@ -1,0 +1,195 @@
+{
+  "schema": "pupper_workstream1_stop_grounding_v1",
+  "updated_utc": "2026-10-31T04:45:15.839574+00:00",
+  "status": "Known concrete Workstream1 offline defects addressed and reviewed; final candidate preserved for native integration. Physical capability and reliable model narration remain unvalidated.",
+  "scope": "No SSH, native deployment, motor commands, real microphone or camera recording. Actual Google used synthetic/text inputs and realtime fake execution only. Existing key read privately, no new account access.",
+  "base_commit": "366f2617b75990faf456c72bb0993037721e23f5",
+  "branch": "pupper-foundation",
+  "prior_report": "foundation/results/workstream1-offline-rehearsal-20261030.json",
+  "permission_status": "Authorized offline listeners and Google calls executed through normal approval review. No unresolved permission blocker or weakened protection.",
+  "eight_second_stop": {
+    "old_response_s": 8.775726416002726,
+    "old_before_tool_handler_s": 8.674225916001888,
+    "old_fake_stop_handler_s": 0.10150050000083866,
+    "conclusion": "Almost all old elapsed time preceded tool-handler entry. The old probe stamped time before synchronous evidence saving and send; it did not record send-return or every incoming packet. Exact inference/network/local pre-send attribution cannot be reconstructed. Browser was not in that run.",
+    "new_instrumentation": "Send start/return, every packet kind, tool entry/return, tool-response send, event-loop heartbeat; writes outside timed intervals. No thought/audio/key payload logging.",
+    "new_samples": {
+      "selected_catalog_4_levels_each_4": 16,
+      "original_full_catalog_HIGH": 8,
+      "original_declaration_sha256": "59002bf4db87c03c0a1a36ef670f5cc9c0e95d3513d5ee4116c9f0e5cba0fdfc",
+      "original_catalog_HIGH_tool_median_s": 1.0135094794986799,
+      "original_catalog_HIGH_tool_max_s": 2.544201458000316,
+      "original_catalog_HIGH_response_max_s": 2.645379082998261,
+      "max_observed_send_s": 0.0006403330007742625,
+      "max_observed_event_loop_lag_s": 0.01245779200005927
+    },
+    "limit": "The8.776s outlier was not reproduced in these24 samples. This is not elimination of service tails, a speech deadline or a physical stopping guarantee. Direct Stop/R3 remain independent."
+  },
+  "deterministic_fixes": [
+    "Reproduced delayed HTTP movement arriving after Stop and issuing nonzero fake commands. Strict per-runtime/per-Stop command epochs now reject stale/missing intents before dispatch, including delayed bodies and action-lock waits.",
+    "Migrated manual/voice browser bridges, Python HTTP client and legacy shutdown requests. Shared Stop state survives bridge replacement; failed/unknown Stop and stale model intents cannot silently reauthorize movement. Stop/status remain independently available.",
+    "Diagnostic CLI now processes later model Stop packets while an earlier HTTP tool response is pending; ordinary action ordering, same-turn cancellation, late-result supersession and bounded cleanup are tested. It still reads typed input one turn at a time and is not an emergency keyboard control.",
+    "Stop receipts separately report named running-job cancellation requested/confirmed/pending and removed pending-job counts. No added Stop waits or motion changes. Secret action names are redacted after Stop relocks.",
+    "Corrected false separate-stand prerequisite after clean Stop, lie-down posture guarantee and secret unlock/lock Nothing-moved claims. Disabled following is omitted from advertised tools.",
+    "Fixed out-of-order browser video conversion and server-camera responses so old frames cannot replace newer sent frames; late conversions cannot send after disconnect.",
+    "Camera HTTP now uses an atomic ROS-receipt timestamp, rejects frames older than2s before/after processing, and disables caching. Repeated reads do not refresh age. Browser logs availability transitions once; prior model context is not erased."
+  ],
+  "prompt_and_model_decisions": {
+    "adopted": "Grounded-language prompt with command/controller subjects, human-observation attribution, no sensor diagnosis from absent measurements, and the same rules for casual/no-tool replies.",
+    "adopted_prompt_raw_sha256": "cd7c756b83937478ee4093edfc7c3ccfce9cd860e47d126e0aa243e58528f5e4",
+    "grounding_comparison": {
+      "baseline": {
+        "reviewed_cases": 18,
+        "completed_cases": 17,
+        "attempted_turns": 51,
+        "completed_turns": 50,
+        "execution_failure_cases": 1,
+        "incomplete_cases": 1,
+        "narration_failing_cases": 6,
+        "fully_passing_cases": 11,
+        "issue_counts": {
+          "unsupported_present_posture": 2,
+          "premature_acceptance_claim": 1,
+          "unsupported_sensor_health": 1,
+          "unsupported_sensor_capability": 1,
+          "wrong_completed_history_count": 1,
+          "false_status_lookup": 1,
+          "unsupported_tool_argument_then_recovery": 1
+        }
+      },
+      "candidate": {
+        "reviewed_cases": 18,
+        "completed_cases": 18,
+        "attempted_turns": 52,
+        "completed_turns": 52,
+        "execution_failure_cases": 0,
+        "incomplete_cases": 0,
+        "narration_failing_cases": 0,
+        "fully_passing_cases": 18,
+        "issue_counts": {}
+      }
+    },
+    "selected_model": "gemini-3.1-flash-live-preview",
+    "selected_thinking": "HIGH",
+    "medium_rejected": "24 completed cases had2 execution-failing and5 narration-failing cases; matched Stop sample showed no observed benefit over HIGH. No automatic model migration.",
+    "later_stop_contract_check": "Four cases/12 turns: correct requested actions and no extra standalone stand, but one premature acceptance statement and one misleading running-versus-pending cancellation explanation. Optional run:false was a structural-check false positive, not an action error.",
+    "final_bounded_ordering_comparison": "After corrected cancellation receipts, control and one-bullet before-speaking candidate each completed9 cases/18 turns with correct actions. Control retained one premature acceptance claim; candidate replaced that with an invented wait-controller claim. Candidate rejected under predefined no-narration-regression criterion; current prompt retained.",
+    "remaining": "Prompt changes mitigate but do not guarantee truthful speech. Preserve model narration separately from tool receipts and physical observations. Further unstructured prompt churn is not evidence of reliability."
+  },
+  "live_and_browser_evidence": {
+    "refusals_and_secrets": "Actual Google6 cases/11 turns: correct caps/unavailable skills/follow refusals, valid recovery move, wrong/right unlock and relock; no password echoes or gate-only movement. Locked-skill explanation omitted password-lock reason in one reply.",
+    "synthetic_speech": "Two manual-activity interruptions passed. Initial automatic finite-audio fixture failed2/2 because it stopped sending without stream-end; retained. Corrected continuous-silence and explicit audio_stream_end each passed2/2, cancelling an active fake wait while model audio was ongoing. No real microphone or physical stop evidence.",
+    "synthetic_vision": "Three actual Google JPEG cases passed independent image/transcript review: two shapes, triangle, and refusal to infer robot posture from unrelated shapes. Fresh session per unique image; does not prove ongoing-stream image replacement or JS-camera-to-Google integration.",
+    "actual_chrome": {
+      "checks": 15,
+      "all_passed": true,
+      "stop_callback_to_fake_response_ms": 112.09999999776483,
+      "proof": "Real WebAudio capture of a generated tone; native24kHz WAV decode; synthetic canvas red\u2192blue JPEG through production browser-video code; Stop completes while earlier audio decode is held; disconnected tracks/frame conversions stay closed.",
+      "scope": "Mock Google SDK and loopback fakeAPI. Historical exact isolated8f6fc7d... build retained; later camera-availability logging has separate tests/build, not relabeled browser proof."
+    },
+    "final_actual_cli": {
+      "independent_review": "evidence/ws1-r3-final-cli-review.json passed; correct wait/Stop chronology, no unsupported physical claims",
+      "completed": true,
+      "inputs_unchanged": true,
+      "tool_names": [
+        "wait",
+        "stop"
+      ],
+      "scope": "Current CLI + actual Google on realtime fake; peer transcript review passed and is retained."
+    }
+  },
+  "regression": {
+    "final_python_receipt": "validation/ws1-r3-final-python-complete/receipt.json",
+    "final_python_runs": [
+      {
+        "name": "combined",
+        "command": [
+          "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
+          "-m",
+          "pytest",
+          "-q",
+          "-p",
+          "no:cacheprovider",
+          "gemini_pupper/tests",
+          "gemini_pupper/lab/test_skill_sequences.py",
+          "foundation/hardware/test_lab6_session_profile.py",
+          "--tb=short"
+        ],
+        "returncode": 0,
+        "elapsed_s": 59.741,
+        "stdout": "/private/tmp/ws1-r3-final-python-complete/combined.stdout.log",
+        "stderr": "/private/tmp/ws1-r3-final-python-complete/combined.stderr.log"
+      },
+      {
+        "name": "course",
+        "command": [
+          "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
+          "gemini_pupper/lab/test.py"
+        ],
+        "returncode": 1,
+        "elapsed_s": 0.787,
+        "stdout": "/private/tmp/ws1-r3-final-python-complete/course.stdout.log",
+        "stderr": "/private/tmp/ws1-r3-final-python-complete/course.stderr.log"
+      },
+      {
+        "name": "diff-check",
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "returncode": 0,
+        "elapsed_s": 0.013,
+        "stdout": "/private/tmp/ws1-r3-final-python-complete/diff-check.stdout.log",
+        "stderr": "/private/tmp/ws1-r3-final-python-complete/diff-check.stderr.log"
+      }
+    ],
+    "final_closure": {
+      "scope": "Final source-bound regression closure; no runtime changes after609-test fullpass",
+      "utc": "2026-10-31T04:43:56.943471+00:00",
+      "all_required_checks_passed": true,
+      "full_pytest": 609,
+      "full_course": 166,
+      "original_receipt_sha256": "a887de74ff7365271aca145655c00dd6bc80c99f06a0606236cf50ff7f44ab42",
+      "original_course": "165 pass/1 stale literal wording expectation failure; preserved",
+      "final_course_log_sha256": "2cdc65a392d970aa2aa3d7693b69e4a42dbfa451cc232419b7a86221c143b6db",
+      "source_delta_after_full_run": {
+        "gemini_pupper/robot/test_tools.py": {
+          "tested_sha256": "735f6dfa194ef0c193ddcb4a12877ff514331b69cb5653b99d9bc8c82435814b",
+          "final_sha256": "b34089fd98b58f0d9356792c86ec92b4998fffef517471ce3ba3196b2ad4f975"
+        }
+      },
+      "peer_review": "native_shutdown_fix verified stronger semantic check and confirmed no runtime change; no repeat broad run justified",
+      "corrected_check": "success + emptyqueue + pending_queued_commands_cleared==1 + running_job is None"
+    },
+    "earlier_integrated_failure": "564 passed,1 failed due health-response expected shape predating epoch metadata; fixed expectation and focused2 passed. Failed run retained. Final full run covers subsequent real receipt/camera/CLI changes.",
+    "final_web": "80 tests, TypeScript and production build passed on frozen34 source inputs. Prior76-test/video build and73-test/audio build retained.",
+    "web_receipt": "validation/ws1-r3-final-web-camera/receipt.json",
+    "independent_reviews": "Separate agents reviewed prompt/actual traces, CLI concurrency, epoch protocol, video ordering, camera freshness and browser receipts. Source-bound records retained; passing mocks are not physical approval."
+  },
+  "rejected_and_limited_findings": [
+    "Initial latency snapshot omitted required gait assets:16 local preflight errors, no Google sessions; fixed and retained, not service failures.",
+    "Finite automatic-ASR fixture without continuous silence/stream-end is not evidence of production microphone failure.",
+    "Input-transcription finished markers were absent in actual events. No speculative keyword/ASR Stop shortcut was added.",
+    "The old8s delay cannot be attributed exclusively to HIGH thinking or fixed by merely changing to MEDIUM.",
+    "Camera receipt age is not exposure age or protection from a publisher replaying old images; old images may remain in model context.",
+    "Legacy stop.sh still has its pre-existing broad process teardown and is not the supervised session workflow.",
+    "Vision output has completed timestamp and no matching live process, but its original exec exit receipt was lost; no exit code invented."
+  ],
+  "remaining_robot_work": [
+    "Reconcile teammate changes when robot ownership returns, then stage reviewed Python/UI/profile together. Verify native/epoch/profile identifiers and pin exact deployed inputs before motion.",
+    "Reuse one persistent supervised session; confirm direct controls/Stop, then actual browser speech, interruption, reconnect and camera behavior. Compare observed motion with receipts.",
+    "With applicable course approval, test Sit hold/both paws/exit/ordinary movement, selected finite endpoints/generated trick, and following with its owner. Gait/Spider/follower work remains with other workstreams.",
+    "Model latency/narration tails require continued measured evaluation; no claim of hardware validation, global optimization or finished full-class foundation."
+  ],
+  "artifacts": {
+    "local_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-stop-grounding-20261030",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/ws1-stop-grounding",
+    "manifest_sha256": "7821a39dc683152d4c4da7070362a622d68490b3ca97edf470f052620893e391",
+    "files": 243,
+    "candidate_source_archive": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-stop-grounding-20261030/candidate/source.tar.gz",
+    "candidate_source_sha256": "2504e353fbea93fa1fdd31ed9da6cd2b54cd0d47d4241a864cdfb0ef3fa56106",
+    "reconstruction": "Full baseline plus exact overlay archives, complete per-experiment input hashes, all selected raw outputs/failures/reviews, final source/models/UI, fixtures and screenshots. Both stores byte/hash verified."
+  },
+  "shutdown": "Task-owned fake servers and rehearsal tab closed; bounded Google jobs completed; no GPU/robot jobs or new automation."
+}

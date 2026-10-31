@@ -76,15 +76,25 @@ def server(monkeypatch):
         sys.modules.pop("fisheye_converter", None)
 
 
+def epoch_hook(server):
+    async def attach(request):
+        # Test clients issue a fresh intent for each ordinary call. Explicit stale
+        # headers and the dedicated transport-delay tests remain unchanged.
+        if server.tools is not None and "X-Pupper-Command-Epoch" not in request.headers:
+            request.headers["X-Pupper-Command-Epoch"] = server.tools.command_epoch
+    return attach
+
+
 @asynccontextmanager
-async def client_with_rig(server):
+async def client_with_rig(server, *, epochs=True):
     previous = {name: getattr(robot_api, name) for name in ("time", "asyncio", "load_tricks")}
     rig = harness.Rig()
     server.tools = rig.ts
     try:
         assert await rig.settle()
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
-                                     base_url="http://in-process.invalid") as client:
+                                     base_url="http://in-process.invalid",
+                                     event_hooks={"request": [epoch_hook(server)]} if epochs else {}) as client:
             yield client, rig
     finally:
         server.tools = None
@@ -194,7 +204,7 @@ def test_http_not_initialized_is_503_and_health_does_not_claim_robot_ready(serve
     async def case():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
                                      base_url="http://in-process.invalid") as client:
-            assert (await client.get("/health")).json() == {"status": "running", "tools": False, "runtime": "robot", "hardware_connected": None}
+            assert (await client.get("/health")).json() == {"status": "running", "tools": False, "runtime": "robot", "hardware_connected": None, "command_epoch": None, "command_epoch_required": True}
             for endpoint in ("/tools", "/queue/status", "/limits"):
                 response = await client.get(endpoint)
                 assert response.status_code == 503
@@ -287,7 +297,7 @@ def test_lifespan_uses_explicit_fake_and_shuts_down_without_hardware(server, mon
             assert server.tools.follow_available is False
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
                                          base_url="http://in-process.invalid") as client:
-                assert (await client.get("/health")).json() == {"status": "running", "tools": True, "runtime": "robot", "hardware_connected": None}
+                assert (await client.get("/health")).json() == {"status": "running", "tools": True, "runtime": "robot", "hardware_connected": None, "command_epoch": None, "command_epoch_required": True}
         assert server.tools is None
         assert state == {"constructed": 1, "shutdown": 1, "detection_cancelled": True}
     asyncio.run(case())
@@ -383,7 +393,8 @@ def test_fake_lifespan_uses_real_routes_and_realtime_cancel_without_native_acces
         # and native detections. Fake mode must not call any of those hooks.
         async with server.app.router.lifespan_context(server.app):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
-                                         base_url="http://in-process.invalid") as client:
+                                         base_url="http://in-process.invalid",
+                                         event_hooks={"request": [epoch_hook(server)]}) as client:
                 health = (await client.get("/health")).json()
                 assert health["runtime"] == "fake" and health["hardware_connected"] is False
                 assert health["tools"] is True

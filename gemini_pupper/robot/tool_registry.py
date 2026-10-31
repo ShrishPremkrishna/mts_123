@@ -143,6 +143,8 @@ def declarations(robot: Robot) -> list[dict]:
     """Every tool in the format Gemini expects."""
     out = []
     for t in _in_lab_order(list(TOOLS.values())):
+        if t.name == "follow" and not robot.follow_available:
+            continue
         props, required = {}, []
         for name, p in t.params.items():
             prop: dict[str, Any] = {"type": p.type.upper(), "description": p.description}
@@ -204,7 +206,8 @@ async def call(robot: Robot, name: str, args: dict) -> Result:
 
 async def dispatch(robot: Robot, run: Callable[[], Awaitable[Result]], *, name: str, interrupt: bool = False) -> Result:
     """The same stop-generation/serialization boundary for tools and direct HTTP controls."""
-    token = CALL_STOPS.set(robot.stops)
+    inherited = CALL_STOPS.get()  # HTTP admission may precede body/dispatch completion.
+    token = CALL_STOPS.set(robot.stops if inherited is None else inherited)
     try:
         if interrupt:
             return await run()

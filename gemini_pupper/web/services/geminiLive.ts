@@ -30,6 +30,13 @@ export function isAudioOutputModel(modelName: string): boolean {
   return true;
 }
 
+/** Optional diagnostics: no PCM, transcript text, tool arguments or credentials. */
+export interface LiveTimingEvent {
+  phase: string;
+  atMs: number;
+  metadata: Record<string, string | number | boolean | null>;
+}
+
 export class GeminiLiveService {
   private ai: GoogleGenAI | null = null;
   private sessionPromise: Promise<any> | null = null;
@@ -46,11 +53,14 @@ export class GeminiLiveService {
   private dispatchedActionIds = new Set<string>();
   private automaticStop: Promise<void> | null = null;
   private stopRequestsPending = 0;
+  private messageSequence = 0;
+  private audioSequence = 0;
   private speechVisualInterval: number | null = null;
   private inputScriptProcessor: ScriptProcessorNode | null = null;
   private mediaStream: MediaStream | null = null;
   private nextStartTime = 0;
   private videoInterval: number | null = null;
+  private videoGeneration = 0;
   private volumeInterval: number | null = null;
   private queuedSources: AudioBufferSourceNode[] = [];
   private connected = false;
@@ -72,7 +82,8 @@ export class GeminiLiveService {
     onDisconnect: () => void,
     onToolDispatch: (entry: ToolDispatch) => void = () => {},
     private onAutomaticStop: (message: string) => void = () => {},
-    private onStopPending: (pending: boolean) => void = () => {}
+    private onStopPending: (pending: boolean) => void = () => {},
+    private onTiming?: (event: LiveTimingEvent) => void
   ) {
     this.config = config;
     this.robotBridge = new RobotBridge(config.robotApiUrl);
@@ -104,6 +115,12 @@ export class GeminiLiveService {
     } finally {
       this.connecting = false;
     }
+  }
+
+  private trace(phase: string, metadata: LiveTimingEvent['metadata'] = {}) {
+    if (!this.onTiming) return;
+    // A diagnostic consumer must never delay/fail dispatch by throwing.
+    try { this.onTiming({ phase, atMs: performance.now(), metadata }); } catch {}
   }
 
   private ensureOpen() {
@@ -282,23 +299,31 @@ export class GeminiLiveService {
     const source = ctx.createMediaStreamSource(stream);
     this.inputSource = source;
     this.inputScriptProcessor = ctx.createScriptProcessor(4096, 1, 1);
+    this.trace('audio_input_setup', { sample_rate: ctx.sampleRate ?? null, buffer_frames: 4096, encoded_rate: 16000 });
     
     this.inputScriptProcessor.onaudioprocess = (e) => {
       if (!this.connected || !this.sessionPromise) return;
 
       const inputData = e.inputBuffer.getChannelData(0);
+      const audioSequence = ++this.audioSequence;
+      this.trace('audio_capture', { audio_sequence: audioSequence, samples: inputData.length,
+        sample_rate: e.inputBuffer.sampleRate ?? ctx.sampleRate ?? null });
       const pcmBlob = createPcmBlob(inputData);
       
       this.sessionPromise.then(session => {
         if (!this.connected) return;
         try {
+           this.trace('audio_send_start', { audio_sequence: audioSequence });
            session.sendRealtimeInput({ 
              audio: { 
                data: pcmBlob.data, 
                mimeType: pcmBlob.mimeType 
              } 
            });
+           // SDK method return is not proof of wire delivery or model receipt.
+           this.trace('audio_send_return', { audio_sequence: audioSequence });
         } catch(err) {
+           this.trace('audio_send_failed', { audio_sequence: audioSequence });
            // Ignore errors if session is closing
         }
       });
@@ -310,54 +335,52 @@ export class GeminiLiveService {
 
   private setupVideoInput(videoEl: HTMLVideoElement, source: 'browser' | 'server') {
     if (this.videoInterval) clearInterval(this.videoInterval);
-    
+    const generation = ++this.videoGeneration;
+    let captured = 0, sent = 0, latestServerResponse = 0;
+    let serverAvailable: boolean | null = null;
+    const active = () => this.connected && this.sessionPromise && generation === this.videoGeneration;
+    const currentFrame = (sequence: number) => active() && sequence > sent
+      && (source !== 'server' || sequence >= latestServerResponse);
+    const sendFrame = async (blob: Blob, sequence: number) => {
+      if (!currentFrame(sequence)) return;
+      try {
+        const base64 = await blobToBase64(blob);
+        if (!currentFrame(sequence)) return;
+        const session = await this.sessionPromise;
+        if (!currentFrame(sequence)) return;
+        // FileReader/HTTP completion can reorder captures. Never replace a
+        // newer transmitted image with a slower old frame.
+        sent = sequence;
+        session.sendRealtimeInput({ video: { mimeType: 'image/jpeg', data: base64 } });
+      } catch { /* A failed frame is skipped; never retry stale camera data. */ }
+    };
     if (source === 'browser') {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        this.videoInterval = window.setInterval(async () => {
-          if (!this.connected || !this.sessionPromise || !ctx || !videoEl.videoWidth) return;
-          
-          canvas.width = videoEl.videoWidth * 0.5;
-          canvas.height = videoEl.videoHeight * 0.5;
-          ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-          
-          canvas.toBlob(async (blob) => {
-            if (!blob || !this.connected) return;
-            const base64 = await blobToBase64(blob);
-            this.sessionPromise?.then(session => {
-                if (!this.connected) return;
-                try {
-                    session.sendRealtimeInput({ 
-                      video: { 
-                        mimeType: 'image/jpeg', 
-                        data: base64 
-                      }
-                    })
-                } catch(err) {}
-            });
-          }, 'image/jpeg', 0.6);
-        }, 1000);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      this.videoInterval = window.setInterval(() => {
+        if (!active() || !ctx || !videoEl.videoWidth) return;
+        const sequence = ++captured;
+        canvas.width = videoEl.videoWidth * 0.5;
+        canvas.height = videoEl.videoHeight * 0.5;
+        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => { if (blob) void sendFrame(blob, sequence); }, 'image/jpeg', 0.6);
+      }, 1000);
     } else {
-        // Server source
-        this.videoInterval = window.setInterval(async () => {
-             if (!this.connected || !this.sessionPromise) return;
-             const blob = await this.robotBridge.getCameraImage();
-             if (blob && this.connected) {
-                 const base64 = await blobToBase64(blob);
-                 this.sessionPromise?.then(session => {
-                    if (!this.connected) return;
-                    try {
-                        session.sendRealtimeInput({ 
-                          video: { 
-                            mimeType: 'image/jpeg', 
-                            data: base64 
-                          }
-                        })
-                    } catch(err) {}
-                });
-             }
-        }, 1000); // 2Hz
+      this.videoInterval = window.setInterval(async () => {
+        if (!active()) return;
+        const sequence = ++captured;
+        const blob = await this.robotBridge.getCameraImage();
+        if (!active() || sequence < latestServerResponse) return;
+        latestServerResponse = sequence;
+        const available = !!blob;
+        if (available !== serverAvailable) {
+          serverAvailable = available;
+          this.log(available ? 'info' : 'error', available
+            ? 'Robot camera frame received.'
+            : 'Robot camera image unavailable; no new frame received. Earlier images may remain in the conversation.');
+        }
+        if (blob) await sendFrame(blob, sequence);
+      }, 1000);
     }
   }
 
@@ -474,6 +497,16 @@ export class GeminiLiveService {
   }
 
   private async handleMessage(message: LiveServerMessage) {
+    const messageSequence = ++this.messageSequence;
+    const content = message.serverContent;
+    this.trace('server_message_callback', { message_sequence: messageSequence,
+      tool_count: message.toolCall?.functionCalls?.length ?? 0,
+      audio_parts: content?.modelTurn?.parts?.filter(part => part.inlineData?.data).length ?? 0,
+      input_transcription_chars: content?.inputTranscription?.text?.length ?? 0,
+      input_transcription_finished: content?.inputTranscription?.finished ?? null,
+      output_transcription_chars: content?.outputTranscription?.text?.length ?? 0,
+      interrupted: !!content?.interrupted, turn_complete: !!content?.turnComplete,
+      generation_complete: !!content?.generationComplete, disposed: this.disposed });
     if (this.disposed) return;
     // Interruption must invalidate pending decodes/TTS before any awaits.
     if (message.serverContent?.interrupted) {
@@ -551,10 +584,14 @@ export class GeminiLiveService {
               // UI receipts. A late Stop must not race new manual motion.
               const stopping = fc.name === 'stop';
               if (stopping) this.reportStopPending(true);
+              const timing = { message_sequence: messageSequence, request_id: dispatch.id, tool: dispatch.name };
+              this.trace('tool_call_start', timing);
               try { result = await this.robotBridge.callTool(fc.name, args ?? {}); }
+              catch (error) { this.trace('tool_call_failed', timing); throw error; }
               finally { if (stopping) this.reportStopPending(false); }
               const status = toolResponseStatus(result);
-              if (status === 'unknown') this.pauseRobotTools();
+              this.trace('tool_call_resolved', { ...timing, status });
+              if (status === 'unknown' || (result?.success === false && result?.command_epoch_required === true)) this.pauseRobotTools();
               if (this.connected) this.onToolDispatch({ ...dispatch, status, message: result?.message || 'No response details', timestamp: Date.now() });
           }
         } catch (e: any) {
@@ -566,6 +603,8 @@ export class GeminiLiveService {
           this.sessionPromise.then(session => {
             if (!this.connected) return;
             try {
+              this.trace('function_response_send_start', { message_sequence: messageSequence,
+                request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
               session.sendToolResponse({
                 functionResponses: {
                   id: fc.id,
@@ -573,7 +612,11 @@ export class GeminiLiveService {
                   response: { result }
                 }
               });
+              this.trace('function_response_send_return', { message_sequence: messageSequence,
+                request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
             } catch (err) {
+              this.trace('function_response_send_failed', { message_sequence: messageSequence,
+                request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
               // Session may have closed between check and send
             }
           });
@@ -584,7 +627,11 @@ export class GeminiLiveService {
     // Dispatch tool requests (especially Stop) before waiting for audio decoding.
     for (const part of message.serverContent?.modelTurn?.parts ?? []) {
       if (generation !== this.playbackGeneration || this.disposed) break;
-      if (part.inlineData?.data) await this.playAudioBase64(part.inlineData.data);
+      if (part.inlineData?.data) {
+        this.trace('output_audio_handle_start', { message_sequence: messageSequence });
+        await this.playAudioBase64(part.inlineData.data);
+        this.trace('output_audio_handle_return', { message_sequence: messageSequence });
+      }
     }
 
   }
@@ -604,9 +651,11 @@ export class GeminiLiveService {
     this.automaticStop = (async () => {
       try {
         let result: any;
+        this.trace('automatic_stop_call_start');
         try { result = await this.robotBridge.immediateStop(); }
         catch { result = { outcome_unknown: true }; }
         const status = toolResponseStatus(result);
+        this.trace('automatic_stop_call_resolved', { status });
         const message = status === 'unknown'
           ? 'Global Stop response unknown. Observe the robot and use R3/power if needed.'
           : `Global Stop ${status}: ${result.message || 'No details'}. This does not prove physical stillness.`;
@@ -637,6 +686,7 @@ export class GeminiLiveService {
   private cleanup() {
     this.disposed = true;
     this.connected = false;
+    this.videoGeneration++;
     this.stopPlayback();
     // An old onmessage handler may still be waiting for a tool response.
     // Do not let the remainder of that message dispatch motion after close.

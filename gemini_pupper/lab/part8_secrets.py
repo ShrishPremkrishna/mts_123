@@ -12,7 +12,7 @@ async def unlock_tool(robot: Robot, password: str) -> Result:
         return Result(False, "Unlock refused. Ask the owner for the password; do not guess or repeat it.")
     available = "; ".join(f"{name}: {t.description}" for name, t in robot.available_tricks().items())
     actions = "; ".join(f"{aid} (in {t.name}): {t.actions[clip]}" for aid, (t, clip) in robot.action_ids().items())
-    return Result(True, f"Unlocked for this robot session. Nothing moved. Available tricks: {available}."
+    return Result(True, f"Unlocked for this robot session. No motion command was issued by unlock. Available tricks: {available}."
                        f" Interactive actions: {actions or 'none'}. Play the matching trick before an action.")
 
 
@@ -20,4 +20,4 @@ async def unlock_tool(robot: Robot, password: str) -> Result:
       " If a trick is already holding a pose, use stand_up to leave it or stop to halt movement.")
 async def lock_tricks_tool(robot: Robot) -> Result:
     robot.secret_gate.lock()
-    return Result(True, "Hidden tricks locked. This did not move the robot.")
+    return Result(True, "Hidden tricks locked. No motion command was issued by lock.")

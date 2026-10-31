@@ -24,12 +24,18 @@ operational status; completed experiment reports retain their dated evidence.
 
 The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
 adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
-The [browser and Gemini follow-up](results/workstream1-offline-rehearsal-20261030.json)
-completed actual Chrome fake rehearsals, corrected status/receipt wording and Stop
-coordination, and compared Gemini thinking settings. HIGH produced the expected
-actions in 27 fixed cases, but unsupported posture narration and an 8.776-second
-Stop-response outlier remain. This is an undeployed software candidate; native
-integration, actual microphone/camera and supervised skills still need testing.
+The [Stop, grounding and media follow-up](results/workstream1-stop-grounding-20261030.json)
+closes reproduced delayed-command, CLI interruption, video ordering and stale-camera
+defects. Stop receipts now distinguish a cancelled running job from removed waiting
+jobs. The reviewed candidate passes 609 Python checks, 166 course checks and 80 web
+checks; actual Gemini fake conversations and synthetic-media checks are preserved.
+The earlier 8.776-second Stop mostly elapsed before tool-handler entry; its exact
+service/network/pre-send cause remains unknown and cloud latency has no proven bound.
+Grounded wording reduced false claims, but occasional premature acceptance narration
+remains. HIGH is retained; two alternatives were rejected on measured regressions.
+This is an undeployed software candidate. Native integration, actual microphone/camera
+and supervised skills still need testing. The [prior browser study](results/workstream1-offline-rehearsal-20261030.json)
+retains the original outlier and earlier evidence.
 
 The [offline workflow changes](results/offline-workflow-improvements-20261030.json)
 record the continuity, preservation, input-preflight and Gemini timing fixes with

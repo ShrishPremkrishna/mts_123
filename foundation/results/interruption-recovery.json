@@ -1,13 +1,13 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-10-31T03:27:38.272198+00:00",
+  "updated_utc": "2026-10-31T04:46:07.121477+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "workstream1_offline_rehearsal_complete_native_integration_pending",
+  "mode": "workstream1_offline_complete_awaiting_robot",
   "authorization": "User authorized autonomous offline Workstream 1 completion using subagents and existing configured Gemini access. Robot is teammate-owned: no SSH, deployment or motor operations in this session.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
-  "current_report": "foundation/results/workstream1-offline-rehearsal-20261030.json",
+  "current_report": "foundation/results/workstream1-stop-grounding-20261030.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261030-before-workflow.json",
     "sha256": "5538fd47a8b99522ede4b25d8830c59a9b7a4058857e4721c17b1b873178f5ad",
@@ -133,7 +133,7 @@
     },
     "closed_processes": {
       "owner": "root",
-      "observation_source": "Root verified exact owned processes exited during manager-first cleanup; final receipt in session-shutdown.json.",
+      "observation_source": "Original manager-first cleanup stdout recorded the exact owned process exits. Archived session-shutdown.json is empty; see the disclosed archive finalization gap.",
       "launch": {
         "pid": 27141,
         "already_exited_observed_epoch_s": 1793399754.2368824
@@ -229,9 +229,9 @@
   },
   "activity": {
     "automation": "PAUSED",
-    "compute": "No GPU jobs or collectors; all owned boundedGoogle probes ended. Localfake servers exited0 and localhost18092 verified closed.",
-    "root": "Offlinefollow-up integrated/reviewed/archived; no SSH or robot operations. Chrome fake-rehearsal tabclosed; candidate not deployed.",
-    "agents": "Focusedagents complete; no active code edits. Final report integration only."
+    "compute": "No active GPU, robot, Google, fake API or browser rehearsal jobs. Task-owned ports18091/18092 verified closed.",
+    "root": "Known concrete offline Workstream1 defects addressed; exact candidate/results preserved. Native staging and physical validation require robot ownership to return.",
+    "agents": "Implementation and independent reviews complete; no active assigned engineering work."
   },
   "evidence": {
     "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
@@ -250,7 +250,8 @@
     "web_manual_review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json",
     "lab6_floor_basic": "foundation/results/lab6-floor-basic-20261030.json",
     "ws1_offline": "foundation/results/workstream1-offline-20261030.json",
-    "ws1_offline_rehearsal": "foundation/results/workstream1-offline-rehearsal-20261030.json"
+    "ws1_offline_rehearsal": "foundation/results/workstream1-offline-rehearsal-20261030.json",
+    "ws1_stop_grounding": "foundation/results/workstream1-stop-grounding-20261030.json"
   },
   "next": [
     {
@@ -309,10 +310,20 @@
     ]
   },
   "offline_candidate": {
-    "path": "artifacts/access/ws1-offline-20261030-r2/candidate/source.tar.gz",
-    "sha256": "29079c2d70e00b129b772f035833007a75f604091e2b482863fad8cd7749a82c",
-    "source_manifest": "artifacts/access/ws1-offline-20261030-r2/candidate/source-manifest.json",
-    "file_count": 200,
-    "native_limit": "Not deployed. Prior v5 pins remain historical; preserve teammate changes before staging."
+    "path": "artifacts/access/ws1-stop-grounding-20261030/candidate/source.tar.gz",
+    "sha256": "2504e353fbea93fa1fdd31ed9da6cd2b54cd0d47d4241a864cdfb0ef3fa56106",
+    "source_manifest": "artifacts/access/ws1-stop-grounding-20261030/candidate/source-manifest.json",
+    "file_count": 216,
+    "native_limit": "Not deployed. Update Python server and browser/CLI together: strict command epochs now required. Reconcile teammate changes before staging; previous v5 pins remain historical."
+  },
+  "offline_diagnostics": {
+    "status": "Completed; exact methods, failed trials, residual model claims and limits are in the dated report.",
+    "report": "foundation/results/workstream1-stop-grounding-20261030.json",
+    "artifact_manifest": "artifacts/access/ws1-stop-grounding-20261030/manifest.json",
+    "artifact_manifest_sha256": "7821a39dc683152d4c4da7070362a622d68490b3ca97edf470f052620893e391",
+    "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/ws1-stop-grounding",
+    "process_exits": "artifacts/access/ws1-stop-grounding-20261030/evidence/ws1-r3-process-exits.json",
+    "active": [],
+    "remaining_model_limit": "Occasional unsupported narration and cloud latency tails remain. Tool receipts are authoritative only about software; speech is not physical proof. No further unstructured prompt/model sweeps planned."
   }
 }

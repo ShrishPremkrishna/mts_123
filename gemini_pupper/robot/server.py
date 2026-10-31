@@ -14,22 +14,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import re
 import socket
 import subprocess
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from time import monotonic
 
 import psutil
 import uvicorn
-from fastapi import Body, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import Body, Depends, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
+from starlette.requests import HTTPConnection
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import tool_registry as gemini_tools
-from robot_api import Robot
+from robot_api import CALL_STOPS, Robot
 from runtime_config import component_dir, follower_config
 
 behaviors = gemini_tools.load_lab()  # lab/: every tool, and the behaviors they call
@@ -48,7 +52,8 @@ FAKE_MODE = False  # only the explicit localhost fake_server.py entrypoint sets 
 
 def runtime_info() -> dict:
     # A constructed API object does not prove a physical robot is connected.
-    return {"runtime": "fake" if FAKE_MODE else "robot", "hardware_connected": False if FAKE_MODE else None}
+    return {"runtime": "fake" if FAKE_MODE else "robot", "hardware_connected": False if FAKE_MODE else None,
+            "command_epoch": getattr(tools, "command_epoch", None), "command_epoch_required": True}
 
 
 class Detections:
@@ -122,7 +127,47 @@ async def lifespan(app: FastAPI):
             tools = None
 
 
-app = FastAPI(title="Gemini Pupper robot server", lifespan=lifespan)
+class CommandEpochError(HTTPException):
+    """A received HTTP request was rejected before any command was submitted."""
+
+
+async def require_command_epoch(connection: HTTPConnection):
+    """Fence old HTTP intents; Stop and read-only calls stay independent.
+
+    FastAPI resolves this dependency after parsing the request body. The caller's
+    opaque token therefore rejects a delayed body or an entirely delayed request.
+    Preserve that generation through dispatch as Stop may race the action lock.
+    """
+    if (connection.scope["type"] != "http"
+            or connection.scope["method"] not in {"POST", "PUT", "PATCH", "DELETE"}
+            or (connection.scope["method"] == "POST" and connection.url.path.rstrip("/") in {
+                "/stop/immediate", "/queue/stop", "/tools/stop", "/tools/robot_status"})):
+        yield
+        return
+    robot = T()
+    expected = connection.headers.get("x-pupper-command-epoch")
+    if expected != robot.command_epoch:
+        reason = "missing" if expected is None else "stale"
+        raise CommandEpochError(status_code=428 if expected is None else 409, detail={
+            "success": False,
+            "message": f"{reason} command epoch; no command was submitted. Refresh status and make a new request; do not retry this action automatically.",
+            "command_epoch": robot.command_epoch, "command_epoch_required": True,
+        })
+    token = CALL_STOPS.set(robot.stops)
+    try:
+        yield
+    finally:
+        CALL_STOPS.reset(token)
+
+
+app = FastAPI(title="Gemini Pupper robot server", lifespan=lifespan,
+              dependencies=[Depends(require_command_epoch)])
+
+
+@app.exception_handler(CommandEpochError)
+async def command_epoch_error(_request, error: CommandEpochError):
+    return JSONResponse(status_code=error.status_code, content=error.detail)
+
 # The web app is served from this same origin; also allow a dev server on the laptop.
 app.add_middleware(
     CORSMiddleware,
@@ -186,7 +231,7 @@ async def tool_call(name: str, args: dict = Body(default={})):
     res = await gemini_tools.call(T(), name, args)
     log.info("tool %s(%s) -> %s: %s", name, "[redacted]" if name == "unlock" else args,
              "ok" if res.ok else "FAILED", res.message)
-    return res.as_dict()
+    return {**res.as_dict(), **({"command_epoch": T().command_epoch, "command_epoch_required": True} if name == "stop" else {})}
 
 
 # ------------------------------------------------------------------ commands
@@ -269,7 +314,8 @@ async def queue_reset():
 @app.post("/queue/stop")
 @app.post("/stop/immediate")
 async def stop_immediate():
-    return (await T().immediate_stop(relax_playing_trick=True)).as_dict()
+    result = await T().immediate_stop(relax_playing_trick=True)
+    return {**result.as_dict(), "command_epoch": T().command_epoch, "command_epoch_required": True}
 
 
 @app.get("/queue/status")
@@ -304,6 +350,10 @@ def limits():
 CAMERA_PARAMS = Path(__file__).resolve().parent / "camera_params.yaml"
 EQUIRECT_WIDTH = 700
 EQUIRECT_FOV_DEG = 220.0
+# The browser polls at 1 Hz; the course camera's configured frame interval is
+# much shorter. Reject a stopped feed after two seconds without a ROS receipt.
+# This is receipt age, not exposure time or proof a publisher is not replaying.
+CAMERA_MAX_AGE_S = 2.0
 camera_model = None
 
 
@@ -327,17 +377,35 @@ def undistort_jpeg(data: bytes) -> bytes | None:
 
 @app.get("/camera/image")
 def camera_image():
+    headers = {"Cache-Control": "no-store"}
+    def unavailable(reason: str):
+        return Response(status_code=503, content=reason, headers=headers)
     if FAKE_MODE:
-        return Response(status_code=503, content="camera unavailable in fake mode")
+        return unavailable("camera unavailable in fake mode")
+    # The ROS callback stores message and receipt time together. Reading this
+    # snapshot cannot consume a new frame or put an old one back over it.
+    snapshot = getattr(T(), "latest_camera_frame", None)
+    if not isinstance(snapshot, tuple) or len(snapshot) != 2:
+        return unavailable("no timestamped camera frame yet")
+    msg, received = snapshot
+    def age():
+        if isinstance(received, bool) or not isinstance(received, (int, float)):
+            return None
+        value = monotonic() - received
+        return value if math.isfinite(value) and 0 <= value <= CAMERA_MAX_AGE_S else None
+    if age() is None:
+        return unavailable("camera frame stale or receipt time invalid; no fresh frame available")
     try:
-        msg = T().latest_image.get_nowait()
+        jpeg = undistort_jpeg(bytes(msg.data))
     except Exception:
-        return Response(status_code=503, content="no camera frame yet")
-    T().latest_image.put_nowait(msg)  # keep it for the next poll
-    jpeg = undistort_jpeg(bytes(msg.data))
-    if jpeg is None:
-        return Response(status_code=503, content="could not decode the camera frame")
-    return Response(content=jpeg, media_type="image/jpeg")
+        return unavailable("could not decode the camera frame")
+    if not jpeg:
+        return unavailable("could not decode the camera frame")
+    final_age = age()  # expensive image processing must not bypass the age bound
+    if final_age is None:
+        return unavailable("camera frame became stale during image processing")
+    return Response(content=jpeg, media_type="image/jpeg",
+                    headers={**headers, "X-Pupper-Camera-Age-Seconds": f"{final_age:.3f}"})
 
 
 @app.websocket("/ws/detections")

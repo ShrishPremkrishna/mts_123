@@ -12,19 +12,30 @@ floor-input trials are historical; do not restart their timed choreography.
 
 ## Ready offline; next Pi integration
 
-The [offline rehearsal](results/workstream1-offline-rehearsal-20261030.json) is
-complete: software checks/build, actual Chrome against the fake API, repeated
-Gemini comparisons, and installed-descriptor sequencing through fake ROS. Reuse
-those prepared cases. They do not establish physical balance, real browser
-microphone/camera behavior or in-flight speech interruption.
+Reuse the prepared [offline cases](results/workstream1-offline-rehearsal-20261030.json)
+and [Stop/grounding evidence](results/workstream1-stop-grounding-20261030.json).
+Actual Chrome exercised manual controls and, separately, real WebAudio/canvas
+video with synthetic input/mock Google messages, including changed JPEG content
+and cleanup. Actual Google recognized synthetic spoken Stop during model audio,
+cancelled fake work with the tested stream boundaries, and described synthetic
+images without inventing robot posture. Real microphone, camera freshness and
+physical voice behavior are still pending. The server rejects images over two
+seconds old by ROS receipt time; the browser logs availability transitions. This
+cannot prove exposure freshness or erase prior images from the model context.
+These checks do not establish balance or physical stopping.
 
 1. Inventory teammate changes before integrating the final Python, UI and selected
    session profile on the Pi. Preserve the previously reviewed native overlay;
    no C++ changed in this offline iteration. Rebuild native packages only if
    compatibility requires it, then verify the selected controller/protocol markers
    and repin exact source, executable, configuration and policy hashes. Preserve
-   stock caps, gains, physical Joy settings and stop paths. Generic
-   `start.sh`/`stop.sh` are not interchangeable with the reviewed staged setup.
+   stock caps, gains, physical Joy settings and stop paths. Deploy the HTTP client
+   and server together: `/health` must report `command_epoch_required: true` and
+   a current token; mutation requests carry `X-Pupper-Command-Epoch`. Read-only
+   GETs and POST `/tools/robot_status`, `/tools/stop`, `/queue/stop`,
+   `/stop/immediate` are exempt. Verify missing/stale requests are refused before
+   motion, never automatically retried. Generic `start.sh`/`stop.sh` are not
+   interchangeable with the reviewed staged setup.
 2. Select the exact controllers for the session. The persistent launch in
    `foundation/hardware/lab6_session.launch.py` requires an explicit selection:
    `PUPPER_SESSION_SKILLS=''` selects stock locomotion only; unset refuses startup.
@@ -42,14 +53,14 @@ microphone/camera behavior or in-flight speech interruption.
    [generated-motion](results/generated-motion-trained-review.json) evidence.
    Simulation and native receipts do not establish physical performance.
 
-The final Gemini 3.1 Flash Live default uses HIGH thinking. The diagnostic's
-`--thinking-level MINIMAL` reproduces the comparison; other models are unchanged
-by default. HIGH improved tool selection but retained two unsupported posture
-claims and one unsupported sensor claim. One text request took 8.776 s from
-submission to the fake Stop response; physical/audio Stop timing remains
-unmeasured. Use actual action receipts and observation; keep direct Stop and
-physical R3 independent of speech. `current_action` is current work, `last_outcome` is history,
-and physical pose/speed/stopped fields remain unknown.
+Use the current report for model-level comparisons and record the actual selected
+setting. Voice latency and narration are not reliable
+Stop or pose evidence. Keep direct Stop and physical R3 independent of speech.
+`current_action` is current work, `last_outcome` is history, and physical
+pose/speed/stopped fields remain unknown. After a stale epoch rejection, inspect
+status and explicitly reconnect model dispatch; do not replay the failed action.
+A failed or unknown Stop must be resolved before new motion. The command epoch
+is a stale-request fence, not authentication or a measured stop guarantee.
 
 ## Supervised work blocks
 
@@ -69,9 +80,10 @@ and physical pose/speed/stopped fields remain unknown.
    missing behavior: bounded arc/wait sequences and Live requests whose actual
    tool calls, status and physical outcomes agree. Reuse the demonstrated short
    forward/back/turn commands instead of repeating the entire discovery process.
-   Include actual microphone input, camera understanding and in-flight speech
-   interruption/cancellation with pending work. These remain unvalidated; voice
-   narration is not stopping evidence.
+   Include actual microphone input, camera understanding and physical
+   interruption/cancellation with pending work. Synthetic browser/cloud checks
+   already cover their software paths separately; this block must establish the
+   real media and observed robot behavior. Voice narration is not stopping evidence.
 4. With the selected approved Sit profile, request `sit_stay_shake`, hold at least
    ten seconds, `shake_left`, `shake_right`, and the interactive `stand_up` exit;
    then make a bounded walk and stop. Also check that an ordinary move from Sit

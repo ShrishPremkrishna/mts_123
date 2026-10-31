@@ -56,7 +56,7 @@ test('direct Stop uses immediate endpoint without a Gemini session', async (t) =
 test('unreachable stop does not claim rejection or physical stopping', async (t) => {
   t.mock.method(console, 'error', () => {});
   t.mock.method(globalThis, 'fetch', async () => { throw new Error('link lost'); });
-  const bridge = new RobotBridge('http://test-server');
+  const bridge = new RobotBridge('http://unreachable-stop-server');
   const result = await bridge.immediateStop();
   assert.equal(result.success, false);
   assert.equal(result.outcome_unknown, true);
@@ -195,11 +195,12 @@ test('manual defaults are bounded and left/right match the HTTP convention', asy
   assert.equal(manualMove('backward', MANUAL_DEFAULTS).vx, -0.2);
   let request;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/health')) return { ok: true, json: async () => ({ command_epoch_required: true, command_epoch: 'test:0' }) };
     request = { url, body: JSON.parse(options.body) };
     return { ok: true, json: async () => ({ success: true, message: 'queued' }) };
   });
-  await new RobotBridge('http://test-server').queueMove(manualMove('left', MANUAL_DEFAULTS));
-  assert.equal(request.url, 'http://test-server/move/velocity');
+  await new RobotBridge('http://manual-server').queueMove(manualMove('left', MANUAL_DEFAULTS));
+  assert.equal(request.url, 'http://manual-server/move/velocity');
   assert.equal(request.body.turning_velocity, -20);
   assert.equal(request.body.duration, 0.5);
 });
@@ -262,7 +263,7 @@ function mediaEnvironment(t, sdkConnect, getUserMedia) {
   const track = { kind: 'audio', stopped: 0, stop() { this.stopped++; } }; tracks.push(track);
   const node = () => ({ connect() {}, disconnect() {} });
   class FakeAudioContext {
-    constructor() { this.state = 'running'; this.destination = {}; contexts.push(this); }
+    constructor({ sampleRate } = {}) { this.sampleRate = sampleRate; this.state = 'running'; this.destination = {}; contexts.push(this); }
     createAnalyser() { return { ...node(), getByteTimeDomainData() {} }; }
     createMediaStreamSource() { return node(); }
     createScriptProcessor() { return node(); }
@@ -551,4 +552,161 @@ test('Live setup selects HIGH only for the tested 3.1 Flash Live model', async t
         ? 'gemini-2.5-flash-native-audio-preview-12-2025' : model);
     });
   }
+});
+
+
+test('timing separates incoming Stop dispatch from a prior blocked audio handler', async () => {
+  const { s } = service(); const audio = deferred(), timing = [], calls = [];
+  s.onTiming = event => timing.push(event);
+  s.playAudioBase64 = () => audio.promise;
+  s.robotBridge.callTool = async name => { calls.push(name); return { success: true, message: 'zero requested' }; };
+  const playing = s.handleMessage({ serverContent: { modelTurn: { parts: [{ inlineData: { data: 'synthetic' } }] } } });
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'timed-stop', name: 'stop', args: {} }] } });
+  assert.deepEqual(calls, ['stop']);
+  const start = timing.find(e => e.phase === 'output_audio_handle_start');
+  const received = timing.find(e => e.phase === 'server_message_callback' && e.metadata.tool_count === 1);
+  const sent = timing.find(e => e.phase === 'tool_call_start');
+  const replied = timing.find(e => e.phase === 'tool_call_resolved');
+  assert.ok(start.atMs <= received.atMs && received.atMs <= sent.atMs && sent.atMs <= replied.atMs);
+  assert.equal(sent.metadata.message_sequence, received.metadata.message_sequence);
+  assert.equal(timing.some(e => e.phase === 'output_audio_handle_return'), false);
+  audio.resolve(); await playing;
+  assert.ok(timing.find(e => e.phase === 'output_audio_handle_return').atMs >= replied.atMs);
+});
+
+test('diagnostics omit transcript/arguments and a throwing observer cannot prevent Stop', async () => {
+  const { s } = service(); const timing = [], calls = [];
+  s.onTiming = event => timing.push(event);
+  s.robotBridge.callTool = async name => { calls.push(name); return { success: true, message: 'accepted' }; };
+  await s.handleMessage({ serverContent: { inputTranscription: { text: 'SYNTHETIC_PRIVATE_TEXT', finished: true } },
+    toolCall: { functionCalls: [{ id: 'unlock-probe', name: 'unlock', args: { password: 'SYNTHETIC_PASSWORD' } }] } });
+  assert.doesNotMatch(JSON.stringify(timing), /SYNTHETIC_PRIVATE_TEXT|SYNTHETIC_PASSWORD/);
+  assert.equal(timing[0].metadata.input_transcription_finished, true);
+  assert.equal(timing[0].metadata.input_transcription_chars, 22);
+  s.onTiming = () => { throw new Error('observer failed'); };
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'observer-stop', name: 'stop', args: {} }] } });
+  assert.deepEqual(calls, ['unlock', 'stop']);
+});
+
+test('audio diagnostics identify captured frames and SDK send invocation without retaining PCM', async t => {
+  const sent = [], timing = [];
+  const env = mediaEnvironment(t, async ({ callbacks }) => {
+    callbacks.onopen(); return { close() {}, sendRealtimeInput: input => sent.push(input) };
+  });
+  env.s.onTiming = event => timing.push(event);
+  await env.s.connect('synthetic-key', env.config, {});
+  env.s.inputScriptProcessor.onaudioprocess({ inputBuffer: {
+    sampleRate: 16000, getChannelData: () => new Float32Array([0, 0.1, -0.2, 0]),
+  } });
+  await Promise.resolve();
+  assert.equal(sent.length, 1); assert.equal(sent[0].audio.mimeType, 'audio/pcm;rate=16000');
+  const capture = timing.find(e => e.phase === 'audio_capture');
+  const send = timing.find(e => e.phase === 'audio_send_start');
+  assert.equal(capture.metadata.samples, 4); assert.equal(capture.metadata.sample_rate, 16000);
+  assert.equal(capture.metadata.audio_sequence, send.metadata.audio_sequence);
+  assert.ok(send.atMs >= capture.atMs);
+  assert.equal(timing.some(e => e.phase === 'audio_send_return'), true);
+  assert.doesNotMatch(JSON.stringify(timing), /synthetic-key|"data":|"mimeType":/);
+});
+
+
+test('epoch rejection pauses subsequent model replans without hiding Stop or status', async () => {
+  const { s, dispatches } = service(); const calls = [];
+  s.robotBridge.callTool = async name => {
+    calls.push(name);
+    return name === 'move' ? { success: false, command_epoch_required: true, not_dispatched: true,
+      outcome_unknown: false, message: 'stale epoch' } : { success: true };
+  };
+  await s.handleMessage({ toolCall: { functionCalls: [
+    { id: 'old', name: 'move', args: {} }, { id: 'retry', name: 'move', args: {} }
+  ] } });
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'replan', name: 'stand_up', args: {} }] } });
+  await s.handleMessage({ toolCall: { functionCalls: [{ id: 'status', name: 'robot_status', args: {} }, { id: 'stop', name: 'stop', args: {} }] } });
+  assert.deepEqual(calls, ['move', 'stop', 'robot_status']);
+  assert.equal(dispatches.find(d => d.id === 'old' && d.status !== 'sending').status, 'rejected');
+  assert.equal(dispatches.some(d => ['retry', 'replan'].includes(d.id)), false);
+});
+
+function videoEnvironment(t, source = 'browser') {
+  const { s, logs } = service(), sent = [], readers = []; let tick, frame = 0;
+  s.sessionPromise = Promise.resolve({ sendRealtimeInput(value) { sent.push(value); }, close() {} });
+  replaceGlobal(t, 'window', { setInterval(fn) { tick = fn; return 54321; }, speechSynthesis: { cancel() {} } });
+  replaceGlobal(t, 'FileReader', class {
+    readAsDataURL(blob) { this.blob = blob; readers.push(this); }
+    finish() { this.result = `data:image/jpeg;base64,${this.blob.id}`; this.onloadend(); }
+  });
+  replaceGlobal(t, 'document', { createElement() { return {
+    getContext() { return { drawImage() {} }; },
+    toBlob(callback) { callback({ id: `frame-${++frame}` }); },
+  }; } });
+  s.setupVideoInput({ videoWidth: 640, videoHeight: 480 }, source);
+  t.after(() => s.disconnect());
+  return { s, tick: () => tick(), readers, sent, logs };
+}
+const flushCallbacks = () => new Promise(resolve => setImmediate(resolve));
+
+test('a slower old browser video conversion cannot replace a newer sent frame', async t => {
+  const env = videoEnvironment(t);
+  await env.tick(); await env.tick();
+  env.readers[1].finish(); await flushCallbacks();
+  env.readers[0].finish(); await flushCallbacks();
+  assert.deepEqual(env.sent.map(value => value.video.data), ['frame-2']);
+});
+
+test('video conversion finishing after disconnect never reaches the SDK', async t => {
+  const env = videoEnvironment(t);
+  await env.tick(); await env.s.disconnect();
+  env.readers[0].finish(); await flushCallbacks();
+  assert.deepEqual(env.sent, []);
+});
+
+test('out-of-order camera HTTP responses cannot overwrite newer video frames', async t => {
+  const env = videoEnvironment(t, 'server'), first = deferred(), second = deferred(); let requests = 0;
+  env.s.robotBridge.getCameraImage = () => ++requests === 1 ? first.promise : second.promise;
+  const old = env.tick(), fresh = env.tick();
+  second.resolve({ id: 'new' }); await flushCallbacks(); env.readers[0].finish(); await fresh; await flushCallbacks();
+  first.resolve({ id: 'old' }); await flushCallbacks();
+  if (env.readers[1]) env.readers[1].finish();
+  await old; await flushCallbacks();
+  assert.deepEqual(env.sent.map(value => value.video.data), ['new']);
+});
+
+
+test('server camera availability logs once per transition without polling spam', async t => {
+  const env = videoEnvironment(t, 'server'); let available = false;
+  env.s.robotBridge.getCameraImage = async () => available ? { id: 'fresh' } : null;
+  await env.tick(); await env.tick();
+  assert.equal(env.logs.filter(e => e.type === 'error').length, 1);
+  available = true;
+  let pending = env.tick(); await flushCallbacks(); env.readers[0].finish(); await pending;
+  pending = env.tick(); await flushCallbacks(); env.readers[1].finish(); await pending;
+  assert.equal(env.logs.filter(e => e.type === 'info').length, 1);
+  assert.equal(env.logs.length, 2);
+});
+
+test('late older camera failure cannot overwrite a newer received-frame state', async t => {
+  const env = videoEnvironment(t, 'server'), first = deferred(), second = deferred(); let requests = 0;
+  env.s.robotBridge.getCameraImage = () => ++requests === 1 ? first.promise : second.promise;
+  const old = env.tick(), fresh = env.tick();
+  second.resolve({ id: 'new' }); await flushCallbacks(); env.readers[0].finish(); await fresh;
+  first.resolve(null); await old;
+  assert.deepEqual(env.sent.map(v => v.video.data), ['new']);
+  assert.equal(env.logs.filter(e => e.type === 'error').length, 0);
+  assert.equal(env.logs.filter(e => e.type === 'info').length, 1);
+});
+
+test('newer unavailable camera response invalidates an older unfinished conversion', async t => {
+  const env = videoEnvironment(t, 'server'); let requests = 0;
+  env.s.robotBridge.getCameraImage = async () => ++requests === 1 ? { id: 'old' } : null;
+  const old = env.tick(); await flushCallbacks();
+  await env.tick(); env.readers[0].finish(); await old;
+  assert.deepEqual(env.sent, []);
+  assert.equal(env.logs.filter(e => e.type === 'error').length, 1);
+});
+
+test('camera failure arriving after disconnect emits neither a frame nor availability log', async t => {
+  const env = videoEnvironment(t, 'server'), response = deferred();
+  env.s.robotBridge.getCameraImage = () => response.promise;
+  const pending = env.tick(); await env.s.disconnect(); response.resolve(null); await pending;
+  assert.deepEqual(env.sent, []); assert.deepEqual(env.logs, []);
 });

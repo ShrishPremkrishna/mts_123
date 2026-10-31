@@ -46,9 +46,12 @@ a request already sent to ROS.
 The proposed Pupper character is in `lab/prompt.md`. Its greeting/handshake,
 handshake joke and conversation-local memory are in-context behavior, not learned
 weights or persistent memory. Actual Gemini conversations and synthetic spoken
-input have been exercised against fake execution. Real browser microphone/camera,
-in-flight speech interruption and physical voice-controlled behavior remain
-unvalidated; see the [current rehearsal evidence](../../foundation/results/workstream1-offline-rehearsal-20261030.json).
+input have been exercised against fake execution. Separate checks cover browser
+WebAudio/canvas video with mock Google events, synthetic spoken Stop sent to actual
+Google during fake work/model audio, and actual Google describing synthetic JPEGs.
+They are not an end-to-end real-media test. Real microphone, camera and physical
+voice-controlled behavior remain pending; see the
+[Stop and grounding evidence](../../foundation/results/workstream1-stop-grounding-20261030.json).
 
 ## Offline checks
 
@@ -81,18 +84,22 @@ session calls for them. `lab/chat.py --realtime` exercises actual Gemini with th
 same fake backend without recording a microphone. Neither mode validates physics.
 The actual Chrome rehearsal against this localhost fake API is complete; it is
 not Pi deployment or microphone/camera evidence.
+The terminal diagnostic now lets a received model Stop bypass a slow backend
+call while preserving normal action order. Stop invalidates the earlier turn's
+intents; unknown outcomes pause dispatch. Its keyboard input still accepts one
+utterance per turn, not an independent keyboard Stop. Cancellation cannot retract
+an HTTP worker thread; the command epoch fences late requests. Cleanup attempts
+Stop with a bounded wait, which does not prove physical stopping. Keep the direct
+browser/API Stop and physical R3 independent during supervised operation.
 
-The browser and text diagnostic now explicitly request HIGH thinking for
-`gemini-3.1-flash-live-preview` (also with the `models/` prefix); other models keep
-their existing defaults. `lab/chat.py --realtime --thinking-level MINIMAL` selects
-the comparison setting; `AUTO` is the conditional HIGH default, and explicit
-`LOW`, `MEDIUM` or `HIGH` are also supported. The diagnostic prints the selected
-level. The repeated comparison improved action selection, but retained two
-unsupported posture claims and one unsupported sensor claim. One text request
-took 8.776 s from submission to the fake Stop response, including network,
-inference and fake execution; this is not a physical or audio Stop measurement. HIGH is an improvement, not a
-guarantee of truthful speech or prompt stopping. The [rehearsal report](../../foundation/results/workstream1-offline-rehearsal-20261030.json)
-preserves the comparison and failures; older reports describe older candidates.
+Use the diagnostic's `--thinking-level MINIMAL|LOW|MEDIUM|HIGH` override for an
+explicit thinking-level comparison;
+`AUTO` follows the current implementation. Record the selected level and source
+identity, rather than treating a model default as a capability guarantee. The
+[Stop and grounding report](../../foundation/results/workstream1-stop-grounding-20261030.json)
+owns the current findings and failures. The earlier 8.776 s text-to-fake-Stop
+interval included unseparated local, transport and model work; it does not measure
+physical stopping or isolate cloud inference time.
 
 The browser dispatches tools before decoding speech. A Stop in one model tool
 batch suppresses other motion in that batch; cancelling a sent action requests
@@ -103,6 +110,93 @@ cannot guarantee that Stop reaches a real robot. Direct Stop and the physical
 controller's R3 remain independent controls. Pending direct, model and automatic
 Stop requests block new manual/model motion until their replies settle; Stop
 itself stays usable. An acknowledgement still does not prove physical stopping.
+
+### HTTP command epoch
+
+Use the updated client and server together. `GET /health` and `GET /queue/status`
+expose `command_epoch_required: true` and an opaque `command_epoch` identifying
+this API instance and its Stop generation. Every mutating `POST`, `PUT`, `PATCH`
+or `DELETE` requires `X-Pupper-Command-Epoch` with that token. Read-only GETs and
+these POSTs remain independent: `/stop/immediate`, `/queue/stop`, `/tools/stop`,
+and `/tools/robot_status`. Stop replies include the current epoch even when the
+Stop operation fails. The token is a stale-request fence, not authentication.
+
+A missing token is refused with HTTP 428; a stale token with HTTP 409. Both return
+`success: false` before dispatch. Never retry that motion automatically with a
+new token. Inspect status, then make a new explicit request. Browser model motion
+pauses after an epoch rejection until voice reconnect; the Python diagnostic
+requires a new setup/reconnect, and a model-issued Stop cannot clear that stale
+plan. Failed or unknown Stop responses keep motion blocked until a confirmed Stop
+or the applicable explicit session recovery. Stop and status remain available.
+
+The browser shares its pending-Stop/generation state between manual and voice
+bridges for the same canonical API URL within one page. It invalidates old intent
+before awaiting HTTP, including an unfinished health handshake. A late accepted
+reply after Stop is marked superseded because earlier execution may have happened.
+Unrelated status replies cannot refresh the command token. Separate browser tabs
+are not coordinated by this in-page state; server-side epochs still reject old
+requests that carry a pre-Stop token.
+
+### Synthetic browser media rehearsal
+
+This isolated page uses the production `GeminiLiveService` and `RobotBridge`, real
+WebAudio, synthetic oscillator/canvas streams and a build-time mock Google SDK.
+It replaces `getUserMedia` with a synthetic-only implementation, never accesses a
+real microphone/camera, and checks `runtime: fake`, `hardware_connected: false` and the epoch protocol
+before HTTP mutations. No microphone, key or cloud connection is used. It is not
+included in the production application entry.
+
+Reuse existing task-owned servers if already running. Otherwise, from
+`gemini_pupper/`, start the fake API with the tested Python interpreter:
+
+```bash
+PUPPER_FOLLOWER_MODE=disabled PUPPER_SESSION_SKILLS='' python -B robot/fake_server.py --port 18091
+```
+
+In another terminal, from `gemini_pupper/web/`:
+
+```bash
+node rehearsal/build.mjs /private/tmp/pupper-browser-media-rehearsal
+python3 -m http.server 18092 --bind 127.0.0.1 --directory /private/tmp/pupper-browser-media-rehearsal
+```
+
+Open `http://127.0.0.1:18092/?api=http://127.0.0.1:18091` and select **Run synthetic
+rehearsal**. Save the receipt with the generated `build-receipt.json`. The actual
+Chrome run captured nonzero 16 kHz PCM and decodable 320×240 JPEGs whose colors
+changed from red to blue. It cancelled a fake wait and received the matching Stop
+reply while native WAV decoding was held. Native 24 kHz decode, track cleanup and
+discarding a conversion completed after disconnect passed. Its 112.1 ms
+callback-to-fake-reply interval includes rehearsal checks; it is neither speech
+recognition nor physical stopping. The video sender now discards older conversions
+that finish after a newer frame was sent. The robot-camera endpoint separately
+rejects missing/invalid frames or frames older than two seconds since their ROS
+callback receipt, including time spent processing the JPEG. Serving a frame never
+refreshes that age; responses use `Cache-Control: no-store`. Receipt freshness is
+not exposure time or protection against a publisher replaying old content.
+
+For the server camera, the browser logs unavailable/received transitions once,
+ignoring older HTTP results and conversions after a newer result or disconnect.
+These logs are for the operator and are not injected into Gemini as commands.
+Previously delivered images can remain in Live context when fresh frames stop;
+a model claim about a current view is still not proof of current camera availability.
+
+Separately, synthetic spoken Stop reached actual Google during a fake wait and
+ongoing model audio. Manual activity boundaries passed. Automatic detection passed
+with continuous silence or an explicit `audioStreamEnd`; the original finite
+stream that paused without flushing timed out and is retained as a failed probe.
+No transcription `finished` boundary was observed, so there is no transcript-based
+Stop shortcut. These cloud probes do not validate the browser's real microphone
+or robot behavior. Actual Google also correctly described two synthetic geometric
+JPEGs and refused to infer Pupper's pose from them, without motion calls. Those
+fresh-session cases did not test replacing old frames inside one conversation.
+Exact inputs and outcomes belong in the linked Stop report.
+
+`GeminiLiveService` accepts an optional final timing callback. It emits monotonic
+`performance.now()` events for captured frame counts/rates, SDK send invocation,
+server callbacks, tool dispatch/results and audio decode/scheduling. Events omit
+PCM, transcript text, tool arguments and credentials. An SDK method returning is
+not proof of wire delivery; audio scheduling is not acoustic playback completion.
+Diagnostics are opt-in and do not change the Stop path.
 
 The preflight reads files and validates policy data contracts; it never starts
 ROS or moves anything. On a laptop it should report the missing installed ROS
@@ -197,6 +291,8 @@ then the standalone directories in the robot's home folder. Explicit overrides:
 | `FOLLOW_ALWAYS_DETECT=1` | Detect between follow requests for the eyes; default off |
 
 Use `PUPPER_FOLLOWER_MODE=disabled` intentionally when testing without following.
+The fake backend honors this selection too: the `follow` declaration is omitted
+and explicit follow requests are refused without contacting follower services.
 `legacy` explicitly selects the monorepo follower and logs its missing Lab 5 target
 lock/stopping-distance features. It cannot enable the Lab 5 options. Color matching
 and timed detours are experiments, not general person identity or collision-free

@@ -233,6 +233,7 @@ class Robot:
         self.walk_since = None  # monotonic time gemini_walk was last activated
 
         self.latest_image: queue.Queue[CompressedImage] = queue.Queue(maxsize=1)
+        self.latest_camera_frame: tuple[CompressedImage, float] | None = None
         self.node.create_subscription(CompressedImage, "/camera/image_raw/compressed", self._on_image, 1)
 
         # The state Pupper is in right now (set by switch_to, a fall, the e-stop),
@@ -278,6 +279,7 @@ class Robot:
         self.current: asyncio.Task | None = None
         self.current_action_name: str | None = None
         self.busy_until = 0.0  # monotonic time when the queued work should finish
+        self.command_instance = uuid.uuid4().hex  # ordering identity, not an authentication credential
         self.stops = 0  # how many times stop (or the e-stop) has run
         self.worker = asyncio.get_event_loop().create_task(self._run_queue())
         # The shared gateway owns controller deactivation for a gamepad stop.
@@ -463,6 +465,7 @@ class Robot:
                                           time.monotonic(), activation, request, queued)
 
     def _on_image(self, msg: CompressedImage) -> None:
+        self.latest_camera_frame = (msg, time.monotonic())
         try:
             self.latest_image.get_nowait()
         except queue.Empty:
@@ -983,6 +986,11 @@ class Robot:
         await self.commands.put((name, job, self.state_after_queue))
         return Result(True, f"{name} queued (accepted, not completed); estimated queue time {self.busy_until - now:.1f} s")
 
+    @property
+    def command_epoch(self) -> str:
+        """Invalidate delayed HTTP commands on any Stop or API process restart."""
+        return f"{self.command_instance}:{self.stops}"
+
     def stopped_during_call(self) -> bool:
         """Did a stop come in after the tool call being handled began?"""
         began = CALL_STOPS.get()
@@ -1380,41 +1388,62 @@ class Robot:
         self.stops += 1  # requests still being handled won't queue anything now
         self.secret_gate.lock()
         self.send_speed(0, 0, 0)  # request zero speed before anything that waits
-        running = self.current is not None and not self.current.done()
+        running_task = self.current if self.current is not None and not self.current.done() else None
+        running = running_task is not None
+        public_action = self.public_current_action() if running else None
+        running_name = public_action["name"] if public_action else "unnamed job"
+        pending_count = self.commands.qsize()
         reference_was_playing = self.reference_active
-        cleared = await self.clear_queue()
-        if running:
-            self.current.cancel()
+        await self.clear_queue()  # no suspension inside: pending_count is the exact removed count
+        cancellation_requested = running_task.cancel() if running else False
+
+        def receipt(ok: bool, message: str) -> Result:
+            running_job = None
+            if running_task is None:
+                cancellation = "No running job existed when Stop began."
+            else:
+                terminal = ("cancelled" if running_task.cancelled() else
+                            "finished_without_cancellation" if running_task.done() else "pending")
+                running_job = {"name": running_name, "cancellation_requested": cancellation_requested,
+                               "terminal_state": terminal}
+                if terminal == "cancelled":
+                    cancellation = f"Running job {running_name!r}: cancellation confirmed."
+                elif terminal == "finished_without_cancellation":
+                    cancellation = f"Running job {running_name!r}: cancellation requested, but it finished without terminal cancellation."
+                else:
+                    cancellation = f"Running job {running_name!r}: cancellation requested; terminal cancellation not yet confirmed."
+            return Result(ok, f"{cancellation} Cleared {pending_count} pending queued commands, separate from the running job. {message}",
+                          {"running_job": running_job, "pending_queued_commands_cleared": pending_count,
+                           "physical_observation": {"stopped": None, "pose": None}})
         self.state_after_queue = self.state_now  # nothing else is coming
         follower = await self.stop_following()
         self.send_speed(0, 0, 0)
         if not follower.ok:
             relaxed = await self._relax_controllers()
-            return Result(False, f"{follower.message}. {relaxed.message}")
+            return receipt(False, f"{follower.message}. {relaxed.message}")
         if self.controller_fault:
             relaxed = await self._relax_controllers()
-            return Result(False, f"{relaxed.message}. {self.controller_fault}")
+            return receipt(False, f"{relaxed.message}. {self.controller_fault}")
         if relax_playing_trick and reference_was_playing:
             # A reference jump runs autonomously inside the locomotion controller;
             # a zero velocity does not cancel it. Disable that controller too.
             relaxed = await self._relax_controllers()
-            return Result(relaxed.ok, f"reference-motion controller deactivation requested; {relaxed.message}")
+            return receipt(relaxed.ok, f"reference-motion controller deactivation requested; {relaxed.message}")
         if not (relax_playing_trick and running):
-            return Result(True, f"commands stopped; zero walking speed requested. Physical stopping "
-                                f"has not been measured. {cleared.message}")
+            return receipt(True, "zero walking speed requested. Physical stopping has not been measured.")
         await asyncio.sleep(0.1)  # a job cancelled while switching to a trick may still finish the switch
         states = await self.controller_states()
         playing = [t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"]
         if not playing:
-            return Result(True, f"commands stopped; zero walking speed requested. Physical stopping "
-                                f"has not been measured. {cleared.message}")
+            return receipt(True, "zero walking speed requested. Physical stopping has not been measured.")
         relaxed = await self._relax_controllers()
         if not relaxed.ok:
-            return relaxed
+            return receipt(False, relaxed.message)
         log.warning("stop: %s was still playing; deactivated leg controllers", playing[0].name)
-        return Result(True, f"commands stopped; {cleared.message}. {playing[0].name} was still playing, "
+        return receipt(True, f"{self.public_state_name(playing[0])} was still playing, "
                             "so its controller was deactivated. Physical stopping and posture have "
-                            "not been measured; stand_up is required before another motion")
+                            "not been measured. A later move/turn/arc request prepares its controller "
+                            "automatically if readiness checks pass; a reported fall still requires supervised recovery.")
 
     async def shutdown(self) -> Result:
         """Stop autonomous activity before a graceful tool-server exit.

@@ -1273,7 +1273,9 @@ async def provided() -> None:
 
         await rig.ts.wait(5.0)
         res = await tools.call(rig.ts, "stop", {})
-        check("stop clears the queue", rig.ts.commands.empty() and "stopped" in res.message, f"got {res}")
+        check("stop clears the queue", res.ok and rig.ts.commands.empty()
+              and res.details.get("pending_queued_commands_cleared") == 1
+              and res.details.get("running_job") is None, f"got {res}")
     finally:
         rig.close()
 

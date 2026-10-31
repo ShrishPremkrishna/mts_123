@@ -6,7 +6,7 @@ This page explains how the browser application, Gemini models, and the physical 
 
 Gemini Pupper is a browser-based voice and vision interface for a robot dog. The browser captures microphone and camera data and streams it directly to Gemini Live. When Gemini decides the robot should move or perform a trick, it returns a structured function call. The browser translates that call into an HTTP request to a small FastAPI server running locally on the robot. That server uses the Pupper ROS stack to queue motion, animation, and follow-person commands.
 
-The cloud deployment serves the web application; it does not proxy robot commands or media. The browser is the coordinator between Gemini and the robot.
+The upstream cloud deployment serves the web application; it does not proxy robot commands or media. This checkout also serves the built app directly from the local FastAPI server. The browser is the coordinator between Gemini and the robot.
 
 ## System at a glance
 
@@ -56,7 +56,7 @@ flowchart LR
 
 | Area | Responsibility | Important code |
 |---|---|---|
-| Cloud Run | Builds and serves the static browser application through nginx | [Dockerfile](../web/Dockerfile), [nginx.conf](../web/nginx.conf) |
+| Cloud Run (upstream hosting option) | Builds and serves the static browser application through nginx | Cloud deployment files are not included in this checkout |
 | React application | Owns UI state, settings, logs, connection state, and periodic status polling | [App.tsx](../web/App.tsx) |
 | Gemini integration | Captures media, opens the Live session, plays audio, executes tool calls, and returns tool results | [web/services/geminiLive.ts](../web/services/geminiLive.ts) |
 | Robot bridge | Maps browser operations to the robot's HTTP API | [web/services/robotBridge.ts](../web/services/robotBridge.ts) |
@@ -95,6 +95,22 @@ sequenceDiagram
 ```
 
 A manual button in the debug view enters the same path at the browser-to-robot HTTP step, bypassing Gemini. This makes it useful for checking the robot connection and motion APIs independently.
+
+The command path carries `X-Pupper-Command-Epoch`, obtained from `GET /health`
+(or visible in `/queue/status`). The opaque API-instance/Stop-generation token
+must accompany every mutating HTTP request except the three Stop routes and
+read-only `POST /tools/robot_status`. Missing/stale tokens are rejected before
+dispatch with 428/409; clients never automatically retry a motion with a new
+token. Stop remains independent of metadata lookup. Browser bridges within the
+same page share Stop state per API URL, so switching between manual controls and
+a Live session cannot resurrect an old pending request. Epoch rejection pauses
+model motion until explicit reconnect; failed/unconfirmed Stop also inhibits new
+motion. See [the exact contract and recovery rules](foundation.md#http-command-epoch).
+
+Acceptance, queue completion and physical observation are separate. The server's
+`current_action` and `last_outcome` identify current and historical work; unknown
+pose, speed and stopping fields stay unknown. Model narration is not a sensor.
+
 
 ## Audio and model modes
 
@@ -165,14 +181,16 @@ flowchart TB
 |---|---|---|
 | Gemini's prompt and tools | `GET /tools` (lab/prompt.md, the tools in lab/) | Session setup |
 | Run one of Gemini's tools | `POST /tools/<name>` | Every Gemini tool call |
-| Activate or relax motors | `POST /walking/activate`, `POST /walking/deactivate` | Wake/sleep tools |
+| Queue stand or lie-down behavior | `POST /walking/activate`, `POST /walking/deactivate` | Manual/API controls |
 | Move with velocities | `POST /move/velocity` | Debug controls |
 | Move by heading | `POST /move/direction` | Directional debug control |
 | Stop or clear work | `POST /queue/stop`, `POST /queue/reset`, `POST /stop/immediate` | Safety and debug controls |
 | Play a trick | `POST /animation` | Debug controls |
 | Follow a person | `POST /following/activate`, `POST /following/deactivate` | Follow-mode tool |
 | Read camera | `GET /camera/image` | Debug view and optional Gemini vision source |
-| Read health | `GET /system/status` | Face warnings and debug status bar |
+| Read API/epoch readiness | `GET /health` | Command preparation |
+| Read execution state and epoch | `GET /queue/status` | Execution-status polling |
+| Read system telemetry | `GET /system/status` | Face warnings and debug status bar |
 | Track a person | `WS /ws/detections` | Animated eye direction |
 | Set speaker volume | `POST /system/volume` | Debug control |
 
@@ -186,6 +204,13 @@ There are two distinct visual paths:
 2. **Eye animation:** The face can track the mouse, run MediaPipe in the browser, or consume person detections from the robot. In robot mode, a local detector publishes JSON over ZMQ; the FastAPI process forwards it to the browser over `/ws/detections`.
 
 These paths are independent: changing the animated-eye tracking source does not necessarily change which camera Gemini sees.
+
+`/camera/image` preserves the JPEG/503 interface but requires a valid ROS callback
+receipt no more than two seconds old, rechecked after processing, with no-store
+responses. Polling never refreshes the timestamp. The browser logs server-camera
+availability changes without allowing a late old response to overwrite newer
+state. Earlier images may remain in the model context; receipt age cannot prove
+exposure age or detect an upstream publisher replaying old content.
 
 ### Telemetry
 
@@ -213,19 +238,19 @@ flowchart TB
 
 The Cloud Run container contains only static files and nginx. There is no application backend in Cloud Run and robot traffic does not pass through Google Cloud.
 
-The default robot URL is `http://localhost:8000`. This works when Chrome runs on the Pupper itself. If Chrome runs on another computer, set the Robot API URL to the Pupper's reachable LAN address and ensure browser mixed-content and local-network permission policies allow that connection.
+The default Robot API URL is empty, meaning the origin serving the page; the robot server commonly uses port 8000. A separate hosted page must be configured with the reachable API origin. If Chrome runs on another computer, set the Robot API URL to the Pupper's reachable LAN address and ensure browser mixed-content and local-network permission policies allow that connection.
 
 ## Trust and safety boundaries
 
 - The Gemini API key is entered in the browser settings and stored in browser local storage. It is used for direct browser-to-Gemini connections.
-- The robot FastAPI server currently permits all CORS origins and does not authenticate control requests.
+- The robot FastAPI server currently permits all CORS origins and does not authenticate control requests. Command epochs prevent stale dispatch; they are not credentials or network isolation.
 - Keep port 8000 on a trusted robot/local network. Do not expose it directly to the public internet.
 - Motion commands can move physical hardware. Use the immediate-stop path when behavior is unexpected, and keep physical clearance around the robot.
 - The server includes maintenance endpoints such as upgrade and restart. Network isolation is therefore important even if the browser UI does not normally invoke them.
 
 ## Startup lifecycle
 
-1. `robot/start.sh` launches the robot stack (`robot/launch/gemini_pupper.launch.py`: every leg controller loaded, none active) and then the FastAPI process (`robot/server.py`).
+1. `robot/start.sh` validates/reuses a compatible combined stack or launches it before the FastAPI process. Hardware initialization can home even while neural controllers are inactive; use the reviewed supervised procedure. The selected persistent profile is an alternative documented in the [hardware checklist](../../foundation/HARDWARE_CHECKLIST.md), not a second competing stack.
 2. FastAPI's lifespan hook creates the `Robot` (`robot/robot_api.py`); its queue first checks which state the robot was left in before a restart (an interactive trick it is still in, say).
 3. If ZMQ is available, a background subscriber connects to the local person-detection publisher.
 4. The user opens the Cloud Run URL in Chrome.
@@ -244,6 +269,25 @@ The default robot URL is `http://localhost:8000`. This works when Chrome runs on
 | Manual controls work but Gemini actions do not | Gemini function declarations and tool-call handling |
 | Robot moves but eye tracking is absent | ZMQ detector, port 5556 publisher, `/ws/detections` |
 | Debug status is empty | `/system/status`, robot service, battery script, network reachability |
+
+## Offline media and timing evidence
+
+The [isolated browser rehearsal](foundation.md#synthetic-browser-media-rehearsal)
+uses this production service with synthetic WebAudio/canvas video, mock Google
+messages and a strictly fake localhost API. Actual Chrome tested PCM capture,
+changed JPEG content, Stop during blocked WAV decode, cancellation and cleanup,
+including a conversion completing after disconnect. A sequence guard prevents
+older asynchronous frames from being sent after newer frames or a later server
+unavailability response. The separate receipt-age gate is not exposure validation. Separate actual Google probes tested synthetic spoken
+Stop during model audio/fake work and interpretation of synthetic JPEGs. These
+are not real microphone/camera or physical robot validation.
+
+An optional metadata-only timing callback in `GeminiLiveService` distinguishes
+capture, SDK invocation, received-message callbacks, tool responses and audio
+handling using a monotonic clock. It stores no audio, transcript or tool arguments.
+SDK return and queued playback do not establish network receipt or audible output.
+The [Stop/grounding report](../../foundation/results/workstream1-stop-grounding-20261030.json)
+keeps measurements, source identities and unsuccessful cases together.
 
 ## Related documentation
 

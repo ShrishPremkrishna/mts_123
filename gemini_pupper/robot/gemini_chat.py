@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Talk to Gemini in text, and watch every tool call it makes.
 
-Gemini Live in about a hundred lines: no browser, no microphone. You type, Gemini
+A text diagnostic for Gemini Live: no browser or microphone. You type, Gemini
 answers and calls tools, and this script runs each call and sends the reply
-back, the same loop the web app runs when you talk to Pupper.
+back through the same tool API used by the web app. A received model Stop can
+bypass a slow tool call. Input is still one user utterance per model turn; this
+is not an independent keyboard Stop control. Exit/disconnect cancels pending
+dispatch and requests a best-effort Stop for submitted work, not physical proof
+that the robot stopped.
 
     python3 lab/chat.py            # YOUR tools, on a fake robot (a laptop is enough)
     python3 lab/chat.py --realtime # fake robot with real queue timing/cancellation
@@ -42,6 +46,7 @@ import re
 import sys
 import time
 import urllib.request
+import urllib.error
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -101,6 +106,9 @@ class DeskBackend:
         import test_tools  # installs a fake ROS before robot_api is imported
         import tricks
         import tool_registry
+        from runtime_config import follower_mode
+
+        follow_available = follower_mode() != "disabled"
 
         self.tt, self.registry = test_tools, tool_registry
         self._previous_bindings = {name: getattr(test_tools.robot_api, name)
@@ -112,6 +120,7 @@ class DeskBackend:
                 test_tools.VirtualClock = _RealtimeClock
             # The real tricks/ folder; only the fake clock construction changes.
             self.rig = test_tools.Rig(tricks=tricks.load_tricks)
+            self.rig.ts.follow_available = follow_available
         finally:
             test_tools.VirtualClock = original_clock
         self.seen_pub = self.seen_switch = self.seen_log = self.seen_follow = 0
@@ -204,6 +213,11 @@ class RobotBackend:
     def __init__(self, url: str):
         self.url = url.rstrip("/")
         self.name = f"the real robot at {self.url} (Pupper moves!)"
+        self._command_epoch: str | None = None
+        self._stop_serial = 0
+        self._stops_pending = 0
+        self._stop_unknown = False
+        self._epoch_invalidated = False
 
     def _get(self, path: str):
         with urllib.request.urlopen(self.url + path, timeout=10) as r:
@@ -211,13 +225,91 @@ class RobotBackend:
 
     def setup(self) -> tuple[str, list[dict]]:
         spec = self._get("/tools")
+        health = self._get("/health")
+        self._command_epoch = self._epoch(health)
+        self._stop_unknown = False
+        self._epoch_invalidated = False
         return spec["prompt"], spec["tools"]
 
-    async def call(self, name: str, args: dict) -> dict:
+    @staticmethod
+    def _epoch(reply) -> str | None:
+        if not isinstance(reply, dict) or reply.get("command_epoch_required") is not True:
+            return None
+        value = reply.get("command_epoch") if isinstance(reply, dict) else None
+        return value if isinstance(value, str) and value else None
+
+    def _post(self, name: str, args: dict, epoch: str | None) -> dict:
+        headers = {"content-type": "application/json"}
+        if epoch is not None:
+            headers["X-Pupper-Command-Epoch"] = epoch
         req = urllib.request.Request(f"{self.url}/tools/{name}", data=json.dumps(args).encode(),
-                                     headers={"content-type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read())
+                                     headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as exc:
+            # The server explicitly refused this request before dispatch.
+            if exc.code in (409, 428):
+                reply = json.loads(exc.read())
+                if reply.get("success") is False and reply.get("command_epoch_required") is True:
+                    return reply
+            raise
+
+    async def call(self, name: str, args: dict) -> dict:
+        stopping = name == "stop"
+        protected = name not in ("stop", "robot_status")
+        if stopping:
+            self._stop_serial += 1
+            self._stops_pending += 1
+            self._command_epoch = None
+        serial = self._stop_serial
+        dispatched = False
+        try:
+            if protected:
+                if self._stops_pending or self._stop_unknown or self._epoch_invalidated:
+                    return {"success": False, "message": "No command submitted: Stop is pending/unconfirmed or the command epoch changed; use Stop or reconnect after checking status."}
+                epoch = self._command_epoch
+                if epoch is None:
+                    health = await asyncio.to_thread(self._get, "/health")
+                    epoch = self._epoch(health)
+                # A Stop while obtaining metadata invalidates this original intent.
+                if serial != self._stop_serial or self._stops_pending:
+                    return {"success": False, "message": "No command submitted: Stop superseded this request."}
+                if epoch is None:
+                    return {"success": False, "message": "No command submitted: server command-epoch support is unavailable."}
+                self._command_epoch = epoch
+            else:
+                epoch = None
+            dispatched = True
+            reply = await asyncio.to_thread(self._post, name, args, epoch)
+            if protected and serial != self._stop_serial:
+                rejected = reply.get("success") is False and reply.get("command_epoch_required") is True
+                return {"success": False, "superseded": True, "outcome_unknown": not rejected,
+                        "message": "Stop superseded this request. " + ("The server refused it before dispatch."
+                            if rejected else "Its late reply is not a new acceptance; check status for any earlier execution.")}
+            if serial == self._stop_serial:
+                # Refresh only for a later request; never retry the rejected action.
+                if protected and reply.get("command_epoch_required") is True and reply.get("success") is False:
+                    self._epoch_invalidated = True
+                    self._command_epoch = None
+                if stopping:
+                    if new_epoch := self._epoch(reply):
+                        self._command_epoch = new_epoch
+                    self._stop_unknown = reply.get("success") is not True or not self._epoch(reply)
+            return reply
+        except asyncio.CancelledError:
+            if stopping and serial == self._stop_serial:
+                self._stop_unknown = True
+            raise
+        except Exception as exc:
+            if stopping and serial == self._stop_serial:
+                self._stop_unknown = True
+            return {"success": False, "outcome_unknown": dispatched,
+                    "message": ("Request outcome unknown" if dispatched else "No command submitted")
+                    + f": {type(exc).__name__}: {exc}"}
+        finally:
+            if stopping:
+                self._stops_pending -= 1
 
 
 # ============================================================ the loop
@@ -246,6 +338,149 @@ async def chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO")
             await backend.aclose()
 
 
+class _ToolDispatcher:
+    """Keep reading Live packets while a tool waits; Stop bypasses normal work.
+
+    Normal batches stay ordered. Observing Stop invalidates earlier intents
+    synchronously, and no more motion is accepted in that model turn. A later
+    user turn can request new work after a confirmed Stop; unknown outcomes
+    require reconnecting. Cancellation cannot retract an HTTP thread, so the
+    RobotBackend/server command epoch remains the transport fence.
+    """
+
+    def __init__(self, backend, session, response_type):
+        self.backend, self.session, self.response_type = backend, session, response_type
+        self.normal_lock = asyncio.Lock()
+        self.tasks = []
+        self.failure = asyncio.get_running_loop().create_future()
+        self.generation = self.pending_stops = 0
+        self.stopped_in_turn = self.paused = self.closed = self.needs_stop = False
+
+    def begin_turn(self):
+        self.stopped_in_turn = False
+
+    def submit(self, calls):
+        if self.closed:
+            return
+        calls = list(calls)
+        has_stop = any(fc.name == "stop" for fc in calls)
+        if has_stop:
+            self.generation += 1
+            self.pending_stops += 1
+            self.stopped_in_turn = True
+        task = asyncio.create_task(self._run(calls, self.generation, has_stop))
+        self.tasks.append(task)
+        task.add_done_callback(self._finished)
+
+    def _finished(self, task):
+        # A failed response send must also interrupt a stalled receive(), rather
+        # than leaving an unobserved background exception and an active queue.
+        if not task.cancelled() and (error := task.exception()) is not None and not self.failure.done():
+            self.failure.set_result(error)
+
+    async def _run(self, calls, generation, has_stop):
+        async def respond():
+            replies = []
+            ordered = sorted(calls, key=lambda fc: fc.name != "stop") if has_stop else calls
+            for fc in ordered:
+                if self.closed:
+                    return
+                args = dict(fc.args or {})
+                shown_args = "[redacted]" if fc.name == "unlock" else json.dumps(args)
+                print(f"  -> Gemini calls {fc.name}({shown_args})")
+                protected = fc.name not in ("stop", "robot_status")
+                if protected and has_stop:
+                    result = {"success": False, "message": "Not dispatched: Stop takes priority over other actions in this batch. No delayed Stop was scheduled."}
+                elif protected and (generation != self.generation or self.stopped_in_turn
+                                    or self.pending_stops or self.paused):
+                    result = {"success": False, "message": "Not dispatched: Stop superseded this turn, or an outcome is unknown. Ask again in a later turn after a confirmed Stop; reconnect if an outcome remains unknown."}
+                else:
+                    if fc.name != "robot_status":
+                        self.needs_stop = True
+                    try:
+                        result = await self.backend.call(fc.name, args)
+                    except Exception as exc:
+                        result = {"success": False, "outcome_unknown": fc.name != "robot_status",
+                                  "message": f"{type(exc).__name__}: {exc}"}
+                    if self.closed:
+                        return
+                    if protected and generation != self.generation:
+                        result = {"success": False, "superseded": True,
+                                  "outcome_unknown": result.get("outcome_unknown", result.get("success") is not False),
+                                  "message": "Stop superseded this request. Its late reply is not a new acceptance; check status for any earlier execution.",
+                                  "original_result": result}
+                    if result.get("outcome_unknown") or (result.get("command_epoch_required") is True
+                                                         and result.get("success") is False):
+                        self.paused = True
+                    if fc.name == "stop":
+                        if result.get("success") is not True:
+                            self.paused = True
+                        elif generation == self.generation:
+                            self.needs_stop = False
+                print(f"  <- reply Gemini hears now: {json.dumps(result)}")
+                if hasattr(self.backend, "after"):
+                    self.backend.after()
+                replies.append(self.response_type(id=fc.id, name=fc.name, response={"result": result}))
+            if not self.closed:
+                await self.session.send_tool_response(function_responses=replies)
+
+        try:
+            if has_stop:
+                await respond()
+            else:
+                async with self.normal_lock:
+                    await respond()
+        finally:
+            if has_stop:
+                self.pending_stops -= 1
+
+    async def drain(self):
+        # gather raises on one failed response without cancelling siblings.
+        # Retain unfinished tasks so close() still owns and cancels them.
+        tasks = list(self.tasks)
+        try:
+            if tasks:
+                await asyncio.gather(*tasks)
+        finally:
+            self.tasks = [task for task in self.tasks if not task.done()]
+
+    async def close(self):
+        self.closed = True
+        self.generation += 1
+        for task in self.tasks:
+            task.cancel()
+        await asyncio.gather(*self.tasks, return_exceptions=True)
+        self.tasks.clear()
+        if self.needs_stop:
+            # Best effort, bounded shutdown. A timeout is explicitly unknown;
+            # it never establishes that the robot physically stopped.
+            try:
+                result = await asyncio.wait_for(self.backend.call("stop", {}), timeout=5)
+                print(f"  <- connection cleanup Stop: {json.dumps(result)}")
+            except Exception as exc:
+                print(f"  <- connection cleanup Stop outcome unknown: {type(exc).__name__}: {exc}")
+
+
+async def _receive_turn(session, dispatcher):
+    said = False
+    async for msg in session.receive():
+        content = msg.server_content
+        if content and content.output_transcription and content.output_transcription.text:
+            if not said:
+                print("Pupper > ", end="")
+                said = True
+            print(content.output_transcription.text, end="", flush=True)
+        if msg.tool_call:
+            if said:
+                print()
+                said = False
+            dispatcher.submit(msg.tool_call.function_calls)
+        if content and content.turn_complete:
+            print("\n" if said else "")
+            break
+    await dispatcher.drain()
+
+
 async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO") -> None:
     try:
         from google import genai
@@ -268,42 +503,30 @@ async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO"
     client = genai.Client(api_key=api_key())
     async with client.aio.live.connect(model=model, config=config) as session:
         print(f"Connected to {model}, with {backend.name}. Type 'quit' to exit.\n")
-        while True:
-            user = (await asyncio.to_thread(input, "You > ")).strip()
-            if not user:
-                continue
-            if user.lower() in ("quit", "exit"):
-                break
-            await session.send_client_content(
-                turns=[types.Content(role="user", parts=[types.Part(text=user)])], turn_complete=True
-            )
-            said = False
-            async for msg in session.receive():
-                content = msg.server_content
-                if content and content.output_transcription and content.output_transcription.text:
-                    if not said:
-                        print("Pupper > ", end="")
-                        said = True
-                    print(content.output_transcription.text, end="", flush=True)
-                if msg.tool_call:  # Gemini wants a tool: run it, and send back what happened
-                    replies = []
-                    for fc in msg.tool_call.function_calls:
-                        args = dict(fc.args or {})
-                        shown_args = "[redacted]" if fc.name == "unlock" else json.dumps(args)
-                        print(("\n" if said else "") + f"  -> Gemini calls {fc.name}({shown_args})")
-                        said = False
-                        try:
-                            result = await backend.call(fc.name, args)
-                        except Exception as e:  # e.g. the robot server is not running
-                            result = {"success": False, "message": f"{type(e).__name__}: {e}"}
-                        print(f"  <- reply Gemini hears now: {json.dumps(result)}")
-                        if hasattr(backend, "after"):
-                            backend.after()
-                        replies.append(types.FunctionResponse(id=fc.id, name=fc.name, response={"result": result}))
-                    await session.send_tool_response(function_responses=replies)
-                if content and content.turn_complete:
-                    print("\n" if said else "")
+        dispatcher = _ToolDispatcher(backend, session, types.FunctionResponse)
+        try:
+            while True:
+                user = (await asyncio.to_thread(input, "You > ")).strip()
+                if not user:
+                    continue
+                if user.lower() in ("quit", "exit"):
                     break
+                dispatcher.begin_turn()
+                await session.send_client_content(
+                    turns=[types.Content(role="user", parts=[types.Part(text=user)])], turn_complete=True
+                )
+                receiver = asyncio.create_task(_receive_turn(session, dispatcher))
+                try:
+                    done, _ = await asyncio.wait((receiver, dispatcher.failure),
+                                                 return_when=asyncio.FIRST_COMPLETED)
+                    if dispatcher.failure in done:
+                        raise dispatcher.failure.result()
+                    await receiver
+                finally:
+                    receiver.cancel()
+                    await asyncio.gather(receiver, return_exceptions=True)
+        finally:
+            await dispatcher.close()
 
 
 def main() -> None:

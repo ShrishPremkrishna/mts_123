@@ -1,22 +1,93 @@
 import type { MoveCommand, SystemStatus } from "../types";
 import { robotBaseUrl } from "../constants";
 
+interface CommandState {
+  commandEpoch: string | null;
+  stopSerial: number;
+  pendingStops: number;
+  stopUnconfirmed: boolean;
+}
+// Manual controls and Live sessions may own distinct bridges for one server.
+// Stop fencing survives bridge replacement/reconnect in this page.
+const commandStates = new Map<string, CommandState>();
+
 // This service talks to the Python FastAPI backend running on the robot
 class RobotBridge {
   readonly baseUrl: string;
+  private readonly state: CommandState;
 
   constructor(baseUrl: string) {
-    this.baseUrl = robotBaseUrl(baseUrl);
+    // Canonicalize host casing/default ports while retaining API path prefixes.
+    this.baseUrl = new URL(robotBaseUrl(baseUrl)).toString().replace(/\/+$/, '');
+    const existing = commandStates.get(this.baseUrl);
+    this.state = existing ?? { commandEpoch: null, stopSerial: 0, pendingStops: 0, stopUnconfirmed: false };
+    if (!existing) commandStates.set(this.baseUrl, this.state);
   }
 
   private async request(endpoint: string, method: 'GET' | 'POST', body?: any, returnBlob: boolean = false) {
+    const path = endpoint.replace(/\/+$/, '');
+    const stopping = method === 'POST' && ['/stop/immediate', '/queue/stop', '/tools/stop'].includes(path);
+    if (stopping) {
+      // Invalidate synchronously, before any HTTP work. No old intent may adopt
+      // a newer epoch merely because its health request finishes after Stop.
+      const serial = ++this.state.stopSerial;
+      this.state.pendingStops += 1;
+      this.state.commandEpoch = null;
+      this.state.stopUnconfirmed = true;
+      try {
+        const result = await this.sendRequest(endpoint, method, body, returnBlob);
+        if (serial === this.state.stopSerial) {
+          this.state.stopUnconfirmed = !(result?.success === true && !result?.outcome_unknown
+            && result?.command_epoch_required === true && typeof result?.command_epoch === 'string' && result.command_epoch);
+        }
+        return result;
+      } finally { this.state.pendingStops -= 1; this.state.commandEpoch = null; }
+    }
+    if (method === 'GET' || path === '/tools/robot_status') {
+      // Unrelated late status responses never update the command epoch cache.
+      return this.sendRequest(endpoint, method, body, returnBlob);
+    }
+    const serial = this.state.stopSerial;
+    const refused = (message: string) => ({ success: false, outcome_unknown: false, not_dispatched: true, message });
+    if (this.state.pendingStops) return refused('Not dispatched: a Stop response is pending.');
+    if (this.state.stopUnconfirmed) return refused('Not dispatched: the previous Stop failed or its outcome is unknown. Use Stop again and confirm its response before new motion.');
+    let epoch = this.state.commandEpoch;
+    if (!epoch) {
+      const health = await this.sendRequest('/health', 'GET');
+      if (serial !== this.state.stopSerial || this.state.pendingStops) return refused('Not dispatched: Stop occurred while preparing this request.');
+      if (health?.command_epoch_required !== true || typeof health.command_epoch !== 'string' || !health.command_epoch) {
+        return refused('Not dispatched: server command epoch is unavailable. Check the updated server; no command was retried.');
+      }
+      // Concurrent preparation cannot replace a different already selected epoch.
+      if (this.state.commandEpoch && this.state.commandEpoch !== health.command_epoch) {
+        return refused('Not dispatched: command epoch changed while preparing this request.');
+      }
+      epoch = health.command_epoch;
+      this.state.commandEpoch = epoch;
+    }
+    if (serial !== this.state.stopSerial || this.state.pendingStops) return refused('Not dispatched: Stop occurred before this request was sent.');
+    const result = await this.sendRequest(endpoint, method, body, returnBlob, epoch);
+    if (serial !== this.state.stopSerial) {
+      return { success: false, outcome_unknown: !result?.not_dispatched, superseded: true,
+        message: result?.not_dispatched
+          ? 'Superseded by Stop; the server rejected this earlier request without dispatch.'
+          : 'Superseded by Stop. This earlier request may have executed before Stop; its late response is not a new acceptance.',
+        original_response: result };
+    }
+    if (result?.not_dispatched && result?.command_epoch_required === true) this.state.commandEpoch = null;
+    // Never retry a rejected motion or adopt the newer epoch from its response.
+    return result;
+  }
+
+  private async sendRequest(endpoint: string, method: 'GET' | 'POST', body?: any, returnBlob: boolean = false, epoch?: string) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     try {
       const options: RequestInit = {
         signal: controller.signal,
         method,
-        headers: body && method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+        headers: { ...(body && method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+          ...(epoch ? { 'X-Pupper-Command-Epoch': epoch } : {}) },
       };
 
       if (body && method === 'POST') {
@@ -26,6 +97,12 @@ class RobotBridge {
       const response = await fetch(`${this.baseUrl}${endpoint}`, options);
 
       if (!response.ok) {
+        if (method === 'POST' && [409, 428].includes(response.status)) {
+          const rejected = await response.json().catch(() => null);
+          if (rejected?.success === false && rejected?.command_epoch_required === true) {
+            return { ...rejected, outcome_unknown: false, not_dispatched: true };
+          }
+        }
         throw new Error(`robot server returned HTTP ${response.status} for ${endpoint}`);
       }
       

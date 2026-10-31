@@ -316,3 +316,36 @@ def test_locked_current_action_details_do_not_leak_hidden_trick_names():
         release.set()
         assert await rig.settle()
     run_case(case)
+
+
+def test_unlock_and_lock_report_their_commands_not_unmeasured_motion(tmp_path, monkeypatch):
+    import tool_registry
+    password = tmp_path / 'fake_secret'
+    password.write_text('offline-test-only')
+    monkeypatch.setenv('PUPPER_SECRET_FILE', str(password))
+    async def case(rig):
+        release = asyncio.Event()
+        async def running_command():
+            rig.ts.send_speed(.2, 0, 0)
+            try:
+                await release.wait()
+                return robot_api.Result(True, 'test command ended')
+            finally:
+                rig.ts.send_speed(0, 0, 0)
+        await rig.ts.queue('unrelated moving command', running_command, 1., then=robot_api.UNCHANGED)
+        for _ in range(3):
+            await asyncio.sleep(0)
+        assert rig.ts.status()['current_action']['name'] == 'unrelated moving command'
+        before = len(rig.robot.published)
+        unlocked = await tool_registry.call(rig.ts, 'unlock', {'password': 'offline-test-only'})
+        assert unlocked.ok and rig.ts.secret_gate.unlocked
+        assert 'No motion command was issued by unlock' in unlocked.message
+        assert 'Nothing moved' not in unlocked.message
+        locked = await tool_registry.call(rig.ts, 'lock_tricks', {})
+        assert locked.ok and not rig.ts.secret_gate.unlocked
+        assert 'No motion command was issued by lock' in locked.message
+        assert len(rig.robot.published) == before
+        assert rig.ts.status()['current_action']['name'] == 'unrelated moving command'
+        release.set()
+        assert await rig.settle()
+    run_case(case)

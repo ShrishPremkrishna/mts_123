@@ -84,8 +84,8 @@ async def stand_up_tool(robot: Robot) -> Result:
 
 @tool(
     "lie_down",
-    "Relax all motors so the robot lies down. Use when the user says sleep, relax"
-    " or lie down." + PREPARES_MOVE,
+    "Queue leg-controller deactivation when the user explicitly asks to sleep, relax"
+    " or lie down. Controller deactivation does not verify physical posture." + PREPARES_MOVE,
 )
 async def lie_down_tool(robot: Robot) -> Result:
     return await lie_down(robot)
@@ -94,8 +94,10 @@ async def lie_down_tool(robot: Robot) -> Result:
 @tool(
     "stop",
     "Cancel queued actions, end following and request zero walking speed immediately."
-    " Interrupt a playing trick by deactivating its controller; stand_up is then"
-    " required before another motion. The reply confirms commands, not physical"
+    " Interrupt a playing trick by deactivating its controller. On a later explicit"
+    " movement request, move/turn/arc prepare their controller automatically if readiness"
+    " checks pass; a clean Stop does not require a separate stand_up. A reported fall"
+    " still requires supervised recovery. The reply confirms commands, not physical"
     " stillness or posture. This is an interrupt, never a delayed final step."
     " Only report cancellation of a named action when a tool/status result confirms"
     " it; never invent cancellation of an unsubmitted action. Cleared queued-command"

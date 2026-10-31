@@ -38,10 +38,16 @@ class FollowerConfig:
     avoid_obstacles: bool
 
 
-def follower_config() -> FollowerConfig:
+def follower_mode() -> str:
+    """Validate capability selection without requiring physical inference assets."""
     mode = os.environ.get("PUPPER_FOLLOWER_MODE", "lab5").strip().lower()
     if mode not in ("lab5", "disabled", "legacy"):
         raise ValueError("PUPPER_FOLLOWER_MODE must be lab5, disabled or legacy")
+    return mode
+
+
+def follower_config() -> FollowerConfig:
+    mode = follower_mode()
     flags = {"always_detect": env_flag("FOLLOW_ALWAYS_DETECT"),
              "use_color": env_flag("FOLLOW_USE_COLOR"),
              "avoid_obstacles": env_flag("FOLLOW_AVOID_OBSTACLES")}

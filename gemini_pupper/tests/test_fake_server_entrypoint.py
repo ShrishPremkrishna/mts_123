@@ -39,7 +39,8 @@ fake_server.main(['--port', '8123'])
                             text=True, capture_output=True, timeout=15)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {"status": "running", "tools": False,
-                                       "runtime": "fake", "hardware_connected": False}
+                                       "runtime": "fake", "hardware_connected": False,
+                                       "command_epoch": None, "command_epoch_required": True}
 
 
 def test_fake_entrypoint_refuses_existing_runtime_instead_of_overwriting_it():
