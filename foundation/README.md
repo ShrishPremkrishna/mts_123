@@ -24,13 +24,20 @@ operational status; completed experiment reports retain their dated evidence.
 
 The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
 adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
-The [code-enforced feedback follow-up](results/workstream1-code-feedback-20261030.json)
-replaces default model narration with fixed client receipts after matching API
+The [combined conversation/control revision](results/workstream1-combined-conversation-20261031.json)
+restores natural conversation and all robot tools in one default session. A
+bounded turn buffer replaces tool-bearing narration with actual server receipts;
+ordinary conversation retains native speech after a best-effort English claim
+screen. Tool execution and Stop do not wait for speech. This adds conversational
+playback latency and cannot guarantee the truth of every tool-free utterance.
+Receipt-only output remains an optional diagnostic setting.
+The earlier [code-enforced feedback follow-up](results/workstream1-code-feedback-20261030.json)
+introduced fixed client receipts after matching API
 responses. “Queued” requires a typed marker after actual queue insertion;
 generic success supports only acceptance, never completion or physical state.
 Stale replies and Stop races cannot refresh current operator acknowledgments.
-Optional unverified conversation retains natural speech but blocks model movement
-and gate tools. The frozen candidate passes 660 Python, 166 course and 102 web
+That earlier version separated conversation from movement; the combined revision
+above supersedes that restriction. Its frozen candidate passed 660 Python, 166 course and 102 web
 checks; an independent 57-case corpus agrees across both clients. This is an
 undeployed output-boundary improvement, not a claim that Gemini's interpretation
 or the robot's physical execution is always correct.

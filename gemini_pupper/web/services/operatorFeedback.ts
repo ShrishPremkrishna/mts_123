@@ -1,7 +1,7 @@
 import type { OutputPolicy } from '../types';
 
 export function normalizeOutputPolicy(value: unknown): OutputPolicy {
-  return value === 'conversation' ? 'conversation' : 'receipts';
+  return value === undefined || value === 'conversation' ? 'conversation' : 'receipts';
 }
 const LABELS: Record<string, string> = Object.freeze({
   stand_up: 'stand', lie_down: 'leg relaxation', move: 'move', turn: 'turn', arc: 'arc', wait: 'wait',

@@ -155,9 +155,8 @@ run.onclick = async () => {
     let before = await service.robotBridge.getQueueStatus();
     check('fake_wait_pending_or_running', before.running === true || before.queued > 0);
 
-    // Separate explicit conversation session: unverified audio remains available,
-    // but model movement is locally blocked. The already queued fake wait is
-    // cancelled through the retained Stop tool below.
+    // Separate combined session: natural native output and bounded movement
+    // share one session. Tool turns use fixed server receipts.
     await service.disconnect();
     // Make fresh owned tracks from the still-active oscillator and canvas.
     const conversationDestination = sourceContext.createMediaStreamDestination();
@@ -196,11 +195,17 @@ run.onclick = async () => {
       check('conversation_fresh_video_ready_and_sent', receipt.conversation_video_ready.jpeg.width === 320
         && receipt.conversation_video_ready.jpeg.center_rgba[2] > 180);
     } finally { clearInterval(painting); }
-    check('conversation_advertises_only_stop_and_status', mock.setups.at(-1).tools[0].functionDeclarations.every((tool: any) => ['stop', 'robot_status'].includes(tool.name)));
-    const dispatchCount = dispatches.length;
-    for (const name of ['move', 'unlock']) await mock.emit({ toolCall: { functionCalls: [{ id: `conversation-${name}`, name, args: {} }] } });
-    check('conversation_blocks_movement_and_gate_calls', dispatches.length === dispatchCount
-      && mock.responses.slice(-2).every(r => r.functionResponses.response.result.not_dispatched === true));
+    const available = mock.setups.at(-1).tools[0].functionDeclarations.map((tool: any) => tool.name);
+    check('combined_conversation_and_robot_tools_available', ['move', 'stop', 'robot_status'].every(name => available.includes(name)));
+    await mock.emit({toolCall:{functionCalls:[{id:'combined-clear-wait',name:'stop',args:{}}]},serverContent:{turnComplete:true}});
+    const beforeMoveFeedback = feedback.length;
+    await mock.emit({toolCall:{functionCalls:[{id:'combined-move',name:'move',args:{direction:'forward',speed:0.2,duration:1.0}}]},
+      serverContent:{modelTurn:{parts:[{inlineData:{mimeType:'audio/wav',data:silenceWav()}}]},
+        outputTranscription:{text:'I finished moving.'},turnComplete:true}});
+    const moveReply = mock.responses.at(-1)?.functionResponses;
+    check('combined_move_accepted_with_fixed_receipt_in_same_session', moveReply?.id === 'combined-move'
+      && moveReply.response.result.success === true && feedback.length === beforeMoveFeedback + 1
+      && feedback.at(-1) === 'Server queued the move request. Completion is unconfirmed.');
 
     const originalDecode = AudioContext.prototype.decodeAudioData;
     let decodeEntered = false, nativeDecode: { sample_rate: number; frames: number } | null = null, release!: () => void;
@@ -215,7 +220,8 @@ run.onclick = async () => {
     };
     let audio: Promise<void> | null = null;
     try {
-      audio = mock.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/wav', data: silenceWav() } }] } } });
+      audio = mock.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/wav', data: silenceWav() } }] },
+        outputTranscription: { text: 'Hello! How is your day going?' }, turnComplete: true } });
       await until(() => decodeEntered, 'held native WAV decode');
       const start = performance.now();
       await mock.emit({ toolCall: { functionCalls: [{ id: 'rehearsal-stop', name: 'stop', args: {} }] } });
@@ -230,7 +236,7 @@ run.onclick = async () => {
     } finally {
       release(); releaseDecode = null;
       AudioContext.prototype.decodeAudioData = originalDecode;
-      if (audio) await audio;
+      if (audio) { await audio; await until(() => nativeDecode !== null, 'released native WAV decode'); }
     }
     receipt.native_wav_decode = nativeDecode;
     check('real_native_wav_decode_completed', nativeDecode !== null && nativeDecode.sample_rate === 24000

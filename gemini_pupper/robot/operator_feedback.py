@@ -1,4 +1,23 @@
-"""Closed operator wording. Model prose and raw server messages are never facts here."""
+"""Closed receipt wording plus best-effort English screening of tool-free chat."""
+import json
+from pathlib import Path
+import re
+import unicodedata
+
+CONVERSATION_GUARD = json.loads((Path(__file__).resolve().parent.parent / "conversation_guard.json").read_text())
+_CONVERSATION_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in CONVERSATION_GUARD["patterns"])
+CONVERSATION_BLOCKED = "No confirmed robot action in this reply; check server status."
+
+
+def normalize_conversation_text(text):
+    return " ".join(unicodedata.normalize("NFKC", text).replace("’", "'").replace("‘", "'").split())
+
+
+def conversation_claim_detected(text):
+    """A conservative English heuristic, never a universal semantic guarantee."""
+    normalized = normalize_conversation_text(text)
+    return any(pattern.search(normalized) for pattern in _CONVERSATION_PATTERNS)
+
 
 LABELS = {
     "stand_up": "stand", "lie_down": "leg relaxation", "move": "move",
@@ -9,7 +28,6 @@ LABELS = {
 }
 QUEUE_TOOLS = frozenset({"stand_up", "lie_down", "move", "turn", "arc", "wait",
                          "play_trick", "interactive_action"})
-CONVERSATION_TOOLS = frozenset({"robot_status", "stop"})
 
 
 def tool_label(name):

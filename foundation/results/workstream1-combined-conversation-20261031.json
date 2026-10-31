@@ -1,0 +1,133 @@
+{
+  "schema": "pupper_combined_conversation_v1",
+  "updated_utc": "2026-10-31T20:02:43.067805+00:00",
+  "base_commit": "a6f4fd7e647c556d3f55cc1a2ee5fb57d3b40425",
+  "verdict": "Combined conversation/control implemented, independently reviewed and tested without the physical robot; undeployed candidate.",
+  "user_correction": "Natural conversation and movement must remain in the same mode. The previous conversation/movement split is superseded; receipt-only remains optional diagnostics.",
+  "scope": "No SSH, real robot, motor commands or physical media capture. Two bounded actual-Gemini text sessions used fake ROS. Chrome used synthetic streams, mock Google and localhost fake API. Existing key read privately for those cloud probes; no account or permission changes.",
+  "contract": {
+    "default": "All robot tools plus natural conversation in one connection. Missing/new settings select conversation; explicit saved receipt-only preserved; invalid mode selects receipt-only. Local fake app was switched through its UI to combined mode. Pi settings unchanged.",
+    "hard_boundary": "Model audio/text/speech aliases buffered synchronously before any tool await. Any robot-tool-bearing turn discards model narration. Matched current API replies alone generate fixed receipts; queued requires actual insertion marker. Tools and Stop dispatch immediately, independently of speech.",
+    "conversation": "Tool-free turns release native audio after turnComplete with nonempty available output transcript; text/aliases use the same screening boundary. English claim heuristics screen exact assembled text. This is not a semantic truth or audio/transcript alignment guarantee.",
+    "stale_output": "Interruption, Stop, cancellation, disconnect and overflow drop buffered output and retain a dropped-turn marker until boundary, preventing stale tails from playing. A later legitimate conversation can resume without reconnecting.",
+    "bounds": {
+      "browser_max_bytes": 2097152,
+      "max_items": 256,
+      "max_text_characters": 16000,
+      "browser_output_timer_s": 20,
+      "cli": "20-second output expiry checked on incoming content, not a receive/network timeout."
+    },
+    "speech": "Code-owned receipts and known-claim fallback use bounded local WebSpeech; model native voice remains for eligible conversation. Tool execution does not await either speech path.",
+    "cli": "Combined default; --conversation alias retained; --receipts-only diagnostics suppress model narration. Thought-marked model parts excluded from operator text."
+  },
+  "validation": {
+    "python": 702,
+    "course": 166,
+    "web": 122,
+    "typecheck": "PASS",
+    "production_build": "PASS (existing large-chunk advisory only)",
+    "full_run_sources_unchanged": true,
+    "receipt": "artifacts/access/ws1-combined-20261031/validation/ws1-combined-validation/receipt.json",
+    "independent_review": {
+      "verdict": "No remaining blocking lifecycle finding within the inspected turn-gate scope. Deterministic receipt provenance is separate from heuristic no-tool screening.",
+      "sources": {
+        "gemini_pupper/conversation_guard.json": "24290762a7de37762958d3ba2a0265c381049872f20ebc9c41f1658aee5c301a",
+        "gemini_pupper/robot/gemini_chat.py": "3f0d5edd52f934518f22deaf9dd50c9e96dea4ae38bf99e9981845ea82b23872",
+        "gemini_pupper/robot/operator_feedback.py": "fda24c94df63d5a04b62a8f4260a2f3ad0d57f5742aa52d723d7b283b210705b",
+        "gemini_pupper/tests/test_combined_conversation.py": "a2fcc2014579e53dc9e8e8d04c00a6fff263a5515dd1a8cc91d81e6aac898fd7",
+        "gemini_pupper/web/services/conversationOutput.ts": "19bbb17672d4fc3a3ac62ebdf05fefb8372aac43d533bb4029ed47f774f7520f",
+        "gemini_pupper/web/services/geminiLive.ts": "8220790b9ceeef04da99d5dc21c4ea9884a819d4974497c08c21de542359abbd",
+        "gemini_pupper/web/services/operatorFeedback.ts": "fb48669109b2a9f119c563617f5133125cdb2c5c2808c288eeee77d446f38bf5",
+        "gemini_pupper/web/tests/conversation-gate.test.mjs": "de56459e3cff042d9791ee01aa519eb27724c71f866d68082ff5ab24091095e3",
+        "gemini_pupper/web/tests/output-policy.test.mjs": "fc5ac448541770b3fb6ca5d8b41c3dbd6c397227d63d19ff7bbc6af71d4ebb56"
+      },
+      "shared_python_typescript_examples": 28,
+      "receipt": "artifacts/access/ws1-combined-20261031/evidence/ws1-hybrid-output-peer-review.json"
+    },
+    "browser": {
+      "checks": {
+        "initialized_fake_api": true,
+        "real_webaudio_capture_encoded_nonzero_pcm": true,
+        "synthetic_browser_video_is_decodable_red_jpeg": true,
+        "changed_canvas_frame_reaches_production_video_path": true,
+        "strict_no_tool_and_speech_alias_output_suppressed": true,
+        "strict_no_acceptance_before_http_reply": true,
+        "strict_fixed_receipt_after_actual_http_reply": true,
+        "fake_wait_accepted": true,
+        "fake_wait_pending_or_running": true,
+        "conversation_fresh_video_ready_and_sent": true,
+        "combined_conversation_and_robot_tools_available": true,
+        "combined_move_accepted_with_fixed_receipt_in_same_session": true,
+        "stop_reply_before_audio_decode_release": true,
+        "fake_queue_cancelled": true,
+        "typed_stop_lifecycle_balanced": true,
+        "real_native_wav_decode_completed": true,
+        "video_stops_and_late_conversion_never_sends_after_disconnect": true,
+        "synthetic_video_tracks_ended": true,
+        "synthetic_capture_stopped_after_disconnect": true,
+        "owned_tracks_ended": true,
+        "mock_sdk_closed": true
+      },
+      "result": "PASS",
+      "fake_stop_callback_to_reply_ms": 106.5,
+      "scope": "Synthetic audio/video and fake API only. Stop while native WAV decoding held; one combined session accepted move and later native conversation. No cloud speech recognition or acoustic/hardware proof.",
+      "receipt": "artifacts/access/ws1-combined-20261031/evidence/ws1-combined-browser-pass.json"
+    },
+    "actual_gemini": {
+      "model": "gemini-3.1-flash-live-preview",
+      "thinking": "HIGH",
+      "first_session": "Greeting, 0.1m/s move refusal, joke, Stop, deliberately requested false queue claim screened, FIFO explanation retained. Same connection. Refusal matched existing minimum0.2m/s; no limits changed.",
+      "second_session": "Greeting, accepted0.2m/s move with queued marker, joke, successful cleanup Stop. Same connection.",
+      "receipts": [
+        "artifacts/access/ws1-combined-20261031/evidence/ws1-combined-live.json",
+        "artifacts/access/ws1-combined-20261031/evidence/ws1-combined-live-accepted.json"
+      ],
+      "input_to_displayed_conversation_s": [
+        5.623,
+        5.291,
+        12.809,
+        3.31,
+        5.203
+      ],
+      "timing_limit": "Five text-input samples including cloud generation and turn buffering; no paired baseline, no causal attribution or latency bound. Not microphone-to-acoustic playback."
+    }
+  },
+  "fixed_review_findings": [
+    "Interrupted/cancelled initial packet could create and release a new buffer; now retains dropped marker.",
+    "Split text screened with inserted spaces differed from displayed concatenation; now exact assembly is screened.",
+    "Repeated Stop invalidation after same-packet turnComplete could suppress next legitimate turn; boundary handling corrected.",
+    "Blanket queued/scheduled words blocked ordinary queue explanations; patterns narrowed and benign shared fixtures added.",
+    "Playback errors handled without unhandled rejection or speculative fallback."
+  ],
+  "evidence_notes": [
+    "First live probe source overlays preserved separately because shared screening and thought-part exclusion were subsequently refined.",
+    "An intermediate CLI83-check receipt retains an old focused-log hash whose reused filename was overwritten; do not claim that intermediate log is still independently verifiable. Final88-check log and full702-check frozen run are immutable evidence."
+  ],
+  "limits": [
+    "A tool-free paraphrase, another language, implied or cross-turn claim may evade screening. Quotes or explanations may be blocked.",
+    "Nonempty output transcript does not prove complete correspondence with native audio. Only available text is screened.",
+    "Whole-turn buffering adds conversational playback latency and omits conversational content mixed into a robot-tool turn.",
+    "No new terminal completion, physical pose, stopping or user-intent proof. No policy promotion or changed gains/limits.",
+    "Real browser microphone/Gemini/speaker integration and physical robot behavior remain untested for this candidate."
+  ],
+  "api_reference": {
+    "url": "https://ai.google.dev/api/live",
+    "accessed_date": "2026-10-31",
+    "use": "Output transcription and audio lack exact chunk ordering; wait for turnComplete rather than transcription.finished or streaming chunk alignment."
+  },
+  "archive": {
+    "local": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-combined-20261031",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-31/ws1-combined",
+    "files": 66,
+    "bytes": 107496493,
+    "manifest_sha256": "e6200c90a3a23fd0d4e0f2084f8ad859dac2e18fcebc1c63c16e7d5c4a5b7d97",
+    "candidate_sha256": "ce2f25be5b1518946a9231058a1fab2abfa7521de25068f81c030470af4118fc",
+    "candidate_files": 225,
+    "verified_both": true
+  },
+  "active_owned_work": [],
+  "next": [
+    "Reconcile teammate changes and deploy this reviewed Python/web/CLI candidate together, including conversation_guard.json.",
+    "Use the persistent supervised robot session to verify real microphone, natural voice playback latency, actual receipt audibility, intent, direct Stop and physical actions. No automatic homing on reconnect."
+  ]
+}

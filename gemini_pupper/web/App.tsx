@@ -266,7 +266,7 @@ const App: React.FC = () => {
       <div role="status" className="shrink-0 px-3 py-2 text-xs bg-gray-900 text-amber-200">
         {(geminiRef.current?.outputPolicy ?? normalizeOutputPolicy(config.outputPolicy)) === 'receipts'
           ? 'Receipt-only control — model narration is muted. Feedback describes server responses, not observed motion.'
-          : 'UNVERIFIED CONVERSATION — speech and vision descriptions may be wrong. Model movement/gate tools are disabled; manual controls and Stop remain available.'}
+          : 'Conversation + control — native speech waits for a complete turn. Tool turns use server receipts; other speech and vision descriptions remain unverified.'}
         {logs.filter(entry => entry.type === 'receipt').at(-1)?.message && <div aria-live="polite">
           Latest response: {logs.filter(entry => entry.type === 'receipt').at(-1)?.message}
         </div>}

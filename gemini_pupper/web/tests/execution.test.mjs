@@ -370,7 +370,8 @@ test('all native audio parts are played, not only the first', async () => {
   s.playAudioBase64 = async audio => seen.push(audio);
   await s.handleMessage({ serverContent: { modelTurn: { parts: [
     { text: 'speech' }, { inlineData: { data: 'first' } }, { inlineData: { data: 'second' } }
-  ] } } });
+  ] }, outputTranscription: {text: 'Hello there'}, turnComplete: true } });
+  await new Promise(r => setImmediate(r));
   assert.deepEqual(seen, ['first', 'second']);
 });
 
@@ -560,7 +561,7 @@ test('timing separates incoming Stop dispatch from a prior blocked audio handler
   s.onTiming = event => timing.push(event);
   s.playAudioBase64 = () => audio.promise;
   s.robotBridge.callTool = async name => { calls.push(name); return { success: true, message: 'zero requested' }; };
-  const playing = s.handleMessage({ serverContent: { modelTurn: { parts: [{ inlineData: { data: 'synthetic' } }] } } });
+  const playing = s.handleMessage({ serverContent: { modelTurn: { parts: [{ inlineData: { data: 'synthetic' } }] }, outputTranscription: {text: 'Hello there'}, turnComplete: true } });
   await s.handleMessage({ toolCall: { functionCalls: [{ id: 'timed-stop', name: 'stop', args: {} }] } });
   assert.deepEqual(calls, ['stop']);
   const start = timing.find(e => e.phase === 'output_audio_handle_start');
@@ -570,7 +571,7 @@ test('timing separates incoming Stop dispatch from a prior blocked audio handler
   assert.ok(start.atMs <= received.atMs && received.atMs <= sent.atMs && sent.atMs <= replied.atMs);
   assert.equal(sent.metadata.message_sequence, received.metadata.message_sequence);
   assert.equal(timing.some(e => e.phase === 'output_audio_handle_return'), false);
-  audio.resolve(); await playing;
+  audio.resolve(); await playing; await new Promise(r => setImmediate(r));
   assert.ok(timing.find(e => e.phase === 'output_audio_handle_return').atMs >= replied.atMs);
 });
 
@@ -712,13 +713,14 @@ test('camera failure arriving after disconnect emits neither a frame nor availab
 });
 
 
-test('conversation advertises only status/Stop and freezes policy before connect', async t => {
+test('conversation advertises all robot tools and freezes policy before connect', async t => {
   let setup;
   const env = mediaEnvironment(t, async request => { setup = request; request.callbacks.onopen(); return {close(){}}; }, undefined, 'conversation');
   env.s.robotBridge.getTools = async()=>({tools:['stand_up','move','unlock','lock_tricks','play_trick','follow','stop','robot_status'].map(name=>({name}))});
   env.config.outputPolicy = 'receipts'; // Mutating settings cannot widen an existing session.
   await env.s.connect('test',env.config,{});
-  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['stop','robot_status']);
+  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['stand_up','move','unlock','lock_tricks','play_trick','follow','stop','robot_status']);
+  assert.deepEqual(setup.config.outputAudioTranscription, {});
   assert.equal(env.s.outputPolicy,'conversation');
 });
 

@@ -55,11 +55,30 @@ voice-controlled behavior remain pending; see the
 
 ## Operator feedback modes
 
-The default **verified control** mode accepts Gemini tool requests but suppresses
-all free-form model text, audio and output transcription, including `speak`, `say`
-and `narrate`. Only fixed client wording from the matching API reply is displayed
-and, when available, spoken using local browser speech synthesis. It does not use
-generative TTS for these receipts. A receipt never establishes physical success.
+**Conversation + control** keeps natural conversation and the complete robot tool
+catalog in one session. The client holds model speech/text until the model turn
+ends. If a robot tool appeared in that turn, it discards the model narration and
+uses fixed wording from the matching API reply instead. Tool dispatch and Stop
+do not wait for buffered speech. A later conversational turn can play normally
+while a previously accepted robot job continues; no mode switch is required.
+
+Tool-free conversation retains Gemini's native voice after the complete-turn
+check. Known English action-claim patterns are screened using the shared
+`conversation_guard.json`; suspicious replies get a fixed unconfirmed-action
+notice. This screening is a heuristic, with possible false positives and missed
+paraphrases or languages. A transcript is not proof that every spoken word agrees
+with it. **The hard guarantee covers tool-turn narration and receipt provenance,
+not the truth of unrestricted conversation.**
+
+Buffering adds playback latency and discards mixed conversation/action narration
+within a tool-bearing turn. Missing transcripts, incomplete/oversized turns and
+cancelled output are discarded rather than released speculatively. Direct Stop
+remains independent. The explicit **receipt-only** diagnostic mode still mutes
+all model narration. Previously saved explicit receipt-only settings remain
+selected until changed while disconnected.
+
+Fixed receipts use local browser speech synthesis, never generative TTS. They do
+not establish physical success:
 
 - A successful reply without explicit submission evidence says **“Server accepted
   the … request. Completion is unconfirmed.”**
@@ -71,19 +90,13 @@ generative TTS for these receipts. A receipt never establishes physical success.
   distinct wording. A failure does not prove that no earlier effects occurred.
   Stop acceptance explicitly leaves physical stopping unverified.
 
-The optional **conversation (unverified)** mode preserves model speech and vision
-conversation but exposes and locally permits only Stop and status robot tools.
-Model movement and gate changes are blocked even if the model invents such a call.
-Manual controls remain available. Settings require disconnecting to change mode;
-unknown or missing saved mode values select verified control. Conversation claims
-are unverified even when they sound like factual action acknowledgments.
-
-The terminal diagnostic has the same default; use `--conversation` explicitly
-for unverified model text with model movement disabled. Diagnostic output is
-separate from the fixed operator feedback. No prompt wording is relied on to
-enforce either boundary. These controls prevent unsupported model claims reaching
-the operator in verified mode; they do not establish that a selected tool matches
-the user's intent or that hardware performed it. Keep direct Stop and R3 available.
+The terminal diagnostic uses the same combined default; `--receipts-only` mutes
+model conversation, and `--conversation` remains an explicit alias for the default.
+Raw diagnostic output is separately labeled. Settings require disconnecting to
+change mode; missing settings choose combined conversation, while invalid mode
+values choose receipt-only. No prompt compliance is needed for tool-turn muting
+or receipt timing. Tool selection can still misinterpret user intent, and hardware
+performance remains a separate observation. Keep direct Stop and R3 available.
 
 ## Offline checks
 

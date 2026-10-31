@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Talk to Gemini in text, and watch every tool call it makes.
 
-A text diagnostic for Gemini Live: no browser or microphone. By default only
-receipt-based operator feedback is printed; arbitrary model prose is suppressed.
-Use --conversation for labeled unverified prose with only Stop/status tools.
+A text diagnostic for Gemini Live: no browser or microphone. Conversation and
+all robot tools share one session. Tool-bearing turns use only server receipts;
+completed tool-free conversation passes a conservative English claim screen
+that is not a semantic truth guarantee. --receipts-only mutes all model prose.
 You type, Gemini
 answers and calls tools, and this script runs each call and sends the reply
 back through the same tool API used by the web app. A received model Stop can
@@ -52,7 +53,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-from operator_feedback import CONVERSATION_TOOLS, receipt_feedback, sending_feedback
+from operator_feedback import CONVERSATION_BLOCKED, conversation_claim_detected, receipt_feedback, sending_feedback
 
 HERE = Path(__file__).resolve().parent
 KEY_FILE = Path.home() / ".config" / "gemini-pupper" / "api_key"
@@ -338,7 +339,7 @@ def show(prompt: str, tools: list[dict], full: bool) -> None:
         print("Tool definitions loaded. --show displays diagnostic configuration, not execution evidence.")
 
 
-async def chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO", conversation: bool = False) -> None:
+async def chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO", conversation: bool = True) -> None:
     try:
         await _chat(backend, model, full, thinking_level=thinking_level, conversation=conversation)
     finally:
@@ -356,7 +357,7 @@ class _ToolDispatcher:
     RobotBackend/server command epoch remains the transport fence.
     """
 
-    def __init__(self, backend, session, response_type, *, conversation=False, diagnostics=False):
+    def __init__(self, backend, session, response_type, *, conversation=True, diagnostics=False):
         self.backend, self.session, self.response_type = backend, session, response_type
         self.conversation, self.diagnostics = bool(conversation), bool(diagnostics)
         self.turn_calls = 0
@@ -403,9 +404,7 @@ class _ToolDispatcher:
                     print(f"DIAGNOSTIC model tool request: {fc.name}({shown_args})")
                 dispatched = False
                 protected = fc.name not in ("stop", "robot_status")
-                if self.conversation and fc.name not in CONVERSATION_TOOLS:
-                    result = {"success": False, "message": "Not dispatched: conversation permits only Stop and status."}
-                elif protected and has_stop:
+                if protected and has_stop:
                     result = {"success": False, "message": "Not dispatched: Stop takes priority over other actions in this batch. No delayed Stop was scheduled."}
                 elif protected and (generation != self.generation or self.stopped_in_turn
                                     or self.pending_stops or self.paused):
@@ -485,28 +484,60 @@ class _ToolDispatcher:
 
 
 async def _receive_turn(session, dispatcher):
-    said = False
+    # Buffer output synchronously before any tool awaits. A later tool in the
+    # same response invalidates all narration, including an earlier "queued".
+    transcript, text_parts = [], []
+    characters = chunks = 0
+    complete = interrupted = overflow = False
+    # Expiry is checked on incoming content; this is not a receive timeout.
+    deadline = asyncio.get_running_loop().time() + 20
     async for msg in session.receive():
         content = msg.server_content
-        if dispatcher.conversation and content and content.output_transcription and content.output_transcription.text:
-            if not said:
-                print("Unverified conversation > ", end="")
-                said = True
-            print(content.output_transcription.text.replace("\n", "\nUnverified conversation > "), end="", flush=True)
+        if content:
+            interrupted = interrupted or bool(getattr(content, "interrupted", False))
+            if asyncio.get_running_loop().time() > deadline:
+                overflow = True
+            transcription = getattr(getattr(content, "output_transcription", None), "text", None)
+            model_turn = getattr(content, "model_turn", None)
+            incoming = [(transcript, transcription)] + [(text_parts, getattr(part, "text", None))
+                for part in (getattr(model_turn, "parts", None) or []) if not getattr(part, "thought", False)]
+            for target, text in incoming:
+                if not isinstance(text, str) or not text:
+                    continue
+                characters += len(text)
+                chunks += 1
+                if characters > 16000 or chunks > 256:
+                    overflow = True
+                if dispatcher.conversation and not (overflow or interrupted):
+                    target.append(text)
+            if overflow or interrupted:
+                transcript.clear()
+                text_parts.clear()
         if msg.tool_call:
-            if said:
-                print()
-                said = False
             dispatcher.submit(msg.tool_call.function_calls)
-        if content and content.turn_complete:
-            print("\n" if said else "")
+            transcript.clear()
+            text_parts.clear()
+        if content and getattr(content, "turn_complete", False):
+            complete = True
             break
+    # Pending requests still get their own receipts. Completing a model turn
+    # cannot cause narration to escape while a backend request remains pending.
     await dispatcher.drain()
-    if not dispatcher.conversation and dispatcher.turn_calls == 0:
-        print("This voice turn submitted no robot commands.")
+    if not dispatcher.conversation or dispatcher.turn_calls:
+        return
+    if not complete or interrupted or overflow:
+        print("Conversation output withheld: response incomplete, interrupted or over its buffer limit.")
+        return
+    text = "".join(transcript or text_parts).strip()
+    if not text:
+        return
+    if conversation_claim_detected(text):
+        print(CONVERSATION_BLOCKED)
+    else:
+        print("Pupper > " + text.replace("\n", "\nPupper > "))
 
 
-async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO", conversation: bool = False) -> None:
+async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO", conversation: bool = True) -> None:
     try:
         from google import genai
         from google.genai import types
@@ -517,9 +548,7 @@ async def _chat(backend, model: str, full: bool, *, thinking_level: str = "AUTO"
     prompt, tools = backend.setup()
     if isinstance(backend, DeskBackend):
         backend.diagnostic_output = full
-    if conversation:
-        tools = [tool for tool in tools if tool.get("name") in CONVERSATION_TOOLS]
-    print("UNVERIFIED CONVERSATION: only Stop/status tools are available." if conversation
+    print("CONVERSATION + CONTROL: all tools remain available. Tool replies use server receipts; other conversation is screened, not verified." if conversation
           else "RECEIPT-ONLY CONTROL: model narration is suppressed; confirmations are API evidence, not physical proof.")
     show(prompt, tools, full)
     config = types.LiveConnectConfig(
@@ -568,7 +597,9 @@ def main() -> None:
     mode.add_argument("--robot", nargs="?", const="http://localhost:8000", metavar="URL",
                       help="your tools on the real robot server (default http://localhost:8000)")
     ap.add_argument("--show", action="store_true", help="show clearly labeled raw diagnostic configuration and tool replies")
-    ap.add_argument("--conversation", action="store_true", help="show labeled unverified model prose; advertise and allow only Stop/status, never movement or gate changes")
+    output = ap.add_mutually_exclusive_group()
+    output.add_argument("--conversation", action="store_true", help="conversation and full robot tools in one session (the default)")
+    output.add_argument("--receipts-only", action="store_true", help="diagnostic strict output: suppress all model prose, retain all robot tools")
     ap.add_argument("--model", default=MODEL, help=f"Gemini Live model (default {MODEL})")
     ap.add_argument("--thinking-level", type=str.upper, choices=THINKING_LEVELS, default="AUTO",
                     help="AUTO uses HIGH for Gemini 3.1 Flash Live and leaves other models unchanged; "
@@ -578,7 +609,9 @@ def main() -> None:
     backend = RobotBackend(args.robot) if args.robot else DeskBackend(realtime=args.realtime)
     try:
         options = {"thinking_level": args.thinking_level}
-        if args.conversation:
+        if args.receipts_only:
+            options["conversation"] = False
+        elif args.conversation:
             options["conversation"] = True
         asyncio.run(chat(backend, args.model, args.show, **options))
     except (KeyboardInterrupt, EOFError):

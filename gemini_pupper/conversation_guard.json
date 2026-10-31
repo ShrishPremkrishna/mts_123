@@ -1,0 +1,128 @@
+{
+  "purpose": "Best-effort English screening of tool-free conversation, not a semantic truth guarantee. Tool-bearing turns use only server receipts regardless of this filter.",
+  "patterns": [
+    "\\b(?:all set|all done|job done|mission accomplished|taken care of|carried out|on my way|heading your way)\\b",
+    "^\\s*(?:queued|enqueued|scheduled|executed|completed|done|finished|stopped|standing|sitting|moving|walking|turning|sent|submitted|accepted|underway)[.! ]*$",
+    "\\b(?:i|we|pupper|the robot|robot)\\s+(?:(?:have|has|had|'ve|'d)\\s+)?(?:(?:already|just|now|successfully|finally)\\s+)*(?:queued|enqueued|scheduled|executed|completed|moved|walked|turned|stood|sat|stopped|finished|sent|submitted|accepted|started|begun|began|performed|did|ran|jumped|shook|followed|relaxed|unlocked|locked|activated|deactivated)\\b",
+    "\\b(?:i've|we've|i'd|we'd)\\s+(?:(?:already|just|now|successfully)\\s+)*(?:queued|enqueued|scheduled|executed|completed|moved|walked|turned|stood|sat|stopped|finished|sent|submitted|accepted|started|begun|performed|done|run|jumped|shaken|followed|relaxed|unlocked|locked|activated|deactivated)\\b",
+    "\\b(?:i am|i'm|i have been|i've been|we are|we're|we have been|we've been|pupper is|the robot is|robot is)\\s+(?:(?:already|just|now|still|currently|successfully|safely|fully)\\s+)*(?:standing|sitting|moving|walking|turning|stopped|motionless|running|following|jumping|shaking|resting|lying|ready to move|in position|at rest)\\b",
+    "\\b(?:the |your |that |this )?(?:command|request|action|movement|motion|move|walk|turn|trick|routine|sequence|plan)\\s+(?:is|was|has been|has|got|went)\\s+(?:(?:already|just|now|successfully)\\s+)*(?:queued|enqueued|scheduled|executed|completed|accepted|sent|submitted|started|underway|done|complete|finished|successful|well|perfectly|through)\\b",
+    "\\b(?:i|i've|we|we've)\\s+(?:have |had |got |just |already )*(?:that|it|everything|your request|the request)\\s+(?:all )?(?:lined up|in the queue|under control|handled|sorted|ready|done)\\b",
+    "\\b(?:that|it|the movement|the action)\\s+(?:went|worked|finished|ended)\\s+(?:well|perfectly|successfully|smoothly|safely)\\b",
+    "\\b(?:queued|enqueued|scheduled|executed|completed)\\s+(?:it|that|this|your request|the request|the move|the action|the trick)\\b"
+  ],
+  "examples": [
+    {
+      "text": "I've queued the sit-and-stay.",
+      "blocked": true
+    },
+    {
+      "text": "I already submitted your request.",
+      "blocked": true
+    },
+    {
+      "text": "I'm standing now.",
+      "blocked": true
+    },
+    {
+      "text": "I\u2019ve just stopped.",
+      "blocked": true
+    },
+    {
+      "text": "Done!",
+      "blocked": true
+    },
+    {
+      "text": "All set\u2014let's do it.",
+      "blocked": true
+    },
+    {
+      "text": "The request was accepted.",
+      "blocked": true
+    },
+    {
+      "text": "Your command has been sent.",
+      "blocked": true
+    },
+    {
+      "text": "I have that all lined up.",
+      "blocked": true
+    },
+    {
+      "text": "The robot is currently moving.",
+      "blocked": true
+    },
+    {
+      "text": "That went perfectly.",
+      "blocked": true
+    },
+    {
+      "text": "Hello! How is your day going?",
+      "blocked": false
+    },
+    {
+      "text": "A queue processes items in first-in, first-out order.",
+      "blocked": false
+    },
+    {
+      "text": "I can walk when you ask me to.",
+      "blocked": false
+    },
+    {
+      "text": "I like long walks and terrible dog jokes.",
+      "blocked": false
+    },
+    {
+      "text": "What would you like to talk about?",
+      "blocked": false
+    },
+    {
+      "text": "Paris is the capital of France.",
+      "blocked": false
+    },
+    {
+      "text": "I see a red circle beside a blue square.",
+      "blocked": false
+    },
+    {
+      "text": "I don't know whether the robot actually moved.",
+      "blocked": false
+    },
+    {
+      "text": "I would stop if you asked me to.",
+      "blocked": false
+    },
+    {
+      "text": "Your movement is complete.",
+      "blocked": true
+    },
+    {
+      "text": "I have been standing here.",
+      "blocked": true
+    },
+    {
+      "text": "The robot is motionless.",
+      "blocked": true
+    },
+    {
+      "text": "I have been thinking about your question.",
+      "blocked": false
+    },
+    {
+      "text": "Tasks are queued in FIFO order.",
+      "blocked": false
+    },
+    {
+      "text": "A scheduled task runs at a specified time.",
+      "blocked": false
+    },
+    {
+      "text": "Queued!",
+      "blocked": true
+    },
+    {
+      "text": "The action was completed.",
+      "blocked": true
+    }
+  ]
+}

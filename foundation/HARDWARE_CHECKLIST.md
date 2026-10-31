@@ -24,11 +24,12 @@ seconds old by ROS receipt time; the browser logs availability transitions. This
 cannot prove exposure freshness or erase prior images from the model context.
 These checks do not establish balance or physical stopping.
 
-The new default verified-control mode mutes model-generated acknowledgments and
-speaks fixed server receipts locally. Queue wording requires the server's typed
-submission marker; completion and physical state remain unconfirmed. Rehearse
-this mode first after integration. Optional conversation is explicitly unverified
-and cannot issue model movement or gate changes; direct controls still work. See
+The combined conversation/control mode keeps speech and robot tools together.
+Tool-bearing turns use fixed server receipts; ordinary conversation plays after
+the turn boundary. Queue wording requires the typed submission marker;
+completion and physical state remain unconfirmed. No-tool claim screening is
+best-effort, not universal truth verification. Check normal speech and movement
+in the same session, plus receipt audibility and prompt direct Stop. See
 [the mode contract](../gemini_pupper/docs/foundation.md#operator-feedback-modes).
 
 1. Inventory teammate changes before integrating the final Python, UI and selected

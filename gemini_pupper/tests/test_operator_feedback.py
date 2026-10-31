@@ -22,7 +22,7 @@ def test_default_suppresses_split_no_tool_acceptance_claims(monkeypatch, capsys)
     asyncio.run(actual_chat(monkeypatch, fake(call), script))
     out=capsys.readouterr().out
     assert 'queued the move' not in out and 'standing still' not in out
-    assert 'This voice turn submitted no robot commands.' in out
+    assert 'No confirmed robot action in this reply; check server status.' in out
 
 
 def test_claim_before_rejection_never_becomes_operator_acceptance(monkeypatch, capsys):
@@ -97,7 +97,7 @@ def test_stop_invalidates_old_feedback_even_when_old_backend_returns_success(cap
     assert 'RAW_OLD_ACCEPTANCE' not in out
 
 
-def test_conversation_locally_blocks_unadvertised_motion_and_unlock(capsys):
+def test_conversation_retains_full_tool_dispatch(capsys):
     async def check():
         calls=[]
         async def call(name,_args):calls.append(name);return {'success':True}
@@ -105,9 +105,9 @@ def test_conversation_locally_blocks_unadvertised_motion_and_unlock(capsys):
         d=gc._ToolDispatcher(fake(call),SimpleNamespace(send_tool_response=send),SimpleNamespace,conversation=True)
         d.submit(packet('move','unlock','robot_status').tool_call.function_calls)
         await d.drain();await d.close()
-        assert calls==['robot_status']
+        assert calls==['move','unlock','robot_status','stop']
     asyncio.run(check());out=capsys.readouterr().out
-    assert 'The move request was not dispatched.' in out and 'The unlock request was not dispatched.' in out
+    assert 'Server accepted the move request.' in out and 'Server accepted the unlock request.' in out
 
 
 def test_non_dispatch_marker_overrides_queued_even_with_success():
@@ -119,7 +119,7 @@ def test_non_dispatch_marker_overrides_queued_even_with_success():
     assert receipt_feedback("move", r) == "The move response is unknown. Check server status and the robot."
 
 
-def test_actual_conversation_config_filters_tools_and_labels_prose(monkeypatch, capsys):
+def test_actual_conversation_config_keeps_tools_but_discards_tool_turn_prose(monkeypatch, capsys):
     from google import genai
     from contextlib import asynccontextmanager
     seen, called, replies = [], [], []
@@ -143,13 +143,12 @@ def test_actual_conversation_config_filters_tools_and_labels_prose(monkeypatch, 
     b=fake(call);b.setup=lambda:("Unchanged prompt",[{"name":n,"description":"test"} for n in ["move","unlock","robot_status","stop"]])
     asyncio.run(gc.chat(b,gc.MODEL,False,conversation=True))
     declared=seen[0]["config"].tools[0].function_declarations
-    assert [t.name for t in declared]==["robot_status","stop"]
-    assert called==["robot_status"]
+    assert [t.name for t in declared]==["move","unlock","robot_status","stop"]
+    assert called==["move","unlock","robot_status","stop"]
     output=capsys.readouterr().out
-    assert "UNVERIFIED CONVERSATION" in output
-    assert "Unverified conversation > I already queued" in output
-    assert "\nUnverified conversation > My body" in output
-    assert "The move request was not dispatched." in output
+    assert "CONVERSATION + CONTROL" in output
+    assert "I already queued" not in output and "My body is standing" not in output
+    assert "Server accepted the move request." in output
 
 
 def test_show_is_explicit_diagnostic_not_an_operator_mode(capsys):

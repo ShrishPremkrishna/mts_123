@@ -2,7 +2,7 @@
 import { AppConfig } from './types';
 
 export const DEFAULT_CONFIG: AppConfig = {
-  outputPolicy: 'receipts',
+  outputPolicy: 'conversation',
   modelName: 'gemini-3.1-flash-live-preview',
   ttsModelName: 'gemini-3.1-flash-tts-preview',
   voiceName: 'Puck',

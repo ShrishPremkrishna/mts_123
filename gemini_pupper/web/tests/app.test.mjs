@@ -172,10 +172,10 @@ test('model Stop typed lifecycle gates manual controls independent of skipped vo
 });
 
 
-test('App output mode defaults to receipts and cannot be changed through connected Settings',async t=>{
+test('App output mode defaults to combined conversation and cannot be changed through connected Settings',async t=>{
  const {render,instances}=await app(t);
  find(render(),n=>n.props.title==='Settings').props.onClick();
- assert.equal(find(render(),n=>n.type==='Settings').props.config.outputPolicy,'receipts');
+ assert.equal(find(render(),n=>n.type==='Settings').props.config.outputPolicy,'conversation');
  assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,false);
  const connecting=wake(render()).props.onClick();
  assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,true);
