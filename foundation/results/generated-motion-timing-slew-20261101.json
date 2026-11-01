@@ -1,0 +1,188 @@
+{
+  "recorded_utc": "2026-11-01T23:05:49.987973+00:00",
+  "decision": "Keep the deployed generated policy unchanged and unaccepted. A 2 rad/s slew candidate reduces command discontinuities and passes the predeclared simulation screens, but is not accepted as a jitter remedy: simulated joint-motion roughness does not improve consistently. No retraining or hardware promotion.",
+  "scope": "Ten completed local native-inference/MuJoCo runs: original baseline, default and disabled-profile parity, four unchanged-policy measured-timing conditions, and one slew candidate under nominal plus two combined profiles. No robot access, cloud compute, or production policy/gain/limit changes.",
+  "hardware_validated": false,
+  "previous_hardware_report": "foundation/results/generated-motion-hardware-diagnostic-20261101.json",
+  "artifacts": "artifacts/generated/hardware-jitter-20261101",
+  "original_policy_sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+  "candidate_policy_sha256": "98590d0dada35e2aa9b633420ee7de04eaaea1d8d351dd8264f23b142ffbac41",
+  "candidate_metadata_only_changes": [
+    "required_controller_features",
+    "action_types",
+    "position_target_slew"
+  ],
+  "unchanged": [
+    "all network layers/weights",
+    "reference frames/rate/duration",
+    "kp/kd",
+    "joint and driver limits",
+    "initialization/fade times",
+    "effective prelimit action history",
+    "stock return policy",
+    "520 Hz physics",
+    "16 ms actuator delay"
+  ],
+  "source_revision_before_edits": "98101dec92ec6e43778324cc3af44dfadd1a3cf9",
+  "source_index": "source-index.json",
+  "run_index": "run-index.json",
+  "timing_source": {
+    "path": "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/launch.log",
+    "sha256": "9e6e3cf1f1e27c27b93dc7b7a928dc98c69e212bd0518bcfa3194f5ca91576ed",
+    "controller": "trick_secret_dance",
+    "hardware_trial": 1,
+    "first_inference_epoch_s": 1793570249.682926,
+    "last_inference_epoch_s": 1793570257.1426623,
+    "record_count": 368
+  },
+  "baseline_parity": {
+    "trajectory_sha256": "6a5c7a9542bf26f871709c747b2cbfe7b068249e8bc5e3afb9f4de75a412aa5f",
+    "default_trajectory_byte_identical": true,
+    "disabled_trajectory_byte_identical": true,
+    "default_inference_byte_identical": true,
+    "disabled_inference_identical_after_removing_new_timing_metadata": true
+  },
+  "timing_conclusion": "Recorded cadence and IMU-age perturbations do not reproduce a marked instability. Active reference RMSE ranges 0.0180\u20130.0190 rad versus 0.0184 nominal; all unchanged-policy runs complete without new contact/return failures. This does not exclude unmodeled sensing, actuator timing, calibration, mechanics, or contact effects.",
+  "candidate_assessments": [
+    {
+      "candidate": "slew2-nominal",
+      "baseline": "nominal-parity",
+      "ratios": {
+        "max_per_physics_target_step_rad": 0.09131630511458241,
+        "reference_rmse_rad": 0.9970196423730808,
+        "max_torque_nm": 0.9880518440111895,
+        "mean_peak_joint_torque_nm": 1.0009448396529446,
+        "joint_velocity_rms_rad_s": 1.0475969802906633,
+        "exploratory_position_8_20_hz_rms_across_joints_deg": 1.0418724073476284,
+        "exploratory_velocity_8_20_hz_rms_across_joints_rad_s": 1.1293074047871798
+      },
+      "predeclared_checks": {
+        "command_step_reduced_at_least_50pct": true,
+        "reference_rmse_within_10pct": true,
+        "peak_torque_within_10pct": true,
+        "mean_peak_torque_within_10pct": true,
+        "complete_handoff": true,
+        "no_new_nonlowerleg_ground_contacts": true,
+        "no_driver_clipping": true,
+        "all_recorded_phase_tilt_below_10deg": true,
+        "terminal_reference_error_within_0_01rad": true
+      },
+      "predeclared_checks_pass": true
+    },
+    {
+      "candidate": "slew2-trial1-combined",
+      "baseline": "trial1-combined",
+      "ratios": {
+        "max_per_physics_target_step_rad": 0.10159723057401918,
+        "reference_rmse_rad": 1.016490363353228,
+        "max_torque_nm": 1.0441227981506407,
+        "mean_peak_joint_torque_nm": 1.0167420708279926,
+        "joint_velocity_rms_rad_s": 1.0062211853662002,
+        "exploratory_position_8_20_hz_rms_across_joints_deg": 0.9591022415195968,
+        "exploratory_velocity_8_20_hz_rms_across_joints_rad_s": 0.9773929504849241
+      },
+      "predeclared_checks": {
+        "command_step_reduced_at_least_50pct": true,
+        "reference_rmse_within_10pct": true,
+        "peak_torque_within_10pct": true,
+        "mean_peak_torque_within_10pct": true,
+        "complete_handoff": true,
+        "no_new_nonlowerleg_ground_contacts": true,
+        "no_driver_clipping": true,
+        "all_recorded_phase_tilt_below_10deg": true,
+        "terminal_reference_error_within_0_01rad": true
+      },
+      "predeclared_checks_pass": true
+    },
+    {
+      "candidate": "slew2-trial2-combined",
+      "baseline": "trial2-combined",
+      "ratios": {
+        "max_per_physics_target_step_rad": 0.09218355902091527,
+        "reference_rmse_rad": 0.9916292252254583,
+        "max_torque_nm": 1.0511423420190955,
+        "mean_peak_joint_torque_nm": 0.9948826647162017,
+        "joint_velocity_rms_rad_s": 1.0531901473845338,
+        "exploratory_position_8_20_hz_rms_across_joints_deg": 1.0169721171486554,
+        "exploratory_velocity_8_20_hz_rms_across_joints_rad_s": 1.0554401596564937
+      },
+      "predeclared_checks": {
+        "command_step_reduced_at_least_50pct": true,
+        "reference_rmse_within_10pct": true,
+        "peak_torque_within_10pct": true,
+        "mean_peak_torque_within_10pct": true,
+        "complete_handoff": true,
+        "no_new_nonlowerleg_ground_contacts": true,
+        "no_driver_clipping": true,
+        "all_recorded_phase_tilt_below_10deg": true,
+        "terminal_reference_error_within_0_01rad": true
+      },
+      "predeclared_checks_pass": true
+    }
+  ],
+  "exploratory_jitter_conclusion": "Generated-policy command-jump reduction is real, but 8\u201320 Hz joint-position RMS increases 4.2% nominal and 1.7% trial2, decreases 4.1% trial1; velocity-band RMS increases 12.9% and 5.5%, decreases 2.3%. These posthoc metrics were not used to retune a second candidate. They prevent claiming a consistent physical-motion improvement.",
+  "test_evidence": [
+    {
+      "command": "pytest foundation/tests/test_native_timing_replay.py foundation/tests/test_native_physical_variants.py foundation/tests/test_native_startup_transfer.py foundation/tests/test_spider_handoff.py",
+      "passed": 108,
+      "log": "logs/ws1-native-timing-regression.log"
+    },
+    {
+      "command": "pytest foundation/tests/test_spider_handoff.py (after adding 3 explicit-scheduler integration cases)",
+      "passed": 33,
+      "log": "logs/ws1-native-explicit-cadence-tests.log",
+      "overlaps_prior_suite": true
+    },
+    {
+      "check": "10Hz unit-amplitude synthetic sinusoid band RMS matches 1/sqrt(2) within1e-5",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "This is a controlled timing perturbation, not replay of measured joint states, actuator deadlines or ROS scheduling. Only relative logged inference intervals and coherent historical simulated quaternion/gyro age are transferred; joint q/dq remain current.",
+    "Measured timing arrays repeat cyclically; their final interval is the measured median. First inference is anchored to nominal initialization. Due times round upward to physics steps; recorded requested/actual timestamps and age are retained.",
+    "Simulator q/dq are sampled after mj_step, while frame/target/contact timestamps refer to pre-step state: reference RMSE has a 1/520 s offset. This shared convention applies to every paired run.",
+    "Target first/second differences and exploratory spectra use52Hz samples, not all-step spectra. Maximum target step is the maximum per-physics change in each recorded10tick interval.",
+    "Exploratory8\u201320Hz RMS uses linear detrending, Hann taper and normalized one-sided Fourier power, then RMS across12joints. No hardware acceptance threshold is inferred; hardware and simulator trajectories have different sensing/noise and initialization.",
+    "The hardware bag had no actor input/output/target streams, and all recorded linear acceleration was zero. No motor vibration or temperature causality conclusion is possible.",
+    "Native host uses production math headers with explicitly transcribed ROS lifecycle; it is not the ROS controller binary. Fixed nominal mechanics and model contact geometry omit calibration, actuator friction/stiction and supply effects.",
+    "A peak command-slew limit is guaranteed only for this candidate contract; it does not prove joint smoothness, safe robot execution or future deadline behavior."
+  ],
+  "next_actions": [
+    "At the next root-operated supervised block, capture /trick_secret_dance/observation, /trick_secret_dance/policy_output, /trick_secret_dance/position_command, /trick_secret_dance/imu_latency_seconds and /trick_secret_dance/policy_inference_latency_seconds together with joint_states, IMU, clip_status and timestamped video. The archived controller namespace is trick_secret_dance; verify actual topic names/types before motion. Keep original policy/gains/limits. These existing publishers can be subscribed to without a manager or controller restart; acquisition alone does not activate motors.",
+    "Use that capture to compare desired target versus measured joint response and replay exact actor inputs through the frozen native host. Existing numeric debug messages have no embedded header, so retain recorder and console timestamps and do not infer exact synchronization.",
+    "Only if command oscillation is observed independently of joint tracking should a further smoothing/training experiment be selected. Existing position_command publisher reports inference-time targets, not every held tick; a slew hardware A/B would require command-cadence evidence first."
+  ],
+  "operational_failures": [
+    {
+      "event": "Initial two candidate invocations refused descriptor/input path mismatch before creating simulation output. Corrected only candidate descriptor policy filename; original descriptor unchanged.",
+      "logs": [
+        "logs/ws1-jitter-slew2-nominal.log",
+        "logs/ws1-jitter-slew2-trial1-combined.log"
+      ]
+    }
+  ],
+  "source_frozen": true,
+  "active_jobs": [],
+  "remaining_workstream1_generated_acceptance": [
+    "Generated motion remains visibly unaccepted; the current reference is intentionally slow but the observed jitter is unresolved.",
+    "Capture unchanged-policy actor inputs, raw outputs, controller position targets and measured joint response under a repeatable supervised condition. Check output timing versus actual target tracking before selecting a treatment.",
+    "Any later candidate needs paired simulated tracking/contact/return evidence plus operator-observed smooth, strain-free motion and return on the actual robot. Existing simulation screens and software playback completion are insufficient."
+  ],
+  "archive": {
+    "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generated-timing-slew.tar.gz",
+    "receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generated-timing-slew-archive.json",
+    "scope": "Complete experiment directory including all ten runs, exact inputs/sources, tests, logs, comparison and review; archive receipt owns verified file count and archive SHA."
+  },
+  "independent_review": {
+    "path": "peer-review.json",
+    "sha256": "d3ec9bcbc2c5826424100d99e637d366ea61ae7f52da68eb634df435c506726c"
+  },
+  "source_frozen_sha256": {
+    "foundation/cpp/handoff_controller.cpp": "ca589737214bacc05086e3d8a1bc1ce06f13f19d263741b989a99c1af638d91c",
+    "foundation/scripts/check_spider_handoff.py": "f8bba1cc10c28177d080c92c96aee6ad923d69c55412381118b0acd9edbc1b0f",
+    "foundation/scripts/native_timing.py": "d554b859748ba79d9b571448a783a0f32629008b442c0543dbf1c0b044020e89",
+    "foundation/tests/test_native_timing_replay.py": "db6c84dc902c668b79af55bc27542d9ce4dcc89cfd48dc0cee5f3ce507685b74",
+    "foundation/tests/test_spider_handoff.py": "f045baad086bf53b22fea57b68df33187400f5d5bf2f3105ced26b182f0c5141"
+  }
+}

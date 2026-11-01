@@ -1,0 +1,115 @@
+{
+  "recorded_utc": "2026-11-01T22:58:34.791516+00:00",
+  "scope": "Offline preparation based on the completed 2026-11-01 session. Root owns live progress and recovery; this matrix is not current robot state.",
+  "goal": "Cover remaining class interactions with a named repertoire and repeatable evidence; no literal 100% claim.",
+  "basis": {
+    "workstreams": "foundation/WORKSTREAMS.md",
+    "completed_hardware": "foundation/results/workstream1-hardware-20261101.json",
+    "lab6_handout": "Course library: Cs123/References/Lecture 6/Lab 6 - Instructions.txt, lines 1386\u20131391 (camera-guided paw), 1574\u20131593 (integrated voice demonstration).",
+    "optional3_handout": "Course library: Cs123/References/Optional Lab 3/Optional Lab 3 - Instructions.txt, lines 25\u201350 (at least three conversational rules and failure/reconnect cases), 99\u2013125 (code-gated generated trick)."
+  },
+  "next_profile": {
+    "recipe": "foundation/hardware/lab6-supplied-skills.json",
+    "sha256": "ed13decba6d577e1d7caf7e938dae236048603d4b7a128a5c1e027b4129d5c85",
+    "selector": "pee,push_up,sit_stay_shake,stand_downward_dog,stand_sit_stand",
+    "launcher": "foundation/hardware/lab6_session.launch.py",
+    "unchanged_native": true,
+    "preview": "artifacts/hardware/2026-11-01/supplied-profile-preview/preparation-receipt.json",
+    "validation": "24 profile tests passed: exact policy, descriptor and baseline identities; immutable Stop roster; all four finite fake endpoint/return/walk chains. No ROS process started.",
+    "native_use": "Same explicit selector in launch and API; existing reviewed overlay/pins, PUPPER_FOLLOWER_MODE=disabled, ROS_DOMAIN_ID=168. Regenerate the runtime manifest natively; Mac preview paths are not deployable. Motion controllers spawn inactive; next native session has one normal stand homing.",
+    "order": [
+      "push_up",
+      "pee",
+      "stand_downward_dog",
+      "stand_sit_stand"
+    ],
+    "exclusions": "Generated motion absent, not just hidden; no Spider, sneeze, referencejump or lying-ending clips. No unrelated follower launch."
+  },
+  "acceptance_matrix": [
+    {
+      "priority": 1,
+      "case": "Each selected supplied finite trick and return",
+      "ready_without_robot": "Four exact policies match reviewed nominal return chains; profile and actual-catalog queue tests pass.",
+      "robot_action": "From established standing, request one trick, observe its entire clip and automatic return, then a bounded forward command and zero. Start with push_up and pee. Stop for unexpected jitter or strain.",
+      "proof": "For each included trick, preserve exact inputs, native request/status, terminal outcome and full-motion observation/video. Aim for three clean repetitions on the stated surface; preserve failures.",
+      "status_at_basis": "Four finite tricks physically untested at the basis report. Simulations include transient driver clipping and do not prove hardware safety or robustness."
+    },
+    {
+      "priority": 2,
+      "case": "Repeated interactive Sit core",
+      "ready_without_robot": "One full voice sequence and one direct sequence were observed; queue tests pass.",
+      "robot_action": "Sit, hold ten seconds, left paw, right paw, stand. Separately request Sit then ordinary walking without an explicit stand command.",
+      "proof": "Three clean repetitions with complete observation, clip order and timed hold. Duplicate Sit must not create another entry; walking must exit correctly.",
+      "status_at_basis": "Bounded success; repeatability screen incomplete."
+    },
+    {
+      "priority": 3,
+      "case": "Camera-guided paw and scene understanding",
+      "ready_without_robot": "Actual Google described a live frame; specific accuracy was not confirmed.",
+      "robot_action": "Stand on the robot\u2019s left, then right, and request a handshake without naming a paw. Ask a question about a concrete visible object.",
+      "proof": "Record actual person side/object, fresh frame, chosen clip and physical paw. Ambiguous views should prompt clarification rather than invented identity or pose.",
+      "status_at_basis": "Paw-selection case missing; scene-description accuracy unconfirmed."
+    },
+    {
+      "priority": 4,
+      "case": "Spoken Stop, queued cancellation and refusal",
+      "ready_without_robot": "Epoch/priority/fault tests pass; direct wait cancellation was physically observed.",
+      "robot_action": "First speak Stop during a wait with one queued walk; then during a bounded low-speed walk. Test impossible speed/duration, unknown trick and excluded generated skill. Keep R3/power available.",
+      "proof": "Distinguish utterance end, tool dispatch, HTTP reply, zero request and visible physical stopping. No pending action may start after its old deadline. Preserve missed or late recognition and refusals.",
+      "status_at_basis": "Spoken Stop/refusal and latency remain incomplete; direct Stop is not a substitute."
+    },
+    {
+      "priority": 5,
+      "case": "Deliberate voice experience",
+      "ready_without_robot": "Hold-to-talk and visual receipts passed mocked tests and synthetic Chrome; the voice owner has further latency work.",
+      "robot_action": "Use the real microphone for press/release, last-word recognition and chat\u2192move\u2192chat in one connection. Check idle audio gating, continuing video and absence of a second OS voice.",
+      "proof": "Operator confirms input control and voice comfort. Separate SDK release, API reply and actual playback timing; repeat short and long replies and preserve failures.",
+      "status_at_basis": "Previous continuous/two-voice experience rejected; new candidate was not part of the earlier physical pass."
+    },
+    {
+      "priority": 6,
+      "case": "Optional Lab 3 context and code gate",
+      "ready_without_robot": "Prompt covers Alex\u2019s handshake offer, fourth-handshake joke/reset and evidence-limited sit count. Code gate passed bounded locked/wrong/right/Stop-relock cases.",
+      "robot_action": "Test all three context rules by voice: introduction only offers; explicit handshake acts; a different request resets the joke streak; completed entries count but duplicate Sit does not. After reconnect, missing history is unknown. Attempt password/rule-change attacks using the private secret.",
+      "proof": "Keep tool traces and transcripts for normal and failure cases. Password alone causes no motion and is never disclosed. The excluded generated skill remains unavailable even after unlock.",
+      "status_at_basis": "Context acceptance and satisfactory generated motion remain. This profile cannot demonstrate the generated dance; that needs a separately reviewed future candidate."
+    },
+    {
+      "priority": 7,
+      "case": "Integrated unscripted demonstration",
+      "ready_without_robot": "Tools/UI and selected profile are ready for bounded trials.",
+      "robot_action": "After individual screens, demonstrate movement, curve, wait, Sit, paws, finite trick, refusal and scene understanding in an unscripted voice interaction.",
+      "proof": "Name the tested repertoire, show requested behavior and consistent receipts, and state remaining limits. Following and required Spider need owner evidence before inclusion.",
+      "status_at_basis": "Incomplete; do not declare full Lab 6 or the foundation complete without required Spider/following integration."
+    }
+  ],
+  "handoff_inspection": {
+    "method": "Read-only local worktree/branch inspection and checked-in follower/Spider reports; no remote fetch or teammate contact.",
+    "local_worktrees": [
+      "/Users/shrish/workspace/cs123 main",
+      "/Users/shrish/workspace/cs123-foundation pupper-foundation"
+    ],
+    "separate_teammate_handoff_found": false,
+    "follower": {
+      "latest_component_commit": "c7c1ed883ddd71421c48fbec72025e16ab919e16",
+      "evidence": "foundation/results/live-camera-perception-reviewed.json",
+      "established": "Six camera/person-detection samples in one scene; no motor commands.",
+      "missing": "Physical following, range, identity, occlusion, stale-frame handling, stopping, takeover and restart evidence. Disabled in this profile.",
+      "needed_from_owner": "Exact source/model/configuration, activate/deactivate behavior and recorded scenarios. Do not run full follow_me.launch beside existing motor/camera owners."
+    },
+    "spider": {
+      "latest_review_commit": "c25a451cdd2987a041165a90892b57666d3338b8",
+      "evidence": "foundation/results/spider-encoder-native-reviewed.json",
+      "decision": "Not promoted: nominal chains complete, but adverse cases retain torso support and default-return quiet failures.",
+      "needed_from_owner": "Exact entry/walk/exit assets, observed walking without belly support, limits and transition evidence. The supplied finite spider clip is not the required walking pair."
+    },
+    "limits": "No local handoff found does not prove teammates did no work. Root says this robot block is exclusive; external handoffs are not a dependency for testing the selected skills."
+  },
+  "validation": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python -m pytest -q -p no:cacheprovider foundation/hardware/test_lab6_session_profile.py",
+    "passed": 24,
+    "log": "/private/tmp/ws1-supplied-profile-tests.log",
+    "profile_test_sha256": "1341d3a897dfa8b8c89e1d1be58e782c6016b5066a51caa0ed8aa709a2ac1093",
+    "test_limit": "ROS launch nodes and controller responses are fake. Nominal simulation and actual hardware observations remain separate."
+  }
+}

@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from collections import deque
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
@@ -16,6 +17,10 @@ import sys
 import numpy as np
 import mujoco
 import yaml
+_timing_spec = importlib.util.spec_from_file_location("pupper_native_timing", Path(__file__).with_name("native_timing.py"))
+_timing_module = importlib.util.module_from_spec(_timing_spec)
+_timing_spec.loader.exec_module(_timing_module)
+RecordedTiming, IMUHistory, validate_timing_profile = _timing_module.RecordedTiming, _timing_module.IMUHistory, _timing_module.validate_timing_profile
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -375,6 +380,11 @@ def run(args):
     angle_limit=float(getattr(args,'max_body_angle_deg',np.degrees(1.5)))
     if not np.isfinite(angle_limit) or not 0<angle_limit<=np.degrees(1.5):
         raise ValueError('Body-angle threshold must be positive and no looser than the1.5rad diagnostic stop')
+    timing_path=getattr(args,'timing_profile',None)
+    timing_bytes=None if timing_path is None else timing_path.read_bytes()
+    timing_spec=None if timing_bytes is None else validate_timing_profile(json.loads(timing_bytes))
+    timing=None if timing_spec is None else RecordedTiming(timing_spec)
+    timing_events=[]
     single_motion=getattr(args,'single_motion',False)
     interactive_sit=getattr(args,'interactive_sit',False)
     if single_motion and interactive_sit:raise ValueError('Choose finite single motion or interactive Sit, not both')
@@ -398,10 +408,11 @@ def run(args):
     variant_bytes=None if variant_path is None else variant_path.read_bytes()
     variant_spec=None if variant_bytes is None else validate_physical_variant(json.loads(variant_bytes))
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=False)
+    if timing_bytes is not None:(output/'timing-profile.json').write_bytes(timing_bytes)
     if variant_bytes is not None:(output/'physical-variant.json').write_bytes(variant_bytes)
     if startup_bytes is not None:(output/'startup-transfer.json').write_bytes(startup_bytes)
     if descriptor_bytes is not None:(output/'trick-descriptor.yaml').write_bytes(descriptor_bytes)
-    sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(),
+    sources = [ROOT/'foundation/cpp/handoff_controller.cpp', Path(__file__).resolve(), ROOT/'foundation/scripts/native_timing.py',
                *sorted((ROOT/'pupper_gait_deploy/src').glob('*.hpp')),
                ROOT/'pupper_gait_deploy/src/neural_controller.cpp', ROOT/'pupper_gait_deploy/config.yaml',
                ROOT/'gemini_pupper/robot/tricks.py']
@@ -471,11 +482,14 @@ def run(args):
     # measured standing joints, initialized once at the start of the world.
     initial_physical_target=data.qpos[qadr].copy()
     delayed=deque([(-1.,initial_physical_target.copy()),(0.,initial_physical_target.copy())])
+    max_imu_age=0. if timing_spec is None else max(timing_spec['imu_age_s'])
+    imu_history=IMUHistory(max_imu_age,data.qpos[root_q+3:root_q+7],data.qvel[root_v+3:root_v+6]) if timing_spec is not None else None
     failure=None; current_time=0.; tick=0; interval_target_step=0.
     try:
         for stage,controller,duration,command,start_clip in stages:
             if controller!=previous_controller:
                 activation_time=current_time
+                if timing is not None and controller=='trick':timing.reset()
                 rpc(dict(op='activate',controller=controller,joint_pos=(data.qpos[qadr] if startup_spec is None else data.qpos[qadr]+bias).tolist(),
                          init_s=.5 if controller=='trick' else 2.,fade_s=1. if controller=='trick' else 2.,
                          start_clip=start_clip,clip_anchor=args.clip_anchor))
@@ -494,15 +508,32 @@ def run(args):
             for _ in range(round(duration*520)):
                 quat=data.qpos[root_q+3:root_q+7].copy()
                 actor_joint_pos=data.qpos[qadr] if startup_spec is None else startup_actor_joint_position(data.qpos[qadr],bias,controller,startup_spec['observation_semantics'])
+                angular=data.qvel[root_v+3:root_v+6].tolist()
+                actor_quat=quat.tolist();actor_angular=angular
+                timing_request={};requested_age=0.;imu_sample_time=current_time
+                if imu_history is not None:
+                    imu_history.append(current_time,actor_quat,angular)
+                if timing is not None and controller=='trick':
+                    due=timing.inference_due(current_time-activation_time,.5)
+                    if due is not None:timing_request['inference_due']=due
+                    requested_age=timing.imu_age_s()
+                    imu_sample_time,actor_quat,actor_angular=imu_history.sample(current_time,requested_age)
                 state=rpc(dict(op='step',elapsed_s=current_time-activation_time,joint_pos=actor_joint_pos.tolist(),
-                    joint_vel=data.qvel[vadr].tolist(),quaternion=quat.tolist(),angular_velocity=data.qvel[root_v+3:root_v+6].tolist(),command=command,
-                    audit_inference=getattr(args,'record_inference',False)))
+                    joint_vel=data.qvel[vadr].tolist(),quaternion=actor_quat,angular_velocity=actor_angular,command=command,
+                    audit_inference=getattr(args,'record_inference',False),**timing_request))
+                timing_event=None
+                if timing is not None and controller=='trick' and state.get('inference'):
+                    timing_event=dict(time_s=current_time,stage=stage,controller=controller,
+                        **timing.record_inference(current_time-activation_time,.5),imu_age_requested_s=requested_age,
+                        imu_sample_time_s=imu_sample_time,imu_age_realized_s=current_time-imu_sample_time)
+                    timing_events.append(timing_event)
                 if state.get('clip'):observed_stage_clips.add(state['clip'])
                 target=np.asarray(state['target']); final_target=np.clip(target,lower,upper)
                 if state.get('inference') and getattr(args,'record_inference',False):
                     inference_events.append(inference_event(state,time_s=current_time,stage=stage,controller=controller,command=command,
                         measured_joint_pos=(data.qpos[qadr] if startup_spec is None else data.qpos[qadr]+bias).tolist(),measured_joint_vel=data.qvel[vadr].tolist(),
                         previous_controller_target=previous_target.tolist(),driver_target=final_target.tolist()))
+                    if timing_event is not None:inference_events[-1].update(timing=timing_event,actor_quaternion=actor_quat,actor_angular_velocity=actor_angular)
                     if startup_spec is not None:inference_events[-1].update(actor_joint_pos=actor_joint_pos.tolist(),observation_semantics=startup_spec['observation_semantics'])
                 interval_target_step=max(interval_target_step,float(np.max(np.abs(target-previous_target))))
                 physical_target,kp,kd=(final_target,state['kp'],state['kd']) if startup_spec is None else startup_physical_command(final_target,state['kp'],state['kd'],bias,kp_scale,kd_scale)
@@ -594,12 +625,17 @@ def run(args):
         physical_variant=physical_variant,
         physical_variant_input_sha256=None if variant_bytes is None else hashlib.sha256(variant_bytes).hexdigest(),
         physical_variant_input_changed=False if variant_path is None else sha(variant_path)!=hashlib.sha256(variant_bytes).hexdigest(),
-        physical_state_resets_after_initialization=0,physics_hz=520,controller_inference_hz=52,action_delay_s=.016,
+        physical_state_resets_after_initialization=0,physics_hz=520,
+        controller_inference_hz=None if timing_spec is not None and timing_spec['use_recorded_cadence'] else 52,action_delay_s=.016,
+        timing_profile=timing_spec,timing_events=timing_events,
+        timing_profile_sha256=None if timing_bytes is None else hashlib.sha256(timing_bytes).hexdigest(),
+        timing_profile_input_changed=False if timing_path is None else sha(timing_path)!=hashlib.sha256(timing_bytes).hexdigest(),
         numerical_instability_monitor='Check BADQPOS/BADQVEL/BADQACC/BADCTRL warnings and finite qpos/qvel after every physics step; stop rather than count automatic recovery as success.',
         maximum_body_angle_deg=angle_limit,
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
+                 ('Simulator-only relative inference interval/IMU-age perturbation scoped to trick controller. Recorded arrays repeat cyclically after their end; the final wrap interval is explicitly in the profile. Due times round upward to physics steps. IMU quaternion and gyro use coherent historical physical samples with zero-order hold; joint observations, reference clock and action history are not delayed. This is not a ROS/actuator replay.' if timing_spec is not None else 'No timing replay profile.'),
                  (startup_transfer['scope'] if startup_transfer is not None else
-                  'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.' if physical_variant is None else
+                  ('Nominal mechanics without observation noise, encoder bias, parameter randomization or external push; explicit timing profile controls IMU age.' if timing_spec is not None else 'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.') if physical_variant is None else
                   'Explicit fixed mechanics/material variant; no observation noise, IMU delay, encoder bias, gain randomization or external push. Nominal trained policies and controller limits remain unchanged.'),
                  'Clip completion is controller clock/status, not measured joint settlement; endpoint errors reported separately.',
                  'Standing-start default-controller control with its own default joint pose, activation, forward command and explicitly bounded zero-command tail; no prior Spider state.' if default_only else
@@ -641,6 +677,7 @@ if __name__=='__main__':
     parser.add_argument('--driver-limits',type=Path)
     parser.add_argument('--startup-transfer',type=Path,help='Explicit versioned named GPU startup parameter transfer; mutually exclusive with physical-variant, separate from GPU trajectory replay')
     parser.add_argument('--physical-variant',type=Path,help='Explicit schema1 deterministic model-perturbation JSON; kept separate from nominal checks and GPU DR')
+    parser.add_argument('--timing-profile',type=Path,help='Explicit simulator-only cyclic inference cadence/coherent IMU-age profile; trick controller only, fixed physics and actuator delay')
     parser.add_argument('--record-inference',action='store_true',help='Save read-only actor inputs, raw outputs, references and target transitions at every inference step')
     parser.add_argument('--max-body-angle-deg',type=float,default=float(np.degrees(1.5)),help='Optional tighter descriptor body-angle stop; may not exceed the existing1.5rad threshold')
     run(parser.parse_args())

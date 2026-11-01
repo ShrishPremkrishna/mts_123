@@ -1,0 +1,149 @@
+{
+  "purpose": "Explicit next-session selection for existing persistent Lab6 launcher. Selection is not a hardware pass or permission to start.",
+  "selection": [
+    "pee",
+    "push_up",
+    "sit_stay_shake",
+    "stand_downward_dog",
+    "stand_sit_stand"
+  ],
+  "environment": {
+    "PUPPER_SESSION_SKILLS": "pee,push_up,sit_stay_shake,stand_downward_dog,stand_sit_stand",
+    "PUPPER_FOLLOWER_MODE": "disabled",
+    "ROS_DOMAIN_ID": "168"
+  },
+  "launcher": "foundation/hardware/lab6_session.launch.py",
+  "motion_controllers": [
+    "neural_controller_default",
+    "gemini_walk",
+    "trick_pee",
+    "trick_push_up",
+    "trick_sit_stay_shake",
+    "trick_stand_downward_dog",
+    "trick_stand_sit_stand"
+  ],
+  "assets_sha256": {
+    "gemini_pupper/tricks/pee/policy.json": "f6b74dc086a7b20adf2eeb1cf25a336c44717a3aaea7e75bdd30e0eae5768e35",
+    "gemini_pupper/tricks/pee/trick.yaml": "caca1c0439b9bcfda596bcbde80f43bfcd93e43aebefe71235d8b9ca43b2d48a",
+    "gemini_pupper/tricks/push_up/policy.json": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+    "gemini_pupper/tricks/push_up/trick.yaml": "debd20770f3aa53d5fd203fcc844f52b971ce7c63e7ddab6e3ce06504c24889b",
+    "gemini_pupper/tricks/sit_stay_shake/policy.json": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+    "gemini_pupper/tricks/sit_stay_shake/trick.yaml": "9a4905053e78ce34f148aad99bb7142e6dc3317536c82265d26173d65ceb63fd",
+    "gemini_pupper/tricks/stand_downward_dog/policy.json": "4bd415c9d7a09cad99246a76b42f05236291e6088837a86d6a07b12c70cba4a0",
+    "gemini_pupper/tricks/stand_downward_dog/trick.yaml": "ce880056f69741d6918e4ba4afd37a1224443204280fdd9d4a879d78e21677ba",
+    "gemini_pupper/tricks/stand_sit_stand/policy.json": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc",
+    "gemini_pupper/tricks/stand_sit_stand/trick.yaml": "6edfc693c81355a0a63ba3ef4014c3d9d42afdf9122611d1b357a70349d14977",
+    "foundation/hardware/lab6_session.launch.py": "29d5bcd8f35be0564380a2936cd1e47e72800422e97dd08a885b237f843fcfa9",
+    "foundation/hardware/lab6-session.yaml": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
+    "foundation/hardware/floor_stock/baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+    "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+  },
+  "skills": {
+    "pee": {
+      "controller": "trick_pee",
+      "policy_sha256": "f6b74dc086a7b20adf2eeb1cf25a336c44717a3aaea7e75bdd30e0eae5768e35",
+      "descriptor_sha256": "caca1c0439b9bcfda596bcbde80f43bfcd93e43aebefe71235d8b9ca43b2d48a",
+      "end_pose": "standing",
+      "motion_duration_s": 7.18,
+      "init_s": 0.5,
+      "fade_s": 1.0,
+      "policy_kp": 5.5,
+      "policy_kd": 0.25,
+      "max_body_angle_deg": 60,
+      "hardware_status": "Not yet physically tested; nominal simulation supports a supervised candidate only.",
+      "nominal_evidence": {
+        "report": "foundation/results/finite-tricks-default-return-reviewed.json",
+        "max_tilt_deg": 6.041662476857318,
+        "max_joint_speed_rad_s": 5.733389648401662,
+        "transient_driver_clipped_joint_fraction": 0.030118255728011824,
+        "terminal_driver_clipped_joint_fraction": 0.0,
+        "physical_state_resets": 0
+      }
+    },
+    "push_up": {
+      "controller": "trick_push_up",
+      "policy_sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+      "descriptor_sha256": "debd20770f3aa53d5fd203fcc844f52b971ce7c63e7ddab6e3ce06504c24889b",
+      "end_pose": "standing",
+      "motion_duration_s": 10.78,
+      "init_s": 0.5,
+      "fade_s": 1.0,
+      "policy_kp": 5.5,
+      "policy_kd": 0.25,
+      "max_body_angle_deg": 60,
+      "hardware_status": "Not yet physically tested; nominal simulation supports a supervised candidate only.",
+      "nominal_evidence": {
+        "report": "foundation/results/finite-tricks-default-return-reviewed.json",
+        "max_tilt_deg": 13.274826468632746,
+        "max_joint_speed_rad_s": 5.733389648401662,
+        "transient_driver_clipped_joint_fraction": 0.017241379310344827,
+        "terminal_driver_clipped_joint_fraction": 0.0,
+        "physical_state_resets": 0
+      }
+    },
+    "sit_stay_shake": {
+      "controller": "trick_sit_stay_shake",
+      "policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+      "descriptor_sha256": "9a4905053e78ce34f148aad99bb7142e6dc3317536c82265d26173d65ceb63fd",
+      "end_pose": "sitting",
+      "motion_duration_s": 18.22,
+      "init_s": 0.5,
+      "fade_s": 1.0,
+      "policy_kp": 5.5,
+      "policy_kd": 0.25,
+      "max_body_angle_deg": 60,
+      "hardware_status": "Bounded Sit/paw/return observation20261101; repeatability still pending."
+    },
+    "stand_downward_dog": {
+      "controller": "trick_stand_downward_dog",
+      "policy_sha256": "4bd415c9d7a09cad99246a76b42f05236291e6088837a86d6a07b12c70cba4a0",
+      "descriptor_sha256": "ce880056f69741d6918e4ba4afd37a1224443204280fdd9d4a879d78e21677ba",
+      "end_pose": "standing",
+      "motion_duration_s": 13.88,
+      "init_s": 0.5,
+      "fade_s": 1.0,
+      "policy_kp": 5.5,
+      "policy_kd": 0.25,
+      "max_body_angle_deg": 65,
+      "hardware_status": "Not yet physically tested; nominal simulation supports a supervised candidate only.",
+      "nominal_evidence": {
+        "report": "foundation/results/finite-tricks-default-return-reviewed.json",
+        "max_tilt_deg": 40.2798254767772,
+        "max_joint_speed_rad_s": 5.733389648401662,
+        "transient_driver_clipped_joint_fraction": 0.0172090112640801,
+        "terminal_driver_clipped_joint_fraction": 0.0,
+        "physical_state_resets": 0
+      }
+    },
+    "stand_sit_stand": {
+      "controller": "trick_stand_sit_stand",
+      "policy_sha256": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc",
+      "descriptor_sha256": "6edfc693c81355a0a63ba3ef4014c3d9d42afdf9122611d1b357a70349d14977",
+      "end_pose": "standing",
+      "motion_duration_s": 11.84,
+      "init_s": 0.5,
+      "fade_s": 1.0,
+      "policy_kp": 5.5,
+      "policy_kd": 0.25,
+      "max_body_angle_deg": 65,
+      "hardware_status": "Not yet physically tested; nominal simulation supports a supervised candidate only.",
+      "nominal_evidence": {
+        "report": "foundation/results/finite-tricks-default-return-reviewed.json",
+        "max_tilt_deg": 41.892619233814195,
+        "max_joint_speed_rad_s": 5.733389648401662,
+        "transient_driver_clipped_joint_fraction": 0.045935545935545934,
+        "terminal_driver_clipped_joint_fraction": 0.0,
+        "physical_state_resets": 0
+      }
+    }
+  },
+  "excluded": {
+    "secret_dance": "Observed jitter; excluded entirely from this controller roster, not merely unlocked/locked.",
+    "sneeze": "Nominal measured peak joint speed15.56rad/s; deferred.",
+    "lying_ending_clips": "Different endpoint/return and nonzero terminal clamping; separate review.",
+    "spider": "No accepted entry/walking/return pair delivered.",
+    "stand_sit_shake_sit_stand": "Replaced by interactive Sit."
+  },
+  "reuse": "Set exactly the same selector in launch/API. Keep reviewed native overlay, stock policy/limits/gains and existing launch paths. Generate a new runtime manifest for this roster; preserve previous session manifests. All selected motion controllers spawn inactive. One normal stand homing belongs to next supervised native session.",
+  "limits": "No new trained policy, filtering, caps or gain changes. Nominal simulations include transient driver clipping and do not prove physical safety/robustness. No extra controller is automatically promoted by appearing in the roster."
+}

@@ -360,3 +360,44 @@ def test_later_lying_return_refuses_ambiguous_modes(single,default,interactive):
     with pytest.raises(ValueError,match='requires single finite'):
         handoff.run(SimpleNamespace(single_motion=single,interactive_sit=interactive,
                                    return_default_policy=default,later_return_from_lying=True))
+
+
+def test_explicit_inference_schedule_advances_history_only_when_due(host):
+    proc,rpc=session(host,'entry')
+    try:
+        initialized=rpc({**step(.25),'inference_due':True})
+        assert initialized['inference'] is False
+        held=rpc({**step(.5),'inference_due':False,'audit_inference':True})
+        assert held['inference'] is False and held['frame']==-1
+        first=rpc({**step(.7),'inference_due':True,'audit_inference':True})
+        np.testing.assert_array_equal(first['model_input'][57:],0)
+        for i in range(1,20):
+            skipped=rpc({**step(.7+i/100),'inference_due':False,'audit_inference':True})
+            assert skipped['inference'] is False and 'model_input' not in skipped
+            assert skipped['target']==first['target'] and skipped['frame']==first['frame']
+        last=rpc({**step(1.5),'inference_due':True,'audit_inference':True})
+        np.testing.assert_allclose(last['model_input'][57:],np.array(first['before_clip'])/.75,atol=2e-7)
+        assert last['frame']==0  # reference clock still uses elapsed time, clip begins now
+    finally:
+        proc.stdin.close();assert proc.wait(timeout=5)==0
+
+
+def test_explicit_no_inference_still_updates_slew_every_physics_tick(slew_host):
+    proc,rpc=session(slew_host,'entry')
+    try:
+        previous=rpc({**step(1.5),'inference_due':True,'audit_inference':True})
+        for i in range(1,20):
+            value=rpc({**step(1.5+i/520),'inference_due':False,'audit_inference':True})
+            assert value['inference'] is False and 'model_input' not in value
+            np.testing.assert_allclose(np.array(value['target'])-previous['target'],.4/520,atol=1e-12)
+            previous=value
+    finally:
+        proc.stdin.close();assert proc.wait(timeout=5)==0
+
+
+def test_explicit_inference_schedule_rejects_nonboolean(host):
+    proc,rpc=session(host,'entry')
+    proc.stdin.write(json.dumps({**step(.5),'inference_due':1})+'\n');proc.stdin.flush()
+    assert proc.stdout.readline()==''
+    proc.stdin.close();assert proc.wait(timeout=5)!=0
+    assert 'inference_due must be boolean' in proc.stderr.read()

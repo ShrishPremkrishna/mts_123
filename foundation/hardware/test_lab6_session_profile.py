@@ -171,3 +171,77 @@ def test_motion_bounds_intersect_actual_model_and_configuration(profile, tmp_pat
 def test_motion_bounds_legacy_unscoped_needs_no_profile(monkeypatch):
     monkeypatch.delenv("PUPPER_SESSION_SKILLS", raising=False)
     assert runtime_config.session_motion_bounds() is None
+
+
+SUPPLIED_RECIPE = ROOT / "foundation/hardware/lab6-supplied-skills.json"
+
+
+def test_reviewed_supplied_roster_identity_and_inactive_stop_coverage(profile, monkeypatch):
+    recipe = json.loads(SUPPLIED_RECIPE.read_text())
+    for relative, expected in recipe["assets_sha256"].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected, relative
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", recipe["environment"]["PUPPER_SESSION_SKILLS"])
+    # Reuse baseline-preservation and required-process lifecycle assertions.
+    test_selected_profile_preserves_baseline_and_binds_catalog(
+        profile, monkeypatch, recipe["environment"]["PUPPER_SESSION_SKILLS"])
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    assert manifest["motion_controllers"] == recipe["motion_controllers"]
+    assert set(load_tricks()) == set(recipe["selection"])
+    generated = yaml.safe_load(Path(manifest["configuration"]).read_text())
+    baseline = yaml.safe_load((profile.ROOT / "lab6-session.yaml").read_text())
+    assert generated["estop_controller"]["ros__parameters"]["controller_names"] == (
+        baseline["estop_controller"]["ros__parameters"]["controller_names"]
+        + recipe["motion_controllers"][2:])
+    assert "trick_secret_dance" not in generated["controller_manager"]["ros__parameters"]
+    assert runtime_config.session_motion_bounds(manifest) == runtime_config.session_motion_bounds()
+    for name, trick in load_tricks().items():
+        expected = recipe["skills"][name]
+        params = generated[trick.controller]["ros__parameters"]
+        assert trick.kind == "policy" and not trick.walks and not trick.secret
+        assert params["init_duration"] == expected["init_s"] == .5
+        assert params["fade_in_duration"] == expected["fade_s"] == 1.
+        assert params["repeat_action"] == 10 and params["gain_multiplier"] == 1.
+        assert params["init_kps"] == [7.5] * 12 and params["init_kds"] == [.25] * 12
+        assert params["max_vx_forward"] == params["max_vx_backward"] == 0.
+        assert not params["game_buttons"] and "chord_partner" not in params
+        assert params["max_body_angle"] == trick.max_body_angle
+        policy = json.loads(trick.path.read_text())
+        assert policy["kp"] == expected["policy_kp"]
+        assert policy["kd"] == expected["policy_kd"]
+        assert hashlib.sha256(trick.path.read_bytes()).hexdigest() == expected["policy_sha256"]
+
+
+@pytest.mark.parametrize("name", ["pee", "push_up", "stand_downward_dog", "stand_sit_stand"])
+def test_selected_supplied_trick_returns_before_a_following_walk(monkeypatch, name):
+    """Actual selected policies through queue/endpoint checks; fake ROS, not physics."""
+    import asyncio
+    import test_tools as harness
+    import tool_registry
+    from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER
+    recipe = json.loads(SUPPLIED_RECIPE.read_text())
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", recipe["environment"]["PUPPER_SESSION_SKILLS"])
+    async def case():
+        rig = harness.Rig(tricks=load_tricks)
+        try:
+            assert await rig.settle()
+            assert set(rig.ts.tricks) == set(recipe["selection"])
+            rejected = await tool_registry.call(rig.ts, "play_trick", {"name": "secret_dance"})
+            assert not rejected.ok and rig.ts.commands.empty()
+            accepted = await tool_registry.call(rig.ts, "play_trick", {"name": name})
+            assert accepted.ok
+            assert await rig.settle()
+            assert rig.ts.last_outcome["success"], rig.ts.last_outcome
+            assert rig.ts.state_now == LOCOMOTION
+            assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
+            assert rig.robot.activations(rig.ts.tricks[name].controller)
+            assert (await tool_registry.call(rig.ts, "move", {
+                "direction": "forward", "speed": .2, "duration": .5})).ok
+            assert await rig.settle() and not rig.failures(), rig.outcomes()
+            assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
+            assert harness.walk_twists(rig)
+            final = rig.robot.twists()[-1][1]
+            assert (final.linear.x, final.linear.y, final.angular.z) == (0., 0., 0.)
+        finally:
+            rig.close()
+            await asyncio.sleep(0)
+    asyncio.run(case())

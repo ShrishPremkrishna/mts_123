@@ -92,9 +92,13 @@ struct Controller {
       Json result={{"target",target},{"before_clip",before_clip},{"kp",7.5},{"kd",.25},{"inference",false},{"stage","initialization"},{"frame",frame}};
       limit_output(result,elapsed);return result;
     }
-    repeat=(repeat+1)%10;
+    bool infer;
+    if(r.contains("inference_due")) {
+      if(!r.at("inference_due").is_boolean()) throw std::runtime_error("inference_due must be boolean");
+      infer=r.at("inference_due").get<bool>();
+    } else { repeat=(repeat+1)%10; infer=repeat==0; }
     const double fade_time=elapsed-init_s, alpha=std::min(fade_time/fade_s,1.0);
-    if(repeat==0) {
+    if(infer) {
       const auto q=r.at("joint_pos").get<std::vector<double>>();
       const auto dq=r.at("joint_vel").get<std::vector<double>>();
       const auto angular=r.at("angular_velocity").get<std::vector<double>>();
@@ -145,8 +149,8 @@ struct Controller {
         target[j]=std::clamp(before_clip[j],float(lower[j]),float(upper[j]));
       }
     }
-    Json result={{"target",target},{"before_clip",before_clip},{"raw_action",raw},{"kp",metadata.at("kp")},{"kd",metadata.at("kd")},{"inference",repeat==0},{"stage",alpha<1?"fade":"policy"},{"frame",frame}};
-    if(repeat==0 && r.value("audit_inference",false)) {
+    Json result={{"target",target},{"before_clip",before_clip},{"raw_action",raw},{"kp",metadata.at("kp")},{"kd",metadata.at("kd")},{"inference",infer},{"stage",alpha<1?"fade":"policy"},{"frame",frame}};
+    if(infer && r.value("audit_inference",false)) {
       result["model_input"]=model_input; result["gait_reference_offset"]=reference_offset;
       result["effective_command"]=effective_command; result["reference_time_s"]=fade_time;
     }

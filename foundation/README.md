@@ -24,7 +24,7 @@ operational status; completed experiment reports retain their dated evidence.
 
 The [1 November supervised Workstream 1 session](results/workstream1-hardware-20261101.json) now records actual voice movement, the full Sit/ten-second hold/both-paws/standing sequence, automatic Sit-to-walk exit, and queued cancellation with operator observations. The generated sway was slow/jittery and is **not accepted**; the two-voice, continuously listening experience also needs redesign. Full driver shutdown released the legs; the ordinary rest command retains damping. These are bounded successes, not a robust or complete Lab 6 release. Earlier dated reports below retain their historical evidence; current activity remains in the single recovery record.
 
-The [deliberate voice-input candidate](results/workstream1-deliberate-voice-20261101.json) adds hold-to-talk without reconnecting and replaces OS-spoken receipts with immediate visible feedback. It preserves native conversation and the existing action-claim boundary. It passed 188 web checks and 24 actual-browser synthetic-media checks; it is not yet deployed or tested with real speech. Whole-turn reply latency remains.
+The [deliberate voice-input candidate](results/workstream1-deliberate-voice-20261101.json) adds hold-to-talk without reconnecting and replaces OS-spoken receipts with immediate visible feedback. It preserves native conversation and the existing action-claim boundary. It passed 188 web checks and 24 actual-browser synthetic-media checks, then was deployed in the 1 November continuation; the operator confirmed a real held-microphone greeting worked. Broader real-speech acceptance and whole-turn reply latency remain. The later exact-receipt audio candidate is separate and not yet deployed.
 
 The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
 adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
@@ -80,6 +80,8 @@ worked, but two delayed-stop requests produced unsupported narration; one claime
 a stop without making any tool call. The accurate wording and diagnostic client
 are retained, but live model reliability is **not accepted for robot integration**.
 The physical/controller stop path remains independent.
+
+The [measured-timing and slew study](results/generated-motion-timing-slew-20261101.json) completed ten simulations. Limiting target slew reduced command jumps but did not consistently improve joint oscillation; the candidate remains unpromoted. The [Optional3 context study](results/optional3-context-20261101.json) preserves 36 actual Gemini turns and identifies missing or suppressed context behavior. Neither report establishes physical capability. In the active continuation, the operator observed large unwanted yaw during downward dog and stand–sit–stand on carpet; those skills are not accepted, and their command/IMU/joint recording is under review. Operational details remain solely in the current-state record.
 
 ## Current robot preparation
 
