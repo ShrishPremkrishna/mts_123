@@ -176,8 +176,13 @@ test('Stop and boundary in the same packet do not discard the next genuine chat 
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'new'}}]},outputTranscription:{text:'How is your day?'},turnComplete:true}});
  await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,['new']);
 });
-test('screened no-tool claim uses fixed local feedback rather than native audio',async t=>{
+test('screened no-tool claim stays silent and visible while actual server receipts still speak',async t=>{
  const voice=speech(t),e=service('conversation');
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'claim'}}]},outputTranscription:{text:'I am standing now.'},turnComplete:true}});
- assert.deepEqual(e.audio,[]);assert.equal(voice.spoken[0].text,'No confirmed robot action in this reply; check server status.');await e.s.disconnect();
+ assert.deepEqual(e.audio,[]);assert.deepEqual(voice.spoken,[]);
+ assert.ok(e.logs.some(x=>x.type==='info'&&x.message==='No confirmed robot action in this reply; check server status.'));
+ assert.equal(e.logs.some(x=>x.type==='model'||x.type==='receipt'),false);
+ await e.s.handleMessage(call('move','move'));
+ assert.equal(voice.spoken.length,1);assert.equal(voice.spoken[0].text,'Move request accepted.');
+ await e.s.disconnect();
 });

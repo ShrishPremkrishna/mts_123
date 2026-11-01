@@ -3,7 +3,7 @@ import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } f
 import { createPcmBlob, decodeAudioData, blobToBase64 } from './audioUtils';
 import { AppConfig, LogEntry, OutputPolicy } from '../types';
 import RobotBridge from './robotBridge';
-import { BLOCKED_CONVERSATION, ConversationOutputGate, type ConversationOutput } from './conversationOutput';
+import { ConversationOutputGate, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, ReceiptSpeaker, toolLabel } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
 
@@ -120,7 +120,6 @@ export class GeminiLiveService {
     this.conversationOutput = new ConversationOutputGate(
       output => { void this.releaseConversation(output, this.outputTurnTiming).catch(() => this.log('info', 'Conversation playback failed; no replacement narration was produced.')); }, message => {
         this.log('info', message);
-        if (message === BLOCKED_CONVERSATION && this.connected && !this.disposed) this.receiptSpeaker.say(message);
       });
     this.robotBridge = new RobotBridge(config.robotApiUrl);
     this.onLog = onLog;
