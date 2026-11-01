@@ -47,10 +47,11 @@ test('bounded receipt speech coalesces pending receipts and stale callbacks cann
  assert.equal(voice.spoken.length,1);first.onend();assert.equal(voice.spoken.length,2);assert.equal(voice.spoken[1].text,'receipt 49');
  const last=voice.spoken[1];speaker.say('discard');speaker.cancel();last.onend();assert.equal(voice.spoken.length,2);
 });
-test('Stop dispatch does not await a stuck receipt utterance and clears old speech',async t=>{
- const voice=speech(t),e=service('receipts');await e.s.handleMessage(call('move','move'));assert.equal(voice.spoken.length,1);
+test('Stop and action receipts remain visible without synthesizing a second voice',async t=>{
+ const voice=speech(t),e=service('receipts');await e.s.handleMessage(call('move','move'));assert.deepEqual(voice.spoken,[]);
+ assert.equal(e.logs.find(x=>x.type==='receipt').message,'Move request accepted.');
  await e.s.handleMessage(call('stop','stop'));assert.deepEqual(e.calls,['move','stop']);assert.ok(voice.cancelled.length>0);
- assert.equal(voice.spoken.at(-1).text,'Stop requested.');await e.s.disconnect();
+ assert.deepEqual(voice.spoken,[]);assert.equal(e.logs.filter(x=>x.type==='receipt').at(-1).message,'Stop requested.');await e.s.disconnect();
 });
 test('strict lower-level output sinks cannot be bypassed',async t=>{
  const voice=speech(t),e=service('receipts');e.s.ai={models:{generateContent(){throw Error('must not call TTS');},generateContentStream(){throw Error('must not call TTS');}}};
@@ -176,13 +177,26 @@ test('Stop and boundary in the same packet do not discard the next genuine chat 
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'new'}}]},outputTranscription:{text:'How is your day?'},turnComplete:true}});
  await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,['new']);
 });
-test('screened no-tool claim stays silent and visible while actual server receipts still speak',async t=>{
+test('screened no-tool claim and genuine receipt stay visible without OS speech',async t=>{
  const voice=speech(t),e=service('conversation');
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'claim'}}]},outputTranscription:{text:'I am standing now.'},turnComplete:true}});
  assert.deepEqual(e.audio,[]);assert.deepEqual(voice.spoken,[]);
  assert.ok(e.logs.some(x=>x.type==='info'&&x.message==='No confirmed robot action in this reply; check server status.'));
  assert.equal(e.logs.some(x=>x.type==='model'||x.type==='receipt'),false);
  await e.s.handleMessage(call('move','move'));
- assert.equal(voice.spoken.length,1);assert.equal(voice.spoken[0].text,'Move request accepted.');
+ assert.deepEqual(voice.spoken,[]);assert.equal(e.logs.find(x=>x.type==='receipt').message,'Move request accepted.');
  await e.s.disconnect();
+});
+
+
+test('both modes show matching actual server receipts only after response and never synthesize them',async t=>{
+ const voice=speech(t);
+ for(const mode of ['receipts','conversation']) {
+  const e=service(mode),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
+  const pending=e.s.handleMessage(call('move','move'));
+  assert.equal(e.logs.some(x=>x.type==='receipt'),false);assert.deepEqual(voice.spoken,[]);
+  d.resolve({success:true});await pending;
+  assert.equal(e.logs.find(x=>x.type==='receipt').message,'Move request accepted.');assert.deepEqual(voice.spoken,[]);
+  await e.s.disconnect();
+ }
 });

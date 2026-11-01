@@ -4,6 +4,7 @@ export const Type = { OBJECT: 'OBJECT', STRING: 'STRING' };
 export const mock = {
   callbacks: null as any,
   audioFrames: 0,
+  audioEnds: 0,
   nonzeroFrames: 0,
   audioBytes: 0,
   videoFrames: [] as { data: string; mimeType: string }[],
@@ -24,6 +25,7 @@ export class GoogleGenAI {
     mock.callbacks = callbacks;
     const session = {
       sendRealtimeInput(value: any) {
+        if (value.audioStreamEnd === true && Object.keys(value).length === 1) { mock.audioEnds++; return; }
         if (value.video) {
           if (value.audio || value.video.mimeType !== 'image/jpeg' || !value.video.data) throw new Error('Expected one synthetic JPEG frame.');
           mock.videoFrames.push({ data: value.video.data, mimeType: value.video.mimeType });

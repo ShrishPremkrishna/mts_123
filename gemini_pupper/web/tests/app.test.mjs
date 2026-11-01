@@ -33,7 +33,8 @@ function find(node, predicate) {
 }
 function wake(tree) { return find(tree, n => n.type === 'button' && n.props.children.includes(' WAKE PUPPER')); }
 async function app(t) {
-  const cells = [], effects = [], instances = []; let cursor = 0;
+  const cells = [], effects = [], instances = [], cleanups=[]; const events={}; let cursor = 0;
+  t.after(()=>cleanups.forEach(fn=>fn()));
   const setGlobal = (name, value) => {
     const old = Object.getOwnPropertyDescriptor(globalThis, name);
     Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
@@ -55,16 +56,18 @@ async function app(t) {
       this.robotBridge = { immediateStop: () => this.stop.promise }; instances.push(this);
     }
     connect() { return this.connection.promise; }
+    beginAudioInput() { this.begins=(this.begins??0)+1;this.active=true;return true; }
+    endAudioInput() { this.ends=(this.ends??0)+1;this.active=false; }
     pauseRobotTools() {}
     async disconnect() { this.connection.reject(new Error('Voice connection cancelled')); }
   });
   setGlobal('localStorage', { getItem: key => key === 'pupster_api_key' ? 'TEST_ONLY' : null });
-  setGlobal('window', { location: { origin: 'http://test-server' } });
-  setGlobal('document', { createElement: () => ({}) });
+  setGlobal('window', { location: { origin: 'http://test-server' },addEventListener:(n,f)=>events[n]=f,removeEventListener:(n)=>delete events[n] });
+  setGlobal('document', { createElement: () => ({}),visibilityState:'visible',addEventListener:(n,f)=>events[n]=f,removeEventListener:(n)=>delete events[n] });
   const { default: App } = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64') + '#' + Math.random());
   const render = () => { cursor = 0; return App(); };
-  render(); effects.splice(0).forEach(fn => fn());
-  return { render, instances };
+  render(); effects.splice(0).forEach(fn => {const cleanup=fn();if(cleanup)cleanups.push(cleanup);});
+  return { render, instances, events };
 }
 
 test('App holds reconnect while explicit disconnect waits for independent Stop', async t => {
@@ -181,4 +184,40 @@ test('App output mode defaults to combined conversation and cannot be changed th
  assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,true);
  instances[0].connection.resolve();await connecting;
  assert.equal(find(render(),n=>n.type==='Settings').props.sessionActive,true);
+});
+
+
+function talk(render){return find(render(),n=>n.props['aria-label']==='Hold to talk');}
+function pointer(id=1){return {button:0,isPrimary:true,pointerId:id,preventDefault(){},currentTarget:{setPointerCapture(){}}};}
+async function connectedApp(t){const e=await app(t);const pending=wake(e.render()).props.onClick();e.instances[0].connection.resolve();await pending;return {...e,s:e.instances[0]};}
+
+test('App hold-to-talk shows actual sending state and releases pointer without reconnecting',async t=>{
+ const {render,s,instances}=await connectedApp(t);assert.equal(talk(render).props['aria-pressed'],false);
+ talk(render).props.onPointerDown(pointer());assert.equal(talk(render).props['aria-pressed'],true);assert.equal(s.active,true);
+ talk(render).props.onPointerUp(pointer());assert.equal(talk(render).props['aria-pressed'],false);assert.equal(s.active,false);assert.equal(instances.length,1);
+});
+
+test('App hold ownership ignores key repeats, other pointers and mismatched releases',async t=>{
+ const {render,s}=await connectedApp(t);const key=k=>({key:k,repeat:false,preventDefault(){}});
+ talk(render).props.onKeyDown(key(' '));talk(render).props.onKeyDown({...key(' '),repeat:true});talk(render).props.onPointerDown(pointer());
+ assert.equal(s.begins,1);talk(render).props.onPointerCancel(pointer());talk(render).props.onKeyUp(key('Enter'));assert.equal(s.active,true);
+ talk(render).props.onKeyUp(key(' '));assert.equal(s.active,false);
+ talk(render).props.onPointerDown(pointer(3));talk(render).props.onPointerUp(pointer(4));assert.equal(s.active,true);
+ talk(render).props.onLostPointerCapture(pointer(3));assert.equal(s.active,false);
+});
+
+test('App releases mic on cancellation, blur, hidden page, settings and independent Stop',async t=>{
+ const {render,s,events}=await connectedApp(t);
+ for(const event of ['cancel','buttonblur','windowblur','hidden']) {
+  talk(render).props.onPointerDown(pointer());assert.equal(s.active,true);
+  if(event==='cancel')talk(render).props.onPointerCancel(pointer());
+  if(event==='buttonblur')talk(render).props.onBlur();
+  if(event==='windowblur')events.blur();
+  if(event==='hidden'){document.visibilityState='hidden';events.visibilitychange();document.visibilityState='visible';}
+  assert.equal(s.active,false,event);assert.equal(talk(render).props['aria-pressed'],false,event);
+ }
+ talk(render).props.onPointerDown(pointer());find(render(),n=>n.props.title==='Settings').props.onClick();assert.equal(s.active,false);
+ find(render(),n=>n.type==='Settings').props.onClose();talk(render).props.onPointerDown(pointer());
+ const stopping=find(render(),n=>n.type==='ExecutionStatus').props.onStop();assert.equal(s.active,false);
+ s.stop.resolve({success:true});await stopping;
 });

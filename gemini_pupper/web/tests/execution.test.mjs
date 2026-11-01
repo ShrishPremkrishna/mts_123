@@ -266,7 +266,7 @@ function mediaEnvironment(t, sdkConnect, getUserMedia, outputPolicy = 'receipts'
     constructor({ sampleRate } = {}) { this.sampleRate = sampleRate; this.state = 'running'; this.destination = {}; contexts.push(this); }
     createAnalyser() { return { ...node(), getByteTimeDomainData() {} }; }
     createMediaStreamSource() { return node(); }
-    createScriptProcessor() { return node(); }
+    createScriptProcessor(size) { this.inputBufferSize=size;return node(); }
     async close() { this.state = 'closed'; }
   }
   replaceGlobal(t, 'window', { AudioContext: FakeAudioContext, setInterval, speechSynthesis: { cancel() {} } });
@@ -596,11 +596,14 @@ test('audio diagnostics identify captured frames and SDK send invocation without
   });
   env.s.onTiming = event => timing.push(event);
   await env.s.connect('synthetic-key', env.config, {});
+  assert.equal(env.s.beginAudioInput(),true);
   env.s.inputScriptProcessor.onaudioprocess({ inputBuffer: {
     sampleRate: 16000, getChannelData: () => new Float32Array([0, 0.1, -0.2, 0]),
   } });
   await Promise.resolve();
   assert.equal(sent.length, 1); assert.equal(sent[0].audio.mimeType, 'audio/pcm;rate=16000');
+  assert.equal(env.s.inputAudioContext.inputBufferSize,512);
+  assert.equal(timing.find(e=>e.phase==='audio_input_setup').metadata.buffer_frames,512);
   const capture = timing.find(e => e.phase === 'audio_capture');
   const send = timing.find(e => e.phase === 'audio_send_start');
   assert.equal(capture.metadata.samples, 4); assert.equal(capture.metadata.sample_rate, 16000);
@@ -780,4 +783,75 @@ test('optional timing logger failure cannot prevent Stop or its real tool respon
   let calls=0;s.robotBridge.callTool=async name=>{assert.equal(name,'stop');calls++;return {success:true};};
   await s.handleMessage({toolCall:{functionCalls:[{id:'stop',name:'stop',args:{}}]},serverContent:{turnComplete:true}});await Promise.resolve();
   assert.equal(calls,1);assert.equal(responses.at(-1).functionResponses.response.result.success,true);
+});
+
+
+function audioFrame(s) {
+ s.inputScriptProcessor.onaudioprocess({inputBuffer:{sampleRate:16000,getChannelData:()=>new Float32Array([.1,-.2,.3,0])}});
+}
+
+test('hold-to-talk defaults closed, disables idle tracks, flushes release and keeps Live connected',async t=>{
+ const sent=[];let closed=0;
+ const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){closed++;},sendRealtimeInput:x=>sent.push(x)};});
+ await e.s.connect('TEST',e.config,{});
+ assert.equal(e.tracks[0].enabled,false);audioFrame(e.s);await Promise.resolve();assert.deepEqual(sent,[]);
+ assert.equal(e.s.beginAudioInput(),true);assert.equal(e.tracks[0].enabled,true);audioFrame(e.s);await Promise.resolve();
+ assert.ok(sent[0].audio);e.s.endAudioInput();assert.equal(e.tracks[0].enabled,false);
+ audioFrame(e.s);await Promise.resolve();assert.deepEqual(sent.map(x=>x.audio?'audio':x),['audio',{audioStreamEnd:true}]);
+ assert.equal(e.s.connected,true);assert.equal(closed,0);e.s.endAudioInput();await Promise.resolve();assert.equal(sent.length,2);
+});
+
+test('release invalidates captured PCM awaiting SDK callback, including rapid repress ordering',async t=>{
+ const sent=[];const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){},sendRealtimeInput:x=>sent.push(x)};});
+ await e.s.connect('TEST',e.config,{});
+ e.s.beginAudioInput();audioFrame(e.s);e.s.endAudioInput();e.s.beginAudioInput();audioFrame(e.s);
+ await Promise.resolve();assert.deepEqual(sent.map(x=>x.audio?'audio':x),[{audioStreamEnd:true},'audio']);
+ e.s.endAudioInput();await Promise.resolve();assert.deepEqual(sent.at(-1),{audioStreamEnd:true});
+});
+
+test('unresolved SDK promise cannot leak old capture after release or end a new stream out of order',async t=>{
+ const opened=deferred(),sent=[];
+ const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return opened.promise;});
+ const connecting=e.s.connect('TEST',e.config,{});await new Promise(r=>setImmediate(r));
+ assert.equal(e.s.beginAudioInput(),true);audioFrame(e.s);e.s.endAudioInput();e.s.beginAudioInput();audioFrame(e.s);
+ opened.resolve({close(){},sendRealtimeInput:x=>sent.push(x)});await connecting;await Promise.resolve();
+ assert.deepEqual(sent.map(x=>x.audio?'audio':x),[{audioStreamEnd:true},'audio']);
+});
+
+test('Stop and disconnect close hold gate synchronously and stale capture never resumes',async t=>{
+ for(const action of ['stop','disconnect']) {
+  const sent=[],e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){},sendRealtimeInput:x=>sent.push(x)};});
+  await e.s.connect('TEST',e.config,{});e.s.beginAudioInput();audioFrame(e.s);
+  if(action==='stop')e.s.pauseRobotTools();else await e.s.disconnect();
+  await Promise.resolve();assert.equal(e.s.audioInputActive,false);assert.equal(sent.some(x=>x.audio),false);
+  if(action==='disconnect')assert.equal(e.s.beginAudioInput(),false);
+ }
+});
+
+test('failed release boundary prevents further audio until fresh connection while Stop remains callable',async t=>{
+ let stop=0;const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){},sendRealtimeInput(){throw Error('closed');}};});
+ await e.s.connect('TEST',e.config,{});e.s.beginAudioInput();e.s.endAudioInput();await Promise.resolve();
+ assert.equal(e.s.beginAudioInput(),false);assert.equal(e.tracks[0].enabled,false);
+ e.s.robotBridge.immediateStop=async()=>{stop++;return {success:true};};
+ await requestIndependentStop(e.s,e.s.robotBridge);assert.equal(stop,1);
+ assert.ok(e.logs.some(x=>x.message==='Audio release could not be sent. Reconnect before sending more speech.'));
+});
+
+test('release timing records SDK-send boundary separately from unobserved acoustic/transcript end',async t=>{
+ let now=1000;replaceGlobal(t,'performance',{now:()=>now});
+ const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){},sendRealtimeInput(){}};});
+ await e.s.connect('TEST',e.config,{});e.s.beginAudioInput();e.s.endAudioInput();await Promise.resolve();now=1250;
+ await e.s.handleMessage({serverContent:{outputTranscription:{text:'Hello'},turnComplete:true}});
+ const timing=JSON.parse(e.logs.find(x=>x.message.startsWith('Timing ')).message.slice(7));
+ assert.equal(timing.latest_audio_release_sent_at_ms,1000);assert.equal(timing.latest_audio_release_to_first_callback_ms,250);
+ assert.equal(timing.input_transcript_end_ms,null);assert.match(timing.note,/not acoustic end or guaranteed turn association/);
+});
+
+
+test('model-issued Stop closes audio gate before dispatch without waiting for boundary receipt',async t=>{
+ const sent=[];const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){},sendRealtimeInput:x=>sent.push(x),sendToolResponse(){}};});
+ await e.s.connect('TEST',e.config,{});e.s.beginAudioInput();audioFrame(e.s);
+ let called=false;e.s.robotBridge.callTool=async()=>{called=true;assert.equal(e.s.audioInputActive,false);return {success:true};};
+ await e.s.handleMessage({toolCall:{functionCalls:[{id:'stop-hold',name:'stop',args:{}}]}});
+ assert.equal(called,true);assert.equal(sent.some(x=>x.audio),false);assert.deepEqual(sent,[{audioStreamEnd:true}]);
 });

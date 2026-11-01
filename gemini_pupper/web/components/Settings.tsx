@@ -29,7 +29,7 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
             <option value="receipts">Receipt-only robot control</option>
             <option value="conversation">Conversation + control</option>
           </select>
-          <p className="text-xs text-amber-200 mt-1">Disconnect before changing modes. Receipt mode mutes model narration and speaks only fixed server feedback. Conversation + control keeps robot tools enabled, buffers native speech until turn completion, and substitutes server receipts for tool turns. Other speech/vision output is unverified.</p>
+          <p className="text-xs text-amber-200 mt-1">Disconnect before changing modes. Receipt mode mutes model narration and displays server feedback. Conversation + control keeps robot tools enabled, buffers native speech until turn completion, and displays server receipts for tool turns. Hold to talk sends microphone audio only while pressed; the connection and camera remain active. Other speech/vision output is unverified.</p>
         </div>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <div>

@@ -67,6 +67,8 @@ const App: React.FC = () => {
   // Runtime State
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [audioInputActive, setAudioInputActive] = useState(false);
+  const talkOwner = useRef<{ pointer: number } | { key: string } | null>(null);
   const [lastDispatch, setLastDispatch] = useState<ToolDispatch | null>(null);
   const [modelActionsPaused, setModelActionsPaused] = useState(false);
   const [stopMessage, setStopMessage] = useState('');
@@ -137,6 +139,36 @@ const App: React.FC = () => {
 
   const geminiRef = useRef<GeminiLiveService | null>(null);
   const disconnectingRef = useRef<GeminiLiveService | null>(null);
+  const releaseTalk = useCallback(() => {
+    talkOwner.current = null;
+    geminiRef.current?.endAudioInput();
+    setAudioInputActive(false);
+  }, []);
+  useEffect(() => {
+    const pointerReleased = (event: PointerEvent) => {
+      const owner = talkOwner.current;
+      if (owner && 'pointer' in owner && owner.pointer === event.pointerId) releaseTalk();
+    };
+    const hidden = () => { if (document.visibilityState !== 'visible') releaseTalk(); };
+    window.addEventListener('blur', releaseTalk);
+    window.addEventListener('pointerup', pointerReleased);
+    window.addEventListener('pointercancel', pointerReleased);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      releaseTalk();
+      window.removeEventListener('blur', releaseTalk);
+      window.removeEventListener('pointerup', pointerReleased);
+      window.removeEventListener('pointercancel', pointerReleased);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, []);
+  const beginTalk = (owner: { pointer: number } | { key: string }) => {
+    if (talkOwner.current || showSettings || isStopPending() || connState !== ConnectionState.CONNECTED) return;
+    if (geminiRef.current?.beginAudioInput()) {
+      talkOwner.current = owner;
+      setAudioInputActive(true);
+    }
+  };
   // Stable for polling; changing the configured server immediately replaces it.
   const robotBridge = useMemo(() => new RobotBridge(config.robotApiUrl), [config.robotApiUrl]);
 
@@ -181,6 +213,8 @@ const App: React.FC = () => {
         level => { if (geminiRef.current === service) setAudioLevel(level); },
         () => {
           if (geminiRef.current !== service || disconnectingRef.current === service) return;
+          talkOwner.current = null;
+          setAudioInputActive(false);
           geminiRef.current = null;
           setConnState(ConnectionState.DISCONNECTED);
         },
@@ -199,6 +233,12 @@ const App: React.FC = () => {
           // Model-issued and automatic Stops use the same typed lifecycle;
           // an old service must still release its pending request after closing.
           if (pending) beginStop(); else endStop();
+        },
+        undefined,
+        active => {
+          if (geminiRef.current !== service) return;
+          if (!active) talkOwner.current = null;
+          setAudioInputActive(active);
         }
       );
 
@@ -217,6 +257,7 @@ const App: React.FC = () => {
   };
 
   const handleStop = async () => {
+    releaseTalk();
     // This does not wait for a model turn and future model calls remain paused.
     setModelActionsPaused(true);
     beginStop();
@@ -235,6 +276,7 @@ const App: React.FC = () => {
   };
 
   const handleDisconnect = async () => {
+    releaseTalk();
     const service = geminiRef.current;
     if (service) {
       if (disconnectingRef.current === service) return;
@@ -266,7 +308,7 @@ const App: React.FC = () => {
       <div role="status" className="shrink-0 px-3 py-2 text-xs bg-gray-900 text-amber-200">
         {(geminiRef.current?.outputPolicy ?? normalizeOutputPolicy(config.outputPolicy)) === 'receipts'
           ? 'Receipt-only control — model narration is muted. Feedback describes server responses, not observed motion.'
-          : 'Conversation + control — native speech waits for a complete turn. Tool turns use server receipts; other speech and vision descriptions remain unverified.'}
+          : 'Conversation + control — native speech waits for a complete turn. Tool turns show server receipts; other speech and vision descriptions remain unverified.'}
         {logs.filter(entry => entry.type === 'receipt').at(-1)?.message && <div aria-live="polite">
           Latest response: {logs.filter(entry => entry.type === 'receipt').at(-1)?.message}
         </div>}
@@ -279,12 +321,55 @@ const App: React.FC = () => {
         stopMessage={stopMessage}
       />
 
+      <div className="shrink-0 flex items-center justify-center gap-3 px-3 py-2 bg-gray-900 border-t border-gray-800">
+        <button
+          aria-label="Hold to talk" aria-pressed={audioInputActive}
+          disabled={connState !== ConnectionState.CONNECTED || showSettings || stopPending || !config.enableAudio}
+          onPointerDown={event => {
+            if (event.button !== 0 || !event.isPrimary) return;
+            event.preventDefault();
+            beginTalk({ pointer: event.pointerId });
+            if (talkOwner.current && 'pointer' in talkOwner.current) {
+              try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Window release is the fallback. */ }
+            }
+          }}
+          onPointerUp={event => {
+            const owner = talkOwner.current;
+            if (owner && 'pointer' in owner && owner.pointer === event.pointerId) releaseTalk();
+          }}
+          onPointerCancel={event => {
+            const owner = talkOwner.current;
+            if (owner && 'pointer' in owner && owner.pointer === event.pointerId) releaseTalk();
+          }}
+          onLostPointerCapture={event => {
+            const owner = talkOwner.current;
+            if (owner && 'pointer' in owner && owner.pointer === event.pointerId) releaseTalk();
+          }}
+          onKeyDown={event => {
+            if (event.key !== ' ' && event.key !== 'Enter') return;
+            event.preventDefault();
+            if (!event.repeat) beginTalk({ key: event.key });
+          }}
+          onKeyUp={event => {
+            const owner = talkOwner.current;
+            if (owner && 'key' in owner && owner.key === event.key) { event.preventDefault(); releaseTalk(); }
+          }}
+          onBlur={releaseTalk}
+          onContextMenu={event => event.preventDefault()}
+          className={`touch-none select-none rounded-full px-5 py-2 font-semibold disabled:opacity-40 ${audioInputActive ? 'bg-red-500 text-white' : 'bg-cyan-500 text-black'}`}>
+          {audioInputActive ? 'Listening — release to finish' : 'Hold to talk'}
+        </button>
+        <span role="status" className="text-xs text-gray-300">
+          {audioInputActive ? 'Microphone sending' : 'Microphone not sending'}
+        </span>
+      </div>
+
       <main 
         className="flex-1 relative overflow-hidden"
       >
         {view === 'face' ? (
           <DogFace 
-            isListening={connState === ConnectionState.CONNECTED}
+            isListening={audioInputActive}
             isSpeaking={audioLevel > 0.05} 
             audioLevel={audioLevel}
             systemStatus={systemStatus}
@@ -364,6 +449,7 @@ const App: React.FC = () => {
           )}
           <button 
             onClick={() => {
+              releaseTalk();
               setShowSettings(true);
               if (document.fullscreenElement) {
                 document.exitFullscreen().catch(e => console.error(e));

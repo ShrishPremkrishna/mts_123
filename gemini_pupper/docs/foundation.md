@@ -49,11 +49,11 @@ weights or persistent memory. Actual Gemini conversations and synthetic spoken
 input have been exercised against fake execution. Separate checks cover browser
 WebAudio/canvas video with mock Google events, synthetic spoken Stop sent to actual
 Google during fake work/model audio, and actual Google describing synthetic JPEGs.
-They are not an end-to-end real-media test. Real microphone, camera and physical
-voice-controlled behavior remain pending; see the
-[Stop and grounding evidence](../../foundation/results/workstream1-stop-grounding-20261030.json).
+Those earlier checks are not physical evidence. The [1 November supervised session](../../foundation/results/workstream1-hardware-20261101.json) subsequently demonstrated actual microphone/camera use, bounded voice movement and the complete voice Sit/hold/both-paws/standing sequence. Broader reliability, specific camera-description accuracy and remaining skills are still incomplete.
 
 ## Operator feedback modes
+
+The current browser candidate uses **hold-to-talk** while keeping the Live connection and camera open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks; real speech recognition with this revision remains to be checked.
 
 **Conversation + control** keeps natural conversation and the complete robot tool
 catalog in one session. The client holds model speech/text until the model turn
@@ -64,7 +64,7 @@ while a previously accepted robot job continues; no mode switch is required.
 
 Tool-free conversation retains Gemini's native voice after the complete-turn
 check. Known English action-claim patterns are screened using the shared
-`conversation_guard.json`; suspicious replies get a fixed unconfirmed-action
+`conversation_guard.json`; suspicious replies get a visible, silent unconfirmed-action
 notice. This screening is a heuristic, with possible false positives and missed
 paraphrases or languages. A transcript is not proof that every spoken word agrees
 with it. **The hard guarantee covers tool-turn narration and receipt provenance,
@@ -77,12 +77,10 @@ remains independent. The explicit **receipt-only** diagnostic mode still mutes
 all model narration. Previously saved explicit receipt-only settings remain
 selected until changed while disconnected.
 
-Fixed receipts use local browser speech synthesis, never generative TTS. They do
-not establish physical success:
+Fixed server receipts are visible immediately after matching replies. The browser no longer speaks them with the operating system voice, so native Gemini conversation is the only spoken character. Tool-bearing narration remains suppressed; spoken acknowledgments in the same voice are not implemented. Receipts do not establish physical success:
 
-- A successful reply without explicit submission evidence says **“Server accepted
-  the … request. Completion is unconfirmed.”**
-- **“Server queued …”** requires `details.submission` with schema
+- A successful reply without explicit submission evidence says the request was **accepted**, not completed.
+- Wording such as **“Move queued.”** requires `details.submission` with schema
   `pupper_submission_v1` and state `queued`, produced after successful insertion
   into the server queue. This records past insertion, not present occupancy,
   execution, a new interactive entry, or completion.

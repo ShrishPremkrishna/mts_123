@@ -4,7 +4,7 @@ import { createPcmBlob, decodeAudioData, blobToBase64 } from './audioUtils';
 import { AppConfig, LogEntry, OutputPolicy } from '../types';
 import RobotBridge from './robotBridge';
 import { ConversationOutputGate, type ConversationOutput } from './conversationOutput';
-import { normalizeOutputPolicy, operatorFeedback, ReceiptSpeaker, toolLabel } from './operatorFeedback';
+import { normalizeOutputPolicy, operatorFeedback, toolLabel } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
 
 /**
@@ -42,6 +42,7 @@ export interface LiveTimingEvent {
 interface TurnTiming {
   id: number;
   began: number;
+  audioReleaseSent?: number;
   handlers: number;
   tools: number;
   inputFirst?: number;
@@ -70,7 +71,6 @@ export class GeminiLiveService {
   private connecting = false;
   private playbackGeneration = 0;
   public readonly outputPolicy: OutputPolicy;
-  private receiptSpeaker = new ReceiptSpeaker();
   private feedbackGeneration = 0;
   private feedbackRequest = 0;
   private pendingRobotTools = 0;
@@ -85,6 +85,10 @@ export class GeminiLiveService {
   private currentTurnTiming: TurnTiming | null = null;
   private outputTurnTiming: TurnTiming | undefined;
   private audioSequence = 0;
+  private audioInputActive = false;
+  private audioInputGeneration = 0;
+  private audioBoundaryFailed = false;
+  private lastAudioReleaseSent?: number;
   private speechVisualInterval: number | null = null;
   private inputScriptProcessor: ScriptProcessorNode | null = null;
   private mediaStream: MediaStream | null = null;
@@ -113,7 +117,8 @@ export class GeminiLiveService {
     onToolDispatch: (entry: ToolDispatch) => void = () => {},
     private onAutomaticStop: (message: string) => void = () => {},
     private onStopPending: (pending: boolean) => void = () => {},
-    private onTiming?: (event: LiveTimingEvent) => void
+    private onTiming?: (event: LiveTimingEvent) => void,
+    private onAudioInputChange: (active: boolean) => void = () => {}
   ) {
     this.config = config;
     this.outputPolicy = normalizeOutputPolicy(config.outputPolicy);
@@ -131,6 +136,7 @@ export class GeminiLiveService {
 
   /** Synchronous: later model motion calls cannot rearm; stop/status remain available. */
   public pauseRobotTools() {
+    this.endAudioInput();
     this.robotToolsPaused = true;
     this.stopPlayback();
   }
@@ -165,7 +171,7 @@ export class GeminiLiveService {
     const now = performance.now();
     let turn = this.currentTurnTiming;
     if (!turn) {
-      turn = { id: ++this.timingSequence, began: now, handlers: 0, tools: 0, expectsNative: false };
+      turn = { id: ++this.timingSequence, began: now, audioReleaseSent: this.lastAudioReleaseSent, handlers: 0, tools: 0, expectsNative: false };
       this.currentTurnTiming = turn;
     }
     turn.handlers++;
@@ -195,6 +201,8 @@ export class GeminiLiveService {
     const gap = (first?: number, last?: number) => first === undefined || last === undefined || last < first ? null : Math.round(last - first);
     const firstEvent = Math.min(turn.outputFirst ?? Infinity, turn.toolFirst ?? Infinity);
     const summary = { turn: turn.id, basis: 'ms from first observed server callback', reason,
+      latest_audio_release_sent_at_ms: turn.audioReleaseSent === undefined ? null : Math.round(turn.audioReleaseSent),
+      latest_audio_release_to_first_callback_ms: gap(turn.audioReleaseSent, turn.began),
       input_transcript_first_ms: offset(turn.inputFirst), input_transcript_end_ms: offset(turn.inputEnd),
       first_model_output_ms: offset(turn.outputFirst), first_native_chunk_ms: offset(turn.audioFirst),
       tool_entry_ms: offset(turn.toolFirst), tool_reply_ms: offset(turn.toolReply), receipt_ms: offset(turn.receipt),
@@ -202,7 +210,7 @@ export class GeminiLiveService {
       observed_input_end_to_model_ms: gap(turn.inputEnd, Number.isFinite(firstEvent) ? firstEvent : undefined),
       native_chunk_to_turn_complete_ms: gap(turn.audioFirst, turn.complete),
       turn_complete_to_playback_ms: gap(turn.complete, turn.nativeScheduled),
-      note: 'Input transcript callbacks are not guaranteed to align with model turns or acoustic speech end. Native playback is scheduled, not measured sound. Null means unobserved.' };
+      note: 'Input transcript callbacks are not guaranteed to align with model turns or acoustic speech end. Audio release is an SDK send boundary, not acoustic end or guaranteed turn association. Native playback is scheduled, not measured sound. Null means unobserved.' };
     // Optional telemetry must never throw into dispatch or Stop.
     try { this.log('info', `Timing ${JSON.stringify(summary)}`); } catch {}
   }
@@ -219,7 +227,10 @@ export class GeminiLiveService {
     }
     // Own each track immediately: a later camera/SDK failure must release the mic.
     if (!this.mediaStream) this.mediaStream = new MediaStream();
-    stream.getTracks().forEach(track => this.mediaStream!.addTrack(track));
+    stream.getTracks().forEach(track => {
+      if (track.kind === 'audio') track.enabled = false;
+      this.mediaStream!.addTrack(track);
+    });
   }
 
   private async openSession(apiKey: string, config: AppConfig, videoElement: HTMLVideoElement) {
@@ -385,14 +396,70 @@ export class GeminiLiveService {
     }, 50);
   }
 
+  /** Deliberate audio transmission; the Live connection and camera stay open. */
+  public beginAudioInput(): boolean {
+    if (!this.connected || this.disposed || !this.config.enableAudio || this.audioBoundaryFailed
+        || !this.inputAudioContext || !this.mediaStream?.getAudioTracks().length) return false;
+    if (this.audioInputActive) return true;
+    const generation = ++this.audioInputGeneration;
+    this.audioInputActive = true;
+    this.mediaStream.getAudioTracks().forEach(track => { track.enabled = true; });
+    try { this.onAudioInputChange(true); } catch { /* Optional UI. */ }
+    if (this.inputAudioContext.state === 'suspended') {
+      void this.inputAudioContext.resume().catch(() => {
+        if (generation === this.audioInputGeneration) this.endAudioInput();
+      });
+    }
+    this.trace('audio_hold_start');
+    return true;
+  }
+
+  /** Close the local gate before any pending SDK callback can send more PCM. */
+  public endAudioInput() {
+    const wasActive = this.audioInputActive;
+    this.audioInputActive = false;
+    ++this.audioInputGeneration;
+    this.mediaStream?.getAudioTracks().forEach(track => { track.enabled = false; });
+    try { this.onAudioInputChange(false); } catch { /* Optional UI. */ }
+    if (!wasActive || !this.connected || this.disposed || !this.sessionPromise) return;
+    const pending = this.sessionPromise;
+    // Default automatic VAD remains enabled. Flush its cached input when a hold
+    // ends; a later audio message reopens the stream. Promise callbacks preserve
+    // release-before-repress ordering; never key this boundary to the new hold.
+    // https://ai.google.dev/gemini-api/docs/live-api/capabilities#automatic-vad
+    void pending.then(session => {
+      if (!this.connected || this.disposed || this.sessionPromise !== pending) return;
+      try {
+        session.sendRealtimeInput({ audioStreamEnd: true });
+        this.lastAudioReleaseSent = performance.now();
+        this.trace('audio_hold_end_sent');
+      } catch { this.failAudioBoundary(); }
+    }).catch(() => this.failAudioBoundary());
+  }
+
+  private failAudioBoundary() {
+    if (this.disposed) return;
+    this.audioBoundaryFailed = true;
+    this.audioInputActive = false;
+    ++this.audioInputGeneration;
+    this.mediaStream?.getAudioTracks().forEach(track => { track.enabled = false; });
+    try { this.onAudioInputChange(false); } catch { /* Optional UI. */ }
+    try { this.log('error', 'Audio release could not be sent. Reconnect before sending more speech.'); } catch {}
+  }
+
   private setupAudioInput(ctx: AudioContext, stream: MediaStream) {
     const source = ctx.createMediaStreamSource(stream);
     this.inputSource = source;
-    this.inputScriptProcessor = ctx.createScriptProcessor(4096, 1, 1);
-    this.trace('audio_input_setup', { sample_rate: ctx.sampleRate ?? null, buffer_frames: 4096, encoded_rate: 16000 });
+    // 32 ms nominal at 16 kHz: reduce the partial held-audio tail discarded on
+    // immediate release. Never send a later callback to try to recover that tail.
+    const bufferFrames = 512;
+    this.inputScriptProcessor = ctx.createScriptProcessor(bufferFrames, 1, 1);
+    this.trace('audio_input_setup', { sample_rate: ctx.sampleRate ?? null, buffer_frames: bufferFrames, encoded_rate: 16000 });
     
     this.inputScriptProcessor.onaudioprocess = (e) => {
-      if (!this.connected || !this.sessionPromise) return;
+      if (!this.connected || !this.sessionPromise || !this.audioInputActive) return;
+      const generation = this.audioInputGeneration;
+      const pending = this.sessionPromise;
 
       const inputData = e.inputBuffer.getChannelData(0);
       const audioSequence = ++this.audioSequence;
@@ -400,8 +467,9 @@ export class GeminiLiveService {
         sample_rate: e.inputBuffer.sampleRate ?? ctx.sampleRate ?? null });
       const pcmBlob = createPcmBlob(inputData);
       
-      this.sessionPromise.then(session => {
-        if (!this.connected) return;
+      void pending.then(session => {
+        if (!this.connected || this.disposed || !this.audioInputActive
+            || generation !== this.audioInputGeneration || this.sessionPromise !== pending) return;
         try {
            this.trace('audio_send_start', { audio_sequence: audioSequence });
            session.sendRealtimeInput({ 
@@ -416,7 +484,7 @@ export class GeminiLiveService {
            this.trace('audio_send_failed', { audio_sequence: audioSequence });
            // Ignore errors if session is closing
         }
-      });
+      }).catch(() => {});
     };
 
     source.connect(this.inputScriptProcessor);
@@ -637,6 +705,7 @@ export class GeminiLiveService {
     if (message.toolCall) {
       const calls = message.toolCall.functionCalls ?? [];
       const hasStop = calls.some(call => call.name === 'stop' && !(call.id && this.cancelledToolIds.has(call.id)));
+      if (hasStop) this.endAudioInput();
       // Stop is an interrupt, never the tail of a queued sequence. Dispatch it
       // first and reject other actions in that same model batch before HTTP.
       const ordered = hasStop ? [...calls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : calls;
@@ -730,7 +799,6 @@ export class GeminiLiveService {
           const feedback = operatorFeedback(fc.name, result);
           if (turnTiming) turnTiming.receipt ??= performance.now();
           this.log('receipt', feedback);
-          this.receiptSpeaker.say(feedback);
         }
         if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
           this.sessionPromise.then(session => {
@@ -815,7 +883,6 @@ export class GeminiLiveService {
   private stopPlayback(invalidateTurn = true) {
     if (invalidateTurn) this.conversationOutput.discard();
     this.feedbackGeneration++;
-    this.receiptSpeaker.cancel();
     this.playbackGeneration++;
     if (this.speechVisualInterval) clearInterval(this.speechVisualInterval);
     this.speechVisualInterval = null;
@@ -833,6 +900,7 @@ export class GeminiLiveService {
   private cleanup() {
     this.disposed = true;
     this.connected = false;
+    this.endAudioInput();
     this.videoGeneration++;
     this.stopPlayback();
     this.conversationOutput.close();

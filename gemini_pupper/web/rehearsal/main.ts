@@ -100,8 +100,13 @@ run.onclick = async () => {
     service = new GeminiLiveService(config, entry => { if (entry.type === 'receipt') feedback.push(entry.message); }, () => {}, () => {}, entry => dispatches.push(entry),
       () => {}, pending => { pendingStops += pending ? 1 : -1; }, trace);
     await service.connect('REHEARSAL-NOT-A-KEY', config, video);
+    check('microphone_idle_until_deliberate_hold', mock.audioFrames === 0);
+    check('synthetic_hold_started', service.beginAudioInput());
     await until(() => mock.audioFrames >= 2 && mock.nonzeroFrames >= 1, 'synthetic audio capture');
     check('real_webaudio_capture_encoded_nonzero_pcm', true);
+    service.endAudioInput();
+    await until(() => mock.audioEnds === 1, 'deliberate input release boundary');
+    const releasedAudioFrames = mock.audioFrames;
     await until(() => mock.videoFrames.length > 0, 'synthetic canvas video frame');
     const firstFrame = mock.videoFrames[0], firstImage = await decodeJpeg(firstFrame.data);
     receipt.first_video_frame = firstImage;
@@ -118,6 +123,7 @@ run.onclick = async () => {
       changedImage = await decodeJpeg(mock.videoFrames.at(-1)!.data);
     }
     receipt.changed_video_frame = changedImage;
+    check('release_keeps_video_running_without_more_audio', mock.audioFrames === releasedAudioFrames);
     check('changed_canvas_frame_reaches_production_video_path', changedImage.center_rgba[2] > 180
       && changedImage.center_rgba[0] < 60 && mock.videoFrames.at(-1)!.data !== firstFrame.data);
     let forgedDecodes = 0;
@@ -144,8 +150,8 @@ run.onclick = async () => {
         { inlineData: { mimeType: 'audio/wav', data: silenceWav() } }] } } });
       check('strict_no_acceptance_before_http_reply', feedback.length === 0 && spokenReceipts.length === 0 && forgedDecodes === 0);
       releaseWait(); await waiting;
-      check('strict_fixed_receipt_after_actual_http_reply', feedback.length === 1 && feedback[0] === 'Server queued the wait request. Completion is unconfirmed.'
-        && spokenReceipts[0] === feedback[0] && mock.ttsCalls === 0);
+      check('strict_fixed_receipt_after_actual_http_reply', feedback.length === 1 && feedback[0] === 'Wait queued.'
+        && spokenReceipts.length === 0 && mock.ttsCalls === 0);
     } finally {
       releaseWait(); window.fetch = guardedFetch; AudioContext.prototype.decodeAudioData = strictDecode;
       if (waiting) await waiting;
@@ -205,7 +211,7 @@ run.onclick = async () => {
     const moveReply = mock.responses.at(-1)?.functionResponses;
     check('combined_move_accepted_with_fixed_receipt_in_same_session', moveReply?.id === 'combined-move'
       && moveReply.response.result.success === true && feedback.length === beforeMoveFeedback + 1
-      && feedback.at(-1) === 'Server queued the move request. Completion is unconfirmed.');
+      && feedback.at(-1) === 'Move queued.' && spokenReceipts.length === 0);
 
     const originalDecode = AudioContext.prototype.decodeAudioData;
     let decodeEntered = false, nativeDecode: { sample_rate: number; frames: number } | null = null, release!: () => void;
