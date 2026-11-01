@@ -59,21 +59,31 @@ def check_move(vx: float, vy: float, wz_deg: float, duration: float, limits: Mov
     # 3. The duration must be more than 0 and at most limits.duration_max.
     # 4. Too far: speed * duration > limits.distance_max, where speed = (vx**2 + vy**2) ** 0.5.
     # 5. Nothing wrong: return None.
+    refused = _check_move_result(vx, vy, wz_deg, duration, limits)
+    return refused.message if refused else None
+
+
+def _motion_refusal(code: str, message: str, **limits: float) -> Result:
+    """Closed facts for operator feedback; the existing human-readable reason is preserved."""
+    return Result(False, message, {"refusal": {"schema": "pupper_motion_refusal_v1", "code": code, "limits": limits}})
+
+
+def _check_move_result(vx: float, vy: float, wz_deg: float, duration: float, limits: MoveLimits) -> Result | None:
     values = (vx, vy, wz_deg, duration)
     if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in values):
-        return "motion values must be finite numbers (m/s, degrees/s and seconds)"
+        return _motion_refusal("invalid_values", "motion values must be finite numbers (m/s, degrees/s and seconds)")
     forward = limits.vx_forward_max if limits.vx_forward_max is not None else limits.vx_max
     backward = limits.vx_backward_max if limits.vx_backward_max is not None else limits.vx_max
     if vx > forward or vx < -backward or abs(vy) > limits.vy_max or abs(wz_deg) > limits.wz_max:
         if limits.vx_forward_max is not None or limits.vx_backward_max is not None:
-            return f"too fast: -{backward}<=vx<={forward} m/s, |vy|<={limits.vy_max} m/s, |wz|<={limits.wz_max} deg/s"
-        return f"too fast: |vx|<={limits.vx_max} m/s, |vy|<={limits.vy_max} m/s, |wz|<={limits.wz_max} deg/s"
+            return _motion_refusal("speed_limit", f"too fast: -{backward}<=vx<={forward} m/s, |vy|<={limits.vy_max} m/s, |wz|<={limits.wz_max} deg/s", forward_max=forward, backward_max=backward, sideways_max=limits.vy_max, turn_max=limits.wz_max)
+        return _motion_refusal("speed_limit", f"too fast: |vx|<={limits.vx_max} m/s, |vy|<={limits.vy_max} m/s, |wz|<={limits.wz_max} deg/s", forward_max=forward, backward_max=backward, sideways_max=limits.vy_max, turn_max=limits.wz_max)
     if abs(vx) < limits.vx_min and abs(vy) < limits.vy_min and abs(wz_deg) < limits.wz_min:
-        return f"too slow: at least |vx|>={limits.vx_min} m/s, |vy|>={limits.vy_min} m/s or |wz|>={limits.wz_min} deg/s"
+        return _motion_refusal("minimum_speed", f"too slow: at least |vx|>={limits.vx_min} m/s, |vy|>={limits.vy_min} m/s or |wz|>={limits.wz_min} deg/s", forward_min=limits.vx_min, sideways_min=limits.vy_min, turn_min=limits.wz_min)
     if not 0 < duration <= limits.duration_max:
-        return f"duration must be more than 0 and at most {limits.duration_max} s"
+        return _motion_refusal("duration_limit", f"duration must be more than 0 and at most {limits.duration_max} s", duration_max=limits.duration_max)
     if math.hypot(vx, vy) * duration > limits.distance_max:
-        return f"too far: one move travels at most {limits.distance_max} m"
+        return _motion_refusal("distance_limit", f"too far: one move travels at most {limits.distance_max} m", distance_max=limits.distance_max)
     return None
     # ====================================
 
@@ -106,9 +116,9 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
     if getattr(state, "walks", False) and not robot.trick_available(state):
         return Result(False, "This walking stance is locked; stand_up leaves it safely, or unlock before moving in it.")
     speeds = robot.speeds()  # the limits where Pupper will be (a walking trick has its own)
-    refused = check_move(vx, vy, wz_deg, duration, speeds.limits)  # your TODO 2: is this move allowed?
+    refused = _check_move_result(vx, vy, wz_deg, duration, speeds.limits)  # your TODO 2: is this move allowed?
     if refused:
-        return Result(False, refused + speeds.where)  # Gemini hears why; nothing is queued
+        return Result(False, refused.message + speeds.where, refused.details)  # Gemini hears why; nothing is queued
     note = await prepare_to_move(robot)  # get ready: does nothing until your TODO 5 (Part 3)
     if isinstance(note, Result):
         return note
@@ -127,9 +137,9 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
         # A gait-specific command must never silently run on a different gait.
         if walker != LOCOMOTION_CONTROLLER and robot.state_now is not state:
             return Result(False, f"{state.name} is no longer running; play it first")
-        refused_now = check_move(vx, vy, wz_deg, duration, robot.speeds(state).limits)
+        refused_now = _check_move_result(vx, vy, wz_deg, duration, robot.speeds(state).limits)
         if refused_now:
-            return Result(False, refused_now)
+            return refused_now
         res = await robot.switch_to(walker)  # the policy that walks takes the legs (if it hasn't already)
         if not res.ok:
             return res
@@ -345,7 +355,7 @@ async def arc_tool(
     wz_max = robot.speeds().limits.wz_max
     minimum_radius = speed / math.radians(wz_max)
     if radius < minimum_radius:
-        return Result(False, f"radius too tight: at {speed:g} m/s use at least {math.ceil(minimum_radius * 100) / 100} m")
+        return _motion_refusal("radius_limit", f"radius too tight: at {speed:g} m/s use at least {math.ceil(minimum_radius * 100) / 100} m", radius_min=math.ceil(minimum_radius * 100) / 100)
     wz = math.degrees(speed / radius)
     return await walk(robot, speed, 0.0, wz if direction == "left" else -wz, angle / wz)
 # ====================================

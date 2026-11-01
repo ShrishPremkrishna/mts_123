@@ -8,7 +8,7 @@ function service(policy){const logs=[],dispatches=[],responses=[],audio=[],speec
 const call=(id,name,args={})=>({toolCall:{functionCalls:[{id,name,args}]}});
 test('receipts mode suppresses forged no-tool native audio and text',async()=>{for(const p of ['bad','receipts']){const e=service(p);await e.s.handleMessage({serverContent:{modelTurn:{parts:[{text:'I completed the walk'},{inlineData:{data:'forged'}}]},outputTranscription:{text:'I am standing'}}});assert.deepEqual(e.audio,[]);assert.equal(e.logs.some(x=>x.type==='model'||x.message.includes('I completed')),false);}});
 test('strict speech aliases never invoke TTS even for text models',async()=>{const e=service('receipts');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';for(const name of ['speak','say','narrate'])await e.s.handleMessage(call(name,name,{text:'I moved already'}));assert.deepEqual(e.speech,[]);assert.equal(e.logs.some(x=>x.message.includes('I moved already')),false);});
-test('receipt feedback waits for actual matching response without trusting prose',async()=>{const e=service('receipts'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;const pending=e.s.handleMessage(call('walk','move'));assert.equal(e.logs.some(x=>x.type==='receipt'),false);d.resolve({success:true,message:'I walked and finished'});await pending;assert.equal(e.logs.filter(x=>x.type==='receipt').length,1);assert.equal(e.logs.find(x=>x.type==='receipt').message,'Server accepted the move request. Completion is unconfirmed.');});
+test('receipt feedback waits for actual matching response without trusting prose',async()=>{const e=service('receipts'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;const pending=e.s.handleMessage(call('walk','move'));assert.equal(e.logs.some(x=>x.type==='receipt'),false);d.resolve({success:true,message:'I walked and finished'});await pending;assert.equal(e.logs.filter(x=>x.type==='receipt').length,1);assert.equal(e.logs.find(x=>x.type==='receipt').message,'Move request accepted.');});
 
 const feedbackBundle=await build({entryPoints:['services/operatorFeedback.ts'],bundle:true,write:false,format:'esm',platform:'node'});
 const {operatorFeedback,normalizeOutputPolicy,ReceiptSpeaker}=await import('data:text/javascript;base64,'+Buffer.from(feedbackBundle.outputFiles[0].text).toString('base64'));
@@ -16,14 +16,14 @@ function replace(t,name,value){const old=Object.getOwnPropertyDescriptor(globalT
 function speech(t){const spoken=[],cancelled=[];replace(t,'window',{speechSynthesis:{speak:u=>spoken.push(u),cancel:()=>cancelled.push(true)}});replace(t,'SpeechSynthesisUtterance',class{constructor(text){this.text=text;}});return {spoken,cancelled};}
 test('formatter permits only typed queued evidence and never raw or prototype names',()=>{
  const typed={success:true,details:{submission:{schema:'pupper_submission_v1',state:'queued'}},message:'completed physically'};
- assert.equal(operatorFeedback('move',typed),'Server queued the move request. Completion is unconfirmed.');
- for(const result of [{success:true,message:'queued'}, {success:true,details:{submission:{schema:'other',state:'queued'}}}, {success:true,details:{submission:{schema:'pupper_submission_v1',state:'completed'}}}]) assert.equal(operatorFeedback('move',result),'Server accepted the move request. Completion is unconfirmed.');
- for(const name of ['toString','__proto__','I moved safely']) assert.equal(operatorFeedback(name,typed),'Server accepted the robot request. Completion is unconfirmed.');
- assert.equal(operatorFeedback('stop',typed),'Server accepted the Stop request. Completion is unconfirmed. Physical stopping is unverified.');
- assert.equal(operatorFeedback('move',{success:false}),'Server reported the move request failed. Earlier effects are not ruled out.');
- assert.equal(operatorFeedback('move',{success:false,not_dispatched:true}),'The move request was not dispatched.');
- assert.equal(operatorFeedback('move',{success:false,outcome_unknown:true,not_dispatched:true}),'The move response is unknown. Check server status and the robot.');
- assert.equal(operatorFeedback('move',{success:true,superseded:true}),'This request was superseded. Earlier execution is possible.');
+ assert.equal(operatorFeedback('move',typed),'Move queued.');
+ for(const result of [{success:true,message:'queued'}, {success:true,details:{submission:{schema:'other',state:'queued'}}}, {success:true,details:{submission:{schema:'pupper_submission_v1',state:'completed'}}}]) assert.equal(operatorFeedback('move',result),'Move request accepted.');
+ for(const name of ['toString','__proto__','I moved safely']) assert.equal(operatorFeedback(name,typed),'Robot request accepted.');
+ assert.equal(operatorFeedback('stop',typed),'Stop requested.');
+ assert.equal(operatorFeedback('move',{success:false}),'That request failed. Check the controls for details.');
+ assert.equal(operatorFeedback('move',{success:false,not_dispatched:true}),'Move request not sent.');
+ assert.equal(operatorFeedback('move',{success:false,outcome_unknown:true,not_dispatched:true}),'I could not confirm that request.');
+ assert.equal(operatorFeedback('move',{success:true,superseded:true}),'That request was superseded.');
  assert.equal(normalizeOutputPolicy(undefined),'conversation');
  for(const value of [null,'bad',true]) assert.equal(normalizeOutputPolicy(value),'receipts');
 });
@@ -50,7 +50,7 @@ test('bounded receipt speech coalesces pending receipts and stale callbacks cann
 test('Stop dispatch does not await a stuck receipt utterance and clears old speech',async t=>{
  const voice=speech(t),e=service('receipts');await e.s.handleMessage(call('move','move'));assert.equal(voice.spoken.length,1);
  await e.s.handleMessage(call('stop','stop'));assert.deepEqual(e.calls,['move','stop']);assert.ok(voice.cancelled.length>0);
- assert.equal(voice.spoken.at(-1).text,'Server accepted the Stop request. Completion is unconfirmed. Physical stopping is unverified.');await e.s.disconnect();
+ assert.equal(voice.spoken.at(-1).text,'Stop requested.');await e.s.disconnect();
 });
 test('strict lower-level output sinks cannot be bypassed',async t=>{
  const voice=speech(t),e=service('receipts');e.s.ai={models:{generateContent(){throw Error('must not call TTS');},generateContentStream(){throw Error('must not call TTS');}}};
@@ -89,7 +89,7 @@ test('old status response after direct Stop cannot publish accepted dispatch car
 test('current unknown response remains visible after it pauses later model actions',async()=>{
  const e=service('receipts');e.s.robotBridge.callTool=async()=>({success:false,outcome_unknown:true});
  await e.s.handleMessage(call('unknown','move'));
- assert.equal(e.s.robotToolsPaused,true);assert.equal(e.logs.find(x=>x.type==='receipt')?.message,'The move response is unknown. Check server status and the robot.');
+ assert.equal(e.s.robotToolsPaused,true);assert.equal(e.logs.find(x=>x.type==='receipt')?.message,'I could not confirm that request.');
  assert.equal(e.dispatches.at(-1).status,'unknown');
 });
 test('reused model call ID cannot turn an older response into a current acknowledgment',async()=>{
@@ -102,13 +102,13 @@ test('reused model call ID cannot turn an older response into a current acknowle
 
 test('malformed outcome flags cannot manufacture acceptance',()=>{
  for(const flag of ['outcome_unknown','superseded','not_dispatched']) for(const value of [{},[],0,1,'',null,'false']) {
-  assert.equal(operatorFeedback('move',{success:true,[flag]:value}),'The move response is unknown. Check server status and the robot.');
+  assert.equal(operatorFeedback('move',{success:true,[flag]:value}),'I could not confirm that request.');
  }
 });
 test('throwing bridge publishes current unknown feedback without replacing the real outcome',async()=>{
  const e=service('receipts');e.s.robotBridge.callTool=async()=>{throw Error('lost reply');};
  await e.s.handleMessage(call('unknown-error','move'));await Promise.resolve();
- assert.equal(e.dispatches.at(-1).status,'unknown');assert.match(e.logs.find(x=>x.type==='receipt').message,/response is unknown/);
+ assert.equal(e.dispatches.at(-1).status,'unknown');assert.match(e.logs.find(x=>x.type==='receipt').message,/could not confirm/);
  assert.equal(e.responses.at(-1).functionResponses.response.result.outcome_unknown,true);
 });
 

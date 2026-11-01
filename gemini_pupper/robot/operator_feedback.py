@@ -1,5 +1,6 @@
 """Closed receipt wording plus best-effort English screening of tool-free chat."""
 import json
+import math
 from pathlib import Path
 import re
 import unicodedata
@@ -38,30 +39,113 @@ def sending_feedback(name):
     return f"Sending {tool_label(name)} request."
 
 
+
+def _number(value):
+    if type(value) not in (int, float) or not 0 <= value <= 1_000_000 or not math.isfinite(value) or 0 < value < 0.000001:
+        return None
+    return str(int(value)) if value == int(value) else str(value)
+
+
+def _motion_reason(details):
+    reason = details.get("refusal") if isinstance(details, dict) else None
+    if not isinstance(reason, dict) or reason.get("schema") != "pupper_motion_refusal_v1":
+        return None
+    limits = reason.get("limits")
+    if not isinstance(limits, dict):
+        return None
+    code = reason.get("code")
+    fields = {
+        "speed_limit": ("forward_max", "backward_max", "sideways_max", "turn_max"),
+        "minimum_speed": ("forward_min", "sideways_min", "turn_min"),
+        "duration_limit": ("duration_max",), "distance_limit": ("distance_max",), "radius_limit": ("radius_min",),
+        "invalid_values": (),
+    }
+    if not isinstance(code, str) or code not in fields:
+        return None
+    numbers = [_number(limits.get(key)) for key in fields[code]]
+    if any(n is None for n in numbers):
+        return None
+    if code == "speed_limit":
+        return f"speed exceeds the limit: {numbers[0]} m/s forward, {numbers[1]} backward, {numbers[2]} sideways, {numbers[3]} deg/s turning."
+    if code == "minimum_speed":
+        return f"speed below minimum. Use at least {numbers[0]} m/s forward/backward, {numbers[1]} sideways or {numbers[2]} deg/s turning."
+    if code == "duration_limit":
+        return f"duration must be above zero and at most {numbers[0]} seconds."
+    if code == "distance_limit":
+        return f"commanded distance exceeds {numbers[0]} metres."
+    if code == "radius_limit":
+        return f"arc radius must be at least {numbers[0]} metres at that speed."
+    return "motion values must be finite numbers."
+
+
+def _status_feedback(details):
+    if not isinstance(details, dict) or type(details.get("running")) is not bool:
+        return None
+    queued = details.get("queued")
+    if _number(queued) is None or queued != int(queued):
+        return None
+    state = details.get("state")
+    modes = {"locomotion": "locomotion", "motors idle": "motors idle", "fallen": "fall stop latched", "locked trick": "locked skill", "sit_stay_shake": "Sit controller selected", "secret_dance": "generated-motion controller selected"}
+    mode = modes.get(state) if isinstance(state, str) else None
+    observed_modes = {"locomotion": "locomotion", "none": "no active command controller", "unknown": "unknown", "sit_stay_shake": "Sit", "secret_dance": "generated motion", "other_skill": "skill", "walking_skill": "walking skill", "locked_skill": "locked skill"}
+    observed = details.get("observed_controller_mode")
+    observation = observed_modes.get(observed) if isinstance(observed, str) else None
+    parts = ([f"Controller: {observation}."] if observation else
+             [f"Cached mode: {mode}." if mode else "Cached status:", "Controller unverified."])
+    current = details.get("current_action")
+    if details["running"]:
+        name = current.get("name") if isinstance(current, dict) and current.get("state") == "running" else None
+        kind = "command"
+        if isinstance(name, str):
+            if name.startswith("move "): kind = "movement command"
+            elif name.startswith("wait "): kind = "wait command"
+            elif name.startswith("trick ") or name == "locked trick": kind = "skill command"
+            elif name == "stand up": kind = "stand command"
+            elif name == "lie down": kind = "leg-relaxation command"
+        parts.append(f"Running a {kind}; {int(queued)} queued.")
+    elif current is not None:
+        parts.append(f"Current action unavailable; {int(queued)} queued.")
+    else:
+        parts.append(f"No command running; {int(queued)} queued.")
+    if type(details.get("following")) is bool:
+        parts.append("Following on." if details["following"] else "Following off.")
+    if isinstance(details.get("controller_fault"), str) and details["controller_fault"]:
+        parts.append("Controller fault reported.")
+    return " ".join(parts)
+
 def receipt_feedback(name, result, *, current=True, dispatched=True):
     """A matched reply is evidence of an API result, never physical completion."""
     label = tool_label(name)
+    spoken = label[0].upper() + label[1:]
     if not current or (isinstance(result, dict) and result.get("superseded") is True):
-        return "This request was superseded. Earlier execution is possible."
+        return "That request was superseded."
     if not dispatched:
-        return f"The {label} request was not dispatched."
+        return f"{spoken} request not sent."
     if not isinstance(result, dict):
-        return f"The {label} response is unknown. Check server status and the robot."
+        return "I could not confirm that request."
     flags = ("superseded", "outcome_unknown", "not_dispatched")
     if any(flag in result and type(result[flag]) is not bool for flag in flags) or result.get("outcome_unknown") is True:
-        return f"The {label} response is unknown. Check server status and the robot."
+        return "I could not confirm that request."
     if result.get("not_dispatched") is True:
-        return f"The {label} request was not dispatched."
+        return f"{spoken} request not sent."
     if type(result.get("success")) is not bool:
-        return f"The {label} response is unknown. Check server status and the robot."
+        return "I could not confirm that request."
     if not result["success"]:
-        return f"Server reported the {label} request failed. Earlier effects are not ruled out."
+        reason = _motion_reason(result.get("details")) if name in ("move", "turn", "arc") else None
+        if reason:
+            return f"{spoken} rejected: {reason}"
+        if name not in ("stop", "robot_status") and result.get("command_epoch_required") is True:
+            return f"{spoken} rejected: command authorization is stale or missing. Check status and make a new request."
+        return "That request failed. Check the controls for details."
+    if name == "robot_status":
+        status = _status_feedback(result.get("details"))
+        if status:
+            return status
     details = result.get("details")
     submission = details.get("submission") if isinstance(details, dict) else None
     queued = (isinstance(name, str) and name in QUEUE_TOOLS and isinstance(submission, dict)
               and submission.get("schema") == "pupper_submission_v1"
               and submission.get("state") == "queued")
-    text = f"Server {'queued' if queued else 'accepted'} the {label} request. Completion is unconfirmed."
     if name == "stop":
-        text += " Physical stopping is unverified."
-    return text
+        return "Stop requested."
+    return f"{spoken} {'queued' if queued else 'request accepted'}."

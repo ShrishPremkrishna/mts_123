@@ -398,7 +398,7 @@ test('cancellation of a sent action pauses dispatch and requests exactly one glo
   await s.handleMessage({ toolCallCancellation: { ids: ['a'] } });
   assert.equal(stops, 1);
   assert.equal(s.robotToolsPaused, true);
-  assert.match(messages.at(-1), /unknown/);
+  assert.equal(messages.at(-1), 'I could not confirm that request.');
   first.resolve({ success: true, message: 'queued' });
   await pending;
 });
@@ -416,7 +416,7 @@ test('unexpected Live close after a sent action releases resources and requests 
   assert.equal(disconnected, 1);
   assert.equal(env.s.robotToolsPaused, true);
   assert.equal(env.tracks[0].stopped, 1);
-  assert.match(env.stops.at(-1), /Physical stopping is unverified/);
+  assert.equal(env.stops.at(-1), 'Stop requested.');
 });
 
 test('failed pending connection does not allow reconnect before its global Stop response', async t => {
@@ -731,4 +731,53 @@ test('receipt-only text model never advertises generative speak', async t => {
   env.s.robotBridge.getTools=async()=>({tools:[{name:'move'},{name:'stop'}]});
   await env.s.connect('test',env.config,{});
   assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['move','stop']);
+});
+
+
+test('aggregate timing keeps input unknown without transcription and records tool/receipt before boundary', async t => {
+  let now = 1000; replaceGlobal(t, 'performance', {now:()=>now});
+  const {s, logs} = service();
+  s.robotBridge.callTool = async()=>{now=1040;return {success:true};};
+  await s.handleMessage({toolCall:{functionCalls:[{id:'timed',name:'move',args:{}}]}});
+  now=1100;await s.handleMessage({serverContent:{turnComplete:true}});
+  const lines=logs.filter(x=>x.message.startsWith('Timing '));assert.equal(lines.length,1);
+  const result=JSON.parse(lines[0].message.slice(7));
+  assert.equal(result.input_transcript_first_ms,null);assert.equal(result.input_transcript_end_ms,null);
+  assert.equal(result.observed_input_end_to_model_ms,null);assert.equal(result.tool_entry_ms,0);
+  assert.equal(result.tool_reply_ms,40);assert.equal(result.receipt_ms,40);assert.equal(result.turn_complete_ms,100);
+});
+
+test('aggregate timing binds late HTTP receipt to its original turn and never retains transcript contents', async t => {
+  let now=1000;replaceGlobal(t,'performance',{now:()=>now});const {s,logs}=service();const pending=deferred();
+  await s.handleMessage({serverContent:{inputTranscription:{text:'PRIVATE USER WORDS',finished:true}}});
+  now=1010;s.robotBridge.callTool=()=>pending.promise;
+  const working=s.handleMessage({toolCall:{functionCalls:[{id:'timed',name:'move',args:{private:'SECRET_ARGUMENT'}}]}});
+  now=1020;await s.handleMessage({serverContent:{turnComplete:true}});
+  assert.equal(logs.some(x=>x.message.startsWith('Timing ')),false);
+  now=1030;await s.handleMessage({serverContent:{modelTurn:{parts:[{text:'PRIVATE MODEL WORDS'}]},turnComplete:true}});
+  now=1050;pending.resolve({success:true});await working;
+  const summaries=logs.filter(x=>x.message.startsWith('Timing ')).map(x=>JSON.parse(x.message.slice(7)));
+  const original=summaries.find(x=>x.turn===1);assert.equal(original.tool_reply_ms,50);assert.equal(original.turn_complete_ms,20);
+  assert.equal(original.input_transcript_end_ms,0);assert.equal(original.observed_input_end_to_model_ms,10);
+  assert.doesNotMatch(JSON.stringify(summaries),/PRIVATE|SECRET_ARGUMENT|timed/);
+});
+
+test('native timing reports scheduling after deferred decode without adding a playback wait',async t=>{
+  let now=2000;replaceGlobal(t,'performance',{now:()=>now});const {s,logs}=service('conversation');const decoded=deferred();
+  s.audioContext={state:'running',currentTime:1,decodeAudioData:()=>decoded.promise,
+    createBufferSource:()=>({connect(){},start(){},stop(){}})};s.analyser={};
+  await s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:Buffer.from('RIFF').toString('base64')}}]},outputTranscription:{text:'Hello there'},turnComplete:true}});
+  let summaries=logs.filter(x=>x.message.startsWith('Timing ')).map(x=>JSON.parse(x.message.slice(7)));
+  assert.equal(summaries.length,1);assert.equal(summaries[0].native_playback_scheduled_ms,null);
+  now=2042;decoded.resolve({duration:1});await new Promise(r=>setImmediate(r));
+  summaries=logs.filter(x=>x.message.startsWith('Timing ')).map(x=>JSON.parse(x.message.slice(7)));
+  assert.equal(summaries.length,2);assert.equal(summaries[1].turn_complete_to_playback_ms,42);
+  assert.equal(summaries[1].reason,'playback-update');
+});
+
+test('optional timing logger failure cannot prevent Stop or its real tool response',async()=>{
+  const {s,responses}=service();s.onLog=entry=>{if(entry.message.startsWith('Timing '))throw Error('observer failed');};
+  let calls=0;s.robotBridge.callTool=async name=>{assert.equal(name,'stop');calls++;return {success:true};};
+  await s.handleMessage({toolCall:{functionCalls:[{id:'stop',name:'stop',args:{}}]},serverContent:{turnComplete:true}});await Promise.resolve();
+  assert.equal(calls,1);assert.equal(responses.at(-1).functionResponses.response.result.success,true);
 });

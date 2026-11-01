@@ -39,7 +39,7 @@ def test_claim_before_rejection_never_becomes_operator_acceptance(monkeypatch, c
             yield packet('move')
             await until(lambda: calls==['move'])
             early = capsys.readouterr().out
-            assert 'Server accepted' not in early and 'I queued your move' not in early
+            assert 'request accepted' not in early and 'I queued your move' not in early
             yield model_message('My body moved ten metres.')
             pending.set()
             await until(lambda: len(replies)==1)
@@ -47,20 +47,20 @@ def test_claim_before_rejection_never_becomes_operator_acceptance(monkeypatch, c
         await actual_chat(monkeypatch, fake(call), script)
     asyncio.run(check())
     out=capsys.readouterr().out
-    assert 'Server reported the move request failed.' in out
+    assert 'That request failed.' in out
     assert 'RAW_FALSE_BODY_CLAIM' not in out and 'ten metres' not in out
-    assert 'Server accepted the move' not in out
+    assert 'Move request accepted' not in out
 
 
 @pytest.mark.parametrize('result,expected,forbidden',[
- ({'success':True},'Server accepted the move request. Completion is unconfirmed.','queued'),
- ({'success':True,'details':{'submission':{'schema':'pupper_submission_v1','state':'queued'}}},'Server queued the move request. Completion is unconfirmed.','completed'),
- ({'success':True,'details':{'submission':{'schema':'pupper_submission_v1','state':'already_active'}}},'Server accepted the move request. Completion is unconfirmed.','queued'),
- ({'success':True,'details':{'submission':{'schema':'other','state':'queued'}}},'Server accepted the move request. Completion is unconfirmed.','queued'),
- ({'success':False},'Server reported the move request failed. Earlier effects are not ruled out.','nothing happened'),
- ({'success':'true'},'The move response is unknown. Check server status and the robot.','accepted'),
- ({'success':True,'outcome_unknown':True},'The move response is unknown. Check server status and the robot.','accepted'),
- ({'success':True,'superseded':True},'This request was superseded. Earlier execution is possible.','accepted'),
+ ({'success':True},'Move request accepted.','queued'),
+ ({'success':True,'details':{'submission':{'schema':'pupper_submission_v1','state':'queued'}}},'Move queued.','completed'),
+ ({'success':True,'details':{'submission':{'schema':'pupper_submission_v1','state':'already_active'}}},'Move request accepted.','queued'),
+ ({'success':True,'details':{'submission':{'schema':'other','state':'queued'}}},'Move request accepted.','queued'),
+ ({'success':False},'That request failed. Check the controls for details.','nothing happened'),
+ ({'success':'true'},'I could not confirm that request.','accepted'),
+ ({'success':True,'outcome_unknown':True},'I could not confirm that request.','accepted'),
+ ({'success':True,'superseded':True},'That request was superseded.','accepted'),
 ])
 def test_closed_receipt_templates(result,expected,forbidden):
     from operator_feedback import receipt_feedback
@@ -71,12 +71,12 @@ def test_closed_receipt_templates(result,expected,forbidden):
 def test_raw_names_messages_and_historical_outcomes_do_not_authorize_claims():
     from operator_feedback import receipt_feedback
     result={'success':True,'message':'BODY_STANDING','details':{'last_outcome':{'name':'move','success':True,'message':'completed'}}}
-    assert receipt_feedback('INJECTED_NAME',result)=='Server accepted the robot request. Completion is unconfirmed.'
-    assert receipt_feedback('move',result,current=False)=='This request was superseded. Earlier execution is possible.'
-    assert receipt_feedback('move',result,dispatched=False)=='The move request was not dispatched.'
+    assert receipt_feedback('INJECTED_NAME',result)=='Robot request accepted.'
+    assert receipt_feedback('move',result,current=False)=='That request was superseded.'
+    assert receipt_feedback('move',result,dispatched=False)=='Move request not sent.'
     marker={'success':True,'details':{'submission':{'schema':'pupper_submission_v1','state':'queued'}}}
     assert 'queued' not in receipt_feedback('robot_status',marker)
-    assert receipt_feedback('stop',marker)=='Server accepted the Stop request. Completion is unconfirmed. Physical stopping is unverified.'
+    assert receipt_feedback('stop',marker)=='Stop requested.'
 
 
 @pytest.mark.parametrize("old_name", ["move", "robot_status"])
@@ -93,7 +93,7 @@ def test_stop_invalidates_old_feedback_even_when_old_backend_returns_success(cap
         await until(lambda:d.pending_stops==0)
         release.set();await d.drain();await d.close()
     asyncio.run(check());out=capsys.readouterr().out
-    assert 'superseded' in out and f'Server accepted the {"move" if old_name == "move" else "status"} request' not in out
+    assert 'superseded' in out and f'{"Move" if old_name == "move" else "Status"} request accepted' not in out
     assert 'RAW_OLD_ACCEPTANCE' not in out
 
 
@@ -107,16 +107,16 @@ def test_conversation_retains_full_tool_dispatch(capsys):
         await d.drain();await d.close()
         assert calls==['move','unlock','robot_status','stop']
     asyncio.run(check());out=capsys.readouterr().out
-    assert 'Server accepted the move request.' in out and 'Server accepted the unlock request.' in out
+    assert 'Move request accepted.' in out and 'Unlock request accepted.' in out
 
 
 def test_non_dispatch_marker_overrides_queued_even_with_success():
     from operator_feedback import receipt_feedback
     r = {"success": True, "not_dispatched": True, "details": {"submission": {
         "schema": "pupper_submission_v1", "state": "queued"}}}
-    assert receipt_feedback("move", r) == "The move request was not dispatched."
+    assert receipt_feedback("move", r) == "Move request not sent."
     r["outcome_unknown"] = True
-    assert receipt_feedback("move", r) == "The move response is unknown. Check server status and the robot."
+    assert receipt_feedback("move", r) == "I could not confirm that request."
 
 
 def test_actual_conversation_config_keeps_tools_but_discards_tool_turn_prose(monkeypatch, capsys):
@@ -148,7 +148,7 @@ def test_actual_conversation_config_keeps_tools_but_discards_tool_turn_prose(mon
     output=capsys.readouterr().out
     assert "CONVERSATION + CONTROL" in output
     assert "I already queued" not in output and "My body is standing" not in output
-    assert "Server accepted the move request." in output
+    assert "Move request accepted." in output
 
 
 def test_show_is_explicit_diagnostic_not_an_operator_mode(capsys):
@@ -176,14 +176,14 @@ def test_local_robot_backend_refusal_is_not_reported_as_a_server_reply(monkeypat
         monkeypatch.setattr(b,"_get",health)
     result=asyncio.run(b.call("move",{}))
     assert result["not_dispatched"] is True
-    assert receipt_feedback("move",result)=="The move request was not dispatched."
+    assert receipt_feedback("move",result)=="Move request not sent."
 
 
 @pytest.mark.parametrize("flag", ["superseded", "outcome_unknown", "not_dispatched"])
 @pytest.mark.parametrize("bad_value", [{}, [], None, 0, "false"])
 def test_malformed_receipt_flags_never_authorize_acceptance(flag, bad_value):
     from operator_feedback import receipt_feedback
-    assert receipt_feedback("move", {"success": True, flag: bad_value}) == "The move response is unknown. Check server status and the robot."
+    assert receipt_feedback("move", {"success": True, flag: bad_value}) == "I could not confirm that request."
 
 
 
@@ -197,5 +197,5 @@ def test_thrown_status_transport_error_is_unknown_not_a_server_failure(monkeypat
         yield end_turn()
     asyncio.run(actual_chat(monkeypatch, fake(call), script))
     out = capsys.readouterr().out
-    assert "The status response is unknown. Check server status and the robot." in out
+    assert "I could not confirm that request." in out
     assert "Server reported" not in out and "RAW_TRANSPORT_DETAIL" not in out

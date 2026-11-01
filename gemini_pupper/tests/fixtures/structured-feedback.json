@@ -1,0 +1,1028 @@
+[
+  {
+    "title": "idle software is not physical standstill",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "current wait ignores old success",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": true,
+        "current_action": {
+          "name": "wait 60s",
+          "state": "running"
+        },
+        "queued": 2,
+        "following": true,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "last_outcome": {
+          "name": "move",
+          "success": true,
+          "message": "all done"
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. Running a wait command; 2 queued. Following on."
+  },
+  {
+    "title": "move vx=.2 1s",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": true,
+        "current_action": {
+          "name": "move vx=.2 1s",
+          "state": "running"
+        },
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. Running a movement command; 0 queued. Following off."
+  },
+  {
+    "title": "trick UNKNOWN_TEXT",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": true,
+        "current_action": {
+          "name": "trick UNKNOWN_TEXT",
+          "state": "running"
+        },
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. Running a skill command; 0 queued. Following off."
+  },
+  {
+    "title": "stand up",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": true,
+        "current_action": {
+          "name": "stand up",
+          "state": "running"
+        },
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. Running a stand command; 0 queued. Following off."
+  },
+  {
+    "title": "lie down",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": true,
+        "current_action": {
+          "name": "lie down",
+          "state": "running"
+        },
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. Running a leg-relaxation command; 0 queued. Following off."
+  },
+  {
+    "title": "closed names",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "INJECTED_STATE",
+        "running": true,
+        "current_action": {
+          "name": "INJECTED_ACTION",
+          "state": "running"
+        },
+        "queued": 0,
+        "following": false,
+        "controller_fault": "INJECTED_FAULT",
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached status: Controller unverified. Running a command; 0 queued. Following off. Controller fault reported."
+  },
+  {
+    "title": "fall mode",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "fallen",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: fall stop latched. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "contradictory current",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": {
+          "name": "wait 9s",
+          "state": "running"
+        },
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. Current action unavailable; 0 queued. Following off."
+  },
+  {
+    "title": "invalid queue True",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": true,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "invalid queue -1",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": -1,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "invalid queue 1.2",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": 1.2,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "invalid queue '0'",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": "0",
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "invalid queue None",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": null,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "invalid queue []",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": [],
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "invalid queue {}",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": {},
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Status request accepted."
+  },
+  {
+    "title": "minimum_speed",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "minimum_speed",
+          "limits": {
+            "forward_min": 0.2,
+            "sideways_min": 0.2,
+            "turn_min": 15
+          }
+        }
+      }
+    },
+    "expected": "Move rejected: speed below minimum. Use at least 0.2 m/s forward/backward, 0.2 sideways or 15 deg/s turning."
+  },
+  {
+    "title": "speed_limit",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "speed_limit",
+          "limits": {
+            "forward_max": 0.49,
+            "backward_max": 0.3,
+            "sideways_max": 0.49,
+            "turn_max": 114
+          }
+        }
+      }
+    },
+    "expected": "Move rejected: speed exceeds the limit: 0.49 m/s forward, 0.3 backward, 0.49 sideways, 114 deg/s turning."
+  },
+  {
+    "title": "duration_limit",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": 20
+          }
+        }
+      }
+    },
+    "expected": "Move rejected: duration must be above zero and at most 20 seconds."
+  },
+  {
+    "title": "distance_limit",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "distance_limit",
+          "limits": {
+            "distance_max": 7
+          }
+        }
+      }
+    },
+    "expected": "Move rejected: commanded distance exceeds 7 metres."
+  },
+  {
+    "title": "radius_limit",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "radius_limit",
+          "limits": {
+            "radius_min": 0.21
+          }
+        }
+      }
+    },
+    "expected": "Move rejected: arc radius must be at least 0.21 metres at that speed."
+  },
+  {
+    "title": "invalid_values",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "invalid_values",
+          "limits": {}
+        }
+      }
+    },
+    "expected": "Move rejected: motion values must be finite numbers."
+  },
+  {
+    "title": "malformed limit True",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": true
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "malformed limit -1",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": -1
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "malformed limit '20'",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": "20"
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "malformed limit []",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": []
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "malformed limit {}",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": {}
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "malformed limit None",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": null
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "malformed limit 1000001",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": 1000001
+          }
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "unknown precedes reason",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": 20
+          }
+        }
+      },
+      "outcome_unknown": true
+    },
+    "expected": "I could not confirm that request."
+  },
+  {
+    "title": "superseded precedes reason",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": 20
+          }
+        }
+      },
+      "superseded": true
+    },
+    "expected": "That request was superseded."
+  },
+  {
+    "title": "not dispatched precedes reason",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "duration_limit",
+          "limits": {
+            "duration_max": 20
+          }
+        }
+      },
+      "not_dispatched": true
+    },
+    "expected": "Move request not sent."
+  },
+  {
+    "title": "epoch explanation",
+    "name": "move",
+    "result": {
+      "success": false,
+      "command_epoch_required": true
+    },
+    "expected": "Move rejected: command authorization is stale or missing. Check status and make a new request."
+  },
+  {
+    "title": "stop failure not epoch failure",
+    "name": "stop",
+    "result": {
+      "success": false,
+      "command_epoch_required": true
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "wrong schema",
+    "name": "move",
+    "result": {
+      "success": false,
+      "details": {
+        "refusal": {
+          "schema": "other",
+          "code": "invalid_values",
+          "limits": {}
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "prototype code",
+    "name": "move",
+    "result": {
+      "success": false,
+      "message": "INJECTED_MESSAGE",
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "__proto__",
+          "limits": {}
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "fixed state sit_stay_shake",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "sit_stay_shake",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: Sit controller selected. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "fixed state secret_dance",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "secret_dance",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        }
+      }
+    },
+    "expected": "Cached mode: generated-motion controller selected. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "malformed array limits",
+    "name": "move",
+    "result": {
+      "success": false,
+      "details": {
+        "refusal": {
+          "schema": "pupper_motion_refusal_v1",
+          "code": "invalid_values",
+          "limits": []
+        }
+      }
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "observed locomotion",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "locomotion"
+      }
+    },
+    "expected": "Controller: locomotion. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed none",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "none"
+      }
+    },
+    "expected": "Controller: no active command controller. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed unknown",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "unknown"
+      }
+    },
+    "expected": "Controller: unknown. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed sit_stay_shake",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "sit_stay_shake"
+      }
+    },
+    "expected": "Controller: Sit. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed secret_dance",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "secret_dance"
+      }
+    },
+    "expected": "Controller: generated motion. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed other_skill",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "other_skill"
+      }
+    },
+    "expected": "Controller: skill. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed walking_skill",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "walking_skill"
+      }
+    },
+    "expected": "Controller: walking skill. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "observed locked_skill",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "motors idle",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "locked_skill"
+      }
+    },
+    "expected": "Controller: locked skill. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "invalid observed 'INJECTED'",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "INJECTED"
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "invalid observed '__proto__'",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": "__proto__"
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "invalid observed {}",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": {}
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "invalid observed True",
+    "name": "robot_status",
+    "result": {
+      "success": true,
+      "details": {
+        "state": "locomotion",
+        "running": false,
+        "current_action": null,
+        "queued": 0,
+        "following": false,
+        "controller_fault": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "observed_controller_mode": true
+      }
+    },
+    "expected": "Cached mode: locomotion. Controller unverified. No command running; 0 queued. Following off."
+  }
+]

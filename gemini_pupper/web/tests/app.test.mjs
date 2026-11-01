@@ -95,7 +95,7 @@ test('late automatic Stop response cannot overwrite a newer direct Stop receipt'
   service.stop.resolve({ success: true, message: 'new explicit Stop accepted' });
   await stopping;
   service.callbacks[5]('old automatic response');
-  assert.equal(find(render(), n => n.type === 'ExecutionStatus').props.stopMessage, 'Server accepted the Stop request. Completion is unconfirmed. Physical stopping is unverified.');
+  assert.equal(find(render(), n => n.type === 'ExecutionStatus').props.stopMessage, 'Stop requested.');
 });
 
 

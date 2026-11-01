@@ -36,6 +36,8 @@ def test_status_names_active_controller_without_inventing_behavior(controller):
         if controller == 'unfamiliar_joint_controller':
             assert 'unclassified active controllers' in result.message
             assert 'leg ownership is not established' in result.message
+        elif controller == 'neural_controller_default':
+            assert 'stock locomotion controller active' in result.message
         else:
             assert 'active leg controllers' in result.message
         assert rig.robot.switches == switches

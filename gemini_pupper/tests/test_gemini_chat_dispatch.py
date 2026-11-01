@@ -162,7 +162,7 @@ def test_unknown_stop_blocks_motion_in_later_user_turn_and_cleanup_reports_retry
         await actual_chat(monkeypatch, fake(call), script, inputs=("stop", "move", "quit"))
         assert calls == ["stop", "robot_status", "stop"]
     asyncio.run(check())
-    assert "Connection cleanup: The Stop response is unknown" in capsys.readouterr().out
+    assert "Connection cleanup: I could not confirm that request." in capsys.readouterr().out
 
 
 def test_confirmed_stop_allows_a_new_explicit_user_turn(monkeypatch):

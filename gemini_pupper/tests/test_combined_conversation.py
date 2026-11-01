@@ -34,7 +34,7 @@ def test_chat_move_chat_in_one_connection_without_mode_changes(monkeypatch,capsy
         assert calls==['move','stop']
     asyncio.run(check());out=capsys.readouterr().out
     assert 'Pupper > Hello!' in out and 'Pupper > Why did the dog' in out
-    assert 'Server queued the move request. Completion is unconfirmed.' in out
+    assert 'Move queued.' in out
     assert 'I already queued' not in out
 
 
@@ -62,10 +62,10 @@ def test_turn_complete_before_http_reply_cannot_release_tool_turn_narration(monk
         running=asyncio.create_task(actual_chat(monkeypatch,fake(call),script))
         await entered.wait();await asyncio.sleep(.01)
         early=capsys.readouterr().out
-        assert 'Hello, I have queued' not in early and 'Server accepted' not in early
+        assert 'Hello, I have queued' not in early and 'request accepted' not in early
         release.set();await running
     asyncio.run(check());out=capsys.readouterr().out
-    assert 'Server accepted the move request.' in out and 'Hello, I have queued' not in out
+    assert 'Move request accepted.' in out and 'Hello, I have queued' not in out
 
 
 @pytest.mark.parametrize('fault',['incomplete','interrupted','overflow','chunks'])

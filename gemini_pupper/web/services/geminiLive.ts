@@ -39,6 +39,25 @@ export interface LiveTimingEvent {
   metadata: Record<string, string | number | boolean | null>;
 }
 
+interface TurnTiming {
+  id: number;
+  began: number;
+  handlers: number;
+  tools: number;
+  inputFirst?: number;
+  inputEnd?: number;
+  outputFirst?: number;
+  audioFirst?: number;
+  toolFirst?: number;
+  toolReply?: number;
+  receipt?: number;
+  complete?: number;
+  nativeScheduled?: number;
+  expectsNative: boolean;
+  logged?: boolean;
+  playbackLogged?: boolean;
+}
+
 export class GeminiLiveService {
   private ai: GoogleGenAI | null = null;
   private sessionPromise: Promise<any> | null = null;
@@ -62,6 +81,9 @@ export class GeminiLiveService {
   private automaticStop: Promise<void> | null = null;
   private stopRequestsPending = 0;
   private messageSequence = 0;
+  private timingSequence = 0;
+  private currentTurnTiming: TurnTiming | null = null;
+  private outputTurnTiming: TurnTiming | undefined;
   private audioSequence = 0;
   private speechVisualInterval: number | null = null;
   private inputScriptProcessor: ScriptProcessorNode | null = null;
@@ -96,7 +118,7 @@ export class GeminiLiveService {
     this.config = config;
     this.outputPolicy = normalizeOutputPolicy(config.outputPolicy);
     this.conversationOutput = new ConversationOutputGate(
-      output => { void this.releaseConversation(output).catch(() => this.log('info', 'Conversation playback failed; no replacement narration was produced.')); }, message => {
+      output => { void this.releaseConversation(output, this.outputTurnTiming).catch(() => this.log('info', 'Conversation playback failed; no replacement narration was produced.')); }, message => {
         this.log('info', message);
         if (message === BLOCKED_CONVERSATION && this.connected && !this.disposed) this.receiptSpeaker.say(message);
       });
@@ -136,6 +158,54 @@ export class GeminiLiveService {
     if (!this.onTiming) return;
     // A diagnostic consumer must never delay/fail dispatch by throwing.
     try { this.onTiming({ phase, atMs: performance.now(), metadata }); } catch {}
+  }
+
+  private beginTurnTiming(message: LiveServerMessage): TurnTiming | undefined {
+    const content = message.serverContent;
+    if (this.disposed || (!content && !message.toolCall?.functionCalls?.length)) return;
+    const now = performance.now();
+    let turn = this.currentTurnTiming;
+    if (!turn) {
+      turn = { id: ++this.timingSequence, began: now, handlers: 0, tools: 0, expectsNative: false };
+      this.currentTurnTiming = turn;
+    }
+    turn.handlers++;
+    if (content?.inputTranscription?.text) turn.inputFirst ??= now;
+    if (content?.inputTranscription?.finished === true) turn.inputEnd = now;
+    const parts = content?.modelTurn?.parts?.filter(part => !part.thought) ?? [];
+    if (content?.outputTranscription?.text || parts.some(part => part.text || part.inlineData?.data)) turn.outputFirst ??= now;
+    if (parts.some(part => part.inlineData?.data)) turn.audioFirst ??= now;
+    if (content?.turnComplete) {
+      turn.complete = now; this.currentTurnTiming = null;
+    }
+    return turn;
+  }
+
+  private maybeFinishTurnTiming(turn?: TurnTiming) {
+    if (turn && turn.complete !== undefined && turn.handlers === 0) {
+      if (!turn.logged) this.finishTurnTiming(turn, 'complete');
+      else if (turn.nativeScheduled !== undefined && !turn.playbackLogged) this.finishTurnTiming(turn, 'playback-update');
+    }
+  }
+
+  private finishTurnTiming(turn: TurnTiming, reason: string) {
+    if (turn.logged && (turn.nativeScheduled === undefined || turn.playbackLogged)) return;
+    turn.logged = true;
+    if (turn.nativeScheduled !== undefined) turn.playbackLogged = true;
+    const offset = (value?: number) => value === undefined ? null : Math.round(value - turn.began);
+    const gap = (first?: number, last?: number) => first === undefined || last === undefined || last < first ? null : Math.round(last - first);
+    const firstEvent = Math.min(turn.outputFirst ?? Infinity, turn.toolFirst ?? Infinity);
+    const summary = { turn: turn.id, basis: 'ms from first observed server callback', reason,
+      input_transcript_first_ms: offset(turn.inputFirst), input_transcript_end_ms: offset(turn.inputEnd),
+      first_model_output_ms: offset(turn.outputFirst), first_native_chunk_ms: offset(turn.audioFirst),
+      tool_entry_ms: offset(turn.toolFirst), tool_reply_ms: offset(turn.toolReply), receipt_ms: offset(turn.receipt),
+      tool_count: turn.tools, native_playback_expected: turn.expectsNative, turn_complete_ms: offset(turn.complete), native_playback_scheduled_ms: offset(turn.nativeScheduled),
+      observed_input_end_to_model_ms: gap(turn.inputEnd, Number.isFinite(firstEvent) ? firstEvent : undefined),
+      native_chunk_to_turn_complete_ms: gap(turn.audioFirst, turn.complete),
+      turn_complete_to_playback_ms: gap(turn.complete, turn.nativeScheduled),
+      note: 'Input transcript callbacks are not guaranteed to align with model turns or acoustic speech end. Native playback is scheduled, not measured sound. Null means unobserved.' };
+    // Optional telemetry must never throw into dispatch or Stop.
+    try { this.log('info', `Timing ${JSON.stringify(summary)}`); } catch {}
   }
 
   private ensureOpen() {
@@ -405,7 +475,7 @@ export class GeminiLiveService {
     }
   }
 
-  private async playAudioBase64(audioData: string): Promise<void> {
+  private async playAudioBase64(audioData: string, timing?: TurnTiming): Promise<void> {
     if (this.outputPolicy !== 'conversation') return;
     const ctx = this.audioContext, analyser = this.analyser, generation = this.playbackGeneration;
     if (!ctx || !analyser || this.disposed) return;
@@ -417,6 +487,10 @@ export class GeminiLiveService {
     source.buffer = buffer;
     source.connect(analyser);
     source.start(this.nextStartTime);
+    if (timing) {
+      timing.nativeScheduled ??= performance.now() + Math.max(0, this.nextStartTime - ctx.currentTime) * 1000;
+      this.maybeFinishTurnTiming(timing);
+    }
     this.queuedSources.push(source);
     this.nextStartTime += buffer.duration;
 
@@ -521,6 +595,15 @@ export class GeminiLiveService {
   }
 
   private async handleMessage(message: LiveServerMessage) {
+    const timing = this.beginTurnTiming(message);
+    this.outputTurnTiming = timing;
+    try { await this.handleTimedMessage(message, timing); }
+    finally {
+      if (timing) { timing.handlers--; this.maybeFinishTurnTiming(timing); }
+    }
+  }
+
+  private async handleTimedMessage(message: LiveServerMessage, turnTiming?: TurnTiming) {
     const messageSequence = ++this.messageSequence;
     const content = message.serverContent;
     this.trace('server_message_callback', { message_sequence: messageSequence,
@@ -614,11 +697,15 @@ export class GeminiLiveService {
               const stopping = fc.name === 'stop';
               if (stopping) this.reportStopPending(true);
               const timing = { message_sequence: messageSequence, request_id: dispatch.id, tool: dispatch.name };
+              if (turnTiming) { turnTiming.toolFirst ??= performance.now(); turnTiming.tools++; }
               this.trace('tool_call_start', timing);
               this.pendingRobotTools++;
               try { result = await this.robotBridge.callTool(fc.name, args ?? {}); }
               catch (error) { this.trace('tool_call_failed', timing); throw error; }
-              finally { this.pendingRobotTools--; if (stopping) this.reportStopPending(false); }
+              finally {
+                if (turnTiming) turnTiming.toolReply ??= performance.now();
+                this.pendingRobotTools--; if (stopping) this.reportStopPending(false);
+              }
               const status = toolResponseStatus(result);
               this.trace('tool_call_resolved', { ...timing, status });
 
@@ -642,6 +729,7 @@ export class GeminiLiveService {
         const speechAlias = ['speak', 'say', 'narrate'].includes(fc.name || '');
         if (!speechAlias && currentFeedback()) {
           const feedback = operatorFeedback(fc.name, result);
+          if (turnTiming) turnTiming.receipt ??= performance.now();
           this.log('receipt', feedback);
           this.receiptSpeaker.say(feedback);
         }
@@ -672,8 +760,9 @@ export class GeminiLiveService {
 
   }
 
-  private async releaseConversation(output: ConversationOutput) {
+  private async releaseConversation(output: ConversationOutput, timing?: TurnTiming) {
     if (this.disposed || !this.connected || this.outputPolicy !== 'conversation') return;
+    if (timing && output.audio.length) timing.expectsNative = true;
     // Replace playback without quarantining the next genuine conversation turn.
     this.stopPlayback(false);
     const generation = this.playbackGeneration;
@@ -684,7 +773,7 @@ export class GeminiLiveService {
     for (const audio of output.audio) {
       if (!current()) return;
       this.trace('output_audio_handle_start');
-      await this.playAudioBase64(audio);
+      await this.playAudioBase64(audio, timing);
       this.trace('output_audio_handle_return');
     }
     for (const speech of output.speech) {
@@ -748,6 +837,8 @@ export class GeminiLiveService {
     this.videoGeneration++;
     this.stopPlayback();
     this.conversationOutput.close();
+    if (this.currentTurnTiming) this.finishTurnTiming(this.currentTurnTiming, 'disconnected-before-boundary');
+    this.currentTurnTiming = null; this.outputTurnTiming = undefined;
     // An old onmessage handler may still be waiting for a tool response.
     // Do not let the remainder of that message dispatch motion after close.
     this.pauseRobotTools();

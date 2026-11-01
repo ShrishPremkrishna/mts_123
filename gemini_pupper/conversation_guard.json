@@ -6,10 +6,11 @@
     "\\b(?:i|we|pupper|the robot|robot)\\s+(?:(?:have|has|had|'ve|'d)\\s+)?(?:(?:already|just|now|successfully|finally)\\s+)*(?:queued|enqueued|scheduled|executed|completed|moved|walked|turned|stood|sat|stopped|finished|sent|submitted|accepted|started|begun|began|performed|did|ran|jumped|shook|followed|relaxed|unlocked|locked|activated|deactivated)\\b",
     "\\b(?:i've|we've|i'd|we'd)\\s+(?:(?:already|just|now|successfully)\\s+)*(?:queued|enqueued|scheduled|executed|completed|moved|walked|turned|stood|sat|stopped|finished|sent|submitted|accepted|started|begun|performed|done|run|jumped|shaken|followed|relaxed|unlocked|locked|activated|deactivated)\\b",
     "\\b(?:i am|i'm|i have been|i've been|we are|we're|we have been|we've been|pupper is|the robot is|robot is)\\s+(?:(?:already|just|now|still|currently|successfully|safely|fully)\\s+)*(?:standing|sitting|moving|walking|turning|stopped|motionless|running|following|jumping|shaking|resting|lying|ready to move|in position|at rest)\\b",
-    "\\b(?:the |your |that |this )?(?:command|request|action|movement|motion|move|walk|turn|trick|routine|sequence|plan)\\s+(?:is|was|has been|has|got|went)\\s+(?:(?:already|just|now|successfully)\\s+)*(?:queued|enqueued|scheduled|executed|completed|accepted|sent|submitted|started|underway|done|complete|finished|successful|well|perfectly|through)\\b",
+    "\\b(?:the |your |that |this )?(?:command|request|action|movement|motion|move|walk|turn|trick|routine|sequence|plan)\\s+(?:is|was|has been|has|got|went)\\s+(?:(?:already|just|now|still|currently|successfully)\\s+)*(?:queued|enqueued|scheduled|executed|completed|accepted|sent|submitted|started|underway|done|complete|finished|successful|well|perfectly|through)\\b",
     "\\b(?:i|i've|we|we've)\\s+(?:have |had |got |just |already )*(?:that|it|everything|your request|the request)\\s+(?:all )?(?:lined up|in the queue|under control|handled|sorted|ready|done)\\b",
     "\\b(?:that|it|the movement|the action)\\s+(?:went|worked|finished|ended)\\s+(?:well|perfectly|successfully|smoothly|safely)\\b",
-    "\\b(?:queued|enqueued|scheduled|executed|completed)\\s+(?:it|that|this|your request|the request|the move|the action|the trick)\\b"
+    "\\b(?:queued|enqueued|scheduled|executed|completed)\\s+(?:it|that|this|your request|the request|the move|the action|the trick)\\b",
+    "(?:^|[.!?]\\s+)(?:(?:yes|okay|ok|sure)[,!]?\\s+)?(?:(?:the|your|that|this)\\s+)?(?:(?:forward|backward|left|right)\\s+)?(?:move|movement|walk|turn|command|request|trick)\\s+(?:(?:already|just|now|currently|successfully)\\s+)*(?:queued(?:\\s+up)?|enqueued|completed|complete|finished|done)\\b"
   ],
   "examples": [
     {
@@ -123,6 +124,70 @@
     {
       "text": "The action was completed.",
       "blocked": true
+    },
+    {
+      "text": "\"Queue the...?\" What would you like me to add to the queue? The backward move is currently queued up.",
+      "blocked": true
+    },
+    {
+      "text": "Yes, backward move complete! Did I clear your view, or is there somewhere else you'd like me to go?",
+      "blocked": true
+    },
+    {
+      "text": "The forward movement is still queued.",
+      "blocked": true
+    },
+    {
+      "text": "Backward move complete.",
+      "blocked": true
+    },
+    {
+      "text": "Okay, forward movement queued.",
+      "blocked": true
+    },
+    {
+      "text": "Yes, the backward move is complete.",
+      "blocked": true
+    },
+    {
+      "text": "Left turn finished!",
+      "blocked": true
+    },
+    {
+      "text": "Your movement complete.",
+      "blocked": true
+    },
+    {
+      "text": "Backward move queued up.",
+      "blocked": true
+    },
+    {
+      "text": "What would you like me to add to the queue?",
+      "blocked": false
+    },
+    {
+      "text": "A queue holds pending commands; completed tasks leave the queue.",
+      "blocked": false
+    },
+    {
+      "text": "The phrase \"backward move complete\" is a status message, not proof.",
+      "blocked": false
+    },
+    {
+      "text": "\"Backward move complete!\" is something a robot might say.",
+      "blocked": false
+    },
+    {
+      "text": "Would you like the backward move to run next?",
+      "blocked": false
+    },
+    {
+      "text": "Is the backward move complete?",
+      "blocked": false
+    },
+    {
+      "text": "The words 'queued' and 'complete' describe software states.",
+      "blocked": false
     }
   ]
 }

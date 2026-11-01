@@ -1487,16 +1487,40 @@ class Robot:
 
     async def mode(self) -> Result:
         """Observed controller/queue state; never measured physical pose or speed."""
+        facts = self.status()
+        facts["observed_controller_mode"] = "unknown"
         if reason := self.motion_block_reason():
-            return Result(False, reason + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, self.status())
-        states = await self.controller_states()
+            return Result(False, reason + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, facts)
+        inventory = await self._call(self.list_client, ListControllers.Request())
+        states = {c.name: c.state for c in inventory.controller} if inventory else {}
         if not states:
-            return Result(False, "controller_manager is not running. " + PHYSICAL_STATE_UNKNOWN, self.status())
+            return Result(False, "controller_manager is not running. " + PHYSICAL_STATE_UNKNOWN, facts)
+        # This is one fresh controller inventory, independent of the queue's cached
+        # planning state. Only confirmed broadcaster types may be ignored.
+        feedback_types = {"joint_state_broadcaster/JointStateBroadcaster", "imu_sensor_broadcaster/IMUSensorBroadcaster"}
+        active = [c.name for c in inventory.controller if c.state == "active"
+                  and not (c.name not in self.leg_controllers and getattr(c, "type", "") in feedback_types)]
+        if not active:
+            facts["observed_controller_mode"] = "none"
+        elif len(active) == 1:
+            selected = active[0]
+            if selected in {LOCOMOTION_CONTROLLER, "neural_controller_default"}:
+                facts["observed_controller_mode"] = "locomotion"
+            else:
+                selected_trick = next((t for t in self.tricks.values()
+                                       if (t.kind == "policy" and t.controller == selected)
+                                       or (t.walks and t.walk_controller == selected)), None)
+                if selected_trick:
+                    facts["observed_controller_mode"] = (
+                        "locked_skill" if not self.trick_available(selected_trick)
+                        else "walking_skill" if selected_trick.walks and selected_trick.walk_controller == selected
+                        else selected_trick.name if selected_trick.name in {"sit_stay_shake", "secret_dance"}
+                        else "other_skill")
         trick = next((t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"), None)
         walking = next((t for t in self.tricks.values() if t.walks and states.get(t.walk_controller) == "active"), None)
         if self.fallen:
             return Result(True, f"controller mode: tilt/fall stop recorded in {self.fallen}. {PHYSICAL_STATE_UNKNOWN} "
-                                "Have a person check and set the robot upright; call stand_up only when ready.", self.status())
+                                "Have a person check and set the robot upright; call stand_up only when ready.", facts)
         described = {LOCOMOTION_CONTROLLER}
         described.update(t.controller for t in self.tricks.values() if t.kind == "policy")
         described.update(t.walk_controller for t in self.tricks.values() if t.walks)
@@ -1529,7 +1553,13 @@ class Robot:
                 mode += f". Other active controllers: {', '.join(other_active)}; their leg ownership is not established by this tool"
         elif other_legs and other_active:
             mode += f". Other active controllers: {', '.join(other_active)}"
+        if active == ["neural_controller_default"]:
+            mode = "stock locomotion controller active (neural_controller_default)"
+        # Queue facts may have changed while awaiting inventory; keep the observed
+        # mode from that inventory while taking a fresh command-state snapshot.
+        observed_mode = facts["observed_controller_mode"]
         facts = self.status()
+        facts["observed_controller_mode"] = observed_mode
         current = facts["current_action"]
         active = f" Current action {current['name']}: running (not completed)." if current else " No action is currently running."
         outcome = facts["last_outcome"]
