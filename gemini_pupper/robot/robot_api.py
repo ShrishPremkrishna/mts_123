@@ -280,6 +280,8 @@ class Robot:
         self.current_action_name: str | None = None
         self.busy_until = 0.0  # monotonic time when the queued work should finish
         self.command_instance = uuid.uuid4().hex  # ordering identity, not an authentication credential
+        self.completed_sit_entries = 0  # confirmed playback, not physical sits or lifetime history
+        self._last_counted_sit_entry: str | None = None
         self.stops = 0  # how many times stop (or the e-stop) has run
         self.worker = asyncio.get_event_loop().create_task(self._run_queue())
         # The shared gateway owns controller deactivation for a gamepad stop.
@@ -1010,6 +1012,10 @@ class Robot:
             "state": self.public_state_name(self.state_now),
             "state_after_queue": self.public_state_name(self.state_after_queue),
             "last_outcome": self.public_outcome(),
+            "session_context": {"schema": "pupper_session_context_v1",
+                                "server_instance": self.command_instance,
+                                "scope": "this_server_session",
+                                "completed_sit_entries": self.completed_sit_entries},
         }
 
     async def wait(self, duration: float) -> Result:
@@ -1186,6 +1192,13 @@ class Robot:
             if self.fallen or self.stopped_during_call() or self.controller_fault:
                 return Result(False, self.controller_fault or "clip transition interrupted by a fall or stop")
             if self._matches_clip_endpoint(trick.controller, endpoint, "none", earliest):
+                # This fresh, activation-correlated endpoint confirms entry playback.
+                # Paw/exit actions and already-selected requests must not add entries.
+                activation = self.policy_execution_requests.get(trick.controller)
+                if (trick.name == "sit_stay_shake" and not start_clip and activation
+                        and activation != self._last_counted_sit_entry):
+                    self.completed_sit_entries += 1
+                    self._last_counted_sit_entry = activation
                 return Result(True, f"controller confirmed {endpoint['name']}")
             if time.monotonic() >= deadline:
                 self.controller_fault = (f"{trick.name} did not confirm its {endpoint['name']} endpoint; motion quarantined. "
@@ -1565,7 +1578,8 @@ class Robot:
         detail = (f" Latest finished action {outcome['name']}: "
                   f"{'software command completed' if outcome['success'] else 'failed'}: {outcome['message']}.") if outcome else ""
         return Result(True, f"controller mode: {mode}. {facts['queued']} queued; running: {facts['running']}."
-                            f"{active}{detail} {PHYSICAL_STATE_UNKNOWN}", facts)
+                            f"{active}{detail} Confirmed Sit-entry playbacks in this server session: "
+                            f"{facts['session_context']['completed_sit_entries']}. {PHYSICAL_STATE_UNKNOWN}", facts)
 
 
 # The old name, for staff scripts written against tool_server.ToolServer.
