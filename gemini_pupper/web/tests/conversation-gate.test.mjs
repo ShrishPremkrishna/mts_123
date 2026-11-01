@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { build } from 'esbuild';
 const result=await build({entryPoints:['services/conversationOutput.ts'],bundle:true,write:false,format:'esm',platform:'node'});
-const {ConversationOutputGate,screenConversation,OUTPUT_LIMITS,BLOCKED_CONVERSATION}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+const {ConversationOutputGate,NativeReceiptOutputGate,normalizeReceiptTranscript,screenConversation,OUTPUT_LIMITS,BLOCKED_CONVERSATION}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
 const fixture=JSON.parse(readFileSync('../conversation_guard.json','utf8'));
 const packet=(text='Hello there',audio='native',complete=true)=>({serverContent:{modelTurn:{parts:[{inlineData:{data:audio}}]},outputTranscription:{text},turnComplete:complete}});
 function setup(t){const released=[],notices=[];const gate=new ConversationOutputGate(x=>released.push(x),x=>notices.push(x));t.after(()=>gate.close());return {gate,released,notices};}
@@ -45,4 +45,27 @@ test('split claim text and missing native transcript are refused, and thought te
  e.gate.observe({serverContent:{turnComplete:true}},false,true);assert.equal(e.released.length,0);assert.equal(e.notices[0],BLOCKED_CONVERSATION);
  e.gate.observe(packet('','data'),false,false);assert.equal(e.released.length,0);
  e.gate.observe({serverContent:{modelTurn:{parts:[{text:'private reasoning',thought:true}]},turnComplete:true}},false,true);assert.equal(e.released.length,0);
+});
+
+
+test('native receipt equality permits boundary punctuation but preserves decimal and sign meaning',()=>{
+ assert.equal(normalizeReceiptTranscript('Move queued!'),normalizeReceiptTranscript('move queued.'));
+ assert.notEqual(normalizeReceiptTranscript('Speed0.2'),normalizeReceiptTranscript('Speed02'));
+ assert.notEqual(normalizeReceiptTranscript('Speed -0.2'),normalizeReceiptTranscript('Speed0.2'));
+});
+
+test('native receipt timeout and size limits fail closed, then a fresh single-tool turn can succeed',async t=>{
+ for(const limit of ['time','bytes','items','text'])await t.test(limit,t=>{
+  if(limit==='time')t.mock.timers.enable({apis:['setTimeout']});
+  const emitted=[],gate=new NativeReceiptOutputGate(a=>emitted.push(a));t.after(()=>gate.close());
+  const tool={toolCall:{functionCalls:[{id:'a',name:'move'}]}};
+  const turn=gate.observe(tool);assert.equal(gate.authorize(turn,'Move queued.'),true);
+  if(limit==='time')t.mock.timers.tick(OUTPUT_LIMITS.timeoutMs);
+  if(limit==='bytes')gate.observe(packet('','a'.repeat(OUTPUT_LIMITS.bytes+1),false));
+  if(limit==='items')for(let i=0;i<=OUTPUT_LIMITS.items;i++)gate.observe(packet('','x',false));
+  if(limit==='text')gate.observe({serverContent:{outputTranscription:{text:'x'.repeat(OUTPUT_LIMITS.text+1)}}});
+  gate.observe(packet('Move queued.','bad'));assert.deepEqual(emitted,[]);
+  const next=gate.observe(tool);assert.equal(gate.authorize(turn,'Move queued.'),false);
+  assert.equal(gate.authorize(next,'Move queued.'),true);gate.observe(packet('Move queued.','good'));assert.deepEqual(emitted,[['good']]);
+ });
 });

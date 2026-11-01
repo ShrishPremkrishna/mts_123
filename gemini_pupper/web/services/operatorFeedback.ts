@@ -41,6 +41,12 @@ function motionReason(details: any): string | null {
     default: return 'motion values must be finite numbers.';
   }
 }
+function sessionSitCount(context: any): number | null {
+  return context?.schema === 'pupper_session_context_v1' && context.scope === 'this_server_session'
+    && typeof context.server_instance === 'string' && context.server_instance.length === 32 && /^[a-f0-9]{32}$/.test(context.server_instance)
+    && numberText(context.completed_sit_entries) !== null && Number.isInteger(context.completed_sit_entries)
+    ? context.completed_sit_entries : null;
+}
 function statusFeedback(details: any): string | null {
   if (!details || typeof details !== 'object' || typeof details.running !== 'boolean'
       || numberText(details.queued) === null || !Number.isInteger(details.queued)) return null;
@@ -66,6 +72,8 @@ function statusFeedback(details: any): string | null {
   else parts.push(`No command running; ${details.queued} queued.`);
   if (typeof details.following === 'boolean') parts.push(details.following ? 'Following on.' : 'Following off.');
   if (typeof details.controller_fault === 'string' && details.controller_fault) parts.push('Controller fault reported.');
+  const count = sessionSitCount(details.session_context);
+  if (count !== null) parts.push(`Confirmed Sit-entry playbacks in this server session: ${count}.`);
   return parts.join(' ');
 }
 
@@ -88,6 +96,43 @@ export function operatorFeedback(name: unknown, value: unknown): string {
   const queued = typeof name === 'string' && QUEUED_TOOLS.has(name)
     && submission?.schema === 'pupper_submission_v1' && submission.state === 'queued';
   return name === 'stop' ? 'Stop requested.' : `${spoken} ${queued ? 'queued' : 'request accepted'}.`;
+}
+
+/** Short native-voice status; detailed visible receipt remains unchanged. */
+export function nativeReceiptFeedback(name: unknown, value: unknown): string {
+  const result = value as any;
+  const fallback = operatorFeedback(name, value);
+  if (name !== 'robot_status' || result?.success !== true || hasMalformedOutcomeFlags(result)
+      || result.superseded || result.outcome_unknown || result.not_dispatched) return fallback;
+  const details = result.details;
+  if (!details || typeof details.running !== 'boolean' || numberText(details.queued) === null || !Number.isInteger(details.queued)) return fallback;
+  const modes: Record<string, string> = { locomotion: 'Walking controller active.', none: 'No command controller active.',
+    unknown: 'Controller state unknown.', sit_stay_shake: 'Sit controller active.', secret_dance: 'Generated-motion controller active.',
+    other_skill: 'Skill controller active.', walking_skill: 'Walking skill controller active.', locked_skill: 'Locked skill controller active.' };
+  const observed = details.observed_controller_mode;
+  const parts = [typeof observed === 'string' && Object.prototype.hasOwnProperty.call(modes, observed) ? modes[observed] : 'Controller state unverified.'];
+  parts.push(details.running ? `A command is running; ${details.queued} queued.`
+    : details.current_action != null ? `Current command state unknown; ${details.queued} queued.`
+    : `No command running; ${details.queued} queued.`);
+  const count = sessionSitCount(details.session_context);
+  if (count !== null) parts.push(`${count} Sit-entry ${count === 1 ? 'playback' : 'playbacks'} confirmed this server session.`);
+  if (details.following === true) parts.push('Following enabled.');
+  if (typeof details.controller_fault === 'string' && details.controller_fault) parts.push('Controller fault reported.');
+  return parts.join(' ');
+}
+
+/** Code-owned receipt vocabulary must not enter through free-form conversation.
+ * This classifies our fixed receipt forms, not general truth or natural language. */
+export function isOperatorReceiptNarration(text: string): boolean {
+  const normalized = text.normalize('NFKC').toLowerCase().replace(/[.,!?;:\-–—]/g, ' ').replace(/\s+/g, ' ').trim();
+  const prefixes = ['walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
+    'sit controller active', 'generated motion controller active', 'skill controller active', 'walking skill controller active', 'locked skill controller active', 'controller locomotion', 'controller no active command controller', 'controller unknown', 'controller sit',
+    'controller generated motion', 'controller skill', 'controller walking skill', 'controller locked skill', 'cached mode', 'cached status', 'confirmed sit entry playbacks',
+    'that request was superseded', 'i could not confirm that request', 'that request failed', 'stop requested'];
+  for (const label of [...Object.values(LABELS), 'robot']) for (const suffix of ['queued', 'request accepted', 'request not sent', 'rejected']) {
+    prefixes.push(`${label.toLowerCase()} ${suffix}`);
+  }
+  return prefixes.some(prefix => normalized === prefix || normalized.startsWith(prefix + ' '));
 }
 
 /** At most one active utterance and one newest pending receipt. Never awaited by dispatch. */

@@ -88,6 +88,89 @@ export class ConversationOutputGate {
     }
     const words = [turn.transcript, turn.text.join(''), ...turn.speech].join(' ');
     if (!screenConversation(words)) { this.notice(BLOCKED_CONVERSATION); return; }
+    // Robotics ER's Live TEXT response can arrive only as outputTranscription.
+    // Promote it after the same complete-turn/tool/claim checks, never early.
+    if (textModel && !turn.audio.length && !turn.text.length && !turn.speech.length && turn.transcript.trim()) {
+      turn.text.push(turn.transcript);
+    }
     if (turn.audio.length || turn.text.length || turn.speech.length) this.release(turn);
+  }
+}
+
+/** Only punctuation at word/sentence boundaries is optional; number signs and decimals stay significant. */
+export function normalizeReceiptTranscript(text: string): string {
+  return text.normalize('NFKC').toLowerCase().replace(/[.!?,;:]+(?=\s|$)/g, '').replace(/\s+/g, ' ').trim();
+}
+interface ReceiptTurn {
+  tools: number;
+  invalid: boolean;
+  outputSeen: boolean;
+  authorized: string | null;
+  audio: string[];
+  transcript: string;
+  text: string;
+  bytes: number;
+  items: number;
+  timer: ReturnType<typeof setTimeout>;
+}
+/** Narrow native-audio exception: one tool, one current settled receipt, exact transcript.
+ * This establishes transcript provenance, not a proof of the waveform's words. */
+export class NativeReceiptOutputGate {
+  private turn: ReceiptTurn | null = null;
+  private unscopedOutputSeen = false;
+  constructor(private release: (audio: string[]) => void) {}
+  invalidate() {
+    if (this.turn) { this.turn.invalid = true; this.turn.audio = []; this.turn.transcript = ''; this.turn.text = ''; }
+  }
+  close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.unscopedOutputSeen = false; }
+  authorize(turn: ReceiptTurn | null, text: string): boolean {
+    if (!turn || this.turn !== turn || turn.invalid || turn.tools !== 1 || turn.outputSeen
+        || !text.trim() || text.length > 1000) return false;
+    turn.authorized = text;
+    return true;
+  }
+  observe(message: LiveServerMessage): ReceiptTurn | null {
+    const content = message.serverContent;
+    const calls = (message.toolCall?.functionCalls ?? []).filter(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
+    const parts = (content?.modelTurn?.parts ?? []).filter(part => !part.thought);
+    const hasOutput = !!content?.outputTranscription?.text || parts.some(part => !!part.text || !!part.inlineData?.data);
+    if (calls.length && !this.turn) {
+      const turn = { tools: 0, invalid: this.unscopedOutputSeen, outputSeen: false, authorized: null,
+        audio: [], transcript: '', text: '', bytes: 0, items: 0, timer: undefined } as unknown as ReceiptTurn;
+      turn.timer = setTimeout(() => { if (this.turn === turn) this.invalidate(); }, OUTPUT_LIMITS.timeoutMs);
+      (turn.timer as any).unref?.();
+      this.turn = turn;
+    }
+    const turn = this.turn;
+    if (turn) {
+      turn.tools += calls.length;
+      if (turn.tools !== 1 || content?.interrupted || message.toolCallCancellation?.ids?.length) this.invalidate();
+      if (hasOutput) {
+        turn.outputSeen = true;
+        if (!turn.authorized) this.invalidate();
+      }
+      const add = (value: unknown, kind: 'audio' | 'transcript' | 'text') => {
+        if (turn.invalid || typeof value !== 'string' || !value) return;
+        turn.items++; turn.bytes += value.length * (kind === 'audio' ? 1 : 2);
+        if (turn.items > OUTPUT_LIMITS.items || turn.bytes > OUTPUT_LIMITS.bytes
+            || (kind !== 'audio' && turn.transcript.length + turn.text.length + value.length > OUTPUT_LIMITS.text)) {
+          this.invalidate(); return;
+        }
+        if (kind === 'audio') turn.audio.push(value); else turn[kind] += value;
+      };
+      for (const part of parts) { add(part.inlineData?.data, 'audio'); add(part.text, 'text'); }
+      add(content?.outputTranscription?.text, 'transcript');
+    }
+    if (hasOutput) this.unscopedOutputSeen = true;
+    if (content?.turnComplete) {
+      this.unscopedOutputSeen = false;
+      if (turn) {
+        clearTimeout(turn.timer); this.turn = null;
+        const expected = turn.authorized && normalizeReceiptTranscript(turn.authorized);
+        if (!turn.invalid && expected && turn.audio.length && normalizeReceiptTranscript(turn.transcript) === expected
+            && (!turn.text || normalizeReceiptTranscript(turn.text) === expected)) this.release(turn.audio);
+      }
+    }
+    return turn;
   }
 }

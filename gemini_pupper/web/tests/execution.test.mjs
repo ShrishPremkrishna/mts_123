@@ -316,8 +316,9 @@ test('disconnect while microphone permission is pending stops late tracks and ne
   const pending = env.s.connect('test', env.config, {});
   const rejection = assert.rejects(pending, /cancelled/);
   await env.s.disconnect();
+  await rejection; // Cancellation settles without waiting for the browser permission promise.
   permission.resolve(new env.FakeStream(env.tracks));
-  await rejection;
+  await Promise.resolve();
   assert.equal(env.tracks[0].stopped, 1);
   assert.equal(connections, 0);
 });
@@ -854,4 +855,62 @@ test('model-issued Stop closes audio gate before dispatch without waiting for bo
  let called=false;e.s.robotBridge.callTool=async()=>{called=true;assert.equal(e.s.audioInputActive,false);return {success:true};};
  await e.s.handleMessage({toolCall:{functionCalls:[{id:'stop-hold',name:'stop',args:{}}]}});
  assert.equal(called,true);assert.equal(sent.some(x=>x.audio),false);assert.deepEqual(sent,[{audioStreamEnd:true}]);
+});
+
+
+test('combined ER mode returns text directly and keeps the same robot tool catalog',async t=>{
+ let setup;const env=mediaEnvironment(t,async x=>{setup=x;x.callbacks.onopen();return {close(){}};},undefined,'conversation');
+ env.config.modelName='gemini-robotics-er-2-streaming-preview';env.s.robotBridge.getTools=async()=>({prompt:'Pupper prompt',tools:[{name:'move'},{name:'stop'}]});
+ await env.s.connect('TEST',env.config,{});
+ assert.deepEqual(setup.config.responseModalities,['TEXT']);assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['move','stop']);
+ assert.match(setup.config.systemInstruction,/Return conversation directly as text/);assert.doesNotMatch(setup.config.systemInstruction,/MUST invoke/);
+});
+
+
+test('ignored microphone permission times out, releases contexts and stops a late granted stream', async t => {
+  const permission=deferred(); let connections=0, timeout;
+  const env=mediaEnvironment(t,()=>{connections++;},()=>permission.promise);
+  const nativeSetTimeout=globalThis.setTimeout;
+  replaceGlobal(t,'setTimeout',(callback,ms,...args)=>ms===30_000 ? (timeout=callback,987654) : nativeSetTimeout(callback,ms,...args));
+  const pending=env.s.connect('TEST',env.config,{});
+  const rejected=assert.rejects(pending,/Microphone access timed out.*30 seconds.*site controls.*reconnect/);
+  assert.ok(timeout);timeout();await rejected;
+  assert.equal(connections,0);assert.equal(env.s.connecting,false);
+  assert.ok(env.contexts.every(c=>c.state==='closed'));
+  permission.resolve(new env.FakeStream(env.tracks));await Promise.resolve();
+  assert.equal(env.tracks[0].stopped,1);assert.equal(env.s.mediaStream,null);
+});
+
+test('microphone platform errors give actionable guidance and never open Live',async t=>{
+  for(const [name,expected] of [['NotAllowedError',/site controls.*privacy settings/],['NotFoundError',/Connect or select/],['NotReadableError',/Close other apps/]]) {
+    let connections=0;
+    const env=mediaEnvironment(t,()=>{connections++;},()=>Promise.reject(Object.assign(new Error('capture failed'),{name})));
+    await assert.rejects(env.s.connect('TEST',env.config,{}),expected);
+    assert.equal(connections,0);assert.ok(env.contexts.every(c=>c.state==='closed'));
+  }
+});
+
+test('optional camera timeout retains disabled microphone and rejects late camera ownership',async t=>{
+  const camera=deferred();let timeout,calls=0,connections=0;
+  const env=mediaEnvironment(t,async({callbacks})=>{connections++;callbacks.onopen();return {close(){}};},()=>++calls===1?Promise.resolve(new env.FakeStream(env.tracks)):camera.promise);
+  env.config.enableVideo=true;env.config.cameraSource='browser';env.s.setupVideoInput=()=>{};
+  const nativeSetTimeout=globalThis.setTimeout;
+  replaceGlobal(t,'setTimeout',(callback,ms,...args)=>ms===30_000 ? (timeout=callback,987655) : nativeSetTimeout(callback,ms,...args));
+  const pending=env.s.connect('TEST',env.config,{play:async()=>{}});
+  await new Promise(r=>setImmediate(r));timeout();await pending;
+  assert.equal(connections,1);assert.equal(env.tracks[0].enabled,false);
+  assert.ok(env.logs.some(x=>/Camera unavailable: Camera access timed out/.test(x.message)));
+  const track={kind:'video',stopped:0,stop(){this.stopped++;}};
+  camera.resolve(new env.FakeStream([track]));await Promise.resolve();
+  assert.equal(track.stopped,1);assert.equal(env.s.mediaStream.getVideoTracks().length,0);
+});
+
+
+test('stream adoption failure promptly rejects connection and stops unowned tracks',async t=>{
+ let connections=0;
+ const env=mediaEnvironment(t,()=>{connections++;});
+ env.FakeStream.prototype.addTrack=()=>{throw Error('cannot adopt');};
+ await assert.rejects(env.s.connect('TEST',env.config,{}),/Microphone capture could not be initialized/);
+ assert.equal(connections,0);assert.equal(env.tracks[0].stopped,1);
+ assert.equal(env.s.cancelMediaAcquisition,null);assert.ok(env.contexts.every(c=>c.state==='closed'));
 });

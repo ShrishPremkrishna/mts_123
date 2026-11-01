@@ -1,0 +1,64 @@
+{
+  "recorded_utc": "2026-11-01T23:33:25.020100+00:00",
+  "status": "Reviewed candidate ready for parentintegration; no robot deployment or hardware proof from this report.",
+  "native_default": "gemini-3.1-flash-live-preview",
+  "changes": [
+    "Bounded30s microphone/camera permission acquisition with immediate app cancellation, late-track cleanup and visible guidance.",
+    "Current actual single-tool response authorizes one exact complete native receipt transcript; known receipt forms cannot enter through ordinary narration.",
+    "Short code-owned status speech retains controller/queue/server-session Sit count and faults while full visible status remains.",
+    "ER2TEXT transcript-only adapter+direct selected-voiceTTS retained as optional candidate; OS fallback removed; multipart cancellation fixed."
+  ],
+  "validation": {
+    "web": 219,
+    "typecheck": "pass",
+    "build": "pass",
+    "root_reported_python": 781,
+    "root_reported_course": 166
+  },
+  "bundle": {
+    "/Users/shrish/workspace/cs123-foundation/gemini_pupper/web/dist/assets/index-Bk25Vuy2.js": "c75ccf8ad84c5748b9a49454dbbf72b6331a1d73f0ee40958b4e80c512d6003d"
+  },
+  "evidence": {
+    "created_utc": "2026-11-01T23:33:25.020100+00:00",
+    "local_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/workstream1-native-voice-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-native-voice-20261101",
+    "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/workstream1-native-voice-20261101.tar.gz",
+    "durable_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-native-voice-20261101.tar.gz",
+    "archive_sha256": "d1f6f55fee17a5ab6c2453de5468196f1576be8ff531fb8518f8478d3220eaf7",
+    "archive_bytes": 26302287,
+    "files": 458,
+    "manifest_sha256": "37987d64eacd3680247c27715235ff5dad23fec1d42e1fc9d9acfc2a004a7c0e",
+    "verified": "All member bytes/hashes, durablefiles andbotharchives match; unknown-origin PCM excluded explicitly, no key bytes found."
+  },
+  "latency_examples_ms": {
+    "native_move_visible_receipt": 2049.34325,
+    "native_move_first_playable": 4465.063375,
+    "native_stop_visible_receipt": 609.96775,
+    "native_stop_first_playable": 3066.210458,
+    "detailed_status_first_playable": 11336.124208,
+    "concise_status_first_playable": 14243.453333
+  },
+  "actual_model_tests": [
+    "Production native7turn sequence: chat,move,status,Stop,chat,unsafe-speedrefusal,forged-actionrequest. Exact move/status/Stop receipts admitted after actualfakeAPIresponse; ordinary chats delivered.",
+    "Concise status exacttranscript admitted in1coldnative request; no latency gain established.",
+    "ERdirectTEXT successful firstplayable2.64\u20133.38s, but laterTTS429freeTier10requests/day. No defaultswitch or billingchange.",
+    "Fresh macOSsaySamantha synthetic speech2moves+2Stops correctly calledfakeAPI; no personalrecordings, browsercapture or hardware."
+  ],
+  "rejected_or_unresolved": [
+    "Native3.1LiveTEXT modality rejected1007.",
+    "ERrepeat1benign reply withheld; insufficient rawoutput to classify exactfalsepositive.",
+    "DirectER retained3TTS failures and eventualLive1011 aftercompletedrefusal; definitive429capturedlater.",
+    "Unknown-origin retainedPCM cloudattempt rejected, never executed; freshprovablecomputer-generatedspeech substituted.",
+    "Whole-turn buffer remains; native waveform/text equivalence unproven, genericno-tool truthguard heuristic.",
+    "Single-tool acknowledgment only; multi-tool handshake sequences/fourthjoke stillvisible-only.",
+    "Honest no-tool forgedclaimrefusal was overblocked byexistingheuristic.",
+    "No actualbrowser/native/hardware verification ofthisfinalcandidate. IMU/Sit hardwareissues remain separate, owned byroot."
+  ],
+  "fake_runtime_recipe": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/workstream1-native-voice-20261101/fake-runtime-recipe.json",
+  "source_reconstruction": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/workstream1-native-voice-20261101/source-reconstruction-receipt.json",
+  "next": [
+    "Parent review/commit and clearly labeled fakeUI rehearsal atlocalhost8001.",
+    "Deploy API/UI onlyunderrootownership; no native restart or motionauthorized bythisreport.",
+    "Design bounded multi-tool/personality receipt composition separately; do not relax genericnarration gate."
+  ]
+}

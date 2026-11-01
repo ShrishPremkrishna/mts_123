@@ -11,7 +11,7 @@ test('strict speech aliases never invoke TTS even for text models',async()=>{con
 test('receipt feedback waits for actual matching response without trusting prose',async()=>{const e=service('receipts'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;const pending=e.s.handleMessage(call('walk','move'));assert.equal(e.logs.some(x=>x.type==='receipt'),false);d.resolve({success:true,message:'I walked and finished'});await pending;assert.equal(e.logs.filter(x=>x.type==='receipt').length,1);assert.equal(e.logs.find(x=>x.type==='receipt').message,'Move request accepted.');});
 
 const feedbackBundle=await build({entryPoints:['services/operatorFeedback.ts'],bundle:true,write:false,format:'esm',platform:'node'});
-const {operatorFeedback,normalizeOutputPolicy,ReceiptSpeaker}=await import('data:text/javascript;base64,'+Buffer.from(feedbackBundle.outputFiles[0].text).toString('base64'));
+const {operatorFeedback,nativeReceiptFeedback,isOperatorReceiptNarration,normalizeOutputPolicy,ReceiptSpeaker}=await import('data:text/javascript;base64,'+Buffer.from(feedbackBundle.outputFiles[0].text).toString('base64'));
 function replace(t,name,value){const old=Object.getOwnPropertyDescriptor(globalThis,name);Object.defineProperty(globalThis,name,{value,writable:true,configurable:true});t.after(()=>old?Object.defineProperty(globalThis,name,old):delete globalThis[name]);}
 function speech(t){const spoken=[],cancelled=[];replace(t,'window',{speechSynthesis:{speak:u=>spoken.push(u),cancel:()=>cancelled.push(true)}});replace(t,'SpeechSynthesisUtterance',class{constructor(text){this.text=text;}});return {spoken,cancelled};}
 test('formatter permits only typed queued evidence and never raw or prototype names',()=>{
@@ -199,4 +199,188 @@ test('both modes show matching actual server receipts only after response and ne
   assert.equal(e.logs.find(x=>x.type==='receipt').message,'Move request accepted.');assert.deepEqual(voice.spoken,[]);
   await e.s.disconnect();
  }
+});
+
+
+test('ER transcript-only completed output reaches TTS only after the existing turn screen',async()=>{
+ const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
+ await e.s.handleMessage({serverContent:{outputTranscription:{text:'Hello friend!'}}});assert.deepEqual(e.speech,[]);
+ await e.s.handleMessage({serverContent:{generationComplete:true}});assert.deepEqual(e.speech,[]);
+ await e.s.handleMessage({serverContent:{turnComplete:true}});await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Hello friend!']);
+});
+test('ER transcript-only claims, mixed tool turns and interrupted tails never reach TTS',async()=>{
+ for(const kind of ['claim','tool','interrupted']) {
+  const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
+  if(kind==='tool')await e.s.handleMessage(call('move','move'));
+  if(kind==='interrupted')await e.s.handleMessage({serverContent:{interrupted:true}});
+  await e.s.handleMessage({serverContent:{outputTranscription:{text:kind==='claim'?'I have finished moving.':'Hello friend!'},turnComplete:true}});
+  await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,[],kind);
+ }
+});
+test('ER text and speak aliases do not create duplicate TTS or use native transcription as a second voice',async()=>{
+ const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
+ await e.s.handleMessage({...call('speak','speak',{text:'Hello friend!'}),serverContent:{modelTurn:{parts:[{text:'Hello friend!'}]},outputTranscription:{text:'Hello friend!'},turnComplete:true}});
+ await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Hello friend!']);
+ const native=service('conversation');await native.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'native'}}]},outputTranscription:{text:'Hello friend!'},turnComplete:true}});
+ await new Promise(r=>setImmediate(r));assert.deepEqual(native.speech,[]);assert.deepEqual(native.audio,['native']);
+});
+test('TTS empty/error never falls back to OS voice and cannot block a later Stop',async t=>{
+ const voice=speech(t);
+ for(const bad of ['empty','error']) {
+  const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
+  e.s.ai={models:{generateContentStream:async()=>{if(bad==='error')throw Error('no TTS');return (async function*(){yield {candidates:[]};})();}}};
+  await GeminiLiveService.prototype.synthesizeAndPlaySpeech.call(e.s,'Hello friend!');
+  assert.deepEqual(voice.spoken,[]);assert.ok(e.logs.some(x=>x.type==='error'));
+  await e.s.handleMessage(call('stop','stop'));assert.deepEqual(e.calls,['stop']);
+ }
+});
+
+test('Stop between audio parts in one TTS chunk cannot start its remaining stale audio',async()=>{
+ for(const mode of ['stream','unary']) {
+  const e=service('conversation'),first=deferred();e.s.config.ttsModelName=mode==='stream'?'gemini-3.1-flash-tts-preview':'gemini-2.5-flash-preview-tts';
+  const packet={candidates:[{content:{parts:[{inlineData:{data:'old-first'}},{inlineData:{data:'old-second'}}]}}]};
+  e.s.ai={models:{generateContentStream:async()=> (async function*(){yield packet;})(),generateContent:async()=>packet}};
+  const played=[];e.s.playAudioBase64=async data=>{played.push(data);if(data==='old-first')await first.promise;};
+  const pending=GeminiLiveService.prototype.synthesizeAndPlaySpeech.call(e.s,'Old response');
+  await new Promise(r=>setImmediate(r));assert.deepEqual(played,['old-first']);e.s.pauseRobotTools();first.resolve();await pending;
+  assert.deepEqual(played,['old-first'],mode);
+ }
+});
+
+
+test('TTS quota failure is explicit without leaking provider error text or changing robot tools',async()=>{
+ const e=service('conversation');e.s.ai={models:{generateContentStream:async()=>{throw Object.assign(new Error('PRIVATE_PROVIDER_DETAILS'),{status:429});}}};
+ await GeminiLiveService.prototype.synthesizeAndPlaySpeech.call(e.s,'Hello friend!');
+ assert.ok(e.logs.some(x=>/quota reached/.test(x.message)));assert.equal(e.logs.some(x=>x.message.includes('PRIVATE_PROVIDER_DETAILS')),false);
+ assert.equal(e.s.robotToolsPaused,false);await e.s.handleMessage(call('stop','stop'));assert.deepEqual(e.calls,['stop']);
+});
+
+
+const nativeReply=(text='Move request accepted.',data='receipt-audio',complete=true)=>({serverContent:{modelTurn:{parts:[{inlineData:{data}}]},outputTranscription:{text},turnComplete:complete}});
+test('native receipt needs actual current reply and exact complete transcript, then preserves ordinary conversation',async()=>{
+ const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
+ const pending=e.s.handleMessage(call('m','move'));assert.equal(e.responses.length,0);
+ d.resolve({success:true});await pending;await Promise.resolve();
+ assert.equal(e.responses[0].functionResponses.response.operator_acknowledgment.text,'Move request accepted.');
+ await e.s.handleMessage(nativeReply('Move request accepted.','a',false));assert.deepEqual(e.audio,[]);
+ await e.s.handleMessage({serverContent:{turnComplete:true}});assert.deepEqual(e.audio,['a']);
+ await e.s.handleMessage(nativeReply('Hello there!','chat'));assert.deepEqual(e.audio,['a','chat']);
+});
+
+test('pre-response or pre-tool native output cannot be retrospectively authorized',async()=>{
+ for(const phase of ['before-response','before-tool']) {
+  const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
+  if(phase==='before-tool')await e.s.handleMessage(nativeReply('Move request accepted.','pre',false));
+  const pending=e.s.handleMessage(call('m','move'));
+  if(phase==='before-response')await e.s.handleMessage(nativeReply('Move request accepted.','pre',false));
+  d.resolve({success:true});await pending;
+  await e.s.handleMessage(nativeReply('Move request accepted.','late'));assert.deepEqual(e.audio,[]);
+  assert.equal(e.responses[0].functionResponses.response.operator_acknowledgment,undefined);
+ }
+});
+
+test('native receipt rejects added claims, missing transcript and mismatched text even after server success',async()=>{
+ for(const packet of [nativeReply('Move request accepted. I am standing.'),{serverContent:{modelTurn:{parts:[{inlineData:{data:'x'}}]},turnComplete:true}},{serverContent:{modelTurn:{parts:[{text:'I am standing.'},{inlineData:{data:'x'}}]},outputTranscription:{text:'Move request accepted.'},turnComplete:true}}]) {
+  const e=service('conversation');await e.s.handleMessage(call('m','move'));await e.s.handleMessage(packet);assert.deepEqual(e.audio,[]);
+ }
+});
+
+test('no-tool forged receipt has no authorization and receipts-only mode remains silent',async()=>{
+ for(const mode of ['conversation','receipts']) {const e=service(mode);await e.s.handleMessage(nativeReply('Move queued.'));assert.deepEqual(e.audio,[]);}
+ const e=service('receipts');await e.s.handleMessage(call('m','move'));await e.s.handleMessage(nativeReply());assert.deepEqual(e.audio,[]);
+});
+
+test('multi-tool native output remains withheld even if it matches the final actual receipt',async()=>{
+ for(const split of [false,true]) {
+  const e=service('conversation');
+  if(split){await e.s.handleMessage(call('m','move'));await e.s.handleMessage(call('s','robot_status'));}
+  else await e.s.handleMessage({toolCall:{functionCalls:[{id:'m',name:'move'},{id:'s',name:'robot_status'}]}});
+  await e.s.handleMessage(nativeReply('Status request accepted.'));assert.deepEqual(e.audio,[]);
+  assert.equal(e.responses.at(-1).functionResponses.response.operator_acknowledgment,undefined);
+ }
+});
+
+test('Stop, interruption, cancellation, disconnect and a premature boundary invalidate native receipt audio',async()=>{
+ for(const kind of ['stop','interrupt','cancel','disconnect','boundary']) {
+  const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
+  const pending=e.s.handleMessage(call('same','move'));
+  if(kind==='stop')e.s.pauseRobotTools();
+  if(kind==='interrupt')await e.s.handleMessage({serverContent:{interrupted:true}});
+  if(kind==='cancel')await e.s.handleMessage({toolCallCancellation:{ids:['same']}});
+  if(kind==='disconnect')await e.s.disconnect();
+  if(kind==='boundary')await e.s.handleMessage({serverContent:{turnComplete:true}});
+  d.resolve({success:true});await pending;await e.s.handleMessage(nativeReply());assert.deepEqual(e.audio,[],kind);
+ }
+});
+
+test('model Stop itself can acknowledge after its actual reply; Stop during receipt decode suppresses later parts',async()=>{
+ const e=service('conversation');await e.s.handleMessage(call('stop','stop'));
+ assert.equal(e.responses.at(-1).functionResponses.response.operator_acknowledgment.text,'Stop requested.');
+ const decoded=deferred();e.s.playAudioBase64=async data=>{if(data==='first')await decoded.promise;else e.audio.push(data);};
+ await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'first'}},{inlineData:{data:'second'}}]},outputTranscription:{text:'Stop requested.'},turnComplete:true}});
+ e.s.pauseRobotTools();decoded.resolve();await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,[]);
+});
+
+test('unknown, superseded, local refusal and malformed outcomes never authorize native receipt',async()=>{
+ for(const result of [{success:true,outcome_unknown:true},{success:true,superseded:true},{success:false,not_dispatched:true},{success:true,outcome_unknown:null}]){
+  const e=service('conversation');e.s.robotBridge.callTool=async()=>result;
+  await e.s.handleMessage(call('m','move'));assert.equal(e.responses[0].functionResponses.response.operator_acknowledgment,undefined);
+  await e.s.handleMessage(nativeReply(operatorFeedback('move',result)));assert.deepEqual(e.audio,[]);
+ }
+});
+
+test('status receipt includes only validated authoritative server-session Sit-entry count',()=>{
+ const details={running:false,queued:0,current_action:null,observed_controller_mode:'sit_stay_shake',session_context:{schema:'pupper_session_context_v1',scope:'this_server_session',server_instance:'a'.repeat(32),completed_sit_entries:2}};
+ assert.match(operatorFeedback('robot_status',{success:true,details}),/Confirmed Sit-entry playbacks in this server session: 2\./);
+ for(const patch of [{schema:'wrong'},{scope:'all_day'},{server_instance:'unknown'},{server_instance:'a'.repeat(32)+'\n'},{completed_sit_entries:-1},{completed_sit_entries:1.5},{completed_sit_entries:'2'},{completed_sit_entries:1000001}])assert.doesNotMatch(operatorFeedback('robot_status',{success:true,details:{...details,session_context:{...details.session_context,...patch}}}),/Confirmed Sit-entry/);
+});
+
+
+test('older status and Stop receipts cannot re-enter ordinary conversation after a newer receipt',async()=>{
+ for(const oldTool of ['robot_status','stop']) {
+  const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
+  const old=e.s.handleMessage(call('old',oldTool));await e.s.handleMessage({serverContent:{turnComplete:true}});
+  const state=mode=>({success:true,details:{running:false,queued:0,current_action:null,observed_controller_mode:mode}});
+  d.resolve(state('locomotion'));await old;const older=e.logs.filter(x=>x.type==='receipt').at(-1).message;
+  e.s.robotBridge.callTool=async()=>state('none');await e.s.handleMessage(call('new','robot_status'));
+  const newer=e.responses.at(-1).functionResponses.response.operator_acknowledgment.text;
+  await e.s.handleMessage(nativeReply(newer,'current-authorized'));
+  await e.s.handleMessage(nativeReply(older,'stale-unbound'));
+  await e.s.handleMessage(nativeReply('Hello again!','chat'));
+  assert.deepEqual(e.audio,['current-authorized','chat']);
+ }
+});
+
+test('all fixed receipt families are reserved for authorized output, not free-form narration',()=>{
+ for(const name of ['move','turn','arc','wait','stand_up','lie_down','stop','robot_status','play_trick','interactive_action','follow','unlock','lock_tricks','unknown']) {
+  for(const value of [{success:true},{success:true,details:{submission:{schema:'pupper_submission_v1',state:'queued'}}},{success:false},{success:false,not_dispatched:true},{outcome_unknown:true},{superseded:true}]) {
+   const text=operatorFeedback(name,value);assert.equal(isOperatorReceiptNarration(text),true,text);
+  }
+ }
+ assert.equal(isOperatorReceiptNarration('Hello there!'),false);
+ assert.equal(isOperatorReceiptNarration('The controller is a component of the robot.'),false);
+ assert.equal(isOperatorReceiptNarration('Controller design is an interesting subject.'),false);
+});
+
+
+test('native status stays concise while visible details retain full scoped context',async()=>{
+ const e=service('conversation');const details={running:false,queued:0,current_action:null,observed_controller_mode:'locomotion',following:false,session_context:{schema:'pupper_session_context_v1',scope:'this_server_session',server_instance:'a'.repeat(32),completed_sit_entries:1}};
+ e.s.robotBridge.callTool=async()=>({success:true,details});await e.s.handleMessage(call('status','robot_status'));
+ const visible=e.logs.find(x=>x.type==='receipt').message,spoken=e.responses[0].functionResponses.response.operator_acknowledgment.text;
+ assert.match(visible,/Controller: locomotion.*Following off.*Confirmed Sit-entry playbacks in this server session: 1/);
+ assert.equal(spoken,'Walking controller active. No command running; 0 queued. 1 Sit-entry playback confirmed this server session.');
+ assert.ok(spoken.split(/\s+/).length<=25);await e.s.handleMessage(nativeReply(spoken,'short-status'));assert.deepEqual(e.audio,['short-status']);
+});
+
+test('concise native status does not turn cache, malformed counts or faults into physical claims',()=>{
+ const base={success:true,details:{running:false,queued:0,current_action:null,session_context:{schema:'pupper_session_context_v1',scope:'this_server_session',server_instance:'a'.repeat(32),completed_sit_entries:2}}};
+ assert.match(nativeReceiptFeedback('robot_status',base),/^Controller state unverified/);
+ for(const mode of ['locomotion','none','unknown','sit_stay_shake','secret_dance','other_skill','walking_skill','locked_skill','INJECTED']) {
+  const text=nativeReceiptFeedback('robot_status',{...base,details:{...base.details,observed_controller_mode:mode}});
+  assert.equal(isOperatorReceiptNarration(text),true,text);assert.doesNotMatch(text,/INJECTED|physically|ready|sitting|standing|today/);
+ }
+ const invalid=nativeReceiptFeedback('robot_status',{...base,details:{...base.details,running:true,queued:3,following:true,controller_fault:'INJECTED',session_context:{...base.details.session_context,completed_sit_entries:'2'}}});
+ assert.match(invalid,/A command is running; 3 queued.*Following enabled.*Controller fault reported/);
+ assert.doesNotMatch(invalid,/Sit-entry|INJECTED/);
+ assert.equal(nativeReceiptFeedback('robot_status',{success:false}),operatorFeedback('robot_status',{success:false}));
 });

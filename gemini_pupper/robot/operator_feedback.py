@@ -111,6 +111,14 @@ def _status_feedback(details):
         parts.append("Following on." if details["following"] else "Following off.")
     if isinstance(details.get("controller_fault"), str) and details["controller_fault"]:
         parts.append("Controller fault reported.")
+    context = details.get("session_context")
+    if (isinstance(context, dict) and context.get("schema") == "pupper_session_context_v1"
+            and context.get("scope") == "this_server_session"
+            and isinstance(context.get("server_instance"), str)
+            and re.fullmatch(r"[a-f0-9]{32}", context["server_instance"])
+            and _number(context.get("completed_sit_entries")) is not None
+            and context["completed_sit_entries"] == int(context["completed_sit_entries"])):
+        parts.append(f"Confirmed Sit-entry playbacks in this server session: {int(context['completed_sit_entries'])}.")
     return " ".join(parts)
 
 def receipt_feedback(name, result, *, current=True, dispatched=True):

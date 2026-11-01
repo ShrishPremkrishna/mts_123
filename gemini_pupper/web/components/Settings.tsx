@@ -54,7 +54,7 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
             </select>
             {isRoboticsER && (
               <p className="mt-1 text-[11px] text-cyan-400">
-                In conversation mode, Robotics ER 2 Streaming uses text modality; audio is synthesized via Flash TTS and the <code className="bg-gray-900 px-1 rounded text-yellow-300">speak</code> tool.
+                Robotics ER speaks completed, screened text using the selected TTS voice. Robot actions and their server receipts remain separate.
               </p>
             )}
           </div>

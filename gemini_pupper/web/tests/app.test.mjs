@@ -221,3 +221,18 @@ test('App releases mic on cancellation, blur, hidden page, settings and independ
  const stopping=find(render(),n=>n.type==='ExecutionStatus').props.onStop();assert.equal(s.active,false);
  s.stop.resolve({success:true});await stopping;
 });
+
+
+test('App exposes permission guidance, cancellation, and failure details without opening Debug',async t=>{
+ const {render,instances}=await app(t);
+ const connecting=wake(render()).props.onClick();
+ const waiting=find(render(),n=>n.props.role==='status'&&n.props.children.some(x=>typeof x==='string'&&x.includes('permission')));
+ assert.ok(waiting);assert.ok(find(waiting,n=>n.type==='button'&&n.props.children.includes('Cancel connection')));
+ instances[0].connection.reject(new Error('Microphone access timed out after 30 seconds. Allow access in site controls, then reconnect.'));
+ await connecting;
+ assert.match(find(render(),n=>n.props.role==='alert').props.children.join(''),/Microphone access timed out.*reconnect/);
+ assert.ok(wake(render()));
+ const retry=wake(render()).props.onClick();assert.equal(find(render(),n=>n.props.role==='alert'),null);
+ instances[1].connection.resolve();await retry;
+ assert.equal(find(render(),n=>n.props.role==='status'&&n.props.children.some(x=>typeof x==='string'&&x.includes('permission'))),null);
+});

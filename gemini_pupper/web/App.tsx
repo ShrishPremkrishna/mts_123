@@ -186,6 +186,8 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [addLog, robotBridge]);
 
+  const [connectionError, setConnectionError] = useState('');
+
   const handleConnect = async () => {
     // Ref is synchronous, so repeated clicks cannot create overlapping sessions.
     if (geminiRef.current || isStopPending()) return;
@@ -203,6 +205,7 @@ const App: React.FC = () => {
     let service: GeminiLiveService | null = null;
     let automaticStopSequence: number | null = null;
     try {
+      setConnectionError('');
       setConnState(ConnectionState.CONNECTING);
       setLastDispatch(null);
       setLogs(current => current.filter(entry => entry.type !== 'receipt'));
@@ -251,6 +254,7 @@ const App: React.FC = () => {
       // Explicit disconnect owns this session until its independent Stop settles.
       if (geminiRef.current !== service || disconnectingRef.current === service) return;
       geminiRef.current = null;
+      setConnectionError(err.message);
       addLog({ id: 'conn-err', timestamp: Date.now(), type: 'error', message: err.message });
       setConnState(ConnectionState.ERROR);
     }
@@ -391,14 +395,21 @@ const App: React.FC = () => {
         )}
 
         {(connState === ConnectionState.DISCONNECTED || connState === ConnectionState.ERROR) && view === 'face' && (
-           <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 pointer-events-auto">
+           <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center bg-black/50 backdrop-blur-sm z-10 pointer-events-auto">
               <button 
                 onClick={handleConnect}
                 className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-4 px-8 rounded-full shadow-[0_0_30px_rgba(34,211,238,0.5)] transform hover:scale-105 transition-all text-xl flex items-center gap-2"
               >
                 <PowerIcon /> WAKE PUPPER
               </button>
+              {connectionError && <p role="alert" className="max-w-lg px-6 text-center text-amber-200">{connectionError}</p>}
            </div>
+        )}
+        {connState === ConnectionState.CONNECTING && (
+          <div role="status" className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 max-w-lg rounded bg-gray-900/95 px-4 py-3 text-center text-sm text-gray-100">
+            Connecting. If permission is pending, bring this tab forward and allow microphone or camera access in the browser site controls. Device permission waits end after 30 seconds.
+            <button onClick={handleDisconnect} className="ml-2 underline text-cyan-300">Cancel connection</button>
+          </div>
         )}
       </main>
 
