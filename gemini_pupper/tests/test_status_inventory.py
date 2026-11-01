@@ -55,6 +55,41 @@ def test_feedback_only_inventory_is_not_mistaken_for_known_leg_ownership():
     run_case(case)
 
 
+
+@pytest.mark.parametrize("controller,expected_mode,expected_message", [
+    (None, "none", "no active leg controller reported"),
+    ("neural_controller_default", "locomotion", "stock locomotion controller active"),
+    ("unfamiliar_joint_controller", "unknown", "unclassified active controllers: unfamiliar_joint_controller"),
+])
+def test_status_prose_and_observed_mode_ignore_only_confirmed_feedback_types(
+        controller, expected_mode, expected_message):
+    async def case(rig):
+        rig.robot.controllers = {"neural_controller_default": "inactive"}
+        if controller:
+            rig.robot.controllers[controller] = "active"
+        original = rig.ts._call
+        async def with_feedback(client, request, timeout=3.):
+            response = await original(client, request, timeout)
+            if client is rig.ts.list_client and response is not None:
+                response.controller.extend([
+                    harness._Msg(name="joint_state_broadcaster", state="active",
+                                 type="joint_state_broadcaster/JointStateBroadcaster"),
+                    harness._Msg(name="imu_sensor_broadcaster", state="active",
+                                 type="imu_sensor_broadcaster/IMUSensorBroadcaster"),
+                ])
+            return response
+        rig.ts._call = with_feedback
+        switches = list(rig.robot.switches)
+        result = await rig.ts.mode()
+        assert result.ok
+        assert result.details["observed_controller_mode"] == expected_mode
+        assert expected_message in result.message
+        assert "joint_state_broadcaster" not in result.message
+        assert "imu_sensor_broadcaster" not in result.message
+        assert rig.robot.switches == switches
+    run_case(case)
+
+
 def test_status_reports_no_active_legs_only_when_no_active_controller_is_reported():
     async def case(rig):
         rig.robot.controllers = {'neural_controller_default': 'inactive',

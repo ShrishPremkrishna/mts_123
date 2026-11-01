@@ -62,7 +62,11 @@ async def stand_up(robot: Robot) -> Result:
 
 
 async def lie_down(robot: Robot) -> Result:
-    """Relax every motor, so the robot lies down."""
+    """Deactivate leg controllers; their configured damping may remain.
+
+    This is not the driver shutdown that sends a fully neutral disable packet,
+    and it does not control the descent or establish the physical posture.
+    """
     robot.secret_gate.lock()
     note = await prepare_to_move(robot)
     if isinstance(note, Result):
@@ -85,7 +89,8 @@ async def stand_up_tool(robot: Robot) -> Result:
 @tool(
     "lie_down",
     "Queue leg-controller deactivation when the user explicitly asks to sleep, relax"
-    " or lie down. Controller deactivation does not verify physical posture." + PREPARES_MOVE,
+    " or lie down. Configured damping may remain; this is not a full motor-board disable. "
+    "Controller deactivation does not verify physical posture." + PREPARES_MOVE,
 )
 async def lie_down_tool(robot: Robot) -> Result:
     return await lie_down(robot)

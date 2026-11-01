@@ -1527,8 +1527,7 @@ class Robot:
         other_legs = sorted(c for c in self.leg_controllers - described if states.get(c) == "active")
         # A name outside this catalog does not establish what joints it owns.
         # Report it rather than equating an unfamiliar controller with no motion.
-        other_active = sorted(c for c, state in states.items()
-                              if state == "active" and c not in self.leg_controllers)
+        other_active = sorted(c for c in active if c not in self.leg_controllers)
         fallback = (
             f"active leg controllers: {', '.join(other_legs)}; behavior is not identified by this tool"
             if other_legs else
