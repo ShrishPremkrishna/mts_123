@@ -220,7 +220,7 @@ test('all displayed manual presets pass the actual Python stock movement validat
   // Execute only the real pure dataclass/validator definitions, without ROS imports.
   const script = `import ast, dataclasses, json, math, pathlib, sys
 scope = {'dataclass': dataclasses.dataclass, 'math': math}
-for path, name in [(sys.argv[1], 'MoveLimits'), (sys.argv[2], 'check_move')]:
+for path, name in [(sys.argv[1], 'MoveLimits'), (sys.argv[1], 'Result'), (sys.argv[2], '_motion_refusal'), (sys.argv[2], '_check_move_result'), (sys.argv[2], 'check_move')]:
     tree = ast.parse(pathlib.Path(path).read_text())
     node = next(node for node in tree.body if getattr(node, 'name', None) == name)
     exec(compile(ast.Module(body=[node], type_ignores=[]), path, 'exec'), scope)
