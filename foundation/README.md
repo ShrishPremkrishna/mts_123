@@ -22,6 +22,10 @@ never starts or contacts the robot. The compact
 [current-state record](results/interruption-recovery.json) is the sole owner of
 operational status; completed experiment reports retain their dated evidence.
 
+The [1 November supervised Workstream 1 session](results/workstream1-hardware-20261101.json) now records actual voice movement, the full Sit/ten-second hold/both-paws/standing sequence, automatic Sit-to-walk exit, and queued cancellation with operator observations. The generated sway was slow/jittery and is **not accepted**; the two-voice, continuously listening experience also needs redesign. Full driver shutdown released the legs; the ordinary rest command retains damping. These are bounded successes, not a robust or complete Lab 6 release. Earlier dated reports below retain their historical evidence; current activity remains in the single recovery record.
+
+The [deliberate voice-input candidate](results/workstream1-deliberate-voice-20261101.json) adds hold-to-talk without reconnecting and replaces OS-spoken receipts with immediate visible feedback. It preserves native conversation and the existing action-claim boundary. It passed 188 web checks and 24 actual-browser synthetic-media checks; it is not yet deployed or tested with real speech. Whole-turn reply latency remains.
+
 The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
 adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
 The [combined conversation/control revision](results/workstream1-combined-conversation-20261031.json)

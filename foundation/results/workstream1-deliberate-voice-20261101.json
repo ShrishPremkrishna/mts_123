@@ -1,0 +1,34 @@
+{
+  "recorded_utc": "2026-11-01T22:28:00.465905+00:00",
+  "status": "Offline candidate; not deployed or tested with actual speech/Google after this change.",
+  "changes": [
+    "Default hold-to-talk keeps Live and camera connected; microphone track disabled and PCM gated while idle.",
+    "Release, cancellation, blur, hidden tab, Stop and disconnect invalidate pending audio sends.",
+    "Server receipts remain visible after actual responses; browser OS speech removed from receipt path.",
+    "Native conversation and robot tools remain in one mode; whole-turn output buffer unchanged.",
+    "512-frame capture reduces nominal partial-buffer exposure to32ms at16kHz; not a timing or speech-recognition guarantee."
+  ],
+  "validation": {
+    "web_tests": 188,
+    "typecheck": "pass",
+    "build": "pass",
+    "independent_affected_tests": 104,
+    "independent_final_delta_tests": 15,
+    "actual_browser_synthetic_checks": 24,
+    "actual_speech_or_cloud_checked": false
+  },
+  "bundle": {
+    "name": "index-ByVhJ0MN.js",
+    "sha256": "2ae75785f593eb19120d5f4ae39a952751dce894b1f134f101d6f5ee7396ff34"
+  },
+  "evidence": "artifacts/hardware/2026-11-01/offline-ux",
+  "limitations": [
+    "Automatic VAD may respond while held; release is not robot Stop.",
+    "Whole-turn audio buffering still adds latency.",
+    "Claim screening remains heuristic; no claim of universally truthful native speech.",
+    "Real microphone last-syllable recognition and user comfort need a brief live check.",
+    "Hold-to-talk is a deliberate input control, not an implemented wake word."
+  ],
+  "source_commit": "6e37397",
+  "local_rehearsal_servers": "Both task-owned fake API and static server stopped cleanly after the completed browser run."
+}

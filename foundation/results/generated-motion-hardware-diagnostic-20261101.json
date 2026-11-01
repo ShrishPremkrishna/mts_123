@@ -1,0 +1,296 @@
+{
+  "recorded_utc": "2026-11-01T22:27:01.610595+00:00",
+  "decision": "Generated secret_dance remains unaccepted for normal hardware use after observed jitter. This diagnostic does not identify a proven cause or promote a replacement.",
+  "scope": "Read-only analysis of two archived physical trials plus a six-second logged Sit-hold comparison; no new motion, training, gain or policy changes.",
+  "user_observation": "User explicitly watched generated trial2 and described slow movement and jitter like low frame rate. Trial1 was not visually evaluated.",
+  "hardware_validation": "Attempted but not accepted; software completion is not physical-quality approval.",
+  "inputs": {
+    "bag_path": "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/telemetry/telemetry_0.mcap",
+    "bag_sha256": "1aa8b8bb9b4f93888a72599cfee04fad9e59cb933eb62f59126be5a58681829a",
+    "bag_bytes": 505397236,
+    "archive_sha256_root_verified": "ce7e9e28337df7f4f0b4300f03e9e465020dd8ea215faaa7422213153b7f2d3e",
+    "archived_files_sha256": {
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/secret_dance/policy.json": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/secret_dance/trick.yaml": "b270228662732d33e7c4536b73ff28f569f641b6ed246517d2be31ad5f530861",
+      "artifacts/hardware/2026-11-01/completed-session/files/tmp/gemini-pupper/persistent_controllers.yaml": "c7e93a326fd12b7de1243c4655b8ceb4703900269a41c5b812cbd83965201e07",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/lab6-session.yaml": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/runtime-manifest-start.json": "809eec6260384c86fab3324503c3a0343051a2414799b06c90877dfd59a36c65",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/runtime-manifest-r2.json": "c52fcd903e20c3c967f8426c7b863ec7052b37315627fdb6f925c3dd98c6639c",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/environment-launch.json": "24dde88a8fe616eff16a8fa60a10a6a43adde2a43b62ee830af2a1ac31ba8765",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/launch.log": "9e6e3cf1f1e27c27b93dc7b7a928dc98c69e212bd0518bcfa3194f5ca91576ed",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/api-r2.log": "8c27b443e9bf07c6ce044d2838cd6dcb275279b93cc6efc2d822b66152ae9f17",
+      "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/telemetry/metadata.yaml": "35df763e18045e2d031954352060d7b783649969d70022a636c93dfeba9d4bb2"
+    },
+    "environment_launch_source_revision": "9a01b298440242b15a2fdf94d42bd182e1dee0d2",
+    "environment_pins_sha256": "c2fdc00b6b1342aa642898856a2be688768af565482eca6d5be0643164921d3a",
+    "native_binaries_from_launch_identity": {
+      "control_board_hardware_interface": {
+        "bytes": 4780464,
+        "path": "/home/pi/pupper-foundation-session-20261029/driver-overlay-v2/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+        "sha256": "925954b1b0c773bedb483da77bcad5c08aa707b0baac9ca16db50772df14e4e2"
+      },
+      "joy_utils": {
+        "bytes": 17277832,
+        "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/joy_utils/lib/joy_utils/estop_controller",
+        "sha256": "0bf9b273603199ec6f6eb593eae7bb18e1b9b25707bbd4826018d76dfaa05633"
+      },
+      "neural_controller": {
+        "bytes": 50013768,
+        "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/lib/libneural_controller.so",
+        "sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91"
+      }
+    },
+    "policy_matches_nominal_review": true
+  },
+  "timing_configuration": {
+    "manager_requested_hz": 520,
+    "repeat_action": 10,
+    "nominal_inference_hz": 52,
+    "init_duration_s": 0.5,
+    "fade_in_duration_s": 1.0,
+    "reference_fps": 50,
+    "reference_frames": 298,
+    "reference_duration_s": 5.96,
+    "policy_kp": 5.5,
+    "policy_kd": 0.25,
+    "actual_logged_inference_stats": [
+      {
+        "start_epoch_s": 1793570249.682926,
+        "end_epoch_s": 1793570257.1426623,
+        "samples": 368,
+        "inference_ms": {
+          "median": 0.07,
+          "p99": 0.5859999999999969,
+          "max": 1.78
+        },
+        "logged_interval_ms": {
+          "median": 19.928693771362305,
+          "p99": 23.46067428588867,
+          "max": 24.670124053955078,
+          "over30ms": 0
+        },
+        "imu_age_ms": {
+          "median": 4.4725,
+          "p99": 11.655899999999994,
+          "max": 18.927
+        }
+      },
+      {
+        "start_epoch_s": 1793570699.3250244,
+        "end_epoch_s": 1793570706.7050917,
+        "samples": 365,
+        "inference_ms": {
+          "median": 0.07,
+          "p99": 0.30360000000000015,
+          "max": 0.64
+        },
+        "logged_interval_ms": {
+          "median": 19.916415214538574,
+          "p99": 24.289600849151615,
+          "max": 26.34286880493164,
+          "over30ms": 0
+        },
+        "imu_age_ms": {
+          "median": 6.473,
+          "p99": 11.32252,
+          "max": 23.678
+        }
+      }
+    ]
+  },
+  "reference_and_simulation": {
+    "reference": {
+      "fps": 50,
+      "frames": 298,
+      "duration_s": 5.96,
+      "init_s": 0.5,
+      "fade_s": 1.0,
+      "max_adjacent_joint_reference_step_rad": 0.016183999999999976,
+      "max_reference_velocity_rad_s": 0.808097,
+      "max_second_difference_rad": 0.021881999999999957,
+      "kp": 5.5,
+      "kd": 0.25,
+      "target_slew_present": false
+    },
+    "nominal_native_simulation_by_activation_stage": {
+      "fade": {
+        "samples": 52,
+        "peak_joint_speed_rad_s": 0.1623521903948025,
+        "peak_torque_nm": 0.5819455047632478,
+        "max_target_step_rad": 0.0030175447463989258,
+        "p99_target_step_rad": 0.0029214245080947873
+      },
+      "initialization": {
+        "samples": 26,
+        "peak_joint_speed_rad_s": 5.591066750877284,
+        "peak_torque_nm": 1.873382347513242,
+        "max_target_step_rad": 0.0003026127815246582,
+        "p99_target_step_rad": 0.0003026127815246582
+      },
+      "policy": {
+        "samples": 413,
+        "peak_joint_speed_rad_s": 1.202398197292666,
+        "peak_torque_nm": 0.9716266323414913,
+        "max_target_step_rad": 0.04211902618408203,
+        "p99_target_step_rad": 0.020964326262474048
+      }
+    },
+    "evidence_source": "foundation/results/generated-motion-trained-review.json",
+    "target_available_in_hardware_bag": false
+  },
+  "measured_comparison": [
+    {
+      "window": "trial1",
+      "phase": "playback_nominal",
+      "joint_messages": 1399,
+      "joint_velocity_rms_rad_s": 0.1216080127558363,
+      "joint_velocity_peak_abs_rad_s": 0.9047622680664062,
+      "reported_joint_effort_peak_abs_nm": 0.9833141738176346,
+      "gyro_vector_rms_rad_s": 0.06087645704126294,
+      "gyro_8_20_hz_vector_rms_rad_s": 0.019630359903203578,
+      "joint_header_gap_max_ms": 9.733775,
+      "joint_position_8_20_hz_rms_across_joints_deg": 0.029948935918125717
+    },
+    {
+      "window": "trial1",
+      "phase": "default_after_readiness",
+      "joint_messages": 611,
+      "joint_velocity_rms_rad_s": 0.020143397023991608,
+      "joint_velocity_peak_abs_rad_s": 0.23809814453125,
+      "reported_joint_effort_peak_abs_nm": 0.7792309212684629,
+      "gyro_vector_rms_rad_s": 0.011715824202435192,
+      "gyro_8_20_hz_vector_rms_rad_s": 0.0013161642565417062,
+      "joint_header_gap_max_ms": 9.257723,
+      "joint_position_8_20_hz_rms_across_joints_deg": 0.001142997696651157
+    },
+    {
+      "window": "trial2",
+      "phase": "playback_nominal",
+      "joint_messages": 1389,
+      "joint_velocity_rms_rad_s": 0.12810095867765564,
+      "joint_velocity_peak_abs_rad_s": 1.0952377319335938,
+      "reported_joint_effort_peak_abs_nm": 1.3062865424156187,
+      "gyro_vector_rms_rad_s": 0.08608650381884908,
+      "gyro_8_20_hz_vector_rms_rad_s": 0.024235857941481045,
+      "joint_header_gap_max_ms": 13.298707,
+      "joint_position_8_20_hz_rms_across_joints_deg": 0.036596970125023554
+    },
+    {
+      "window": "trial2",
+      "phase": "default_after_readiness",
+      "joint_messages": 495,
+      "joint_velocity_rms_rad_s": 0.021834039999211956,
+      "joint_velocity_peak_abs_rad_s": 0.20635223388671875,
+      "reported_joint_effort_peak_abs_nm": 0.7025150644779203,
+      "gyro_vector_rms_rad_s": 0.058587920463696326,
+      "gyro_8_20_hz_vector_rms_rad_s": 0.007074125413993243,
+      "joint_header_gap_max_ms": 6.426132,
+      "joint_position_8_20_hz_rms_across_joints_deg": 0.0015940218234277628
+    },
+    {
+      "window": "sit_hold_middle",
+      "phase": "sit_hold_middle",
+      "joint_messages": 1406,
+      "joint_velocity_rms_rad_s": 0.018465145056813608,
+      "joint_velocity_peak_abs_rad_s": 0.20635223388671875,
+      "reported_joint_effort_peak_abs_nm": 0.8198178398609159,
+      "gyro_vector_rms_rad_s": 0.02518481088813679,
+      "gyro_8_20_hz_vector_rms_rad_s": 0.0033697280840517697,
+      "joint_header_gap_max_ms": 11.519139,
+      "joint_position_8_20_hz_rms_across_joints_deg": 0.003163375665475101
+    }
+  ],
+  "findings": [
+    "Intentional timing explains the slow overall sequence: a5.96s reference plus initialization/fade and walking-controller handoffs. It does not explain or excuse the reported jitter.",
+    "Both generated playback windows contain joint/IMU telemetry at roughly4ms median header intervals; maximum joint gaps are9.73ms and13.30ms. Logged policy inference is approximately49Hz with no interval above30ms. These observations do not support sustained low-frame-rate inference starvation during playback. They do not prove actuator timing.",
+    "One-time telemetry gaps around initialization/return reach roughly46\u201357ms; their origin is not established and they must not be treated as proven actuator pauses.",
+    "Generated playback has greater measured velocity and 2\u20138/8\u201320 Hz position/gyro content than the requested Sit-hold and returned-locomotion windows. Intended movement differs, so these are descriptive comparisons, not a controlled causal test or an acceptance threshold.",
+    "All extracted linear_acceleration fields are exactly zero. A sampled covariance array is also allzero (unknown covariance), not an explicit unavailable flag. Treat this acceleration stream as noninformative; never infer absence of vibration.",
+    "No position-command, policy-output or policy-observation stream was recorded. The bag cannot distinguish command oscillation from tracking response, quantization, friction/stiction or other motor dynamics.",
+    "Root-reported81.8C temperature and0x80000 historical soft-temperature flag were not timestamp-aligned to these trials; thermal causation is not established."
+  ],
+  "next_actions": [
+    {
+      "priority": 1,
+      "action": "Retain generated trick as unaccepted; use no additional generated hardware runs solely to fill this report."
+    },
+    {
+      "priority": 2,
+      "action": "Prepare a later supervised bounded diagnostic capturing timestamped policy_output, observation, post-limit position_command if exposed, joint_states and IMU, with synchronized video and temperature/clock samples. Preserve names/order and distinguish commanded from measured motion."
+    },
+    {
+      "priority": 3,
+      "action": "In simulation compare unchanged policy at nominal52Hz/fixed16msdelay against measured cadence and plausible timestamped observation-delay variation. Record target increments, tracking error, torque, contacts and endpoint behavior; this tests timing sensitivity without retraining."
+    },
+    {
+      "priority": 4,
+      "action": "Only if evidence points to command roughness, compare a bounded smoothing or existing slew-contract candidate in simulation against unchanged policy, preserving action-history and clamp semantics. Do not alter gains or silently filter on hardware."
+    }
+  ],
+  "method": {
+    "extractor_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/generated-diagnostic/extract_jitter.py",
+    "extractor_sha256": "42047a8da226129de0c18c2155459e4bced52c2392d3915b100ba5bf1501003f",
+    "packages": {
+      "python": "3.12.14",
+      "numpy": "2.5.4",
+      "mcap": "1.6.0",
+      "mcap-ros2-support": "0.6.0",
+      "lz4": "4.4.5",
+      "zstandard": "0.25.0"
+    },
+    "windows": [
+      [
+        "trial1",
+        1793570248.0,
+        1793570264.0,
+        1793570249.1560743,
+        1793570257.1558466
+      ],
+      [
+        "trial2",
+        1793570693.0,
+        1793570713.0,
+        1793570698.8061829,
+        1793570706.706815
+      ]
+    ],
+    "sit_hold_window": [
+      [
+        "sit_hold_middle",
+        1793570811.0,
+        1793570817.0,
+        1793570809.624,
+        1793570819.625
+      ]
+    ],
+    "phase_assignment": "Log-time phases inferred from activation messages plus nominal0.5s initialization and1s fade; not exact measured posture boundaries. Sit comparison uses middle6s of logged completed10s wait.",
+    "spectral_method": "100Hz interpolation, mean removal and Hann window;2\u20138/8\u201320Hz RMS diagnostic bands. Suppressed for median source interval>20ms,p95>25ms ormaxgap>50ms. Header time preferred; receive/header deltas retained.",
+    "decoded_samples": "Selected JointState/Imu fields retained asJSONL; full rawCDR/schema/covariances remain in original immutableMCAP.",
+    "parser_validation": "Synthetic200-messageMCAP verified10ms cadence,1ms receive/header offset,.2rad/s velocityRMS and10Hz position sinusoid RMS; syntheticdata are not robot evidence.",
+    "joint_band_aggregation": "Square root of the mean of the12 per-joint band RMS values squared, then radians-to-degrees conversion; not arithmetic mean.",
+    "returned_controller_identity": "Extraction phase keys default_initialization_fade/default_after_readiness refer to the logged return to gemini_walk (using the stock policy), not activation of neural_controller_default."
+  },
+  "artifacts": {
+    "repo_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/generated-diagnostic",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generated-diagnostic",
+    "generated_stats": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/generated-diagnostic/generated-trials/summary.json",
+    "sit_stats": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/generated-diagnostic/sit-hold/summary.json",
+    "index_sha256": "de7522442711db3483c6d2cb80ef72d757977572aa79eade6cfabf0c989e5451",
+    "durable_copy_verified_files": 16
+  },
+  "limitations": [
+    "Two generated physical trials; trial1 was not watched. No population-level robustness claim.",
+    "Comparators have different intended behavior and lengths; do not attribute their signal differences solely to bad policy behavior.",
+    "Recorded velocity/effort are telemetry fields, not independently calibrated metrology. Quantization and stable-pose noise remain.",
+    "Interpolation and finite windows affect frequency estimates. No validated numerical threshold maps them to the subjective jitter report.",
+    "Inference log timing and ROS-message timing are not direct actuator deadlines.",
+    "Archived current inputs remain separate from earlier nominal simulation identities."
+  ],
+  "independent_review": {
+    "verdict": "No mismatch or causal/physical-pass overclaim found;40reported metrics across5comparison rows recomputed.",
+    "reviewed_content_sha256": "48014745fcef139e8e3399167a1c88ad06931adf3e75b1400a12425aaec07b74",
+    "receipt": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/generated-diagnostic/peer-review.json",
+    "receipt_sha256": "74438fcc0fd076e639bf5178d1b7cd28260d6e571b473f7bc487293bfa52b951",
+    "review_scope": "Report content before adding this review metadata; measurements and interpretation unchanged."
+  }
+}

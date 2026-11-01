@@ -1,0 +1,118 @@
+{
+  "schema": "pupper_supervised_ws1_20261101_v1",
+  "scope": "Bounded supervised floor tests and actual Gemini Live use on the standard class robot. No repeatability benchmark or whole-foundation acceptance.",
+  "source": {
+    "api": "8818ce8daab2a84b6d9e206e3ab5340d2bdd62fe",
+    "web": "adcf0ce",
+    "web_bundle": "index-BBXDn-SK.js",
+    "web_sha256": "b759fd27e50c56d5d5d6ea09e733e9f8c6fa909b2e05a138741bc4986df958a8",
+    "native": "gateway-overlay-v4, driver-overlay-v2; stock limits and gains unchanged",
+    "offline_followup": "b4a946d; status prose and rest wording only, not deployed"
+  },
+  "observed_successes": [
+    {
+      "case": "standing and direct arc",
+      "command": "0.2 m/s, radius0.75 m, left30deg",
+      "observation": "User confirmed stable movement and stop."
+    },
+    {
+      "case": "actual voice movement",
+      "observation": "User confirmed spoken backward/arc requests matched physical actions; actual microphone and robot camera connected."
+    },
+    {
+      "case": "direct Sit, both paws, exit",
+      "observation": "User confirmed both paws lifted normally and standing exit normal."
+    },
+    {
+      "case": "actual voice Sit sequence",
+      "sequence": [
+        "sit_stay_shake",
+        "wait10s",
+        "shake_left",
+        "shake_right",
+        "stand_up"
+      ],
+      "observation": "User confirmed full order good. API/native logs match sequence; this does not establish exact physical hold duration to instrument accuracy."
+    },
+    {
+      "case": "automatic exit before walking",
+      "command": "Sit, wait1s, forward0.2m/s1s; no explicit standing command",
+      "observation": "User confirmed normal transition and walk."
+    },
+    {
+      "case": "queued cancellation",
+      "command": "wait10s then forward0.2m/s1s; Stop after1s",
+      "software": "Running wait cancelled, one pending walk removed; empty queue persisted beyond original deadline.",
+      "observation": "User confirmed no extra movement."
+    },
+    {
+      "case": "hidden-trick gate",
+      "software": "Locked and wrong-password playback refused; unlock submitted no motion; Stop relocked.",
+      "limitation": "Software demonstration gate, not identity authentication or satisfactory generated motion."
+    }
+  ],
+  "rejected_or_incomplete": [
+    {
+      "case": "generated sway/rise",
+      "software": "Two native playbacks and standing returns completed.",
+      "observation": "First trial not watched; second user observed slow and jittery/low-FPS-like movement.",
+      "decision": "Not accepted; remains locked/excluded. Offline telemetry diagnosis underway; no gain change or further physical replay."
+    },
+    {
+      "case": "relax/lie_down",
+      "software": "Leg controllers deactivated; observed_controller_mode none.",
+      "observation": "User reported reduced resistance but not full release.",
+      "explanation": "Controller on_deactivate retains configured estop_kd damping; full driver shutdown neutralizes complete SPI command.",
+      "decision": "Do not describe controller deactivation as full motor-board disable."
+    },
+    {
+      "case": "camera understanding",
+      "software": "Actual Google described a live camera scene.",
+      "limitation": "Specific scene details not independently confirmed by user."
+    },
+    {
+      "case": "cohesive voice",
+      "observation": "User reported separate Puck/automated female actors, unintended continuous listening and slow replies.",
+      "decision": "Current experience not accepted as polished. No claim that prompt or guard solved overall semantic truth."
+    }
+  ],
+  "timing": {
+    "scope": "Browser-observed scheduling markers; not acoustic end-to-end measurement.",
+    "tool_entry_to_reply_examples_ms": [
+      38,
+      59
+    ],
+    "first_native_chunk_to_turn_complete_examples_ms": [
+      2588,
+      9898,
+      13656
+    ],
+    "input_transcript_end_ms": null,
+    "finding": "Whole-turn buffer added roughly10\u201314s on two longer replies. Commands execute independently; these measurements do not prove bounded voice Stop latency."
+  },
+  "shutdown": {
+    "report": "artifacts/hardware/2026-11-01/completed-session/files/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/session-shutdown.json",
+    "manager_clean_exit": true,
+    "user_confirmation": "Yes, clearly released now.",
+    "camera_cleanup": "Wrapper did not exit on initial SIGINT; verified camera child stopped, then wrapper exited.",
+    "recorder": "Graceful SIGINT completed flush; nonempty metadata and MCAP trailer verified.",
+    "owned_processes_remaining": 0
+  },
+  "preservation": {
+    "archive": "artifacts/hardware/2026-11-01/20261101-ws1-complete.tar.gz",
+    "sha256": "ce7e9e28337df7f4f0b4300f03e9e465020dd8ea215faaa7422213153b7f2d3e",
+    "receipt": "artifacts/hardware/2026-11-01/local-preservation.json",
+    "local_followup_evidence": "artifacts/hardware/2026-11-01/local-evidence",
+    "note": "Archive preserves219 files including actual deployed inputs, backups, logs and finalized telemetry; not a full OS image."
+  },
+  "remaining": [
+    "Voice refusal, actual spoken Stop/cancellation latency and broader repeated trials.",
+    "Camera-guided choice of paw from person position, without explicitly naming the paw.",
+    "Selected supplied finite physical tricks; current controller roster requires one deliberate new native session to expand.",
+    "Following integration after teammate physical evidence, then voice follow/conversation/motion takeover.",
+    "Spider acceptable entry/walk/stop/exit pair from owning workstream; no walking pair promoted.",
+    "Optional3 context demonstrations and satisfactory generated motion.",
+    "Default deliberate activation, one coherent speaking voice, measured latency improvement and an integrated unscripted demo.",
+    "Current restricted stock profile does not demonstrate class running requirement; wider performance belongs to separately validated gait work."
+  ]
+}
