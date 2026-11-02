@@ -71,8 +71,12 @@ measurement and diagnosis; they do not close the physical reliability gap.
 
 The [request-order repair](results/workstream1-request-ordering-20261102.json)
 prevents overlapping Gemini tool packets from changing command order while
-retaining immediate Stop admission. Two current-service, fake-only provider trials
-passed; model response latency remains variable. The
+retaining immediate Stop admission. The [duplicate-ID guard](results/workstream1-duplicate-dispatch-20261102.json)
+also prevents a replayed provider call from queuing the same movement again.
+Two current-service fake execution trials passed; model response latency remains
+variable. Two further [non-execution probes](results/workstream1-semantic-nonexecution-20261102.json)
+retained useful conversation without sending motion commands; these are bounded
+observations, not a general intent-understanding guarantee. The
 [full simulated Sit/paws/standing/walk comparisons](results/workstream1-completion-driven-sit-20261102.json)
 save 2.67 seconds through earlier constant-idle transitions, with mixed slip and
 effort results. A separate [standing-return shortcut](results/workstream1-standing-return-20261102.json)
