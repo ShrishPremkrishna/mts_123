@@ -54,6 +54,11 @@ measurement and diagnosis; they do not close the physical reliability gap.
   reproduced large sensor-heading changes against a qualitatively stationary
   camera view, including about 69° in a minute after motor shutdown. Sensor
   validity remains unresolved; further motion testing is paused pending diagnosis.
+  The [saved-image comparison](results/workstream1-camera-sensor-consistency-20261102.json)
+  now quantifies the discrepancy: four background patches keep the same
+  integer-pixel matches across 57 saved frames, while heading changes 65.6° over
+  the 54 overlapping sensor/camera samples. This is image consistency evidence,
+  not calibrated visual odometry or a diagnosis of the cause.
 - **Software feedback has a narrower meaning than motion:** “queued” follows
   actual queue insertion; controller receipts prove matching playback progress,
   not physical posture. Current voice work retains conversation and commands

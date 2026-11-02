@@ -188,6 +188,109 @@
     {
       "text": "The words 'queued' and 'complete' describe software states.",
       "blocked": false
+    },
+    {
+      "text": "I don't know how many times I have sat today.",
+      "blocked": false
+    },
+    {
+      "text": "I don't know how many times I have sat today, as my memory only tracks completed sit commands from our current conversation!",
+      "blocked": false
+    },
+    {
+      "text": "I do not know how many times I've sat today.",
+      "blocked": false
+    },
+    {
+      "text": "I\u2019m not sure how many times I have stood before this conversation.",
+      "blocked": false
+    },
+    {
+      "text": "I don't know how many times I have sat today. I've queued the move.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat, but I am standing now.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat; the request was accepted.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know. I have sat three times today.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know why I have stopped.",
+      "blocked": true
+    },
+    {
+      "text": "I know how many times I have sat today.",
+      "blocked": true
+    },
+    {
+      "text": "I have sat three times today, but I don't know the full history.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat and moved forward.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat today and moved forward.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat today; and I've queued the move.",
+      "blocked": true
+    },
+    {
+      "text": "I do not know how many times I have sat. \"I have stopped\" would be a claim.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat today, and the action was completed.",
+      "blocked": true
+    },
+    {
+      "text": "\uff29 don\u2019t know how many times I\u2019ve sat today.",
+      "blocked": false
+    },
+    {
+      "text": "I don't know how many times I have sat today, and I don't know how many times I have stood today.",
+      "blocked": false
+    },
+    {
+      "text": "I don't know how many times I have sat; moved forward.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat today, but now standing.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat today. Done!",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat today; \"Moved forward.\"",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat, but have moved forward.",
+      "blocked": true
+    },
+    {
+      "text": "I don't know how many times I have sat, and am standing now.",
+      "blocked": true
     }
+  ],
+  "nonassertive_history_spans": [
+    "\\b(?:i (?:do not|don't) know|i(?: am|'m) not sure) how many times (?:i have|i've) (?:sat|stood|walked|moved|turned|jumped|stopped|shaken)(?: (?:today|yesterday|before (?:this|our) conversation|(?:in|during) this (?:conversation|session)|so far))?(?=[.!?,;:]|$)"
+  ],
+  "nonassertive_history_scope": "Only these bounded embedded count questions are ignored by the claim scan; the complete residual reply is still scanned. Not a whole-sentence exemption or proof of factual accuracy. When a span is removed, bare coordinated or following action fragments are also screened conservatively.",
+  "history_residual_claim_patterns": [
+    "(?:^|[,;:.!?]\\s*|\\b(?:and|but)\\s+)[\\\"']?(?:(?:have|has|had|am|was|been|already|just|now|still|currently|successfully)\\s+)*(?:queued|enqueued|scheduled|executed|completed|done|finished|stopped|standing|sitting|moving|walking|turning|sent|submitted|accepted|moved|walked|turned|stood|sat|started|begun|performed|jumped|shook|followed|unlocked|locked|activated|deactivated)\\b"
   ]
 }

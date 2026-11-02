@@ -7,6 +7,8 @@ import unicodedata
 
 CONVERSATION_GUARD = json.loads((Path(__file__).resolve().parent.parent / "conversation_guard.json").read_text())
 _CONVERSATION_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in CONVERSATION_GUARD["patterns"])
+_NONASSERTIVE_HISTORY_SPANS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in CONVERSATION_GUARD["nonassertive_history_spans"])
+_HISTORY_RESIDUAL_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in CONVERSATION_GUARD["history_residual_claim_patterns"])
 CONVERSATION_BLOCKED = "No confirmed robot action in this reply; check server status."
 
 
@@ -17,7 +19,13 @@ def normalize_conversation_text(text):
 def conversation_claim_detected(text):
     """A conservative English heuristic, never a universal semantic guarantee."""
     normalized = normalize_conversation_text(text)
-    return any(pattern.search(normalized) for pattern in _CONVERSATION_PATTERNS)
+    # Remove only the bounded embedded history question, never its surrounding
+    # clauses. Positive claims elsewhere in the complete reply remain screened.
+    original = normalized
+    for span in _NONASSERTIVE_HISTORY_SPANS:
+        normalized = span.sub(" ", normalized)
+    return (any(pattern.search(normalized) for pattern in _CONVERSATION_PATTERNS)
+            or (normalized != original and any(pattern.search(normalized) for pattern in _HISTORY_RESIDUAL_PATTERNS)))
 
 
 LABELS = {

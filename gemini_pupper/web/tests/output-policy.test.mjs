@@ -489,3 +489,28 @@ test('new PTT after generation seal preserves the accepted-handshake streak whil
  e.s.pauseRobotTools();e.s.robotToolsPaused=false;
  assert.equal((await shake(5)).includes('pawtographs'),false);
 });
+
+
+test('actual service preserves split unknown-history conversation but rejects an appended action claim',async()=>{
+ for(const native of [true,false]) for(const suffix of ['', " I've queued the move."]){
+  const e=service('conversation');if(!native)e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
+  const text="I don't know how many times I have sat today."+suffix;
+  await e.s.handleMessage({serverContent:{outputTranscription:{text:text.slice(0,32)}}});
+  assert.deepEqual(e.audio,[]);assert.deepEqual(e.speech,[]);
+  await e.s.handleMessage({serverContent:{outputTranscription:{text:text.slice(32)},
+   ...(native?{modelTurn:{parts:[{inlineData:{data:'unknown-history-audio'}}]}}:{}),generationComplete:true}});
+  await new Promise(r=>setImmediate(r));
+  assert.deepEqual(native?e.audio:e.speech,suffix?[]:[native?'unknown-history-audio':text]);
+  assert.equal(e.logs.some(x=>x.message==='No confirmed robot action in this reply; check server status.'),!!suffix);
+  assert.deepEqual(e.calls,[]);await e.s.disconnect();
+ }
+});
+test('unknown-history exception cannot release tool-bearing, incomplete or interrupted turns',async()=>{
+ for(const mode of ['tool','incomplete','interrupted']){
+  const e=service('conversation');
+  await e.s.handleMessage({serverContent:{outputTranscription:{text:"I don't know how many times I have sat today."},modelTurn:{parts:[{inlineData:{data:'history'}}]}}});
+  if(mode==='tool')await e.s.handleMessage(call('status','robot_status'));
+  if(mode!=='incomplete')await e.s.handleMessage({serverContent:{generationComplete:true,...(mode==='interrupted'?{interrupted:true}:{})}});
+  await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,[]);await e.s.disconnect();
+ }
+});

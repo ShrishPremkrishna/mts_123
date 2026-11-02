@@ -5,10 +5,17 @@ import type { LiveServerMessage } from '@google/genai';
 export const OUTPUT_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, items: 256, text: 16000, timeoutMs: 20000 });
 export const BLOCKED_CONVERSATION = 'No confirmed robot action in this reply; check server status.';
 const patterns = guard.patterns.map(pattern => new RegExp(pattern, 'i'));
+const historySpans = guard.nonassertive_history_spans.map(pattern => new RegExp(pattern, 'gi'));
+const historyResidualClaims = guard.history_residual_claim_patterns.map(pattern => new RegExp(pattern, 'i'));
 export function screenConversation(text: string): boolean {
   if (text.length > OUTPUT_LIMITS.text) return false;
-  const normalized = text.normalize('NFKC').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim();
-  return !patterns.some(pattern => pattern.test(normalized));
+  let normalized = text.normalize('NFKC').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim();
+  // Ignore only the embedded history question, then scan every remaining clause.
+  // The original output is preserved; this is not a whole-reply exemption.
+  const original = normalized;
+  for (const span of historySpans) normalized = normalized.replace(span, " ");
+  return !patterns.some(pattern => pattern.test(normalized))
+    && !(normalized !== original && historyResidualClaims.some(pattern => pattern.test(normalized)));
 }
 export interface ConversationOutput {
   audio: string[];

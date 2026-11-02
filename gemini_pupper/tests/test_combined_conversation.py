@@ -133,3 +133,28 @@ def test_text_fallback_never_displays_model_thought_parts(monkeypatch,capsys):
     async def call(*_args):raise AssertionError("No tool requested")
     asyncio.run(actual_chat(monkeypatch,fake(call),script));out=capsys.readouterr().out
     assert "Pupper > Hello there!" in out and "PRIVATE_REASONING_SENTINEL" not in out
+
+
+@pytest.mark.parametrize("suffix,blocked", [("", False), (" I've queued the move.", True)])
+def test_actual_chat_preserves_unknown_history_but_not_appended_claim(monkeypatch,capsys,suffix,blocked):
+    text="I don't know how many times I have sat today."+suffix
+    async def script(_replies):
+        yield model_message(text[:32])
+        yield model_message(text[32:])
+        yield end_turn()
+    async def call(*_args): raise AssertionError("No tool requested")
+    asyncio.run(actual_chat(monkeypatch,fake(call),script))
+    out=capsys.readouterr().out
+    assert (CONVERSATION_BLOCKED in out) is blocked
+    assert ("Pupper > "+text in out) is not blocked
+
+
+def test_unknown_history_still_withheld_in_tool_turn(monkeypatch,capsys):
+    async def script(replies):
+        yield model_message("I don't know how many times I have sat today.")
+        yield packet("robot_status")
+        await until(lambda:len(replies)==1)
+        yield end_turn()
+    async def call(*_args): return {"success":True}
+    asyncio.run(actual_chat(monkeypatch,fake(call),script))
+    assert "Pupper > I don't know" not in capsys.readouterr().out

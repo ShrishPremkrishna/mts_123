@@ -1,0 +1,49 @@
+{
+  "schema": "pupper_conversation_context_review_v1",
+  "updated_utc": "2026-11-02T09:27:12.316566+00:00",
+  "baseline": "0e8f79b",
+  "status": "integrated_offline_reviewed_not_robot_deployed",
+  "changes": [
+    "Ignore only bounded explicit unknown-history count spans before scanning the complete residual reply. After removal, bare following/coordinated action fragments also undergo conservative scanning. Original output text remains unchanged; all tool-turn/buffering/receipt rules preserved.",
+    "Append code-owned disabled/browser/server camera source context to Live setup. Selection does not prove current frames or calibrated body directions. No supported orientation calibration field exists, so browser/server orientation remains unverified. No settings or capture changes."
+  ],
+  "reproduction": {
+    "baseline": "5 Python failures (four shared examples plus actual CLI) and2 web failures (actual service playback and setup metadata).",
+    "during_development": "Bare residual action fragments reproduced4 failures after initial span removal; residual screening closes them. See coordination-before.log.",
+    "auxiliary": "Two additional omitted-subject auxiliary clauses failed before final shared residual pattern extension; auxiliary-before.log retained."
+  },
+  "validation": {
+    "tests": {
+      "author_python": 123,
+      "author_full_web": 351,
+      "root_python": 85,
+      "root_affected_web": 151,
+      "typecheck": "author passed",
+      "normal_production_build": "root passed"
+    },
+    "browser": "Final index-pfx-RnKE.js loaded in Chrome; FAKE REHEARSAL visible, voice disconnected and microphone not sending. Fake server shut down exit0; test tab closed.",
+    "boundary": "No paid model call, real voice validation, robot or SSH access. Actual synthesized service outputs and setup config tested offline; code-owned source context is not guaranteed model compliance."
+  },
+  "limits": [
+    "English screening remains heuristic, not universal semantic truth or accuracy verification. Narrow unknown-history grammar can still conservatively reject other honest phrasings.",
+    "The original observed reply also asserted conversation-only memory scope. Allowing it through this action-claim screen does not endorse that claim; typed session counter scope remains a separate prompt/receipt contract.",
+    "Camera context is accurate metadata, not enforced tool authorization or verified person/side recognition. Camera mounting/orientation stays unverified; image descriptions remain available.",
+    "No paid provider, real microphone/speaker, browser or robot acceptance claimed."
+  ],
+  "source_hashes": {
+    "gemini_pupper/conversation_guard.json": "ae74676ca1804d84a82ab6ad328f1cb42a3174e95e5a4caaa6704c015c6638ed",
+    "gemini_pupper/robot/operator_feedback.py": "1c5b6588bd5e2bc50eef7e5530f3ae92280ff499bb6a666fded8fbcc19fb4891",
+    "gemini_pupper/web/services/conversationOutput.ts": "aed33440aea2c4c529193211c66d656f503813ec362903dc73e495c780493711",
+    "gemini_pupper/web/services/geminiLive.ts": "d685fa8d8d74f0d9bac16a528e78c44b1d9502789dd6d653e65e8a8b8da9d83b",
+    "gemini_pupper/tests/test_combined_conversation.py": "090b98e3c1c1bf42ed6b8b0ac97d06329b525593452dd177c4e997146aeca6c7",
+    "gemini_pupper/web/tests/output-policy.test.mjs": "a2586ff28629669fb5af691dad4f8f5e8015c62eb8eebf23836874ef5eba5a32",
+    "gemini_pupper/web/tests/execution.test.mjs": "426199268f07e0a0c01968e01ae49f707772b9a5a0546884772a880adf9301a4"
+  },
+  "artifacts": {
+    "repo": "artifacts/access/ws1-conversation-context-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-conversation-context",
+    "members": 50,
+    "manifest_sha256": "31a4c68e35adb4bfdf811ec7a84c339147da4430eaf1d765e932a369f813992a",
+    "copies_verified": true
+  }
+}

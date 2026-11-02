@@ -115,8 +115,10 @@ Tool-free conversation retains the selected speech path after the generation
 check. The optional ER text + Puck TTS path is separately selectable; it does not
 change robot queue execution. Known English action-claim patterns are screened using the shared
 `conversation_guard.json`; suspicious replies get a visible, silent unconfirmed-action
-notice. This screening is a heuristic, with possible false positives and missed
-paraphrases or languages. A transcript is not proof that every spoken word agrees
+notice. Narrow explicit unknown-history phrases such as “I don’t know how many
+times I have sat today” remain conversational; any following action claim still
+undergoes screening. This screening is a heuristic, with possible false positives
+and missed paraphrases or languages. A transcript is not proof that every spoken word agrees
 with it. **The code enforces receipt provenance and exact acknowledgment transcript matching,
 not the truth of unrestricted conversation or an independent verification of every audio word.**
 
@@ -266,6 +268,12 @@ rejects missing/invalid frames or frames older than two seconds since their ROS
 callback receipt, including time spent processing the JPEG. Serving a frame never
 refreshes that age; responses use `Cache-Control: no-store`. Receipt freshness is
 not exposure time or protection against a publisher replaying old content.
+
+Each Live connection declares whether video is disabled or comes from the browser
+or robot API. Selection does not establish a fresh frame. With no supported
+mounting/calibration setting, orientation and mirroring are explicitly unverified;
+the model is told to ask for a paw rather than infer robot body-side from image
+position. This is context guidance, not enforced recognition or tool authorization.
 
 For the server camera, the browser logs unavailable/received transitions once,
 ignoring older HTTP results and conversions after a newer result or disconnect.

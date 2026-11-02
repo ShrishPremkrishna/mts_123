@@ -1051,3 +1051,20 @@ test('GoAway reports transport end even without actions and a throwing observer 
  assert.equal(notifications,1);assert.equal(released,1);assert.equal(closed,1);assert.equal(stops,0);
  await callbacks.onclose({code:1008,reason:'after GoAway'});assert.equal(notifications,1);
 });
+
+
+test('actual Live setup declares camera selection and unknown body alignment without changing tools',async t=>{
+ for(const [enabled,source,label] of [[false,'browser','disabled'],[true,'browser','browser'],[true,'server','server']]){
+  let setup;const e=mediaEnvironment(t,async x=>{setup=x;x.callbacks.onopen();return {close(){}};},undefined,'conversation');
+  e.config.enableVideo=enabled;e.config.cameraSource=source;e.config.enableAudio=false;
+  e.s.setupVideoInput=()=>{};e.s.robotBridge.getTools=async()=>({prompt:'Pupper prompt',tools:[{name:'move'},{name:'stop'}]});
+  await e.s.connect('TEST',e.config,{play:async()=>{}});
+  assert.match(setup.config.systemInstruction,new RegExp('Camera source context: '+label));
+  assert.match(setup.config.systemInstruction,/does not establish a current frame/);
+  if(enabled)assert.match(setup.config.systemInstruction,/orientation and mirroring are unverified/);
+  if(source==='browser'&&enabled)assert.match(setup.config.systemInstruction,/Do not use browser image position to choose a robot paw/);
+  if(!enabled)assert.match(setup.config.systemInstruction,/No camera images are sent by this connection/);
+  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(x=>x.name),['move','stop']);
+  await e.s.disconnect();
+ }
+});

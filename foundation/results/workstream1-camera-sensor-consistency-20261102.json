@@ -1,0 +1,89 @@
+{
+  "schema": "pupper_camera_sensor_consistency_v1",
+  "updated_utc": "2026-11-02T09:24:02.800996+00:00",
+  "status": "offline_evidence_reviewed_sensor_validity_still_unresolved",
+  "scope": "Offline fixed-background pixel consistency; not calibrated visual odometry or physical success",
+  "finding": "All57 saved camera frames retain four fixed-background template matches at the same integer pixel locations; over54 overlapping frames mapped sensor heading changes -65.5964degrees. This strengthens prior evidence of a sensor-heading/scene-motion discrepancy without calibrating camera angles or identifying the underlying cause.",
+  "camera": {
+    "saved_frames": 57,
+    "total_camera_records": 600,
+    "span_s": 59.30039644241333,
+    "metrics": {
+      "basket": {
+        "min_ncc": 0.9900473076247717,
+        "max_integer_match_displacement_px": 0.0,
+        "max_abs_dx_px": 0,
+        "max_abs_dy_px": 0,
+        "search_boundary_matches": 0,
+        "min_peak_gap_outside_5px": 0.09395419867688015
+      },
+      "dresser": {
+        "min_ncc": 0.9801089440580231,
+        "max_integer_match_displacement_px": 0.0,
+        "max_abs_dx_px": 0,
+        "max_abs_dy_px": 0,
+        "search_boundary_matches": 0,
+        "min_peak_gap_outside_5px": 0.30729011812553464
+      },
+      "rack": {
+        "min_ncc": 0.9974520237289779,
+        "max_integer_match_displacement_px": 0.0,
+        "max_abs_dx_px": 0,
+        "max_abs_dy_px": 0,
+        "search_boundary_matches": 0,
+        "min_peak_gap_outside_5px": 0.3944062635172797
+      },
+      "wall_rack_foot": {
+        "min_ncc": 0.9986766476952753,
+        "max_integer_match_displacement_px": 0.0,
+        "max_abs_dx_px": 0,
+        "max_abs_dy_px": 0,
+        "search_boundary_matches": 0,
+        "min_peak_gap_outside_5px": 0.09107926887615903
+      }
+    }
+  },
+  "sensor_comparison": {
+    "covered_saved_frames": 54,
+    "uncovered_saved_frames": [
+      "frame-0054.jpg",
+      "frame-0055.jpg",
+      "frame-0056.jpg"
+    ],
+    "selection": "Last sensor host receipt at or before camera host receipt, restricted to recorded sensor span and at most50ms prior; not exposure synchronization",
+    "start_end_mapped_rpy_deg": [
+      [
+        1.049342593204797,
+        -1.526456767845072,
+        -56.364816565818835
+      ],
+      [
+        1.3759341465982988,
+        -1.54709436336073,
+        -121.96121625599908
+      ]
+    ],
+    "delta_mapped_rpy_deg": [
+      0.32659155339350177,
+      -0.020637595515657914,
+      -65.59639969018025
+    ],
+    "max_receipt_age_s": 0.010056734085083008
+  },
+  "independent_review": "All57 input hashes and pairings verified;696 direct/FFT spot comparisons across first/middle/last images; peer receipt included.",
+  "limitations": [
+    "Only saved snapshots, not all received frames; motion between saved exposures is unknown",
+    "Matching is integer-pixel resolution; zero offset does not imply zero subpixel motion. Raw fisheye pixels are not world angle, distance or camera pose",
+    "Host timestamps do not guarantee synchronized camera exposure/IMU sample time",
+    "Fixed-background templates were selected manually; this study is not a general motion validator",
+    "Large field-of-view changes/occlusion can break local template search; preserve correlation scores and search-boundary flags"
+  ],
+  "excluded_approach": "Unbounded nearest-prior sensor pairing would reuse stale final readings for the last3 camera frames; these are explicitly excluded from the matched heading calculation.",
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/camera-sensor-consistency",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/camera-sensor-consistency",
+    "members": 11,
+    "manifest_sha256": "01239aef37da380e38aa74de03d8a983bd736ef187a721b30c123b20ade1f898",
+    "copies_verified": true
+  }
+}

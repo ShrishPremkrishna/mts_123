@@ -56,7 +56,7 @@
     "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified."
   ],
-  "updated_utc": "2026-11-02T09:14:52.313741+00:00",
+  "updated_utc": "2026-11-02T09:27:12.316566+00:00",
   "authorization": "User explicitly resumed from saved checkpoint. Offline coding, analysis and local fake rehearsal authorized. Physical session remains closed; no SSH or motor/sensor activity in this continuation.",
   "current_report": "foundation/results/workstream1-offline-workflow-20261101.json",
   "historical_recovery": {
@@ -109,15 +109,15 @@
     "compute": "No GPU training active; completed studies archived.",
     "owners": {
       "root": "Offline integration/evidence; reviewed browser fix integrated and fake server stopped. No robot access.",
-      "lab6_gemini_execution": "Narrow honest-uncertainty claim filter and explicit camera-source context candidate.",
+      "lab6_gemini_execution": "Completed reviewed voice/context source; idle.",
       "lab6_trial_preparation": "Independent static-loop latency review, then narrow voice changes.",
       "native_shutdown_fix": "Guarded constant-idle-loop latency candidate; source/host tests then existing simulation if justified."
     }
   },
   "local_rehearsal": {
-    "status": "Completed local fake-only Chrome smoke; fake server12673 shut down cleanly, exit0. Voice disconnected; no hardware/cloud.",
-    "report": "foundation/results/workstream1-browser-job-ids-20261102.json",
-    "screenshot": "artifacts/access/ws1-browser-job-ids-20261102/root-rehearsal/browser-fake-stop.png"
+    "status": "Final index-pfx-RnKE.js loaded in Chrome; FAKE REHEARSAL visible, voice disconnected and microphone not sending. Fake server shut down exit0; test tab closed.",
+    "report": "foundation/results/workstream1-conversation-context-20261102.json",
+    "screenshot": "artifacts/access/ws1-conversation-context-20261102/root-rehearsal/browser-final.png"
   },
   "offline_integrated_fixes": {
     "manual": "Atomic idle admission and browser pending/unknown protection integrated; intentional voice queue unchanged.",
@@ -133,7 +133,8 @@
     "latest_local_report": "foundation/results/workstream1-offline-workflow-20261101.json",
     "latest_local_deployed": false,
     "workflow": "Server action timeline, planned-transition estimates, report script and standalone sensor diagnostic integrated; root34API+20report+254C++assertions+4summarytests passed; no robot access.",
-    "browser_job_matching": "Exact latest Gemini API-job identity, freshness and pending-Stop guard integrated; full348web tests, independent29 and root29 passed; normal production build/fake Chrome smoke passed; not deployed."
+    "browser_job_matching": "Exact latest Gemini API-job identity, freshness and pending-Stop guard integrated; full348web tests, independent29 and root29 passed; normal production build/fake Chrome smoke passed; not deployed.",
+    "conversation_context": "Bounded honest-unknown history correction and explicit disabled/browser/server camera context integrated, independently reviewed, root85Python/151web and build passed; not provider/robot validated."
   },
   "evidence": {
     "fall_incident": "foundation/results/workstream1-fall-incident-20261101.json",
@@ -148,7 +149,9 @@
     "status_disconnect": "foundation/results/workstream1-status-and-disconnect-20261101.json",
     "idle_sensor_analysis": "artifacts/hardware/2026-11-01/idle-sensor-analysis/analysis.json",
     "offline_workflow": "foundation/results/workstream1-offline-workflow-20261101.json",
-    "browser_job_ids": "foundation/results/workstream1-browser-job-ids-20261102.json"
+    "browser_job_ids": "foundation/results/workstream1-browser-job-ids-20261102.json",
+    "quantitative_camera_sensor": "foundation/results/workstream1-camera-sensor-consistency-20261102.json",
+    "conversation_context": "foundation/results/workstream1-conversation-context-20261102.json"
   },
   "next": [
     {
@@ -195,8 +198,7 @@
     "baseline_commit": "4c8278a",
     "source_commit": "71915c6",
     "candidates": [
-      "Static-reference Sit hold preemption: source/host review and native-inference simulation",
-      "Honest uncertainty claim-filter correction and explicit camera-source context"
+      "Final dense-only static-reference Sit hold eligibility and nominal replay"
     ],
     "hardware_access": false,
     "paid_calls": false

@@ -350,6 +350,15 @@ export class GeminiLiveService {
       this.log('error', `Could not get tools from the robot (${spec?.message ?? 'no tools'}); no robot tools are available.`);
     }
     let systemInstruction = [spec?.prompt, config.extraInstructions].filter(Boolean).join('\n\n');
+    // Selection is known locally; mounting/calibration and current frame delivery
+    // are not. Do not grant body-side authority to a browser/external camera.
+    const cameraContext = !config.enableVideo
+      ? 'Camera source context: disabled. No camera images are sent by this connection.'
+      : config.cameraSource === 'browser'
+      ? 'Camera source context: browser. Images are selected from the browser device, not a verified robot-mounted camera. Camera orientation and mirroring are unverified. Do not use browser image position to choose a robot paw; ask which paw unless the person named it.'
+      : 'Camera source context: server. Images are selected from the configured robot API camera endpoint. Camera mounting, orientation and mirroring are unverified. Do not infer robot body-side from image position; ask which paw unless the person named it.';
+    systemInstruction += '\n' + cameraContext + ' Source selection does not establish a current frame. Describe visible image content when available without claiming calibrated robot-body directions.';
+
     if (isAudioOutput && this.outputPolicy === 'conversation') {
       systemInstruction += '\nComplete every tool call needed for the user request before acknowledging it; do not end a multi-step request just to speak. Remain silent while planning tools and waiting for their replies. After all needed replies arrive, if the latest response contains operator_acknowledgment.text, speak exactly that text and nothing else, unless its explicitly offered optional_clarification is needed for an unclear paw request. If absent, do not invent an acknowledgment. An explicit stand request uses stand_up by itself; do not add Stop unless the user requests cancellation. A busy-paws joke never replaces the requested handshake: still check status and request the paw; use only the exact supplied acknowledgment for any joke.';
     }
