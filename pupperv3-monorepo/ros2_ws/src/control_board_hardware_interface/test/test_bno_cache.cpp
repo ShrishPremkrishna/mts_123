@@ -7,6 +7,7 @@
 #include <string>
 #include <thread>
 #include "rt/rt_bno055.h"
+#include "control_board_hardware_interface/imu_health.hpp"
 #include "test_bno_raw_fixtures.hpp"
 
 static std::vector<RawRead> input;
@@ -52,6 +53,33 @@ std::vector<RawRead> packet(std::vector<uint8_t> payload,uint8_t channel=3) {
   std::vector<uint8_t> wire={size,0x80,channel,1};wire.insert(wire.end(),payload.begin(),payload.end());
   return {{4,4,{size,0,channel,0}},{size,size,wire}};
 }
+void queued_age_checks(BNO055 &imu) {
+  using namespace std::chrono;
+  // Exact base + gyro record sliced from post-motor-recurrence-01 packet2:
+  // fb19ef0b00 ... 027e0261e5ff0100ffff; relative ticks=-782105+97.
+  load(packet({0xfb,0x19,0xef,0x0b,0,2,0x7e,2,0x61,0xe5,0xff,1,0,0xff,0xff}));
+  const auto before=steady_clock::now();const auto queued=imu.sample();const auto now=steady_clock::now();
+  require(queued.gyro_valid && queued.gyro_minimum_age_at_receipt==microseconds(78200800),"captured queued gyro age lost");
+  require(queued.gyro_receipt_time>=before && queued.gyro_receipt_time<=now,"true receipt shifted to inferred sample time");
+  require(pupper_imu::feedback_error(queued,now),"78second queued gyro accepted as fresh");
+  // Signed base=-3, rebase=-1000, delay=97 => -900 ticks, or90ms.
+  load(packet({0xfb,0xfd,0xff,0xff,0xff,0xfa,0x18,0xfc,0xff,0xff,2,0x7f,3,97,0,0,0,0,0,0}));
+  const auto aged=imu.sample();require(aged.gyro_minimum_age_at_receipt==milliseconds(90),"signed base/rebase/delay age wrong");
+  auto aligned=aged;aligned.quaternion_receipt_time=aged.gyro_receipt_time;aligned.quaternion_minimum_age_at_receipt=microseconds(0);
+  require(!pupper_imu::feedback_error(aligned,aged.gyro_receipt_time),"90ms lower bound prematurely rejected");
+  require(pupper_imu::feedback_error(aligned,aged.gyro_receipt_time+milliseconds(20)),"90ms plus20ms cached accepted");
+  load(packet({0xfb,0xff,0xff,0xff,0x7f,2,0x80,3,0,0,0,0,0,0,0}));
+  const auto unknown=imu.sample();require(!unknown.gyro_valid&&unknown.gyro_receipt_time==aged.gyro_receipt_time,"unknown timing freshened usable gyro");
+  // Positive relative offset is no proven age, not an absolute future timestamp.
+  load(packet({0xfb,0xfd,0xff,0xff,0xff,2,0x81,3,0,0,0,0,0,0,0}));
+  const auto recovered=imu.sample();require(recovered.gyro_valid&&recovered.gyro_minimum_age_at_receipt==microseconds(0),"fresh signed timing did not recover");
+  require(recovered.gyro_receipt_time<=steady_clock::now(),"positive offset created future receipt");
+  load(packet({0xfb,0xff,0xff,0xff,0x7f,5,2,0,0,0,0,0,0,0,0,0,0x40,0,0}));
+  const auto unknown_q=imu.sample();require(!unknown_q.quaternion_valid&&unknown_q.gyro_valid,"unknown quaternion timing hidden by fresh gyro");
+  load(packet({0xfb,0,0,0,0,5,3,0,0,0,0,0,0,0,0,0,0x40,0,0}));
+  const auto fresh=imu.sample();require(fresh.quaternion_valid&&fresh.quaternion_minimum_age_at_receipt==microseconds(0),"quaternion did not recover from unknown time");
+  require(!pupper_imu::feedback_error(fresh,steady_clock::now()),"fresh streams rejected after recovery");
+}
 int main(int argc,char **argv) {
  try {
   require(argc==2,"scenario required");const std::string mode=argv[1];
@@ -87,6 +115,7 @@ int main(int argc,char **argv) {
       else if(mode=="gyro_refresh")require(after.gyro_receipt_time>before.gyro_receipt_time&&after.quaternion_receipt_time==before.quaternion_receipt_time,"independent timestamps conflated");
       else require(after.quaternion_receipt_time==before.quaternion_receipt_time&&after.gyro_receipt_time==before.gyro_receipt_time,"non-new/invalid report refreshed cached state");
     }
+    if(mode=="valid")queued_age_checks(imu);
     require(cursor==input.size(),"unconsumed fake reads");
    }
    require(opens==1&&closes==1&&writes==4,"unexpected constructor/device command lifecycle");

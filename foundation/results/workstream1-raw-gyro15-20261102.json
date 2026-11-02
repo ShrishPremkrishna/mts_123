@@ -1,0 +1,469 @@
+{
+  "schema": "pupper_raw_gyro15_sensor_evidence_v1",
+  "recorded_utc": "2026-11-02T21:05:37.114854+00:00",
+  "status": "closed_raw15_capture_complete_large_fault_absent_cause_and_reliability_unresolved",
+  "scope": "One no-reset motors-inactive 60 s raw15 comparison, camera, exact R1/R2 diagnostic development/review/Pi build evidence, and byte verification. No motor/native-driver/policy/gain validation or change is claimed. Later diagnosis excluded.",
+  "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
+  "finding": "The prior large-rate/drift failure was absent during this bounded capture. Raw15 fields were present and independently matched their bytes; all six original feature records were restored exactly. Raw and processed axis labels do not directly correspond in the measured correlations, so no unit scale or frame correction is inferred. This is neither a cause determination nor evidence of reliability.",
+  "prior_recurrence": "foundation/results/workstream1-post-motor-sensor-20261102.json",
+  "implementation": {
+    "source": "foundation/hardware/imu_diagnostic/diagnostic.cpp",
+    "source_sha256": "b561850417656698ea012cbb60dbf5c2d24a40a2b284b33f4562808afc4cbdc6",
+    "protocol_sha256": "31492df59ea67d8e1a8f4064673bec9dedaf7fe8003106ec8273a0b52c8ba1b0",
+    "test_source_sha256": "951a0a4a9ec2ba4a7875d8efa89940846c2dd80e45c3d1a3cfb6136cbf8ed9b1",
+    "r2_manifest_sha256": "c5b3ffcec1f941fb325c4df1c19b09e03ed33a7b3c32a52ac495e0ec19eb2cc2",
+    "r2_patch_sha256": "0abcbc2db90844933c80ec49a6709f14ddbfa42275088fb5a08eeb3278cb9008",
+    "r2_source_archive_sha256": "51954f7725019901a0974cb759fb49d4ea8e07e50a4b6a5d31afda1c93e09a0f",
+    "behavior": "Explicit compare --enable=07,08,13,15 adds 15 at 100 Hz and expands original inspection/restoration to 02/05/07/08/13/15. Default paths remain five-feature. Raw15 keeps signed ADC xyz and temperature counts plus uint32 acquisition microseconds separate from host receipt/batch timing.",
+    "production_driver_changed": false,
+    "final_source_authority": "Explicit freeze-manifest-r2.json. Unqualified freeze-manifest.json is retained R1 history."
+  },
+  "retained_development_history": {
+    "r1": "Host strict compile/fake checks passed; native Pi test compile failed under -Werror=misleading-indentation. Exact compiler log retained; no numeric R1 failure exit record was present and none is invented.",
+    "r2": "Added braces/newline to a test assertion loop and clarified README that matching feature readback does not prove raw15 stream availability. Production diagnostic source unchanged from R1.",
+    "pi_production_binary": "R1-built production binary reused after verifying identical production sources, as recorded in native-r2/build-test.json.",
+    "pi_diagnostic_sha256": "4fa3d86eb0285a853ea8bf6f3154912a52f67e5394c405d388c19ef24f53525a",
+    "pi_test_binary_sha256": "1e874ebcf24236b54b2ecc333f362b090e3c6c8bf9fd7d322d76b7c966510f51",
+    "pi_r2_test_compile_exit": 0,
+    "pi_r2_test_run_exit": 0,
+    "fake_assertions_host_and_pi": 1108,
+    "counting_limit": "Overlapping assertions on two platforms are not independent hardware validation. No tests were rerun for preservation.",
+    "prior_summary_tests_passed": 4,
+    "cli_checks": "Eight invalid cases exited 2 before output creation; valid raw15 syntax exited 3 at the non-Linux ownership guard. These are expected refusals, not hardware trials.",
+    "historical_analysis_negative_case": "analysis-missing15-check.json references an earlier analyzer hash; preserved as historical evidence, not a final-analyzer rerun."
+  },
+  "claude_review": {
+    "reviewed_revision": "R1, before the small R2 test/README correction",
+    "verdict": "No blocking bugs found",
+    "process_exit_code": 0,
+    "turns": 12,
+    "model": "claude-fable-5-1",
+    "reported_total_cost_usd": 1.8873544999999998,
+    "budget_usd": 2,
+    "cost_basis": "Recorded list-equivalent usage, not independently verified billing",
+    "remaining_limits": [
+      "Worst-case six-feature restoration can exhaust the existing reserve; failure remains explicit/nonzero.",
+      "An all-zero feature response alone does not establish hardware support.",
+      "Fake lifecycle checks did not stream raw15 end-to-end; real capture separately establishes availability only for this device/run."
+    ],
+    "review_file": "candidate-history/claude-review.json inside archive"
+  },
+  "execution": {
+    "started_utc": "2026-11-02T20:50:02.650175+00:00",
+    "finished_utc": "2026-11-02T20:51:08.148863+00:00",
+    "diagnostic_command": [
+      "sudo",
+      "-n",
+      "timeout",
+      "-s",
+      "INT",
+      "-k",
+      "5",
+      "100",
+      "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261102/rawgyro15-r2-inputs/bno_diagnostic",
+      "compare",
+      "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261102/raw-gyro-15-01",
+      "--device-inactive",
+      "--enable=07,08,13,15",
+      "--seconds=60"
+    ],
+    "binary_sha256": "4fa3d86eb0285a853ea8bf6f3154912a52f67e5394c405d388c19ef24f53525a",
+    "diagnostic_exit_code": 0,
+    "camera_exit_code": 0,
+    "motor_commands": false,
+    "reset_or_calibration_change": false,
+    "battery_monitor_initially_active": true,
+    "battery_monitor_restore_exit": 0,
+    "battery_monitor_finally_active": true
+  },
+  "operation": {
+    "reset": false,
+    "calibration_setting": false,
+    "dcd_command": false,
+    "baseline_enable_requested": false,
+    "calibration_readback": {
+      "status": 0,
+      "accel": 1,
+      "gyro": 0,
+      "mag": 1,
+      "planar": 0,
+      "on_table": 1
+    },
+    "completion": {
+      "complete": true,
+      "exit_code": 0,
+      "restoration_required": true,
+      "restoration_verified": true,
+      "restoration_uncertain": false,
+      "write_delivery_uncertain": false,
+      "logging_failed": false,
+      "error": "",
+      "finished_records": 1
+    },
+    "original_final_six_feature_fields_match": true,
+    "originals": {
+      "2": "fc02000000102700000000000000000000",
+      "5": "fc05000000102700000000000000000000",
+      "7": "fc07000000000000000000000000000000",
+      "8": "fc08000000000000000000000000000000",
+      "19": "fc13000000000000000000000000000000",
+      "21": "fc15000000000000000000000000000000"
+    },
+    "finals": {
+      "21": "fc15000000000000000000000000000000",
+      "19": "fc13000000000000000000000000000000",
+      "8": "fc08000000000000000000000000000000",
+      "7": "fc07000000000000000000000000000000",
+      "2": "fc02000000102700000000000000000000",
+      "5": "fc05000000102700000000000000000000"
+    },
+    "feature_set_payloads": [
+      "fd07000000102700000000000000000000",
+      "fd08000000102700000000000000000000",
+      "fd1300000040420f000000000000000000",
+      "fd15000000102700000000000000000000",
+      "fd15000000000000000000000000000000",
+      "fd13000000000000000000000000000000",
+      "fd08000000000000000000000000000000",
+      "fd07000000000000000000000000000000"
+    ],
+    "restoration_limit": "Restoration confirms original feature fields, not reversal of background sensor/fusion/calibration evolution."
+  },
+  "phase": {
+    "window": {
+      "status": "closed",
+      "start_monotonic_s": 6196.615662848,
+      "end_monotonic_s": 6256.623471165,
+      "duration_s": 60.007808317000126,
+      "requested_s": 60.0,
+      "start_wall_s": 1793652607.4137719,
+      "end_wall_s": 1793652667.4215806
+    },
+    "report_counts": {
+      "02": 5989,
+      "05": 5483,
+      "07": 5934,
+      "08": 5947,
+      "13": 59,
+      "15": 5908
+    },
+    "raw15_valid_field_reports": 5908,
+    "raw15_invalid_field_reports": 0,
+    "input_errors": {
+      "state": [],
+      "packets": []
+    },
+    "packet_results": {
+      "timed_out": 1,
+      "packet": 5391
+    },
+    "parse_failed_packets": 0,
+    "gyro02_sensor_mean_xyz_rad_s": [
+      -0.00020415031724828854,
+      0.00019469287443646686,
+      -0.00015686310318918016
+    ],
+    "gyro02_sensor_peak_abs_xyz_rad_s": [
+      0.005859375,
+      0.00390625,
+      0.00390625
+    ],
+    "rv05_body_yaw_change_deg": -0.06385517489852077,
+    "game08_body_yaw_change_deg": -0.05362303654050038,
+    "accuracy_status": {
+      "02": {
+        "3": 5989
+      },
+      "05": {
+        "0": 5483
+      },
+      "07": {
+        "3": 5934
+      },
+      "08": {
+        "3": 5947
+      },
+      "13": {
+        "3": 59
+      }
+    },
+    "rv05_reported_heading_accuracy_deg": 180.00051044295492,
+    "stability_raw_histogram": {
+      "1": 54,
+      "4": 1,
+      "3": 4
+    },
+    "raw15": {
+      "adc_xyz_counts": [
+        {
+          "n": 5908,
+          "mean": -0.27775897088693297,
+          "std_population": 0.8057004850609046,
+          "min": -3,
+          "max": 3,
+          "peak_abs": 3
+        },
+        {
+          "n": 5908,
+          "mean": -2.2193635748138116,
+          "std_population": 1.2944666891490106,
+          "min": -7,
+          "max": 2,
+          "peak_abs": 7
+        },
+        {
+          "n": 5908,
+          "mean": -0.6932972241029113,
+          "std_population": 0.8201770217457582,
+          "min": -4,
+          "max": 2,
+          "peak_abs": 4
+        }
+      ],
+      "temperature_counts": {
+        "n": 5908,
+        "mean": 79.1614759647935,
+        "std_population": 0.5476533198090443,
+        "min": 78,
+        "max": 80,
+        "peak_abs": 80
+      },
+      "temperature_histogram": {
+        "78": 486,
+        "79": 3982,
+        "80": 1440
+      },
+      "timestamp": {
+        "first_uint32_us": 3136497711,
+        "last_uint32_us": 3197237457,
+        "modular_step_us": {
+          "n": 5907,
+          "mean": 10282.672422549518,
+          "std_population": 1313.2357874635982,
+          "min": 10070,
+          "max": 30212,
+          "peak_abs": 30212
+        },
+        "common_modular_steps_us": [
+          [
+            10071,
+            3577
+          ],
+          [
+            10254,
+            1221
+          ],
+          [
+            10070,
+            886
+          ],
+          [
+            10253,
+            125
+          ],
+          [
+            20325,
+            31
+          ],
+          [
+            20142,
+            28
+          ],
+          [
+            20141,
+            25
+          ],
+          [
+            20324,
+            13
+          ],
+          [
+            30212,
+            1
+          ]
+        ],
+        "repeated_counter_steps": 0,
+        "ambiguous_large_modular_steps": 0,
+        "negative_direct_step_events": [],
+        "forward_modular_span_s": 60.739746,
+        "host_receipt_span_s": 59.975942615999884
+      },
+      "sequence_steps_mod256": {
+        "3": 1,
+        "1": 5809,
+        "2": 97
+      }
+    },
+    "sequence_continuity": {
+      "15": {
+        "samples": 5908,
+        "sequence_step_mod256": {
+          "3": 1,
+          "1": 5809,
+          "2": 97
+        },
+        "maximum_host_receipt_gap_s": 0.024184861999856366
+      },
+      "02": {
+        "samples": 5989,
+        "sequence_step_mod256": {
+          "3": 1,
+          "1": 5971,
+          "2": 16
+        },
+        "maximum_host_receipt_gap_s": 0.024184861999856366
+      },
+      "05": {
+        "samples": 5483,
+        "sequence_step_mod256": {
+          "1": 4960,
+          "2": 522
+        },
+        "maximum_host_receipt_gap_s": 0.024184861999856366
+      },
+      "07": {
+        "samples": 5934,
+        "sequence_step_mod256": {
+          "1": 5863,
+          "2": 70
+        },
+        "maximum_host_receipt_gap_s": 0.024184861999856366
+      },
+      "08": {
+        "samples": 5947,
+        "sequence_step_mod256": {
+          "1": 5889,
+          "2": 57
+        },
+        "maximum_host_receipt_gap_s": 0.024184861999856366
+      },
+      "13": {
+        "samples": 59,
+        "sequence_step_mod256": {
+          "1": 57,
+          "2": 1
+        },
+        "maximum_host_receipt_gap_s": 2.016882682999494
+      }
+    }
+  },
+  "axis_associations": {
+    "method": "Same-packet valid batch-relative-time pairs within 5 ms; associations may reuse processed reports and do not prove identical acquisition.",
+    "raw_rows_processed_columns": [
+      "X",
+      "Y",
+      "Z"
+    ],
+    "cross_axis_correlations": {
+      "02": [
+        [
+          0.023915020343070074,
+          0.8220369611885646,
+          -0.0725532687807552
+        ],
+        [
+          -0.9234509251550507,
+          -0.030717642279650056,
+          -0.19391448492810356
+        ],
+        [
+          0.21891663536256814,
+          -0.044423410341186714,
+          0.8245750842329362
+        ]
+      ],
+      "07": [
+        [
+          0.026523921934130883,
+          0.9574898638120468,
+          -0.06472876337555324
+        ],
+        [
+          -0.9334013170500924,
+          -0.029213942640085134,
+          -0.2144421577128775
+        ],
+        [
+          0.22055450671034857,
+          -0.0713927984531307,
+          0.9119640532628889
+        ]
+      ]
+    },
+    "reading": "Raw Y correlates most strongly with negative processed X; raw X with processed Y; raw Z with processed Z. This differs from a same-label axis assumption. No signed permutation, ADC-to-rad/s factor, temperature-to-Celsius scale or mounting correction is calibrated by this stationary capture.",
+    "same_packet_02_pairs": 5452,
+    "same_packet_07_pairs": 5402
+  },
+  "byte_verification": {
+    "raw15_reports_all_logged_packets": 5928,
+    "mismatches": [],
+    "first_last_full_feature_fields_match": true,
+    "counting_scope": "5928 raw15 reports includes setup/restoration; 5908 valid raw15 reports belong to the closed capture window.",
+    "packet_sha256": "406cf92ea1dc20ecbe1ef9ace8dfd9cd8b0ef7d5c4eb57f0ed0f58a1a61497b6",
+    "verifier_source_sha256": "b4663bb5f48a60e59bd34f8e0bb828ee69795a3fef802eafaffc21995cbadc0c"
+  },
+  "camera": {
+    "decoded_frames": 314,
+    "matched_metadata_frames": 314,
+    "phase_frames": 300,
+    "patches": {
+      "upper_bed_holes": {
+        "n": 300,
+        "max_displacement_px": 0.0,
+        "min_ncc": 0.861318764361798,
+        "min_peak_gap_outside5px": 0.2951971454036678,
+        "boundary_matches": 0
+      },
+      "left_chair_leg": {
+        "n": 300,
+        "max_displacement_px": 0.0,
+        "min_ncc": 0.9956187924236983,
+        "min_peak_gap_outside5px": 0.46139713479981914,
+        "boundary_matches": 0
+      },
+      "background_dresser": {
+        "n": 300,
+        "max_displacement_px": 0.0,
+        "min_ncc": 0.9860672466426504,
+        "min_peak_gap_outside5px": 0.4476745641682647,
+        "boundary_matches": 0
+      }
+    },
+    "all_integer_displacements_px": 0,
+    "search_boundary_matches": 0,
+    "video_sha256": "09b22162a917887a44395a52681f44a3fa9c0b1e195aae5902f265bf3d506c81",
+    "reused_ncc_source_sha256": "456f5b65535de5acc46440a7778391be0da3a2c15e8351a6a0f7bf30dda9ab9f",
+    "window_file": "analysis-and-runner/raw-gyro-15-01-camera-windows.json in archive",
+    "limits": [
+      "No calibrated visual odometry or physical pose estimate.",
+      "Zero integer displacement cannot exclude subpixel motion or motion between 5 Hz frames.",
+      "Templates manually chosen; correlation strength and ambiguity retained."
+    ]
+  },
+  "limitations": [
+    "Large fault absent during 60 s does not establish repair, reliability, cause, or motor readiness.",
+    "Raw15 ADC and temperature counts are sensor dependent; no rad/s or Celsius scale is assigned. Raw15 axes are not assumed to match report 02/07 axes.",
+    "uint32 acquisition counters are evaluated by modular differences without assigning a host-clock epoch. Their 60.739746 s modular span and 59.975943 s host receipt span are not forced into alignment.",
+    "Sequence gaps and one capture transport timeout remain; successful parsing/byte verification does not establish complete acquisition.",
+    "Accuracy 3 and on-table classification are device outputs, not external physical truth.",
+    "Camera zero integer-pixel offsets, including weaker 0.8613 NCC on one patch, cannot exclude subpixel/inter-frame motion or vibration; no camera-angle claim.",
+    "Actual deployed battery-monitor source is included only as context; inclusion does not identify it as a culprit.",
+    "No canonical recovery edit, new build/test/capture, hardware contact, or commit was performed by the preservation agent."
+  ],
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/raw-gyro15",
+    "archive": "raw-gyro15-evidence.tar.gz",
+    "archive_sha256": "f65845502941b04f5f59a31fcd062eeced3e2cbff6ce28e83481cbe5cb682c51",
+    "archive_bytes": 9787456,
+    "manifest": "manifest.json",
+    "manifest_sha256": "dcd238d979a153d669f3727a0413df23612ce33b85c963c3ac3bf434b952e4a4",
+    "members": 95,
+    "every_regular_member_verified": true,
+    "sensor_tar_sha256": "d1de334f74c52b523dfa887cebf5c345db5570ae16447c43d2c4e66ad68e9489",
+    "remote_local_capture_hashes_confirmed_by_root": true,
+    "analysis_source_sha256": "fb1b43b082ad6819b695950a7cba1e5c3e71dedb264a53ab48e2589fe622d854",
+    "analysis_sha256": "c02b2c3177bc0660ec876388e22fd91fd69ddee661146459be45a7dd4e6413d6",
+    "frozen_readme_sha256": "584472c92f7b294b2c32c5fd15e29d2123502251b68fb5ab00c9002f0f224a9c",
+    "integrated_readme_with_evidence_link_sha256": "fd39911ff9ee68e882b6b063c9fd11e1b7ee8ed5b9ea94d3fc77fcdf92af4dbd"
+  }
+}

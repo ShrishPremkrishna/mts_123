@@ -28,6 +28,8 @@ BNO055::Output output(std::chrono::steady_clock::time_point now) {
     case 3:o.gyro.x()=.13;break;
     case 4:o.quat.w()=.5;break;
     case 5:o.quaternion_valid=false;break;
+    case 6:o.gyro_minimum_age_at_receipt=std::chrono::seconds(78);break;
+    case 7:o.quaternion_minimum_age_at_receipt=std::chrono::seconds(78);break;
   }
   return o;
 }
@@ -50,6 +52,15 @@ void unit_health() {
   require(pupper_imu::feedback_error(o,now),"infinite gyro accepted");
   o=output(now);o.quat.w()=.5;
   require(pupper_imu::feedback_error(o,now),"bad quaternion norm accepted");
+  o=output(now);o.gyro_minimum_age_at_receipt=milliseconds(90);
+  require(!pupper_imu::feedback_error(o,now),"90ms report rejected before age limit");
+  require(pupper_imu::feedback_error(o,now+milliseconds(20)),"receipt freshened90ms plus20ms cached gyro");
+  o=output(now);o.quaternion_minimum_age_at_receipt=seconds(78);
+  require(pupper_imu::feedback_error(o,now),"fresh gyro hid queued quaternion");
+  o=output(now);o.gyro_minimum_age_at_receipt=microseconds(-1);
+  require(pupper_imu::feedback_error(o,now),"negative age bound accepted");
+  pupper_imu::StartupWindow queued;
+  for(int i=0;i<=400;++i){auto t=now+milliseconds(i*10);auto s=output(t);s.gyro_minimum_age_at_receipt=seconds(78);require(!queued.observe(s,t),"old queue manufactured startup dwell");}
   pupper_imu::StartupWindow stable;
   for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto s=output(t);bool ready=stable.observe(s,t);require(ready==(i==300),"stationary window timing wrong");}
   pupper_imu::StartupWindow bias;
@@ -99,6 +110,11 @@ int main(int argc,char **argv){try{
       for(int i=0;i<4;++i)command.flags[i]=1;
       command.kp_hip[0]=2;
       require(driver->read(rclcpp::Time(0),rclcpp::Duration::from_seconds(.01))==hardware_interface::return_type::ERROR,"invalid feedback accepted by read");neutral_only();
+      if(scenario!="read_norm"){
+        mode=scenario=="read_gyro"?6:7;std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        sent.clear();for(int i=0;i<4;++i)command.flags[i]=1;
+        require(driver->read(rclcpp::Time(0),rclcpp::Duration::from_seconds(.01))==hardware_interface::return_type::ERROR,"queued report allowed SPI command");neutral_only();
+      }
     }else if(scenario=="activate_bias"){
       mode=3;std::this_thread::sleep_for(std::chrono::milliseconds(30));
       require(driver->on_activate(rclcpp_lifecycle::State())==hardware_interface::CallbackReturn::ERROR,"biased IMU enabled");neutral_only();

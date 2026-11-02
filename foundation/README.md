@@ -65,6 +65,11 @@ measurement and diagnosis; they do not close the physical reliability gap.
   later heading drift contradicts the camera, and persists after controller
   deactivation. [Independent device packets](results/workstream1-post-motor-sensor-20261102.json)
   narrow the fault beyond API/policy execution without identifying its cause.
+  The [raw-gyro comparison](results/workstream1-raw-gyro15-20261102.json) captures
+  ADC counts and verifies configuration restoration, but its quiet motor-off
+  interval does not reproduce or explain the large fault. A separate
+  [queued-reading guard](results/workstream1-queued-imu-age-20261102.json) rejects
+  provably old sensor reports; it is reviewed offline and remains undeployed.
 - **Software feedback has a narrower meaning than motion:** “queued” follows
   actual queue insertion; controller receipts prove matching playback progress,
   not physical posture. Current voice work retains conversation and commands

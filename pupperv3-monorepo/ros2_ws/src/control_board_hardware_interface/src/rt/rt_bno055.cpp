@@ -289,11 +289,20 @@ void BNO055::parseInputReport(void) {
               | uint32_t(shtpData[3]) << 16 | uint32_t(shtpData[4]) << 24;
   const auto received = std::chrono::steady_clock::now();
   for (const auto &report : reports) {
+    // SH-2 v1.9 section7.2: sample = HINT + (signed reference + delay)*100us.
+    // HINT precedes receipt, so a negative offset proves this minimum age.
+    // Positive offsets prove no age bound; they must not fabricate future clocks.
+    const int64_t relative_ticks = report.reference_delta_ticks + report.delay_ticks;
+    const auto minimum_age = std::chrono::microseconds(relative_ticks < 0 ? -relative_ticks*100 : 0);
     if (report.id == SENSOR_REPORTID_GYROSCOPE && gyro_sequence_.accept(report.sequence)) {
+      if (!report.timing_valid) { gyro_valid_ = false; continue; }
+      gyro_minimum_age_at_receipt_ = minimum_age;
       rawGyroX = uint16_t(report.values[0]); rawGyroY = uint16_t(report.values[1]);
       rawGyroZ = uint16_t(report.values[2]); gyroAccuracy = report.accuracy;
       gyro_receipt_time_ = received; gyro_valid_ = true;
     } else if (report.id == SENSOR_REPORTID_ROTATION_VECTOR && quaternion_sequence_.accept(report.sequence)) {
+      if (!report.timing_valid) { quaternion_valid_ = false; continue; }
+      quaternion_minimum_age_at_receipt_ = minimum_age;
       rawQuatI = uint16_t(report.values[0]); rawQuatJ = uint16_t(report.values[1]);
       rawQuatK = uint16_t(report.values[2]); rawQuatReal = uint16_t(report.values[3]);
       rawQuatRadianAccuracy = report.rotation_accuracy; quatAccuracy = report.accuracy;
@@ -365,6 +374,8 @@ BNO055::Output BNO055::sample() {
   result.gyro_accuracy = uint8_t(gyroAccuracy);
   result.quaternion_receipt_time = quaternion_receipt_time_;
   result.gyro_receipt_time = gyro_receipt_time_;
+  result.quaternion_minimum_age_at_receipt = quaternion_minimum_age_at_receipt_;
+  result.gyro_minimum_age_at_receipt = gyro_minimum_age_at_receipt_;
   result.legacy_base_timestamp_raw = timeStamp;
   // acc is deterministic zero and acceleration_valid remains false.
   // The following fields retain the deprecated legacy calculation unchanged.

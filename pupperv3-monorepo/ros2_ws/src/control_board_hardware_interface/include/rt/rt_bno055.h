@@ -90,6 +90,10 @@ class BNO055 {
     // They are NOT sensor measurement timestamps or proof of calibration.
     std::chrono::steady_clock::time_point quaternion_receipt_time{};
     std::chrono::steady_clock::time_point gyro_receipt_time{};
+    // Lower bounds from signed SH-2 batch offsets, not exact measurement ages.
+    // Actual receipt timestamps above are never shifted to fake sensor time.
+    std::chrono::microseconds quaternion_minimum_age_at_receipt{0};
+    std::chrono::microseconds gyro_minimum_age_at_receipt{0};
     uint32_t legacy_base_timestamp_raw = 0;
 
     // Timestamp of when the data was sent from the sensor to the Raspberry Pi
@@ -176,6 +180,7 @@ class BNO055 {
   bool quaternion_valid_ = false, gyro_valid_ = false;
   pupper_bno::ReportSequence quaternion_sequence_, gyro_sequence_;
   std::chrono::steady_clock::time_point quaternion_receipt_time_{}, gyro_receipt_time_{};
+  std::chrono::microseconds quaternion_minimum_age_at_receipt_{0}, gyro_minimum_age_at_receipt_{0};
   uint8_t stabilityClassifier;
   uint8_t activityClassifier;
   uint8_t *_activityConfidences;  // Array that store the confidences of the 9 possible activities

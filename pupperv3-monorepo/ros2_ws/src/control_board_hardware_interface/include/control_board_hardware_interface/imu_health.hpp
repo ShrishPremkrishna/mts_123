@@ -4,10 +4,11 @@
 #include <array>
 #include <initializer_list>
 #include <cmath>
+#include <utility>
 
 namespace pupper_imu {
-// Receipt freshness is an availability bound, NOT physical measurement age or
-// calibration. 100 ms permits ten missing 100-Hz reports before motor disable.
+// Receipt freshness plus known batch-age lower bounds cannot prove true
+// measurement freshness or calibration. The existing bound remains 100 ms.
 constexpr auto max_receipt_age = std::chrono::milliseconds(100);
 constexpr double stationary_gyro_limit_rad_s = 0.005;
 constexpr auto stationary_window = std::chrono::seconds(3);
@@ -20,9 +21,16 @@ const char *feedback_error(const Output &sample,
   if (!sample.quat.coeffs().allFinite() || !sample.gyro.allFinite()) return "nonfinite IMU report";
   const double norm = sample.quat.norm();
   if (norm < 0.9 || norm > 1.1) return "invalid quaternion norm";
-  for (auto receipt : {sample.quaternion_receipt_time, sample.gyro_receipt_time}) {
+  const std::array<std::pair<std::chrono::steady_clock::time_point, std::chrono::microseconds>, 2> components{{
+      {sample.quaternion_receipt_time, sample.quaternion_minimum_age_at_receipt},
+      {sample.gyro_receipt_time, sample.gyro_minimum_age_at_receipt}}};
+  for (const auto &component : components) {
+    const auto receipt = component.first;
+    const auto minimum_age = component.second;
     if (receipt == std::chrono::steady_clock::time_point{} || receipt > now ||
         now - receipt > max_receipt_age) return "stale IMU component receipt";
+    if (minimum_age < std::chrono::microseconds::zero()) return "invalid IMU minimum age";
+    if (now - receipt + minimum_age > max_receipt_age) return "IMU report known too old";
   }
   return nullptr;
 }

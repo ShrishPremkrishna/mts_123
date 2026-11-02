@@ -39,6 +39,8 @@ BNO055::Output BNO055::sample() {
   output.packet_timestamp=output.measurement_timestamp=std::chrono::high_resolution_clock::now();
   output.quaternion_valid=output.gyro_valid=true;
   output.quaternion_receipt_time=output.gyro_receipt_time=std::chrono::steady_clock::now();
+  output.gyro_minimum_age_at_receipt=std::chrono::milliseconds(90);
+  output.quaternion_minimum_age_at_receipt=std::chrono::seconds(78);
   if(invalid_sample.load()) { output.quaternion_valid=false; output.quat=Eigen::Quaternionf(0,0,0,0); }
   --in_sample;return output;
 }
@@ -52,6 +54,7 @@ int main(int argc,char** argv) {
       while(!manager.get_imu_data().quaternion_valid && std::chrono::steady_clock::now()<ready)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       const auto previous=manager.get_imu_data();require(previous.quaternion_valid,"no initial valid sample");
+      require(previous.gyro_minimum_age_at_receipt==std::chrono::milliseconds(90)&&previous.quaternion_minimum_age_at_receipt==std::chrono::seconds(78),"manager lost component age bounds");
       invalid_sample=true;
       const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(50);
       while(manager.get_imu_data().quaternion_valid && std::chrono::steady_clock::now()<deadline)
@@ -59,6 +62,7 @@ int main(int argc,char** argv) {
       const auto failed=manager.get_imu_data();
       require(!failed.quaternion_valid&&!failed.gyro_valid,"sampling failure retained valid cached flags");
       require(failed.quaternion_receipt_time>=previous.quaternion_receipt_time,"receipt moved backwards");
+      require(failed.gyro_minimum_age_at_receipt==previous.gyro_minimum_age_at_receipt&&failed.quaternion_minimum_age_at_receipt==previous.quaternion_minimum_age_at_receipt,"manager invalidation erased age evidence");
       invalid_sample=false;
       const auto recovery=std::chrono::steady_clock::now()+std::chrono::milliseconds(50);
       while(!manager.get_imu_data().quaternion_valid && std::chrono::steady_clock::now()<recovery)

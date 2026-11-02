@@ -62,5 +62,15 @@
     "url": "https://raw.githubusercontent.com/ceva-dsp/sh2/main/sh2_util.h",
     "locator": "line35 int16_t read16",
     "finding": "Heading-accuracy decoding in official SDK is signedQ12. Keep raw bits and do not publish a negative value as a positive unsigned estimate."
+  },
+  "raw15_optin_addendum": {
+    "sources": [
+      "SH-2 v1.9 section6.5.12, printed67\u201368/PDF68\u201369/Figure86",
+      "sh2_SensorValue.c lines275\u2013281",
+      "sh2.c line457 report-length table"
+    ],
+    "layout": "16 bytes: common header0..3, signed little-endian ADC xyz at4,6,8; signed raw temperature at10; uint32 little-endian hub acquisition timestamp at12, microseconds. ADC interpretation is sensor dependent; temperature remains counts without a Celsius conversion.",
+    "activation": "Existing --enable= list accepts15 in compare only. Without15, five original monitored identities remain unchanged; selecting15 extends every original/readback/capture/restoration pass to six before any mutation. Unknown/truncated/wrong-identity original readback must fail before FD.",
+    "limits": "No calibration/reset/DCD command. Report timestamp uint32 wraps; host receipt and batch-relative timing remain separate. Max60second comparison unchanged. Feature restoration cannot reverse elapsed fusion history."
   }
 }

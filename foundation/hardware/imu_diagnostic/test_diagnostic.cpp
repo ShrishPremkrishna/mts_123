@@ -10,7 +10,7 @@ static void expect(bool value,const char*name){if(!value){std::cerr<<"FAILED "<<
 struct Fake {
  double time=100.;uint8_t sequence=0,channel=2;std::deque<Bytes> queue;Bytes current;size_t cursor=0;bool header_read=false;
  std::map<uint8_t,diagnostic::Feature> features,before;std::vector<Bytes> sent;std::vector<double> sent_times;
- int absent_id=-1;bool wrong_sequence=false,cal_failure=false,short_set=false,interrupt_set=false,operation_timeout=false,hard_timeout=false,fail_restore=false,coupling=false,log_failure=false;
+ int absent_id=-1,wrong_feature_request=-1;bool truncate_feature_response=false;bool wrong_sequence=false,cal_failure=false,short_set=false,interrupt_set=false,operation_timeout=false,hard_timeout=false,fail_restore=false,coupling=false,log_failure=false;
  unsigned set_count=0,short_set_at=0,interrupt_set_at=0;std::ostream*broken=nullptr;
  double feature_delay=0.;bool ignore_enable=false,late_restore_diverge=false,signal_while_wait=false;
  std::vector<std::pair<double,diagnostic::Feature>> pending_features;
@@ -29,7 +29,7 @@ struct Fake {
   time+=.0001;apply_due();assert(n>=6&&p[2]==2);Bytes z(p+4,p+n);sent.push_back(z);sent_times.push_back(time);
   if(z[0]==0xf9){queue.push_back(bytes("f800010a96a49800940100000a000000f8000507a7a698003f01000011000000f8000503b5a69800e20000000e000000"));}
   else if(z[0]==0xf2){Bytes r=bytes("f1000700000001000100010000000000");r[3]=uint8_t(z[1]+(wrong_sequence?1:0));r[5]=cal_failure?1:0;queue.push_back(r);}
-  else if(z[0]==0xfe){if(z[1]!=absent_id){auto r=features.at(z[1]).set_request();r[0]=0xfc;queue.push_back(r);}}
+  else if(z[0]==0xfe){if(z[1]!=absent_id){auto r=features.at(z[1]).set_request();r[0]=0xfc;if(z[1]==wrong_feature_request)r[1]=2;if(truncate_feature_response&&z[1]==0x15)r.pop_back();queue.push_back(r);}}
   else if(z[0]==0xfd){
    ++set_count;if(fail_restore&&set_count>1){errno=EIO;return -1;}
    auto r=z;r[0]=0xfc;auto target=diagnostic::feature_response(r);
@@ -143,5 +143,70 @@ static void settling_lifecycle(){
  }
  std::cout<<"asynchronous feature and restoration settling: PASS\n";
 }
+// Constructed from SH-2 v1.9 section6.5.12, not a captured device fixture.
+static void raw15_protocol(){
+ const auto payload=bytes("fb6400000015fe06030080ff7f3412feff98badcfe");
+ std::vector<diagnostic::Report> reports;
+ expect(diagnostic::reports(payload,reports)&&reports.size()==1,"raw15 exact16byte report accepted");
+ const auto&r=reports.at(0);
+ expect(r.id==0x15&&r.sequence==254&&r.status_raw==6&&r.accuracy==2,"raw15 common header retained");
+ expect(r.values[0]==-32768&&r.values[1]==32767&&r.values[2]==0x1234,"raw15 signed little endian ADC endpoints");
+ expect(r.values[3]==-2&&r.raw_gyro_timestamp_us==0xfedcba98u,"raw15 signed temperature and unsigned32 acquisition time");
+ expect(r.delay_ticks==259&&r.reference_delta_ticks==-100&&r.timing_valid,"raw15 transport timing separate from acquisition time");
+ for(size_t n=5;n<payload.size();++n){Bytes short_payload(payload.begin(),payload.begin()+n);expect(!diagnostic::reports(short_payload,reports)&&reports.empty(),"raw15 every partial length rejected atomically");}
+ auto long_payload=payload;long_payload.push_back(0);expect(!diagnostic::reports(long_payload,reports)&&reports.empty(),"raw15 unknown trailing byte rejected atomically");
+ auto mixed=payload;auto later=bytes("02010300010002000300");mixed.insert(mixed.end(),later.begin(),later.end());
+ expect(diagnostic::reports(mixed,reports)&&reports.size()==2&&reports[1].id==2&&reports[1].values[2]==3,"raw15 exact boundary retains following calibrated report");
+ auto no_base=Bytes(payload.begin()+5,payload.end());expect(!diagnostic::reports(no_base,reports),"raw15 still requires batch timestamp reference");
+ Fake f;std::ostringstream reads,writes,packets,state;IO io{[&](uint8_t*p,size_t n){return f.read(p,n);},[&](const uint8_t*p,size_t n){return f.write(p,n);},[&](){return f.time;},[&](){f.time+=.005;}};
+ Capture c(io,reads,writes,packets,state);c.deadline=200.;f.channel=3;f.queue.push_back(payload);c.poll();
+ expect(packets.str().find("\"gyro_adc_counts\":[-32768,32767,4660]")!=std::string::npos,"raw15 log carries ADC counts without scale");
+ expect(packets.str().find("\"gyro_temperature_counts\":-2")!=std::string::npos&&packets.str().find("\"raw_gyro_timestamp_us\":4275878552")!=std::string::npos,"raw15 log retains temperature and full timestamp");
+ expect(packets.str().find("gyro_sensor_rad_s")==std::string::npos&&packets.str().find("estimated_bias_rad_s")==std::string::npos,"raw15 log does not invent physical conversion or bias");
+ bool denied=false;try{c.send(diagnostic::feature_query(0x15));}catch(const std::exception&){denied=true;}
+ expect(denied&&f.sent.empty(),"default capture disallows raw15 queries without optin");
+ auto feature=diagnostic::diagnostic_feature(0x15);expect(feature.interval_us()==10000&&feature.id()==0x15,"raw15 optin target100Hz");
+ expect(!diagnostic::allowed_request(feature.set_request(),false),"inspect allowlist never permits raw15 set");
+}
+static void raw15_lifecycle(){
+ auto run=[](const char*name,const std::function<void(Fake&)>&setup,const std::vector<uint8_t>&extras,bool compare,bool baseline,bool success,bool restored){
+  Fake f;f.features[0x15]=diagnostic::feature_response(bytes("fc150d0201204e000050c3000078563412"));setup(f);f.before=f.features;
+  std::ostringstream reads,writes,packets,state;for(auto*s:{&reads,&writes,&packets,&state})s->exceptions(std::ios::badbit|std::ios::failbit);f.broken=&packets;
+  IO io{[&](uint8_t*p,size_t n){return f.read(p,n);},[&](const uint8_t*p,size_t n){return f.write(p,n);},[&](){return f.time;},[&](){f.time+=.005;}};
+  stopped=0;Capture c(io,reads,writes,packets,state);const int code=c.run(compare,extras,1.,baseline);
+  expect((code==0)==success,name);if(restored)expect(f.features==f.before,"raw15 restores every original field and identity");
+  expect(state.str().find("\"restoration_uncertain\":"+std::string(restored?"false":"true"))!=std::string::npos,"raw15 restoration result honest");
+  const bool selected=std::find(extras.begin(),extras.end(),0x15)!=extras.end();
+  if(selected&&compare){expect(c.monitored_features.size()==6&&c.monitors(0x15),"optin monitors exactly six features");}
+  if(!selected){expect(c.monitored_features.size()==5&&!c.monitors(0x15),"default still monitors only five features");for(const auto&z:f.sent)expect(!((z[0]==0xfe||z[0]==0xfd)&&z[1]==0x15),"no raw15 requests on default path");}
+  if(f.absent_id>=0||f.wrong_feature_request>=0||f.truncate_feature_response||(!compare&&selected)){expect(f.set_count==0,"missing original or wrong mode causes no mutation");}
+  if(!compare&&selected)expect(f.sent.empty(),"raw15 inspect optin refuses before sensor queries");
+  if(f.set_count){
+   for(auto id:c.monitored_features){expect(c.original.at(id)==f.before.at(id),"all exact monitored originals captured before mutation");}
+   std::set<uint8_t> queried;
+   for(const auto&z:f.sent){if(z[0]==0xfd)break;if(z[0]==0xfe)queried.insert(z[1]);}
+   for(auto id:c.monitored_features)expect(queried.count(id)==1,"all monitored identities queried before first feature mutation");
+  }
+  if(f.short_set_at||f.interrupt_set_at){bool raw_restore=false;for(size_t i=2;i<f.sent.size();++i)if(f.sent[i]==f.before.at(0x15).set_request())raw_restore=true;expect(raw_restore,"dirty raw15 attempted restoration after failure");}
+  if(f.interrupt_set_at)expect(code==143,"raw15 signal exit preserved after restoration");
+  if(!restored)expect(code!=0,"raw15 uncertain restore is never successful");
+  expect(f.time<=c.hard_deadline+.03,"raw15 capture and cleanup remain bounded");
+  std::cout<<name<<": PASS\n";stopped=0;
+ };
+ run("raw15 compare success and full restore",[](Fake&){},{7,0x15},true,false,true,true);
+ run("raw15 default compare unchanged",[](Fake&){},{7,8,0x13},true,false,true,true);
+ run("raw15 default inspect unchanged",[](Fake&){},{},false,false,true,true);
+ run("raw15 inspect explicit optin refused",[](Fake&){},{0x15},false,false,false,true);
+ for(auto id:std::array<uint8_t,6>{{2,5,7,8,0x13,0x15}})run("raw15 missing monitored original refuses all writes",[&](Fake&f){f.absent_id=id;},{0x15},true,false,false,true);
+ run("raw15 wrong original identity refused",[](Fake&f){f.wrong_feature_request=0x15;},{0x15},true,false,false,true);
+ run("raw15 truncated original refused",[](Fake&f){f.truncate_feature_response=true;},{0x15},true,false,false,true);
+ run("raw15 baseline restores six disabled originals",[](Fake&f){for(auto&kv:f.features){auto p=kv.second.set_request();p[0]=0xfc;diagnostic::put32(p,5,0);kv.second=diagnostic::feature_response(p);}},{0x15},true,true,true,true);
+ run("raw15 partial write restores raw15 and prior feature",[](Fake&f){f.short_set_at=2;},{7,0x15},true,false,false,true);
+ run("raw15 interrupted write restores raw15 and prior feature",[](Fake&f){f.interrupt_set_at=2;},{7,0x15},true,false,false,true);
+ run("raw15 failed restoration stays uncertain",[](Fake&f){f.short_set=true;f.fail_restore=true;},{0x15},true,false,false,false);
+ run("raw15 delayed effective fields settle and restore",[](Fake&f){f.feature_delay=.06;},{0x15},true,false,true,true);
+ run("raw15 missing effective match restores original",[](Fake&f){f.ignore_enable=true;},{0x15},true,false,false,true);
+ run("raw15 active original blocks fresh baseline",[](Fake&f){for(auto id:diagnostic::monitored){auto p=f.features.at(id).set_request();p[0]=0xfc;diagnostic::put32(p,5,0);f.features[id]=diagnostic::feature_response(p);}},{0x15},true,true,false,true);
+}
 #include "generated_fixture_checks.hpp"
-int main(){(void)&monotonic_s;(void)&signal_stop;fixture_checks();lifecycle();baseline_lifecycle();settling_lifecycle();std::cout<<"checks="<<checks<<"\n";}
+int main(){(void)&monotonic_s;(void)&signal_stop;fixture_checks();lifecycle();baseline_lifecycle();settling_lifecycle();raw15_protocol();raw15_lifecycle();std::cout<<"checks="<<checks<<"\n";}

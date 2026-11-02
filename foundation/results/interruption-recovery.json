@@ -72,16 +72,16 @@
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
     "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
   ],
-  "updated_utc": "2026-11-02T20:38:28.617924+00:00",
-  "authorization": "User resumed robot work on2026-11-02, confirmed supported placement/exclusive access and explicitly authorized one homing. That session completed and is fully shut down after sensor recurrence. Continue motor-inactive diagnosis and offline engineering. No further homing or floor sequence until evidence supports it and current supervision/readiness is established. Claude Code, subagents and APIs remain authorized; ask before any experiment expected above$5.",
-  "current_report": "foundation/results/workstream1-supported-recurrence-20261102.json",
+  "updated_utc": "2026-11-02T21:19:39.044904+00:00",
+  "authorization": "Current robot block ended with operator R3/support and clean full driver shutdown. Read-only recovery and offline fixes authorized; user may replace battery now. No automatic launch/homing or additional motion while sensor validity unresolved. APIs/Claude/subagents remain authorized; approval required above $5 per experiment.",
+  "current_report": "foundation/results/workstream1-queued-imu-age-20261102.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261102T130303Z-before-offline-release.json",
     "sha256": "e6eacd2469a90b56d2e2bd794832e3c98b3e69576ed2c2df7fb961f1d60082cf",
     "meaning": "Prior operational detail and older history chain; historical only. Completed candidates/processes must not be restarted from this snapshot."
   },
   "hardware_session": {
-    "status": "Closed supervised session: one homing; three Sit/10s/both-paws/standing chains. First observed controlled; later repeats slightCCWturn<10deg. Full telemetry/camera proves escalating sensor-heading/rate discrepancy began during quiet standing BEFORE chain1. R3/support confirmed; motor driver and API shut down cleanly. Post-motor no-reset capture completed. Preparing diagnostic-only raw gyro15 extension; no motor work active.",
+    "status": "Motor driver/API/recorders shut down; robot supported on stand. Three direct chains completed, but camera/IMU disagreement began during preceding quiet standing. Raw15 motor-off capture completed and preserved; large fault absent in that minute, not fixed. User reports visible mounting looks secure, will ask TA/team for known-good board or robot, and may replace depleted battery now. No automatic restart.",
     "ssh": "mts",
     "owner": "/root",
     "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
@@ -113,7 +113,7 @@
       "driver_clean": true,
       "api_clean": true,
       "motor_api_camera_recorders_active": false,
-      "scope": "closedphysical session; separate nonmotorrecurrence captureactive",
+      "scope": "Closed physical session and all standalone sensor captures. No motor/API/diagnostic work active at last SSH verification; battery monitor restored.",
       "operator_supported_on_stand": true,
       "power_left_on": true,
       "automatic_restart_or_homing": false
@@ -203,7 +203,8 @@
       "last_checked": "2026-11-02T20:16:38.032384+00:00",
       "closed_driver_disable_utc": "2026-11-02T20:14:18.703074+00:00",
       "identity_record": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-supported/owned-processes.json",
-      "note": "Historical PIDs only. All task-owned physical-run processes exited; independent recurrence diagnostic/camera also exited0."
+      "note": "Historical PIDs only. Fresh read-only /proc verification found no motor/API/diagnostic process before user battery replacement. Do not infer current boot/connectivity after replacement.",
+      "before_user_battery_swap": true
     },
     "active_trial": null,
     "core_trials": {
@@ -233,16 +234,36 @@
       "result": "Processed gyro discrepancy present in device reports; RV andGame drift together. Old queued high-rate data must not be treated as fresh acquisitions. New smaller bursts occur with motors disabled and camera fixed. Report07 is uncalibrated velocity, not raw ADC.",
       "local": "/private/tmp/ws1-imu-diagnostic-20261102",
       "report": "foundation/results/workstream1-post-motor-sensor-20261102.json"
+    },
+    "raw15_capture": {
+      "name": "raw-gyro-15-01",
+      "exit_code": 0,
+      "camera_exit_code": 0,
+      "restoration_verified": true,
+      "battery_monitor_restored": true,
+      "phase_raw15_reports": 5908,
+      "all_logged_raw15_reports_verified": 5928,
+      "byte_mismatches": 0,
+      "camera_phase_frames": 300,
+      "camera_max_integer_offset_px": 0,
+      "report": "foundation/results/workstream1-raw-gyro15-20261102.json",
+      "result": "Large earlier fault did not recur. Raw and processed axes are not identically labeled. No cause or reliability conclusion."
+    },
+    "operator_followup": {
+      "mounting": "Visible; looks secure",
+      "spare": "User can ask TA/team for known-good matching Pi-HAT/controlboard or second Pupper",
+      "handling_qualification": "User reports moving/rotating the stand; time unspecified. Camera/IMU conclusions apply only to independently matched quiet image windows, not the whole session; do not classify handling intervals as sensor fault.",
+      "battery": "User asked when to replace depleted battery; advised now while drivers/recorders stopped and body supported. Replacement not yet confirmed."
     }
   },
   "activity": {
     "automation": "pupper-overnight-foundation deleted after the reviewed offline release finished; no live job remains to monitor. Resume for a supervised robot session or a concrete teammate handoff.",
-    "compute": "No robot/motor/API/camera or compute jobs active. Raw15 diagnostic source preparation is local; no sensor execution yet.",
+    "compute": "All owned diagnostics, captures, preservation, and local native ROS tests completed. No owned compute or motor work active; battery swap authorized, no automatic restart.",
     "owners": {
-      "/root": "Sole SSH/hardware owner; source review and checkpoint. No motor work active.",
-      "/root/owned_lifecycle": "Preserving closed post-motor comparison and scoped report.",
-      "/root/transition_finish": "Finished physical onset/tail analysis and verified archives.",
-      "/root/imu_differential": "Implementing isolated diagnostic-only raw gyro15 opt-in; no hardware access."
+      "/root": "Integration and final checkpoint; native ROS54/54pass, complete archives verified. Sole hardware owner; no motion active.",
+      "/root/owned_lifecycle": "Raw15 durable preservation completed; idle.",
+      "/root/imu_differential": "Six-file queued-age fix frozen;19sanitized local scenarios pass, old implementation fails captured78s case; idle.",
+      "/root/sensor_decision_review": "Independent queued-age review passed; hardware decision review recommends mounting/known-good comparison; idle."
     },
     "goal_status": "User resumed supervised robot work; first phase motor-inactive IMU diagnosis."
   },
@@ -252,7 +273,7 @@
     "screenshot": "artifacts/access/ws1-conversation-context-20261102/root-rehearsal/browser-final.png"
   },
   "offline_integrated_fixes": {
-    "deployed": "Historical Pi application remains b879bfe; see hardware_session.deployment. New release has NOT been deployed.",
+    "deployed": "b1467b0 API/UI was staged and used in November2 direct physical session. Native controller/driver unchanged during that session; queued-age guard is new undeployed candidate.",
     "current_release": "See branch HEAD and current_report for tested source identities. Code and complete evidence preserved locally and durable archive store.",
     "core_changes": [
       "Ordered model admission and duplicate-ID replay guard, with Stop precedence.",
@@ -293,12 +314,14 @@
     "semantic_nonexecution": "foundation/results/workstream1-semantic-nonexecution-20261102.json",
     "owned_lifecycle": "foundation/results/workstream1-owned-lifecycle-20261102.json",
     "live_expiry": "foundation/results/workstream1-live-expiry-20261102.json",
-    "overnight_release": "foundation/results/workstream1-overnight-release-20261102.json"
+    "overnight_release": "foundation/results/workstream1-overnight-release-20261102.json",
+    "raw15": "foundation/results/workstream1-raw-gyro15-20261102.json",
+    "queued_imu_age": "foundation/results/workstream1-queued-imu-age-20261102.json"
   },
   "next": [
     {
       "id": "sensor_validity",
-      "action": "Review and test explicit raw gyro15 diagnostic extension, then a supported motors-inactive/no-reset60s acquisition with02/07/15 and camera. Preserve ADC/temperature counts and timestamps without invented scales. Compare raw versus processed excursions; do not declare cure from nonreproduction."
+      "action": "Offline queued-age guard is reviewed, validated and archived; remains undeployed. Obtain TA/team known-good matching controlboard or second Pupper for sensor comparison. Proposed matched test: same software/battery/surface, normal homing and bounded supervised stock standing with camera+IMU, no tricks/calibration changes. Capture board/firmware identities. Do not repeat quiet minutes merely to seek a pass."
     },
     {
       "id": "deploy_reviewed_release",
@@ -350,5 +373,27 @@
       },
       "finding": "No additional teammate branch on this remote; does not establish absence of work elsewhere."
     }
+  },
+  "raw15_candidate": {
+    "path": "/private/tmp/ws1-rawgyro15-20261102",
+    "production_source_sha256": "b561850417656698ea012cbb60dbf5c2d24a40a2b284b33f4562808afc4cbdc6",
+    "protocol_sha256": "31492df59ea67d8e1a8f4064673bec9dedaf7fe8003106ec8273a0b52c8ba1b0",
+    "host_tests": 1108,
+    "independent_review": "No blocking findings; exactsource reviewed by transition_finish and read-only Claude Code",
+    "claude_report": "/private/tmp/ws1-rawgyro15-20261102/claude-review.json",
+    "claude_reported_cost_usd": 1.8873545,
+    "pi_build": "1108 fake assertions pass on Pi GCC12; exact production and test binaries archived. R1 test-only indentation warning and R2 fix retained.",
+    "sensor_run_yet": true,
+    "report": "foundation/results/workstream1-raw-gyro15-20261102.json"
+  },
+  "queued_age_candidate": {
+    "path": "/private/tmp/ws1-queued-age-20261102",
+    "deployed": false,
+    "patch_sha256": "fee0bfd270bb933672f3d3ecd3a88a2d8512b6b30eceb91c5cad248b5db0fdad",
+    "meaning": "Rejects provably old queued readings using signed SH2 lower age bound plus real receipt elapsed time. Does not cure gyro drift or establish exact acquisition age.",
+    "local_sanitized_scenarios_passed": 19,
+    "independent_review": "No blocking findings; source hashes and protocol signs verified.",
+    "native_ros": "Completed exit0:54/54cases passed, frozen inputs unchanged; no network/hardware access.",
+    "report": "foundation/results/workstream1-queued-imu-age-20261102.json"
   }
 }
