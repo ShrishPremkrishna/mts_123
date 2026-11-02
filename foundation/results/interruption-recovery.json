@@ -1,18 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-11-02T02:35:12.060024+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "workstream1_active_until_complete",
-  "authorization": "User explicitly requires continuing Workstream 1 until done, progressing on independent work when inputs are missing. User confirmed exclusive supervised robot block and normal standing after one homing. Root alone owns live hardware; no teammate follower/Spider handoffs yet.",
+  "mode": "workstream1_offline_physical_session_closed",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
-  "current_report": "foundation/results/workstream1-hardware-20261101.json",
-  "historical_recovery": {
-    "path": "foundation/results/history/interruption-recovery-20261030-before-workflow.json",
-    "sha256": "5538fd47a8b99522ede4b25d8830c59a9b7a4058857e4721c17b1b873178f5ad",
-    "meaning": "Complete former recovery record, including lost outputs, completed studies and old session states. Historical only; do not resume jobs described there."
-  },
   "environment": {
     "python": "artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
     "full_numerical_python": ".venv/bin/python",
@@ -20,189 +12,12 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "hardware_session": {
-    "status": "STOPPED prior motor session; fresh battery/new boot has camera only, selected seven-skill profile prepared. Waiting for physical controller PS reconnect; no new homing yet.",
-    "ssh": "mts",
-    "owner": "/root",
-    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-voice-generated",
-    "boot_id": "389bd5e3-d17b-4a5c-aab9-273eebe89875",
-    "processes": {
-      "recorder": {
-        "pid": 9677
-      },
-      "launch": {
-        "pid": 5645,
-        "created": 1793580667.59
-      },
-      "manager": {
-        "pid": 5864,
-        "created": 1793580671.5,
-        "loaded_driver": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
-        "sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4"
-      },
-      "api": {
-        "pid": 6627,
-        "created": 1793580736.62
-      }
-    },
-    "selected_skills": [
-      "pee",
-      "push_up",
-      "secret_dance",
-      "sit_stay_shake",
-      "stand_downward_dog",
-      "stand_sit_stand"
-    ],
-    "deployment": {
-      "application_revision": "f45954627c80cf5408ca57bd618a783876b39da0",
-      "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
-      "driver_overlay": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build",
-      "ui_bundle": "index-DpeuNo6e.js",
-      "ui_sha256": "0b9c13248c8258143f1c17d34c175627e736273ccc2482cd77948ae05ff6dfb6",
-      "pins_sha256": "9700e70ed560b01372510ea46499eaa91cf3ae9cc466efc1803ea42a916ed3f6",
-      "app_delta_sha256": "bc906a36381f84cce117371f91a1c6c66a10814268aea96001bb47622247406b",
-      "native_policies_gains_limits": "unchanged; secret_dance is the same previousgeneratedpolicy, not slewcandidate ornewpushupreference",
-      "ui_revision": "6a2506541895a38fe00a9e103cad5b2d5cf5091b",
-      "web_only_update_record": "voice-banner-update.json"
-    },
-    "observations": {
-      "standing": "User good after askingfornormalstockstanding andreadytowatchgeneratedtest",
-      "battery_last": {
-        "percentage": 14,
-        "voltage": 16.73,
-        "pi_cpu_temperature_c": 82.05
-      },
-      "generated_motion": "Firsttestnotwatched. Repeat: user sawchangedstandingstance, smallsway, kindofjittery/shookaroundforfewseconds; notaccepted asclear/polishedmotion.",
-      "voice_sit_chain": "User observed full Sit/10second wait/both paws/stand, pretty good, about1second between queued actions. No confirmations audible; audio defect reproduced.",
-      "voice_stop_failed": "Root mistakenly specified0.15m/s below0.2minimum; API rejected move but old client permitted subsequent turn. User saw only turns, slow/missing speech. Not Stop acceptance.",
-      "spoken_stop": "Onevalidsupervisedtrialpassed physicalobservation+queueandcmd_vel evidence; seevoice_repair_physical report.",
-      "right_paw_repeat": "First repeat not watched; requested second Sit/right-paw/stand repeat: user yeah works and yes on stand."
-    },
-    "current_batch": "Complete. Operator confirmed repeatedSit/right-paw/stand; robot supported, drivercleanlyshutdown, completearchiveverified; batteryreplacement can proceed.",
-    "prior_session": {
-      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-imu-candidate",
-      "status": "Shutdown cleanly, complete archiveverified; see ws1_imu_candidate_physical report"
-    },
-    "recording": {
-      "closed_generated_capture": "generated-diagnostic-capture.tar.gz",
-      "archive_sha256": "3bffdf4a7b56bb37f691f771776d6c26ce5d42cc689305c04dd4a3939105367f",
-      "local": "/private/tmp/ws1-generated-corrected-capture",
-      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generated-corrected-reader-capture.tar.gz",
-      "continuing_directory": "telemetry-final",
-      "recorder_pid": 33861,
-      "note": "Readlatestowned-processes.json forcreationidentity; no action duringrecorderrollover.",
-      "recorder_created": 1793583539.3,
-      "latest_closed_capture": {
-        "archive_sha256": "20688692a14571153decb2f7af11e32d55285d2e73264c44a9ba0f50e507b277",
-        "bytes": 123231076,
-        "indexed_files_verified": 33,
-        "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/voice-reviewed-capture.tar.gz"
-      },
-      "status": "All recorders stopped; complete archive verified110 members and durable copy.",
-      "complete_capture": {
-        "archive": "/private/tmp/ws1-voice-generated-complete/20261101-ws1-voice-generated-complete.tar.gz",
-        "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/20261101-ws1-voice-generated-complete.tar.gz",
-        "sha256": "8ef6deb3f53bf8576eab05603e3681a9e015a0acc9cbda01a37cb7a0b80995fd",
-        "bytes": 199453112,
-        "files_verified": 110
-      }
-    },
-    "next_session": {
-      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-pushup-yaw-candidate",
-      "boot_id": "6488fbb6-b9b4-4f6c-a83e-b24c4db3c3bd",
-      "status": "Camera only PID4738 started1793585299.59; native/API not launched. Chargedbattery onstand operatorconfirmed; controllerPSrequestpending,js0absent atlastread.",
-      "prepared_profile_sha256": "d12173e18689a0d064f2a6e000c52546d2ebfd9dae8f3b7a3d58e149542e9b21",
-      "runtime_manifest_sha256": "102f2b31b45839d039415faffa33e7ac6b8555e462ab6421b315affbcfb31201",
-      "pins_sha256": "b8950b2755fe6596e35ef5007b3234750d1e1f8d821f183e39a95d43182acb91",
-      "staged_app": "acb07df plus separate research push_up_yaw_candidate policya84e8872; native/gains/limitsunchanged",
-      "delta_sha256": "940e12f7be09e021b565c43e9f1bdd7f7012be1f02fd573356cfe065f99ccb32",
-      "readiness": "ActualPi prepare_session_profile passed9motioncontrollers/13stoproster. No activation. Freshbootvcgencmdthrottled0/temp70.8C.",
-      "web_delta_sha256": "56e094bb318f19c0b2e1cd576ccd63b295b86e1cb14a51a17da249e13c7142a4",
-      "web_bundle": "index-Cre9VoGW.js",
-      "web_sha256": "64fbf53487c4b292969b7fafc7746ecbb0c781fa7f62fad4c81a60476089fbba",
-      "source_scope": "ER receipt consumer, fixed status-only paw clarification, conditional visual-side prompt and UI polish; 294 root web tests/typecheck/build passed. Physical camera orientation context has NOT been asserted."
-    }
+  "compute_spend_policy": {
+    "user_billing_enabled_now": true,
+    "approval_threshold_usd": 5,
+    "interpretation": "Ask user before a run or exploration batch expected above$5; currentcombinedvoicecomparison cap$5, ER2+TTS subbudget$1. No spendinglimit beyond notification/approval threshold; do not split work to evade it.",
+    "current_voice_batch": "Shared cap$5. ERconservative$.8444/observedestimated$.0481; nativevision upper$.4734; ERvision observed$.1188; descriptionprobe \u2264$.15; clarificationtestreserved\u2264$.50. Browserusage additional/uninvoiced; no requestexpectedtoapproach$5."
   },
-  "activity": {
-    "automation": "PAUSED; persistent goal ACTIVE",
-    "compute": "Fresh matched sway/bob Colab pilot authorized<=15 prepaidCU, no purchase, immutable45min limit; inspect agent before allocation/retry. Robot camera only; local fake8000 PID91183.",
-    "root": "Reviewed changes integrated/built/staged without native restart; waiting controller reconnect. Root owns all actual robot actions.",
-    "agents": "native_shutdown_fix: authorized bounded matched sway/bob training; gemini_execution: combined voice guard review; trial_preparation: remaining acceptance matrix."
-  },
-  "evidence": {
-    "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
-    "driver_release": "foundation/results/full-stock-release-investigation.json",
-    "camera": "foundation/results/live-camera-perception-reviewed.json",
-    "battery": "foundation/results/battery-monitor-reviewed.json",
-    "gemini_wait": "foundation/results/gemini-live-wait-reviewed.json",
-    "failed_floor": "foundation/results/floor-stock-trial-20261030.json",
-    "offline_capabilities": "foundation/results/course-capability-coverage.json",
-    "gemini_live": "foundation/results/gemini-realtime-live-reviewed.json",
-    "floor_preparation": "foundation/results/floor-stock-offline-diagnosis.json",
-    "workflow": "foundation/results/offline-workflow-improvements-20261030.json",
-    "floor_raw_recovery": "foundation/results/floor-stock-raw-recovery-20261030.json",
-    "floor_attempt3_archive": "artifacts/hardware/2026-10-30/workstream1-floor-attempt3.tar.gz",
-    "floor_attempts12_input_review": "artifacts/hardware/2026-10-30/workstream1-floor-attempts-1-2-independent-input-review.json",
-    "web_manual_review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json",
-    "lab6_floor_basic": "foundation/results/lab6-floor-basic-20261030.json",
-    "ws1_offline": "foundation/results/workstream1-offline-20261030.json",
-    "ws1_offline_rehearsal": "foundation/results/workstream1-offline-rehearsal-20261030.json",
-    "ws1_stop_grounding": "foundation/results/workstream1-stop-grounding-20261030.json",
-    "ws1_code_feedback": "foundation/results/workstream1-code-feedback-20261030.json",
-    "ws1_combined_conversation": "foundation/results/workstream1-combined-conversation-20261031.json",
-    "ws1_hardware": "foundation/results/workstream1-hardware-20261101.json",
-    "ws1_deliberate_voice": "foundation/results/workstream1-deliberate-voice-20261101.json",
-    "generated_hardware_diagnostic": "foundation/results/generated-motion-hardware-diagnostic-20261101.json",
-    "prior_continuation_start": "foundation/results/history/interruption-recovery-20261101-before-continuation.json",
-    "generated_timing_slew": "foundation/results/generated-motion-timing-slew-20261101.json",
-    "ws1_hardware_imu_failure": "foundation/results/workstream1-hardware-imu-failure-20261101.json",
-    "ws1_native_receipts": "foundation/results/workstream1-native-receipts-20261101.json",
-    "optional3_context": "foundation/results/optional3-context-20261101.json",
-    "ws1_handshake_chain": "foundation/results/workstream1-handshake-chain-20261101.json",
-    "ws1_probe3": "foundation/results/workstream1-imu-probe3-20261101.json",
-    "imu_candidate": "foundation/results/imu-parser-candidate-20261101.json",
-    "ws1_imu_candidate_physical": "foundation/results/workstream1-imu-candidate-physical-20261101.json",
-    "trick_quantity": "foundation/results/workstream1-trick-quantity-20261101.json",
-    "approved_receipt_audio": "foundation/results/workstream1-approved-receipt-audio-20261101.json",
-    "pushup_neutral_reference": "foundation/results/pushup-yaw-neutral-reference-20261101.json",
-    "voice_sequencing": "foundation/results/workstream1-voice-sequencing-20261101.json",
-    "voice_repair_physical": "foundation/results/workstream1-voice-repair-physical-20261101.json",
-    "live_idle": "foundation/results/live-idle-diagnostic-20261101.json",
-    "context_transport": "foundation/results/workstream1-context-and-transport-followup-20261101.json",
-    "generation_seal": "foundation/results/workstream1-generation-seal-20261101.json",
-    "er_feasibility": "foundation/results/workstream1-er-tts-feasibility-20261101.json",
-    "er_receipts": "foundation/results/workstream1-er-receipts-candidate-20261101.json",
-    "vision_native": "foundation/results/workstream1-vision-paw-native-20261101.json",
-    "status_clarification": "foundation/results/workstream1-status-clarification-20261101.json",
-    "vision_er": "foundation/results/workstream1-vision-paw-er-20261101.json",
-    "vision_description": "foundation/results/workstream1-vision-describe-er-20261101.json",
-    "vision_er_side_rule": "foundation/results/workstream1-vision-paw-er-side-rule-20261101.json"
-  },
-  "next": [
-    {
-      "id": "physical",
-      "action": "Controller PS reconnect pending; once connected and user watching start prepared start-session.py ONE homing, start API, floor stockstand, one direct watched pushup yaw candidate; preserve actual IMU and routine/return."
-    },
-    {
-      "id": "voice",
-      "action": "Combined ER2/Puck receipt+clarification+conditional paw-side prompt integrated. Check actual audible browser/robot conversation; confirm physical camera orientation before adding specific test context. Named paw works without that assertion."
-    },
-    {
-      "id": "generated",
-      "action": "Agent running bounded matched sway/bob pilot using existing credits; no auto deployment. Keep complete checkpoint collector/archive and native comparison."
-    },
-    {
-      "id": "external_handoffs",
-      "action": "Follower and Spider pair still awaited from teammates; do not claim tested integration."
-    }
-  ],
-  "do_not_repeat": [
-    "Do not restart completed Colab studies or rediscover baseline backups without a changed dependency.",
-    "Do not treat on-stand, mock, simulation or model-acceptance evidence as floor success.",
-    "Do not run broad suites or create another staged copy while owners still edit; first freeze the selected source.",
-    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
-    "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified."
-  ],
   "validation_commands": {
     "interpreter": "Use environment.python for these commands; they make no hardware/API calls.",
     "gemini": [
@@ -234,108 +49,122 @@
       "gemini_pupper/lab/test.py"
     ]
   },
-  "offline_candidate": {
-    "path": "artifacts/access/ws1-combined-20261031/candidate/source.tar.gz",
-    "sha256": "ce2f25be5b1518946a9231058a1fab2abfa7521de25068f81c030470af4118fc",
-    "source_manifest": "artifacts/access/ws1-combined-20261031/candidate/source-manifest.json",
-    "file_count": 225,
-    "native_limit": "Historical offline base now integrated into live 2026-11-01 session plus subsequent reviewed software changes. Current deployment is hardware_session.deployment/API r2/UI bundle; the prior local-only overflow limitation is resolved. Hardware coverage remains bounded by recorded observations.",
-    "latest_ux": {
-      "commit": "6e37397",
-      "report": "foundation/results/workstream1-deliberate-voice-20261101.json",
-      "web_tests": 188,
-      "browser_synthetic_checks": 24,
-      "deployed": true,
-      "real_speech_checked": true,
-      "bundle": "index-ByVhJ0MN.js",
-      "sha256": "2ae75785f593eb19120d5f4ae39a952751dce894b1f134f101d6f5ee7396ff34",
-      "real_speech_scope": "One user-confirmed actual PTT greeting; broader repeatability/comfort still pending."
-    }
+  "do_not_repeat": [
+    "Do not restart completed Colab studies or rediscover baseline backups without a changed dependency.",
+    "Do not treat on-stand, mock, simulation or model-acceptance evidence as floor success.",
+    "Do not run broad suites or create another staged copy while owners still edit; first freeze the selected source.",
+    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
+    "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified."
+  ],
+  "updated_utc": "2026-11-02T04:40:10.107443+00:00",
+  "authorization": "User requested natural conclusion of physical session. All robot-owned processes stopped and archives verified; user told safe to poweroff. Continue offline; no further hardware/SSH or motion needed for this handoff.",
+  "current_report": "foundation/results/workstream1-idle-sensor-recurrence-20261101.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261102T034958Z-before-compaction.json",
+    "sha256": "22dbbed05d7c4329596a398c644e7a8beda3efe3024759628386d11661a57908",
+    "meaning": "Full prior operational record and older source/archive identities. Historical only; do not resume its old processes."
   },
-  "offline_diagnostics": {
-    "status": "Combined conversation/control reviewed and complete for selected offline checks.",
-    "base_commit": "a6f4fd7e647c556d3f55cc1a2ee5fb57d3b40425",
-    "report": "foundation/results/workstream1-combined-conversation-20261031.json",
-    "active": [],
-    "contract": "One mode retains native conversation and all tools. Tool-turn narration replaced by actual receipts; tool-free English claim screening heuristic. Whole-turn playback delay and native transcript coverage limits documented in current report.",
-    "validation": {
-      "python": 702,
-      "course": 166,
-      "web": 122,
-      "browser": 21,
-      "actual_gemini_fake_sessions": 2
+  "hardware_session": {
+    "status": "CLOSED. Driver/API/camera/recorders stopped cleanly. User supported robot and was told it can be poweredoff. Strong idle sensor drift reproduced with voiceoff and persists in rawreports aftermotoroff; no nextmotion until investigated.",
+    "ssh": "mts",
+    "owner": "/root",
+    "boot_id": "4a17c2a2-1b99-4f8a-b4ed-db243ea93dad",
+    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-idle-reliability",
+    "deployment": {
+      "application_commit": "b879bfe15d8ebcceb5c934c4a321938dd485bb8e",
+      "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+      "ui_bundle": "index-CcxVmLL9.js",
+      "ui_sha256": "de9ff27f3068d016039b92d6b91daa351fb73d0f7fba097981694d6d1aecd1e5",
+      "release_sha256": "dec7ccd6f76bb40566adbbf7bd51ad73af84eb5c60e4052e674a9b13a851349c",
+      "installed_verified_files": 25,
+      "policy": "Supplied standing-ending finite tricks plus prior selected expanded-COM Sit. No research pushup or generated-bob candidate. Gains/limits/native unchanged."
     },
-    "prepared_six_turn_fake_browser": "Prepared but unrun; superseded as the next priority by actual supervised voice/hardware progress. Do not record it as a passed rehearsal."
+    "completed_diagnostics": {
+      "sensor_report": "foundation/results/workstream1-sensor-followup-20261101.json",
+      "camera_report": "foundation/results/workstream1-camera-sensor-comparison-20261101.json",
+      "result": "Corrected passive address and boot identities; body-axis signs agree; brief58deg event operator handling unknown. Camera+IMU120s no large rotation; two small timeout gaps. No cure claim; all originals and failed diagnostics preserved."
+    },
+    "last_complete_motor_capture": {
+      "local_archive": "/private/tmp/ws1-idle-reliability-complete/complete.tar.gz",
+      "repo": "artifacts/hardware/2026-11-01/idle-reliability-complete",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/idle-reliability-complete",
+      "sha256": "14606a962c8c085200b9085fbe3ab60770f5a335396e89bc0d69916cd0acbf22",
+      "bytes": 296041034,
+      "files_verified": 1036,
+      "frozen_inputs": 32
+    },
+    "shutdown": {
+      "driver_clean": true,
+      "api_clean": true,
+      "previous_ROS_context_shutdown_error_recurred": false,
+      "motor_api_camera_recorders_active": false,
+      "user_notified_safe_to_power_off": true,
+      "power_off_not_independently_observed": true,
+      "automatic_restart_or_homing": false
+    },
+    "process_receipts": "owned-processes.json,control-shutdown.json,data-shutdown.json inside completearchive; historical identities only, notliveauthorization."
+  },
+  "activity": {
+    "automation": "off at user request",
+    "compute": "No GPU training active; completed studies archived.",
+    "owners": {
+      "root": "offline continuation; no activehardware orlocalserver",
+      "native_shutdown_fix": "idle;finalsensoranalysisarchivecomplete",
+      "lab6_trial_preparation": "idle;reviewsandarchivescomplete",
+      "lab6_gemini_execution": "primaryresearchprovenanceconfirmationthenidle"
+    }
   },
   "local_rehearsal": {
-    "url": "http://localhost:8000/?build=clarify-er-Cre9VoGW",
-    "runtime": "fake",
-    "status": "Exact bundle verified loaded; fake rehearsal only. Human microphone check remains pending, no result inferred.",
-    "process_receipt": "/private/tmp/ws1-generation-seal-browser/process.json",
-    "robot_forward": "Removed exact127.0.0.1:8000:127.0.0.1:18090; sharedmux preserved; about:blank thenfreshnavigation prevents old keepalive route.",
-    "ui_bundle_sha256": "64fbf53487c4b292969b7fafc7746ecbb0c781fa7f62fad4c81a60476089fbba"
+    "status": "Stopped ownedfakePID2130 cleanly; browser lastabout:blank; no voiceconnected orrobotforward.",
+    "log": "/private/tmp/ws1-neutral-fake-rehearsal.log"
   },
-  "archives_latest": [
+  "offline_integrated_fixes": {
+    "manual": "Atomic idle admission and browser pending/unknown protection integrated; intentional voice queue unchanged.",
+    "api_shutdown": "ASGI owns signals; ROS kept alive until final stop and cleanup.",
+    "validation": "50 affected integrated Python tests,27 affected web tests, TypeScript and production build passed. Author full suites and independent source reviews archived.",
+    "source_manifest": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-manual-and-shutdown-20261101/integrated-sources.json",
+    "hardware_deployed": true,
+    "real_ros_signal_smoke": "Actual Pi isolated diagnostic publishers: SIGINT/SIGTERM both passed context-valid final publish before shutdown. No Robot controller or physical stopping test.",
+    "commit": "b879bfe",
+    "goaway": "Integrated reviewed explicit expiry close/reconnect; no automatic replay. Actual provider expiry retest pending.",
+    "neutral_cue": "One approved Okay after first accepted motion in provider turn; failure/Stop remain explicit. Human fake rehearsal passed.",
+    "latest_local_commit": "c5f0d5f",
+    "latest_local_report": "foundation/results/workstream1-status-and-disconnect-20261101.json",
+    "latest_local_deployed": false
+  },
+  "evidence": {
+    "fall_incident": "foundation/results/workstream1-fall-incident-20261101.json",
+    "manual_shutdown": "foundation/results/workstream1-manual-and-shutdown-20261101.json",
+    "voice_expiry": "foundation/results/workstream1-goaway-20261101.json",
+    "pushup_candidate": "foundation/results/pushup-yaw-candidate-physical-20261101.json",
+    "bob_training": "foundation/results/generated-bob-training-20261101.json",
+    "bob_contact": "foundation/results/generated-bob-contact-extent-20261101.json",
+    "corrected_driver_trials": "foundation/results/workstream1-imu-candidate-physical-20261101.json",
+    "voice_stop": "foundation/results/workstream1-voice-repair-physical-20261101.json",
+    "idle_sensor_recurrence": "foundation/results/workstream1-idle-sensor-recurrence-20261101.json",
+    "status_disconnect": "foundation/results/workstream1-status-and-disconnect-20261101.json",
+    "idle_sensor_analysis": "artifacts/hardware/2026-11-01/idle-sensor-analysis/analysis.json"
+  },
+  "next": [
     {
-      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/continuation-powerloss.tar.gz",
-      "bytes": 61853812,
-      "sha256": "02e061170d9642d4cf7b769730ef3c3d200d107d68fc8ec157443ceb2ce79ecb"
+      "id": "sensor_validity",
+      "action": "Offline: finish full-rate/camera correlation, expose accuracy/quality fields, prepare an isolated sensor-only current-feature/calibration/product readback and calibrated-versus-uncalibratedgyro/bias comparison. No new sensor report types under the current running parser, which intentionally rejects unsupported mixed reports."
     },
     {
-      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/battery2-imu-failure.tar.gz",
-      "bytes": 45038700,
-      "sha256": "3c56a0712ea2d6efb4931a45935754f0c1ae8bb3f764f6d8cc1344cc84bc38d8"
+      "id": "next_physical",
+      "action": "Next physical session begins supported and sensor-only; no automatic reset/homing. After evidence supports sensor validity, resume persistent supervised stock/Sit/transition testing."
     },
     {
-      "created_utc": "2026-11-02T00:31:52.384485+00:00",
-      "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/imu-candidate-physical/imu-candidate-physical-20261101.tar.gz",
-      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/imu-candidate-physical-20261101.tar.gz",
-      "bytes": 60239324,
-      "sha256": "62aaa13fdca5da5302346474b7759e70e8f028ed1f9f9562fb1b3af83c60a1a6",
-      "main_mcap": {
-        "bytes": 358157229,
-        "sha256": "002a2c4455260783e7a77c6100162def31f1de3a33ca1b2cb1859324ade9986e"
-      },
-      "remote_manifest_verified": true,
-      "link_note": "Absolute roslogs/latest symlink preserved in original tar and explicit index, not followed on extraction."
+      "id": "workstream_remaining",
+      "action": "Deploy and rehearse committed status/connection UI fixes separately; remaining generated-motion quality, pushup transitions and teammate follower/Spider handoffs remain open."
     }
   ],
-  "updated_at": "2026-11-02T02:35:12.060024+00:00",
-  "offline_count_candidate": {
-    "commit": "950988d",
-    "deployed": true,
-    "regression_checks": 866,
-    "actual_gemini_fake_typed_requests": 6,
-    "meaning": "Explicit count/unit required; unsupported quantities rejected before queue. Sampled model requests correctly refused10push-ups andtwice, ordinaryonce/chainsworked. Speech interpretation and arbitrarymodelreliability notproven.",
-    "rejected_design": "Blanket voice-push_up disable based on unavailable final transcript binding; preserved separately, not integrated. Ordinary voice tools remain available."
-  },
-  "offline_voice_candidate": {
-    "status": "Committed and web-only assets installed onPi; native/API not restarted. Corrected actual Chrome fake rehearsal underway; root verified script identity after catching old cached index infirstfakeattempt.",
-    "root": "/private/tmp/ws1-model-action-failure-20261101",
-    "web_tests": 262,
-    "peer_tests": 35,
-    "cli_selected_tests": 93,
-    "human_review": "Original4clips approved;8additionalclips user listened and said Clear and consistent.",
-    "bundle": "index-bxqP8BKy.js",
-    "sha256": "6aa8e97fc5e403b428c5dc6c48e1b190c5904c72a280ee048392f32db87f63db",
-    "commit": "5830b84",
-    "actual_fake": "Verifiednewbundle: all5Sit-chaincallsaccepted; invalid.15m/smove rejected, subsequentturn Not sent/noPOST. User I believe it worked. Browser schedulesfirstfixedcue3msafterHTTPresponse, notacousticmeasurement. Priorstaleoldbundleattemptrejected. OneGoogle1008abortafteridle recorded, automaticStopresponseconfirmed; causeunknown."
-  },
-  "pushup_training": {
-    "owner": "/root/native_shutdown_fix",
-    "session": "pushup-yaw-20261101",
-    "gpu": "RTX PRO6000 Blackwell98GB",
-    "remote_root": "/content/pupper-pushup-yaw-20261101",
-    "local_receipts": "/private/tmp/ws1-pushup-training",
-    "status": "Both500iteration matchedarmscompleted;86filefullarchiveverified andcollector36/36; GPUreleased01:24:38UTC. Agent owns nativeevaluation, no deployment.",
-    "hypothesis": "Train original and mirror-symmetrized references with matchedclassPPO ratherthanretargetingshippedweights, whichfailed5nativecomparison screens.",
-    "budget": "OneGPU,45minmaximum fromsmokestart;64env2iteration smoke then locallyverifiedcheckpointcollectionbefore4096env1000iterationspermatchedarm.",
-    "do_not_duplicate": "Readactualagent/jobexit/checkpointcollector evidencebeforeanyretry. No newpolicy hardwarepromotion."
-  },
-  "compute_spend_policy": {
-    "user_billing_enabled_now": true,
-    "approval_threshold_usd": 5,
-    "interpretation": "Ask user before a run or exploration batch expected above$5; currentcombinedvoicecomparison cap$5, ER2+TTS subbudget$1. No spendinglimit beyond notification/approval threshold; do not split work to evade it.",
-    "current_voice_batch": "Shared cap$5. ERconservative$.8444/observedestimated$.0481; nativevision upper$.4734; ERvision observed$.1188; descriptionprobe \u2264$.15; clarificationtestreserved\u2264$.50. Browserusage additional/uninvoiced; no requestexpectedtoapproach$5."
-  }
+  "acceptance_boundaries": [
+    "Prolongedholdbaseline notaccepted. Currentvoice-offblock reproducesunreliableIMUheading; biaspersistsmotoroff. Priorfallcause notfullyestablished.",
+    "Five-minute sensor capture contains one brief58deg yaw event; operator unsure if robot was moved. Do not label it continuous drift or dismiss it.",
+    "Body-axis hand movements matched expected signs; no frame flip is supported.",
+    "User verified one neutral Okay per accepted fake multi-action turn and audible normal greeting/clarification. Explicit reconnect integrated; unexplained provider1008idle closure remains.",
+    "Push-up drift and transitions remain unaccepted; improved bob simulation remains unpromoted.",
+    "Follower and Spider handoffs absent; arbitrary self-righting is not provided by stand."
+  ]
 }

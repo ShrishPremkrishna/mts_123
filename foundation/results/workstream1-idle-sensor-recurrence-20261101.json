@@ -1,0 +1,125 @@
+{
+  "schema": "ws1_idle_sensor_recurrence_v1",
+  "updated_utc": "2026-11-02T04:37:59.056645+00:00",
+  "status": "physical_session_closed_sensor_validity_failed_no_motion_promotion",
+  "scope": "One supervised homing; voice disconnected; stock stand, prolonged Sit, standing exit and zero-command Lab6 stand. No new policy/gain/limit change. User then R3/support; clean API/native shutdown; same-boot passive IMU capture without reset.",
+  "source": {
+    "application_commit": "b879bfe15d8ebcceb5c934c4a321938dd485bb8e",
+    "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "boot_id": "4a17c2a2-1b99-4f8a-b4ed-db243ea93dad",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-idle-reliability",
+    "exact_inputs": "32 frozen inputs and original runtime-manifest.json inside complete archive"
+  },
+  "timeline_epoch_s": {
+    "homing_finished": 1793592598.785023,
+    "stock_controller_active": 1793592893.437095,
+    "sit_requested": 1793593086.90455,
+    "sit_entry_confirmed": 1793593092.613,
+    "standing_exit_requested": 1793593331.162419,
+    "standing_exit_confirmed": 1793593339.196,
+    "api_zero_stop_requested": 1793593503.258307,
+    "operator_R3_recorded": 1793593536.755,
+    "driver_disabled": 1793593579.549554,
+    "passive_no_reset_started": 1793593675.247666,
+    "passive_finished": 1793593735.250054
+  },
+  "operator_observations": [
+    {
+      "phase": "stock stand",
+      "statement": "Standing normally; watching"
+    },
+    {
+      "phase": "Sit hold",
+      "statement": "Stable so far; still watching"
+    },
+    {
+      "phase": "Sit heading",
+      "statement": "It is turned and shifted a little bit to the right counterclockwise.",
+      "interpretation": "Small shift reported; directional wording ambiguous."
+    },
+    {
+      "phase": "standing exit",
+      "statement": "Clean exit; standing steadily"
+    },
+    {
+      "phase": "post-exit heading",
+      "statement": "I believe it's stayed in the same direction. I'm ready to test again. Let me know before.",
+      "interpretation": "Qualified operator observation, not calibrated heading truth."
+    },
+    {
+      "phase": "end",
+      "statement": "R3 pressed; supported on stand"
+    }
+  ],
+  "findings": [
+    "Sit held approximately238.55s after entry confirmation before exit request, with a small physical shift reported. No fall reported during this block; this is not an accepted reliability baseline.",
+    "Full-rate first recording already shows abnormal heading before Sit. Stock3020–3086.9: quaternion yaw−74.24deg while integrated roll-rate approximately+74.27deg conflicts with near-level quaternion roll.",
+    "Late Sit147.20s: quaternion yaw−2.85deg versus gyro-projected approximately−86.68deg; discrepancy independently recomputed from full-rate data, not a1Hz observer artifact.",
+    "Second recording3455–3485: reported yaw−106.67deg and roll+26.98deg. Selected walking-command messages were zero; voice remained disconnected.",
+    "Matched camera frames retain the same dresser/basket/door scene with modest viewpoint changes during the large reported standing yaw excursion. This independently supports unreliable heading, but is not calibrated angle measurement.",
+    "After driver shutdown, same-boot/no-reset60s passive capture reports mapped yaw−69.523deg and sensor-X gyro mean−0.029379rad/s. Rotation-vector accuracy0 for all6002reports; gyroaccuracy2 for all6004reports. Camera viewpoint remains qualitatively fixed.",
+    "Passive capture has0readfailures and0reportparsefailures;1timeout and1invalidpacket at startup. These exceptions are preserved, not silently excluded.",
+    "Persistence with motors disabled contradicts an explanation requiring an actively running motion command alone. It does not identify whether the remaining cause is calibration, sensor fusion, hardware, or another driver/protocol issue."
+  ],
+  "shutdown": {
+    "driver_clean": true,
+    "api_clean": true,
+    "previous_ROS_context_shutdown_error_recurred": false,
+    "motor_api_camera_recorders_active": false,
+    "user_notified_safe_to_power_off": true,
+    "power_off_not_independently_observed": true,
+    "automatic_restart_or_homing": false
+  },
+  "archive": {
+    "archive": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-idle-reliability-complete.tar.gz",
+    "bytes": 296041034,
+    "sha256": "14606a962c8c085200b9085fbe3ab60770f5a335396e89bc0d69916cd0acbf22",
+    "indexed_files": 1036,
+    "frozen_inputs": 32,
+    "at": 1793593859.985261,
+    "all_indexed_files_verified": 1036,
+    "symlinks_not_recreated_locally": [
+      {
+        "name": "20261101-ws1-idle-reliability/roslogs/latest",
+        "target": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-idle-reliability/roslogs/2026-11-01-20-09-46-833538-mts-26533",
+        "preserved_in_archive": true
+      }
+    ],
+    "local_archive": "/private/tmp/ws1-idle-reliability-complete/complete.tar.gz",
+    "extracted": "/private/tmp/ws1-idle-reliability-complete/capture/20261101-ws1-idle-reliability",
+    "repo": "artifacts/hardware/2026-11-01/idle-reliability-complete",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/idle-reliability-complete",
+    "copies_sha256_verified": true
+  },
+  "diagnostic_failures_preserved": [
+    "First subscription observer failed from privateContext/defaultexecutor mismatch before any messages; corrected explicit executor version recorded180s successfully. Continuous MCAP covered both intervals.",
+    "ROS roslogs/latest absolute symlink remains in original archive; deliberately not recreated on Mac. All1036indexedregularfiles verified."
+  ],
+  "software_completed_separately": {
+    "commit": "c5f0d5f",
+    "report": "foundation/results/workstream1-status-and-disconnect-20261101.json",
+    "deployment": "local only; robot session used priorb879bfe",
+    "root_verification": "10Python+99affectedweb tests,TypeScript,productionbuild passed"
+  },
+  "next": [
+    "Keep motion testing paused until sensor validity has a reviewed explanation and successful stationary validation. Do not retrain policies or widen gains/limits to compensate for this evidence.",
+    "Offline: finish full-rate/camera correlation, expose accuracy/quality fields, prepare an isolated sensor-only current-feature/calibration/product readback and calibrated-versus-uncalibratedgyro/bias comparison. No new sensor report types under the current running parser, which intentionally rejects unsupported mixed reports.",
+    "Next physical session begins supported and sensor-only; no automatic reset/homing. After evidence supports sensor validity, resume persistent supervised stock/Sit/transition testing.",
+    "Deploy and rehearse committed status/connection UI fixes separately; remaining generated-motion quality, pushup transitions and teammate follower/Spider handoffs remain open."
+  ],
+  "analysis": {
+    "report": "artifacts/hardware/2026-11-01/idle-sensor-analysis/analysis.json",
+    "report_sha256": "de4e7e3445afa309d4272cbcc8fba8cd39463bd8964cd9ed7525bb628228b541",
+    "archive": "artifacts/hardware/2026-11-01/idle-sensor-analysis/complete.tar.gz",
+    "archive_sha256": "4261f9a5b723c1cee964f09e70cc06ccbe0eaf34d5a41b925c9da72c2c2b9604",
+    "indexed_files": 59,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/idle-sensor-analysis",
+    "independent_checks": {
+      "postdisable": 55,
+      "segment1": 1232,
+      "observer_aggregates": 1272,
+      "segment2": "author analysis; not independently rerun"
+    },
+    "camera": "Author viewed matched8frames; root independently compared postdisablefirst/lastframes. Qualitative stationaryscene, no calibrated angle or uninterrupted external truth."
+  }
+}

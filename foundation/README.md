@@ -46,7 +46,11 @@ Read only the report relevant to the next decision.
   [failure record](results/workstream1-hardware-imu-failure-20261101.json) and
   [reviewed parser/freshness repair](results/imu-parser-candidate-20261101.json)
   explain the driver work. Later improved trials do not prove every failure was
-  caused by that defect or that sensor bias cannot recur.
+  caused by that defect or that sensor bias cannot recur. The later
+  [voice-off hold and motor-disabled capture](results/workstream1-idle-sensor-recurrence-20261101.json)
+  reproduced large sensor-heading changes against a qualitatively stationary
+  camera view, including about 69° in a minute after motor shutdown. Sensor
+  validity remains unresolved; further motion testing is paused pending diagnosis.
 - **Software feedback has a narrower meaning than motion:** “queued” follows
   actual queue insertion; controller receipts prove matching playback progress,
   not physical posture. Current voice work retains conversation and commands
