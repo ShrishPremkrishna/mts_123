@@ -1,0 +1,137 @@
+{
+  "scope": "actual candidate code, fake ROS/virtual monotonic clock; not physical timing",
+  "accepted": [
+    {
+      "success": true,
+      "message": "wait 0.1s queued (accepted, not completed); estimated queue time 0.1 s",
+      "details": {
+        "submission": {
+          "schema": "pupper_submission_v1",
+          "state": "queued",
+          "job_id": "f8976e17ce4843d688cc1e464ab16f76:1",
+          "server_instance": "f8976e17ce4843d688cc1e464ab16f76"
+        }
+      }
+    },
+    {
+      "success": true,
+      "message": "bounded sample hold queued (accepted, not completed); estimated queue time 1.0 s",
+      "details": {
+        "submission": {
+          "schema": "pupper_submission_v1",
+          "state": "queued",
+          "job_id": "f8976e17ce4843d688cc1e464ab16f76:2",
+          "server_instance": "f8976e17ce4843d688cc1e464ab16f76"
+        }
+      }
+    },
+    {
+      "success": true,
+      "message": "wait 0.2s queued (accepted, not completed); estimated queue time 1.2 s",
+      "details": {
+        "submission": {
+          "schema": "pupper_submission_v1",
+          "state": "queued",
+          "job_id": "f8976e17ce4843d688cc1e464ab16f76:3",
+          "server_instance": "f8976e17ce4843d688cc1e464ab16f76"
+        }
+      }
+    }
+  ],
+  "stop": {
+    "success": true,
+    "message": "Running job 'bounded sample hold': cancellation requested; terminal cancellation not yet confirmed. Cleared 1 pending queued commands, separate from the running job. zero walking speed requested. Physical stopping has not been measured.",
+    "details": {
+      "running_job": {
+        "name": "bounded sample hold",
+        "job_id": "f8976e17ce4843d688cc1e464ab16f76:2",
+        "server_instance": "f8976e17ce4843d688cc1e464ab16f76",
+        "cancellation_requested": true,
+        "terminal_state": "pending"
+      },
+      "pending_queued_commands_cleared": 1,
+      "pending_queued_job_ids_cleared": [
+        "f8976e17ce4843d688cc1e464ab16f76:3"
+      ],
+      "physical_observation": {
+        "stopped": null,
+        "pose": null
+      }
+    }
+  },
+  "status": {
+    "queued": 0,
+    "running": false,
+    "current_action": null,
+    "physical_observation": {
+      "pose": null,
+      "speed": null,
+      "stopped": null
+    },
+    "seconds_left": 0.0,
+    "following": false,
+    "controller_fault": null,
+    "state": "locomotion",
+    "state_after_queue": "locomotion",
+    "last_outcome": {
+      "job_id": "f8976e17ce4843d688cc1e464ab16f76:2",
+      "server_instance": "f8976e17ce4843d688cc1e464ab16f76",
+      "name": "bounded sample hold",
+      "success": false,
+      "message": "cancelled",
+      "terminal_state": "cancelled",
+      "execution_started": true,
+      "event_seq": 9,
+      "wall_time_s": 1793595838.958834,
+      "monotonic_s": 1000.1
+    },
+    "session_context": {
+      "schema": "pupper_session_context_v1",
+      "server_instance": "f8976e17ce4843d688cc1e464ab16f76",
+      "scope": "this_server_session",
+      "completed_sit_entries": 0
+    }
+  },
+  "recent_outcomes": {
+    "capacity": 64,
+    "dropped": 0,
+    "outcomes": [
+      {
+        "job_id": "f8976e17ce4843d688cc1e464ab16f76:1",
+        "server_instance": "f8976e17ce4843d688cc1e464ab16f76",
+        "name": "wait 0.1s",
+        "success": true,
+        "message": "waited 0.1 s",
+        "terminal_state": "succeeded",
+        "execution_started": true,
+        "event_seq": 3,
+        "wall_time_s": 1793595838.958646,
+        "monotonic_s": 1000.1
+      },
+      {
+        "job_id": "f8976e17ce4843d688cc1e464ab16f76:3",
+        "server_instance": "f8976e17ce4843d688cc1e464ab16f76",
+        "name": "wait 0.2s",
+        "success": false,
+        "message": "cancelled before execution started",
+        "terminal_state": "cancelled",
+        "execution_started": false,
+        "event_seq": 7,
+        "wall_time_s": 1793595838.9587688,
+        "monotonic_s": 1000.1
+      },
+      {
+        "job_id": "f8976e17ce4843d688cc1e464ab16f76:2",
+        "server_instance": "f8976e17ce4843d688cc1e464ab16f76",
+        "name": "bounded sample hold",
+        "success": false,
+        "message": "cancelled",
+        "terminal_state": "cancelled",
+        "execution_started": true,
+        "event_seq": 9,
+        "wall_time_s": 1793595838.958834,
+        "monotonic_s": 1000.1
+      }
+    ]
+  }
+}

@@ -213,10 +213,18 @@ class RobotBridge {
     return this.state.manualUnknownEpoch !== null || this.state.stopUnconfirmed || this.state.pendingStops > 0;
   }
 
+  /** Read-only freshness token; Stop changes it synchronously across same-URL bridges. */
+  statusGeneration(): number { return this.state.stopSerial; }
+
   async getQueueStatus() {
     const before = this.state.manualUnknownEpoch;
     const serial = this.state.stopSerial;
+    const stopPendingAtStart = this.state.pendingStops > 0;
     const result = await this.request('/queue/status', 'GET');
+    if (stopPendingAtStart || serial !== this.state.stopSerial || this.state.pendingStops) {
+      return { success: false, outcome_unknown: true,
+        message: 'Status check overlapped Stop; waiting for a fresh server report.' };
+    }
     const status = parseQueueStatus(result);
     // Same-epoch idle cannot disprove an old POST still in flight. A fresh
     // different server/Stop epoch invalidates it; never adopt that epoch here.

@@ -1,0 +1,52 @@
+{
+  "schema": "pupper_browser_job_identity_review_v1",
+  "updated_utc": "2026-11-02T09:14:52.313741+00:00",
+  "baseline": "4c8278a",
+  "status": "integrated_offline_reviewed_not_robot_deployed",
+  "changes": [
+    "Exact server/job-ID matching for latest accepted Gemini job; no name or model-call-ID matching",
+    "Missing, stale, evicted, restarted or contradictory evidence remains unconfirmed",
+    "Status GET begun during pending Stop cannot become current after Stop settles",
+    "No speech or action timing change"
+  ],
+  "validation": {
+    "scope": "Real Chrome local fake-robot smoke, voice disconnected; no SSH/hardware/cloud",
+    "bundle": "index-B4GvLMBf.js",
+    "full_web_tests": 348,
+    "independent_tests": 29,
+    "root_integrated_tests": 29,
+    "root_normal_build": true,
+    "browser": [
+      "FAKE REHEARSAL visible and voice disconnected",
+      "Manual half-second forward accepted; arrows paused until queue idle",
+      "Manual job result not attributed to Gemini request",
+      "Stop invalidates old status immediately; next fresh report recovers",
+      "Server shutdown removes current result evidence and disables manual arrows; Stop remains enabled"
+    ],
+    "fake_process": {
+      "pid": 12673,
+      "exec_exit": 0,
+      "final_queue_empty": true
+    },
+    "limits": [
+      "Latest Gemini exact match was service-callback/component-tested against frozen backend samples; no live Gemini call in browser smoke",
+      "API job result is not physical result or full multi-job route result"
+    ]
+  },
+  "artifacts": {
+    "repo": "artifacts/access/ws1-browser-job-ids-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-browser-job-ids",
+    "members": 50,
+    "manifest_sha256": "43263d7531b411851b6d07ef72e8f9ea080f74cba64bd134b2d086463e80d97c",
+    "copies_verified": true
+  },
+  "source_hashes": {
+    "gemini_pupper/web/services/executionStatus.ts": "9e4f0237596597e1605ca26ed7a3584fa60fcff226e7e1426a753fd6f21265e0",
+    "gemini_pupper/web/services/robotBridge.ts": "f486043dc0e68c8d87f3054788a33c01f363027666f83bb5c261d7d4e3aa76e5",
+    "gemini_pupper/web/components/ExecutionStatus.tsx": "8a68f250f34246e204ef3e82e9fba1691678229e43462e1f38b4fcf41c14d8db",
+    "gemini_pupper/web/services/geminiLive.ts": "1d999e2c1bb6369fd55f144466aec24bb3ed9052e14cc225df0b42b8c806daf4",
+    "gemini_pupper/web/tests/job-evidence.test.mjs": "b794f62c3e000dcafb8d0e2a79c21cc271fd14061c8563cb85d76b46f3a5f1d8",
+    "gemini_pupper/web/tests/fixtures/job-timeline-sample.json": "dc23f2fbe606ab9dd062ba2560bd751bdc9054a765672bc34bf4fbe3ae8eb21a"
+  },
+  "rejected_finding": "CR/LF identity example already rejected before changes in JavaScript; added length/trim checks are defensive, not a reproduced defect."
+}

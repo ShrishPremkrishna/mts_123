@@ -27,9 +27,12 @@ existing submission marker. The same IDs appear in current and terminal outcomes
 and finished events with wall and monotonic timestamps. Started/finished describe
 API job execution; native playback and physical outcomes remain separate.
 `/queue/status` retains the latest 64 terminal outcomes and a dropped-history
-count; routine model status does not include that history. The browser does not
-yet use these new IDs for its per-action completion matching. An endpoint that
-queues several jobs can return its final job receipt; the log retains each job.
+count; routine model status does not include that history. The browser matches the
+latest accepted Gemini request to its exact server/job IDs. Missing, stale,
+restarted or evicted evidence stays unconfirmed; a status check overlapping Stop
+cannot establish fresh evidence. Manual commands retain their separate feedback.
+An endpoint that queues several jobs can return its final job receipt; the log
+retains each job. A matched result is not whole-route or physical completion.
 
 Estimated queue time includes planned exits and controller readiness once. It is
 not a deadline or a physical-duration measurement. The read-only reporter combines

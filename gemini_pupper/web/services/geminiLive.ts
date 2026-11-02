@@ -5,7 +5,7 @@ import { AppConfig, LogEntry, OutputPolicy, VoiceTransportEnded } from '../types
 import RobotBridge from './robotBridge';
 import { ConversationOutputGate, NativeReceiptOutputGate, HANDSHAKE_JOKE, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLabel, hasMalformedOutcomeFlags, isOperatorReceiptNarration } from './operatorFeedback';
-import { toolResponseStatus, type ToolDispatch } from './executionStatus';
+import { toolResponseStatus, acceptedJobIdentity, type ToolDispatch } from './executionStatus';
 import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer } from './receiptAudioCache';
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 
@@ -953,7 +953,7 @@ export class GeminiLiveService {
             // Keep this current unknown/error receipt, while invalidating older speech.
             if (wasCurrent) feedbackGeneration = this.feedbackGeneration;
           }
-          if (currentFeedback()) this.onToolDispatch({ ...dispatch, status, message: operatorFeedback(fc.name, result), timestamp: Date.now() });
+          if (currentFeedback()) this.onToolDispatch({ ...dispatch, status, message: operatorFeedback(fc.name, result), timestamp: Date.now(), job: acceptedJobIdentity(result), serverUrl: this.robotBridge.baseUrl });
         }
         const speechAlias = ['speak', 'say', 'narrate'].includes(fc.name || '');
         if (!speechAlias && currentFeedback()) {
