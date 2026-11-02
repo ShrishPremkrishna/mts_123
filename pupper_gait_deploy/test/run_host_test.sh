@@ -54,3 +54,11 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I "$BUILD/include" \
   -o "$BUILD/test_reference_execution" "$HERE/test_reference_execution.cpp"
 "$BUILD/test_reference_execution"
+
+# Exercise the exact supplied Sit reference, including paw velocity steps and
+# opt-in loop timing. Override only when running against another frozen checkout.
+SIT_POLICY_PATH="${SIT_POLICY_PATH:-$REPO/../gemini_pupper/tricks/sit_stay_shake/policy.json}"
+g++ -std=c++17 -O2 -Wall -Wextra -DSTATIC_LOOP_CANDIDATE \
+  -I "$BUILD/include" -I "$JSON_INCLUDE_DIR" \
+  -o "$BUILD/test_static_loop_requests" "$HERE/test_static_loop_requests.cpp"
+"$BUILD/test_static_loop_requests" "$SIT_POLICY_PATH"

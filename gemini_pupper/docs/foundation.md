@@ -82,6 +82,18 @@ but interactive requests require the new protocol. The controller remembers the
 last 64 interactive request IDs per activation for duplicate refusal; the tool
 server uses a new UUID for every request and does not retry motion automatically.
 
+The reviewed local native controller can leave a constant Sit idle loop on the
+next inference instead of waiting for its one-second loop boundary. Eligibility
+requires the exact phase-free 69-input/history-one layout, a dense actor, no
+gait/jump path, constant position/orientation and zero source velocity, and a
+nonlooping target with matching first position/orientation. Paw reference velocity
+steps already present at the old boundary remain unchanged. Full clip duration,
+FIFO, startup fades, action history and Stop remain intact.
+[Matched simulation](../../foundation/results/workstream1-static-idle-latency-20261102.json)
+saved 0.019–0.981 seconds before requested clips; some effort/yaw metrics worsened
+slightly. This is not a measured whole-sequence or physical improvement. Actual
+ROS tests and supervised validation remain; walker initialization/fades are unchanged.
+
 A timed-out or cancelled controller or follower activation may still execute remotely. The
 server keeps its future, attempts deactivation when the late response arrives,
 and latches a motion quarantine. Stop reports the actual cleanup result without

@@ -90,6 +90,7 @@ class NeuralController : public controller_interface::ControllerInterface {
   // observation write in update() goes through these offsets, so a retrained
   // policy with a different layout deploys with no controller change.
   ObsLayout obs_layout_;
+  bool phase_free_static_requests_ = false;  // derived once from loaded layout + actor
 
   // Frame size of this policy (obs_layout_.frame_size, kept as a member for
   // the history rotation and sizing).

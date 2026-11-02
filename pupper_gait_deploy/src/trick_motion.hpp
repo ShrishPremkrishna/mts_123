@@ -55,10 +55,13 @@ struct TrickClip {
   int end = 0;
   bool loop = false;
   int next = -1;  // index into TrickMotion::clips, -1 = hold the last frame
+  // Derived from the validated immutable reference, never from a JSON flag.
+  bool constant_zero_velocity = false;
 };
 
 struct TrickMotion {
   int frames = 0;
+  int n_joints = 0;
   double fps = 50.0;
   std::vector<float> joint_pos;    // frames x n_joints, absolute radians
   std::vector<float> joint_vel;    // frames x n_joints, rad/s
@@ -72,6 +75,25 @@ struct TrickMotion {
       if (clips[i].name == name) return static_cast<int>(i);
     }
     return -1;
+  }
+
+  // A static loop has the same source reference at every phase. Requiring
+  // exact target q/quaternion continuity preserves the existing boundary delta;
+  // the target's finite dq may be nonzero and is deliberately NOT altered.
+  bool static_loop_exit(int from, int to) const {
+    if (from < 0 || to < 0 || from >= static_cast<int>(clips.size()) ||
+        to >= static_cast<int>(clips.size()) || n_joints <= 0 ||
+        joint_pos.size() != static_cast<std::size_t>(frames * n_joints) ||
+        joint_vel.size() != joint_pos.size() || anchor_quat.size() != static_cast<std::size_t>(frames * 4)) return false;
+    const auto &source = clips[from], &target = clips[to];
+    if (!source.loop || !source.constant_zero_velocity || target.loop) return false;
+    for (int j = 0; j < n_joints; ++j) {
+      if (joint_pos[source.start*n_joints+j] != joint_pos[target.start*n_joints+j] ||
+          !std::isfinite(joint_vel[target.start*n_joints+j])) return false;
+    }
+    for (int k = 0; k < 4; ++k)
+      if (anchor_quat[source.start*4+k] != anchor_quat[target.start*4+k]) return false;
+    return true;
   }
 
   /** The frame playing `t` seconds into the trick; holds the last frame after the end. */
@@ -89,6 +111,7 @@ inline void parse_trick_motion(const Json &trick, const Json &motion, int n_join
   if (!std::isfinite(out.fps) || out.fps <= 0.0 || n_joints <= 0) {
     throw std::runtime_error("trick motion: fps and joint count must be positive and finite");
   }
+  out.n_joints = n_joints;
   const auto &jp = motion.at("joint_pos");
   const auto &jv = motion.at("joint_vel");
   const auto &aq = motion.at("anchor_quat_wxyz");
@@ -158,6 +181,18 @@ inline void parse_trick_motion(const Json &trick, const Json &motion, int n_join
   } else {
     out.clips.push_back(TrickClip{"all", 0, out.frames, false, -1});
   }
+  // Resolve once at load; reference arrays remain immutable during playback.
+  for (auto &clip : out.clips) {
+    clip.constant_zero_velocity = clip.loop;
+    for (int f = clip.start; clip.constant_zero_velocity && f < clip.end; ++f) {
+      for (int j = 0; j < n_joints; ++j) {
+        if (out.joint_pos[f*n_joints+j] != out.joint_pos[clip.start*n_joints+j] ||
+            out.joint_vel[f*n_joints+j] != 0.0f) clip.constant_zero_velocity = false;
+      }
+      for (int k = 0; k < 4; ++k)
+        if (out.anchor_quat[f*4+k] != out.anchor_quat[clip.start*4+k]) clip.constant_zero_velocity = false;
+    }
+  }
 }
 
 // The wire token identifies one explicit clip request, independently of the
@@ -212,8 +247,20 @@ class ClipPlayer {
     return true;
   }
 
-  int frame(const TrickMotion &m, double t) {
-    if (t < 0.0) return m.clips[clip_].start;
+  int frame(const TrickMotion &m, double t, bool phase_free_static_requests = false) {
+    if (t < 0.0) return m.clips[clip_].start;  // never bypass startup fade
+    // Opt-in belongs to the caller's observation contract. The generic clock,
+    // moving/mismatched loops and ordinary boundary arithmetic stay unchanged.
+    const auto &current = m.clips[clip_];
+    const double length = (current.end - current.start - 1) / m.fps;
+    if (phase_free_static_requests && !holding_ && !queue_.empty() &&
+        t >= t0_ && t - t0_ < length - 1e-6 &&
+        m.static_loop_exit(clip_, queue_.front().clip)) {
+      clip_ = queue_.front().clip;
+      request_id_ = queue_.front().id;
+      queue_.pop_front();
+      t0_ = t;  // full requested clip duration; no actor/history/yaw reset
+    }
     if (holding_) {
       if (queue_.empty()) return m.clips[clip_].end - 1;
       clip_ = queue_.front().clip;  // a request after a hold starts now

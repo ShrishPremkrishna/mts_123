@@ -1,0 +1,57 @@
+{
+  "schema": "pupper_static_idle_latency_integration_v1",
+  "updated_utc": "2026-11-02T09:34:04.119496+00:00",
+  "baseline": "86be807",
+  "status": "integrated_offline_reviewed_not_deployed",
+  "implementation": "Native tracking opt-in removes the residual idle-loop boundary wait only for a parsed constant-q/constant-quaternion/zero-dq loop, exact q/quaternion target continuity, FIFO explicit nonloop target, exact69/history1 observation contract, no gait/jump and all-dense actor. Pure ClipPlayer defaults to original boundary timing. Full target clip clock, existing target dq step, startup fade, action history/yaw, Stop and after-apply receipts remain.",
+  "erratum": "Original checkpoint/findings incorrectly claimed all outgoing first-frame fields exactly match Sit idle. Authoritative audit already showed left/right paw dq deltas.004489/.004507rad/s; stand_up does match. Candidate preserves these existing boundary deltas, not a zero-dq target or a new tolerance. Old audit/checkpoint unchanged.",
+  "simulated_request_delay_savings_s": [
+    0.019230769230769162,
+    0.9807692307692308
+  ],
+  "simulations": {
+    "matched_pairs": 3,
+    "prior_guard_runs": 6,
+    "final_guard_identical_nominal_replay": 1,
+    "all_runs_complete": true,
+    "scope": "Native inference plus MuJoCo at fixed stage times; end-to-end live API speedup and hardware behavior unmeasured."
+  },
+  "validation": {
+    "native_host_runner": "passed incl2724 exact-policy checks",
+    "full_gemini_python": 928,
+    "class_lab6": 166,
+    "repository_whole_foundation": "Not run: aggregate script failed creating sandboxed output directory before checks. It also requires a single combined numerical/API environment; existing environments are intentionally separate. Relevant complete API/course/native scopes were run successfully with their tested environments."
+  },
+  "peer": {
+    "source_host": 2711,
+    "clock_boundary": 2214,
+    "simulation_records": 273,
+    "final_dense_guard": 93
+  },
+  "limitations": [
+    "Earlier wall-time execution changes physical/model state, even when reference boundary deltas match. This is not physical-response equivalence.",
+    "Some effort,target-step,tracking and yaw metrics worsen slightly; comparisons retain every value. Existing controller/driver clipping and loaded hull support remain.",
+    "The original trained durations, gains, model/reference bytes,2s walker initialization+2s fade and API readiness remain unchanged. This does not eliminate the two-standing-poses handoff or finite-routine return time.",
+    "Fixed-stage simulator schedule is intentionally equal across each pair; trigger/clip-end savings do not constitute a measured end-to-end application speedup.",
+    "Actual ROS MemoryController tests added but not compiled or run locally. Native source is not deployed.",
+    "Author original old-guard focused-test receipt was overwritten; independent earlier execution/source are preserved. Six original simulations remain unchanged."
+  ],
+  "source_hashes": {
+    "pupper_gait_deploy/src/trick_motion.hpp": "7628c14be10ec1a892620c04a1f03f200cfd7196c47b256b240f59b5f5fed5bc",
+    "pupper_gait_deploy/src/obs_spec.hpp": "ecf1e2d5cc6048952de06f993fcc8f599174c2617406d4ab79be259e961ee7f4",
+    "pupper_gait_deploy/src/neural_controller.cpp": "bb4197d7020e81d2800e4c0fc30bffe06c0ee5036803bf0088204cbc6d8e6ce6",
+    "foundation/cpp/handoff_controller.cpp": "5caab5d4c61b241a9a3e3fe584582b58347b6ee11c74cdb66bf0b9aa1fb1d203",
+    "pupper_gait_deploy/test/test_static_loop_requests.cpp": "05a8c9be434a1cf1fb25e7499a8dfc9817eca5ac4f870d0ed760dd09f87429d3",
+    "pupper_gait_deploy/test/test_neural_controller_safety.cpp": "94d3ad16f091514722496102af8b8f9529d3b4c29060b706cc98e4befe6c9e72",
+    "pupper_gait_deploy/test/run_host_test.sh": "52df962ef53cc92109b6f3efbc0fe6e7f8c593e26563dfc35b601e1e27ee37e2",
+    "pupper_gait_deploy/src/neural_controller.hpp": "ed319da2b42e449700d41796c4afbba7861de988aa5f54259206eabda2b1e183"
+  },
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/static-idle-latency",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/static-idle-latency",
+    "members": 166,
+    "manifest_sha256": "202131178d379993d6cd6edc41b770a027f01449829b91cd151ffb6c91b5c5c8",
+    "archive_sha256": "db8f51dd5730707c577e8e10ae541c445e6661dded1e3a4668ba1e6dd36cea46",
+    "copies_verified": true
+  }
+}

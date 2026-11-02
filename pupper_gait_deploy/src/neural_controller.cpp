@@ -265,6 +265,10 @@ controller_interface::CallbackReturn NeuralController::on_init() {
                   trick_.fps, trick_.duration());
     }
 
+    phase_free_static_requests_ = use_trick_ && supports_static_loop_requests(
+        obs_layout_, params_.observation_history, use_gait_reference_, use_jump_slot_,
+        has_only_dense_layers(j));
+
     rcl_interfaces::msg::ParameterDescriptor execution_descriptor;
     execution_descriptor.read_only=true;
     execution_descriptor.description="Loaded controller activation-correlated after-apply playback contract; ignores launch overrides";
@@ -1064,7 +1068,7 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
                       request->get()->data.c_str());
         }
       }
-      const int frame = clip_player_.frame(trick_, trick_time);
+      const int frame = clip_player_.frame(trick_, trick_time, phase_free_static_requests_);
       applied_clip_frame=frame;
       if (obs_layout_.motion_command != -1) {
         for (int i = 0; i < kActionSize; i++) {

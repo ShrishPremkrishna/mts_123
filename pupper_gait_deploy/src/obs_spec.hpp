@@ -47,6 +47,34 @@ struct ObsLayout {
   int motion_anchor_ori_b = -1;
 };
 
+/** The reviewed actor is feed-forward dense. Observation history=1 alone
+ * does not exclude recurrent hidden state, so other/unknown layer kinds keep
+ * the old boundary scheduler. Resolve this once from the loaded JSON. */
+template <typename Json>
+inline bool has_only_dense_layers(const Json &policy) {
+  if (!policy.contains("layers") || !policy.at("layers").is_array() ||
+      policy.at("layers").empty()) return false;
+  for (const auto &layer : policy.at("layers")) {
+    if (!layer.is_object() || !layer.contains("type") || !layer.at("type").is_string() ||
+        layer.at("type") != "dense") return false;
+  }
+  return true;
+}
+
+/** Narrow opt-in for the reviewed phase-free tracking observation path.
+ * No time, phase, gait, lookahead or longer observation history is admitted.
+ * Equality here concerns reference inputs at a transition, not physical state
+ * at different wall times. New observation contracts default to boundary waits. */
+inline bool supports_static_loop_requests(const ObsLayout &layout, int history,
+                                          bool has_gait, bool has_jump, bool dense_actor) {
+  return dense_actor && history == 1 && !has_gait && !has_jump && layout.frame_size == 69 &&
+      layout.motion_command == 0 && layout.motion_anchor_ori_b == 24 &&
+      layout.ang_vel == 30 && layout.joint_pos_rel == 33 &&
+      layout.joint_vel_rel == 45 && layout.last_action == 57 &&
+      layout.projected_gravity == -1 && layout.command == -1 &&
+      layout.desired_world_z == -1 && layout.gait_reference == -1;
+}
+
 /** The implicit layout of original-pipeline policies (no obs_spec): the plain
  * 36-dim proprio frame. Anything else must declare its layout. */
 inline ObsLayout legacy_obs_layout(int single_observation_size, int n_joints) {

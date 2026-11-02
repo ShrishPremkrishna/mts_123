@@ -7,6 +7,7 @@
 #include <memory>
 #include <RTNeural/RTNeural.h>
 #include "trick_motion.hpp"
+#include "obs_spec.hpp"
 #include "gait_reference_json.hpp"
 #include "command_filter.hpp"
 #include "position_target_slew.hpp"
@@ -19,7 +20,7 @@ struct Controller {
   ClipPlayer player;
   GaitReference gait;
   JumpSlot jump;
-  bool has_jump=false, default_walk=false;
+  bool has_jump=false, default_walk=false, phase_free_static_requests=false;
   CommandClip command_clip;
   HeadingHold heading;
   PositionTargetSlew position_slew;
@@ -55,6 +56,9 @@ struct Controller {
     if(metadata.contains("command_clip")) parse_command_clip(metadata.at("command_clip"),command_clip);
     if(metadata.contains("heading_hold")) parse_heading_hold(metadata.at("heading_hold"),heading);
     has_jump=metadata.contains("jump_slot");
+    phase_free_static_requests=supports_static_loop_requests(
+        parse_obs_spec(metadata.at("obs_spec"),12),history,gait.valid(),has_jump,
+        has_only_dense_layers(metadata));
     if(has_jump && !default_walk) throw std::runtime_error("jump-slot controller allowed only in explicit default return with no jumps scheduled");
     if(default_walk && (!gait.valid() || motion.frames)) throw std::runtime_error("default return requires a locomotion gait policy");
     if(has_jump) parse_jump_slot(metadata.at("jump_slot"),12,jump);
@@ -122,7 +126,7 @@ struct Controller {
       std::vector<double> rel(12); for(int j=0;j<12;++j) rel[j]=q[j]-defaults[j];
       write("joint_pos_rel",rel); write("joint_vel_rel",dq);
       if(motion.frames) {
-        frame=player.frame(motion,fade_time-fade_s);
+        frame=player.frame(motion,fade_time-fade_s,phase_free_static_requests);
         std::vector<double> mc(24);
         for(int j=0;j<12;++j) { mc[j]=motion.joint_pos[frame*12+j]; mc[j+12]=motion.joint_vel[frame*12+j]; }
         write("motion_command",mc);

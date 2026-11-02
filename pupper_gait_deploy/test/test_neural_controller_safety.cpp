@@ -70,6 +70,15 @@ class MemoryController : public neural_controller::NeuralController {
       state_interfaces_.emplace_back(*imu_handles.back());
     }
   }
+  void add_full_tracking_feedback() {
+    add_flat_feedback();
+    for(int j=0;j<12;++j) {
+      imu_handles.push_back(std::make_shared<hardware_interface::StateInterface>(params_.joint_names[j],"velocity",&joint_state[j]));
+      state_interfaces_.emplace_back(*imu_handles.back());
+    }
+  }
+  auto selected_clip() const { return clip_player_.clip(); }
+  auto clip_holding() const { return clip_player_.holding(); }
   auto activate_in_memory() {
     const auto result=on_activate(rclcpp_lifecycle::State());
     init_time_=rclcpp::Time(0,0,RCL_ROS_TIME);repeat_action_counter_=-1;
@@ -181,6 +190,26 @@ class ProductionRuntime : public ::testing::Test {
     policy["motion"]={{"joint_pos",std::vector<std::vector<double>>(2,std::vector<double>(12,0.))},
       {"joint_vel",std::vector<std::vector<double>>(2,std::vector<double>(12,0.))},
       {"anchor_quat_wxyz",{{1.,0.,0.,0.},{1.,0.,0.,0.}}}};
+    return policy;
+  }
+  nlohmann::json make_static_loop_policy(bool moving=false) {
+    using Json=nlohmann::json;
+    auto policy=make_trick_policy();
+    policy["in_shape"]={nullptr,69};
+    policy["layers"][0]["weights"][0]=std::vector<std::vector<double>>(69,std::vector<double>(12,0.));
+    policy["obs_spec"]={{"frame_order","newest_first"},{"components",Json::array({
+      {{"name","motion_command"},{"size",24}},{{"name","motion_anchor_ori_b"},{"size",6}},
+      {{"name","base_ang_vel"},{"size",3}},{{"name","joint_pos_rel"},{"size",12}},
+      {{"name","joint_vel_rel"},{"size",12}},{{"name","last_action"},{"size",12}}})}};
+    policy["trick"]={{"fps",2.},{"clips",Json::array({
+      {{"name","idle"},{"start",0},{"end",3},{"loop",true}},
+      {{"name","exit"},{"start",3},{"end",6}}})}};
+    policy["motion"]={{"joint_pos",std::vector<std::vector<double>>(6,std::vector<double>(12,0.))},
+      {"joint_vel",std::vector<std::vector<double>>(6,std::vector<double>(12,0.))},
+      {"anchor_quat_wxyz",std::vector<std::vector<double>>(6,{1.,0.,0.,0.})}};
+    policy["motion"]["joint_vel"][3][0]=.125; // same existing boundary velocity step
+    policy["motion"]["joint_pos"][4][0]=.1;policy["motion"]["joint_pos"][5][0]=.2;
+    if(moving)policy["motion"]["joint_pos"][1][0]=.001;
     return policy;
   }
   controller_interface::return_type initialize(MemoryController &controller,const nlohmann::json &policy,bool spoof) {
@@ -384,6 +413,59 @@ TEST_F(ProductionRuntime, CorrelatedClipRequestUsesAppliedFrameAndMalformedReque
     EXPECT_EQ(controller.clip_receipt_buffer(),"all holding frame 1 queued 0 execution "+activation+" request "+request);
     controller.queue_clip("all");ASSERT_EQ(controller.tick_actor(3.),controller_interface::return_type::OK);
     EXPECT_TRUE(controller.clip_request_id().empty());
+  }
+}
+
+TEST_F(ProductionRuntime, StaticLoopRequestPreservesFadeFullClockAndAppliedReceipt) {
+  MemoryController controller(false);
+  ASSERT_EQ(initialize(controller,make_static_loop_policy(),false),controller_interface::return_type::OK);
+  const std::string activation(32,'a'),request(32,'b');
+  ASSERT_TRUE(controller.get_node()->set_parameter(rclcpp::Parameter("execution_request_id",activation)).successful);
+  controller.add_full_tracking_feedback();ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  controller.queue_clip("pupper_clip_v1 "+request+" exit");
+  ASSERT_EQ(controller.tick_actor(1.5),controller_interface::return_type::OK);
+  EXPECT_EQ(controller.selected_clip(),0);EXPECT_EQ(controller.queued_clips(),1u);
+  EXPECT_TRUE(controller.clip_request_id().empty());
+  ASSERT_EQ(controller.tick_actor(2.25),controller_interface::return_type::OK);
+  EXPECT_EQ(controller.selected_clip(),1);EXPECT_EQ(controller.queued_clips(),0u);
+  EXPECT_EQ(controller.clip_request_id(),request);EXPECT_EQ(controller.execution_id(),activation);
+  EXPECT_FALSE(controller.clip_holding());
+  for(int attempt=0;attempt<20;++attempt) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    ASSERT_EQ(controller.tick_actor(2.25),controller_interface::return_type::OK);
+    if(controller.clip_receipt_buffer()=="exit playing frame 3 queued 0 execution "+activation+" request "+request)break;
+  }
+  EXPECT_EQ(controller.clip_receipt_buffer(),"exit playing frame 3 queued 0 execution "+activation+" request "+request);
+  ASSERT_EQ(controller.tick_actor(3.24),controller_interface::return_type::OK);EXPECT_FALSE(controller.clip_holding());
+  for(int attempt=0;attempt<20;++attempt) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    ASSERT_EQ(controller.tick_actor(3.25),controller_interface::return_type::OK);
+    if(controller.clip_receipt_buffer()=="exit holding frame 5 queued 0 execution "+activation+" request "+request)break;
+  }
+  EXPECT_TRUE(controller.clip_holding());
+  EXPECT_EQ(controller.clip_receipt_buffer(),"exit holding frame 5 queued 0 execution "+activation+" request "+request);
+}
+
+TEST_F(ProductionRuntime, MovingLoopKeepsBoundaryAndStopPreemptsStaticRequest) {
+  for(bool stopped:{false,true}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_static_loop_policy(!stopped),false),controller_interface::return_type::OK);
+    controller.add_full_tracking_feedback();ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+    ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+    controller.queue_clip("pupper_clip_v1 "+std::string(32,'b')+" exit");
+    if(stopped)controller.stop();
+    ASSERT_EQ(controller.tick_actor(2.25),controller_interface::return_type::OK);
+    EXPECT_EQ(controller.selected_clip(),0);EXPECT_TRUE(controller.clip_request_id().empty());
+    if(stopped) {
+      for(const auto &joint:controller.values) {
+        for(int k=0;k<4;++k)EXPECT_DOUBLE_EQ(joint[k],0.);
+        EXPECT_DOUBLE_EQ(joint[4],.7);
+      }
+    } else {
+      EXPECT_EQ(controller.queued_clips(),1u);
+      ASSERT_EQ(controller.tick_actor(3.),controller_interface::return_type::OK);
+      EXPECT_EQ(controller.selected_clip(),1);
+    }
   }
 }
 
