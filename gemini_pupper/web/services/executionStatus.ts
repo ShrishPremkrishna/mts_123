@@ -15,6 +15,9 @@ export interface QueueStatus {
   running: boolean;
   following: boolean;
   state: string;
+  state_after_queue?: string;
+  state_basis?: string;
+  observed_controller_mode?: string;
   controller_fault: string | null;
   last_outcome: { name: string; success: boolean; message: string } | null;
 }
@@ -24,6 +27,9 @@ export function parseQueueStatus(value: unknown): QueueStatus | null {
   if (!v || typeof v !== 'object' || !Number.isInteger(v.queued) || v.queued! < 0
       || typeof v.running !== 'boolean' || typeof v.following !== 'boolean'
       || typeof v.state !== 'string'
+      || (v.state_after_queue !== undefined && typeof v.state_after_queue !== 'string')
+      || (v.state_basis !== undefined && typeof v.state_basis !== 'string')
+      || (v.observed_controller_mode !== undefined && typeof v.observed_controller_mode !== 'string')
       || !(v.controller_fault === null || typeof v.controller_fault === 'string')) return null;
   const outcome = v.last_outcome;
   if (outcome !== null && (!outcome || typeof outcome.name !== 'string'
@@ -40,7 +46,22 @@ export function toolResponseStatus(result: unknown): ToolDispatch['status'] {
 
 /** No per-job IDs exist in queue/status: never attribute its last outcome to a call. */
 export function queueSummary(status: QueueStatus): string {
-  return `${status.state} · ${status.running ? 'action running' : 'no queued action running'} · ${status.queued} queued${status.following ? ' · following' : ''}`;
+  const modes: Record<string, string> = {
+    locomotion: 'locomotion', none: 'no active command controller',
+    sit_stay_shake: 'Sit', secret_dance: 'generated motion', other_skill: 'skill',
+    walking_skill: 'walking skill', locked_skill: 'locked skill',
+  };
+  const observed = status.observed_controller_mode;
+  const controller = observed && Object.prototype.hasOwnProperty.call(modes, observed) ? modes[observed] : 'unverified';
+  // The cached planner remains in the structured response for diagnostics. It
+  // must not compete with the observed controller when no command is pending.
+  const destinations: Record<string, string> = {
+    ...modes, 'motors idle': modes.none, 'locked trick': modes.locked_skill,
+  };
+  const planned = status.state_after_queue;
+  const next = planned && Object.prototype.hasOwnProperty.call(destinations, planned) ? destinations[planned] : null;
+  const transition = (status.running || status.queued > 0) && next && next !== controller ? ` · Next: ${next}` : '';
+  return `Controller: ${controller} · ${status.running ? 'action running' : 'no queued action running'} · ${status.queued} queued${transition}${status.following ? ' · following' : ''}`;
 }
 
 /** Pause further model dispatch synchronously, then use the direct server stop. */

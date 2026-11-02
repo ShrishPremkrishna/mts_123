@@ -1023,3 +1023,31 @@ test('stream adoption failure promptly rejects connection and stops unowned trac
  assert.equal(connections,0);assert.equal(env.tracks[0].stopped,1);
  assert.equal(env.s.cancelMediaAcquisition,null);assert.ok(env.contexts.every(c=>c.state==='closed'));
 });
+
+
+test('transport-ended event precedes deferred Stop but final disconnect waits and unknown stays unknown', async t => {
+ let callbacks; const stop=deferred(), events=[];
+ const env=mediaEnvironment(t,async request=>{callbacks=request.callbacks;callbacks.onopen();return {close(){},sendToolResponse(){}};});
+ env.s.onTransportEnded=event=>events.push({event,connected:env.s.connected,paused:env.s.robotToolsPaused});
+ env.s.onDisconnect=()=>events.push('released');
+ env.s.robotBridge.callTool=async()=>({success:true});env.s.robotBridge.immediateStop=()=>stop.promise;
+ await env.s.connect('SECRET_TEST_KEY',env.config,{});
+ await callbacks.onmessage({toolCall:{functionCalls:[{id:'m',name:'move',args:{}}]}});
+ const closing=callbacks.onclose({code:1008,reason:'The operation was aborted. SECRET_TEST_KEY ?key=other'});
+ assert.equal(events.length,1);assert.equal(events[0].event.kind,'closed');assert.equal(events[0].event.code,1008);
+ assert.doesNotMatch(events[0].event.reason,/SECRET_TEST_KEY|key=other/);
+ assert.equal(events[0].connected,false);assert.equal(events[0].paused,true);
+ await callbacks.onclose({code:1008,reason:'duplicate'});assert.equal(events.length,1);
+ stop.resolve({success:false,outcome_unknown:true});await closing;
+ assert.equal(events.at(-1),'released');assert.equal(env.stops.at(-1),'I could not confirm that request.');
+});
+
+test('GoAway reports transport end even without actions and a throwing observer cannot block cleanup',async t=>{
+ let callbacks,notifications=0,released=0,closed=0,stops=0;
+ const env=mediaEnvironment(t,async request=>{callbacks=request.callbacks;callbacks.onopen();return {close(){closed++;}};});
+ env.s.onTransportEnded=event=>{assert.equal(event.kind,'goaway');notifications++;throw new Error('observer failed');};
+ env.s.onDisconnect=()=>released++;env.s.robotBridge.immediateStop=async()=>{stops++;return {success:true};};
+ await env.s.connect('test',env.config,{});await callbacks.onmessage({goAway:{timeLeft:'1s'}});
+ assert.equal(notifications,1);assert.equal(released,1);assert.equal(closed,1);assert.equal(stops,0);
+ await callbacks.onclose({code:1008,reason:'after GoAway'});assert.equal(notifications,1);
+});

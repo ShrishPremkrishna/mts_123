@@ -331,8 +331,14 @@ async def stop_immediate():
 
 
 @app.get("/queue/status")
-def queue_status():
-    return {**T().status(), **runtime_info()}
+async def queue_status():
+    robot = T()
+    # Options can change controllers outside this API. Observe without adopting
+    # that state into the queue plan; an inventory wait must never own action_lock.
+    observation = await robot.mode()
+    return {**robot.status(), "state_basis": "cached_queue_plan",
+            "observed_controller_mode": (observation.details or {}).get("observed_controller_mode", "unknown"),
+            **runtime_info()}
 
 
 @app.post("/following/activate")

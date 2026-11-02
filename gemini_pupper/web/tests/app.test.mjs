@@ -268,3 +268,38 @@ test('connection failure stays actionable and visible in Robot controls',async t
  const alert=find(render(),n=>n.props.role==='alert');assert.match(alert.props.children.join(''),/voice session could not connect/);
  assert.ok(find(render(),n=>n.type==='DebugPanel'));
 });
+
+
+test('transport end is visible before Stop settles and explicit reconnect retains old ownership',async t=>{
+ const {render,instances}=await app(t); controls(render);
+ const staleConnect=connectVoice(render).props.onClick;
+ const connecting=staleConnect(); const s=instances[0];s.connection.resolve();await connecting;
+ s.callbacks[6](true);
+ s.callbacks[11]({kind:'closed',code:1008,reason:'The operation was aborted.'});
+ assert.ok(find(render(),n=>n.type==='span'&&n.props.children.includes('RECOVERING')));
+ assert.equal(talk(render).props.disabled,true);
+ assert.equal(connectVoice(render).props.disabled,true);
+ const notice=find(render(),n=>n.props.role==='status'&&n.props['data-voice-recovery']);
+ assert.match(notice.props.children.join(''),/Voice disconnected/);
+ assert.match(find(render(),n=>n.props.role==='alert').props.children.join(''),/1008.*operation was aborted/);
+ await staleConnect();assert.equal(instances.length,1);
+ s.callbacks[5]('I could not confirm that request.');s.callbacks[6](false);
+ assert.equal(connectVoice(render).props.disabled,true,'ownership is not released solely by Stop counter');
+ s.callbacks[3]();
+ assert.equal(connectVoice(render).props.disabled,false);
+ assert.equal(find(render(),n=>n.type==='ExecutionStatus').props.stopMessage,'I could not confirm that request.');
+ const retry=connectVoice(render).props.onClick();assert.equal(instances.length,2);
+ s.callbacks[11]({kind:'closed',code:1008,reason:'late old close'});s.callbacks[3]();
+ assert.equal(connectVoice(render),null,'old notifications cannot replace new connecting state');
+ instances[1].connection.resolve();await retry;
+});
+
+test('a pending connect resolution cannot restore Connected after transport ended',async t=>{
+ const {render,instances}=await app(t);const connecting=wake(render()).props.onClick();const s=instances[0];
+ s.callbacks[11]({kind:'goaway'});s.connection.resolve();await connecting;
+ assert.ok(find(render(),n=>n.type==='span'&&n.props.children.includes('RECOVERING')));
+ assert.equal(connectVoice(render).props.disabled,true);
+ assert.equal(talk(render).props.disabled,true);
+ s.callbacks[3]();assert.equal(connectVoice(render).props.disabled,false);
+ assert.match(wake(render()).props.title,/fresh voice conversation/i);
+});

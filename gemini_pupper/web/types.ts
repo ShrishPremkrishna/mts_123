@@ -4,7 +4,14 @@ export enum ConnectionState {
   DISCONNECTED = 'DISCONNECTED',
   CONNECTING = 'CONNECTING',
   CONNECTED = 'CONNECTED',
+  RECOVERING = 'RECOVERING',
   ERROR = 'ERROR',
+}
+
+export interface VoiceTransportEnded {
+  kind: 'closed' | 'goaway';
+  code?: number;
+  reason?: string;
 }
 
 export enum RobotMode {

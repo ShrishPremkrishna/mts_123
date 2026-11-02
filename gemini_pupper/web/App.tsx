@@ -139,6 +139,7 @@ const App: React.FC = () => {
 
   const geminiRef = useRef<GeminiLiveService | null>(null);
   const disconnectingRef = useRef<GeminiLiveService | null>(null);
+  const endedTransportRef = useRef<GeminiLiveService | null>(null);
   const releaseTalk = useCallback(() => {
     talkOwner.current = null;
     geminiRef.current?.endAudioInput();
@@ -206,6 +207,7 @@ const App: React.FC = () => {
     let automaticStopSequence: number | null = null;
     try {
       setConnectionError('');
+      endedTransportRef.current = null;
       setConnState(ConnectionState.CONNECTING);
       setLastDispatch(null);
       setLogs(current => current.filter(entry => entry.type !== 'receipt'));
@@ -244,14 +246,27 @@ const App: React.FC = () => {
           setAudioInputActive(active);
         },
         undefined,
-        () => { if (geminiRef.current === service) setModelActionsPaused(true); }
+        () => { if (geminiRef.current === service) setModelActionsPaused(true); },
+        event => {
+          if (geminiRef.current !== service) return;
+          endedTransportRef.current = service;
+          talkOwner.current = null;
+          setAudioInputActive(false);
+          setModelActionsPaused(true);
+          const detail = event.kind === 'goaway' ? 'Provider requested a new connection.'
+            : [event.code ? `code ${event.code}` : '', event.reason || ''].filter(Boolean).join(': ');
+          setConnectionError(`Voice connection ended${detail ? ` (${detail})` : ''}. Reconnect starts a fresh conversation; previous requests are not replayed.`);
+          // Keep geminiRef until the existing final callback releases ownership.
+          setConnState(ConnectionState.RECOVERING);
+          setIsUiVisible(true);
+        }
       );
 
       // Store before awaiting so Stop can pause dispatch even while connecting.
       geminiRef.current = service;
       setModelActionsPaused(false);
       await service.connect(apiKey, config, videoElement);
-      if (geminiRef.current === service) setConnState(ConnectionState.CONNECTED);
+      if (geminiRef.current === service && endedTransportRef.current !== service) setConnState(ConnectionState.CONNECTED);
     } catch (err: any) {
       // Explicit disconnect owns this session until its independent Stop settles.
       if (geminiRef.current !== service || disconnectingRef.current === service) return;
@@ -328,11 +343,11 @@ const App: React.FC = () => {
       />
 
       <div className="shrink-0 flex flex-wrap items-center justify-center gap-3 px-3 py-2 bg-gray-900 border-t border-gray-800">
-        {(connState === ConnectionState.DISCONNECTED || connState === ConnectionState.ERROR) && (
+        {(connState === ConnectionState.DISCONNECTED || connState === ConnectionState.ERROR || connState === ConnectionState.RECOVERING) && (
           <button
             aria-label="Connect voice"
             title="Start a fresh voice conversation. Previous requests will not be replayed."
-            disabled={stopPending || showSettings}
+            disabled={stopPending || showSettings || connState === ConnectionState.RECOVERING}
             onClick={handleConnect}
             className="rounded-full bg-cyan-500 px-4 py-2 font-semibold text-black hover:bg-cyan-400 disabled:opacity-40">
             Connect voice
@@ -380,7 +395,12 @@ const App: React.FC = () => {
         </span>
       </div>
 
-      {view === 'debug' && connectionError && (
+      {connState === ConnectionState.RECOVERING && (
+        <p role="status" data-voice-recovery className="shrink-0 px-3 py-2 text-center text-sm text-amber-200">
+          Voice disconnected. {stopPending ? 'Waiting for the Stop response before reconnect.' : 'Finishing connection cleanup before reconnect.'}
+        </p>
+      )}
+      {(view === 'debug' || connState === ConnectionState.RECOVERING) && connectionError && (
         <p role="alert" className="shrink-0 px-3 py-2 text-center text-sm text-amber-200">{connectionError}</p>
       )}
 
@@ -414,6 +434,8 @@ const App: React.FC = () => {
            <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center bg-black/50 backdrop-blur-sm z-10 pointer-events-auto">
               <button 
                 onClick={handleConnect}
+                disabled={stopPending || showSettings}
+                title="Start a fresh voice conversation. Previous requests will not be replayed."
                 className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-4 px-8 rounded-full shadow-[0_0_30px_rgba(34,211,238,0.5)] transform hover:scale-105 transition-all text-xl flex items-center gap-2"
               >
                 <PowerIcon /> WAKE PUPPER

@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration } from '@google/genai';
 import { createPcmBlob, decodeAudioData, blobToBase64 } from './audioUtils';
-import { AppConfig, LogEntry, OutputPolicy } from '../types';
+import { AppConfig, LogEntry, OutputPolicy, VoiceTransportEnded } from '../types';
 import RobotBridge from './robotBridge';
 import { ConversationOutputGate, NativeReceiptOutputGate, HANDSHAKE_JOKE, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLabel, hasMalformedOutcomeFlags, isOperatorReceiptNarration } from './operatorFeedback';
@@ -127,7 +127,8 @@ export class GeminiLiveService {
     private onTiming?: (event: LiveTimingEvent) => void,
     private onAudioInputChange: (active: boolean) => void = () => {},
     private receiptAudioCache?: ReceiptAudioCache,
-    private onRobotToolsPaused: () => void = () => {}
+    private onRobotToolsPaused: () => void = () => {},
+    private onTransportEnded: (event: VoiceTransportEnded) => void = () => {}
   ) {
     this.config = config;
     this.outputPolicy = normalizeOutputPolicy(config.outputPolicy);
@@ -437,7 +438,10 @@ export class GeminiLiveService {
           ].filter(Boolean).join(': ');
           this.log('error', `Session closed${details ? ` (${details})` : ''}`);
           this.cleanup();
-          if (this.dispatchedActionIds.size) await this.requestAutomaticStop('Voice connection closed after an action request');
+          const stop = this.dispatchedActionIds.size
+            ? this.requestAutomaticStop('Voice connection closed after an action request') : null;
+          this.reportTransportEnded({ kind: 'closed', code: event.code, reason: event.reason });
+          if (stop) await stop;
           this.onDisconnect();
         },
         onerror: (err: ErrorEvent) => {
@@ -766,6 +770,12 @@ export class GeminiLiveService {
     }
   }
 
+  private reportTransportEnded(event: VoiceTransportEnded) {
+    // This updates presentation only; final onDisconnect retains Stop ownership.
+    const reason = event.reason ? this.safeMessage(event.reason).replace(/[\r\n\t]+/g, ' ').slice(0, 240) : undefined;
+    try { this.onTransportEnded({ ...event, reason }); } catch { /* UI cannot block Stop/cleanup. */ }
+  }
+
   private async retireExpiringSession() {
     if (this.disposed) return;
     const sentActions = this.dispatchedActionIds.size > 0 || this.pendingModelActions > 0;
@@ -776,6 +786,7 @@ export class GeminiLiveService {
     const closing = this.disconnect();
     const stop = sentActions
       ? this.requestAutomaticStop('Voice session expired after an action request') : null;
+    this.reportTransportEnded({ kind: 'goaway' });
     try {
       await closing;
       if (stop) await stop;

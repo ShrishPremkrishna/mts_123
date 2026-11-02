@@ -1,0 +1,165 @@
+{
+  "schema": "workstream1_status_and_disconnect_v1",
+  "date": "2026-11-01",
+  "status": "integrated_locally_reviewed_built_not_deployed",
+  "base_root_commit": "204a75d1911eedb63f2d3dda6e1cdfcde834fe21",
+  "changes": {
+    "controller_status": "GET /queue/status observes controller inventory asynchronously without mutating the queue plan. Observed mode is displayed; cached state remains labeled in JSON. A mapped Next destination is shown only while work is pending and the destination differs.",
+    "voice_transport": "Unexpected close or GoAway immediately shows RECOVERING and disables voice input/reconnect. Existing Stop/session ownership remains until cleanup settles; late connect or old-session callbacks cannot restore Connected. No automatic reconnect, resumption or action replay."
+  },
+  "tests": {
+    "root_combined_web": {
+      "passed": 99,
+      "log_sha256": "a6ae8995bd798a68da46321c0648c3344332ed20ee72cacc7d0bd93de8564454"
+    },
+    "root_python": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python -m pytest gemini_pupper/tests/test_queue_status_observation.py -q -p no:cacheprovider",
+      "result": "10 passed in0.47s",
+      "raw_log_saved": false
+    },
+    "root_typecheck": {
+      "command": "npx tsc --noEmit",
+      "exit_code": 0,
+      "output": "none",
+      "raw_log_saved": false,
+      "tool_exec_reference": "8514"
+    },
+    "root_build": {
+      "passed": true,
+      "log_sha256": "adfc6c616cf782cdfd5c6867c27773fb5f512d3fdde4718059a5987ecad8ea2b",
+      "warning": "Vite reports a bundle larger than500kB; build passed."
+    },
+    "candidate_status": "10 new Python cases;114 unique affected Python cases covered after correcting omitted isolated gait/static fixtures;93 affected web tests and typecheck pass. Initial skip/fail logs preserved, not represented as passes.",
+    "candidate_transport": "Owner327 fullweb/93affected/typecheck/build pass; independent source-only peer, no redundant independent full-suite claim.",
+    "independent_peer": "Status10Python+5UI before UI simplification, then6finalUI checks; transport source review. Frozen source hashes verified."
+  },
+  "combined_changed_sources_sha256": {
+    "gemini_pupper/robot/server.py": "7d4dd198e98b3e3db002a5eaab71aeacdb76db643991d0308285531db2341b0a",
+    "gemini_pupper/web/services/executionStatus.ts": "a30d50c75ec8f1c6403dc566a3d84ba73c8e0107ea99ac1632aa3cbd02036bb3",
+    "gemini_pupper/tests/test_queue_status_observation.py": "26160e8d082feac541db6546933ea3163d894a96aa7462d1ba8e3c5d79054aa2",
+    "gemini_pupper/web/tests/queue-status-observation.test.mjs": "a9b4f58d30f5a171eb4090a35fdd816ffa61d928ba02c800a2c4653b9b228aa8",
+    "gemini_pupper/web/App.tsx": "d5ce96c3ece4ed4ab42a57d4389316e4318f5bccf1d4902e1585e49803f1d8e3",
+    "gemini_pupper/web/types.ts": "af2bd308d5a56728b8e920454a246e269cdceb759c82b664a594ca7123e28200",
+    "gemini_pupper/web/services/geminiLive.ts": "eb2869c6783890e3b9e43a2548dd03019de3538f280b1de156e2862aef64a173",
+    "gemini_pupper/web/tests/app.test.mjs": "5fd9becabafadc4181b9f31147e3f6d82478855ff8b1375f1ad0fe7ad318b6e7",
+    "gemini_pupper/web/tests/execution.test.mjs": "4e057156d268e783f3c1b0f18dc6464902effcca3d23bd4ab504b11188318825"
+  },
+  "combined_dist": {
+    "index.html": {
+      "sha256": "1dcc4bc254d5f3ef4d5abb8a79b3d999a920dfa212e73480884e81e252436cd9",
+      "bytes": 1345
+    },
+    "receipt-audio/stand-queued.pcm": {
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "bytes": 63362
+    },
+    "receipt-audio/request-failed.pcm": {
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "bytes": 163230
+    },
+    "receipt-audio/right-paw-command-queued.pcm": {
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "bytes": 90242
+    },
+    "receipt-audio/left-paw-command-queued.pcm": {
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "bytes": 90242
+    },
+    "receipt-audio/wait-queued.pcm": {
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "bytes": 58082
+    },
+    "receipt-audio/physical-count-unsupported.pcm": {
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "bytes": 167522
+    },
+    "receipt-audio/trick-queued.pcm": {
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "bytes": 58082
+    },
+    "receipt-audio/okay.pcm": {
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "bytes": 33602
+    },
+    "receipt-audio/arc-queued.pcm": {
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "bytes": 56190
+    },
+    "receipt-audio/stop-requested.pcm": {
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "bytes": 61922
+    },
+    "receipt-audio/turn-queued.pcm": {
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "bytes": 57602
+    },
+    "receipt-audio/move-queued.pcm": {
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "bytes": 52830
+    },
+    "receipt-audio/interactive-action-queued.pcm": {
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "bytes": 97922
+    },
+    "assets/index-_l7yus0b.js": {
+      "sha256": "e660ec2f0b44263aaa53a701daa19db5c00e2323aa12e9c73ae5d3e5160c74da",
+      "bytes": 731663
+    }
+  },
+  "limitations": [
+    "Controller inventory and queue snapshot are separate moments across an await; observed mode is not measured physical posture, torque or stopping.",
+    "Status polling does not rewrite cached internal planning state or alter controller ownership.",
+    "RECOVERING is connection presentation, not proof of physical Stop; unknown Stop remains unknown.",
+    "Original provider close reason is surfaced/redacted, not diagnosed or repaired by this UI change.",
+    "No actual browser/provider deadline or robot validation of this combined bundle is claimed.",
+    "No hardware, SSH, credential access, deployment or commits performed by this packaging task."
+  ],
+  "evidence": {
+    "archives": [
+      {
+        "name": "external-controller-status-evidence-20261101.tar.gz",
+        "sha256": "f03fba12a18456a956525d63da870f9dd6ec4f89b108f540d29bd2d67be040c8",
+        "bytes": 30623,
+        "indexed_files": 27,
+        "index_sha256": "2cb7341ab54a52337f2b47f4ab32da3b6d72ddbd816bc13360bc2382fd5d25f5",
+        "all_members_verified": true
+      },
+      {
+        "name": "transport-ended-ui-evidence-20261101.tar.gz",
+        "sha256": "8d429f03d65d5c6117009eaae08962099b0720e749fff8c1fbd675da48e177df",
+        "bytes": 107778,
+        "indexed_files": 22,
+        "index_sha256": "1abcdd8d1a84e03c6249b9a4db66619498a025a6f14cf7375a76a9c0bf6cc082",
+        "all_members_verified": true
+      },
+      {
+        "name": "status-and-disconnect-combined-source-build-20261101.tar.gz",
+        "sha256": "a15b1c7c659a92428feb7551fd2cc6fb8ea81faf299f81584fae28b267fae3fb",
+        "bytes": 1359912,
+        "indexed_files": 146,
+        "index_sha256": "e41e8e865572ff10dad513eefac5e1399c01a7485e512ddcd4217d545d5b40d7",
+        "all_members_verified": true
+      }
+    ],
+    "repo_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/access/workstream1-status-and-disconnect-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-status-and-disconnect",
+    "root_tool_observation": {
+      "source": "Root agent tool-result report, not a fabricated log",
+      "python": {
+        "command": "PYTHONDONTWRITEBYTECODE=1 artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python -m pytest gemini_pupper/tests/test_queue_status_observation.py -q -p no:cacheprovider",
+        "result": "10 passed in0.47s",
+        "raw_log_saved": false
+      },
+      "typecheck": {
+        "command": "npx tsc --noEmit",
+        "exit_code": 0,
+        "output": "none",
+        "raw_log_saved": false,
+        "tool_exec_reference": "8514"
+      },
+      "deployment": "Root reports combined build not yet deployed; this packaging performs no deployment."
+    },
+    "source_snapshot_files": 125,
+    "source_index_sha256": "42409849936d51bb8fcda63d065b635d74a4f1e09da69850f2f7db3d9e4f0939"
+  }
+}
