@@ -1,0 +1,2001 @@
+{
+  "schema": "pupper_completion_driven_sit_final_v1",
+  "source_commit": "2257a5d9a489be3aa5a08601f072ba537c161af1",
+  "offline_only": true,
+  "verdict": "Measured simulator latency improvement with mixed motion-quality changes; no physical acceptance claim.",
+  "conditions": {
+    "api-chain": {
+      "comparison_file": "comparison-api-chain.json",
+      "comparison_sha256": "d38369041c387bdb34a717c326d4d168bbff7ec271a4a644d9f75ae2024e0f42",
+      "total_savings_s": 2.6653846153846175,
+      "total_savings_percent": 9.897879025923025,
+      "walking_onset_savings_s": 2.6653846153846175,
+      "identical_prefix_samples": 287,
+      "identical_prefix_inferences": 261,
+      "results": {
+        "legacy": {
+          "complete": true,
+          "stop": null,
+          "total_s": 26.928846153846155,
+          "walking_command_starts_s": 22.928846153846155,
+          "all": {
+            "samples_52hz": 1401,
+            "max_tilt_deg": 37.19367401347717,
+            "yaw_change_deg": -3.748441168262121,
+            "yaw_range_deg": 5.219314476342498,
+            "max_planar_excursion_m": 0.396852301144522,
+            "max_joint_speed_rad_s_sampled": 11.07238927629814,
+            "peak_effort_nm_sampled": 1.873382347513242,
+            "max_controller_target_step_rad_520hz": 0.37119217216968536,
+            "peak_controller_clamp_rad_sampled": 0.24385112524032593,
+            "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+            "driver_clipped_joint_fraction_sampled": 0.027301927194860815,
+            "reference_tracking_rmse_rad_inference": 0.03204808681658719,
+            "loaded_contact_geometries": [
+              "leg_back_l_2_hull",
+              "leg_back_l_3_collision",
+              "leg_back_l_3_hull",
+              "leg_back_r_2_hull",
+              "leg_back_r_3_hull",
+              "leg_front_l_3_collision",
+              "leg_front_l_3_hull",
+              "leg_front_r_3_collision",
+              "leg_front_r_3_hull"
+            ],
+            "loaded_contact_force_weighted_slip_m_s_sampled": 0.0028005181699829306,
+            "final_joint_speed_rad_s_sampled": 0.011360729225848512
+          },
+          "active_requested_clips": {
+            "shake_left": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 37.19367401347717,
+              "yaw_change_deg": -0.03446683801707478,
+              "yaw_range_deg": 2.0062752466112572,
+              "max_planar_excursion_m": 0.01569161516456082,
+              "max_joint_speed_rad_s_sampled": 4.15878534819513,
+              "peak_effort_nm_sampled": 1.6377897527134322,
+              "max_controller_target_step_rad_520hz": 0.08268263936042786,
+              "peak_controller_clamp_rad_sampled": 0.24385112524032593,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07692307692307693,
+              "reference_tracking_rmse_rad_inference": 0.02661967760446917,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0014714514456863038,
+              "final_joint_speed_rad_s_sampled": 0.051643032261611384
+            },
+            "shake_right": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.76326763435062,
+              "yaw_change_deg": -0.9956914530794457,
+              "yaw_range_deg": 1.4452555457398701,
+              "max_planar_excursion_m": 0.013427998055354834,
+              "max_joint_speed_rad_s_sampled": 4.170614936172493,
+              "peak_effort_nm_sampled": 1.6577322207131733,
+              "max_controller_target_step_rad_520hz": 0.09765303134918213,
+              "peak_controller_clamp_rad_sampled": 0.17861753702163696,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07646520146520147,
+              "reference_tracking_rmse_rad_inference": 0.028739250405089824,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0016651933262529517,
+              "final_joint_speed_rad_s_sampled": 0.04339953639483625
+            },
+            "stand_up": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 34.85599396476419,
+              "yaw_change_deg": -0.4544044113883534,
+              "yaw_range_deg": 2.0724690269297605,
+              "max_planar_excursion_m": 0.03362926881185792,
+              "max_joint_speed_rad_s_sampled": 7.650541943966266,
+              "peak_effort_nm_sampled": 1.5322758097481204,
+              "max_controller_target_step_rad_520hz": 0.2632206082344055,
+              "peak_controller_clamp_rad_sampled": 0.0,
+              "peak_driver_clamp_rad_sampled": 0.0,
+              "driver_clipped_joint_fraction_sampled": 0.0,
+              "reference_tracking_rmse_rad_inference": 0.035180500850087615,
+              "loaded_contact_geometries": [
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0013775933737670881,
+              "final_joint_speed_rad_s_sampled": 0.02493685379705912
+            }
+          },
+          "requests": [
+            {
+              "clip": "shake_left",
+              "requested_s": 5.501923076923077,
+              "first_applied_s": 6.211538461538462,
+              "endpoint_applied_s": 9.711538461538462,
+              "api_poll_s": 9.711538461538462,
+              "next_job_s": 9.713461538461539,
+              "waiting_for_native_start_s": 0.7096153846153843,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.0,
+              "total_job_s": 4.211538461538462
+            },
+            {
+              "clip": "shake_right",
+              "requested_s": 9.713461538461539,
+              "first_applied_s": 10.711538461538462,
+              "endpoint_applied_s": 14.211538461538462,
+              "api_poll_s": 14.21923076923077,
+              "next_job_s": 14.221153846153847,
+              "waiting_for_native_start_s": 0.9980769230769226,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.007692307692307665,
+              "total_job_s": 4.507692307692308
+            },
+            {
+              "clip": "stand_up",
+              "requested_s": 14.221153846153847,
+              "first_applied_s": 15.211538461538462,
+              "endpoint_applied_s": 18.71153846153846,
+              "api_poll_s": 18.726923076923075,
+              "next_job_s": 18.728846153846153,
+              "waiting_for_native_start_s": 0.990384615384615,
+              "native_reference_playback_s": 3.4999999999999982,
+              "receipt_to_api_poll_s": 0.01538461538461533,
+              "total_job_s": 4.507692307692306
+            }
+          ],
+          "walking_handoff": {
+            "activation_s": 18.728846153846153,
+            "measured_pose_to_static_default_max_rad": 0.13075340327983398,
+            "prior_52hz_controller_target_to_measured_pose_max_rad": 0.1320279392780508,
+            "phases": [
+              {
+                "phase": "capture_measured_pose",
+                "desired_time_s": 18.728846153846153,
+                "sample_time_s": 18.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.01196441111767084,
+                  -0.0031644991754189206,
+                  0.1577959134822926
+                ],
+                "tilt_deg": 1.5248714994620112,
+                "joint_pos_rad": [
+                  0.2289420026676466,
+                  -0.015560524925626582,
+                  -0.5206454707999566,
+                  -0.21294715630509525,
+                  -0.002647934973009878,
+                  0.46191146599802396,
+                  0.18387023116167384,
+                  -0.019222573499436957,
+                  -0.45158970395397635,
+                  -0.12927087888221545,
+                  -0.03575807162600895,
+                  0.43116332337307206
+                ],
+                "target_rad": [
+                  0.2288782298564911,
+                  -0.015517481602728367,
+                  -0.5205960869789124,
+                  -0.21297559142112732,
+                  -0.0026120110414922237,
+                  0.46183091402053833,
+                  0.1838361918926239,
+                  -0.019191833212971687,
+                  -0.45157602429389954,
+                  -0.12937231361865997,
+                  -0.03579309210181236,
+                  0.43121108412742615
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.1307291115810414
+              },
+              {
+                "phase": "end_static_initialization",
+                "desired_time_s": 20.728846153846153,
+                "sample_time_s": 20.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.017039346183673823,
+                  -0.002927960280718831,
+                  0.15836488580381208
+                ],
+                "tilt_deg": 0.15603485194837494,
+                "joint_pos_rad": [
+                  0.2554198681096269,
+                  0.004001204234584845,
+                  -0.46763403055713093,
+                  -0.26135691494712837,
+                  0.003111777411538433,
+                  0.4549754620900133,
+                  0.25315728323106035,
+                  0.0012843346526466334,
+                  -0.47224300385549123,
+                  -0.21864624434462152,
+                  -0.021067036476723977,
+                  0.4839092399487219
+                ],
+                "target_rad": [
+                  0.25999999046325684,
+                  0.0,
+                  -0.5199999809265137,
+                  -0.25999999046325684,
+                  0.0,
+                  0.5199999809265137,
+                  0.25999999046325684,
+                  0.0,
+                  -0.5199999809265137,
+                  -0.25999999046325684,
+                  0.0,
+                  0.5199999809265137
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.06502451883650034
+              },
+              {
+                "phase": "end_policy_fade",
+                "desired_time_s": 22.728846153846153,
+                "sample_time_s": 22.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.013183866164748568,
+                  -0.002272036914639002,
+                  0.15968486223882816
+                ],
+                "tilt_deg": 0.5877107411026729,
+                "joint_pos_rad": [
+                  0.25276047003474855,
+                  0.01172123896714886,
+                  -0.4865650089914412,
+                  -0.25675022120374424,
+                  0.005453055646563762,
+                  0.4761629685156787,
+                  0.261396914255275,
+                  0.01101536971920124,
+                  -0.5209440835507765,
+                  -0.23649832102959503,
+                  -0.016336328448299364,
+                  0.5320137017867241
+                ],
+                "target_rad": [
+                  0.2646138072013855,
+                  -0.021828588098287582,
+                  -0.5541338324546814,
+                  -0.25621840357780457,
+                  0.02561011165380478,
+                  0.5648037195205688,
+                  0.2372279018163681,
+                  0.006798336748033762,
+                  -0.5974746942520142,
+                  -0.2535252869129181,
+                  0.005250431131571531,
+                  0.565041184425354
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.043837012410834986
+              },
+              {
+                "phase": "walking_ready",
+                "desired_time_s": 22.928846153846152,
+                "sample_time_s": 22.923076923076923,
+                "timing_offset_s": -0.0057692307692294165,
+                "root_pos_m": [
+                  -0.012551534736294338,
+                  -0.0021542740306203954,
+                  0.15989115097055845
+                ],
+                "tilt_deg": 0.574879786979096,
+                "joint_pos_rad": [
+                  0.25249722214901904,
+                  0.012084425373338837,
+                  -0.4925233820803552,
+                  -0.25545854158297715,
+                  0.005832409475703162,
+                  0.48135318512719993,
+                  0.2604054278658883,
+                  0.012230098918064126,
+                  -0.5270542834397806,
+                  -0.23560919778123007,
+                  -0.015425474878375343,
+                  0.5368987347962353
+                ],
+                "target_rad": [
+                  0.26465868949890137,
+                  -0.021641481667757034,
+                  -0.5555790662765503,
+                  -0.25715312361717224,
+                  0.025176476687192917,
+                  0.566013753414154,
+                  0.23756229877471924,
+                  0.007572735194116831,
+                  -0.597972571849823,
+                  -0.25262388586997986,
+                  0.00597229041159153,
+                  0.5647509694099426
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.03864679579931374
+              }
+            ],
+            "ready_delay_s": 4.200000000000003,
+            "meaning": "2s measured-joint interpolation to staticdefault followed by2s learnedpolicy fade +.2s API margin. These are active target changes, not a duplicate queue wait. The prior target is a52Hzsample, not exact pre-switch actuator output."
+          }
+        },
+        "static": {
+          "complete": true,
+          "stop": null,
+          "total_s": 24.263461538461538,
+          "walking_command_starts_s": 20.263461538461538,
+          "all": {
+            "samples_52hz": 1262,
+            "max_tilt_deg": 37.179933878718465,
+            "yaw_change_deg": -3.591132754638174,
+            "yaw_range_deg": 5.183661788338986,
+            "max_planar_excursion_m": 0.4041339843590234,
+            "max_joint_speed_rad_s_sampled": 10.211012530367165,
+            "peak_effort_nm_sampled": 1.873382347513242,
+            "max_controller_target_step_rad_520hz": 0.37569357454776764,
+            "peak_controller_clamp_rad_sampled": 0.24142247438430786,
+            "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+            "driver_clipped_joint_fraction_sampled": 0.024498151082937136,
+            "reference_tracking_rmse_rad_inference": 0.033169327890953,
+            "loaded_contact_geometries": [
+              "leg_back_l_2_hull",
+              "leg_back_l_3_hull",
+              "leg_back_r_2_hull",
+              "leg_back_r_3_collision",
+              "leg_back_r_3_hull",
+              "leg_front_l_3_collision",
+              "leg_front_l_3_hull",
+              "leg_front_r_3_collision",
+              "leg_front_r_3_hull"
+            ],
+            "loaded_contact_force_weighted_slip_m_s_sampled": 0.0024949207151979623,
+            "final_joint_speed_rad_s_sampled": 0.010280307781440543
+          },
+          "active_requested_clips": {
+            "shake_left": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 37.179933878718465,
+              "yaw_change_deg": 0.08632707445276408,
+              "yaw_range_deg": 1.9989122883910637,
+              "max_planar_excursion_m": 0.01575983805800317,
+              "max_joint_speed_rad_s_sampled": 4.182217472792815,
+              "peak_effort_nm_sampled": 1.608371711495638,
+              "max_controller_target_step_rad_520hz": 0.08243370056152344,
+              "peak_controller_clamp_rad_sampled": 0.24142247438430786,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07692307692307693,
+              "reference_tracking_rmse_rad_inference": 0.026580491031085483,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_collision",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0014695127589397835,
+              "final_joint_speed_rad_s_sampled": 0.05520110983390306
+            },
+            "shake_right": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.78599252042004,
+              "yaw_change_deg": -0.7907803642936421,
+              "yaw_range_deg": 1.4183221349106518,
+              "max_planar_excursion_m": 0.014444652753134963,
+              "max_joint_speed_rad_s_sampled": 4.16316214807795,
+              "peak_effort_nm_sampled": 1.6627556458625716,
+              "max_controller_target_step_rad_520hz": 0.09623920917510986,
+              "peak_controller_clamp_rad_sampled": 0.1803925633430481,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.076007326007326,
+              "reference_tracking_rmse_rad_inference": 0.02850811081156925,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_collision",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0017119114156120138,
+              "final_joint_speed_rad_s_sampled": 0.04332506285161803
+            },
+            "stand_up": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 34.90126615076209,
+              "yaw_change_deg": -0.017020391161526708,
+              "yaw_range_deg": 2.0940706340268416,
+              "max_planar_excursion_m": 0.033529629665410655,
+              "max_joint_speed_rad_s_sampled": 7.682762970396188,
+              "peak_effort_nm_sampled": 1.5579305298759887,
+              "max_controller_target_step_rad_520hz": 0.26337307691574097,
+              "peak_controller_clamp_rad_sampled": 0.0,
+              "peak_driver_clamp_rad_sampled": 0.0,
+              "driver_clipped_joint_fraction_sampled": 0.0,
+              "reference_tracking_rmse_rad_inference": 0.03614816138125277,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0014567423807323667,
+              "final_joint_speed_rad_s_sampled": 0.024354096195319738
+            }
+          },
+          "requests": [
+            {
+              "clip": "shake_left",
+              "requested_s": 5.501923076923077,
+              "first_applied_s": 5.519230769230769,
+              "endpoint_applied_s": 9.01923076923077,
+              "api_poll_s": 9.034615384615385,
+              "next_job_s": 9.036538461538461,
+              "waiting_for_native_start_s": 0.017307692307691802,
+              "native_reference_playback_s": 3.500000000000001,
+              "receipt_to_api_poll_s": 0.01538461538461533,
+              "total_job_s": 3.5346153846153836
+            },
+            {
+              "clip": "shake_right",
+              "requested_s": 9.036538461538461,
+              "first_applied_s": 9.038461538461538,
+              "endpoint_applied_s": 12.538461538461538,
+              "api_poll_s": 12.548076923076923,
+              "next_job_s": 12.55,
+              "waiting_for_native_start_s": 0.0019230769230773603,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.009615384615385025,
+              "total_job_s": 3.5134615384615397
+            },
+            {
+              "clip": "stand_up",
+              "requested_s": 12.55,
+              "first_applied_s": 12.557692307692308,
+              "endpoint_applied_s": 16.057692307692307,
+              "api_poll_s": 16.06153846153846,
+              "next_job_s": 16.06346153846154,
+              "waiting_for_native_start_s": 0.007692307692307665,
+              "native_reference_playback_s": 3.4999999999999982,
+              "receipt_to_api_poll_s": 0.0038461538461547207,
+              "total_job_s": 3.513461538461538
+            }
+          ],
+          "walking_handoff": {
+            "activation_s": 16.06346153846154,
+            "measured_pose_to_static_default_max_rad": 0.13062720131595568,
+            "prior_52hz_controller_target_to_measured_pose_max_rad": 0.1318253658324106,
+            "phases": [
+              {
+                "phase": "capture_measured_pose",
+                "desired_time_s": 16.06346153846154,
+                "sample_time_s": 16.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.012955860930783993,
+                  -0.003205115027425446,
+                  0.1577884465313733
+                ],
+                "tilt_deg": 1.5222185770750853,
+                "joint_pos_rad": [
+                  0.22971770456577695,
+                  -0.016037395025507682,
+                  -0.5195003890254051,
+                  -0.21045035949675003,
+                  -0.002515318540928986,
+                  0.4631533601077218,
+                  0.18446589936010574,
+                  -0.01694464836456768,
+                  -0.4512713218827986,
+                  -0.12935629151237915,
+                  -0.03631075980831224,
+                  0.43158460099991885
+                ],
+                "target_rad": [
+                  0.2530979514122009,
+                  -0.012011772952973843,
+                  -0.5480433106422424,
+                  -0.1666923314332962,
+                  0.03550349920988083,
+                  0.5950219631195068,
+                  0.22021006047725677,
+                  -0.11153414100408554,
+                  -0.5187878012657166,
+                  -0.14869390428066254,
+                  0.004742198623716831,
+                  0.43249115347862244
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.13064369895087768
+              },
+              {
+                "phase": "end_static_initialization",
+                "desired_time_s": 18.06346153846154,
+                "sample_time_s": 18.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.018091229624817896,
+                  -0.002996580632026239,
+                  0.15835309422743787
+                ],
+                "tilt_deg": 0.1407406844676661,
+                "joint_pos_rad": [
+                  0.25611296710201265,
+                  0.0037551242397869953,
+                  -0.46738678939572464,
+                  -0.2594747655673777,
+                  0.0034686970366453198,
+                  0.4555655370235755,
+                  0.2530690955630458,
+                  0.0023427965537517015,
+                  -0.47163764164291855,
+                  -0.2189580666375103,
+                  -0.022348609477733105,
+                  0.48353584646309483
+                ],
+                "target_rad": [
+                  0.2599128484725952,
+                  -4.637141682906076e-05,
+                  -0.5199984908103943,
+                  -0.2598569989204407,
+                  -7.389273378066719e-06,
+                  0.5198361277580261,
+                  0.2597823739051819,
+                  -4.8923579015536234e-05,
+                  -0.5198017954826355,
+                  -0.2596231698989868,
+                  -0.000104617873148527,
+                  0.5197449922561646
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.06443444390293818
+              },
+              {
+                "phase": "end_policy_fade",
+                "desired_time_s": 20.06346153846154,
+                "sample_time_s": 20.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.014262919625707434,
+                  -0.0023035435023384247,
+                  0.15967219178724168
+                ],
+                "tilt_deg": 0.5795656189751336,
+                "joint_pos_rad": [
+                  0.2532516663996133,
+                  0.011823388109097555,
+                  -0.48616853002404115,
+                  -0.2555587734654481,
+                  0.0059828991336376485,
+                  0.4763815852877537,
+                  0.26141510895290326,
+                  0.011757717327153416,
+                  -0.520470685657881,
+                  -0.23726882814025244,
+                  -0.017428529000086027,
+                  0.53159837411306
+                ],
+                "target_rad": [
+                  0.26426687836647034,
+                  -0.02143903635442257,
+                  -0.5536327362060547,
+                  -0.25616130232810974,
+                  0.02541196346282959,
+                  0.5638985633850098,
+                  0.23719292879104614,
+                  0.006780318915843964,
+                  -0.596799373626709,
+                  -0.2537219524383545,
+                  0.005303600803017616,
+                  0.5647016763687134
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.043618395638759966
+              },
+              {
+                "phase": "walking_ready",
+                "desired_time_s": 20.263461538461538,
+                "sample_time_s": 20.26923076923077,
+                "timing_offset_s": 0.005769230769231193,
+                "root_pos_m": [
+                  -0.013566245042474591,
+                  -0.002168135171616197,
+                  0.15989758421413625
+                ],
+                "tilt_deg": 0.5660955848207442,
+                "joint_pos_rad": [
+                  0.25291684347198223,
+                  0.01224962240897058,
+                  -0.4926928830399922,
+                  -0.25415755400893847,
+                  0.006410918064970549,
+                  0.48204533692668866,
+                  0.2603056533433797,
+                  0.013079546722247155,
+                  -0.5271885250846233,
+                  -0.23626580750923584,
+                  -0.016392739528472207,
+                  0.5369249453833012
+                ],
+                "target_rad": [
+                  0.2644379734992981,
+                  -0.02143634855747223,
+                  -0.5556415319442749,
+                  -0.2572386562824249,
+                  0.025176934897899628,
+                  0.5658400654792786,
+                  0.23741066455841064,
+                  0.007705543655902147,
+                  -0.5980660915374756,
+                  -0.252677321434021,
+                  0.006115217227488756,
+                  0.5647251605987549
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.03795464399982501
+              }
+            ],
+            "ready_delay_s": 4.199999999999999,
+            "meaning": "2s measured-joint interpolation to staticdefault followed by2s learnedpolicy fade +.2s API margin. These are active target changes, not a duplicate queue wait. The prior target is a52Hzsample, not exact pre-switch actuator output."
+          }
+        }
+      }
+    },
+    "api-foot_end_low": {
+      "comparison_file": "comparison-api-foot_end_low.json",
+      "comparison_sha256": "1f4c5710cd9fadae5e3099eedbc74d7d9cb5461d6a22caf5a2406a512bf317b9",
+      "total_savings_s": 2.6653846153846175,
+      "total_savings_percent": 9.897879025923025,
+      "walking_onset_savings_s": 2.6653846153846175,
+      "identical_prefix_samples": 287,
+      "identical_prefix_inferences": 261,
+      "results": {
+        "legacy": {
+          "complete": true,
+          "stop": null,
+          "total_s": 26.928846153846155,
+          "walking_command_starts_s": 22.928846153846155,
+          "all": {
+            "samples_52hz": 1401,
+            "max_tilt_deg": 37.27809954278858,
+            "yaw_change_deg": -2.8428158072910086,
+            "yaw_range_deg": 4.106189066879693,
+            "max_planar_excursion_m": 0.38187996057384144,
+            "max_joint_speed_rad_s_sampled": 12.65370595462268,
+            "peak_effort_nm_sampled": 2.1125903624560576,
+            "max_controller_target_step_rad_520hz": 0.3759858012199402,
+            "peak_controller_clamp_rad_sampled": 0.2445940375328064,
+            "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+            "driver_clipped_joint_fraction_sampled": 0.027361408517725436,
+            "reference_tracking_rmse_rad_inference": 0.03219738837971646,
+            "loaded_contact_geometries": [
+              "leg_back_l_2_hull",
+              "leg_back_l_3_collision",
+              "leg_back_l_3_hull",
+              "leg_back_r_2_hull",
+              "leg_back_r_3_collision",
+              "leg_back_r_3_hull",
+              "leg_front_l_3_collision",
+              "leg_front_l_3_hull",
+              "leg_front_r_3_collision",
+              "leg_front_r_3_hull"
+            ],
+            "loaded_contact_force_weighted_slip_m_s_sampled": 0.0033634746614971647,
+            "final_joint_speed_rad_s_sampled": 0.00729047166184116
+          },
+          "active_requested_clips": {
+            "shake_left": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 37.27809954278858,
+              "yaw_change_deg": -0.1098510471123169,
+              "yaw_range_deg": 1.8408359307018485,
+              "max_planar_excursion_m": 0.015404422542989106,
+              "max_joint_speed_rad_s_sampled": 4.136579543973445,
+              "peak_effort_nm_sampled": 1.6132807264131692,
+              "max_controller_target_step_rad_520hz": 0.08314847946166992,
+              "peak_controller_clamp_rad_sampled": 0.2445940375328064,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07692307692307693,
+              "reference_tracking_rmse_rad_inference": 0.026770287399880726,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_collision",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0019948463397831775,
+              "final_joint_speed_rad_s_sampled": 0.04828822384686369
+            },
+            "shake_right": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.775584116475194,
+              "yaw_change_deg": -0.9465895101403271,
+              "yaw_range_deg": 1.3862576812304712,
+              "max_planar_excursion_m": 0.01304370804686497,
+              "max_joint_speed_rad_s_sampled": 4.1539009289214945,
+              "peak_effort_nm_sampled": 1.6610355664430791,
+              "max_controller_target_step_rad_520hz": 0.09749627113342285,
+              "peak_controller_clamp_rad_sampled": 0.1795702576637268,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07646520146520147,
+              "reference_tracking_rmse_rad_inference": 0.029067149329871745,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_collision",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0021411553658418313,
+              "final_joint_speed_rad_s_sampled": 0.03630950632287204
+            },
+            "stand_up": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 34.81542312600512,
+              "yaw_change_deg": -0.20138820909270436,
+              "yaw_range_deg": 1.8156128061555452,
+              "max_planar_excursion_m": 0.03482165034858721,
+              "max_joint_speed_rad_s_sampled": 7.642078528070324,
+              "peak_effort_nm_sampled": 1.5659298004273103,
+              "max_controller_target_step_rad_520hz": 0.2626427114009857,
+              "peak_controller_clamp_rad_sampled": 0.0,
+              "peak_driver_clamp_rad_sampled": 0.0,
+              "driver_clipped_joint_fraction_sampled": 0.0,
+              "reference_tracking_rmse_rad_inference": 0.0349567859531677,
+              "loaded_contact_geometries": [
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_collision",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_collision",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0019346482888526288,
+              "final_joint_speed_rad_s_sampled": 0.02124882123186048
+            }
+          },
+          "requests": [
+            {
+              "clip": "shake_left",
+              "requested_s": 5.501923076923077,
+              "first_applied_s": 6.211538461538462,
+              "endpoint_applied_s": 9.711538461538462,
+              "api_poll_s": 9.711538461538462,
+              "next_job_s": 9.713461538461539,
+              "waiting_for_native_start_s": 0.7096153846153843,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.0,
+              "total_job_s": 4.211538461538462
+            },
+            {
+              "clip": "shake_right",
+              "requested_s": 9.713461538461539,
+              "first_applied_s": 10.711538461538462,
+              "endpoint_applied_s": 14.211538461538462,
+              "api_poll_s": 14.21923076923077,
+              "next_job_s": 14.221153846153847,
+              "waiting_for_native_start_s": 0.9980769230769226,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.007692307692307665,
+              "total_job_s": 4.507692307692308
+            },
+            {
+              "clip": "stand_up",
+              "requested_s": 14.221153846153847,
+              "first_applied_s": 15.211538461538462,
+              "endpoint_applied_s": 18.71153846153846,
+              "api_poll_s": 18.726923076923075,
+              "next_job_s": 18.728846153846153,
+              "waiting_for_native_start_s": 0.990384615384615,
+              "native_reference_playback_s": 3.4999999999999982,
+              "receipt_to_api_poll_s": 0.01538461538461533,
+              "total_job_s": 4.507692307692306
+            }
+          ],
+          "walking_handoff": {
+            "activation_s": 18.728846153846153,
+            "measured_pose_to_static_default_max_rad": 0.12738025336463193,
+            "prior_52hz_controller_target_to_measured_pose_max_rad": 0.13708075832096256,
+            "phases": [
+              {
+                "phase": "capture_measured_pose",
+                "desired_time_s": 18.728846153846153,
+                "sample_time_s": 18.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.011562877072170102,
+                  -0.0036604288389784014,
+                  0.15784593655869414
+                ],
+                "tilt_deg": 1.5446930836318973,
+                "joint_pos_rad": [
+                  0.2269715459058997,
+                  -0.013778049365165097,
+                  -0.5230770957475495,
+                  -0.21630915241619825,
+                  -0.011757623315031517,
+                  0.46203253523696186,
+                  0.18189057127421157,
+                  -0.01669277066688066,
+                  -0.45232016222666616,
+                  -0.1327008527302305,
+                  -0.027365152632928505,
+                  0.42432019232384544
+                ],
+                "target_rad": [
+                  0.2269267588853836,
+                  -0.01371595449745655,
+                  -0.5230028629302979,
+                  -0.2163367122411728,
+                  -0.011700870469212532,
+                  0.4619452953338623,
+                  0.1818901151418686,
+                  -0.01665002666413784,
+                  -0.45230919122695923,
+                  -0.13274221122264862,
+                  -0.027499260380864143,
+                  0.4244190454483032
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.12729913773302634
+              },
+              {
+                "phase": "end_static_initialization",
+                "desired_time_s": 20.728846153846153,
+                "sample_time_s": 20.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.01632414447666166,
+                  -0.0035333527453071485,
+                  0.1584544864435219
+                ],
+                "tilt_deg": 0.19566143921424284,
+                "joint_pos_rad": [
+                  0.2510388317514222,
+                  0.0038723988291482145,
+                  -0.4691087515879617,
+                  -0.26419130581819683,
+                  -0.0032999001258826616,
+                  0.4549368409966637,
+                  0.25105257969412015,
+                  0.0010706672883098926,
+                  -0.47522547362505874,
+                  -0.22235138714445593,
+                  -0.013410159332051409,
+                  0.4791593247961004
+                ],
+                "target_rad": [
+                  0.25999999046325684,
+                  0.0,
+                  -0.5199999809265137,
+                  -0.25999999046325684,
+                  0.0,
+                  0.5199999809265137,
+                  0.25999999046325684,
+                  0.0,
+                  -0.5199999809265137,
+                  -0.25999999046325684,
+                  0.0,
+                  0.5199999809265137
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.06506313992984997
+              },
+              {
+                "phase": "end_policy_fade",
+                "desired_time_s": 22.728846153846153,
+                "sample_time_s": 22.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.012494978842303708,
+                  -0.0029764253636991147,
+                  0.15977648007837156
+                ],
+                "tilt_deg": 0.5994187343933115,
+                "joint_pos_rad": [
+                  0.24848940502479613,
+                  0.010939398252743678,
+                  -0.48822551658517477,
+                  -0.2593282207745592,
+                  0.0007277955951217923,
+                  0.4760781566484711,
+                  0.26012934056957976,
+                  0.009334201339133548,
+                  -0.5222277535688372,
+                  -0.2387021052922513,
+                  -0.00996262660472666,
+                  0.5283682044151932
+                ],
+                "target_rad": [
+                  0.2651945650577545,
+                  -0.021780844777822495,
+                  -0.5538240671157837,
+                  -0.25619205832481384,
+                  0.025685090571641922,
+                  0.5655035972595215,
+                  0.23760278522968292,
+                  0.0061506894417107105,
+                  -0.5966019630432129,
+                  -0.25242704153060913,
+                  0.0047965398989617825,
+                  0.5641427636146545
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.04392182427804259
+              },
+              {
+                "phase": "walking_ready",
+                "desired_time_s": 22.928846153846152,
+                "sample_time_s": 22.923076923076923,
+                "timing_offset_s": -0.0057692307692294165,
+                "root_pos_m": [
+                  -0.011873964709529453,
+                  -0.002870939270594029,
+                  0.15998174633716303
+                ],
+                "tilt_deg": 0.5847944728176467,
+                "joint_pos_rad": [
+                  0.24831988775764602,
+                  0.011309088116217976,
+                  -0.4941848734347553,
+                  -0.25799311162004607,
+                  0.0011616754350140311,
+                  0.48127838392759503,
+                  0.25929361442754884,
+                  0.010444922258752185,
+                  -0.5280776523775366,
+                  -0.23766996011694133,
+                  -0.009190017351820564,
+                  0.5333565402809916
+                ],
+                "target_rad": [
+                  0.26523348689079285,
+                  -0.021629713475704193,
+                  -0.5552645325660706,
+                  -0.257112056016922,
+                  0.02520376816391945,
+                  0.5666969418525696,
+                  0.23792117834091187,
+                  0.007000323850661516,
+                  -0.5971155762672424,
+                  -0.2515806555747986,
+                  0.005483505316078663,
+                  0.5639206171035767
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.03872159699891864
+              }
+            ],
+            "ready_delay_s": 4.200000000000003,
+            "meaning": "2s measured-joint interpolation to staticdefault followed by2s learnedpolicy fade +.2s API margin. These are active target changes, not a duplicate queue wait. The prior target is a52Hzsample, not exact pre-switch actuator output."
+          }
+        },
+        "static": {
+          "complete": true,
+          "stop": null,
+          "total_s": 24.263461538461538,
+          "walking_command_starts_s": 20.263461538461538,
+          "all": {
+            "samples_52hz": 1262,
+            "max_tilt_deg": 37.28372791371586,
+            "yaw_change_deg": -2.5287395527446015,
+            "yaw_range_deg": 4.066010617413375,
+            "max_planar_excursion_m": 0.39533102173029666,
+            "max_joint_speed_rad_s_sampled": 10.477545555768158,
+            "peak_effort_nm_sampled": 2.1125903624560576,
+            "max_controller_target_step_rad_520hz": 0.37161286175251007,
+            "peak_controller_clamp_rad_sampled": 0.24332267045974731,
+            "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+            "driver_clipped_joint_fraction_sampled": 0.02443211833069202,
+            "reference_tracking_rmse_rad_inference": 0.03288944678666096,
+            "loaded_contact_geometries": [
+              "leg_back_l_2_hull",
+              "leg_back_l_3_collision",
+              "leg_back_l_3_hull",
+              "leg_back_r_2_hull",
+              "leg_back_r_3_collision",
+              "leg_back_r_3_hull",
+              "leg_front_l_3_collision",
+              "leg_front_l_3_hull",
+              "leg_front_r_3_collision",
+              "leg_front_r_3_hull"
+            ],
+            "loaded_contact_force_weighted_slip_m_s_sampled": 0.004244906575458944,
+            "final_joint_speed_rad_s_sampled": 0.006591230157899226
+          },
+          "active_requested_clips": {
+            "shake_left": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 37.28372791371586,
+              "yaw_change_deg": 0.018511417912251183,
+              "yaw_range_deg": 1.9284631884800605,
+              "max_planar_excursion_m": 0.015419025103258788,
+              "max_joint_speed_rad_s_sampled": 4.1849139825480925,
+              "peak_effort_nm_sampled": 1.6234517183619377,
+              "max_controller_target_step_rad_520hz": 0.08284768462181091,
+              "peak_controller_clamp_rad_sampled": 0.24332267045974731,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07646520146520147,
+              "reference_tracking_rmse_rad_inference": 0.026661091783968416,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0018132646176378107,
+              "final_joint_speed_rad_s_sampled": 0.051149751645020294
+            },
+            "shake_right": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.80925939125853,
+              "yaw_change_deg": -0.6666000775673484,
+              "yaw_range_deg": 1.355842998621658,
+              "max_planar_excursion_m": 0.014214919566239116,
+              "max_joint_speed_rad_s_sampled": 4.161876170773803,
+              "peak_effort_nm_sampled": 1.631747249743578,
+              "max_controller_target_step_rad_520hz": 0.09626835584640503,
+              "peak_controller_clamp_rad_sampled": 0.18025749921798706,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07554945054945054,
+              "reference_tracking_rmse_rad_inference": 0.028172331805325884,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_collision",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_collision",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.002926356993858571,
+              "final_joint_speed_rad_s_sampled": 0.03751422387228436
+            },
+            "stand_up": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 34.90166789342014,
+              "yaw_change_deg": 0.023403732702052198,
+              "yaw_range_deg": 1.68022126126186,
+              "max_planar_excursion_m": 0.0341000997445159,
+              "max_joint_speed_rad_s_sampled": 7.652351021351457,
+              "peak_effort_nm_sampled": 1.5559207566997744,
+              "max_controller_target_step_rad_520hz": 0.26174476742744446,
+              "peak_controller_clamp_rad_sampled": 0.0,
+              "peak_driver_clamp_rad_sampled": 0.0,
+              "driver_clipped_joint_fraction_sampled": 0.0,
+              "reference_tracking_rmse_rad_inference": 0.03496919667633439,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_collision",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_collision",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.002211591189263744,
+              "final_joint_speed_rad_s_sampled": 0.021732666271274383
+            }
+          },
+          "requests": [
+            {
+              "clip": "shake_left",
+              "requested_s": 5.501923076923077,
+              "first_applied_s": 5.519230769230769,
+              "endpoint_applied_s": 9.01923076923077,
+              "api_poll_s": 9.034615384615385,
+              "next_job_s": 9.036538461538461,
+              "waiting_for_native_start_s": 0.017307692307691802,
+              "native_reference_playback_s": 3.500000000000001,
+              "receipt_to_api_poll_s": 0.01538461538461533,
+              "total_job_s": 3.5346153846153836
+            },
+            {
+              "clip": "shake_right",
+              "requested_s": 9.036538461538461,
+              "first_applied_s": 9.038461538461538,
+              "endpoint_applied_s": 12.538461538461538,
+              "api_poll_s": 12.548076923076923,
+              "next_job_s": 12.55,
+              "waiting_for_native_start_s": 0.0019230769230773603,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.009615384615385025,
+              "total_job_s": 3.5134615384615397
+            },
+            {
+              "clip": "stand_up",
+              "requested_s": 12.55,
+              "first_applied_s": 12.557692307692308,
+              "endpoint_applied_s": 16.057692307692307,
+              "api_poll_s": 16.06153846153846,
+              "next_job_s": 16.06346153846154,
+              "waiting_for_native_start_s": 0.007692307692307665,
+              "native_reference_playback_s": 3.4999999999999982,
+              "receipt_to_api_poll_s": 0.0038461538461547207,
+              "total_job_s": 3.513461538461538
+            }
+          ],
+          "walking_handoff": {
+            "activation_s": 16.06346153846154,
+            "measured_pose_to_static_default_max_rad": 0.1253370838445284,
+            "prior_52hz_controller_target_to_measured_pose_max_rad": 0.1341038126299326,
+            "phases": [
+              {
+                "phase": "capture_measured_pose",
+                "desired_time_s": 16.06346153846154,
+                "sample_time_s": 16.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.012376851728413749,
+                  -0.003939317052683791,
+                  0.15787584856711287
+                ],
+                "tilt_deg": 1.5207112241803369,
+                "joint_pos_rad": [
+                  0.22928893904327485,
+                  -0.01027487352796352,
+                  -0.523468021514298,
+                  -0.2090194348414187,
+                  -0.012011815683756375,
+                  0.46461989972182566,
+                  0.18724145523244753,
+                  -0.0179327562068651,
+                  -0.4511966456854842,
+                  -0.13463831128020906,
+                  -0.027755775157157995,
+                  0.42560782260847285
+                ],
+                "target_rad": [
+                  0.2543543577194214,
+                  -0.016211632639169693,
+                  -0.546592116355896,
+                  -0.16980944573879242,
+                  0.04501490294933319,
+                  0.5987847447395325,
+                  0.22257421910762787,
+                  -0.11296675354242325,
+                  -0.5220984220504761,
+                  -0.145528182387352,
+                  0.003869833890348673,
+                  0.42560508847236633
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.12536167918304778
+              },
+              {
+                "phase": "end_static_initialization",
+                "desired_time_s": 18.06346153846154,
+                "sample_time_s": 18.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.017213883206732124,
+                  -0.003922362662173117,
+                  0.1584530547650861
+                ],
+                "tilt_deg": 0.16940941046288382,
+                "joint_pos_rad": [
+                  0.25232888826261357,
+                  0.007135692656352562,
+                  -0.46963446393130465,
+                  -0.25774963203559054,
+                  -0.003435337326957951,
+                  0.4573023594155097,
+                  0.2540253794546383,
+                  -0.0011719525867939348,
+                  -0.4722785047914797,
+                  -0.22395009200799706,
+                  -0.014370340391764358,
+                  0.479061517762176
+                ],
+                "target_rad": [
+                  0.25991156697273254,
+                  -2.9797711249557324e-05,
+                  -0.5200099349021912,
+                  -0.25985291600227356,
+                  -3.4797329135471955e-05,
+                  0.51984041929245,
+                  0.2597903311252594,
+                  -5.18045126227662e-05,
+                  -0.5198016166687012,
+                  -0.2596384286880493,
+                  -7.985485717654228e-05,
+                  0.5197276473045349
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.062697621511004
+              },
+              {
+                "phase": "end_policy_fade",
+                "desired_time_s": 20.06346153846154,
+                "sample_time_s": 20.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.013402430549469397,
+                  -0.0033073752792306703,
+                  0.15976434221885352
+                ],
+                "tilt_deg": 0.5918409027836683,
+                "joint_pos_rad": [
+                  0.2492077302274024,
+                  0.014287711969652563,
+                  -0.48845380494653234,
+                  -0.25428331859915143,
+                  0.0010971190359917859,
+                  0.478052959253441,
+                  0.2622974762392541,
+                  0.007437532951783209,
+                  -0.5191387496491267,
+                  -0.2407031832442166,
+                  -0.0108788239953659,
+                  0.527976152294794
+                ],
+                "target_rad": [
+                  0.2645527720451355,
+                  -0.02099653147161007,
+                  -0.5533702969551086,
+                  -0.25679153203964233,
+                  0.025315890088677406,
+                  0.5645444989204407,
+                  0.2365717589855194,
+                  0.007025052793323994,
+                  -0.5960615873336792,
+                  -0.2529192268848419,
+                  0.004628854803740978,
+                  0.5633295178413391
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.04194702167307268
+              },
+              {
+                "phase": "walking_ready",
+                "desired_time_s": 20.263461538461538,
+                "sample_time_s": 20.26923076923077,
+                "timing_offset_s": 0.005769230769231193,
+                "root_pos_m": [
+                  -0.012706302807027432,
+                  -0.0031814828684835466,
+                  0.1599881701191298
+                ],
+                "tilt_deg": 0.576995042028401,
+                "joint_pos_rad": [
+                  0.24891149825503234,
+                  0.014699009942776639,
+                  -0.49500652108148435,
+                  -0.2528628337138784,
+                  0.0016140045094084816,
+                  0.4837431144676796,
+                  0.2612436954091066,
+                  0.008719164435640402,
+                  -0.5255972469769147,
+                  -0.23949983833851549,
+                  -0.010006088009815794,
+                  0.5334162708940322
+                ],
+                "target_rad": [
+                  0.26467400789260864,
+                  -0.02101776748895645,
+                  -0.5554240942001343,
+                  -0.2578568160533905,
+                  0.024997327476739883,
+                  0.5664583444595337,
+                  0.236761674284935,
+                  0.008015042170882225,
+                  -0.5973181128501892,
+                  -0.25186866521835327,
+                  0.00542137585580349,
+                  0.5634423494338989
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.03625686645883408
+              }
+            ],
+            "ready_delay_s": 4.199999999999999,
+            "meaning": "2s measured-joint interpolation to staticdefault followed by2s learnedpolicy fade +.2s API margin. These are active target changes, not a duplicate queue wait. The prior target is a52Hzsample, not exact pre-switch actuator output."
+          }
+        }
+      }
+    },
+    "api-density_130": {
+      "comparison_file": "comparison-api-density_130.json",
+      "comparison_sha256": "66b78e395205d45241e7fc60adca9843f4e02aac93f9be627ad946499cc170fd",
+      "total_savings_s": 2.6653846153846175,
+      "total_savings_percent": 9.897879025923025,
+      "walking_onset_savings_s": 2.6653846153846175,
+      "identical_prefix_samples": 287,
+      "identical_prefix_inferences": 261,
+      "results": {
+        "legacy": {
+          "complete": true,
+          "stop": null,
+          "total_s": 26.928846153846155,
+          "walking_command_starts_s": 22.928846153846155,
+          "all": {
+            "samples_52hz": 1401,
+            "max_tilt_deg": 36.54548030188965,
+            "yaw_change_deg": -1.4299433212250876,
+            "yaw_range_deg": 3.5242524719547403,
+            "max_planar_excursion_m": 0.42023485024111906,
+            "max_joint_speed_rad_s_sampled": 11.444797026143151,
+            "peak_effort_nm_sampled": 2.091767444719597,
+            "max_controller_target_step_rad_520hz": 0.38190168142318726,
+            "peak_controller_clamp_rad_sampled": 0.2490488886833191,
+            "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+            "driver_clipped_joint_fraction_sampled": 0.02801570306923626,
+            "reference_tracking_rmse_rad_inference": 0.03296569078205645,
+            "loaded_contact_geometries": [
+              "leg_back_l_2_hull",
+              "leg_back_l_3_collision",
+              "leg_back_l_3_hull",
+              "leg_back_r_2_hull",
+              "leg_back_r_3_hull",
+              "leg_front_l_3_collision",
+              "leg_front_l_3_hull",
+              "leg_front_r_3_collision",
+              "leg_front_r_3_hull"
+            ],
+            "loaded_contact_force_weighted_slip_m_s_sampled": 0.002366030036562995,
+            "final_joint_speed_rad_s_sampled": 0.009137936367712126
+          },
+          "active_requested_clips": {
+            "shake_left": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.54548030188965,
+              "yaw_change_deg": -0.17412589401495543,
+              "yaw_range_deg": 1.3005256884086573,
+              "max_planar_excursion_m": 0.013875899399864795,
+              "max_joint_speed_rad_s_sampled": 4.121930147917696,
+              "peak_effort_nm_sampled": 1.8831706591842399,
+              "max_controller_target_step_rad_520hz": 0.08471065759658813,
+              "peak_controller_clamp_rad_sampled": 0.2490488886833191,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07783882783882784,
+              "reference_tracking_rmse_rad_inference": 0.02445259502486228,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0013578431695936248,
+              "final_joint_speed_rad_s_sampled": 0.04126174588254165
+            },
+            "shake_right": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.067925132964724,
+              "yaw_change_deg": -0.521995024075665,
+              "yaw_range_deg": 0.7394494822682951,
+              "max_planar_excursion_m": 0.013376917804772404,
+              "max_joint_speed_rad_s_sampled": 4.238920463725129,
+              "peak_effort_nm_sampled": 1.8215665506289351,
+              "max_controller_target_step_rad_520hz": 0.09575629234313965,
+              "peak_controller_clamp_rad_sampled": 0.21431630849838257,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07554945054945054,
+              "reference_tracking_rmse_rad_inference": 0.029579850662549277,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_collision",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_collision",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0015698335407519218,
+              "final_joint_speed_rad_s_sampled": 0.03696809095393297
+            },
+            "stand_up": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 34.76727947275399,
+              "yaw_change_deg": -0.843649902979312,
+              "yaw_range_deg": 2.196527123524097,
+              "max_planar_excursion_m": 0.032951116777447095,
+              "max_joint_speed_rad_s_sampled": 7.590826580228594,
+              "peak_effort_nm_sampled": 1.8089604849998078,
+              "max_controller_target_step_rad_520hz": 0.25709307193756104,
+              "peak_controller_clamp_rad_sampled": 0.0,
+              "peak_driver_clamp_rad_sampled": 0.0,
+              "driver_clipped_joint_fraction_sampled": 0.0,
+              "reference_tracking_rmse_rad_inference": 0.03669526737519519,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_collision",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.001211332437022393,
+              "final_joint_speed_rad_s_sampled": 0.023513535521131525
+            }
+          },
+          "requests": [
+            {
+              "clip": "shake_left",
+              "requested_s": 5.501923076923077,
+              "first_applied_s": 6.211538461538462,
+              "endpoint_applied_s": 9.711538461538462,
+              "api_poll_s": 9.711538461538462,
+              "next_job_s": 9.713461538461539,
+              "waiting_for_native_start_s": 0.7096153846153843,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.0,
+              "total_job_s": 4.211538461538462
+            },
+            {
+              "clip": "shake_right",
+              "requested_s": 9.713461538461539,
+              "first_applied_s": 10.711538461538462,
+              "endpoint_applied_s": 14.211538461538462,
+              "api_poll_s": 14.21923076923077,
+              "next_job_s": 14.221153846153847,
+              "waiting_for_native_start_s": 0.9980769230769226,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.007692307692307665,
+              "total_job_s": 4.507692307692308
+            },
+            {
+              "clip": "stand_up",
+              "requested_s": 14.221153846153847,
+              "first_applied_s": 15.211538461538462,
+              "endpoint_applied_s": 18.71153846153846,
+              "api_poll_s": 18.726923076923075,
+              "next_job_s": 18.728846153846153,
+              "waiting_for_native_start_s": 0.990384615384615,
+              "native_reference_playback_s": 3.4999999999999982,
+              "receipt_to_api_poll_s": 0.01538461538461533,
+              "total_job_s": 4.507692307692306
+            }
+          ],
+          "walking_handoff": {
+            "activation_s": 18.728846153846153,
+            "measured_pose_to_static_default_max_rad": 0.12685092012778973,
+            "prior_52hz_controller_target_to_measured_pose_max_rad": 0.1543383284538592,
+            "phases": [
+              {
+                "phase": "capture_measured_pose",
+                "desired_time_s": 18.728846153846153,
+                "sample_time_s": 18.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.01162734919781245,
+                  0.00014214748436550538,
+                  0.15692793181300876
+                ],
+                "tilt_deg": 1.411632720412482,
+                "joint_pos_rad": [
+                  0.22439838045873808,
+                  -0.01280409910132162,
+                  -0.4971921568744124,
+                  -0.19739759311294036,
+                  -0.00689885092440156,
+                  0.4470177369674327,
+                  0.1846498853984667,
+                  -0.013944249848928763,
+                  -0.43547572353099256,
+                  -0.13316255568315793,
+                  -0.03344447184826635,
+                  0.4122521735701222
+                ],
+                "target_rad": [
+                  0.22433865070343018,
+                  -0.012754891999065876,
+                  -0.49714982509613037,
+                  -0.1974378079175949,
+                  -0.0068492102436721325,
+                  0.44693389534950256,
+                  0.18462657928466797,
+                  -0.013924564234912395,
+                  -0.43548908829689026,
+                  -0.13327103853225708,
+                  -0.03345737233757973,
+                  0.4122813940048218
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.1268374347800989
+              },
+              {
+                "phase": "end_static_initialization",
+                "desired_time_s": 20.728846153846153,
+                "sample_time_s": 20.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.01758198022071451,
+                  0.00022194817352691478,
+                  0.15752227306631636
+                ],
+                "tilt_deg": 0.17023379328308297,
+                "joint_pos_rad": [
+                  0.2559280784967511,
+                  0.0076612359957150865,
+                  -0.4483407446995863,
+                  -0.25342044581285833,
+                  -0.0010326171037844793,
+                  0.4397725528987425,
+                  0.2552813491271509,
+                  0.003989342419930667,
+                  -0.4544790524334166,
+                  -0.22697532225293196,
+                  -0.02350671850442022,
+                  0.463936305661707
+                ],
+                "target_rad": [
+                  0.25999999046325684,
+                  0.0,
+                  -0.5199999809265137,
+                  -0.25999999046325684,
+                  0.0,
+                  0.5199999809265137,
+                  0.25999999046325684,
+                  0.0,
+                  -0.5199999809265137,
+                  -0.25999999046325684,
+                  0.0,
+                  0.5199999809265137
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.08022742802777116
+              },
+              {
+                "phase": "end_policy_fade",
+                "desired_time_s": 22.728846153846153,
+                "sample_time_s": 22.73076923076923,
+                "timing_offset_s": 0.0019230769230773603,
+                "root_pos_m": [
+                  -0.014368025496604573,
+                  0.0009563256362115112,
+                  0.1586953133265737
+                ],
+                "tilt_deg": 0.7473780612053662,
+                "joint_pos_rad": [
+                  0.25315604414455023,
+                  0.01854642694086864,
+                  -0.461614590712167,
+                  -0.25398383639166505,
+                  0.002721843312317919,
+                  0.45182162006418475,
+                  0.2656791083131499,
+                  0.011736753419338816,
+                  -0.5007684334538112,
+                  -0.24983686466867505,
+                  -0.0224613204637982,
+                  0.5099414554391616
+                ],
+                "target_rad": [
+                  0.26132678985595703,
+                  -0.017609328031539917,
+                  -0.5524965524673462,
+                  -0.2552804946899414,
+                  0.02613065019249916,
+                  0.5567126870155334,
+                  0.2372211217880249,
+                  0.005000519100576639,
+                  -0.5950495600700378,
+                  -0.2592304050922394,
+                  0.0021506999619305134,
+                  0.56691575050354
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.06817836086232892
+              },
+              {
+                "phase": "walking_ready",
+                "desired_time_s": 22.928846153846152,
+                "sample_time_s": 22.923076923076923,
+                "timing_offset_s": -0.0057692307692294165,
+                "root_pos_m": [
+                  -0.013647543489937236,
+                  0.0011203204810196644,
+                  0.158909353963898
+                ],
+                "tilt_deg": 0.7519409443328638,
+                "joint_pos_rad": [
+                  0.2521718068881402,
+                  0.01959465610733348,
+                  -0.4676981992338472,
+                  -0.2525602157304083,
+                  0.003524879851839638,
+                  0.45622512706123647,
+                  0.2644124164388656,
+                  0.012715593798606635,
+                  -0.5075360958731019,
+                  -0.24914419918090797,
+                  -0.021961075036923627,
+                  0.5152259696234874
+                ],
+                "target_rad": [
+                  0.26105600595474243,
+                  -0.017361178994178772,
+                  -0.5542716383934021,
+                  -0.2563420832157135,
+                  0.026178348809480667,
+                  0.5580852031707764,
+                  0.23780806362628937,
+                  0.005767591763287783,
+                  -0.5956969261169434,
+                  -0.2582927346229553,
+                  0.002758484333753586,
+                  0.5661486387252808
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.0637748538652772
+              }
+            ],
+            "ready_delay_s": 4.200000000000003,
+            "meaning": "2s measured-joint interpolation to staticdefault followed by2s learnedpolicy fade +.2s API margin. These are active target changes, not a duplicate queue wait. The prior target is a52Hzsample, not exact pre-switch actuator output."
+          }
+        },
+        "static": {
+          "complete": true,
+          "stop": null,
+          "total_s": 24.263461538461538,
+          "walking_command_starts_s": 20.263461538461538,
+          "all": {
+            "samples_52hz": 1262,
+            "max_tilt_deg": 36.53503867626279,
+            "yaw_change_deg": -2.2731301932309864,
+            "yaw_range_deg": 4.131200075809868,
+            "max_planar_excursion_m": 0.4025255307636313,
+            "max_joint_speed_rad_s_sampled": 10.79911453005091,
+            "peak_effort_nm_sampled": 2.091767444719597,
+            "max_controller_target_step_rad_520hz": 0.38593852519989014,
+            "peak_controller_clamp_rad_sampled": 0.2480197548866272,
+            "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+            "driver_clipped_joint_fraction_sampled": 0.025224511357633386,
+            "reference_tracking_rmse_rad_inference": 0.034338139945321866,
+            "loaded_contact_geometries": [
+              "leg_back_l_2_hull",
+              "leg_back_l_3_collision",
+              "leg_back_l_3_hull",
+              "leg_back_r_2_hull",
+              "leg_back_r_3_hull",
+              "leg_front_l_3_collision",
+              "leg_front_l_3_hull",
+              "leg_front_r_3_collision",
+              "leg_front_r_3_hull"
+            ],
+            "loaded_contact_force_weighted_slip_m_s_sampled": 0.0023877680886865774,
+            "final_joint_speed_rad_s_sampled": 0.009195744626477324
+          },
+          "active_requested_clips": {
+            "shake_left": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.53503867626279,
+              "yaw_change_deg": -0.10116402101729974,
+              "yaw_range_deg": 1.2730204675671877,
+              "max_planar_excursion_m": 0.013859083970594044,
+              "max_joint_speed_rad_s_sampled": 4.1730445287283535,
+              "peak_effort_nm_sampled": 1.8695663714345687,
+              "max_controller_target_step_rad_520hz": 0.08465909957885742,
+              "peak_controller_clamp_rad_sampled": 0.2480197548866272,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07738095238095238,
+              "reference_tracking_rmse_rad_inference": 0.02462852573651803,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_collision",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0012546063378925535,
+              "final_joint_speed_rad_s_sampled": 0.04169124483679008
+            },
+            "shake_right": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 36.07896361847377,
+              "yaw_change_deg": -0.39323756869139875,
+              "yaw_range_deg": 0.6760208889813113,
+              "max_planar_excursion_m": 0.01416751563829722,
+              "max_joint_speed_rad_s_sampled": 4.237671628000762,
+              "peak_effort_nm_sampled": 1.8270628754341782,
+              "max_controller_target_step_rad_520hz": 0.09580540657043457,
+              "peak_controller_clamp_rad_sampled": 0.21356791257858276,
+              "peak_driver_clamp_rad_sampled": 0.0999999785423279,
+              "driver_clipped_joint_fraction_sampled": 0.07509157509157509,
+              "reference_tracking_rmse_rad_inference": 0.029390275090859008,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_collision",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.0015409070539744235,
+              "final_joint_speed_rad_s_sampled": 0.03820347645846374
+            },
+            "stand_up": {
+              "samples_52hz": 182,
+              "max_tilt_deg": 34.790282011215524,
+              "yaw_change_deg": -0.4440001282404267,
+              "yaw_range_deg": 1.940376643738772,
+              "max_planar_excursion_m": 0.03275926106415351,
+              "max_joint_speed_rad_s_sampled": 7.659724126070994,
+              "peak_effort_nm_sampled": 1.8353683155440819,
+              "max_controller_target_step_rad_520hz": 0.26488247513771057,
+              "peak_controller_clamp_rad_sampled": 0.0,
+              "peak_driver_clamp_rad_sampled": 0.0,
+              "driver_clipped_joint_fraction_sampled": 0.0,
+              "reference_tracking_rmse_rad_inference": 0.0380654325685555,
+              "loaded_contact_geometries": [
+                "leg_back_l_2_hull",
+                "leg_back_l_3_hull",
+                "leg_back_r_2_hull",
+                "leg_back_r_3_hull",
+                "leg_front_l_3_hull",
+                "leg_front_r_3_hull"
+              ],
+              "loaded_contact_force_weighted_slip_m_s_sampled": 0.001277109144580697,
+              "final_joint_speed_rad_s_sampled": 0.022852387478807613
+            }
+          },
+          "requests": [
+            {
+              "clip": "shake_left",
+              "requested_s": 5.501923076923077,
+              "first_applied_s": 5.519230769230769,
+              "endpoint_applied_s": 9.01923076923077,
+              "api_poll_s": 9.034615384615385,
+              "next_job_s": 9.036538461538461,
+              "waiting_for_native_start_s": 0.017307692307691802,
+              "native_reference_playback_s": 3.500000000000001,
+              "receipt_to_api_poll_s": 0.01538461538461533,
+              "total_job_s": 3.5346153846153836
+            },
+            {
+              "clip": "shake_right",
+              "requested_s": 9.036538461538461,
+              "first_applied_s": 9.038461538461538,
+              "endpoint_applied_s": 12.538461538461538,
+              "api_poll_s": 12.548076923076923,
+              "next_job_s": 12.55,
+              "waiting_for_native_start_s": 0.0019230769230773603,
+              "native_reference_playback_s": 3.5,
+              "receipt_to_api_poll_s": 0.009615384615385025,
+              "total_job_s": 3.5134615384615397
+            },
+            {
+              "clip": "stand_up",
+              "requested_s": 12.55,
+              "first_applied_s": 12.557692307692308,
+              "endpoint_applied_s": 16.057692307692307,
+              "api_poll_s": 16.06153846153846,
+              "next_job_s": 16.06346153846154,
+              "waiting_for_native_start_s": 0.007692307692307665,
+              "native_reference_playback_s": 3.4999999999999982,
+              "receipt_to_api_poll_s": 0.0038461538461547207,
+              "total_job_s": 3.513461538461538
+            }
+          ],
+          "walking_handoff": {
+            "activation_s": 16.06346153846154,
+            "measured_pose_to_static_default_max_rad": 0.12608955811556433,
+            "prior_52hz_controller_target_to_measured_pose_max_rad": 0.15446020545229694,
+            "phases": [
+              {
+                "phase": "capture_measured_pose",
+                "desired_time_s": 16.06346153846154,
+                "sample_time_s": 16.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.012304141395098134,
+                  0.0005228137464823872,
+                  0.15694770532354826
+                ],
+                "tilt_deg": 1.396916918981832,
+                "joint_pos_rad": [
+                  0.22393650197215773,
+                  -0.013180236482490962,
+                  -0.4968552876377226,
+                  -0.19622569939265838,
+                  -0.004668673645280166,
+                  0.44747433280771143,
+                  0.18534850225620694,
+                  -0.01292843772727312,
+                  -0.43582948285611317,
+                  -0.1338990191141828,
+                  -0.03219673420467161,
+                  0.4126763853182788
+                ],
+                "target_rad": [
+                  0.2437404841184616,
+                  -0.01228723581880331,
+                  -0.5423058271408081,
+                  -0.16260406374931335,
+                  0.03842613473534584,
+                  0.6019777655601501,
+                  0.22411617636680603,
+                  -0.10909462720155716,
+                  -0.5225379467010498,
+                  -0.14574898779392242,
+                  0.0038520991802215576,
+                  0.426044225692749
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.12610097134907403
+              },
+              {
+                "phase": "end_static_initialization",
+                "desired_time_s": 18.06346153846154,
+                "sample_time_s": 18.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.018321518682280494,
+                  0.0004992212717189827,
+                  0.1575272631146216
+                ],
+                "tilt_deg": 0.1572521424524252,
+                "joint_pos_rad": [
+                  0.2556176694308696,
+                  0.006628024320151184,
+                  -0.44843925933992396,
+                  -0.2522652979912426,
+                  0.0003228021062146488,
+                  0.4400145220953807,
+                  0.2554084917678561,
+                  0.003990115724519215,
+                  -0.4540642963000961,
+                  -0.2271684578101268,
+                  -0.02321275762891359,
+                  0.463350177361056
+                ],
+                "target_rad": [
+                  0.2598961591720581,
+                  -3.815070158452727e-05,
+                  -0.5199331641197205,
+                  -0.2598159909248352,
+                  -1.3627845873998012e-05,
+                  0.5197908878326416,
+                  0.25978490710258484,
+                  -3.7334495573304594e-05,
+                  -0.5197572112083435,
+                  -0.2596362829208374,
+                  -9.278939251089469e-05,
+                  0.5196904540061951
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.07998545883113295
+              },
+              {
+                "phase": "end_policy_fade",
+                "desired_time_s": 20.06346153846154,
+                "sample_time_s": 20.057692307692307,
+                "timing_offset_s": -0.005769230769232081,
+                "root_pos_m": [
+                  -0.015158932290090884,
+                  0.0012087113844403263,
+                  0.15869389647805204
+                ],
+                "tilt_deg": 0.7381170460517723,
+                "joint_pos_rad": [
+                  0.2530191151529168,
+                  0.017541834543981852,
+                  -0.4613413190984178,
+                  -0.25329958118679824,
+                  0.003673367688512772,
+                  0.45191357452984593,
+                  0.2659949494093943,
+                  0.01155976155382321,
+                  -0.5001404797426567,
+                  -0.25038040013994634,
+                  -0.022418629934850436,
+                  0.5093436047173688
+                ],
+                "target_rad": [
+                  0.2612006366252899,
+                  -0.017509330064058304,
+                  -0.5517474412918091,
+                  -0.2550179660320282,
+                  0.025858143344521523,
+                  0.5559035539627075,
+                  0.23715448379516602,
+                  0.004998565185815096,
+                  -0.5942682027816772,
+                  -0.25926464796066284,
+                  0.001964117167517543,
+                  0.5665605664253235
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.06808640639666774
+              },
+              {
+                "phase": "walking_ready",
+                "desired_time_s": 20.263461538461538,
+                "sample_time_s": 20.26923076923077,
+                "timing_offset_s": 0.005769230769231193,
+                "root_pos_m": [
+                  -0.014366821638817593,
+                  0.0013907847997663004,
+                  0.15892708278579173
+                ],
+                "tilt_deg": 0.7438228955004236,
+                "joint_pos_rad": [
+                  0.25192005466298656,
+                  0.018709791871553392,
+                  -0.4679798769678144,
+                  -0.2517286644588442,
+                  0.004533035720901165,
+                  0.4567058254412214,
+                  0.26458630938934524,
+                  0.012637425845065319,
+                  -0.5075533755843966,
+                  -0.249597820428,
+                  -0.021878445083134773,
+                  0.5151148077775293
+                ],
+                "target_rad": [
+                  0.2609921991825104,
+                  -0.01740303263068199,
+                  -0.5540915727615356,
+                  -0.25620201230049133,
+                  0.026143714785575867,
+                  0.5579151511192322,
+                  0.23765912652015686,
+                  0.005907239858061075,
+                  -0.5956413745880127,
+                  -0.25824955105781555,
+                  0.0026080403476953506,
+                  0.5660907626152039
+                ],
+                "max_measured_difference_to_walking_default_rad": 0.06329415548529227
+              }
+            ],
+            "ready_delay_s": 4.199999999999999,
+            "meaning": "2s measured-joint interpolation to staticdefault followed by2s learnedpolicy fade +.2s API margin. These are active target changes, not a duplicate queue wait. The prior target is a52Hzsample, not exact pre-switch actuator output."
+          }
+        }
+      }
+    }
+  },
+  "validation": {
+    "focused_tests": "51 passed, final-api-walk-tests.log",
+    "patch_apply_check": "git apply --check candidate-api-walk.patch succeeded against root2257a5d current checkout; no mutation",
+    "simulation_exits": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "peer_review": "PASS with limits: independent-metrics-review.json;1729 assertions including990 independent metric recomputations, no simulation reruns."
+  },
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/completion-driven-sit",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/completion-driven-sit",
+    "archive_sha256": "a4e257d8f60cb010c072e5543cae039b1b9e485c3de9c987cb96f541b596d1e8",
+    "archive_bytes": 208107541
+  },
+  "scope": [
+    "Three deterministic matched conditions only: nominal; foot sphere+lower-leg hull friction0.6 with shared material priority1; uniform body mass+inertia1.30. The latter is not a localized payload.",
+    "Candidate differs only by native admission of requests from a proved constant Sit idle clip; same model/reference/weights/gains/driver limits/physical initial state within each pair. Full hull contacts,520Hz physics,52Hz inference,16ms ACTUATOR delay. No sensor delay/noise/drift injected.",
+    "Each sequence preserves API5.5s entry minimum, three full3.5s requested reference clips,4.2s walking readiness,2s forward0.2m/s and2s zero. No requested stay or artificial intermediate holds.",
+    "Completion is fresh after-apply correlated controller status, not measured physical settlement. Network/ROS/service/event-loop delays are omitted;20ms polls round upward to520Hz. One continuous state and actor history; no resets between requests.",
+    "The same latency delta across conditions follows the timing-based endpoint rule, not evidence that physical quality is identical.",
+    "Whole-sequence averages differ in duration/idle weighting; use active requested clip fields for motion comparison. Sampled effort/slip/final speed are not continuous maxima or settlement proof.",
+    "Joint/contact metrics52Hz; reference error at inference; target steps accumulated at520Hz then stored each10ticks, so segment attribution can include the preceding sample interval. Contacts are preintegration and saved physical state is after one1/520s step.",
+    "Loaded rear upper/lower-leg hull support and driver clamping remain. Maximum sampled controller target jumps reach0.386rad. These are not waived by the timing result.",
+    "Default activation still captures measured joints, interpolates2s to its static default, then fades learnedpolicy2s plus0.2s readiness. It is a real target transition, not a duplicate idle wait.",
+    "Earlier0.1m/s runs are explicitly native-only and retained separately, with historical plans/patch/source hashes and failed sandbox graphics attempt. No hardware/ROS/API/provider calls or new training. Physical IMU validity remains unresolved."
+  ]
+}

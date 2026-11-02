@@ -1,0 +1,360 @@
+{
+  "date": "2026-11-02",
+  "scope": "Two fresh actualGoogle ERstreaming sessions, exact same sequence text, current browser service, explicitHTTPfake; no robot/browser/acoustic proof and noTTS/media.",
+  "hypothesis": "ExplicitMEDIUM could reduce time to firstcorrecttoolpacket without dropping/adding actions.",
+  "setup_difference": {
+    "thinkingConfig": {
+      "baseline": null,
+      "medium": {
+        "thinkingLevel": "MEDIUM"
+      }
+    }
+  },
+  "model_equal": true,
+  "prompt_equal": true,
+  "tool_catalog_equal": true,
+  "source_service_sha256": "df6e1cbb26171f8a64dc5daf42b6b5e0876b04eebbc16198bbfc1800368801a7",
+  "generation_limits": "maxOutputTokens unset in both; contextcompression/temperature/model/tools/prompt unchanged.",
+  "cases": [
+    {
+      "arm": "baseline",
+      "result_sha256": "25ff16c35f87448cc535b2f9cb40ff5a63d02ba9a48ca667fa8eb0974ab50e3f",
+      "setup_sha256": "e94a619291aa70ec3abc92814f957b06a9e0ac3a55619275ae6ab6774cbe4702",
+      "maxOutputTokens_present": false,
+      "thinkingConfig": null,
+      "first_tool_callback_ms": 2860.351541,
+      "first_action_entry_ms": 2866.374166,
+      "cue_admission_ms": 2869.799375,
+      "reply_to_cue_ms": 1.337666999999783,
+      "generation_complete_ms": 3858.3455830000003,
+      "turn_complete_ms": 3859.2655409999998,
+      "cue_count": 1,
+      "cue_sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "calls": [
+        {
+          "name": "move",
+          "args": {
+            "duration": 0.5,
+            "speed": 0.2,
+            "direction": "forward"
+          },
+          "success": true,
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued",
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:2",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43"
+          },
+          "matched_terminal": {
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:2",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43",
+            "name": "move vx=0.2 vy=0 wz=0 0.5s",
+            "success": true,
+            "message": "sent velocity commands vx=0.2 vy=0 wz=0 for 0.50 s; then requested zero velocity",
+            "terminal_state": "succeeded",
+            "execution_started": true,
+            "event_seq": 8,
+            "wall_time_s": 1793617572.221636,
+            "monotonic_s": 223184.514774916
+          },
+          "entry_ms": 2866.374166,
+          "reply_ms": 2868.4617080000003
+        },
+        {
+          "name": "wait",
+          "args": {
+            "duration": 1
+          },
+          "success": true,
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued",
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:3",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43"
+          },
+          "matched_terminal": {
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:3",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43",
+            "name": "wait 1s",
+            "success": true,
+            "message": "waited 1 s",
+            "terminal_state": "succeeded",
+            "execution_started": true,
+            "event_seq": 10,
+            "wall_time_s": 1793617573.222581,
+            "monotonic_s": 223185.515718833
+          },
+          "entry_ms": 2872.0328750000003,
+          "reply_ms": 2874.0265
+        },
+        {
+          "name": "turn",
+          "args": {
+            "angle": 15,
+            "direction": "left"
+          },
+          "success": true,
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued",
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:4",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43"
+          },
+          "matched_terminal": {
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:4",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43",
+            "name": "move vx=0 vy=0 wz=60 0.25s",
+            "success": true,
+            "message": "sent velocity commands vx=0 vy=0 wz=60 for 0.25 s; then requested zero velocity",
+            "terminal_state": "succeeded",
+            "execution_started": true,
+            "event_seq": 12,
+            "wall_time_s": 1793617573.475542,
+            "monotonic_s": 223185.768680333
+          },
+          "entry_ms": 2875.836541,
+          "reply_ms": 2877.2277080000003
+        }
+      ],
+      "cost_estimate_usd": 0.011426,
+      "usage": [
+        {
+          "case": "baseline",
+          "at_utc": "2026-11-02T11:06:12.710Z",
+          "usage": {
+            "promptTokenCount": 10851,
+            "responseTokenCount": 15,
+            "totalTokenCount": 10866,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 9894
+              }
+            ],
+            "thoughtsTokenCount": 100
+          }
+        }
+      ],
+      "error": null,
+      "abort": null,
+      "cleanup": {
+        "fake_reverified": true,
+        "stop_result": {
+          "success": true,
+          "message": "No running job existed when Stop began. Cleared 0 pending queued commands, separate from the running job. zero walking speed requested. Physical stopping has not been measured.",
+          "details": {
+            "running_job": null,
+            "pending_queued_commands_cleared": 0,
+            "pending_queued_job_ids_cleared": [],
+            "physical_observation": {
+              "stopped": null,
+              "pose": null
+            }
+          },
+          "command_epoch": "4bdeb0c83d974e0ea0a73814bb259e43:2",
+          "command_epoch_required": true
+        },
+        "service_disconnected": true,
+        "sdk_close_requested": true,
+        "provider_close_callback_observed": false,
+        "scope": "Client disposal/close request is not proof of a provider close callback; root process exit recorded separately."
+      }
+    },
+    {
+      "arm": "medium",
+      "result_sha256": "259f23c45be509d195b2226b34e6d29b7f6c5401e24ebc0834593fa63bdad649",
+      "setup_sha256": "893a29cc577a80c4689839351f372ced81a77f0a7909129a083bd689ec90f3dd",
+      "maxOutputTokens_present": false,
+      "thinkingConfig": {
+        "thinkingLevel": "MEDIUM"
+      },
+      "first_tool_callback_ms": 3055.755125,
+      "first_action_entry_ms": 3059.6290000000004,
+      "cue_admission_ms": 3062.1403750000004,
+      "reply_to_cue_ms": 0.9857080000001588,
+      "generation_complete_ms": 5051.9737079999995,
+      "turn_complete_ms": 5052.600125,
+      "cue_count": 1,
+      "cue_sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "calls": [
+        {
+          "name": "move",
+          "args": {
+            "speed": 0.2,
+            "direction": "forward",
+            "duration": 0.5
+          },
+          "success": true,
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued",
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:6",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43"
+          },
+          "matched_terminal": {
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:6",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43",
+            "name": "move vx=0.2 vy=0 wz=0 0.5s",
+            "success": true,
+            "message": "sent velocity commands vx=0.2 vy=0 wz=0 for 0.50 s; then requested zero velocity",
+            "terminal_state": "succeeded",
+            "execution_started": true,
+            "event_seq": 20,
+            "wall_time_s": 1793617629.890007,
+            "monotonic_s": 223242.183095375
+          },
+          "entry_ms": 3059.6290000000004,
+          "reply_ms": 3061.1546670000002
+        },
+        {
+          "name": "wait",
+          "args": {
+            "duration": 1
+          },
+          "success": true,
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued",
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:7",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43"
+          },
+          "matched_terminal": {
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:7",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43",
+            "name": "wait 1s",
+            "success": true,
+            "message": "waited 1 s",
+            "terminal_state": "succeeded",
+            "execution_started": true,
+            "event_seq": 22,
+            "wall_time_s": 1793617630.891395,
+            "monotonic_s": 223243.184481916
+          },
+          "entry_ms": 3065.36025,
+          "reply_ms": 3067.03875
+        },
+        {
+          "name": "turn",
+          "args": {
+            "direction": "left",
+            "angle": 15
+          },
+          "success": true,
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued",
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:8",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43"
+          },
+          "matched_terminal": {
+            "job_id": "4bdeb0c83d974e0ea0a73814bb259e43:8",
+            "server_instance": "4bdeb0c83d974e0ea0a73814bb259e43",
+            "name": "move vx=0 vy=0 wz=60 0.25s",
+            "success": true,
+            "message": "sent velocity commands vx=0 vy=0 wz=60 for 0.25 s; then requested zero velocity",
+            "terminal_state": "succeeded",
+            "execution_started": true,
+            "event_seq": 24,
+            "wall_time_s": 1793617631.142828,
+            "monotonic_s": 223243.435914416
+          },
+          "entry_ms": 3068.702542,
+          "reply_ms": 3069.9432920000004
+        }
+      ],
+      "cost_estimate_usd": 0.012741,
+      "usage": [
+        {
+          "case": "medium",
+          "at_utc": "2026-11-02T11:07:11.379Z",
+          "usage": {
+            "promptTokenCount": 10886,
+            "responseTokenCount": 15,
+            "totalTokenCount": 10901,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 9929
+              }
+            ],
+            "thoughtsTokenCount": 356
+          }
+        }
+      ],
+      "error": null,
+      "abort": null,
+      "cleanup": {
+        "fake_reverified": true,
+        "stop_result": {
+          "success": true,
+          "message": "No running job existed when Stop began. Cleared 0 pending queued commands, separate from the running job. zero walking speed requested. Physical stopping has not been measured.",
+          "details": {
+            "running_job": null,
+            "pending_queued_commands_cleared": 0,
+            "pending_queued_job_ids_cleared": [],
+            "physical_observation": {
+              "stopped": null,
+              "pose": null
+            }
+          },
+          "command_epoch": "4bdeb0c83d974e0ea0a73814bb259e43:4",
+          "command_epoch_required": true
+        },
+        "service_disconnected": true,
+        "sdk_close_requested": true,
+        "provider_close_callback_observed": false,
+        "scope": "Client disposal/close request is not proof of a provider close callback; root process exit recorded separately."
+      }
+    }
+  ],
+  "assessment": "No promotion. Both sequences correct; MEDIUM firstcue3.062s versusunset2.870s, and generation5.053s versus3.859s. No improvement observed in this singlepair. Keepproductionunset. Earlier9.758scue not reproduced; cause notestablished. No parametersearch/retry follows.",
+  "total_estimated_cost_usd": 0.024167,
+  "total_this_agent_four_requests_estimated_usd": 0.063305,
+  "reservation_usd": 4.68752,
+  "limits": [
+    "One sampleperarm, sequentialfreshconnections; no distributional reliability or causallevelperformance conclusion.",
+    "Streamingdefaultthinkinglevel is undocumented in consultedprimarysources. HIGHdefaulttable entry concerns nonstreamingER2preview only.",
+    "Thinkingtokens were100unset/356MEDIUM; not a directinference-time measurement.",
+    "Actionterminal states are fake softwarejob results, not physicalsuccess.",
+    "Cachedaudio admission is a sink measurement, not audiblelatency/listening proof.",
+    "Providerclosecallback notobserved; clientdisposal/SDKcloserequest and actualprocess0 separately recorded."
+  ],
+  "processes": [
+    {
+      "kind": "baseline",
+      "exec_session": 65713,
+      "exit_code": 0
+    },
+    {
+      "kind": "medium",
+      "exec_session": 64009,
+      "exit_code": 0
+    },
+    {
+      "kind": "fakeAPI18104",
+      "exec_session": 23712,
+      "termination": "SIGINT afterpair",
+      "exit_code": 0
+    }
+  ],
+  "primary_sources": [
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/models/gemini-robotics-er-2-streaming-preview",
+      "fact": "Thinking supported; input131072/output65536."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/robotics-overview",
+      "fact": "Recommendsmedium forlatency/performance; notspecificstreamingdefault."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/thinking",
+      "fact": "HIGHdefaultlistedfornonstreamingER2previewonly; streamingdefaultnotestablished."
+    }
+  ],
+  "prior_archive_unchanged": "/private/tmp/workstream1-request-reliability-20261102.tar.gz",
+  "artifacts": {
+    "repo": "artifacts/access/ws1-er-thinking-pair-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-er-thinking-pair",
+    "archive_sha256": "e3533ec01390e7a4b822cf61e45290009840b791d47b4b4c9a8fc06c972abb78"
+  }
+}

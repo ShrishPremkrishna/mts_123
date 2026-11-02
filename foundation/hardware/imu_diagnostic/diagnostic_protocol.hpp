@@ -59,7 +59,8 @@ inline bool reports(const Bytes&data,std::vector<Report>&out){
   if(id==0xfb){int32_t d=pupper_bno::i32(r+1);reference=-int64_t(d);have=true;valid=d!=0x7fffffff;}
   else if(id==0xfa){if(!have)return false;reference+=pupper_bno::i32(r+1);}
   else{
-   if(!have)return false;Report z;z.id=id;z.sequence=r[1];z.status_raw=r[2];z.accuracy=r[2]&3;
+   if(!have) { return false; }
+   Report z;z.id=id;z.sequence=r[1];z.status_raw=r[2];z.accuracy=r[2]&3;
    z.delay_ticks=uint16_t(r[2]&0xfc)<<6|r[3];z.reference_delta_ticks=reference;z.timing_valid=valid;
    if(id==0x13)z.stability=r[4];else{
     const unsigned count=id==7?6:id==2?3:4;

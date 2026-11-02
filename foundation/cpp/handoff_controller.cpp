@@ -32,7 +32,8 @@ struct Controller {
   std::vector<double> effective_command;
   int width=0, history=1, repeat=-1, frame=-1;
   double init_s=0, fade_s=0, yaw_offset=0, scale=0;
-  bool yaw_set=false, clip_anchor=false;
+  bool yaw_set=false, clip_anchor=false, legacy_static_loop_boundaries=false;
+  std::string execution_id="none";
   explicit Controller(const char* path, bool default_walking=false) : default_walk(default_walking) {
     std::ifstream file(path); file>>metadata;
     std::ifstream network(path); model=RTNeural::json_parser::parseJson<float>(network,false);
@@ -68,6 +69,10 @@ struct Controller {
     initial=request.at("joint_pos").get<std::vector<double>>();
     init_s=request.at("init_s"); fade_s=request.at("fade_s");
     clip_anchor=request.value("clip_anchor",false);
+    // Simulator-only comparison switch; production admission remains unchanged.
+    legacy_static_loop_boundaries=request.value("legacy_static_loop_boundaries",false);
+    execution_id=request.value("execution_id",std::string("none"));
+    if(execution_id!="none" && !valid_clip_request_id(execution_id)) throw std::runtime_error("invalid execution ID");
     int start=0;
     const std::string selected=request.value("start_clip","");
     if(!selected.empty()) { start=motion.clip_index(selected); if(start<0) throw std::runtime_error("unknown starting clip"); }
@@ -126,7 +131,7 @@ struct Controller {
       std::vector<double> rel(12); for(int j=0;j<12;++j) rel[j]=q[j]-defaults[j];
       write("joint_pos_rel",rel); write("joint_vel_rel",dq);
       if(motion.frames) {
-        frame=player.frame(motion,fade_time-fade_s,phase_free_static_requests);
+        frame=player.frame(motion,fade_time-fade_s,phase_free_static_requests && !legacy_static_loop_boundaries);
         std::vector<double> mc(24);
         for(int j=0;j<12;++j) { mc[j]=motion.joint_pos[frame*12+j]; mc[j+12]=motion.joint_vel[frame*12+j]; }
         write("motion_command",mc);
@@ -154,11 +159,12 @@ struct Controller {
       }
     }
     Json result={{"target",target},{"before_clip",before_clip},{"raw_action",raw},{"kp",metadata.at("kp")},{"kd",metadata.at("kd")},{"inference",infer},{"stage",alpha<1?"fade":"policy"},{"frame",frame}};
+    result["execution_id"]=execution_id;
     if(infer && r.value("audit_inference",false)) {
       result["model_input"]=model_input; result["gait_reference_offset"]=reference_offset;
       result["effective_command"]=effective_command; result["reference_time_s"]=fade_time;
     }
-    if(motion.frames) { result["clip"]=motion.clips[player.clip()].name; result["holding"]=player.holding(); result["queued"]=player.queued(); }
+    if(motion.frames) { result["clip"]=motion.clips[player.clip()].name; result["holding"]=player.holding(); result["queued"]=player.queued(); result["clip_request_id"]=player.request_id().empty()?"none":player.request_id(); }
     limit_output(result,elapsed);
     return result;
   }
@@ -183,7 +189,7 @@ int main(int argc,char** argv) {
       } else if(request.at("op")=="request_clip") {
         // Production uses this same queue before ClipPlayer::frame on the next
         // inference. No activation, normalization/history, yaw or clock reset.
-        const bool accepted=active->motion.frames && active->player.request(active->motion,request.at("clip"));
+        const bool accepted=active->motion.frames && active->player.request(active->motion,request.at("clip"),request.value("request_id",std::string{}));
         std::cout<<Json({{"accepted",accepted},{"queued",active->player.queued()}}).dump()<<std::endl;
       } else if(request.at("op")=="step") std::cout<<active->step(request).dump()<<std::endl;
       else throw std::runtime_error("unknown operation");

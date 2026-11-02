@@ -91,9 +91,9 @@ test('current server replies authorize fixed cues independently of model output,
     if(scenario==='stop')e.s.pauseRobotTools();
     if(scenario==='cancel')await e.s.handleMessage({toolCallCancellation:{ids:['old']}});
     if(scenario==='disconnect')await e.s.disconnect();
-    if(scenario==='newer')await e.s.handleMessage(call('new','robot_status'));
+    const later=scenario==='newer'?e.s.handleMessage(call('new','robot_status')):null;
     if(scenario==='boundary')await e.s.handleMessage({serverContent:{turnComplete:true}});
-    d.resolve(queued);await pending;assert.deepEqual(e.audio,['pre-response','same-packet','extra-tool','boundary'].includes(scenario)?[pcm64]:[],scenario);
+    d.resolve(queued);await pending;await later;assert.deepEqual(e.audio,['pre-response','same-packet','extra-tool','boundary','newer'].includes(scenario)?[pcm64]:[],scenario);
   }
 });
 

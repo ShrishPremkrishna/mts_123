@@ -100,7 +100,8 @@ struct Capture {
  std::vector<diagnostic::Bytes> query(const diagnostic::Bytes&request,const std::function<bool(const diagnostic::Bytes&)>&match,double seconds=.8,bool collect=false){
   controls.clear();send(request);const double until=std::min(deadline,io.now()+seconds);std::vector<diagnostic::Bytes> found;
   while(io.now()<until){poll();for(const auto&r:controls){if(match(r))found.push_back(r);}controls.clear();if(!found.empty()&&!collect)break;}
-  if(found.empty())throw std::runtime_error("required readback missing or unmatched");return found;
+  if(found.empty()) { throw std::runtime_error("required readback missing or unmatched"); }
+  return found;
  }
  diagnostic::Feature feature(uint8_t id){
   auto x=query(diagnostic::feature_query(id),[&](const diagnostic::Bytes&r){return r.size()==17&&r[0]==0xfc&&r[1]==id;});
@@ -120,7 +121,8 @@ struct Capture {
   send(f.set_request());auto actual=feature(f.id());if(!(actual==f))throw std::runtime_error("effective feature differs from requested fields");
  }
  bool restore(){
-  if(dirty.empty())return true;restoring=true;deadline=hard_deadline;bool okay=true;event("restore_start");
+  if(dirty.empty()) { return true; }
+  restoring=true;deadline=hard_deadline;bool okay=true;event("restore_start");
   // Reverse direct changes first; later verify every monitored field for coupling.
   for(auto i=dirty.rbegin();i!=dirty.rend();++i){try{send(original.at(*i).set_request());}catch(const std::exception&e){okay=false;event("restore_write_failed",",\"message\":"+quote(e.what()));}}
   std::map<uint8_t,diagnostic::Feature> checkback;

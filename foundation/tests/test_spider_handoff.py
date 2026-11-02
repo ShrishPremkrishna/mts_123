@@ -21,7 +21,7 @@ def host(tmp_path_factory):
     weights=np.zeros((69,12));weights[57:69]=np.eye(12)*.1
     policy=dict(default_joint_pos=[0.]*12,joint_lower_limits=[-1.5]*12,joint_upper_limits=[1.5]*12,
                 action_scale=.75,kp=5.5,kd=.25,observation_history=1,in_shape=[None,69],
-                obs_spec={'components':[dict(name=n,size=s) for n,s in components]},
+                obs_spec={'frame_order':'newest_first','components':[dict(name=n,size=s) for n,s in components]},
                 layers=[dict(type='dense',activation='',shape=[None,12],weights=[weights.tolist(),[10.]*12])],
                 trick=dict(fps=50,clips=[dict(name='entry',start=0,end=2),dict(name='exit',start=2,end=4)]),
                 motion=dict(joint_pos=[[0.]*12,[0.]*12,[1.]*12,[0.]*12],joint_vel=[[0.]*12]*4,
@@ -401,3 +401,91 @@ def test_explicit_inference_schedule_rejects_nonboolean(host):
     assert proc.stdout.readline()==''
     proc.stdin.close();assert proc.wait(timeout=5)!=0
     assert 'inference_due must be boolean' in proc.stderr.read()
+
+
+def test_completion_driven_sit_keeps_api_minimums_without_test_holds():
+    policy=json.loads((ROOT/'gemini_pupper/tricks/sit_stay_shake/policy.json').read_text())
+    stages=handoff.interactive_sit_stages(policy,completion_driven=True)
+    assert [s[0] for s in stages]==['sit_entry','shake_left','shake_right','sit_stand_up',
+                                   'default_activation','default_forward','default_stop']
+    assert stages[0][2]==pytest.approx(6.5)  #5.5s entry minimum +1s confirmation budget
+    assert all(s[2]==pytest.approx(8.2) for s in stages[1:4])
+    assert stages[4]==handoff.default_return_stages()[0]
+    assert stages[5]==('default_forward','default',2,[.2,0,0],'')
+    assert stages[6]==handoff.default_return_stages()[2]
+    assert handoff.sit_completion_times(policy,'sit_down',True)==pytest.approx((5.2,5.5))
+    assert handoff.sit_completion_times(policy,'shake_left')==pytest.approx((3.5,0))
+    # Default diagnostics remain fixed-hold mode, never silently shortened.
+    assert len(handoff.interactive_sit_stages(policy))==11
+
+
+def completion_receipt():
+    return dict(time_s=10.,state=dict(inference=True,execution_id='a'*32,
+        clip_request_id='b'*32,clip='sit_idle',queued=0,holding=False,frame=185))
+
+
+@pytest.mark.parametrize('change',[
+    {'execution_id':'c'*32},{'clip_request_id':'c'*32},{'queued':1},{'holding':True},
+    {'frame':184},{'frame':236},{'clip':'shake_left'},{'inference':False},
+])
+def test_completion_refuses_stale_identity_pending_or_wrong_applied_frame(change):
+    endpoint=dict(name='sit_idle',start=185,end=236,loop=True)
+    receipt=completion_receipt()
+    assert handoff.correlated_clip_endpoint(receipt,endpoint,'a'*32,'b'*32,9.,10.)
+    receipt['state'].update(change)
+    assert not handoff.correlated_clip_endpoint(receipt,endpoint,'a'*32,'b'*32,9.,10.)
+
+
+@pytest.mark.parametrize('received,earliest,now',[(8.,9.,10.),(10.,9.,10.251),(10.,9.,9.99),(10.,10.01,10.)])
+def test_completion_refuses_old_future_or_premature_receipt(received,earliest,now):
+    receipt=completion_receipt();receipt['time_s']=received
+    assert not handoff.correlated_clip_endpoint(receipt,dict(name='sit_idle',start=185,end=236,loop=True),
+                                               'a'*32,'b'*32,earliest,now)
+
+
+def test_completion_requires_exact_terminal_holding_frame():
+    receipt=completion_receipt();receipt['state'].update(clip='stand_up',holding=True,frame=910)
+    endpoint=dict(name='stand_up',start=735,end=911,loop=False)
+    assert handoff.correlated_clip_endpoint(receipt,endpoint,'a'*32,'b'*32,10.,10.25)
+    for update in ({'frame':909},{'holding':False}):
+        wrong=json.loads(json.dumps(receipt));wrong['state'].update(update)
+        assert not handoff.correlated_clip_endpoint(wrong,endpoint,'a'*32,'b'*32,10.,10.)
+    assert not handoff.correlated_clip_endpoint(None,endpoint,'a'*32,'b'*32,0.,10.)
+
+
+@pytest.mark.parametrize('legacy',[False,True])
+def test_compiled_chain_receipts_bind_actual_request_and_preserve_full_clock(host,tmp_path,legacy):
+    binary,source=host;policy=json.loads(source.read_text())
+    policy['trick']['clips'][0]['loop']=True
+    policy['motion']['joint_pos'][2]=[0.]*12
+    policy['motion']['joint_vel'][2]=[.125]*12
+    path=tmp_path/'static-policy.json';path.write_text(json.dumps(policy))
+    proc,rpc=session((binary,path),'entry')
+    try:
+        rpc(dict(op='activate',controller='trick',joint_pos=[0.]*12,init_s=.5,fade_s=1.,
+                 start_clip='entry',clip_anchor=True,execution_id='a'*32,legacy_static_loop_boundaries=legacy))
+        def infer(t):return rpc({**step(t),'inference_due':True})
+        assert infer(1.5)['clip_request_id']=='none'
+        assert rpc(dict(op='request_clip',clip='exit',request_id='b'*32))=={'accepted':True,'queued':1}
+        pending=infer(1.505)
+        assert pending['execution_id']=='a'*32
+        if legacy:
+            assert pending['clip']=='entry' and pending['clip_request_id']=='none'
+            started=infer(1.52);start=1.52
+        else:started=pending;start=1.505
+        assert started['clip']=='exit' and started['frame']==2
+        assert started['clip_request_id']=='b'*32 and started['queued']==0
+        assert not infer(start+.019)['holding']
+        final=infer(start+.020)
+        assert final['holding'] and final['frame']==3 and final['clip_request_id']=='b'*32
+        assert not rpc(dict(op='request_clip',clip='exit',request_id='b'*32))['accepted']
+    finally:
+        proc.stdin.close();assert proc.wait(timeout=5)==0
+
+
+@pytest.mark.parametrize('completion,interactive,legacy',[(True,False,False),(False,True,True)])
+def test_completion_modes_fail_closed_for_unrelated_protocols(completion,interactive,legacy):
+    from types import SimpleNamespace
+    with pytest.raises(ValueError,match='requires'):
+        handoff.run(SimpleNamespace(completion_driven_sit=completion,interactive_sit=interactive,
+                                   legacy_static_loop_boundaries=legacy))

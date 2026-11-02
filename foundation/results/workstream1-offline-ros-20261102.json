@@ -1,0 +1,44 @@
+{
+  "status": "offline_linux_arm_ros_passed_not_deployed",
+  "source_revision": "2257a5d with exact staged hashes in checks.json",
+  "evidence": "artifacts/hardware/2026-11-02/offline-ros",
+  "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/offline-ros",
+  "archive": {
+    "archive": "/private/tmp/ws1-ros-offline-20261102-complete.tar.gz",
+    "sha256": "b7559100ffa02374599fec83aa31a9789b2b488439857cf443f8750665d73364",
+    "bytes": 411620737,
+    "members": 2761,
+    "seconds": 7.864286416006507
+  },
+  "reproduce": "python3 foundation/scripts/check_ros_offline.py --output NEW_WRITABLE_DIRECTORY",
+  "image_id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+  "result": {
+    "selected_neural_ctest_suites": 6,
+    "production_memory_controller_gtests": 17,
+    "joystick_ctest_suites": 10,
+    "fake_i2c_checks": 254,
+    "elapsed_seconds": 96.938776666997
+  },
+  "changes": [
+    "Reused installed ROS Jazzy ARM Docker image; engine was stopped, not absent.",
+    "Added reproducible staged build from actual deployment mappings with network disabled, no devices and no robot services.",
+    "Fixed three GCC misleading-indentation errors in isolated sensor diagnostic by adding braces/newlines only.",
+    "Expected test names, no skipped/failing cases, staged-source hashes and timeout cleanup are checked."
+  ],
+  "rejected_initial_results": [
+    "Initial shell setup failed because ROS setup requires sourcing before nounset; initial log retained.",
+    "Initial RelWithDebInfo used NDEBUG; two assert-based suites were not meaningful. Final run uses -UNDEBUG and reruns required suites.",
+    "Initial diagnostic strict Linux compile failed; failed log and original source retained."
+  ],
+  "limits": [
+    "No physical sensor communication, homing, controller_manager or robot connection.",
+    "ROS memory interfaces and fake I2C do not validate physical dynamics, sensor calibration, I2C ownership/restoration on Pi or motor behavior.",
+    "Tests use known local image ID; rebuilding Dockerfile can update package versions and requires fresh checks."
+  ],
+  "source_sha256": {
+    "foundation/scripts/check_ros_offline.py": "a1e0e32686053de5962551e03942ab2c82b0efa0941574f501aa3de3c5bf007b",
+    "foundation/scripts/ros-offline.Dockerfile": "89221e23e874ddbb2c951fc075f6e2f353095887c9b9b914fce1e4c2c038d136",
+    "foundation/hardware/imu_diagnostic/diagnostic.cpp": "8a4aa9a8f5278912f408b415766faf74b4fe9216392e1802d142a86485a7882f",
+    "foundation/hardware/imu_diagnostic/diagnostic_protocol.hpp": "2229aa99d80ba15ce39ee7a4dbcb9150bc2630fdbd6e841eecd75a0cbf889c1b"
+  }
+}

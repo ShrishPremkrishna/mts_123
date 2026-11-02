@@ -69,6 +69,17 @@ measurement and diagnosis; they do not close the physical reliability gap.
   screening and generative speech remain fallible. Use current state for which
   source and model are actually running.
 
+The [request-order repair](results/workstream1-request-ordering-20261102.json)
+prevents overlapping Gemini tool packets from changing command order while
+retaining immediate Stop admission. Two current-service, fake-only provider trials
+passed; model response latency remains variable. The
+[full simulated Sit/paws/standing/walk comparisons](results/workstream1-completion-driven-sit-20261102.json)
+save 2.67 seconds through earlier constant-idle transitions, with mixed slip and
+effort results. A separate [standing-return shortcut](results/workstream1-standing-return-20261102.json)
+was rejected because its faster return substantially increased simulated effort.
+The [ER2 video probe](results/workstream1-er-vision-20261102.json) incorrectly called
+a seated endpoint standing; use its annotations for inspection, not acceptance.
+
 ## Course coverage
 
 This is a capability map, not a percentage-complete claim. The
@@ -136,10 +147,21 @@ and exact commands in each dated report determine what a passing result covers.
 Typical offline checks from the outer checkout are:
 
 ```sh
-python -m pytest foundation/tests implicit_compliance/tests gemini_pupper/tests
-python gemini_pupper/lab/test.py
-python foundation/scripts/check_foundation.py
+python3 foundation/scripts/check_foundation.py --output /private/tmp/pupper-validation-NEW
+python3 foundation/scripts/check_ros_offline.py --output /private/tmp/pupper-ros-NEW
 ```
+
+The main runner discovers and import-checks the separate API and numerical
+interpreters; explicit `--api-python` and `--numerical-python` overrides are supported.
+The ROS check uses the existing local Docker image with networking disabled and
+no device mounts. Start Docker Desktop first; its optional rebuild recipe is
+`foundation/scripts/ros-offline.Dockerfile`. The
+[Linux ARM evidence](results/workstream1-offline-ros-20261102.json) records the image
+and source identities, actual memory-controller tests and sensor compiler fix.
+These checks never deploy or contact Pupper. The
+[environment validation record](results/workstream1-environment-validation-20261102.json)
+preserves the final 11-group pass, the earlier fixture failure, and the restricted
+Claude source review.
 
 Native parity checks live in `pupper_gait_deploy/test/` and simulation checks in
 `pupper-mjlab/tests/`. Missing dependencies are environment gaps, not passing tests.

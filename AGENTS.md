@@ -27,6 +27,10 @@ the next physical session procedure. Do not maintain another parallel status log
   No credentials in repository, logs, tool output or artifacts.
 - Use the tested Python path in current state; numerical tests may need the
   separate numerical environment. Do not reinstall dependencies speculatively.
+- Provider connections and Claude credential-store checks need the approved
+  network/OS-access execution path in this app. A sandbox ConnectError or logged-out
+  status is not evidence of a provider outage or absent account; verify once with
+  the applicable approval before asking the user to reconfigure credentials.
 - Before more training, name the hypothesis, comparison metric and stopping limit.
   Prioritize a repeatable floor baseline over broad new policy sweeps.
 - Native integration checks must use the exact executable, names, configuration

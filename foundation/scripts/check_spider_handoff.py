@@ -277,7 +277,7 @@ def validate_interactive_return_descriptor(path, policy_path):
     return content
 
 
-def interactive_sit_stages(trick):
+def interactive_sit_stages(trick, completion_driven=False):
     clips={c['name']:c for c in trick['trick']['clips']};fps=float(trick['trick']['fps'])
     if set(clips)!={'sit_down','sit_idle','shake_left','shake_right','stand_up'} or not np.isfinite(fps) or fps<=0:
         raise ValueError('Interactive Sit requires the reviewed five-clip contract')
@@ -286,6 +286,17 @@ def interactive_sit_stages(trick):
         raise ValueError('Interactive Sit requires idle loops, shake returns and a finite standing exit')
     durations={name:(c['end']-c['start']-1)/fps for name,c in clips.items()}
     if any(v<=0 or not np.isfinite(v) for v in durations.values()):raise ValueError('Invalid interactive clip duration')
+    if completion_driven:
+        # Upper bounds, not fixed stage holds. Match Robot.play_clip's bounded
+        # endpoint wait and play_policy_trick's entry sleep + confirmation.
+        entry=.5+1+durations['sit_down']+.3
+        longest=max(durations.values())
+        walking=default_return_stages()
+        walking[1]=('default_forward','default',2,[.20,0,0],'')  # selectedAPIminimum is0.2m/s
+        return [('sit_entry','trick',entry+1.,[0,0,0],'sit_down'),
+                ('shake_left','trick',longest+durations['shake_left']+1.,[0,0,0],'shake_left'),
+                ('shake_right','trick',longest+durations['shake_right']+1.,[0,0,0],'shake_right'),
+                ('sit_stand_up','trick',longest+durations['stand_up']+1.,[0,0,0],'stand_up')] + walking
     # Queued actions begin on the next idle boundary. Allow one full idle loop
     # plus action duration, then observe idle/terminal hold before continuing.
     return [('sit_entry','trick',.5+1+durations['sit_down']+.3,[0,0,0],'sit_down'),
@@ -296,6 +307,38 @@ def interactive_sit_stages(trick):
             ('sit_idle_before_exit','trick',2.,[0,0,0],''),
             ('sit_stand_up','trick',durations['sit_idle']+durations['stand_up']+.3,[0,0,0],'stand_up'),
             ('sit_standing_hold','trick',2.,[0,0,0],'')] + default_return_stages()
+
+
+
+def sit_completion_times(trick, clip, entry=False):
+    """API minimum receipt time and first poll, relative to this job's start.
+
+    Entry keeps the existing init/fade/reference+.3s sleep. Explicit actions
+    poll immediately, but may only accept a fresh correlated endpoint after
+    the complete requested reference duration. No measured-settlement claim.
+    """
+    spec=next(c for c in trick['trick']['clips'] if c['name']==clip)
+    duration=(spec['end']-spec['start']-1)/trick['trick']['fps']
+    earliest=(.5+1 if entry else 0.)+duration
+    return earliest, earliest+.3 if entry else 0.
+
+
+def correlated_clip_endpoint(receipt, endpoint, execution_id, request_id, earliest, now):
+    """Transcribed Robot._matches_clip_endpoint for this local host protocol.
+
+    Only newly applied inference results create receipts; held cycles must not
+    refresh their age. No ROS delivery/service latency is simulated.
+    """
+    if receipt is None:return False
+    state,received=receipt['state'],receipt['time_s']
+    if (state.get('inference') is not True or state.get('execution_id')!=execution_id
+            or state.get('clip_request_id')!=request_id or state.get('clip')!=endpoint['name']
+            or state.get('queued')!=0 or not (received>=earliest and 0<=now-received<=.25)):
+        return False
+    frame=state.get('frame',-1)
+    if endpoint.get('loop'):
+        return state.get('holding') is False and endpoint['start']<=frame<endpoint['end']
+    return state.get('holding') is True and frame==endpoint['end']-1
 
 
 def stage_plan(trick, single_motion=False, return_default=False):
@@ -387,6 +430,10 @@ def run(args):
     timing_events=[]
     single_motion=getattr(args,'single_motion',False)
     interactive_sit=getattr(args,'interactive_sit',False)
+    completion_driven_sit=getattr(args,'completion_driven_sit',False)
+    legacy_static_loop_boundaries=getattr(args,'legacy_static_loop_boundaries',False)
+    if completion_driven_sit and not interactive_sit:raise ValueError('Completion-driven mode requires interactive Sit')
+    if legacy_static_loop_boundaries and not completion_driven_sit:raise ValueError('Legacy loop comparison requires completion-driven Sit')
     if single_motion and interactive_sit:raise ValueError('Choose finite single motion or interactive Sit, not both')
     default_path=getattr(args,'return_default_policy',None)
     default_only=getattr(args,'default_only',False)
@@ -422,6 +469,9 @@ def run(args):
         'tasks/pupper/mdp/observations.py','tasks/pupper/target_slew.py','envs/mdp/observations.py',
         'envs/mdp/actions/actions.py','tasks/tracking/tracking_env_cfg.py',
         'asset_zoo/robots/pupper_v3/pupper_constants.py','entity/entity.py','sim/sim.py')]
+    if completion_driven_sit:
+        sources += [ROOT/p for p in ('gemini_pupper/robot/robot_api.py','gemini_pupper/lab/part4_tricks.py',
+                                     'gemini_pupper/lab/part5_interactive_action.py','gemini_pupper/lab/part2_walk.py')]
     if descriptor_bytes is not None:sources.append(descriptor_path.resolve())
     source_before = {str(p.relative_to(ROOT)):sha(p) for p in sources}
     binary, compile_command = build_controller(output)
@@ -464,7 +514,7 @@ def run(args):
         if lower.shape!=(12,) or upper.shape!=(12,) or not np.all(lower<upper): raise ValueError('invalid driver bounds')
     # Exact application timing: entry init/fade plus clip and .3s; walking
     # activation 2+2s plus .2s; bounded commands followed by a 2s zero stop.
-    stages=default_return_stages() if default_only else interactive_sit_stages(trick) if interactive_sit else stage_plan(trick,single_motion,default_path is not None)
+    stages=default_return_stages() if default_only else interactive_sit_stages(trick,completion_driven_sit) if interactive_sit else stage_plan(trick,single_motion,default_path is not None)
     if default_only or default_stop_duration!=2.:stages=default_diagnostic_stages(stages,default_only=default_only,stop_duration_s=default_stop_duration)
     host_command=[str(binary),str((output/'trick-policy.json').resolve()),str((output/'walk-policy.json').resolve())]
     if default_path is not None: host_command += ['--return-default-no-jump',str((output/'default-policy.json').resolve())]
@@ -476,6 +526,7 @@ def run(args):
         if not line: raise RuntimeError('controller exited; inspect controller.log')
         return json.loads(line)
     samples=[]; activations=[];clip_requests=[];inference_events=[]; previous_controller=None; activation_time=0.; previous_target=data.qpos[qadr].copy()
+    stage_events=[]; execution_id='none'
     if startup_spec is not None:previous_target=previous_target+bias
     # Interpolate between timestamped old targets to realize exactly 16ms at
     # 520Hz. Buffer persists through all controller switches; initial values are
@@ -487,24 +538,33 @@ def run(args):
     failure=None; current_time=0.; tick=0; interval_target_step=0.
     try:
         for stage,controller,duration,command,start_clip in stages:
+            stage_start=current_time;request_id='none';latest_clip_receipt=None;completion=None
             if controller!=previous_controller:
+                execution_id=f'{len(activations)+1:032x}' if completion_driven_sit else 'none'
                 activation_time=current_time
                 if timing is not None and controller=='trick':timing.reset()
                 rpc(dict(op='activate',controller=controller,joint_pos=(data.qpos[qadr] if startup_spec is None else data.qpos[qadr]+bias).tolist(),
                          init_s=.5 if controller=='trick' else 2.,fade_s=1. if controller=='trick' else 2.,
-                         start_clip=start_clip,clip_anchor=args.clip_anchor))
+                         start_clip=start_clip,clip_anchor=args.clip_anchor,execution_id=execution_id,
+                         legacy_static_loop_boundaries=legacy_static_loop_boundaries))
                 activations.append(dict(stage=stage,controller=controller,policy_sha256=policy_before[controller],time_s=current_time,root_pose=data.qpos[root_q:root_q+7].tolist(),
                                         joint_pos=data.qpos[qadr].tolist(),joint_vel=data.qvel[vadr].tolist(),
                                         physical_state_reset=False,observation_history_reset=True))
                 if startup_spec is not None:activations[-1]['measured_joint_pos']=(data.qpos[qadr]+bias).tolist()
                 previous_controller=controller
             elif interactive_sit and start_clip:
-                response=rpc(dict(op='request_clip',clip=start_clip))
-                clip_requests.append(dict(stage=stage,time_s=current_time,clip=start_clip,**response,
+                request_id=f'{len(clip_requests)+1:032x}' if completion_driven_sit else ''
+                response=rpc(dict(op='request_clip',clip=start_clip,request_id=request_id))
+                clip_requests.append(dict(stage=stage,time_s=current_time,clip=start_clip,request_id=request_id,execution_id=execution_id,**response,
                     activation_clock_reset=False,observation_history_reset=False,physical_state_reset=False))
                 if not response['accepted']:
                     failure=dict(time_s=current_time,reason='Interactive clip request refused',clip=start_clip);break
             observed_stage_clips=set()
+            if completion_driven_sit and controller=='trick':
+                earliest,first_poll=sit_completion_times(trick,start_clip,entry=stage=='sit_entry')
+                earliest+=stage_start;next_poll=stage_start+first_poll
+                endpoint_name='stand_up' if start_clip=='stand_up' else 'sit_idle'
+                endpoint=next(c for c in trick['trick']['clips'] if c['name']==endpoint_name)
             for _ in range(round(duration*520)):
                 quat=data.qpos[root_q+3:root_q+7].copy()
                 actor_joint_pos=data.qpos[qadr] if startup_spec is None else startup_actor_joint_position(data.qpos[qadr],bias,controller,startup_spec['observation_semantics'])
@@ -528,6 +588,9 @@ def run(args):
                         imu_sample_time_s=imu_sample_time,imu_age_realized_s=current_time-imu_sample_time)
                     timing_events.append(timing_event)
                 if state.get('clip'):observed_stage_clips.add(state['clip'])
+                if state.get('inference') and state.get('clip'):
+                    latest_clip_receipt=dict(time_s=current_time,state=state)
+
                 target=np.asarray(state['target']); final_target=np.clip(target,lower,upper)
                 if state.get('inference') and getattr(args,'record_inference',False):
                     inference_events.append(inference_event(state,time_s=current_time,stage=stage,controller=controller,command=command,
@@ -567,7 +630,21 @@ def run(args):
                     interval_target_step=0.
                     if not np.isfinite(data.qpos).all() or tilt>angle_limit:
                         failure=dict(time_s=current_time,reason=f'nonfinite state or configured {angle_limit:g}deg body-angle stop'); break
+                if completion_driven_sit and controller=='trick' and current_time+1e-12>=next_poll:
+                    # Each20ms API sleep rounds up to this520Hz simulation grid.
+                    next_poll=current_time+.02
+                    if correlated_clip_endpoint(latest_clip_receipt,endpoint,execution_id,request_id,
+                                                earliest,current_time):
+                        completion=dict(poll_time_s=current_time,receipt_time_s=latest_clip_receipt['time_s'],
+                            clip=state['clip'],frame=state['frame'],execution_id=execution_id,request_id=request_id)
                 previous_target=target.copy();tick+=1;current_time=tick/520
+                if completion is not None:break
+            if completion_driven_sit and not failure:
+                if controller=='trick' and completion is None:
+                    failure=dict(time_s=current_time,reason='Completion-driven clip endpoint timed out',stage=stage)
+                stage_events.append(dict(stage=stage,controller=controller,started_s=stage_start,
+                    finished_s=current_time,actual_duration_s=current_time-stage_start,budget_s=duration,
+                    completion=completion,deadline_reached=controller=='trick' and completion is None))
             if failure: break
             if interactive_sit and stage in ('sit_entry','shake_left','shake_right'):
                 expected='sit_down' if stage=='sit_entry' else stage
@@ -608,14 +685,17 @@ def run(args):
             last_clip=rows[-1]['clip'],last_frame=rows[-1]['frame'],last_holding=rows[-1]['holding'])
     source_after={str(p.relative_to(ROOT)):sha(p) for p in sources}
     policy_after={name:sha(path) for name,path in policy_paths.items()}
-    report=dict(protocol=('default_standing_start_nojump_v1' if default_only else
+    report=dict(protocol=('completion_driven_sit_to_default_nojump_v1' if completion_driven_sit else
+        'default_standing_start_nojump_v1' if default_only else
         'finite_lying_later_default_nojump_v1' if later_return_from_lying else
         'interactive_sit_to_default_nojump_v1' if interactive_sit else
         'finite_trick_to_default_nojump_v1' if single_motion and default_path is not None else
         'exported_finite_trick_activation_and_hold_v1' if single_motion else
         'continuous_spider_to_default_nojump_v2' if default_path is not None else 'continuous_exported_controller_spider_handoff_v1'),hardware_validated=False,
         default_only=default_only,default_stop_duration_s=default_stop_duration,
-        interactive_sit=interactive_sit,clip_requests=clip_requests,later_return_from_lying=later_return_from_lying,
+        interactive_sit=interactive_sit,completion_driven_sit=completion_driven_sit,
+        legacy_static_loop_boundaries=legacy_static_loop_boundaries,stage_events=stage_events,
+        total_simulated_duration_s=current_time,clip_requests=clip_requests,later_return_from_lying=later_return_from_lying,
         declared_trick_end_pose=yaml.safe_load(descriptor_bytes)['end_pose'] if descriptor_bytes is not None else None,
         scope='Native MuJoCo diagnostic with production RTNeural and math headers, explicitly transcribed ROS activation plumbing; not a ROS execution or hardware approval.',
         contact_telemetry_contract='exact_preintegration_contact_point_velocity_v1',contact_contract=contract,clip_activation_anchor='selected_clip_first_frame' if args.clip_anchor else 'legacy_network_default',
@@ -633,6 +713,7 @@ def run(args):
         numerical_instability_monitor='Check BADQPOS/BADQVEL/BADQACC/BADCTRL warnings and finite qpos/qvel after every physics step; stop rather than count automatic recovery as success.',
         maximum_body_angle_deg=angle_limit,
         caveats=['Native CPU solver at520Hz differs from250Hz training Warp solver.',
+                 ('Completion-driven chain transcribes API entry minimum, request-correlated endpoint and20ms polling; network/ROS/controller-service and event-loop latency are zero, with polling rounded up to520Hz ticks. No artificial idle/standing holds, no requested10s stay in this sequence.' if completion_driven_sit else 'Fixed diagnostic stage holds; not an end-to-end API sequence.'),
                  ('Simulator-only relative inference interval/IMU-age perturbation scoped to trick controller. Recorded arrays repeat cyclically after their end; the final wrap interval is explicitly in the profile. Due times round upward to physics steps. IMU quaternion and gyro use coherent historical physical samples with zero-order hold; joint observations, reference clock and action history are not delayed. This is not a ROS/actuator replay.' if timing_spec is not None else 'No timing replay profile.'),
                  (startup_transfer['scope'] if startup_transfer is not None else
                   ('Nominal mechanics without observation noise, encoder bias, parameter randomization or external push; explicit timing profile controls IMU age.' if timing_spec is not None else 'Nominal model: no observation noise, IMU delay, encoder bias, parameter randomization or external push.') if physical_variant is None else
@@ -670,6 +751,8 @@ if __name__=='__main__':
     parser.add_argument('--trick-descriptor',type=Path,help='Required for finite default return; confirms standing start/end and exact policy path')
     parser.add_argument('--later-return-from-lying',action='store_true',help='Explicit diagnostic of a later move request after a finite trick holds its declared lying endpoint; requires --single-motion and --return-default-policy')
     parser.add_argument('--interactive-sit',action='store_true',help='Explicit sit/idle/left/right/standing-exit queue sequence followed by actual default walking')
+    parser.add_argument('--completion-driven-sit',action='store_true',help='Opt-in API-timed entry/paws/exit chain; correlate applied endpoint receipts, then default return without artificial idle holds')
+    parser.add_argument('--legacy-static-loop-boundaries',action='store_true',help='Simulator-only paired baseline: keep old boundary waits; requires completion-driven Sit')
     parser.add_argument('--single-motion',action='store_true',help='One finite trick plus2s terminal hold; append normal walking only with explicit --return-default-policy')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--contact-model',choices=['full_hulls','torso_only'],required=True)

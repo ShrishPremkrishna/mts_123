@@ -4,7 +4,9 @@ tags: [cs123, sensor-diagnostic]
 ---
 # Isolated BNO diagnostic candidate
 
-**Not deployed or hardware-validated.** Stop the robot/API/native driver and every I2C consumer first. The operator must confirm motors are inactive, the body is supported, and no other process will start using the sensor. `--device-inactive` records that acknowledgment. The executable requires root and runs a bounded `/usr/bin/fuser /dev/i2c-1` check before opening I2C; it refuses busy/unknown ownership. This is a point-in-time check, not a lock protecting against later consumers.
+**Not deployed or hardware-validated.** Strict Linux ARM compilation and the
+fake-I2C tests now pass through `foundation/scripts/check_ros_offline.py`; see
+[the build evidence](../../results/workstream1-offline-ros-20261102.json). Stop the robot/API/native driver and every I2C consumer first. The operator must confirm motors are inactive, the body is supported, and no other process will start using the sensor. `--device-inactive` records that acknowledgment. The executable requires root and runs a bounded `/usr/bin/fuser /dev/i2c-1` check before opening I2C; it refuses busy/unknown ownership. This is a point-in-time check, not a lock protecting against later consumers.
 
 Build separately on the Pi after review; never replace the installed driver:
 
@@ -30,4 +32,4 @@ Inspect has a 12-second operation bound; compare has `seconds+30`, including 12 
 
 Reads, writes, packets, quality flags, raw signed timing deltas and control replies remain in the new exclusive output directory. No reset, tare, calibration-enable or DCD command exists here. Host receipt times are not physical measurement times. Product/feature replies have no transaction ID; serial queries and draining reduce but cannot eliminate stale/unsolicited-reply ambiguity. Product-record completeness remains unknown after the bounded collection.
 
-`python3 summarize.py CAPTURE NEW_SUMMARY.json` compares 02 against 07 minus estimated bias using 5/20 ms host-receipt matching. Exit 0 confirms only procedure completion; missing or unmatched reports remain unavailable. It makes no health or calibration decision. `test_diagnostic.cpp` uses fake I2C only; fixtures distinguish captured 02/05/control bytes from constructed vendor-layout 07 data. Actual Linux/ARM compilation, ownership checks, I2C responses and restoration still require a separate reviewed sensor-only session.
+`python3 summarize.py CAPTURE NEW_SUMMARY.json` compares 02 against 07 minus estimated bias using 5/20 ms host-receipt matching. Exit 0 confirms only procedure completion; missing or unmatched reports remain unavailable. It makes no health or calibration decision. `test_diagnostic.cpp` uses fake I2C only; fixtures distinguish captured 02/05/control bytes from constructed vendor-layout 07 data. Actual Pi ownership checks, I2C responses and restoration still require a separate reviewed sensor-only session.

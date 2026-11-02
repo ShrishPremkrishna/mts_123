@@ -87,6 +87,10 @@ export class GeminiLiveService {
   private automaticStop: Promise<void> | null = null;
   private stopRequestsPending = 0;
   private messageSequence = 0;
+  // SDK callbacks overlap. Preserve ordinary packet order through admission
+  // replies, not job completion. Stop bypasses this lane and expires old work.
+  private ordinaryToolTail: Promise<void> | null = null;
+  private toolAdmissionGeneration = 0;
   private timingSequence = 0;
   private currentTurnTiming: TurnTiming | null = null;
   private outputTurnTiming: TurnTiming | undefined;
@@ -147,6 +151,7 @@ export class GeminiLiveService {
 
   /** Synchronous: later model motion calls cannot rearm; stop/status remain available. */
   public pauseRobotTools() {
+    this.toolAdmissionGeneration++;
     this.endAudioInput();
     this.robotToolsPaused = true;
     try { this.onRobotToolsPaused(); } catch {}
@@ -833,231 +838,258 @@ export class GeminiLiveService {
     // callbacks can close generation or the turn while HTTP is unresolved.
     const hasRobotTool = (message.toolCall?.functionCalls ?? [])
       .some(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
-    if (hasRobotTool) {
-      const interrupt = !!content?.interrupted || !!message.toolCallCancellation?.ids?.length
-        || message.toolCall?.functionCalls?.some(call => call.name === 'stop');
+    const calls = message.toolCall?.functionCalls ?? [];
+    const hasStop = calls.some(call => call.name === 'stop' && !(call.id && this.cancelledToolIds.has(call.id)));
+    const deferPacketOutput = !!message.toolCall && !hasStop && this.ordinaryToolTail !== null;
+    const invalidatePacketOutput = (deferred = false) => {
+      if (!hasRobotTool) return;
+      const interrupt = !!content?.interrupted || !!message.toolCallCancellation?.ids?.length || hasStop;
       if (this.nativeReceiptOutput.hasQueuedCue() && !interrupt) {
-        // Later steps may arrive in separate SDK packets. Invalidate old text/
-        // reply handlers without truncating this turn's already admitted cue.
         this.feedbackGeneration++;
-        this.conversationOutput.discard();
-      } else this.stopPlayback(true, false);
-    }
+        if (!deferred) this.conversationOutput.discard();
+      } else this.stopPlayback(!deferred, false);
+    };
+    if (!deferPacketOutput) invalidatePacketOutput();
     const receiptTurn = this.outputPolicy === 'conversation'
       ? this.nativeReceiptOutput.observe(message) : null;
     if (this.outputPolicy === 'conversation') {
       this.conversationOutput.observe(message, this.pendingRobotTools > 0, !isAudioOutputModel(this.config.modelName));
     }
-    if (cancelSentAction) await this.requestAutomaticStop('Live cancelled an already-dispatched action');
     if (message.toolCall) {
-      const calls = message.toolCall.functionCalls ?? [];
-      const hasStop = calls.some(call => call.name === 'stop' && !(call.id && this.cancelledToolIds.has(call.id)));
-      if (hasStop) this.endAudioInput();
-      // Stop is an interrupt, never the tail of a queued sequence. Dispatch it
-      // first and reject other actions in that same model batch before HTTP.
-      const ordered = hasStop ? [...calls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : calls;
-      for (const fc of ordered) {
-        if (this.disposed) break;
-        if (fc.name === 'stop') this.stopPlayback(false, false); // Packet already invalidated its output turn synchronously.
-        let feedbackGeneration = this.feedbackGeneration;
-        const feedbackRequest = ++this.feedbackRequest;
-        if (fc.id && this.cancelledToolIds.has(fc.id)) {
-          this.log('info', `Cancelled before dispatch: ${toolLabel(fc.name)}`);
-          continue;
-        }
-        this.log('function', `Request: ${toolLabel(fc.name)}`);
-        let result: any = { success: true };
-        let receivedServerReply = false;
-        let dispatch: { id: string; name: string; timestamp: number } | null = null;
-        
-        try {
-          // Helper args
-          const args = fc.args as any;
-
-          switch (fc.name) {
-            case 'speak':
-            case 'say':
-            case 'narrate':
-              if (this.outputPolicy === 'receipts') {
-                result = { success: false, message: 'Free-form speech is muted in receipt-only control.' };
-                break;
-              }
-              if (isAudioOutputModel(this.config.modelName)) {
-                result = { success: false, error: 'Native-audio models must speak through their Live API audio response' };
-                break;
-              }
-              const speechText = args?.text || args?.message || args?.content || '';
-              result = typeof speechText === 'string' && speechText
-                ? { success: true, buffered: true, message: 'Speech buffered for the completed-turn output check; playback is not confirmed.' }
-                : { success: false, error: 'No text provided to speak' };
-              break;
-            default:
-              // Every other tool is defined and run on the robot (the tools in lab/).
-              if (hasStop && fc.name !== 'stop' && fc.name !== 'robot_status') {
-                result = { success: false, not_dispatched: true, message: 'Not dispatched: Stop takes priority over other actions in the same batch. No delayed Stop was scheduled.' };
-                break;
-              }
-              if (this.stopRequestsPending > 0 && fc.name !== 'stop' && fc.name !== 'robot_status') {
-                result = { success: false, not_dispatched: true, message: 'Not dispatched: a Stop response is pending. Check status before requesting a new action.' };
-                break;
-              }
-              if (this.robotToolsPaused && fc.name !== 'stop' && fc.name !== 'robot_status') {
-                result = { success: false, not_dispatched: true, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
-                break;
-              }
-              dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
-              if (!['stop', 'robot_status', 'unlock', 'lock_tricks'].includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
-              this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
-              // This lifecycle remains balanced even after disconnect suppresses
-              // UI receipts. A late Stop must not race new manual motion.
-              const stopping = fc.name === 'stop';
-              if (stopping) this.reportStopPending(true);
-              const timing = { message_sequence: messageSequence, request_id: dispatch.id, tool: dispatch.name };
-              if (turnTiming) { turnTiming.toolFirst ??= performance.now(); turnTiming.tools++; }
-              this.trace('tool_call_start', timing);
-              this.pendingRobotTools++;
-              const actionRequest = isModelAction(fc.name);
-              if (actionRequest) this.pendingModelActions++;
-              try { result = await this.robotBridge.callTool(fc.name, args ?? {}); receivedServerReply = true; }
-              catch (error) { this.trace('tool_call_failed', timing); throw error; }
-              finally {
-                if (turnTiming) turnTiming.toolReply ??= performance.now();
-                this.pendingRobotTools--; if (actionRequest) this.pendingModelActions--; if (stopping) this.reportStopPending(false);
-              }
-              const status = toolResponseStatus(result);
-              this.trace('tool_call_resolved', { ...timing, status });
-
-          }
-        } catch (e: any) {
-          result = { success: false, outcome_unknown: true, error: e.message };
-        }
-
-        const currentFeedback = () => this.connected && !this.disposed && feedbackGeneration === this.feedbackGeneration
-          && feedbackRequest === this.feedbackRequest && !(fc.id && this.cancelledToolIds.has(fc.id));
-        if (dispatch) {
-          const status = toolResponseStatus(result);
-          const failedAction = isModelAction(fc.name) && result?.success === false;
-          const actionFailureOrUnknown = isModelAction(fc.name) && (result?.success === false || status === 'unknown');
-          if (status === 'unknown' || failedAction || (result?.success === false
-              && (result?.command_epoch_required === true || fc.name === 'stop'))) {
-            const wasCurrent = currentFeedback();
-            const firstPause = !this.robotToolsPaused;
-            // A known current refusal may keep its exact post-server receipt;
-            // it never rearms the model or admits arbitrary tool-turn prose.
-            const knownFailureReceipt = wasCurrent && receiptTurn && receivedServerReply && failedAction
-              && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown
-              && !result.superseded && !result.not_dispatched && this.pendingModelActions === 0;
-            if (knownFailureReceipt) {
-              this.endAudioInput(); this.robotToolsPaused = true;
-              try { this.onRobotToolsPaused(); } catch {}
-              this.stopPlayback(true, false);
-            } else this.pauseRobotTools();
-            if (failedAction && firstPause && this.connected && !this.disposed) this.log('error',
-              `Model actions paused after a ${toolLabel(fc.name)} request failed. Reconnect voice to resume; Stop and status remain available.`);
-            // SDK callbacks can overlap. Stop's existing shared HTTP epoch
-            // fences another already-sent action; no stale request is retried.
-            if (actionFailureOrUnknown && this.pendingModelActions > 0 && this.connected && !this.disposed) {
-              void this.requestAutomaticStop('An action failed or had an unknown result while another model action was in flight');
-            }
-            // Keep this current unknown/error receipt, while invalidating older speech.
-            if (wasCurrent) feedbackGeneration = this.feedbackGeneration;
-          }
-          if (currentFeedback()) this.onToolDispatch({ ...dispatch, status, message: operatorFeedback(fc.name, result), timestamp: Date.now(), job: acceptedJobIdentity(result), serverUrl: this.robotBridge.baseUrl });
-        }
-        const speechAlias = ['speak', 'say', 'narrate'].includes(fc.name || '');
-        if (!speechAlias && currentFeedback()) {
-          const feedback = operatorFeedback(fc.name, result);
-          if (turnTiming) turnTiming.receipt ??= performance.now();
-          this.log('receipt', feedback);
-        }
-        const actualReceipt = receivedServerReply && dispatch && currentFeedback()
-          && typeof result?.success === 'boolean' && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown && !result.superseded && !result.not_dispatched
-          ? nativeReceiptFeedback(fc.name, result) : null;
-        const receiptAuthorization = actualReceipt ? this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt, fc, result) : null;
-        const textReceiptModel = !isAudioOutputModel(this.config.modelName)
-          && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName);
-        const statusChoice = this.pawClarificationAvailable && fc.name === 'robot_status'
-          && result?.success === true && actualReceipt && currentFeedback()
-          ? this.nativeReceiptOutput.offerPawClarification(receiptTurn, fc, actualReceipt, currentFeedback,
-            textReceiptModel ? text => {
-              if (currentFeedback()) void this.synthesizeAndPlaySpeech(text, currentFeedback)
-                .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
-            } : undefined) : null;
-        // The immutable clip is code-owned: its own current actual HTTP reply
-        // is sufficient even when a multi-tool model turn cannot be narrated.
-        const cacheText = actualReceipt && currentFeedback() && this.outputPolicy === 'conversation'
-          && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) ? serverReceiptAudioText(fc.name, fc.args, result) : null;
-        // Keep an explicitly composed native receipt (the fourth-handshake joke)
-        // intact instead of replacing it with the shorter generic cached cue.
-        const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
-          && receiptAuthorization !== cacheText;
-        const neutralAudio = cacheText && result?.success === true && fc.name !== 'stop'
-          ? this.receiptAudioCache?.lookup('Okay.', this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
-        // cacheText is a closed helper result: for successful non-Stop calls it
-        // exists only for an allowlisted typed queued submission. "Okay" marks
-        // its first acceptance, never completion or acceptance of later steps.
-        const neutralQueued = !!neutralAudio && !!receiptTurn;
-        const firstQueuedCue = neutralQueued && this.nativeReceiptOutput.claimQueuedCue(receiptTurn);
-        const queuedCueUsed = this.nativeReceiptOutput.hasQueuedCue(receiptTurn);
-        if (queuedCueUsed && result?.success === false && actualReceipt && currentFeedback()) {
-          this.stopPlayback(false, false);
-          feedbackGeneration = this.feedbackGeneration;
-        }
-        const cachedAudio = firstQueuedCue ? neutralAudio : neutralQueued ? null
-          : cacheText && !composedNativeReceipt
-          ? this.receiptAudioCache?.lookup(cacheText, this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
-        const cachedReceipt = !!cachedAudio;
-        if (cachedReceipt) {
-          // Neutral cues preserve accepted-handshake bookkeeping while muting
-          // native duplicates. Stop/failure clips retain immediate interruption.
-          if (!firstQueuedCue) this.nativeReceiptOutput.invalidate(false);
-          this.trace('cached_receipt_admitted', { bytes: Math.floor(cachedAudio.length * 3 / 4) });
-          void this.playAudioBase64(cachedAudio, turnTiming).catch(() => this.log('info', 'Cached receipt audio unavailable; the server receipt remains visible.'));
-        }
-        const acceptedFourthJoke = queuedCueUsed && [
-          `Left paw command queued. ${HANDSHAKE_JOKE}`, `Right paw command queued. ${HANDSHAKE_JOKE}`,
-        ].includes(receiptAuthorization || '');
-        if (acceptedFourthJoke && currentFeedback()) {
-          // Same existing exact accepted-chain authorization; only the repeated
-          // action prefix is omitted after the neutral acceptance cue.
-          this.nativeReceiptOutput.offerQueuedCueJoke(receiptTurn, receiptAuthorization!, currentFeedback, () => {
-            void this.synthesizeAndPlaySpeech(HANDSHAKE_JOKE, currentFeedback)
-              .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
-          });
-        }
-        const suppressSuccessNarration = queuedCueUsed && result?.success === true && fc.name !== 'stop';
-        // TEXT dialogue cannot supply native receipt audio. Speak only the exact
-        // code-owned current authorization, never the model's tool-turn prose.
-        // A later request in this same batch invalidates outstanding TTS chunks.
-        if (!cachedReceipt && !suppressSuccessNarration && !statusChoice && receiptAuthorization && currentFeedback()
-            && !isAudioOutputModel(this.config.modelName)
-            && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName)) {
-          void this.synthesizeAndPlaySpeech(receiptAuthorization, currentFeedback)
-            .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
-        }
-        if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
-          this.sessionPromise.then(session => {
-            if (!this.connected) return;
-            try {
-              this.trace('function_response_send_start', { message_sequence: messageSequence,
-                request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
-              session.sendToolResponse({
-                functionResponses: {
-                  id: fc.id,
-                  name: fc.name,
-                  response: { result, ...(receiptAuthorization && !cachedReceipt && !suppressSuccessNarration && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) }
-                }
-              });
-              this.trace('function_response_send_return', { message_sequence: messageSequence,
-                request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
-            } catch (err) {
-              this.trace('function_response_send_failed', { message_sequence: messageSequence,
-                request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
-              // Session may have closed between check and send
-            }
-          });
-        }
+      if (hasStop) this.toolAdmissionGeneration++;
+      const admissionGeneration = this.toolAdmissionGeneration;
+      let releaseOrdinary: (() => void) | undefined;
+      let ownTail: Promise<void> | undefined;
+      const previous = hasStop ? null : this.ordinaryToolTail;
+      if (!hasStop) {
+        ownTail = new Promise<void>(resolve => { releaseOrdinary = resolve; });
+        this.ordinaryToolTail = ownTail;
       }
+      try {
+        if (cancelSentAction) await this.requestAutomaticStop('Live cancelled an already-dispatched action');
+        if (previous) await previous;
+        if (this.disposed || !this.connected) return;
+        // This packet was marked tool-bearing at arrival. Its prior receipt
+        // stays current until this lane is acquired; do not create a new output
+        // tombstone if generation happened to close while it was waiting.
+        if (deferPacketOutput && admissionGeneration === this.toolAdmissionGeneration) invalidatePacketOutput(true);
+        if (hasStop) this.endAudioInput();
+        // Stop is an interrupt, never the tail of a queued sequence. Dispatch it
+        // first and reject other actions in that same model batch before HTTP.
+        const ordered = hasStop ? [...calls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : calls;
+        for (const fc of ordered) {
+          if (this.disposed) break;
+          if (fc.name === 'stop') this.stopPlayback(false, false); // Packet already invalidated its output turn synchronously.
+          const supersededBeforeDispatch = admissionGeneration !== this.toolAdmissionGeneration;
+          let feedbackGeneration = this.feedbackGeneration;
+          const feedbackRequest = ++this.feedbackRequest;
+          if (fc.id && this.cancelledToolIds.has(fc.id)) {
+            this.log('info', `Cancelled before dispatch: ${toolLabel(fc.name)}`);
+            continue;
+          }
+          this.log('function', `Request: ${toolLabel(fc.name)}`);
+          let result: any = { success: true };
+          let receivedServerReply = false;
+          let dispatch: { id: string; name: string; timestamp: number } | null = null;
+          
+          try {
+            // Helper args
+            const args = fc.args as any;
+
+            switch (fc.name) {
+              case 'speak':
+              case 'say':
+              case 'narrate':
+                if (this.outputPolicy === 'receipts') {
+                  result = { success: false, message: 'Free-form speech is muted in receipt-only control.' };
+                  break;
+                }
+                if (isAudioOutputModel(this.config.modelName)) {
+                  result = { success: false, error: 'Native-audio models must speak through their Live API audio response' };
+                  break;
+                }
+                const speechText = args?.text || args?.message || args?.content || '';
+                result = typeof speechText === 'string' && speechText
+                  ? { success: true, buffered: true, message: 'Speech buffered for the completed-turn output check; playback is not confirmed.' }
+                  : { success: false, error: 'No text provided to speak' };
+                break;
+              default:
+                // Every other tool is defined and run on the robot (the tools in lab/).
+                if (admissionGeneration !== this.toolAdmissionGeneration && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                  result = { success: false, not_dispatched: true, message: 'Not dispatched: a Stop superseded this waiting request or model actions were paused.' };
+                  break;
+                }
+                if (hasStop && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                  result = { success: false, not_dispatched: true, message: 'Not dispatched: Stop takes priority over other actions in the same batch. No delayed Stop was scheduled.' };
+                  break;
+                }
+                if (this.stopRequestsPending > 0 && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                  result = { success: false, not_dispatched: true, message: 'Not dispatched: a Stop response is pending. Check status before requesting a new action.' };
+                  break;
+                }
+                if (this.robotToolsPaused && fc.name !== 'stop' && fc.name !== 'robot_status') {
+                  result = { success: false, not_dispatched: true, message: 'Model motion requests paused. Stop and status remain available; reconnect voice to enable motion requests.' };
+                  break;
+                }
+                dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
+                if (!['stop', 'robot_status', 'unlock', 'lock_tricks'].includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
+                this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
+                // This lifecycle remains balanced even after disconnect suppresses
+                // UI receipts. A late Stop must not race new manual motion.
+                const stopping = fc.name === 'stop';
+                if (stopping) this.reportStopPending(true);
+                const timing = { message_sequence: messageSequence, request_id: dispatch.id, tool: dispatch.name };
+                if (turnTiming) { turnTiming.toolFirst ??= performance.now(); turnTiming.tools++; }
+                this.trace('tool_call_start', timing);
+                this.pendingRobotTools++;
+                const actionRequest = isModelAction(fc.name);
+                if (actionRequest) this.pendingModelActions++;
+                try { result = await this.robotBridge.callTool(fc.name, args ?? {}); receivedServerReply = true; }
+                catch (error) { this.trace('tool_call_failed', timing); throw error; }
+                finally {
+                  if (turnTiming) turnTiming.toolReply ??= performance.now();
+                  this.pendingRobotTools--; if (actionRequest) this.pendingModelActions--; if (stopping) this.reportStopPending(false);
+                }
+                const status = toolResponseStatus(result);
+                this.trace('tool_call_resolved', { ...timing, status });
+
+            }
+          } catch (e: any) {
+            result = { success: false, outcome_unknown: true, error: e.message };
+          }
+
+          const currentFeedback = () => !supersededBeforeDispatch && this.connected && !this.disposed && feedbackGeneration === this.feedbackGeneration
+            && feedbackRequest === this.feedbackRequest && !(fc.id && this.cancelledToolIds.has(fc.id));
+          if (dispatch) {
+            const status = toolResponseStatus(result);
+            const failedAction = isModelAction(fc.name) && result?.success === false;
+            const actionFailureOrUnknown = isModelAction(fc.name) && (result?.success === false || status === 'unknown');
+            if (status === 'unknown' || failedAction || (result?.success === false
+                && (result?.command_epoch_required === true || fc.name === 'stop'))) {
+              const wasCurrent = currentFeedback();
+              const firstPause = !this.robotToolsPaused;
+              // A known current refusal may keep its exact post-server receipt;
+              // it never rearms the model or admits arbitrary tool-turn prose.
+              const knownFailureReceipt = wasCurrent && receiptTurn && receivedServerReply && failedAction
+                && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown
+                && !result.superseded && !result.not_dispatched && this.pendingModelActions === 0;
+              if (knownFailureReceipt) {
+                this.endAudioInput(); this.robotToolsPaused = true;
+                try { this.onRobotToolsPaused(); } catch {}
+                this.stopPlayback(true, false);
+              } else this.pauseRobotTools();
+              if (failedAction && firstPause && this.connected && !this.disposed) this.log('error',
+                `Model actions paused after a ${toolLabel(fc.name)} request failed. Reconnect voice to resume; Stop and status remain available.`);
+              // SDK callbacks can overlap. Stop's existing shared HTTP epoch
+              // fences another already-sent action; no stale request is retried.
+              if (actionFailureOrUnknown && this.pendingModelActions > 0 && this.connected && !this.disposed) {
+                void this.requestAutomaticStop('An action failed or had an unknown result while another model action was in flight');
+              }
+              // Keep this current unknown/error receipt, while invalidating older speech.
+              if (wasCurrent) feedbackGeneration = this.feedbackGeneration;
+            }
+            if (currentFeedback()) this.onToolDispatch({ ...dispatch, status, message: operatorFeedback(fc.name, result), timestamp: Date.now(), job: acceptedJobIdentity(result), serverUrl: this.robotBridge.baseUrl });
+          }
+          const speechAlias = ['speak', 'say', 'narrate'].includes(fc.name || '');
+          if (!speechAlias && currentFeedback()) {
+            const feedback = operatorFeedback(fc.name, result);
+            if (turnTiming) turnTiming.receipt ??= performance.now();
+            this.log('receipt', feedback);
+          }
+          const actualReceipt = receivedServerReply && dispatch && currentFeedback()
+            && typeof result?.success === 'boolean' && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown && !result.superseded && !result.not_dispatched
+            ? nativeReceiptFeedback(fc.name, result) : null;
+          const receiptAuthorization = actualReceipt ? this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt, fc, result) : null;
+          const textReceiptModel = !isAudioOutputModel(this.config.modelName)
+            && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName);
+          const statusChoice = this.pawClarificationAvailable && fc.name === 'robot_status'
+            && result?.success === true && actualReceipt && currentFeedback()
+            ? this.nativeReceiptOutput.offerPawClarification(receiptTurn, fc, actualReceipt, currentFeedback,
+              textReceiptModel ? text => {
+                if (currentFeedback()) void this.synthesizeAndPlaySpeech(text, currentFeedback)
+                  .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
+              } : undefined) : null;
+          // The immutable clip is code-owned: its own current actual HTTP reply
+          // is sufficient even when a multi-tool model turn cannot be narrated.
+          const cacheText = actualReceipt && currentFeedback() && this.outputPolicy === 'conversation'
+            && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) ? serverReceiptAudioText(fc.name, fc.args, result) : null;
+          // Keep an explicitly composed native receipt (the fourth-handshake joke)
+          // intact instead of replacing it with the shorter generic cached cue.
+          const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
+            && receiptAuthorization !== cacheText;
+          const neutralAudio = cacheText && result?.success === true && fc.name !== 'stop'
+            ? this.receiptAudioCache?.lookup('Okay.', this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
+          // cacheText is a closed helper result: for successful non-Stop calls it
+          // exists only for an allowlisted typed queued submission. "Okay" marks
+          // its first acceptance, never completion or acceptance of later steps.
+          const neutralQueued = !!neutralAudio && !!receiptTurn;
+          const firstQueuedCue = neutralQueued && this.nativeReceiptOutput.claimQueuedCue(receiptTurn);
+          const queuedCueUsed = this.nativeReceiptOutput.hasQueuedCue(receiptTurn);
+          if (queuedCueUsed && result?.success === false && actualReceipt && currentFeedback()) {
+            this.stopPlayback(false, false);
+            feedbackGeneration = this.feedbackGeneration;
+          }
+          const cachedAudio = firstQueuedCue ? neutralAudio : neutralQueued ? null
+            : cacheText && !composedNativeReceipt
+            ? this.receiptAudioCache?.lookup(cacheText, this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
+          const cachedReceipt = !!cachedAudio;
+          if (cachedReceipt) {
+            // Neutral cues preserve accepted-handshake bookkeeping while muting
+            // native duplicates. Stop/failure clips retain immediate interruption.
+            if (!firstQueuedCue) this.nativeReceiptOutput.invalidate(false);
+            this.trace('cached_receipt_admitted', { bytes: Math.floor(cachedAudio.length * 3 / 4) });
+            void this.playAudioBase64(cachedAudio, turnTiming).catch(() => this.log('info', 'Cached receipt audio unavailable; the server receipt remains visible.'));
+          }
+          const acceptedFourthJoke = queuedCueUsed && [
+            `Left paw command queued. ${HANDSHAKE_JOKE}`, `Right paw command queued. ${HANDSHAKE_JOKE}`,
+          ].includes(receiptAuthorization || '');
+          if (acceptedFourthJoke && currentFeedback()) {
+            // Same existing exact accepted-chain authorization; only the repeated
+            // action prefix is omitted after the neutral acceptance cue.
+            this.nativeReceiptOutput.offerQueuedCueJoke(receiptTurn, receiptAuthorization!, currentFeedback, () => {
+              void this.synthesizeAndPlaySpeech(HANDSHAKE_JOKE, currentFeedback)
+                .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
+            });
+          }
+          const suppressSuccessNarration = queuedCueUsed && result?.success === true && fc.name !== 'stop';
+          // TEXT dialogue cannot supply native receipt audio. Speak only the exact
+          // code-owned current authorization, never the model's tool-turn prose.
+          // A later request in this same batch invalidates outstanding TTS chunks.
+          if (!cachedReceipt && !suppressSuccessNarration && !statusChoice && receiptAuthorization && currentFeedback()
+              && !isAudioOutputModel(this.config.modelName)
+              && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName)) {
+            void this.synthesizeAndPlaySpeech(receiptAuthorization, currentFeedback)
+              .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
+          }
+          if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
+            this.sessionPromise.then(session => {
+              if (!this.connected) return;
+              try {
+                this.trace('function_response_send_start', { message_sequence: messageSequence,
+                  request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
+                session.sendToolResponse({
+                  functionResponses: {
+                    id: fc.id,
+                    name: fc.name,
+                    response: { result, ...(receiptAuthorization && !cachedReceipt && !suppressSuccessNarration && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) }
+                  }
+                });
+                this.trace('function_response_send_return', { message_sequence: messageSequence,
+                  request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
+              } catch (err) {
+                this.trace('function_response_send_failed', { message_sequence: messageSequence,
+                  request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
+                // Session may have closed between check and send
+              }
+            });
+          }
+        }
+      } finally {
+        if (this.ordinaryToolTail === ownTail) this.ordinaryToolTail = null;
+        releaseOrdinary?.();
+      }
+    } else if (cancelSentAction) {
+      await this.requestAutomaticStop('Live cancelled an already-dispatched action');
     }
 
   }

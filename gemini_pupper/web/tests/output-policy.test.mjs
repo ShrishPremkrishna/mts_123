@@ -27,12 +27,12 @@ test('formatter permits only typed queued evidence and never raw or prototype na
  assert.equal(normalizeOutputPolicy(undefined),'conversation');
  for(const value of [null,'bad',true]) assert.equal(normalizeOutputPolicy(value),'receipts');
 });
-test('late older receipt cannot speak after newer request, Stop, cancellation or disconnect',async t=>{
+test('late older receipt cannot speak after a newer Stop, pause, cancellation or disconnect',async t=>{
  const voice=speech(t);
  for(const event of ['newer','stop','cancel','disconnect']){
   const e=service('receipts'),d=deferred();e.s.robotBridge.callTool=name=>name==='move'?d.promise:Promise.resolve({success:true});
   const pending=e.s.handleMessage(call('old','move'));
-  if(event==='newer') await e.s.handleMessage(call('new','robot_status'));
+  if(event==='newer') await e.s.handleMessage(call('new','stop'));
   if(event==='stop') e.s.pauseRobotTools();
   if(event==='cancel') await e.s.handleMessage({toolCallCancellation:{ids:['old']}});
   if(event==='disconnect') await e.s.disconnect();
@@ -95,7 +95,7 @@ test('current unknown response remains visible after it pauses later model actio
 });
 test('reused model call ID cannot turn an older response into a current acknowledgment',async()=>{
  const e=service('receipts'),old=deferred();e.s.robotBridge.callTool=name=>name==='move'?old.promise:Promise.resolve({success:true});
- const pending=e.s.handleMessage(call('same-id','move'));await e.s.handleMessage(call('same-id','robot_status'));
+ const pending=e.s.handleMessage(call('same-id','move'));await e.s.handleMessage(call('same-id','stop')); 
  const before=e.dispatches.length;old.resolve({success:true});await pending;assert.equal(e.dispatches.length,before);
  assert.equal(e.logs.filter(x=>x.type==='receipt').length,1);
 });

@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-02",
+  "status": "REJECTED candidate; not integrated",
+  "scope": "Four matched nominal MuJoCo/native comparisons; no hardware or production change",
+  "evidence": {
+    "repo": "artifacts/hardware/2026-11-02/standing-return",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/standing-return",
+    "archive": "complete.tar.gz",
+    "sha256": "99088927fccdeed7001e33d95142c30129b97dba60b1e957d10608a45c2c6f2c",
+    "bytes": 84195705
+  },
+  "finding": "Skipping the two-second static default waypoint saves two seconds but raises following push-up walking peak effort 44.18%, peak joint speed 11.40%, and slip 27.54%. Initial target discontinuity unchanged.",
+  "decision": "Keep production return unchanged. Different endpoint and walking postures still require a transition.",
+  "validation": "71 focused checks; independent 1201 assertions and 884 metric values; four complete fixed-camera videos; no robot proof."
+}

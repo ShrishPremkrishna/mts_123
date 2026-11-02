@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-02",
+  "status": "Rejected as automatic capability/completion grader",
+  "scope": "Two silent synthetic simulation videos, standard gemini-robotics-er-2-preview; no real camera, robot, tools or TTS",
+  "evidence": {
+    "repo": "artifacts/access/ws1-er-vision-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-er-vision",
+    "archive": "complete.tar.gz",
+    "sha256": "38ed8799e704bd9aa1f4eba0253fc7dbb47193695f528810dd4856cdf900d067",
+    "bytes": 747417
+  },
+  "findings": [
+    "Correct coarse forward travel distinction.",
+    "Truncated clip ends in sit_idle at native 12.538462s, before stand_up at12.55s; model confidently called endpoint standing and invented rise.",
+    "Paw motions conflated and rise timing inaccurate; valid JSON/timestamps are not semantic correctness."
+  ],
+  "decision": "At most inspectable annotations; do not use for autonomous acceptance or stopping. No further calls or prompt retuning for this probe.",
+  "cost": {
+    "successful_batch_estimate_usd": 0.030896,
+    "first_attempt": "Sandbox connection failed before an HTTP response; billing unknown. Preserved rather than silently retried.",
+    "both_attempts_conservative_upper_usd": 1.376256
+  },
+  "renderer": "Optional fixed camera, distance, no annotations and exclusive end-time now supported by render_spider_handoff.py; defaults unchanged. Exact videos/manifests/peer frame inspection preserved."
+}

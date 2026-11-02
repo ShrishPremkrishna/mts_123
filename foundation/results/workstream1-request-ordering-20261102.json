@@ -1,0 +1,349 @@
+{
+  "date": "2026-11-02",
+  "baseline_commit": "2257a5d9a489be3aa5a08601f072ba537c161af1",
+  "scope": "Offline browser request-order fix; exact production-service Google text requests against explicit localhost fake backend. No robot/browser/audio-listening acceptance.",
+  "problem": {
+    "confirmed": "Overlapping SDK tool packets could send later ordinary calls before the previous HTTP reply, e.g. Sit,paw,wait instead of Sit,wait,paw.",
+    "baseline_evidence": "order-before.log: four failing targeted assertions on unchanged baseline. Stop/failure tests expose why previously concurrent later requests need prevention.",
+    "separate_model_failure": "Earlier512 diagnostic emitted only status;2048 control emitted requested paw. Saved traces replay identically through old/new client. This patch does not infer or repair omitted model intent."
+  },
+  "change": [
+    "Reserve ordinary tool packets synchronously in arrival order until all their real admission replies finish. Do not wait for queued physical/controller execution.",
+    "Stop bypasses the ordinary lane and advances admission generation; older pending action requests cannot dispatch after it. Existing HTTPepoch fences already-sent requests.",
+    "Preserve existing failed/unknown-action pause, output gate, queuedcue provenance and explicit new-service reconnect; no prompt/tool/model/generation setting edits."
+  ],
+  "validation": {
+    "targeted": 171,
+    "new_ordering": 10,
+    "full_web": 363,
+    "typecheck": "pass",
+    "build": "pass",
+    "independent_peer": 51,
+    "peer_file": "independent-peer-review.json",
+    "intermediate_failures_retained": [
+      "order-before.log",
+      "full-web-first.log (old parallel-dispatch tests assumed concurrency and blocked)",
+      "full-web-after.log",
+      "affected-after.log (real Stop+turn-boundary tombstone regression; corrected before final)"
+    ],
+    "final_logs": [
+      "affected-after-r2.log",
+      "full-web-final.log",
+      "typecheck-final.log",
+      "build-final.log"
+    ],
+    "six_category_map": {
+      "explicit": "request-order +status-clarification: preserved512 omission and2048 successreplay",
+      "ambiguous": "status-clarification existingfixed current-status exactquestion cases; prioractualproviderpass retained separately",
+      "sequence": "newrequest-order crosspacket andwholepacket; neutral-receipt five-tool chain",
+      "invalid": "action-failure actualHTTP0.15m/s fixture, failure/unknown fences",
+      "Stop": "request-order bypass/samepacket/expiredwaiter; existingexecution cancel/Stop guards",
+      "reconnect": "request-order oldserviceclosed/freshservice independentlane; existingApp ownership tests"
+    },
+    "existing_tests_adjusted": "Three test files assumed later ordinary HTTP requests could overlap an unresolved earlier one. They now assert withholding instead; overlapping Stop/currentness tests remain. One message wording retained paused for existing lifecycle assertion."
+  },
+  "provider_replays": {
+    "files": [
+      "replay-baseline-explicit.json",
+      "replay-candidate-explicit.json",
+      "replay-baseline-explicit-cap2048.json",
+      "replay-candidate-explicit-cap2048.json"
+    ],
+    "result": "Same omission/fallback and same successful accepted chain/singlecue in both versions; not a new provider run."
+  },
+  "live": {
+    "harness": "live-probe.mjs",
+    "source": "candidate/gemini_pupper/web",
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "sdk_version": "1.50.1",
+    "generation_settings": "Production setup unchanged; maxOutputTokens, temperature and thinkingConfig unset. TEXT output, sliding-window compression; complete current authorized prompt/tools.",
+    "voice": "Existing approved Puck Okay PCM only; natural TTS replaced by admission sink; no paid TTS or new media.",
+    "precondition": "Each session independently verifies fake/hardwarefalse, requests fakeStop andstand, waits queueidle. Separate fresh provider sessions.",
+    "attempts": 2,
+    "retry_count": 0,
+    "cases": [
+      {
+        "case": "named",
+        "result_sha256": "676fc3df99d6be68a96be834faa010907c2af8b3460294c18dc2736da15af7c8",
+        "calls": [
+          {
+            "name": "robot_status",
+            "args": {},
+            "success": true,
+            "entry_ms": 1215.507542,
+            "reply_ms": 1217.439875,
+            "submission": null,
+            "matched_terminal": null
+          },
+          {
+            "name": "play_trick",
+            "args": {
+              "name": "sit_stay_shake",
+              "count": 1,
+              "count_unit": "routine_playback"
+            },
+            "success": true,
+            "entry_ms": 3056.848667,
+            "reply_ms": 3059.1245,
+            "submission": {
+              "schema": "pupper_submission_v1",
+              "state": "queued",
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:2",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91"
+            },
+            "matched_terminal": {
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:2",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91",
+              "name": "trick sit_stay_shake",
+              "success": true,
+              "message": "controller entry playback confirmed for sit_stay_shake; configured target pose: sitting. Interactive actions: shake_left, shake_right, stand_up. Any other motion first plays stand_up.",
+              "terminal_state": "succeeded",
+              "execution_started": true,
+              "event_seq": 7,
+              "wall_time_s": 1793616738.7350552,
+              "monotonic_s": 222351.032499291
+            }
+          },
+          {
+            "name": "interactive_action",
+            "args": {
+              "action": "shake_right"
+            },
+            "success": true,
+            "entry_ms": 4356.548083,
+            "reply_ms": 4358.225958,
+            "submission": {
+              "schema": "pupper_submission_v1",
+              "state": "queued",
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:3",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91"
+            },
+            "matched_terminal": {
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:3",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91",
+              "name": "sit_stay_shake shake_right",
+              "success": true,
+              "message": "played shake_right",
+              "terminal_state": "succeeded",
+              "execution_started": true,
+              "event_seq": 9,
+              "wall_time_s": 1793616742.936995,
+              "monotonic_s": 222355.234442791
+            }
+          }
+        ],
+        "first_any_tool_entry_ms": 1215.507542,
+        "first_action_entry_ms": 3056.848667,
+        "first_action_reply_ms": 3059.1245,
+        "cue_admission_ms": 3059.7036669999998,
+        "reply_to_cue_admission_ms": 0.5791669999998703,
+        "cue_count": 1,
+        "cue_pcm_sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+        "generation_complete_ms": 5097.021208,
+        "turn_complete_ms": 5098.496875,
+        "permitted_sends": 4,
+        "context_byte_upper_bound": 25142,
+        "cost_estimate_usd": 0.026808,
+        "setup_sha256": "e94a619291aa70ec3abc92814f957b06a9e0ac3a55619275ae6ab6774cbe4702",
+        "maxOutputTokens_present": false,
+        "error": null,
+        "abort": null,
+        "cleanup": {
+          "fake_reverified": true,
+          "stop_result": {
+            "success": true,
+            "message": "No running job existed when Stop began. Cleared 0 pending queued commands, separate from the running job. zero walking speed requested. Physical stopping has not been measured.",
+            "details": {
+              "running_job": null,
+              "pending_queued_commands_cleared": 0,
+              "pending_queued_job_ids_cleared": [],
+              "physical_observation": {
+                "stopped": null,
+                "pose": null
+              }
+            },
+            "command_epoch": "ff69cae6e4e04efcb024c39abafffe91:2",
+            "command_epoch_required": true
+          },
+          "service_disconnected": true,
+          "sdk_close_requested": true,
+          "provider_close_callback_observed": false,
+          "scope": "Client disposal/close request is not proof of a provider close callback; root process exit recorded separately."
+        },
+        "first_action_provider_callback_ms": 3054.024708,
+        "callback_to_first_action_entry_ms": 2.8239590000002863
+      },
+      {
+        "case": "sequence",
+        "result_sha256": "2d0391a8b484333ba71ef21c50f491e4b30d24c53a4d2a790bf4be1a2c0b2305",
+        "calls": [
+          {
+            "name": "move",
+            "args": {
+              "direction": "forward",
+              "duration": 0.5,
+              "speed": 0.2
+            },
+            "success": true,
+            "entry_ms": 9755.058292000002,
+            "reply_ms": 9756.853167000001,
+            "submission": {
+              "schema": "pupper_submission_v1",
+              "state": "queued",
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:5",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91"
+            },
+            "matched_terminal": {
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:5",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91",
+              "name": "move vx=0.2 vy=0 wz=0 0.5s",
+              "success": true,
+              "message": "sent velocity commands vx=0.2 vy=0 wz=0 for 0.50 s; then requested zero velocity",
+              "terminal_state": "succeeded",
+              "execution_started": true,
+              "event_seq": 17,
+              "wall_time_s": 1793616778.0263739,
+              "monotonic_s": 222390.323847958
+            }
+          },
+          {
+            "name": "wait",
+            "args": {
+              "duration": 1
+            },
+            "success": true,
+            "entry_ms": 9759.362834,
+            "reply_ms": 9760.356167000002,
+            "submission": {
+              "schema": "pupper_submission_v1",
+              "state": "queued",
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:6",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91"
+            },
+            "matched_terminal": {
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:6",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91",
+              "name": "wait 1s",
+              "success": true,
+              "message": "waited 1 s",
+              "terminal_state": "succeeded",
+              "execution_started": true,
+              "event_seq": 19,
+              "wall_time_s": 1793616779.027243,
+              "monotonic_s": 222391.324717291
+            }
+          },
+          {
+            "name": "turn",
+            "args": {
+              "direction": "left",
+              "angle": 15
+            },
+            "success": true,
+            "entry_ms": 9761.348292000002,
+            "reply_ms": 9762.245625,
+            "submission": {
+              "schema": "pupper_submission_v1",
+              "state": "queued",
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:7",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91"
+            },
+            "matched_terminal": {
+              "job_id": "ff69cae6e4e04efcb024c39abafffe91:7",
+              "server_instance": "ff69cae6e4e04efcb024c39abafffe91",
+              "name": "move vx=0 vy=0 wz=60 0.25s",
+              "success": true,
+              "message": "sent velocity commands vx=0 vy=0 wz=60 for 0.25 s; then requested zero velocity",
+              "terminal_state": "succeeded",
+              "execution_started": true,
+              "event_seq": 21,
+              "wall_time_s": 1793616779.281217,
+              "monotonic_s": 222391.578692125
+            }
+          }
+        ],
+        "first_any_tool_entry_ms": 9755.058292000002,
+        "first_action_entry_ms": 9755.058292000002,
+        "first_action_reply_ms": 9756.853167000001,
+        "cue_admission_ms": 9757.68,
+        "reply_to_cue_admission_ms": 0.8268329999991693,
+        "cue_count": 1,
+        "cue_pcm_sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+        "generation_complete_ms": 11643.7615,
+        "turn_complete_ms": 11645.986542000002,
+        "permitted_sends": 4,
+        "context_byte_upper_bound": 23802,
+        "cost_estimate_usd": 0.01233,
+        "setup_sha256": "e94a619291aa70ec3abc92814f957b06a9e0ac3a55619275ae6ab6774cbe4702",
+        "maxOutputTokens_present": false,
+        "error": null,
+        "abort": null,
+        "cleanup": {
+          "fake_reverified": true,
+          "stop_result": {
+            "success": true,
+            "message": "No running job existed when Stop began. Cleared 0 pending queued commands, separate from the running job. zero walking speed requested. Physical stopping has not been measured.",
+            "details": {
+              "running_job": null,
+              "pending_queued_commands_cleared": 0,
+              "pending_queued_job_ids_cleared": [],
+              "physical_observation": {
+                "stopped": null,
+                "pose": null
+              }
+            },
+            "command_epoch": "ff69cae6e4e04efcb024c39abafffe91:4",
+            "command_epoch_required": true
+          },
+          "service_disconnected": true,
+          "sdk_close_requested": true,
+          "provider_close_callback_observed": false,
+          "scope": "Client disposal/close request is not proof of a provider close callback; root process exit recorded separately."
+        },
+        "first_action_provider_callback_ms": 9751.905375000002,
+        "callback_to_first_action_entry_ms": 3.1529169999994338
+      }
+    ],
+    "total_cost_estimate_usd": 0.039138,
+    "hard_reserved_usd": 4.128768,
+    "setup_margin_usd": 0.1,
+    "pricing_source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "cost_scope": "Estimate from raw reported prompt+response+thought counts at1/5USD perM; not billing confirmation. One usage record per case; no duplicate sum."
+  },
+  "assessment": [
+    "Both bounded uncapped-production smoke requests dispatched the requested tools/arguments; all5 submitted actionjobs matched exact server IDs and terminal succeeded in fake software.",
+    "One code-owned Okay per observed provider outputturn followed actual first typedqueued reply; no extra raw tool narration admitted.",
+    "Sequence cue took9.758seconds, with firstaction request at9.755seconds: latency remains material before dispatch, despite reply-to-cue under1millisecond. This includes network/provider generation and does not establish its cause.",
+    "No live baseline/repeated sampling: this is a two-case functional check, not a measured model-reliability or latency improvement.",
+    "Atomic composite action tool is not justified by this client-order defect; no new API or hidden intent mapper introduced."
+  ],
+  "limits": [
+    "No physical completion/stillness/trajectory or acoustic latency claim.",
+    "The512 omission remains preserved; no automatic retry/motion recovery.",
+    "Cue scope is provider outputturn, not a proven user-utterance identity.",
+    "Provider close callback was not observed because disposed session callbacks are suppressed; explicit clientdisposal and SDKclose request plus process exits are separate evidence."
+  ],
+  "primary_protocol_sources": [
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/robotics-streaming",
+      "supports": "ER2 streaming is TEXT; physical tools blocking-only."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/live-api/tools",
+      "supports": "Function calling is sequential/blocking by default; app handles FunctionResponses explicitly."
+    },
+    {
+      "url": "https://ai.google.dev/api/live",
+      "supports": "Session setup fixed atconnection; servergeneration/turn/toolcancellation boundaries."
+    }
+  ],
+  "source_freeze_sha256": "9220c8242642d67918a1f03ce8afc2b9c7f0e71957c6c2832530ae01a2d20ca4",
+  "root_integration_note": "A final forward apply-check found root had already integrated the candidate; allfive currentroot filehashes match sourcefreeze exactly. No root edits performed by this agent.",
+  "artifacts": {
+    "repo": "artifacts/access/ws1-request-reliability-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-request-reliability",
+    "complete_archive_sha256": "c7b74bbee32a17ffcd6e71bb9fe3b6b43283af8f6bf19fc03262be59ea1b7c01",
+    "complete_archive_bytes": 919642,
+    "root_verification": "35 affected web checks passed; source hashes match independently reviewed candidate"
+  }
+}

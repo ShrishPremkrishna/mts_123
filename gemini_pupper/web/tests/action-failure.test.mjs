@@ -32,48 +32,44 @@ test('current known failure retains exact fixed refusal audio, not a false succe
  const text=e.responses[0].functionResponses.response.operator_acknowledgment?.text;assert.ok(text?.startsWith('Move rejected:'),text);
  await e.s.handleMessage({serverContent:{outputTranscription:{text},modelTurn:{parts:[{inlineData:{data:'fixed-failure'}}]},turnComplete:true}});assert.deepEqual(e.audio,['fixed-failure']);
 });
-test('concurrent action already in flight is fenced by global Stop when another action fails',async()=>{
- const e=service(),m=deferred(),turn=deferred();e.s.robotBridge.callTool=name=>{e.calls.push(name);return name==='move'?m.promise:turn.promise;};
+test('failure fences later waiting packets before HTTP without an unnecessary global Stop',async()=>{
+ const e=service(),m=deferred();e.s.robotBridge.callTool=name=>{e.calls.push(name);return name==='move'?m.promise:Promise.resolve(queued);};
  const first=e.s.handleMessage(packet(call('m','move')));const second=e.s.handleMessage(packet(call('t','turn'),call('later','arc')));
- m.resolve(failed);await first;assert.equal(e.s.robotToolsPaused,true);assert.deepEqual(e.stops,['stop']);
- turn.resolve(queued);await second;assert.deepEqual(e.calls,['move','turn']);assert.equal(e.responses.at(-1).functionResponses.response.result.not_dispatched,true);
- assert.deepEqual(e.audio,[],'stale concurrent acceptance never speaks');
+ m.resolve(failed);await Promise.all([first,second]);assert.equal(e.s.robotToolsPaused,true);assert.deepEqual(e.stops,[]);
+ assert.deepEqual(e.calls,['move']);assert.equal(e.responses.at(-1).functionResponses.response.result.not_dispatched,true);
+ assert.deepEqual(e.audio,[],'waiting action cannot claim acceptance');
 });
 test('pending status alone does not trigger global Stop after action refusal',async()=>{
  const e=service(),m=deferred(),status=deferred();e.s.robotBridge.callTool=n=>n==='move'?m.promise:status.promise;
  const action=e.s.handleMessage(packet(call('m','move'))),read=e.s.handleMessage(packet(call('s','robot_status')));m.resolve(failed);await action;assert.deepEqual(e.stops,[]);status.resolve({success:true});await read;
 });
-test('real RobotBridge fences a concurrent delayed turn after refusal-triggered Stop',async t=>{
- const e=service(),moveReply=deferred(),turnBody=deferred(),turnReached=deferred();let epoch=0,turnEffects=0;const http=[];
+test('real RobotBridge never POSTs a later ordinary packet after an earlier refusal',async t=>{
+ const e=service(),moveReply=deferred(),moveReached=deferred();const http=[];
  delete e.s.robotBridge.callTool;delete e.s.robotBridge.immediateStop;
- const reply=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:{'Content-Type':'application/json'}});
+ const reply=x=>new Response(JSON.stringify(x),{headers:{'Content-Type':'application/json'}});
  t.mock.method(globalThis,'fetch',async(url,opts)=>{
   const path=new URL(url).pathname;http.push(path);
-  if(path==='/health')return reply({command_epoch_required:true,command_epoch:'fixture:'+epoch});
-  if(path==='/tools/move'){await moveReply.promise;return reply(failed);}
-  if(path==='/tools/turn'){const token=opts.headers['X-Pupper-Command-Epoch'];turnReached.resolve();await turnBody.promise;
-   if(token!=='fixture:'+epoch)return reply({success:false,command_epoch_required:true,command_epoch:'fixture:'+epoch,message:'stale'},409);
-   turnEffects++;return reply(queued);}
-  if(path==='/stop/immediate'){epoch++;return reply({success:true,command_epoch_required:true,command_epoch:'fixture:'+epoch});}
-  throw new Error(path);
+  if(path==='/health')return reply({command_epoch_required:true,command_epoch:'fixture:0'});
+  if(path==='/tools/move'){moveReached.resolve();await moveReply.promise;return reply(failed);}
+  throw new Error('Unexpected request '+path);
  });
  const first=e.s.handleMessage(packet(call('m','move',fixture.responses[0].args)));
  const second=e.s.handleMessage(packet(call('t','turn',fixture.responses[1].args),call('later','arc')));
- await turnReached.promise;moveReply.resolve();await first;await e.s.automaticStop;
- assert.equal(epoch,1);turnBody.resolve();await second;
- assert.equal(turnEffects,0);assert.equal(http.includes('/tools/arc'),false);assert.equal(e.s.robotToolsPaused,true);
+ await moveReached.promise;assert.deepEqual(http,['/health','/tools/move']);moveReply.resolve();await Promise.all([first,second]);
+ assert.deepEqual(http,['/health','/tools/move']);assert.equal(e.s.robotToolsPaused,true);
  const turnResult=e.responses.find(x=>x.functionResponses.id==='t').functionResponses.response.result;
- assert.equal(turnResult.superseded,true);assert.deepEqual(e.audio,[]);
+ assert.equal(turnResult.not_dispatched,true);assert.deepEqual(e.audio,[]);
 });
 test('fresh PTT hold does not silently rearm after definitive failure',async()=>{
  const e=service();await e.s.handleMessage(packet(call('m','move')));
  e.s.config.enableAudio=true;e.s.inputAudioContext={state:'running'};e.s.mediaStream={getAudioTracks:()=>[{enabled:false}]};e.s.beginAudioInput();
  await e.s.handleMessage(packet(call('new','turn')));assert.deepEqual(e.calls,['move']);assert.equal(e.s.robotToolsPaused,true);e.s.endAudioInput();
 });
-test('unknown or malformed action reply fences another in-flight model action even without success:false',async()=>{
+test('unknown or malformed action reply fences later waiting packets even without success:false',async()=>{
  for(const result of [{success:true,outcome_unknown:true},{message:'missing success'},{success:true,outcome_unknown:{}}]){
-  const e=service(),m=deferred(),turn=deferred();e.s.robotBridge.callTool=n=>n==='move'?m.promise:turn.promise;
-  const first=e.s.handleMessage(packet(call('m','move'))),second=e.s.handleMessage(packet(call('t','turn')));m.resolve(result);await first;assert.deepEqual(e.stops,['stop']);turn.resolve(queued);await second;assert.deepEqual(e.audio,[]);
+  const e=service(),m=deferred();e.s.robotBridge.callTool=n=>{e.calls.push(n);return n==='move'?m.promise:Promise.resolve(queued)};
+  const first=e.s.handleMessage(packet(call('m','move'))),second=e.s.handleMessage(packet(call('t','turn')));m.resolve(result);await Promise.all([first,second]);
+  assert.deepEqual(e.calls,['move']);assert.deepEqual(e.stops,[]);assert.deepEqual(e.audio,[]);assert.equal(e.s.robotToolsPaused,true);
  }
 });
 test('late action failure from disposed or disconnected old service cannot issue another global Stop',async()=>{

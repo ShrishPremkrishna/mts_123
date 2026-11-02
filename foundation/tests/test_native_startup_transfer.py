@@ -133,7 +133,7 @@ def test_actual_training_observation_and_action_functions_confirm_sensing_mismat
 def test_compiled_native_input_and_initialization_receive_measured_joint_coordinates(tmp_path):
     binary,_=h.build_controller(tmp_path)
     components=[('base_ang_vel',3),('projected_gravity',3),('command',3),('desired_world_z',3),('joint_pos_rel',12),('last_action',12)]
-    policy=dict(default_joint_pos=[.1]*12,joint_lower_limits=[-1.5]*12,joint_upper_limits=[1.5]*12,action_scale=.75,kp=5.5,kd=.25,observation_history=1,in_shape=[None,36],obs_spec={'components':[dict(name=n,size=s) for n,s in components]},layers=[dict(type='dense',activation='',shape=[None,12],weights=[np.zeros((36,12)).tolist(),[0.]*12])])
+    policy=dict(default_joint_pos=[.1]*12,joint_lower_limits=[-1.5]*12,joint_upper_limits=[1.5]*12,action_scale=.75,kp=5.5,kd=.25,observation_history=1,in_shape=[None,36],obs_spec={'frame_order':'newest_first','components':[dict(name=n,size=s) for n,s in components]},layers=[dict(type='dense',activation='',shape=[None,12],weights=[np.zeros((36,12)).tolist(),[0.]*12])])
     p=tmp_path/'p.json';p.write_text(json.dumps(policy));proc=subprocess.Popen([str(binary),str(p),str(p)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
     def rpc(v):
         proc.stdin.write(json.dumps(v)+'\n');proc.stdin.flush();return json.loads(proc.stdout.readline())

@@ -1,0 +1,105 @@
+{
+  "date": "2026-11-02",
+  "status": "passed",
+  "evidence": {
+    "repo": "artifacts/access/ws1-environment-validation-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-environment-validation",
+    "archive": "complete.tar.gz",
+    "sha256": "8f6244b94dfb699504f6acbcc39fca16d0545abf643f0a55d761a33bd4e240e2",
+    "bytes": 2444845
+  },
+  "commands": [
+    "python3 foundation/scripts/check_foundation.py --output /private/tmp/ws1-overnight-aggregate-final-20261102",
+    "python3 foundation/scripts/check_ros_offline.py --output /private/tmp/pupper-ros-NEW"
+  ],
+  "changes": [
+    "Separate tested API and numerical Python discovery/import checks; preserve venv symlink paths and record imported module locations.",
+    "Explicit output path or announced writable temp fallback, bounded process groups and atomic receipts, before/after source hashes, no speculative installs.",
+    "Synthetic startup fixture now includes required obs_spec.frame_order=newest_first; parser not weakened."
+  ],
+  "final_aggregate": {
+    "status": "passed",
+    "groups": [
+      {
+        "name": "classical",
+        "returncode": 0,
+        "seconds": 67.691556707985
+      },
+      {
+        "name": "floor_input",
+        "returncode": 0,
+        "seconds": 0.33045474998652935
+      },
+      {
+        "name": "tool_queue",
+        "returncode": 0,
+        "seconds": 66.74007020899444
+      },
+      {
+        "name": "compliance",
+        "returncode": 0,
+        "seconds": 1.7301433329994325
+      },
+      {
+        "name": "course_follow",
+        "returncode": 0,
+        "seconds": 0.04733162501361221
+      },
+      {
+        "name": "course_color",
+        "returncode": 0,
+        "seconds": 0.04308995901374146
+      },
+      {
+        "name": "course_avoidance",
+        "returncode": 0,
+        "seconds": 0.04336795801646076
+      },
+      {
+        "name": "course_tools",
+        "returncode": 0,
+        "seconds": 0.795793416997185
+      },
+      {
+        "name": "course_jump",
+        "returncode": 0,
+        "seconds": 0.05625850000069477
+      },
+      {
+        "name": "motion_export",
+        "returncode": 0,
+        "seconds": 27.714719624986174
+      },
+      {
+        "name": "controller_cpp",
+        "returncode": 0,
+        "seconds": 7.265657540992834
+      }
+    ],
+    "watched_source_mutations": [],
+    "counts": {
+      "classical": 510,
+      "floor_input": 133,
+      "tool_queue": 928,
+      "compliance": 17,
+      "motion_export": 275,
+      "course_follow": 36,
+      "course_color": 12,
+      "course_avoidance": 10,
+      "course_tools": 166,
+      "course_jump": 1
+    }
+  },
+  "additional_validation": {
+    "runner_focused": 24,
+    "fixture_and_native_startup_affected": 31,
+    "claude": "Restricted read-only source review; exact output and corrections preserved. Reported cost0.348871 on authenticated Max account, not a billing receipt.",
+    "ros_report": "foundation/results/workstream1-offline-ros-20261102.json"
+  },
+  "initial_failure": "Initial broad run had one synthetic policy fixture missing frame_order. Native strict parser error reproduced separately; originals and final rerun retained.",
+  "environment_limits": [
+    "Current chat remains attached to course vault; engineering repo uses explicit workdir and approved writes. Supported attach_worktree refused non-app-managed checkout; extra folder access requires user app action. This did not block work.",
+    "Provider networking and Claude credential-store reads require approved execution; sandbox ConnectError/logged-out is not evidence of absent account.",
+    "Docker image reused; no network/device mounts in ROS checks. No hardware validation."
+  ]
+}
