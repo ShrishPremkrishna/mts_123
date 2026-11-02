@@ -1,0 +1,92 @@
+{
+  "schema": "pupper_native_handshake_receipt_review_v1",
+  "recorded_utc": "2026-11-01T23:57:08.050491+00:00",
+  "decision": "Promoted reviewed browser source candidate; native default unchanged. Actual browser/human-microphone and physical validation of this new chain receipt remain pending.",
+  "scope": "Actual Google Live with typed synthetic user inputs, real production GeminiLiveService bundled in Node, actual HTTP fake robot and elapsed queue execution. Mocked AudioContext records playable callbacks; no real microphone, speaker, camera, physics or robot.",
+  "baseline_git": "4ba7d1fe5500c9d1b7792f9934b1a7301421673f",
+  "class_scope": "Original Optional Lab 3 says a joke after more than three handshakes; it does not explicitly require fourth paw motion. Honoring the requested fourth paw plus the joke is this candidate UX objective, not a newly inferred course requirement.",
+  "implementation": [
+    "Native audio can acknowledge only the closed status/[optional sit_stay_shake entry]/one named paw chain once every current actual reply is accepted and each motion has the typed queued marker.",
+    "At most three requests, actual function-call object binding and unique IDs; stale, cancelled, duplicate, failed, unknown, pre-response and extra-tool sequences cannot authorize chain audio.",
+    "Exact whole-turn transcript must match the code-owned queued acknowledgment. Fourth consecutive accepted chain adds one fixed pawtographs joke; unrelated completed turn, Stop, cancellation or disconnect resets. This is browser-connection request context, not physical completion.",
+    "Single-tool receipt behavior and genuine Stop priority remain. Generic tool-turn narration and arbitrary multiple-action sequence narration remain muted.",
+    "Native setup clarifies complete requested tools before acknowledgment, stand_up alone for an explicit stand request absent cancellation, and requested paw before a busy-paws joke. Main class prompt unchanged."
+  ],
+  "actual_model_observations": {
+    "baseline": {
+      "turns": 4,
+      "handshake": "status then Sit entry+left paw accepted; fake queue completed, speech withheld",
+      "stand": "Stop+stand planning failure; Stop priority correctly refused stand",
+      "full_sequence": "Sit/10s wait/left paw/right paw/stand accepted and fake queue completed; began already in Sit because preceding stand failed"
+    },
+    "candidate_first": {
+      "turns": 9,
+      "handshake": "first three chains, post-reset chain and stand_up-alone accepted, native exact acknowledgments admitted",
+      "fourth": "model emitted status then joke with no paw; unbound audio correctly withheld. Preserved as candidate UX miss.",
+      "full_sequence": "all five tools accepted and fake queue completed from locomotion; arbitrary multi-tool narration withheld"
+    },
+    "candidate_final": {
+      "turns": 7,
+      "handshake": "four actual accepted status/paw chains, optional entry on first; fourth exact code-owned joke admitted; math reply reset context and next handshake used plain acknowledgment",
+      "queue": "All recorded fake queues reached idle without controller fault."
+    }
+  },
+  "latency_ms": {
+    "final_handshake_native_admission": [
+      6881.408458,
+      5793.932042,
+      5086.768125,
+      11881.153084
+    ],
+    "post_reset_native_admission": 5863.585208,
+    "interpretation": "Wall time from synthetic typed input to service playable admission, not acoustic latency. Fourth joke took11.88s; no latency-improvement claim."
+  },
+  "validation": {
+    "full_web_tests": 224,
+    "typecheck": "pass",
+    "build": "pass",
+    "source_stable": true,
+    "independent_affected_tests": 70,
+    "independent_review": "clear; exact receipt and raw trace review preserved in candidate archive",
+    "source_hashes": {
+      "services/geminiLive.ts": "08a718b36e1ea0af39c0e580e5e579157514b1a3f7a0aae3f62f564100f2a68a",
+      "services/conversationOutput.ts": "0a1516e18197b01aad889df7dfdaac6f0609a9d315ed355b351c2169aeeb5620",
+      "services/operatorFeedback.ts": "4ce048abaa434e3528af6cafca2e9494316f2cecec4a39802c0f1eec455d5cf9",
+      "tests/output-policy.test.mjs": "ad11ea18583f8c5f3d834e59e3bab75c1f9c8c898c112f4204d212b3a7a039ea",
+      "tests/conversation-gate.test.mjs": "dffcfe9983a16b1c82bb7f06b71e0f0dcdedc230943a56f50ec09efdab785198"
+    },
+    "production_dist": {
+      "dist/index.html": "9d995d94c0e646caf00394c8d4ceac59f8428b1e4c893a724235a12de46408c2",
+      "dist/assets/index-DTwQlDSa.js": "401f47a022db5f19aaf7dc3b57c029cfd6d97ffe8e0625e4b30cbf6591ce8ad7"
+    }
+  },
+  "limitations": [
+    "Transcript exactness is not proof of native waveform semantic equivalence.",
+    "Single fixed actual-model sequence per revision is feasibility evidence, not a statistical planning-reliability estimate.",
+    "Native whole-turn buffering and cloud delay remain; a mismatch is still visibly acknowledged but audibly silent.",
+    "Full requested sequences execute but do not receive general composed native acknowledgments.",
+    "No physical handshake, posture, balance or speed claim follows from fake queue success."
+  ],
+  "preservation": {
+    "candidate_and_raw": {
+      "repo": "artifacts/hardware/2026-11-01/workstream1-handshake-chain-20261101.tar.gz",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-handshake-chain-20261101.tar.gz",
+      "sha256": "301bc6c1b407a61ca5de29f1e9504218a2bbda9e070d54315fa89e15b4d17627",
+      "bytes": 1478745,
+      "files": 139,
+      "manifest_sha256": "701e3d870a0e05fe9250871d762e70eec82b4edf1097e7d1455666eb4753887c"
+    },
+    "promoted_source_dist_and_checks": {
+      "repo": "artifacts/hardware/2026-11-01/workstream1-handshake-promoted-20261101.tar.gz",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-handshake-promoted-20261101.tar.gz",
+      "sha256": "ce584cd0a6febf10dc3d79ad0f4071f908fef109891523553a16c07d4cb21ebe",
+      "bytes": 223638,
+      "files": 12,
+      "manifest_sha256": "d4badc49abccf9fbf929e160d11a94e32c0a19c788cdcef698d93199f1805636"
+    },
+    "integrity": "Every archived member verified against size/hash;12 actual-run source pins matched preserved originals; exact key bytes absent. Root production source was untouched until explicit promotion."
+  },
+  "active_jobs": [],
+  "process_exit": "Owned fake API18095 exited0 after SIGINT, allGoogle probes closed. Root fake8000 untouched by this agent.",
+  "next": "Root may reload the known fake browser with index-DTwQlDSa.js, then assess actual microphone/speaker acknowledgment before any unrelated hardware work. No code commit by this agent."
+}

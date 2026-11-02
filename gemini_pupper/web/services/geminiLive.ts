@@ -126,6 +126,7 @@ export class GeminiLiveService {
   public pauseRobotTools() {
     this.endAudioInput();
     this.robotToolsPaused = true;
+    this.nativeReceiptOutput.resetContext();
     this.stopPlayback();
   }
 
@@ -315,7 +316,7 @@ export class GeminiLiveService {
     }
     let systemInstruction = [spec?.prompt, config.extraInstructions].filter(Boolean).join('\n\n');
     if (isAudioOutput && this.outputPolicy === 'conversation') {
-      systemInstruction += '\nAfter a tool response includes operator_acknowledgment.text, speak exactly that text as the entire reply, with no preface, extra claims, jokes or changes. Wait for the tool result before any acknowledgment. If that field is absent, do not invent an acknowledgment.';
+      systemInstruction += '\nComplete every tool call needed for the user request before acknowledging it; do not end a multi-step request just to speak. Remain silent while planning tools and waiting for their replies. After all needed replies arrive, if the latest response contains operator_acknowledgment.text, speak exactly that text and nothing else. If absent, do not invent an acknowledgment. An explicit stand request uses stand_up by itself; do not add Stop unless the user requests cancellation. A busy-paws joke never replaces the requested handshake: still check status and request the paw; use only the exact supplied acknowledgment for any joke.';
     }
     if (!isAudioOutput && this.outputPolicy === 'conversation') {
       systemInstruction += '\n\nReturn conversation directly as text. The application screens completed text and speaks it with the selected voice. Do not call a speech tool. Robot actions still require their robot tools.';
@@ -840,7 +841,7 @@ export class GeminiLiveService {
         const actualReceipt = receivedServerReply && dispatch && currentFeedback()
           && typeof result?.success === 'boolean' && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown && !result.superseded && !result.not_dispatched
           ? nativeReceiptFeedback(fc.name, result) : null;
-        const receiptAuthorization = actualReceipt && this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt) ? actualReceipt : null;
+        const receiptAuthorization = actualReceipt ? this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt, fc, result) : null;
         if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
           this.sessionPromise.then(session => {
             if (!this.connected) return;
@@ -870,7 +871,7 @@ export class GeminiLiveService {
 
   private async releaseNativeReceipt(audio: string[]) {
     if (this.disposed || !this.connected || this.outputPolicy !== 'conversation') return;
-    this.stopPlayback(false);
+    this.stopPlayback(false, false);
     const generation = this.playbackGeneration;
     this.trace('native_receipt_admitted', { audio_parts: audio.length });
     for (const part of audio) {

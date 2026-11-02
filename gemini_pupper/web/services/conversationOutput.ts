@@ -1,4 +1,5 @@
 import guard from '../../conversation_guard.json';
+import { hasMalformedOutcomeFlags } from './operatorFeedback';
 import type { LiveServerMessage } from '@google/genai';
 
 export const OUTPUT_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, items: 256, text: 16000, timeoutMs: 20000 });
@@ -101,9 +102,19 @@ export class ConversationOutputGate {
 export function normalizeReceiptTranscript(text: string): string {
   return text.normalize('NFKC').toLowerCase().replace(/[.!?,;:]+(?=\s|$)/g, '').replace(/\s+/g, ' ').trim();
 }
+interface ReceiptRequest {
+  token: object;
+  id: string | null;
+  role: 'status' | 'entry' | 'left' | 'right' | 'other';
+  returned: boolean;
+  accepted: boolean;
+  queued: boolean;
+}
 interface ReceiptTurn {
   tools: number;
+  requests: ReceiptRequest[];
   invalid: boolean;
+  cancelled: boolean;
   outputSeen: boolean;
   authorized: string | null;
   audio: string[];
@@ -113,49 +124,95 @@ interface ReceiptTurn {
   items: number;
   timer: ReturnType<typeof setTimeout>;
 }
-/** Narrow native-audio exception: one tool, one current settled receipt, exact transcript.
- * This establishes transcript provenance, not a proof of the waveform's words. */
+const HANDSHAKE_JOKE = 'At this rate, I should charge for pawtographs.';
+/** Exact receipts for a single tool or the class status/[Sit entry]/one-paw chain.
+ * The streak counts accepted requests in this connection, never physical handshakes. */
 export class NativeReceiptOutputGate {
   private turn: ReceiptTurn | null = null;
   private unscopedOutputSeen = false;
+  private handshakeStreak = 0;
   constructor(private release: (audio: string[]) => void) {}
-  invalidate() {
-    if (this.turn) { this.turn.invalid = true; this.turn.audio = []; this.turn.transcript = ''; this.turn.text = ''; }
+  invalidate(resetStreak = true) {
+    if (this.turn) {
+      if (resetStreak) this.handshakeStreak = 0;
+      this.turn.invalid = true;
+      if (resetStreak) this.turn.cancelled = true;
+      this.turn.audio = []; this.turn.transcript = ''; this.turn.text = '';
+    }
   }
-  close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.unscopedOutputSeen = false; }
-  authorize(turn: ReceiptTurn | null, text: string): boolean {
-    if (!turn || this.turn !== turn || turn.invalid || turn.tools !== 1 || turn.outputSeen
-        || !text.trim() || text.length > 1000) return false;
+  resetContext() { this.handshakeStreak = 0; this.invalidate(); }
+  close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.unscopedOutputSeen = false; this.handshakeStreak = 0; }
+  private handshakePrefix(turn: ReceiptTurn) {
+    return ['status,entry', 'status,left', 'status,right', 'status,entry,left', 'status,entry,right'].includes(turn.requests.map(r => r.role).join(','));
+  }
+  private acceptedHandshake(turn: ReceiptTurn) {
+    const roles = turn.requests.map(r => r.role).join(',');
+    return !turn.cancelled && ['status,left', 'status,right', 'status,entry,left', 'status,entry,right'].includes(roles)
+      && turn.requests.every(r => r.returned && r.accepted && (r.role === 'status' || r.queued));
+  }
+  authorize(turn: ReceiptTurn | null, text: string, source: object, result: any): string | null {
+    if (!turn || this.turn !== turn) return null;
+    const request = turn.requests.find(r => r.token === source);
+    if (!request || request.returned) { this.invalidate(); return null; }
+    request.returned = true;
+    const known = result && typeof result.success === 'boolean'
+      && !hasMalformedOutcomeFlags(result) && !result.superseded && !result.outcome_unknown && !result.not_dispatched;
+    request.accepted = known && result.success === true;
+    request.queued = result?.details?.submission?.schema === 'pupper_submission_v1' && result.details.submission.state === 'queued';
+    if (!known) { this.invalidate(); return null; }
+    if (!request.accepted) {
+      this.handshakeStreak = 0;
+      if (turn.tools > 1) this.invalidate();
+    }
+    if (turn.invalid || turn.outputSeen || !text.trim() || text.length > 1000) return null;
+    if (turn.tools > 1) {
+      if (!this.acceptedHandshake(turn)) return null;
+      const paw = turn.requests.at(-1)!.role === 'left' ? 'Left' : 'Right';
+      text = `${paw} paw command queued.${this.handshakeStreak === 3 ? ' ' + HANDSHAKE_JOKE : ''}`;
+    }
     turn.authorized = text;
-    return true;
+    return text;
   }
   observe(message: LiveServerMessage): ReceiptTurn | null {
     const content = message.serverContent;
     const calls = (message.toolCall?.functionCalls ?? []).filter(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
+    if (content?.interrupted || message.toolCallCancellation?.ids?.length || calls.some(call => call.name === 'stop')) this.handshakeStreak = 0;
     const parts = (content?.modelTurn?.parts ?? []).filter(part => !part.thought);
     const hasOutput = !!content?.outputTranscription?.text || parts.some(part => !!part.text || !!part.inlineData?.data);
     if (calls.length && !this.turn) {
-      const turn = { tools: 0, invalid: this.unscopedOutputSeen, outputSeen: false, authorized: null,
+      const turn = { tools: 0, requests: [], invalid: this.unscopedOutputSeen, cancelled: false, outputSeen: false, authorized: null,
         audio: [], transcript: '', text: '', bytes: 0, items: 0, timer: undefined } as unknown as ReceiptTurn;
       turn.timer = setTimeout(() => { if (this.turn === turn) this.invalidate(); }, OUTPUT_LIMITS.timeoutMs);
-      (turn.timer as any).unref?.();
-      this.turn = turn;
+      (turn.timer as any).unref?.(); this.turn = turn;
     }
     const turn = this.turn;
     if (turn) {
+      if (calls.length) {
+        if (turn.outputSeen) this.invalidate(false);
+        turn.authorized = null;
+      }
       turn.tools += calls.length;
-      if (turn.tools !== 1 || content?.interrupted || message.toolCallCancellation?.ids?.length) this.invalidate();
+      for (const call of calls) {
+        if (turn.requests.length >= 3) { this.invalidate(); break; }
+        const id = typeof call.id === 'string' && call.id ? call.id : null;
+        if (id && turn.requests.some(r => r.id === id)) this.invalidate();
+        const args = call.args as any;
+        const role = call.name === 'robot_status' ? 'status'
+          : call.name === 'play_trick' && args?.name === 'sit_stay_shake' ? 'entry'
+          : call.name === 'interactive_action' && args?.action === 'shake_left' ? 'left'
+          : call.name === 'interactive_action' && args?.action === 'shake_right' ? 'right' : 'other';
+        turn.requests.push({ token: call, id, role, returned: false, accepted: false, queued: false });
+      }
+      if ((turn.tools > 1 && !this.handshakePrefix(turn)) || content?.interrupted || message.toolCallCancellation?.ids?.length) this.invalidate();
       if (hasOutput) {
         turn.outputSeen = true;
-        if (!turn.authorized) this.invalidate();
+        if (!turn.authorized) this.invalidate(false);
       }
       const add = (value: unknown, kind: 'audio' | 'transcript' | 'text') => {
         if (turn.invalid || typeof value !== 'string' || !value) return;
         turn.items++; turn.bytes += value.length * (kind === 'audio' ? 1 : 2);
         if (turn.items > OUTPUT_LIMITS.items || turn.bytes > OUTPUT_LIMITS.bytes
-            || (kind !== 'audio' && turn.transcript.length + turn.text.length + value.length > OUTPUT_LIMITS.text)) {
-          this.invalidate(); return;
-        }
+            || (kind !== 'audio' && turn.transcript.length + turn.text.length + value.length > OUTPUT_LIMITS.text)) { this.invalidate(); return; }
         if (kind === 'audio') turn.audio.push(value); else turn[kind] += value;
       };
       for (const part of parts) { add(part.inlineData?.data, 'audio'); add(part.text, 'text'); }
@@ -164,6 +221,7 @@ export class NativeReceiptOutputGate {
     if (hasOutput) this.unscopedOutputSeen = true;
     if (content?.turnComplete) {
       this.unscopedOutputSeen = false;
+      this.handshakeStreak = turn && this.acceptedHandshake(turn) ? Math.min(4, this.handshakeStreak + 1) : 0;
       if (turn) {
         clearTimeout(turn.timer); this.turn = null;
         const expected = turn.authorized && normalizeReceiptTranscript(turn.authorized);

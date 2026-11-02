@@ -125,7 +125,7 @@ export function nativeReceiptFeedback(name: unknown, value: unknown): string {
  * This classifies our fixed receipt forms, not general truth or natural language. */
 export function isOperatorReceiptNarration(text: string): boolean {
   const normalized = text.normalize('NFKC').toLowerCase().replace(/[.,!?;:\-–—]/g, ' ').replace(/\s+/g, ' ').trim();
-  const prefixes = ['walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
+  const prefixes = ['left paw command queued', 'right paw command queued', 'walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
     'sit controller active', 'generated motion controller active', 'skill controller active', 'walking skill controller active', 'locked skill controller active', 'controller locomotion', 'controller no active command controller', 'controller unknown', 'controller sit',
     'controller generated motion', 'controller skill', 'controller walking skill', 'controller locked skill', 'cached mode', 'cached status', 'confirmed sit entry playbacks',
     'that request was superseded', 'i could not confirm that request', 'that request failed', 'stop requested'];

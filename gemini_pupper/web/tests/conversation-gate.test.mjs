@@ -59,13 +59,13 @@ test('native receipt timeout and size limits fail closed, then a fresh single-to
   if(limit==='time')t.mock.timers.enable({apis:['setTimeout']});
   const emitted=[],gate=new NativeReceiptOutputGate(a=>emitted.push(a));t.after(()=>gate.close());
   const tool={toolCall:{functionCalls:[{id:'a',name:'move'}]}};
-  const turn=gate.observe(tool);assert.equal(gate.authorize(turn,'Move queued.'),true);
+  const turn=gate.observe(tool);assert.equal(gate.authorize(turn,'Move queued.',tool.toolCall.functionCalls[0],{success:true}),'Move queued.');
   if(limit==='time')t.mock.timers.tick(OUTPUT_LIMITS.timeoutMs);
   if(limit==='bytes')gate.observe(packet('','a'.repeat(OUTPUT_LIMITS.bytes+1),false));
   if(limit==='items')for(let i=0;i<=OUTPUT_LIMITS.items;i++)gate.observe(packet('','x',false));
   if(limit==='text')gate.observe({serverContent:{outputTranscription:{text:'x'.repeat(OUTPUT_LIMITS.text+1)}}});
   gate.observe(packet('Move queued.','bad'));assert.deepEqual(emitted,[]);
-  const next=gate.observe(tool);assert.equal(gate.authorize(turn,'Move queued.'),false);
-  assert.equal(gate.authorize(next,'Move queued.'),true);gate.observe(packet('Move queued.','good'));assert.deepEqual(emitted,[['good']]);
+  const next=gate.observe(tool);assert.equal(gate.authorize(turn,'Move queued.',tool.toolCall.functionCalls[0],{success:true}),null);
+  assert.equal(gate.authorize(next,'Move queued.',tool.toolCall.functionCalls[0],{success:true}),'Move queued.');gate.observe(packet('Move queued.','good'));assert.deepEqual(emitted,[['good']]);
  });
 });

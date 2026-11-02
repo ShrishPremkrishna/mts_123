@@ -384,3 +384,65 @@ test('concise native status does not turn cache, malformed counts or faults into
  assert.doesNotMatch(invalid,/Sit-entry|INJECTED/);
  assert.equal(nativeReceiptFeedback('robot_status',{success:false}),operatorFeedback('robot_status',{success:false}));
 });
+
+
+const queuedHandshake={success:true,details:{submission:{schema:'pupper_submission_v1',state:'queued'}}};
+function handshakes(e){let number=0;e.s.robotBridge.callTool=async name=>name==='robot_status'?{success:true,details:{running:false,queued:0,current_action:null,observed_controller_mode:'sit_stay_shake'}}:queuedHandshake;return async({entry=false,paw='shake_left',preamble=false,emit=true}={})=>{
+ const id=++number;
+ if(preamble)await e.s.handleMessage(nativeReply('Let me check.','pre',false));
+ await e.s.handleMessage(call('status'+id,'robot_status'));
+ const calls=[...(entry?[{id:'entry'+id,name:'play_trick',args:{name:'sit_stay_shake'}}]:[]),{id:'paw'+id,name:'interactive_action',args:{action:paw}}];
+ await e.s.handleMessage({toolCall:{functionCalls:calls}});
+ const text=e.responses.at(-1)?.functionResponses.response.operator_acknowledgment?.text;
+ if(emit)await e.s.handleMessage(nativeReply(text??'Unapproved narration.','handshake'+id));
+ return text;
+};}
+
+test('whitelisted status/optional-entry/paw chain has one post-server acknowledgment and fourth-request joke',async()=>{
+ const e=service('conversation'),shake=handshakes(e);
+ for(let i=1;i<=4;i++){
+  const text=await shake({entry:i===1});assert.equal(text,i===4?'Left paw command queued. At this rate, I should charge for pawtographs.':'Left paw command queued.');
+ }
+ assert.deepEqual(e.audio,['handshake1','handshake2','handshake3','handshake4']);
+ assert.equal(await shake(),'Left paw command queued.','joke once per consecutive streak');
+ await e.s.handleMessage(nativeReply('Two plus two is four.','unrelated'));
+ for(let i=1;i<=4;i++){const text=await shake({paw:'shake_right'});assert.equal(text.includes('pawtographs'),i===4);}
+});
+
+test('accepted handshake streak survives ordinary between-turn input playback cancellation but resets on Stop',async()=>{
+ const e=service('conversation'),shake=handshakes(e);
+ for(let i=0;i<3;i++){await shake();e.s.stopPlayback();}
+ assert.match(await shake(),/pawtographs/);
+ e.s.pauseRobotTools();e.s.robotToolsPaused=false;
+ assert.equal(await shake(),'Left paw command queued.');
+});
+
+test('pre-response chain speech is entirely muted while accepted request bookkeeping stays nonphysical',async()=>{
+ const e=service('conversation'),shake=handshakes(e);
+ for(let i=0;i<3;i++)assert.equal(await shake({preamble:true}),undefined);
+ assert.deepEqual(e.audio,[]);
+ assert.match(await shake(),/pawtographs/);assert.deepEqual(e.audio,['handshake4']);
+});
+
+test('chain permit waits for the final actual reply and rejects failures, unknowns, wrong actions and duplicate IDs',async()=>{
+ for(const bad of ['pending','failed','unknown','wrong-action','duplicate','extra-move']){
+  const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=async name=>name==='robot_status'?{success:true}:name==='interactive_action'?(bad==='pending'?d.promise:bad==='failed'?{success:false}:bad==='unknown'?{success:false,outcome_unknown:true}:queuedHandshake):queuedHandshake;
+  await e.s.handleMessage(call('s','robot_status'));
+  const actions=[{id:bad==='duplicate'?'s':'p',name:'interactive_action',args:{action:bad==='wrong-action'?'stand_up':'shake_left'}},...(bad==='extra-move'?[{id:'m',name:'move',args:{}}]:[])];
+  const pending=e.s.handleMessage({toolCall:{functionCalls:actions}});
+  if(bad==='pending'){await e.s.handleMessage(nativeReply('Left paw command queued.','pre-reply'));d.resolve(queuedHandshake);}
+  await pending;await e.s.handleMessage(nativeReply('Left paw command queued.','unapproved'));
+  assert.deepEqual(e.audio,[],bad);assert.equal(e.responses.at(-1).functionResponses.response.operator_acknowledgment,undefined,bad);
+ }
+});
+
+test('Stop/cancel invalidates a final pending chain response and cannot replay the fourth joke later',async()=>{
+ for(const action of ['stop','cancel']){
+  const e=service('conversation'),shake=handshakes(e);for(let i=0;i<3;i++)await shake();
+  const d=deferred();e.s.robotBridge.callTool=name=>name==='robot_status'?Promise.resolve({success:true}):d.promise;
+  await e.s.handleMessage(call('status-final','robot_status'));const pending=e.s.handleMessage(call('paw-final','interactive_action',{action:'shake_left'}));
+  if(action==='stop')e.s.pauseRobotTools();else await e.s.handleMessage({toolCallCancellation:{ids:['paw-final']}});
+  d.resolve(queuedHandshake);await pending;await e.s.handleMessage(nativeReply('Left paw command queued. At this rate, I should charge for pawtographs.','stale'));
+  assert.deepEqual(e.audio,['handshake1','handshake2','handshake3']);
+ }
+});
