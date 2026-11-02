@@ -1,0 +1,312 @@
+{
+  "recorded_utc": "2026-11-02T01:06:08.391144+00:00",
+  "decision": "Keep original generated motion as an observed but unpolished experimental capability. Two corrected-reader trials do not establish a jitter improvement or justify a motor-gain change.",
+  "scope": "Offline analysis of two closed physical recordings with original secret_dance policy; no new robot commands, policy/training changes or hardware settings.",
+  "user_observation": {
+    "trial1": "Not watched.",
+    "trial2": "Changed standing stance, small sway; kind of jittery/kind of not; shook for a few seconds; intended motion unclear. Not accepted as polished."
+  },
+  "motion_identity": "Class-generated foundation motion is a gentle standing sway and approximately1.2cm body rise, ending in a quiet standing reference; not a multi-step dance.",
+  "inputs": {
+    "bag_sha256": "4684e3fc4732c4871add8dc82fcf311bbc5202f8b3de651246c86357161ee1ab",
+    "bag_bytes": 146696386,
+    "raw_archive_sha256": "3bffdf4a7b56bb37f691f771776d6c26ce5d42cc689305c04dd4a3939105367f",
+    "raw_local_directory": "/private/tmp/ws1-generated-corrected-capture",
+    "policy_sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+    "policy_unchanged_from_old_reader": true,
+    "secret_controller_parameters_exactly_equal_old_reader": true,
+    "old_reader_report": "foundation/results/generated-motion-hardware-diagnostic-20261101.json",
+    "nominal_simulation_report": "foundation/results/generated-motion-timing-slew-20261101.json",
+    "new_environment_binaries": {
+      "control_board_hardware_interface": {
+        "bytes": 5678704,
+        "path": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+        "sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4"
+      },
+      "joy_utils": {
+        "bytes": 17277832,
+        "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/joy_utils/lib/joy_utils/estop_controller",
+        "sha256": "0bf9b273603199ec6f6eb593eae7bb18e1b9b25707bbd4826018d76dfaa05633"
+      },
+      "neural_controller": {
+        "bytes": 50013768,
+        "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/lib/libneural_controller.so",
+        "sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91"
+      }
+    },
+    "runtime_manifest_sha256": "fb05919e1a18b635d25324d060e6377216ed922087b01ca1320426a8f48e43fc",
+    "persistent_controllers_sha256": "13ea64e678073fd3931678866982a1124c19d042183468099516782ace7db068",
+    "environment_sha256": "c471987b9fc4a303eea1eaa5189d167e15b83de3b356b07f7ae117a35e240702"
+  },
+  "corrected_reader": {
+    "trial1": {
+      "joint_velocity_rms_rad_s": 0.12470523628632044,
+      "joint_velocity_peak_abs_rad_s": 1.0,
+      "gyro_vector_rms_rad_s": 0.06397333639483345,
+      "position_8_20_hz_rms_across_joints_deg": 0.031933110717103634,
+      "target_first_difference_rms_rad": 0.006260460592763368,
+      "target_second_difference_rms_rad": 0.007686332044800739,
+      "reference_first_difference_rms_rad": 0.003057127842030821,
+      "reference_second_difference_rms_rad": 0.0023631309827435243,
+      "reference_joint_rmse_rad": 0.04057898083140729,
+      "reference_error_demeaned_rms_rad": 0.021603330919528107,
+      "target_minus_pre_inference_joint_rms_rad": 0.0673510165842479,
+      "target_minus_pre_inference_joint_demeaned_rms_rad": 0.03874775951438889,
+      "policy_joint_limit_clip_fraction": 0.0,
+      "frames": {
+        "first": 0,
+        "max": 297,
+        "distinct": 293,
+        "monotonic": true,
+        "execution_ids": [
+          "984566b814714c7bb2c59800c0037f37"
+        ],
+        "first_nonzero_frame_epoch_s": 1793580867.5727272,
+        "first_holding_epoch_s": 1793580873.5009131,
+        "last_state": "all holding frame 297 queued 0 execution 984566b814714c7bb2c59800c0037f37 request none"
+      },
+      "target_second_difference_vs_nominal_sim_ratio": 1.4349860031362427,
+      "reference_error_vs_nominal_sim_ratio": 2.206946768822974
+    },
+    "trial2": {
+      "joint_velocity_rms_rad_s": 0.12343567258645366,
+      "joint_velocity_peak_abs_rad_s": 1.0317459106445312,
+      "gyro_vector_rms_rad_s": 0.06273087148720742,
+      "position_8_20_hz_rms_across_joints_deg": 0.03321370100728992,
+      "target_first_difference_rms_rad": 0.0061830232431126534,
+      "target_second_difference_rms_rad": 0.00719741558869451,
+      "reference_first_difference_rms_rad": 0.003068793796705701,
+      "reference_second_difference_rms_rad": 0.002367683019881813,
+      "reference_joint_rmse_rad": 0.0355887148196558,
+      "reference_error_demeaned_rms_rad": 0.020818872606026672,
+      "target_minus_pre_inference_joint_rms_rad": 0.06169394326165638,
+      "target_minus_pre_inference_joint_demeaned_rms_rad": 0.03758469118339871,
+      "policy_joint_limit_clip_fraction": 0.0,
+      "frames": {
+        "first": 0,
+        "max": 297,
+        "distinct": 296,
+        "monotonic": true,
+        "execution_ids": [
+          "fdc3364cfd864e76b58487471a397489"
+        ],
+        "first_nonzero_frame_epoch_s": 1793580932.5310671,
+        "first_holding_epoch_s": 1793580938.4420414,
+        "last_state": "all holding frame 297 queued 0 execution fdc3364cfd864e76b58487471a397489 request none"
+      },
+      "target_second_difference_vs_nominal_sim_ratio": 1.3437086204879105,
+      "reference_error_vs_nominal_sim_ratio": 1.9355439089049635
+    }
+  },
+  "nominal_simulation_summary": {
+    "sampled_target_first_difference_rms_rad": 0.00605185156540651,
+    "sampled_target_second_difference_rms_rad": 0.005356381196751626,
+    "reference_rmse_rad": 0.018386932301520435,
+    "joint_velocity_rms_rad_s": 0.10863578033353208
+  },
+  "findings": [
+    "New measured joint velocity RMS0.125/0.123rad/s and8\u201320Hz position RMS0.032/0.033degrees fall within the same broad range as old-reader0.122/0.128rad/s and0.030/0.037degrees. This is not evidence that the reader correction removed generated-motion jitter; nor does it negate independently established sensor correctness improvements.",
+    "Controller target first-difference RMS0.00626/0.00618rad is close to nominal simulator0.00605rad. Second-difference RMS0.00769/0.00720rad is1.43/1.34times simulator0.00536rad. Reference second differences are0.00236/0.00237rad. This isolates recorded command variation from measured joint variation, but does not assign physical jitter causality.",
+    "Reference-versus-measured joint RMSE in the SAME observation is0.0406/0.0356rad versus nominal simulation0.0184rad. Removing each joint\u2019s mean error reduces this to0.0216/0.0208rad: repeatable offsets contribute substantially. Largest errors involve front-right joint3 and both rear joint2s; commanded rear sway is tracked at reduced amplitude.",
+    "Controller-target minus pre-inference measured-joint RMS is0.0674/0.0617rad; changing descriptive alignment by\u00b120ms leaves it around0.0668\u20130.0679/0.0612\u20130.0623rad. This is not explained by a few milliseconds of association shift, but it is not an actuator-latency estimate.",
+    "All299/296 active observation\u2192target pairs match uniquely within5ms recorder time. Independent float32 replay of the frozen actor on recorded observations reproduces recorded policy outputs within2.98e-7absolute unitless error, strengthening the recorded input/output association and actor identity.",
+    "No policy-metadata absolute-joint clipping is observed in these active samples. position_command is a CONTROLLER target before downstream driver absolute-limit clamping, encoder offset, SPI quantization and motor-board behavior; it is not a measured actuator command.",
+    "Inference work is short (max0.550/0.736ms) and controller target receive intervals max22.70/26.46ms. No sustained low-rate inference starvation is shown in these playback windows. Maximum joint header gaps6.18/8.19ms also do not indicate a prolonged telemetry stall.",
+    "Recorded clip state progresses monotonically to frame297 holding under one execution identity in each trial;293/296distinct frame numbers were observed, so this is not a claim that every reference frame was sampled. Software clip completion does not certify physical shape or polish.",
+    "All3588/3552active published joint-target values also lie inside the exact runtime-manifest-pinned URDF driver absolute bounds, by at least0.0938/0.1053rad. This source/config check gives no evidence for that absolute clamp engaging in these samples; eventual SPI/motor targets still were not recorded."
+  ],
+  "source_chain_correction": "An initially recalled relative\u00b10.1rad driver target-feedback clamp was checked and rejected. Exact preserved deployed driver uses absolute min/max bounds then encoder-zero addition; the0.1rad figure came from inward absolute-limit differences, not a relative error bound. No relative-clipping inference is made.",
+  "next_actions": [
+    "Use these recordings as the baseline; do not spend further supervised time repeating the same unmodified clip without a specific comparison.",
+    "Before another generated-motion optimization, reproduce the observed rear-joint reduced amplitude in an offline model that includes the verified driver absolute limits and relevant contact/actuation behavior; current nominal simulation underestimates reference error.",
+    "Select one explicit objective before changing a policy/reference/controller: clearer visible motion, lower command variation, or lower joint/reference error. The prior2rad/s slew candidate reduced command steps but did not consistently improve simulated joint-frequency metrics, so it remains unpromoted.",
+    "If a changed candidate becomes evidence-supported, compare the original and one candidate at unchanged gains/limits in a separately supervised block. Validate actual motion quality with the operator; do not infer acceptance from these metrics alone."
+  ],
+  "limitations": [
+    "Two new physical trials, only one watched; old/new sessions were not controlled for battery, surface, temperature, starting pose or perturbations. No causal or population robustness conclusion.",
+    "Headerless observation/actor/controller-target streams are independently published and matched by recorder receive times, not embedded sequence IDs. Exact same-observation reference/q error avoids that association, but source sample time remains unknown.",
+    "Corrected driver host-receipt validity does not make ROS IMU header or logged IMU-age a true measurement/exposure timestamp. Header-time sensitivity is illustrative only.",
+    "Nominal active boundaries are controller-manager activation+0.5s initialization+1s fade through5.96s reference, capped by return; first samples can still include the very end of fade. Clip-status boundaries and raw observations are retained.",
+    "Comparative first/second differences use measured~50Hz versus simulator52Hz cadence; they are descriptive and not resampling-invariant roughness or physical jerk estimates.",
+    "Current plots and statistics contain no motor-board target/current trace, force/contact measurement or independent motion capture. They cannot distinguish contact load, actuator calibration/friction, unobserved downstream actuation effects or training-model error as the sole cause.",
+    "Actor replay checks computation on recorded inputs, not global policy optimality or hardware safety. No gains, policy or launch changed."
+  ],
+  "checks": {
+    "raw_indexed_mcap_crc_validation": true,
+    "old_reader_trial1_metric_parity_after_name_permutation": true,
+    "nearest_receive_tolerance_and_reuse_accounting_checked": true,
+    "numpy_version": "2.4.6",
+    "python": "3.12.14",
+    "actor_replay": {
+      "trial1": {
+        "association": {
+          "matched": 299,
+          "unmatched": 0,
+          "reused_destination_rows": 0,
+          "destination_minus_source_ms": {
+            "n": 299,
+            "rms": 0.5507060785750614,
+            "median": 0.115425,
+            "p95_abs": 1.0597308999999975,
+            "max_abs": 2.933839
+          },
+          "tolerance_ms": 5.0
+        },
+        "float32_actor_replay_error": {
+          "overall_unitless": {
+            "n": 3588,
+            "rms": 4.172418789163752e-08,
+            "median": 0.0,
+            "p95_abs": 8.940696716308594e-08,
+            "max_abs": 2.384185791015625e-07
+          },
+          "rms_per_joint_unitless": [
+            3.5026084727167666e-08,
+            1.8090431343505404e-08,
+            5.887600213630818e-08,
+            2.485872234245228e-08,
+            1.7840842187613877e-08,
+            5.8607355369809576e-08,
+            1.833910019834922e-08,
+            3.676694066815512e-08,
+            5.765079483369199e-08,
+            4.283762195106729e-08,
+            3.743436483429279e-08,
+            5.7019367722944557e-08
+          ]
+        },
+        "shape": [
+          299,
+          12
+        ]
+      },
+      "trial2": {
+        "association": {
+          "matched": 296,
+          "unmatched": 0,
+          "reused_destination_rows": 0,
+          "destination_minus_source_ms": {
+            "n": 296,
+            "rms": 0.6644212791021241,
+            "median": 0.122009,
+            "p95_abs": 1.45045725,
+            "max_abs": 4.784814
+          },
+          "tolerance_ms": 5.0
+        },
+        "float32_actor_replay_error": {
+          "overall_unitless": {
+            "n": 3552,
+            "rms": 4.126939116119523e-08,
+            "median": 0.0,
+            "p95_abs": 8.940696716308594e-08,
+            "max_abs": 2.980232238769531e-07
+          },
+          "rms_per_joint_unitless": [
+            3.707549781382724e-08,
+            1.6812569550859944e-08,
+            5.624398162905416e-08,
+            2.534488932136782e-08,
+            1.681110980206622e-08,
+            6.326030671616827e-08,
+            1.7682564891766872e-08,
+            3.8020262809318484e-08,
+            5.2907346449909884e-08,
+            3.8979559419065194e-08,
+            3.69299450723347e-08,
+            5.700737089867068e-08
+          ]
+        },
+        "shape": [
+          296,
+          12
+        ]
+      }
+    },
+    "independent_review": "Native reviewer found no blocking metric/order issue; requested CRC validation and action_scale from frozen metadata, both applied.",
+    "configured_driver_absolute_bounds": {
+      "urdf_sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+      "exact_manifest_match": true,
+      "bounds": {
+        "leg_front_r_1": {
+          "position_min": -1.12,
+          "position_max": 2.41
+        },
+        "leg_front_r_2": {
+          "position_min": -0.32,
+          "position_max": 3.04
+        },
+        "leg_front_r_3": {
+          "position_min": -2.69,
+          "position_max": 0.61
+        },
+        "leg_front_l_1": {
+          "position_min": -2.41,
+          "position_max": 1.12
+        },
+        "leg_front_l_2": {
+          "position_min": -3.04,
+          "position_max": 0.32
+        },
+        "leg_front_l_3": {
+          "position_min": -0.61,
+          "position_max": 2.69
+        },
+        "leg_back_r_1": {
+          "position_min": -1.12,
+          "position_max": 2.41
+        },
+        "leg_back_r_2": {
+          "position_min": -0.32,
+          "position_max": 3.04
+        },
+        "leg_back_r_3": {
+          "position_min": -2.69,
+          "position_max": 0.61
+        },
+        "leg_back_l_1": {
+          "position_min": -2.41,
+          "position_max": 1.12
+        },
+        "leg_back_l_2": {
+          "position_min": -3.04,
+          "position_max": 0.32
+        },
+        "leg_back_l_3": {
+          "position_min": -0.61,
+          "position_max": 2.69
+        }
+      },
+      "trials": {
+        "trial1": {
+          "joint_target_values": 3588,
+          "outside_absolute_bound_count": 0,
+          "minimum_margin_to_absolute_bound_rad": 0.09376031875610352
+        },
+        "trial2": {
+          "joint_target_values": 3552,
+          "outside_absolute_bound_count": 0,
+          "minimum_margin_to_absolute_bound_rad": 0.10527660667896271
+        }
+      },
+      "meaning": "No published active-playback target lies outside these configured absolute driver bounds. This is a source/config numerical check, not a measurement of SPI or motor-board applied targets."
+    }
+  },
+  "artifacts": {
+    "analysis_directory": "artifacts/hardware/2026-11-01/generated-corrected-analysis",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generated-corrected-analysis",
+    "archive_name": "generated-motion-corrected-reader-analysis-20261101.tar.gz",
+    "original_raw_archive_preserved_separately_by_root": true,
+    "archive_sha256": "f94f1cd5b07465d5534ea702132fcd3330abe58c775d4892ae339e2d616a7dc1",
+    "archive_bytes": 3155756,
+    "archive_index_sha256": "1ce2ee7d3fdfa20d80d5c4f8012cf5510ea1c445e6a1c900928ae62649162602",
+    "verified_files_both_stores": 51,
+    "supplement": {
+      "archive": "generated-motion-corrected-reader-supplement-20261101.tar.gz",
+      "sha256": "a11311371bd9be2aba79a679292f1ba1a32d6669abf503db37ccb4ff2b3d6a11",
+      "bytes": 4383,
+      "files": 4,
+      "scope": "Final peer receipt and manifest-pinned configured-driver absolute-limit check; primary archive remains unchanged."
+    }
+  }
+}

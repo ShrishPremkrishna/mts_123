@@ -1,0 +1,577 @@
+{
+  "schema": "pushup_yaw_training_attempt_v1",
+  "date": "2026-11-01",
+  "decision": "Matched500iteration fresh training produces a yaw-neutral research candidate passing13relative screens in nominal and two bounded mechanics/material cases. Exact offline package prepared; not installed or physically validated. Not uniformly better than supplied policy.",
+  "state": {
+    "schema": "pushup_training_preparation_status_v1",
+    "session": "pushup-yaw-20261101",
+    "remote_root": "/content/pupper-pushup-yaw-20261101",
+    "phase": "bounded_training_and_native_study_complete_candidate_prepared",
+    "runtime_gpu": "NVIDIA RTX PRO6000 Blackwell Server Edition,97887MiB",
+    "runtime_ready_epoch_s": 1793581092.1950927,
+    "training_deadline_epoch_s": 1793583792.1950927,
+    "shutdown_grace_max_seconds": 50,
+    "smoke_supervisor_pid": 14607,
+    "worker_sha256": "3919c963d301cb40eaab2c3e04828f33a8354e4fb73f17dbf3ea4606007a898d",
+    "source_archive_sha256": "73a648d5de995e2a637dfb7e24e4432e61906828dc2a25c1e4ab87e5281c31df",
+    "collector_local_path": "artifacts/generated/pushup-yaw-training-20261101/class-checkpoint-recovery",
+    "collector_state": "final36/36verified,noerrors;ownedcollectorstoppedaftercompletearchive",
+    "pilot_authorization": "Root approved matchedfresh original/mirrored reference,4096env seed42,1000iterations each, same class PPO/controller/driver/hull/COM contracts, boundeddeadline.",
+    "hardware_access": false,
+    "pilot_started": true,
+    "checkpoint_count": 14,
+    "runtime_state": "released_no_server_assignments",
+    "failed_archive_sha256": "762638510741288f455060e0480ac499c17a7a116c13dbb8e6ce2ef310c4f994",
+    "complete_remote_files_verified": 21,
+    "pilot_supervisor_pid": 15189,
+    "runtime_released_epoch_s": 1793582678.411362,
+    "native_simulation_jobs_active": false
+  },
+  "reason": {
+    "scope": "Existing generated-motion preflight invoked unchanged on both frozen references; no training, no edits.",
+    "results": [
+      {
+        "label": "supplied_original",
+        "path": "/Users/shrish/workspace/cs123-foundation/gemini_pupper/tricks/push_up/motion.npz",
+        "sha256": "723e07b75148a1eabb85a13ab53907af15828802ac123ec6058e157f391da28a",
+        "generated_motion_preflight": "rejected",
+        "error": "Generated motion failed geometry validation: joint angles exceed model limits; reference penetrates the ground by more than 1 mm"
+      },
+      {
+        "label": "mirrored_exporter",
+        "path": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/pushup-yaw-neutral-reference-20261101/mirrored-motion.npz",
+        "sha256": "7a066ba5523539973c2764b3b1a98a7d2d3d971c86e5f5c192f451b59cd61dd6",
+        "generated_motion_preflight": "rejected",
+        "error": "Generated motion failed geometry validation: joint angles exceed model limits; reference penetrates the ground by more than 1 mm"
+      }
+    ]
+  },
+  "next_action": "Root may stage the separately named candidate only after reviewing residualclamp/step/tracking tradeoffs and preparing exact selectedprofile/Stoproster/pins; then one explicitly watched standing\u2192routine\u2192stockreturn comparison. No autonomous repeat or replacement. Further fullbudget/multiseed training remains optional futurework, not part of this completedboundedpilot.",
+  "preservation": {
+    "root": "artifacts/generated/pushup-yaw-training-20261101",
+    "failed_remote_archive_sha256": "762638510741288f455060e0480ac499c17a7a116c13dbb8e6ce2ef310c4f994",
+    "source_archive_sha256": "73a648d5de995e2a637dfb7e24e4432e61906828dc2a25c1e4ab87e5281c31df",
+    "complete_remote_files_verified": 21,
+    "periodic_collector_started": true,
+    "one_shot_collector_verified": 6,
+    "class_final_archive": "artifacts/generated/pushup-yaw-training-20261101/class-complete.tar.gz",
+    "class_final_archive_sha256": "6262bfa1cd40fb828ce9d5329580b76d9126fa317cf45295258af8878bcbff6f",
+    "class_final_archive_bytes": 54413154,
+    "class_complete_remote_files_verified": 86,
+    "class_final_collector_verified": 36,
+    "local_provenance": {
+      "archive": "artifacts/generated/pushup-yaw-training-20261101/training-local-provenance.tar.gz",
+      "sha256": "cf94989579c253e762d797ef77858e7435c6da37e9ceecc364f80567f6595c98",
+      "bytes": 125146,
+      "verified_files": 89,
+      "index_sha256": "2b340f08635937691df43cf977b2cd6be0a43dda839a071ff7a14c323622010f"
+    }
+  },
+  "limits": [
+    "The first generated_trick smoke was the wrong validation family for a classphysicsrecording and failedbeforelearning; preserved unchanged. Existing course recordedmotion task used next; no geometry tolerance or hardwarelimit was relaxed.",
+    "Onefreshseed42,500iterations,49,152,000environmentsteps perarm; providedactor had a different priortrainingbudget. Matchedfreshcomparison isolatesreferencechoice with sameseed/config, not globallyoptimaltraining.",
+    "Nominal candidatevsactualsupplied: yaw9.259\u2192\u2212.249deg andeffort1.614\u21921.218Nm improve, buttracking.027\u2192.053rad,controllerstep.0787\u2192.1125rad,driverclipping1.78\u21923.04% worsen.",
+    "Fullhullsupportandnonzerosimulatorsoftcontacts remain; footfriction variants are limited when hulls support thebody. No broadterrainrobustness or genuineflightclaim.",
+    "Joint/contact/effort samples52Hz; accumulatedcommandstepmaxima520Hz. Contactstate is prephysicsstep while savedjoints/root are one1/520s step later.",
+    "CPU nativeheader/lifecycle simulation is not the actualROSbinary or realrobot. Six completedsequences and exactmodelarchive do not establish physicalreadiness or motorhealth."
+  ],
+  "attempts": [
+    {
+      "decision": "Stopped at geometry preflight before learning; no pilot/retry/checkpoint/policy candidate.",
+      "state": {
+        "schema": "pushup_training_preparation_status_v1",
+        "session": "pushup-yaw-20261101",
+        "remote_root": "/content/pupper-pushup-yaw-20261101",
+        "phase": "class_recorded_smoke_running",
+        "runtime_gpu": "NVIDIA RTX PRO6000 Blackwell Server Edition,97887MiB",
+        "runtime_ready_epoch_s": 1793581092.1950927,
+        "training_deadline_epoch_s": 1793583792.1950927,
+        "shutdown_grace_max_seconds": 50,
+        "smoke_supervisor_pid": 14607,
+        "worker_sha256": "50c838172e9e66a41b5f3d02889ee92990415b6724ccdebb07fa82186f5af2d8",
+        "source_archive_sha256": "73a648d5de995e2a637dfb7e24e4432e61906828dc2a25c1e4ab87e5281c31df",
+        "collector_local_path": "artifacts/generated/pushup-yaw-training-20261101/class-checkpoint-recovery",
+        "collector_state": "periodic verified collector started; checkpoint gate still closed",
+        "pilot_authorization": "Root approved matchedfresh original/mirrored reference,4096env seed42,1000iterations each, same class PPO/controller/driver/hull/COM contracts, boundeddeadline.",
+        "hardware_access": false,
+        "pilot_started": false,
+        "checkpoint_count": 0,
+        "runtime_state": "active_smoke",
+        "failed_archive_sha256": "762638510741288f455060e0480ac499c17a7a116c13dbb8e6ce2ef310c4f994",
+        "complete_remote_files_verified": 21
+      },
+      "reason": {
+        "scope": "Existing generated-motion preflight invoked unchanged on both frozen references; no training, no edits.",
+        "results": [
+          {
+            "label": "supplied_original",
+            "path": "/Users/shrish/workspace/cs123-foundation/gemini_pupper/tricks/push_up/motion.npz",
+            "sha256": "723e07b75148a1eabb85a13ab53907af15828802ac123ec6058e157f391da28a",
+            "generated_motion_preflight": "rejected",
+            "error": "Generated motion failed geometry validation: joint angles exceed model limits; reference penetrates the ground by more than 1 mm"
+          },
+          {
+            "label": "mirrored_exporter",
+            "path": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/pushup-yaw-neutral-reference-20261101/mirrored-motion.npz",
+            "sha256": "7a066ba5523539973c2764b3b1a98a7d2d3d971c86e5f5c192f451b59cd61dd6",
+            "generated_motion_preflight": "rejected",
+            "error": "Generated motion failed geometry validation: joint angles exceed model limits; reference penetrates the ground by more than 1 mm"
+          }
+        ]
+      },
+      "next_action": "Resolve an explicitly reviewed recorded-class-motion validation/training contract, or consistently repair both references. Do not silently loosen the generated-motion gate."
+    }
+  ],
+  "class_recorded_entry": {
+    "contract": {
+      "schema": "class_recorded_pushup_input_contract_v1",
+      "reference_type": "physics-recorded joint/base trajectories exported by class monorepo_tricks replay",
+      "entry_reason": "Class notebook uses Mjlab-Tracking-Flat-Pupper-v3 directly; generated_trick UniMate keyframe geometry gate is not the recorded-motion entry. Its original rejection remains preserved.",
+      "allowed_motion_sha256": [
+        "723e07b75148a1eabb85a13ab53907af15828802ac123ec6058e157f391da28a",
+        "7a066ba5523539973c2764b3b1a98a7d2d3d971c86e5f5c192f451b59cd61dd6"
+      ],
+      "limits_policy": "No raised joint/target limits, gains, or contact tolerances; existing deployment and actual driver clamps and full ground hull contacts applied to BOTH training arms.",
+      "soft_reference_facts": {
+        "original_joint_limit_overshoot_rad": 0.01509,
+        "mirrored_joint_limit_overshoot_rad": 0.00636,
+        "ground_penetration_approx_m": [
+          0.0022,
+          0.002
+        ],
+        "lower_leg_hull_support": "present throughout; not foot-only support",
+        "planar_excursion_original_m": 0.0602,
+        "planar_excursion_mirrored_m": 0.0725,
+        "nominal_height_cycles": 2,
+        "acceptance": "These are measured compliant-physics states, not kinematic limit compliance or safe actuator targets. No physical acceptance/promotion follows from training."
+      },
+      "preserved_evidence": "pushup-yaw-neutral-reference-20261101/comparison.json",
+      "geometry_gate_tolerance_modified": false,
+      "training_comparison": "fresh matched class PPO seed42, same architecture/rewards/randomization/limits; one motion NPZ differs",
+      "sources": {
+        "gemini_pupper/tricks/monorepo_tricks.py": "9c702626e674bb191a0e8880dea9e3d0da83b0d2d74dd93b45f544d8498bc4cf",
+        "pupper-mjlab/notebooks/CS123_Pupper_Tricks.ipynb": "008806438f4f67f1d3e7636d144d9294a9533c26c637e4b4f5b4598984f50a8d",
+        "pupper-mjlab/src/mjlab/scripts/train.py": "abb1224536c4fc81156566392424ee70f6287bb4abcde8e2c60c7639f98b320e",
+        "pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/rl_cfg.py": "6635456e4756a40e54ab7d559cdec5d207bd4833d39be0bd691f6218fb77e932"
+      }
+    },
+    "source_identity": {
+      "class_recorded_train.py": "842e9b613e887ee2dfcec11a8c6f67e1d9c86fbce8ea17f8ea00116bd6f755cf",
+      "class-worker.py": "50c838172e9e66a41b5f3d02889ee92990415b6724ccdebb07fa82186f5af2d8"
+    },
+    "start_epoch_s": 1793582026.86485,
+    "original_deadline_preserved": true,
+    "review_status": "Independentclassentryreview clear; smokecompleted; collector gatepassed",
+    "pilot_start_epoch_s": 1793582132.2725635,
+    "pilot_iterations_per_arm": 500,
+    "pilot_budget_revision": "Botharms reduced1000\u2192500 beforepilot to preserve matchedbudget within unchangeddeadline.",
+    "pilot_worker_sha256": "3919c963d301cb40eaab2c3e04828f33a8354e4fb73f17dbf3ea4606007a898d",
+    "peer_review_sha256": "252b9ca745d3a32c26dca05c13d59c98901453429a55d925cf4965f2c9c6b321",
+    "final_training_status": {
+      "phase": "pilot",
+      "supervisor_pid": 15189,
+      "start": {
+        "start_epoch_s": 1793581355.2376983,
+        "runtime_ready_epoch_s": 1793581092.1950927,
+        "deadline_epoch_s": 1793583792.1950927,
+        "max_runtime_ready_to_training_stop_request_seconds": 2700,
+        "maximum_shutdown_grace_seconds": 50
+      },
+      "jobs": [
+        {
+          "label": "pilot-original",
+          "command": [
+            "/content/pupper-pushup-yaw-20261101/source/pupper-mjlab/.venv/bin/python",
+            "/content/pupper-pushup-yaw-20261101/class_recorded_train.py",
+            "--motion",
+            "/content/pupper-pushup-yaw-20261101/source/inputs/original-motion.npz",
+            "--output",
+            "/content/pupper-pushup-yaw-20261101/outputs-class/pilot-original",
+            "--iterations",
+            "500",
+            "--num-envs",
+            "4096"
+          ],
+          "start_epoch_s": 1793582132.304577,
+          "motion_sha256": "723e07b75148a1eabb85a13ab53907af15828802ac123ec6058e157f391da28a",
+          "state": "trained_unvalidated",
+          "pid": 15190,
+          "pgid": 15190,
+          "returncode": 0,
+          "end_epoch_s": 1793582359.9201512,
+          "manifest": "pilot-original/runs/pilot-original/foundation-run.json",
+          "checkpoint": "pilot-original/runs/pilot-original/model_499.pt",
+          "checkpoint_sha256": "dbf3063bf0f68d61d419acbae980f0080681968851c6a60ceaf3a1943a430282",
+          "checkpoint_bytes": 3789283
+        },
+        {
+          "label": "pilot-mirrored",
+          "command": [
+            "/content/pupper-pushup-yaw-20261101/source/pupper-mjlab/.venv/bin/python",
+            "/content/pupper-pushup-yaw-20261101/class_recorded_train.py",
+            "--motion",
+            "/content/pupper-pushup-yaw-20261101/source/inputs/mirrored-motion.npz",
+            "--output",
+            "/content/pupper-pushup-yaw-20261101/outputs-class/pilot-mirrored",
+            "--iterations",
+            "500",
+            "--num-envs",
+            "4096"
+          ],
+          "start_epoch_s": 1793582359.9259233,
+          "motion_sha256": "7a066ba5523539973c2764b3b1a98a7d2d3d971c86e5f5c192f451b59cd61dd6",
+          "state": "trained_unvalidated",
+          "pid": 16270,
+          "pgid": 16270,
+          "returncode": 0,
+          "end_epoch_s": 1793582586.538904,
+          "manifest": "pilot-mirrored/runs/pilot-mirrored/foundation-run.json",
+          "checkpoint": "pilot-mirrored/runs/pilot-mirrored/model_499.pt",
+          "checkpoint_sha256": "7b0632ef7d5dce1c6309b9628384af74095c8ae307626451422e707a28f6d4da",
+          "checkpoint_bytes": 3789283
+        }
+      ],
+      "state": "pilot_complete_unvalidated",
+      "updated_epoch_s": 1793582586.5440683,
+      "end_epoch_s": 1793582586.5440679
+    },
+    "config_parity": {
+      "normalization": "Replace literal pilot-original/pilot-mirrored run label in serialized YAML with MATCHED_RUN. No YAML execution/import or numeric normalization. Motion bytes are separately bound and intentionally differ.",
+      "results": {
+        "agent": {
+          "identities": [
+            {
+              "label": "original",
+              "sha256": "93967e118fb0dffed090774675f7cdbb243da609743a75be4d09e689a817dd48"
+            },
+            {
+              "label": "mirrored",
+              "sha256": "d3d97e76ccd469659870d221d1a91093bd8ba4c23e82f88f20b121e0d8d15fd9"
+            }
+          ],
+          "identical_except_run_path_and_label": true,
+          "differences": []
+        },
+        "env": {
+          "identities": [
+            {
+              "label": "original",
+              "sha256": "1e39b1f8cede58ceb25c9739cff3c3cb9c9f0aec2b2220670020d66bbdafda97"
+            },
+            {
+              "label": "mirrored",
+              "sha256": "6da88677c12229b4c99a3166218dc2a33b53e8d527312e1d0db04489009e5f60"
+            }
+          ],
+          "identical_except_run_path_and_label": true,
+          "differences": []
+        }
+      }
+    },
+    "checkpoint_export_parity": {
+      "original": {
+        "label": "pilot-original",
+        "checkpoint_sha256": "dbf3063bf0f68d61d419acbae980f0080681968851c6a60ceaf3a1943a430282",
+        "policy_sha256": "0b44055b8d36b0307f4cd00b227c335d028951ff04cc7089f540671c9fdf134b",
+        "checkpoint_iteration": 499,
+        "network_reconstruction_max_absolute_errors": [
+          0.0,
+          9.5367431640625e-07,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "random_observations": 256,
+        "observation_sampling": "normalizer mean plus effective std times seed123 normal",
+        "json_vs_exact_checkpoint_action_max_error": 6.620432537740584e-07,
+        "normalizer_eps": 0.01,
+        "scope": "Verifies final exported actor corresponds to named checkpoint; no environment/policy quality or physical claim."
+      },
+      "mirrored": {
+        "label": "pilot-mirrored",
+        "checkpoint_sha256": "7b0632ef7d5dce1c6309b9628384af74095c8ae307626451422e707a28f6d4da",
+        "policy_sha256": "a84e88729bd2d94b9f4267a0acf96a32f9cf8be470762d2a650a7add93b6e658",
+        "checkpoint_iteration": 499,
+        "network_reconstruction_max_absolute_errors": [
+          0.0,
+          7.152557373046875e-07,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "random_observations": 256,
+        "observation_sampling": "normalizer mean plus effective std times seed123 normal",
+        "json_vs_exact_checkpoint_action_max_error": 7.960752588243025e-07,
+        "normalizer_eps": 0.01,
+        "scope": "Verifies final exported actor corresponds to named checkpoint; no environment/policy quality or physical claim."
+      }
+    }
+  },
+  "native_evaluation": {
+    "per_scenario": {
+      "nominal": {
+        "screens": {
+          "both_complete": true,
+          "absolute_motion_yaw": true,
+          "yaw_reduction": true,
+          "two_height_cycles": true,
+          "tracking": true,
+          "joint_speed": true,
+          "effort": true,
+          "contact_tangent_rms": true,
+          "contact_geometries": true,
+          "clamp_peak": true,
+          "clamp_fraction": true,
+          "return_yaw": true,
+          "final_settlement": true
+        },
+        "all_relative_screens_pass": true,
+        "arms": {
+          "original": {
+            "motion": {
+              "yaw_change_deg": 9.65391744989875,
+              "tracking_joint_rms_rad": 0.04512890840313468,
+              "joint_speed_peak_rad_s": 2.775179156199883,
+              "effort_peak_nm": 1.6701662876532923,
+              "target_step_peak_rad": 0.11748433113098145,
+              "driver_clamp_peak_rad": 0.09999998688697814,
+              "clipped_joint_fraction": 0.07352171637885924,
+              "max_planar_excursion_from_phase_start_m": 0.05664955223278014,
+              "loaded_contact_force_weighted_tangent_rms_m_s": 0.008133847913038518
+            },
+            "height_cycles": 2,
+            "default_return_yaw_deg": -4.286117669372671,
+            "completed": true
+          },
+          "mirrored": {
+            "motion": {
+              "yaw_change_deg": -0.24883812002985817,
+              "tracking_joint_rms_rad": 0.05326523053441397,
+              "joint_speed_peak_rad_s": 2.635428297805031,
+              "effort_peak_nm": 1.2184825631951672,
+              "target_step_peak_rad": 0.11250674724578857,
+              "driver_clamp_peak_rad": 0.0999999785423279,
+              "clipped_joint_fraction": 0.030350601779173206,
+              "max_planar_excursion_from_phase_start_m": 0.07241543066039939,
+              "loaded_contact_force_weighted_tangent_rms_m_s": 0.00624607806270923
+            },
+            "height_cycles": 2,
+            "default_return_yaw_deg": -0.7289558893392037,
+            "completed": true
+          }
+        },
+        "comparison_sha256": "0757698e9033b901143499ae8255a7ad9273637fc0eaeb2aac4c7d9620d7a2e1"
+      },
+      "foot_end_low": {
+        "screens": {
+          "both_complete": true,
+          "absolute_motion_yaw": true,
+          "yaw_reduction": true,
+          "two_height_cycles": true,
+          "tracking": true,
+          "joint_speed": true,
+          "effort": true,
+          "contact_tangent_rms": true,
+          "contact_geometries": true,
+          "clamp_peak": true,
+          "clamp_fraction": true,
+          "return_yaw": true,
+          "final_settlement": true
+        },
+        "all_relative_screens_pass": true,
+        "arms": {
+          "original": {
+            "motion": {
+              "yaw_change_deg": 10.04004361813738,
+              "tracking_joint_rms_rad": 0.04483754709583652,
+              "joint_speed_peak_rad_s": 2.741773077031135,
+              "effort_peak_nm": 1.5631979219681358,
+              "target_step_peak_rad": 0.10638880729675293,
+              "driver_clamp_peak_rad": 0.09999998688697814,
+              "clipped_joint_fraction": 0.07352171637885924,
+              "max_planar_excursion_from_phase_start_m": 0.05458350651937689,
+              "loaded_contact_force_weighted_tangent_rms_m_s": 0.01102164727131846
+            },
+            "height_cycles": 2,
+            "default_return_yaw_deg": -4.290012380864268,
+            "completed": true
+          },
+          "mirrored": {
+            "motion": {
+              "yaw_change_deg": -0.3908402811310223,
+              "tracking_joint_rms_rad": 0.05304986844160073,
+              "joint_speed_peak_rad_s": 2.8955782087077204,
+              "effort_peak_nm": 1.2269235008934984,
+              "target_step_peak_rad": 0.10578525066375732,
+              "driver_clamp_peak_rad": 0.0999999785423279,
+              "clipped_joint_fraction": 0.031004709576138146,
+              "max_planar_excursion_from_phase_start_m": 0.07259773303814336,
+              "loaded_contact_force_weighted_tangent_rms_m_s": 0.009273608575593367
+            },
+            "height_cycles": 2,
+            "default_return_yaw_deg": -1.0130924483276391,
+            "completed": true
+          }
+        },
+        "comparison_sha256": "47929805c2ad8d05c3626f3ead993456de4268a5c821c0ccdbc5dbf23b0aba1c"
+      },
+      "heavy_front_sphere_low": {
+        "screens": {
+          "both_complete": true,
+          "absolute_motion_yaw": true,
+          "yaw_reduction": true,
+          "two_height_cycles": true,
+          "tracking": true,
+          "joint_speed": true,
+          "effort": true,
+          "contact_tangent_rms": true,
+          "contact_geometries": true,
+          "clamp_peak": true,
+          "clamp_fraction": true,
+          "return_yaw": true,
+          "final_settlement": true
+        },
+        "all_relative_screens_pass": true,
+        "arms": {
+          "original": {
+            "motion": {
+              "yaw_change_deg": 9.504889835203176,
+              "tracking_joint_rms_rad": 0.04284831514264228,
+              "joint_speed_peak_rad_s": 2.76182660507842,
+              "effort_peak_nm": 1.7730837103825623,
+              "target_step_peak_rad": 0.11339378356933594,
+              "driver_clamp_peak_rad": 0.09999998688697814,
+              "clipped_joint_fraction": 0.07365253793825223,
+              "max_planar_excursion_from_phase_start_m": 0.055593277216739304,
+              "loaded_contact_force_weighted_tangent_rms_m_s": 0.00763280407627748
+            },
+            "height_cycles": 2,
+            "default_return_yaw_deg": -4.647738705284089,
+            "completed": true
+          },
+          "mirrored": {
+            "motion": {
+              "yaw_change_deg": -0.3574937236920718,
+              "tracking_joint_rms_rad": 0.05041042064399674,
+              "joint_speed_peak_rad_s": 2.628476869186459,
+              "effort_peak_nm": 1.3763820909571116,
+              "target_step_peak_rad": 0.1220366358757019,
+              "driver_clamp_peak_rad": 0.0999999785423279,
+              "clipped_joint_fraction": 0.03021978021978022,
+              "max_planar_excursion_from_phase_start_m": 0.06751976218136849,
+              "loaded_contact_force_weighted_tangent_rms_m_s": 0.007570986633598048
+            },
+            "height_cycles": 2,
+            "default_return_yaw_deg": -0.37010918089554995,
+            "completed": true
+          }
+        },
+        "comparison_sha256": "d6fde1bd9f9cec8e7272b86410748690d1c254bde72233302c39bb6617df77de"
+      }
+    },
+    "input_identity": "artifacts/generated/pushup-yaw-training-20261101/native-inputs/input-identity.json",
+    "native_archive": {
+      "archive": "artifacts/generated/pushup-yaw-training-20261101/trained-native-complete.tar.gz",
+      "sha256": "bf98594cf1076e5e1927b20055b637483022e0ec571737f6b8469937f31a89e6",
+      "bytes": 125760919,
+      "index_sha256": "ea5936c93d6289a4aea0be6e61a7959b369a104dd325aaac67a89348a95d9d7f",
+      "verified_files": 896,
+      "native_runs": [
+        "original",
+        "mirrored",
+        "original-foot_end_low",
+        "mirrored-foot_end_low",
+        "original-heavy_front_sphere_low",
+        "mirrored-heavy_front_sphere_low"
+      ],
+      "hardware_candidate_manifest_sha256": "77b9ce2a5e2695d454803272780e288d3887ccdc745dcfdbba0de555a4d4130a"
+    },
+    "independent_peer": {
+      "path": "artifacts/generated/pushup-yaw-training-20261101/native-evaluation/peer-review.json",
+      "sha256": "9cf04b31dfe27981bfc0b6d7004a2aa42ef30b260cd6cbb87c9ebde392d0a56b",
+      "metric_checks": 588,
+      "mismatches": 0
+    },
+    "supplied_policy_context": {
+      "scope": "Posthoc contextual comparison to actual supplied policy under same nominal compiled model/default-entry/handoff protocol. This was not the pilot matched-arm training comparison or a new acceptance gate.",
+      "supplied_policy_sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+      "trained_mirrored_policy_sha256": "a84e88729bd2d94b9f4267a0acf96a32f9cf8be470762d2a650a7add93b6e658",
+      "compiled_model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "motion_metrics": {
+        "yaw_change_deg": {
+          "supplied": 9.25928120637396,
+          "fresh_mirrored_500iter": -0.24883812002985817
+        },
+        "tracking_joint_rms_rad": {
+          "supplied": 0.027028705211010664,
+          "fresh_mirrored_500iter": 0.05326523053441397
+        },
+        "joint_speed_peak_rad_s": {
+          "supplied": 2.817328833169377,
+          "fresh_mirrored_500iter": 2.635428297805031
+        },
+        "effort_peak_nm": {
+          "supplied": 1.613902202055288,
+          "fresh_mirrored_500iter": 1.2184825631951672
+        },
+        "target_step_peak_rad": {
+          "supplied": 0.0787452757358551,
+          "fresh_mirrored_500iter": 0.11250674724578857
+        },
+        "driver_clamp_peak_rad": {
+          "supplied": 0.08957804679870607,
+          "fresh_mirrored_500iter": 0.0999999785423279
+        },
+        "clipped_joint_fraction": {
+          "supplied": 0.017791732077446363,
+          "fresh_mirrored_500iter": 0.030350601779173206
+        },
+        "max_planar_excursion_from_phase_start_m": {
+          "supplied": 0.06048398931294424,
+          "fresh_mirrored_500iter": 0.07241543066039939
+        },
+        "loaded_contact_force_weighted_tangent_rms_m_s": {
+          "supplied": 0.006971760069179955,
+          "fresh_mirrored_500iter": 0.00624607806270923
+        }
+      },
+      "tradeoff": "Yaw and effort improve; reference-tracking error and sampled driver-clipped joint fraction worsen relative to the already-trained supplied actor. Passing matched fresh-baseline screens is not uniform improvement over supplied policy."
+    }
+  },
+  "training_export_peer": {
+    "path": "artifacts/generated/pushup-yaw-training-20261101/class-recorded-entry/config-export-peer-review.json",
+    "sha256": "4e20be6d093212df806257bc741c9606fae30120d0f68ec4ed73b70d78610401",
+    "full_remote_members_verified": 86,
+    "matched_configs": "byte-identical after run-label/path normalization",
+    "checkpoint_actor_parity": "Both finaliteration499 actors independently replayed against exactJSON on256observations/arm, maxerror<1e-3"
+  },
+  "hardware_candidate": {
+    "manifest": "artifacts/generated/pushup-yaw-training-20261101/hardware-candidate/manifest.json",
+    "manifest_sha256": "77b9ce2a5e2695d454803272780e288d3887ccdc745dcfdbba0de555a4d4130a",
+    "policy_sha256": "a84e88729bd2d94b9f4267a0acf96a32f9cf8be470762d2a650a7add93b6e658",
+    "catalog_name": "push_up_yaw_candidate",
+    "controller_name": "trick_push_up_yaw_candidate",
+    "installed": false,
+    "activated": false,
+    "physical_evidence": null
+  },
+  "resource_accounting": {
+    "gpu": "OneG4 assignment;actualRTXPRO6000BlackwellServerEdition95GiB",
+    "runtime_ready_epoch_s": 1793581092.1950927,
+    "original_deadline_epoch_s": 1793583792.1950927,
+    "released_epoch_s": 1793582678.411362,
+    "active_server_assignments_after_release": 0,
+    "account_balance_before_compute_units": 334.38,
+    "account_balance_after_compute_units": 329.43,
+    "account_balance_delta_compute_units": 4.95,
+    "reported_usage_rate_after_release": 0.0,
+    "scope": "Accountbalance difference, not a dollar charge; no extra allocations or retries after completingpairedpilot."
+  },
+  "updated_epoch_s": 1793583260.5110898
+}

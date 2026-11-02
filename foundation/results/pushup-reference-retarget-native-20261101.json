@@ -1,0 +1,121 @@
+{
+  "schema": "pupper_pushup_reference_retarget_native_result_v1",
+  "date": "2026-11-01",
+  "decision": "Rejected reference-only policy retarget; no adverse cases or deployment. Separate matched training preparation follows independently.",
+  "comparison_sha256": "17a496b14dcde2eb3f4001864e9e07d7adaac267885af9e7e313131d871fd7c5",
+  "assessment": {
+    "schema": "pushup_retarget_assessment_v1",
+    "decision": "Do not promote existing weights with only reference-table replacement. Stop before adverse cases because five predeclared nominal screens failed.",
+    "positive_findings": [
+      "Continuous default entry, two low/high cycles, terminal hold, default return, forward and stop all completed in both nominal cases.",
+      "Motion yaw fell from9.259 to2.875deg, and default-return yaw from-3.877 to-0.399deg."
+    ],
+    "blocking_tradeoffs": [
+      "Motion yaw reduction is69%, below80%, and residual exceeds2deg.",
+      "Sampled peak effort increased1.614 to1.845Nm (+14.3%), exceeding10% screen.",
+      "Peak driver clamp increased0.08958 to0.1000rad; clipped joint-sample fraction rose1.779% to3.519%.",
+      "A previously unclipped rear-right lower joint now clips in60 sampled motion states.",
+      "Reference joint tracking RMS worsened0.0270 to0.0422rad (+56%); it passed only because predeclared absolute ceiling was0.08rad."
+    ],
+    "interpretation": "The nominal raw-target exporter removes yaw, but the fixed learned actor does not inherit all those benefits. This motivates matched training on the corrected reference; it does not prove the training will fix physical behavior.",
+    "training_proposal": {
+      "status": "root_authorized_separately_no_training_in_this_evaluation",
+      "one_gpu": "G4",
+      "arms": [
+        "original reference fresh training",
+        "mirrored reference fresh training"
+      ],
+      "seed": 42,
+      "environments": 4096,
+      "iterations_per_arm": 1000,
+      "wall_budget_total_training_minutes": 45,
+      "smoke": {
+        "environments": 64,
+        "iterations": 2,
+        "gate": "checkpoint retrieval and SHA verification before pilot"
+      },
+      "contracts": [
+        "current class PPO/actor architecture",
+        "deployment target clamp",
+        "exact class driver limits",
+        "tracking full ground hulls",
+        "composed COM randomization"
+      ],
+      "checkpoint_provenance": "No original push-up optimizer/critic checkpoint located in reviewed local policy directory; deployment JSON has folded normalization and is not represented as a resumable training checkpoint."
+    },
+    "limits": [
+      "Native host transcribes lifecycle and runs production headers; this is not ROS execution or hardware.",
+      "52Hz physical/contact/effort sampling may miss extrema; target-step maxima aggregate520Hz steps.",
+      "One nominal floor/model. No adverse runs were started after failure.",
+      "No original policy, production runtime, gains or driver limits changed."
+    ]
+  },
+  "predeclared_screens": {
+    "both_complete": true,
+    "absolute_motion_yaw": false,
+    "yaw_reduction": false,
+    "two_height_cycles": true,
+    "tracking": true,
+    "joint_speed": true,
+    "effort": false,
+    "contact_tangent_rms": true,
+    "contact_geometries": true,
+    "clamp_peak": false,
+    "clamp_fraction": false,
+    "return_yaw": true,
+    "final_settlement": true
+  },
+  "input_identity": {
+    "schema": "pushup_reference_only_policy_probe_inputs_v1",
+    "original_policy_sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+    "candidate_policy_sha256": "263c5390bfc390274b17cde355ba4439402be6d59b47298797e94d7ad8505631",
+    "candidate_motion_npz_sha256": "7a066ba5523539973c2764b3b1a98a7d2d3d971c86e5f5c192f451b59cd61dd6",
+    "non_motion_payload_identical": true,
+    "non_motion_payload_sha256": "be0b5ec4ce8783fd6a0080351c1fc4c0c639ecb51996eb5d4365867ae6fdc513",
+    "original_motion_json_reconstructed_exactly_from_shipped_npz": true,
+    "changed_top_level_keys": [
+      "motion"
+    ],
+    "export_method": "Existing export_trick rows(): float32 arrays to float64 then round6; base_link anchor. Absolute joints remain absolute.",
+    "preserved": [
+      "network layers",
+      "trick metadata/frame count/rate/name",
+      "default_joint_pos",
+      "kp/kd",
+      "action_scale",
+      "joint bounds",
+      "observation/history contracts"
+    ],
+    "input_files": [
+      {
+        "path": "mirrored-reference-policy.json",
+        "sha256": "263c5390bfc390274b17cde355ba4439402be6d59b47298797e94d7ad8505631",
+        "bytes": 1569316
+      },
+      {
+        "path": "mirrored-trick.yaml",
+        "sha256": "87f30a09335dc93ab3970aaa886ce15265a86f62b1ebeafe338417de1179a931",
+        "bytes": 185
+      },
+      {
+        "path": "original-policy.json",
+        "sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+        "bytes": 1657078
+      },
+      {
+        "path": "original-trick.yaml",
+        "sha256": "b0890b0082ea76f40b357a0bb9f485fb6ed5912f3bc5a1094c0e8956bb9fd539",
+        "bytes": 175
+      }
+    ]
+  },
+  "peer_review_sha256": "9c5cd2f92a50eff0690580a86de314ade454157a3f4740247055d3ab1c4531dd",
+  "archive": {
+    "root": "artifacts/generated/pushup-yaw-neutral-policy-eval-20261101",
+    "index_sha256": "76507b2dd0c5f00ed78acc5146cc788f6444fa978c1559c4841036d81b556019",
+    "archive": "artifacts/generated/pushup-yaw-neutral-policy-eval-20261101.tar.gz",
+    "archive_sha256": "0b4fe86ab774deaec7e17da7e8aaf0983049dd9f5c34c1ddaafd69902ccc4d7f",
+    "archive_bytes": 44096573,
+    "verified_entries": 827
+  }
+}

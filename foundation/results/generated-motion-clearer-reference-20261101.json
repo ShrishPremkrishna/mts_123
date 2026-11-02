@@ -1,0 +1,403 @@
+{
+  "recorded_utc": "2026-11-02T01:28:04.159179+00:00",
+  "decision": "Keep the clearer bob reference isolated for possible matched training. Reject the frozen-actor reference substitution for promotion; it does not reproduce the intended motion.",
+  "hardware_validated": false,
+  "trained_candidate": false,
+  "runtime_changed": false,
+  "scope": "Exactly one hand-designed reference, paired original/candidate CPU full-contact native-controller and open-loop feasibility runs. No GPU, robot commands, gains/limits changes or policy catalog edits.",
+  "original_design": {
+    "description": "Original UniMate standing sway, repaired to grounded finite standing bookends, approximately1.2cm body rise.",
+    "historical_source": "foundation/results/generated-candidate-selection.json",
+    "original_policy_sha256": "db47c867f1704b8e00e6f67070d67fbcbecfd027d1cfd7af265d4d6fce5dd520",
+    "original_motion_sha256": "a56338afd2b8437b0bff96dc9f0b469e9b4ffd4262de89fb4f3af1f578eff5c6"
+  },
+  "motivation": {
+    "corrected_reader_report": "foundation/results/generated-motion-corrected-reader-20261101.json",
+    "observed_rear_amplitude": {
+      "trial1": {
+        "leg_back_r_2": {
+          "reference_range_rad": 0.15389700396156059,
+          "actual_range_rad": 0.08239937014877796,
+          "range_ratio": 0.5354189362215209,
+          "actual_minus_reference_mean_rad": 0.05354591321520008,
+          "same_packet_correlation": 0.8674781910967969
+        },
+        "leg_back_l_2": {
+          "reference_range_rad": 0.1528700010309194,
+          "actual_range_rad": 0.051117898896336555,
+          "range_ratio": 0.3343880326526424,
+          "actual_minus_reference_mean_rad": -0.07471039360380353,
+          "same_packet_correlation": 0.7838490476394453
+        }
+      },
+      "trial2": {
+        "leg_back_r_2": {
+          "reference_range_rad": 0.15389700396156059,
+          "actual_range_rad": 0.056077005341649055,
+          "range_ratio": 0.36438009771558394,
+          "actual_minus_reference_mean_rad": 0.04256279122094459,
+          "same_packet_correlation": 0.8934427183804287
+        },
+        "leg_back_l_2": {
+          "reference_range_rad": 0.1528700010309194,
+          "actual_range_rad": 0.04119873233139515,
+          "range_ratio": 0.26950174693242995,
+          "actual_minus_reference_mean_rad": -0.055282399894831295,
+          "same_packet_correlation": 0.8635779204510465
+        }
+      }
+    },
+    "implication": "Small original root excursion plus reduced rear reference amplitude/steady offsets can make the intended sway visually obscure. This does not identify actuation causality. New motion changes the visible objective to symmetric height, not an assumed fix for rear under-tracking."
+  },
+  "candidate": {
+    "reference_path": "artifacts/generated/clearer-motion-20261101/gentle_bob.npz",
+    "reference_sha256": "182f060cd72cbe4e85bf8cc0957727912c3c86e3695d7c40385f603f41a39e96",
+    "experimental_policy_sha256": "8e4a6d8b19ef9439c969ebaa1aa7fa411b6e5013f096aea9183f93d6ed694a1a",
+    "description": "8.3s symmetric body bob from.161m to.139m, then.173m and back to.161m, with quiet holds and four original standing feet pinned. Existing minimum-jerk/IK/export pathway; not a new UniMate sample.",
+    "timeline_s_z_m": [
+      [
+        0.0,
+        0.161
+      ],
+      [
+        0.8,
+        0.161
+      ],
+      [
+        2.6,
+        0.139
+      ],
+      [
+        3.2,
+        0.139
+      ],
+      [
+        5.2,
+        0.173
+      ],
+      [
+        5.8,
+        0.173
+      ],
+      [
+        7.5,
+        0.161
+      ],
+      [
+        8.3,
+        0.161
+      ]
+    ],
+    "original_reference_metrics": {
+      "frames": 298,
+      "duration_intervals_s": 5.94,
+      "root_range_xyz_m": [
+        0.001265496714040637,
+        0.004681174643337727,
+        0.012091189622879028
+      ],
+      "joint_range_rad": [
+        0.141501784324646,
+        0.057922408916056156,
+        0.274080753326416,
+        0.1268416941165924,
+        0.07775612318278036,
+        0.3062673807144165,
+        0.052374422550201416,
+        0.1538973653418907,
+        0.27705633640289307,
+        0.1802985966205597,
+        0.15287042551995,
+        0.2446790337562561
+      ],
+      "joint_velocity_peak_rad_s": 0.8080970644950867,
+      "joint_acceleration_peak_rad_s2": 27.30540856719017,
+      "endpoint_joint_delta_max_rad": 0.0001373887062072754,
+      "bookend_speed_peak_rad_s": 0.26656395196914673
+    },
+    "candidate_reference_metrics": {
+      "frames": 416,
+      "duration_intervals_s": 8.3,
+      "root_range_xyz_m": [
+        0.0,
+        0.0,
+        0.03399999439716339
+      ],
+      "joint_range_rad": [
+        0.3550746589899063,
+        0.0011519920080900192,
+        0.6599021479487419,
+        0.36192953772842884,
+        0.001102040521800518,
+        0.6618192344903946,
+        0.35645439475774765,
+        0.001428063027560711,
+        0.6611578017473221,
+        0.36049196869134903,
+        0.0014541130512952805,
+        0.6605425029993057
+      ],
+      "joint_velocity_peak_rad_s": 0.6158671975135803,
+      "joint_acceleration_peak_rad_s2": 1.2032661586999893,
+      "endpoint_joint_delta_max_rad": 5.048513412475586e-05,
+      "bookend_speed_peak_rad_s": 0.0
+    },
+    "design_check": {
+      "duration_s": 8.3,
+      "frames": 416,
+      "lowest_foot_bottom_m": -0.0,
+      "lowest_body_point_m": 0.0002,
+      "fraction_of_joint_samples_at_limit": 0.0,
+      "max_joint_speed_rad_s": 0.62,
+      "max_ik_error_m": 0.0
+    },
+    "actor_and_control_parameters_unchanged": true,
+    "gains": {
+      "kp": 5.5,
+      "kd": 0.25
+    },
+    "native_model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+    "driver_limit_sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3"
+  },
+  "comparisons": {
+    "original": {
+      "native": {
+        "root_range_xyz_m": [
+          0.00808850924540805,
+          0.006789435584746872,
+          0.011747522392873494
+        ],
+        "reference_joint_rmse_rad": 0.018386932301520435,
+        "joint_speed_peak_rad_s": 1.202398197292666,
+        "joint_acceleration_sampled_peak_rad_s2": 30.2470465711719,
+        "driver_clipped_joint_fraction": 0.0,
+        "peak_actuator_torque_nm": 0.9716266323414913,
+        "contacts": {
+          "force_threshold_n": 0.1,
+          "sample_hz": 52,
+          "all_four_loaded_fraction": 1.0,
+          "min_loaded_feet": 4,
+          "no_loaded_ground_contacts_samples": 0,
+          "non_foot_ground_contact_samples": 0,
+          "loaded_contact_tangential_speed_rms_m_s": 0.01872285982496615,
+          "loaded_contact_tangential_speed_p95_m_s": 0.0032488192333974698,
+          "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+        },
+        "completed": true,
+        "terminal_hold": {
+          "frames": [
+            297
+          ],
+          "final_height_m": 0.16165734921193667,
+          "final_tilt_deg": 0.5375576776697604,
+          "max_joint_speed_last_half_second_rad_s": 0.014621231911954316,
+          "endpoint_joint_error_max_rad": 0.04357262835969533,
+          "contacts": {
+            "force_threshold_n": 0.1,
+            "sample_hz": 52,
+            "all_four_loaded_fraction": 1.0,
+            "min_loaded_feet": 4,
+            "no_loaded_ground_contacts_samples": 0,
+            "non_foot_ground_contact_samples": 0,
+            "loaded_contact_tangential_speed_rms_m_s": 0.0005238268378194856,
+            "loaded_contact_tangential_speed_p95_m_s": 0.00069523322680792,
+            "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+          }
+        }
+      },
+      "open-loop": {
+        "root_range_xyz_m": [
+          0.009527597063055488,
+          0.006073881245574769,
+          0.011689867676058757
+        ],
+        "reference_joint_rmse_rad": 0.05388274782005425,
+        "joint_speed_peak_rad_s": 0.4321627385434801,
+        "joint_acceleration_sampled_peak_rad_s2": 5.289227126983741,
+        "driver_clipped_joint_fraction": 0.0,
+        "peak_actuator_torque_nm": 0.7229583180818824,
+        "contacts": {
+          "force_threshold_n": 0.1,
+          "sample_hz": 52,
+          "all_four_loaded_fraction": 1.0,
+          "min_loaded_feet": 4,
+          "no_loaded_ground_contacts_samples": 0,
+          "non_foot_ground_contact_samples": 0,
+          "loaded_contact_tangential_speed_rms_m_s": 0.0013095947639077791,
+          "loaded_contact_tangential_speed_p95_m_s": 0.0025982446486232974,
+          "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+        },
+        "completed": true,
+        "terminal_hold": {
+          "frames": [
+            297
+          ],
+          "final_height_m": 0.1578135552500518,
+          "final_tilt_deg": 0.6014382181358056,
+          "max_joint_speed_last_half_second_rad_s": 0.007365012142448154,
+          "endpoint_joint_error_max_rad": 0.07328062317047118,
+          "contacts": {
+            "force_threshold_n": 0.1,
+            "sample_hz": 52,
+            "all_four_loaded_fraction": 1.0,
+            "min_loaded_feet": 4,
+            "no_loaded_ground_contacts_samples": 0,
+            "non_foot_ground_contact_samples": 0,
+            "loaded_contact_tangential_speed_rms_m_s": 0.0007749606786351662,
+            "loaded_contact_tangential_speed_p95_m_s": 0.0010796259150403663,
+            "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+          }
+        }
+      }
+    },
+    "candidate": {
+      "native": {
+        "root_range_xyz_m": [
+          0.016910949077757188,
+          0.007967512979265385,
+          0.00233303087972625
+        ],
+        "reference_joint_rmse_rad": 0.1672306551490204,
+        "joint_speed_peak_rad_s": 0.8243403099027026,
+        "joint_acceleration_sampled_peak_rad_s2": 18.576822740910274,
+        "driver_clipped_joint_fraction": 0.0,
+        "peak_actuator_torque_nm": 0.7815966461594885,
+        "contacts": {
+          "force_threshold_n": 0.1,
+          "sample_hz": 52,
+          "all_four_loaded_fraction": 1.0,
+          "min_loaded_feet": 4,
+          "no_loaded_ground_contacts_samples": 0,
+          "non_foot_ground_contact_samples": 0,
+          "loaded_contact_tangential_speed_rms_m_s": 0.004474909933296788,
+          "loaded_contact_tangential_speed_p95_m_s": 0.002390278537744732,
+          "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+        },
+        "completed": true,
+        "terminal_hold": {
+          "frames": [
+            415
+          ],
+          "final_height_m": 0.16173866749970955,
+          "final_tilt_deg": 1.2684072355425804,
+          "max_joint_speed_last_half_second_rad_s": 0.0028291227153496605,
+          "endpoint_joint_error_max_rad": 0.07094916612722124,
+          "contacts": {
+            "force_threshold_n": 0.1,
+            "sample_hz": 52,
+            "all_four_loaded_fraction": 1.0,
+            "min_loaded_feet": 4,
+            "no_loaded_ground_contacts_samples": 0,
+            "non_foot_ground_contact_samples": 0,
+            "loaded_contact_tangential_speed_rms_m_s": 0.00046058809685090295,
+            "loaded_contact_tangential_speed_p95_m_s": 0.0006705831553806711,
+            "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+          }
+        }
+      },
+      "open-loop": {
+        "root_range_xyz_m": [
+          0.016394552080846756,
+          0.0004881673113993808,
+          0.036390392685203776
+        ],
+        "reference_joint_rmse_rad": 0.04565624679454196,
+        "joint_speed_peak_rad_s": 0.7171621439743319,
+        "joint_acceleration_sampled_peak_rad_s2": 4.968933453888736,
+        "driver_clipped_joint_fraction": 0.0,
+        "peak_actuator_torque_nm": 0.6580421106817254,
+        "contacts": {
+          "force_threshold_n": 0.1,
+          "sample_hz": 52,
+          "all_four_loaded_fraction": 1.0,
+          "min_loaded_feet": 4,
+          "no_loaded_ground_contacts_samples": 0,
+          "non_foot_ground_contact_samples": 0,
+          "loaded_contact_tangential_speed_rms_m_s": 0.00027582116763269683,
+          "loaded_contact_tangential_speed_p95_m_s": 0.0004076920836315454,
+          "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+        },
+        "completed": true,
+        "terminal_hold": {
+          "frames": [
+            415
+          ],
+          "final_height_m": 0.15737682076525722,
+          "final_tilt_deg": 0.29825498013219026,
+          "max_joint_speed_last_half_second_rad_s": 0.0010586564892314033,
+          "endpoint_joint_error_max_rad": 0.07208338649083595,
+          "contacts": {
+            "force_threshold_n": 0.1,
+            "sample_hz": 52,
+            "all_four_loaded_fraction": 1.0,
+            "min_loaded_feet": 4,
+            "no_loaded_ground_contacts_samples": 0,
+            "non_foot_ground_contact_samples": 0,
+            "loaded_contact_tangential_speed_rms_m_s": 0.00012978159423825762,
+            "loaded_contact_tangential_speed_p95_m_s": 0.0001659230227098396,
+            "note": "Ground contacts include full torso/leg hulls. Foot-end sphere and lower-leg hull are grouped by leg. Sampled contact telemetry does not certify absence of every transient between52Hz samples."
+          }
+        }
+      }
+    }
+  },
+  "continuous_return": {
+    "original_native_completed": true,
+    "candidate_native_completed": true,
+    "physical_state_resets_after_initialization": 0,
+    "protocol": "Trick init/fade, finite playback,2s terminal hold, normal-controller activation,2s0.1m/s nominal forward command and2s zero command. Offline host only.",
+    "candidate_last_default_stop_max_joint_speed_rad_s": 0.014306885436802596,
+    "meaning": "Finite clip/status and handoff completion do not validate the intended motion shape."
+  },
+  "conclusions": [
+    "The reference increases designed height range from1.21cm to3.4cm while reducing peak reference speed from.808 to.616rad/s and finite-difference peak acceleration from27.31 to1.20rad/s\u00b2.",
+    "The unchanged actor only produces2.3mm body-height variation on the new reference, versus11.75mm on its original reference; joint/reference RMSE rises from.0184 to.1672rad. This is a failed retarget, even though it remains standing and returns to the default controller.",
+    "The separate same-gain open-loop model follows3.64cm height variation with finite standing hold; all four legs remain loaded at the sampled contacts, with no non-foot ground contact or driver clipping. This supports nominal reference feasibility only.",
+    "More visible does not mean uniformly gentler: open-loop peak joint speed rises from.432 to.717rad/s. Candidate nominal body x excursion is1.64cm despite zero reference x travel, and standing endpoint joint error remains about.072rad. These are retained shortcomings.",
+    "No observation identifies the physical source of prior rear under-tracking. This result does not justify a gain change or a raw-trajectory deployment."
+  ],
+  "next_action": "If this clearer motion is selected, train a tracking policy on this exact reference at existing constraints, then re-evaluate full contacts, finite return, tracking, effort and randomized transfer before a separately supervised physical comparison. No training is started by this task.",
+  "limitations": [
+    "One nominal deterministic model each; no contact/actuator parameter robustness claim.",
+    "Native helper transcribes lifecycle using production headers; it is not the ROS binary.",
+    "Reference-only candidate is outside the original training motion distribution.",
+    "Open-loop replay excludes learned stabilization; it must not be deployed as a replacement policy.",
+    "Physical evaluation is absent for this reference.",
+    "Contact and acceleration metrics are sampled52Hz; not exact continuous maxima.",
+    "Contact telemetry is pre-integration; saved joint/root state is one520Hzstep later.",
+    "Open-loop starts the reference first pose; native starts controller default and fades. Cross-mode transient differences are not a controlled causal actor ablation.",
+    "Whole-motion sampled torque/derivative maxima are descriptive nominal simulation metrics, not motor-board measurements or hardware safety certificates."
+  ],
+  "review": {
+    "scope": "Read-only source/trace review; no new simulation/hardware/network.",
+    "decision": "Clear for rejected frozen-actor retarget and nominal reference-feasibility findings only.",
+    "independent_numeric_checks": 16,
+    "policy_non_motion_and_non_trick_fields_identical": true,
+    "source_hashes": {
+      "design.py": "ac5ce6eb5ba7525a56156cd8d6c23104c49faf4495fd8b0aeb54fdbc17cbc06f",
+      "open_loop.py": "b79add171b987326f1a210450716bc2c271a7ca36ef8c32e3a38199d3a3e9954",
+      "compare.py": "e8cb63a9b250df52820c4525a68da174007f9b113a05227053d00821414ed961"
+    },
+    "artifact_hashes": {
+      "design.json": "06404906db959c95550627a5a80912ecb3a75e62be1991ad5bc3f0b519ba903d",
+      "comparison.json": "304ee8da1eb4ee25e5500f6c5b0655aabc5021dad58ca1af788f3ee5a7ac08c9"
+    },
+    "review_notes": [
+      "Reference remains absolute; no default-angle double addition. Only candidate motion/trick metadata change, actor/gains/limits fixed.",
+      "Open-loop applies driver limits and16ms delay with full-hull contacts; endpoint hold is finite. This is a separate feasibility servo, not a substitute learned controller.",
+      "Height range and tracking rejection supported; no unseen physical success/cause inferred.",
+      "Contact states precede saved poststep joint/root state by one520Hzstep;52Hz sampled contact/no-transient limits retained.",
+      "Open-loop starts reference first pose; native initializes from controller default and fades. Do not interpret small cross-mode transient differences as a controlled causal actor ablation."
+    ]
+  },
+  "artifacts": {
+    "directory": "artifacts/generated/clearer-motion-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/clearer-generated-motion",
+    "archive_path": "artifacts/generated/clearer-generated-motion-20261101.tar.gz",
+    "archive_sha256": "709cb2a658d17fb0753cb379b210db0fa0226b4c3ae3a65c340f9d0cc3807343",
+    "archive_bytes": 81176030,
+    "index_sha256": "0e03db31b456e9426ccbb3cc271178cee61282b73b93edb1af442db43e2451f7",
+    "verified_files_both_stores_and_archive": 87,
+    "plot": "artifacts/generated/clearer-motion-20261101/comparison.png"
+  }
+}
