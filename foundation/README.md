@@ -59,6 +59,12 @@ measurement and diagnosis; they do not close the physical reliability gap.
   integer-pixel matches across 57 saved frames, while heading changes 65.6° over
   the 54 overlapping sensor/camera samples. This is image consistency evidence,
   not calibrated visual odometry or a diagnosis of the cause.
+  The [November 2 controlled session](results/workstream1-supported-recurrence-20261102.json)
+  localizes recurrence to quiet standing before the first skill, despite a quiet
+  supported startup. Three completed Sit/paw chains do not establish reliability:
+  later heading drift contradicts the camera, and persists after controller
+  deactivation. [Independent device packets](results/workstream1-post-motor-sensor-20261102.json)
+  narrow the fault beyond API/policy execution without identifying its cause.
 - **Software feedback has a narrower meaning than motion:** “queued” follows
   actual queue insertion; controller receipts prove matching playback progress,
   not physical posture. Current voice work retains conversation and commands

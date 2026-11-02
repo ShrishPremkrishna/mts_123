@@ -1,0 +1,401 @@
+{
+  "schema": "pupper_sensor_only_session_v1",
+  "recorded_utc": "2026-11-02T19:50:51.511296+00:00",
+  "status": "sensor_only_capture_complete_residual_drift_observed_motion_unvalidated",
+  "scope": "Completed inspect-01/02/03 and comparison-01/02 with their original evidence, plus closed native-reader-01 addendum; later controller/homing runs excluded.",
+  "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
+  "finding": "Slow orientation drift remained against a stable camera scene in this fresh-boot record. RV05 changed 0.698 degrees in the baseline and 1.329 degrees in the comparison; Game08 changed 1.332 degrees in the comparison. The earlier large-drift episode was not reproduced, but this recording establishes neither a cure nor a motion-ready sensor.",
+  "attempts": {
+    "inspect-01": {
+      "exit_code": 1,
+      "outcome": "Ubuntu-built binary could not load Pi GLIBCXX_3.4.32; no diagnostic capture. Native Pi compilation fixed compatibility.",
+      "binary_sha256": "49797e63a9e3b8a194cb9f0967a345477ab027da60371613c29c47f76b3b0709"
+    },
+    "inspect-02": {
+      "exit_code": 0,
+      "outcome": "All five feature snapshots valid and fully disabled; calibration settings accel1/gyro0/mag1/planar0/on_table1, status0.",
+      "binary_sha256": "a80a4988e75fdaad196fc9f6ca5e0f4e296cd6a1abb709b5d5cf7e6bde4ac3b8"
+    },
+    "comparison-01": {
+      "exit_code": 4,
+      "outcome": "Immediate old-zero FC02 after one enable write failed verification before either capture phase; originals restored. Retained without usable phase data.",
+      "binary_sha256": "26a885032c83e17e6c728f426f50ae3e7f9aeac09853f6eee02a97bc8262f955"
+    },
+    "inspect-03": {
+      "exit_code": 0,
+      "outcome": "Later queries independently confirmed all five reports still disabled and unchanged calibration settings.",
+      "binary_sha256": "a80a4988e75fdaad196fc9f6ca5e0f4e296cd6a1abb709b5d5cf7e6bde4ac3b8"
+    },
+    "comparison-02": {
+      "exit_code": 0,
+      "outcome": "Both phases closed; final full-field restoration verified; camera exited0; battery-monitor service restored to prior-active state.",
+      "binary_sha256": "cf44bbc084af160a3076395c7618c1fe3d2ff8870db268a5d2784e615b62f28a"
+    }
+  },
+  "implementation": {
+    "source": "foundation/hardware/imu_diagnostic/diagnostic.cpp",
+    "source_sha256": "c510f56570d569ba0b34de9fa2c223da1dd5b0651343ae5c77489b97b87bcaad",
+    "tests_sha256": "82cd4ba7055dc2dbee8b44ebd6125dba50e429f655385fcc989706ed42c9c8fd",
+    "patch_sha256": "386a2e158ba6a31bac19326beb7d0d078be88b590cf8c3f0291ff6734ecf6cb6",
+    "change": "Explicit fresh-boot --enable-baseline preserves original fields, enables02/05 at100Hz for30s, then requested07/08 at100Hz and13 at1Hz for60s. A single FD write allows up to1s exact asynchronous FC convergence with FE queries at least20ms apart, clipped by existing deadlines. Restoration includes late all-five verification; no reset or calibration change.",
+    "scope_limit": "Standalone diagnostic only; production motor driver, policy, gains and homing unchanged."
+  },
+  "offline_validation": {
+    "fake_i2c_assertions": 836,
+    "host_passed": true,
+    "native_pi_passed": true,
+    "independent_source_review": "diagnostic-candidates/settling-peer-review.json inside archive",
+    "independent_raw_review": "Decoded30,045 gyro/quaternion report records directly from packet payload bytes; Q9 means and normalized Q14 endpoint angles matched analysis (angle tolerance1e-9degrees).",
+    "integration_check": "All12 original diagnostic input files matched before patch application; integrated C++ and tests are byte-identical to the reviewed and hardware-exercised source. No redundant test rerun; README changed only to record this evidence."
+  },
+  "capture": {
+    "phases": {
+      "baseline_02_05": {
+        "duration_s": 30.001544647000173,
+        "report_counts": {
+          "02": 3006,
+          "05": 3005,
+          "07": 0,
+          "08": 0,
+          "13": 0
+        },
+        "gyro02_sensor_mean_xyz_rad_s": [
+          -0.0009739635312707918,
+          6.822292914171657e-05,
+          -0.00027549068529607453
+        ],
+        "orientations": {
+          "05": {
+            "n": 3005,
+            "sample_span_s": 29.99072067799989,
+            "normalized_geodesic_start_end_delta_deg": 0.697840521809206,
+            "body_yaw_unwrapped_change_deg": -0.6828375950321117,
+            "max_geodesic_step_deg": 0.011930586381876154
+          }
+        },
+        "parse_failed_packets": 0
+      },
+      "comparison": {
+        "duration_s": 60.001869479000106,
+        "report_counts": {
+          "02": 6009,
+          "05": 6005,
+          "07": 6010,
+          "08": 6010,
+          "13": 60
+        },
+        "gyro02_sensor_mean_xyz_rad_s": [
+          -0.0006679433974038941,
+          0.00013683901231486105,
+          -0.0002837540564153769
+        ],
+        "orientations": {
+          "05": {
+            "n": 6005,
+            "sample_span_s": 59.98362328999997,
+            "normalized_geodesic_start_end_delta_deg": 1.3288401590921206,
+            "body_yaw_unwrapped_change_deg": -1.3206286904495244,
+            "max_geodesic_step_deg": 0.011910509089777565
+          },
+          "08": {
+            "n": 6010,
+            "sample_span_s": 59.98362328999997,
+            "normalized_geodesic_start_end_delta_deg": 1.3324142318321062,
+            "body_yaw_unwrapped_change_deg": -1.3287663402635133,
+            "max_geodesic_step_deg": 0.054992989932163894
+          }
+        },
+        "parse_failed_packets": 0
+      }
+    },
+    "completion": {
+      "complete": true,
+      "exit_code": 0,
+      "restoration_required": true,
+      "restoration_verified": true,
+      "restoration_uncertain": false,
+      "write_delivery_uncertain": false,
+      "logging_failed": false,
+      "error": "",
+      "finished_records": 1
+    },
+    "write_audit": {
+      "total": 55,
+      "feature_writes": 10,
+      "enable_order_hex": [
+        "02",
+        "05",
+        "07",
+        "08",
+        "13"
+      ],
+      "restore_order_hex": [
+        "13",
+        "08",
+        "07",
+        "05",
+        "02"
+      ],
+      "all_allowed_queries_or_feature_writes": true,
+      "no_reset_calibration_tare_or_dcd_write": true,
+      "late_all_five_full_fields_equal_original": true
+    },
+    "rv05_accuracy_status": 0,
+    "rv05_reported_heading_uncertainty_deg": 180.00051044295492,
+    "comparison_final_rv05_game08_relative_change_disagreement_deg": 0.057064422363850405,
+    "interpretation": "RV05 and Game08 changed almost together; this record does not isolate a magnetic-only fault. Small nonzero gyro means and low reported RV heading confidence remain; no bias subtraction or calibration treatment was applied."
+  },
+  "camera": {
+    "decoded_frames": 463,
+    "phase_frames": {
+      "baseline_02_05": 150,
+      "comparison": 300
+    },
+    "fixed_background_patches": 3,
+    "all_integer_displacements_px": 0,
+    "minimum_ncc": 0.9935310345042251,
+    "search_boundary_matches": 0,
+    "source_sha256": "456f5b65535de5acc46440a7778391be0da3a2c15e8351a6a0f7bf30dda9ab9f",
+    "video_sha256": "0507555dfed77afac8b10598d8f54861bdd0835bed9be8dabef1c65677e640be",
+    "limits": [
+      "No calibrated visual odometry or physical pose estimate.",
+      "Zero integer displacement cannot exclude subpixel motion or motion between5Hz frames.",
+      "Templates manually chosen; correlation strength and ambiguity retained."
+    ]
+  },
+  "application_staging": {
+    "source_commit": "b1467b08091f89092a57d1b7efea4c9a3e69f3f5",
+    "previous_copy_preserved": "/home/pi/pupper-foundation-session-20261029/software-v4",
+    "staged_copy": "/home/pi/pupper-foundation-session-20261029/software-b1467b0",
+    "verified_payload_files": 35,
+    "native_driver_or_policy_changed": false,
+    "motor_controller_started": false,
+    "fake_smoke_exit_code": 0,
+    "fake_runtime_hardware_connected": false,
+    "served_index_js_sha256": "0f176b49a7e8efd1fdcb4a675d8f937b44bf2dae862236916d2d29bb9d5169fc",
+    "limitation": "Successful native-Pi fake server and served UI verify staging only; no live ROS, motor, camera or provider behavior was exercised by this smoke check."
+  },
+  "limitations": [
+    "One fresh-boot record and observed scene stability do not explain or rule out the earlier large-drift failure.",
+    "Camera integer-pixel matches do not establish calibrated physical pose or exclude subpixel or between-frame motion.",
+    "Host receipt timestamps are not synchronized physical measurement times;07/02 nearest-receipt residuals are an offline comparison only.",
+    "Calibration-enable flags describe configuration, not calibration accuracy; feature restoration does not reverse background fusion evolution.",
+    "No robot motion, controller initialization, homing, policy or gain validation occurred in these sensor-only runs."
+  ],
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/imu-sensor-session",
+    "archive": "sensor-session-evidence.tar.gz",
+    "archive_sha256": "af16ba0992b0563e46387630935ef5fd10119cd86d4ed42640c7d6de666798dd",
+    "archive_bytes": 14150231,
+    "manifest": "manifest.json",
+    "manifest_sha256": "61598903f2f10e1cbdb22b7ab0120f7683bb3cacb80ab16883dda3bd968cf4ec",
+    "members": 160,
+    "all_archived_members_verified": true,
+    "candidate_historical_readme_sha256": "ccfa010d93d14dcd67e8f66730246b78f112dbb016a7b497982f877f88f898dd",
+    "integrated_readme_sha256": "8ca7600c550a9802f4d0dc1db12a2aea331a3c74485d88c1570c16fc3f2328d1"
+  },
+  "native_reader_addendum": {
+    "recorded_utc": "2026-11-02T19:56:25.953854+00:00",
+    "status": "closed_native_sensor_only_capture_residual_drift_observed",
+    "scope": "One30s actual native BNO055 constructor/sample capture with synchronized5Hz camera. No ROS manager, SPI/motor code, controller initialization or homing was invoked. Later supervised controller runs are excluded.",
+    "run": "native-reader-01",
+    "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
+    "execution": {
+      "started_utc": "2026-11-02T19:49:35.050868+00:00",
+      "finished_utc": "2026-11-02T19:50:08.951102+00:00",
+      "diagnostic_command": [
+        "sudo",
+        "-n",
+        "timeout",
+        "-s",
+        "INT",
+        "-k",
+        "5",
+        "45",
+        "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build/candidate_sensor_only",
+        "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261102/native-reader-01/capture",
+        "30"
+      ],
+      "diagnostic_exit_code": 0,
+      "camera_exit_code": 0,
+      "i2c_owner_check": {
+        "returncode": 1,
+        "stdout": "",
+        "stderr": ""
+      },
+      "battery_monitor_initially_active": true,
+      "battery_monitor_restore_exit": 0,
+      "battery_monitor_finally_active": true
+    },
+    "probe_identity": {
+      "binary_sha256": "8175ad6c782f6512fd07621f888b7b3c3003aa9d990c67b3d141ef010e2e9a09",
+      "probe_source_sha256": "5ebab0d3f91e61ffffa4331db7de9d7b9eee4a6b130707eca430e30f536f2613",
+      "previous_frozen_report": "foundation/results/imu-parser-candidate-20261101.json",
+      "previous_archive_sha256": "0a2da337e57c247720aef6b9f53abe414c325b8cd03e8f56482fc21f3d5ae107",
+      "provenance": "Reused existing ARM64 candidate_sensor_only binary, not rebuilt. Archived previous exact binary/source and build SHA manifest are included. Four native inputs below are byte-identical to both the previous frozen package and current checkout.",
+      "native_input_sha256": {
+        "rt_bno055.cpp": "2b681753606e696592564978e215eb6ec8128075852a8c9d8b84194b8d7565dd",
+        "rt_bno055.h": "d54971c39a9b979e286f7bbd1ce01e89e9e8095bce80867a683197fe0d920d16",
+        "bno_protocol.hpp": "07e1a8479e7dd3ae15e4f0e5073da91348e308b61cb3b37813930eac09a2e573",
+        "imu_health.hpp": "b9f1f74813809bdb2d7b60ff70eb7d763191bd0cb060406be8919573a67a0622"
+      },
+      "reader_scope": "BNO055(1,10000) and public sample(), not IMUManager thread or ROS/hardware interface. All polling availability retained; gyro/quaternion statistics use unique component receipt clocks."
+    },
+    "sensor_side_effects": {
+      "soft_reset": true,
+      "explicit_calibration_tare_dcd_command": false,
+      "explicit_calibration_setting_change": false,
+      "native_feature_enable_order_hex": [
+        "05",
+        "02"
+      ],
+      "report_interval_us": 10000,
+      "feature_restoration_performed": false,
+      "expected_post_run_feature_state": "Native constructor left05/02 enabled at100Hz; destructor only closes I2C fd. No post-run feature readback is claimed in this addendum.",
+      "caveat": "Soft reset is a sensor-state change and may itself persist RAM calibration data according to the saved vendor documentation; no no-flash-side-effect guarantee or calibration cure is claimed."
+    },
+    "capture": {
+      "duration_s": 30.00202383399983,
+      "closed_window": {
+        "start_monotonic_s": 2567.751019746,
+        "end_monotonic_s": 2597.75304358,
+        "duration_s": 30.00202383399983
+      },
+      "finished": {
+        "event": "finished",
+        "elapsed_s": 30.00202383399983,
+        "samples": 8248,
+        "unusable_samples": 43,
+        "first_ready_seen": true,
+        "read_count": 20299,
+        "read_failures": 0,
+        "interrupted": false
+      },
+      "input_parse_errors": [],
+      "polls": 8248,
+      "q_updates": 2983,
+      "gyro_updates": 2986,
+      "gyro_sensor_mean_xyz_rad_s": [
+        -0.0004474003683858004,
+        4.6440681513730746e-05,
+        -0.0003152733590087073
+      ],
+      "gyro_body_mean_xyz_rad_s": [
+        0.0005392913449587794,
+        4.6440681513730746e-05,
+        -9.34303258312519e-05
+      ],
+      "gyro_sensor_OLS_slope_xyz_rad_s_per_s": [
+        2.1310373996267967e-05,
+        -1.2060504966853583e-06,
+        -4.693595910747373e-06
+      ],
+      "gyro_body_OLS_slope_xyz_rad_s_per_s": [
+        -1.1749753901838683e-05,
+        -1.2060504966853583e-06,
+        1.838763621786185e-05
+      ],
+      "body_yaw_change_deg": -0.3969032048638894,
+      "body_yaw_OLS_slope_deg_per_min": -0.8395699929707998,
+      "geodesic_quaternion_change_deg": 0.41383849903616915,
+      "body_tilt_min_max_deg": [
+        2.5233949992454225,
+        2.686871183179733
+      ],
+      "body_yaw_OLS_slope_per_5s_window_deg_per_min": [
+        -1.0945959264518628,
+        -1.1604317659105579,
+        -1.1059235019106726,
+        -0.7689694335356172,
+        -0.41606131401300245,
+        -0.2957065140228999
+      ],
+      "accuracy_unique_reports": {
+        "quaternion": {
+          "0": 2983
+        },
+        "gyro": {
+          "2": 2966,
+          "3": 20
+        }
+      },
+      "quaternion_raw_norm": {
+        "n": 2983,
+        "mean": 1.0000001968675294,
+        "std_population": 1.785893722059668e-05,
+        "min": 0.9999521530893882,
+        "max": 1.000048574743094,
+        "peak_abs": 1.000048574743094
+      },
+      "first_usable_elapsed_s": 0.10161150899966742,
+      "unusable_before_first_usable": 43,
+      "unusable_after_first_usable": 0,
+      "max_usable_component_receipt_age_s": {
+        "quaternion_receipt_age_s": 0.011617394,
+        "gyro_receipt_age_s": 0.009916016
+      },
+      "after_first_usable_stale_polls": {
+        "quaternion_receipt_age_s": 0,
+        "gyro_receipt_age_s": 0
+      },
+      "startup_screen_transitions": [
+        {
+          "elapsed_s": 3.1073780859996987,
+          "ready": true
+        },
+        {
+          "elapsed_s": 4.165556728999945,
+          "ready": false
+        },
+        {
+          "elapsed_s": 18.33614138999974,
+          "ready": true
+        },
+        {
+          "elapsed_s": 27.673981412000103,
+          "ready": false
+        }
+      ],
+      "startup_screen_reset_observation": "Both ready-to-not-ready transitions have gyro norm0.006176323555rad/s, exceeding unchanged0.005rad/s threshold; freshness remained usable. Peak unique gyro norm0.008052940675rad/s;27of2986unique updates exceed0.005. This diagnostic continues evaluating the screen; production uses it before enable."
+    },
+    "camera": {
+      "decoded_frames": 156,
+      "matched_metadata_frames": 156,
+      "sampling_window_frames": 150,
+      "fixed_background_patches": 3,
+      "all_integer_displacements_px": 0,
+      "minimum_ncc": 0.9667113480557011,
+      "search_boundary_matches": 0,
+      "video_sha256": "9a6e993792771512495de425ed9bbebbfce5d65f86db402a551948b48783cfac",
+      "reused_ncc_source_sha256": "456f5b65535de5acc46440a7778391be0da3a2c15e8351a6a0f7bf30dda9ab9f",
+      "window_note": "Camera window starts at sampling_start and ends at the last logged sample,1.06229ms before the finished-derived sensor window end. Both window definitions are retained.",
+      "limits": [
+        "No calibrated visual odometry or physical pose estimate.",
+        "Zero integer displacement cannot exclude subpixel motion or motion between5Hz frames.",
+        "Templates manually chosen; correlation strength and ambiguity retained."
+      ]
+    },
+    "interpretation": "The same frozen native constructor/reset/parser also did not reproduce the prior severe-drift signature. Modest body yaw drift slowed during30s while the scene remained consistent at integer-pixel resolution. No-resetbaseline was already low-drift; this is not evidence that reset cured the fault. Reset, report enable order, native caching and elapsed time are not individually isolated. Neither sensor nor camera establishes motor readiness.",
+    "artifacts": {
+      "repo": "artifacts/hardware/2026-11-02/imu-sensor-session/native-reader-01",
+      "archive": "native-reader-01-evidence.tar.gz",
+      "archive_sha256": "dedef4d5dde74397f951e5a7fdc00fba534f3d3f9f81270858c2d624a98c10b0",
+      "archive_bytes": 4276025,
+      "manifest": "manifest.json",
+      "manifest_sha256": "0de5cb388dd1a288d0c154bc79dc407058113c6ec2769bf117662e5ef949b346",
+      "members": 36,
+      "all_archived_members_verified": true,
+      "native_analysis_sha256": "c5a14e7bc2ab31016d909203c9324e43a7972d161fc375109c52f0e7756526f3",
+      "native_analysis_source_sha256": "393928ad10139bdc232b61154a2bf503cef77ba24ff91ed9809152069d0c5aaa",
+      "camera_checker_source_sha256": "67564537d4e05a1d20b2e6e0726bd27c9b874f993015308d13f271f88dd02585",
+      "raw_samples_sha256": "92d02c87f16307a5caa60c15247d402a6a5be8034ef501a8463e18e18e325494",
+      "raw_reads_sha256": "153a07fff709fc236e6aa8ec6e08a1a5a675d62a3919b011496955c69a4f58db"
+    },
+    "limits": [
+      "One stationary native-constructor capture with no motor/ROS path; no cure or subsequent motion validation.",
+      "Native public samples omit RV heading-accuracy estimate and07/08/13; no such metrics inferred.",
+      "Host receipt freshness is availability, not synchronized measurement age. Latest cached reports can collapse intermediate reports.",
+      "No new test, binary build or capture was run during preservation. Existing analysis/math evidence retained; archive integrity checks only."
+    ]
+  }
+}

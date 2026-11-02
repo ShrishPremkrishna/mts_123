@@ -116,35 +116,70 @@ struct Capture {
   if(r[5]!=0)throw std::runtime_error("calibration readback returned failure");
   for(uint8_t id:diagnostic::monitored){original[id]=feature(id);}
  }
+ void await_feature(const diagnostic::Feature&expected){
+  const double until=std::min(deadline,io.now()+1.);double next_query=io.now();controls.clear();
+  while(io.now()<until){
+   if(io.now()>=next_query){send(diagnostic::feature_query(expected.id()));next_query=io.now()+.02;}
+   poll();bool seen=false,matched=false;
+   for(const auto&r:controls){if(r.size()==17&&r[0]==0xfc&&r[1]==expected.id()){
+    auto actual=diagnostic::feature_response(r);seen=true;matched=(actual==expected);
+    event("feature_readback",",\"sensor_id\":"+std::to_string(expected.id())+",\"raw_hex\":"+quote(hex(r)));
+    if(!matched)event("feature_wait_mismatch",",\"sensor_id\":"+std::to_string(expected.id())+",\"raw_hex\":"+quote(hex(r))+",\"expected_set_hex\":"+quote(hex(expected.set_request())));
+   }}
+   controls.clear();if(seen&&matched)return;
+  }
+  throw std::runtime_error("effective feature did not match within bounded settling wait");
+ }
  void set_feature(const diagnostic::Feature&f){
   if(std::find(dirty.begin(),dirty.end(),f.id())==dirty.end())dirty.push_back(f.id()); // Before the potentially partial write.
-  send(f.set_request());auto actual=feature(f.id());if(!(actual==f))throw std::runtime_error("effective feature differs from requested fields");
+  send(f.set_request());await_feature(f);
  }
  bool restore(){
   if(dirty.empty()) { return true; }
   restoring=true;deadline=hard_deadline;bool okay=true;event("restore_start");
   // Reverse direct changes first; later verify every monitored field for coupling.
-  for(auto i=dirty.rbegin();i!=dirty.rend();++i){try{send(original.at(*i).set_request());}catch(const std::exception&e){okay=false;event("restore_write_failed",",\"message\":"+quote(e.what()));}}
+  for(auto i=dirty.rbegin();i!=dirty.rend();++i){try{send(original.at(*i).set_request());await_feature(original.at(*i));}catch(const std::exception&e){okay=false;event("restore_write_failed",",\"message\":"+quote(e.what()));}}
   std::map<uint8_t,diagnostic::Feature> checkback;
   for(uint8_t id:diagnostic::monitored){try{checkback[id]=feature(id);}catch(const std::exception&e){okay=false;event("restore_readback_failed",",\"sensor_id\":"+std::to_string(id)+",\"message\":"+quote(e.what()));}}
   // One bounded correction for proven coupled changes. Never invent unavailable originals.
   bool corrections=false;
-  for(auto i=diagnostic::monitored.rbegin();i!=diagnostic::monitored.rend();++i){auto k=checkback.find(*i);if(k!=checkback.end()&&!(k->second==original.at(*i))){corrections=true;try{send(original.at(*i).set_request());}catch(...){okay=false;}}}
+  for(auto i=diagnostic::monitored.rbegin();i!=diagnostic::monitored.rend();++i){auto k=checkback.find(*i);if(std::find(dirty.begin(),dirty.end(),*i)==dirty.end()&&k!=checkback.end()&&!(k->second==original.at(*i))){corrections=true;try{send(original.at(*i).set_request());await_feature(original.at(*i));}catch(...){okay=false;}}}
   if(corrections){checkback.clear();for(uint8_t id:diagnostic::monitored){try{checkback[id]=feature(id);}catch(...){okay=false;}}}
   for(uint8_t id:diagnostic::monitored){auto k=checkback.find(id);if(k==checkback.end()||!(k->second==original.at(id)))okay=false;}
+  // A first matching response can precede asynchronous feature application.
+  // Observe a later complete round; this never resubmits a Set Feature command.
+  const double settle_until=std::min(deadline,io.now()+.02);while(io.now()<settle_until){poll();controls.clear();}
+  for(uint8_t id:diagnostic::monitored){try{await_feature(original.at(id));}catch(const std::exception&e){okay=false;event("restore_late_readback_failed",",\"sensor_id\":"+std::to_string(id)+",\"message\":"+quote(e.what()));}}
   event("restore_finished",",\"verified\":"+std::string(okay?"true":"false"));return okay;
  }
- int run(bool compare,const std::vector<uint8_t>&extras,double seconds){
-  permit_set=compare;const double start=io.now();hard_deadline=start+(compare?seconds+30.:12.);deadline=hard_deadline-(compare?12.:0.);bool complete=false,restored=true;std::string error;
+ void capture_phase(const std::string&phase,double seconds,const std::map<uint8_t,diagnostic::Feature>&expected){
+  for(uint8_t id:diagnostic::monitored){if(!(feature(id)==expected.at(id)))throw std::runtime_error("related feature changed; capture refused");}
+  if(io.now()+seconds>deadline)throw std::runtime_error("insufficient time reserved for restoration");
+  event("capture_start",",\"phase\":"+quote(phase)+",\"seconds\":"+std::to_string(seconds));const double until=io.now()+seconds;
+  while(io.now()<until){poll();controls.clear();for(uint8_t id:diagnostic::monitored){if(!(observed.at(id)==expected.at(id)))throw std::runtime_error("effective configuration changed during capture");}}
+  event("capture_finished",",\"phase\":"+quote(phase));
+ }
+ int run(bool compare,const std::vector<uint8_t>&extras,double seconds,bool enable_baseline=false){
+  const double baseline_seconds=enable_baseline?30.:0.;
+  permit_set=compare;const double start=io.now();hard_deadline=start+(compare?seconds+baseline_seconds+(enable_baseline?40.:30.):12.);deadline=hard_deadline-(compare?12.:0.);bool complete=false,restored=true;std::string error;
   try{
+   if(enable_baseline&&!compare)throw std::runtime_error("baseline enable is allowed only in explicit compare mode");
    inspect();event("inspection_complete",",\"product_set_complete\":null,\"note\":\"Product records collected for bounded1second; no transaction count proof.\"");
    if(compare){
-    if(!original.at(2).interval_us()||!original.at(5).interval_us())throw std::runtime_error("compare requires preexisting enabled02 and05; will not enable them");
-    for(uint8_t id:extras){set_feature(diagnostic::diagnostic_feature(id));}
-    for(uint8_t id:diagnostic::monitored){auto expected=std::find(extras.begin(),extras.end(),id)!=extras.end()?diagnostic::diagnostic_feature(id):original.at(id);if(!(feature(id)==expected))throw std::runtime_error("related feature changed; capture refused");}
-    if(io.now()+seconds>deadline)throw std::runtime_error("insufficient time reserved for restoration");
-    event("capture_start",",\"seconds\":"+std::to_string(seconds));const double until=io.now()+seconds;
-    while(io.now()<until){poll();controls.clear();for(uint8_t id:diagnostic::monitored){auto expected=std::find(extras.begin(),extras.end(),id)!=extras.end()?diagnostic::diagnostic_feature(id):original.at(id);if(!(observed.at(id)==expected))throw std::runtime_error("effective configuration changed during capture");}}event("capture_finished");
+    auto expected=original;
+    if(enable_baseline){
+     for(uint8_t id:diagnostic::monitored){if(original.at(id).interval_us())throw std::runtime_error("baseline enable requires all monitored reports initially disabled");}
+     event("baseline_enable",",\"baseline_seconds\":30,\"interval_us\":10000");
+     for(uint8_t id:std::array<uint8_t,2>{{2,5}}){
+      auto target=original.at(id);for(unsigned k=0;k<4;++k)target.fields[4+k]=uint8_t(10000u>>(8*k));
+      set_feature(target);expected[id]=target;
+     }
+     capture_phase("baseline_02_05",baseline_seconds,expected);
+    }else if(!original.at(2).interval_us()||!original.at(5).interval_us()){
+     throw std::runtime_error("compare requires preexisting enabled02 and05; will not enable them without --enable-baseline");
+    }
+    for(uint8_t id:extras){auto target=diagnostic::diagnostic_feature(id);set_feature(target);expected[id]=target;}
+    capture_phase("comparison",seconds,expected);
    }
    complete=true;
   }catch(const std::exception&e){error=e.what();try{event("operation_failed",",\"message\":"+quote(error));}catch(...){}}
@@ -178,12 +213,13 @@ static bool exclusive_check(const std::string&dir){
 #endif
 }
 int main(int argc,char**argv){
- if(argc<4){std::cerr<<"usage: bno_diagnostic inspect NEWDIR --device-inactive\n       bno_diagnostic compare NEWDIR --device-inactive --enable=07,08,13 --seconds=30\n";return 2;}
+ if(argc<4){std::cerr<<"usage: bno_diagnostic inspect NEWDIR --device-inactive\n       bno_diagnostic compare NEWDIR --device-inactive --enable=07,08,13 --seconds=30 [--enable-baseline]\n";return 2;}
  const bool compare=std::string(argv[1])=="compare";
  if(!compare&&std::string(argv[1])!="inspect")return 2;
- bool acknowledged=false,have_seconds=false,have_enable=false;double seconds=0;std::vector<uint8_t> extras;
+ bool acknowledged=false,have_seconds=false,have_enable=false,enable_baseline=false;double seconds=0;std::vector<uint8_t> extras;
  for(int i=3;i<argc;++i){std::string arg=argv[i];
   if(arg=="--device-inactive"&&!acknowledged){acknowledged=true;}
+  else if(compare&&arg=="--enable-baseline"&&!enable_baseline){enable_baseline=true;}
   else if(compare&&arg.rfind("--enable=",0)==0&&!have_enable){
    have_enable=true;std::stringstream ss(arg.substr(9));std::string token;std::set<uint8_t> unique;
    while(std::getline(ss,token,',')){uint8_t id=token=="07"?7:token=="08"?8:token=="13"?0x13:0;if(!id||!unique.insert(id).second)return 2;extras.push_back(id);}
@@ -200,14 +236,14 @@ int main(int argc,char**argv){
  for(auto*s:{&reads,&writes,&packets,&state}){s->exceptions(std::ios::failbit|std::ios::badbit);*s<<std::setprecision(17);}
  stopped=0;std::signal(SIGINT,signal_stop);std::signal(SIGTERM,signal_stop);
  try{
-  state<<"{\"event\":\"start\",\"wall_s\":"<<wall_s()<<",\"mode\":"<<quote(argv[1])<<",\"address\":75,\"operator_device_inactive_acknowledged\":true,\"reset\":false,\"calibration_setting\":false,\"dcd_command\":false,\"sensor_report_features_may_change\":"<<(compare?"true":"false")<<",\"kernel_io_deadline_guaranteed\":false}\n";state.flush();
+  state<<"{\"event\":\"start\",\"wall_s\":"<<wall_s()<<",\"mode\":"<<quote(argv[1])<<",\"address\":75,\"operator_device_inactive_acknowledged\":true,\"reset\":false,\"calibration_setting\":false,\"dcd_command\":false,\"sensor_report_features_may_change\":"<<(compare?"true":"false")<<",\"baseline_enable_requested\":"<<(enable_baseline?"true":"false")<<",\"kernel_io_deadline_guaranteed\":false}\n";state.flush();
   if(!exclusive_check(dir)){state<<"{\"event\":\"owner_check_failed_or_unknown\",\"exit_code\":3}\n";return 3;}
   // Readback requires writing queries, soO_RDWR; no sensor-reset constructor.
   const int fd=::open("/dev/i2c-1",O_RDWR|O_CLOEXEC);if(fd<0){state<<"{\"event\":\"open_failed\",\"errno\":"<<errno<<"}\n";return 3;}
   struct Close{int fd;~Close(){::close(fd);}}closer{fd};
   if(::ioctl(fd,I2C_SLAVE,sensor_address)<0){state<<"{\"event\":\"address_selection_failed\",\"errno\":"<<errno<<"}\n";return 3;}
   IO io{[fd](uint8_t*p,size_t n){return ::read(fd,p,n);},[fd](const uint8_t*p,size_t n){return ::write(fd,p,n);},monotonic_s,[]{std::this_thread::sleep_for(std::chrono::milliseconds(1));}};
-  Capture capture(io,reads,writes,packets,state);return capture.run(compare,extras,seconds);
+  Capture capture(io,reads,writes,packets,state);return capture.run(compare,extras,seconds,enable_baseline);
  }catch(const std::exception&e){std::cerr<<"Diagnostic failed: "<<e.what()<<"; inspect state and restoration records.\n";return 4;}
 }
 #endif

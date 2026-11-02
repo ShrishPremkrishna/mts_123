@@ -1,0 +1,277 @@
+{
+  "schema": "pupper_supported_recurrence_v1",
+  "recorded_utc": "2026-11-02T20:36:47.577839+00:00",
+  "status": "three_software_chains_completed_sensor_recurrence_confirmed_no_further_motion",
+  "time_basis": "All stated clock times are UTC; metrics use recorded Pi host/MCAP receipt time.",
+  "findings": [
+    "The operator reported a controlled first Sit/hold/left-paw/right-paw/stand chain without tipping or visible rotation. Repeats2/3 remained controlled but showed small (<10degree) counterclockwise rotation around sit-to-stand. These observations do not establish a repeatable physical pass.",
+    "Sensor drift was developing before chain1: increasingly negative episodes appear around20:02:35\u201320:03:05, while chain1 starts20:04:06.785. There is no uniquely identified sharp onset or demonstrated causal trick.",
+    "Between chains1/2, a camera-consistent quiet interval accumulates about60degrees of reported heading change. After chain3, another quiet interval accumulates about276degrees. The recurrence was not first created or first present after chain3.",
+    "Reported gyro remains elevated after Stop and walking-controller deactivation, through a camera-consistent interval after handling, and until full hardware shutdown. It does not return to the early supported baseline while the driver and motor boards remain active.",
+    "This supports a sensor/physical-scene discrepancy, not a diagnosis of thermal state, vibration, electrical interference or an individual policy. The later no-reset capture is separate evidence, with an unobserved78.623second gap after hardware shutdown."
+  ],
+  "session": {
+    "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
+    "application_commit": "b1467b08091f89092a57d1b7efea4c9a3e69f3f5",
+    "prelaunch_battery_percent": 83,
+    "supervised_homing_authorized": true,
+    "homing_count": 1,
+    "homing_native_wall_s": [
+      1793649520.2793124,
+      1793649524.7318103
+    ],
+    "unchanged": "Native driver/controller libraries, model/reference inputs, gains and limits; offline static-idle optimization was not deployed.",
+    "driver_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "neural_controller_prelaunch_sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91",
+    "runtime_manifest_sha256": "79adac674dfcb639e57d21023fe4c2cf6628eb131b08dc08e3a443e30fe4e1e9",
+    "controller_configuration_sha256": "a48923c12c652fcc193146e37369e7865cebee7975cc77f1e7612711e5dd9987",
+    "robot_api_sha256": "cd38c7b4e5260830434f42008cdecd9448dabf8d1e76a8f196561cdc33387b45",
+    "sit_policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+    "source_provenance": "Complete runtime manifest and32 frozen runtime inputs with exact paths/hashes are inside the original archive. Neural-controller hash is preserved in the prelaunch receipt; loaded hardware-interface bytes are frozen."
+  },
+  "core_chain": {
+    "actions": "stand up, Sit entry, explicit10s hold, left paw, right paw, standing exit",
+    "software_jobs": 18,
+    "software_outcomes": "All18 correlated jobs report succeeded; receipts prove software playback/completion, not physical stability.",
+    "durations_s": [
+      {
+        "trial": 1,
+        "started_utc": "2026-11-02T20:04:06.785388+00:00",
+        "initial_stand": 4.371434,
+        "sit_entry": 5.700583,
+        "sit_hold": 10.001529,
+        "left_paw": 4.162889,
+        "right_paw": 4.508148,
+        "standing_exit": 8.885962,
+        "chain_total": 37.631547
+      },
+      {
+        "trial": 2,
+        "started_utc": "2026-11-02T20:08:38.841848+00:00",
+        "initial_stand": 0.021327,
+        "sit_entry": 5.797183,
+        "sit_hold": 10.002447,
+        "left_paw": 4.131253,
+        "right_paw": 4.517752,
+        "standing_exit": 8.894188,
+        "chain_total": 33.368583
+      },
+      {
+        "trial": 3,
+        "started_utc": "2026-11-02T20:09:12.745711+00:00",
+        "initial_stand": 0.021413,
+        "sit_entry": 5.748622,
+        "sit_hold": 10.00106,
+        "left_paw": 4.156337,
+        "right_paw": 4.505925,
+        "standing_exit": 8.925757,
+        "chain_total": 33.362642
+      }
+    ],
+    "timing_interpretation": "Sit entry retains5.5s minimum; requested clips play3.5s plus remaining old native1s idle-loop boundary wait; standing exit adds4.2s walking initialization/fade/readiness. These are not unexplained fixed paw sleeps."
+  },
+  "quiet_sensor_windows": [
+    {
+      "name": "quiet_early_floor",
+      "utc_bounds": [
+        "2026-11-02T20:01:00+00:00",
+        "2026-11-02T20:02:30+00:00"
+      ],
+      "yaw_delta_deg": 0.6164739104679597,
+      "gyro_body_mean_xyz_rad_s": [
+        0.0003944510139804122,
+        0.00021636663826161056,
+        6.256898161767086e-05
+      ],
+      "gyro_norm_mean_rad_s": 0.0017905435123849725
+    },
+    {
+      "name": "prechain_drift",
+      "utc_bounds": [
+        "2026-11-02T20:02:30+00:00",
+        "2026-11-02T20:04:06+00:00"
+      ],
+      "yaw_delta_deg": -11.162403635578386,
+      "gyro_body_mean_xyz_rad_s": [
+        0.0024279930716764944,
+        0.00024864046760216424,
+        -0.0019051835739594927
+      ],
+      "gyro_norm_mean_rad_s": 0.004175055498633153
+    },
+    {
+      "name": "between_chains1_2",
+      "utc_bounds": [
+        "2026-11-02T20:04:46+00:00",
+        "2026-11-02T20:08:38+00:00"
+      ],
+      "yaw_delta_deg": -60.455925087256446,
+      "gyro_body_mean_xyz_rad_s": [
+        0.004988960964447133,
+        0.0002420265058094925,
+        -0.004489035636529767
+      ],
+      "gyro_norm_mean_rad_s": 0.007243761729141982
+    },
+    {
+      "name": "after_chain3_before_handling",
+      "utc_bounds": [
+        "2026-11-02T20:09:50+00:00",
+        "2026-11-02T20:13:00+00:00"
+      ],
+      "yaw_delta_deg": -276.0870904380563,
+      "gyro_body_mean_xyz_rad_s": [
+        0.025253034562732125,
+        -0.0001163845094093705,
+        -0.024802871953515142
+      ],
+      "gyro_norm_mean_rad_s": 0.03545724886926777
+    }
+  ],
+  "camera_corroboration": {
+    "method": "Three manually selected fixed-background patches per quiet window; normalized correlation in a24px local search; hashes and every result preserved.",
+    "before_chain1": {
+      "saved_frames": 195,
+      "covered_yaw_delta_deg": -10.371740917079137,
+      "max_patch_displacement_px": 1.4142135623730951,
+      "minimum_ncc": 0.9733814827414361
+    },
+    "between_chains1_2": {
+      "saved_frames": 219,
+      "covered_yaw_delta_deg": -60.30205205878549,
+      "max_patch_displacement_px": 1.0,
+      "minimum_ncc": 0.9777680976748453
+    },
+    "after_chain3_before_handling": {
+      "saved_frames": 181,
+      "covered_yaw_delta_deg": -275.70521566366415,
+      "max_patch_displacement_px": 2.23606797749979,
+      "minimum_ncc": 0.9001483343513419
+    },
+    "search_boundary_matches": 0,
+    "note": "Camera-covered subsets have slightly different boundaries from the full-rate windows; no pixel-to-angle conversion or exactly-zero-motion claim."
+  },
+  "stop_and_shutdown_tail": {
+    "stop_latched_wall_s": 1793650390.716584,
+    "walking_controller_deactivated_wall_s": 1793650390.7976649,
+    "stop_required_false_wall_s": 1793650390.846912,
+    "handling_interval_approx_utc": [
+      "20:13:10",
+      "20:13:25"
+    ],
+    "camera_consistent_after_handling": {
+      "wall_bounds": [
+        1793650405.5635743,
+        1793650416.1606762
+      ],
+      "duration_s": 10.597101926803589,
+      "samples": 2524,
+      "yaw_delta_deg": -6.341006439241994,
+      "gyro_body_mean_xyz_rad_s": [
+        0.010661097306548663,
+        -0.0002027411846275753,
+        -0.010410586093274322
+      ],
+      "gyro_body_time_mean_xyz_rad_s": [
+        0.010647789152670362,
+        -0.00020953637983746071,
+        -0.010404794230984211
+      ],
+      "gyro_norm_mean_rad_s": 0.015004450855958338,
+      "max_joint_position_range_rad": 0.000762939453125,
+      "saved_frames": 11,
+      "fixed_background_patches": 3,
+      "all_integer_displacements_px": 0,
+      "minimum_ncc": 0.9974664919832712
+    },
+    "last20s_before_shutdown": {
+      "wall_bounds": [
+        1793650438.6963832,
+        1793650458.6947958
+      ],
+      "duration_s": 19.998412609100342,
+      "samples": 4827,
+      "yaw_delta_deg": -26.68121955958145,
+      "gyro_body_mean_xyz_rad_s": [
+        0.023870595911669495,
+        -0.00023185013983840894,
+        -0.02363047419690323
+      ],
+      "gyro_body_time_mean_xyz_rad_s": [
+        0.023891239678803463,
+        -0.00023624433279878228,
+        -0.02365114332268298
+      ],
+      "gyro_norm_mean_rad_s": 0.033641648662828455,
+      "max_joint_position_range_rad": 0.000762939453125
+    },
+    "initial_supported42s_comparison": {
+      "wall_bounds": [
+        1793649526.1581814,
+        1793649568.1559217
+      ],
+      "duration_s": 41.997740268707275,
+      "samples": 10313,
+      "yaw_delta_deg": 0.2138992545252023,
+      "gyro_body_mean_xyz_rad_s": [
+        0.00031095169548332513,
+        0.00013692517938524194,
+        0.00011007693598074811
+      ],
+      "gyro_body_time_mean_xyz_rad_s": [
+        0.0003106447999100911,
+        0.00013952002188537762,
+        0.0001098910692236002
+      ],
+      "gyro_norm_mean_rad_s": 0.0016012848541842692,
+      "max_joint_position_range_rad": 0.0102996826171875
+    },
+    "last_saved_camera_wall_s": 1793650416.1634576,
+    "last_imu_receipt_wall_s": 1793650458.6947958,
+    "hardware_deactivation_wall_s": 1793650458.703074,
+    "important_limit": "Deactivating the controller retains estop_kd damping and does not disable boards or prove zero current. Final42.53s of native IMU have no saved camera coverage."
+  },
+  "coverage": {
+    "mcap_imu_samples": 219021,
+    "imu_receipt_bounds": [
+      1793649526.1581814,
+      1793650458.6947958
+    ],
+    "max_imu_receipt_gap_s": 0.09778833389282227,
+    "mcap_crc_validation_requested": true,
+    "mcap_decode_error": null,
+    "camera_configured_hz": 10,
+    "camera_received_frames": 8990,
+    "camera_saved_frames": 849,
+    "camera_save_max_hz": 1,
+    "camera_configured_duration_bound_s": 900,
+    "camera_decode_errors": 0,
+    "camera_max_arrival_gap_s": 0.455382654999994,
+    "observers": "Observer01 spans the supported/floor baseline for300s; observer02 spans repeats2/3 and later time for300s. Full MCAP covers the first-chain gap and continues past camera end."
+  },
+  "limits": [
+    "Host receipt time does not prove physical sensor sample freshness; related quaternion/gyro outputs are not independent ground truth.",
+    "Camera is raw fisheye imagery saved at approximately1Hz; fixed patch matches do not exclude subpixel or between-frame motion.",
+    "Each quiet camera window is independently anchored. Actual action movement, floor placement and later handling are not classified as stationary sensor error.",
+    "Operator observations are recorded reports, not external motion capture. Earlier partial observer figures remain preserved rather than replaced by a differently bounded full-record aggregate.",
+    "All18 software outcomes succeeded, but this session did not meet repeatable physical/sensor acceptance. No subsequent policy/gain/latency modification or motion was justified by these receipts."
+  ],
+  "related_reports": {
+    "earlier_sensor_only": "workstream1-imu-sensor-session-20261102.json",
+    "subsequent_no_reset_motor_disabled_capture": "workstream1-post-motor-sensor-20261102.json"
+  },
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/supported-recurrence",
+    "original_archive": "complete.tar.gz",
+    "original_archive_bytes": 269556121,
+    "original_archive_sha256": "bb630b2c129b69b967f66096bf8cbcccacbca7ffa6b4330c3e10fc0e4e61676f",
+    "original_regular_members_verified": 937,
+    "original_symlink_retained_but_not_extracted": "20261102-ws1-supported/roslogs/latest",
+    "analysis_archive": "onset-tail-analysis.tar.gz",
+    "analysis_archive_sha256": "73416397e85adc3420ce976c182be818b6a781d4d7993be6ae49af441800cf9d",
+    "analysis_members": 31,
+    "manifest": "manifest.json",
+    "manifest_sha256": "ab2b07bca0e124015faa1675684f7ead34e3780535dfec2796e424fbb1ecdab3",
+    "preservation": "Unchanged original capture copied and hash-verified; every derived archive member reread/hash-verified. No tests rerun, robot contact or commit during preservation."
+  }
+}

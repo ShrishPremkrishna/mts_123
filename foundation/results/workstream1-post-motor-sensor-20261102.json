@@ -1,0 +1,366 @@
+{
+  "schema": "pupper_post_motor_sensor_capture_v1",
+  "recorded_utc": "2026-11-02T20:37:08.533119+00:00",
+  "status": "closed_no_reset_post_motor_capture_residual_rate_and_shared_orientation_drift",
+  "scope": "Post-motor-recurrence-01 only: motors inactive, one no-reset60s comparison and simultaneous5Hz camera. Earlier physical-run/onset evidence and pre-motion comparisons are cross-referenced; subsequent diagnosis or motion is excluded.",
+  "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
+  "finding": "Device-reported calibrated and uncompensated gyro rates share transient excursions; RV05 and Game08 drift together against an integer-pixel-consistent scene. The recording narrows the problem upstream of ROS frame conversion and does not support a magnetic-heading-only explanation, but it does not establish calibration, MEMS hardware or another specific cause. It began78.623s after full hardware disable and cannot locate the recovery instant.",
+  "physical_run_reference": "foundation/results/workstream1-supported-recurrence-20261102.json",
+  "execution": {
+    "started_utc": "2026-11-02T20:15:32.720610+00:00",
+    "finished_utc": "2026-11-02T20:16:38.032384+00:00",
+    "diagnostic_command": [
+      "sudo",
+      "-n",
+      "timeout",
+      "-s",
+      "INT",
+      "-k",
+      "5",
+      "140",
+      "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261102/settling-inputs/bno_diagnostic",
+      "compare",
+      "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261102/post-motor-recurrence-01",
+      "--device-inactive",
+      "--enable=07,08,13",
+      "--seconds=60"
+    ],
+    "diagnostic_exit_code": 0,
+    "camera_exit_code": 0,
+    "battery_monitor_initially_active": true,
+    "battery_monitor_restore_exit": 0,
+    "battery_monitor_finally_active": true
+  },
+  "diagnostic_identity": {
+    "binary_sha256": "cf44bbc084af160a3076395c7618c1fe3d2ff8870db268a5d2784e615b62f28a",
+    "source_sha256": "c510f56570d569ba0b34de9fa2c223da1dd5b0651343ae5c77489b97b87bcaad",
+    "source": "foundation/hardware/imu_diagnostic/diagnostic.cpp",
+    "reuse": "Exact frozen cf44bbc0 native-Pi binary/source from completed comparison02; no rebuild or new test run. Source, binary, freeze record, prior native build/test log and peer review are preserved.",
+    "prior_evidence": "foundation/results/workstream1-imu-sensor-session-20261102.json"
+  },
+  "operation_contract": {
+    "reset": false,
+    "calibration_setting": false,
+    "dcd_command": false,
+    "baseline_enable_requested": false,
+    "baseline_phase": "Intentionally absent; no baseline phase statistics claimed.",
+    "original_features_interval_us": {
+      "02": 10000,
+      "05": 10000,
+      "07": 0,
+      "08": 0,
+      "13": 0
+    },
+    "extra_enable_order_hex": [
+      "07",
+      "08",
+      "13"
+    ],
+    "extra_intervals_us": {
+      "07": 10000,
+      "08": 10000,
+      "13": 1000000
+    },
+    "restore_order_hex": [
+      "13",
+      "08",
+      "07"
+    ],
+    "write_intents": 40,
+    "feature_writes": 6,
+    "calibration_readback": {
+      "status": 0,
+      "accel": 1,
+      "gyro": 0,
+      "mag": 1,
+      "planar": 0,
+      "on_table": 1
+    },
+    "completion": {
+      "complete": true,
+      "exit_code": 0,
+      "restoration_required": true,
+      "restoration_verified": true,
+      "restoration_uncertain": false,
+      "write_delivery_uncertain": false,
+      "logging_failed": false,
+      "error": "",
+      "finished_records": 1
+    },
+    "restoration_meaning": "Original full feature fields restored, including02/05 still enabled at100Hz and extras disabled. This is not reversal of background fusion/calibration evolution."
+  },
+  "phase": {
+    "window": {
+      "status": "closed",
+      "start_monotonic_s": 4126.528057024,
+      "end_monotonic_s": 4186.532716059,
+      "duration_s": 60.00465903500026,
+      "requested_s": 60.0,
+      "start_wall_s": 1793650537.3261657,
+      "end_wall_s": 1793650597.3308256
+    },
+    "counts": {
+      "02": 5868,
+      "05": 5860,
+      "07": 5867,
+      "08": 5867,
+      "13": 60
+    },
+    "parse_failed_packets": 0,
+    "boundary_crossing_packets_excluded": 0,
+    "input_errors": {
+      "state_jsonl": [],
+      "packets_jsonl": [],
+      "camera_metadata": null
+    },
+    "gyro02_sensor_mean_xyz_rad_s": [
+      -0.0013300421779141103,
+      0.0002825840362985685,
+      -0.0002053643703135651
+    ],
+    "gyro07_uncompensated_sensor_mean_xyz_rad_s": [
+      0.0006142007201295381,
+      -0.00027530839867053006,
+      -0.001085254388955173
+    ],
+    "gyro07_bias_sensor_mean_xyz_rad_s": [
+      0.0019444695968979036,
+      -7.656702744162264e-06,
+      -1.930820692006136e-05
+    ],
+    "gyro07_minus_bias_sensor_mean_xyz_rad_s": [
+      -0.0013302688767683655,
+      -0.00026765169592636785,
+      -0.0010659461820351117
+    ],
+    "gyro02_peak_abs_xyz_rad_s": [
+      0.046875,
+      0.00390625,
+      0.00390625
+    ],
+    "orientations": {
+      "05": {
+        "n": 5860,
+        "body_yaw_unwrapped_change_deg": -3.569396776557312,
+        "normalized_geodesic_start_end_delta_deg": 3.568705115392889,
+        "max_geodesic_step_deg": 0.03492431413197386,
+        "max_receipt_gap_s": 1.1186091879999367
+      },
+      "08": {
+        "n": 5867,
+        "body_yaw_unwrapped_change_deg": -3.569963793266311,
+        "normalized_geodesic_start_end_delta_deg": 3.5694753216934254,
+        "max_geodesic_step_deg": 0.034905498118904685,
+        "max_receipt_gap_s": 1.1186091879999367
+      }
+    },
+    "final_rv_game_yaw_change_difference_deg": 0.0005670167089988354,
+    "residual_5ms": {
+      "host_receipt_pair_tolerance_s": 0.005,
+      "matched_07_reports": 5290,
+      "unmatched_07_reports": 577,
+      "mean_uncal_minus_bias_minus_cal_rad_s": [
+        -1.070711247637051e-05,
+        -0.0005482780009451796,
+        -0.0008550921550094518
+      ],
+      "rms_residual_rad_s": [
+        0.0005889450028668377,
+        0.0010541526925056197,
+        0.00130509507156509
+      ],
+      "max_abs_host_receipt_offset_s": 0.003586996000194631
+    },
+    "accuracy_status": {
+      "02": {
+        "3": 5868
+      },
+      "05": {
+        "0": 5860
+      },
+      "07": {
+        "3": 5867
+      },
+      "08": {
+        "3": 5867
+      },
+      "13": {
+        "3": 60
+      }
+    },
+    "rv05_reported_heading_accuracy_deg": 180.0005104429549,
+    "stability_raw_histogram": {
+      "0": 2,
+      "3": 23,
+      "1": 35
+    },
+    "stability_transitions": [
+      {
+        "elapsed_s": 0.7949202290001267,
+        "state": 0
+      },
+      {
+        "elapsed_s": 2.802266298000177,
+        "state": 3
+      },
+      {
+        "elapsed_s": 25.767351065000184,
+        "state": 1
+      }
+    ],
+    "residual_convention": "Stored residual is07_minus_bias_minus02; nearest host-receipt matching is not acquisition synchronization."
+  },
+  "raw_verification": {
+    "decoded_packet_count": 6393,
+    "report_counts": {
+      "0x2": 5868,
+      "0x5": 5860,
+      "0x7": 5867,
+      "0x8": 5867,
+      "0x13": 60
+    },
+    "decoded_reports": 23522,
+    "field_mismatches": 0,
+    "method": "Independent direct payload-byte little-endian signedQ9 gyro/bias andQ14 quaternion extraction, with explicit report lengths; compared each field/header to saved decoder output.",
+    "sequence_steps": {
+      "0x2": {
+        "1": 5863,
+        "110": 1,
+        "2": 2,
+        "30": 1
+      },
+      "0x5": {
+        "1": 5850,
+        "2": 7,
+        "111": 1,
+        "31": 1
+      },
+      "0x7": {
+        "1": 5862,
+        "110": 1,
+        "2": 2,
+        "30": 1
+      },
+      "0x8": {
+        "1": 5862,
+        "110": 1,
+        "2": 2,
+        "30": 1
+      },
+      "0x13": {
+        "1": 59
+      }
+    },
+    "burst_20_to_25s": {
+      "elapsed_s": [
+        20,
+        25
+      ],
+      "02_n": 501,
+      "02_mean_xyz_rad_s": [
+        -0.005313591566866268,
+        0.00030797779441117765,
+        -0.00017932884231536926
+      ],
+      "07_n": 501,
+      "07_mean_xyz_rad_s": [
+        -0.003407248003992016,
+        -0.00023000873253493015,
+        -0.0010135978043912175
+      ],
+      "07_bias_mean_xyz_rad_s": [
+        0.0019063435628742516,
+        -1.9492265469061876e-05,
+        -3.898453093812375e-05
+      ],
+      "05_yaw_delta_deg": -1.0749265877467735,
+      "08_yaw_delta_deg": -1.0804891313222242
+    },
+    "largest_x_event": {
+      "elapsed_s": 23.175733299000058,
+      "raw_q9": [
+        -24,
+        0,
+        -1
+      ],
+      "sequence": 53
+    },
+    "interpretation": "The20\u201330s excursion also appears in report07 uncompensated rate while the reportedXbias is mostly+1/512rad/s. A large changing reported bias alone does not explain it. Report07 is a device-processed uncompensated-rate output, not raw ADC proof or a direct physical zero-rate measurement."
+  },
+  "camera": {
+    "decoded_frames": 313,
+    "matched_metadata_frames": 313,
+    "phase_frames": 300,
+    "fixed_background_patches": 3,
+    "all_integer_displacements_px": 0,
+    "minimum_ncc": 0.9787435637715807,
+    "boundary_matches": 0,
+    "burst_window_covered": "The same300 phase frames cover20\u201330s gyro excursions; every stored patch displacement is zero at integer-pixel resolution.",
+    "video_sha256": "2c5849c0c77701c21d2b6584207bfec11c3f73a847dd61798fbf90fd28a3e6c9",
+    "reused_ncc_source_sha256": "456f5b65535de5acc46440a7778391be0da3a2c15e8351a6a0f7bf30dda9ab9f",
+    "window_source": "post-motor-recurrence-01-analysis.json#/phases/comparison/window",
+    "limits": [
+      "No calibrated visual odometry or physical pose estimate.",
+      "Zero integer displacement cannot exclude subpixel motion or motion between5Hz frames.",
+      "Templates manually chosen; correlation strength and ambiguity retained."
+    ]
+  },
+  "before_after_context": {
+    "hardware_disable_wall_s": 1793650458.703074,
+    "capture_start_wall_s": 1793650537.3261657,
+    "off_to_capture_start_s": 78.62309169769287,
+    "hardware_off_source": "comparison-references/physical-run-tail-analysis.json in archive; same snapshotSHA84f1f02186c4069fad75919c0da2ea4839423ef0d3fdc3b8bce4766ccf35de7b",
+    "pre_motion_no_reset_comparison": {
+      "duration_s": 60.001869479000106,
+      "gyro02_sensor_x_mean_rad_s": -0.0006679433974038941,
+      "gyro07_bias_x_mean_rad_s": 0.0039043001247920134,
+      "rv05_yaw_change_deg": -1.3206286904495244
+    },
+    "pre_motion_native_constructor": {
+      "duration_s": 30.00202383399983,
+      "gyro02_sensor_x_mean_rad_s": -0.0004474003683858004,
+      "rv05_yaw_change_deg": -0.3969032048638894
+    },
+    "prephase_inspection": "Initial high02rates\u22120.039..\u22120.053rad/s are in original payload bytes; a seven-report batch has reference_delta_ticks\u2212782105 (~78.21s) and advancing delays, consistent with queued old reports. The next124 inspectionreports before firstFD07 averageX+0.000425rad/s. Their arrival does not establish acquisition time. This traffic is outside the closed phase and excluded from its statistics.",
+    "inference_limit": "No direct observation spans hardware-off to diagnostic capture; recovery cannot be attributed to motor disable, elapsed rest, added reports or another single cause. Quiet startup did not predict the later recurrence."
+  },
+  "availability_and_concurrent_work": {
+    "host_receipt_gaps_s": [
+      1.1186091879999367,
+      0.31967809599973407
+    ],
+    "gap_start_elapsed_s": [
+      50.81484546699994,
+      55.837894393999704
+    ],
+    "individual_i2c_read_max_s": 0.0049192950000360725,
+    "observation": "Gaps occur between read attempts; following packets include buffered sequences then larger sequence jumps. They are host-capture availability gaps, not proof the sensor stopped producing data.",
+    "concurrent_activity": "Root orchestration reports compression of the prior physical-run archive on the Pi during part of this capture.",
+    "causality": "No scheduler/CPU trace establishes that compression caused either pause or rate excursion; do not infer causality from concurrency."
+  },
+  "limitations": [
+    "One post-motor recording with a78.623s delay; no explanation or cure of the earlier severe state is established.",
+    "Camera patches are manually selected; integer-pixel matches cannot exclude subpixel motion, vibration or motion between5Hz frames.",
+    "Status3 and on-table classification are device outputs, not external physical truth or motor readiness. Gyro calibration-enable0 alone is not a fault diagnosis.",
+    "Nearest host-receipt pairing is not synchronized acquisition timing; report07 is not rawADC.",
+    "No sensor calibration, reset, gain, policy, native-driver or hardware-state change was made during analysis/preservation.",
+    "Supplementary raw/prephase checks were inline Python; no separate analyze_post_recurrence.py or complete execution log is invented."
+  ],
+  "artifacts": {
+    "repo": "artifacts/hardware/2026-11-02/imu-recurrence",
+    "archive": "post-motor-recurrence-01-evidence.tar.gz",
+    "archive_sha256": "e9fff505d7bfdef536eda2f96a4c2e17f86de25e30a528eb153fb81b15231c74",
+    "archive_bytes": 7973269,
+    "manifest": "manifest.json",
+    "manifest_sha256": "d3832e5f2230a1acf979b9f7a6532aca61dde80101f2467e58d27cffe9ffeeed",
+    "members": 48,
+    "all_members_verified": true,
+    "remote_local_hashes_confirmed_by_root": {
+      "video": "2c5849c0c77701c21d2b6584207bfec11c3f73a847dd61798fbf90fd28a3e6c9",
+      "sensor_tar": "ff97c11f023acb16f3513160cffde0e8dfccba81a6fee09a41037ae34ceb205e"
+    },
+    "main_analysis_sha256": "46568ad9ba516688bc41cf3560c94c6e96461b3910e9b5cf7c146a7062b456c3",
+    "raw_verification_sha256": "9790e0eeeedfb7a7bf2999e37cb7369a2cff91c7edf663bbf80eab8b1b2677f7",
+    "prephase_check_sha256": "393a8949668d21b8f85f7e52a6fb3b0f394cf35a8604ff385cf5024b6258e6d6"
+  }
+}
