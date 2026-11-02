@@ -9,6 +9,14 @@ import { toolResponseStatus, acceptedJobIdentity, type ToolDispatch } from './ex
 import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer } from './receiptAudioCache';
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 
+/** A background permission request may never be presented by the browser. */
+class MediaVisibilityError extends Error {
+  constructor() {
+    super('Bring this browser tab forward, then connect to enable microphone or camera access.');
+    this.name = 'MediaVisibilityError';
+  }
+}
+
 /** Robot tools come from GET /tools. TEXT models return ordinary completed text;
  * the application screens it and sends it to the configured TTS voice. */
 export function isAudioOutputModel(modelName: string): boolean {
@@ -167,7 +175,11 @@ export class GeminiLiveService {
     if (this.disposed || this.connecting || this.connected) throw new Error('Create a new voice session to reconnect.');
     this.connecting = true;
     this.apiKey = apiKey;
+    const needsMedia = config.enableAudio || (config.enableVideo && config.cameraSource === 'browser');
     try {
+      // Avoid spending the permission deadline on a known-hidden document.
+      // Text-only and server-camera sessions do not acquire local media.
+      if (needsMedia) this.ensureMediaVisible();
       if (!this.receiptAudioCache && supportsQuickReceipts(config)) {
         const controller = new AbortController();
         this.receiptPreloadController = controller;
@@ -177,6 +189,7 @@ export class GeminiLiveService {
         this.log('info', this.receiptAudioCache ? 'Quick Puck acknowledgments ready.'
           : 'Quick acknowledgments unavailable; using the normal model reply.');
       }
+      if (needsMedia) this.ensureMediaVisible(); // The preload may have yielded across a tab switch.
       await this.openSession(apiKey, config, videoElement);
     } catch (error: any) {
       const failedWhileOpen = !this.disposed;
@@ -252,8 +265,15 @@ export class GeminiLiveService {
     if (this.disposed) throw new Error('Voice connection cancelled.');
   }
 
+  private ensureMediaVisible() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      throw new MediaVisibilityError();
+    }
+  }
+
   private async acquireMedia(constraints: MediaStreamConstraints) {
     this.ensureOpen();
+    this.ensureMediaVisible();
     const device = constraints.audio ? 'Microphone' : 'Camera';
     this.log('info', `${device} permission: bring this browser tab forward and allow access. Cancel connection to stop waiting.`);
     // getUserMedia has no AbortSignal and may remain unresolved indefinitely.
@@ -264,12 +284,19 @@ export class GeminiLiveService {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibilityChange);
         if (this.cancelMediaAcquisition === cancel) this.cancelMediaAcquisition = null;
         if (error) reject(error); else resolve();
       };
       const cancel = () => finish(new Error('Voice connection cancelled.'));
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') finish(new MediaVisibilityError());
+      };
       const timer = setTimeout(() => finish(new Error(`${device} access timed out after 30 seconds. Bring this tab forward, allow access in the browser site controls, then reconnect.`)), 30_000);
       this.cancelMediaAcquisition = cancel;
+      // Scoped only to pending acquisition; ordinary tab switches after capture
+      // succeeds keep the session open. Late grants still release their tracks.
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibilityChange);
       let request: Promise<MediaStream>;
       try { request = navigator.mediaDevices.getUserMedia(constraints); }
       catch (error) { request = Promise.reject(error); }
@@ -332,6 +359,7 @@ export class GeminiLiveService {
           this.log('info', 'Camera connected');
         } catch (error: any) {
           this.ensureOpen();
+          if (error instanceof MediaVisibilityError) throw error;
           this.log('error', `Camera unavailable: ${error.message || error}`);
         }
       }
