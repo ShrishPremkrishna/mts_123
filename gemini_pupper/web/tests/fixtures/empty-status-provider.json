@@ -1,0 +1,50 @@
+{
+  "origin": "Actual ER2 512-token probe, 2026-11-02; fake execution only. Selected packets/reply copied without semantic modification.",
+  "source_sha256": "c8284259d85353ea5b8d359fcb48df0c0fcbba1caf65c2392cfa5ca78a9459ac",
+  "tool_call": [
+    {
+      "name": "robot_status",
+      "args": {},
+      "id": "fc_5102297766544889337"
+    }
+  ],
+  "result": {
+    "success": true,
+    "message": "controller mode: locomotion controller active. 0 queued; running: False. No action is currently running. Confirmed Sit-entry playbacks in this server session: 0. Physical pose, speed and stopping have not been measured.",
+    "details": {
+      "queued": 0,
+      "running": false,
+      "current_action": null,
+      "physical_observation": {
+        "pose": null,
+        "speed": null,
+        "stopped": null
+      },
+      "seconds_left": 0,
+      "following": false,
+      "controller_fault": null,
+      "state": "locomotion",
+      "state_after_queue": "locomotion",
+      "last_outcome": null,
+      "session_context": {
+        "schema": "pupper_session_context_v1",
+        "server_instance": "ed6b7ffd7ad34b8b982d308db3eabcd7",
+        "scope": "this_server_session",
+        "completed_sit_entries": 0
+      },
+      "observed_controller_mode": "locomotion"
+    }
+  },
+  "end_packets": [
+    {
+      "serverContent": {
+        "generationComplete": true
+      }
+    },
+    {
+      "serverContent": {
+        "turnComplete": true
+      }
+    }
+  ]
+}

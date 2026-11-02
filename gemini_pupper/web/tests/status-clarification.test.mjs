@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
+import {readFileSync} from 'node:fs';
 const bundle=await build({stdin:{contents:"export {GeminiLiveService,supportsPawClarification} from './services/geminiLive';",resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'sdk',setup(b){b.onResolve({filter:/^@google\/genai$/},()=>({path:'sdk',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:"export class GoogleGenAI{};export const Modality={AUDIO:'AUDIO',TEXT:'TEXT'};export const Type={OBJECT:'OBJECT',STRING:'STRING'};"}));}}]});
 const {GeminiLiveService,supportsPawClarification}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const QUESTION='Which paw would you like, left or right?';
@@ -18,7 +19,7 @@ test('single successful status offers one fixed clarification only after respons
  await e.s.handleMessage(end(QUESTION,'question'));assert.deepEqual(native?e.audio:e.tts.map(x=>x.text),[native?'question':QUESTION]);await e.s.handleMessage(end(QUESTION,'duplicate'));await e.s.handleMessage(boundary);assert.equal(native?e.audio.length:e.tts.length,1);await e.s.disconnect();}
 });
 test('ER valid ordinary status falls back to actual typed facts, never model paraphrase or combined claim',async()=>{
- for(const text of [STATUS,'The count is one.','I am physically sitting. '+QUESTION,'Do you want a paw?',QUESTION+' I have finished moving.','']){const e=service();await e.s.handleMessage(call('s'));assert.deepEqual(e.tts,[]);await e.s.handleMessage(end(text));assert.deepEqual(e.tts.map(x=>x.text),[STATUS]);await e.s.disconnect();}
+ for(const text of [STATUS,'The count is one.','I am physically sitting. '+QUESTION,'Do you want a paw?',QUESTION+' I have finished moving.']){const e=service();await e.s.handleMessage(call('s'));assert.deepEqual(e.tts,[]);await e.s.handleMessage(end(text));assert.deepEqual(e.tts.map(x=>x.text),[STATUS]);await e.s.disconnect();}
 });
 test('native extra claims/paraphrases remain muted and exact ordinary status remains admissible',async()=>{
  for(const text of ['I am physically sitting. '+QUESTION,QUESTION+' I moved.','Which foot?',STATUS]){const e=service(true);await e.s.handleMessage(call('s'));await e.s.handleMessage(end(text,'audio'));assert.deepEqual(e.audio,text===STATUS?['audio']:[]);await e.s.disconnect();}
@@ -43,4 +44,32 @@ test('clarification capability requires advertised tools, Sit entry and both exa
  const tools=['robot_status','play_trick','interactive_action'].map(name=>({name})), tricks={sit_stay_shake:{}},actions={shake_left:{trick:'sit_stay_shake'},shake_right:{trick:'sit_stay_shake'}};
  assert.equal(supportsPawClarification(tools,tricks,actions),true);
  for(const args of [[tools.slice(1),tricks,actions],[tools,{},actions],[tools,tricks,{shake_left:actions.shake_left}],[tools,tricks,{...actions,shake_right:{trick:'other'}}],[tools,tricks,Object.create(actions)]])assert.equal(supportsPawClarification(...args),false);
+});
+
+
+test('actual empty512 provider status-only shape gives honest no-action fallback once',async()=>{
+ const fixture=JSON.parse(readFileSync(new URL('./fixtures/empty-status-provider.json',import.meta.url),'utf8'));
+ const e=service();e.s.robotBridge.callTool=async name=>{e.calls.push(name);return fixture.result;};
+ await e.s.handleMessage({toolCall:{functionCalls:fixture.tool_call}});
+ assert.deepEqual(e.tts,[]);
+ for(const packet of fixture.end_packets)await e.s.handleMessage(packet);
+ assert.deepEqual(e.calls,['robot_status']);
+ assert.deepEqual(e.tts.map(x=>x.text),['I checked status, but sent no action request in this reply.']);
+ for(const packet of fixture.end_packets)await e.s.handleMessage(packet);
+ assert.equal(e.tts.length,1);await e.s.disconnect();
+});
+test('empty status fallback is revoked by action, uncertainty, interruption and stale response',async()=>{
+ for(const mode of ['action','unknown','stop','cancel','late']){
+  const e=service(),d=deferred();if(mode==='unknown')e.s.robotBridge.callTool=async()=>({success:false,outcome_unknown:true});
+  if(mode==='late')e.s.robotBridge.callTool=()=>d.promise;
+  const pending=e.s.handleMessage(call('s'));
+  if(mode==='late'){await e.s.handleMessage(end(''));d.resolve(reply);}await pending;
+  if(mode==='action')await e.s.handleMessage(call('a','interactive_action',{action:'shake_right'}));
+  if(mode==='stop')e.s.pauseRobotTools();
+  if(mode==='cancel')await e.s.handleMessage({toolCallCancellation:{ids:['s']}});
+  await e.s.handleMessage(end(''));
+  assert.equal(e.tts.some(x=>x.text==='I checked status, but sent no action request in this reply.'),false,mode);
+  if(mode==='action')assert.equal(e.tts.at(-1).text,'Right paw command queued.');
+  await e.s.disconnect();
+ }
 });

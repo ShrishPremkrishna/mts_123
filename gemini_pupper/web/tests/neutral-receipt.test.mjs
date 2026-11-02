@@ -77,9 +77,9 @@ test('fourth accepted handshake retains its exact eligibility and speaks only it
  assert.deepEqual(e.audio,['Okay.','Okay.','Okay.','Okay.']);
  assert.deepEqual(e.tts,['At this rate, I should charge for pawtographs.']);
 });
-test('status-only typed fallback and ordinary natural conversation are unchanged',async()=>{
+test('nonempty status-only typed fallback and ordinary natural conversation are unchanged',async()=>{
  const e=rig();e.s.pawClarificationAvailable=true;
- await e.s.handleMessage(call('status','robot_status'));await e.s.handleMessage(end());assert.deepEqual(e.audio,[]);assert.deepEqual(e.tts,['Status request accepted.']);
+ await e.s.handleMessage(call('status','robot_status'));await e.s.handleMessage({serverContent:{outputTranscription:{text:'Status request accepted.'},generationComplete:true,turnComplete:true}});assert.deepEqual(e.audio,[]);assert.deepEqual(e.tts,['Status request accepted.']);
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{text:'Hello friend!'}]},generationComplete:true,turnComplete:true}});await tick();assert.equal(e.tts.at(-1),'Hello friend!');
 });
 test('native fourth joke uses the same accepted-chain proof once; a failed fourth paw never jokes',async()=>{

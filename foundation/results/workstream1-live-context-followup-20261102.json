@@ -1,0 +1,182 @@
+{
+  "schema": "pupper_live_context_followup_v1",
+  "updated_utc": "2026-11-02T09:55:44.907175+00:00",
+  "status": "bounded_live_fake_probe_reviewed_and_empty_status_fallback_integrated",
+  "authorization": "User explicitly approved sending current prompt/tool definitions and synthetic requests to Google after the initial auto-review rejection. The fourth case repeats an already approved payload with a larger diagnostic output cap; no new media/private data.",
+  "scope": "Google ER2 Streaming with actual production service and localhost fake tools; no robot, microphone, images or cloud TTS. Text/PCM sinks record admission, not acoustic output.",
+  "live_source_commit": "7af1309",
+  "cases": {
+    "history": {
+      "tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        }
+      ],
+      "admitted_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "text_admission_ms": [
+        2571.3868340000004
+      ],
+      "cached_pcm_admission_ms": [],
+      "raw_model_transcripts": [
+        "I have 0 confirmed sit-entry playbacks registered for this server session."
+      ],
+      "terminal_jobs": [],
+      "tool_invocations": 2,
+      "timeout": false,
+      "reported_token_estimate_usd": 0.012246,
+      "error": null
+    },
+    "ambiguous": {
+      "tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        }
+      ],
+      "admitted_text": [
+        "Which paw would you like, left or right?"
+      ],
+      "text_admission_ms": [
+        2634.4089999999997
+      ],
+      "cached_pcm_admission_ms": [],
+      "raw_model_transcripts": [
+        "Which paw would you like, left or right?"
+      ],
+      "terminal_jobs": [],
+      "tool_invocations": 2,
+      "timeout": false,
+      "reported_token_estimate_usd": 0.012539,
+      "error": null
+    },
+    "explicit": {
+      "tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        }
+      ],
+      "admitted_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "text_admission_ms": [
+        3741.8429579999997
+      ],
+      "cached_pcm_admission_ms": [],
+      "raw_model_transcripts": [],
+      "terminal_jobs": [],
+      "tool_invocations": 2,
+      "timeout": false,
+      "reported_token_estimate_usd": 0.011514,
+      "error": null
+    },
+    "explicit-cap2048": {
+      "tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "name": "sit_stay_shake",
+            "count_unit": "routine_playback",
+            "count": 1
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "admitted_text": [],
+      "text_admission_ms": [],
+      "cached_pcm_admission_ms": [
+        4028.8730840000003
+      ],
+      "raw_model_transcripts": [
+        "I've queued the command to start the sit-and-stay trick, followed by a request to shake my right paw!"
+      ],
+      "terminal_jobs": [
+        {
+          "job_id": "ed6b7ffd7ad34b8b982d308db3eabcd7:1",
+          "server_instance": "ed6b7ffd7ad34b8b982d308db3eabcd7",
+          "name": "trick sit_stay_shake",
+          "success": true,
+          "message": "controller entry playback confirmed for sit_stay_shake; configured target pose: sitting. Interactive actions: shake_left, shake_right, stand_up. Any other motion first plays stand_up.",
+          "terminal_state": "succeeded",
+          "execution_started": true,
+          "event_seq": 4,
+          "wall_time_s": 1793612914.1250749,
+          "monotonic_s": 218526.418217625
+        },
+        {
+          "job_id": "ed6b7ffd7ad34b8b982d308db3eabcd7:2",
+          "server_instance": "ed6b7ffd7ad34b8b982d308db3eabcd7",
+          "name": "sit_stay_shake shake_right",
+          "success": true,
+          "message": "played shake_right",
+          "terminal_state": "succeeded",
+          "execution_started": true,
+          "event_seq": 6,
+          "wall_time_s": 1793612918.34477,
+          "monotonic_s": 218530.637907125
+        }
+      ],
+      "tool_invocations": 4,
+      "timeout": false,
+      "reported_token_estimate_usd": 0.020606,
+      "error": null
+    }
+  },
+  "findings": [
+    "History response truthfully scoped count0 to current server session; did not explicitly answer unknown earlier history or naturally exercise the new uncertainty-span rule.",
+    "Unspecified paw correctly clarified left versus right with no motion calls.",
+    "Explicit right paw at512 output cap performed status only, then no model output; preserved as task omission. No client refusal/cancellation found.",
+    "Same request at2048 cap sent Sit then shake_right; both fake jobs succeeded. One cachedOkay was admitted after acceptance; model narration was not additionally spoken.",
+    "One controlled pair cannot establish that output cap caused omission; production source has no new low token cap.",
+    "Final local fallback tells the user when a successful status-only model turn ends empty: I checked status, but sent no action request in this reply. It never retries or infers an action."
+  ],
+  "validation": {
+    "author_fallback_web": 353,
+    "root_fallback_focused": 24,
+    "independent_fallback_focused": 24,
+    "typecheck": "author passed",
+    "normal_build": "root passed",
+    "actual_provider_fixture": "Exact recorded512 tool/reply/closure shape failed before and passes after in actual-service offline replay. Final fallback was not re-sent to provider."
+  },
+  "cost": {
+    "conservative_reported_token_estimate_usd": 0.056905,
+    "not_a_billing_receipt": true,
+    "approved_batch_estimate_usd": 0.83,
+    "pricing_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "input_usd_per_million": 1,
+    "output_usd_per_million": 5,
+    "tts_calls": 0
+  },
+  "cleanup": "All four Node probes exited0 after requested service.disconnect; owned fake API exited0. report.closed=false was saved before an onclose notification; it is not used as proof of closure. No active process or hardware deployment.",
+  "fallback_source_hashes": {
+    "gemini_pupper/web/services/conversationOutput.ts": "a68883e9bf96742eade1d003d08dff5b21d2ddc0876594a1995ed00a3b6e24ad",
+    "gemini_pupper/web/tests/status-clarification.test.mjs": "42b82a6b9c21b7deaa46f6da95de85919fe3b7f8e27220ed8bfdcc6b9bae2971",
+    "gemini_pupper/web/tests/neutral-receipt.test.mjs": "52578a5fb672ae147d86e45a6c84bbd8401a7abf769eda5324a4608a1b27ca1c",
+    "gemini_pupper/web/tests/fixtures/empty-status-provider.json": "463e23a67fdd03fed3b4a14e25371bb04ba9dfccb32627201b07d843b1813569"
+  },
+  "artifacts": {
+    "repo": "artifacts/access/ws1-live-context-reviewed-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-live-context-reviewed",
+    "members": 66,
+    "manifest_sha256": "21485872522d6546f6375f9ac1a7db0dd95551b11d71faf545ae7e6f3c7d3ba0",
+    "copies_verified": true
+  }
+}

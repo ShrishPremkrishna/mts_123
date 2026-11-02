@@ -315,7 +315,11 @@ export class NativeReceiptOutputGate {
         const consistent = !turn.text || !turn.transcript || normalizeReceiptTranscript(turn.text) === words;
         const questionChosen = currentChoice?.questionAllowed && !turn.invalid && consistent
           && words === normalizeReceiptTranscript(PAW_CLARIFICATION);
-        if (currentChoice?.speak) currentChoice.speak(questionChosen ? PAW_CLARIFICATION : currentChoice.text);
+        // A silent status-only generation must not sound like the requested
+        // action happened. This reports only this reply's actual dispatches;
+        // it neither infers user intent nor requests an action or a retry.
+        if (currentChoice?.speak) currentChoice.speak(questionChosen ? PAW_CLARIFICATION
+          : !turn.outputSeen ? 'I checked status, but sent no action request in this reply.' : currentChoice.text);
         const expected = questionChosen ? normalizeReceiptTranscript(PAW_CLARIFICATION)
           : turn.authorized && normalizeReceiptTranscript(turn.authorized);
         if (!turn.invalid && !turn.receiptAudioMuted && expected && turn.audio.length && normalizeReceiptTranscript(turn.transcript) === expected

@@ -134,6 +134,13 @@ and missed paraphrases or languages. A transcript is not proof that every spoken
 with it. **The code enforces receipt provenance and exact acknowledgment transcript matching,
 not the truth of unrestricted conversation or an independent verification of every audio word.**
 
+If an eligible ER turn ends with only a successful status lookup and no model
+output, the client explicitly says it checked status but sent no action request
+in that reply. It does not infer intent or retry movement. This covers the
+[preserved live omission](../../foundation/results/workstream1-live-context-followup-20261102.json);
+it does not make omitted actions execute. Normal status text, paw clarification
+and accepted-action receipts retain their existing behavior.
+
 Buffering adds playback latency and discards mixed conversation/action narration
 within a tool-bearing turn unless it is the exact authorized acknowledgment. Missing transcripts, incomplete/oversized turns and
 cancelled output are discarded rather than released speculatively. Direct Stop
