@@ -137,6 +137,17 @@
       "review_status": "approved_human",
       "wav_file": "physical-count-unsupported.wav",
       "wav_sha256": "cece098bb9a2c0f1d16b84f04d9c2379ea1a2b6ea747bdafa30f8201d09530dd"
+    },
+    {
+      "text": "Okay.",
+      "file": "okay.pcm",
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "bytes": 33602,
+      "duration_s": 0.7000416666666667,
+      "transcript": "Okay.",
+      "review_status": "approved_human",
+      "wav_file": "okay.wav",
+      "wav_sha256": "62e020a1c4ebbc624db03f5e6070cb6f7cab8eb7cc90d89faea72338c31550b1"
     }
   ]
 }

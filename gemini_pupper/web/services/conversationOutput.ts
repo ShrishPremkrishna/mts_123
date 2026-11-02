@@ -133,6 +133,9 @@ interface ReceiptTurn {
   cancelled: boolean;
   outputSeen: boolean;
   authorized: string | null;
+  queuedCueUsed: boolean;
+  receiptAudioMuted: boolean;
+  codeOwnedJoke?: { current: () => boolean; speak: () => void };
   audio: string[];
   transcript: string;
   text: string;
@@ -140,7 +143,7 @@ interface ReceiptTurn {
   items: number;
   timer: ReturnType<typeof setTimeout>;
 }
-const HANDSHAKE_JOKE = 'At this rate, I should charge for pawtographs.';
+export const HANDSHAKE_JOKE = 'At this rate, I should charge for pawtographs.';
 /** Exact receipts for a single tool or the class status/[Sit entry]/one-paw chain.
  * The streak counts accepted requests in this connection, never physical handshakes. */
 export class NativeReceiptOutputGate {
@@ -158,7 +161,28 @@ export class NativeReceiptOutputGate {
     }
   }
   /** New input cancels output but preserves a handshake already counted at generation end. */
-  discardPending() { this.invalidate(!this.generationSealed); }
+  discardPending() {
+    this.invalidate(!this.generationSealed);
+    if (this.turn) this.turn.queuedCueUsed = false;
+  }
+  /** One code-owned acceptance cue; actual reply/currentness stays the caller's duty.
+   * Muting audio must not discard accepted-request evidence for the fourth joke. */
+  hasQueuedCue(turn: ReceiptTurn | null = this.turn) { return !!turn?.queuedCueUsed; }
+  claimQueuedCue(turn: ReceiptTurn | null): boolean {
+    if (!turn || turn.queuedCueUsed) return false;
+    turn.queuedCueUsed = true; turn.receiptAudioMuted = true; turn.audio = [];
+    return true;
+  }
+  /** The fourth joke keeps the complete-turn accepted-chain test. A later
+   * extra/failing call or interruption must revoke it before generation ends. */
+  offerQueuedCueJoke(turn: ReceiptTurn | null, text: string, current: () => boolean, speak: () => void) {
+    if (!turn || this.turn !== turn || this.generationSealed || turn.codeOwnedJoke
+        || turn.authorized !== text || !current() || !this.acceptedHandshake(turn)
+        || this.handshakeStreak !== 3 || ![
+          `Left paw command queued. ${HANDSHAKE_JOKE}`, `Right paw command queued. ${HANDSHAKE_JOKE}`,
+        ].includes(text)) return;
+    turn.codeOwnedJoke = { current, speak };
+  }
   resetContext() { this.handshakeStreak = 0; this.invalidate(); }
   close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.generationSealed = false; this.unscopedOutputSeen = false; this.handshakeStreak = 0; }
   /** A code-owned cached receipt replaces only this authorized native response.
@@ -229,7 +253,7 @@ export class NativeReceiptOutputGate {
     const hasOutput = !!content?.outputTranscription?.text || parts.some(part => !!part.text || !!part.inlineData?.data);
     if (calls.length && !this.turn) {
       const turn = { tools: 0, requests: [], invalid: this.unscopedOutputSeen, cancelled: false, outputSeen: false, authorized: null,
-        audio: [], transcript: '', text: '', bytes: 0, items: 0, timer: undefined } as unknown as ReceiptTurn;
+        audio: [], transcript: '', text: '', queuedCueUsed: false, receiptAudioMuted: false, bytes: 0, items: 0, timer: undefined } as unknown as ReceiptTurn;
       turn.timer = setTimeout(() => { if (this.turn === turn) this.invalidate(); }, OUTPUT_LIMITS.timeoutMs);
       (turn.timer as any).unref?.(); this.turn = turn;
     }
@@ -261,7 +285,7 @@ export class NativeReceiptOutputGate {
         turn.items++; turn.bytes += value.length * (kind === 'audio' ? 1 : 2);
         if (turn.items > OUTPUT_LIMITS.items || turn.bytes > OUTPUT_LIMITS.bytes
             || (kind !== 'audio' && turn.transcript.length + turn.text.length + value.length > OUTPUT_LIMITS.text)) { this.invalidate(); return; }
-        if (kind === 'audio') turn.audio.push(value); else turn[kind] += value;
+        if (kind === 'audio') { if (!turn.receiptAudioMuted) turn.audio.push(value); } else turn[kind] += value;
       };
       for (const part of parts) { add(part.inlineData?.data, 'audio'); add(part.text, 'text'); }
       add(content?.outputTranscription?.text, 'transcript');
@@ -271,7 +295,9 @@ export class NativeReceiptOutputGate {
       // A duplicate empty closure is not a new unrelated conversational turn.
       const hadActivity = !!turn || this.unscopedOutputSeen;
       this.generationSealed = true;
+      const acceptedFourth = turn && this.handshakeStreak === 3 && this.acceptedHandshake(turn);
       if (hadActivity) this.handshakeStreak = turn && this.acceptedHandshake(turn) ? Math.min(4, this.handshakeStreak + 1) : 0;
+      if (acceptedFourth && turn?.codeOwnedJoke?.current()) turn.codeOwnedJoke.speak();
       if (turn) {
         clearTimeout(turn.timer);
         const choice = turn.statusChoice;
@@ -285,7 +311,7 @@ export class NativeReceiptOutputGate {
         if (currentChoice?.speak) currentChoice.speak(questionChosen ? PAW_CLARIFICATION : currentChoice.text);
         const expected = questionChosen ? normalizeReceiptTranscript(PAW_CLARIFICATION)
           : turn.authorized && normalizeReceiptTranscript(turn.authorized);
-        if (!turn.invalid && expected && turn.audio.length && normalizeReceiptTranscript(turn.transcript) === expected
+        if (!turn.invalid && !turn.receiptAudioMuted && expected && turn.audio.length && normalizeReceiptTranscript(turn.transcript) === expected
             && (!turn.text || normalizeReceiptTranscript(turn.text) === expected)) this.release(turn.audio);
       }
       if (content?.turnComplete) {

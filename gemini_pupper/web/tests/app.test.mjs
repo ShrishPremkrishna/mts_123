@@ -236,3 +236,35 @@ test('App exposes permission guidance, cancellation, and failure details without
  instances[1].connection.resolve();await retry;
  assert.equal(find(render(),n=>n.props.role==='status'&&n.props.children.some(x=>typeof x==='string'&&x.includes('permission'))),null);
 });
+
+function connectVoice(render) { return find(render(),n=>n.type==='button'&&n.props['aria-label']==='Connect voice'); }
+test('Robot controls exposes explicit voice connection and reconnect without switching panels or replay',async t=>{
+ const {render,instances}=await app(t);controls(render);
+ assert.equal(instances.length,0,'render does not connect automatically');
+ assert.ok(connectVoice(render));assert.equal(connectVoice(render).props.disabled,false);
+ const oldHandler=connectVoice(render).props.onClick;const connecting=oldHandler();
+ assert.equal(instances.length,1);assert.equal(connectVoice(render),null,'connecting session owns reconnect');
+ await oldHandler();assert.equal(instances.length,1,'rapid clicks do not overlap sessions');
+ instances[0].connection.resolve();await connecting;assert.equal(connectVoice(render),null);
+ instances[0].callbacks[3]();
+ assert.ok(find(render(),n=>n.type==='DebugPanel'),'same controls view remains open');
+ assert.ok(connectVoice(render));assert.equal(instances.length,1,'remote close does not automatically reconnect');
+ const retry=connectVoice(render).props.onClick();assert.equal(instances.length,2);
+ assert.notEqual(instances[0],instances[1],'explicit retry creates fresh conversation');
+ instances[1].connection.resolve();await retry;
+});
+test('visible reconnect obeys the synchronous pending Stop gate in Robot controls',async t=>{
+ const {render,instances}=await app(t);controls(render);const staleConnect=connectVoice(render).props.onClick;
+ const pending=staleConnect();const s=instances[0];s.connection.resolve();await pending;
+ s.callbacks[6](true);s.callbacks[3]();
+ assert.equal(connectVoice(render).props.disabled,true);await staleConnect();assert.equal(instances.length,1);
+ s.callbacks[6](false);assert.equal(connectVoice(render).props.disabled,false);
+ const retry=connectVoice(render).props.onClick();instances[1].connection.resolve();await retry;
+});
+test('connection failure stays actionable and visible in Robot controls',async t=>{
+ const {render,instances}=await app(t);controls(render);
+ const pending=connectVoice(render).props.onClick();instances[0].connection.reject(new Error('The voice session could not connect.'));
+ await pending;assert.ok(connectVoice(render));
+ const alert=find(render(),n=>n.props.role==='alert');assert.match(alert.props.children.join(''),/voice session could not connect/);
+ assert.ok(find(render(),n=>n.type==='DebugPanel'));
+});

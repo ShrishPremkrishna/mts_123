@@ -23,13 +23,13 @@ test('ER consumer uses exact approved asset provenance only with selected Puck a
 test('ER queued cue follows actual reply, mutes model duplicate, and preserves later natural TTS',async()=>{
  const e=setup(),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
  const pending=e.s.handleMessage(call('m','move'));assert.deepEqual(e.audio,[]);d.resolve(queued);await pending;
- assert.deepEqual(e.audio,[cache.lookup('Move queued.',ER,'Puck',TTS)]);assert.deepEqual(e.tts,[]);
+ assert.deepEqual(e.audio,[cache.lookup('Okay.',ER,'Puck',TTS)]);assert.deepEqual(e.tts,[]);
  await e.s.handleMessage(end('I have completed the move.'));assert.deepEqual(e.tts,[]);
  await e.s.handleMessage(end('Hello, friend!'));assert.equal(e.tts.at(-1).text,'Hello, friend!');await e.s.disconnect();
 });
 test('ER five-tool chain uses actual typed receipts independently of whole-turn narration',async()=>{
  const e=setup();await e.s.handleMessage({toolCall:{functionCalls:[{id:'sit',name:'play_trick',args:{name:'sit_stay_shake',count:1,count_unit:'routine_playback'}},{id:'wait',name:'wait',args:{duration:10}},{id:'left',name:'interactive_action',args:{action:'shake_left'}},{id:'right',name:'interactive_action',args:{action:'shake_right'}},{id:'stand',name:'stand_up',args:{}}]}});
- assert.equal(e.audio.length,5);await e.s.handleMessage(end('I finished everything.'));assert.deepEqual(e.tts,[]);await e.s.disconnect();
+ assert.equal(e.audio.length,1);assert.equal(e.calls.length,5);await e.s.handleMessage(end('I finished everything.'));assert.deepEqual(e.tts,[]);await e.s.disconnect();
 });
 test('ER stale, malformed, unknown, superseded and locally unsent outcomes do not speak accepted cues',async()=>{
  for(const result of [{success:true,outcome_unknown:true},{success:true,outcome_unknown:{}},{success:true,superseded:true},{success:false,not_dispatched:true},{success:true,details:{submission:{schema:'other',state:'queued'}}}]){const e=setup();e.s.robotBridge.callTool=async()=>result;await e.s.handleMessage(call('m','move'));assert.deepEqual(e.audio,[]);assert.equal(e.tts.some(x=>x.text==='Move queued.'),false);await e.s.disconnect();}
@@ -47,10 +47,11 @@ test('ER uncached status speaks only typed current facts and fourth handshake pr
  for(let i=1;i<=4;i++){
   await e.s.handleMessage(call('s'+i,'robot_status'));const pendingStatus=e.tts.at(-1);assert.equal(pendingStatus.text,'Sit controller active. No command running; 0 queued. 1 Sit-entry playback confirmed this server session.');
   await e.s.handleMessage(call('p'+i,'interactive_action',{action:'shake_left'}));assert.equal(pendingStatus.current(),false);
-  if(i<4)assert.equal(e.audio.length,i);else assert.equal(e.tts.at(-1).text,'Left paw command queued. At this rate, I should charge for pawtographs.');
+  assert.equal(e.audio.length,i);
   await e.s.handleMessage(end('I physically shook your hand.'));
+  if(i===4)assert.equal(e.tts.at(-1).text,'At this rate, I should charge for pawtographs.');
  }
- assert.equal(e.tts.filter(x=>x.text.includes('pawtographs')).length,1);assert.equal(e.audio.length,3);await e.s.disconnect();
+ assert.equal(e.tts.filter(x=>x.text.includes('pawtographs')).length,1);assert.equal(e.audio.length,4);await e.s.disconnect();
 });
 test('actual ER receipt TTS discards late chunks after newer same-batch request, PTT, Stop and disconnect',async()=>{
  for(const event of ['newer','ptt','stop','disconnect']){const e=setup(undefined),d=deferred();let yielded=false;

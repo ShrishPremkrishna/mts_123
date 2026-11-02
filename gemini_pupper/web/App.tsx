@@ -327,7 +327,17 @@ const App: React.FC = () => {
         stopMessage={stopMessage}
       />
 
-      <div className="shrink-0 flex items-center justify-center gap-3 px-3 py-2 bg-gray-900 border-t border-gray-800">
+      <div className="shrink-0 flex flex-wrap items-center justify-center gap-3 px-3 py-2 bg-gray-900 border-t border-gray-800">
+        {(connState === ConnectionState.DISCONNECTED || connState === ConnectionState.ERROR) && (
+          <button
+            aria-label="Connect voice"
+            title="Start a fresh voice conversation. Previous requests will not be replayed."
+            disabled={stopPending || showSettings}
+            onClick={handleConnect}
+            className="rounded-full bg-cyan-500 px-4 py-2 font-semibold text-black hover:bg-cyan-400 disabled:opacity-40">
+            Connect voice
+          </button>
+        )}
         <button
           aria-label="Hold to talk" aria-pressed={audioInputActive}
           disabled={connState !== ConnectionState.CONNECTED || showSettings || stopPending || !config.enableAudio}
@@ -369,6 +379,10 @@ const App: React.FC = () => {
           {audioInputActive ? 'Microphone sending' : 'Microphone not sending'}
         </span>
       </div>
+
+      {view === 'debug' && connectionError && (
+        <p role="alert" className="shrink-0 px-3 py-2 text-center text-sm text-amber-200">{connectionError}</p>
+      )}
 
       <main 
         className="flex-1 relative overflow-hidden"

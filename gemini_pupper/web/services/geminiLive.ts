@@ -3,7 +3,7 @@ import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration } from '@
 import { createPcmBlob, decodeAudioData, blobToBase64 } from './audioUtils';
 import { AppConfig, LogEntry, OutputPolicy } from '../types';
 import RobotBridge from './robotBridge';
-import { ConversationOutputGate, NativeReceiptOutputGate, type ConversationOutput } from './conversationOutput';
+import { ConversationOutputGate, NativeReceiptOutputGate, HANDSHAKE_JOKE, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLabel, hasMalformedOutcomeFlags, isOperatorReceiptNarration } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
 import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer } from './receiptAudioCache';
@@ -813,7 +813,16 @@ export class GeminiLiveService {
     // callbacks can close generation or the turn while HTTP is unresolved.
     const hasRobotTool = (message.toolCall?.functionCalls ?? [])
       .some(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
-    if (hasRobotTool) this.stopPlayback(true, false);
+    if (hasRobotTool) {
+      const interrupt = !!content?.interrupted || !!message.toolCallCancellation?.ids?.length
+        || message.toolCall?.functionCalls?.some(call => call.name === 'stop');
+      if (this.nativeReceiptOutput.hasQueuedCue() && !interrupt) {
+        // Later steps may arrive in separate SDK packets. Invalidate old text/
+        // reply handlers without truncating this turn's already admitted cue.
+        this.feedbackGeneration++;
+        this.conversationOutput.discard();
+      } else this.stopPlayback(true, false);
+    }
     const receiptTurn = this.outputPolicy === 'conversation'
       ? this.nativeReceiptOutput.observe(message) : null;
     if (this.outputPolicy === 'conversation') {
@@ -962,20 +971,45 @@ export class GeminiLiveService {
         // intact instead of replacing it with the shorter generic cached cue.
         const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
           && receiptAuthorization !== cacheText;
-        const cachedAudio = cacheText && !composedNativeReceipt
+        const neutralAudio = cacheText && result?.success === true && fc.name !== 'stop'
+          ? this.receiptAudioCache?.lookup('Okay.', this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
+        // cacheText is a closed helper result: for successful non-Stop calls it
+        // exists only for an allowlisted typed queued submission. "Okay" marks
+        // its first acceptance, never completion or acceptance of later steps.
+        const neutralQueued = !!neutralAudio && !!receiptTurn;
+        const firstQueuedCue = neutralQueued && this.nativeReceiptOutput.claimQueuedCue(receiptTurn);
+        const queuedCueUsed = this.nativeReceiptOutput.hasQueuedCue(receiptTurn);
+        if (queuedCueUsed && result?.success === false && actualReceipt && currentFeedback()) {
+          this.stopPlayback(false, false);
+          feedbackGeneration = this.feedbackGeneration;
+        }
+        const cachedAudio = firstQueuedCue ? neutralAudio : neutralQueued ? null
+          : cacheText && !composedNativeReceipt
           ? this.receiptAudioCache?.lookup(cacheText, this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
         const cachedReceipt = !!cachedAudio;
         if (cachedReceipt) {
-          // Mute this model turn's later duplicate, without cancelling queued
-          // fixed clips or preventing a later reply in this batch from speaking.
-          this.nativeReceiptOutput.invalidate(false);
+          // Neutral cues preserve accepted-handshake bookkeeping while muting
+          // native duplicates. Stop/failure clips retain immediate interruption.
+          if (!firstQueuedCue) this.nativeReceiptOutput.invalidate(false);
           this.trace('cached_receipt_admitted', { bytes: Math.floor(cachedAudio.length * 3 / 4) });
           void this.playAudioBase64(cachedAudio, turnTiming).catch(() => this.log('info', 'Cached receipt audio unavailable; the server receipt remains visible.'));
         }
+        const acceptedFourthJoke = queuedCueUsed && [
+          `Left paw command queued. ${HANDSHAKE_JOKE}`, `Right paw command queued. ${HANDSHAKE_JOKE}`,
+        ].includes(receiptAuthorization || '');
+        if (acceptedFourthJoke && currentFeedback()) {
+          // Same existing exact accepted-chain authorization; only the repeated
+          // action prefix is omitted after the neutral acceptance cue.
+          this.nativeReceiptOutput.offerQueuedCueJoke(receiptTurn, receiptAuthorization!, currentFeedback, () => {
+            void this.synthesizeAndPlaySpeech(HANDSHAKE_JOKE, currentFeedback)
+              .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
+          });
+        }
+        const suppressSuccessNarration = queuedCueUsed && result?.success === true && fc.name !== 'stop';
         // TEXT dialogue cannot supply native receipt audio. Speak only the exact
         // code-owned current authorization, never the model's tool-turn prose.
         // A later request in this same batch invalidates outstanding TTS chunks.
-        if (!cachedReceipt && !statusChoice && receiptAuthorization && currentFeedback()
+        if (!cachedReceipt && !suppressSuccessNarration && !statusChoice && receiptAuthorization && currentFeedback()
             && !isAudioOutputModel(this.config.modelName)
             && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName)) {
           void this.synthesizeAndPlaySpeech(receiptAuthorization, currentFeedback)
@@ -991,7 +1025,7 @@ export class GeminiLiveService {
                 functionResponses: {
                   id: fc.id,
                   name: fc.name,
-                  response: { result, ...(receiptAuthorization && !cachedReceipt && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) }
+                  response: { result, ...(receiptAuthorization && !cachedReceipt && !suppressSuccessNarration && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) }
                 }
               });
               this.trace('function_response_send_return', { message_sequence: messageSequence,

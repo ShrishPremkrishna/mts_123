@@ -1,0 +1,18 @@
+{
+  "schema": "pupper_visible_voice_reconnect_v1",
+  "created_utc": "2026-11-02T04:02:33.769166+00:00",
+  "trigger": "After provider1008 closure, Robot controls view had no visible reconnect action.",
+  "change": "Always-visible Connect voice control in disconnected/error state, reusing existing explicit connection handler; error text visible in Robot controls.",
+  "tests": {
+    "app": 15,
+    "typescript": "pass",
+    "build": "pass; index-CcxVmLL9.js"
+  },
+  "review": "Root read exact App-only delta; existing Stop/settings/concurrent connection guards retained.",
+  "candidate": "/private/tmp/ws1-visible-reconnect-20261101",
+  "limits": [
+    "No automatic retry, conversation resumption or command replay.",
+    "Provider operation-aborted cause unresolved.",
+    "Actual updated-browser layout check and physical deployment pending."
+  ]
+}

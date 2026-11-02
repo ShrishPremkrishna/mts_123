@@ -1,0 +1,100 @@
+{
+  "schema": "pupper_neutral_acknowledgment_report_v1",
+  "created_utc": "2026-11-02T03:54:07.194754+00:00",
+  "status": "offline_candidate_reviewed_no_deployment_claim",
+  "problem": "Real fake-API voice test announced preparatory Sit acceptance and requested paw acceptance separately, producing clumsy consecutive acknowledgments.",
+  "change": "A human-reviewed 0.700-second Puck Okay. clip is emitted after the first current typed queued acceptance in an output turn; further successful steps retain individual visible receipts without repeating spoken acceptance.",
+  "scope": [
+    "Output-turn boundaries come from the Live provider; this is not a universal one-cue-per-human-utterance identity guarantee.",
+    "The cue confirms acceptance began, not that later steps were accepted, completed or physically achieved.",
+    "No global model-generation wait is added to this first acknowledgment.",
+    "Later Stop and definitive failures retain immediate closed wording; unknown outcomes remain visible and keep the existing pause/epoch behavior.",
+    "Cross-packet continuation preserves an already admitted cue instead of truncating it.",
+    "Exact fourth-handshake proof/count remains; the fixed joke speaks only after generation closes with the complete accepted status/[Sit]/paw chain. A later extra or failed call revokes it.",
+    "Missing/disabled/corrupt cache uses prior exact receipt fallback, so one-cue cohesion is not guaranteed in that fallback."
+  ],
+  "implementation": {
+    "base": "Reviewed GoAway candidate (geminiLive.ts2239e08ae446b54682c48bfac00453efe3397a27ec90c07b3d266fa7a61ed9f4)",
+    "files": {
+      "services/geminiLive.ts": "f08546bc7946df03ed7132ceb599960010f0c42f9a883d068d48cf65b3b3d992",
+      "services/conversationOutput.ts": "9deacaa642098889783a00585a64dbaf280e975432b7fde84af5b262b9cc84f6",
+      "services/receiptAudioCache.ts": "53d47137be9236402b7b60968b81abb61c5a21f198678038cf444903d662d936",
+      "services/receiptAudioManifest.json": "82ecfedf800b4416db3a7d7454da51d00a570477129537efabf46c4ff45995b2",
+      "tests/neutral-receipt.test.mjs": "440aece72bf73296505a6af615c0133b46281b62e48fa3fae70998973e016ee7",
+      "tests/receipt-audio-preload.test.mjs": "57a603543c44393cf5b16058193592884cfe34ace8509d04c2758cc170084375",
+      "tests/approved-receipt-service.test.mjs": "d7c752641eb6b7c3f7568578587411e2e12329f56ec0041b3d5ce63fe975ce9b",
+      "tests/er-receipts.test.mjs": "b2ad2f5d7683c16ff9257ae851dbbe5a287ca831a942f5d91bc55392a332ecdc",
+      "public/receipt-audio/okay.pcm": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa"
+    },
+    "patch_sha256": "1a45a6c57541f9433025db25277cdaf72fd6a85f43c0772b7ddf97e237b60e12",
+    "root_app_or_motion_source_modified": false,
+    "queue_motion_limits_gains_changed": false
+  },
+  "asset": {
+    "pcm_sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+    "bytes": 33602,
+    "sample_rate": 24000,
+    "channels": 1,
+    "format": "pcm_s16le",
+    "duration_s": 0.7000416666666667,
+    "wav_payload_exactly_matches": true,
+    "peak_absolute_sample": 25777,
+    "near_full_scale_samples": 0,
+    "transcript": "Okay. (generation metadata; waveform human approval recorded separately)",
+    "no_new_generation": true
+  },
+  "human_listening": {
+    "text": "Okay.",
+    "source": "Root relayed exact user review",
+    "user_reply": "Yes\u2014use it",
+    "scope": "The generated Okay. Puck audio was listened to and approved; no broader acoustic claim."
+  },
+  "tests": {
+    "full_web": {
+      "passed": 320,
+      "failed": 0,
+      "log_sha256": "e948ffd485d69d58d28b712c389f8e81476120bf68bddf5737481b11f4434fa9"
+    },
+    "typescript": "pass",
+    "new_focused_cases": 13,
+    "independent_peer_cases": 36,
+    "peer_receipt_sha256": "0dfac17840305f6109699485bc55a63d182f6b953e4bf9183cc798df1b4a6970",
+    "before_evidence": "Original split-cache behavior failed the new cohesion expectations; preserved before.log. Older detailed-cue assertions updated only for the deliberately changed behavior.",
+    "actual_provider_browser_test": "not run for this candidate; previous root fake test is the motivating observation, not this candidate verification"
+  },
+  "remaining": [
+    "Root apply exact text patch and copy hash-verified Okay. PCM; preserve current App/UI changes and build from integrated source.",
+    "Run a fake-backend voice rehearsal of separate-packet Sit\u2192paw, longer chain, later refusal and Stop; verify one acceptance cue and audible exception.",
+    "No hardware validation follows from these frontend tests or synthetic audio approval."
+  ],
+  "archive": {
+    "repository_path": "artifacts/access/workstream1-neutral-acknowledgment-20261101.tar.gz",
+    "durable_path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-neutral-acknowledgment-20261101.tar.gz",
+    "sha256": "dc700306a0909e4f2468697c2216fabb222a5c188490ddb18dca73e2737b53f6",
+    "bytes": 972435,
+    "verified_file_members": 52,
+    "source_manifest_sha256": "026bd63574ce008479ac62574c5dc0ef9100cb307dc876d8e316e21aa19e9ef8"
+  },
+  "root_integration": {
+    "sources_matched_frozen_hashes": true,
+    "affected_root_tests": 31,
+    "typescript": "pass",
+    "production_build": "pass",
+    "actual_fake_browser": {
+      "bundle": "index-BSRxfcrg.js",
+      "sha256": "b5b8feea47c8cd7f4963cc2b077614e704e41648dadca97f6455ea4a9f014dff",
+      "request": "Sit, then shake your right paw, then stand.",
+      "observed_browser_tools": [
+        "status",
+        "play_trick",
+        "interactive_action",
+        "interactive_action"
+      ],
+      "all_requests_accepted": true,
+      "final_fake_state": "locomotion; idle; Sit exit playback completed",
+      "operator_reply": "One Okay; no duplicate announcements",
+      "limits": "Fake queue only; no physical movement. Playback timing is not acoustic latency."
+    },
+    "separate_observed_issue": "ER session closed with1008 operation aborted after idle; reconnect worked. Cause unresolved; GoAway handling does not establish a cure."
+  }
+}
