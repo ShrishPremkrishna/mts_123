@@ -115,7 +115,8 @@ export class GeminiLiveService {
     private onStopPending: (pending: boolean) => void = () => {},
     private onTiming?: (event: LiveTimingEvent) => void,
     private onAudioInputChange: (active: boolean) => void = () => {},
-    private receiptAudioCache?: ReceiptAudioCache
+    private receiptAudioCache?: ReceiptAudioCache,
+    private onRobotToolsPaused: () => void = () => {}
   ) {
     this.config = config;
     this.outputPolicy = normalizeOutputPolicy(config.outputPolicy);
@@ -136,6 +137,7 @@ export class GeminiLiveService {
   public pauseRobotTools() {
     this.endAudioInput();
     this.robotToolsPaused = true;
+    try { this.onRobotToolsPaused(); } catch {}
     this.nativeReceiptOutput.resetContext();
     this.stopPlayback();
   }
@@ -862,6 +864,7 @@ export class GeminiLiveService {
               && !result.superseded && !result.not_dispatched && this.pendingModelActions === 0;
             if (knownFailureReceipt) {
               this.endAudioInput(); this.robotToolsPaused = true;
+              try { this.onRobotToolsPaused(); } catch {}
               this.stopPlayback(true, false);
             } else this.pauseRobotTools();
             if (failedAction && firstPause && this.connected && !this.disposed) this.log('error',

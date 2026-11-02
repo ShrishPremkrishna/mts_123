@@ -135,6 +135,19 @@ def _status_feedback(details):
         parts.append(f"Confirmed Sit-entry playbacks in this server session: {int(context['completed_sit_entries'])}.")
     return " ".join(parts)
 
+def reply_outcome_unknown(result):
+    """Shared reply-shape classification; never infer success from truthiness."""
+    if not isinstance(result, dict):
+        return True
+    flags = ("superseded", "outcome_unknown", "not_dispatched")
+    if any(flag in result and type(result[flag]) is not bool for flag in flags):
+        return True
+    if result.get("outcome_unknown") is True:
+        return True
+    # An explicit client non-dispatch receipt has no server outcome to infer.
+    return result.get("not_dispatched") is not True and type(result.get("success")) is not bool
+
+
 def receipt_feedback(name, result, *, current=True, dispatched=True):
     """A matched reply is evidence of an API result, never physical completion."""
     label = tool_label(name)
@@ -143,15 +156,10 @@ def receipt_feedback(name, result, *, current=True, dispatched=True):
         return "That request was superseded."
     if not dispatched:
         return f"{spoken} request not sent."
-    if not isinstance(result, dict):
-        return "I could not confirm that request."
-    flags = ("superseded", "outcome_unknown", "not_dispatched")
-    if any(flag in result and type(result[flag]) is not bool for flag in flags) or result.get("outcome_unknown") is True:
+    if reply_outcome_unknown(result):
         return "I could not confirm that request."
     if result.get("not_dispatched") is True:
         return f"{spoken} request not sent."
-    if type(result.get("success")) is not bool:
-        return "I could not confirm that request."
     if not result["success"]:
         if name == "play_trick":
             quantity = _trick_quantity_reason(result.get("details"))

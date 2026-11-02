@@ -84,3 +84,16 @@ test('late action failure from disposed or disconnected old service cannot issue
   m.resolve(failed);await first;assert.deepEqual(e.stops,[],state);turn.resolve(queued);await second;assert.deepEqual(e.audio,[]);
  }
 });
+
+// A known refusal must also update the operator-facing paused state.
+test('known refusal notifies the UI while preserving its exact receipt',async()=>{
+ const e=service();let notified=0;e.s.onRobotToolsPaused=()=>notified++;
+ await e.s.handleMessage(packet(call('m','move')));
+ assert.equal(notified,1);assert.equal(e.s.robotToolsPaused,true);
+ assert.ok(e.responses[0].functionResponses.response.operator_acknowledgment?.text.startsWith('Move rejected:'));
+});
+test('a paused-state UI callback cannot break refusal handling',async()=>{
+ const e=service();e.s.onRobotToolsPaused=()=>{throw new Error('synthetic render failure')};
+ await e.s.handleMessage(packet(call('m','move'),call('t','turn')));
+ assert.deepEqual(e.calls,['move']);assert.equal(e.s.robotToolsPaused,true);
+});

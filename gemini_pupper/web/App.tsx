@@ -242,7 +242,9 @@ const App: React.FC = () => {
           if (geminiRef.current !== service) return;
           if (!active) talkOwner.current = null;
           setAudioInputActive(active);
-        }
+        },
+        undefined,
+        () => { if (geminiRef.current === service) setModelActionsPaused(true); }
       );
 
       // Store before awaiting so Stop can pause dispatch even while connecting.

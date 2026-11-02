@@ -53,7 +53,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-from operator_feedback import CONVERSATION_BLOCKED, conversation_claim_detected, receipt_feedback, sending_feedback
+from operator_feedback import CONVERSATION_BLOCKED, conversation_claim_detected, receipt_feedback, sending_feedback, reply_outcome_unknown
 
 HERE = Path(__file__).resolve().parent
 KEY_FILE = Path.home() / ".config" / "gemini-pupper" / "api_key"
@@ -352,8 +352,8 @@ class _ToolDispatcher:
 
     Normal batches stay ordered. Observing Stop invalidates earlier intents
     synchronously, and no more motion is accepted in that model turn. A later
-    user turn can request new work after a confirmed Stop; unknown outcomes
-    require reconnecting. Cancellation cannot retract an HTTP thread, so the
+    user turn can request new work after a confirmed Stop; rejected action steps
+    and unknown outcomes require reconnecting. Cancellation cannot retract an HTTP thread, so the
     RobotBackend/server command epoch remains the transport fence.
     """
 
@@ -408,7 +408,7 @@ class _ToolDispatcher:
                     result = {"success": False, "message": "Not dispatched: Stop takes priority over other actions in this batch. No delayed Stop was scheduled."}
                 elif protected and (generation != self.generation or self.stopped_in_turn
                                     or self.pending_stops or self.paused):
-                    result = {"success": False, "message": "Not dispatched: Stop superseded this turn, or an outcome is unknown. Ask again in a later turn after a confirmed Stop; reconnect if an outcome remains unknown."}
+                    result = {"success": False, "message": "Not dispatched: Stop superseded this turn, an action step was rejected, or an outcome is unknown. Ask again in a later turn after a confirmed Stop; reconnect after a rejected step or unknown outcome."}
                 else:
                     dispatched = True
                     print(sending_feedback(fc.name))
@@ -421,16 +421,33 @@ class _ToolDispatcher:
                                   "message": f"{type(exc).__name__}: {exc}"}
                     if self.closed:
                         return
+                    if reply_outcome_unknown(result):
+                        self.paused = True
+                        if not isinstance(result, dict):
+                            result = {"success": False, "outcome_unknown": True,
+                                      "message": "Malformed server reply; outcome is unknown."}
                     if protected and generation != self.generation:
                         result = {"success": False, "superseded": True,
                                   "outcome_unknown": result.get("outcome_unknown", result.get("success") is not False),
                                   "message": "Stop superseded this request. Its late reply is not a new acceptance; check status for any earlier execution.",
                                   "original_result": result}
-                    if result.get("outcome_unknown") or (result.get("command_epoch_required") is True
-                                                         and result.get("success") is False):
+                    failed_action = (fc.name in {
+                        "move", "turn", "arc", "stand_up", "lie_down", "wait",
+                        "play_trick", "interactive_action", "follow",
+                    } and (result.get("success") is False or result.get("not_dispatched") is True))
+                    # Normal batches share a lock. Fence every later action after
+                    # a refused step, even when the ordinary Result has no epoch
+                    # metadata; otherwise a rejected move can become a lone turn.
+                    if (failed_action or reply_outcome_unknown(result)
+                            or (result.get("command_epoch_required") is True
+                                and result.get("success") is False)):
                         self.paused = True
                     if fc.name == "stop":
-                        if result.get("success") is not True:
+                        confirmed_stop = (result.get("success") is True
+                                          and not reply_outcome_unknown(result)
+                                          and result.get("superseded") is not True
+                                          and result.get("not_dispatched") is not True)
+                        if not confirmed_stop:
                             self.paused = True
                         elif generation == self.generation:
                             self.needs_stop = False

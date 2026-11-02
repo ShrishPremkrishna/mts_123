@@ -251,3 +251,82 @@ def test_drain_failure_keeps_pending_siblings_owned_for_shutdown():
         assert dispatcher.tasks == []
         assert not [t for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.done()]
     asyncio.run(check())
+
+
+@pytest.mark.parametrize("failed_name", ["move", "turn", "arc", "stand_up", "lie_down", "wait", "play_trick", "interactive_action", "follow"])
+def test_definitive_action_failure_without_epoch_fences_dependent_motion(monkeypatch, failed_name):
+    async def check():
+        calls = []
+        async def call(name, _args):
+            calls.append(name)
+            # This is the actual Result.as_dict shape: no command_epoch_required.
+            return {"success": name != failed_name, "message": "request refused" if name == failed_name else "accepted"}
+        async def script(replies):
+            yield packet(failed_name, "move", "robot_status")
+            await until(lambda: len(replies) == 3)
+            yield end_turn()
+        replies = await actual_chat(monkeypatch, fake(call), script)
+        assert calls == [failed_name, "robot_status", "stop"]
+        assert replies[1].response["result"]["success"] is False
+        assert "Not dispatched" in replies[1].response["result"]["message"]
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("name", ["robot_status", "unlock", "lock_tricks"])
+def test_known_non_action_refusal_does_not_create_action_failure_fence(monkeypatch, name):
+    async def check():
+        calls = []
+        async def call(tool, _args):
+            calls.append(tool)
+            return {"success": tool != name, "message": "synthetic"}
+        async def script(replies):
+            yield packet(name, "move")
+            await until(lambda: len(replies) == 2)
+            yield end_turn()
+        await actual_chat(monkeypatch, fake(call), script)
+        assert calls == [name, "move", "stop"]
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("bad_reply", [
+    {}, [], None, {"success": "false"}, {"success": 1},
+    {"success": True, "outcome_unknown": {}},
+    {"success": True, "outcome_unknown": []},
+    {"success": True, "not_dispatched": {}},
+    {"success": True, "superseded": []},
+])
+def test_malformed_or_unknown_action_reply_fences_dependent_work(monkeypatch, bad_reply):
+    async def check():
+        calls = []
+        async def call(name, _args):
+            calls.append(name)
+            return bad_reply if name == "move" else {"success": True}
+        async def script(replies):
+            yield packet("move", "turn", "robot_status")
+            await until(lambda: len(replies) == 3)
+            yield end_turn()
+        replies = await actual_chat(monkeypatch, fake(call), script)
+        assert calls == ["move", "robot_status", "stop"]
+        assert "Not dispatched" in replies[1].response["result"]["message"]
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("bad_stop", [
+    {"success": True, "outcome_unknown": True},
+    {"success": True, "outcome_unknown": {}},
+    {"success": True, "not_dispatched": True},
+    {"success": True, "superseded": True},
+])
+def test_unconfirmed_stop_reply_keeps_cleanup_stop_owned(monkeypatch, bad_stop):
+    async def check():
+        calls = []
+        async def call(name, _args):
+            calls.append(name)
+            return bad_stop if len(calls) == 1 else {"success": True}
+        async def script(replies):
+            yield packet("stop")
+            await until(lambda: len(replies) == 1)
+            yield end_turn()
+        await actual_chat(monkeypatch, fake(call), script)
+        assert calls == ["stop", "stop"]
+    asyncio.run(check())
