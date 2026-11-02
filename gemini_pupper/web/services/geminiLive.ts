@@ -6,6 +6,8 @@ import RobotBridge from './robotBridge';
 import { ConversationOutputGate, NativeReceiptOutputGate, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLabel, hasMalformedOutcomeFlags, isOperatorReceiptNarration } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
+import { ReceiptAudioCache } from './receiptAudioCache';
+import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 
 /** Robot tools come from GET /tools. TEXT models return ordinary completed text;
  * the application screens it and sends it to the configured TTS voice. */
@@ -62,6 +64,7 @@ export class GeminiLiveService {
   private conversationOutput: ConversationOutputGate;
   private nativeReceiptOutput: NativeReceiptOutputGate;
   private apiKey = '';
+  private receiptPreloadController: AbortController | null = null;
   private cancelledToolIds = new Set<string>();
   private dispatchedActionIds = new Set<string>();
   private automaticStop: Promise<void> | null = null;
@@ -105,7 +108,8 @@ export class GeminiLiveService {
     private onAutomaticStop: (message: string) => void = () => {},
     private onStopPending: (pending: boolean) => void = () => {},
     private onTiming?: (event: LiveTimingEvent) => void,
-    private onAudioInputChange: (active: boolean) => void = () => {}
+    private onAudioInputChange: (active: boolean) => void = () => {},
+    private receiptAudioCache?: ReceiptAudioCache
   ) {
     this.config = config;
     this.outputPolicy = normalizeOutputPolicy(config.outputPolicy);
@@ -135,6 +139,15 @@ export class GeminiLiveService {
     this.connecting = true;
     this.apiKey = apiKey;
     try {
+      if (!this.receiptAudioCache && supportsQuickReceipts(config)) {
+        const controller = new AbortController();
+        this.receiptPreloadController = controller;
+        this.receiptAudioCache = (await preloadReceiptAudio(config, controller.signal)) ?? undefined;
+        this.receiptPreloadController = null;
+        this.ensureOpen();
+        this.log('info', this.receiptAudioCache ? 'Quick Puck acknowledgments ready.'
+          : 'Quick acknowledgments unavailable; using the normal model reply.');
+      }
       await this.openSession(apiKey, config, videoElement);
     } catch (error: any) {
       const failedWhileOpen = !this.disposed;
@@ -432,6 +445,10 @@ export class GeminiLiveService {
     if (!this.connected || this.disposed || !this.config.enableAudio || this.audioBoundaryFailed
         || !this.inputAudioContext || !this.mediaStream?.getAudioTracks().length) return false;
     if (this.audioInputActive) return true;
+    // A fresh deliberate turn owns the output immediately; do not wait for a
+    // provider interruption before cancelling older receipt decodes/replies.
+    this.stopPlayback(false);
+    this.conversationOutput.discardPending();
     const generation = ++this.audioInputGeneration;
     this.audioInputActive = true;
     this.mediaStream.getAudioTracks().forEach(track => { track.enabled = true; });
@@ -842,6 +859,15 @@ export class GeminiLiveService {
           && typeof result?.success === 'boolean' && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown && !result.superseded && !result.not_dispatched
           ? nativeReceiptFeedback(fc.name, result) : null;
         const receiptAuthorization = actualReceipt ? this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt, fc, result) : null;
+        // Optional preloaded cache. It never fetches, waits, changes the actual
+        // reply, or speaks before the existing current-response authorization.
+        const cachedAudio = receiptAuthorization && result?.success === true && currentFeedback()
+          ? this.receiptAudioCache?.lookup(receiptAuthorization, this.config.modelName, this.config.voiceName || 'Puck') : null;
+        const cachedReceipt = !!cachedAudio && this.nativeReceiptOutput.consumeAuthorized(receiptTurn, receiptAuthorization!);
+        if (cachedReceipt) {
+          this.trace('cached_receipt_admitted', { bytes: Math.floor(cachedAudio.length * 3 / 4) });
+          void this.playAudioBase64(cachedAudio, turnTiming).catch(() => this.log('info', 'Cached receipt audio unavailable; the server receipt remains visible.'));
+        }
         if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
           this.sessionPromise.then(session => {
             if (!this.connected) return;
@@ -852,7 +878,7 @@ export class GeminiLiveService {
                 functionResponses: {
                   id: fc.id,
                   name: fc.name,
-                  response: { result, ...(receiptAuthorization && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization } } : {}) }
+                  response: { result, ...(receiptAuthorization && !cachedReceipt && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization } } : {}) }
                 }
               });
               this.trace('function_response_send_return', { message_sequence: messageSequence,
@@ -964,6 +990,8 @@ export class GeminiLiveService {
    */
   private cleanup() {
     this.disposed = true;
+    this.receiptPreloadController?.abort();
+    this.receiptPreloadController = null;
     this.cancelMediaAcquisition?.();
     this.connected = false;
     this.endAudioInput();

@@ -48,6 +48,8 @@ export class ConversationOutputGate {
   }
   /** Keep a dropped-turn tombstone until its boundary; never play only its tail. */
   discard() { if (!this.turn) this.start(); this.drop(); }
+  /** A new deliberate input invalidates existing output, not its first future reply. */
+  discardPending() { if (this.turn) this.drop(); }
   close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; }
   observe(message: LiveServerMessage, pendingTool: boolean, textModel: boolean) {
     const content = message.serverContent;
@@ -142,6 +144,14 @@ export class NativeReceiptOutputGate {
   }
   resetContext() { this.handshakeStreak = 0; this.invalidate(); }
   close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.unscopedOutputSeen = false; this.handshakeStreak = 0; }
+  /** A code-owned cached receipt replaces only this authorized native response.
+   * Preserve accepted-request bookkeeping; do not permit later duplicate audio. */
+  consumeAuthorized(turn: ReceiptTurn | null, text: string): boolean {
+    if (!turn || this.turn !== turn || turn.invalid || turn.outputSeen || turn.authorized !== text) return false;
+    turn.invalid = true; turn.authorized = null;
+    turn.audio = []; turn.transcript = ''; turn.text = '';
+    return true;
+  }
   private handshakePrefix(turn: ReceiptTurn) {
     return ['status,entry', 'status,left', 'status,right', 'status,entry,left', 'status,entry,right'].includes(turn.requests.map(r => r.role).join(','));
   }

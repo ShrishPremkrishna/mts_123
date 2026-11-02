@@ -41,6 +41,16 @@ function motionReason(details: any): string | null {
     default: return 'motion values must be finite numbers.';
   }
 }
+function trickQuantityReason(details: any): string | null {
+  const reason = details?.refusal;
+  if (reason?.schema !== 'pupper_trick_quantity_refusal_v1' || typeof reason.code !== 'string') return null;
+  const messages: Record<string, string> = {
+    physical_count_unsupported: 'Exact physical repetition counts are not supported.',
+    playback_count_unsupported: 'Only one routine playback is supported per request.',
+    invalid_quantity: 'Trick quantity must be an integer from 1 to 10 with a supported unit.',
+  };
+  return Object.prototype.hasOwnProperty.call(messages, reason.code) ? messages[reason.code] : null;
+}
 function sessionSitCount(context: any): number | null {
   return context?.schema === 'pupper_session_context_v1' && context.scope === 'this_server_session'
     && typeof context.server_instance === 'string' && context.server_instance.length === 32 && /^[a-f0-9]{32}$/.test(context.server_instance)
@@ -86,6 +96,7 @@ export function operatorFeedback(name: unknown, value: unknown): string {
   if (result.not_dispatched === true) return `${spoken} request not sent.`;
   if (typeof result.success !== 'boolean') return 'I could not confirm that request.';
   if (result.success === false) {
+    if (name === 'play_trick') { const quantity = trickQuantityReason(result.details); if (quantity) return quantity; }
     const reason = ['move', 'turn', 'arc'].includes(name as string) ? motionReason(result.details) : null;
     if (reason) return `${spoken} rejected: ${reason}`;
     if (name !== 'stop' && name !== 'robot_status' && result.command_epoch_required === true) return `${spoken} rejected: command authorization is stale or missing. Check status and make a new request.`;
@@ -125,7 +136,7 @@ export function nativeReceiptFeedback(name: unknown, value: unknown): string {
  * This classifies our fixed receipt forms, not general truth or natural language. */
 export function isOperatorReceiptNarration(text: string): boolean {
   const normalized = text.normalize('NFKC').toLowerCase().replace(/[.,!?;:\-–—]/g, ' ').replace(/\s+/g, ' ').trim();
-  const prefixes = ['left paw command queued', 'right paw command queued', 'walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
+  const prefixes = ['exact physical repetition counts are not supported', 'only one routine playback is supported per request', 'trick quantity must be an integer', 'left paw command queued', 'right paw command queued', 'walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
     'sit controller active', 'generated motion controller active', 'skill controller active', 'walking skill controller active', 'locked skill controller active', 'controller locomotion', 'controller no active command controller', 'controller unknown', 'controller sit',
     'controller generated motion', 'controller skill', 'controller walking skill', 'controller locked skill', 'cached mode', 'cached status', 'confirmed sit entry playbacks',
     'that request was superseded', 'i could not confirm that request', 'that request failed', 'stop requested'];

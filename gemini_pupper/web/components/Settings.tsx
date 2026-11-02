@@ -85,6 +85,18 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
             </select>
           </div>
 
+          {config.outputPolicy === 'conversation' && (
+            <div>
+              <label className="flex items-center gap-2 text-sm text-gray-300">
+                <input type="checkbox" aria-label="Quick Puck acknowledgments" disabled={sessionActive}
+                  checked={config.quickReceipts === true}
+                  onChange={e => setConfig({ ...config, quickReceipts: e.target.checked })} />
+                Quick Puck acknowledgments
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Four reviewed clips acknowledge accepted move, Stop and paw requests. Uses the normal reply for other phrases, voices or models. Reconnect to change.</p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Extra Instructions</label>
             <p className="text-xs text-gray-500 mb-1">Pupper's personality and rules come from the robot (lab/prompt.md). Anything here is added after them.</p>

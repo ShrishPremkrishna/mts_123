@@ -1,0 +1,54 @@
+{
+  "schema": "pupper_receipt_audio_v1",
+  "model": "gemini-3.1-flash-live-preview",
+  "voice": "Puck",
+  "encoding": "pcm_s16le",
+  "sample_rate_hz": 24000,
+  "channels": 1,
+  "clips": [
+    {
+      "text": "Move queued.",
+      "file": "move-queued.pcm",
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "bytes": 52830,
+      "duration_s": 1.100625,
+      "transcript": "Move queued.",
+      "review_status": "approved_human",
+      "wav_file": "move-queued.wav",
+      "wav_sha256": "586768bb0f334d60a89beeb7a8de53a5f0161fb075f0adce873ccfd95a136f6d"
+    },
+    {
+      "text": "Stop requested.",
+      "file": "stop-requested.pcm",
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "bytes": 61922,
+      "duration_s": 1.2900416666666668,
+      "transcript": "Stop requested.",
+      "review_status": "approved_human",
+      "wav_file": "stop-requested.wav",
+      "wav_sha256": "2e5feb2b2d90fc7460045542808af7a1878f15044bd01b7fa5cfc03ef319bc46"
+    },
+    {
+      "text": "Left paw command queued.",
+      "file": "left-paw-command-queued.pcm",
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "bytes": 90242,
+      "duration_s": 1.8800416666666666,
+      "transcript": "Left paw command queued.",
+      "review_status": "approved_human",
+      "wav_file": "left-paw-command-queued.wav",
+      "wav_sha256": "3c6574d3a1db083aba631205d375e76e7d75c3d5aef9085dfde00b2e7ee827de"
+    },
+    {
+      "text": "Right paw command queued.",
+      "file": "right-paw-command-queued.pcm",
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "bytes": 90242,
+      "duration_s": 1.8800416666666666,
+      "transcript": "Right paw command queued.",
+      "review_status": "approved_human",
+      "wav_file": "right-paw-command-queued.wav",
+      "wav_sha256": "0a32fefcf79bf709e59efa88ef43d4e0995a0c4a5f633c63a2bff3f789845d73"
+    }
+  ]
+}

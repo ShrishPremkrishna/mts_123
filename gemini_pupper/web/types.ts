@@ -27,6 +27,7 @@ export type OutputPolicy = 'receipts' | 'conversation';
 
 export interface AppConfig {
   outputPolicy: OutputPolicy;
+  quickReceipts?: boolean; // Four human-approved Puck clips; reconnect to change.
   modelName: string;
   ttsModelName?: string;
   voiceName: string;
