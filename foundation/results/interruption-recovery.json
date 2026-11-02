@@ -1,7 +1,7 @@
 {
   "schema": "pupper_current_session_v2",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "workstream1_offline_physical_session_closed",
+  "mode": "workstream1_paused_user_request",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
@@ -56,8 +56,8 @@
     "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified."
   ],
-  "updated_utc": "2026-11-02T05:07:44.360012+00:00",
-  "authorization": "User requested natural conclusion of physical session. All robot-owned processes stopped and archives verified; user told safe to poweroff. Continue offline; no further hardware/SSH or motion needed for this handoff.",
+  "updated_utc": "2026-11-02T05:17:58.800243+00:00",
+  "authorization": "User explicitly requested stop and continue later. All agents stopped. Physical session remains closed; no automatic resume, hardware/SSH or compute work.",
   "current_report": "foundation/results/workstream1-offline-workflow-20261101.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261102T034958Z-before-compaction.json",
@@ -108,10 +108,10 @@
     "automation": "off at user request",
     "compute": "No GPU training active; completed studies archived.",
     "owners": {
-      "root": "Offline workflow integrated and preserved; physical session closed.",
-      "native_shutdown_fix": "Idle; sensor implementation and independent timeline/report reviews complete.",
-      "lab6_trial_preparation": "Idle; estimate/status and job timeline candidates integrated.",
-      "lab6_gemini_execution": "Idle; sensor research/reviews and reusable report integrated."
+      "root": "Paused at user request; continuation checkpoint saved.",
+      "lab6_gemini_execution": "Stopped; partial browser matching candidate saved, not integrated.",
+      "lab6_trial_preparation": "Idle; backend contract audit complete, browser peer review not started.",
+      "native_shutdown_fix": "Stopped; transition latency audit saved; native optimization implementation not started."
     }
   },
   "local_rehearsal": {
@@ -173,5 +173,19 @@
     "User verified one neutral Okay per accepted fake multi-action turn and audible normal greeting/clarification. Explicit reconnect integrated; unexplained provider1008idle closure remains.",
     "Push-up drift and transitions remain unaccepted; improved bob simulation remains unpromoted.",
     "Follower and Spider handoffs absent; arbitrary self-righting is not provided by stand."
-  ]
+  ],
+  "paused_work": {
+    "repo": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-paused-20261101T2117",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/ws1-paused-20261101T2117",
+    "verified_members": 81,
+    "browser_checkpoint": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-paused-20261101T2117/ws1-browser-job-ids-20261101/checkpoint.json",
+    "latency_checkpoint": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-paused-20261101T2117/ws1-transition-latency-audit-20261101/checkpoint.json",
+    "resume_only_after_user_request": true,
+    "next_offline": [
+      "Review status requests begun during pending Stop in partial UI candidate, then peer/tests/build/fake-browser rehearsal.",
+      "Review constant-loop transition eligibility against every policy-consumed field before implementing any native timing change."
+    ],
+    "running_jobs": null,
+    "latest_integrated_code_commit": "71915c6"
+  }
 }
