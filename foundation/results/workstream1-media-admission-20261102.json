@@ -1,6 +1,6 @@
 {
   "date_utc": "2026-11-02T23:19:50.557769+00:00",
-  "status": "reviewed offline, not yet validated in a real Chrome permission flow",
+  "status": "reviewed offline; foreground Chrome connection observed; hidden-tab browser acceptance still pending",
   "commit": "3538d9f",
   "problem": "Two prior supervised voice setup attempts waited about30 seconds while Chrome was in a background tab. Bringing it forward allowed connection. Duration is operator/UI observation corroborated by the configured timeout, not a preserved acoustic/timing measurement.",
   "root_cause": "connect/acquireMedia did not check known document visibility before local microphone/webcam acquisition; getUserMedia may remain pending until its30-second deadline.",
@@ -39,5 +39,23 @@
     "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-media-admission",
     "verification": "Every member hash-verified in repository and durable copies. Both integrated source files match commit3538d9f and frozen candidate."
   },
-  "next": "Next browser session verify hidden-tab setup gives immediate actionable feedback and foreground microphone connection still works; no robot movement is required for that check."
+  "next": "Next browser session verify hidden-tab setup gives immediate actionable feedback and foreground microphone connection still works; no robot movement is required for that check.",
+  "browser_followup": {
+    "observed_utc": "2026-11-02T23:25:49Z",
+    "bundle": "index-bTR6ec1i.js",
+    "runtime": "localhost fake API18091; no robot",
+    "result": "Real Chrome page reached CONNECTED with microphone available and hold-to-talk released, then explicit disconnect reported Stop and microphone not sending. Both task tabs closed and fake server63245 stopped cleanly; exec54206 exit143.",
+    "input_scope": "Vision disabled; Hold to talk never pressed; no model tool request. Saved browser key reused without exposing it.",
+    "latency_limit": "Later UI inspection establishes connection success, not exact connection time.",
+    "hidden_test_limit": "Creating a blank task tab did not make the Pupper document hidden; native Chrome focus API timed out. No repeat or alternative control bypass. Actual hidden-tab behavior remains unverified;13 focused mocks cover logic.",
+    "settings_left": "Browser local setting remains fakeAPI18091 and visiondisabled; deliberately select realAPI/camera next supervised session.",
+    "provider_cost": "One connection with no deliberate input, no usage receipt captured; do not report as zero cost. Expected well below$5 batch limit.",
+    "evidence": {
+      "archive": "artifacts/access/ws1-media-admission-20261102/browser-check/browser-check-evidence.tar.gz",
+      "sha256": "cedc49113a28eaec4fe1d3072498cab1b41c41b001a1d4c88356e8a98eed0a6e",
+      "manifest_sha256": "e0d28c53877e0efa3ffdc250031c9c7f9e1782b507e7490c171ea236e25ac120",
+      "verified_members": 6,
+      "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-media-admission/browser-check"
+    }
+  }
 }

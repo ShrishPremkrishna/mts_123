@@ -71,8 +71,8 @@
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
     "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
   ],
-  "mode": "workstream1_offline_changes_ready",
-  "updated_utc": "2026-11-02T23:20:31.762364+00:00",
+  "mode": "workstream1_offline_bob_contact_sensitivity",
+  "updated_utc": "2026-11-02T23:29:47.087898+00:00",
   "authorization": "User powered off robot after clean supported shutdown, authorized continued offline work, and deferred the navigation confirmation choice. Prioritize latency, flexibility and robustness. No robot contact until next session. API/Claude authorized; approval needed before a batch expected above $5.",
   "current_report": "foundation/results/workstream1-media-admission-20261102.json",
   "historical_recovery": {
@@ -115,11 +115,11 @@
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "All owned experiments, checks and provider calls finished. Fake server shut down cleanly. Final evidence archives verified in repo and durable store. No active robot, media or compute work.",
+    "compute": "Real Chrome foreground connection check finished; no audio/video input. Task tabs closed and fake server63245 exited143 cleanly. One bounded existing-bob friction pair is being prepared; no training, robot contact or paid experiment.",
     "owners": {
-      "/root": "Offline changes complete and checkpoint saved; next useful acceptance depends on robot/browser session.",
-      "/root/sensor_decision_review": "Completed, idle.",
-      "/root/owned_lifecycle": "Completed reviews and preservation, idle."
+      "/root": "Completion gap audit, browser evidence and current state.",
+      "/root/sensor_decision_review": "Preparing exact two-arm existing-bob contact-friction sensitivity comparison.",
+      "/root/owned_lifecycle": "Independent review of friction comparison design; browser evidence preserved."
     },
     "goal_status": "Workstream1 incomplete. Bounded voice/compound actions and native wait improvement observed; navigation unavailable, motion reliability and absent teammate handoffs remain explicit."
   },
@@ -127,13 +127,13 @@
     "browser": "Chrome1",
     "tab": "360981047",
     "url": "http://127.0.0.1:18091/",
-    "selected_robot_api": "http://127.0.0.1:18090",
-    "bundle": "index-DOkAtmAg.js",
+    "selected_robot_api": "http://127.0.0.1:18091",
+    "bundle": "index-bTR6ec1i.js",
     "model": "gemini-robotics-er-2-streaming-preview",
     "tts": "gemini-3.1-flash-tts-preview / Puck",
     "key": "User saved in browser; private file configured. Never print or copy into reports.",
-    "vision": "Historical final physical block used Robot Camera. No camera supplied to offline typed probes.",
-    "connection": "Task Chrome tab closed, microphone/camera off; no browser voice session.",
+    "vision": "Disabled for offline check; next physical session must explicitly select actualAPI and RobotCamera.",
+    "connection": "Foreground connection to fakeAPI verified then explicitly disconnected; testtabs360981058/360981059 closed.",
     "microphone_friction": "Offline fix3538d9f rejects known-hidden microphone/webcam setup before waiting, and cancels acquisition on hide with late-track cleanup. Established sessions remain connected. Actual Chrome acceptance pending.",
     "pending_user_prompt": null
   },
@@ -147,7 +147,9 @@
     "live_expiry": "foundation/results/workstream1-live-expiry-20261102.json",
     "voice_product": "foundation/results/workstream1-voice-product-20261102.json",
     "navigation_mitigation": "foundation/results/workstream1-navigation-mitigation-20261102.json",
-    "media_admission": "foundation/results/workstream1-media-admission-20261102.json"
+    "media_admission": "foundation/results/workstream1-media-admission-20261102.json",
+    "generated_bob_training": "foundation/results/generated-bob-training-20261101.json",
+    "generated_bob_contact_extent": "foundation/results/generated-bob-contact-extent-20261101.json"
   },
   "completed_this_session": [
     "c1acea9: atomic handshake server tool and batched provider results. Backend238 tests +43 independent review; final395 web tests, typecheck and build pass. Claude review used; exact source/evidence archived.",
@@ -174,6 +176,10 @@
     "baseline_limit": "First native queued receipt to applied receipt; request topic absent from old capture. New capture includes requests."
   },
   "next": [
+    {
+      "id": "bounded_friction_pair",
+      "action": "Freeze existing trainedbob/reference/gains/geometry and compare exactlyfoot-sphere-only lowfriction versusactualloadedcontactclasses lowfriction. Verify solverfriction and matched initialstate. No newtraining; preserve strictcontact failure, no policy promotion. Independentreview beforeconclusion."
+    },
     {
       "id": "next_robot_recovery",
       "action": "On next session recover the closed native comparison and full build/test/library artifacts read-only before new experiments. Inspect existing exits/index/receipt before retrying. Quantify actual clip admission savings from new MCAP."
@@ -211,5 +217,10 @@
     "web_bundle_sha256": "b9e84b69a34332b9b5a0d5226b71faf4610ab031282658fa670fe67fc225034a",
     "final_validation": "411 web tests, typecheck and build pass. Backend39 transport tests and166 class checks passed for navigation changes; no backend edits since.",
     "provider_tests": "3 typed fake cases passed before media admission fix; latter changes connection visibility only and was validated offline without repeating paid probes."
+  },
+  "last_goal_turn": {
+    "classification": "progress",
+    "evidence": "Committed navigation/media improvements and preserved current release; current continuation also observed actual Chrome foreground connection and identified one untried bounded contact sensitivity question.",
+    "no_progress_blocker_count": 0
   }
 }

@@ -139,7 +139,9 @@ cancels pending acquisition if the tab becomes hidden. Bring the tab forward
 and connect again; already-established sessions remain connected across tab
 switches. This removes a known avoidable permission wait, not model inference
 latency. The [offline regression](../../foundation/results/workstream1-media-admission-20261102.json)
-passes; real Chrome permission-flow acceptance remains for the next session.
+passes. A real Chrome foreground connection and clean disconnect were then
+observed against fake execution, without audio/video input. The hidden-tab case
+still needs a real-browser check; native window-focus control timed out.
 
 **Conversation + control** keeps natural conversation and the complete robot tool
 catalog in one session. The client holds model speech/text until generation is complete and its
