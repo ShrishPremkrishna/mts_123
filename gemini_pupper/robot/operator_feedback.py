@@ -32,11 +32,11 @@ LABELS = {
     "stand_up": "stand", "lie_down": "leg relaxation", "move": "move",
     "turn": "turn", "arc": "arc", "wait": "wait", "stop": "Stop",
     "robot_status": "status", "play_trick": "trick",
-    "interactive_action": "interactive action", "follow": "follow",
+    "interactive_action": "interactive action", "shake_hand": "handshake", "follow": "follow",
     "unlock": "unlock", "lock_tricks": "lock",
 }
 QUEUE_TOOLS = frozenset({"stand_up", "lie_down", "move", "turn", "arc", "wait",
-                         "play_trick", "interactive_action"})
+                         "play_trick", "interactive_action", "shake_hand"})
 
 
 def tool_label(name):
@@ -188,6 +188,16 @@ def receipt_feedback(name, result, *, current=True, dispatched=True):
     queued = (isinstance(name, str) and name in QUEUE_TOOLS and isinstance(submission, dict)
               and submission.get("schema") == "pupper_submission_v1"
               and submission.get("state") == "queued")
+    if name == "shake_hand" and queued:
+        handshake = details.get("handshake")
+        if (isinstance(handshake, dict) and handshake.get("schema") == "pupper_handshake_submission_v1"
+                and handshake.get("paw") in ("left", "right")
+                and handshake.get("action") == "shake_" + handshake["paw"]
+                and isinstance(submission.get("server_instance"), str)
+                and re.fullmatch(r"[a-f0-9]{32}", submission["server_instance"])
+                and isinstance(submission.get("job_id"), str)
+                and re.fullmatch(re.escape(submission["server_instance"]) + r":[1-9][0-9]*", submission["job_id"])):
+            return f"{handshake['paw'].capitalize()} paw command queued."
     if name == "stop":
         return "Stop requested."
     return f"{spoken} {'queued' if queued else 'request accepted'}."

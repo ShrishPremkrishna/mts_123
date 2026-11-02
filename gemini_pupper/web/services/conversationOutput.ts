@@ -1,5 +1,5 @@
 import guard from '../../conversation_guard.json';
-import { hasMalformedOutcomeFlags } from './operatorFeedback';
+import { hasMalformedOutcomeFlags, queuedHandshakePaw } from './operatorFeedback';
 import type { LiveServerMessage } from '@google/genai';
 
 export const OUTPUT_LIMITS = Object.freeze({ bytes: 2 * 1024 * 1024, items: 256, text: 16000, timeoutMs: 20000 });
@@ -125,7 +125,7 @@ export function normalizeReceiptTranscript(text: string): string {
 interface ReceiptRequest {
   token: object;
   id: string | null;
-  role: 'status' | 'entry' | 'left' | 'right' | 'other';
+  role: 'status' | 'entry' | 'left' | 'right' | 'handshake_left' | 'handshake_right' | 'other';
   returned: boolean;
   accepted: boolean;
   queued: boolean;
@@ -201,11 +201,11 @@ export class NativeReceiptOutputGate {
     return true;
   }
   private handshakePrefix(turn: ReceiptTurn) {
-    return ['status,entry', 'status,left', 'status,right', 'status,entry,left', 'status,entry,right'].includes(turn.requests.map(r => r.role).join(','));
+    return ['status,entry', 'status,left', 'status,right', 'status,entry,left', 'status,entry,right', 'status,handshake_left', 'status,handshake_right'].includes(turn.requests.map(r => r.role).join(','));
   }
   private acceptedHandshake(turn: ReceiptTurn) {
     const roles = turn.requests.map(r => r.role).join(',');
-    return !turn.cancelled && ['status,left', 'status,right', 'status,entry,left', 'status,entry,right'].includes(roles)
+    return !turn.cancelled && ['status,left', 'status,right', 'status,entry,left', 'status,entry,right', 'handshake_left', 'handshake_right', 'status,handshake_left', 'status,handshake_right'].includes(roles)
       && turn.requests.every(r => r.returned && r.accepted && (r.role === 'status' || r.queued));
   }
   authorize(turn: ReceiptTurn | null, text: string, source: object, result: any): string | null {
@@ -217,15 +217,17 @@ export class NativeReceiptOutputGate {
       && !hasMalformedOutcomeFlags(result) && !result.superseded && !result.outcome_unknown && !result.not_dispatched;
     request.accepted = known && result.success === true;
     request.queued = result?.details?.submission?.schema === 'pupper_submission_v1' && result.details.submission.state === 'queued';
+    if (request.role.startsWith('handshake_') && request.accepted
+        && queuedHandshakePaw(result, request.role.slice('handshake_'.length)) === null) { this.invalidate(); return null; }
     if (!known) { this.invalidate(); return null; }
     if (!request.accepted) {
       this.handshakeStreak = 0;
       if (turn.tools > 1) this.invalidate();
     }
     if (turn.invalid || turn.outputSeen || !text.trim() || text.length > 1000) return null;
-    if (turn.tools > 1) {
-      if (!this.acceptedHandshake(turn)) return null;
-      const paw = turn.requests.at(-1)!.role === 'left' ? 'Left' : 'Right';
+    if (turn.tools > 1 && !this.acceptedHandshake(turn)) return null;
+    if (this.acceptedHandshake(turn)) {
+      const paw = turn.requests.at(-1)!.role.endsWith('left') ? 'Left' : 'Right';
       text = `${paw} paw command queued.${this.handshakeStreak === 3 ? ' ' + HANDSHAKE_JOKE : ''}`;
     }
     turn.authorized = text;
@@ -278,6 +280,8 @@ export class NativeReceiptOutputGate {
         const args = call.args as any;
         const role = call.name === 'robot_status' ? 'status'
           : call.name === 'play_trick' && args?.name === 'sit_stay_shake' ? 'entry'
+          : call.name === 'shake_hand' && args?.paw === 'left' ? 'handshake_left'
+          : call.name === 'shake_hand' && args?.paw === 'right' ? 'handshake_right'
           : call.name === 'interactive_action' && args?.action === 'shake_left' ? 'left'
           : call.name === 'interactive_action' && args?.action === 'shake_right' ? 'right' : 'other';
         turn.requests.push({ token: call, id, role, returned: false, accepted: false, queued: false });

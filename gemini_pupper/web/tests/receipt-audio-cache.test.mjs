@@ -1,3 +1,5 @@
+// Record individual responses from singleton or batched SDK envelopes.
+// provider-response-batch.test.mjs separately checks actual send counts/boundaries.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -22,7 +24,7 @@ function service(audioCache,patch={}) {
   const logs=[],responses=[],audio=[],calls=[];
   const config={modelName:'gemini-3.1-flash-live-preview',voiceName:'Puck',robotApiUrl:'http://cache-tests',outputPolicy:'conversation',...patch};
   const s=new GeminiLiveService(config,x=>logs.push(x),()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},audioCache);
-  s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:r=>responses.push(r)});
+  s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:r=>responses.push(...[r.functionResponses].flat().map(functionResponses=>({functionResponses})))});
   s.playAudioBase64=async data=>audio.push(data);
   s.robotBridge.callTool=async name=>{calls.push(name);return name==='stop'||name==='robot_status'?{success:true}:queued;};
   s.robotBridge.immediateStop=async()=>({success:true});

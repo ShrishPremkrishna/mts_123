@@ -1,3 +1,5 @@
+// Record individual responses from singleton or batched SDK envelopes.
+// provider-response-batch.test.mjs separately checks actual send counts/boundaries.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
@@ -84,7 +86,7 @@ function service(outputPolicy = 'receipts') {
   const config = { modelName: 'gemini-3.1-flash-live-preview', robotApiUrl: 'http://test-server', outputPolicy };
   const s = new GeminiLiveService(config, e => logs.push(e), () => {}, () => {}, e => dispatches.push(e));
   s.connected = true;
-  s.sessionPromise = Promise.resolve({ sendToolResponse: r => responses.push(r) });
+  s.sessionPromise = Promise.resolve({ sendToolResponse: r => responses.push(...[r.functionResponses].flat().map(functionResponses => ({functionResponses}))) });
   return { s, dispatches, logs, responses };
 }
 

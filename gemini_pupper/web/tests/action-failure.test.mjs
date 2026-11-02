@@ -1,3 +1,5 @@
+// Record individual responses from singleton or batched SDK envelopes.
+// provider-response-batch.test.mjs separately checks actual send counts/boundaries.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -12,7 +14,7 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {
 let seq=0;
 function service(){const calls=[],responses=[],logs=[],audio=[],stops=[];
  const s=new GeminiLiveService({modelName:'gemini-3.1-flash-live-preview',voiceName:'Puck',outputPolicy:'conversation',robotApiUrl:'http://action-failure-'+(++seq)},e=>logs.push(e),()=>{},()=>{});
- s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:r=>responses.push(r),sendRealtimeInput(){}});s.playAudioBase64=async x=>audio.push(x);
+ s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:r=>responses.push(...[r.functionResponses].flat().map(functionResponses=>({functionResponses}))),sendRealtimeInput(){}});s.playAudioBase64=async x=>audio.push(x);
  s.robotBridge.callTool=async name=>{calls.push(name);return name==='move'?failed:name==='robot_status'||name==='stop'?{success:true}:queued;};
  s.robotBridge.immediateStop=async()=>{stops.push('stop');return {success:true};};return {s,calls,responses,logs,audio,stops};}
 test('actual HTTP failed move without epoch flags fences following turn and later packets',async()=>{

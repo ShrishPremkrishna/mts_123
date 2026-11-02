@@ -102,6 +102,26 @@ def ACTION_IDS(robot: Robot) -> list:
     return list(robot.action_ids())
 
 
+def handshake_trick(robot: Robot):
+    """The installed, unlocked Sit policy must return both paws to its idle loop."""
+    trick = robot.available_tricks().get("sit_stay_shake")
+    if trick is None or trick.kind != "policy" or not trick.interactive or trick.walks:
+        return None
+    try:
+        idle, _ = robot._clip_endpoint(trick, trick.clips[0]["name"])
+        if not idle.get("loop"):
+            return None
+        for action in ("shake_left", "shake_right"):
+            if action not in trick.actions or action == trick.exit_clip:
+                return None
+            endpoint, _ = robot._clip_endpoint(trick, action)
+            if endpoint != idle:
+                return None
+    except (KeyError, ValueError, StopIteration, IndexError):
+        return None
+    return trick
+
+
 def _trick_list(robot: Robot) -> str:
     return "\n".join(f'- "{name}": {t.description}' for name, t in robot.available_tricks().items()) or "(none available)"
 
@@ -144,6 +164,8 @@ def declarations(robot: Robot) -> list[dict]:
     out = []
     for t in _in_lab_order(list(TOOLS.values())):
         if t.name == "follow" and not robot.follow_available:
+            continue
+        if t.name == "shake_hand" and handshake_trick(robot) is None:
             continue
         props, required = {}, []
         for name, p in t.params.items():

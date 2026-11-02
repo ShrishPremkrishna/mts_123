@@ -1,10 +1,12 @@
+// Record individual responses from singleton or batched SDK envelopes.
+// provider-response-batch.test.mjs separately checks actual send counts/boundaries.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 const bundle = await build({ entryPoints: ['services/geminiLive.ts'], bundle:true, write:false, format:'esm', platform:'node', plugins:[{name:'offline-sdk',setup(b){ b.onResolve({filter:/^@google\/genai$/},()=>({path:'sdk',namespace:'stub'})); b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:"export class GoogleGenAI {} export const Modality={AUDIO:'AUDIO',TEXT:'TEXT'}; export const Type={OBJECT:'OBJECT',STRING:'STRING'};"})); }}] });
 const {GeminiLiveService}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 function deferred(){let resolve; const promise=new Promise(r=>resolve=r);return {promise,resolve};}
-function service(policy){const logs=[],dispatches=[],responses=[],audio=[],speech=[],calls=[];const config={modelName:'gemini-3.1-flash-live-preview',robotApiUrl:'http://output-test',outputPolicy:policy};const s=new GeminiLiveService(config,x=>logs.push(x),()=>{},()=>{},x=>dispatches.push(x));s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:r=>responses.push(r)});s.playAudioBase64=async x=>audio.push(x);s.synthesizeAndPlaySpeech=async x=>speech.push(x);s.robotBridge.callTool=async(name)=>{calls.push(name);return {success:true,message:'FAKE PHYSICAL CLAIM'};};s.robotBridge.immediateStop=async()=>({success:true});return {s,config,logs,dispatches,responses,audio,speech,calls};}
+function service(policy){const logs=[],dispatches=[],responses=[],audio=[],speech=[],calls=[];const config={modelName:'gemini-3.1-flash-live-preview',robotApiUrl:'http://output-test',outputPolicy:policy};const s=new GeminiLiveService(config,x=>logs.push(x),()=>{},()=>{},x=>dispatches.push(x));s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:r=>responses.push(...[r.functionResponses].flat().map(functionResponses=>({functionResponses})))});s.playAudioBase64=async x=>audio.push(x);s.synthesizeAndPlaySpeech=async x=>speech.push(x);s.robotBridge.callTool=async(name)=>{calls.push(name);return {success:true,message:'FAKE PHYSICAL CLAIM'};};s.robotBridge.immediateStop=async()=>({success:true});return {s,config,logs,dispatches,responses,audio,speech,calls};}
 const call=(id,name,args={})=>({toolCall:{functionCalls:[{id,name,args}]}});
 test('receipts mode suppresses forged no-tool native audio and text',async()=>{for(const p of ['bad','receipts']){const e=service(p);await e.s.handleMessage({serverContent:{modelTurn:{parts:[{text:'I completed the walk'},{inlineData:{data:'forged'}}]},outputTranscription:{text:'I am standing'}}});assert.deepEqual(e.audio,[]);assert.equal(e.logs.some(x=>x.type==='model'||x.message.includes('I completed')),false);}});
 test('strict speech aliases never invoke TTS even for text models',async()=>{const e=service('receipts');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';for(const name of ['speak','say','narrate'])await e.s.handleMessage(call(name,name,{text:'I moved already'}));assert.deepEqual(e.speech,[]);assert.equal(e.logs.some(x=>x.message.includes('I moved already')),false);});
@@ -481,7 +483,7 @@ test('Stop during generation-sealed playback invalidates deferred later chunks a
 
 test('new PTT after generation seal preserves the accepted-handshake streak while Stop still resets it',async()=>{
  const e=service('conversation');e.s.config.enableAudio=true;e.s.inputAudioContext={state:'running'};
- e.s.mediaStream={getAudioTracks:()=>[{enabled:false}]};e.s.sessionPromise=Promise.resolve({sendToolResponse:r=>e.responses.push(r),sendRealtimeInput(){}});
+ e.s.mediaStream={getAudioTracks:()=>[{enabled:false}]};e.s.sessionPromise=Promise.resolve({sendToolResponse:r=>e.responses.push(...[r.functionResponses].flat().map(functionResponses=>({functionResponses}))),sendRealtimeInput(){}});
  e.s.robotBridge.callTool=async name=>name==='robot_status'?{success:true}:queuedHandshake;
  async function shake(i){
   await e.s.handleMessage(call('s'+i,'robot_status'));

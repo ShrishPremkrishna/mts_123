@@ -19,6 +19,24 @@ job cancels dependent queued work; a stop preempts request acceptance. Failed ex
 transitions and missing clip completion feedback are reported rather than treated
 as successful movement.
 
+`POST /tools/shake_hand` takes `{"paw":"left"}` or `{"paw":"right"}`. It is
+advertised only when the installed, unlocked Sit policy supports both paws and
+returns each to its seated idle loop. A named handshake uses this one tool call;
+no preceding model status or Sit-entry call is needed. Existing queued work runs
+first. The single handshake job checks current controller ownership, enters Sit
+when needed, then plays the requested paw and leaves the Sit controller selected.
+Already-selected or earlier-queued Sit does not add another entry. Unknown
+ownership or a cached/observed Sit mismatch is refused, not automatically repaired.
+
+The reply carries `details.handshake` with schema `pupper_handshake_submission_v1`,
+`paw` and its matching `action` (`shake_left` or `shake_right`), alongside the
+ordinary submission identity. That one job succeeds only after the final paw
+playback confirms; Sit entry alone cannot complete it. Stop and stage failures use
+the existing cancellation and dependent-job rules. The Sit counter still counts
+only confirmed entries. No automatic standing exit is added. Older catalogs retain
+the status/Sit-entry/interactive-action fallback; unclear paw requests still need
+clarification. These are controller commands, not measured physical handshakes.
+
 ### Action timing and recorded evidence
 
 Queued replies include server-owned `job_id` and `server_instance` fields in the
@@ -214,6 +232,14 @@ identity, rather than treating a model default as a capability guarantee. The
 owns the current findings and failures. The earlier 8.776 s text-to-fake-Stop
 interval included unseparated local, transport and model work; it does not measure
 physical stopping or isolate cloud inference time.
+
+The browser admits ordinary tool calls in order and sends their results back to
+the provider once per received tool packet, after that packet's admissions settle.
+This batches provider replies, not physical execution or unrelated requests.
+Server-confirmed local audio cues remain immediate; Stop sends its response
+independently and bypasses the ordinary admission lane. Cancelled requests and
+stale acknowledgment text are filtered again before sending. This removes separate
+result sends within a packet without promising a provider latency bound.
 
 The browser dispatches tools before decoding speech. A Stop in one model tool
 batch suppresses other motion in that batch; cancelling a sent action requests

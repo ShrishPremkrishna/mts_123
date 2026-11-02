@@ -433,7 +433,7 @@ class _ToolDispatcher:
                                   "original_result": result}
                     failed_action = (fc.name in {
                         "move", "turn", "arc", "stand_up", "lie_down", "wait",
-                        "play_trick", "interactive_action", "follow",
+                        "play_trick", "interactive_action", "shake_hand", "follow",
                     } and (result.get("success") is False or result.get("not_dispatched") is True))
                     # Normal batches share a lock. Fence every later action after
                     # a refused step, even when the ordinary Result has no epoch

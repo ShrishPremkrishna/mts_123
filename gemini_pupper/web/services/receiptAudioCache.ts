@@ -1,5 +1,5 @@
 import { normalizeReceiptTranscript } from './conversationOutput';
-import { hasMalformedOutcomeFlags } from './operatorFeedback';
+import { hasMalformedOutcomeFlags, queuedHandshakePaw } from './operatorFeedback';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const VOICE = 'Puck';
@@ -30,6 +30,10 @@ export function serverReceiptAudioText(name: unknown, args: any, result: any): s
       : 'That request failed. Check the controls for details.';
   }
   if (name === 'stop') return 'Stop requested.';
+  if (name === 'shake_hand') {
+    const paw = queuedHandshakePaw(result, args?.paw);
+    return paw ? `${paw === 'left' ? 'Left' : 'Right'} paw command queued.` : null;
+  }
   const submission = result.details?.submission;
   if (submission?.schema !== 'pupper_submission_v1' || submission.state !== 'queued') return null;
   const labels: Record<string, string> = {

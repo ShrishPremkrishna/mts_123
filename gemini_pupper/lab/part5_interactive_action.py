@@ -11,8 +11,10 @@ called hold_pose.
 
 from __future__ import annotations
 
-from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER, WALK_READY_S, Result, Robot, not_written  # noqa: F401
-from tool_registry import ACTION_IDS, Param, tool
+from part3_follow import prepare_to_move
+from part4_tricks import play_policy_trick
+from robot_api import FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, WALK_READY_S, Result, Robot, not_written, with_note  # noqa: F401
+from tool_registry import ACTION_IDS, Param, handshake_trick, tool
 
 
 # ============================================================ what the robot does
@@ -124,3 +126,63 @@ async def interactive_action_tool(robot: Robot, action: str) -> Result:
     # One line: call interactive_action(robot, action) (your TODO 9), await it, and return it.
     return await interactive_action(robot, action)
 # =====================================
+
+
+@tool(
+    "shake_hand",
+    "Offer exactly one explicitly named paw. The server queues Sit entry if needed, then the paw action,"
+    " and leaves the Sit controller selected. Use this single call for a named handshake; no prior status"
+    " or play_trick call is needed. Ask which paw if unclear. Does not stand afterward."
+    " A queued reply is acceptance; completion requires the final paw's controller playback confirmation.",
+    paw=Param("string", "Requested robot paw, left or right; do not infer an unclear side.", enum=["left", "right"]),
+)
+async def shake_hand_tool(robot: Robot, paw: str) -> Result:
+    """One cancellable queue job, ending only after the requested paw completes."""
+    if paw not in ("left", "right"):
+        return Result(False, "paw must be left or right")
+    trick = handshake_trick(robot)
+    if trick is None:
+        return Result(False, "The installed, unlocked Sit-and-both-paws capability is unavailable.")
+    if robot.fallen:
+        return Result(False, FELL_MESSAGE)
+    action = f"shake_{paw}"
+    note = await prepare_to_move(robot)
+    if isinstance(note, Result):
+        return note
+    entry_planned = robot.state_after_queue is not trick
+    estimate = trick.clip_time_estimate(action)
+    if entry_planned:
+        estimate += trick.total_time + 0.3 + robot.transition_time_estimate(trick.controller)
+
+    async def job() -> Result:
+        if handshake_trick(robot) is not trick:
+            return Result(False, "The handshake capability was locked or changed before playback.")
+        if robot.fallen or robot.stopped_during_call():
+            return Result(False, "Handshake interrupted by a fall or stop.")
+        observed = await robot.mode()
+        mode = (observed.details or {}).get("observed_controller_mode")
+        if not observed.ok or mode in (None, "unknown", "locked_skill"):
+            return Result(False, "Handshake refused: current controller ownership is unavailable or unknown.")
+        # Do not let play_policy_trick's idempotent early return mistake a stale
+        # cached Sit selection for an active Sit controller (or replay an entry
+        # after external selection). Refuse the mismatch rather than guess.
+        if (robot.state_now is trick) != (mode == "sit_stay_shake"):
+            return Result(False, "Handshake refused: observed Sit selection differs from the queued controller state.")
+        entry = await play_policy_trick(robot, trick)
+        if not entry.ok:
+            return entry
+        if handshake_trick(robot) is not trick:
+            return Result(False, "The handshake capability was locked or changed before the paw action.")
+        if robot.state_now is not trick or robot.fallen or robot.stopped_during_call():
+            return Result(False, "Handshake interrupted before the paw action.")
+        result = await robot.play_clip(trick, action)
+        if not result.ok:
+            return result
+        return Result(True, f"{action} controller playback confirmed; Sit controller remains selected.")
+
+    queued = await robot.queue(f"sit_stay_shake {action}", job, estimate, then=trick)
+    if not queued.ok:
+        return queued
+    details = {**queued.details, "handshake": {
+        "schema": "pupper_handshake_submission_v1", "paw": paw, "action": action}}
+    return with_note(note, Result(True, queued.message, details))

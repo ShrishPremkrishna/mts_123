@@ -5,7 +5,7 @@ export function normalizeOutputPolicy(value: unknown): OutputPolicy {
 }
 const LABELS: Record<string, string> = Object.freeze({
   stand_up: 'stand', lie_down: 'leg relaxation', move: 'move', turn: 'turn', arc: 'arc', wait: 'wait',
-  stop: 'Stop', robot_status: 'status', play_trick: 'trick', interactive_action: 'interactive action',
+  stop: 'Stop', robot_status: 'status', play_trick: 'trick', interactive_action: 'interactive action', shake_hand: 'handshake',
   follow: 'follow', unlock: 'unlock', lock_tricks: 'lock',
 });
 const QUEUED_TOOLS = new Set(['stand_up', 'lie_down', 'move', 'turn', 'arc', 'wait', 'play_trick', 'interactive_action']);
@@ -15,6 +15,23 @@ export function toolLabel(name: unknown): string {
 export function hasMalformedOutcomeFlags(value: any): boolean {
   return !!value && typeof value === 'object'
     && ['superseded', 'outcome_unknown', 'not_dispatched'].some(flag => flag in value && typeof value[flag] !== 'boolean');
+}
+
+/** A combined handshake receipt describes queued work, not physical execution. */
+export function queuedHandshakePaw(value: any, requestedPaw?: unknown): 'left' | 'right' | null {
+  if (!value || value.success !== true || hasMalformedOutcomeFlags(value)
+      || value.superseded || value.outcome_unknown || value.not_dispatched) return null;
+  const submission = value.details?.submission, handshake = value.details?.handshake;
+  if (submission?.schema !== 'pupper_submission_v1' || submission.state !== 'queued'
+      || handshake?.schema !== 'pupper_handshake_submission_v1'
+      || !['left', 'right'].includes(handshake.paw)
+      || handshake.action !== `shake_${handshake.paw}`
+      || (requestedPaw !== undefined && handshake.paw !== requestedPaw)) return null;
+  const instance = submission.server_instance, job = submission.job_id;
+  if (typeof instance !== 'string' || !/^[a-f0-9]{32}$/.test(instance)
+      || typeof job !== 'string' || job.length > 128
+      || !job.startsWith(`${instance}:`) || !/^[a-f0-9]{32}:[1-9][0-9]*$/.test(job)) return null;
+  return handshake.paw;
 }
 
 function numberText(value: unknown): string | null {
@@ -103,6 +120,7 @@ export function operatorFeedback(name: unknown, value: unknown): string {
     return 'That request failed. Check the controls for details.';
   }
   if (name === 'robot_status') { const status = statusFeedback(result.details); if (status) return status; }
+  if (name === 'shake_hand') { const paw = queuedHandshakePaw(result); if (paw) return `${paw === 'left' ? 'Left' : 'Right'} paw command queued.`; }
   const submission = result.details?.submission;
   const queued = typeof name === 'string' && QUEUED_TOOLS.has(name)
     && submission?.schema === 'pupper_submission_v1' && submission.state === 'queued';

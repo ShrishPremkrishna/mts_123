@@ -1,3 +1,5 @@
+// Record individual responses from singleton or batched SDK envelopes.
+// provider-response-batch.test.mjs separately checks actual send counts/boundaries.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -13,7 +15,7 @@ function rig(){
  const calls=[],responses=[],audio=[],logs=[];
  const config={modelName:'gemini-robotics-er-2-streaming-preview',robotApiUrl:'http://request-order',outputPolicy:'conversation',voiceName:'Puck',ttsModelName:'gemini-3.1-flash-tts-preview'};
  const s=new GeminiLiveService(config,e=>logs.push(e),()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},{lookup:text=>text});
- s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:x=>responses.push(x),close(){}});
+ s.connected=true;s.sessionPromise=Promise.resolve({sendToolResponse:x=>responses.push(...[x.functionResponses].flat().map(functionResponses=>({functionResponses}))),close(){}});
  s.robotBridge.callTool=async(name,args)=>{calls.push([name,args]);return name==='robot_status'||name==='stop'?{success:true}:queued};
  s.robotBridge.immediateStop=async()=>({success:true});s.playAudioBase64=async x=>audio.push(x);s.synthesizeAndPlaySpeech=async()=>{};
  return {s,calls,responses,audio,logs};

@@ -369,7 +369,7 @@ export class GeminiLiveService {
     systemInstruction += '\n' + cameraContext + ' Source selection does not establish a current frame. Describe visible image content when available without claiming calibrated robot-body directions.';
 
     if (isAudioOutput && this.outputPolicy === 'conversation') {
-      systemInstruction += '\nComplete every tool call needed for the user request before acknowledging it; do not end a multi-step request just to speak. Remain silent while planning tools and waiting for their replies. After all needed replies arrive, if the latest response contains operator_acknowledgment.text, speak exactly that text and nothing else, unless its explicitly offered optional_clarification is needed for an unclear paw request. If absent, do not invent an acknowledgment. An explicit stand request uses stand_up by itself; do not add Stop unless the user requests cancellation. A busy-paws joke never replaces the requested handshake: still check status and request the paw; use only the exact supplied acknowledgment for any joke.';
+      systemInstruction += '\nComplete every tool call needed for the user request before acknowledging it; do not end a multi-step request just to speak. Remain silent while planning tools and waiting for their replies. After all needed replies arrive, if the latest response contains operator_acknowledgment.text, speak exactly that text and nothing else, unless its explicitly offered optional_clarification is needed for an unclear paw request. If absent, do not invent an acknowledgment. An explicit stand request uses stand_up by itself; do not add Stop unless the user requests cancellation. A busy-paws joke never replaces the requested handshake: still use the advertised handshake path to request the paw; use only the exact supplied acknowledgment for any joke.';
     }
     if (!isAudioOutput && this.outputPolicy === 'conversation') {
       systemInstruction += '\n\nReturn conversation directly as text. The application screens completed text and speaks it with the selected voice. Do not call a speech tool. Robot actions still require their robot tools.';
@@ -889,6 +889,36 @@ export class GeminiLiveService {
         ownTail = new Promise<void>(resolve => { releaseOrdinary = resolve; });
         this.ordinaryToolTail = ownTail;
       }
+      // Reply once per provider packet after its ordered HTTP admissions settle.
+      // Local server-confirmed cues remain immediate; Stop flushes independently.
+      const responseBatch: { id?: string; build: () => any }[] = [];
+      const flushResponses = () => {
+        const batch = responseBatch.splice(0);
+        const pending = this.sessionPromise;
+        if (!batch.length || !this.connected || this.disposed || !pending) return;
+        void pending.then(session => {
+          if (!this.connected || this.disposed || this.sessionPromise !== pending) return;
+          // Cancellation and receipt authorization may change while HTTP or the
+          // SDK session is pending. Never freeze an acknowledgment at collection.
+          const responses = batch.filter(row => !(row.id && this.cancelledToolIds.has(row.id)))
+            .map(row => row.build());
+          if (!responses.length) return;
+          const traceResponses = (phase: string) => responses.forEach(response => this.trace(phase, {
+            message_sequence: messageSequence, request_id: response.id ?? '',
+            tool: response.name ?? 'unknown', batch_size: responses.length,
+          }));
+          try {
+            traceResponses('function_response_send_start');
+            session.sendToolResponse({ functionResponses: responses.length === 1 ? responses[0] : responses });
+            traceResponses('function_response_send_return');
+          } catch {
+            traceResponses('function_response_send_failed');
+            // Delivery is unconfirmed. Never replay an executed tool or receipt.
+          }
+        }).catch(() => {
+          this.trace('function_response_session_unavailable', { message_sequence: messageSequence });
+        });
+      };
       try {
         if (cancelSentAction) await this.requestAutomaticStop('Live cancelled an already-dispatched action');
         if (previous) await previous;
@@ -1085,30 +1115,15 @@ export class GeminiLiveService {
             void this.synthesizeAndPlaySpeech(receiptAuthorization, currentFeedback)
               .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
           }
-          if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
-            this.sessionPromise.then(session => {
-              if (!this.connected) return;
-              try {
-                this.trace('function_response_send_start', { message_sequence: messageSequence,
-                  request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
-                session.sendToolResponse({
-                  functionResponses: {
-                    id: fc.id,
-                    name: fc.name,
-                    response: { result, ...(receiptAuthorization && !cachedReceipt && !suppressSuccessNarration && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) }
-                  }
-                });
-                this.trace('function_response_send_return', { message_sequence: messageSequence,
-                  request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
-              } catch (err) {
-                this.trace('function_response_send_failed', { message_sequence: messageSequence,
-                  request_id: fc.id ?? '', tool: fc.name ?? 'unknown' });
-                // Session may have closed between check and send
-              }
-            });
-          }
+          responseBatch.push({ id: fc.id, build: () => ({
+            id: fc.id,
+            name: fc.name,
+            response: { result, ...(receiptAuthorization && !cachedReceipt && !suppressSuccessNarration && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) },
+          }) });
+          if (fc.name === 'stop') flushResponses();
         }
       } finally {
+        flushResponses();
         if (this.ordinaryToolTail === ownTail) this.ordinaryToolTail = null;
         releaseOrdinary?.();
       }
