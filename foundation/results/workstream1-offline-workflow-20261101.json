@@ -1,0 +1,78 @@
+{
+  "schema": "pupper_offline_workflow_improvement_v1",
+  "updated_utc": "2026-11-02T05:07:44.360012+00:00",
+  "baseline_commit": "a29363d0339bf3642c20b74a3da1e6c4e65949d3",
+  "scope": "Offline implementation and reporting. No SSH, hardware, motors, cloud calls, model/gain changes or physical-success claim.",
+  "changes": {
+    "timing_estimates": "Existing transition waits included once from planned queue state. Fake held-pose to half-second walk changed from0.5s estimate to8.7s; actual motion/waits unchanged.",
+    "job_timeline": "Server-owned job IDs in submissions/current_action/outcomes, wall+monotonic queued/started/cancel_requested/finished log events;64 terminal outcomes retained for HTTP polling with drop count.",
+    "cancellation_race": "Worker cancellation after child completion reports the actual child result rather than falsely cancelled; no motion ordering or Stop change.",
+    "status_privacy": "Known locked skill identities redacted in public fault/fall status; internal enforcement unchanged.",
+    "sensor_diagnostic": "Standalone inspect or explicitly configured comparison with raw capture and verified feature restoration. Not installed or hardware-tested; no reset/calibration/tare/DCD command.",
+    "offline_report": "Reusable read-only MCAP/API/native/camera report; new output directory, exact hashes/timezone/overlaps/gaps; no new runtime recorder.",
+    "docs": "Shortened existing hardware workflow and removed stale voice/status guidance; canonical operational state remains one file."
+  },
+  "validation": {
+    "root_integrated_api_cases": 34,
+    "root_integrated_report_cases": 20,
+    "root_integrated_sensor_cpp_assertions": 254,
+    "root_integrated_sensor_summary_tests": 4,
+    "author_affected_api_cases": 191,
+    "author_course_checks": 166,
+    "independent_reviews": "All frozen candidates reviewed independently; metadata cancellation race, signed heading-accuracy, restoration deadline, malformed report rows and phase order defects corrected before integration.",
+    "real_closed_capture": {
+      "bags": 2,
+      "timed_events": 136,
+      "selected_camera_thumbnails": 12,
+      "hashed_inputs": 30,
+      "decoder_errors": 0,
+      "input_unchanged": true,
+      "structured_jobs": 0,
+      "reason_no_structured_jobs": "Historical recording predates the new IDs; no causal links invented."
+    }
+  },
+  "report": {
+    "html": "artifacts/hardware/2026-11-01/session-report-offline/current-capture-report-final/report.html",
+    "json": "artifacts/hardware/2026-11-01/session-report-offline/current-capture-report-final/report.json",
+    "plot": "artifacts/hardware/2026-11-01/session-report-offline/current-capture-report-final/timeline.png"
+  },
+  "bundles": {
+    "ws1-transition-status-offline": {
+      "repo": "artifacts/access/ws1-transition-status-20261101",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/ws1-transition-status-offline",
+      "members": 21,
+      "manifest_sha256": "f80e9cd3c0a1ca046fa4163ed0f1d32b10d3c56b53239c3938116a9a21da42ac",
+      "copies_verified": true
+    },
+    "ws1-job-timeline-offline": {
+      "repo": "artifacts/access/ws1-job-timeline-20261101",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/ws1-job-timeline-offline",
+      "members": 24,
+      "manifest_sha256": "4a57f0b1dbc817860e7a4f118f566463568acc1aa11a80854645e7928660b774",
+      "copies_verified": true
+    },
+    "sensor-diagnostic-offline": {
+      "repo": "artifacts/hardware/2026-11-01/sensor-diagnostic-offline",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/sensor-diagnostic-offline",
+      "members": 21,
+      "manifest_sha256": "eefd73813ac92d75812334a1c65bacf6271c7a26016a6c0e51db1308bd4513d0",
+      "copies_verified": true
+    },
+    "session-report-offline": {
+      "repo": "artifacts/hardware/2026-11-01/session-report-offline",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/session-report-offline",
+      "members": 21,
+      "manifest_sha256": "202e2823194ccd72996e35d98be31aa7b821312c4a7d413a48f46b8c604f65e9",
+      "copies_verified": true
+    }
+  },
+  "limitations": [
+    "Physical session closed; latest robot application remains b879bfe and prior recorded native driver, not these changes.",
+    "IMU heading validity unresolved; isolated diagnostic must be reviewed/compiled/run on the Pi in the next supported sensor-only block.",
+    "Reported IMU and commanded velocities are not ground truth. Existing onboard snapshots cannot establish foot contacts or precise travel/physical-stop latency.",
+    "Reporter leaves post-disable raw packets to their existing dedicated analysis. Camera/frame/MCAP host times are not verified exposure or physical sensor timestamps.",
+    "Server IDs identify queued API jobs, not full spoken requests/native clips/physical completion; multi-job endpoints may return only final job receipt. Browser per-action completion matching still needs these IDs wired through.",
+    "No automated physical pass/fail grader or calibrated visual odometry implemented. No latency target demonstrated by these offline checks.",
+    "Workstream1 remains incomplete: sensor reliability, repeatable skills/transitions, generated-motion quality, push-up drift, voice robustness and follower/Spider integration remain."
+  ]
+}

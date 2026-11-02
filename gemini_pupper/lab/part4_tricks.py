@@ -90,7 +90,8 @@ async def play_trick(robot: Robot, name: str) -> Result:
         return await play_policy_trick(robot, trick)
 
     then = LOCOMOTION if trick.kind == "reference" or (not trick.interactive and trick.end_pose == "standing") else trick
-    estimate = trick.total_time
+    controller = LOCOMOTION_CONTROLLER if trick.kind == "reference" else trick.controller
+    estimate = trick.total_time + robot.transition_time_estimate(controller)
     if trick.kind == "policy":
         estimate += 0.3  # existing playback pad in play_policy_trick
         if not trick.interactive and trick.end_pose == "standing":

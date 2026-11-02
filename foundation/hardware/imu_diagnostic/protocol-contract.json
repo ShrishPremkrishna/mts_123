@@ -1,0 +1,66 @@
+{
+  "schema": "ws1_sensor_comparison_protocol_review_v1",
+  "scope": "Independent source/specification contract and fixtures only. No candidate implementation, hardware access, credentials or paid calls.",
+  "sources": [
+    {
+      "path": "/private/tmp/ws1-sh2-calibration-research-20261101/SH-2-Reference-Manual.pdf",
+      "sha256": "dfa74afa12177982428574ef6a60df0009f32ff8ea339e44db37442e9066b984"
+    },
+    {
+      "path": "/private/tmp/ws1-sh2-calibration-research-20261101/BNO08X-Datasheet.pdf",
+      "sha256": "34ac0ca1dda8fb0ecf347b35042bb32d22c953b127a0e414852213edc2c502ca"
+    },
+    {
+      "path": "/private/tmp/ws1-sh2-calibration-research-20261101/sh2.c",
+      "sha256": "a42f0dee0de56695d37a34bb6163b72cffda017707178ad00f95c1adb74dcb6e"
+    },
+    {
+      "path": "/private/tmp/ws1-sh2-calibration-research-20261101/sh2_SensorValue.c",
+      "sha256": "93c0e5a5b473ff59ab23b38473f79cff3d9fd1fcaad8952bf6db3bee78752e75"
+    }
+  ],
+  "primary_links": [
+    "https://www.ceva-ip.com/wp-content/uploads/SH-2-Reference-Manual.pdf",
+    "https://raw.githubusercontent.com/ceva-dsp/sh2/main/sh2.c",
+    "https://raw.githubusercontent.com/ceva-dsp/sh2/main/sh2_SensorValue.c"
+  ],
+  "layout_locators": {
+    "product": "SH-2 section6.3 product requests/responses; sh2.c ProdIdReq_t/ProdIdResp_t",
+    "calibration": "SH-2 section6.4.6, figures57\u201358; sh2.c getCalConfigStart/getCalConfigRx",
+    "feature": "SH-2 sections6.5.3\u20136.5.5, figures77\u201379; sh2.c GetFeatureReq_t/GetFeatureResp_t",
+    "reports": "SH-2 sections6.5.14,6.5.19,6.5.31; sh2_SensorValue.c decoders",
+    "time": "SH-2 section7.2; sh2.c sensorhubInputHdlr/touSTimestamp"
+  },
+  "precise_contract": [
+    "Product query F9 00 and each F8 response record16B; parse all known batch records. Product version/part/build are software metadata, not definitive hardware marking.",
+    "ME query F2, command-sequence,07, P0..P8 with onlyP3=1. Match F1 command07 and echoed command-sequence@3; require successR0@5. Preserve full response, including on-tableR5@10.",
+    "Get Feature FE,id; FC17B fields are id@1,flags@2,u16 sensitivity@3,u32 interval@5,u32 batch@9,u32 specific@13, little-endian. No transaction token; unsolicited responses are allowed.",
+    "Restore exact saved feature payload by changing FC to FD, retaining bytes1..16. Disabled report is interval0, never infer it from missing response.",
+    "Reports07/08/13 are16/12/6B respectively.07 has signedQ9 xyz/bias;08 signedQ14 xyzw;13 class byte4 with byte5 reserved. Common status low2bits and14bit delay are separate.",
+    "Relative sensor time is(-signed base + signed rebases + delay)*100us. Keep host receipt separate without HINT. Raw sentinel timebase0x7fffffff cannot support valid absolute time.",
+    "The saved official getCalConfigRx helper discards on-tableR5 despite the manual defining it; newer setCalConfigStart usesR6 while manual1.9 reserves it. Raw fields must remain available; do not copy helper loss into diagnostic."
+  ],
+  "restoration_review_requirements": [
+    "No BNO055 constructor, executable reset, Initialize, Tare, DCD save/erase, periodic-save configuration or ME configure command. ME07 readback only with exactP3=1.",
+    "Inspect mode permits only product/ME/GetFeature queries. Compare mode additionally permits FD only for explicitly selected diagnostic report IDs, with a confirmed before-snapshot for every field changed.",
+    "Before compare, snapshot02/05/07/08/13 effective configurations and ME flags. Do not proceed after missing/truncated/nonmatching baseline. Drain stale controls before serial requests; report remaining FC correlation limitation.",
+    "Mark each feature dirty before attempting a write; short write or timeout can have effects. Try restore for every dirty feature on signal, parse/write failure and normal exit within a separate bounded cleanup deadline.",
+    "Disable newly enabled temporary features first, then restore original active configurations. Query the complete monitored set afterward because related-sensor rates may change. Exact final mismatch means restoration unconfirmed, not success; no automatic reset/retry loop.",
+    "If effective original configuration cannot be recreated exactly, preserve raw before/request/after receipts and fail clearly. Never save new calibration as a cleanup action.",
+    "No reset/save/erase command preserves original stored DCD from explicit modifications; report changes can still affect ongoing fusion/calibration state. Do not claim bitwise DCD/RAM restoration or reverse elapsed algorithm history."
+  ],
+  "prior_probe2_reuse": {
+    "path": "/private/tmp/ws1-bno-sensor-only/bno_sensor_compare.cpp",
+    "sha256": "e5f4508e5934045219bada87ed89064335b97a4091c31bb60f3056ef7620b9ec",
+    "usable": "Pinned actual product/control/report bytes and field interpretations; complete known-batch decoder evidence.",
+    "not_usable_unchanged": "Startup calls BNO055 constructor which resets sensor; it enables08/13 without restoring previous configuration, uses old transport and first-report-only presentation. Do not run unchanged."
+  },
+  "fixture_file": "/private/tmp/ws1-sensor-comparison-review-20261101/protocol-fixtures.json",
+  "fixture_sha256": "79bc0e2a75efd263bf9d14363b2b22a0012de6d9793977f6b989c662b41d8685",
+  "implementation_peer_status": "Pending candidate source; tests alone are not a source review.",
+  "source_addendum": {
+    "url": "https://raw.githubusercontent.com/ceva-dsp/sh2/main/sh2_util.h",
+    "locator": "line35 int16_t read16",
+    "finding": "Heading-accuracy decoding in official SDK is signedQ12. Keep raw bits and do not publish a negative value as a positive unsigned estimate."
+  }
+}

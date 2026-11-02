@@ -17,6 +17,13 @@ def submission(result):
     return (result.details or {}).get("submission")
 
 
+def has_submission_marker(result):
+    marker = submission(result)
+    assert marker and isinstance(marker.get("job_id"), str)
+    assert marker["job_id"].startswith(marker["server_instance"] + ":")
+    return all(marker.get(key) == value for key, value in MARKER.items())
+
+
 def run_case(case):
     async def check():
         rig = harness.Rig()
@@ -33,15 +40,15 @@ def run_case(case):
 def test_wait_marks_actual_insertion_but_not_its_terminal_outcome():
     async def case(rig):
         result = await tool_registry.call(rig.ts, "wait", {"duration": 1})
-        assert result.ok and submission(result) == MARKER
-        assert result.as_dict()["details"]["submission"] == MARKER
+        assert result.ok and has_submission_marker(result)
+        assert result.as_dict()["details"]["submission"] == submission(result)
         assert rig.ts.commands.qsize() == 1 and rig.ts.current is None
         assert await rig.settle()
         assert rig.ts.last_outcome["success"] is True
         assert "submission" not in rig.ts.last_outcome
         assert not rig.ts.commands.qsize()
         # A returned receipt remains historical even after the queue drains.
-        assert submission(result) == MARKER
+        assert has_submission_marker(result)
     run_case(case)
 
 
@@ -89,7 +96,7 @@ def test_follow_note_wrapper_preserves_actual_move_submission():
         result = await tool_registry.call(rig.ts, "move", {"direction": "forward", "speed": .2, "duration": .5})
         assert result.ok and "follow" in result.message
         assert not rig.ts.following
-        assert submission(result) == MARKER
+        assert has_submission_marker(result)
         assert await rig.settle()
     run_case(case)
 
@@ -98,7 +105,7 @@ def test_duplicate_interactive_entry_is_queued_but_idempotent_job_is_not_retagge
     async def case(rig):
         first = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
         assert await rig.settle()
-        assert first.ok and submission(first) == MARKER
+        assert first.ok and has_submission_marker(first)
         trick = rig.ts.tricks["hold_pose"]
         switches = list(rig.robot.switches)
         direct = await harness.behaviors.play_policy_trick(rig.ts, trick)
@@ -106,7 +113,7 @@ def test_duplicate_interactive_entry_is_queued_but_idempotent_job_is_not_retagge
         assert submission(direct) is None
         repeated = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
         assert await rig.settle()
-        assert repeated.ok and submission(repeated) == MARKER
+        assert repeated.ok and has_submission_marker(repeated)
         assert "no new entry" in rig.ts.last_outcome["message"]
         assert rig.robot.switches == switches
         assert "submission" not in rig.ts.last_outcome

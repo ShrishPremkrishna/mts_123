@@ -1,0 +1,276 @@
+{
+  "schema": "ws1_sh2_independent_protocol_fixtures_v1",
+  "created_utc": "2026-11-02T04:43:49.312828+00:00",
+  "request_fixtures": [
+    {
+      "name": "product_id",
+      "channel": 2,
+      "payload_hex": "f900",
+      "expected_response_id": 248
+    },
+    {
+      "name": "calibration_readback_seq42",
+      "channel": 2,
+      "payload_hex": "f22a07000000010000000000",
+      "expected_response_id": 241,
+      "expected_command_sequence": 42
+    },
+    {
+      "name": "get_feature_02",
+      "channel": 2,
+      "payload_hex": "fe02",
+      "expected_response_id": 252,
+      "expected_feature_id": 2
+    },
+    {
+      "name": "get_feature_05",
+      "channel": 2,
+      "payload_hex": "fe05",
+      "expected_response_id": 252,
+      "expected_feature_id": 5
+    },
+    {
+      "name": "get_feature_07",
+      "channel": 2,
+      "payload_hex": "fe07",
+      "expected_response_id": 252,
+      "expected_feature_id": 7
+    },
+    {
+      "name": "get_feature_08",
+      "channel": 2,
+      "payload_hex": "fe08",
+      "expected_response_id": 252,
+      "expected_feature_id": 8
+    },
+    {
+      "name": "get_feature_13",
+      "channel": 2,
+      "payload_hex": "fe13",
+      "expected_response_id": 252,
+      "expected_feature_id": 19
+    }
+  ],
+  "feature_restore_fixtures": [
+    {
+      "name": "restore_every_feature_field",
+      "origin": "constructed protocol fixture",
+      "response_hex": "fc070d0201204e000050c3000078563412",
+      "restore_payload_hex": "fd070d0201204e000050c3000078563412",
+      "expected": {
+        "sensor_id": 7,
+        "flags": 13,
+        "change_sensitivity": 258,
+        "report_interval_us": 20000,
+        "batch_interval_us": 50000,
+        "sensor_specific": 305419896
+      }
+    },
+    {
+      "name": "restore_originally_disabled",
+      "origin": "constructed protocol fixture",
+      "response_hex": "fc07000000000000000000000000000000",
+      "restore_payload_hex": "fd07000000000000000000000000000000",
+      "expected": {
+        "sensor_id": 7,
+        "flags": 0,
+        "change_sensitivity": 0,
+        "report_interval_us": 0,
+        "batch_interval_us": 0,
+        "sensor_specific": 0
+      }
+    }
+  ],
+  "report_fixtures": [
+    {
+      "name": "07_signed_velocity_bias_and_delay",
+      "origin": "constructed from CEVA report layout, not measured",
+      "payload_hex": "fbe803000007fe0603000200fc0e000200fdff0e00",
+      "expected": [
+        {
+          "id": 7,
+          "sequence": 254,
+          "accuracy": 2,
+          "delay_ticks": 259,
+          "reference_delta_ticks": -1000,
+          "relative_time_us": -74100,
+          "velocity_rad_s": [
+            1,
+            -2,
+            0.02734375
+          ],
+          "estimated_bias_rad_s": [
+            0.00390625,
+            -0.005859375,
+            0.02734375
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mixed07_rebase08_13",
+      "origin": "constructed boundary fixture, not measured",
+      "payload_hex": "fbe803000007fe0603000200fc0e000200fdff0e00faf6ffffff08ff03000000000000000040130002000100",
+      "expected_ids": [
+        7,
+        8,
+        19
+      ],
+      "expected_lengths": [
+        16,
+        12,
+        6
+      ],
+      "game_quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "game_relative_time_us": -101000,
+      "stability_classification": 1
+    },
+    {
+      "name": "truncated07_rejected",
+      "origin": "constructed negative",
+      "payload_hex": "fbe803000007fe0603000200fc0e000200fdff0e",
+      "expected": "reject entire incomplete batch"
+    },
+    {
+      "name": "unknown_report_not_guessed",
+      "origin": "constructed negative",
+      "payload_hex": "fbe803000055000000",
+      "expected": "reject unknown boundary"
+    },
+    {
+      "name": "unknown_timebase",
+      "origin": "constructed negative timing only",
+      "payload_hex": "fbffffff7f08ff03000000000000000040",
+      "expected": "retain raw but no valid measurement timestamp"
+    },
+    {
+      "name": "negative_heading_accuracy_not_positive_unsigned_estimate",
+      "origin": "constructed sign/invalid-estimate fixture, not measured",
+      "payload_hex": "fbe8030000050100000000000000000040ffff",
+      "expected": {
+        "rotation_accuracy_raw_u16": 65535,
+        "rotation_accuracy_signed_q12": -0.000244140625,
+        "usable_heading_accuracy": false
+      },
+      "primary_decoder": "CEVA sh2_SensorValue.c decodeRotationVector calls signed read16 for accuracy; sh2_util.h declares int16_t read16."
+    }
+  ],
+  "actual_prior_probe2_controls": [
+    {
+      "line_1based": 4,
+      "event": "packet",
+      "index": 0,
+      "wall_s": 1793576158.526385,
+      "monotonic_s": 1627.152427185,
+      "wire_length": 52,
+      "channel": 2,
+      "transport_sequence": 4,
+      "read_complete": true,
+      "payload_hex": "f800010a96a49800940100000a000000f8000507a7a698003f01000011000000f8000503b5a69800e20000000e000000"
+    },
+    {
+      "line_1based": 5,
+      "event": "packet",
+      "index": 1,
+      "wall_s": 1793576158.5288768,
+      "monotonic_s": 1627.154922822,
+      "wire_length": 20,
+      "channel": 2,
+      "transport_sequence": 7,
+      "read_complete": true,
+      "payload_hex": "f1000700000001000100010000000000",
+      "calibration_readback": {
+        "command_sequence": 0,
+        "status": 0,
+        "accel": 1,
+        "gyro": 0,
+        "mag": 1,
+        "planar": 0,
+        "on_table": 1
+      }
+    },
+    {
+      "line_1based": 6,
+      "event": "packet",
+      "index": 2,
+      "wall_s": 1793576158.6057744,
+      "monotonic_s": 1627.231819447,
+      "wire_length": 21,
+      "channel": 2,
+      "transport_sequence": 9,
+      "read_complete": true,
+      "payload_hex": "fc02000000102700000000000000000000"
+    },
+    {
+      "line_1based": 8,
+      "event": "packet",
+      "index": 4,
+      "wall_s": 1793576158.6142054,
+      "monotonic_s": 1627.240251408,
+      "wire_length": 21,
+      "channel": 2,
+      "transport_sequence": 11,
+      "read_complete": true,
+      "payload_hex": "fc05000000102700000000000000000000"
+    },
+    {
+      "line_1based": 193,
+      "event": "packet",
+      "index": 188,
+      "wall_s": 1793576159.5340664,
+      "monotonic_s": 1628.160112518,
+      "wire_length": 21,
+      "channel": 2,
+      "transport_sequence": 13,
+      "read_complete": true,
+      "payload_hex": "fc08000000102700000000000000000000"
+    },
+    {
+      "line_1based": 196,
+      "event": "packet",
+      "index": 191,
+      "wall_s": 1793576159.5457234,
+      "monotonic_s": 1628.171769187,
+      "wire_length": 21,
+      "channel": 2,
+      "transport_sequence": 15,
+      "read_complete": true,
+      "payload_hex": "fc1300000040420f000000000000000000"
+    }
+  ],
+  "actual_prior_source": {
+    "path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/battery2-diagnostic/sensor-compare-probe/raw/stationary-compare-2-packets.jsonl",
+    "sha256": "d83d774dec7e8cc537928d1131dc29c70735c219a4926113b153f8c8292e50a4"
+  },
+  "known_limits": [
+    "Requests are payloads; outgoing SHTP header length includes4 bytes, channel2 and independent per-channel transport sequence.",
+    "No claim that a sampled host read time equals HINT. Relative ticks and host receipt retained separately.",
+    "Constructed report07 values are not a recorded07 sensor sample.",
+    "FC has no transaction ID and may be unsolicited. Only a bounded serial query/observation protocol can reduce stale readback ambiguity; never assert causally acknowledged solely from matching sensorID."
+  ],
+  "command_response_fixtures": [
+    {
+      "name": "matching_readback",
+      "payload_hex": "f113072a000001000100010000000000",
+      "query_command_sequence": 42,
+      "accept_readback": true
+    },
+    {
+      "name": "wrong_command_sequence",
+      "payload_hex": "f1130729000001000100010000000000",
+      "query_command_sequence": 42,
+      "accept_readback": false
+    },
+    {
+      "name": "operation_failed",
+      "payload_hex": "f113072a000101000100010000000000",
+      "query_command_sequence": 42,
+      "accept_readback": false
+    }
+  ]
+}

@@ -54,12 +54,15 @@ import asyncio
 import collections
 import contextvars
 import logging
+import json
 import math
 import os
 import queue
+import re
 import threading
 import time
 import uuid
+from time import time as wall_time
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
@@ -284,8 +287,14 @@ class Robot:
         self.commands: asyncio.Queue = asyncio.Queue()
         self.current: asyncio.Task | None = None
         self.current_action_name: str | None = None
+        self.current_job_id: str | None = None
+        self.current_execution_started = False
         self.busy_until = 0.0  # monotonic time when the queued work should finish
         self.command_instance = uuid.uuid4().hex  # ordering identity, not an authentication credential
+        self._job_sequence = 0
+        self._job_event_sequence = 0
+        self._terminal_outcomes: collections.deque = collections.deque(maxlen=64)
+        self._terminal_outcomes_dropped = 0
         self.completed_sit_entries = 0  # confirmed playback, not physical sits or lifetime history
         self._last_counted_sit_entry: str | None = None
         self.stops = 0  # how many times stop (or the e-stop) has run
@@ -388,9 +397,8 @@ class Robot:
                 self.stops += 1
                 self.secret_gate.lock()
                 self.send_speed(0, 0, 0)
-                await self.clear_queue()
-                if self.current is not None and not self.current.done():
-                    self.current.cancel()
+                await self.clear_queue(reason="shared_stop")
+                self._cancel_current_job("shared_stop")
                 self.state_after_queue = self.state_now
                 follower = await self.stop_following()
                 self.send_speed(0, 0, 0)
@@ -813,6 +821,28 @@ class Robot:
                 return t
         return LOCOMOTION
 
+    def transition_time_estimate(self, controller: str | None) -> float:
+        """Estimate switch_to's existing waits from the queue's planned state.
+
+        This does not inspect hardware or change execution. Controller-service
+        delays, recovery checks and external ownership changes remain unknown.
+        An earlier queued handoff already changes state_after_queue, so later
+        commands in the same locomotion state do not count its wait again.
+        """
+        state = self.state_after_queue
+        seconds = 0.0
+        if (controller and isinstance(state, Trick) and state.interactive and state.exit_clip
+                and controller not in (state.controller, state.walk_controller if state.walks else None)):
+            seconds = state.clip_time_estimate(state.exit_clip)
+            if state.walks:
+                # The planned Trick state does not distinguish its two controllers.
+                # Cover either its running loop or the walking-to-exit activation.
+                seconds = max(seconds, TRICK_INIT_S + TRICK_FADE_S
+                              + state.clip_length(state.exit_clip) + 0.3)
+        if controller == LOCOMOTION_CONTROLLER and state != LOCOMOTION:
+            seconds += WALK_READY_S
+        return seconds
+
     def walking_controller(self, state) -> str:
         """The controller move, turn and arc drive in a state: a walking trick's own
         walking policy, else the locomotion policy (which they switch to first)."""
@@ -915,6 +945,60 @@ class Robot:
                 log.warning("cannot confirm follower stopped at startup; motion remains blocked")
 
     # ---------------------------------------------------------------- the queue
+    def _job_event(self, job_id: str, name: str, event: str, *, outcome: str | None = None,
+                   execution_started: bool = False, reason: str | None = None) -> dict:
+        """API job evidence only; never a measurement of physical motion.
+
+        Rows contain server-owned action names, not incoming user/tool arguments.
+        Local diagnostic logs retain configured identities; public history is
+        redacted at read time so locking also hides older private-skill records.
+        """
+        self._job_event_sequence += 1
+        row = {"schema": "pupper_job_event_v1", "server_instance": self.command_instance,
+               "job_id": job_id, "event_seq": self._job_event_sequence,
+               "wall_time_s": wall_time(), "monotonic_s": time.monotonic(),
+               "event": event, "outcome": outcome, "execution_started": execution_started,
+               "name": name, "stop_generation": self.stops}
+        if reason is not None:
+            row["reason"] = reason
+        try:
+            log.info("job_event %s", json.dumps(row, separators=(",", ":"), sort_keys=True))
+        except Exception:
+            # Optional logging must never prevent Stop, dispatch, or cleanup.
+            pass
+        return row
+
+    def _finish_job(self, job_id: str, name: str, outcome: str, message: str, *,
+                    execution_started: bool, reason: str | None = None, set_last: bool = True) -> None:
+        row = self._job_event(job_id, name, "finished", outcome=outcome,
+                              execution_started=execution_started, reason=reason)
+        record = {"job_id": job_id, "server_instance": self.command_instance,
+                  "name": name, "success": outcome == "succeeded", "message": message,
+                  "terminal_state": outcome, "execution_started": execution_started,
+                  "event_seq": row["event_seq"], "wall_time_s": row["wall_time_s"],
+                  "monotonic_s": row["monotonic_s"]}
+        if len(self._terminal_outcomes) == self._terminal_outcomes.maxlen:
+            self._terminal_outcomes_dropped += 1
+        self._terminal_outcomes.append(record)
+        if set_last:
+            self.last_outcome = record  # historical last started-job result, as before
+
+    def _cancel_current_job(self, reason: str) -> bool:
+        task = self.current
+        if task is None or task.done():
+            return False
+        requested = task.cancel()
+        if requested and self.current_job_id is not None:
+            self._job_event(self.current_job_id, self.current_action_name or "unnamed job",
+                            "cancel_requested", execution_started=self.current_execution_started,
+                            reason=reason)
+        return requested
+
+    def recent_outcomes(self) -> dict:
+        """Bounded terminal history for HTTP polling; not model status context."""
+        return {"capacity": self._terminal_outcomes.maxlen, "dropped": self._terminal_outcomes_dropped,
+                "outcomes": [self._public_outcome(row) for row in self._terminal_outcomes]}
+
     async def _run_queue(self) -> None:
         try:
             await self._adopt_running_state()
@@ -924,39 +1008,65 @@ class Robot:
         finally:
             self.ready.set()
         while True:
-            name, job, then = await self.commands.get()
+            name, job, then, job_id = await self.commands.get()
             self._running_job_then = then
             token = CALL_STOPS.set(self.stops)
+            execution_started = False
             async def guarded_job():
+                nonlocal execution_started
                 if then != MOTORS_IDLE and (reason := self.motion_block_reason()):
                     return Result(False, reason)
+                execution_started = self.current_execution_started = True
+                self._job_event(job_id, name, "started", execution_started=True)
                 return await job()
+            self.current_job_id = job_id
+            self.current_execution_started = False
             self.current = asyncio.create_task(guarded_job())
             self.current_action_name = name
             CALL_STOPS.reset(token)
             try:
                 res = await self.current
                 (log.info if res.ok else log.warning)("%s: %s", name, res.message)
-                self.last_outcome = {"name": name, "success": res.ok, "message": res.message}
+                self._finish_job(job_id, name, "succeeded" if res.ok else "failed", res.message,
+                                 execution_started=execution_started)
                 if not res.ok:
                     self.send_speed(0, 0, 0)
-                    await self.clear_queue()  # later requests relied on this one succeeding
+                    await self.clear_queue(reason="dependency_failed")  # later requests relied on this one succeeding
                     self.state_after_queue = self.state_now
             except asyncio.CancelledError:
                 self.send_speed(0, 0, 0)
-                log.info("%s: cancelled", name)
-                self.last_outcome = {"name": name, "success": False, "message": "cancelled"}
+                # Worker shutdown can win the scheduling race after its child
+                # has already finished. Cancellation of the waiter is not proof
+                # that this independently terminal job was cancelled.
+                if self.current.done() and not self.current.cancelled():
+                    try:
+                        completed = self.current.result()
+                        outcome = "succeeded" if completed.ok else "failed"
+                        message = completed.message
+                    except Exception as exc:
+                        outcome, message = "failed", f"job failed: {type(exc).__name__}"
+                    log.info("%s: %s before worker cancellation", name, outcome)
+                    self._finish_job(job_id, name, outcome, message,
+                                     execution_started=execution_started,
+                                     reason="worker_cancelled_after_job_finished")
+                else:
+                    log.info("%s: cancelled", name)
+                    self._finish_job(job_id, name, "cancelled", "cancelled",
+                                     execution_started=execution_started)
                 if self.closing:
                     raise
             except Exception as exc:
                 log.exception("%s failed", name)
                 self.send_speed(0, 0, 0)
-                await self.clear_queue()
+                self._finish_job(job_id, name, "failed", f"job failed: {type(exc).__name__}",
+                                 execution_started=execution_started, reason="job_exception")
+                await self.clear_queue(reason="dependency_failed")
                 self.state_after_queue = self.state_now
-                self.last_outcome = {"name": name, "success": False, "message": f"job failed: {type(exc).__name__}"}
             finally:
                 self.current = None
                 self.current_action_name = None
+                self.current_job_id = None
+                self.current_execution_started = False
                 if self.commands.empty():
                     self.state_after_queue = self.state_now
                     self.busy_until = time.monotonic()
@@ -991,10 +1101,14 @@ class Robot:
             self.state_after_queue = then
         now = time.monotonic()
         self.busy_until = max(self.busy_until, now) + seconds
-        await self.commands.put((name, job, self.state_after_queue))
+        self._job_sequence += 1
+        job_id = f"{self.command_instance}:{self._job_sequence}"
+        await self.commands.put((name, job, self.state_after_queue, job_id))
+        self._job_event(job_id, name, "queued")
         # Historical submission only: not current queue state, completion, or physical motion.
         return Result(True, f"{name} queued (accepted, not completed); estimated queue time {self.busy_until - now:.1f} s",
-                      {"submission": {"schema": "pupper_submission_v1", "state": "queued"}})
+                      {"submission": {"schema": "pupper_submission_v1", "state": "queued",
+                                      "job_id": job_id, "server_instance": self.command_instance}})
 
     @property
     def command_epoch(self) -> str:
@@ -1014,7 +1128,7 @@ class Robot:
             "physical_observation": {"pose": None, "speed": None, "stopped": None},
             "seconds_left": round(max(0.0, self.busy_until - time.monotonic()), 1),
             "following": self.following,
-            "controller_fault": self.controller_fault,
+            "controller_fault": self.public_diagnostic(self.controller_fault),
             "state": self.public_state_name(self.state_now),
             "state_after_queue": self.public_state_name(self.state_after_queue),
             "last_outcome": self.public_outcome(),
@@ -1043,15 +1157,19 @@ class Robot:
 
         return await self.queue(f"wait {duration}s", job, duration, then=UNCHANGED)
 
-    async def clear_queue(self) -> Result:
+    async def clear_queue(self, *, reason: str = "queue_cleared") -> Result:
         n = 0
+        cleared_ids = []
         while not self.commands.empty():
-            self.commands.get_nowait()
+            name, _job, _then, job_id = self.commands.get_nowait()
+            cleared_ids.append(job_id)
+            self._finish_job(job_id, name, "cancelled", "cancelled before execution started",
+                             execution_started=False, reason=reason, set_last=False)
             n += 1
         self.busy_until = time.monotonic()
         running = self.current is not None and not self.current.done()
         self.state_after_queue = self._running_job_then if running else self.state_now
-        return Result(True, f"cleared {n} queued commands")
+        return Result(True, f"cleared {n} queued commands", {"pending_queued_job_ids_cleared": cleared_ids})
 
     # ---------------------------------------------------------------- tricks
     def action_ids(self) -> dict[str, tuple[Trick, str]]:
@@ -1067,6 +1185,24 @@ class Robot:
     def available_tricks(self) -> dict[str, Trick]:
         return {name: t for name, t in self.tricks.items() if self.trick_available(t)}
 
+    def public_diagnostic(self, text: str | None) -> str | None:
+        """Hide exact configured locked-skill identities in public diagnostics.
+
+        Keep the original fault/fall records and safety enforcement unchanged.
+        Identifier boundaries avoid rewriting unrelated names containing a skill
+        name as a substring; this is not arbitrary free-text sanitization.
+        """
+        if not text or self.secret_gate.unlocked:
+            return text
+        identities = {identity for trick in self.tricks.values() if trick.secret
+                      for identity in (trick.name, trick.controller, trick.walk_controller) if identity}
+        if not identities:
+            return text
+        pattern = r"(?<![A-Za-z0-9_])(?:" + "|".join(
+            re.escape(identity) for identity in sorted(identities, key=len, reverse=True)
+        ) + r")(?![A-Za-z0-9_])"
+        return re.sub(pattern, "locked trick", text)
+
     def public_state_name(self, state) -> str:
         return "locked trick" if isinstance(state, Trick) and not self.trick_available(state) else state_name(state)
 
@@ -1078,15 +1214,18 @@ class Robot:
                 t.secret and (t.name in name or any(clip in name for clip in t.actions))
                 for t in self.tricks.values()):
             name = "locked trick"
-        return {"name": name, "state": "running"}
+        return {"name": name, "state": "running", "job_id": self.current_job_id,
+                "server_instance": self.command_instance, "execution_started": self.current_execution_started}
 
     def public_outcome(self) -> dict | None:
-        outcome = self.last_outcome
+        return self._public_outcome(self.last_outcome)
+
+    def _public_outcome(self, outcome: dict | None) -> dict | None:
         if outcome and not self.secret_gate.unlocked:
             text = outcome["name"] + " " + outcome["message"]
             if any(t.secret and (t.name in text or any(clip in text for clip in t.actions)) for t in self.tricks.values()):
-                return {"name": "locked trick", "success": outcome["success"], "message": "details hidden while locked"}
-        return outcome
+                return {**outcome, "name": "locked trick", "message": "details hidden while locked"}
+        return dict(outcome) if outcome is not None else None
 
     def _clip_endpoint(self, trick: Trick, start_clip: str) -> tuple[dict, float]:
         """Stable endpoint and minimum native playback time for an auto-next chain."""
@@ -1315,9 +1454,9 @@ class Robot:
             return Result(False, "following state is unknown; use stop and check the follower service first")
         if self.following:
             return Result(True, "already following the nearest person")
-        await self.clear_queue()
+        await self.clear_queue(reason="follow_takeover")
         if self.current and not self.current.done():
-            self.current.cancel()
+            self._cancel_current_job("follow_takeover")
             try:
                 await self.current
             except asyncio.CancelledError:
@@ -1413,10 +1552,12 @@ class Robot:
         running = running_task is not None
         public_action = self.public_current_action() if running else None
         running_name = public_action["name"] if public_action else "unnamed job"
+        running_job_id = self.current_job_id if running else None
         pending_count = self.commands.qsize()
         reference_was_playing = self.reference_active
-        await self.clear_queue()  # no suspension inside: pending_count is the exact removed count
-        cancellation_requested = running_task.cancel() if running else False
+        cleared = await self.clear_queue(reason="stop")  # no suspension inside: exact removed count
+        cleared_ids = cleared.details["pending_queued_job_ids_cleared"]
+        cancellation_requested = self._cancel_current_job("stop") if running else False
 
         def receipt(ok: bool, message: str) -> Result:
             running_job = None
@@ -1425,8 +1566,9 @@ class Robot:
             else:
                 terminal = ("cancelled" if running_task.cancelled() else
                             "finished_without_cancellation" if running_task.done() else "pending")
-                running_job = {"name": running_name, "cancellation_requested": cancellation_requested,
-                               "terminal_state": terminal}
+                running_job = {"name": running_name, "job_id": running_job_id,
+                               "server_instance": self.command_instance,
+                               "cancellation_requested": cancellation_requested, "terminal_state": terminal}
                 if terminal == "cancelled":
                     cancellation = f"Running job {running_name!r}: cancellation confirmed."
                 elif terminal == "finished_without_cancellation":
@@ -1435,6 +1577,7 @@ class Robot:
                     cancellation = f"Running job {running_name!r}: cancellation requested; terminal cancellation not yet confirmed."
             return Result(ok, f"{cancellation} Cleared {pending_count} pending queued commands, separate from the running job. {message}",
                           {"running_job": running_job, "pending_queued_commands_cleared": pending_count,
+                           "pending_queued_job_ids_cleared": cleared_ids,
                            "physical_observation": {"stopped": None, "pose": None}})
         self.state_after_queue = self.state_now  # nothing else is coming
         follower = await self.stop_following()
@@ -1509,7 +1652,7 @@ class Robot:
         facts = self.status()
         facts["observed_controller_mode"] = "unknown"
         if reason := self.motion_block_reason():
-            return Result(False, reason + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, facts)
+            return Result(False, self.public_diagnostic(reason) + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, facts)
         inventory = await self._call(self.list_client, ListControllers.Request())
         states = {c.name: c.state for c in inventory.controller} if inventory else {}
         if not states:
@@ -1538,7 +1681,7 @@ class Robot:
         trick = next((t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"), None)
         walking = next((t for t in self.tricks.values() if t.walks and states.get(t.walk_controller) == "active"), None)
         if self.fallen:
-            return Result(True, f"controller mode: tilt/fall stop recorded in {self.fallen}. {PHYSICAL_STATE_UNKNOWN} "
+            return Result(True, f"controller mode: tilt/fall stop recorded in {self.public_diagnostic(self.fallen)}. {PHYSICAL_STATE_UNKNOWN} "
                                 "Have a person check and set the robot upright; call stand_up only when ready.", facts)
         described = {LOCOMOTION_CONTROLLER}
         described.update(t.controller for t in self.tricks.values() if t.kind == "policy")

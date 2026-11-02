@@ -143,7 +143,8 @@ def test_latched_idle_wait_completes_without_activation_or_nonzero_commands():
         result = await rig.ts.wait(.25)
         assert result.ok, result.message
         assert await rig.settle()
-        assert rig.ts.last_outcome == {'name': 'wait 0.25s', 'success': True, 'message': 'waited 0.25 s'}
+        assert {key: rig.ts.last_outcome[key] for key in ('name', 'success', 'message')} == {'name': 'wait 0.25s', 'success': True, 'message': 'waited 0.25 s'}
+        assert rig.ts.last_outcome['job_id'].startswith(rig.ts.command_instance + ':')
         assert rig.ts.state_now == rig.ts.state_after_queue == robot_api.MOTORS_IDLE
         assert rig.robot.switches == switches
         assert rig.ts.motion_block_reason()
@@ -315,7 +316,8 @@ def test_current_action_label_follows_owned_job_and_clears_on_every_ending(endin
         for _ in range(5):
             await asyncio.sleep(0)
         running = rig.ts.status()
-        assert running['current_action'] == {'name': 'bounded test job', 'state': 'running'}
+        assert {key: running['current_action'][key] for key in ('name', 'state')} == {'name': 'bounded test job', 'state': 'running'}
+        assert running['current_action']['job_id'] == rig.ts.current_job_id
         if ending == 'cancel':
             await rig.ts.immediate_stop()
         else:
@@ -347,7 +349,9 @@ def test_locked_current_action_details_do_not_leak_hidden_trick_names():
         for _ in range(3):
             await asyncio.sleep(0)
         status = await rig.ts.mode()
-        assert status.as_dict()['details']['current_action'] == {'name': 'locked trick', 'state': 'running'}
+        current = status.as_dict()['details']['current_action']
+        assert {key: current[key] for key in ('name', 'state')} == {'name': 'locked trick', 'state': 'running'}
+        assert current['job_id'] == rig.ts.current_job_id
         assert 'hold_pose' not in str(status.as_dict())
         assert 'wave_left' not in str(status.as_dict())
         release.set()

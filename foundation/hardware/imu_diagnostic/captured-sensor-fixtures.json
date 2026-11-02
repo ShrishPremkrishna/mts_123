@@ -1,0 +1,135 @@
+{
+  "source": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/battery2-diagnostic/sensor-compare-probe/raw/stationary-compare-2-packets.jsonl",
+  "source_sha256": "d83d774dec7e8cc537928d1131dc29c70735c219a4926113b153f8c8292e50a4",
+  "fixtures": [
+    {
+      "line_1based": 7,
+      "payload_hex": "fb410000000200030001000000ffff05000000b1dd6acf64f3fc134432",
+      "ids": [
+        2,
+        5
+      ],
+      "signed_values": [
+        [
+          1,
+          0,
+          -1
+        ],
+        [
+          -8783,
+          -12438,
+          -3228,
+          5116
+        ]
+      ]
+    },
+    {
+      "line_1based": 9,
+      "payload_hex": "fb350000000201030001000000000005010000b1dd6acf64f3fc134432",
+      "ids": [
+        2,
+        5
+      ],
+      "signed_values": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          -8783,
+          -12438,
+          -3228,
+          5116
+        ]
+      ]
+    },
+    {
+      "line_1based": 10,
+      "payload_hex": "fb170000000202030000000100ffff",
+      "ids": [
+        2
+      ],
+      "signed_values": [
+        [
+          0,
+          1,
+          -1
+        ]
+      ]
+    },
+    {
+      "line_1based": 11,
+      "payload_hex": "fb3600000005020000b1dd6acf64f3fc134432",
+      "ids": [
+        5
+      ],
+      "signed_values": [
+        [
+          -8783,
+          -12438,
+          -3228,
+          5116
+        ]
+      ]
+    },
+    {
+      "line_1based": 12,
+      "payload_hex": "fb190000000203030000000100ffff",
+      "ids": [
+        2
+      ],
+      "signed_values": [
+        [
+          0,
+          1,
+          -1
+        ]
+      ]
+    },
+    {
+      "line_1based": 13,
+      "payload_hex": "fb3600000005030000b2dd6acf64f3fc134432",
+      "ids": [
+        5
+      ],
+      "signed_values": [
+        [
+          -8782,
+          -12438,
+          -3228,
+          5116
+        ]
+      ]
+    },
+    {
+      "line_1based": 14,
+      "payload_hex": "fb1900000002040300010001000000",
+      "ids": [
+        2
+      ],
+      "signed_values": [
+        [
+          1,
+          1,
+          0
+        ]
+      ]
+    },
+    {
+      "line_1based": 15,
+      "payload_hex": "fb3a00000005040000b2dd6acf64f3fd134432",
+      "ids": [
+        5
+      ],
+      "signed_values": [
+        [
+          -8782,
+          -12438,
+          -3228,
+          5117
+        ]
+      ]
+    }
+  ]
+}

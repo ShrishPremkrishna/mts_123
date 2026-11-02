@@ -18,7 +18,7 @@ The ambition is roughly 90–100% coverage of the usable class capabilities on o
 
 **Goal:** A coherent robot experience: ask Pupper to move, follow, perform a skill or describe its surroundings, and get correct execution and status.
 
-**Starting point:** [Bounded direct floor controls and queue cancellation](results/lab6-floor-basic-20261030.json) were observed on the robot. Live Gemini voice remains unvalidated. Sit and the modest generated motion have reviewed simulation evidence and actual-catalog offline sequence checks; their hardware sequences remain. Earlier Gemini tests exposed claims of actions that were never dispatched, so distinguish accepted commands, controller outcomes and physical observations.
+**Current evidence:** See the [capability map](README.md) and [current session record](results/interruption-recovery.json). Direct/voice movement and selected Sit/paw/trick sequences have physical observations; broader reliability remains incomplete. Those records own current failures and deployment. Distinguish accepted commands, controller outcomes and physical observations.
 
 | Deliverable | Proof of completion |
 |---|---|

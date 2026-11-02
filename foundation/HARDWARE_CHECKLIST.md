@@ -2,124 +2,96 @@
 date: 2026-10-27T15:31
 tags: [cs123, foundation]
 ---
-# Next Workstream 1 robot session
+# Workstream 1 robot sessions
 
-Extend the [observed basic floor controls](results/lab6-floor-basic-20261030.json)
-to Live Gemini and approved interactive skills. Exact current deployment,
-ownership and unfinished work belong in
-[interruption-recovery.json](results/interruption-recovery.json). Earlier failed
-floor-input trials are historical; do not restart their timed choreography.
+[Current state](results/interruption-recovery.json) owns deployment, authorization,
+active owners and the next unresolved failure. This file owns the reusable
+procedure. [Capability evidence](README.md) owns what the robot has actually
+shown. Do not restart historical processes or repeat old timed floor choreography.
 
-## Ready offline; next Pi integration
+## Prepare without consuming supervision time
 
-Reuse the prepared [offline cases](results/workstream1-offline-rehearsal-20261030.json)
-and [Stop/grounding evidence](results/workstream1-stop-grounding-20261030.json).
-Actual Chrome exercised manual controls and, separately, real WebAudio/canvas
-video with synthetic input/mock Google messages, including changed JPEG content
-and cleanup. Actual Google recognized synthetic spoken Stop during model audio,
-cancelled fake work with the tested stream boundaries, and described synthetic
-images without inventing robot posture. Real microphone, camera freshness and
-physical voice behavior are still pending. The server rejects images over two
-seconds old by ROS receipt time; the browser logs availability transitions. This
-cannot prove exposure freshness or erase prior images from the model context.
-These checks do not establish balance or physical stopping.
+- Freeze the selected source, models, configurations and scenario list. Finish
+  affected tests and package installation before the operator arrives. Reuse the
+  existing Python environments and persistent `lab6_session.launch.py`.
+- Select only the needed skills with `PUPPER_SESSION_SKILLS`; explicit empty
+  selects stock locomotion and unset refuses launch. Launch and API use the same
+  selection and `PUPPER_GEMINI_DIR`. Keep original gains, joint limits and caps.
+- Keep one robot owner. Record exact processes so shutdown stops only this session.
+  Browser/API development uses the explicit fake server with voice disconnected
+  unless a cloud test is intended. Confirm the visible FAKE/ROBOT destination.
+- Define a small batch and its decision before testing: the baseline, proposed
+  change, measured outcome and reason to stop or revert. Prepare successful and
+  failure/interruption cases offline. Three clean repetitions are an initial
+  acceptance screen, not general reliability.
 
-The combined conversation/control mode keeps speech and robot tools together.
-Tool-bearing turns use fixed server receipts; ordinary conversation plays after
-the turn boundary. Queue wording requires the typed submission marker;
-completion and physical state remain unconfirmed. No-tool claim screening is
-best-effort, not universal truth verification. Check normal speech and movement
-in the same session, plus receipt audibility and prompt direct Stop. See
-[the mode contract](../gemini_pupper/docs/foundation.md#operator-feedback-modes).
+## One capture for each persistent session
 
-1. Inventory teammate changes before integrating the final Python, UI and selected
-   session profile on the Pi. Preserve the previously reviewed native overlay;
-   no C++ changed in this offline iteration. Rebuild native packages only if
-   compatibility requires it, then verify the selected controller/protocol markers
-   and repin exact source, executable, configuration and policy hashes. Preserve
-   stock caps, gains, physical Joy settings and stop paths. Deploy the HTTP client
-   and server together: `/health` must report `command_epoch_required: true` and
-   a current token; mutation requests carry `X-Pupper-Command-Epoch`. Read-only
-   GETs and POST `/tools/robot_status`, `/tools/stop`, `/queue/stop`,
-   `/stop/immediate` are exempt. Verify missing/stale requests are refused before
-   motion, never automatically retried. Generic `start.sh`/`stop.sh` are not
-   interchangeable with the reviewed staged setup.
-2. Select the exact controllers for the session. The persistent launch in
-   `foundation/hardware/lab6_session.launch.py` requires an explicit selection:
-   `PUPPER_SESSION_SKILLS=''` selects stock locomotion only; unset refuses startup.
-   `PUPPER_SESSION_SKILLS='sit_stay_shake'` adds only Sit. Set the same selection
-   for launch and API, using the same `PUPPER_GEMINI_DIR` checkout. The runtime
-   manifest binds selection, policies, descriptors and configuration; mismatched
-   APIs are refused and missing controllers are not spawned on demand. Reference
-   jumps and research walking pairs are excluded. Have recording and owned
-   shutdown ready before motion.
-3. Obtain applicable course approval before new trained Sit/generated policies'
-   first hardware trials. Use the existing
-   [Sit sequence](results/sit-interactive-default-return-reviewed.json),
-   [finite return](results/finite-tricks-default-return-reviewed.json),
-   [lying return](results/lying-tricks-later-default-return-reviewed.json) and
-   [generated-motion](results/generated-motion-trained-review.json) evidence.
-   Simulation and native receipts do not establish physical performance.
+Reuse ROS MCAP, API/native logs and the camera recorder. Keep their original files
+and frozen input manifest together. A reusable offline report should extract these
+inputs; do not add a new recorder for each hypothesis.
 
-Use the current report for model-level comparisons and record the actual selected
-setting. Voice latency and narration are not reliable
-Stop or pose evidence. Keep direct Stop and physical R3 independent of speech.
-`current_action` is current work, `last_outcome` is history, and physical
-pose/speed/stopped fields remain unknown. After a stale epoch rejection, inspect
-status and explicitly reconnect model dispatch; do not replay the failed action.
-A failed or unknown Stop must be resolved before new motion. The command epoch
-is a stale-request fence, not authentication or a measured stop guarantee.
+Record each request, server acceptance, queue start/finish/cancellation, native
+controller/clip events, commanded velocities, measured joints and IMU. Server
+job IDs correlate API work; native receipt IDs identify controller playback.
+Neither proves physical success. Use monotonic time for durations within one
+process, wall time to align sources, and record timezone/clock assumptions.
 
-## Supervised work blocks
+Use a fixed external camera view to see feet, body, slips and transitions. Pupper's
+camera provides a separate view of the environment and can corroborate large
+heading changes; it cannot see all its own contacts or directly measure metres
+of travel. A ruler/floor marks and visible timing marker make distance and video
+alignment measurable. Preserve missing views and uncertain timing as missing.
 
-1. Begin with a read-only inventory and confirm who owns the robot now. Check
-   placement, battery, controller and physical power-stop readiness. Reuse the
-   established environment; repeat input diagnostics only when something changed
-   or actual evidence requires it. The prior 16.49 V / 0% display is consistent with the software
-   model's five-cell, 3.3 V-per-cell floor. The actual pack was not independently
-   inspected; that estimate is not proof of battery health.
-2. If a fresh hardware launch is needed, home on the stand with legs clear. Keep
-   walking inactive for placement. When the operator is ready on the floor, one
-   physical Options press releases the existing gateway; there is no chat-timed
-   countdown. Reuse that homed session between actions. API Stop cancels work and
-   requests zero velocity while holding the walking controller; physical R3 latches
-   its abort. Explicit manager-first shutdown ends the owned hardware session.
-3. Briefly confirm the current direct-control baseline, then spend the block on
-   missing behavior: bounded arc/wait sequences and Live requests whose actual
-   tool calls, status and physical outcomes agree. Reuse the demonstrated short
-   forward/back/turn commands instead of repeating the entire discovery process.
-   Include actual microphone input, camera understanding and physical
-   interruption/cancellation with pending work. Synthetic browser/cloud checks
-   already cover their software paths separately; this block must establish the
-   real media and observed robot behavior. Voice narration is not stopping evidence.
-4. With the selected approved Sit profile, request `sit_stay_shake`, hold at least
-   ten seconds, `shake_left`, `shake_right`, and the interactive `stand_up` exit;
-   then make a bounded walk and stop. Also check that an ordinary move from Sit
-   uses the exit first. Compare observed paw/pose behavior with clip receipts.
-   Use a separate bounded interruption case; do not force a recovery through strain.
-5. Select supplied finite tricks by their recorded behavior and limits. A
-   standing-ending trick returns to locomotion; a lying-ending trick holds that
-   endpoint until a later explicit request. The existing finite `spider` is not
-   the required research Spider walking pair. Known high-speed/robustness limits
-   remain relevant when choosing what to exercise.
-6. For approved `secret_dance`, demonstrate denial while locked, unlocking without
-   motion, explicit playback and return, then relocking on Stop. The installed
-   motion is a gentle sway/rise, not a complex dance. Test Optional Lab 3's context
-   habits by voice, including a different request resetting the handshake streak
-   and reconnect losing conversational history. Receive following and Spider
-   integration from their owners rather than replacing their workstreams.
+Separate speech input/release, model/tool arrival, server acceptance, queue wait,
+controller execution, audio playback and observed physical response. Browser
+callbacks alone do not establish acoustic Stop latency. Display estimates as
+estimates; report actual measured intervals separately. Reported IMU angles are
+sensor output, not external truth or calibrated translation.
 
-Batch prepared cases while the user is available. Stop on unexpected strain,
-loss of feedback or uncertain ownership; if substantial coding is needed, finish
-that offline instead of consuming supervision time. No higher limits or gains
-are needed to establish the next baseline.
+## Resolve a known sensor failure before tuning motions
 
-## Finish and hand off
+If the current record identifies unreliable feedback, the next block begins
+supported with motors inactive. Use the reviewed standalone
+[IMU diagnostic](hardware/imu_diagnostic/README.md) separately from the native
+controller. Inspect current identity/configuration first. Its comparison mode
+requires explicit additional reports and verified restoration; it is not a
+calibration fix or a readiness certificate. No reset/homing is needed for this
+sensor-only block. Do not compensate for bad sensing by changing gains/rewards.
 
-Stop the owned session, verify process exits, and preserve the actual observations
-and exact inputs. Check archive contents as well as hashes: the last session's
-archive matched byte-for-byte but had empty finalization files and a truncated
-telemetry tail. Keep originals and label any recovered metadata separately.
-Update the one current-state record; leave no implicit running job or schedule.
-Missing tactile hardware, unpromoted Spider walking and unresolved standing-jump
-reliability remain explicit exclusions, not hidden completion claims.
+## Use supervised time for prepared physical comparisons
+
+1. Confirm current placement, battery, physical stop readiness and exclusive
+   ownership. Repeat controller discovery or button diagnostics only if connection
+   state changed or evidence requires it. Keep direct Stop/R3 independent of voice.
+2. When a fresh motion session is justified, home once on the stand. Place on the
+   floor while inactive; Options releases the gateway when the operator is ready.
+   Keep the same homed session between ordinary trials. API Stop cancels work and
+   requests zero velocity; R3 latches the abort; full driver shutdown disables the
+   boards. These are different operations.
+3. Establish undisturbed stock standing and Sit/hold/standing behavior with the
+   recording. If the baseline is inconsistent, diagnose that layer before adding
+   voice or more skills. Avoid running more motions merely to fill a checklist.
+4. Run prepared action chains: Sit/both paws/stand/walk, selected finite tricks and
+   returns, then an interrupted queued sequence. Compare each transition as well
+   as each isolated skill. Capture drift, tip/slip, duration and repeatability.
+5. Use the same accepted chains through voice. Include ordinary conversation,
+   camera understanding, one acceptance acknowledgment, refusals, cancellation
+   and reconnect behavior. Separate interpretation failure from execution failure.
+6. Integrate the tested follower and Spider pair from their owners. Generated
+   motion and push-up changes need demonstrated improvement before promotion.
+   Do not infer arbitrary self-righting from a normal standing command.
+
+The operator watches the whole prepared batch; request one concise assessment at
+its end unless something fails. Use recordings to review missed details instead
+of immediately consuming another battery on the same trial. For substantial code
+work, release the robot and finish offline. New/changed motions require simulation
+and the applicable current user/course authorization.
+
+## Finish and resume reliably
+
+Stop owned software, verify exits/driver disable, and preserve complete outputs
+with exact input identities. Verify archive members as well as the archive hash.
+Keep failures and rejected candidates. Update current state with the next decision,
+active processes (if any) and missing evidence. Do not turn passing software tests
+or a successful demonstration into an accepted physical capability.

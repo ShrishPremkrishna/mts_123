@@ -191,7 +191,8 @@ def test_completed_move_is_distinct_from_current_wait_in_tool_evidence():
         await asyncio.sleep(.03)
         status = await backend.call('robot_status', {})
         details = status['details']
-        assert details['current_action'] == {'name': 'wait 10s', 'state': 'running'}
+        assert {key: details['current_action'][key] for key in ('name', 'state')} == {'name': 'wait 10s', 'state': 'running'}
+        assert details['current_action']['job_id'] != details['last_outcome']['job_id']
         assert details['running'] is True
         assert details['last_outcome']['name'].startswith('move vx=0.2')
         assert details['last_outcome']['success'] is True
@@ -202,5 +203,6 @@ def test_completed_move_is_distinct_from_current_wait_in_tool_evidence():
         await complete(backend)
         stopped = await backend.call('robot_status', {})
         assert stopped['details']['current_action'] is None
-        assert stopped['details']['last_outcome'] == {'name': 'wait 10s', 'success': False, 'message': 'cancelled'}
+        assert {key: stopped['details']['last_outcome'][key] for key in ('name', 'success', 'message')} == {'name': 'wait 10s', 'success': False, 'message': 'cancelled'}
+        assert stopped['details']['last_outcome']['job_id'] == details['current_action']['job_id']
     run_case(case)

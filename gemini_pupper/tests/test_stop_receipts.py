@@ -48,7 +48,9 @@ def test_running_wait_and_pending_wait_have_separate_confirmed_receipts():
         assert (await tool_registry.call(rig.ts, "wait", {"duration": 1})).ok
         result = await tool_registry.call(rig.ts, "stop", {})
         assert result.ok and result.details["pending_queued_commands_cleared"] == 1
-        assert result.details["running_job"] == {"name": "wait 60s", "cancellation_requested": True, "terminal_state": "cancelled"}
+        expected = {"name": "wait 60s", "cancellation_requested": True, "terminal_state": "cancelled"}
+        assert {key: result.details["running_job"][key] for key in expected} == expected
+        assert result.details["running_job"]["job_id"].startswith(rig.ts.command_instance + ":")
         assert task.cancelled()
         assert "wait 60s" in result.message and "cancellation confirmed" in result.message
         assert "1 pending queued commands" in result.message

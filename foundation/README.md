@@ -25,6 +25,9 @@ status and exact deployed versions; do not reconstruct them from old reports.
 Use the [three workstreams](WORKSTREAMS.md) for ownership and acceptance goals,
 and the [hardware checklist](HARDWARE_CHECKLIST.md) for the supervised workflow.
 Read only the report relevant to the next decision.
+The [offline workflow improvements](results/workstream1-offline-workflow-20261101.json)
+add a reusable closed-session report and server action timeline. They improve
+measurement and diagnosis; they do not close the physical reliability gap.
 
 ## What the evidence supports
 

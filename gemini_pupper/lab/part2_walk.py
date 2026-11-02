@@ -162,7 +162,8 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
 
     # What Gemini hears NOW: the job was accepted.
     what = f"vx={vx:g} vy={vy:g} wz={wz_deg:.3g}"  # 45.836623610465864 -> 45.8: Gemini reads this
-    return with_note(note, await robot.queue(f"move {what} {duration:.3g}s", job, duration, then=then))
+    estimate = robot.transition_time_estimate(walker) + duration
+    return with_note(note, await robot.queue(f"move {what} {duration:.3g}s", job, estimate, then=then))
 
 
 # ============================================================ what Gemini reads

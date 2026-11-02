@@ -1,0 +1,64 @@
+static void fixture_checks(){
+std::vector<diagnostic::Report> reports;std::vector<Bytes> records;
+expect(diagnostic::product_query()==bytes("f900"),"product_id");
+expect(diagnostic::calibration_query(42)==bytes("f22a07000000010000000000"),"calibration_readback_seq42");
+expect(diagnostic::feature_query(2)==bytes("fe02"),"get_feature_02");
+expect(diagnostic::feature_query(5)==bytes("fe05"),"get_feature_05");
+expect(diagnostic::feature_query(7)==bytes("fe07"),"get_feature_07");
+expect(diagnostic::feature_query(8)==bytes("fe08"),"get_feature_08");
+expect(diagnostic::feature_query(19)==bytes("fe13"),"get_feature_13");
+{auto f=diagnostic::feature_response(bytes("fc070d0201204e000050c3000078563412"));expect(f.set_request()==bytes("fd070d0201204e000050c3000078563412"),"exact feature fields restored");}
+{auto f=diagnostic::feature_response(bytes("fc07000000000000000000000000000000"));expect(f.set_request()==bytes("fd07000000000000000000000000000000"),"exact feature fields restored");}
+expect(diagnostic::control_records(bytes("f800010a96a49800940100000a000000f8000507a7a698003f01000011000000f8000503b5a69800e20000000e000000"),records),"actual captured control batch");
+expect(diagnostic::control_records(bytes("f1000700000001000100010000000000"),records),"actual captured control batch");
+expect(diagnostic::control_records(bytes("fc02000000102700000000000000000000"),records),"actual captured control batch");
+expect(diagnostic::control_records(bytes("fc05000000102700000000000000000000"),records),"actual captured control batch");
+expect(diagnostic::control_records(bytes("fc08000000102700000000000000000000"),records),"actual captured control batch");
+expect(diagnostic::control_records(bytes("fc1300000040420f000000000000000000"),records),"actual captured control batch");
+expect(diagnostic::reports(bytes("fbe803000007fe0603000200fc0e000200fdff0e00"),reports)==true,"07_signed_velocity_bias_and_delay");
+expect(reports.size()==1&&reports[0].values[0]==512&&reports[0].values[1]==-1024&&reports[0].values[2]==14&&reports[0].values[3]==2&&reports[0].values[4]==-3&&reports[0].values[5]==14,"signed Q9 velocity/bias");
+expect(reports[0].delay_ticks==259&&reports[0].reference_delta_ticks==-1000,"14bit delay and signed timestamp");
+expect(diagnostic::reports(bytes("fbe803000007fe0603000200fc0e000200fdff0e00faf6ffffff08ff03000000000000000040130002000100"),reports)==true,"mixed07_rebase08_13");
+expect(reports.size()==3&&reports[1].reference_delta_ticks==-1010&&reports[1].values[3]==16384&&reports[2].stability==1,"mixed report boundaries");
+expect(diagnostic::reports(bytes("fbe803000007fe0603000200fc0e000200fdff0e"),reports)==false,"truncated07_rejected");
+expect(diagnostic::reports(bytes("fbe803000055000000"),reports)==false,"unknown_report_not_guessed");
+expect(diagnostic::reports(bytes("fbffffff7f08ff03000000000000000040"),reports)==true,"unknown_timebase");
+expect(!reports[0].timing_valid,"sentinel timing remains unknown");
+expect(diagnostic::reports(bytes("fbe8030000050100000000000000000040ffff"),reports)==true,"negative_heading_accuracy_not_positive_unsigned_estimate");
+expect(!diagnostic::allowed_request(bytes("0100"),false),"inspect disallows reset/calibration/DCD/set");
+expect(!diagnostic::allowed_request(bytes("f20107000000000000000000"),false),"inspect disallows reset/calibration/DCD/set");
+expect(!diagnostic::allowed_request(bytes("f20206000000000000000000"),false),"inspect disallows reset/calibration/DCD/set");
+expect(!diagnostic::allowed_request(bytes("f20303000000000000000000"),false),"inspect disallows reset/calibration/DCD/set");
+expect(!diagnostic::allowed_request(bytes("fd02000000102700000000000000000000"),false),"inspect disallows reset/calibration/DCD/set");
+expect(!diagnostic::reports(bytes("fbe80300000201030000000000000007"),reports)&&reports.empty(),"atomic partial report rejection");
+expect(!diagnostic::control_records(bytes("fc02000000102700000000000000000000f8"),records)&&records.empty(),"atomic partial control rejection");
+{Fake f;std::ostringstream r,w,p,s;IO io{[&](uint8_t*b,size_t n){return f.read(b,n);},[&](const uint8_t*b,size_t n){return f.write(b,n);},[&](){return f.time;},[&](){f.time+=.005;}};Capture c(io,r,w,p,s);c.deadline=200.;
+f.channel=3;f.queue.push_back(bytes("fb00000000050100000000000000000040ffff"));c.poll();expect(p.str().find("\"rotation_accuracy_rad\":null")!=std::string::npos,"negativeQ12 accuracy unknown in actual log");
+expect(diagnostic::reports(bytes("fb00000000050100000000000000000040ffff"),reports)&&reports[0].rotation_accuracy==65535,"RV negative Q12 raw preserved");}
+expect(diagnostic::reports(bytes("fb410000000200030001000000ffff05000000b1dd6acf64f3fc134432"),reports),"captured02/05 sensor batch");
+expect(reports.size()==2,"captured report count");
+expect(reports[0].id==2&&reports[0].values[0]==1&&reports[0].values[1]==0&&reports[0].values[2]==-1,"independent signed captured values");
+expect(reports[1].id==5&&reports[1].values[0]==-8783&&reports[1].values[1]==-12438&&reports[1].values[2]==-3228&&reports[1].values[3]==5116,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb350000000201030001000000000005010000b1dd6acf64f3fc134432"),reports),"captured02/05 sensor batch");
+expect(reports.size()==2,"captured report count");
+expect(reports[0].id==2&&reports[0].values[0]==1&&reports[0].values[1]==0&&reports[0].values[2]==0,"independent signed captured values");
+expect(reports[1].id==5&&reports[1].values[0]==-8783&&reports[1].values[1]==-12438&&reports[1].values[2]==-3228&&reports[1].values[3]==5116,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb170000000202030000000100ffff"),reports),"captured02/05 sensor batch");
+expect(reports.size()==1,"captured report count");
+expect(reports[0].id==2&&reports[0].values[0]==0&&reports[0].values[1]==1&&reports[0].values[2]==-1,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb3600000005020000b1dd6acf64f3fc134432"),reports),"captured02/05 sensor batch");
+expect(reports.size()==1,"captured report count");
+expect(reports[0].id==5&&reports[0].values[0]==-8783&&reports[0].values[1]==-12438&&reports[0].values[2]==-3228&&reports[0].values[3]==5116,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb190000000203030000000100ffff"),reports),"captured02/05 sensor batch");
+expect(reports.size()==1,"captured report count");
+expect(reports[0].id==2&&reports[0].values[0]==0&&reports[0].values[1]==1&&reports[0].values[2]==-1,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb3600000005030000b2dd6acf64f3fc134432"),reports),"captured02/05 sensor batch");
+expect(reports.size()==1,"captured report count");
+expect(reports[0].id==5&&reports[0].values[0]==-8782&&reports[0].values[1]==-12438&&reports[0].values[2]==-3228&&reports[0].values[3]==5116,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb1900000002040300010001000000"),reports),"captured02/05 sensor batch");
+expect(reports.size()==1,"captured report count");
+expect(reports[0].id==2&&reports[0].values[0]==1&&reports[0].values[1]==1&&reports[0].values[2]==0,"independent signed captured values");
+expect(diagnostic::reports(bytes("fb3a00000005040000b2dd6acf64f3fd134432"),reports),"captured02/05 sensor batch");
+expect(reports.size()==1,"captured report count");
+expect(reports[0].id==5&&reports[0].values[0]==-8782&&reports[0].values[1]==-12438&&reports[0].values[2]==-3228&&reports[0].values[3]==5117,"independent signed captured values");
+}

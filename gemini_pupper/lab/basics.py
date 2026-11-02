@@ -58,7 +58,8 @@ async def stand_up(robot: Robot) -> Result:
     async def job() -> Result:  # (2) later: give the legs to the locomotion policy
         return await robot.switch_to(LOCOMOTION_CONTROLLER)
 
-    return with_note(note, await robot.queue("stand up", job, WALK_READY_S, then=LOCOMOTION))  # (3)
+    estimate = robot.transition_time_estimate(LOCOMOTION_CONTROLLER)
+    return with_note(note, await robot.queue("stand up", job, estimate, then=LOCOMOTION))  # (3)
 
 
 async def lie_down(robot: Robot) -> Result:

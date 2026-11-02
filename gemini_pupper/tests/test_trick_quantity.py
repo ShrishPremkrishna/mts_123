@@ -74,7 +74,8 @@ def test_explicit_once_retains_existing_one_playback_behavior():
     async def case(rig):
         result = await tool_registry.call(rig.ts, 'play_trick', {'name': 'bow', 'count': 1, 'count_unit': 'routine_playback'})
         assert result.ok, result.message
-        assert result.details['submission'] == {'schema': 'pupper_submission_v1', 'state': 'queued'}
+        assert {key: result.details['submission'][key] for key in ('schema', 'state')} == {'schema': 'pupper_submission_v1', 'state': 'queued'}
+        assert result.details['submission']['job_id'].startswith(rig.ts.command_instance + ':')
         assert await rig.settle()
         assert len(rig.robot.activations(rig.ts.tricks['bow'].controller)) == 1
         assert rig.ts.last_outcome['success']

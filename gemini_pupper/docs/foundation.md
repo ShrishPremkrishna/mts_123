@@ -19,6 +19,32 @@ job cancels dependent queued work; a stop preempts request acceptance. Failed ex
 transitions and missing clip completion feedback are reported rather than treated
 as successful movement.
 
+### Action timing and recorded evidence
+
+Queued replies include server-owned `job_id` and `server_instance` fields in the
+existing submission marker. The same IDs appear in current and terminal outcomes.
+`job_event` JSON rows in the API log record queued, started, cancellation requested
+and finished events with wall and monotonic timestamps. Started/finished describe
+API job execution; native playback and physical outcomes remain separate.
+`/queue/status` retains the latest 64 terminal outcomes and a dropped-history
+count; routine model status does not include that history. The browser does not
+yet use these new IDs for its per-action completion matching. An endpoint that
+queues several jobs can return its final job receipt; the log retains each job.
+
+Estimated queue time includes planned exits and controller readiness once. It is
+not a deadline or a physical-duration measurement. The read-only reporter combines
+existing closed-session logs, MCAP and timestamped camera observations:
+
+```sh
+# From the foundation checkout, using its existing numerical environment:
+.venv/bin/python foundation/scripts/report_lab6_session.py CLOSED_RUN NEW_REPORT_DIR --timezone America/Los_Angeles
+```
+
+Open `NEW_REPORT_DIR/report.html`; JSON and a standalone plot are saved beside it.
+No hardware or network connection is made. The reporter preserves overlaps, gaps,
+clock assumptions and exact input hashes. Historical sessions without IDs retain
+only labeled candidate correlations; no request-to-completion certainty is added.
+
 ### Trick quantities
 
 `POST /tools/play_trick` requires all three fields, for example
@@ -73,8 +99,8 @@ Those earlier checks are not physical evidence. The [1 November supervised sessi
 The current browser candidate uses **hold-to-talk** while keeping the Live connection and camera open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks. The subsequent supervised session exercised real hold-to-talk speech, bounded voice movement and skill requests; the user confirmed a consistent native voice. This is session evidence, not a general recognition guarantee.
 
 **Conversation + control** keeps natural conversation and the complete robot tool
-catalog in one session. The client holds model speech/text until the model turn
-ends. A tool-bearing turn cannot speak free-form action narration. A current
+catalog in one session. The client holds model speech/text until generation is complete and its
+output checks pass; it does not wait for the later playback-oriented turn boundary. A tool-bearing turn cannot speak free-form action narration. A current
 matching API reply may instead authorize one fixed acknowledgment in Gemini
 Puck's native voice: the complete output transcript must exactly match the
 authorized text before audio is released. A narrow accepted status/optional Sit
@@ -82,8 +108,9 @@ entry/paw chain also supports its fixed handshake acknowledgment. Tool dispatch
 and Stop do not wait for speech. Later ordinary conversation remains available
 while an accepted job runs; no mode switch is required.
 
-Tool-free conversation retains Gemini's native voice after the complete-turn
-check. Known English action-claim patterns are screened using the shared
+Tool-free conversation retains the selected speech path after the generation
+check. The optional ER text + Puck TTS path is separately selectable; it does not
+change robot queue execution. Known English action-claim patterns are screened using the shared
 `conversation_guard.json`; suspicious replies get a visible, silent unconfirmed-action
 notice. This screening is a heuristic, with possible false positives and missed
 paraphrases or languages. A transcript is not proof that every spoken word agrees
@@ -97,7 +124,7 @@ remains independent. The explicit **receipt-only** diagnostic mode still mutes
 all model narration. Previously saved explicit receipt-only settings remain
 selected until changed while disconnected.
 
-Fixed server receipts are visible immediately after matching replies. Current native acknowledgments use the selected Gemini voice, without an operating-system voice interrupting it. The supervised user confirmed consistent voice during movement and skill requests. The deployed [twelve-clip Puck cache](../../foundation/results/workstream1-voice-sequencing-20261101.json) supplies reviewed short action, Stop and refusal confirmations after each current actual server reply, including multi-tool batches. It removes the extra cloud-generation wait for those phrases; it does not remove request interpretation time or the full-turn delay of ordinary conversation. Receipts do not establish physical success:
+Fixed server receipts are visible immediately after matching replies. Current native acknowledgments use the selected Gemini voice, without an operating-system voice interrupting it. The supervised user confirmed consistent voice during movement and skill requests. The Puck cache supplies one reviewed neutral “Okay” per provider output turn, after its first confirmed queued action. Later successful steps in that turn keep their visible receipts without duplicate spoken confirmations; failures and Stop remain explicit. The cache removes an extra cloud-generation wait for those phrases, not request interpretation time. Exact deployed source and the selected speech model belong in the current-state record. Receipts do not establish physical success:
 
 - A successful reply without explicit submission evidence says the request was **accepted**, not completed.
 - Wording such as **“Move queued.”** requires `details.submission` with schema
