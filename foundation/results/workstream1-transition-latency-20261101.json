@@ -1,0 +1,128 @@
+{
+  "schema": "pupper_transition_latency_review_v1",
+  "created_utc": "2026-11-02T00:25:03.842227+00:00",
+  "scope": "Exact live-log snapshot analysis, local estimate-only fix, and isolated native/MuJoCo comparison. No live source or motor timing changes by this task.",
+  "evidence_directory": "artifacts/hardware/2026-11-01/action-latency",
+  "hardware_run": "supervised-console-runs/20261101-ws1-imu-candidate",
+  "snapshot_limit": "Partial active-session snapshot; accepted and completion timestamps include client polling every0.25s. Native activation messages are lifecycle events, not physical movement proof.",
+  "diagnosis": {
+    "actual_four_clip_batch_duration_s": {
+      "corrected_imu_finite_comparison_1": 69.81571531295776,
+      "corrected_imu_finite_comparison_2": 70.27925896644592
+    },
+    "old_nominal_estimate_s": 49.68,
+    "corrected_nominal_estimate_s": 67.68,
+    "missing_per_standing_finite_s": 4.5,
+    "reason": "Every standing-ending finite trick runs its own0.5s initialization+1s policy fade+full clip+0.3s pad, then switches to gemini_walk and waits its2s initialization+2s fade+0.2s margin. Queue estimates omitted the4.2s return and0.3s pad. No duplicate4.2s wait found.",
+    "native_timing_observed": "Accept to trick activation0.15\u20130.20s; walking activation to observed completion4.28\u20134.48s. The rest matches clip+entry blend+pad+switch overhead.",
+    "clip_durations_s": {
+      "stand_downward_dog": 13.88,
+      "pee": 7.18,
+      "stand_sit_stand": 11.84,
+      "push_up": 10.78
+    },
+    "sit_exit_estimate_s": {
+      "before": 4.5,
+      "after": 8.7
+    }
+  },
+  "estimate_fix": {
+    "files_sha256": {
+      "gemini_pupper/lab/part4_tricks.py": "88ef910545c436d3bf417de9f407a4066a68917b5f260d70c019e7b4fdbb2428",
+      "gemini_pupper/lab/part5_interactive_action.py": "a81a57e4eeca1c59005416d805088c2c11432e49c4767acb9e9861ed88887ba7",
+      "gemini_pupper/tests/test_queue_time_estimates.py": "25d03188da39aaec2f35e7f3789cb8126576a46250e84ed3e7b7089a93d89bae"
+    },
+    "behavior": "Add existing waits to estimates only: policy playback+0.3s; noninteractive standing ending+4.2s; interactive exit+4.2s. Other paw estimates and all actual execution/native timing unchanged.",
+    "validation": {
+      "new_regression_before": "7 failed,1 passed",
+      "new_and_actual_catalog_after": "35 passed",
+      "course": "166 checks passed"
+    },
+    "limits": "Estimates are nominal, not deadlines; ROS service/queue timing, interactive departure and physical state can add delay. Corrected values have not been remeasured onhardware in this evidence."
+  },
+  "continuity": {
+    "reference_audit": "artifacts/hardware/2026-11-01/action-latency/reference-continuity.json",
+    "finding": "All four start at the same reference joints but end0.47\u20130.96rad away from that start. Standing-ending labels do not establish identical joint pose. Immediate direct switches still need measured-pose transfer and policy fade."
+  },
+  "simulation": {
+    "pair": [
+      "stand_downward_dog",
+      "pee"
+    ],
+    "unchanged": [
+      "exact supplied policies",
+      "stock walking policy",
+      "gains and limits",
+      "1s trick policy fade",
+      "continuous physical state and actuator delay buffer",
+      "full hull contacts",
+      "520Hz physics and52Hz nominal inference"
+    ],
+    "baseline": "default6.2s \u2192 dog \u2192 default4.2s \u2192 pee \u2192 default4.2s+2s settle",
+    "direct": "omit intermediate default; preserve next0.5s init",
+    "direct_slow": "omit intermediate default; lengthen only next init to2s",
+    "equal_initial_prefix_samples": 1138,
+    "comparison": "artifacts/hardware/2026-11-01/action-latency/pair-comparison.json",
+    "outcome": "All three sequences complete and settle in nominal simulation. Neither faster candidate is promoted.",
+    "metrics": {
+      "baseline": {
+        "region_max_init_slope_rad_s": 0.3260522878307546,
+        "region_max_target_step_rad": 0.1365181803703308,
+        "second_trick_max_joint_speed_rad_s": 2.691908586738545,
+        "region_peak_torque_nm": 1.263620888087051,
+        "second_trick_clamp_max_rad": 0.0922733175754547,
+        "second_trick_clipped_joint_samples": 123
+      },
+      "direct": {
+        "region_max_init_slope_rad_s": 1.4151211131760455,
+        "region_max_target_step_rad": 0.09924018383026123,
+        "second_trick_max_joint_speed_rad_s": 3.009876956564679,
+        "region_peak_torque_nm": 1.3584539355652163,
+        "second_trick_clamp_max_rad": 0.09999998688697814,
+        "second_trick_clipped_joint_samples": 85,
+        "failed_screens": [
+          "no_greater_peak_clamp",
+          "init_slope",
+          "second_joint_speed"
+        ],
+        "duration_saving_s": 4.192307692307693
+      },
+      "direct_slow": {
+        "region_max_init_slope_rad_s": 0.3537802782940114,
+        "region_max_target_step_rad": 0.09746089577674866,
+        "second_trick_max_joint_speed_rad_s": 2.9749769494294234,
+        "region_peak_torque_nm": 1.2464183543056921,
+        "second_trick_clamp_max_rad": 0.09999998688697814,
+        "second_trick_clipped_joint_samples": 110,
+        "failed_screens": [
+          "no_greater_peak_clamp",
+          "second_joint_speed"
+        ],
+        "duration_saving_s": 2.6923076923076934
+      }
+    },
+    "correction": "The preliminary whole-region clipping fraction used unequal duration denominators; it did not show newly clipped joints. Both before and corrected reports are preserved. All modes clip the same joint; candidates have fewer clipped samples but greater peak correction0.1000 vs0.0923rad.",
+    "limits": [
+      "One nominal pair only; no sensor noise, parameter variation, physical trial or complete four-trickchain.",
+      "Current production init duration is cached in controller initialization. The2s handoff-specific candidate is not a supported live API setting and is not deployed.",
+      "Reference continuity, commanded slopes and simulator completion are not physical safety or calibration proof.",
+      "Native math/inference headers are reused, but lifecycle plumbing is explicitly transcribed; this is not a ROS controllerexecution.",
+      "Target-step maxima are accumulated at every520Hz command step; joint velocity, effort and clamp comparisons use the52Hz recorded trajectory samples. These are not identical sampling contracts."
+    ],
+    "peer_review": "artifacts/hardware/2026-11-01/action-latency/peer-review-addendum.json"
+  },
+  "next_actions": [
+    "Review/integrate the estimate-only patch separately from the live application snapshot.",
+    "Do not delete WALK_READY waits or speed up reference playback to hide delay.",
+    "Before any faster finite sequence, refine transfer constraints and compare all requested pair boundaries with actual recorded endpoint state/contact data and repeated nominal/perturbed simulations.",
+    "Preserve final return to locomotion and cancellation/fall handling; any actual transition change needs a separately reviewed supervised trial."
+  ],
+  "archive": {
+    "path": "artifacts/hardware/2026-11-01/action-latency/action-latency-20261101.tar.gz",
+    "archive": "action-latency-20261101.tar.gz",
+    "sha256": "15133d7feb0eb45f969f631f00f505e66ef723714180d6cc4f4d49b0bbe019ee",
+    "bytes": 64725145,
+    "verified_paths": 105,
+    "failures": []
+  }
+}

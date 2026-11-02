@@ -26,7 +26,7 @@ def run_case(case):
 
 async def stop_playing_trick(rig):
     bow = rig.ts.tricks["bow"]
-    assert (await tool_registry.call(rig.ts, "play_trick", {"name": "bow"})).ok
+    assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "bow"})).ok
     deadline = rig.clock.now + 2.0
     for _ in range(10000):
         if rig.clock.now >= deadline and bow.controller in rig.robot.active():

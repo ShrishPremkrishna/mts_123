@@ -280,7 +280,7 @@ def test_stand_declaration_does_not_require_an_extra_stand_before_moving():
 def test_trick_completion_reports_controller_playback_and_distinguishes_repeat(name):
     async def case(rig):
         import tool_registry
-        assert (await tool_registry.call(rig.ts, "play_trick", {"name": name})).ok
+        assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": name})).ok
         assert await rig.settle()
         outcome = rig.ts.last_outcome
         assert outcome["success"], outcome
@@ -289,7 +289,7 @@ def test_trick_completion_reports_controller_playback_and_distinguishes_repeat(n
         assert "holds its final pose" not in outcome["message"]
         if name == "hold_pose":
             assert "entry playback confirmed" in outcome["message"]
-            assert (await tool_registry.call(rig.ts, "play_trick", {"name": name})).ok
+            assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": name})).ok
             assert await rig.settle()
             assert "no new entry playback" in rig.ts.last_outcome["message"]
     run_case(case)

@@ -76,7 +76,7 @@ def test_installed_sit_stay_both_paws_exit_and_walk_queued_together():
             sit = rig.ts.tricks["sit_stay_shake"]
             assert sit.interactive and sit.exit_clip == "stand_up"
             sequence = [
-                ("play_trick", {"name": sit.name}),
+                ("play_trick", {"count": 1, "count_unit": "routine_playback", "name": sit.name}),
                 ("wait", {"duration": 10.0}),
                 ("interactive_action", {"action": "shake_left"}),
                 ("interactive_action", {"action": "shake_right"}),
@@ -105,7 +105,7 @@ def test_move_from_seated_idle_uses_exit_clip_before_walking():
     async def case():
         async with installed_rig() as rig:
             sit = rig.ts.tricks["sit_stay_shake"]
-            assert (await call_and_settle(rig, "play_trick", name=sit.name)).ok
+            assert (await call_and_settle(rig, "play_trick", count=1, count_unit="routine_playback", name=sit.name)).ok
             assert rig.ts.state_now is sit
             assert (await call_and_settle(rig, "move", direction="forward", speed=0.2, duration=0.5)).ok
             assert not rig.failures(), rig.outcomes()
@@ -124,7 +124,7 @@ def test_installed_finite_skill_holds_declared_endpoint_until_later_request(name
     async def case():
         async with installed_rig() as rig:
             trick = rig.ts.tricks[name]
-            assert (await call_and_settle(rig, "play_trick", name=name)).ok
+            assert (await call_and_settle(rig, "play_trick", count=1, count_unit="routine_playback", name=name)).ok
             assert rig.ts.last_outcome["success"] is True, rig.ts.last_outcome
             if trick.end_pose == "standing":
                 assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
@@ -150,7 +150,7 @@ def test_installed_generated_secret_unlock_play_return_and_relock(tmp_path):
             dance = rig.ts.tricks["secret_dance"]
             assert dance.secret and dance.end_pose == "standing"
             assert dance.name not in json.dumps(tool_registry.declarations(rig.ts))
-            denied = await tool_registry.call(rig.ts, "play_trick", {"name": dance.name})
+            denied = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": dance.name})
             assert not denied.ok and not rig.robot.activations(dance.controller)
             before = list(rig.robot.switches)
             wrong = await tool_registry.call(rig.ts, "unlock", {"password": "wrong-test-value"})
@@ -158,7 +158,7 @@ def test_installed_generated_secret_unlock_play_return_and_relock(tmp_path):
             unlocked = await tool_registry.call(rig.ts, "unlock", {"password": password})
             assert unlocked.ok and password not in unlocked.message
             assert rig.robot.switches == before
-            assert (await call_and_settle(rig, "play_trick", name=dance.name)).ok
+            assert (await call_and_settle(rig, "play_trick", count=1, count_unit="routine_playback", name=dance.name)).ok
             assert rig.ts.last_outcome["success"] is True
             assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
             assert (await tool_registry.call(rig.ts, "stop", {})).ok

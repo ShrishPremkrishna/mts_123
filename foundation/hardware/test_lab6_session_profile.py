@@ -225,9 +225,9 @@ def test_selected_supplied_trick_returns_before_a_following_walk(monkeypatch, na
         try:
             assert await rig.settle()
             assert set(rig.ts.tricks) == set(recipe["selection"])
-            rejected = await tool_registry.call(rig.ts, "play_trick", {"name": "secret_dance"})
+            rejected = await tool_registry.call(rig.ts, "play_trick", {"name": "secret_dance", "count": 1, "count_unit": "routine_playback"})
             assert not rejected.ok and rig.ts.commands.empty()
-            accepted = await tool_registry.call(rig.ts, "play_trick", {"name": name})
+            accepted = await tool_registry.call(rig.ts, "play_trick", {"name": name, "count": 1, "count_unit": "routine_playback"})
             assert accepted.ok
             assert await rig.settle()
             assert rig.ts.last_outcome["success"], rig.ts.last_outcome

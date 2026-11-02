@@ -20,6 +20,7 @@ from part3_follow import prepare_to_move
 from robot_api import FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, WALK_READY_S, Result, Robot, not_written, with_note  # noqa: F401
 from tool_registry import TRICK_NAMES, Param, tool
 from tricks import Trick
+from trick_quantity import validate_trick_quantity
 
 
 # ============================================================ what the robot does
@@ -89,7 +90,12 @@ async def play_trick(robot: Robot, name: str) -> Result:
         return await play_policy_trick(robot, trick)
 
     then = LOCOMOTION if trick.kind == "reference" or (not trick.interactive and trick.end_pose == "standing") else trick
-    return with_note(note, await robot.queue(f"trick {name}", job, trick.total_time, then=then))
+    estimate = trick.total_time
+    if trick.kind == "policy":
+        estimate += 0.3  # existing playback pad in play_policy_trick
+        if not trick.interactive and trick.end_pose == "standing":
+            estimate += WALK_READY_S  # switch_to waits for the final walking handoff
+    return with_note(note, await robot.queue(f"trick {name}", job, estimate, then=then))
     # ====================================
 
 
@@ -183,12 +189,20 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
 # ========== TODO 8: YOUR CODE HERE ==========
 @tool(
     "play_trick",
-    "Play an installed trick. Read its description and starting pose before choosing. A playback trick keeps its final"
+    "Play one installed recorded routine, not one measured physical repetition. Copy the person's explicit quantity"
+    " into count and distinguish routine_playback from physical_repetition; do not silently substitute or split requests."
+    " Only count=1 with count_unit=routine_playback is currently executable; other counts are refused."
+    " Read its description and starting pose before choosing. A playback trick keeps its final"
     " pose unless it ends standing; an interactive trick stays until an action or another motion leaves it."
     " Use sit_stay_shake for sit-and-stay once installed. A queued reply means accepted, not already completed."
     + PREPARES_MOVE + "\nAvailable tricks:\n{tricks}",
     name=Param("string", "Exact installed trick name from the available list.", enum=TRICK_NAMES),
+    count=Param("integer", "Requested quantity, 1 through 10. Copy an explicit user count; use 1 only when the person requested one or did not specify a quantity."),
+    count_unit=Param("string", "routine_playback means the entire recorded routine; physical_repetition means counted exercises such as ten push-ups. Physical counts are unsupported; call with the requested count to obtain an honest refusal.", enum=["routine_playback", "physical_repetition"]),
 )
 # ====================================
-async def play_trick_tool(robot: Robot, name: str) -> Result:
+async def play_trick_tool(robot: Robot, name: str, count: int, count_unit: str) -> Result:
+    refused = validate_trick_quantity(count, count_unit)
+    if refused is not None:
+        return refused
     return await play_trick(robot, name)

@@ -45,7 +45,7 @@ def test_counter_is_server_scoped_and_not_physical_or_pending():
                                "server_instance": rig.ts.command_instance,
                                "scope": "this_server_session", "completed_sit_entries": 0}
             assert re.fullmatch(r"[0-9a-f]{32}", initial["server_instance"])
-            accepted = await tool_registry.call(rig.ts, "play_trick", {"name": "sit_stay_shake"})
+            accepted = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "sit_stay_shake"})
             assert accepted.ok and context(rig)["completed_sit_entries"] == 0
             assert await rig.settle()
             assert rig.ts.last_outcome["success"]
@@ -60,15 +60,15 @@ def test_counter_is_server_scoped_and_not_physical_or_pending():
 def test_duplicate_sit_paws_wait_and_exit_do_not_count_another_entry():
     async def case():
         async with installed_rig() as rig:
-            await call(rig, "play_trick", name="sit_stay_shake")
-            for tool, args in [("play_trick", {"name": "sit_stay_shake"}),
+            await call(rig, "play_trick", count=1, count_unit="routine_playback", name="sit_stay_shake")
+            for tool, args in [("play_trick", {"count": 1, "count_unit": "routine_playback", "name": "sit_stay_shake"}),
                                ("wait", {"duration": 1}),
                                ("interactive_action", {"action": "shake_left"}),
                                ("interactive_action", {"action": "shake_right"}),
                                ("stand_up", {})]:
                 await call(rig, tool, **args)
                 assert context(rig)["completed_sit_entries"] == 1
-            await call(rig, "play_trick", name="sit_stay_shake")
+            await call(rig, "play_trick", count=1, count_unit="routine_playback", name="sit_stay_shake")
             assert context(rig)["completed_sit_entries"] == 2
     asyncio.run(case())
 
@@ -76,7 +76,7 @@ def test_duplicate_sit_paws_wait_and_exit_do_not_count_another_entry():
 def test_repeated_confirmation_and_status_reads_cannot_double_count():
     async def case():
         async with installed_rig() as rig:
-            await call(rig, "play_trick", name="sit_stay_shake")
+            await call(rig, "play_trick", count=1, count_unit="routine_playback", name="sit_stay_shake")
             expected = context(rig)
             for _ in range(3):
                 assert (await rig.ts.confirm_clip_endpoint(rig.ts.tricks["sit_stay_shake"])).ok
@@ -103,7 +103,7 @@ def test_unconfirmed_or_interrupted_entry_does_not_count(failure):
                     else:
                         rig.ts.stops += 1
                 rig.ts.sleep = interrupted
-            accepted = await tool_registry.call(rig.ts, "play_trick", {"name": "sit_stay_shake"})
+            accepted = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "sit_stay_shake"})
             assert accepted.ok and await rig.settle()
             assert rig.ts.last_outcome["success"] is False
             assert context(rig)["completed_sit_entries"] == 0
@@ -113,8 +113,8 @@ def test_unconfirmed_or_interrupted_entry_does_not_count(failure):
 def test_cancel_before_start_and_rejected_name_do_not_count():
     async def case():
         async with installed_rig() as rig:
-            assert not (await tool_registry.call(rig.ts, "play_trick", {"name": "not-installed"})).ok
-            assert (await tool_registry.call(rig.ts, "play_trick", {"name": "sit_stay_shake"})).ok
+            assert not (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "not-installed"})).ok
+            assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "sit_stay_shake"})).ok
             assert (await rig.ts.immediate_stop()).ok
             assert await rig.settle()
             assert context(rig)["completed_sit_entries"] == 0
@@ -124,12 +124,12 @@ def test_cancel_before_start_and_rejected_name_do_not_count():
 def test_api_restart_has_new_identity_and_does_not_count_adopted_sit():
     async def case():
         async with installed_rig() as first:
-            await call(first, "play_trick", name="sit_stay_shake")
+            await call(first, "play_trick", count=1, count_unit="routine_playback", name="sit_stay_shake")
             previous = context(first)
         async with installed_rig(adopt_sit=True) as restarted:
             assert restarted.ts.state_now is restarted.ts.tricks["sit_stay_shake"]
             assert context(restarted)["server_instance"] != previous["server_instance"]
             assert context(restarted)["completed_sit_entries"] == 0
-            await call(restarted, "play_trick", name="sit_stay_shake")
+            await call(restarted, "play_trick", count=1, count_unit="routine_playback", name="sit_stay_shake")
             assert context(restarted)["completed_sit_entries"] == 0
     asyncio.run(case())

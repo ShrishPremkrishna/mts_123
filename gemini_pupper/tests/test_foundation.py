@@ -333,7 +333,7 @@ def test_stop_cancels_reference_jump_controller_not_just_velocity():
             original(msg)
             published.set()
         rig.ts.ref_pub.publish = observe
-        assert (await tool_registry.call(rig.ts, 'play_trick', {'name': 'hop'})).ok
+        assert (await tool_registry.call(rig.ts, 'play_trick', {"count": 1, "count_unit": "routine_playback", 'name': 'hop'})).ok
         await published.wait()
         assert rig.ts.reference_active
         result = await tool_registry.call(rig.ts, 'stop', {})
@@ -709,7 +709,7 @@ def test_hidden_tricks_are_enforced_at_acceptance_and_execution(tmp_path):
         decls = json.dumps(tool_registry.declarations(rig.ts))
         assert "hold_pose" not in decls and "wave_left" not in decls
         assert password not in decls
-        denied = await tool_registry.call(rig.ts, "play_trick", {"name": "hold_pose"})
+        denied = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
         assert not denied.ok and "unlock" in denied.message
         assert rig.ts.commands.empty()
         wrong = await tool_registry.call(rig.ts, "unlock", {"password": "wrong"})
@@ -719,7 +719,7 @@ def test_hidden_tricks_are_enforced_at_acceptance_and_execution(tmp_path):
         assert unlocked.ok and "hold_pose" in unlocked.message and password not in unlocked.message
         assert rig.robot.switches == before  # unlocking never moves
         assert "hold_pose" in json.dumps(tool_registry.declarations(rig.ts))
-        assert (await tool_registry.call(rig.ts, "play_trick", {"name": "hold_pose"})).ok
+        assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})).ok
         await tool_registry.call(rig.ts, "lock_tricks", {})
         await rig.settle()
         assert trick.controller not in rig.robot.active()  # queued before lock but not executed

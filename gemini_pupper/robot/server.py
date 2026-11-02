@@ -30,7 +30,7 @@ from fastapi.responses import JSONResponse
 from starlette.requests import HTTPConnection
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 import tool_registry as gemini_tools
 from robot_api import CALL_STOPS, Robot
@@ -198,6 +198,9 @@ class MoveDirection(BaseModel):
 
 
 class Trick(BaseModel):
+    # This legacy button route always requests exactly one entire routine.
+    # Reject count-like extras instead of silently discarding their meaning.
+    model_config = ConfigDict(extra="forbid")
     animation_name: str
 
 
@@ -274,7 +277,7 @@ async def move_direction(req: MoveDirection):
 
 @app.post("/animation")
 async def animation(req: Trick):
-    return (await gemini_tools.call(T(), "play_trick", {"name": req.animation_name})).as_dict()
+    return (await gemini_tools.call(T(), "play_trick", {"name": req.animation_name, "count": 1, "count_unit": "routine_playback"})).as_dict()
 
 
 @app.post("/interactive_action")

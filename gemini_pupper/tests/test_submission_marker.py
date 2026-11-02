@@ -96,7 +96,7 @@ def test_follow_note_wrapper_preserves_actual_move_submission():
 
 def test_duplicate_interactive_entry_is_queued_but_idempotent_job_is_not_retagged():
     async def case(rig):
-        first = await tool_registry.call(rig.ts, "play_trick", {"name": "hold_pose"})
+        first = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
         assert await rig.settle()
         assert first.ok and submission(first) == MARKER
         trick = rig.ts.tricks["hold_pose"]
@@ -104,7 +104,7 @@ def test_duplicate_interactive_entry_is_queued_but_idempotent_job_is_not_retagge
         direct = await harness.behaviors.play_policy_trick(rig.ts, trick)
         assert direct.ok and "no new entry" in direct.message
         assert submission(direct) is None
-        repeated = await tool_registry.call(rig.ts, "play_trick", {"name": "hold_pose"})
+        repeated = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
         assert await rig.settle()
         assert repeated.ok and submission(repeated) == MARKER
         assert "no new entry" in rig.ts.last_outcome["message"]

@@ -19,6 +19,23 @@ job cancels dependent queued work; a stop preempts request acceptance. Failed ex
 transitions and missing clip completion feedback are reported rather than treated
 as successful movement.
 
+### Trick quantities
+
+`POST /tools/play_trick` requires all three fields, for example
+`{"name":"sit_stay_shake","count":1,"count_unit":"routine_playback"}`.
+`count` must be an integer from 1 to 10; the units are `routine_playback` or
+`physical_repetition`. Currently only one routine playback is executable.
+Physical repetition counts and multiple playbacks are refused before preparing
+movement or queuing a job. A fixed routine can contain several reference cycles;
+one playback does not mean one measured physical repetition. Do not split a
+refused count into repeated calls.
+
+The manual `POST /animation` button route accepts only
+`{"animation_name":"sit_stay_shake"}` and explicitly requests one routine.
+Extra fields, including counts, are rejected rather than ignored. Terminal
+Gemini clients receive the same required tool schema. These checks enforce the
+submitted quantity; they cannot prove that Gemini copied a spoken count correctly.
+
 Reference playback carries a unique request ID; finite policies carry an ID
 frozen at activation; interactive clips additionally carry a per-request ID
 through their queue and automatic successor clips. Completion requires matching,
@@ -53,31 +70,34 @@ Those earlier checks are not physical evidence. The [1 November supervised sessi
 
 ## Operator feedback modes
 
-The current browser candidate uses **hold-to-talk** while keeping the Live connection and camera open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks; real speech recognition with this revision remains to be checked.
+The current browser candidate uses **hold-to-talk** while keeping the Live connection and camera open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks. The subsequent supervised session exercised real hold-to-talk speech, bounded voice movement and skill requests; the user confirmed a consistent native voice. This is session evidence, not a general recognition guarantee.
 
 **Conversation + control** keeps natural conversation and the complete robot tool
 catalog in one session. The client holds model speech/text until the model turn
-ends. If a robot tool appeared in that turn, it discards the model narration and
-uses fixed wording from the matching API reply instead. Tool dispatch and Stop
-do not wait for buffered speech. A later conversational turn can play normally
-while a previously accepted robot job continues; no mode switch is required.
+ends. A tool-bearing turn cannot speak free-form action narration. A current
+matching API reply may instead authorize one fixed acknowledgment in Gemini
+Puck's native voice: the complete output transcript must exactly match the
+authorized text before audio is released. A narrow accepted status/optional Sit
+entry/paw chain also supports its fixed handshake acknowledgment. Tool dispatch
+and Stop do not wait for speech. Later ordinary conversation remains available
+while an accepted job runs; no mode switch is required.
 
 Tool-free conversation retains Gemini's native voice after the complete-turn
 check. Known English action-claim patterns are screened using the shared
 `conversation_guard.json`; suspicious replies get a visible, silent unconfirmed-action
 notice. This screening is a heuristic, with possible false positives and missed
 paraphrases or languages. A transcript is not proof that every spoken word agrees
-with it. **The hard guarantee covers tool-turn narration and receipt provenance,
-not the truth of unrestricted conversation.**
+with it. **The code enforces receipt provenance and exact acknowledgment transcript matching,
+not the truth of unrestricted conversation or an independent verification of every audio word.**
 
 Buffering adds playback latency and discards mixed conversation/action narration
-within a tool-bearing turn. Missing transcripts, incomplete/oversized turns and
+within a tool-bearing turn unless it is the exact authorized acknowledgment. Missing transcripts, incomplete/oversized turns and
 cancelled output are discarded rather than released speculatively. Direct Stop
 remains independent. The explicit **receipt-only** diagnostic mode still mutes
 all model narration. Previously saved explicit receipt-only settings remain
 selected until changed while disconnected.
 
-Fixed server receipts are visible immediately after matching replies. The browser no longer speaks them with the operating system voice, so native Gemini conversation is the only spoken character. Tool-bearing narration remains suppressed; spoken acknowledgments in the same voice are not implemented. Receipts do not establish physical success:
+Fixed server receipts are visible immediately after matching replies. Current native acknowledgments use the selected Gemini voice, without an operating-system voice interrupting it. The supervised user confirmed consistent voice during movement and skill requests. A separately reviewed, human-approved cache of four fixed Puck clips is an upcoming latency candidate; it is not yet deployed. It can remove the post-receipt generation wait, not the time Gemini takes to interpret a request and choose tools. Receipts do not establish physical success:
 
 - A successful reply without explicit submission evidence says the request was **accepted**, not completed.
 - Wording such as **“Move queued.”** requires `details.submission` with schema

@@ -204,7 +204,7 @@ flowchart TB
 | Move with velocities | `POST /move/velocity` | Debug controls |
 | Move by heading | `POST /move/direction` | Directional debug control |
 | Stop or clear work | `POST /queue/stop`, `POST /queue/reset`, `POST /stop/immediate` | Safety and debug controls |
-| Play a trick | `POST /animation` | Debug controls |
+| Play one whole routine | `POST /animation` | Debug controls; rejects extra quantity fields |
 | Follow a person | `POST /following/activate`, `POST /following/deactivate` | Follow-mode tool |
 | Read camera | `GET /camera/image` | Debug view and optional Gemini vision source |
 | Read API/epoch readiness | `GET /health` | Command preparation |

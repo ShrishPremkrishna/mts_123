@@ -11,7 +11,7 @@ called hold_pose.
 
 from __future__ import annotations
 
-from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER, Result, Robot, not_written  # noqa: F401
+from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER, WALK_READY_S, Result, Robot, not_written  # noqa: F401
 from tool_registry import ACTION_IDS, Param, tool
 
 
@@ -91,7 +91,9 @@ async def interactive_action(robot: Robot, action: str) -> Result:
             return Result(res.ok, f"played {clip}; back in locomotion mode" if res.ok else res.message)
         return await robot.play_clip(trick, clip)
 
-    return await robot.queue(f"{trick.name} {clip}", job, trick.clip_time_estimate(clip),
+    # The exit action includes switch_to's existing walking initialization/fade.
+    estimate = trick.clip_time_estimate(clip) + (WALK_READY_S if clip == trick.exit_clip else 0.0)
+    return await robot.queue(f"{trick.name} {clip}", job, estimate,
                              then=LOCOMOTION if clip == trick.exit_clip else trick)
     # ====================================
 

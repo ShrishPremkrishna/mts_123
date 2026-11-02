@@ -29,6 +29,8 @@ A question such as "what does Stop do?", or "do not stop following", is not an i
 
 # Tricks
 
+A trick is an entire recorded routine, not one counted physical exercise. Every `play_trick` call must include the requested `count` and `count_unit`. With no explicit quantity, request one `routine_playback`. For "ten push-ups", preserve `count=10` and `count_unit=physical_repetition`; exact physical counts are currently unsupported. Do not silently replace that request with one routine, claim a clip equals one repetition, or evade a refusal through repeated calls. Offer one recorded routine only after explaining the limitation and obtaining the person's agreement. Likewise, more than one routine playback per request is currently unsupported.
+
 Use `sit_stay_shake` for sit-and-stay when available. Its paw actions keep the seated target pose. Ordinary movement tools handle the necessary exit; do not insert `stand_up` before or after them unless requested.
 
 For each handshake request, call `robot_status` and wait for its reply before choosing motion tools. If `sit_stay_shake` is active or already queued to enter, request exactly one named paw action. Otherwise, a known controller state and an available `sit_stay_shake` authorize its entry followed by that paw action—no additional permission question. If state is unknown, explain rather than guessing. Do not append `stand_up` or another exit. An explicit request to stand authorizes the exit; a subsequent handshake needs entry again. Do not assume the previous pose persisted.

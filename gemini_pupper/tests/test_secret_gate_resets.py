@@ -30,7 +30,7 @@ def test_fresh_robot_instance_does_not_inherit_unlock(tmp_path, monkeypatch):
                     assert rig.ts.secret_gate.unlocked
                 else:
                     # Same password file remains, but unlock is session-local.
-                    denied = await tool_registry.call(rig.ts, "play_trick", {"name": "hold_pose"})
+                    denied = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
                     assert not denied.ok and "unlock" in denied.message
                     assert rig.ts.commands.empty()
             finally:
@@ -69,7 +69,7 @@ def test_safety_event_revokes_unlock_and_hides_secret_actions(tmp_path, monkeypa
             assert not rig.ts.secret_gate.unlocked
             declarations = json.dumps(tool_registry.declarations(rig.ts))
             assert "hold_pose" not in declarations and "wave_left" not in declarations
-            assert not (await tool_registry.call(rig.ts, "play_trick", {"name": "hold_pose"})).ok
+            assert not (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})).ok
             assert not rig.robot.activations(trick.controller)
         finally:
             rig.close()

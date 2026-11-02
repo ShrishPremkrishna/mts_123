@@ -78,6 +78,20 @@ def _motion_reason(details):
     return "motion values must be finite numbers."
 
 
+def _trick_quantity_reason(details):
+    reason = details.get("refusal") if isinstance(details, dict) else None
+    if not isinstance(reason, dict) or reason.get("schema") != "pupper_trick_quantity_refusal_v1":
+        return None
+    code = reason.get("code")
+    if not isinstance(code, str):
+        return None
+    return {
+        "physical_count_unsupported": "Exact physical repetition counts are not supported.",
+        "playback_count_unsupported": "Only one routine playback is supported per request.",
+        "invalid_quantity": "Trick quantity must be an integer from 1 to 10 with a supported unit.",
+    }.get(code)
+
+
 def _status_feedback(details):
     if not isinstance(details, dict) or type(details.get("running")) is not bool:
         return None
@@ -139,6 +153,10 @@ def receipt_feedback(name, result, *, current=True, dispatched=True):
     if type(result.get("success")) is not bool:
         return "I could not confirm that request."
     if not result["success"]:
+        if name == "play_trick":
+            quantity = _trick_quantity_reason(result.get("details"))
+            if quantity:
+                return quantity
         reason = _motion_reason(result.get("details")) if name in ("move", "turn", "arc") else None
         if reason:
             return f"{spoken} rejected: {reason}"
