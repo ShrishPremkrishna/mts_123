@@ -1,0 +1,43 @@
+{
+  "date_utc": "2026-11-02T23:19:50.557769+00:00",
+  "status": "reviewed offline, not yet validated in a real Chrome permission flow",
+  "commit": "3538d9f",
+  "problem": "Two prior supervised voice setup attempts waited about30 seconds while Chrome was in a background tab. Bringing it forward allowed connection. Duration is operator/UI observation corroborated by the configured timeout, not a preserved acoustic/timing measurement.",
+  "root_cause": "connect/acquireMedia did not check known document visibility before local microphone/webcam acquisition; getUserMedia may remain pending until its30-second deadline.",
+  "change": [
+    "Reject known-hidden local-media setup before receipt preload, SDK creation or robot requests.",
+    "Recheck after asynchronous preload and before each capture request.",
+    "Cancel promptly if the document becomes hidden during pending capture, remove the visibility listener on every settlement path, and release tracks granted late.",
+    "Text-only and server-camera-without-microphone sessions remain allowed. Established sessions remain connected across tab switches; existing hold-to-talk release behavior is unchanged. Visible permission requests retain their30-second limit and normal guidance."
+  ],
+  "validation": {
+    "focused_new_tests": 13,
+    "before_change_evidence": "Three new admission regressions failed against the original source.",
+    "integrated_all_web_tests": 411,
+    "typescript": "pass",
+    "production_build": "pass; existing large-bundle warning unchanged",
+    "independent_review": "owned_lifecycle verified exact patch/source, settlement/listener/late-track cleanup and retained test evidence; no blocking finding; no redundant rerun.",
+    "runtime_scope": "Mocked browser/media/SDK offline regression only. No provider calls, media capture or robot contact. Real Chrome acceptance pending."
+  },
+  "source_sha256": {
+    "gemini_pupper/web/services/geminiLive.ts": "d69e9a31fb3b25ab34b8ea60eacfc3c6e29842e0e3cec82cc733e5bf2403cd3e",
+    "gemini_pupper/web/tests/media-admission.test.mjs": "6aff34fbb777163c8245212751fc5b7dfba8e06d5224c8b9300a09b0a7a85ed0"
+  },
+  "production_bundle": {
+    "file": "index-bTR6ec1i.js",
+    "sha256": "b9e84b69a34332b9b5a0d5226b71faf4610ab031282658fa670fe67fc225034a"
+  },
+  "work_not_repeated": "TTS already streams chunks and invalidates outdated playback; saved first action receipt scheduling was1ms after acceptance. No speculative TTS rewrite, provider expiry sweep, or new policy training.",
+  "workflow_improvement": "Isolated small JS edits use focused regressions; full regression runs after integration in real checkout. Avoid spending time repairing unrelated missing fixtures in partial copies.",
+  "evidence_archive": {
+    "path": "artifacts/access/ws1-media-admission-20261102/media-admission-evidence.tar.gz",
+    "sha256": "fc571dd87fa2c089c7110c58413f5b92ebf3d9070e14ec78895c26211af4c265",
+    "bytes": 2372151,
+    "members": 108,
+    "manifest": "artifacts/access/ws1-media-admission-20261102/manifest.json",
+    "manifest_sha256": "2c7d5fb8fa915d0f19adb0dcf7ed28c47a42f4dc0aa79d96e041869e5065ba45",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-media-admission",
+    "verification": "Every member hash-verified in repository and durable copies. Both integrated source files match commit3538d9f and frozen candidate."
+  },
+  "next": "Next browser session verify hidden-tab setup gives immediate actionable feedback and foreground microphone connection still works; no robot movement is required for that check."
+}

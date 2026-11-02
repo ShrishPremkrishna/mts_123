@@ -1,0 +1,415 @@
+{
+  "schema": "pupper_current_session_v2",
+  "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
+  "mode": "workstream1_native_idle_supervised",
+  "worktree": "/Users/shrish/workspace/cs123-foundation",
+  "branch": "pupper-foundation",
+  "coursework_main": "/Users/shrish/workspace/cs123",
+  "environment": {
+    "python": "artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
+    "full_numerical_python": ".venv/bin/python",
+    "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
+    "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
+    "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
+    "ros_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+    "claude": "Authenticated Max account; credential-store metadata requires approved OS access. Restricted read-only review completed without a permission bypass.",
+    "workspace_limit": "Engineering checkout is not app-managed and attach_worktree could not attach it. Explicit workdir plus approved writes works; no permissions weakened. Additional folder access requires a user app action later and is not a blocker."
+  },
+  "compute_spend_policy": {
+    "user_billing_enabled_now": true,
+    "approval_threshold_usd": 5,
+    "interpretation": "Ask before an experiment or exploration batch expected above $5; do not split work to evade approval. Latest user explicitly authorizes offline API experiments including Gemini ER.",
+    "current_voice_batch": "Historical costs remain in dated reports. Current overnight call totals and estimate limitations are recorded under offline_in_progress.paid_calls; no pending provider calls."
+  },
+  "validation_commands": {
+    "interpreter": "Use environment.python for these commands; they make no hardware/API calls.",
+    "gemini": [
+      "-m",
+      "pytest",
+      "gemini_pupper/tests",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "preservation": [
+      "-m",
+      "pytest",
+      "foundation/tests/test_colab_preservation.py",
+      "foundation/tests/test_colab_archive_download.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "floor_input": [
+      "-m",
+      "pytest",
+      "foundation/hardware/floor_stock",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "course": [
+      "gemini_pupper/lab/test.py"
+    ],
+    "aggregate": [
+      "python3",
+      "foundation/scripts/check_foundation.py",
+      "--output",
+      "/private/tmp/pupper-validation-NEW"
+    ],
+    "ros_offline": [
+      "python3",
+      "foundation/scripts/check_ros_offline.py",
+      "--output",
+      "/private/tmp/pupper-ros-NEW"
+    ]
+  },
+  "do_not_repeat": [
+    "Do not restart completed Colab studies or rediscover baseline backups without a changed dependency.",
+    "Do not treat on-stand, mock, simulation or model-acceptance evidence as floor success.",
+    "Do not run broad suites or create another staged copy while owners still edit; first freeze the selected source.",
+    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
+    "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
+    "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
+  ],
+  "updated_utc": "2026-11-02T22:36:22.838331+00:00",
+  "authorization": "User authorizes continued product implementation, APIs/Claude, robot preparation and supervised physical checks. Ask before experiments expected above $5. No automatic motion on reconnect; root owns hardware. User may be intermittently absent; do independent work while physical prompts await response.",
+  "current_report": "foundation/results/workstream1-voice-product-20261102.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261102T130303Z-before-offline-release.json",
+    "sha256": "e6eacd2469a90b56d2e2bd794832e3c98b3e69576ed2c2df7fb961f1d60082cf",
+    "meaning": "Prior operational detail and older history chain; historical only. Completed candidates/processes must not be restarted from this snapshot."
+  },
+  "hardware_session": {
+    "status": "ACTIVE supervised static-idle comparison, onehomingcompleted andoperatorfloorstandingconfirmed. Directleftpaw/rightpaw/stand chain3jobs succeeded. Operatorphysicalqualityanswerpending. Noautonomousnextmotion whilewaiting.",
+    "ssh": "mts",
+    "owner": "/root",
+    "boot_id": "a1d59a22-090b-4287-a53c-a98ae6fd744a",
+    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-static-idle",
+    "deployment": {
+      "application_commit": "b1467b08091f89092a57d1b7efea4c9a3e69f3f5",
+      "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+      "ui_bundle": "index-CU7Jag8W.js",
+      "ui_sha256": "0f176b49a7e8efd1fdcb4a675d8f937b44bf2dae862236916d2d29bb9d5169fc",
+      "release_sha256": "eafac79bcd26099e1664b741c1bbe4ddc55abbf80cfd3618b6c28249a5a5f2d5",
+      "installed_verified_files": 35,
+      "policy": "Supplied standing-ending finite tricks plus prior selected expanded-COM Sit. No research pushup or generated-bob candidate. Gains/limits/native unchanged."
+    },
+    "completed_diagnostics": {
+      "sensor_report": "foundation/results/workstream1-sensor-followup-20261101.json",
+      "camera_report": "foundation/results/workstream1-camera-sensor-comparison-20261101.json",
+      "result": "Corrected passive address and boot identities; body-axis signs agree; brief58deg event operator handling unknown. Camera+IMU120s no large rotation; two small timeout gaps. No cure claim; all originals and failed diagnostics preserved."
+    },
+    "last_complete_motor_capture": {
+      "local_archive": "/private/tmp/ws1-idle-reliability-complete/complete.tar.gz",
+      "repo": "artifacts/hardware/2026-11-01/idle-reliability-complete",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/idle-reliability-complete",
+      "sha256": "14606a962c8c085200b9085fbe3ab60770f5a335396e89bc0d69916cd0acbf22",
+      "bytes": 296041034,
+      "files_verified": 1036,
+      "frozen_inputs": 32
+    },
+    "shutdown": {
+      "driver_clean": true,
+      "api_clean": true,
+      "motor_api_camera_recorders_active": false,
+      "scope": "Closed physical session and all standalone sensor captures. No motor/API/diagnostic work active at last SSH verification; battery monitor restored.",
+      "operator_supported_on_stand": true,
+      "power_left_on": true,
+      "automatic_restart_or_homing": false
+    },
+    "process_receipts": "owned-processes.json,control-shutdown.json,data-shutdown.json inside completearchive; historical identities only, notliveauthorization.",
+    "current_sensor_capture": {
+      "remote": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261102",
+      "local": "/private/tmp/ws1-imu-diagnostic-20261102",
+      "inspect_exit": 0,
+      "native_binary_sha256": "a80a4988e75fdaad196fc9f6ca5e0f4e296cd6a1abb709b5d5cf7e6bde4ac3b8",
+      "feature_intervals_us": {
+        "02": 0,
+        "05": 0,
+        "07": 0,
+        "08": 0,
+        "13": 0
+      },
+      "calibration_enabled": {
+        "accel": 1,
+        "gyro": 0,
+        "mag": 1,
+        "planar": 0,
+        "on_table": 1
+      },
+      "limit": "Flags indicate calibration configuration, not validity. No reset/config change or motor activation performed. First container binary failed loader before execution; identical source compiled on Pi.",
+      "active_capture": null,
+      "binary_sha256": "cf44bbc084af160a3076395c7618c1fe3d2ff8870db268a5d2784e615b62f28a",
+      "source_sha256": "c510f56570d569ba0b34de9fa2c223da1dd5b0651343ae5c77489b97b87bcaad",
+      "previous_failure": "comparison01 exited4 on immediate old FC readback; restored; delayed inspect03 confirms all5reports disabled. Corrected bounded settling wait now validated onPi with836fakeassertions.",
+      "limits": "Severe prior drift not reproduced; RV and Game orientation drift together while background stays fixed at integer-pixel resolution. Does not diagnose cause or prove hardware reliability.",
+      "completed_capture": "comparison-02",
+      "exit_code": 0,
+      "restoration_verified": true,
+      "camera_exit_code": 0,
+      "battery_monitor_restored": true,
+      "analysis": "/private/tmp/ws1-imu-diagnostic-20261102/comparison-02-analysis.json",
+      "camera_analysis": "/private/tmp/ws1-imu-diagnostic-20261102/comparison-02-camera-summary.json",
+      "native_reader": {
+        "capture": "native-reader-01",
+        "exec_terminal": 85696,
+        "exit_code": 0,
+        "camera_exit_code": 0,
+        "binary_sha256": "8175ad6c782f6512fd07621f888b7b3c3003aa9d990c67b3d141ef010e2e9a09",
+        "duration_s": 30.002,
+        "body_yaw_change_deg": -0.3969,
+        "tilt_range_deg": [
+          2.523,
+          2.687
+        ],
+        "camera_frames_in_window": 150,
+        "camera_max_integer_displacement_px": 0,
+        "limits": "Native constructor softReset then enabled02/05. No calibration command; destructor does not restore report settings. No explicit post-run feature readback.43initial invalid polls, then no invalid/stale polls. Startupscreen passes and resets on brief gyrospikes; never relaxed."
+      },
+      "durable_report": "foundation/results/workstream1-imu-sensor-session-20261102.json",
+      "durable_archive_dir": "artifacts/hardware/2026-11-02/imu-sensor-session"
+    },
+    "pending_deployment": {
+      "path": "/home/pi/pupper-foundation-session-20261029/software-b1467b0",
+      "source_commit": "b1467b08091f89092a57d1b7efea4c9a3e69f3f5",
+      "old_preserved": "/home/pi/pupper-foundation-session-20261029/software-v4",
+      "archive_sha256": "eafac79bcd26099e1664b741c1bbe4ddc55abbf80cfd3618b6c28249a5a5f2d5",
+      "verified_payload_files": 35,
+      "pi_fake_smoke": "health fake/hardwarefalse; HTTP200 UI/tools; servedindex-CU7Jag8W hash exact; childexit0",
+      "real_server_started": true,
+      "native_or_policy_changed": false,
+      "real_server_active": false
+    },
+    "prepared_session": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-supported",
+      "launched": true,
+      "manifest_sha256": "79adac674dfcb639e57d21023fe4c2cf6628eb131b08dc08e3a443e30fe4e1e9",
+      "selected_skills": [
+        "pee",
+        "push_up",
+        "sit_stay_shake",
+        "stand_downward_dog",
+        "stand_sit_stand"
+      ],
+      "driver_and_policies_unchanged": true,
+      "pending": "Session is closed; do not restart it or repeat homing automatically.",
+      "homing_completed": true,
+      "user_floor_standing_confirmed": true,
+      "active": false
+    },
+    "live_processes": {
+      "motor_api_camera_recorders_active": false,
+      "last_checked": "2026-11-02T20:16:38.032384+00:00",
+      "closed_driver_disable_utc": "2026-11-02T20:14:18.703074+00:00",
+      "identity_record": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-supported/owned-processes.json",
+      "note": "Historical PIDs only. Fresh read-only /proc verification found no motor/API/diagnostic process before user battery replacement. Do not infer current boot/connectivity after replacement.",
+      "before_user_battery_swap": true
+    },
+    "active_trial": {
+      "id": "20261102-ws1-static-idle",
+      "user_readiness": "Ready\u2014startthecomparisonblock; Standingnormallywatching",
+      "completed_direct_chain_exec": 43190,
+      "api_instance": "6a1724bfc8ba45d4ac931911365ad532",
+      "native_loaded_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+      "imu_loaded_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+      "library_maps": "Recordedfromliveprocessbeforefloortrial",
+      "configuration": "Samepolicies/gains; modelrelocationonly; allotherparametersidentical",
+      "voice": "disconnected"
+    },
+    "core_trials": {
+      "01": {
+        "server_jobs_succeeded": 6,
+        "operator": "Allcontrolled;stablestandingreturn"
+      },
+      "02_and_03": {
+        "server_jobs_succeeded": 12,
+        "operator": "SlightCCWrotationlessthan10deg acrosslast2runs,maybeSit-to-stand between2nd/3rd sequences"
+      },
+      "sensor_problem": "Full MCAP/camera analysis: discrepancy begins around20:02:35\u201320:03:05UTC, before first chain20:04:06.8. After chain3, camera-covered quiet189.62s shows heading change\u2212275.705deg with fixed-background offsets<=2.236px; not a calibrated visual angle estimate."
+    },
+    "closed_physical_archive": {
+      "repo": "artifacts/hardware/2026-11-02/supported-recurrence/complete.tar.gz",
+      "sha256": "bb630b2c129b69b967f66096bf8cbcccacbca7ffa6b4330c3e10fc0e4e61676f",
+      "bytes": 269556121,
+      "regular_members_verified": 937,
+      "frozen_inputs": 32
+    },
+    "post_motor_capture": {
+      "name": "post-motor-recurrence-01",
+      "exit_code": 0,
+      "camera_exit_code": 0,
+      "restoration_verified": true,
+      "started_after_motor_disable_s": 78.623,
+      "result": "Processed gyro discrepancy present in device reports; RV andGame drift together. Old queued high-rate data must not be treated as fresh acquisitions. New smaller bursts occur with motors disabled and camera fixed. Report07 is uncalibrated velocity, not raw ADC.",
+      "local": "/private/tmp/ws1-imu-diagnostic-20261102",
+      "report": "foundation/results/workstream1-post-motor-sensor-20261102.json"
+    },
+    "raw15_capture": {
+      "name": "raw-gyro-15-01",
+      "exit_code": 0,
+      "camera_exit_code": 0,
+      "restoration_verified": true,
+      "battery_monitor_restored": true,
+      "phase_raw15_reports": 5908,
+      "all_logged_raw15_reports_verified": 5928,
+      "byte_mismatches": 0,
+      "camera_phase_frames": 300,
+      "camera_max_integer_offset_px": 0,
+      "report": "foundation/results/workstream1-raw-gyro15-20261102.json",
+      "result": "Large earlier fault did not recur. Raw and processed axes are not identically labeled. No cause or reliability conclusion."
+    },
+    "operator_followup": {
+      "mounting": "Visible; looks secure",
+      "spare": "User can ask TA/team for known-good matching Pi-HAT/controlboard or second Pupper",
+      "handling_qualification": "User moved/rotated stand2\u20133times, timings unknown. Preserve actual paired camera evidence; only matched quiet windows support IMU/camera disagreement. No blanket hardware-fault diagnosis.",
+      "battery": "User confirmed replacement; fresh SSH inventory completed, no motor startup."
+    },
+    "current_boot_id": "2faf2547-eb90-48b9-95dd-7ebdf8adc175"
+  },
+  "activity": {
+    "automation": "pupper-overnight-foundation deleted after the reviewed offline release finished; no live job remains to monitor. Resume for a supervised robot session or a concrete teammate handoff.",
+    "compute": "AllnativePi configure/build/test/install exited0, 6suites17productioncasespass. ACTIVE motorAPI/camera/MCAP in static-idlerun; rootowns. PreviousphysicalarchivecompleteSHAverifieddownload; owned_lifecyclepreserving/analyzing. Localfake18091 UIserverstillalive.",
+    "owners": {
+      "/root": "NativePi build and physicalevidence preservation; soleSSH/hardwareowner.",
+      "/root/owned_lifecycle": "Preservingpreviousphysicalarchive and boundedclip/cameraanalysis; owns voice-productresultfileonly.",
+      "/root/sensor_decision_review": "Reviewed minimalnativepayload prepared; idle."
+    },
+    "goal_status": "Reviewedapp deployed and physicallyexercised; pursuingalready-reviewed removalofSitidle-boundarywaits withoutshorteningclips."
+  },
+  "local_rehearsal": {
+    "status": "SameChrome360981047 nowtargetsphysicalAPI18090 viaSSH; latestvoiceended1008, microphoneoff/actionspaused. LocalUIserver18091 remains. RobotAPIclosed aftersupportedshutdown.",
+    "report": "/private/tmp/ws1-product-20261102/browser-rehearsal.json",
+    "instance": "0df60ed1ec41474baf2aea78154df32e",
+    "exec_session": 70674,
+    "bundle": "index-DOkAtmAg.js"
+  },
+  "offline_integrated_fixes": {
+    "deployed": "b1467b0 API/UI was staged and used in November2 direct physical session. Native controller/driver unchanged during that session; queued-age guard is new undeployed candidate.",
+    "current_release": "See branch HEAD and current_report for tested source identities. Code and complete evidence preserved locally and durable archive store.",
+    "core_changes": [
+      "Ordered model admission and duplicate-ID replay guard, with Stop precedence.",
+      "Fresh required-package build evidence; no stale/failed-build success claim.",
+      "Task-owned standard start/stop, cancelable startup, manager-before-launch cleanup and borrowed-stack preservation.",
+      "Separate tested Python environments, reproducible actual ROS checks, fixed-camera replay and saved-owner recovery display."
+    ],
+    "validation": "Final all11 offline groups pass;381 full web tests/typecheck/build and actual ROS+Linux diagnostic checks separately preserved. No physical acceptance inferred."
+  },
+  "evidence": {
+    "fall_incident": "foundation/results/workstream1-fall-incident-20261101.json",
+    "manual_shutdown": "foundation/results/workstream1-manual-and-shutdown-20261101.json",
+    "voice_expiry": "foundation/results/workstream1-goaway-20261101.json",
+    "pushup_candidate": "foundation/results/pushup-yaw-candidate-physical-20261101.json",
+    "bob_training": "foundation/results/generated-bob-training-20261101.json",
+    "bob_contact": "foundation/results/generated-bob-contact-extent-20261101.json",
+    "corrected_driver_trials": "foundation/results/workstream1-imu-candidate-physical-20261101.json",
+    "voice_stop": "foundation/results/workstream1-voice-repair-physical-20261101.json",
+    "idle_sensor_recurrence": "foundation/results/workstream1-idle-sensor-recurrence-20261101.json",
+    "status_disconnect": "foundation/results/workstream1-status-and-disconnect-20261101.json",
+    "idle_sensor_analysis": "artifacts/hardware/2026-11-01/idle-sensor-analysis/analysis.json",
+    "offline_workflow": "foundation/results/workstream1-offline-workflow-20261101.json",
+    "browser_job_ids": "foundation/results/workstream1-browser-job-ids-20261102.json",
+    "quantitative_camera_sensor": "foundation/results/workstream1-camera-sensor-consistency-20261102.json",
+    "conversation_context": "foundation/results/workstream1-conversation-context-20261102.json",
+    "static_idle_latency": "foundation/results/workstream1-static-idle-latency-20261102.json",
+    "live_context_prepared": "foundation/results/workstream1-live-context-prepared-20261102.json",
+    "live_context_followup": "foundation/results/workstream1-live-context-followup-20261102.json",
+    "offline_ros": "foundation/results/workstream1-offline-ros-20261102.json",
+    "request_ordering": "foundation/results/workstream1-request-ordering-20261102.json",
+    "completion_driven_sit": "foundation/results/workstream1-completion-driven-sit-20261102.json",
+    "er_thinking_pair": "foundation/results/workstream1-er-thinking-pair-20261102.json",
+    "standing_return": "foundation/results/workstream1-standing-return-20261102.json",
+    "er_vision": "foundation/results/workstream1-er-vision-20261102.json",
+    "environment_validation": "foundation/results/workstream1-environment-validation-20261102.json",
+    "duplicate_dispatch": "foundation/results/workstream1-duplicate-dispatch-20261102.json",
+    "installer_build": "foundation/results/workstream1-installer-build-evidence-20261102.json",
+    "semantic_nonexecution": "foundation/results/workstream1-semantic-nonexecution-20261102.json",
+    "owned_lifecycle": "foundation/results/workstream1-owned-lifecycle-20261102.json",
+    "live_expiry": "foundation/results/workstream1-live-expiry-20261102.json",
+    "overnight_release": "foundation/results/workstream1-overnight-release-20261102.json",
+    "raw15": "foundation/results/workstream1-raw-gyro15-20261102.json",
+    "queued_imu_age": "foundation/results/workstream1-queued-imu-age-20261102.json"
+  },
+  "next": [
+    {
+      "id": "native_idle_observation",
+      "action": "Obtainpendingphysicalqualityanswerforthe3jobchain; keepcurrentpersistenthomedsession, noautomaticrehome. ExistingfullMCAPrecordscliprequests+receipts."
+    },
+    {
+      "id": "native_idle_preservation",
+      "action": "Whenphysicalblockcloses, supportedfullshutdown andpreservecompletecandidatecapture/build/test/install evidence. Compareactualcliprequest-to-appliedtimings againstsavedbaseline. Currentnativecandidateonlyselectedexplicitly,newbaselinequalitynotyetaccepted."
+    },
+    {
+      "id": "native_guard",
+      "action": "Queued-age guard reviewed offline, notdeployed and notdriftcure. Pi-compatiblebuild requiredbeforeconsideringdeployment; preserve replayresults. No blanket diagnostic hold on independent voice work."
+    },
+    {
+      "id": "teammate_integration",
+      "action": "Follower/Spider handoffs absent; generatedmotion/pushupquality stillunaccepted."
+    },
+    {
+      "id": "evidence_preservation",
+      "action": "Collectcompletecurrentphysicalarchiveafterexec29653, verifyallindexedfiles; preserveappdeployment3payloads/currentrobotobservations; commitfrozencodesources/reports. Sourcepartialarchivehasverified52fileomission supplement."
+    }
+  ],
+  "acceptance_boundaries": [
+    "Prolongedholdbaseline notaccepted. Currentvoice-offblock reproducesunreliableIMUheading; biaspersistsmotoroff. Priorfallcause notfullyestablished.",
+    "Five-minute sensor capture contains one brief58deg yaw event; operator unsure if robot was moved. Do not label it continuous drift or dismiss it.",
+    "Body-axis hand movements matched expected signs; no frame flip is supported.",
+    "Push-up drift and transitions remain unaccepted; improved bob simulation remains unpromoted.",
+    "Follower and Spider handoffs absent; arbitrary self-righting is not provided by stand.",
+    "The two-second standing-return shortcut is rejected: simulated following push-up walking peak effort rose 44.18%. Candidate remains isolated; production return unchanged.",
+    "ER2 video output is not a completion grader: it confidently called the deliberately truncated seated endpoint standing. No prompt retuning or automated physical acceptance based on this probe.",
+    "Current actual idle text connection closed1008 at151s with no GoAway; prompt retirement and a separate fresh greeting passed. Cause and actual GoAway remain unproven; no automatic replay/resumption added."
+  ],
+  "offline_in_progress": {
+    "candidates": [],
+    "hardware_access": false,
+    "running_jobs": [],
+    "validation_output": "artifacts/access/ws1-release-aggregate-20261102/complete.tar.gz",
+    "paid_calls": {
+      "state": "Ten successful overnight Gemini sessions/calls finished; one initial sandbox connection failure preserved; no pending calls.",
+      "new_reported_gemini_estimated_usd": 0.118825,
+      "estimate_limit": "Several Live records omit output token counts; present-field arithmetic is incomplete, not billing or a verified upper bound. Failed initial connection billing unknown. Conservative per-experiment limits retained in reports.",
+      "claude_reported_usd": 0.6387874,
+      "tts": false
+    },
+    "pending_external": [
+      "Supported motors-inactive sensor diagnosis and supervised physical validation.",
+      "Tested follower/Spider teammate handoffs."
+    ],
+    "remaining_offline_judgment": "New product work integrated from concrete delays; evidence packaging/deployment underway. Do not restart earlier finished experiments.",
+    "setup_followup": "Integrated setup dependency check and corrected combined-checkout instructions; seven focused tests pass, archived in lifecycle report.",
+    "teammate_repository_check": {
+      "checked_utc": "2026-11-02T13:14:33Z",
+      "method": "git ls-remote --heads origin, read-only",
+      "heads": {
+        "main": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
+        "pupper-foundation": "7be469d3c3dd85905fdb2e0bdd9117aeb21a22c1"
+      },
+      "finding": "No additional teammate branch on this remote; does not establish absence of work elsewhere."
+    }
+  },
+  "raw15_candidate": {
+    "path": "/private/tmp/ws1-rawgyro15-20261102",
+    "production_source_sha256": "b561850417656698ea012cbb60dbf5c2d24a40a2b284b33f4562808afc4cbdc6",
+    "protocol_sha256": "31492df59ea67d8e1a8f4064673bec9dedaf7fe8003106ec8273a0b52c8ba1b0",
+    "host_tests": 1108,
+    "independent_review": "No blocking findings; exactsource reviewed by transition_finish and read-only Claude Code",
+    "claude_report": "/private/tmp/ws1-rawgyro15-20261102/claude-review.json",
+    "claude_reported_cost_usd": 1.8873545,
+    "pi_build": "1108 fake assertions pass on Pi GCC12; exact production and test binaries archived. R1 test-only indentation warning and R2 fix retained.",
+    "sensor_run_yet": true,
+    "report": "foundation/results/workstream1-raw-gyro15-20261102.json"
+  },
+  "queued_age_candidate": {
+    "path": "/private/tmp/ws1-queued-age-20261102",
+    "deployed": false,
+    "patch_sha256": "fee0bfd270bb933672f3d3ecd3a88a2d8512b6b30eceb91c5cad248b5db0fdad",
+    "meaning": "Rejects provably old queued readings using signed SH2 lower age bound plus real receipt elapsed time. Does not cure gyro drift or establish exact acquisition age.",
+    "local_sanitized_scenarios_passed": 19,
+    "independent_review": "No blocking findings; source hashes and protocol signs verified.",
+    "native_ros": "Completed exit0:54/54cases passed, frozen inputs unchanged; no network/hardware access.",
+    "report": "foundation/results/workstream1-queued-imu-age-20261102.json"
+  }
+}

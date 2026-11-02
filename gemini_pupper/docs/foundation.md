@@ -109,8 +109,11 @@ steps already present at the old boundary remain unchanged. Full clip duration,
 FIFO, startup fades, action history and Stop remain intact.
 [Matched simulation](../../foundation/results/workstream1-static-idle-latency-20261102.json)
 saved 0.019–0.981 seconds before requested clips; some effort/yaw metrics worsened
-slightly. This is not a measured whole-sequence or physical improvement. Actual
-ROS tests and supervised validation remain; walker initialization/fades are unchanged.
+slightly. The [later Pi comparison](../../foundation/results/workstream1-voice-product-20261102.json)
+passed six native test suites; one watched repeat was controlled with shorter
+pauses. Exact new native timing awaits recovery of its closed recording. This is
+bounded observation, not general motion validation; walker initialization/fades
+are unchanged.
 
 A timed-out or cancelled controller or follower activation may still execute remotely. The
 server keeps its future, attempts deactivation when the late response arrives,
@@ -130,6 +133,13 @@ Those earlier checks are not physical evidence. The [1 November supervised sessi
 ## Operator feedback modes
 
 The current browser candidate uses **hold-to-talk** while keeping the Live connection and camera open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks. The subsequent supervised session exercised real hold-to-talk speech, bounded voice movement and skill requests; the user confirmed a consistent native voice. This is session evidence, not a general recognition guarantee.
+
+Local microphone/webcam setup now checks tab visibility before starting and
+cancels pending acquisition if the tab becomes hidden. Bring the tab forward
+and connect again; already-established sessions remain connected across tab
+switches. This removes a known avoidable permission wait, not model inference
+latency. The [offline regression](../../foundation/results/workstream1-media-admission-20261102.json)
+passes; real Chrome permission-flow acceptance remains for the next session.
 
 **Conversation + control** keeps natural conversation and the complete robot tool
 catalog in one session. The client holds model speech/text until generation is complete and its

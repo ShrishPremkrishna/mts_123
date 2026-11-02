@@ -89,7 +89,11 @@ recording. The same session exposed a separate limitation: “find me” caused
 model-generated turns and walking into a backpack. **Camera understanding is not
 navigation or obstacle avoidance.** Capability metadata and explicit model guidance
 now disclose that gap; they do not enforce the purpose of every valid movement
-primitive or make a route safe.
+primitive or make a route safe. The [offline follow-up](results/workstream1-navigation-mitigation-20261102.json)
+records two declined navigation requests and a preserved direct compound request;
+the confirmation-gate design decision is deferred. A separate
+[media setup fix](results/workstream1-media-admission-20261102.json) avoids waiting
+for microphone permission in a known-hidden tab.
 
 The [request-order repair](results/workstream1-request-ordering-20261102.json)
 prevents overlapping Gemini tool packets from changing command order while

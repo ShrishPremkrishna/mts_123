@@ -1,0 +1,327 @@
+{
+  "date_utc": "2026-11-02T21:57:24.751967+00:00",
+  "status": "bounded app and shorter native wait checks observed; offline navigation and media setup follow-ups ready",
+  "changes": [
+    "Single shake_hand(paw) resolves current Sit state inside one queuejob, then paw; leaves Sit selected and returns terminalsuccess onlyafterfinalcontrollerreceipt.",
+    "One provider responsearray percompoundpacket; HTTPadmissionserial, firstconfirmedlocalcueimmediate, Stopindependent; no fabricatedqueuedack.",
+    "Strict handshake queued marker/job/server identity and requestedpaw checks in browser; same neutral Okay onceperspokenaction request; fourthhandshake joke preserved."
+  ],
+  "validation": {
+    "backend_affected": 238,
+    "backend_independent": 43,
+    "web_final": 395,
+    "typescript": "pass",
+    "production_build": "pass",
+    "actual_named_receipt_replayed_after_final_guard": "pass",
+    "browser": {
+      "scope": "Actual Chrome microphone and Google ER2 + TTS, task-owned fake robot only; no camera frames or hardware movement. UI-observed logs and user report, not acoustic latency measurement.",
+      "url": "http://127.0.0.1:18091/",
+      "bundle": "index-DOkAtmAg.js",
+      "browser_tab": "360981047",
+      "model": "gemini-robotics-er-2-streaming-preview",
+      "voice": "Puck",
+      "tts_model": "gemini-3.1-flash-tts-preview",
+      "permission": "First microphone request timed out in background; brought tab forward, allowed microphone this time, reconnected successfully at21:51:53UTC.",
+      "requests": [
+        {
+          "name": "greeting",
+          "user_confirmation": "yes. all good",
+          "model_text": "Hello! I'm Pupper, your friendly campus robot. How can I help you today?"
+        },
+        {
+          "name": "right_handshake",
+          "server_job": 7,
+          "tools": [
+            "shake_hand"
+          ],
+          "receipt": "Right paw command queued.",
+          "receipt_ms_from_first_server_callback": 2326,
+          "playback_scheduled_ms_from_first_server_callback": 2327
+        },
+        {
+          "name": "compound",
+          "tools": [
+            "move",
+            "wait",
+            "turn"
+          ],
+          "server_jobs": [
+            8,
+            9,
+            10
+          ],
+          "actual_parameters": {
+            "forward_duration_s": 0.5,
+            "forward_speed_m_s": 0.3,
+            "wait_s": 1,
+            "left_turn_degrees": 45
+          },
+          "user_numeric_clarification": "I said forty-five",
+          "receipt_ms_from_first_server_callback": 8417,
+          "playback_scheduled_ms_from_first_server_callback": 8418
+        }
+      ],
+      "user_observation": "Replies audible and coherent; one short acknowledgment per action request. User confirmed all good.",
+      "timing_limit": "Callback start includes ongoing speech/transcription; latest hold-release reference can belong to previous turn. Not a measure of speech-end-to-audio or audible latency.",
+      "ended": "UI DISCONNECTED, microphone not sending; automatic fake Stop response received; queue idle.",
+      "server_receipt": "browser-queue-after.json"
+    }
+  },
+  "live_typed": {
+    "named_handshake": {
+      "calls": 1,
+      "first_cue_admitted_ms": 1701.832,
+      "turn_complete_ms": 2899.571
+    },
+    "move_wait_turn": {
+      "calls": 3,
+      "provider_response_packets": 1,
+      "first_cue_admitted_ms": 2035.642,
+      "turn_complete_ms": 2997.595
+    },
+    "limits": "Two constructed typed requests, realGoogle + productionservice + fakeexecution. Not acoustic/robot proof or statistical latency claim. Namedtest preceded finalidentityguard; exactvalidpayload replayed againstfinalhelper."
+  },
+  "cost": {
+    "gemini_reported_usage_estimate_usd": 0.022445,
+    "claude_reported_usd": 1.51689375,
+    "planned_max_usd": 4.852512,
+    "limits": "Provider usage arithmetic and Claude reportedcost, not billinginvoice. Browserrehearsal notincluded in typedprobe usage."
+  },
+  "pending": [
+    "Recover closed native comparison MCAP/camera and exact build/test/library archive from powered-off Pi next session, then quantify new queued-to-applied timings.",
+    "Navigation guidance is mitigation only; collision avoidance and autonomous search/approach are unavailable.",
+    "Queued-IMU-age candidate remains undeployed; matched camera/IMU disagreement unresolved, without a confirmed hardware cause.",
+    "Follower/Spider handoffs absent; broader motion quality and reliability remain incomplete."
+  ],
+  "working_evidence": "/private/tmp/ws1-product-20261102",
+  "archive_pending": false,
+  "predeployment_archive": {
+    "created_utc": "2026-11-02T22:03:23.404885+00:00",
+    "scope": "Predeployment frozen software/live typed and spoken fake rehearsal evidence; deployment and physical recordings are separate. Includes author candidate histories and tests; no API key.",
+    "archive": "artifacts/access/ws1-voice-product-20261102/predeployment-evidence.tar.gz",
+    "sha256": "d188645d05b0680d0cc2b3bdd7fd732213d4c4ae130fb3b0d042a34f40de00b2",
+    "bytes": 71270832,
+    "regular_members": 446,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-voice-product/predeployment-evidence.tar.gz"
+  },
+  "predeployment_archive_correction": {
+    "recorded_utc": "2026-11-02T22:06:15.583240+00:00",
+    "original_archive_status": "Preserved unchanged as partial historical evidence. Its original broad scope statement does not establish inclusion of the omitted backend source trees.",
+    "omission": "An exclusion intended only for /private/tmp/ws1-product-20261102/robot matched every /robot/ path. It omitted26 baseline-check and26 candidate source files under ws1-shake-hand-20261102. Preserve the original archive and manifest unchanged; use this52-member supplement with it.",
+    "original_archive_sha256": "d188645d05b0680d0cc2b3bdd7fd732213d4c4ae130fb3b0d042a34f40de00b2",
+    "original_manifest_sha256": "ffb95a64f134d74472ec699edc1df2f7a2f47d300624aa13299d20a66b63f63b",
+    "supplement": {
+      "archive": "artifacts/access/ws1-voice-product-20261102/omitted-author-sources.tar.gz",
+      "sha256": "4cd6d716422154334736f4f22e4314df7521751d3965777dfcde977502f2a8d3",
+      "bytes": 218322,
+      "regular_members": 52,
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-voice-product/omitted-author-sources.tar.gz"
+    },
+    "supplement_manifest": {
+      "path": "artifacts/access/ws1-voice-product-20261102/omitted-author-sources-manifest.json",
+      "sha256": "e8aa63a3c492e3d1151a675c69adfd92753ae2c7d6f74bb4ca3ee49f9e8cce84",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-voice-product/omitted-author-sources-manifest.json"
+    },
+    "verification": {
+      "baseline_commit": "7aa498925f70a8bea44cb6a198e7e2f757834e67",
+      "candidate_freeze_manifest": "/private/tmp/ws1-shake-hand-20261102/freeze-manifest.json",
+      "candidate_freeze_sha256": "97032a72efff1a76aae2839c8d22300eeaa3e4c672995e53fc66e0b2eef301b5",
+      "baseline_files_matching_git": 26,
+      "candidate_changed_robot_files_matching_freeze": 3,
+      "candidate_other_robot_files_matching_git": 23,
+      "source_hashes_stable_before_after_archive": true,
+      "all_regular_members_byte_verified": 52,
+      "union_regular_members_without_overlap": 498
+    },
+    "limits": [
+      "Operational /private/tmp/ws1-product-20261102/robot remains excluded.",
+      "Deployment was excluded as a whole from the original archive and remains separate; its3 duplicate robot payload files are not author-source filter losses.",
+      "No credentials or environment files selected. Every member is exact immutable Git source or a reviewed frozen source; secret_gate.py is implementation code.",
+      "No tests, builds, API calls, robot contact or recovery edits."
+    ]
+  },
+  "physical": {
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-product",
+    "boot": "2faf2547-eb90-48b9-95dd-7ebdf8adc175",
+    "app_dir": "/home/pi/pupper-foundation-session-20261029/software-ws1-product-20261102",
+    "bundle": "index-DOkAtmAg.js",
+    "selected_app_files_verified": 100,
+    "additional_pinned_fake_config_verified": true,
+    "pi_fake_smoke": "pass; actual advertisedshake_hand, servedbundlehash, hardwarefalse, exit0",
+    "native_policies_gains": "unchanged for this block",
+    "observed_checks": [
+      {
+        "spoken": "right paw then stand",
+        "jobs": [
+          1,
+          2
+        ],
+        "operator": "yes; correct motion and audibleack",
+        "result": "succeeded"
+      },
+      {
+        "spoken": "forward1second thenleftpaw thenleft15degrees",
+        "jobs": [
+          3,
+          4,
+          5
+        ],
+        "operator": "worked well; confirmedchangedrequestfromwrittenfive-step",
+        "result": "succeeded; implicitstandingreturnbeforeturn"
+      },
+      {
+        "spoken": "Prompt proposed forward 0.2 m/s for 6 seconds then left 15 degrees; user confirmed Stop worked. Exact spoken wording was not transcribed.",
+        "job": 6,
+        "operator": "yes; stoppedearlyandturnomitted",
+        "result": "Running forward job 6 cancelled. No later turn job appears in the captured server record.",
+        "limit": "This trial does not prove cancellation of an enqueued turn: no such queued job is present. Keep running-job cancellation separate from queued-job cancellation evidence elsewhere."
+      },
+      {
+        "spoken": "backward4seconds; Stop",
+        "job": 7,
+        "operator": "yes, separatelyrequested backward",
+        "result": "cancelled"
+      }
+    ],
+    "no_native_fault_events_observed": true,
+    "sensor_limit": "Interpret only the bounded camera-matched windows in physical_analysis. Actual scene rotations between sequences are excluded; no hardware-cause diagnosis or whole-session drift claim.",
+    "shutdown": "OperatorR3andsupport; APIandlaunchcleanlygone, motor managergone; recordersstopped.",
+    "library_identity_limit": "Exact unchanged selectedlibrarybytes verifiedaftershutdown; liveprocessmapsnotcapturedinthisblock.",
+    "provider_close": "Chrome laterreported1008 operationaborted; microphoneoff, modelactionspaused, automaticStoprequested; noautoresumption. Causeunresolved."
+  },
+  "physical_archive": {
+    "path": "artifacts/hardware/2026-11-02/voice-product/complete.tar.gz",
+    "sha256": "a3f3a764c4c81487fdff4905255cc2a3dd2d8240d4989f1cbe2097931cae200d",
+    "bytes": 315104977,
+    "regular_members": 933,
+    "indexed_members_verified": 932,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/voice-product/complete.tar.gz",
+    "manifest": "artifacts/hardware/2026-11-02/voice-product/manifest.json",
+    "manifest_sha256": "0cae6101b305e5508ae4dc4d47a30699c571ebb54127b8637d14063a2a43c5a4",
+    "indexed_files_verified": 932,
+    "index_self_verified": true
+  },
+  "physical_analysis": {
+    "archive": {
+      "path": "artifacts/hardware/2026-11-02/voice-product/derived-analysis.tar.gz",
+      "sha256": "910a2f12aa6ae10c39c174ec1549d73e859688c93b4b05d620d08675cfabfffb",
+      "bytes": 14369355,
+      "regular_members": 33,
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/voice-product/derived-analysis.tar.gz"
+    },
+    "summary_member": "baseline-summary.json",
+    "summary_sha256": "9a18fadfed592f2f6afe04ababe7ac8f5c0f943000a58aca8c64ac3ff8dfad19",
+    "native_detail_member": "clip-latency-baseline.json",
+    "native_queued_to_applied_ms": [
+      {
+        "job": 1,
+        "clip": "shake_right",
+        "delay_ms": 647.4073420000001
+      },
+      {
+        "job": 2,
+        "clip": "stand_up",
+        "delay_ms": 959.867678
+      },
+      {
+        "job": 4,
+        "clip": "shake_left",
+        "delay_ms": 594.425106
+      },
+      {
+        "job": 5,
+        "clip": "stand_up",
+        "delay_ms": 948.4626480000001
+      }
+    ],
+    "native_limit": "Request topic absent; native queued receipt to applied receipt, not exact API publish-to-apply or physical motion latency.",
+    "camera_summary_member": "camera-analysis/summary.json",
+    "camera_summary_sha256": "5b0c1375b7b29556d538cb34ac778e632a1a12ac0d25de9ac318cab9c1328047",
+    "camera_rows_member": "camera-analysis/rows.json",
+    "camera_windows": [
+      {
+        "name": "before_jobs_1_2",
+        "first_utc": "2026-11-02T22:12:40.356813+00:00",
+        "last_utc": "2026-11-02T22:12:59.443721+00:00",
+        "frames": 19,
+        "imu_yaw_change_deg": -2.3191858724947476,
+        "fixed_background_interpretation": "Three patches zero integer-pixel offsets."
+      },
+      {
+        "name": "after_jobs_1_2",
+        "first_utc": "2026-11-02T22:14:10.257107+00:00",
+        "last_utc": "2026-11-02T22:14:29.248025+00:00",
+        "frames": 19,
+        "imu_yaw_change_deg": -16.984284535433435,
+        "fixed_background_interpretation": "Three patches zero integer-pixel offsets."
+      },
+      {
+        "name": "after_jobs_3_5",
+        "first_utc": "2026-11-02T22:16:30.260279+00:00",
+        "last_utc": "2026-11-02T22:16:49.555420+00:00",
+        "frames": 19,
+        "imu_yaw_change_deg": -14.73328262861287,
+        "fixed_background_interpretation": "Two patches zero integer-pixel offsets; third weak/occluded, up to2pixels."
+      }
+    ],
+    "limits": [
+      "Camera results apply only to listed frames and fixed background patches; no calibrated physical angle, cause, whole-session sensor-fault or reliability claim.",
+      "Pairing uses prior MCAP receipt within5.52ms, not exposure/sample synchronization."
+    ]
+  },
+  "updated_utc": "2026-11-02T23:09:25.217074+00:00",
+  "native_shorter_wait_comparison": {
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-static-idle",
+    "change": "Allows an eligible constant Sit idle to admit the next paw/exit without waiting for the full idle-loop boundary. Policy files, gains, full clip durations, standing initialization and fade are unchanged.",
+    "source_payload_sha256": "fae5a7a7f902e0d5753e00317aed0d73af193d64c92e9be89fe88c63a2f8f57a",
+    "live_mapped_native_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "baseline_native_sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91",
+    "live_mapped_imu_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "build": "Pi GCC12/ROS Jazzy configure/build/tests/install all exit0; six test suites include17 production cases; assertions enabled; ldd-r clean. Observed command results are saved in session history; full remote test/build files still require collection.",
+    "chains": [
+      {
+        "local": "comparison/chain-01.jsonl",
+        "jobs": [
+          1,
+          2,
+          3
+        ],
+        "server": "all succeeded",
+        "operator": "missed; not counted as a physical observation"
+      },
+      {
+        "local": "comparison/chain-02.jsonl",
+        "jobs": [
+          4,
+          5,
+          6
+        ],
+        "server": "all succeeded",
+        "operator": "Controlled; pauses shorter"
+      }
+    ],
+    "acceptance_limit": "One observed repeat supports a bounded physical comparison. Exact new native queued-to-applied timing awaits closed MCAP recovery; do not substitute queue estimates or API polling intervals.",
+    "final_vision_incident": "User reported vision, context and handshake working, then asked find me. Model composed primitive turns and walks, contacting a backpack. User reported no visible damage or strain. Camera input does not implement obstacle avoidance.",
+    "shutdown": "Model motion paused and Stop sent; user R3/support; API and motor manager/launch stopped cleanly, log confirmed Successful shutdown hardware and Successfully deactivated. Data recorders then closed. User powered off.",
+    "remote_archive": "close-evidence.py started but SSH exited255 when powered off. Inspect existing archive/index/receipt next session before retrying. Raw recording closed; final archive completion unknown."
+  },
+  "local_followups_archive": {
+    "path": "artifacts/access/ws1-voice-product-20261102/local-followups/complete-local-evidence.tar.gz",
+    "sha256": "39890ef828df12588049907c8c65c6c750775eedadc742fb0f59e486c2f24a67",
+    "bytes": 3595691,
+    "regular_files": 101,
+    "manifest_sha256": "5f3c459b962f1d38a05c5ed505a72479ca2fd37be181f56237d81cc3d4275c0e",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-voice-product/local-followups",
+    "scope": "Local deployment payloads, native source/comparison JSON, navigation gap and failed Claude audit, provider-close audit. All members verified in both archive copies. Excludes remote-only native build/library and physical MCAP."
+  },
+  "provider_close_followup": {
+    "finding_sha256": "83e964420f4ed1da12aca96b3c96045cdc38b75fdb6c0c8d157cd40bd9c5798d",
+    "result": "No evidenced configuration defect found. SDK1.50.1, ER2 TEXT, compression and PTT audioStreamEnd match inspected contracts. Text-only no-media closes already occurred; camera is not required. Session resumption is documented but not established as a cure. Keep Stop plus explicit fresh reconnect; no replay or further expiry sweep."
+  },
+  "offline_followups": {
+    "navigation": "foundation/results/workstream1-navigation-mitigation-20261102.json",
+    "media_setup": "foundation/results/workstream1-media-admission-20261102.json",
+    "latest_code_commit": "3538d9f",
+    "not_deployed_since_robot_poweroff": true
+  }
+}

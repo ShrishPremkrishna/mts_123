@@ -136,5 +136,39 @@
     "regular_members_verified": 292,
     "symlinks": {},
     "manifest_sha256": "971915b8dbf90431b72159179678d48e6805959352428c80a979eb0e11447533"
+  },
+  "saved_stream_replay": {
+    "preserved_utc": "2026-11-02T21:59:37.149608+00:00",
+    "scope": "Existing completed saved-stream replay, preserved without rerunning. No deployment, hardware or new experiment.",
+    "native_reader": {
+      "logged_read_calls": 20299,
+      "previously_usable_polls": 8205,
+      "additional_guard_rejected_polls": 0,
+      "matched_component_receipts": 16410,
+      "unmatched_components": 0,
+      "maximum_bound_plus_receipt_elapsed_ms": {
+        "gyro": 12.416016,
+        "quaternion": 17.617394
+      }
+    },
+    "known_old_reports": "Setup-only:15 post-motor02/05 reports at about78s and14 raw15-capture02/05 reports at about2035.9s exceed the100ms lower-bound limit. The closed post-motor phase has10 old02/05 reports in two drain batches after receipt gaps; those mixed diagnostic packets are already rejected atomically by the production parser. This is not evidence they reached a motor decision.",
+    "normal_closed_windows": "Comparison02 baseline/comparison and raw15 closed comparison have no02/05 arrival lower bound above100ms; maxima remain below25ms.",
+    "limits": [
+      "Exact native protocol parser/sequence logic and captured read-call sizes are replayed, not the full ROS executable.",
+      "Only native-reader01 includes actual consumer polls; other streams evaluate report age at arrival. Diagnostic-only07/15 decoding is reported separately from production packet acceptance.",
+      "Receipt is not HINT. An old HINT can leave the first queued report with a small lower bound; no absolute acquisition freshness is established.",
+      "No sensor-drift cause/cure, physical reliability or all-load guarantee. Original absolute source/input paths are retained in the archived scripts."
+    ],
+    "artifacts": {
+      "repo": "artifacts/hardware/2026-11-02/queued-age-replay",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/queued-age-replay",
+      "archive": "queued-age-replay-evidence.tar.gz",
+      "archive_sha256": "3d2e602b7559d78035339f1f03aef4590108be895df2f9519bd160484ed347cf",
+      "archive_bytes": 4471705,
+      "regular_members_verified_in_each_store": 20,
+      "manifest_sha256": "02486caf68bd4971d445f73ddb3042543afe5378c79c9d1cd0ee6db5925f8bf8",
+      "analysis_member": "replay/analysis.json",
+      "analysis_sha256": "9cd1725b16303b2e71482a648d304bbe4362e5bcf4b6468a90064a05496938cc"
+    }
   }
 }

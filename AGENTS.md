@@ -39,7 +39,9 @@ the next physical session procedure. Do not maintain another parallel status log
   wrapper, job framework or versioned staging directory without a concrete need.
 - Run the tests affected by a change. Run a broader regression once sources are
   frozen, and repeat only after relevant changes or a new unresolved concern.
-  Test counts are evidence about software, never a substitute for native behavior.
+  For small isolated edits, use focused tests; run the full regression after
+  integration in the actual checkout instead of repairing unrelated fixtures in
+  partial copies. Test counts are software evidence, not native behavior.
 - Keep tool output bounded: summarize counts, distinct values and short errors;
   preserve raw output in files. Use bounded subprocess timeouts and a fresh SSH
   connection for read-only recovery; do not spin on an unavailable robot.
