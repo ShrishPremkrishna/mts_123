@@ -449,6 +449,115 @@ test('close before any action does not send an unsolicited global Stop', async t
   assert.equal(stops, 0);
 });
 
+test('GoAway retires an idle session before server deadline and exposes explicit reconnect', async t => {
+  let callbacks, closed = 0, disconnected = 0, stops = 0;
+  const env = mediaEnvironment(t, async request => {
+    callbacks = request.callbacks; callbacks.onopen();
+    return { close() { closed++; }, sendRealtimeInput() {} };
+  });
+  env.s.onDisconnect = () => { disconnected++; };
+  env.s.robotBridge.immediateStop = async () => { stops++; return { success: true }; };
+  await env.s.connect('test', env.config, {});
+  assert.equal(env.s.beginAudioInput(), true);
+  await callbacks.onmessage({ goAway: { timeLeft: '60s' } });
+  assert.equal(env.s.connected, false);
+  assert.equal(env.s.disposed, true);
+  assert.equal(env.s.audioInputActive, false);
+  assert.equal(env.tracks[0].stopped, 1);
+  assert.ok(env.contexts.every(context => context.state === 'closed'));
+  assert.equal(closed, 1);
+  assert.equal(disconnected, 1);
+  assert.equal(stops, 0);
+  assert.ok(env.logs.some(entry => /session.*expir|expir.*session/i.test(entry.message)));
+  assert.ok(env.logs.some(entry => /Reconnect/i.test(entry.message)));
+});
+
+test('GoAway fences a pending action batch, closes immediately, and waits only for global Stop', async t => {
+  let callbacks, closed = 0, disconnected = 0;
+  const reply = deferred(), stop = deferred(), calls = [], stops = [], pending = [], dispatches = [];
+  const env = mediaEnvironment(t, async request => {
+    callbacks = request.callbacks; callbacks.onopen();
+    return { close() { closed++; }, sendToolResponse() {} };
+  });
+  env.s.onDisconnect = () => { disconnected++; };
+  env.s.onStopPending = value => pending.push(value);
+  env.s.onToolDispatch = value => dispatches.push(value);
+  env.s.robotBridge.callTool = name => { calls.push(name); return reply.promise; };
+  env.s.robotBridge.immediateStop = () => { stops.push('stop'); return stop.promise; };
+  await env.s.connect('test', env.config, {});
+  const action = callbacks.onmessage({ toolCall: { functionCalls: [
+    { id: 'old-move', name: 'move', args: {} }, { id: 'old-turn', name: 'turn', args: {} },
+  ] } });
+  const retiring = callbacks.onmessage({ goAway: { timeLeft: '1s' } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(env.s.disposed, true);
+  assert.equal(env.s.robotToolsPaused, true);
+  assert.equal(closed, 1, 'SDK close cannot wait for robot HTTP');
+  assert.deepEqual(stops, ['stop']);
+  assert.deepEqual(pending, [true]);
+  assert.equal(disconnected, 0, 'reconnect remains gated while Stop unresolved');
+  await callbacks.onmessage({ goAway: {} });
+  await callbacks.onclose({ code: 1008, reason: 'old socket closes late' });
+  reply.resolve({ success: true, details: { submission: { schema: 'pupper_submission_v1', state: 'queued' } } });
+  await action;
+  assert.deepEqual(calls, ['move']);
+  assert.deepEqual(dispatches.map(value => value.status), ['sending']);
+  stop.resolve({ success: true }); await retiring;
+  assert.deepEqual(pending, [true, false]);
+  assert.equal(disconnected, 1);
+  assert.deepEqual(stops, ['stop']);
+});
+
+test('GoAway takes priority over content and tools in the same packet', async t => {
+  let callbacks, calls = 0, output = 0;
+  const env = mediaEnvironment(t, async request => {
+    callbacks = request.callbacks; callbacks.onopen(); return { close() {} };
+  }, undefined, 'conversation');
+  env.s.robotBridge.callTool = async () => { calls++; return { success: true }; };
+  env.s.playAudioBase64 = async () => { output++; };
+  await env.s.connect('test', env.config, {});
+  await callbacks.onmessage({ goAway: { timeLeft: 'malformed' },
+    toolCall: { functionCalls: [{ id: 'late', name: 'move', args: {} }] },
+    serverContent: { outputTranscription: { text: 'Hello.' }, modelTurn: { parts: [{ inlineData: { data: 'old' } }] }, turnComplete: true },
+  });
+  assert.equal(calls, 0); assert.equal(output, 0); assert.equal(env.s.disposed, true);
+});
+
+test('GoAway does not wait for a pending SDK promise; a late session closes once', async t => {
+  const sdk = deferred(), started = deferred(); let callbacks, closed = 0, disconnected = 0;
+  const env = mediaEnvironment(t, request => {
+    callbacks = request.callbacks; callbacks.onopen(); started.resolve(); return sdk.promise;
+  });
+  env.s.onDisconnect = () => { disconnected++; };
+  const connecting = env.s.connect('test', env.config, {});
+  const rejected = assert.rejects(connecting, /cancelled/);
+  await started.promise;
+  await callbacks.onmessage({ goAway: {} });
+  assert.equal(disconnected, 1);
+  assert.equal(env.tracks[0].stopped, 1);
+  sdk.resolve({ close() { closed++; } }); await rejected;
+  assert.equal(closed, 1);
+});
+
+test('GoAway never resumes or retries commands and a fresh explicit session can connect', async t => {
+  let callbacks, connects = 0;
+  const env = mediaEnvironment(t, async request => {
+    connects++; callbacks = request.callbacks; callbacks.onopen();
+    assert.equal(request.config.sessionResumption, undefined);
+    return { close() {} };
+  });
+  await env.s.connect('test', env.config, {});
+  await callbacks.onmessage({ sessionResumptionUpdate: { resumable: true, newHandle: 'untrusted-unused-handle' } });
+  await callbacks.onmessage({ goAway: {} });
+  assert.equal(connects, 1);
+  assert.ok(env.logs.every(entry => !entry.message.includes('untrusted-unused-handle')));
+  const fresh = new GeminiLiveService(env.config, () => {}, () => {}, () => {});
+  fresh.robotBridge.getTools = async () => ({ tools: [] });
+  await fresh.connect('test', env.config, {});
+  assert.equal(connects, 2); assert.equal(fresh.connected, true);
+  await fresh.disconnect();
+});
+
 
 test('Stop anywhere in one Live batch runs first and prevents partial motion dispatch', async () => {
   const { s, dispatches, responses } = service(); const calls = [];

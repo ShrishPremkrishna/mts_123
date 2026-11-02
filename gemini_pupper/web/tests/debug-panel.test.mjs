@@ -60,11 +60,13 @@ async function panel(t, bridge, stop = async () => {}) {
   const unmount = () => cells.forEach(c => c?.cleanup?.());
   t.after(() => { unmount(); restorers.reverse().forEach(restore => restore()); }); render();
   return { render, unmount, props, timers, poll: async () => {
-    const [id, timer] = [...timers][0]; timers.delete(id); timer.fn(); await flush();
+    const [id, timer] = [...timers].find(([, value]) => value.ms === 5000); timers.delete(id); timer.fn(); await flush();
   } };
 }
 function bridge(overrides = {}) {
   return { getSystemStatus: async () => null, getAnimations: async () => ({}),
+    manualCommandBlocked: () => false,
+    getQueueStatus: async () => ({ running:false, queued:0, following:false, state:'locomotion', controller_fault:null, last_outcome:null, command_epoch_required:true, command_epoch:'test:0' }),
     getInteractiveActions: async () => ({}), ...overrides };
 }
 test('unavailable/malformed catalog never advertises built-in skills; empty profile is distinct', async t => {
@@ -124,10 +126,10 @@ test('Stop stays independent while a skill request is pending and hides unlocked
 test('polls never overlap and old bridge responses are discarded after replacement/unmount', async t => {
   const old = deferred(); let calls = 0;
   const p = await panel(t, bridge({ getAnimations: () => { calls++; return old.promise; } }));
-  await flush(); assert.equal(calls, 1); assert.equal(p.timers.size, 0);
+  await flush(); assert.equal(calls, 1); assert.equal([...p.timers.values()].filter(x=>x.ms===5000).length, 0);
   p.props.robotBridge = bridge(); p.render(); await flush(); assert.match(text(p.render()), /No skills available/);
   old.resolve({ obsolete_skill: skill }); await flush(); assert.equal(button(p.render(), 'Play obsolete skill'), undefined);
-  assert.equal(p.timers.size, 1); p.unmount(); assert.equal(p.timers.size, 0);
+  assert.equal([...p.timers.values()].filter(x=>x.ms===5000).length, 1); p.unmount(); assert.equal(p.timers.size, 0);
 });
 
 
@@ -152,6 +154,7 @@ test('pending panel Stop blocks even a stale manual handler and unlocks after it
   assert.equal(button(p.render(), 'Move forward').props.disabled, true);
   staleMove(); await flush(); assert.equal(moves, 0);
   stop.resolve(); await flush(); p.render(); await flush();
+  await pollManual(p);
   assert.notEqual(button(p.render(), 'Move forward').props.disabled, true);
   button(p.render(), 'Move forward').props.onClick(); await flush(); assert.equal(moves, 1);
 });
@@ -164,7 +167,7 @@ test('shared header/automatic Stop gate blocks manual dispatch before rerender',
   pending = true; staleMove(); await flush(); assert.equal(moves, 0);
   p.props.stopPending = true;
   assert.equal(button(p.render(), 'Move forward').props.disabled, true);
-  pending = false; p.props.stopPending = false;
+  pending = false; p.props.stopPending = false; p.render(); await pollManual(p);
   button(p.render(), 'Move forward').props.onClick(); await flush(); assert.equal(moves, 1);
 });
 
@@ -182,4 +185,40 @@ test('old-server manual receipts cannot overwrite a new-server request or unlock
   assert.equal(button(p.render(), 'Move forward').props.disabled, true);
   next.resolve({ success: false, message: 'new server refused' }); await flush();
   assert.match(text(p.render()), /rejected.*new server refused/);
+});
+
+const idleQueue = () => ({running:false,queued:0,following:false,state:'locomotion',controller_fault:null,last_outcome:null,command_epoch_required:true,command_epoch:'manual:0'});
+async function pollManual(p) {
+  const entry=[...p.timers].find(([,v])=>v.ms===500); assert.ok(entry,'manual poll timer scheduled');
+  const [id,timer]=entry;p.timers.delete(id);timer.fn();await flush();
+}
+test('arrows wait for fresh queue idle after acceptance; skill buttons and Stop remain independent',async t=>{
+  const sent=[];let busy=false;const response=deferred();
+  const p=await panel(t,bridge({getAnimations:async()=>({sit_stay_shake:skill}),getQueueStatus:async()=>({...idleQueue(),running:busy}),queueMove:async command=>{sent.push(command);busy=true;return response.promise;}}));
+  await flush();const left=button(p.render(),'Turn left');assert.equal(left.props.disabled,false);
+  left.props.onClick();left.props.onClick();assert.equal(sent.length,1);assert.equal(button(p.render(),'Move forward').props.disabled,true);
+  response.resolve({success:true,message:'queued'});await flush();p.render();await flush();
+  assert.equal(button(p.render(),'Move forward').props.disabled,true);assert.equal(button(p.render(),'Play sit stay shake').props.disabled,false);assert.notEqual(button(p.render(),'STOP').props.disabled,true);
+  await pollManual(p);assert.equal(button(p.render(),'Move forward').props.disabled,true);
+  busy=false;await pollManual(p);assert.equal(button(p.render(),'Move forward').props.disabled,false);
+});
+test('old idle response started before manual submission cannot enable another arrow',async t=>{
+  const oldIdle=deferred();let calls=0;const p=await panel(t,bridge({getQueueStatus:async()=>++calls===2?oldIdle.promise:idleQueue(),queueMove:async()=>({success:true,message:'queued'})}));
+  await flush();const polling=pollManual(p);await flush();button(p.render(),'Turn left').props.onClick();await flush();
+  oldIdle.resolve(idleQueue());await polling;await flush();assert.equal(button(p.render(),'Turn left').props.disabled,true);
+  await pollManual(p);assert.equal(button(p.render(),'Turn left').props.disabled,false);
+});
+test('unknown manual response remains gated through same-epoch idle until bridge confirms Stop',async t=>{
+  let blocked=false;const p=await panel(t,bridge({manualCommandBlocked:()=>blocked,getQueueStatus:async()=>idleQueue(),queueMove:async()=>{blocked=true;return {success:false,outcome_unknown:true,message:'unknown'};}}),async()=>{blocked=false;});
+  await flush();button(p.render(),'Move forward').props.onClick();await flush();p.render();await flush();await pollManual(p);
+  assert.equal(button(p.render(),'Turn left').props.disabled,true);assert.match(text(p.render()),/outcome is unknown/);
+  button(p.render(),'STOP').props.onClick();await flush();p.render();await flush();await pollManual(p);
+  assert.equal(button(p.render(),'Turn left').props.disabled,false);
+});
+test('manual polling is bounded and old-server idle is discarded',async t=>{
+  const old=deferred();let calls=0;const p=await panel(t,bridge({getQueueStatus:()=>{calls++;return old.promise;}}));
+  await flush();assert.equal(calls,1);assert.equal([...p.timers.values()].filter(x=>x.ms===500).length,0);assert.equal(button(p.render(),'Move forward').props.disabled,true);
+  p.props.robotBridge=bridge({getQueueStatus:async()=>({...idleQueue(),running:true})});p.render();await flush();old.resolve(idleQueue());await flush();
+  assert.equal(button(p.render(),'Move forward').props.disabled,true);assert.match(text(p.render()),/action is running or queued/);
+  p.unmount();assert.equal([...p.timers.values()].filter(x=>x.ms===500).length,0);
 });

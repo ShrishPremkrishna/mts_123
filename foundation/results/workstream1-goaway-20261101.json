@@ -1,0 +1,88 @@
+{
+  "schema": "pupper_workstream_result_v1",
+  "date": "2026-11-01",
+  "status": "reviewed_offline_candidate_not_deployed",
+  "scope": "Browser Gemini Live GoAway lifecycle only. No robot/native/API behavior edit.",
+  "trigger": {
+    "source": "Parent-reported actual browser log at19:01:01 from the older ER session.",
+    "observed": "1008 closure reason said the client failed to close after GoAway/session-duration expiry.",
+    "limitation": "This package contains source-level reproduction, not a captured raw providerGoAway packet or a new deadline run."
+  },
+  "finding": "The existing service configured contextWindowCompression but ignored GoAway. Compression does not remove the provider connection lifetime.",
+  "change": [
+    "On GoAway, synchronously invalidate input/output/modeltool dispatch and close the SDK connection without waiting for pending SDK/HTTP completion.",
+    "Use the existing coalesced globalStop path if that voice connection sent or still has a pending action; expose reconnect after its response settles.",
+    "Discard content/tools accompanying GoAway; late callbacks cannot dispatch buffered commands or speak old receipts.",
+    "Require an explicit fresh connection. No automatic session resumption, command retry, audio replay or movement rearming."
+  ],
+  "product_tradeoff": "Fresh reconnect preserves combined conversation/control availability, but does not carry previous conversational context. This is not seamless session resumption.",
+  "source": {
+    "baseline_git_head": "d0477d6666cc3759340595570e820cb22ccfa4e7",
+    "baseline_files": {
+      "services/geminiLive.ts": "23f9ac5948572ed2b0b4c20d623e19d5a61b0e326b0f95b36b12afe2de7f75ce",
+      "tests/execution.test.mjs": "5dd0e170d446cf492e4ab8bdebd01427de4ef2bc972e08ab354c8a0b3471d7f5"
+    },
+    "candidate_files": {
+      "services/geminiLive.ts": "2239e08ae446b54682c48bfac00453efe3397a27ec90c07b3d266fa7a61ed9f4",
+      "tests/execution.test.mjs": "001fdbb1dc58af9e9d65b27319b0d6d1fa06b8f1570de77f6cb98437553ec72f"
+    },
+    "patch": "candidate.patch",
+    "full_source_snapshot": "candidate/gemini_pupper/web/",
+    "snapshot_notes": "Tracked browser sources/assets plus shared conversation_guard.json and two actualPython definitions used by an existing cross-language preset test. node_modules is intentionally excluded; package lock preserved. No production bundle built for this candidate.",
+    "installed_sdk": "1.50.1"
+  },
+  "validation": {
+    "before": "One new mock test fails on original source: connected remains true afterGoAway.",
+    "after": "168 affected tests pass, including5 new GoAway lifecycle cases; tsc --noEmit passes.",
+    "cases": [
+      "Idle expiry releases media and closes socket.",
+      "Pending HTTP action + buffered next action is fenced; Stop lifecycle remains balanced.",
+      "Same-packet content/tool cannot bypass expiry.",
+      "Pending SDK promise cannot block retirement; late session closes once.",
+      "No token logging/resumption or retry; a fresh explicit connection succeeds."
+    ],
+    "independent_review": {
+      "verdict": "clear",
+      "tests": 5,
+      "receipt": "peer-review.json",
+      "sha256": "bbdc4049ac7b3797781c716d06b186cc0ce1cbca3b0e55fa706942de326dd213"
+    },
+    "fixture_gap": "First affected-suite attempt167passed/1failed due missing isolatedPythonfixture, preserved. Two unchanged source dependencies copied; final168pass.",
+    "not_tested": [
+      "Actual providerGoAway delivery/deadline on either model.",
+      "Actual Chrome lifecycle/media for this candidate.",
+      "Hardware motion/stop behavior."
+    ]
+  },
+  "primary_reference": {
+    "url": "https://ai.google.dev/gemini-api/docs/live-api/session-management",
+    "sections": [
+      "Session lifetime",
+      "Session resumption",
+      "Receiving a message before the session disconnects"
+    ],
+    "accessed": "2026-11-01",
+    "boundary": "SessionResumptionUpdate may be nonresumable during generation/functioncalls; transparent command replay is deliberately not implemented."
+  },
+  "integration": {
+    "owner": "root",
+    "instruction": "Apply candidate.patch to matching baseline after the current user voice check; run root integration checks/build before serving.",
+    "state": "Not applied or deployed by this agent; current fake browser session left untouched."
+  },
+  "preservation": {
+    "archive": {
+      "name": "workstream1-goaway-20261101.tar.gz",
+      "bytes": 1284702,
+      "sha256": "fe690ca7c630c549d9661c1a2b4e1b89acdf1aa93c7ad7b1ee9224d616e51636",
+      "repository_path": "/Users/shrish/workspace/cs123-foundation/artifacts/validation/workstream1-goaway-20261101/workstream1-goaway-20261101.tar.gz",
+      "durable_path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-goaway/workstream1-goaway-20261101.tar.gz"
+    },
+    "index": {
+      "sha256": "e30fd4dcce706d9ce91b88367286c8a73d928010a31da15b7470443f0c7e16a2",
+      "repository_path": "/Users/shrish/workspace/cs123-foundation/artifacts/validation/workstream1-goaway-20261101/artifact-index.json",
+      "durable_path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-goaway/artifact-index.json"
+    },
+    "verified_regular_members": 84,
+    "limits": "Archive preserves full candidate source and all saved local evidence. Dependencies are package-lock specified, not vendored; no candidate dist or actual provider-deadline capture is claimed."
+  }
+}

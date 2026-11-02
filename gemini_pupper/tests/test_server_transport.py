@@ -278,7 +278,8 @@ def test_lifespan_uses_explicit_fake_and_shuts_down_without_hardware(server, mon
         state = {"constructed": 0, "shutdown": 0, "detection_cancelled": False}
         detector_started = asyncio.Event()
         class FakeLifecycleRobot:
-            def __init__(self):
+            def __init__(self, *, ros_signal_handlers):
+                assert ros_signal_handlers is False
                 state["constructed"] += 1
             async def shutdown(self):
                 state["shutdown"] += 1
@@ -361,6 +362,8 @@ def test_detection_task_failure_does_not_skip_robot_shutdown(server, monkeypatch
     async def case():
         shutdowns = []
         class FakeRobot:
+            def __init__(self, *, ros_signal_handlers):
+                assert ros_signal_handlers is False
             async def shutdown(self):
                 shutdowns.append(True)
                 return robot_api.Result(True, "fake shutdown")

@@ -1,11 +1,13 @@
 import type { MoveCommand, SystemStatus } from "../types";
 import { robotBaseUrl } from "../constants";
+import { toolResponseStatus, parseQueueStatus } from "./executionStatus";
 
 interface CommandState {
   commandEpoch: string | null;
   stopSerial: number;
   pendingStops: number;
   stopUnconfirmed: boolean;
+  manualUnknownEpoch: string | null;
 }
 // Manual controls and Live sessions may own distinct bridges for one server.
 // Stop fencing survives bridge replacement/reconnect in this page.
@@ -20,7 +22,7 @@ class RobotBridge {
     // Canonicalize host casing/default ports while retaining API path prefixes.
     this.baseUrl = new URL(robotBaseUrl(baseUrl)).toString().replace(/\/+$/, '');
     const existing = commandStates.get(this.baseUrl);
-    this.state = existing ?? { commandEpoch: null, stopSerial: 0, pendingStops: 0, stopUnconfirmed: false };
+    this.state = existing ?? { commandEpoch: null, stopSerial: 0, pendingStops: 0, stopUnconfirmed: false, manualUnknownEpoch: null };
     if (!existing) commandStates.set(this.baseUrl, this.state);
   }
 
@@ -37,8 +39,9 @@ class RobotBridge {
       try {
         const result = await this.sendRequest(endpoint, method, body, returnBlob);
         if (serial === this.state.stopSerial) {
-          this.state.stopUnconfirmed = !(result?.success === true && !result?.outcome_unknown
+          this.state.stopUnconfirmed = !(toolResponseStatus(result) === 'accepted'
             && result?.command_epoch_required === true && typeof result?.command_epoch === 'string' && result.command_epoch);
+          if (!this.state.stopUnconfirmed) this.state.manualUnknownEpoch = null;
         }
         return result;
       } finally { this.state.pendingStops -= 1; this.state.commandEpoch = null; }
@@ -156,7 +159,16 @@ class RobotBridge {
       turning_velocity: cmd.wz,
       duration: cmd.duration
     };
-    return this.request('/move/velocity', 'POST', body);
+    if (this.state.manualUnknownEpoch !== null) return {
+      success: false, not_dispatched: true, outcome_unknown: false,
+      message: 'Manual step not sent: a prior manual response is unknown. Use Stop and confirm its response first.',
+    };
+    const serial = this.state.stopSerial;
+    const result = await this.request('/move/velocity', 'POST', body);
+    if (serial === this.state.stopSerial && toolResponseStatus(result) === 'unknown') {
+      this.state.manualUnknownEpoch = this.state.commandEpoch ?? '';
+    }
+    return result;
   }
 
   async moveDirection(heading: number, speed: number, duration: number) {
@@ -197,8 +209,24 @@ class RobotBridge {
     return this.request('/limits', 'GET');
   }
 
+  manualCommandBlocked(): boolean {
+    return this.state.manualUnknownEpoch !== null || this.state.stopUnconfirmed || this.state.pendingStops > 0;
+  }
+
   async getQueueStatus() {
-    return this.request('/queue/status', 'GET');
+    const before = this.state.manualUnknownEpoch;
+    const serial = this.state.stopSerial;
+    const result = await this.request('/queue/status', 'GET');
+    const status = parseQueueStatus(result);
+    // Same-epoch idle cannot disprove an old POST still in flight. A fresh
+    // different server/Stop epoch invalidates it; never adopt that epoch here.
+    if (before !== null && before === this.state.manualUnknownEpoch && serial === this.state.stopSerial
+        && !this.state.stopUnconfirmed && !this.state.pendingStops && status && !status.running && status.queued === 0
+        && status.controller_fault === null && result.command_epoch_required === true
+        && typeof result.command_epoch === 'string' && result.command_epoch && result.command_epoch !== before) {
+      this.state.manualUnknownEpoch = null;
+    }
+    return result;
   }
 
   async interactiveAction(action: string) {

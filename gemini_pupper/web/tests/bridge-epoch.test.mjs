@@ -157,3 +157,37 @@ test('late accepted POST is superseded by another same-server bridge Stop', asyn
   const result = await old;
   assert.equal(result.superseded, true); assert.equal(result.outcome_unknown, true); assert.equal(result.success, false);
 });
+
+const manualIdle = token => ({running:false,queued:0,following:false,state:'locomotion',controller_fault:null,last_outcome:null,...epoch(token)});
+test('unknown manual reply blocks same-server bridges until confirmed Stop; same epoch idle cannot clear it',async t=>{
+ const url=base+'/manual-unknown';let token='old:0',moves=0;
+ t.mock.method(globalThis,'fetch',async(target)=>{
+  if(target.endsWith('/health'))return reply(epoch(token));
+  if(target.endsWith('/queue/status'))return reply(manualIdle(token));
+  if(target.endsWith('/stop/immediate')){token='old:1';return accepted(token);}
+  moves++;return moves===1?reply({success:false,outcome_unknown:true,message:'timeout'}):reply({success:true,message:'queued'});
+ });
+ const a=new RobotBridge(url),b=new RobotBridge(url);
+ assert.equal((await a.queueMove({vx:.2,vy:0,wz:0,duration:.5})).outcome_unknown,true);assert.equal(b.manualCommandBlocked(),true);
+ await b.getQueueStatus();assert.equal((await b.queueMove({vx:.2,vy:0,wz:0,duration:.5})).not_dispatched,true);assert.equal(moves,1);
+ await b.immediateStop();assert.equal(a.manualCommandBlocked(),false);assert.equal((await a.queueMove({vx:.2,vy:0,wz:0,duration:.5})).success,true);assert.equal(moves,2);
+});
+test('fresh different epoch plus idle can release unknown manual intent, but malformed/busy status cannot',async t=>{
+ const url=base+'/manual-restart';let status=manualIdle('new:0');let moves=0;
+ t.mock.method(globalThis,'fetch',async target=>target.endsWith('/health')?reply(epoch('old:0')):target.endsWith('/queue/status')?reply(status):(++moves,reply({success:false,outcome_unknown:true})));
+ const a=new RobotBridge(url);await a.queueMove({vx:.2,vy:0,wz:0,duration:.5});status={...manualIdle('new:0'),running:true};await a.getQueueStatus();assert.equal(a.manualCommandBlocked(),true);
+ status={...manualIdle('new:0'),queued:'0'};await a.getQueueStatus();assert.equal(a.manualCommandBlocked(),true);
+ status=manualIdle('new:0');await a.getQueueStatus();assert.equal(a.manualCommandBlocked(),false);assert.equal(moves,1);
+});
+test('a late unknown manual reply after confirmed Stop cannot relatch the new epoch',async t=>{
+ const pending=deferred(),url=base+'/manual-late';
+ t.mock.method(globalThis,'fetch',async target=>target.endsWith('/health')?reply(epoch('i:0')):target.endsWith('/stop/immediate')?accepted('i:1'):pending.promise);
+ const a=new RobotBridge(url);const old=a.queueMove({vx:.2,vy:0,wz:0,duration:.5});await Promise.resolve();await Promise.resolve();await a.immediateStop();pending.resolve(reply({success:false,outcome_unknown:true}));await old;
+ assert.equal(a.manualCommandBlocked(),false);
+});
+test('malformed or not-dispatched Stop success cannot clear unknown manual outcome',async t=>{
+ const url=base+'/manual-bad-stop';let stopResult={success:true,outcome_unknown:{},...epoch('i:1')};
+ t.mock.method(globalThis,'fetch',async target=>target.endsWith('/health')?reply(epoch('i:0')):target.endsWith('/stop/immediate')?reply(stopResult):reply({success:false,outcome_unknown:true}));
+ const a=new RobotBridge(url);await a.queueMove({vx:.2,vy:0,wz:0,duration:.5});await a.immediateStop();assert.equal(a.manualCommandBlocked(),true);
+ stopResult={success:true,not_dispatched:true,...epoch('i:2')};await a.immediateStop();assert.equal(a.manualCommandBlocked(),true);
+});

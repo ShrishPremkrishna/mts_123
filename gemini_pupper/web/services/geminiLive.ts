@@ -751,11 +751,38 @@ export class GeminiLiveService {
   }
 
   private async handleMessage(message: LiveServerMessage) {
+    // Context compression does not remove the provider's connection deadline.
+    // Retire explicitly instead of ignoring GoAway until a policy-error close.
+    // No session replay/resumption: robot requests must not run a second time.
+    if (message.goAway) {
+      await this.retireExpiringSession();
+      return;
+    }
     const timing = this.beginTurnTiming(message);
     this.outputTurnTiming = timing;
     try { await this.handleTimedMessage(message, timing); }
     finally {
       if (timing) { timing.handlers--; this.maybeFinishTurnTiming(timing); }
+    }
+  }
+
+  private async retireExpiringSession() {
+    if (this.disposed) return;
+    const sentActions = this.dispatchedActionIds.size > 0 || this.pendingModelActions > 0;
+    this.log('info', 'Voice session is expiring. Reconnect for a new conversation; earlier requests will not be replayed.');
+    this.trace('session_go_away', { sent_actions: sentActions });
+    // disconnect() invalidates input/output/tools synchronously and closes even
+    // a late SDK session. Its promise never waits for the connection to resolve.
+    const closing = this.disconnect();
+    const stop = sentActions
+      ? this.requestAutomaticStop('Voice session expired after an action request') : null;
+    try {
+      await closing;
+      if (stop) await stop;
+    } finally {
+      // Keep the existing shared Stop gate until its response settles. This is
+      // explicit reconnect, never automatic motion rearming or command retry.
+      this.onDisconnect();
     }
   }
 

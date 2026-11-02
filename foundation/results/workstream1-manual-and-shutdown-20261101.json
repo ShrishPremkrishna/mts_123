@@ -1,0 +1,68 @@
+{
+  "schema": "workstream1_manual_and_shutdown_v1",
+  "created_utc": "2026-11-02T03:45:00.022751+00:00",
+  "problem": [
+    "Rapid manual arrow clicks could queue stale discrete movements.",
+    "API shutdown let ROS signal handling invalidate its publisher context before the final Stop."
+  ],
+  "changes": [
+    "Manual steps are admitted only under the existing serialized tool lock while the queue is idle; intentional voice sequencing remains available.",
+    "Browser manual controls wait for fresh idle and keep unknown submissions blocked until a confirmed Stop or new epoch.",
+    "The standalone API owns process signals and preserves ROS through final Stop and executor/node/context cleanup; standalone Robot defaults remain unchanged."
+  ],
+  "validation": {
+    "integrated_python_tests": 50,
+    "root_web_tests": 27,
+    "typescript": "passed",
+    "production_build": "passed; index-BDmud6Mb.js",
+    "real_pi_signal_checks": {
+      "schema": "pupper_inert_ros_signal_smoke_v1",
+      "probe_sha256": "ac327273477b18f4ffd9b637a651ca4482187c03bf5ba5d93e8dfff7ccf0c46b",
+      "runs": [
+        {
+          "passed": true,
+          "errors": [],
+          "returncode": 130,
+          "signal": "SIGINT",
+          "signal_sent": true,
+          "timed_out": false,
+          "events_sha256": "be1b0ae1f6c3ad1ee25bcb7a0f80fc686c598417c0545c4603c24a58d2bcd456",
+          "log_sha256": "355e450c7f31ca9a3bca0dca7604190fc15b0bcd9be7cd259c6a93b68ca38902"
+        },
+        {
+          "passed": true,
+          "errors": [],
+          "returncode": -15,
+          "signal": "SIGTERM",
+          "signal_sent": true,
+          "timed_out": false,
+          "events_sha256": "ce28e2351a5ebefcc5e42e9a21f124c30c5d93c972d49c6eb4dd8207e139b27c",
+          "log_sha256": "e030d7b8ce1636216f2b5288767d1b2583ab641ff2dca733e04cadd3a56d9a0f"
+        }
+      ],
+      "passed": true,
+      "hardware_access": false,
+      "limits": [
+        "Uses actual ROS/Uvicorn but does not import the Robot class or exercise controller switches.",
+        "Diagnostic zero publish returned while context valid; this is not a subscriber delivery receipt.",
+        "Does not establish physical stopping or shutdown under SIGKILL/power loss.",
+        "Signal re-raise after successful lifespan may produce signal-based process exit; event order is the acceptance criterion."
+      ]
+    },
+    "peer_archives": [
+      "artifacts/access/ws1-manual-and-shutdown-20261101/ws1-manual-command-review-20261101.tar.gz",
+      "artifacts/access/ws1-manual-and-shutdown-20261101/ws1-api-signal-lifecycle-20261101.tar.gz"
+    ]
+  },
+  "preserved_sources": "artifacts/access/ws1-manual-and-shutdown-20261101/integrated-sources.json",
+  "signal_archive": {
+    "path": "artifacts/access/ws1-manual-and-shutdown-20261101/real-ros-signal-smoke.tar.gz",
+    "sha256": "59fc55bc2936548dbfcf0849e406335b6e6e06cf0eb3a5b7e1a0e9d5da21b8be"
+  },
+  "limits": [
+    "Not deployed to the physical robot yet.",
+    "Inert ROS probe verifies actual signal/context ordering, not Robot controller switching, DDS delivery or physical stopping.",
+    "These defects do not explain or resolve spontaneous Sit/idle falls.",
+    "No native policy, gains, motion limits or motor commands changed."
+  ]
+}

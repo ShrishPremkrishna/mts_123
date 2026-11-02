@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { LogEntry, SystemStatus, CameraSource } from '../types';
 import RobotBridge from '../services/robotBridge';
 import { MANUAL_DEFAULTS, MANUAL_SPEEDS, MANUAL_TURNS, MANUAL_DURATIONS, manualMove, type ManualDirection } from '../services/manualControls';
-import { toolResponseStatus } from '../services/executionStatus';
+import { toolResponseStatus, parseQueueStatus } from '../services/executionStatus';
 
 type CatalogEntry = { id: string; label: string; description: string; trick?: string };
 
@@ -69,13 +69,19 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
   const [manualResult, setManualResult] = useState('No manual command sent');
   const [manualPending, setManualPending] = useState(false);
   const manualBusy = useRef(false);
+  const [manualQueueState, setManualQueueState] = useState<'checking' | 'idle' | 'busy' | 'unknown'>('checking');
+  const manualQueueReady = useRef(false);
+  const manualQueueGeneration = useRef(0);
   const pendingStops = useRef(0);
+  const stopPendingNow = useRef(isStopPending);
+  stopPendingNow.current = isStopPending;
   const catalogGeneration = useRef(0);
   const currentBridge = useRef(robotBridge);
   currentBridge.current = robotBridge;
   const manualRequest = useRef(0);
   const mounted = useRef(true);
   const manualDisabled = manualPending || stopPending || pendingStops.current > 0;
+  const manualArrowDisabled = manualDisabled || manualQueueState !== 'idle' || robotBridge.manualCommandBlocked();
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; manualRequest.current += 1; };
@@ -85,6 +91,9 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
     manualBusy.current = false;
     setManualPending(false);
     setManualResult('No manual command sent on this server');
+    manualQueueGeneration.current += 1;
+    manualQueueReady.current = false;
+    setManualQueueState('checking');
   }, [robotBridge]);
 
   // Only the current API catalog can authorize showing a skill. An empty
@@ -138,6 +147,40 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
     void poll();
     return () => { active = false; if (timer) clearTimeout(timer); };
   }, [robotBridge, onStatusUpdate, catalogRefresh, stopPending, isStopPending]);
+
+  // Queue admission for discrete arrows is independent of the slow catalog
+  // poll. One bounded request at a time; stale/pre-acceptance idle cannot rearm.
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      const generation = manualQueueGeneration.current;
+      const submitted = manualBusy.current;
+      let raw: any = null;
+      try { raw = await robotBridge.getQueueStatus(); } catch { /* unknown stays disabled */ }
+      if (!active || currentBridge.current !== robotBridge) return;
+      if (generation === manualQueueGeneration.current && !submitted && !manualBusy.current) {
+        const status = parseQueueStatus(raw);
+        const known = status && raw.command_epoch_required === true && typeof raw.command_epoch === 'string' && raw.command_epoch;
+        const blocked = robotBridge.manualCommandBlocked() || pendingStops.current > 0 || stopPendingNow.current();
+        const idle = !!known && !status.running && status.queued === 0 && status.controller_fault === null && !blocked;
+        manualQueueReady.current = idle;
+        setManualQueueState(idle ? 'idle' : known && !blocked && status.controller_fault === null ? 'busy' : 'unknown');
+      }
+      timer = setTimeout(poll, 500);
+    };
+    manualQueueReady.current = false;
+    setManualQueueState('checking');
+    void poll();
+    return () => { active = false; manualQueueReady.current = false; if (timer) clearTimeout(timer); };
+  }, [robotBridge]);
+  useEffect(() => {
+    if (stopPending) {
+      manualQueueGeneration.current += 1;
+      manualQueueReady.current = false;
+      setManualQueueState('checking');
+    }
+  }, [stopPending]);
 
   // Polling Effect for Server Image (2Hz)
   useEffect(() => {
@@ -263,6 +306,9 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
   const stopAndRefresh = async () => {
     // Stop is never gated by manualBusy. Hide any unlocked entries immediately.
     pendingStops.current += 1;
+    manualQueueGeneration.current += 1;
+    manualQueueReady.current = false;
+    setManualQueueState('checking');
     catalogGeneration.current += 1;
     setTricks([]);
     setActions([]);
@@ -270,6 +316,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
     try { await onStop(); } finally { pendingStops.current -= 1; refreshCatalog(); }
   };
   const handleManualMove = (direction: ManualDirection) => {
+    if (!mounted.current || currentBridge.current !== robotBridge || !manualQueueReady.current || robotBridge.manualCommandBlocked() || manualBusy.current
+        || pendingStops.current > 0 || isStopPending()) return;
+    manualQueueGeneration.current += 1;
+    manualQueueReady.current = false;
+    setManualQueueState('busy');
     void runManual(direction, () => robotBridge.queueMove(manualMove(direction, manualSettings)));
   };
   
@@ -448,12 +499,19 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
             <div className="shrink-0 text-[10px] text-cyan-200" aria-live="polite">Last manual request: {manualResult}</div>
             {stopPending && <div className="shrink-0 text-[10px] text-amber-300">Stop response pending; new manual motion is temporarily blocked.</div>}
 
+            <div role="status" className="shrink-0 text-[10px] text-amber-200">
+              {manualQueueState === 'idle' ? 'Manual arrows: one step when the queue is idle.'
+                : manualQueueState === 'busy' ? 'Manual arrows paused: an action is running or queued. Wait for idle or use Stop.'
+                : manualQueueState === 'checking' ? 'Checking queue before enabling manual arrows.'
+                : 'Manual arrows paused: queue or command outcome is unknown. Use Stop and confirm its response.'}
+            </div>
+
             {/* Arrow Keys Grid */}
             <div className="shrink-0 flex flex-col items-center gap-1 py-1">
                 {/* Up */}
                 <button 
                     onClick={() => handleManualMove('forward')}
-                    disabled={manualDisabled}
+                    disabled={manualArrowDisabled}
                     aria-label="Move forward"
                     className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                 >
@@ -464,7 +522,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                 <div className="flex gap-1">
                     <button 
                         onClick={() => handleManualMove('left')}
-                        disabled={manualDisabled}
+                        disabled={manualArrowDisabled}
                         aria-label="Turn left"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
@@ -472,7 +530,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                     </button>
                     <button 
                         onClick={() => handleManualMove('backward')}
-                        disabled={manualDisabled}
+                        disabled={manualArrowDisabled}
                         aria-label="Move backward"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >
@@ -480,7 +538,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                     </button>
                     <button 
                         onClick={() => handleManualMove('right')}
-                        disabled={manualDisabled}
+                        disabled={manualArrowDisabled}
                         aria-label="Turn right"
                         className="w-12 h-10 bg-blue-900 border border-blue-800 hover:bg-blue-800 rounded flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg"
                     >

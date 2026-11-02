@@ -202,7 +202,7 @@ Job = Callable[[], Awaitable[Result]]
 class Robot:
     """Owns a ROS node and runs queued jobs one at a time."""
 
-    def __init__(self, *, validate_session_manifest: bool = True) -> None:
+    def __init__(self, *, validate_session_manifest: bool = True, ros_signal_handlers: bool = True) -> None:
         self.tricks: dict[str, Trick] = load_tricks()
         self._session_scoped = "PUPPER_SESSION_SKILLS" in os.environ
         manifest = runtime_config.validate_session_catalog(self.tricks) if validate_session_manifest else None
@@ -219,7 +219,13 @@ class Robot:
             self._locomotion_speeds = Speeds(walk=min(SPEEDS.walk, forward, backward, sideways),
                 turn=min(SPEEDS.turn, yaw), limits=limits, where=" (selected persistent profile)")
         if not rclpy.ok():
-            rclpy.init()
+            if ros_signal_handlers:
+                rclpy.init()
+            else:
+                # ASGI owns SIGINT/SIGTERM. Keep ROS alive until the lifespan
+                # shutdown sends zero/cancels work, then closes this context.
+                from rclpy.signals import SignalHandlerOptions
+                rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
         self.node = Node("gemini_pupper_tools")
         self.switch_client = self.node.create_client(SwitchController, "/controller_manager/switch_controller")
         self.list_client = self.node.create_client(ListControllers, "/controller_manager/list_controllers")

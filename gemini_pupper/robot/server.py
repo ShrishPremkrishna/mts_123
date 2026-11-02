@@ -108,7 +108,7 @@ async def lifespan(app: FastAPI):
                 tools = None
         return
     follow_available = follower_config().mode != "disabled"
-    tools = Robot()
+    tools = Robot(ros_signal_handlers=False)
     tools.follow_available = follow_available
     task = asyncio.create_task(detections.run())
     try:
@@ -250,10 +250,19 @@ async def walking_deactivate():
 
 @app.post("/move/velocity")
 async def move_velocity(req: MoveVelocity):
-    # The browser uses right/clockwise-positive; ROS uses left/counter-clockwise-positive.
-    res = await gemini_tools.dispatch(T(), lambda: behaviors.walk(T(), req.forward_backward_velocity,
-                -req.right_left_velocity, -req.turning_velocity, req.duration), name="move/velocity")
-    return res.as_dict()
+    async def manual_step():
+        # Discrete manual arrows are fresh steps, never a FIFO backlog. This
+        # check and queue insertion share dispatch's action_lock with all tool
+        # admissions, so a manual request observes all work admitted before it; voice FIFO is unchanged.
+        robot = T()
+        if robot.current is not None or not robot.commands.empty():
+            from robot_api import Result
+            return Result(False, "Manual step not queued: the robot has running or queued work. Wait for idle or use Stop.",
+                          {"refusal": {"schema": "pupper_manual_refusal_v1", "code": "busy"}})
+        # Browser uses right/clockwise-positive; ROS uses left/counter-clockwise-positive.
+        return await behaviors.walk(robot, req.forward_backward_velocity,
+                                    -req.right_left_velocity, -req.turning_velocity, req.duration)
+    return (await gemini_tools.dispatch(T(), manual_step, name="move/velocity")).as_dict()
 
 
 @app.post("/move/direction")
