@@ -1,0 +1,231 @@
+{
+  "schema": "pupper_hardware_imu_failure_v1",
+  "created_utc": "2026-11-01T23:41:15.417033+00:00",
+  "assessment": "Physical skill acceptance halted. Operator reported unwanted turns/jitter and an actual Sit/paw tip; stationary sensor observations are inconsistent with a motionless supported robot. Sensor-only followups improve but do not identify a repeatable remedy or validate hardware motion.",
+  "scope": "Read-only preservation and offline analysis. No motor, ROS, calibration, training, deployment or production-source changes by this analysis task. Root separately ran the recorded sensor-only probes.",
+  "raw_preservation": {
+    "continuation": {
+      "directory": "artifacts/hardware/2026-11-01/continuation-powerloss/raw",
+      "remote_files": 14,
+      "bytes": 221307861,
+      "all_hashes_match": true,
+      "verification": "artifacts/hardware/2026-11-01/continuation-powerloss/continuation-powerloss-local-verification.json"
+    },
+    "battery2": {
+      "directory": "artifacts/hardware/2026-11-01/battery2-diagnostic/raw",
+      "remote_files": 19,
+      "bytes": 248405645,
+      "all_hashes_match": true,
+      "verification": "artifacts/hardware/2026-11-01/battery2-diagnostic/battery2-diagnostic-local-verification.json"
+    },
+    "probe1": {
+      "directory": "artifacts/hardware/2026-11-01/battery2-diagnostic/sensor-reset-probe",
+      "remote_files": 5,
+      "all_hashes_match": true
+    },
+    "probe2": {
+      "directory": "artifacts/hardware/2026-11-01/battery2-diagnostic/sensor-compare-probe",
+      "remote_files": 7,
+      "all_hashes_match": true
+    }
+  },
+  "input_identities": {
+    "runtime_manifest": {
+      "path": "artifacts/hardware/2026-11-01/battery2-diagnostic/raw/runtime-manifest-start.json",
+      "sha256": "4497f10f0bc3ce014ecac3bf53fe3f1041c60ca5d2cbad7572d936129ffadfbe"
+    },
+    "selected_skills": [
+      "pee",
+      "push_up",
+      "sit_stay_shake",
+      "stand_downward_dog",
+      "stand_sit_stand"
+    ],
+    "catalog": {
+      "pee": {
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/pee/policy.json": "f6b74dc086a7b20adf2eeb1cf25a336c44717a3aaea7e75bdd30e0eae5768e35",
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/pee/trick.yaml": "caca1c0439b9bcfda596bcbde80f43bfcd93e43aebefe71235d8b9ca43b2d48a"
+      },
+      "push_up": {
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/push_up/policy.json": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/push_up/trick.yaml": "debd20770f3aa53d5fd203fcc844f52b971ce7c63e7ddab6e3ce06504c24889b"
+      },
+      "sit_stay_shake": {
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/sit_stay_shake/policy.json": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/sit_stay_shake/trick.yaml": "9a4905053e78ce34f148aad99bb7142e6dc3317536c82265d26173d65ceb63fd"
+      },
+      "stand_downward_dog": {
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/stand_downward_dog/policy.json": "4bd415c9d7a09cad99246a76b42f05236291e6088837a86d6a07b12c70cba4a0",
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/stand_downward_dog/trick.yaml": "ce880056f69741d6918e4ba4afd37a1224443204280fdd9d4a879d78e21677ba"
+      },
+      "stand_sit_stand": {
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/stand_sit_stand/policy.json": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc",
+        "/home/pi/pupper-foundation-session-20261029/software-v4/gemini_pupper/tricks/stand_sit_stand/trick.yaml": "6edfc693c81355a0a63ba3ef4014c3d9d42afdf9122611d1b357a70349d14977"
+      }
+    },
+    "binaries": {
+      "control_board_hardware_interface": {
+        "bytes": 4780464,
+        "path": "/home/pi/pupper-foundation-session-20261029/driver-overlay-v2/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+        "sha256": "925954b1b0c773bedb483da77bcad5c08aa707b0baac9ca16db50772df14e4e2"
+      },
+      "joy_utils": {
+        "bytes": 17277832,
+        "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/joy_utils/lib/joy_utils/estop_controller",
+        "sha256": "0bf9b273603199ec6f6eb593eae7bb18e1b9b25707bbd4826018d76dfaa05633"
+      },
+      "neural_controller": {
+        "bytes": 50013768,
+        "path": "/home/pi/pupper-foundation-session-20261029/gateway-overlay-v4/install/neural_controller/lib/libneural_controller.so",
+        "sha256": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91"
+      }
+    },
+    "controllers_start_sha256": "439da3c857f58dab7de8954c9f6cf9add462e646e89615c99003c1660b763031",
+    "stationary_imu_sha256": "d7b41e090cdcd56282ec9103e7d3219ece942740327fd47b9e45d0038fbcbe07",
+    "main_bag_sha256": "e7d910b8fb73193df25e6733c91a61131a7e51e1ab959a2378d8a8a7cdc8eee2",
+    "followup_bag_sha256": "0008df81864cd738cf81eb5ef6c489ec787eb34663b94b64e04e552e2ccbb822"
+  },
+  "operator_observations": {
+    "provenance": "User observations relayed by root during the supervised session; sensor yaw alone is not independent confirmation.",
+    "surface": "carpet",
+    "controller_sticks": "operator reported released",
+    "finite_skills": "Operator reported about90deg counterclockwise turn and jitter on repeated downward-dog and stand-sit-stand.",
+    "sit_comparison": "Operator reported actual tip and self-stop during left-paw request; no lifting/button. Earlier isolated successful observations do not establish repeatability.",
+    "stationary_check": "Root asked operator to support robot motionless on stand for20s."
+  },
+  "commands_and_heading": {
+    "cmd_vel_samples_4734_to4896": 62,
+    "all_recorded_angular_z_zero": true,
+    "joystick_observation": "No button events during clip windows; stickaxes stable with small left-X offset. This does not prove absence of every possible prior/internal command.",
+    "inferred_phase_limits": "Activation/API logs define nominal controller/initialization/fade windows. IMU orientation may be wrong, so heading deltas are sensor estimates.",
+    "largest_net_heading_changes": "Repeated return intervals DD\u221223.95deg, pee\u221245.76deg, stand-sit-stand\u221251.82deg; transient changes also occur during clips.",
+    "tracking": "No single consistent failing joint. Return aggregate target-minus-positionRMS about.094/.099/.110rad. Target publication begins after initialization, so init tracking is only sparse late samples.",
+    "data": "analysis/ws1-battery2-yaw-quick.json; analysis/ws1-battery2-tracking-quick.json; analysis/ws1-battery2-target-asymmetry.json"
+  },
+  "tip_timing": {
+    "sit_activated": 1793575316.5377162,
+    "left_paw_accepted": 1793575332.36,
+    "first_recorded_tilt_above60_logtime": 1793575333.7017503,
+    "last_position_target": 1793575333.7005577,
+    "native_emergency_logtime": 1793575333.719489,
+    "root_abort_stop": 1793575333.954,
+    "interpretation": "Native cutoff reacts to its sensed tilt threshold. API poll timing is not physical stop latency. Physical tip is independently operator-reported; attitude magnitude is not trustworthy after failed stationary test.",
+    "data": "analysis/ws1-followup-tip-review.json"
+  },
+  "stationary_native": {
+    "duration_s": 20.0014193,
+    "samples": 4679,
+    "yaw_delta_deg": -109.8393037,
+    "gyro_mean_rad_s": [
+      0.0933508,
+      -0.0003907,
+      -0.0934668
+    ],
+    "gyroX_vs_negativeZ_correlation": 0.9996718,
+    "distinct_sample_rate_hz": 99.893,
+    "consecutive_duplicate_fraction": 0.57289,
+    "interpretation": "Smooth sustained sensor-frame-X bias maps to bodyX/Z through documented mount transform. No gross axis/order swap or quaternion-wrap jump explains this pattern. Duplicated100Hz sensor states in faster publishing are not alone proof of stale failure.",
+    "data": "analysis/ws1-stationary-imu-independent.json; analysis/ws1-stationary-imu-cadence.json"
+  },
+  "sensor_only_comparisons": {
+    "probe1": {
+      "first_report_subset_gyro_mean_sensorX_rad_s": -0.012515514557388085,
+      "mapped_yaw_delta_deg": -14.895515533458498,
+      "full_valid_packet_reports": {
+        "gyro": 2994,
+        "rotation": 2993
+      },
+      "accuracy": "All valid gyro3, all rotation0. Bias persists/fluctuates across5s bins.",
+      "data": "analysis/bno-source-and-packets/probe1-packet-peer.json; analysis/ws1-reset-probe-bias-review.json"
+    },
+    "probe2": {
+      "full_valid_packet_reports": {
+        "gyro": 2994,
+        "rotation": 2866,
+        "game": 2773
+      },
+      "gyro_sensorX_mean_rad_s": 0.00025963385103540415,
+      "matched2to30s_yaw_delta_deg": {
+        "rotation": 0.15215151274131244,
+        "game": 0.15023399519329014
+      },
+      "accuracy": "Rotation0; Game3; gyro3. Calibration readback flags1,0,1,0,1; no calibrationtoggle in probe.",
+      "startup": "Game initial tilt11.69deg settles near2.7deg; use settled windows.",
+      "interpretation": "Both streams have much smaller drift on second probe. Reset/time/temperature/config timing differ; no causal attribution to Game, reset or calibration and no accepted motion remedy.",
+      "data": "analysis/ws1-probe2-full-comparison.json; analysis/bno-source-and-packets/probe2-packet-peer.json"
+    }
+  },
+  "confirmed_source_and_transport_limits": {
+    "timestamp": "Existing driver uses unsigned rawBaseTimestamp as microseconds and omits per-reportdelay; vendor uses signed100us ticks plus reportdelay referenced to HINT. Current logged ages are not verified physical sensor ages.",
+    "parser": "Payloadread failures can retain cacheddata; repeatedallzeroheaderreads observed despite successful syscalllengths; additionalreports and oversizedpayload handling incomplete. These defects are concrete but their causal contribution to smooth bias is not established.",
+    "acceleration": "Accelerometer reports disabled and Output.acc notassigned; recordedzeros are not valid acceleration/vibration measurements.",
+    "audit": "analysis/bno-source-and-packets/source-audit.json"
+  },
+  "historical_interpretation_correction": {
+    "affected_report": "foundation/results/generated-motion-timing-slew-20261101.json",
+    "correction": "Treat IMU-delay schedules as controlled perturbations derived from logged driver-age values, not accurate sensor-age replay. Exact historical artifacts remain unchanged. No slew candidate promoted; no new training justified from these faulty sensor observations."
+  },
+  "continuation_recovery": {
+    "source_sha256": "e48417327a7e9bee7715cea0ec52ba74603a7ac31e61a8c40ae3dbd37d0ba77d",
+    "derived_sha256": "b65eb7aaddff802ba7ab20b839e872bd70db2246a9925869e862336fc926e17e",
+    "complete_chunks": 245,
+    "source_chunks_with_nonzero_crc": 0,
+    "messages": 464051,
+    "omitted_tail_bytes": 181,
+    "tail": "Partial final MessageIndex record; no complete message discarded at this boundary. Original recorder buffers beforepowerloss unknown.",
+    "guarantees": "Rawunchanged; completedrecords structurallyvalidated; rewrittenmessage payload/topic/time/sequence digestmatches readback. SourceCRCdisabled, cannot retrospectively prove sourcechunkintegrity.",
+    "data": "artifacts/hardware/2026-11-01/continuation-powerloss/derived/ws1-continuation-recovery.json"
+  },
+  "shutdown": {
+    "started_epoch_s": 1793575621.2827847,
+    "reason": "Actual tip and failed stationary IMU check; operator has placed robot supported on stand. Disable motors, no rehoming.",
+    "api": {
+      "sigint_epoch_s": 1793575621.2839048,
+      "pid": 3627,
+      "state": "exited"
+    },
+    "manager": {
+      "sigint_epoch_s": 1793575622.1794462,
+      "pid": 3100,
+      "state": "exited"
+    },
+    "launch": {
+      "sigint_epoch_s": 1793575622.673863,
+      "pid": 3040,
+      "state": "exited"
+    },
+    "recorder": {
+      "sigint_epoch_s": 1793575623.4469843,
+      "pid": 7170,
+      "state": "exited"
+    },
+    "camera_children": [
+      {
+        "pid": 3651,
+        "created": 1793574669.55,
+        "signal": "SIGINT"
+      }
+    ],
+    "camera": "exited after camera child SIGINT",
+    "finished_epoch_s": 1793575624.0773673,
+    "followup_metadata_exists": true
+  },
+  "rejected_inferences": [
+    "IMU yaw doesnot establish actualturn angle afterstationaryfailure.",
+    "Neither sourcebugs nor temperature nor carpet is established as solecause.",
+    "Lowdrift secondprobe doesnot validate dynamicorientation or normalnativecontrol.",
+    "A softwarecompleteclip or earlier isolated successfulmotion doesnot establish repeatablephysicalskill.",
+    "No policy/gain/limit change is justified by these data alone."
+  ],
+  "next_measurement_requirements": [
+    "Validate pure transport/parser correction against exact captured fixtures before any deployment.",
+    "Establish repeatable stationary attitude/gyro behavior with reportstatus and explicitstartup settling, then compare coherent native output.",
+    "Require external supervised orientation/motion observations before reaccepting any locomotion/Sit/finite/generated skill."
+  ],
+  "analysis_environment": {
+    "python": "3.12.14 (main, Aug 25 2026, 13:50:33) [Clang 22.1.3 ]",
+    "numpy": "2.4.6",
+    "mcap": "1.6.0"
+  },
+  "archive_status": "Packaging receipt stored beside durable archives; this report freezes currentprobe1/probe2 evidence, not subsequent sensor experiments."
+}

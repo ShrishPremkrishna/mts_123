@@ -1,0 +1,218 @@
+{
+  "schema": "pupper_imu_probe3_addendum_v1",
+  "created_utc": "2026-11-01T23:44:00.433592+00:00",
+  "parent_report": "foundation/results/workstream1-hardware-imu-failure-20261101.json",
+  "parent_report_sha256": "62104f9b9753e7128dd86171ab158feeacfbb0c97d07e809bdd0affaaee0e9af",
+  "scope": "Completed sensor-only probe using original probe1 binary; root ran hardware sampling, this task only copied and analyzed immutable files. No calibration toggles, motor operations or production deployment.",
+  "source_directory": "artifacts/hardware/2026-11-01/battery2-probe3-addendum",
+  "raw_files_match_remote": true,
+  "executable_matches_receipt": true,
+  "execution_receipt": {
+    "start_epoch_s": 1793576384.0680058,
+    "end_epoch_s": 1793576414.5387118,
+    "returncode": 0,
+    "binary_sha256": "a02f9b3115ea1410204e802344dab186f12489ffceb522651c82588c01c0f72f",
+    "outputs": {
+      "stationary-reset-3-reads.jsonl": {
+        "bytes": 3424043,
+        "sha256": "959e4c42153c6dc607ace3d26ab122db355e534f9979a4fa34cbd5400b27cd43"
+      },
+      "stationary-reset-3-packets.jsonl": {
+        "bytes": 2511296,
+        "sha256": "9b572f94bd25c1bd6ac92677077c313c783102bca5469fad82699050e40a2d65"
+      },
+      "stationary-reset-3.stderr.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stationary-reset-3.stdout.log": {
+        "bytes": 199,
+        "sha256": "ffc3841b47b4977f8211342b42c0d1b6aabb21218f8bbe35ca04aa8517d112cb"
+      }
+    }
+  },
+  "analysis": {
+    "first_report_subset": {
+      "source_sha256": "9b572f94bd25c1bd6ac92677077c313c783102bca5469fad82699050e40a2d65",
+      "scope": "First complete report decoded by frozen probe, probe3 using original probe1 binary; batched additional reports are independent native agent review, not counted here.",
+      "gyro_reports": 2989,
+      "rotation_reports": 2988,
+      "gyro_accuracy_counts": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 2989
+      },
+      "rotation_accuracy_counts": {
+        "0": 2988,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "sensor_gyro_overall_mean": [
+        0.00042800163098026094,
+        -7.449188691870191e-05,
+        -0.000273790356306457
+      ],
+      "sensor_gyro_last10s_mean": [
+        0.0005,
+        -0.000115234375,
+        -0.0003125
+      ],
+      "sensor_gyro_last10s_std": [
+        0.0014880505480640634,
+        0.001426609081163799,
+        0.000957628958760252
+      ],
+      "mapped_body_yaw_delta_deg": 0.16591217661343613,
+      "mapped_tilt_range_deg": [
+        2.7193011152198956,
+        2.7774842920483165
+      ],
+      "gyro_sensorX_quantization_residual_max": 0.0,
+      "bins": [
+        {
+          "interval_s": [
+            0,
+            5
+          ],
+          "gyro_samples": 491,
+          "sensor_gyro_mean_rad_s": [
+            0.0004216522403258656,
+            2.3867107942973523e-05,
+            -0.0002585603360488798
+          ],
+          "sensor_gyro_std_rad_s": [
+            0.0015039119058043798,
+            0.0014427705685503588,
+            0.0009671497425147651
+          ],
+          "mapped_yaw_change_deg": 0.011450335180472792
+        },
+        {
+          "interval_s": [
+            5,
+            10
+          ],
+          "gyro_samples": 499,
+          "sensor_gyro_mean_rad_s": [
+            0.0004031500501002004,
+            -0.0001996179859719439,
+            -0.000156563126252505
+          ],
+          "sensor_gyro_std_rad_s": [
+            0.0014985144194515948,
+            0.0013983615974875953,
+            0.000920316223908673
+          ],
+          "mapped_yaw_change_deg": -0.00048043988231742093
+        },
+        {
+          "interval_s": [
+            10,
+            15
+          ],
+          "gyro_samples": 500,
+          "sensor_gyro_mean_rad_s": [
+            0.0005234375,
+            -1.5625e-05,
+            -0.00027734375
+          ],
+          "sensor_gyro_std_rad_s": [
+            0.0014825441011041577,
+            0.0014029040054249972,
+            0.0008598986330839728
+          ],
+          "mapped_yaw_change_deg": 0.05729604239529671
+        },
+        {
+          "interval_s": [
+            15,
+            20
+          ],
+          "gyro_samples": 499,
+          "sensor_gyro_mean_rad_s": [
+            0.00021918837675350702,
+            -2.348446893787575e-05,
+            -0.0003248684869739479
+          ],
+          "sensor_gyro_std_rad_s": [
+            0.0016582854888552102,
+            0.0015292879888455977,
+            0.0009136501440672846
+          ],
+          "mapped_yaw_change_deg": -0.011053379194395732
+        },
+        {
+          "interval_s": [
+            20,
+            25
+          ],
+          "gyro_samples": 500,
+          "sensor_gyro_mean_rad_s": [
+            0.00055078125,
+            -0.00017578125,
+            -0.00035546875
+          ],
+          "sensor_gyro_std_rad_s": [
+            0.00151096153516302,
+            0.0014271183798540323,
+            0.0009899010934455459
+          ],
+          "mapped_yaw_change_deg": 0.07013288798464254
+        },
+        {
+          "interval_s": [
+            25,
+            30
+          ],
+          "gyro_samples": 499,
+          "sensor_gyro_mean_rad_s": [
+            0.0004501189879759519,
+            -5.0883016032064125e-05,
+            -0.0002661573146292585
+          ],
+          "sensor_gyro_std_rad_s": [
+            0.001464346562010262,
+            0.0014224106832863826,
+            0.0009200664931161798
+          ],
+          "mapped_yaw_change_deg": 0.037022932576217304
+        }
+      ],
+      "limitation": "Reset changed sensor state and probe bypasses hostmanager; reduced drift is an observation, not proof reset/calibration alone solves the failure. Accuracy status3 did not guarantee negligible stationary bias, and rotation status stayed0. No motor access."
+    },
+    "valid_payload_coverage": {
+      "report_counts": {
+        "2": 2996,
+        "5": 2995
+      },
+      "accuracy": {
+        "2": {
+          "3": 2996
+        },
+        "5": {
+          "0": 2995
+        }
+      },
+      "report_sequence_deltas": {
+        "2": {
+          "1": 2995
+        },
+        "5": {
+          "1": 2994
+        }
+      },
+      "invalid_repeated_header_reads_excluded": 12,
+      "parse_errors": 0,
+      "scope": "Conservative known-report decoder excludes invalid all-zero repeated headers. It is not full SHTP continuation reassembly."
+    }
+  },
+  "conclusion": [
+    "Original probe1 binary now produces low stationary drift: mapped rotation-vector yaw +0.166 degrees over about30s, versus \u221214.896 degrees in probe1. Sensor gyro-X mean is +0.000428 rad/s, versus \u22120.012516 in probe1.",
+    "Both full valid-payload report sequences are consecutive; all gyro accuracy3 and all rotation-vector accuracy0. Accuracy status alone does not diagnose the observed bias.",
+    "The later low-drift state therefore does not require Game Rotation Vector. Separate reset/time/temperature and inherited calibration state remain confounded; cause of improvement is unresolved.",
+    "Stationary-only success is insufficient for native motion readiness. Do not promote policies or resume skills from this result alone."
+  ],
+  "archive": "A separate addendum preserves this later evidence without rewriting the already verified probe1/probe2 archive."
+}

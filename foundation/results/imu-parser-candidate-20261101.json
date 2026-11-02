@@ -1,0 +1,148 @@
+{
+  "schema": "pupper_imu_parser_candidate_v1",
+  "created_utc": "2026-11-02T00:06:11.968227+00:00",
+  "scope": "Frozen pre-activation R3 build, fake-device checks and stationary sensor-only evidence. Subsequent supervised motor testing is a separate run and is not covered by this report.",
+  "status": "Candidate passed the preserved software checks and completed a bounded stationary sensor-only probe. This evidence does not establish motor readiness or a lasting cure for IMU bias.",
+  "subsequent_run_pointer": "supervised-console-runs/20261101-ws1-imu-candidate (root-owned; not included in this archive)",
+  "incident_context": "After uncommanded heading change and a Sit/paw tip, a motionless supported robot produced about -109.84 degrees of measured yaw drift in 20 seconds. Source and packet analysis found transport and stale-cache defects; reset/time/calibration effects remain confounded.",
+  "parent_reports": [
+    "foundation/results/workstream1-hardware-imu-failure-20261101.json",
+    "foundation/results/workstream1-imu-probe3-20261101.json"
+  ],
+  "preservation": {
+    "directory": "artifacts/hardware/2026-11-01/imu-parser-candidate",
+    "archive": "artifacts/hardware/2026-11-01/imu-parser-candidate/imu-parser-candidate-20261101.tar.gz",
+    "archive_sha256": "0a2da337e57c247720aef6b9f53abe414c325b8cd03e8f56482fc21f3d5ae107",
+    "archive_bytes": 9338759,
+    "index": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/evidence-index.json",
+    "index_sha256": "2adda1c7f170c8c557af7374c452018ba6e0329b5ce72fdfab05fb0bde1d2c1d",
+    "verified_archive_paths": 245,
+    "archive_verification_failures": [],
+    "remote_build_directory": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build",
+    "remote_paths_verified": 159,
+    "verification": "Every copied regular file SHA256 and size, and every symlink target, matched the remote inventory. Every indexed archive member was independently read back and checked.",
+    "retained_history": "Initial/R1, R2 and R3 source snapshots, build logs, exit records and fake test logs are preserved. The initial root-source archive is the first candidate, not the original deployed driver. Original incident/probe artifacts remain separate and unchanged."
+  },
+  "identities": {
+    "r3_source_archive_sha256": "a703e4be44d3dfbb4ef1ecd9d0da7758b0a1a5acf1afc958dd303fb9c0443ed6",
+    "r3_package_source_files_verified": 29,
+    "candidate_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "environment_pins_sha256": "a67e80fb1084b0b6a73470d3eb4f932666619644ff4383982b0782d53cc67821",
+    "environment_verification": "PASS for file hashes and ament resolution only; no hardware initialization or loaded-library proof.",
+    "unchanged_app_revision": "98101dec92ec6e43778324cc3af44dfadd1a3cf9",
+    "unchanged_control_scope": "Existing policy, gains, limits, report selection and calibration settings retained. No Game Rotation Vector substitution or numerical bias offset."
+  },
+  "implemented_fixes": [
+    "Bounded complete-packet reassembly validates lengths, channel, sequence and continuation; zero repeated headers wait for payload instead of consuming padding. Failed, incomplete and unsupported report batches do not update sensor state.",
+    "All complete known reports are parsed atomically. Duplicate or backward sensor sequences do not refresh component receipt clocks; valid sequence wrap is supported.",
+    "Quaternion and gyro have separate validity, accuracy and monotonic host-receipt fields. Unavailable acceleration is initialized deterministically and explicitly marked unavailable.",
+    "Exhausted invalid manager sampling revokes both cached usability flags under the existing mutex while retaining diagnostic values/timestamps; later valid sampling restores the cache.",
+    "Driver initialization and reads reject stale/invalid components. Motor activation requires a continuous sampled stationary window before enable; homing and enable transactions recheck freshness before SPI commands."
+  ],
+  "checks": {
+    "local_offline": {
+      "passed": 41,
+      "pure_protocol": 23,
+      "actual_bno_with_fake_syscalls": 12,
+      "actual_manager_with_fake_bno": 6,
+      "instrumentation": "Mac AddressSanitizer/UndefinedBehaviorSanitizer; Linux/ROS/tf2 compilation stubs where needed; no device access."
+    },
+    "native_final_r3": {
+      "passed": 54,
+      "failed": 0,
+      "elapsed_s": 28.26,
+      "log": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/native/ctest-r3.log",
+      "all_preserved_build_and_ctest_exit_records": 0,
+      "scope": "Isolated Linux build and selected fake-device tests. No production overlay replacement or motor action in these checks."
+    },
+    "counting_limit": "The 41 local checks overlap the 54 native checks; they are not 95 independent tests.",
+    "source_peer_review": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/peer-review",
+    "regression_before_after": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/offline-tests/manager-invalidation-before.log and manager-invalidation-after.log"
+  },
+  "readiness_screen": {
+    "gyro_norm_max_rad_s": 0.005,
+    "quaternion_change_from_window_anchor_max_deg": 1.0,
+    "continuous_window_s": 3.0,
+    "component_host_receipt_max_age_s": 0.1,
+    "startup_timeout_s": 15.0,
+    "scope": "A sampled pre-enable screen, not calibration or future-bias certification. A >100 ms observation gap resets the window. Accuracy status alone does not establish health."
+  },
+  "stationary_sensor_only": {
+    "run": "candidate-stationary-1",
+    "duration_s": 30.005725381000047,
+    "polls": 8233,
+    "initial_unusable_polls": 43,
+    "first_usable_s": 0.10101802500003032,
+    "unusable_polls_after_first_usable": 0,
+    "unique_quaternion_host_receipts": 2979,
+    "unique_gyro_host_receipts": 2982,
+    "mapped_body_yaw_delta_deg": -0.12392407162581119,
+    "sensor_gyro_mean_rad_s": [
+      -0.000434246101609658,
+      -7.204686452045607e-05,
+      -0.00029342723004694836
+    ],
+    "quaternion_accuracy_counts": {
+      "0": 2979
+    },
+    "gyro_accuracy_counts": {
+      "2": 2982
+    },
+    "first_startup_screen_pass_s": 4.704861752999932,
+    "screen_transitions": [
+      {
+        "elapsed_s": 4.704853234999973,
+        "ready": true
+      },
+      {
+        "elapsed_s": 13.693677429000218,
+        "ready": false
+      },
+      {
+        "elapsed_s": 16.709884954000245,
+        "ready": true
+      },
+      {
+        "elapsed_s": 21.90372975199989,
+        "ready": false
+      },
+      {
+        "elapsed_s": 24.930872055000236,
+        "ready": true
+      }
+    ],
+    "interpretation": "The screen passed once, then reset twice on small gyro-norm spikes and recovered after fresh quiet windows. This is not a continuous 30-second screen pass. The diagnostic kept evaluating the startup screen; production uses it before enable.",
+    "independent_review": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/candidate-stationary-probe/independent-review/ws1-candidate-imu-full-review.json",
+    "independent_review_sha256": "4ee817ac1bdc06891355c8e4ab9a12d247438431e910339419274194ae492f0b"
+  },
+  "transport_replay": {
+    "rows_consumed": 20265,
+    "successful_packets": 5975,
+    "empty_headers": 8232,
+    "invalid_packets": 1,
+    "deadline_timeouts": 1,
+    "invalid_report_batches": 0,
+    "zero_repeated_header_retries": 26,
+    "report_counts": {
+      "2": 2996,
+      "5": 2996
+    },
+    "scope": "All recorded read requests/bytes replayed through the exact candidate C++ helper under sanitizers. All 20,265 rows consumed; 26 zero repeated headers handled without adopting padding.",
+    "initial_rejections": "The one timeout and one orphan rejection were constructor advertisement reads 0 through 11; no subsequent transport or report rejection.",
+    "evidence": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/candidate-transport-review/provenance.json"
+  },
+  "limits": [
+    "No motor trial or physical policy acceptance is included here. Subsequent supervised evidence must identify the actually loaded library and be reported separately.",
+    "A recent host receipt can contain a delayed sensor report. These clocks establish host availability, not physical measurement age; the legacy measurement_timestamp remains explicitly unverified rather than silently reinterpreted.",
+    "The 25 ms parser retry budget cannot bound a blocked kernel read. All raw reads and observed durations are retained.",
+    "The selected Rotation Vector still reports accuracy 0. No external attitude ground truth was available, and good startup readings do not rule out future bias.",
+    "Later original-driver reset probes also showed low drift. This comparison does not isolate parser changes as the cause of bias recovery; resets, elapsed time, temperature and inherited calibration remain confounded.",
+    "No explicit calibration save, erase, tare or calibration enable/disable command was issued. Vendor documentation notes a soft reset may itself persist RAM calibration data; no no-flash-side-effect guarantee is made.",
+    "The readiness window observes sampled latest component states and may not examine every intermediate report in a batch. Its quaternion bound is departure from the anchor, not every pairwise orientation difference."
+  ],
+  "next_acceptance": [
+    "Use the separate root-owned supervised run for exact loaded-library, homing, floor baseline and skill observations; retain failures as well as passes.",
+    "Repeat quiet stationary checks after warmup and motion. Stop if bias, freshness failures or unintended motion recurs; do not mask them with policy gains or offsets.",
+    "Resolve physical sensor timing/calibration interpretation before presenting logged age or accuracy as ground truth. Resume broader policy acceptance only from a repeatable baseline."
+  ]
+}
