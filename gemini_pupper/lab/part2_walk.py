@@ -187,7 +187,9 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
 # ========== TODO 3: YOUR CODE HERE ==========
 @tool(
     "turn",
-    "Turn in place left or right by a positive angle in degrees (default 90). Uses the current stance's turning speed."
+    "Turn in place left or right by a positive angle in degrees (default 90; 15 degrees is valid). "
+    "Duration is angle divided by the current stance's angular rate in deg/s; a minimum rate is not a minimum angle. "
+    "This timed command does not guarantee measured physical angle or precision."
     + PREPARES_MOVE,
     direction=Param("string", "Left or right relative to Pupper.", enum=["left", "right"]),
     angle=Param("number", "Positive degrees to turn, default 90; the duration limit still applies.", required=False),

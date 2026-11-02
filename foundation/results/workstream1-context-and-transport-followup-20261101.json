@@ -1,0 +1,71 @@
+{
+  "schema": "pupper_workstream1_context_transport_followup_v1",
+  "recorded_utc": "2026-11-02T01:36:43.518069+00:00",
+  "scope": "Offline CLI/HTTP admission cleanup and browser index deployment correctness; Optional3 counter scope and turn-unit language. ActualGoogle probes use fake backend only. No motors, robotAPI, microphone or browser audio by this agent.",
+  "changes": [
+    {
+      "area": "CLI failed-action cleanup",
+      "result": "Malformed results fence later modelactions. Stop relinquishes cleanup ownership only after clean current accepted reply, not unknown/superseded/not-dispatched response.",
+      "checks_passed": 144,
+      "peer": "cli/peer-review.json"
+    },
+    {
+      "area": "Index deployment cache",
+      "result": "Only root indexHTML200/304 receives no-store,no-cache,must-revalidate; hashedassets/API unchanged. Existing oldcached page still needs reload/cachebust once.",
+      "before_failures": 2,
+      "affected_checks_with_context": 77,
+      "peer": "context/peer-review.json"
+    },
+    {
+      "area": "Optional3 Sit count",
+      "result": "Prompt consumes typed confirmed Sit-entry software counter scoped by server_instance, preserving same-server reconnect; not physical/day/conversation history.",
+      "actual_probe": "17primaryturns+2same-backendreconnectturns completed in one fixedHIGH pass; counter/password and requestedhandshake facts pass.",
+      "raw_model_limit": "Still-sitting/did-not-move flourishes persist in raw toolturn prose; production closed/current receipt admission remains required.",
+      "peer": "context/counter-password-peer.json"
+    },
+    {
+      "area": "Turn angle versus angular rate",
+      "result": "Prompt/turn-description distinguish positiveangle degrees from deg/s minimumrate.15degree timedcommand is valid; physicalprecision notpromised. Motion code/limits unchanged.",
+      "focused_checks_passed": 95,
+      "course_todo3_checks_passed": 18,
+      "actual_probe": "Exact.15m/s move refused as expected; follow-up received correct units distinction with no tools, but timedout75s without turnComplete. Not a completed livevoicepass; no retry.",
+      "peer": "angle/peer-review.json"
+    }
+  ],
+  "chronology": {
+    "context_probe_prompt_sha256": "6d205bd80b90cd52ce33c34a63aba9d0cf62565c96b236a755e99c9262ca6040",
+    "later_units_prompt_sha256": "88f5aa95861ee30efe8d776af5da0b6545676a4ba5615d413e3dc4a940b1b0ad",
+    "note": "Earlier19turn context results are pinned to earlierprompt; laterunitsprobe is separate. No result relabeled as testing a later source."
+  },
+  "detailed_reviews": {
+    "context": "context/review.json",
+    "angle": "angle/review.json"
+  },
+  "current_source_hashes": {
+    "gemini_pupper/robot/gemini_chat.py": "5f7f9c3cc9181fe7ad5b2772a85b025fbc6a82667ed3d67c90af501db9ecec2a",
+    "gemini_pupper/robot/operator_feedback.py": "597a66b4bb2f2f20e748ebabaacfd2355e7efb46ceb781762187ae1ca9d7175d",
+    "gemini_pupper/tests/test_gemini_chat_dispatch.py": "09a64caf65807ce99ebd189776b3a5dee52513a47a6cb2f4fdc10bb207b973dd",
+    "gemini_pupper/robot/server.py": "954201c5b7b0d7ab70f29076cf7df0cc486290e5b12d1c5079f53f0b679d4306",
+    "gemini_pupper/lab/prompt.md": "88f5aa95861ee30efe8d776af5da0b6545676a4ba5615d413e3dc4a940b1b0ad",
+    "gemini_pupper/tests/test_server_transport.py": "2eb22d44aec6a7d2ef97f266e211fefeb59388f38ea702dae1f88e03028af12e",
+    "gemini_pupper/tests/test_session_context.py": "2ecc3e2dc69d76a772d2d835e2eb45be4811cc1c65dea4d6c90659cc4fa08ec8",
+    "gemini_pupper/lab/part2_walk.py": "a8919d4931964333e78c6fa75d968229075c4fd36ec65ba4471eeed65cfd83a3",
+    "gemini_pupper/tests/test_turn_angle_units.py": "271a66365feadaeba144202c40ccf99e1e6d7a87b5bbb308157dbb79338a24c7"
+  },
+  "artifact_root": "artifacts/access/ws1-context-and-transport-20261101",
+  "archive": {
+    "path": "artifacts/access/ws1-context-and-transport-20261101/workstream1-context-and-transport-20261101.tar.gz",
+    "sha256": "084e42f9e8fa219098f162f5dd02dca3fcf54ac2d6a95771740d3cde0f157711",
+    "bytes": 8957943,
+    "verified_entries": 131,
+    "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-context-and-transport-20261101.tar.gz",
+    "durable_hash_matches": true
+  },
+  "remaining": [
+    "Root integrates/restartsAPI at appropriate inactive boundary and reloads/reconnects to receive updated index/prompt/toolmetadata. This agent performed no deployment.",
+    "Currentbrowserreceipt/audio tests remain separate from rawmodeltextprobes.",
+    "Whole-turn response latency and incompleteGoogle followup remain limitations; no extra retries ormodelmigration performed."
+  ],
+  "active_probe_jobs": [],
+  "hardware_validated_by_this_report": false
+}

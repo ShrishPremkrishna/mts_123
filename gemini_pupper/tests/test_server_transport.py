@@ -469,3 +469,32 @@ def test_http_limits_reports_current_runtime_envelope(server, monkeypatch, scope
                 assert limits["vx_backward_max"] is None
             assert not rig.robot.switches and not harness.walk_twists(rig)
     asyncio.run(case())
+
+
+@pytest.mark.parametrize("fake_mode", [False, True])
+def test_index_responses_revalidate_without_disabling_hashed_asset_cache(server, tmp_path, fake_mode):
+    """The actual root mount must not preserve an old entrypoint across deployment."""
+    (tmp_path / "index.html").write_text('<script src="/assets/current-123.js"></script>')
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets/current-123.js").write_text("current_bundle")
+    mount = next(route for route in server.app.routes if getattr(route, "name", None) == "web")
+    mount.app.directory = str(tmp_path)
+    mount.app.all_directories = [str(tmp_path)]
+    server.FAKE_MODE = fake_mode
+
+    async def case():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
+                                     base_url="http://in-process.invalid") as client:
+            for path in ("/", "/index.html"):
+                response = await client.get(path)
+                assert response.status_code == 200
+                assert "current-123.js" in response.text
+                assert response.headers["cache-control"] == "no-store, no-cache, must-revalidate"
+                unchanged = await client.get(path, headers={"If-None-Match": response.headers["etag"]})
+                assert unchanged.status_code == 304
+                assert unchanged.headers["cache-control"] == "no-store, no-cache, must-revalidate"
+            asset = await client.get("/assets/current-123.js")
+            assert asset.status_code == 200 and asset.text == "current_bundle"
+            assert "cache-control" not in asset.headers
+            assert "cache-control" not in (await client.get("/health")).headers
+    asyncio.run(case())

@@ -97,7 +97,7 @@ remains independent. The explicit **receipt-only** diagnostic mode still mutes
 all model narration. Previously saved explicit receipt-only settings remain
 selected until changed while disconnected.
 
-Fixed server receipts are visible immediately after matching replies. Current native acknowledgments use the selected Gemini voice, without an operating-system voice interrupting it. The supervised user confirmed consistent voice during movement and skill requests. A separately reviewed, human-approved cache of four fixed Puck clips is an upcoming latency candidate; it is not yet deployed. It can remove the post-receipt generation wait, not the time Gemini takes to interpret a request and choose tools. Receipts do not establish physical success:
+Fixed server receipts are visible immediately after matching replies. Current native acknowledgments use the selected Gemini voice, without an operating-system voice interrupting it. The supervised user confirmed consistent voice during movement and skill requests. The deployed [twelve-clip Puck cache](../../foundation/results/workstream1-voice-sequencing-20261101.json) supplies reviewed short action, Stop and refusal confirmations after each current actual server reply, including multi-tool batches. It removes the extra cloud-generation wait for those phrases; it does not remove request interpretation time or the full-turn delay of ordinary conversation. Receipts do not establish physical success:
 
 - A successful reply without explicit submission evidence says the request was **accepted**, not completed.
 - Wording such as **“Move queued.”** requires `details.submission` with schema
@@ -187,7 +187,7 @@ Stop operation fails. The token is a stale-request fence, not authentication.
 A missing token is refused with HTTP 428; a stale token with HTTP 409. Both return
 `success: false` before dispatch. Never retry that motion automatically with a
 new token. Inspect status, then make a new explicit request. Browser model motion
-pauses after an epoch rejection until voice reconnect; the Python diagnostic
+pauses after a rejected action step, unknown outcome or epoch rejection until voice reconnect. This blocks a later turn after a refused forward move, even when the refusal has no epoch metadata. Known status or password-gate failures alone do not trigger this action fence. The Python diagnostic
 requires a new setup/reconnect, and a model-issued Stop cannot clear that stale
 plan. Failed or unknown Stop responses keep motion blocked until a confirmed Stop
 or the applicable explicit session recovery. Stop and status remain available.
@@ -463,3 +463,19 @@ component at a time. Use the existing course motion reports and simulation repla
 before changed motions. Newly trained policies require the course's TA approval
 before first hardware use. No hardware validation or API session is implied by
 the test output in this branch.
+
+### Deploying a voice update
+
+Verify both the runtime banner and the loaded hashed JavaScript asset before a
+human rehearsal. A fake backend banner alone does not establish that the browser
+loaded the repaired client. After changing the localhost SSH forward, disconnect
+voice and leave the page briefly so old HTTP connections close; use an explicit
+build query on the next navigation and check the bundle identity. Preserve the
+existing SSH multiplexing connection and homed native session. Web-only changes
+do not require another homing.
+
+Walking speed (m/s), turning rate (degrees/s), and requested turning angle
+(degrees) are different quantities. The stock gait's minimum walking speed is
+0.2m/s. Its20degrees/s minimum turn rate is not a20-degree minimum angle;
+a15-degree turn request is valid within the duration limits. API acceptance is
+not a guarantee of precise physical angle tracking.

@@ -475,10 +475,20 @@ def health():
     return {"status": "running", "tools": tools is not None, **runtime_info()}
 
 
+class WebStaticFiles(StaticFiles):
+    """Always revalidate the deployment entrypoint; hashed assets keep their policy."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if path.strip("/") in ("", ".", "index.html"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        return response
+
+
 # The built web app (npm run build in web/ -> web/dist/) is served at /, so the robot's own
 # browser, or a laptop through an SSH tunnel, opens everything from one address.
 if WEB_DIST.is_dir():
-    app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
+    app.mount("/", WebStaticFiles(directory=WEB_DIST, html=True), name="web")
 
 
 if __name__ == "__main__":

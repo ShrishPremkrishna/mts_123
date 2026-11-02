@@ -133,3 +133,18 @@ def test_api_restart_has_new_identity_and_does_not_count_adopted_sit():
             await call(restarted, "play_trick", count=1, count_unit="routine_playback", name="sit_stay_shake")
             assert context(restarted)["completed_sit_entries"] == 0
     asyncio.run(case())
+
+
+def test_served_prompt_names_the_available_counter_and_its_server_scope():
+    from gemini_chat import prompt_text
+
+    async def case():
+        async with installed_rig() as rig:
+            facts = (await rig.ts.mode()).details["session_context"]
+            prompt = prompt_text()
+            for contract_term in ("session_context", facts["schema"], facts["scope"],
+                                  "completed_sit_entries", "server_instance"):
+                assert contract_term in prompt
+            assert "Status contains only the latest result, not history" not in prompt
+            assert "whole-day" in prompt and "physical" in prompt
+    asyncio.run(case())
