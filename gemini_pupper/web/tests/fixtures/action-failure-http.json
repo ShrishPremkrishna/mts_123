@@ -1,0 +1,48 @@
+{
+  "scope": "Actual HTTP route/result shape through existing in-process ASGI/fake ROS fixture; no Gemini/model/hardware",
+  "responses": [
+    {
+      "tool": "move",
+      "args": {
+        "direction": "forward",
+        "speed": 0.15,
+        "duration": 1
+      },
+      "status": 200,
+      "body": {
+        "success": false,
+        "message": "too slow: at least |vx|>=0.2 m/s, |vy|>=0.2 m/s or |wz|>=20.0 deg/s",
+        "details": {
+          "refusal": {
+            "schema": "pupper_motion_refusal_v1",
+            "code": "minimum_speed",
+            "limits": {
+              "forward_min": 0.2,
+              "sideways_min": 0.2,
+              "turn_min": 20.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "tool": "turn",
+      "args": {
+        "direction": "left",
+        "angle": 20
+      },
+      "status": 200,
+      "body": {
+        "success": true,
+        "message": "move vx=0 vy=0 wz=60 0.333s queued (accepted, not completed); estimated queue time 0.3 s",
+        "details": {
+          "submission": {
+            "schema": "pupper_submission_v1",
+            "state": "queued"
+          }
+        }
+      }
+    }
+  ],
+  "nonzero_turn_outputs": 7
+}

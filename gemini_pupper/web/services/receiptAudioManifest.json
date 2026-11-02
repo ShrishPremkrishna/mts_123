@@ -49,6 +49,94 @@
       "review_status": "approved_human",
       "wav_file": "right-paw-command-queued.wav",
       "wav_sha256": "0a32fefcf79bf709e59efa88ef43d4e0995a0c4a5f633c63a2bff3f789845d73"
+    },
+    {
+      "text": "Stand queued.",
+      "file": "stand-queued.pcm",
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "bytes": 63362,
+      "duration_s": 1.3200416666666666,
+      "transcript": "Stand queued.",
+      "review_status": "approved_human",
+      "wav_file": "stand-queued.wav",
+      "wav_sha256": "6f49fcefb63fe85b22baf525043cdde9e9fb1350f192ed264c2e2f29636775a6"
+    },
+    {
+      "text": "Turn queued.",
+      "file": "turn-queued.pcm",
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "bytes": 57602,
+      "duration_s": 1.2000416666666667,
+      "transcript": "Turn queued.",
+      "review_status": "approved_human",
+      "wav_file": "turn-queued.wav",
+      "wav_sha256": "d1ce9e2c3f2dce1a50d23557f08048012de5834ee14619c7bac4a444575aef38"
+    },
+    {
+      "text": "Arc queued.",
+      "file": "arc-queued.pcm",
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "bytes": 56190,
+      "duration_s": 1.170625,
+      "transcript": "Arc queued.",
+      "review_status": "approved_human",
+      "wav_file": "arc-queued.wav",
+      "wav_sha256": "e9837032f6e0e51524680154a7f05ceeb96dea25103612cdeb9719c6a50e1168"
+    },
+    {
+      "text": "Wait queued.",
+      "file": "wait-queued.pcm",
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "bytes": 58082,
+      "duration_s": 1.2100416666666667,
+      "transcript": "Wait queued.",
+      "review_status": "approved_human",
+      "wav_file": "wait-queued.wav",
+      "wav_sha256": "677dbd7d403a45affcec80550ddf41858cf6d640e8e27a448757aeefd0da153e"
+    },
+    {
+      "text": "Trick queued.",
+      "file": "trick-queued.pcm",
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "bytes": 58082,
+      "duration_s": 1.2100416666666667,
+      "transcript": "Trick queued.",
+      "review_status": "approved_human",
+      "wav_file": "trick-queued.wav",
+      "wav_sha256": "05110cec78936a5142ef65ec8ba836420bcb9bdac14b858f173cc63d7256b9ff"
+    },
+    {
+      "text": "Interactive action queued.",
+      "file": "interactive-action-queued.pcm",
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "bytes": 97922,
+      "duration_s": 2.0400416666666668,
+      "transcript": "Interactive action queued.",
+      "review_status": "approved_human",
+      "wav_file": "interactive-action-queued.wav",
+      "wav_sha256": "d94a307af3682ae87b316147e10c0786bd820d3f90702f5c58c5515bcc7de1c6"
+    },
+    {
+      "text": "That request failed. Check the controls for details.",
+      "file": "request-failed.pcm",
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "bytes": 163230,
+      "duration_s": 3.400625,
+      "transcript": "That request failed. Check the controls for details.",
+      "review_status": "approved_human",
+      "wav_file": "request-failed.wav",
+      "wav_sha256": "2350433a3a34d4669bbcfd2d8c601d3181aa6999111e5f22c6dc290bf49a4fb2"
+    },
+    {
+      "text": "Exact physical repetition counts are not supported.",
+      "file": "physical-count-unsupported.pcm",
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "bytes": 167522,
+      "duration_s": 3.4900416666666665,
+      "transcript": "Exact physical repetition counts are not supported.",
+      "review_status": "approved_human",
+      "wav_file": "physical-count-unsupported.wav",
+      "wav_sha256": "cece098bb9a2c0f1d16b84f04d9c2379ea1a2b6ea747bdafa30f8201d09530dd"
     }
   ]
 }

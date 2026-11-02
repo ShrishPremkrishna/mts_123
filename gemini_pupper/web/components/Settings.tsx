@@ -93,7 +93,7 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
                   onChange={e => setConfig({ ...config, quickReceipts: e.target.checked })} />
                 Quick Puck acknowledgments
               </label>
-              <p className="text-xs text-gray-500 mt-1">Four reviewed clips acknowledge accepted move, Stop and paw requests. Uses the normal reply for other phrases, voices or models. Reconnect to change.</p>
+              <p className="text-xs text-gray-500 mt-1">Twelve reviewed clips acknowledge queued actions, Stop requests and known failures. Uses the normal reply for other phrases, voices or models. Reconnect to change.</p>
             </div>
           )}
 

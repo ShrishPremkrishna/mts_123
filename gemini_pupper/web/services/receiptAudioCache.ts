@@ -1,9 +1,39 @@
 import { normalizeReceiptTranscript } from './conversationOutput';
+import { hasMalformedOutcomeFlags } from './operatorFeedback';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const VOICE = 'Puck';
-const PHRASES = new Set(['Move queued.', 'Stop requested.', 'Left paw command queued.', 'Right paw command queued.']);
+const PHRASES = new Set([
+  'Move queued.', 'Stop requested.', 'Left paw command queued.', 'Right paw command queued.',
+  'Stand queued.', 'Turn queued.', 'Arc queued.', 'Wait queued.', 'Trick queued.', 'Interactive action queued.',
+  'That request failed. Check the controls for details.', 'Exact physical repetition counts are not supported.',
+]);
 const MAX_CLIP_BYTES = 24000 * 2 * 10;
+
+/** Select only code-owned phrases. Caller must separately require a current
+ * actual server reply; this helper cannot establish transport provenance. */
+export function serverReceiptAudioText(name: unknown, args: any, result: any): string | null {
+  if (!result || typeof result !== 'object' || hasMalformedOutcomeFlags(result)
+      || result.outcome_unknown || result.superseded || result.not_dispatched
+      || typeof result.success !== 'boolean') return null;
+  if (result.success === false) {
+    const refusal = result.details?.refusal;
+    return name === 'play_trick' && refusal?.schema === 'pupper_trick_quantity_refusal_v1'
+      && refusal.code === 'physical_count_unsupported'
+      ? 'Exact physical repetition counts are not supported.'
+      : 'That request failed. Check the controls for details.';
+  }
+  if (name === 'stop') return 'Stop requested.';
+  const submission = result.details?.submission;
+  if (submission?.schema !== 'pupper_submission_v1' || submission.state !== 'queued') return null;
+  const labels: Record<string, string> = {
+    stand_up: 'Stand queued.', move: 'Move queued.', turn: 'Turn queued.', arc: 'Arc queued.',
+    wait: 'Wait queued.', play_trick: 'Trick queued.', interactive_action: 'Interactive action queued.',
+  };
+  if (name === 'interactive_action' && args?.action === 'shake_left') return 'Left paw command queued.';
+  if (name === 'interactive_action' && args?.action === 'shake_right') return 'Right paw command queued.';
+  return typeof name === 'string' && Object.prototype.hasOwnProperty.call(labels, name) ? labels[name] : null;
+}
 
 interface ReadyClip { audio: string; approved: boolean; }
 

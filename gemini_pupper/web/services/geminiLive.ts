@@ -6,7 +6,7 @@ import RobotBridge from './robotBridge';
 import { ConversationOutputGate, NativeReceiptOutputGate, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLabel, hasMalformedOutcomeFlags, isOperatorReceiptNarration } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
-import { ReceiptAudioCache } from './receiptAudioCache';
+import { ReceiptAudioCache, serverReceiptAudioText } from './receiptAudioCache';
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 
 /** Robot tools come from GET /tools. TEXT models return ordinary completed text;
@@ -17,6 +17,11 @@ export function isAudioOutputModel(modelName: string): boolean {
     return false;
   }
   return true;
+}
+
+/** Known status/gate failures alone do not fence motion; Stop/status remain usable when paused. */
+function isModelAction(name: unknown): boolean {
+  return !['stop', 'robot_status', 'unlock', 'lock_tricks', 'speak', 'say', 'narrate'].includes(String(name));
 }
 
 /** Optional diagnostics: no PCM, transcript text, tool arguments or credentials. */
@@ -61,6 +66,7 @@ export class GeminiLiveService {
   private feedbackGeneration = 0;
   private feedbackRequest = 0;
   private pendingRobotTools = 0;
+  private pendingModelActions = 0;
   private conversationOutput: ConversationOutputGate;
   private nativeReceiptOutput: NativeReceiptOutputGate;
   private apiKey = '';
@@ -823,11 +829,13 @@ export class GeminiLiveService {
               if (turnTiming) { turnTiming.toolFirst ??= performance.now(); turnTiming.tools++; }
               this.trace('tool_call_start', timing);
               this.pendingRobotTools++;
+              const actionRequest = isModelAction(fc.name);
+              if (actionRequest) this.pendingModelActions++;
               try { result = await this.robotBridge.callTool(fc.name, args ?? {}); receivedServerReply = true; }
               catch (error) { this.trace('tool_call_failed', timing); throw error; }
               finally {
                 if (turnTiming) turnTiming.toolReply ??= performance.now();
-                this.pendingRobotTools--; if (stopping) this.reportStopPending(false);
+                this.pendingRobotTools--; if (actionRequest) this.pendingModelActions--; if (stopping) this.reportStopPending(false);
               }
               const status = toolResponseStatus(result);
               this.trace('tool_call_resolved', { ...timing, status });
@@ -841,9 +849,28 @@ export class GeminiLiveService {
           && feedbackRequest === this.feedbackRequest && !(fc.id && this.cancelledToolIds.has(fc.id));
         if (dispatch) {
           const status = toolResponseStatus(result);
-          if (status === 'unknown' || (result?.success === false && result?.command_epoch_required === true)) {
+          const failedAction = isModelAction(fc.name) && result?.success === false;
+          const actionFailureOrUnknown = isModelAction(fc.name) && (result?.success === false || status === 'unknown');
+          if (status === 'unknown' || failedAction || (result?.success === false
+              && (result?.command_epoch_required === true || fc.name === 'stop'))) {
             const wasCurrent = currentFeedback();
-            this.pauseRobotTools();
+            const firstPause = !this.robotToolsPaused;
+            // A known current refusal may keep its exact post-server receipt;
+            // it never rearms the model or admits arbitrary tool-turn prose.
+            const knownFailureReceipt = wasCurrent && receiptTurn && receivedServerReply && failedAction
+              && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown
+              && !result.superseded && !result.not_dispatched && this.pendingModelActions === 0;
+            if (knownFailureReceipt) {
+              this.endAudioInput(); this.robotToolsPaused = true;
+              this.stopPlayback(true, false);
+            } else this.pauseRobotTools();
+            if (failedAction && firstPause && this.connected && !this.disposed) this.log('error',
+              `Model actions paused after a ${toolLabel(fc.name)} request failed. Reconnect voice to resume; Stop and status remain available.`);
+            // SDK callbacks can overlap. Stop's existing shared HTTP epoch
+            // fences another already-sent action; no stale request is retried.
+            if (actionFailureOrUnknown && this.pendingModelActions > 0 && this.connected && !this.disposed) {
+              void this.requestAutomaticStop('An action failed or had an unknown result while another model action was in flight');
+            }
             // Keep this current unknown/error receipt, while invalidating older speech.
             if (wasCurrent) feedbackGeneration = this.feedbackGeneration;
           }
@@ -859,12 +886,21 @@ export class GeminiLiveService {
           && typeof result?.success === 'boolean' && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown && !result.superseded && !result.not_dispatched
           ? nativeReceiptFeedback(fc.name, result) : null;
         const receiptAuthorization = actualReceipt ? this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt, fc, result) : null;
-        // Optional preloaded cache. It never fetches, waits, changes the actual
-        // reply, or speaks before the existing current-response authorization.
-        const cachedAudio = receiptAuthorization && result?.success === true && currentFeedback()
-          ? this.receiptAudioCache?.lookup(receiptAuthorization, this.config.modelName, this.config.voiceName || 'Puck') : null;
-        const cachedReceipt = !!cachedAudio && this.nativeReceiptOutput.consumeAuthorized(receiptTurn, receiptAuthorization!);
+        // The immutable clip is code-owned: its own current actual HTTP reply
+        // is sufficient even when a multi-tool model turn cannot be narrated.
+        const cacheText = actualReceipt && currentFeedback() && this.outputPolicy === 'conversation'
+          && isAudioOutputModel(this.config.modelName) ? serverReceiptAudioText(fc.name, fc.args, result) : null;
+        // Keep an explicitly composed native receipt (the fourth-handshake joke)
+        // intact instead of replacing it with the shorter generic cached cue.
+        const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
+          && receiptAuthorization !== cacheText;
+        const cachedAudio = cacheText && !composedNativeReceipt
+          ? this.receiptAudioCache?.lookup(cacheText, this.config.modelName, this.config.voiceName || 'Puck') : null;
+        const cachedReceipt = !!cachedAudio;
         if (cachedReceipt) {
+          // Mute this model turn's later duplicate, without cancelling queued
+          // fixed clips or preventing a later reply in this batch from speaking.
+          this.nativeReceiptOutput.invalidate(false);
           this.trace('cached_receipt_admitted', { bytes: Math.floor(cachedAudio.length * 3 / 4) });
           void this.playAudioBase64(cachedAudio, turnTiming).catch(() => this.log('info', 'Cached receipt audio unavailable; the server receipt remains visible.'));
         }

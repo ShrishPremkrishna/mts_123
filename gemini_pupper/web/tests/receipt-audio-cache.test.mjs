@@ -81,7 +81,7 @@ test('Stop cache needs successful current Stop reply and never means physical st
   await e.s.handleMessage(speech('Stop requested.','duplicate'));assert.deepEqual(e.audio,[pcm64]);
 });
 
-test('pre-response audio, same-packet output, extra tools and stale response cannot enable cache',async()=>{
+test('current server replies authorize fixed cues independently of model output, but stale replies remain muted',async()=>{
   for(const scenario of ['pre-response','same-packet','extra-tool','stop','cancel','disconnect','newer','boundary']) {
     const e=service(await cache()),d=deferred();e.s.robotBridge.callTool=name=>name==='move'?d.promise:Promise.resolve({success:true});
     let packet=call('old','move');if(scenario==='same-packet')packet={...packet,...speech('Move queued.','pre',false)};
@@ -93,7 +93,7 @@ test('pre-response audio, same-packet output, extra tools and stale response can
     if(scenario==='disconnect')await e.s.disconnect();
     if(scenario==='newer')await e.s.handleMessage(call('new','robot_status'));
     if(scenario==='boundary')await e.s.handleMessage({serverContent:{turnComplete:true}});
-    d.resolve(queued);await pending;assert.deepEqual(e.audio,[],scenario);
+    d.resolve(queued);await pending;assert.deepEqual(e.audio,['pre-response','same-packet','extra-tool','boundary'].includes(scenario)?[pcm64]:[],scenario);
   }
 });
 
@@ -148,4 +148,44 @@ test('fresh hold cancels existing output only; repeated hold and first genuine c
   await e.s.handleMessage(speech('An older thought.','old-buffer',false));e.s.beginAudioInput();
   await e.s.handleMessage({serverContent:{turnComplete:true}});assert.deepEqual(e.audio,['first-genuine']);
   await e.s.handleMessage(speech('A new thought.','new-genuine'));assert.deepEqual(e.audio,['first-genuine','new-genuine']);
+});
+
+
+test('each accepted paw request in a five-tool batch can use a truthful cached cue', async()=>{
+  const e=service(await cache());
+  const calls=[{id:'sit',name:'play_trick',args:{name:'sit_stay_shake',count:1,count_unit:'routine_playback'}},{id:'hold',name:'wait',args:{duration:10}},{id:'left',name:'interactive_action',args:{action:'shake_left'}},{id:'right',name:'interactive_action',args:{action:'shake_right'}},{id:'stand',name:'stand_up',args:{}}];
+  await e.s.handleMessage({toolCall:{functionCalls:calls}});
+  assert.deepEqual(e.calls,calls.map(c=>c.name));
+  assert.equal(e.responses.length,5);
+  assert.equal(e.audio.length,2,'the approved left/right queued cues should use their own actual replies');
+  await e.s.handleMessage(speech('Left paw command queued. Right paw command queued.','duplicate'));
+  assert.equal(e.audio.length,2,'arbitrary whole-turn model audio stays muted');
+  await e.s.handleMessage(speech('Hello again!','chat'));
+  assert.equal(e.audio.length,3,'ordinary conversation remains usable');
+});
+
+
+test('only typed current move/paw queued replies or known Stop replies permit a fixed cached cue', async()=>{
+  for(const [name,args,reply] of [
+    ['interactive_action',{action:'shake_left'},queued],['interactive_action',{action:'shake_right'},queued],
+    ['interactive_action',{action:'exit'},queued],['interactive_action',{action:'shake_left'},{success:true}],
+    ['interactive_action',{action:'shake_left'},{...queued,outcome_unknown:true}],
+    ['interactive_action',{action:'shake_left'},{...queued,superseded:true}],
+    ['interactive_action',{action:'shake_left'},{...queued,not_dispatched:true}],
+    ['interactive_action',{action:'shake_left'},{...queued,outcome_unknown:{}}],
+    ['interactive_action',{action:'shake_left'},{success:false,details:queued.details}],
+    ['interactive_action',{action:'shake_left'},{success:true,details:{submission:{schema:'pupper_submission_v1',state:'accepted'}}}],
+    ['play_trick',{name:'push_up',action:'shake_left'},queued],['move',{},queued],['stop',{}, {success:true}]
+  ]) {
+    const e=service(await cache());e.s.robotBridge.callTool=async()=>reply;
+    await e.s.handleMessage(call('one',name,args));
+    const good=reply===queued && (name==='move'||(name==='interactive_action'&&['shake_left','shake_right'].includes(args.action))) || name==='stop';
+    assert.equal(e.audio.length,good?1:0,JSON.stringify({name,args,reply}));
+  }
+});
+test('Stop in a five-tool batch suppresses queued-action cues and takes dispatch priority', async()=>{
+  const e=service(await cache());await e.s.handleMessage({toolCall:{functionCalls:[
+    {id:'sit',name:'play_trick',args:{name:'sit_stay_shake'}},{id:'left',name:'interactive_action',args:{action:'shake_left'}},
+    {id:'wait',name:'wait',args:{duration:10}},{id:'stop',name:'stop',args:{}},{id:'right',name:'interactive_action',args:{action:'shake_right'}}
+  ]}});assert.deepEqual(e.calls,['stop']);assert.equal(e.audio.length,1);
 });

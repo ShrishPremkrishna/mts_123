@@ -1,0 +1,59 @@
+{
+  "recorded_utc": "2026-11-02T01:18:08.484657+00:00",
+  "decision": "Reviewed browser candidate ready for parent-owned deployment and supervised browser/robot verification. No new physical success claimed by offline tests.",
+  "problem": "A model batch with forward0.15m/s then a turn could continue into the turn after the API refused the move: ordinary tool failures lack command_epoch_required, and the browser only fenced unknown/epoch failures. A separate five-tool Sit/wait/paws/stand batch could execute silently because whole-turn native narration was intentionally rejected and cached cues depended on that same model-output permission.",
+  "changes": [
+    "A definitive failed action request pauses further model action requests, including later SDK packets, until explicit voice reconnect. PTT does not silently rearm. Stop/status remain possible; known status/auth-gate refusals alone do not trigger the new action fence.",
+    "If another model action is already in flight, false/unknown/malformed action outcome uses existing global Stop and shared HTTP epoch fencing. Disposed/disconnected old sessions cannot initiate a late global Stop. No failed action is retried.",
+    "Current known failure feedback stays visible; approved fixed failure audio can speak after the actual reply. Unknown, malformed, superseded or locally-unsent outcomes never use known-failure clips.",
+    "Fixed cached cues now depend on their own actual current server replies, independent of whether an arbitrary multi-tool model turn can be narrated. Queued cues require the typed queued marker. Whole-turn model narration remains gated and fourth-handshake composed joke remains on its exact native path.",
+    "Eight additional fixed Gemini Puck clips join the original four after explicit human listening approval:12total. Exact model/voice/PCM hash checks and existing bounded connection preload remain; cache misses fall back to the existing native receipt path. No OS voice or new motion command is introduced."
+  ],
+  "reproduction": {
+    "actual_api_shape": "In-process real HTTP routes with fake ROS: move(.15m/s) returned HTTP200success:false without epochflags; separately requested validturn returned queued success and produced7nonzero fake turn outputs. These are simulation harness outputs, not hardware.",
+    "before_service": "Same failed-move/turn callback and concurrent-action cases failed4of5 new tests on the pre-fix service; before source/log preserved.",
+    "after_service": "Actual production Live service under SDK mocks refuses the later turn and future model packets; actual RobotBridge fake-fetch regression verifies a delayed old-epoch turn is rejected after automatic Stop, with0fake turn effects.",
+    "five_tool_audio": "Actual approved12PCM cache loaded under production service; deferred replies prove each of5cues occurs only after its own accepted response. Arbitrary whole-turn model completion narration remains muted."
+  },
+  "validation": {
+    "full_web_tests": 262,
+    "full_web_failed": 0,
+    "typecheck_pass": true,
+    "production_build_pass": true,
+    "independent_targeted_tests": 35,
+    "independent_review": "peer-review-r2.json includes final comment-only source correction; no executable changes after262fulltests.",
+    "bundle": "index-bxqP8BKy.js",
+    "bundle_sha256": "6aa8e97fc5e403b428c5dc6c48e1b190c5904c72a280ee048392f32db87f63db",
+    "base_revision": "a1fcad4c01b122dec4c4d480979cff2e8c90c001",
+    "source_freeze": "freeze.json"
+  },
+  "human_audio_approval": {
+    "additional8": "Clear and consistent",
+    "original4": "They sound consistent",
+    "scope": "Approval of these exact12recorded fixed phrases and same-voice consistency, not every future generated utterance.",
+    "provenance": "Synthetic fixed text via exact Gemini Live/Puck; PCM, WAV, provider transcript, generation scripts/logs, pending/approved manifests, hashes and human approval retained."
+  },
+  "limitations": [
+    "Voice control now requires reconnect after a failed action; no inference that previously accepted work had no effects.",
+    "Global Stop for overlapping failed requests cancels the whole queue; no per-job cancellation or universal immediate physical-stop proof.",
+    "Fixed cues say queued/requested/failed, not physically completed. Detailed refusal limits remain visible.",
+    "Whole-turn natural speech latency and transcript-versus-waveform uncertainty remain. No measured millisecond latency improvement from this patch.",
+    "No real Google request, microphone, speaker or robot motion was performed by the integration tests. Root owns actual browser/hardware follow-up.",
+    "English no-tool claim heuristic and downstream physical policy limitations remain; this is not a global foundation completion claim."
+  ],
+  "operational_notes": [
+    "Initial isolated fullsuite lacked3unchanged Python/fixture inputs; copied frozen dependencies and reran fullsuite.",
+    "Shared node_modules Vite temporary-cache write required approved build permission; unchanged candidate then built successfully.",
+    "Final reviewer comment and Settings4-to-12clip description corrections changed no executable behavior; productionbundle rebuilt."
+  ],
+  "artifacts": {
+    "archive_name": "workstream1-voice-sequencing-20261101.tar.gz",
+    "archive_sha256": "da67ee2ae156e26acfcde8ffb1cbc0f7cb9333b2875dea397c66c238fc83d858",
+    "archive_bytes": 4767020,
+    "indexed_files": 153,
+    "index_sha256": "7967b20358ffc66bb64c32d91f93ff259d85b4c62f9a2bd958698d34f2b6bd51",
+    "repo_directory": "artifacts/hardware/2026-11-01/voice-sequencing",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/voice-sequencing",
+    "verified_all_indexed_files_in_both_stores": true
+  }
+}
