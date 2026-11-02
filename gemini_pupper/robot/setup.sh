@@ -6,6 +6,12 @@
 # Then start with robot/start.sh --kiosk.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(dirname "$HERE")
+COORDINATOR="$(dirname "$REPO")/foundation/hardware/floor_stock/shutdown_coordinator.py"
+if [ ! -f "$COORDINATOR" ] || [ ! -r "$COORDINATOR" ]; then
+  echo "Required lifecycle helper is missing, unreadable, or not a file: $COORDINATOR" >&2
+  echo "Use the complete mts_123 checkout on pupper-foundation, with foundation/ and gemini_pupper/ beside each other. Setup made no installation changes." >&2
+  exit 1
+fi
 NODE_VERSION=v22.23.3  # Debian's nodejs (18) is too old for the build tools
 NODE_DIR=$HOME/.local/node
 KEY_FILE=${GEMINI_KEY_FILE:-$HOME/.config/gemini-pupper/api_key}

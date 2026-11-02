@@ -72,7 +72,7 @@
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
     "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
   ],
-  "updated_utc": "2026-11-02T13:03:03.136420+00:00",
+  "updated_utc": "2026-11-02T13:24:36.621573+00:00",
   "authorization": "Latest user2026-11-02 explicitly resumed overnight offline engineering, fullenvironment fixes, Claude Code/subagents and Gemini includingER. Prior pause superseded. No robot contact/deployment. Retain approval before experiment expected over$5.",
   "current_report": "foundation/results/workstream1-overnight-release-20261102.json",
   "historical_recovery": {
@@ -218,6 +218,16 @@
       "Supported motors-inactive sensor diagnosis and supervised physical validation.",
       "Tested follower/Spider teammate handoffs."
     ],
-    "remaining_offline_judgment": "Current bounded offline release is complete. No more broad training, prompt sweeps or early-close retries are justified from current evidence. Resume implementation for a concrete new failure/input or teammate handoff; otherwise preserve this baseline for the next robot session."
+    "remaining_offline_judgment": "Current bounded offline release is complete. No more broad training, prompt sweeps or early-close retries are justified from current evidence. Resume implementation for a concrete new failure/input or teammate handoff; otherwise preserve this baseline for the next robot session.",
+    "setup_followup": "Integrated setup dependency check and corrected combined-checkout instructions; seven focused tests pass, archived in lifecycle report.",
+    "teammate_repository_check": {
+      "checked_utc": "2026-11-02T13:14:33Z",
+      "method": "git ls-remote --heads origin, read-only",
+      "heads": {
+        "main": "13299faa82f1c4dbd8a84b22867e99e3cfffba8a",
+        "pupper-foundation": "7be469d3c3dd85905fdb2e0bdd9117aeb21a22c1"
+      },
+      "finding": "No additional teammate branch on this remote; does not establish absence of work elsewhere."
+    }
   }
 }

@@ -29,5 +29,39 @@
     "A pending/unknown manager can leave owned processes running for explicit recovery; physical release is not inferred.",
     "HTTP listener ownership has a check-to-connect race; process signaling uses pidfds.",
     "Some intermediate author iterations lack separate raw logs; final source, final tests, before/after baseline evidence and independent review are retained."
-  ]
+  ],
+  "setup_followup": {
+    "problem": "Standalone clone setup instructions omitted the sibling shutdown coordinator; setup proceeded to installation even though start would refuse.",
+    "changes": "Document complete foundation branch checkout; check readable regular helper before downloads, builds or key handling; correct stand-for-homing instructions.",
+    "validation": {
+      "author_focused_tests": 7,
+      "root_focused_tests": 7,
+      "shell_syntax": "passed",
+      "before_after": "Missing-helper baseline reached mocked npm; candidate refuses with zero mocked installation commands.",
+      "scope": "Mocked-shell software checks; no real installation, robot or network."
+    },
+    "evidence": {
+      "repo": "artifacts/access/ws1-setup-layout-20261102",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-setup-layout",
+      "archive": "complete.tar.gz",
+      "sha256": "8903e9469181577df67d922534fde3a8d0a4cf7dac3b1b0eec66a4bf68dc3b4b",
+      "bytes": 18323,
+      "verified_regular_files": 18
+    },
+    "source_hashes": {
+      "gemini_pupper/README.md": {
+        "before": "aedbf905da5a2aa561ae8c857c294072345752f21b90e95a315c9ede6f9f2c27",
+        "after": "a2ec46c7c2d6eaed2a70fa17d9c0347c965aa63617e0550277991af20dc883b9"
+      },
+      "gemini_pupper/robot/setup.sh": {
+        "before": "42b6792c4832306ce315c2fbd8451f6df64c3c254ca3b05dcf95ac0f968b4983",
+        "after": "21fd57becab1b36ceffb1e29cd10a08480a30d60c46bb8a9d5fb3a2a4279dfb9"
+      },
+      "gemini_pupper/tests/test_setup_layout.py": {
+        "before": null,
+        "after": "c55263000b3cbfd82aed28b9cf7b0d018f03f67b0d18c65343af698476535145"
+      }
+    },
+    "scope_limit": "Presence/readability check does not prove helper API correctness or fresh-install success on the Pi. Startup keeps its existing Linux and ownership checks."
+  }
 }

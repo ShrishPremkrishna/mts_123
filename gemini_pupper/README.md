@@ -58,13 +58,19 @@ top of `robot/robot_api.py`.
 
 ## Setup (once, on the Pupper)
 
+Use this engineering branch's combined repository. Keep `gemini_pupper/` and
+`foundation/` as sibling directories; copying Gemini alone omits its lifecycle
+helper. For an existing reviewed checkout, run setup from its `gemini_pupper/`
+directory.
+
 ```bash
-git clone https://github.com/<you>/gemini_pupper.git ~/gemini_pupper
-cd ~/gemini_pupper
+git clone --branch pupper-foundation https://github.com/ShrishPremkrishna/mts_123.git ~/cs123-foundation
+cd ~/cs123-foundation/gemini_pupper
 robot/setup.sh
 ```
 
-`setup.sh` installs Node in your home folder, builds the web app, checks the
+`setup.sh` first checks that the sibling lifecycle helper is readable, then
+installs Node in your home folder, builds the web app, checks the
 Python packages and asks for your Gemini API key (from
 [Google AI Studio](https://aistudio.google.com/apikey)). The key is saved in
 `~/.config/gemini-pupper/api_key`, never in this repo. Run `setup.sh` again
@@ -75,7 +81,8 @@ train tricks with.
 
 ## Running
 
-On the Pupper, on the ground, with clear space around it:
+On the Pupper, supported on the stand for initialization/homing, with the
+operator present and ready to use the physical stop:
 
 ```bash
 robot/start.sh --kiosk    # robot + the app on Pupper's own screen (uses its mic and speaker)

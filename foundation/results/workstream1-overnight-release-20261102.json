@@ -6,7 +6,8 @@
     "Separate tested Python discovery and reproducible actual ROS offline builds.",
     "Ordered Gemini admission across packets and duplicate-ID replay protection.",
     "Fresh required-package installer evidence and task-owned standard start/stop.",
-    "Fixed-camera clean replay options and clearer saved-owner recovery display."
+    "Fixed-camera clean replay options and clearer saved-owner recovery display.",
+    "Consistent combined-checkout setup instructions and early missing lifecycle-helper refusal."
   ],
   "studies": {
     "completion_driven_chain": "Six matched valid-speed native/MuJoCo runs:2.665s faster total, with mixed slip/effort metrics; not hardware acceptance.",
@@ -43,7 +44,7 @@
       "verified_regular_files": 175,
       "symlinks": 0
     },
-    "post_validation_note": "Only evidence reports/current-state metadata are written after this freeze; no execution source changes planned."
+    "post_validation_note": "The full eleven-group run covers the original frozen release. A subsequent setup layout check and documentation fix passed seven focused tests in both the candidate and integrated checkout; see the lifecycle report setup_followup. No server, browser or native control source changed in that follow-up."
   },
   "detailed_reports": [
     "workstream1-environment-validation-20261102.json",
