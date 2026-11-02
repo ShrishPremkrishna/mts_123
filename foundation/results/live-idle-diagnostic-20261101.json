@@ -102,5 +102,18 @@
     "sha256": "82b5f40cca7072e96e855f84b301fac115a5fccc802e1dd622698a9ff9cb4c9b",
     "bytes": 9510,
     "verified_original_files": 8
+  },
+  "er_browser_idle_followup": {
+    "status": "offline_audit_only_no_confirmed_PTT_defect",
+    "report": "artifacts/access/ws1-live-idle-20261101/er-followup/er-idle-addendum.json",
+    "sha256": "12069b5ae1af01a4e325f7233eecdc1c71bb6024263056e91d78936baaa226d2",
+    "archive": "artifacts/access/ws1-live-idle-20261101/er-followup/complete.tar.gz",
+    "archive_sha256": "a34d01595615d29a9b296614b4716dba8129e399f66cfdf307b8a431db6c2434",
+    "indexed_files": 5,
+    "both_stores_verified": true,
+    "summary": "Root observed ER browser closes after about100s from last visible turn and150s without input. Existing isolated3.1controls already reproduce1008 without PTT/audioStreamEnd. Current docs do not establish this as a fixed idle limit. Keep documented audioStreamEnd and existing explicit reconnect/Stop behavior. Automatic resumption is deferred.",
+    "source_update": "Current source now handles GoAway; the original source record predates that change. Explicit HIGH thinking is set only for3.1Live, not ER2.",
+    "new_cloud_model_calls": 0,
+    "production_changes": false
   }
 }

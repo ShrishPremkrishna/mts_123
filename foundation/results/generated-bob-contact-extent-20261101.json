@@ -1,0 +1,48 @@
+{
+  "schema": "generated_bob_contact_extent_addendum_v1",
+  "parent_result": "foundation/results/generated-bob-training-20261101.json",
+  "scope": "Existing frozen nominal trajectories/model only; no new simulation, training, hardware or contact-gate change.",
+  "result": "Nominal visibility improved, but original nonfoot/clipping screens remain failed and bob is not promoted.",
+  "loaded_nonfoot_geometries": [
+    "leg_front_r_3_hull",
+    "leg_front_l_3_hull",
+    "leg_back_r_3_hull",
+    "leg_back_l_3_hull"
+  ],
+  "phases": "Loaded lower-leg hull contacts occur through shared stock entry, finite motion, terminal hold and stock return; no torso/upper-leg loaded contacts in these samples.",
+  "bob_active_samples": 431,
+  "bob_each_lowerleg_hull_loaded_active_samples": 431,
+  "nominal_foot_sphere_radius_m": 0.01995,
+  "same_packet_contact_horizontal_offsets": {
+    "sway_all_phase_max_m": 0.006858122612655405,
+    "bob_motion_max_m": 0.006315086611059008,
+    "bob_all_phase_max_m": 0.006678141947017444,
+    "bob_all_phase_max_stage": "default_forward",
+    "missing_same_packet_foot_contacts": 0
+  },
+  "interpretation": "Loaded hull points lie within the corresponding nominal foot sphere horizontal footprint in these samples. This is not full3D/physical support classification and does not turn the failed strict geom-identity gate into a pass.",
+  "contact_material_correction": {
+    "both_sphere_and_hull_material_sliding_friction": 0.8,
+    "sphere_priority": 1,
+    "hull_priority": 0,
+    "terrain_friction": 1.0,
+    "terrain_priority": 0,
+    "observed_effective_contact_friction": {
+      "sphere": 0.8,
+      "hull": 1.0
+    },
+    "prior_wording_corrected": "Hull clone friction1.0 was inaccurate; solver contact friction1.0 is the observation.",
+    "implication": "Foot-sphere-only friction stress does not perturb dominant overlapping hull support."
+  },
+  "peer": {
+    "independent_checks": 226,
+    "mismatches": 0,
+    "report": "contact-addendum/contact-extent-peer.json"
+  },
+  "archive": {
+    "file": "artifacts/generated/gentle-bob-training-20261101/contact-addendum.tar.gz",
+    "sha256": "4c0a862cd3de692714f7e362a6c8595b6067615167e077b75b8042394afae143",
+    "files": 5
+  },
+  "next": "Keep candidate isolated; investigate contact representation deliberately before changing acceptance criteria or deploying."
+}

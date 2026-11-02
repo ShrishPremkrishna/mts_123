@@ -1,0 +1,291 @@
+{
+  "schema": "pushup_yaw_candidate_physical_review_v1",
+  "date": "2026-11-01",
+  "status": "candidate_unaccepted_heading_comparison_inconclusive",
+  "scope": "Six supervised finite routine playbacks using the trained push_up_yaw_candidate on the corrected-driver runtime; offline closed-bag analysis only. No policies, gains, limits, runtime sources or hardware changed by this analysis.",
+  "human_observation": {
+    "four_routine_batch": "Small accumulated rotation; each routine showed a set of two push-up motions. Few-second gaps included walking stand and a different pre-push-up stance; smoother handoffs requested.",
+    "acceptance": "No final acceptance. Two preceding individual activations completed in software; observed1 was a refused request with no activation and is not counted."
+  },
+  "inputs": {
+    "bag": "/private/tmp/ws1-pushup-closed-capture/telemetry/telemetry_0.mcap",
+    "bag_sha256": "0f6f640141d9eab05c401a9c039075bcab0284c72f2380b9adce934c4a03236e",
+    "bytes": 146888670,
+    "closed_archive_sha256": "059c60d8758052eb77575a9475dcfbce45fee432022365323584844b2e0d505c",
+    "policy": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/pushup-yaw-training-20261101/hardware-candidate/push_up_yaw_candidate/policy.json",
+    "policy_sha256": "a84e88729bd2d94b9f4267a0acf96a32f9cf8be470762d2a650a7add93b6e658",
+    "runtime_manifest_sha256": "502ff074bd709fd49e6f9ab6e675086bef0d401131ad3f24c24b47592d118090",
+    "native_log_sha256": "25a855245fc3c8d98f01f02f0ba8faa8482493f44c8c0e8bbe3cc84725017e89",
+    "direct_receipts_sha256": "16dede60c86c7479f104480811799a3f96c3734a413b6014483fbc0c46dbd0e7",
+    "urdf_sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+    "script_sha256": "3ce821232b288efa45410fd8d2b6c3cbd25d8b6f3453508d9b7439d3650a3a59",
+    "prior_report_sha256": "bc005f900adae481b682e9dc7f4d08767bdfb218829b1117cefd246ef0359cea"
+  },
+  "raw_capture": {
+    "archive_sha256": "059c60d8758052eb77575a9475dcfbce45fee432022365323584844b2e0d505c",
+    "verified_index_files": 37,
+    "repo_or_local": "/private/tmp/ws1-pushup-closed-capture",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/pushup-yaw-physical",
+    "complete_raw_capture": true
+  },
+  "key_findings": {
+    "physical_heading": "Cannot rank candidate versus supplied policy from this IMU alone. Smooth large heading change also appears between routines, and those intervals were not externally confirmed stationary. Shared gyro/quaternion agreement does not distinguish slow physical turning from common sensor bias.",
+    "four_routine_recorded_heading_deg": -39.25004352313539,
+    "four_routine_duration_s": 69.32671785354614,
+    "quiet_interval_label": "Last recorded cmd_vel was zero; no assertion of physical stationarity or of every possible command source.",
+    "nominal_holding_intervals": {
+      "pre_first_last20s": {
+        "duration_s": 19.995030164718628,
+        "yaw_delta_deg": -26.768888466628955,
+        "yaw_lstsq_slope_deg_s": -1.3300636005538546,
+        "gyro_projected_yaw_integral_deg": -26.584633684170655,
+        "quaternion_minus_gyro_yaw_delta_deg": -0.18425478245830007,
+        "tilt_deg": {
+          "min": 1.560843659390831,
+          "median": 2.360054351584065,
+          "p99": 3.0440298512490966,
+          "max": 3.1637102754574373
+        }
+      },
+      "between_individuals1and2": {
+        "duration_s": 35.99511790275574,
+        "yaw_delta_deg": -53.85276203860907,
+        "yaw_lstsq_slope_deg_s": -1.461640481099911,
+        "gyro_projected_yaw_integral_deg": -53.44025071264426,
+        "quaternion_minus_gyro_yaw_delta_deg": -0.41251132596481455,
+        "tilt_deg": {
+          "min": 2.162196717715857,
+          "median": 2.9569160679587436,
+          "p99": 3.5729744149243516,
+          "max": 3.652754489042845
+        }
+      },
+      "between_individual2andbatch": {
+        "duration_s": 42.311524629592896,
+        "yaw_delta_deg": -59.77466127222631,
+        "yaw_lstsq_slope_deg_s": -1.4152852766001207,
+        "gyro_projected_yaw_integral_deg": -59.6094619189191,
+        "quaternion_minus_gyro_yaw_delta_deg": -0.1651993533072087,
+        "tilt_deg": {
+          "min": 1.6761752764567568,
+          "median": 2.65699500587875,
+          "p99": 3.5603488033007884,
+          "max": 3.7182965772307863
+        }
+      },
+      "post_final_to_bag_end": {
+        "duration_s": 18.679638147354126,
+        "yaw_delta_deg": -8.7575170320967,
+        "yaw_lstsq_slope_deg_s": -0.47060559895092635,
+        "gyro_projected_yaw_integral_deg": -8.658788139213744,
+        "quaternion_minus_gyro_yaw_delta_deg": -0.09872889288295639,
+        "tilt_deg": {
+          "min": 0.9140630861136094,
+          "median": 1.05892537278081,
+          "p99": 1.1780428165608503,
+          "max": 1.1831399070294368
+        }
+      }
+    },
+    "phase_timing": {
+      "trick_active_s": [
+        12.721705436706543,
+        12.706243991851807,
+        12.752069234848022,
+        12.744606018066406,
+        12.744701147079468,
+        12.705981016159058
+      ],
+      "walking_return_to_observed_completion_s": [
+        4.3894970417022705,
+        4.2886881828308105,
+        4.483355522155762,
+        4.268022775650024,
+        4.491079568862915,
+        4.383799076080322
+      ],
+      "batch_next_request_after_idle_s": [
+        0.020490646362304688,
+        0.014105081558227539,
+        0.007561683654785156
+      ],
+      "interpretation": "The repeated batch pause is mainly configured walking-return initialization/fade plus next trick initialization/fade. It is not a multi-second HTTP submission gap. A direct last-to-first reference jump is not validated."
+    },
+    "reference_endpoint_gaps_rad": {
+      "last_to_first_max": 0.46461499999999994,
+      "last_to_default_max": 0.4292860190734863,
+      "first_to_default_max": 0.05545598092651366
+    },
+    "captured_gateway": {
+      "messages": 10889,
+      "receive_bounds_epoch_s": [
+        1793587462.639589,
+        1793587654.4619443
+      ],
+      "true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "in_flight": 119,
+        "unknown_remote_submission": 0,
+        "shutting_down": 0
+      },
+      "instance_ids": [
+        "1fcc3af8d8ed23dc38a65eba2329a504"
+      ],
+      "epochs": [
+        1
+      ],
+      "scope": "Only the selected routine analysis interval; a false gateway flag is not physical acceptance."
+    },
+    "published_controller_target": {
+      "postfade_max_steps_rad": [
+        0.14011645317077637,
+        0.12183129787445068,
+        0.12833082675933838,
+        0.14800035953521729,
+        0.11370137333869934,
+        0.1131887137889862
+      ],
+      "modeled_driver_absolute_clamp_peak_rad": [
+        0.0999999785423279,
+        0.0999999785423279,
+        0.0999999785423279,
+        0.0999999785423279,
+        0.0999999785423279,
+        0.0999999785423279
+      ],
+      "modeled_clipped_joint_fractions": [
+        0.029805352798053526,
+        0.02305605786618445,
+        0.024940262843488648,
+        0.029129129129129128,
+        0.0299338146811071,
+        0.03245772946859903
+      ],
+      "meaning": "Controller target precedes driver absolute clamp, encoder-zero offset and SPI. These modeled clamp corrections are not measured motor-applied targets, torque or physical contact."
+    },
+    "peak_recorded_tilt_each_routine_deg": [
+      14.050979253381502,
+      12.969022351719692,
+      12.915845143012996,
+      12.909294563785458,
+      12.750663841307178,
+      12.892417609881182
+    ],
+    "sensor_quality": {
+      "invalid_published_quaternions": 0,
+      "raw_quaternion_norm_proven": false,
+      "published_acceleration_all_zero": true,
+      "cadence": "Typical recorder receive gap about4ms; publication cadence does not establish distinct BNO sensor sample cadence. Legacy headers are not physical sample-age proof."
+    }
+  },
+  "cross_session_comparison": [
+    {
+      "arm": "supplied_prior_session",
+      "n": 3,
+      "postfade_yaw_deg": [
+        8.763674553551473,
+        7.869810545627876,
+        6.031644660986989
+      ],
+      "return_yaw_deg": [
+        -6.9947160524108405,
+        -9.043566908093043,
+        -12.808553945759158
+      ],
+      "postfade_max_tilt_deg": [
+        13.08280676760636,
+        12.727089421071506,
+        12.597559387194487
+      ],
+      "postfade_published_target_step_max_rad": [
+        0.11584679782390594,
+        0.09326563775539398,
+        0.08415520191192627
+      ]
+    },
+    {
+      "arm": "new_candidate_current_session",
+      "n": 6,
+      "postfade_yaw_deg": [
+        -2.8626737887405223,
+        -4.844975740953221,
+        -4.94706075284335,
+        -2.7140631448979993,
+        -2.4962596976690086,
+        -2.3099870484325793
+      ],
+      "return_yaw_deg": [
+        -9.031063645819684,
+        -12.149854695030422,
+        -11.407232780916273,
+        -5.282276487282091,
+        -3.726263306650334,
+        -3.7675425572521064
+      ],
+      "postfade_max_tilt_deg": [
+        14.050979253381502,
+        12.969022351719692,
+        12.915845143012996,
+        12.909294563785458,
+        12.750663841307178,
+        12.892417609881182
+      ],
+      "postfade_published_target_step_max_rad": [
+        0.14011645317077637,
+        0.12183129787445068,
+        0.12833082675933838,
+        0.14800035953521729,
+        0.11370137333869934,
+        0.1131887137889862
+      ]
+    }
+  ],
+  "limitations": [
+    "IMU heading is estimator output, not external physical-heading ground truth; observed human rotation remains qualitative.",
+    "Same source/driver family does not control surface, battery, temperature, pose or estimator state across prior/current sessions. Descriptive comparison, not a causal A/B proof.",
+    "Receive times align samples; nominal init/fade bounds derive nativeactivation+configured durations, with clipstatus recorded separately. Headers/loggedIMUage remain legacy timing metadata.",
+    "Controller position_command is published after controller processing, before driver absolute clamp/homing offsets/SPI. Modeled clamp correction is computed from exact captured URDF bounds; not measured SPI/actuator clipping.",
+    "Target steps are adjacent available published controller packets (~50Hz), not every520Hz write. Initialization targets may be absent; gaps can hide intermediate commands.",
+    "Reference already absolute. Only same-message q_rel receives default pose once; no position-offset doubling.",
+    "Current return ends at first recorded idle APIpoll; prior returns use4.5s afteractivation. Phase endpoint/polling differences explicitly retained.",
+    "No sensor can certify physical push-up count, footslip or torque from these topics. Four routines each contain two reference cycles; not four/ten verified repetitions.",
+    "Quaternion and gyro share the same BNO/driver, so agreement cannot independently prove physical heading or rule out shared sensor bias.",
+    "ROS linear_acceleration may be unpopulated; zero values cannot establish gravity consistency.",
+    "Published normalized quaternion cannot diagnose original raw quaternion norm.",
+    "Recorder receive clocks are used for integration. Header gaps retained as legacy metadata, not physical sample freshness.",
+    "Static intervals need operator/external observation to separate estimator drift from real slow motion. No detrending correction is imposed on action measurements.",
+    "Latest prior joint samples at controller switches are32\u201371ms old; handoff poses are approximate pre-transition samples. Joint feedback excursion is descriptive, not an exact interpolation-slope measurement.",
+    "Per-routine quaternion/gyro values are retained uncorrected. No arbitrary bias subtraction or causal sensor/actuator diagnosis.",
+    "Passing a software routine and observing two reference cycles does not verify a physical repetition count."
+  ],
+  "independent_review": {
+    "imu": "323 independently recomputed scalar checks over17 windows using scipy ZYX rotation agree; no hardware or new simulator run. See imu-peer-review.json.",
+    "handoff": "90 independent boundary/phase checks recomputed from saved joint arrays; source and receive-time limitations reviewed. See handoffs-peer.json."
+  },
+  "next_actions": [
+    "Before yaw ranking, obtain an externally observed stationary baseline or independent heading reference; distinguish physical drift from common IMU bias.",
+    "Use the recorded phase timing and endpoint gaps to evaluate a bounded same-routine transition candidate offline; do not remove interpolation by directly restarting the reference.",
+    "Keep candidate unaccepted; compare any future physical run with fixed sensor state/surface and watched heading. No retest required merely to reproduce this archive."
+  ],
+  "evidence": {
+    "working_directory": "/private/tmp/ws1-pushup-yaw-physical-analysis-20261101",
+    "plot": "heading-and-tilt.png",
+    "full_numeric": "report.json",
+    "sensor_consistency": "imu-consistency.json",
+    "handoffs": "handoffs.json",
+    "verified_archive": {
+      "schema": "archive_verified_v1",
+      "archive_name": "pushup-yaw-physical-analysis-20261101.tar.gz",
+      "sha256": "e7321e7309e78b14b0ddea228b8e7910477757e2cdf0b4cace8bf0ef21b1557d",
+      "bytes": 9615800,
+      "indexed_files": 36,
+      "index_sha256": "c1af5e7ead88061e147d87456b6aa7b443e2137c189a7a7a9bbbdf8fcd67b5ab",
+      "all_indexed_members_verified": true,
+      "raw_bag_archive_separately_preserved": "059c60d8758052eb77575a9475dcfbce45fee432022365323584844b2e0d505c",
+      "repo_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/pushup-yaw-physical-analysis",
+      "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/pushup-yaw-physical-analysis"
+    }
+  }
+}

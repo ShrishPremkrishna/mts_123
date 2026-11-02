@@ -1,0 +1,1071 @@
+{
+  "schema": "workstream1_fall_incident_v1",
+  "date": "2026-11-01",
+  "status": "incident_preserved_cause_unresolved_no_motion_acceptance",
+  "scope": "Offline analysis of closed actual robot recording; no simulation substitution, source changes, hardware commands or new robot activation.",
+  "operator_report": "Root relayed spontaneous Sit tilt/fall, poor Stand recovery unless well positioned, turning then forward motion/fall during manual controls, and another idlefall. These observations are distinct from sensor-derived angles; no external synchronized pose/video ground truth was captured in this analysis.",
+  "current_physical_disposition": "Root reports motor power off and robot on its stand after supervised shutdown.",
+  "source": {
+    "closed_capture_archive_sha256": "948e771ed99b92940c67d77eb239f42caa6634c101d74b919386cb7eacba53d0",
+    "verified_raw_files": 85,
+    "raw_durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/pushup-and-fall-complete",
+    "bag": "/private/tmp/ws1-fall-complete-capture/telemetry-voice/telemetry-voice_0.mcap",
+    "bag_sha256": "0c66279d2327c21a958f8466cb8759c5594b3823fbdbd47c819592bd196e34c1",
+    "bag_bytes": 337258622,
+    "crc_checked": true,
+    "recorded_binaries": {
+      "control_board_hardware_interface": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+      "joy_utils": "0bf9b273603199ec6f6eb593eae7bb18e1b9b25707bbd4826018d76dfaa05633",
+      "neural_controller": "52ab3c9c48e6e980bd935699b21ac5de09076d1aee9f8d3552146be16a24ed91"
+    },
+    "log_and_input_hashes": {
+      "launch.log": "03b6afece0e509e7a66ba776b67a268771a6296324cd2cfdf7efc4581056a0eb",
+      "api.log": "414fec6b1ec24bc016cc5510fd334545d6b77f52d4a3e29aa267432a5dc8cd89",
+      "runtime-manifest.json": "502ff074bd709fd49e6f9ab6e675086bef0d401131ad3f24c24b47592d118090",
+      "environment-pins.json": "b8950b2755fe6596e35ef5007b3234750d1e1f8d821f183e39a95d43182acb91",
+      "final-file-index.json": "03161c2d3ef7817ffd41f3dbab96e7cb9b52b42e7c160e75f482fff5c74ee59e"
+    },
+    "analyst_sources": {
+      "extract.py": "4b150a324b26dd6c23530fd4ba1f884e2d379d328e4371463b3b3acf6b624523",
+      "analyze.py": "f6e4fb00f14015bd9ea7b4ed7f7e5d25a629dff48f0daf897a7cc1d0b0f92293",
+      "plot.py": "1897d1ca816022bb8f3b91132e9bca24ca7c423c755b70874dbfbd590fda56b1",
+      "summarize.py": "c56bfe40a7e7b5c4166c3b2a90f968f8d895aea9cb46eb0f22b35a9adeeeab5f"
+    }
+  },
+  "findings": {
+    "first_sit_fall": "At18:55:38.979, after about203s of active Sit controller, sit_idle frame194 queued0. Operator reported spontaneous tilt/fall. No nonzero cmd_vel appears before this event in the voice recording; manual arrows occurred later.",
+    "failed_recoveries": "Walking controller activations at8233.593 and8243.609 were followed by tilt-stops at8236.652 and8246.691, about3.1s later; these are separate from the later manual-arrow fall.",
+    "manual_sequence": "59 velocity-command completions plus 1 cancelled velocity job. Explicit backward/forward and both yaw signs appear in timestamped execution logs and ROS cmd_vel. Some adjacent 0.5 s jobs become continuous same-velocity segments. Manual queue accumulation is a concrete software issue, not a demonstrated cause of earlier Sit/final idle falls.",
+    "final_idle_fall": "At19:01:55.040,187.27s after last nonzero recorded cmd_vel ended. Published tilt rose4.57\u00b0 at\u22120.5s to28.37\u00b0 at\u22120.1s and59.28\u00b0 atstop, with a large gyro transient. No nonzero command in the preceding 60 s. Operator reported another idle fall.",
+    "sensor_consistency": "Large disagreement between quaternion-derived roll/pitch changes and integrated body gyro is present during Sit; earlier nearly level yaw agreement does not generalize to all axes/periods. This identifies inconsistent sensor channels or their interpretation, not a causal parser/actuator diagnosis.",
+    "cadence": "One common 575\u2013593 ms publication gap at1793588474.56\u20138475.13 occurs about 40 s beforefinalfall. In the final 10 s before the fall, the maximum IMU receive gap was 9.50 ms. ROS publication/header clocks do not prove physical sensor freshness.",
+    "shutdown": "Native manager/hardware deactivation and process exits recorded. API cleanup handler raised RCLError publishingafter rclpy context became invalid; therefore API shutdown was not error-free. This shutdown exception follows all five falls and does not explain them.",
+    "connection_loss_stop_audit": "Follow-up audit found no preceding Stop before first Sit tilt; Sit deactivated94.4s afterward. The later voice-close-aligned zero burst occurred while walking remained active,53.7s before final tilt; no controller deactivation until shutdown. This does not identify the fall cause. Separate software-only reproduction: completed idle policy hold survives Stop, while the same hold with a running wait is deactivated."
+  },
+  "native_fall_events": [
+    {
+      "index": 1,
+      "native_stop_epoch": 1793588138.9787474,
+      "controller": "trick_sit_stay_shake",
+      "config_tilt_limit_deg": 60,
+      "latest_prior_IMU": {
+        "at": 1793588138.9767108,
+        "receive_age_ms": 2.036571502685547,
+        "roll_deg": 58.51742026625385,
+        "pitch_deg": 17.727722403327178,
+        "yaw_deg_unwrapped": -472.54077649627385,
+        "tilt_deg": 60.1691987443493,
+        "gyro": [
+          0.7512975443097718,
+          1.896484375,
+          -0.7595907360808762
+        ]
+      },
+      "last_clip_status": {
+        "at": 1793588138.960354,
+        "text": "sit_idle playing frame 194 queued 0 execution 77ac44ea25b24fb2a9050fdcf9666b05 request ffbf63dcd8e047e38522cf3e567a9244"
+      },
+      "latest_activation": {
+        "at": 1793587936.0977988,
+        "line": 25349,
+        "source": "launch.log",
+        "logger": "trick_sit_stay_shake",
+        "text": "activate successful"
+      },
+      "pre_10s": {
+        "roll_delta_deg": 16.33846245565792,
+        "pitch_delta_deg": 35.32044478199174,
+        "yaw_delta_deg": -11.207846243238066,
+        "gyro_integrated_roll_deg": 83.18436615116704,
+        "gyro_integrated_pitch_deg": 64.21764101131443,
+        "gyro_integrated_yaw_deg": -20.92962804051627,
+        "tilt_deg": {
+          "min": 42.01189196672526,
+          "median": 45.63006822870734,
+          "p99": 56.13088836490696,
+          "max": 60.1691987443493
+        },
+        "imu_receive_gap_ms": {
+          "min": 0.5447864532470703,
+          "median": 4.09090518951416,
+          "p99": 7.429826259613042,
+          "max": 12.505054473876953
+        },
+        "nonzero_cmd_messages": 0
+      },
+      "nonzero_command_segments_last20s": []
+    },
+    {
+      "index": 2,
+      "native_stop_epoch": 1793588236.6515937,
+      "controller": "gemini_walk",
+      "config_tilt_limit_deg": 57.29577951308232,
+      "latest_prior_IMU": {
+        "at": 1793588236.6485915,
+        "receive_age_ms": 3.002166748046875,
+        "roll_deg": -45.94796445787708,
+        "pitch_deg": 40.0778588689846,
+        "yaw_deg_unwrapped": -904.802216722421,
+        "tilt_deg": 57.85717588609956,
+        "gyro": [
+          -1.2595375259019785,
+          0.951171875,
+          -0.7954894732771278
+        ]
+      },
+      "last_clip_status": null,
+      "latest_activation": {
+        "at": 1793588233.593252,
+        "line": 35335,
+        "source": "launch.log",
+        "logger": "gemini_walk",
+        "text": "activate successful"
+      },
+      "pre_10s": {
+        "roll_delta_deg": -48.85812441050264,
+        "pitch_delta_deg": 29.702991278103383,
+        "yaw_delta_deg": -90.82369629133564,
+        "gyro_integrated_roll_deg": -32.30064747836384,
+        "gyro_integrated_pitch_deg": 32.29524785842527,
+        "gyro_integrated_yaw_deg": -85.30166263907262,
+        "tilt_deg": {
+          "min": 10.748670699400304,
+          "median": 12.77067883562048,
+          "p99": 51.45845659342522,
+          "max": 57.85717588609956
+        },
+        "imu_receive_gap_ms": {
+          "min": 0.012874603271484375,
+          "median": 4.050970077514648,
+          "p99": 7.206749916076657,
+          "max": 54.5039176940918
+        },
+        "nonzero_cmd_messages": 0
+      },
+      "nonzero_command_segments_last20s": []
+    },
+    {
+      "index": 3,
+      "native_stop_epoch": 1793588246.6906579,
+      "controller": "gemini_walk",
+      "config_tilt_limit_deg": 57.29577951308232,
+      "latest_prior_IMU": {
+        "at": 1793588246.6885312,
+        "receive_age_ms": 2.1266937255859375,
+        "roll_deg": -47.58089262206628,
+        "pitch_deg": 37.53951344735841,
+        "yaw_deg_unwrapped": -932.0716513952746,
+        "tilt_deg": 57.66476361812913,
+        "gyro": [
+          -1.0509956914540886,
+          0.583984375,
+          -0.667051091992319
+        ]
+      },
+      "last_clip_status": null,
+      "latest_activation": {
+        "at": 1793588243.6088786,
+        "line": 35510,
+        "source": "launch.log",
+        "logger": "gemini_walk",
+        "text": "activate successful"
+      },
+      "pre_10s": {
+        "roll_delta_deg": 5.388159466520442,
+        "pitch_delta_deg": -2.0848506722089795,
+        "yaw_delta_deg": -22.342523955408296,
+        "gyro_integrated_roll_deg": 20.71807146867561,
+        "gyro_integrated_pitch_deg": -7.032932691079733,
+        "gyro_integrated_yaw_deg": -18.54330096381984,
+        "tilt_deg": {
+          "min": 8.961682814582488,
+          "median": 13.175643086593468,
+          "p99": 64.03530166189238,
+          "max": 65.36242631423673
+        },
+        "imu_receive_gap_ms": {
+          "min": 0.5147457122802734,
+          "median": 4.07862663269043,
+          "p99": 7.22147941589355,
+          "max": 67.61288642883301
+        },
+        "nonzero_cmd_messages": 0
+      },
+      "nonzero_command_segments_last20s": []
+    },
+    {
+      "index": 4,
+      "native_stop_epoch": 1793588327.7507281,
+      "controller": "gemini_walk",
+      "config_tilt_limit_deg": 57.29577951308232,
+      "latest_prior_IMU": {
+        "at": 1793588327.7476506,
+        "receive_age_ms": 3.0775070190429688,
+        "roll_deg": -52.949896755592334,
+        "pitch_deg": 39.798891763232966,
+        "yaw_deg_unwrapped": -986.5168049785658,
+        "tilt_deg": 62.42505871820708,
+        "gyro": [
+          -4.897269429357143,
+          3.8671875,
+          -0.5662158624460439
+        ]
+      },
+      "last_clip_status": null,
+      "latest_activation": {
+        "at": 1793588260.4642298,
+        "line": 35687,
+        "source": "launch.log",
+        "logger": "gemini_walk",
+        "text": "activate successful"
+      },
+      "pre_10s": {
+        "roll_delta_deg": -62.75564145390337,
+        "pitch_delta_deg": 41.67219438189613,
+        "yaw_delta_deg": 89.47150167805842,
+        "gyro_integrated_roll_deg": -28.663503026233343,
+        "gyro_integrated_pitch_deg": 24.972138836786417,
+        "gyro_integrated_yaw_deg": 89.28870024177512,
+        "tilt_deg": {
+          "min": 3.0626525604443167,
+          "median": 10.712859025773344,
+          "p99": 38.94699700742757,
+          "max": 62.42505871820708
+        },
+        "imu_receive_gap_ms": {
+          "min": 0.064849853515625,
+          "median": 4.434823989868164,
+          "p99": 8.65345954895019,
+          "max": 13.100147247314453
+        },
+        "nonzero_cmd_messages": 170
+      },
+      "nonzero_command_segments_last20s": [
+        {
+          "at": 1793588306.8699944,
+          "xyz": [
+            -0.2,
+            -0.0,
+            -0.0
+          ],
+          "messages": 20,
+          "until_next_message_change": 1793588307.8681505
+        },
+        {
+          "at": 1793588309.4687262,
+          "xyz": [
+            0.2,
+            -0.0,
+            -0.0
+          ],
+          "messages": 10,
+          "until_next_message_change": 1793588309.968086
+        },
+        {
+          "at": 1793588310.0190341,
+          "xyz": [
+            0.2,
+            -0.0,
+            -0.0
+          ],
+          "messages": 30,
+          "until_next_message_change": 1793588311.5184727
+        },
+        {
+          "at": 1793588311.5683508,
+          "xyz": [
+            0.2,
+            -0.0,
+            -0.0
+          ],
+          "messages": 10,
+          "until_next_message_change": 1793588312.0681462
+        },
+        {
+          "at": 1793588317.3687825,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 10,
+          "until_next_message_change": 1793588317.8681276
+        },
+        {
+          "at": 1793588318.818623,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 10,
+          "until_next_message_change": 1793588319.3181689
+        },
+        {
+          "at": 1793588319.5180655,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 10,
+          "until_next_message_change": 1793588320.0186658
+        },
+        {
+          "at": 1793588320.0687912,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 20,
+          "until_next_message_change": 1793588321.0681367
+        },
+        {
+          "at": 1793588321.1181197,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 20,
+          "until_next_message_change": 1793588322.119357
+        },
+        {
+          "at": 1793588322.168203,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 20,
+          "until_next_message_change": 1793588323.1681824
+        },
+        {
+          "at": 1793588323.2190816,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 31,
+          "until_next_message_change": 1793588324.7682152
+        },
+        {
+          "at": 1793588324.8196368,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 20,
+          "until_next_message_change": 1793588325.8190482
+        },
+        {
+          "at": 1793588325.8686106,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 31,
+          "until_next_message_change": 1793588327.4185889
+        },
+        {
+          "at": 1793588327.4684792,
+          "xyz": [
+            0.0,
+            -0.0,
+            0.3490657255854705
+          ],
+          "messages": 6,
+          "until_next_message_change": 1793588327.7686834
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "native_stop_epoch": 1793588515.0395148,
+      "controller": "gemini_walk",
+      "config_tilt_limit_deg": 57.29577951308232,
+      "latest_prior_IMU": {
+        "at": 1793588515.0378997,
+        "receive_age_ms": 1.6150474548339844,
+        "roll_deg": -46.04868524988824,
+        "pitch_deg": 42.59758679006224,
+        "yaw_deg_unwrapped": -1380.8116964091823,
+        "tilt_deg": 59.27582481135187,
+        "gyro": [
+          -4.581001679281954,
+          0.849609375,
+          0.145032702440658
+        ]
+      },
+      "last_clip_status": null,
+      "latest_activation": {
+        "at": 1793588342.2800498,
+        "line": 38950,
+        "source": "launch.log",
+        "logger": "gemini_walk",
+        "text": "activate successful"
+      },
+      "pre_10s": {
+        "roll_delta_deg": -45.342080750307396,
+        "pitch_delta_deg": 39.16514586696031,
+        "yaw_delta_deg": -16.880314620131458,
+        "gyro_integrated_roll_deg": -34.82594161114489,
+        "gyro_integrated_pitch_deg": 38.181494850065064,
+        "gyro_integrated_yaw_deg": -15.965143089893045,
+        "tilt_deg": {
+          "min": 3.4873556206284704,
+          "median": 4.806065790854619,
+          "p99": 35.59157380988197,
+          "max": 59.27582481135187
+        },
+        "imu_receive_gap_ms": {
+          "min": 0.01049041748046875,
+          "median": 4.14276123046875,
+          "p99": 7.430748939514163,
+          "max": 9.501934051513672
+        },
+        "nonzero_cmd_messages": 0
+      },
+      "nonzero_command_segments_last20s": []
+    }
+  ],
+  "velocity_job_outcomes": {
+    "completed": 59,
+    "cancelled_or_other": 1,
+    "groups": {
+      "('-0.2', '-0', '-0', '0.5') completed": 15,
+      "('0', '-0', '-20', '0.5') completed": 11,
+      "('0', '-0', '20', '0.5') completed": 24,
+      "('0.2', '-0', '-0', '0.5') completed": 9,
+      "('0', '-0', '20', '0.5') cancelled_or_other": 1
+    },
+    "ROS_nonzero_segments": 40,
+    "last_nonzero_segment": {
+      "at": 1793588327.4684792,
+      "xyz": [
+        0.0,
+        -0.0,
+        0.3490657255854705
+      ],
+      "messages": 6,
+      "until_next_message_change": 1793588327.7686834
+    }
+  },
+  "sensor_windows": {
+    "pre_sit_60s": {
+      "bounds": [
+        1793587875,
+        1793587935
+      ],
+      "actual_bounds": [
+        1793587875.0057495,
+        1793587934.9991608
+      ],
+      "samples": 13746,
+      "start": {
+        "at": 1793587875.0057495,
+        "receive_age_ms": 0.0,
+        "roll_deg": -0.5921924192922182,
+        "pitch_deg": -0.46571437157874485,
+        "yaw_deg_unwrapped": -57.04782211422059,
+        "tilt_deg": 0.7533750819164339,
+        "gyro": [
+          0.006905308653651983,
+          0.001953125,
+          -0.0069053706662585475
+        ]
+      },
+      "end": {
+        "at": 1793587934.9991608,
+        "receive_age_ms": 0.0,
+        "roll_deg": -0.6877702771413692,
+        "pitch_deg": -0.7201774622975058,
+        "yaw_deg_unwrapped": -72.91218080238565,
+        "tilt_deg": 0.9958205758816535,
+        "gyro": [
+          0.009667432115112777,
+          -0.001953125,
+          -0.009667518932761967
+        ]
+      },
+      "tilt_deg": {
+        "min": 0.4623249563069732,
+        "median": 0.8277350219082016,
+        "p99": 5.139412171238004,
+        "max": 8.709835938987771
+      },
+      "roll_delta_deg": -0.09557785784915096,
+      "pitch_delta_deg": -0.25446309071876094,
+      "yaw_delta_deg": -15.864358688165062,
+      "gyro_integrated_yaw_deg": -15.462160104172208,
+      "gyro_integrated_roll_deg": 29.40817983330536,
+      "gyro_integrated_pitch_deg": -1.4359484067516959,
+      "euler_integration_guard_passed": true,
+      "gyro_norm": {
+        "min": 0.0033829117335329633,
+        "median": 0.011880395566988708,
+        "p99": 0.5383047776969904,
+        "max": 1.0876679389455939
+      },
+      "gyro_mean": [
+        0.008492653580441411,
+        -0.0002580296086134148,
+        -0.00445721234201084
+      ],
+      "imu_receive_gap_ms": {
+        "min": 0.016689300537109375,
+        "median": 4.103422164916992,
+        "p99": 7.247381210327147,
+        "max": 12.603282928466797
+      },
+      "imu_header_gap_ms_legacy": {
+        "min": 3.8077831268310547,
+        "median": 4.029273986816406,
+        "p99": 6.497879028320311,
+        "max": 11.956930160522461
+      },
+      "published_qnorm": {
+        "min": 0.9999999999999998,
+        "median": 1.0,
+        "p99": 1.0000000000000002,
+        "max": 1.0000000000000002
+      },
+      "cmd_messages": 0,
+      "nonzero_cmd_messages": 0,
+      "last_recorded_prior_cmd": null,
+      "joint_speed_absmax": 2.3968276977539062,
+      "joint_excursion_max": 0.17013835906982422,
+      "gateway_true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "unknown_remote_submission": 0
+      }
+    },
+    "sit_after_shake_early": {
+      "bounds": [
+        1793587950,
+        1793587980
+      ],
+      "actual_bounds": [
+        1793587950.0022569,
+        1793587979.9998574
+      ],
+      "samples": 6928,
+      "start": {
+        "at": 1793587950.0022569,
+        "receive_age_ms": 0.0,
+        "roll_deg": 0.6350737739085413,
+        "pitch_deg": -34.230076987898855,
+        "yaw_deg_unwrapped": -74.56384666585161,
+        "tilt_deg": 34.235249711263684,
+        "gyro": [
+          0.006905308653651983,
+          0.0,
+          -0.0069053706662585475
+        ]
+      },
+      "end": {
+        "at": 1793587979.9998574,
+        "receive_age_ms": 0.0,
+        "roll_deg": 7.506276583838086,
+        "pitch_deg": -34.277077205894265,
+        "yaw_deg_unwrapped": -79.88568234159413,
+        "tilt_deg": 34.99095828111875,
+        "gyro": [
+          0.017953814902016467,
+          0.001953125,
+          -0.015191827868290118
+        ]
+      },
+      "tilt_deg": {
+        "min": 34.02467201064904,
+        "median": 34.2644578956705,
+        "p99": 35.05201860688311,
+        "max": 35.25108871893265
+      },
+      "roll_delta_deg": 6.871202809929545,
+      "pitch_delta_deg": -0.047000217995410765,
+      "yaw_delta_deg": -5.32183567574252,
+      "gyro_integrated_yaw_deg": -22.636353648533582,
+      "gyro_integrated_roll_deg": 38.30415272059977,
+      "gyro_integrated_pitch_deg": 0.26026450721253297,
+      "euler_integration_guard_passed": true,
+      "gyro_norm": {
+        "min": 0.002762135864009951,
+        "median": 0.012506102026236032,
+        "p99": 0.1727825824577849,
+        "max": 0.4843789377360101
+      },
+      "gyro_mean": [
+        0.014827892145285035,
+        -0.0001866294385103926,
+        -0.01090408430720987
+      ],
+      "imu_receive_gap_ms": {
+        "min": 0.09465217590332031,
+        "median": 4.079580307006836,
+        "p99": 7.221245765686034,
+        "max": 10.00666618347168
+      },
+      "imu_header_gap_ms_legacy": {
+        "min": 3.8077831268310547,
+        "median": 4.017114639282227,
+        "p99": 6.498193740844726,
+        "max": 9.821414947509766
+      },
+      "published_qnorm": {
+        "min": 0.9999999999999998,
+        "median": 1.0,
+        "p99": 1.0000000000000002,
+        "max": 1.0000000000000002
+      },
+      "cmd_messages": 0,
+      "nonzero_cmd_messages": 0,
+      "last_recorded_prior_cmd": null,
+      "joint_speed_absmax": 0.8412704467773438,
+      "joint_excursion_max": 0.11825752258300781,
+      "gateway_true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "unknown_remote_submission": 0
+      }
+    },
+    "sit_middle": {
+      "bounds": [
+        1793588030,
+        1793588060
+      ],
+      "actual_bounds": [
+        1793588030.0007987,
+        1793588059.9987688
+      ],
+      "samples": 6880,
+      "start": {
+        "at": 1793588030.0007987,
+        "receive_age_ms": 0.0,
+        "roll_deg": 17.889627064638194,
+        "pitch_deg": -10.540155225155328,
+        "yaw_deg_unwrapped": -119.5438063429039,
+        "tilt_deg": 20.675873386249027,
+        "gyro": [
+          0.12291453124256924,
+          -0.017578125,
+          -0.11462919026745583
+        ]
+      },
+      "end": {
+        "at": 1793588059.9987688,
+        "receive_age_ms": 0.0,
+        "roll_deg": 19.652766336581635,
+        "pitch_deg": -29.50688587667168,
+        "yaw_deg_unwrapped": -348.6222919182583,
+        "tilt_deg": 34.955217542538875,
+        "gyro": [
+          0.04419414901867107,
+          0.00390625,
+          -0.005524470168305219
+        ]
+      },
+      "tilt_deg": {
+        "min": 7.14091535184468,
+        "median": 48.06257033423474,
+        "p99": 55.22211935335199,
+        "max": 56.39668018286277
+      },
+      "roll_delta_deg": 1.7631392719434409,
+      "pitch_delta_deg": -18.966730651516354,
+      "yaw_delta_deg": -229.07848557535442,
+      "gyro_integrated_yaw_deg": -192.87256444952968,
+      "gyro_integrated_roll_deg": 91.62363630304638,
+      "gyro_integrated_pitch_deg": 69.60157514076074,
+      "euler_integration_guard_passed": true,
+      "gyro_norm": {
+        "min": 0.002762135864009951,
+        "median": 0.12115673765055329,
+        "p99": 2.715629804143837,
+        "max": 3.8452269655066873
+      },
+      "gyro_mean": [
+        0.09159151335771534,
+        -0.011922862917877907,
+        -0.13155676714597767
+      ],
+      "imu_receive_gap_ms": {
+        "min": 0.0171661376953125,
+        "median": 4.105806350708008,
+        "p99": 7.515497207641603,
+        "max": 12.124061584472656
+      },
+      "imu_header_gap_ms_legacy": {
+        "min": 3.8080215454101562,
+        "median": 4.031181335449219,
+        "p99": 6.610651016235359,
+        "max": 10.583162307739258
+      },
+      "published_qnorm": {
+        "min": 0.9999999999999997,
+        "median": 1.0,
+        "p99": 1.0000000000000002,
+        "max": 1.0000000000000002
+      },
+      "cmd_messages": 0,
+      "nonzero_cmd_messages": 0,
+      "last_recorded_prior_cmd": null,
+      "joint_speed_absmax": 3.6031723022460938,
+      "joint_excursion_max": 0.9067668914794922,
+      "gateway_true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "unknown_remote_submission": 0
+      }
+    },
+    "sit_pre_fall_60s": {
+      "bounds": [
+        1793588078.9787474,
+        1793588138.9787474
+      ],
+      "actual_bounds": [
+        1793588078.979454,
+        1793588138.9767108
+      ],
+      "samples": 13700,
+      "start": {
+        "at": 1793588078.979454,
+        "receive_age_ms": 0.0,
+        "roll_deg": 22.137917945370194,
+        "pitch_deg": -30.70616917494829,
+        "yaw_deg_unwrapped": -370.40955993224395,
+        "tilt_deg": 37.21112002547912,
+        "gyro": [
+          0.024859135958189765,
+          0.00390625,
+          -0.01933506267056656
+        ]
+      },
+      "end": {
+        "at": 1793588138.9767108,
+        "receive_age_ms": 0.0,
+        "roll_deg": 58.51742026625385,
+        "pitch_deg": 17.727722403327178,
+        "yaw_deg_unwrapped": -472.54077649627385,
+        "tilt_deg": 60.1691987443493,
+        "gyro": [
+          0.7512975443097718,
+          1.896484375,
+          -0.7595907360808762
+        ]
+      },
+      "tilt_deg": {
+        "min": 34.13713837330425,
+        "median": 42.19894351515708,
+        "p99": 56.13094932983308,
+        "max": 60.1691987443493
+      },
+      "roll_delta_deg": 36.37950232088366,
+      "pitch_delta_deg": 48.433891578275464,
+      "yaw_delta_deg": -102.1312165640299,
+      "gyro_integrated_yaw_deg": -216.60382485413052,
+      "gyro_integrated_roll_deg": 428.44616262698946,
+      "gyro_integrated_pitch_deg": 191.71959279422907,
+      "euler_integration_guard_passed": true,
+      "gyro_norm": {
+        "min": 0.0033829117335329633,
+        "median": 0.10847319032903471,
+        "p99": 0.46486735859230816,
+        "max": 2.1767129050577436
+      },
+      "gyro_mean": [
+        0.09893691504008485,
+        0.010236085766423358,
+        -0.08289637545643914
+      ],
+      "imu_receive_gap_ms": {
+        "min": 0.010251998901367188,
+        "median": 4.111051559448242,
+        "p99": 7.718400955200202,
+        "max": 16.3266658782959
+      },
+      "imu_header_gap_ms_legacy": {
+        "min": 3.8077831268310547,
+        "median": 4.035711288452148,
+        "p99": 6.712503433227541,
+        "max": 12.917041778564453
+      },
+      "published_qnorm": {
+        "min": 0.9999999999999998,
+        "median": 1.0,
+        "p99": 1.0000000000000002,
+        "max": 1.0000000000000002
+      },
+      "cmd_messages": 0,
+      "nonzero_cmd_messages": 0,
+      "last_recorded_prior_cmd": null,
+      "joint_speed_absmax": 1.4761886596679688,
+      "joint_excursion_max": 0.7179365158081055,
+      "gateway_true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "unknown_remote_submission": 0
+      }
+    },
+    "post_recovery_early": {
+      "bounds": [
+        1793588347,
+        1793588377
+      ],
+      "actual_bounds": [
+        1793588347.002016,
+        1793588376.9996889
+      ],
+      "samples": 6711,
+      "start": {
+        "at": 1793588347.002016,
+        "receive_age_ms": 0.0,
+        "roll_deg": 3.789440749017753,
+        "pitch_deg": 2.499227876025082,
+        "yaw_deg_unwrapped": -1059.5647970357495,
+        "tilt_deg": 4.538379659491029,
+        "gyro": [
+          0.103579877855206,
+          0.01953125,
+          -0.04833784271423609
+        ]
+      },
+      "end": {
+        "at": 1793588376.9996889,
+        "receive_age_ms": 0.0,
+        "roll_deg": -2.5402523014464786,
+        "pitch_deg": 3.6288205708332972,
+        "yaw_deg_unwrapped": -1131.20464052296,
+        "tilt_deg": 4.428610266474418,
+        "gyro": [
+          0.0414318519219119,
+          0.001953125,
+          -0.04143222399755128
+        ]
+      },
+      "tilt_deg": {
+        "min": 4.074295576293697,
+        "median": 4.814772572667621,
+        "p99": 7.682838388751588,
+        "max": 7.909695167934018
+      },
+      "roll_delta_deg": -6.329693050464232,
+      "pitch_delta_deg": 1.1295926948082151,
+      "yaw_delta_deg": -71.63984348721056,
+      "gyro_integrated_yaw_deg": -65.96267131922058,
+      "gyro_integrated_roll_deg": 65.2587601926573,
+      "gyro_integrated_pitch_deg": 2.1403252069842558,
+      "euler_integration_guard_passed": true,
+      "gyro_norm": {
+        "min": 0.0033829117335329633,
+        "median": 0.033203125,
+        "p99": 0.30084338844371283,
+        "max": 0.396508427533979
+      },
+      "gyro_mean": [
+        0.040867584419749206,
+        -0.000464198237967516,
+        -0.03847664142519062
+      ],
+      "imu_receive_gap_ms": {
+        "min": 0.01239776611328125,
+        "median": 4.191279411315918,
+        "p99": 7.991576194763184,
+        "max": 15.945911407470703
+      },
+      "imu_header_gap_ms_legacy": {
+        "min": 3.808259963989258,
+        "median": 4.0988922119140625,
+        "p99": 7.004179954528808,
+        "max": 15.561580657958984
+      },
+      "published_qnorm": {
+        "min": 0.9999999999999998,
+        "median": 1.0,
+        "p99": 1.0000000000000002,
+        "max": 1.0000000000000002
+      },
+      "cmd_messages": 0,
+      "nonzero_cmd_messages": 0,
+      "last_recorded_prior_cmd": [
+        1793588340.6695027,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "joint_speed_absmax": 0.7142868041992188,
+      "joint_excursion_max": 0.0675210952758789,
+      "gateway_true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "unknown_remote_submission": 0
+      }
+    },
+    "idle_pre_lastfall_60s": {
+      "bounds": [
+        1793588455.0395148,
+        1793588515.0395148
+      ],
+      "actual_bounds": [
+        1793588455.0424078,
+        1793588515.0378997
+      ],
+      "samples": 13472,
+      "start": {
+        "at": 1793588455.0424078,
+        "receive_age_ms": 0.0,
+        "roll_deg": -0.47327308362687237,
+        "pitch_deg": 3.6611512539820645,
+        "yaw_deg_unwrapped": -1272.6547108276006,
+        "tilt_deg": 3.6915729679151617,
+        "gyro": [
+          0.00828637038438238,
+          0.0,
+          -0.008286444799510257
+        ]
+      },
+      "end": {
+        "at": 1793588515.0378997,
+        "receive_age_ms": 0.0,
+        "roll_deg": -46.04868524988824,
+        "pitch_deg": 42.59758679006224,
+        "yaw_deg_unwrapped": -1380.8116964091823,
+        "tilt_deg": 59.27582481135187,
+        "gyro": [
+          -4.581001679281954,
+          0.849609375,
+          0.145032702440658
+        ]
+      },
+      "tilt_deg": {
+        "min": 3.276161437712653,
+        "median": 4.143343132182059,
+        "p99": 5.99814951229292,
+        "max": 59.27582481135187
+      },
+      "roll_delta_deg": -45.575412166261366,
+      "pitch_delta_deg": 38.936435536080175,
+      "yaw_delta_deg": -108.1569855815817,
+      "gyro_integrated_yaw_deg": -101.33987764894599,
+      "gyro_integrated_roll_deg": 46.81521862218601,
+      "gyro_integrated_pitch_deg": 36.12523260654177,
+      "euler_integration_guard_passed": true,
+      "gyro_norm": {
+        "min": 0.0019531249999999998,
+        "median": 0.021484374999999997,
+        "p99": 0.3248065079060532,
+        "max": 7.0542673385054995
+      },
+      "gyro_mean": [
+        0.016052544692986753,
+        0.011409659850059383,
+        -0.02554675340286829
+      ],
+      "imu_receive_gap_ms": {
+        "min": 0.01049041748046875,
+        "median": 4.135847091674805,
+        "p99": 7.652091979980458,
+        "max": 574.7947692871094
+      },
+      "imu_header_gap_ms_legacy": {
+        "min": 3.8077831268310547,
+        "median": 4.057645797729492,
+        "p99": 6.885623931884762,
+        "max": 571.4938640594482
+      },
+      "published_qnorm": {
+        "min": 0.9999999999999997,
+        "median": 1.0,
+        "p99": 1.0000000000000002,
+        "max": 1.0000000000000002
+      },
+      "cmd_messages": 11,
+      "nonzero_cmd_messages": 0,
+      "last_recorded_prior_cmd": [
+        1793588340.6695027,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "joint_speed_absmax": 27.380950927734375,
+      "joint_excursion_max": 1.321049690246582,
+      "gateway_true_counts": {
+        "latched": 0,
+        "fault": 0,
+        "stop_required": 0,
+        "unknown_remote_submission": 0
+      }
+    }
+  },
+  "sensor_limits": {
+    "invalid_published_quaternions": 0,
+    "normalized_publication_not_raw_norm_evidence": true,
+    "acceleration_all_zero": true,
+    "raw_host_receipt_freshness_not_captured": true,
+    "shared_BNO_channels_not_independent_heading_truth": true
+  },
+  "independent_review": "212 checks over16windows/fivefall samples independently recomputed using SciPy Euler and3 \u00d7 3 body-axis basis solve; zero mismatches. See peer-review.json. No causal claim, hardware or simulation.",
+  "next_actions": [
+    "Keep motion suspended while passive no-reset raw IMU investigation compares actual stationary observation, quaternion/gyro and receipt cadence.",
+    "Fix manual discrete-arrow queue admission separately; retain voice FIFO. The UI defect does not account for all reported falls.",
+    "Only after sensor/state confidence returns, plan a watched minimal baseline withcurrent exact runtime; no automatic restart or policy deployment.",
+    "Review bounded API shutdown handling for invalid rclpy context; preserve confirmed native hardware deactivation separately."
+  ],
+  "limitations": [
+    "All orientation/gyro derive same BNO and body transform; agreement is not independent physical ground truth.",
+    "Unwrapped yaw retained; no arbitrary de-drift. Roll Euler integration withheld near pitch singularity.",
+    "Record receive/header publication does not prove actual sensor freshness; no raw host-receipt diagnostic topic in this bag.",
+    "Event-only zero cmd is not proof of physical stationarity or every possible command source.",
+    "HTTP access logs have no timestamps/arguments; timestamped job execution and cmd_vel are stronger evidence.",
+    "NativeEmergency stop text can arise from tilt or shared Stop input; API reports these five as tilt/fall and threshold crossings must be checked.",
+    "Recorder receive-time pairing and published target values do not identify applied SPI commands, torque, ground contact or thermal/battery cause.",
+    "No independent synchronized external pose measurement; smoothyawdrift and sensor channel disagreement must not be presentedas true physical rotation.",
+    "The legacy key api_move_completion_logs in the raw analysis contains 59 completed job logs and one cancelled job; this summary separates them."
+  ],
+  "evidence": {
+    "working_directory": "/private/tmp/ws1-fall-analysis-20261101",
+    "timeline": "analysis.json",
+    "raw_selected_arrays": "arrays.npz",
+    "native_api_events": "events.json",
+    "plots": [
+      "incident-overview.png",
+      "sit-and-final-fall.png"
+    ],
+    "verified_archive": {
+      "archive_name": "fall-incident-analysis-20261101.tar.gz",
+      "sha256": "703b2ed8f780a2eba2ca80c08854d6ac843dafb186b2719efebb267e2ff6932c",
+      "bytes": 20053219,
+      "indexed_files": 29,
+      "index_sha256": "2cf89fb0b4283b5c771759a0975c99b4650a1423c680e79926a852fdd98b5e1a",
+      "all_indexed_members_verified": true,
+      "repo_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/fall-incident-analysis",
+      "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/fall-incident-analysis",
+      "complete_raw_archive_preserved_separately": "948e771ed99b92940c67d77eb239f42caa6634c101d74b919386cb7eacba53d0"
+    },
+    "connection_loss_stop_audit": {
+      "archive": "voice-stop-fall-audit-20261101.tar.gz",
+      "sha256": "1e1728622b1c07f35ecf08498e989d08668e9e748a1f657bcadc3942e9bb22ea",
+      "bytes": 16291410,
+      "indexed_files": 21,
+      "index_sha256": "0fd1a2651ae8b9b950ea2db1b1ef32fbb323b85be7508e727b2414c2b92343f2",
+      "all_indexed_members_verified": true,
+      "repo_directory": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/voice-stop-fall-audit",
+      "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/voice-stop-fall-audit",
+      "audit_sha256": "72a5af44fd9f9b0bea0add093bb5b5aef2c3e9a2266c6af9487bb6f3c8d78a7b",
+      "original_fall_report_sha256": "6a8bf9ae3ee5863a65a217d2085a1f4488290d6947162efeba19f3901dea7ccb",
+      "raw_incident_archive_already_preserved_separately": "948e771ed99b92940c67d77eb239f42caa6634c101d74b919386cb7eacba53d0"
+    }
+  }
+}

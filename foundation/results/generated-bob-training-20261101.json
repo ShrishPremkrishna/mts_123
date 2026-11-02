@@ -1,0 +1,324 @@
+{
+  "schema": "generated_bob_matched_training_study_v1",
+  "created_epoch_s": 1793588504.435086,
+  "status": "training_complete_nominal_visibility_improved_strict_screens_not_all_passed",
+  "hardware_validated": false,
+  "catalog_or_hardware_deployment": false,
+  "hypothesis": "A freshly trained tracking actor can reproduce the independently screened 3.4cm bob reference; substituting it into original actor failed (2.3mm actual height range, joint RMSE .1672rad). Compare fresh sway and bob with identical class PPO budget; do not claim500iterations equals prior3000iteration supplied generated-policy training.",
+  "result": "Fresh matched training reproduces a larger correctly ordered bob; the old actor could not follow the substituted reference. Strict comparison gates remain failed; no adverse expansion or policy promotion.",
+  "training": {
+    "task": {
+      "entry": "mjlab.scripts.pupper_foundation train generated_trick",
+      "registered_task": "Mjlab-Tracking-Flat-Pupper-v3",
+      "geometry_gate": "Both unchanged references passed actual check_generated_motion before allocation; no tolerance bypass.",
+      "fresh_training": true,
+      "resume_checkpoint": null,
+      "iterations_per_arm": 500,
+      "num_envs": 4096,
+      "seed": 42,
+      "steps_per_env_iteration": 24,
+      "environment_steps_per_arm": 49152000,
+      "actor_hidden_dims": [
+        256,
+        128,
+        128
+      ],
+      "critic_hidden_dims": [
+        512,
+        256,
+        128
+      ],
+      "activation": "elu",
+      "observation_normalization": true,
+      "observations": 69,
+      "actions": 12,
+      "reward_changes": false,
+      "gains_limits_changes": false,
+      "gains_kp_kd": [
+        5.5,
+        0.25
+      ],
+      "contracts": [
+        "deployment controller absolute clamp",
+        "exact tighter class driver absolute limits",
+        "full tracking hull-ground contacts",
+        "COM-preserving inertial randomization",
+        "raw action history retained",
+        "measured joint observations already supplied by tracking task"
+      ],
+      "change_vs_historical_generated_training": "Both new matched arms add explicit actual driver clamp during training, rather than historical controller-only training plus CPU driver testing. This is common to both arms and must be stated."
+    },
+    "unchanged_contracts": {},
+    "source_archive_sha256": "c5d9d490ffbcbaaf8c0f422aa8ea95a2f2904ce1581c3b997ccbf9620d32790a",
+    "jobs": [
+      {
+        "label": "pilot-sway",
+        "start_epoch_s": 1793587623.9864752,
+        "end_epoch_s": 1793587851.9116457,
+        "returncode": 0,
+        "checkpoint_sha256": "86d7ce3eef98fb385928dd6fba8174faa88dda00db2ca53eeb5471a406d228a4"
+      },
+      {
+        "label": "pilot-bob",
+        "start_epoch_s": 1793587851.9176621,
+        "end_epoch_s": 1793588078.694525,
+        "returncode": 0,
+        "checkpoint_sha256": "ef3b04a33e420e25aa0d3f058aca81edb0b06b173def63b85696af76646fc130"
+      }
+    ],
+    "pilot_steps_per_arm": 49152000,
+    "reference_absolute_table_offset_additions": 0,
+    "smoke_checkpoint_and_exports": [
+      {
+        "label": "smoke-bob",
+        "checkpoint_sha256": "1ae99e412f1b684513c000fbf35ce3500728fa597e58377e47a8017cad4d024c",
+        "policy_sha256": "656c553140a033097257a7d986dc9f6f8d7779723a18e4e40e5bfa30df079744",
+        "checkpoint_iteration": 1,
+        "network_reconstruction_max_absolute_errors": [
+          0.0,
+          3.5762786865234375e-07,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "random_observations": 256,
+        "observation_sampling": "normalizer mean plus effective std times seed123 normal",
+        "json_vs_exact_checkpoint_action_max_error": 2.157840690575341e-07,
+        "normalizer_eps": 0.01,
+        "scope": "Verifies final exported actor corresponds to named checkpoint; no environment/policy quality or physical claim."
+      },
+      {
+        "label": "pilot-sway",
+        "checkpoint_sha256": "86d7ce3eef98fb385928dd6fba8174faa88dda00db2ca53eeb5471a406d228a4",
+        "policy_sha256": "735f37da57d653192c605adab3e4b3398f0da9ced25c2fde45c80c4ac6bde65e",
+        "checkpoint_iteration": 499,
+        "network_reconstruction_max_absolute_errors": [
+          0.0,
+          9.5367431640625e-07,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "random_observations": 256,
+        "observation_sampling": "normalizer mean plus effective std times seed123 normal",
+        "json_vs_exact_checkpoint_action_max_error": 3.557702776824101e-07,
+        "normalizer_eps": 0.01,
+        "scope": "Verifies final exported actor corresponds to named checkpoint; no environment/policy quality or physical claim."
+      },
+      {
+        "label": "pilot-bob",
+        "checkpoint_sha256": "ef3b04a33e420e25aa0d3f058aca81edb0b06b173def63b85696af76646fc130",
+        "policy_sha256": "918f3636b1cac85719b680498191bb5928496eafe30d1376109e30cbeb73aadd",
+        "checkpoint_iteration": 499,
+        "network_reconstruction_max_absolute_errors": [
+          0.0,
+          4.76837158203125e-07,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "random_observations": 256,
+        "observation_sampling": "normalizer mean plus effective std times seed123 normal",
+        "json_vs_exact_checkpoint_action_max_error": 2.261312749829436e-07,
+        "normalizer_eps": 0.01,
+        "scope": "Verifies final exported actor corresponds to named checkpoint; no environment/policy quality or physical claim."
+      }
+    ]
+  },
+  "compute": {
+    "requested_epoch_s": 1793588247.867254,
+    "verified_epoch_s": 1793588248.987031,
+    "endpoint": "gpu-g4-s-ft-use5c1-1620ryaedg10m",
+    "owned_assignment_absent": true,
+    "remaining_assignments": 0,
+    "final_balance_CU": 326.9440257952023,
+    "account_observed_debit_CU": 2.488051333733324,
+    "remaining_rate_CU_h": 0.0,
+    "elapsed_since_first_allocation_s": 1165.1066069602966,
+    "max_budget_CU": 15,
+    "max_allocation_s": 2700,
+    "within_original_deadline": true,
+    "no_cash_purchase": true
+  },
+  "nominal": {
+    "comparison": "artifacts/generated/gentle-bob-training-20261101/native-eval/comparison.json",
+    "comparison_sha256": "8432a63a52a73ee168f20558a451d866eaa7e19177f05be495c7629985780de5",
+    "screens": {
+      "both_complete_no_tilt_or_numeric_stop": true,
+      "bob_visible_height_range": true,
+      "bob_dip_rise_then_return": true,
+      "no_driver_target_clipping": false,
+      "no_loaded_nonfoot_contacts_sampled": false,
+      "default_return_present_both": true
+    },
+    "metrics": {
+      "sway": {
+        "height_range_m": 0.012038978441521492,
+        "joint_tracking_rmse_rad": 0.02956034957356089,
+        "joint_speed_peak_rad_s": 1.2758689180366711,
+        "effort_peak_nm": 1.345147919658344,
+        "target_step_peak_accumulated_rad": 0.041647255420684814,
+        "driver_clamp_peak_rad": 0.036402993202209466,
+        "clipped_joint_fraction": 0.0018878101402373248,
+        "planar_excursion_from_start_m": 0.010749026858510325,
+        "yaw_change_deg": -1.577223351035899,
+        "loaded_nonfoot_samples": 309,
+        "loaded_nonfoot_geometries": [
+          "leg_back_l_3_hull",
+          "leg_back_r_3_hull",
+          "leg_front_l_3_hull",
+          "leg_front_r_3_hull"
+        ]
+      },
+      "bob": {
+        "height_range_m": 0.02903819565363236,
+        "joint_tracking_rmse_rad": 0.026529146064521617,
+        "joint_speed_peak_rad_s": 1.0254055427849502,
+        "effort_peak_nm": 0.6036713017907036,
+        "target_step_peak_accumulated_rad": 0.020662128925323486,
+        "driver_clamp_peak_rad": 0.0,
+        "clipped_joint_fraction": 0.0,
+        "planar_excursion_from_start_m": 0.0025353495186120505,
+        "yaw_change_deg": 0.015675684292199787,
+        "loaded_nonfoot_samples": 431,
+        "loaded_nonfoot_geometries": [
+          "leg_back_l_3_hull",
+          "leg_back_r_3_hull",
+          "leg_front_l_3_hull",
+          "leg_front_r_3_hull"
+        ]
+      }
+    },
+    "bob_plateau_medians_m": {
+      "dip": 0.1434971256094697,
+      "rise": 0.17222304679651798,
+      "return": 0.1605261779299228
+    },
+    "default_entry_samples_identical": 323,
+    "strict_failure_interpretation": "The new bob has zero clipping. The paired sway actor clips, and both runs load lower-leg hulls; all loaded nonfoot identities are lower-leg hulls rather than torso. This is recorded as failure of the original strict screen, not silently reclassified as passing.",
+    "adverse_cases_run": 0,
+    "phase_lag_measured": false,
+    "return_scope": "Both finite and default-return sequences complete. Quiet-tail joint/linear/yaw values are reported, but the plan did not predeclare a numeric settlement pass threshold."
+  },
+  "comparison_boundaries": [
+    "Fresh500iteration sway/bob is the primary equal-compute comparison; historical3000iteration actor is context only.",
+    "References differ in shape and duration; this is a one-seed pilot, not a single-parameter amplitude ablation.",
+    "Full hulls and explicit measured deployment/driver clamps,5.5/.25gains,seed42,4096env and500iterations are matched. No bounds or gains widened.",
+    "Native handoff uses actual controller/math headers with transcribed activation,52Hz inference/520Hz physics and continuous16ms actuation delay; it is not a ROS executable or real sensor/actuator proof.",
+    "Contact telemetry is52Hz scratch preintegration; recorded root/joints follow onephysics step. Target-step maxima accumulate520Hz; do not conflate sampled and allstep maxima.",
+    "Open-loop reference feasibility liabilities remain:16.4mm planar excursion and.072rad endpoint error in previous study; no claim new training fixes real rear undertracking or jitter.",
+    "No physical testing or deployment of eithernew policy."
+  ],
+  "issues_and_recovery": [
+    {
+      "issue": "Allocation review rejected a watchdog referencing an endpoint field not yet written.",
+      "resolution": "No allocation occurred; revised lifecycle records exact endpoint before watchdog and immediately releases on setup failure."
+    },
+    {
+      "issue": "First actual G4 assignment setup used enum shape when installed CLI represents G4 shape asNone.",
+      "resolution": "Released within4seconds before bootstrap/training; verified zero assignments. Corrected storage serialization and retained original absolute allocation deadline."
+    },
+    {
+      "issue": "Smoke collector received503 for one ONNX; followup remote abort request timed out.",
+      "resolution": "No pilot began. Preserved13verified files and failed receipt; actualassignment remainedidle. Recovered complete32-file smoke archive, verified exact ONNX hash, reran collector14/14, then startedpilot. No training retry."
+    },
+    {
+      "issue": "First native run used outside-repo descriptor and existing harness source-identity check refused it.",
+      "resolution": "Failure occurred before simulation. Preserved failed attempt, moved exactimmutable artifactinputs inside repo, unchangedphysics/controllercode."
+    }
+  ],
+  "next": "Review lower-leg hull support and baseline clipping explicitly before deciding whether a bounded adverse diagnostic is worthwhile. Do not promote on larger body motion alone. Any real trial needs current sensing/readiness and direct operator observation.",
+  "artifacts_root": "artifacts/generated/gentle-bob-training-20261101",
+  "provenance_state": "Complete: source/training/local/native archives verified in both existingstores; runtime released.",
+  "archives": {
+    "native": {
+      "created_epoch_s": 1793588714.796824,
+      "archive": "native-nominal-comparison.tar.gz",
+      "bytes": 40679196,
+      "sha256": "a06509ffc8c548031e9b822b0006df9fe18f79176459eac07a83db2ae97fc474",
+      "verified_files": 44
+    },
+    "local_provenance": {
+      "created_epoch_s": 1793588715.0942662,
+      "archive": "local-provenance.tar.gz",
+      "bytes": 115148,
+      "sha256": "9c53795d2f4a370fdacf16bd06a736c53c06bc43d6c7d2bd3797225e1b139626",
+      "verified_files": 83
+    },
+    "training": {
+      "epoch_s": 1793588224.94861,
+      "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/pilot-complete.tar.gz",
+      "sha256": "ccc2676b0f76db537f693cfa688aefb20395a4bd1b7de5315a717988d57618e2",
+      "bytes": 25440653,
+      "complete_remote_files_verified": 58,
+      "remote_state": "pilot_complete_unvalidated",
+      "remote_gpu_processes": "",
+      "second_store": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/gentle-bob-training",
+      "source_archive_sha256": "c5d9d490ffbcbaaf8c0f422aa8ea95a2f2904ce1581c3b997ccbf9620d32790a",
+      "checkpoints": [
+        {
+          "path": "outputs/pilot-bob/runs/foundation_generated_trick_deployclamp_driverclamp_composedcom_groundhulls_s42_20261102T025055Z_686421cd/model_0.pt",
+          "bytes": 3788863,
+          "sha256": "70dc70b847d978ba6ac0207b3160221c85b9028bbd189e54099cf3f92949fc20"
+        },
+        {
+          "path": "outputs/pilot-bob/runs/foundation_generated_trick_deployclamp_driverclamp_composedcom_groundhulls_s42_20261102T025055Z_686421cd/model_499.pt",
+          "bytes": 3789283,
+          "sha256": "ef3b04a33e420e25aa0d3f058aca81edb0b06b173def63b85696af76646fc130"
+        },
+        {
+          "path": "outputs/pilot-sway/runs/foundation_generated_trick_deployclamp_driverclamp_composedcom_groundhulls_s42_20261102T024707Z_019855f3/model_0.pt",
+          "bytes": 3788863,
+          "sha256": "220e14573fdce52e3b374a3a9f3992a3cd6ee9c1ae6aec63d49e85c31b08bc77"
+        },
+        {
+          "path": "outputs/pilot-sway/runs/foundation_generated_trick_deployclamp_driverclamp_composedcom_groundhulls_s42_20261102T024707Z_019855f3/model_499.pt",
+          "bytes": 3789283,
+          "sha256": "86d7ce3eef98fb385928dd6fba8174faa88dda00db2ca53eeb5471a406d228a4"
+        },
+        {
+          "path": "outputs/smoke-bob/runs/foundation_generated_trick_deployclamp_driverclamp_composedcom_groundhulls_s42_20261102T024221Z_159a00a4/model_0.pt",
+          "bytes": 3788863,
+          "sha256": "f42164bad1be0dc5cdcd158ad4b2f71d29da5eddc48144e8e87ac55734e765d9"
+        },
+        {
+          "path": "outputs/smoke-bob/runs/foundation_generated_trick_deployclamp_driverclamp_composedcom_groundhulls_s42_20261102T024221Z_159a00a4/model_1.pt",
+          "bytes": 3788863,
+          "sha256": "1ae99e412f1b684513c000fbf35ce3500728fa597e58377e47a8017cad4d024c"
+        }
+      ],
+      "scope": "Complete training/source artifacts preserved; policy quality/hardware unvalidated."
+    },
+    "release": {
+      "requested_epoch_s": 1793588247.867254,
+      "verified_epoch_s": 1793588248.987031,
+      "endpoint": "gpu-g4-s-ft-use5c1-1620ryaedg10m",
+      "owned_assignment_absent": true,
+      "remaining_assignments": 0,
+      "final_balance_CU": 326.9440257952023,
+      "account_observed_debit_CU": 2.488051333733324,
+      "remaining_rate_CU_h": 0.0,
+      "elapsed_since_first_allocation_s": 1165.1066069602966,
+      "max_budget_CU": 15,
+      "max_allocation_s": 2700,
+      "within_original_deadline": true,
+      "no_cash_purchase": true
+    }
+  },
+  "independent_peer": {
+    "path": "artifacts/generated/gentle-bob-training-20261101/training-native-peer.json",
+    "sha256": "208979fffa0e9e670dfa0d038a69f6066b86bcf4a5a5cc3a25eab157592349ac",
+    "checks": 164,
+    "mismatches": 0,
+    "scope": "58archivefiles/config/reference/export/native metric parity. Does not independently repeat checkpoint forward or simulation."
+  }
+}

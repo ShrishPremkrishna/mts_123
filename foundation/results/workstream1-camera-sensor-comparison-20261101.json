@@ -1,0 +1,271 @@
+{
+  "schema": "workstream1_camera_sensor_comparison_v1",
+  "date_local": "2026-11-01",
+  "status": "motor_free_observation_no_large_anomaly_recurrence_not_causal_cure",
+  "scope": "Same-boot, no-reset passive BNO observation with camera requested at 10Hz; no native motor stack or motor commands. Root acquired captures. This report uses only local immutable evidence.",
+  "previous_report": "foundation/results/workstream1-sensor-followup-20261101.json",
+  "boot_id": "4a17c2a2-1b99-4f8a-b4ed-db243ea93dad",
+  "started_wall_s": 1793591513.1355488,
+  "ended_wall_s": 1793591634.2614396,
+  "motor_commands": false,
+  "sensor_reset": false,
+  "headline": "During this 120s camera-on interval, reported yaw changed +0.180 degrees and no large heading/gyro event recurred. Selected visible room snapshots showed no gross viewpoint rotation. This does not resolve the earlier motor-active falls.",
+  "imu": {
+    "elapsed_s": 120.0033505360002,
+    "q_reports": 12011,
+    "gyro_reports": 12013,
+    "yaw_delta_deg": 0.17976301562509142,
+    "yaw_range_deg": 0.23836832693740384,
+    "tilt_min_max_deg": [
+      2.3732317145041466,
+      2.4762963767222823
+    ],
+    "gyro_mean_sensor_rad_s": [
+      -0.0001942882190127362,
+      0.0001759161949554649,
+      -0.00017412776783484559
+    ],
+    "gyro_peak_norm_rad_s": 0.006176323555016366,
+    "accuracy": {
+      "2": {
+        "3": 12013
+      },
+      "5": {
+        "0": 12011
+      }
+    },
+    "read_failures": 0,
+    "invalid_packets": 0,
+    "parse_failures": 0,
+    "timeouts": [
+      {
+        "relative_start_end_s": [
+          0.003757251000024553,
+          0.030744119000019055
+        ],
+        "wall_start_s": 1793591513.1423943,
+        "result": "timed_out",
+        "reason": null
+      },
+      {
+        "relative_start_end_s": [
+          44.36222255300004,
+          44.39581960600003
+        ],
+        "wall_start_s": 1793591557.5008597,
+        "result": "timed_out",
+        "reason": null
+      }
+    ],
+    "sequence_gaps": [
+      {
+        "stream": "gyro",
+        "prior_current_relative_s": [
+          0.002678378000155135,
+          0.03440520300000571
+        ],
+        "advance_mod256": 249,
+        "prior_current_sequence": [
+          73,
+          66
+        ]
+      },
+      {
+        "stream": "gyro",
+        "prior_current_relative_s": [
+          0.03440520300000571,
+          0.0380157130000498
+        ],
+        "advance_mod256": 3,
+        "prior_current_sequence": [
+          66,
+          69
+        ]
+      },
+      {
+        "stream": "gyro",
+        "prior_current_relative_s": [
+          44.35417582800005,
+          44.41018977400017
+        ],
+        "advance_mod256": 2,
+        "prior_current_sequence": [
+          154,
+          156
+        ]
+      }
+    ],
+    "cadence": {
+      "q": {
+        "median_p95_p99_max_ms": [
+          10.509666499956438,
+          10.89772814996195,
+          13.009191430078317,
+          41.642980999995416
+        ],
+        "zero_receipt_interval_count": 2
+      },
+      "gyro": {
+        "median_p95_p99_max_ms": [
+          10.507981999921867,
+          10.853866799971,
+          12.890276159994293,
+          56.013946000120995
+        ],
+        "zero_receipt_interval_count": 2
+      }
+    },
+    "thirty_second_yaw_deltas_deg": [
+      0.009941980298829126,
+      0.03343812388535751,
+      0.10525838077345785,
+      0.03112453066744693
+    ]
+  },
+  "camera": {
+    "requested_rate_hz": 10,
+    "format": "RGB888 1400x1050, compressed subscriber; frames saved at most 1Hz",
+    "summary": {
+      "wall_end_s": 1793591633.7170331,
+      "monotonic_end_s": 1580.249804183,
+      "received": 1190,
+      "saved": 113,
+      "decode_errors": 0,
+      "duplicate_adjacent_headers": 0,
+      "max_arrival_gap_s": 0.10837123400006021,
+      "first_last_arrival_monotonic_s": [
+        1461.503515656,
+        1580.155824858
+      ],
+      "observed_arrival_hz": 10.020875345761569,
+      "interrupted": false,
+      "error": null,
+      "complete": true,
+      "limits": "Arrival/header clocks are recorded, not exposure-time proof; counts may be affected by subscriber load. Images provide scene evidence, not automatic heading ground truth."
+    },
+    "saved_frame_hashes_verified": 113,
+    "selected_frames": [
+      {
+        "label": "first_startup",
+        "path": "stationary-camera-r2/frames/frame-0000.jpg",
+        "relative_to_imu_start_s": 1.8321091390000674,
+        "arrival_wall_s": 1793591514.97075,
+        "sha256": "a447888f95a69c3914e9e844e7787eabc68afe3a52092568b1820686fa21a3ff",
+        "frame_index": 0
+      },
+      {
+        "label": "early_visible",
+        "path": "stationary-camera-r2/frames/frame-0003.jpg",
+        "relative_to_imu_start_s": 4.989466152999967,
+        "arrival_wall_s": 1793591518.1281042,
+        "sha256": "fe88f7123760102db4efc779dce006527cbb12d5157d13b7e5f2cd19994f7da1",
+        "frame_index": 34
+      },
+      {
+        "label": "midpoint",
+        "path": "stationary-camera-r2/frames/frame-0056.jpg",
+        "relative_to_imu_start_s": 61.18512956200016,
+        "arrival_wall_s": 1793591574.323768,
+        "sha256": "983859f36e61760354dc42b5a350583b05873525d5ca8c16b69c2222c6fad91e",
+        "frame_index": 596
+      },
+      {
+        "label": "last",
+        "path": "stationary-camera-r2/frames/frame-0112.jpg",
+        "relative_to_imu_start_s": 120.38403799900016,
+        "arrival_wall_s": 1793591633.5226758,
+        "sha256": "18f47e93d4f28e61015859aff6f5671970e6008f33f0597a6e088566fc9c35c2",
+        "frame_index": 1188
+      }
+    ],
+    "visual_observations": {
+      "reviewed": [
+        "frame-0000.jpg",
+        "frame-0003.jpg",
+        "frame-0056.jpg",
+        "frame-0112.jpg"
+      ],
+      "agent": "First frame almost black. In the three visible snapshots, dresser/basket/door/drying-rack edges appear in the same positions; no obvious large viewpoint change. Qualitative inspection of selected frames only, not calibrated orientation or a guarantee between frames.",
+      "root": "Root independently viewed0000,0010,0056,0112 and reported fixed background placement appears unchanged after startup; people/objects at edge can change. Not calibrated angle truth."
+    }
+  },
+  "thermal": {
+    "thermal_samples": 25,
+    "temperature_min_max_c": [
+      68.3,
+      69.95
+    ],
+    "temperature_first_last_c": [
+      69.4,
+      69.4
+    ],
+    "throttled_counts": {
+      "throttled=0x0": 25
+    }
+  },
+  "comparison_to_prior_camera_off": {
+    "prior_no_reset_300s_report": "foundation/results/workstream1-sensor-followup-20261101.json",
+    "prior_quiet_30s_yaw_deltas_deg": [
+      -0.1253297197510723,
+      -0.13591867741774966,
+      -0.24543072354095513,
+      -0.12817944171379816,
+      -0.12611896046891347,
+      0.031918771213589714,
+      -0.04406200429099133,
+      0.020899919409643926,
+      0.0213118596389689
+    ],
+    "prior_event_limit": "Full300s including+58.5degree brief event remains in prior frozen report; operator not sure whether body moved. This list is descriptive, not a replacement pass.",
+    "prior_max_q_gyro_receipt_gap_ms": [
+      18.104937999964932,
+      18.856994999964627
+    ],
+    "current_max_q_gyro_receipt_gap_ms": [
+      41.642980999995416,
+      56.013946000120995
+    ],
+    "prior_temperature_min_max_c": [
+      68.85,
+      71.05
+    ],
+    "interpretation": "Small attitude change is similar in scale to earlier quiet intervals. Current maximum report gaps are larger, including one gyro sequence skip around 44.4s. This is a descriptive comparison, not randomized load attribution."
+  },
+  "first_failed_attempt": {
+    "started_wall_s": 1793591350.5914078,
+    "ended_wall_s": 1793591445.6433485,
+    "same_boot_id": "4a17c2a2-1b99-4f8a-b4ed-db243ea93dad",
+    "camera_exit_code": 1,
+    "camera_error": "Package 'camera_ros' not found",
+    "saved_frames": 0,
+    "imu_exit_code": 130,
+    "interpretation": "Camera launch could not find camera_ros in the original environment. No saved frames and reader was interrupted; not a successful camera-on comparison. Correct retry sources the existing ROS workspace. Original complete raw outputs retained."
+  },
+  "raw_archive": {
+    "path": "artifacts/hardware/2026-11-01/stationary-camera/stationary-camera-complete.tar.gz",
+    "sha256": "5c6af331e510f348a011fd8af374327d05971c9db0e7e7119bf2fca9d9aa766c",
+    "bytes": 35759467,
+    "indexed_files": 138,
+    "all_members_verified": true,
+    "contents": "Both failed environment attempt and successful retry, all 113 JPEGs, IMU raw-read/packet/state, thermal, process exits and capture sources."
+  },
+  "analysis_archive": {
+    "path": "artifacts/hardware/2026-11-01/stationary-camera/stationary-camera-analysis.tar.gz",
+    "sha256": "14e7cf31d3ef55ba69c313704d97abc2b5a8fd7e7362dd751cf7914a0288f8a3",
+    "bytes": 245273,
+    "indexed_files": 8,
+    "all_members_verified": true
+  },
+  "limits": [
+    "No motor or hardware actions by this analyzer.",
+    "Camera callback/header and IMU packet receipts are host clocks, not synchronized exposure-time or physical sensor-age proof.",
+    "Initial stream drain includes sequence discontinuities; later one gyro sequence skip and 2 packet timeouts are disclosed. No failed reads, malformed packets or parse failures.",
+    "RV accuracy0 and gyro accuracy3 do not certify calibration or future readiness.",
+    "Visual review covers selected snapshots, not a measured angle or proof of every intermediate moment.",
+    "Sameboot/noreset is established by root run metadata; camera also has different loading/configuration than prior active sessions.",
+    "No causal claim that camera load, temperature, fusion, parser or policy caused or repaired prior falls.",
+    "Camera on means this standalone 10Hz camera and 1Hz-saving subscriber workload; it does not reproduce the full application, neural policy inference or motor load.",
+    "No calibration setting, gain, policy, production driver or hardware state was changed by the analysis."
+  ],
+  "review_scope": "Owner full-stream numerical analysis and verification of every saved JPEG hash/raw archive member. Root independently inspected selected raw frames. No separate independent numerical peer is claimed for this addendum."
+}

@@ -1,0 +1,329 @@
+{
+  "schema": "workstream1_sensor_followup_v1",
+  "date_local": "2026-11-01",
+  "status": "sensor_followup_evidence_only_fall_cause_unresolved",
+  "scope": "Motor-free sensor diagnostics after repeated supervised falls. Root operated captures; this report author only analyzed immutable local outputs. No gain, policy, calibration setting or production driver change is made by this report.",
+  "headline_findings": [
+    "Wrong-address passive attempts are diagnostic errors, not evidence that the sensor lost power or stopped reporting. The corrected reader uses the exact deployed 0x4B address.",
+    "After a reboot and sensor-only reset, a 300s no-reset stream had no read/parser failures. Whole yaw +57.64 degrees includes one brief +58.55 degree event; operator could not confirm whether the body moved then. It is neither proven physical motion nor proven stationary drift.",
+    "Manual body rotations showed corresponding pitch/roll/yaw signs and strong quaternion/gyro consistency. This argues against a gross frame sign/axis swap, but does not establish physical attitude accuracy or cure the earlier faults.",
+    "Quiet intervals after reset and after manual rotations do not validate behavior under motor load. Existing fall/bias evidence remains unresolved."
+  ],
+  "exact_driver_identity": {
+    "library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "source_package": "artifacts/hardware/2026-11-01/imu-parser-candidate/evidence/native/package",
+    "frame_mapping": {
+      "orientation": "Q_world_body = Q_world_sensor * inverse(Q_offset)",
+      "angular_velocity": "omega_body = R_offset * omega_sensor",
+      "offset_rpy_rad": [
+        0,
+        -2.35619,
+        0
+      ]
+    },
+    "frame_audit_source": "frame-audit/check_frame.py",
+    "synthetic_source_equivalent_cases": 105,
+    "synthetic_max_rate_error_rad_s": 3.0873e-11,
+    "limits": "Algebra/source-equivalent synthetic check, not actual tf2 binary execution or an independently surveyed physical mounting."
+  },
+  "passive_reader_erratum": {
+    "wrong_address_hex": "0x4A",
+    "correct_address_hex": "0x4B",
+    "wrong_address_source_sha256": "33492c6263d084f54b467b82c3922ec08553bb137af5ac2a66a1a662740f71c4",
+    "correct_address_source_sha256": "78e6cdb5aba6e845eb4452b54c2175c6950007e896be05589c9a0402d9ca6532",
+    "failed_attempts": "Two prior passive captures returned only failed reads/errno121 at the wrong address. Preserve both and retract the earlier sensor-shares-motor-power inference. O_RDONLY was not shown to be defective.",
+    "scope": "Corrected reader opens I2C O_RDONLY, selects 0x4B and reads; no sensor write/reset/configuration/calibration/ROS/SPI/motor functions.",
+    "verification": "11 offline syscall/fixture/header-identity checks; independent source peer confirmed exact address and30\u2192300s bound-only change.",
+    "timing_limit": "25ms user-space packet retry budget cannot bound a blocked kernel read; root used an external timeout.",
+    "source_history": "Initial GCC-Werror misleading-indentation rejection occurred before any binary/capture; corrected with braces without disabling warnings."
+  },
+  "boot_boundaries": {
+    "old_boot": "6488fbb6-b9b4-4f6c-a83e-b24c4db3c3bd",
+    "new_boot": "4a17c2a2-1b99-4f8a-b4ed-db243ea93dad",
+    "causal_limit": "The user switched robot power and an independent Pi reboot was later observed. Wrong-address reads did not measure the BNO power rail. Successful BNO reset definitely changed sensor state; the original bad state was not retained for a causal reset comparison.",
+    "new_boot_initial_capture": "Correct-address capture before report configuration saw startup/control packets but no enabled measurement stream; not a sensor-health assessment."
+  },
+  "old_boot_reset_30s": {
+    "elapsed_s": 30.006962094999835,
+    "polls": 8234,
+    "startup_unusable": 43,
+    "later_unusable": 0,
+    "yaw_delta_deg": 0.006894358173746028,
+    "gyro_mean_sensor_rad_s": [
+      -0.00022689466856377636,
+      -8.892701707398728e-05,
+      -0.0001791617843990626
+    ],
+    "gyro_peak_norm_rad_s": 0.00647778279366289,
+    "accuracy": {
+      "q": {
+        "0": 2985
+      },
+      "gyro": {
+        "3": 2987
+      }
+    },
+    "screen_transitions": [
+      {
+        "elapsed_s": 3.106629878999229,
+        "ready": true
+      },
+      {
+        "elapsed_s": 18.120150527000078,
+        "ready": false
+      },
+      {
+        "elapsed_s": 21.135846016999494,
+        "ready": true
+      }
+    ]
+  },
+  "new_boot_reset_30s": {
+    "elapsed_s": 30.005981437999992,
+    "polls": 8243,
+    "startup_unusable": 43,
+    "later_unusable": 0,
+    "yaw_delta_deg": -0.1975236281223776,
+    "gyro_mean_sensor_rad_s": [
+      -0.0002539586126005362,
+      0.00019766881702412868,
+      -0.0001930870894772118
+    ],
+    "gyro_peak_norm_rad_s": 0.004784159653873394,
+    "accuracy": {
+      "q": {
+        "0": 2983
+      },
+      "gyro": {
+        "2": 2984
+      }
+    },
+    "screen_transitions": [
+      {
+        "elapsed_s": 3.1158357339999725,
+        "ready": true
+      }
+    ]
+  },
+  "reset_semantics": "Existing BNO constructor soft reset, product query, RV 0x05+calibrated gyro 0x02 at 100Hz. No explicit calibration enable/disable/tare/save command. Soft reset may persist RAM DCD; not a promise of no flash side effects.",
+  "new_boot_no_reset_300s": {
+    "start_wall_s": 1793590373.9273856,
+    "end_wall_s": 1793590674.1571825,
+    "q_reports": 30038,
+    "gyro_reports": 30039,
+    "read_failures": 0,
+    "invalid_packets": 0,
+    "timeouts": 0,
+    "parse_failures": 0,
+    "sequence_advances": "Every within-capture gyro and RV report sequence advanced exactly1 modulo256.",
+    "accuracy": {
+      "2": {
+        "2": 15301,
+        "3": 14738
+      },
+      "5": {
+        "0": 30038
+      }
+    },
+    "whole_yaw_delta_deg": 57.63719943234473,
+    "tilt_min_max_deg": [
+      2.1509128602739294,
+      2.674446157729244
+    ],
+    "event_local_time": "2026-11-01 19:35:11.903\u201319:35:12.872 America/Los_Angeles (PST)",
+    "event_wall_bounds_s": [
+      1793590511.9026794,
+      1793590512.871666
+    ],
+    "event_padded_yaw_delta_deg": 58.54518956700857,
+    "event_padded_gyro_projected_yaw_deg": 58.47568814827732,
+    "event_gyro_peak_norm_rad_s": 1.8331938025812398,
+    "event_operator_observation": "Root asked whether body moved; user answered I am not sure. Event remains ambiguous.",
+    "posthoc_before_1_120s_yaw_delta_deg": -0.633116566715207,
+    "posthoc_after_150_300s_yaw_delta_deg": -0.09605041449770224,
+    "thermal": {
+      "samples": 60,
+      "min_max_c": [
+        68.85,
+        71.05
+      ],
+      "throttled_counts": {
+        "throttled=0x0": 60
+      }
+    },
+    "max_host_receive_gap_ms": {
+      "gyro": 18.856994999964627,
+      "q": 18.104937999964932
+    },
+    "interpretation": "Do not discard the event or call the whole change slow stationary drift. Before/after windows are post-hoc descriptions, not a passing replacement acceptance test."
+  },
+  "new_boot_manual_body_axes": {
+    "start_wall_s": 1793590793.109068,
+    "end_wall_s": 1793590890.4605584,
+    "operator_instruction_order": [
+      "raise front then return",
+      "raise left side then return",
+      "nose left then return"
+    ],
+    "operator_response": "I did the 3 tilts to the best of my abilities.",
+    "completion": "Root SIGINT ended the reader after 97.35s; state finalized, exit 130 expected from operator-ended capture, not a full 300s run.",
+    "directional_windows": [
+      {
+        "label": "initial_yaw_reposition",
+        "relative_window_s": [
+          27,
+          30
+        ],
+        "mapped_rpy_delta_deg": [
+          -1.755074386331226,
+          6.7365008030916504,
+          -120.22381964206625
+        ],
+        "gyro_projected_rpy_delta_deg": [
+          -1.27870404671836,
+          7.15565827753776,
+          -120.06417264055196
+        ]
+      },
+      {
+        "label": "negative_pitch_excursion",
+        "relative_window_s": [
+          38.5,
+          40.3
+        ],
+        "mapped_rpy_delta_deg": [
+          1.0149414365860734,
+          -36.412411545054866,
+          5.116657276459843
+        ],
+        "gyro_projected_rpy_delta_deg": [
+          0.7292531900906186,
+          -36.432352532325844,
+          5.288817937998191
+        ]
+      },
+      {
+        "label": "positive_roll_excursion",
+        "relative_window_s": [
+          46,
+          48.1
+        ],
+        "mapped_rpy_delta_deg": [
+          65.79545339905928,
+          -13.6327464699311,
+          3.813478363594705
+        ],
+        "gyro_projected_rpy_delta_deg": [
+          65.70321726006227,
+          -13.26459262201086,
+          3.8533563303002047
+        ]
+      },
+      {
+        "label": "positive_yaw_excursion",
+        "relative_window_s": [
+          52.8,
+          54.3
+        ],
+        "mapped_rpy_delta_deg": [
+          0.9286310045914421,
+          3.355174665185782,
+          63.693113144552036
+        ],
+        "gyro_projected_rpy_delta_deg": [
+          0.7380378453511527,
+          3.2944048986378784,
+          63.55285303428414
+        ]
+      }
+    ],
+    "same_axis_rate_correlations_40ms_zero_host_offset": [
+      0.9987800562363187,
+      0.9984324641152171,
+      0.9996016772775842
+    ],
+    "last10s_rpy_delta_deg": [
+      -0.03202863242926799,
+      0.01714805178916926,
+      0.007848590058579755
+    ],
+    "last10s_gyro_peak_norm_rad_s": 0.006176323555016365,
+    "startup_sequence_gaps": [
+      {
+        "kind": "gyro",
+        "prior_current_relative_s": [
+          0.025744457999962833,
+          0.029314466999949218
+        ],
+        "advance_mod256": 149
+      },
+      {
+        "kind": "gyro",
+        "prior_current_relative_s": [
+          0.029314466999949218,
+          0.03779785999995511
+        ],
+        "advance_mod256": 3
+      },
+      {
+        "kind": "q",
+        "prior_current_relative_s": [
+          0.025744457999962833,
+          0.041681259999904796
+        ],
+        "advance_mod256": 153
+      }
+    ],
+    "scope": "Waveform-selected negative pitch, positive roll and positive yaw excursions are consistent with requested directions. A large initial yaw repositioning and mixed-axis components prevent a pure-axis calibration claim. Shared BNO channels are not independent ground truth."
+  },
+  "raw_archives": [
+    {
+      "path": "artifacts/hardware/2026-11-01/stationary-newboot/stationary-newboot-complete.tar.gz",
+      "sha256": "3fce2fd4ec62fccf7ab82824129b2c2a59980f97388e06c2becfa4ec0f75356c",
+      "bytes": 9396229
+    },
+    {
+      "path": "artifacts/hardware/2026-11-01/body-axis/body-axis-complete.tar.gz",
+      "sha256": "560cdc04e0de5b53ee1ac92cf28d1a7aac136cfd8100c2957de4919d6d4bcdc7",
+      "bytes": 3095243
+    },
+    {
+      "path": "artifacts/hardware/2026-11-01/stationary-sensor-after-falls/ws1-passive-wrong-address-followup.tar.gz",
+      "sha256": "2e21c8e0d5fe4b95e2f99a7e7570d9b9ade7cea53c85e892fa9958d1255aa1c8",
+      "bytes": 1217990
+    },
+    {
+      "path": "artifacts/hardware/2026-11-01/stationary-sensor-after-falls/stationary-sensor-after-falls.tar.gz",
+      "sha256": "272a531dafc2be9a34d462406e76dc12ed86e9c4ecc5dc3b1684bb121ea35f71",
+      "bytes": 2586201
+    }
+  ],
+  "analysis_archive": {
+    "path": "artifacts/hardware/2026-11-01/sensor-followup/sensor-followup-analysis.tar.gz",
+    "sha256": "f3863958cf2d4f3c2159b5fbdcf48ea180cef0e7df42234a03f310d0bf033352",
+    "bytes": 683336,
+    "indexed_files": 59,
+    "verified_all_members": true,
+    "detailed_report_member": "result-report.json",
+    "detailed_report_sha256": "44970e58071e00420f3be40d844e66349314250ec6df3c87854789b78eb46b73",
+    "index_member": "index.json",
+    "contains": "Exact analysis scripts, source/header and wrong-address originals, fake checks/peers, frame algebra, fall-bag cross-checks, old/new reset,300s event/thermal, body-axis arrays and plot. Raw captures remain in separate archives."
+  },
+  "review_scope": {
+    "frame": "105 source-equivalent synthetic rotation checks; independent dynamic waveform agreement is reported separately.",
+    "oldboot_reset": "92 independent checks and separate exact transport replay.",
+    "newboot_300s": "127 independent scalar/Hamilton/count/thermal checks.",
+    "manual_body_axes": "286 independent checks across 25 windows and 9 short-rate sensitivities.",
+    "newboot_reset": "Owner fullsample analysis; no separate independent numerical rerun claimed.",
+    "event_projection": "Owner post-hoc fixed-window integration; whole and30s-bin yaw independently checked."
+  },
+  "analysis_revision_note": "Event gyro projection now linearly interpolates mapped roll/pitch at gyro receipt times; the earlier nearest-following calculation is preserved. Event integral changes 58.475172\u219258.475688degrees, with no conclusion change.",
+  "limits_and_next_evidence": [
+    "No physical heading truth from gyro/quaternion agreement; both come from one BNO fusion stack. Report status 0 quaternion and 2/3 gyro are preserved, not interpreted as a health guarantee.",
+    "Host report receipts and gaps are not sensor exposure time or physical measurement age; startup backlog and grouped reports can share timestamps.",
+    "The body-axis capture has startup-only sequence gaps below .05s. These are retained; subsequent sequences are consecutive.",
+    "Published acceleration in earlier ROS bags was unavailable/zero, not measured zero acceleration.",
+    "Startup stationary readiness can pass and bias may later develop; no claim that a quiet reset fixes the recurrent falls.",
+    "Next useful evidence is synchronized independent view of the body and same-stream IMU with motors inactive, followed by controlled load comparison only if justified; avoid speculative gains, frame offsets, calibration toggles or policy promotion."
+  ]
+}
