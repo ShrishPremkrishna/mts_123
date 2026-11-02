@@ -1,4 +1,5 @@
 #include "control_board_hardware_interface/control_board_hardware_interface.hpp"
+#include "control_board_hardware_interface/imu_health.hpp"
 
 #include <fcntl.h>
 #include <sched.h>
@@ -24,6 +25,15 @@ namespace control_board_hardware_interface {
 const char *RED_ANSI = "\033[1;31m";
 const char *YELLOW_ANSI = "\033[1;33m";
 const char *RESET_ANSI = "\033[0m";
+
+namespace {
+const char *imu_feedback_error(IMUManager &manager) {
+  // Snapshot first, then read the clock: C++ argument evaluation order must not
+  // make a concurrently received sample appear to come from the future.
+  const auto sample = manager.get_imu_data();
+  return pupper_imu::feedback_error(sample, std::chrono::steady_clock::now());
+}
+}  // namespace
 
 ControlBoardHardwareInterface::~ControlBoardHardwareInterface() {
   // Release lock if we have it
@@ -119,6 +129,19 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
   spi_command_ = get_spi_command();
   spi_data_ = get_spi_data();
 
+  // Do not return ready while the background reader still contains default or
+  // stale data. This sends no enable command; failed initialization disables.
+  if (imu_manager_.enabled) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (imu_feedback_error(imu_manager_)) {
+      if (std::chrono::steady_clock::now() >= deadline) {
+        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "No fresh quaternion and gyro reports during IMU initialization");
+        deactivate_motors();
+        return hardware_interface::CallbackReturn::ERROR;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+  }
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -214,19 +237,30 @@ bool contains_nan(const Eigen::Quaternionf &q) {
 
 hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
-  // TODO: figure out how to disable if IMU is enabled but not reading properly
-  //   if (imu_manager_.enabled && !sample_imu_multiple_attempts(*imu_, /*max_samples=*/500,
-  //   /*delay_ms=*/10)) {
-  //     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
-  //                  "%sFailed to get a good IMU sample within 500 attempts. Deactivating "
-  //                  "motors%s",
-  //                  RED_ANSI, RESET_ANSI);
-  //     deactivate_motors();
-  //     return hardware_interface::CallbackReturn::ERROR;
-  //   }
+  if (imu_manager_.enabled) {
+    pupper_imu::StartupWindow stationary;
+    const auto deadline = std::chrono::steady_clock::now() + pupper_imu::startup_timeout;
+    RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                "Keep body supported and stationary: checking fresh IMU reports before motor enable");
+    while (true) {
+      const auto sample = imu_manager_.get_imu_data();
+      if (stationary.observe(sample, std::chrono::steady_clock::now())) break;
+      if (std::chrono::steady_clock::now() >= deadline) {
+        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                     "IMU startup check failed: requires three seconds of fresh reports, gyro norm <=0.005 rad/s and orientation change from start <=1 degree");
+        deactivate_motors();
+        return hardware_interface::CallbackReturn::ERROR;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+  }
 
   // Enable actuators. Send the command multiple times to ensure it is received.
   for (int i = 0; i < 10; i++) {
+    if (imu_manager_.enabled && imu_feedback_error(imu_manager_)) {
+      deactivate_motors();
+      return hardware_interface::CallbackReturn::ERROR;
+    }
     spi_command_->flags[0] = 1;
     spi_command_->flags[1] = 1;
     spi_command_->flags[2] = 1;
@@ -237,7 +271,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Homing
-  do_homing();
+  if (!do_homing()) return hardware_interface::CallbackReturn::ERROR;
 
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Successfully activated!");
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -246,6 +280,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
 void ControlBoardHardwareInterface::deactivate_motors() {
   // Send a neutral disable packet; flags alone leave the previous targets,
   // gains and feed-forward torques in the command sent to both boards.
+  if (spi_command_ == nullptr) return;  // Initialization may have failed before SPI setup.
   *spi_command_ = spi_command_t{};
   spi_driver_run();
 }
@@ -272,6 +307,16 @@ bool ControlBoardHardwareInterface::hw_states_contains_nan() {
 
 hardware_interface::return_type ControlBoardHardwareInterface::read(
     [[maybe_unused]] const rclcpp::Time &time, [[maybe_unused]] const rclcpp::Duration &period) {
+  // Validate BEFORE transmitting previously prepared actuator commands. Each
+  // sensor component has its own monotonic receipt; one cannot freshen another.
+  const BNO055::Output imu_output = imu_manager_.get_imu_data();
+  if (imu_manager_.enabled) {
+    if (const char *error = pupper_imu::feedback_error(imu_output, std::chrono::steady_clock::now())) {
+      RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s; disabling motors", error);
+      deactivate_motors();
+      return hardware_interface::return_type::ERROR;
+    }
+  }
   // Write to and read from the actuators
   spi_driver_run();
   copy_actuator_states();
@@ -286,7 +331,7 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
 
   if (imu_manager_.enabled) {
     // TODO: put this functionality into the imu_manager
-    BNO055::Output imu_output = imu_manager_.get_imu_data();
+    // imu_output was validated before the actuator exchange above.
     std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
 
     imu_packet_timestamp_micros_ = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -362,13 +407,23 @@ hardware_interface::return_type ControlBoardHardwareInterface::write(
   return hardware_interface::return_type::OK;
 }
 
-void ControlBoardHardwareInterface::do_homing() {
+bool ControlBoardHardwareInterface::do_homing() {
+  auto feedback_ok = [this]() {
+    if (!imu_manager_.enabled) return true;
+    const char *error = imu_feedback_error(imu_manager_);
+    if (!error) return true;
+    RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s during homing; disabling motors", error);
+    deactivate_motors();
+    return false;
+  };
+  if (!feedback_ok()) return false;
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Homing actuators...");
 
   int dt_ms = 10;
 
   std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   copy_actuator_commands();
+  if (!feedback_ok()) return false;
   spi_driver_run();
   copy_actuator_states();
   std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
@@ -383,6 +438,7 @@ void ControlBoardHardwareInterface::do_homing() {
 
   std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   copy_actuator_commands();
+  if (!feedback_ok()) return false;
   spi_driver_run();
   copy_actuator_states();
   std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
@@ -396,6 +452,7 @@ void ControlBoardHardwareInterface::do_homing() {
   bool all_homed = false;
   bool all_returned = false;
   while (!all_homed) {
+    if (!feedback_ok()) return false;
     // Set the homing stage to that of the lowest-stage unhomed actuator
     int homing_stage = 999;
     for (auto i = 0u; i < hw_actuator_homing_stages_.size(); i++) {
@@ -439,6 +496,7 @@ void ControlBoardHardwareInterface::do_homing() {
       }
     }
     copy_actuator_commands();
+    if (!feedback_ok()) return false;
     spi_driver_run();
     copy_actuator_states();
 
@@ -446,6 +504,7 @@ void ControlBoardHardwareInterface::do_homing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   }
   while (!all_returned) {
+    if (!feedback_ok()) return false;
     all_returned = true;
     for (auto i = 0u; i < hw_state_positions_.size(); i++) {
       if (hw_command_positions_[i] < hw_actuator_post_homing_positions_[i] - 0.01) {
@@ -462,6 +521,7 @@ void ControlBoardHardwareInterface::do_homing() {
       }
     }
     copy_actuator_commands();
+    if (!feedback_ok()) return false;
     spi_driver_run();
     copy_actuator_states();
 
@@ -469,6 +529,7 @@ void ControlBoardHardwareInterface::do_homing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   }
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Finished homing!");
+  return true;
 }
 
 void ControlBoardHardwareInterface::copy_actuator_commands(bool use_position_limits) {

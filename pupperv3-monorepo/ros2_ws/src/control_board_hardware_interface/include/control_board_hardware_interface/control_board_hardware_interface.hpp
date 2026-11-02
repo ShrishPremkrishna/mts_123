@@ -81,7 +81,7 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
   void deactivate_motors();
   void copy_actuator_commands(bool use_position_limits = false);
   void copy_actuator_states();
-  void do_homing();
+  bool do_homing();
   bool hw_states_contains_nan();
 
   int lock_fd_ = -1;  // File descriptor for lock file
@@ -89,8 +89,8 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
   IMUManager imu_manager_;
 
   // TODO: Refactor the horrible c-style spi code
-  spi_command_t *spi_command_;
-  spi_data_t *spi_data_;
+  spi_command_t *spi_command_ = nullptr;
+  spi_data_t *spi_data_ = nullptr;
 
   // IMU state
   std::array<double, 4> hw_state_imu_orientation_;          // x, y, z, w

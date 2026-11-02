@@ -16,7 +16,8 @@ std::optional<std::pair<BNO055::Output, uint32_t>> IMUManager::sample_imu_multip
     int max_samples, int delay_ms) {
   /*
    * Sample the IMU up to max_samples times until a good sample is received.
-   * A good sample is defined as a quaternion that is not near zero and not NaN.
+   * Require independently observed, finite quaternion and gyro reports.
+   * Consumers separately enforce host-receipt age; this is not calibration proof.
    */
 
   // Record start time
@@ -24,7 +25,8 @@ std::optional<std::pair<BNO055::Output, uint32_t>> IMUManager::sample_imu_multip
 
   for (int i = 0; i < max_samples; i++) {
     BNO055::Output output = imu_->sample();
-    if (contains_nan(output.quat) || output.quat.isApprox(Eigen::Quaternionf(0, 0, 0, 0), 1e-6)) {
+    if (!output.quaternion_valid || !output.gyro_valid || !output.quat.coeffs().allFinite()
+        || !output.gyro.allFinite() || output.quat.isApprox(Eigen::Quaternionf(0, 0, 0, 0), 1e-6)) {
       RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
                   "%sBad IMU sample [%f, %f, %f, %f]. Retrying...%s", YELLOW_ANSI, output.quat.x(),
                   output.quat.y(), output.quat.z(), output.quat.w(), RESET_ANSI);
@@ -47,6 +49,12 @@ void IMUManager::poll_imu() {
     std::lock_guard<std::mutex> lock(imu_mutex_);
     imu_data = maybe_output->first;
     imu_sampling_time_us = maybe_output->second;
+  } else {
+    // An observed invalid stream must not hide behind the last good cache.
+    // Retain values and receipt clocks for diagnosis, but revoke usability.
+    std::lock_guard<std::mutex> lock(imu_mutex_);
+    imu_data.quaternion_valid = false;
+    imu_data.gyro_valid = false;
   }
 }
 

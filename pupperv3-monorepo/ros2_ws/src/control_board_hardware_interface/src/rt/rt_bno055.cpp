@@ -2,6 +2,7 @@
 #include "rt/rt_bno055.h"
 
 #include <string>
+#include <stdexcept>
 // #include <i2c/smbus.h>
 
 #include <chrono>  // for std::chrono::milliseconds
@@ -27,6 +28,11 @@ BNO055::BNO055(int i2c_device_number, uint32_t micros_between_reports) {
       m_okay = false;
       printf("[BNO055] failed to set slave: %s\n", strerror(errno));
     }
+  }
+  if (!m_okay) {
+    if (m_fd >= 0) ::close(m_fd);
+    m_fd = -1;
+    throw std::runtime_error("BNO I2C open/address selection failed");
   }
   printf("Connected\r\n");
   softReset();
@@ -67,84 +73,34 @@ void BNO055::softReset(void) {
   // Read all incoming data and flush it
   std::chrono::milliseconds duration(200);  // duration of 50 milliseconds
   std::this_thread::sleep_for(duration);    // pause for the specified duration
-  while (receivePacket() == true);
+  {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+    while (std::chrono::steady_clock::now() < deadline && receivePacket()) {}
+  }
   printf("First receive finished\r\n");
   std::this_thread::sleep_for(duration);  // pause for the specified duration
-  while (receivePacket() == true);
+  {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+    while (std::chrono::steady_clock::now() < deadline && receivePacket()) {}
+  }
   printf("second receive finished\r\n");
 }
 
 bool BNO055::receivePacket(void) {
-  constexpr int headerLength = 4;
-  uint8_t packetHeader[headerLength];
-
-  // if (write(m_fd, &packetHeader, headerLength) != headerLength)
-  // {
-  //     printf("[BNO055] failed to write for receivePacket: %s\n", strerror(errno));
-  //     return false;
-  // }
-  int response = read(m_fd, &packetHeader, headerLength);
-  // printf("%i\r\n",response);
-  if (response != headerLength) {
-    printf("[BNO055] failed to read header for receivePacket: %s\n", strerror(errno));
-    return false;
-  }
-
-  // Store the header info
-  shtpHeader[0] = packetHeader[0];
-  shtpHeader[1] = packetHeader[1];
-  shtpHeader[2] = packetHeader[2];
-  shtpHeader[3] = packetHeader[3];
-
-  // Calculate the number of data bytes in this packet
-  int16_t dataLength = ((uint16_t)packetHeader[1] << 8 | packetHeader[0]);
-  dataLength &= ~(1 << 15);  // Clear the MSbit
-
-  if (dataLength == 0) {
-    // Packet is empty
-    return false;
-  }
-  dataLength -= headerLength;
-
-  getData(dataLength);
-
-  return true;  // We're done!
-}
-
-bool BNO055::getData(uint16_t bytesRemaining) {
-  uint16_t dataSpot = 0;  // Start at the beginning of shtpData array
-
-  // Setup a series of chunked 32 byte reads
-  while (bytesRemaining > 0) {
-    uint16_t numberOfBytesToRead = bytesRemaining;
-    if (numberOfBytesToRead > (I2C_BUFFER_LENGTH - 4)) {
-      numberOfBytesToRead = (I2C_BUFFER_LENGTH - 4);
-    }
-    std::vector<uint8_t> readBuffer(numberOfBytesToRead + 4);
-
-    // if (write(m_fd, &readBuffer, 4) != 4)
-    // {
-    //     printf("[BNO055] failed to write for getData: %s\n", strerror(errno));
-    //     return false;
-    // }
-    int response = read(m_fd, readBuffer.data(), numberOfBytesToRead + 4);
-    if (response != numberOfBytesToRead + 4) {
-      printf("[BNO055] failed to read bytes for getData: %s\n", strerror(errno));
-      return false;
-    }
-
-    for (uint8_t x = 4; x < numberOfBytesToRead + 4; x++) {
-      uint8_t incoming = readBuffer[x];
-      if (dataSpot < MAX_PACKET_SIZE) {
-        shtpData[dataSpot++] = incoming;  // Store data into the shtpData array
-      } else {
-        // Do nothing with the data
-      }
-    }
-
-    bytesRemaining -= numberOfBytesToRead;
-  }
-  return true;  // Done!
+  pupper_bno::Packet packet;
+  const auto result = pupper_bno::read_packet(packet,
+      [this](uint8_t *dst, size_t count) { return ::read(m_fd, dst, count); },
+      []() { return uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::steady_clock::now().time_since_epoch()).count()); },
+      []() { std::this_thread::sleep_for(std::chrono::milliseconds(1)); });
+  payload_size_ = 0;
+  std::fill(std::begin(shtpHeader), std::end(shtpHeader), uint8_t(0));
+  std::fill(std::begin(shtpData), std::end(shtpData), uint8_t(0));
+  if (result != pupper_bno::ReadResult::packet) return false;
+  std::copy(packet.header.begin(), packet.header.end(), shtpHeader);
+  std::copy(packet.payload.begin(), packet.payload.end(), shtpData);
+  payload_size_ = packet.payload.size();
+  return true;
 }
 
 bool BNO055::waitForI2C() {
@@ -326,94 +282,27 @@ float BNO055::qToFloat(int16_t fixedPointValue, uint8_t qPoint) {
 // shtpData[10:11]: real/gyro temp/etc
 // shtpData[12:13]: Accuracy estimate
 void BNO055::parseInputReport(void) {
-  // Calculate the number of data bytes in this packet
-  int16_t dataLength = ((uint16_t)shtpHeader[1] << 8 | shtpHeader[0]);
-  dataLength &= ~(
-      1
-      << 15);  // Clear the MSbit. This bit indicates if this package is a continuation of the last.
-  // Ignore it for now. TODO catch this as an error and exit
-
-  dataLength -= 4;  // Remove the header bytes from the data count
-
-  timeStamp = ((uint32_t)shtpData[4] << (8 * 3)) | (shtpData[3] << (8 * 2)) |
-              (shtpData[2] << (8 * 1)) | (shtpData[1] << (8 * 0));
-
-  uint8_t sequence_number = shtpData[5 + 1];  // Sequence number
-
-  // Is showing a new message only on updated data. And consecutive sequence numbers so none missing
-  //   std::cout << "seq #: " << static_cast<int>(sequence_number)
-  //             << " type: " << static_cast<int>(shtpData[5]) << std::endl;
-
-  uint8_t status = shtpData[5 + 2] & 0x03;  // Get status bits
-  uint16_t data1 = (uint16_t)shtpData[5 + 5] << 8 | shtpData[5 + 4];
-  uint16_t data2 = (uint16_t)shtpData[5 + 7] << 8 | shtpData[5 + 6];
-  uint16_t data3 = (uint16_t)shtpData[5 + 9] << 8 | shtpData[5 + 8];
-  uint16_t data4 = 0;
-  uint16_t data5 = 0;
-
-  if (dataLength - 5 > 9) {
-    data4 = (uint16_t)shtpData[5 + 11] << 8 | shtpData[5 + 10];
-  }
-  if (dataLength - 5 > 11) {
-    data5 = (uint16_t)shtpData[5 + 13] << 8 | shtpData[5 + 12];
-  }
-
-  // Store these generic values to their proper global variable
-  if (shtpData[5] == SENSOR_REPORTID_ACCELEROMETER) {
-    accelAccuracy = status;
-    rawAccelX = data1;
-    rawAccelY = data2;
-    rawAccelZ = data3;
-  } else if (shtpData[5] == SENSOR_REPORTID_LINEAR_ACCELERATION) {
-    accelLinAccuracy = status;
-    rawLinAccelX = data1;
-    rawLinAccelY = data2;
-    rawLinAccelZ = data3;
-  } else if (shtpData[5] == SENSOR_REPORTID_GYROSCOPE) {
-    gyroAccuracy = status;
-    rawGyroX = data1;
-    rawGyroY = data2;
-    rawGyroZ = data3;
-  } else if (shtpData[5] == SENSOR_REPORTID_MAGNETIC_FIELD) {
-    magAccuracy = status;
-    rawMagX = data1;
-    rawMagY = data2;
-    rawMagZ = data3;
-  } else if (shtpData[5] == SENSOR_REPORTID_ROTATION_VECTOR ||
-             shtpData[5] == SENSOR_REPORTID_GAME_ROTATION_VECTOR) {
-    quatAccuracy = status;
-    rawQuatI = data1;
-    rawQuatJ = data2;
-    rawQuatK = data3;
-    rawQuatReal = data4;
-    rawQuatRadianAccuracy = data5;  // Only available on rotation vector, not game rot vector
-  } else if (shtpData[5] == SENSOR_REPORTID_STEP_COUNTER) {
-    stepCount = data3;  // Bytes 8/9
-  } else if (shtpData[5] == SENSOR_REPORTID_STABILITY_CLASSIFIER) {
-    stabilityClassifier = shtpData[5 + 4];  // Byte 4 only
-  } else if (shtpData[5] == SENSOR_REPORTID_PERSONAL_ACTIVITY_CLASSIFIER) {
-    activityClassifier = shtpData[5 + 5];  // Most likely state
-
-    // Load activity classification confidences into the array
-    for (uint8_t x = 0; x < 9; x++) {  // Hardcoded to max of 9. TODO - bring in array size
-      _activityConfidences[x] =
-          shtpData[5 + 6 + x];  // 5 bytes of timestamp, byte 6 is first confidence byte
+  std::vector<pupper_bno::Report> reports;
+  if (!pupper_bno::parse_reports(std::vector<uint8_t>(shtpData, shtpData+payload_size_), reports)) return;
+  // Preserve the old unverified base timestamp value for compatibility only.
+  timeStamp = uint32_t(shtpData[1]) | uint32_t(shtpData[2]) << 8
+              | uint32_t(shtpData[3]) << 16 | uint32_t(shtpData[4]) << 24;
+  const auto received = std::chrono::steady_clock::now();
+  for (const auto &report : reports) {
+    if (report.id == SENSOR_REPORTID_GYROSCOPE && gyro_sequence_.accept(report.sequence)) {
+      rawGyroX = uint16_t(report.values[0]); rawGyroY = uint16_t(report.values[1]);
+      rawGyroZ = uint16_t(report.values[2]); gyroAccuracy = report.accuracy;
+      gyro_receipt_time_ = received; gyro_valid_ = true;
+    } else if (report.id == SENSOR_REPORTID_ROTATION_VECTOR && quaternion_sequence_.accept(report.sequence)) {
+      rawQuatI = uint16_t(report.values[0]); rawQuatJ = uint16_t(report.values[1]);
+      rawQuatK = uint16_t(report.values[2]); rawQuatReal = uint16_t(report.values[3]);
+      rawQuatRadianAccuracy = report.rotation_accuracy; quatAccuracy = report.accuracy;
+      quaternion_receipt_time_ = received;
+      quaternion_valid_ = std::any_of(report.values.begin(), report.values.end(), [](int16_t v) { return v != 0; });
     }
-  } else if (shtpData[5] == SHTP_REPORT_COMMAND_RESPONSE) {
-    // The BNO080 responds with this report to command requests. It's up to use to remember which
-    // command we issued.
-    uint8_t command = shtpData[5 + 2];  // This is the Command byte of the response
-
-    if (command == COMMAND_ME_CALIBRATE) {
-      printf("ME Cal report found!\r\n");
-      calibrationStatus = shtpData[5 + 5];  // R0 - Status (0 = success, non-zero = fail)
-    }
-  } else {
-    // This sensor report ID is unhandled.
-    // See reference manual to add additional feature reports as needed
+    // Do not silently replace the selected RotationVector stream with GameRV.
+    // Other complete known reports are parsed for boundaries, not adopted.
   }
-
-  // TODO additional feature reports may be strung together. Parse them all.
 }
 
 // Unit responds with packet that contains the following:
@@ -433,7 +322,7 @@ void BNO055::parseInputReport(void) {
 // shtpData[5 + 7]: R7
 // shtpData[5 + 8]: R8
 void BNO055::parseCommandReport(void) {
-  if (shtpData[0] == SHTP_REPORT_COMMAND_RESPONSE) {
+  if (payload_size_ >= 16 && shtpData[0] == SHTP_REPORT_COMMAND_RESPONSE) {
     // The BNO080 responds with this report to command requests. It's up to use to remember which
     // command we issued.
     uint8_t command = shtpData[2];  // This is the Command byte of the response
@@ -451,7 +340,8 @@ void BNO055::parseCommandReport(void) {
 
 BNO055::Output BNO055::sample() {
   // Typically has two messages available in one call to sample()
-  while (dataAvailable() == true) {
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(25);
+  for (unsigned packets=0; packets<32 && std::chrono::steady_clock::now()<deadline && dataAvailable(); ++packets) {
     latest_packet_timestamp = std::chrono::high_resolution_clock::now();
   }
   Output result;
@@ -469,6 +359,16 @@ BNO055::Output BNO055::sample() {
   result.gyro(1) = getGyroY();
   result.gyro(2) = getGyroZ();
 
+  result.quaternion_valid = quaternion_valid_;
+  result.gyro_valid = gyro_valid_;
+  result.quaternion_accuracy = uint8_t(quatAccuracy);
+  result.gyro_accuracy = uint8_t(gyroAccuracy);
+  result.quaternion_receipt_time = quaternion_receipt_time_;
+  result.gyro_receipt_time = gyro_receipt_time_;
+  result.legacy_base_timestamp_raw = timeStamp;
+  // acc is deterministic zero and acceleration_valid remains false.
+  // The following fields retain the deprecated legacy calculation unchanged.
+  // They are NOT used by the new independent host-receipt freshness checks.
   // Record time data read from IMU
   result.packet_timestamp = latest_packet_timestamp;
   result.measurement_timestamp = latest_packet_timestamp - std::chrono::microseconds(timeStamp);

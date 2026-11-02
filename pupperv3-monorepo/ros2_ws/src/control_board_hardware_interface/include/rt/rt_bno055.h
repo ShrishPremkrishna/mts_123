@@ -7,11 +7,14 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <array>
+#include <vector>
 #include <chrono>
+#include "rt/bno_protocol.hpp"
 #include <eigen3/Eigen/Dense>
 
 // Packets can be up to 32k but we don't have that much RAM.
-#define MAX_PACKET_SIZE 128
+#define MAX_PACKET_SIZE 4096
 
 // This is in words. There can be many but we mostly only care about the first 9 (Qs, range,
 // etc)
@@ -78,14 +81,22 @@ class BNO055 {
   BNO055 &operator=(const BNO055 &) = delete;
 
   struct Output {
-    Eigen::Quaternionf quat;
-    Eigen::Vector3f acc;
-    Eigen::Vector3f gyro;
+    Eigen::Quaternionf quat{0, 0, 0, 0};
+    Eigen::Vector3f acc = Eigen::Vector3f::Zero();
+    Eigen::Vector3f gyro = Eigen::Vector3f::Zero();
+    bool quaternion_valid = false, gyro_valid = false, acceleration_valid = false;
+    uint8_t quaternion_accuracy = 0, gyro_accuracy = 0;
+    // Host receipt clocks, independently updated only by accepted new reports.
+    // They are NOT sensor measurement timestamps or proof of calibration.
+    std::chrono::steady_clock::time_point quaternion_receipt_time{};
+    std::chrono::steady_clock::time_point gyro_receipt_time{};
+    uint32_t legacy_base_timestamp_raw = 0;
 
     // Timestamp of when the data was sent from the sensor to the Raspberry Pi
     std::chrono::high_resolution_clock::time_point packet_timestamp;
 
-    // Timestamp of when the data was actually measured by the sensor
+    // DEPRECATED, UNVERIFIED legacy age calculation: raw base ticks treated as us.
+    // Retained for compatibility; do not use for freshness or actual sensor age.
     std::chrono::high_resolution_clock::time_point measurement_timestamp;
   };
 
@@ -121,7 +132,6 @@ class BNO055 {
 
   void softReset(void);
   bool receivePacket(void);
-  bool getData(uint16_t bytesRemaining);
   bool waitForI2C(void);
   void setFeatureCommand(uint8_t reportID, uint32_t microsBetweenReports, uint32_t specificConfig);
   void enableRotationVector(uint16_t timeBetweenReports);
@@ -155,20 +165,24 @@ class BNO055 {
   // Timestamp of when the data was sent from the sensor to the Raspberry Pi
   std::chrono::high_resolution_clock::time_point latest_packet_timestamp;
 
-  uint16_t rawAccelX, rawAccelY, rawAccelZ, accelAccuracy;
-  uint16_t rawLinAccelX, rawLinAccelY, rawLinAccelZ, accelLinAccuracy;
-  uint16_t rawGyroX, rawGyroY, rawGyroZ, gyroAccuracy;
-  uint16_t rawMagX, rawMagY, rawMagZ, magAccuracy;
-  uint16_t rawQuatI, rawQuatJ, rawQuatK, rawQuatReal, rawQuatRadianAccuracy, quatAccuracy;
+  uint16_t rawAccelX=0, rawAccelY=0, rawAccelZ=0, accelAccuracy=0;
+  uint16_t rawLinAccelX=0, rawLinAccelY=0, rawLinAccelZ=0, accelLinAccuracy=0;
+  uint16_t rawGyroX=0, rawGyroY=0, rawGyroZ=0, gyroAccuracy=0;
+  uint16_t rawMagX=0, rawMagY=0, rawMagZ=0, magAccuracy=0;
+  uint16_t rawQuatI=0, rawQuatJ=0, rawQuatK=0, rawQuatReal=0, rawQuatRadianAccuracy=0, quatAccuracy=0;
   uint16_t stepCount;
-  uint32_t timeStamp;
+  uint32_t timeStamp = 0;
+  size_t payload_size_ = 0;
+  bool quaternion_valid_ = false, gyro_valid_ = false;
+  pupper_bno::ReportSequence quaternion_sequence_, gyro_sequence_;
+  std::chrono::steady_clock::time_point quaternion_receipt_time_{}, gyro_receipt_time_{};
   uint8_t stabilityClassifier;
   uint8_t activityClassifier;
   uint8_t *_activityConfidences;  // Array that store the confidences of the 9 possible activities
-  uint8_t calibrationStatus;      // Byte R0 of ME Calibration Response
+  uint8_t calibrationStatus = 255;      // Byte R0 of ME Calibration Response
 
-  uint8_t shtpHeader[4];  // Each packet has a header of 4 bytes
-  uint8_t shtpData[MAX_PACKET_SIZE];
+  uint8_t shtpHeader[4]{};  // Each packet has a header of 4 bytes
+  uint8_t shtpData[MAX_PACKET_SIZE]{};
   uint8_t sequenceNumber[6] = {0, 0, 0, 0,
                                0, 0};  // There are 6 com channels. Each channel has its own seqnum
   uint8_t commandSequenceNumber = 0;   // Commands have a seqNum as well. These are inside command

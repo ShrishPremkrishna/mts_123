@@ -24,11 +24,11 @@ class IMUManager {
   ~IMUManager();
 
   // whether IMU is enabled on robot
-  bool enabled;
+  bool enabled = false;
 
   // Latest copy of imu data (thread safe)
   BNO055::Output imu_data;
-  uint32_t imu_sampling_time_us;
+  uint32_t imu_sampling_time_us = 0;
 
   // IMU offset
   tf2::Matrix3x3 offset_rotation_matrix;

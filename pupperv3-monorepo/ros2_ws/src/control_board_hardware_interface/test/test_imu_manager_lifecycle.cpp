@@ -11,6 +11,7 @@
 
 namespace {
 std::atomic<int> instances{0}, samples{0}, in_sample{0}, destroyed_during_sample{0};
+std::atomic<bool> invalid_sample{false};
 std::mutex fake_mutex;
 std::condition_variable fake_changed;
 bool block_sample=false, release_sample=false;
@@ -36,13 +37,35 @@ BNO055::Output BNO055::sample() {
   output.quat=Eigen::Quaternionf::Identity();
   output.acc=Eigen::Vector3f::Zero(); output.gyro=Eigen::Vector3f::Zero();
   output.packet_timestamp=output.measurement_timestamp=std::chrono::high_resolution_clock::now();
+  output.quaternion_valid=output.gyro_valid=true;
+  output.quaternion_receipt_time=output.gyro_receipt_time=std::chrono::steady_clock::now();
+  if(invalid_sample.load()) { output.quaternion_valid=false; output.quat=Eigen::Quaternionf(0,0,0,0); }
   --in_sample;return output;
 }
 int main(int argc,char** argv) {
   try {
     require(argc==2,"one scenario required"); const std::string mode=argv[1];
     if(mode=="never_started") { IMUManager manager; }
-    else if(mode=="implicit_destroy") {
+    else if(mode=="invalid_after_good") {
+      IMUManager manager;manager.begin(10000);
+      const auto ready=std::chrono::steady_clock::now()+std::chrono::seconds(1);
+      while(!manager.get_imu_data().quaternion_valid && std::chrono::steady_clock::now()<ready)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      const auto previous=manager.get_imu_data();require(previous.quaternion_valid,"no initial valid sample");
+      invalid_sample=true;
+      const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(50);
+      while(manager.get_imu_data().quaternion_valid && std::chrono::steady_clock::now()<deadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      const auto failed=manager.get_imu_data();
+      require(!failed.quaternion_valid&&!failed.gyro_valid,"sampling failure retained valid cached flags");
+      require(failed.quaternion_receipt_time>=previous.quaternion_receipt_time,"receipt moved backwards");
+      invalid_sample=false;
+      const auto recovery=std::chrono::steady_clock::now()+std::chrono::milliseconds(50);
+      while(!manager.get_imu_data().quaternion_valid && std::chrono::steady_clock::now()<recovery)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      require(manager.get_imu_data().quaternion_valid,"valid sampling did not recover");
+      manager.stop();
+    } else if(mode=="implicit_destroy") {
       IMUManager manager; manager.begin(10000); await_sample();
       // Scope exit must join its live thread even without an explicit stop call.
     } else if(mode=="explicit_stop_twice") {
