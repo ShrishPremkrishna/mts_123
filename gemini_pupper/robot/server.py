@@ -223,10 +223,28 @@ def system_prompt() -> str:
     return re.sub(r"<!--.*?-->", "", text, flags=re.S).strip()
 
 
+def motion_capabilities(robot: Robot) -> dict:
+    """Configured capabilities, not sensor observations or motion authorization."""
+    return {"schema": "pupper_motion_capabilities_v1",
+            "autonomous_visual_navigation": False, "collision_avoidance": False,
+            "person_following": bool(robot.follow_available)}
+
+
 @app.get("/tools")
 def tool_list():
-    """What Gemini is told: the system prompt and the tool declarations."""
-    return {"prompt": system_prompt(), "tools": gemini_tools.declarations(T())}
+    """What Gemini is told: instructions, declarations and configured capabilities."""
+    robot = T()
+    capabilities = motion_capabilities(robot)
+    following = "available" if capabilities["person_following"] else "unavailable"
+    # Disclosure/model guidance only: valid primitive calls remain executable.
+    runtime_prompt = ("Runtime motion capabilities: autonomous visual navigation is unavailable; "
+                      "collision avoidance is unavailable. Person following is " + following +
+                      " in this configured profile; this does not establish live service health. "
+                      "Following, when advertised, is a separate supported request, not visual search, "
+                      "approach/navigation or collision avoidance. Do not replace unavailable "
+                      "navigation or following with move/turn/arc calls.")
+    return {"prompt": system_prompt() + "\n\n" + runtime_prompt,
+            "tools": gemini_tools.declarations(robot), "capabilities": capabilities}
 
 
 @app.post("/tools/{name}")
@@ -337,6 +355,7 @@ async def queue_status():
     # that state into the queue plan; an inventory wait must never own action_lock.
     observation = await robot.mode()
     return {**robot.status(), "recent_outcomes": robot.recent_outcomes(), "state_basis": "cached_queue_plan",
+            "capabilities": motion_capabilities(robot),
             "observed_controller_mode": (observation.details or {}).get("observed_controller_mode", "unknown"),
             **runtime_info()}
 

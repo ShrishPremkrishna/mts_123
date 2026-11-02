@@ -105,6 +105,49 @@ async def client_with_rig(server, *, epochs=True):
             setattr(robot_api, name, value)
 
 
+@pytest.mark.parametrize("following_available", [False, True])
+def test_motion_capabilities_disclose_config_without_authorizing_navigation(server, following_available):
+    """Checks disclosure only, not semantic enforcement of a model's intent."""
+    async def case():
+        async with client_with_rig(server) as (client, rig):
+            rig.ts.follow_available = following_available
+            expected = {
+                "schema": "pupper_motion_capabilities_v1",
+                "autonomous_visual_navigation": False,
+                "collision_avoidance": False,
+                "person_following": following_available,
+            }
+            before = rig.ts.status()
+            switches = list(rig.robot.switches)
+            document = (await client.get("/tools")).json()
+            status = (await client.get("/queue/status")).json()
+            assert document["capabilities"] == status["capabilities"] == expected
+            declarations = {tool["name"]: tool for tool in document["tools"]}
+            assert ("follow" in declarations) is following_available
+            assert {"move", "turn", "arc", "stop", "robot_status"} <= declarations.keys()
+            for name in ("move", "turn", "arc"):
+                description = declarations[name]["description"]
+                assert "directly requested movements" in description
+                for unsupported in ("find me", "come to me", "approach an object", "search the room"):
+                    assert unsupported in description
+                assert "collision avoidance are unavailable" in description
+            if following_available:
+                assert "does not authenticate identity or provide collision avoidance" in declarations["follow"]["description"]
+            assert f"Person following is {'available' if following_available else 'unavailable'} in this configured profile" in document["prompt"]
+            assert "does not establish live service health" in document["prompt"]
+            assert "move forward, wait, then turn left" in document["prompt"]
+            assert "A current image does not establish a clear route" in document["prompt"]
+            # An active follower must not turn metadata into a navigation or
+            # obstacle-avoidance guarantee; these are separate capabilities.
+            rig.ts.following = True
+            assert (await client.get("/queue/status")).json()["capabilities"] == expected
+            rig.ts.following = False
+            assert rig.ts.status() == before
+            assert rig.robot.switches == switches
+            assert not harness.walk_twists(rig)
+    asyncio.run(case())
+
+
 def test_http_declarations_and_tool_response_round_trip_through_sdk_types(server):
     async def case():
         async with client_with_rig(server) as (client, rig):

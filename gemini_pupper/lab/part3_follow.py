@@ -77,7 +77,10 @@ async def prepare_to_move(robot: Robot) -> str | Result:
 @tool(
     "follow",
     "Follow the nearest person using the camera, or stop following. Questions and conversation keep follow mode on;"
-    " any other motion ends it. Requires locomotion, and cannot start in a walking trick such as the spider.",
+    " any other motion ends it. Requires locomotion, and cannot start in a walking trick such as the spider."
+    " Use only for a requested following behavior, not find me, come to me, approach an object,"
+    " or search the room. This does not authenticate identity or provide collision avoidance;"
+    " never replace unavailable following with move/turn/arc calls.",
     enabled=Param("boolean", "True starts following; false stops following and stands still."),
 )
 async def follow_tool(robot: Robot, enabled: bool) -> Result:

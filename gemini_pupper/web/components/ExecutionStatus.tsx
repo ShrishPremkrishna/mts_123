@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { toolLabel } from '../services/operatorFeedback';
 import type RobotBridge from '../services/robotBridge';
-import { parseQueueStatus, queueSummary, runtimeSummary, matchJobEvidence, type QueueStatus, type ToolDispatch } from '../services/executionStatus';
+import { parseQueueStatus, queueSummary, runtimeSummary, motionCapabilitySummary, matchJobEvidence, type QueueStatus, type ToolDispatch } from '../services/executionStatus';
 
 interface Props {
   robotBridge: RobotBridge;
@@ -71,6 +71,7 @@ export default function ExecutionStatus({ robotBridge, lastDispatch, modelAction
           {currentReport ? `${fresh ? 'Server report' : 'Stale server report'} ${new Date(currentReport.received).toLocaleTimeString()}: ${queueSummary(currentReport.status)}` : error}
         </div>
         {currentReport && <div className={currentReport.status.runtime === 'fake' ? 'font-bold text-amber-300' : 'text-gray-300'}>{runtimeSummary(currentReport.status)}</div>}
+        <div className="text-gray-300">{motionCapabilitySummary(currentReport?.status ?? null, fresh)}</div>
         {currentReport?.status.controller_fault && <div className="text-red-300">Controller fault: {currentReport.status.controller_fault}</div>}
         <div>Latest Gemini request: {lastDispatch ? `${toolLabel(lastDispatch.name)} — ${lastDispatch.status}: ${lastDispatch.message}` : 'none sent in this voice session'}</div>
         {lastDispatch && <div className={job.state === 'unknown' ? 'text-amber-300' : 'text-cyan-200'}>

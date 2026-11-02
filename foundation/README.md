@@ -53,7 +53,7 @@ measurement and diagnosis; they do not close the physical reliability gap.
   [voice-off hold and motor-disabled capture](results/workstream1-idle-sensor-recurrence-20261101.json)
   reproduced large sensor-heading changes against a qualitatively stationary
   camera view, including about 69° in a minute after motor shutdown. Sensor
-  validity remains unresolved; further motion testing is paused pending diagnosis.
+  validity remains unresolved; current operational decisions belong in the recovery record.
   The [saved-image comparison](results/workstream1-camera-sensor-consistency-20261102.json)
   now quantifies the discrepancy: four background patches keep the same
   integer-pixel matches across 57 saved frames, while heading changes 65.6° over
@@ -79,6 +79,17 @@ measurement and diagnosis; they do not close the physical reliability gap.
   is separately evaluated. Natural-language interpretation, free-form claim
   screening and generative speech remain fallible. Use current state for which
   source and model are actually running.
+
+The [November 2 voice/product session](results/workstream1-voice-product-20261102.json)
+added an atomic handshake and batched model tool replies. Spoken handshake,
+compound movement and running-walk cancellation worked in bounded supervised
+checks. A native change removed avoidable constant-idle waits; the watched repeat
+was controlled with shorter pauses, while exact timing awaits the closed Pi
+recording. The same session exposed a separate limitation: “find me” caused
+model-generated turns and walking into a backpack. **Camera understanding is not
+navigation or obstacle avoidance.** Capability metadata and explicit model guidance
+now disclose that gap; they do not enforce the purpose of every valid movement
+primitive or make a route safe.
 
 The [request-order repair](results/workstream1-request-ordering-20261102.json)
 prevents overlapping Gemini tool packets from changing command order while

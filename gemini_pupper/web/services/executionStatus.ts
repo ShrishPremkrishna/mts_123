@@ -31,6 +31,7 @@ export interface QueueStatus {
   session_context?: unknown;
   recent_outcomes?: unknown;
   command_epoch?: unknown;
+  capabilities?: unknown;
 }
 
 export function parseQueueStatus(value: unknown): QueueStatus | null {
@@ -182,4 +183,19 @@ export function runtimeSummary(status: QueueStatus): string {
   if (status.runtime === 'fake') return 'FAKE REHEARSAL — no robot hardware; commands simulate queue behavior only';
   if (status.runtime === 'robot') return 'ROBOT API — physical connection and motion require observation';
   return 'Runtime not identified — do not infer hardware from this server response';
+}
+
+/** Capability metadata is configuration evidence, never collision-free motion proof. */
+export function motionCapabilitySummary(status: QueueStatus | null, fresh: boolean): string {
+  const c = object(status?.capabilities);
+  if (!fresh || !c || c.schema !== 'pupper_motion_capabilities_v1'
+      || typeof c.autonomous_visual_navigation !== 'boolean'
+      || typeof c.collision_avoidance !== 'boolean'
+      || typeof c.person_following !== 'boolean') {
+    return 'Navigation and obstacle avoidance: unverified';
+  }
+  const navigation = c.autonomous_visual_navigation ? 'reported available' : 'unavailable';
+  const avoidance = c.collision_avoidance ? 'reported available' : 'unavailable';
+  const following = c.person_following ? 'configured' : 'unavailable';
+  return `Visual navigation: ${navigation} · Obstacle avoidance: ${avoidance} · Follower service: ${following}`;
 }

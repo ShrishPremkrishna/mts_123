@@ -166,6 +166,15 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
     return with_note(note, await robot.queue(f"move {what} {duration:.3g}s", job, estimate, then=then))
 
 
+# Model guidance only; the server does not infer user intent from numeric primitives.
+DIRECT_MOVEMENT_ONLY = (
+    " Only for directly requested movements, including explicit movement sequences."
+    " Do not decompose find me, come to me, approach an object, or search the room"
+    " into move/turn/arc calls. Autonomous visual navigation and collision avoidance are unavailable."
+    " Use follow only when advertised and actually requested; it is not a substitute for navigation."
+)
+
+
 # ============================================================ what Gemini reads
 # TODO 3: write turn first, then move: what Gemini reads (the description and every
 # parameter's description) and their bodies.
@@ -191,7 +200,7 @@ async def walk(robot: Robot, vx: float, vy: float, wz_deg: float, duration: floa
     "Turn in place left or right by a positive angle in degrees (default 90; 15 degrees is valid). "
     "Duration is angle divided by the current stance's angular rate in deg/s; a minimum rate is not a minimum angle. "
     "This timed command does not guarantee measured physical angle or precision."
-    + PREPARES_MOVE,
+    + DIRECT_MOVEMENT_ONLY + PREPARES_MOVE,
     direction=Param("string", "Left or right relative to Pupper.", enum=["left", "right"]),
     angle=Param("number", "Positive degrees to turn, default 90; the duration limit still applies.", required=False),
 )
@@ -216,7 +225,7 @@ async def turn_tool(robot: Robot, direction: str, angle: float = 90.0) -> Result
     "move",
     "Move in one direction for a duration (default 1.5 s). {locomotion_motion_contract}"
     " Sideways always walks. Walking tricks use their own lower limits and may refuse running."
-    + PREPARES_MOVE,
+    + DIRECT_MOVEMENT_ONLY + PREPARES_MOVE,
     direction=Param("string", "Direction relative to Pupper; left is positive sideways.", enum=["forward", "backward", "left", "right"]),
     run=Param("boolean", "Request a run forward/backward; sideways walks instead. Default false.", required=False),
     speed=Param("number", "Positive speed in m/s; omit for the current stance's default.", required=False),
@@ -313,7 +322,7 @@ async def move_tool(
     "arc",
     "Walk forward along a left/right circular arc. Specify the positive angle in degrees (360 for a circle)."
     " Radius defaults to 0.5 m; radius 0 turns in place. {locomotion_arc_contract}"
-    " Walking tricks have their own lower limits." + PREPARES_MOVE,
+    " Walking tricks have their own lower limits." + DIRECT_MOVEMENT_ONLY + PREPARES_MOVE,
     direction=Param("string", "Which way the arc bends, relative to Pupper.", enum=["left", "right"]),
     angle=Param("number", "Positive degrees around the arc; required (90 is a quarter circle)."),
     radius=Param("number", "Radius in metres, default 0.5; zero makes a corner in place.", required=False),

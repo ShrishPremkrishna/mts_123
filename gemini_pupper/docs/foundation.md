@@ -420,6 +420,22 @@ stopping guarantee. The earlier
 [independent joystick review](../../artifacts/hardware/2026-10-29/joystick-independent-review/review.json)
 remains the historical record of the replaced non-latching implementation.
 
+## Movement and navigation capabilities
+
+`GET /tools` and `GET /queue/status` share versioned `capabilities` metadata.
+Autonomous visual navigation and collision avoidance are unavailable. The
+`person_following` flag means a follower is configured, not that its service is
+healthy or its route is clear. The status panel uses the existing fresh status
+poll; missing, malformed or stale metadata remains unverified.
+
+Explicit finite movement sequences remain available. The runtime prompt and
+movement descriptions tell Gemini to decline search/approach requests such as
+“find me” or “come to me,” rather than synthesizing them from `move`, `turn` or
+`arc`. Following must be separately requested and advertised. These instructions
+are model guidance: the numeric primitive API cannot distinguish an invented
+search step from an explicitly requested step with the same arguments. No
+collision detector or deterministic user-intent gate is added by this change.
+
 ## One explicit follower
 
 `PUPPER_FOLLOWER_MODE=lab5` is the default. The service and Hailo model must both
