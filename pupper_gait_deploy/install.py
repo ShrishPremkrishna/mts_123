@@ -14,15 +14,17 @@ policies from the original lab pipeline keep loading unchanged.
 from __future__ import annotations
 
 import argparse
+import ast
+import os
 import re
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
 DEFAULT_MONOREPO = Path("/home/pi/pupperv3-monorepo")
+REQUIRED_BUILD_PACKAGES = frozenset({"neural_controller", "joy_utils"})
 # Per-robot motor trims, kept out of git (see robot_trims.example.yaml).
 ROBOT_TRIMS = REPO / "robot_trims.yaml"
 # Gemini readiness requires the joystick mapping to be immutable after startup.
@@ -321,7 +323,12 @@ def rebuild(monorepo: Path, dry_run: bool) -> bool:
     return True
 
   remove_stale_legacy_header(ros2_ws)
-  started = time.time()
+  events_log = ros2_ws / "log" / "latest_build" / "events.log"
+  try:
+    previous_events = read_build_events(events_log)
+  except OSError:
+    print("\nBuild UNVERIFIED: cannot inspect the previous colcon events log.")
+    return False
   result = subprocess.run(["bash", str(build_script)], cwd=str(ros2_ws), check=False)
   if result.returncode != 0:
     print(f"\nBuild FAILED (exit code {result.returncode})")
@@ -330,15 +337,17 @@ def rebuild(monorepo: Path, dry_run: bool) -> bool:
   # that of the source, not of colcon: a failed compile still returns 0 and the
   # robot silently launches the previous libneural_controller.so. Read colcon's
   # own per-package result instead.
-  failed = failed_packages(ros2_ws / "log" / "latest_build" / "events.log", started)
+  failed = failed_packages(events_log, previous_events)
   if failed is None:
-    print("\nWARNING: no colcon events log from this build; trusting build.sh's exit code")
+    print("\nBuild UNVERIFIED: fresh complete colcon results for neural_controller and joy_utils are required.")
+    print("Refusing success: build.sh's final setup command can mask a failed or incomplete build.")
+    return False
   elif failed:
     print(f"\nBuild FAILED for: {', '.join(failed)}")
     for pkg in failed:
       print(f"  see {ros2_ws / 'log' / 'latest_build' / pkg / 'stdout_stderr.log'}")
     return False
-  print("\nBuild succeeded.")
+  print("\nVerified successful build results for neural_controller and joy_utils; no recorded package failures.")
   return True
 
 
@@ -359,21 +368,59 @@ def remove_stale_legacy_header(ros2_ws: Path) -> None:
     print(f"removed generated header so it is rebuilt clean: {legacy}")
 
 
-def failed_packages(events_log: Path, since: float = 0.0) -> list[str] | None:
-  """Packages whose JobEnded rc was nonzero in colcon's events log.
+def read_build_events(events_log: Path) -> tuple[int, int, bytes] | None:
+  """Capture file identity and content without trusting the robot's wall clock.
 
-  None when there is no log written at or after ``since`` to judge by.
+  A new inode or changed contents distinguishes the next build from an unchanged
+  prior log, even after clock rollback. Identical rewrites remain unverified.
   """
   try:
-    if events_log.stat().st_mtime < since:
-      return None
-    text = events_log.read_text(errors="replace")
+    with events_log.open("rb") as stream:
+      metadata = os.fstat(stream.fileno())
+      return metadata.st_dev, metadata.st_ino, stream.read()
+  except FileNotFoundError:
+    return None
+
+
+def failed_packages(events_log: Path, previous: tuple[int, int, bytes] | None = None) -> list[str] | None:
+  """Failures from changed, parseable outcomes covering both installed packages.
+
+  None means unverified: missing/unchanged log, malformed JobEnded payload, or an
+  absent required package. An empty list proves both required packages ended
+  successfully and no recorded package reported failure, not whole-workspace
+  completion. For an append to the same file, only appended outcomes count.
+  Pass the pre-build snapshot to establish which evidence is new.
+  """
+  try:
+    current = read_build_events(events_log)
   except OSError:
     return None
-  ended = re.findall(r"\((\S+)\) JobEnded: \{.*?'rc': (-?\d+)", text)
-  if not ended:
+  if current is None or current == previous:
     return None
-  return sorted({pkg for pkg, rc in ended if rc != "0"})
+  contents = current[2]
+  if previous is not None and current[:2] == previous[:2] and contents.startswith(previous[2]):
+    contents = contents[len(previous[2]):]  # Retained prior successes are not this build's results.
+  ended = []
+  for line in contents.decode(errors="replace").splitlines():
+    match = re.match(r"^\[[^\]]+\] \(([^()\s]+)\) ([A-Za-z]+): (.*)$", line)
+    if match is None:
+      if re.search(r"\bJobEnded\b", line):
+        return None
+      continue
+    package, event_name, payload = match.groups()
+    if event_name != "JobEnded":
+      continue  # A JobEnded string inside StdoutLine is not a package result.
+    try:
+      event = ast.literal_eval(payload)
+    except (ValueError, SyntaxError, TypeError, RecursionError):
+      return None
+    if (not isinstance(event, dict) or event.get("identifier") != package
+        or type(event.get("rc")) is not int):
+      return None
+    ended.append((package, event["rc"]))
+  if not REQUIRED_BUILD_PACKAGES.issubset({package for package, _ in ended}):
+    return None
+  return sorted({package for package, rc in ended if rc != 0})
 
 
 def main() -> int:

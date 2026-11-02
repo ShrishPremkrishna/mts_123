@@ -72,7 +72,7 @@
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
     "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
   ],
-  "updated_utc": "2026-11-02T11:58:55.181423+00:00",
+  "updated_utc": "2026-11-02T12:13:30.905542+00:00",
   "authorization": "Latest user2026-11-02 explicitly resumed overnight offline engineering, fullenvironment fixes, Claude Code/subagents and Gemini includingER. Prior pause superseded. No robot contact/deployment. Retain approval before experiment expected over$5.",
   "current_report": "foundation/results/workstream1-environment-validation-20261102.json",
   "historical_recovery": {
@@ -124,9 +124,9 @@
     "automation": "pupper-overnight-foundation ACTIVE every20min until2026-11-02T18:00:00Z; offline only",
     "compute": "No GPU training active; completed studies archived.",
     "owners": {
-      "root": "Integrated duplicate dispatch guard, reviewing installer changes; no hardware access.",
-      "transition_finish": "Installer stale/malformed result evidence repair after Claude review.",
-      "vision_probe": "Preparing bounded fake-only semantic cases; execution not yet authorized."
+      "root": "Preserving installer fix and reviewing ongoing offline work.",
+      "owned_lifecycle": "Isolated standard start/stop ownership repair using existing coordinator.",
+      "vision_probe": "Preserving completed semantic probe; preparing bounded provider expiry test, not yet authorized."
     }
   },
   "local_rehearsal": {
@@ -155,7 +155,8 @@
     "empty_status_fallback": "Live-derived empty-status omission now explicitly states no action was sent; no retry. Exactproviderfixture,353web author cases,24root/24peer,TypeScript/build passed. Not robot deployed.",
     "overnight_regression": "Frozen final aggregate: all 11 groups pass, including 510 classical, 928 API, 275 motion export, 133 floor-input, 17 compliance; source mutation checks empty. Web363/typecheck/build separately preserved. Actual ROS6 controller+10 joystick suites and254 fake-I2C assertions pass.",
     "request_ordering": "Overlapping ordinary Gemini SDK packets now await prior admission replies; Stop bypasses and invalidates older waiters. Two production-config fake-only provider cases passed; no physical deployment.",
-    "duplicate_dispatch": "Session-lifetime duplicate provider IDs cannot queue another action; Stop exception retained.381 full web/87 root affected cases pass; not hardware deployed."
+    "duplicate_dispatch": "Session-lifetime duplicate provider IDs cannot queue another action; Stop exception retained.381 full web/87 root affected cases pass; not hardware deployed.",
+    "installer_build": "Installer rejects missing/stale/malformed required-package results instead of trusting masked shell exit0.39 root affected tests pass; no real install performed."
   },
   "evidence": {
     "fall_incident": "foundation/results/workstream1-fall-incident-20261101.json",
@@ -183,7 +184,8 @@
     "standing_return": "foundation/results/workstream1-standing-return-20261102.json",
     "er_vision": "foundation/results/workstream1-er-vision-20261102.json",
     "environment_validation": "foundation/results/workstream1-environment-validation-20261102.json",
-    "duplicate_dispatch": "foundation/results/workstream1-duplicate-dispatch-20261102.json"
+    "duplicate_dispatch": "foundation/results/workstream1-duplicate-dispatch-20261102.json",
+    "installer_build": "foundation/results/workstream1-installer-build-evidence-20261102.json"
   },
   "next": [
     {
@@ -231,12 +233,13 @@
   "offline_in_progress": {
     "candidates": [
       {
-        "owner": "transition_finish",
-        "scope": "Fail-closed installer checks: missing/unparseable or stale colcon result must not report successful build."
+        "owner": "owned_lifecycle",
+        "path": "/private/tmp/cs123-owned-lifecycle",
+        "scope": "Task-owned process receipts and manager-first cleanup for standard start/stop."
       },
       {
-        "owner": "offline_peer",
-        "scope": "Bounded read-only production voice semantics gap audit."
+        "owner": "vision_probe",
+        "scope": "Prepared-only actual provider expiry check after semantic probe preservation."
       }
     ],
     "hardware_access": false,
@@ -244,7 +247,7 @@
       "state": "Six successful overnight calls completed; one initial sandbox connection failed before HTTP response. No pending requests.",
       "new_reported_gemini_estimated_usd": 0.094201,
       "failed_connection_billing": "unknown; conservative reservation preserved in visual report",
-      "claude_reported_usd": 0.348871,
+      "claude_reported_usd": 0.6387874,
       "tts": false
     },
     "pending_external": [

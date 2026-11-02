@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-02",
+  "status": "Integrated; no real installation or hardware execution",
+  "problem": "The course build.sh ends by sourcing setup and can return0 after colcon failure. Missing or incomplete build logs previously warned and still reported success, permitting old binaries to launch.",
+  "changes": [
+    "Require new valid JobEnded integer outcomes for both neural_controller and joy_utils; recorded failures reject.",
+    "Compare file identity and bytes instead of Pi wall-clock timestamps. Unchanged/future-dated logs cannot pass; strict appends must contain both new required outcomes.",
+    "Malformed or unreadable evidence fails unverified, with no success claim. Valid builds and dry-run retained. Success wording names only verified packages, not whole workspace."
+  ],
+  "validation": {
+    "original_first_suite": "11 failed/7 passed",
+    "after_initial_fix": "18 passed",
+    "Claude_review": "Read-only review identified stale future-mtime and malformed-evidence gaps; corrected before integration.",
+    "final": "36 passed",
+    "root_installer_and_existing_joystick_install": "39 passed",
+    "real_colcon_syntax": "Three retained Pi event logs match syntax; those historical control-board-only builds correctly lack required neural/joy coverage.",
+    "not_run": "Actual colcon deployment, ROS launch or robot"
+  },
+  "evidence": {
+    "repo": "artifacts/access/ws1-installer-build-evidence-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-installer-build-evidence",
+    "archive": "complete.tar.gz",
+    "sha256": "b6195fa9a128f2e9db37983c10ac1a346b7d018dd3e4336ed0cc33d293fdf8c9",
+    "bytes": 82938,
+    "verified_files": 55
+  },
+  "source_sha256": {
+    "pupper_gait_deploy/install.py": "d1d805c41c93f14f27853a034e054aa94245719e721f806a64ee9eedb6f47531",
+    "foundation/tests/test_deploy_build_result.py": "2149e87a1452ff70a649fffd1b861416567b0f1c60c108e4ff01e2310d0c623f"
+  },
+  "cost": {
+    "claude_reported_usd": 0.2899164,
+    "meaning": "Restricted read-only Max-account review; not a billing receipt."
+  },
+  "limits": [
+    "Identical same-inode rewrites remain unverified. This is build-result evidence, not validation of installed binary runtime behavior.",
+    "No whole-workspace completion claim if only required packages have terminal records."
+  ]
+}
