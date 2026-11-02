@@ -72,7 +72,7 @@
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
     "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
   ],
-  "updated_utc": "2026-11-02T13:24:36.621573+00:00",
+  "updated_utc": "2026-11-02T13:30:26.819421+00:00",
   "authorization": "Latest user2026-11-02 explicitly resumed overnight offline engineering, fullenvironment fixes, Claude Code/subagents and Gemini includingER. Prior pause superseded. No robot contact/deployment. Retain approval before experiment expected over$5.",
   "current_report": "foundation/results/workstream1-overnight-release-20261102.json",
   "historical_recovery": {
@@ -121,9 +121,10 @@
     "process_receipts": "owned-processes.json,control-shutdown.json,data-shutdown.json inside completearchive; historical identities only, notliveauthorization."
   },
   "activity": {
-    "automation": "pupper-overnight-foundation ACTIVE until2026-11-02T18:00:00Z; quiet offline follow-up only if meaningful new input arrives; pause at cutoff.",
+    "automation": "pupper-overnight-foundation deleted after the reviewed offline release finished; no live job remains to monitor. Resume for a supervised robot session or a concrete teammate handoff.",
     "compute": "No task-owned provider, fake server, container, training or collector jobs running. Docker Desktop remains available; no unrelated service was stopped.",
-    "owners": {}
+    "owners": {},
+    "goal_status": "blocked: supported sensor/robot validation and tested follower/Spider handoffs remain unavailable; full Workstream 1 is not complete."
   },
   "local_rehearsal": {
     "status": "Final index-pfx-RnKE.js loaded in Chrome; FAKE REHEARSAL visible, voice disconnected and microphone not sending. Fake server shut down exit0; test tab closed.",
