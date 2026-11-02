@@ -134,13 +134,15 @@ def test_read_only_inspection_timeout_is_a_clear_refusal(stack):
     assert not result['compatible'] and 'TimeoutExpired' in ' '.join(result['errors'])
 
 
-def test_start_checks_compatibility_before_replacing_any_server():
-    # A regression in shell ordering must not kill the old server before refusal.
+def test_start_checks_ownership_before_launch_and_compatibility_before_server():
+    # Refuse occupied port before a launch can home; retain read-only reuse checks.
     source = (ROBOT_DIR / 'start.sh').read_text()
     inspect = source.index('"$HERE/startup_readiness.py" || exit 1')
     assert source.index('if pgrep -f "[r]os2_control_node"') < inspect
     assert source.index('exec ros2 launch') < inspect  # new-stack launch path retained
-    assert inspect < source.index('pkill -f "[r]obot/server.py"')
+    assert source.index('lifecycle begin') < source.index('exec ros2 launch')
+    assert inspect < source.index('lifecycle spawn server')
+    assert 'pkill' not in source and 'free_port' not in source
 
 
 @pytest.mark.parametrize('runtime', ['matching', 'old_binary', 'different_rate', 'invalid_json', 'inactive'])

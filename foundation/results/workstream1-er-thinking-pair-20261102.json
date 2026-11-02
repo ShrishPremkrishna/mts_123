@@ -356,5 +356,11 @@
     "repo": "artifacts/access/ws1-er-thinking-pair-20261102",
     "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-er-thinking-pair",
     "archive_sha256": "e3533ec01390e7a4b822cf61e45290009840b791d47b4b4c9a8fc06c972abb78"
+  },
+  "instrumentation_correction_20261102": {
+    "field": "provider_close_callback_observed in inherited live-probe output",
+    "actual_source": "The harness set report.closed from the service onDisconnect callback, not a wrapper of raw SDK onclose.",
+    "consequence": "False records do not establish whether a raw provider close callback occurred. Client disposal and SDK close request are separately recorded; exact raw results are preserved.",
+    "next_check": "Actual expiration probe instruments raw SDK callbacks independently; no production code change implied."
   }
 }

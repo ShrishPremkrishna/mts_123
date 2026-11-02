@@ -1,10 +1,18 @@
 #!/bin/bash
 # Request controller deactivation, stop the app/server/robot stack, and restore
 # the normal screen app. Request acceptance does not verify physical motor release.
+set -uo pipefail
+HERE=$(cd "$(dirname "$0")" && pwd)
+LOG=/tmp/gemini-pupper
+lifecycle() { python3 "$HERE/session_processes.py" --directory "$LOG" "$@"; }
+lifecycle check || exit 1
+SESSION=$(lifecycle stopping) || exit 1
+export GEMINI_PUPPER_SESSION=$SESSION
 api_ok=1
 api_success() {
   python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("success") is True else 1)' 2>/dev/null
 }
+if lifecycle api-owned; then
 # Stop always bypasses the command-epoch requirement. Check HTTP and semantic
 # success; never print server bodies, which may contain unrelated robot details.
 if ! stop_reply=$(curl -fsS -m 3 -X POST localhost:8000/stop/immediate 2>/dev/null) ||
@@ -33,23 +41,15 @@ print(value)
 else
   api_ok=0
 fi
-unset stop_reply health_reply command_epoch deactivate_reply
-free_port() {  # stop whatever is serving port 8000 (an older robot server)
-  local pids; pids=$(ss -ltnpH "sport = :8000" 2>/dev/null | grep -oP "pid=\\K[0-9]+" | sort -u)
-  [ -n "$pids" ] && kill $pids 2>/dev/null && sleep 1
-  return 0
-}
-pkill -f "[r]obot/kiosk.py"; pkill -f "[g]emini-pupper-kiosk"; pkill -f "[r]obot/server.py"; free_port
-pkill -INT -f "[g]emini_pupper.launch.py"
-for i in $(seq 1 15); do pgrep -f "[r]os2_control_node" >/dev/null || break; sleep 1; done
-pkill -9 -f "[g]emini_pupper.launch.py"; pkill -9 -f "[/]opt/ros/jazzy/lib/"; pkill -9 -f "[/]home/pi/pupperv3-monorepo/ros2_ws/install/"
-# The person follower runs from the follow_me_pupper repo, outside the paths above.
-# SIGTERM first so it releases the Hailo; a respawned copy can outlive the launch.
-pkill -f "[f]ollow_service.py" && sleep 2; pkill -9 -f "[f]ollow_service.py"
-sudo -n systemctl start pupper-gui 2>/dev/null
-if [ "$api_ok" = 1 ]; then
-  echo "API Stop/deactivation requests accepted; teardown requested. Completion and physical motor release not verified."
 else
-  echo "Teardown requested, but graceful API Stop/deactivation was not confirmed. Check the robot before further use." >&2
+  api_ok=0
+fi
+unset stop_reply health_reply command_epoch deactivate_reply
+cleanup_ok=1
+lifecycle cleanup || cleanup_ok=0
+if [ "$api_ok" = 1 ] && [ "$cleanup_ok" = 1 ]; then
+  echo "API Stop/deactivation requests accepted; owned process cleanup completed. Physical motor release is not verified."
+else
+  echo "Graceful API Stop/deactivation or owned process cleanup was not confirmed. Recovery receipt retained; physical motor release is not verified. Check the robot before further use." >&2
   exit 1
 fi

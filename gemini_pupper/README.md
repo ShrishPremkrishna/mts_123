@@ -80,8 +80,30 @@ On the Pupper, on the ground, with clear space around it:
 ```bash
 robot/start.sh --kiosk    # robot + the app on Pupper's own screen (uses its mic and speaker)
 robot/start.sh            # robot only; open the app from your laptop (below)
-robot/stop.sh             # relax the motors and stop everything
+robot/stop.sh             # request Stop/deactivation; clean up this start's owned processes
 ```
+
+In this engineering checkout, these entrypoints require Linux Python with
+`pidfd` support and the sibling
+`foundation/hardware/floor_stock/shutdown_coordinator.py`; a standalone copy
+without that helper refuses before startup. Startup may initialize/home the
+hardware and still requires the student's current physical authorization.
+
+`start.sh` refuses an occupied port 8000 before launching ROS. It records its
+own processes in `/tmp/gemini-pupper/owned_session.json`; an existing compatible
+ROS stack is marked borrowed. `stop.sh` validates that receipt before contacting
+the recorded server, preserves the API Stop/command-epoch protocol, and signals
+only verified owned processes. An owned controller manager must exit before
+launch cleanup; borrowed ROS remains running. API acceptance and process exit
+do **not** verify physical motor release.
+
+Stop can cancel a startup waiting for readiness. Failed or interrupted startup
+keeps its recovery receipt and does not automatically retry, rehome, or kill by
+name/port. Missing/foreign receipts, changed process identity, or a still-live
+launch whose manager was never identified require inspection; cleanup reports
+failure and retains evidence instead of escalating to SIGKILL. The receipt does
+not replace physical supervision or the e-stop. Do not delete it to force a
+restart while its processes may still be live.
 
 From your laptop: `ssh -N -L 8000:localhost:8000 pi@pupper<N>.local`, then
 open http://localhost:8000, open **Settings**, paste your key and press

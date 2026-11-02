@@ -65,6 +65,11 @@ def main():
         print(f"Automation: {r['automation']} | local references: {'OK' if r['local_references_ok'] else 'ERROR'}")
         print(f"Robot (last observation, not a live check): {r['robot_last_observation']}")
         print(f"Test Python: {r['test_python']}")
+        owners = r['activity'].get('owners', {})
+        if owners:
+            print(f"Saved owners/activity ({r['updated_utc']}; verify actual agents and exits before resuming):")
+            for owner, activity in owners.items():
+                print(f"  {owner}: {activity}")
         print("Next actions:")
         for i, action in enumerate(r['next'], 1):
             print(f"  {i}. [{action['id']}] {action['action']}")

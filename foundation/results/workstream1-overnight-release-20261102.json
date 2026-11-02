@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-02",
+  "scope": "User-authorized overnight offline Workstream1 engineering; no robot contact, motion, deployment or GPU training",
+  "status": "Reviewed offline release; physical foundation remains incomplete",
+  "integrated": [
+    "Separate tested Python discovery and reproducible actual ROS offline builds.",
+    "Ordered Gemini admission across packets and duplicate-ID replay protection.",
+    "Fresh required-package installer evidence and task-owned standard start/stop.",
+    "Fixed-camera clean replay options and clearer saved-owner recovery display."
+  ],
+  "studies": {
+    "completion_driven_chain": "Six matched valid-speed native/MuJoCo runs:2.665s faster total, with mixed slip/effort metrics; not hardware acceptance.",
+    "standing_return_shortcut": "Rejected:2s faster but push-up subsequent walking peak effort+44.18%; production return unchanged.",
+    "ER_thinking_medium": "No speed gain established; production unset preserved.",
+    "ER_visual_grading": "Rejected as automatic grader: truncated seated endpoint falsely labeled standing.",
+    "actual_Gemini": "Ordered fake commands, useful non-executing conversation, early-close retirement and fresh reconnect observed. Actual GoAway unproven."
+  },
+  "final_regression": {
+    "all_groups_passed": 11,
+    "changed_source_during_checks": [],
+    "added_source_during_checks": [],
+    "classical_cases": 546,
+    "API_cases": 965,
+    "floor_input_cases": 133,
+    "motion_export_cases": 275,
+    "compliance_cases": 17,
+    "native_host_assertions": 2724,
+    "course_checks": {
+      "follow": 36,
+      "color": 12,
+      "avoidance": 10,
+      "tools": 166,
+      "jump": 1
+    },
+    "browser": "381 author full web cases, TypeScript/build pass on exact integrated service;87 affected root cases pass.",
+    "actual_ROS": "6 controller CTest suites including17 MemoryController gtests;10 joystick suites;254 fake-I2C assertions; strictLinuxARM diagnostic build.",
+    "evidence": {
+      "repo": "artifacts/access/ws1-release-aggregate-20261102",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-release-aggregate",
+      "archive": "complete.tar.gz",
+      "sha256": "a7d192f8aefdaea594c4f9b3a49f774012e7281afff33df4d0390a5d0aaf8175",
+      "bytes": 1045105,
+      "verified_regular_files": 175,
+      "symlinks": 0
+    },
+    "post_validation_note": "Only evidence reports/current-state metadata are written after this freeze; no execution source changes planned."
+  },
+  "detailed_reports": [
+    "workstream1-environment-validation-20261102.json",
+    "workstream1-offline-ros-20261102.json",
+    "workstream1-request-ordering-20261102.json",
+    "workstream1-duplicate-dispatch-20261102.json",
+    "workstream1-installer-build-evidence-20261102.json",
+    "workstream1-owned-lifecycle-20261102.json",
+    "workstream1-completion-driven-sit-20261102.json",
+    "workstream1-standing-return-20261102.json",
+    "workstream1-er-thinking-pair-20261102.json",
+    "workstream1-er-vision-20261102.json",
+    "workstream1-semantic-nonexecution-20261102.json",
+    "workstream1-live-expiry-20261102.json"
+  ],
+  "remaining": [
+    "Supported motors-inactive IMU diagnosis; recorded drift remains unresolved.",
+    "Supervised deployment and repeated physical sequence/transition/stop acceptance after sensor validity is addressed.",
+    "Follower and Spider handoffs from teammates.",
+    "Generated/push-up quality remains unaccepted; actual provider GoAway not captured."
+  ],
+  "environment_limit": "The chat remains attached to the course vault. Explicit engineering workdir and approved writes worked; no sandbox weakening or hidden app configuration changes. A user sidebar action is needed only to change project attachment, not to continue engineering."
+}

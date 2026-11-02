@@ -345,5 +345,11 @@
     "complete_archive_sha256": "c7b74bbee32a17ffcd6e71bb9fe3b6b43283af8f6bf19fc03262be59ea1b7c01",
     "complete_archive_bytes": 919642,
     "root_verification": "35 affected web checks passed; source hashes match independently reviewed candidate"
+  },
+  "instrumentation_correction_20261102": {
+    "field": "provider_close_callback_observed in inherited live-probe output",
+    "actual_source": "The harness set report.closed from the service onDisconnect callback, not a wrapper of raw SDK onclose.",
+    "consequence": "False records do not establish whether a raw provider close callback occurred. Client disposal and SDK close request are separately recorded; exact raw results are preserved.",
+    "next_check": "Actual expiration probe instruments raw SDK callbacks independently; no production code change implied."
   }
 }

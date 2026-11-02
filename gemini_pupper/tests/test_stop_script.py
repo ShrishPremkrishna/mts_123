@@ -15,12 +15,24 @@ def run_shutdown(tmp_path, mode):
     commands = tmp_path / "bin"
     commands.mkdir()
     log = tmp_path / "calls.jsonl"
+    runtime = tmp_path / "runtime"; runtime.mkdir()
+    script = tmp_path / "stop.sh"
+    script.write_text(SCRIPT.read_text().replace("LOG=/tmp/gemini-pupper", "LOG=" + str(runtime)))
     mock = "#!" + sys.executable + "\n" + r'''import json, os, sys
 from pathlib import Path
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
 with open(os.environ["MOCK_LOG"], "a") as out:
     out.write(json.dumps({"command": name, "args": args}) + "\n")
+if name == "python3":
+    if args and args[0].endswith("session_processes.py"):
+        action = args[3]
+        if action == "stopping" and os.environ["MOCK_MODE"] == "foreign_receipt": sys.exit(1)
+        if action == "api-owned" and os.environ["MOCK_MODE"] == "foreign_port": sys.exit(1)
+        if action == "cleanup" and os.environ["MOCK_MODE"] == "cleanup_failure": sys.exit(1)
+        if action == "stopping": print("1" * 32)
+        sys.exit(0)
+    os.execv(sys.executable, [sys.executable, *args])
 if name != "curl":
     sys.exit(1 if name in ("pkill", "pgrep") else 0)
 mode = os.environ["MOCK_MODE"]
@@ -44,19 +56,22 @@ elif url.endswith("/walking/deactivate"):
 else:
     raise SystemExit("unexpected mock URL")
 '''
-    for name in ("curl", "pkill", "pgrep", "ss", "sleep", "sudo"):
+    for name in ("curl", "pkill", "pgrep", "ss", "sleep", "sudo", "flock", "python3"):
         path = commands / name
         path.write_text(mock)
         path.chmod(0o700)
     env = {**os.environ, "PATH": str(commands) + os.pathsep + os.environ["PATH"],
            "MOCK_LOG": str(log), "MOCK_MODE": mode}
-    result = subprocess.run(["/bin/bash", str(SCRIPT)], env=env, text=True,
+    result = subprocess.run(["/bin/bash", str(script)], env=env, text=True,
                             capture_output=True, timeout=10)
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     assert "PRIVATE_RESPONSE_MARKER" not in result.stdout + result.stderr
-    # Existing process teardown is preserved even if graceful HTTP shutdown fails.
-    assert any(c["command"] == "pkill" for c in calls)
-    assert any(c["command"] == "sudo" and c["args"] == ["-n", "systemctl", "start", "pupper-gui"] for c in calls)
+    # Failed HTTP requests still reach only the receipt-bound cleanup helper.
+    assert not any(c["command"] in ("pkill", "pgrep", "ss") for c in calls)
+    actions = [c["args"][3] for c in calls if c["command"] == "python3" and c["args"][0].endswith("session_processes.py")]
+    assert ("cleanup" in actions) is (mode != "foreign_receipt")
+    restores = [c for c in calls if c["command"] == "sudo"]
+    assert not restores  # The receipt helper owns conditional GUI restoration.
     return result, [c["args"] for c in calls if c["command"] == "curl"]
 
 
@@ -79,3 +94,21 @@ def test_shutdown_failures_never_masquerade_as_success_or_retry(tmp_path, mode):
     assert len(mutations) <= 1
     if mode in ("missing_epoch", "health_invalid", "health_transport", "unknown_protocol"):
         assert mutations == []
+
+
+@pytest.mark.parametrize("mode", ["foreign_receipt", "foreign_port"])
+def test_shutdown_never_contacts_unknown_server(tmp_path, mode):
+    result, calls = run_shutdown(tmp_path, mode)
+    assert result.returncode != 0
+    assert calls == []
+
+
+def test_cleanup_failure_is_not_reported_as_success(tmp_path):
+    result, calls = run_shutdown(tmp_path, "cleanup_failure")
+    assert result.returncode != 0
+    assert "not confirmed" in result.stderr
+
+
+def test_kiosk_stop_uses_same_receipt_cleanup(tmp_path):
+    result, calls = run_shutdown(tmp_path, "kiosk")
+    assert result.returncode == 0

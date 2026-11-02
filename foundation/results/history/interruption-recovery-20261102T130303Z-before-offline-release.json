@@ -1,0 +1,280 @@
+{
+  "schema": "pupper_current_session_v2",
+  "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
+  "mode": "workstream1_active_offline",
+  "worktree": "/Users/shrish/workspace/cs123-foundation",
+  "branch": "pupper-foundation",
+  "coursework_main": "/Users/shrish/workspace/cs123",
+  "environment": {
+    "python": "artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
+    "full_numerical_python": ".venv/bin/python",
+    "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
+    "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
+    "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
+    "ros_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+    "claude": "Authenticated Max account; credential-store metadata requires approved OS access. Restricted read-only review completed without a permission bypass.",
+    "workspace_limit": "Engineering checkout is not app-managed and attach_worktree could not attach it. Explicit workdir plus approved writes works; no permissions weakened. Additional folder access requires a user app action later and is not a blocker."
+  },
+  "compute_spend_policy": {
+    "user_billing_enabled_now": true,
+    "approval_threshold_usd": 5,
+    "interpretation": "Ask before an experiment or exploration batch expected above $5; do not split work to evade approval. Latest user explicitly authorizes offline API experiments including Gemini ER.",
+    "current_voice_batch": "Historical pre-overnight costs remain in dated reports. New overnight reported Gemini usage estimate $0.094201 across six successful calls; first sandbox connection-failure billing unknown. No pending provider calls."
+  },
+  "validation_commands": {
+    "interpreter": "Use environment.python for these commands; they make no hardware/API calls.",
+    "gemini": [
+      "-m",
+      "pytest",
+      "gemini_pupper/tests",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "preservation": [
+      "-m",
+      "pytest",
+      "foundation/tests/test_colab_preservation.py",
+      "foundation/tests/test_colab_archive_download.py",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "floor_input": [
+      "-m",
+      "pytest",
+      "foundation/hardware/floor_stock",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "course": [
+      "gemini_pupper/lab/test.py"
+    ],
+    "aggregate": [
+      "python3",
+      "foundation/scripts/check_foundation.py",
+      "--output",
+      "/private/tmp/pupper-validation-NEW"
+    ],
+    "ros_offline": [
+      "python3",
+      "foundation/scripts/check_ros_offline.py",
+      "--output",
+      "/private/tmp/pupper-ros-NEW"
+    ]
+  },
+  "do_not_repeat": [
+    "Do not restart completed Colab studies or rediscover baseline backups without a changed dependency.",
+    "Do not treat on-stand, mock, simulation or model-acceptance evidence as floor success.",
+    "Do not run broad suites or create another staged copy while owners still edit; first freeze the selected source.",
+    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
+    "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
+    "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
+  ],
+  "updated_utc": "2026-11-02T12:44:53.207990+00:00",
+  "authorization": "Latest user2026-11-02 explicitly resumed overnight offline engineering, fullenvironment fixes, Claude Code/subagents and Gemini includingER. Prior pause superseded. No robot contact/deployment. Retain approval before experiment expected over$5.",
+  "current_report": "foundation/results/workstream1-environment-validation-20261102.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261102T034958Z-before-compaction.json",
+    "sha256": "22dbbed05d7c4329596a398c644e7a8beda3efe3024759628386d11661a57908",
+    "meaning": "Full prior operational record and older source/archive identities. Historical only; do not resume its old processes."
+  },
+  "hardware_session": {
+    "status": "CLOSED. Driver/API/camera/recorders stopped cleanly. User supported robot and was told it can be poweredoff. Strong idle sensor drift reproduced with voiceoff and persists in rawreports aftermotoroff; no nextmotion until investigated.",
+    "ssh": "mts",
+    "owner": "/root",
+    "boot_id": "4a17c2a2-1b99-4f8a-b4ed-db243ea93dad",
+    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-idle-reliability",
+    "deployment": {
+      "application_commit": "b879bfe15d8ebcceb5c934c4a321938dd485bb8e",
+      "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+      "ui_bundle": "index-CcxVmLL9.js",
+      "ui_sha256": "de9ff27f3068d016039b92d6b91daa351fb73d0f7fba097981694d6d1aecd1e5",
+      "release_sha256": "dec7ccd6f76bb40566adbbf7bd51ad73af84eb5c60e4052e674a9b13a851349c",
+      "installed_verified_files": 25,
+      "policy": "Supplied standing-ending finite tricks plus prior selected expanded-COM Sit. No research pushup or generated-bob candidate. Gains/limits/native unchanged."
+    },
+    "completed_diagnostics": {
+      "sensor_report": "foundation/results/workstream1-sensor-followup-20261101.json",
+      "camera_report": "foundation/results/workstream1-camera-sensor-comparison-20261101.json",
+      "result": "Corrected passive address and boot identities; body-axis signs agree; brief58deg event operator handling unknown. Camera+IMU120s no large rotation; two small timeout gaps. No cure claim; all originals and failed diagnostics preserved."
+    },
+    "last_complete_motor_capture": {
+      "local_archive": "/private/tmp/ws1-idle-reliability-complete/complete.tar.gz",
+      "repo": "artifacts/hardware/2026-11-01/idle-reliability-complete",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/idle-reliability-complete",
+      "sha256": "14606a962c8c085200b9085fbe3ab60770f5a335396e89bc0d69916cd0acbf22",
+      "bytes": 296041034,
+      "files_verified": 1036,
+      "frozen_inputs": 32
+    },
+    "shutdown": {
+      "driver_clean": true,
+      "api_clean": true,
+      "previous_ROS_context_shutdown_error_recurred": false,
+      "motor_api_camera_recorders_active": false,
+      "user_notified_safe_to_power_off": true,
+      "power_off_not_independently_observed": true,
+      "automatic_restart_or_homing": false
+    },
+    "process_receipts": "owned-processes.json,control-shutdown.json,data-shutdown.json inside completearchive; historical identities only, notliveauthorization."
+  },
+  "activity": {
+    "automation": "pupper-overnight-foundation ACTIVE every20min until2026-11-02T18:00:00Z; offline only",
+    "compute": "No GPU training active; completed studies archived.",
+    "owners": {
+      "root": "Final combined offline regression starting on frozen integrated source; no source edits until exit.",
+      "owned_lifecycle": "Final execution metadata only; code frozen/integrated.",
+      "vision_probe": "Preserving completed early-close and fresh-connection evidence; no more provider calls."
+    }
+  },
+  "local_rehearsal": {
+    "status": "Final index-pfx-RnKE.js loaded in Chrome; FAKE REHEARSAL visible, voice disconnected and microphone not sending. Fake server shut down exit0; test tab closed.",
+    "report": "foundation/results/workstream1-conversation-context-20261102.json",
+    "screenshot": "artifacts/access/ws1-conversation-context-20261102/root-rehearsal/browser-final.png"
+  },
+  "offline_integrated_fixes": {
+    "manual": "Atomic idle admission and browser pending/unknown protection integrated; intentional voice queue unchanged.",
+    "api_shutdown": "ASGI owns signals; ROS kept alive until final stop and cleanup.",
+    "validation": "50 affected integrated Python tests,27 affected web tests, TypeScript and production build passed. Author full suites and independent source reviews archived.",
+    "source_manifest": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-manual-and-shutdown-20261101/integrated-sources.json",
+    "hardware_deployed": true,
+    "real_ros_signal_smoke": "Actual Pi isolated diagnostic publishers: SIGINT/SIGTERM both passed context-valid final publish before shutdown. No Robot controller or physical stopping test.",
+    "commit": "b879bfe",
+    "goaway": "Integrated reviewed explicit expiry close/reconnect; no automatic replay. Actual provider expiry retest pending.",
+    "neutral_cue": "One approved Okay after first accepted motion in provider turn; failure/Stop remain explicit. Human fake rehearsal passed.",
+    "latest_local_commit": "See branch HEAD; workflow-improvement result pins a29363d baseline and exact source/artifact freezes.",
+    "latest_local_report": "foundation/results/workstream1-live-context-followup-20261102.json",
+    "latest_local_deployed": false,
+    "workflow": "Server action timeline, planned-transition estimates, report script and standalone sensor diagnostic integrated; root34API+20report+254C++assertions+4summarytests passed; no robot access.",
+    "browser_job_matching": "Exact latest Gemini API-job identity, freshness and pending-Stop guard integrated; full348web tests, independent29 and root29 passed; normal production build/fake Chrome smoke passed; not deployed.",
+    "conversation_context": "Bounded honest-unknown history correction and explicit disabled/browser/server camera context integrated, independently reviewed, root85Python/151web and build passed; not provider/robot validated.",
+    "static_idle_latency": "Dense/phase-free constant-loop early request handling integrated. Actual ROS memory-controller tests and final six matched full native/MuJoCo sequences pass with mixed quality metrics. Not hardware deployed.",
+    "final_regression": "Root928 complete Gemini/API Python cases,166 course checks and native host suite passed. Complete web351 cases/typecheck/build were author-tested and focused151root cases/build passed.",
+    "empty_status_fallback": "Live-derived empty-status omission now explicitly states no action was sent; no retry. Exactproviderfixture,353web author cases,24root/24peer,TypeScript/build passed. Not robot deployed.",
+    "overnight_regression": "Frozen final aggregate: all 11 groups pass, including 510 classical, 928 API, 275 motion export, 133 floor-input, 17 compliance; source mutation checks empty. Web363/typecheck/build separately preserved. Actual ROS6 controller+10 joystick suites and254 fake-I2C assertions pass.",
+    "request_ordering": "Overlapping ordinary Gemini SDK packets now await prior admission replies; Stop bypasses and invalidates older waiters. Two production-config fake-only provider cases passed; no physical deployment.",
+    "duplicate_dispatch": "Session-lifetime duplicate provider IDs cannot queue another action; Stop exception retained.381 full web/87 root affected cases pass; not hardware deployed.",
+    "installer_build": "Installer rejects missing/stale/malformed required-package results instead of trusting masked shell exit0.39 root affected tests pass; no real install performed."
+  },
+  "evidence": {
+    "fall_incident": "foundation/results/workstream1-fall-incident-20261101.json",
+    "manual_shutdown": "foundation/results/workstream1-manual-and-shutdown-20261101.json",
+    "voice_expiry": "foundation/results/workstream1-goaway-20261101.json",
+    "pushup_candidate": "foundation/results/pushup-yaw-candidate-physical-20261101.json",
+    "bob_training": "foundation/results/generated-bob-training-20261101.json",
+    "bob_contact": "foundation/results/generated-bob-contact-extent-20261101.json",
+    "corrected_driver_trials": "foundation/results/workstream1-imu-candidate-physical-20261101.json",
+    "voice_stop": "foundation/results/workstream1-voice-repair-physical-20261101.json",
+    "idle_sensor_recurrence": "foundation/results/workstream1-idle-sensor-recurrence-20261101.json",
+    "status_disconnect": "foundation/results/workstream1-status-and-disconnect-20261101.json",
+    "idle_sensor_analysis": "artifacts/hardware/2026-11-01/idle-sensor-analysis/analysis.json",
+    "offline_workflow": "foundation/results/workstream1-offline-workflow-20261101.json",
+    "browser_job_ids": "foundation/results/workstream1-browser-job-ids-20261102.json",
+    "quantitative_camera_sensor": "foundation/results/workstream1-camera-sensor-consistency-20261102.json",
+    "conversation_context": "foundation/results/workstream1-conversation-context-20261102.json",
+    "static_idle_latency": "foundation/results/workstream1-static-idle-latency-20261102.json",
+    "live_context_prepared": "foundation/results/workstream1-live-context-prepared-20261102.json",
+    "live_context_followup": "foundation/results/workstream1-live-context-followup-20261102.json",
+    "offline_ros": "foundation/results/workstream1-offline-ros-20261102.json",
+    "request_ordering": "foundation/results/workstream1-request-ordering-20261102.json",
+    "completion_driven_sit": "foundation/results/workstream1-completion-driven-sit-20261102.json",
+    "er_thinking_pair": "foundation/results/workstream1-er-thinking-pair-20261102.json",
+    "standing_return": "foundation/results/workstream1-standing-return-20261102.json",
+    "er_vision": "foundation/results/workstream1-er-vision-20261102.json",
+    "environment_validation": "foundation/results/workstream1-environment-validation-20261102.json",
+    "duplicate_dispatch": "foundation/results/workstream1-duplicate-dispatch-20261102.json",
+    "installer_build": "foundation/results/workstream1-installer-build-evidence-20261102.json",
+    "semantic_nonexecution": "foundation/results/workstream1-semantic-nonexecution-20261102.json"
+  },
+  "next": [
+    {
+      "id": "sensor_validity",
+      "action": "Next physical session: supported/motorsinactive, inspect current sensor product/features/calibration with foundation/hardware/imu_diagnostic, then explicit comparison if current configuration allows it. No reset/homing and no motion until sensor validity investigated."
+    },
+    {
+      "id": "offline_evidence",
+      "action": "ActualROS MemoryController/joystick and strictLinuxARM diagnosticbuild nowpassoffline. Nextphysical sensor-onlysession muststillverify Pi ownership/I2C/readback/restoration; no motion until sensingvalidity supported."
+    },
+    {
+      "id": "repeatable_baseline",
+      "action": "After resolving sensing, use one persistent supervised session for stock standing, Sit/hold/paws/standing/walk and selected finite transitions; record repeated outcomes before expanding or tuning."
+    },
+    {
+      "id": "workstream_remaining",
+      "action": "After sensor validity and baseline repeatability: validate faster idle transitions and cohesive voice/context; improve generated/push-up quality; integrate tested follower/Spider teammate handoffs. Do not compensate for sensor drift with policy/gain tuning."
+    }
+  ],
+  "acceptance_boundaries": [
+    "Prolongedholdbaseline notaccepted. Currentvoice-offblock reproducesunreliableIMUheading; biaspersistsmotoroff. Priorfallcause notfullyestablished.",
+    "Five-minute sensor capture contains one brief58deg yaw event; operator unsure if robot was moved. Do not label it continuous drift or dismiss it.",
+    "Body-axis hand movements matched expected signs; no frame flip is supported.",
+    "User verified one neutral Okay per accepted fake multi-action turn and audible normal greeting/clarification. Explicit reconnect integrated; unexplained provider1008idle closure remains.",
+    "Push-up drift and transitions remain unaccepted; improved bob simulation remains unpromoted.",
+    "Follower and Spider handoffs absent; arbitrary self-righting is not provided by stand.",
+    "The two-second standing-return shortcut is rejected: simulated following push-up walking peak effort rose 44.18%. Candidate remains isolated; production return unchanged.",
+    "ER2 video output is not a completion grader: it confidently called the deliberately truncated seated endpoint standing. No prompt retuning or automated physical acceptance based on this probe."
+  ],
+  "paused_work": {
+    "repo": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-paused-20261101T2117",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/ws1-paused-20261101T2117",
+    "verified_members": 81,
+    "browser_checkpoint": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-paused-20261101T2117/ws1-browser-job-ids-20261101/checkpoint.json",
+    "latency_checkpoint": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-paused-20261101T2117/ws1-transition-latency-audit-20261101/checkpoint.json",
+    "resume_only_after_user_request": true,
+    "next_offline": [
+      "Review status requests begun during pending Stop in partial UI candidate, then peer/tests/build/fake-browser rehearsal.",
+      "Review constant-loop transition eligibility against every policy-consumed field before implementing any native timing change."
+    ],
+    "running_jobs": null,
+    "latest_integrated_code_commit": "71915c6",
+    "resumed_from_checkpoint": true
+  },
+  "offline_in_progress": {
+    "candidates": [
+      {
+        "owner": "owned_lifecycle",
+        "path": "/private/tmp/cs123-owned-lifecycle",
+        "scope": "Task-owned process receipts and manager-first cleanup for standard start/stop."
+      },
+      {
+        "owner": "vision_probe",
+        "scope": "Prepared-only actual provider expiry check after semantic probe preservation."
+      }
+    ],
+    "hardware_access": false,
+    "paid_calls": {
+      "state": "All overnight provider sessions finished; no API/training compute active.",
+      "new_reported_gemini_estimated_usd": 0.107931,
+      "failed_connection_billing": "unknown; conservative reservation preserved in visual report",
+      "claude_reported_usd": 0.6387874,
+      "tts": false,
+      "estimate_limit": "Semantic probe usage omits response/candidate token counts; report total is incomplete, not billing or a verified upper bound."
+    },
+    "pending_external": [
+      "Fresh sensor-onlyrobotdiagnosis and physicalvalidation",
+      "Tested follower/Spider teammatehandoffs"
+    ],
+    "live_probe": {
+      "report": "foundation/results/workstream1-live-context-followup-20261102.json",
+      "completed": true,
+      "all_processes_exited": true
+    },
+    "validation_output": "/private/tmp/ws1-release-aggregate-20261102",
+    "live_expiry": {
+      "path": "/private/tmp/ws1-live-expiry-20261102",
+      "plan_sha256": "4730511807b7463ed9a6fa6d34814bd7415152857d20ecf63a7449b4e5c76d5d",
+      "harness_sha256": "726361de66aa6e856d4814444710d13c81ced1e8708642ac00a69b7334465ab0",
+      "phase": "Both authorized sessions completed. Early1008 without GoAway at151s; explicit fresh connection succeeded; fake server exit0. Awaiting preserved report.",
+      "fake_pid": 33192,
+      "fake_port": 18105,
+      "node_pid": 33260,
+      "supervisor_session": 41167,
+      "hard_cap_s": 780,
+      "shared_two_session_ceiling_usd": 2.752512,
+      "second_connection": "Completed once after root inspection; no replay/resumption",
+      "hardware": false
+    }
+  }
+}

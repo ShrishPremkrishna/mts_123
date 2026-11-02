@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-02",
+  "status": "Integrated and offline validated; not installed or tested on robot",
+  "problem": "Standard start could home before replacing an unknown port8000 listener. Standard stop used broad process-name/path matches and SIGKILL, including a borrowed ROS stack.",
+  "changes": [
+    "Occupied port rejected before startup; no arbitrary replacement.",
+    "Task-owned session, PID/start ticks/executable/argv and durable pre-exec receipts; final executable verified rather than timed guess.",
+    "Short receipt locks and session-bound startup operations permit Stop during readiness wait and prevent stale starter resurrection.",
+    "Reuse existing manager-before-launch coordinator and verified pidfd signals; no process-group/name/path kills or SIGKILL.",
+    "Borrowed ROS retained; missing/uncertain ownership retains explicit recovery state. GUI restored only when previously active."
+  ],
+  "validation": {
+    "root_affected_tests": 162,
+    "independent_peer_tests": 47,
+    "pinned_linux_fixture": "passed: harmless actual delayed exec, pidfd cleanup, foreign-process survival, failed-exec recovery and Stop cancellation; immutable image, container ID and exits recorded",
+    "combined_regression": "All11 groups pass after integration; source unchanged during run"
+  },
+  "evidence": {
+    "repo": "artifacts/access/ws1-owned-lifecycle-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-owned-lifecycle",
+    "archive": "complete.tar.gz",
+    "sha256": "9e8ae27720dc755c25f6d46acf3014f71630bd0884b9a520975236b612207982",
+    "bytes": 58149,
+    "verified_regular_files": 26,
+    "symlinks": 26
+  },
+  "limits": [
+    "Requires combined checkout, Linux /proc and pidfd support. No hardware or real ROS launch in lifecycle tests.",
+    "A pending/unknown manager can leave owned processes running for explicit recovery; physical release is not inferred.",
+    "HTTP listener ownership has a check-to-connect race; process signaling uses pidfds.",
+    "Some intermediate author iterations lack separate raw logs; final source, final tests, before/after baseline evidence and independent review are retained."
+  ]
+}

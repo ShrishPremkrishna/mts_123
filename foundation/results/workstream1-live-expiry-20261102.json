@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-02",
+  "status": "Early-close cleanup and explicit fresh connection observed; GoAway remains inconclusive",
+  "scope": "Two separately authorized real ER2 text connections with current service and idle HTTP fake; no media/TTS/action calls or robot",
+  "observed": {
+    "idle_raw_close_seconds_after_open": 151.3,
+    "idle_close_code": 1008,
+    "idle_reason": "The operation was aborted.",
+    "goAway_observed": false,
+    "service_retirement_ms_after_raw_close": "about1.8\u20132.2",
+    "client_close_requested_before_idle_close": false,
+    "fresh_greeting_success": true,
+    "fresh_close_code": 1000,
+    "fresh_client_close_preceded_raw_close_ms": 44.9,
+    "model_tool_calls": 0,
+    "state_changing_HTTP_calls": 0,
+    "process_exits": "Both Node/supervisor and owned fake exit0"
+  },
+  "meaning": [
+    "Generic1008 reason does not identify a cause. No additional long-session retry or keepalive trial performed.",
+    "Current service retired and exposed disconnection promptly; separate fresh service connected and greeted without resumption or command replay.",
+    "Raw SDK callbacks, client close calls and service notifications are distinguished. This corrects the inherited earlier harness label.",
+    "Idle text transport is not browser/audio/hardware behavior or pending-motion Stop evidence."
+  ],
+  "cost": {
+    "reported_field_estimate_usd": 0.010894,
+    "incomplete": true,
+    "reason": "Candidate/response counts absent. Not actual billing or a verified complete bound.",
+    "preapproved_batch_reservation_usd": 2.752512
+  },
+  "evidence": {
+    "repo": "artifacts/access/ws1-live-expiry-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-live-expiry",
+    "archive": "complete.tar.gz",
+    "sha256": "fb588dbfd1de4b50939d5e503f90e65e302d637dfb9d79018a80e33ffa61b0f1",
+    "bytes": 12623233,
+    "verified_regular_files": 241,
+    "symlinks": 0
+  }
+}
