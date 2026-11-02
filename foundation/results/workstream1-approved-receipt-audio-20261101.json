@@ -1,0 +1,118 @@
+{
+  "schema": "pupper_approved_receipt_audio_integration_v2",
+  "recorded_utc": "2026-11-02T00:47:13.375249+00:00",
+  "decision": "Four human-approved Puck acknowledgment clips are integrated, tested and qualitatively confirmed in Chrome against a local fake robot. No quantitative latency improvement or physical robot validation is claimed.",
+  "behavior": [
+    "Normal conversation and all robot tools remain in the same mode. Quick Puck acknowledgments default on; changing the comparison checkbox requires reconnecting.",
+    "Only the exact Gemini3.1 Flash Live model, Puck voice and conversation mode can use the four approved clips. Connect-time preload has a2.5-second bound, byte/hash checks and cancellation; failure uses the existing native response path.",
+    "A current accepted server reply must authorize the exact cue. Queue statements require the typed queued marker; Stop says only \"Stop requested.\" No action waits for asset fetching, and duplicate later model acknowledgment is suppressed.",
+    "A new successful push-to-talk hold invalidates older output and pending feedback without cancelling robot actions.",
+    "Count/unit validation rejects declared unsupported quantities. Voice push-up requests remain enabled; the blanket transcript-based rejection prototype was not integrated."
+  ],
+  "approved_phrases": [
+    "Move queued.",
+    "Stop requested.",
+    "Left paw command queued.",
+    "Right paw command queued."
+  ],
+  "validation": {
+    "full_web_tests": 242,
+    "typecheck": "pass",
+    "build": "pass",
+    "source_stable": true,
+    "independent_cache_preload_tests": 18,
+    "verified_current_source_pcm_dist_files": 21
+  },
+  "source": {
+    "services/receiptAudioCache.ts": "2b4e608e5fa93e1e3bb9cdc6596b7daaf84195a335019d8fdc12d5e8f8457942",
+    "services/receiptAudioPreload.ts": "42f461ac5c78ffc673c908609a12b238fd32c7a96a59066b3fc4961450b9f845",
+    "services/receiptAudioManifest.json": "a3ebd4d52fff7983d4eb731cae2a37a5302c507121ef700c08bb3d2ed3ed3d48",
+    "services/geminiLive.ts": "83b499b5591ebadf77fb76153b8698c9b41cb4b26116215906f95a767fda1d2d",
+    "services/conversationOutput.ts": "5b683a41a7d7a1cee3ffe54618565255e06c1a7da0d32114ef12def3f86e8fac",
+    "services/operatorFeedback.ts": "6e701c22651c1bea0368c3ba3641ec3d09ecc7b2c9a13e9c5b37388bbacb965e",
+    "components/Settings.tsx": "990db429a36b71e39993eaecdd816651847c955db2b4f2e1879f01a59d997df6",
+    "constants.ts": "cd49787f380f51ac069c59e015eb8e5b46627c64a030097bfa6773734fb7131b",
+    "types.ts": "ff4f1e721394614e9ddf796256dedf84b8e416b20efde5dc83ae7ccf2a92e406",
+    "tests/receipt-audio-cache.test.mjs": "72362bfa8d62d8d100db916652a3cf67bbf46e7ef950390c2a4a01be74555d3e",
+    "tests/receipt-audio-preload.test.mjs": "b93dac0013737d04c5b7ac61633ba39332d60fbbf3f4267869546b701d917215"
+  },
+  "pcm": {
+    "public/receipt-audio/right-paw-command-queued.pcm": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+    "public/receipt-audio/left-paw-command-queued.pcm": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+    "public/receipt-audio/stop-requested.pcm": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+    "public/receipt-audio/move-queued.pcm": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623"
+  },
+  "dist": {
+    "dist/index.html": "08e329e92078e0cca2183515bc6a57841bd9e3ed77a7bcc5c4620532337ab30b",
+    "dist/receipt-audio/right-paw-command-queued.pcm": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+    "dist/receipt-audio/left-paw-command-queued.pcm": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+    "dist/receipt-audio/stop-requested.pcm": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+    "dist/receipt-audio/move-queued.pcm": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+    "dist/assets/index-D1HY6a8p.js": "57dc88eed8aa3e85b265b65ab9dbbc5df47f32347f03e029813c4726df0da2f8"
+  },
+  "limitations": [
+    "The user perceived quicker, consistent acknowledgment in one bounded fake-browser check; no timing in milliseconds was measured.",
+    "Manual direct Stop is still visible-only. Dynamic status, failures and the fourth-handshake joke are not cached.",
+    "A typed quantity failure carrying command_epoch_required still pauses model motion until reconnect; Stop and status remain available. The refusal can be visible-only when its native audio permit is invalidated.",
+    "The required count/unit contract rejects explicit unsupported values but cannot prove the model preserved the spoken request. The six-request actual Google fake-runtime probe is separately preserved.",
+    "SDK input transcription is not bound to individual tool calls. The isolated fail-closed guard rejected every voice push-up and was not promoted.",
+    "This build does not include the subsequent isolated refusal-audio candidate.",
+    "No claim that faster acknowledgment makes motion safer, confirms completion, or removes the need for direct Stop."
+  ],
+  "human_approval": "approved-audio-origin/human-approval.json pins exact4clips andcombinedlisteningWAV. Originalpendingmanifest and actualGoogle generation preserved.",
+  "active_jobs": [],
+  "root_operations": "Root operated the actual Chrome microphone check against the explicit local fake backend. No physical actuation occurred in that check. This preservation action performed no browser, Google or hardware calls.",
+  "purpose": "Reduce avoidable post-server-reply acknowledgment delay while preserving the selected Gemini voice; not a speech-recognition change.",
+  "browser_observation": {
+    "schema": "pupper_cached_receipt_browser_observation_v1",
+    "recorded_utc": "2026-11-02T00:47:13.375249+00:00",
+    "source": "Root agent reports user-observed test in the current chat; this agent did not operate Chrome or record microphone output.",
+    "environment": {
+      "browser": "Chrome",
+      "backend": "explicit local fake API on localhost:8000",
+      "robot_actuation": false,
+      "model": "gemini-3.1-flash-live-preview",
+      "voice": "Puck",
+      "bundle": "dist/assets/index-D1HY6a8p.js",
+      "bundle_sha256": "57dc88eed8aa3e85b265b65ab9dbbc5df47f32347f03e029813c4726df0da2f8",
+      "code_commit": "f45954627c80cf5408ca57bd618a783876b39da0"
+    },
+    "requests": [
+      "Move forward for one second.",
+      "Do ten push-ups."
+    ],
+    "root_report": "User answered \"yes and yes\" when asked whether the movement confirmation was quicker and consistent in voice, and whether ten push-ups was clearly refused rather than queued.",
+    "assessment": {
+      "quicker_consistent_acknowledgment": "user-observed qualitative pass",
+      "clear_unsupported_count_refusal": "user-observed qualitative pass",
+      "measured_latency_ms": null,
+      "speech_recognition_improvement": false,
+      "physical_skill_validation": false
+    },
+    "limits": [
+      "No instrumented end-to-end or acoustic latency measurement in this observation.",
+      "No new raw Google transcript, tool-call trace or microphone recording is attached to this human observation.",
+      "The cache reduces the extra acknowledgment-generation wait after a qualifying server reply; it does not improve ASR or initial model tool-planning latency.",
+      "This test does not establish physical movement, all four cached phrases in an end-to-end session, general interpretation reliability or every interruption race."
+    ]
+  },
+  "code_commit": "f45954627c80cf5408ca57bd618a783876b39da0",
+  "preservation_prior": {
+    "repo": "artifacts/hardware/2026-11-01/workstream1-approved-receipt-audio-20261101.tar.gz",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-approved-receipt-audio-20261101.tar.gz",
+    "sha256": "92ba31c5e0c67b5d456339bd329cdb7b075494413fd8f82a0ded1b534f9f1580",
+    "bytes": 1404875,
+    "files": 63,
+    "manifest_sha256": "d78bc5d682e5edb02258f36d448c51695858da557905d94b54a381e154de14d3"
+  },
+  "preservation": {
+    "repo": "artifacts/hardware/2026-11-01/workstream1-approved-receipt-audio-browser-20261101.tar.gz",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-approved-receipt-audio-browser-20261101.tar.gz",
+    "sha256": "7d72cd01fbf13be14932a9bf6755350d67c7e726eca189571a40708aeeebb31b",
+    "bytes": 1408791,
+    "files": 67,
+    "manifest_sha256": "dceab404279d53d44e7024f42efc0c9a87fb46949e0d084922d942a149ad9e6b",
+    "all_members_verified": true,
+    "prior_archive_members_preserved_unchanged": 64
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "schema": "workstream1_trick_quantity_review_v1",
+  "date": "2026-11-01",
+  "scope": "Local code, fake execution and actual Google interpretation only. No new robot motion, repeated physical execution or acoustic/ASR validation.",
+  "problem": "A spoken request for ten push-ups was represented by one name-only play_trick call. The shipped fixed routine has two nominal lower/raise cycles, not one verified physical repetition.",
+  "implementation": {
+    "tool": "play_trick requires name,count,count_unit. Count integer1..10; units routine_playback or physical_repetition.",
+    "accepted": "Only count1 with routine_playback. Unsupported physical counts/multiple playbacks refuse before preparing movement or queue insertion.",
+    "legacy_manual_route": "POST /animation accepts animation_name only, explicitly requests one routine, and rejects extra fields instead of ignoring counts.",
+    "feedback": "Closed typed refusal wording, with unknown/superseded precedence. No arbitrary server/model prose becomes an authoritative receipt.",
+    "unchanged": "Existing policy, gains, limits, initialization, fade, Stop and internal single-playback behavior. Native-agent estimate corrections were preserved.",
+    "implementation_commit": "950988d, committed by root before this evidence report."
+  },
+  "checks": {
+    "full_python_regression": {
+      "passed": 866,
+      "seconds": 76.78,
+      "includes": "gemini_pupper/tests, installed skill sequences, selected session-profile tests"
+    },
+    "course_checks": 166,
+    "failing_before_evidence": [
+      "Seven initial quantity contract cases failed before implementation.",
+      "Three legacy manual-endpoint cases demonstrated silently ignored quantity fields before extra-field rejection."
+    ],
+    "peer_review": "No blocking source finding; earlier17-file review and later narrow extra-field review preserved."
+  },
+  "actual_gemini": {
+    "model": "gemini-3.1-flash-live-preview",
+    "thinking": "HIGH",
+    "requests": 6,
+    "sessions": 5,
+    "observed": "Ten physical push-ups and two routine playbacks were refused without actions or substitution. The information-only followup did not mutate. One routine, Sit and the ordered three-skill chain carried explicit one-playback fields and were accepted.",
+    "narration": "Recorded acceptance transcripts occurred after the actual fake-server replies; no unsupported physical repetition count was claimed in this bounded run.",
+    "raw_results": "artifacts/access/ws1-trick-quantity-20261101/actual-gemini-results.json",
+    "review_sha256": "2d8005f7350591e5411edc50f53368e89fa63368d7536612947ed66289df203b"
+  },
+  "rejected_alternative": {
+    "candidate": "Blanket model-issued push_up guard based on optional/unordered input transcription",
+    "decision": "Not integrated because it disabled every voice push-up, including a legitimate one-routine request.",
+    "evidence": "The SDK transcript carries no tool-request identity/order guarantee; finished text alone cannot authorize a matching action. Its four source files and tests are preserved in the archive."
+  },
+  "remaining_limits": [
+    "Required fields enforce submitted quantities, not that Gemini copied spoken intent correctly. A later model can still misinterpret a count.",
+    "One text-input sample per targeted request does not prove ASR or general model reliability.",
+    "No physical repetition counter or repeated-routine capability is added. Push-up heading drift remains separate work.",
+    "Accepted fake jobs were not necessarily complete at model turn end; cleanup ended fake work.",
+    "No blanket voice capability disable or automatic count-to-clip multiplication was adopted."
+  ],
+  "source_hashes": {
+    "gemini_pupper/robot/trick_quantity.py": "0b6ae214967264ee50eb89e8de03e88520148815929ef1a3d6c3817b04ef1120",
+    "gemini_pupper/lab/part4_tricks.py": "7de7ce4feb8fd70773a7854b8d9b94e56d90bb2cb1c6587ba5f9c31226f6c736",
+    "gemini_pupper/lab/prompt.md": "87729e01c2f4ae303dfacbf303b16ea14667092f5568a2f18e515b74285dfd5e",
+    "gemini_pupper/robot/server.py": "843114c09ff7dfa93ca266fcbc3a8ac40aaab7d9e0c5e86725c59dc1d477c978",
+    "gemini_pupper/robot/operator_feedback.py": "01efbb6a0a71ab20f250e88663dfe26be8b6d2d9d36e30582818da9eca114f9d",
+    "gemini_pupper/tests/test_trick_quantity.py": "1516b5d327212134265b22abb10afa48404f435487bf11d9b0ee1abb82f13eef",
+    "gemini_pupper/tests/test_trick_quantity_transport.py": "804cc28df7c1fa5fc9ef0169b8d805adf264219b6ec74292da5662841fa87b58",
+    "gemini_pupper/tests/test_queue_time_estimates.py": "44f5b1e6f7ac9a64d7a5b719a0abeea1197d76e1ca101b646509d12ff7044770",
+    "gemini_pupper/lab/test_skill_sequences.py": "8e454d8e127e89dd2bd5af7353904d3f13c9c024c7ab9158da1c33e58edc0fb9",
+    "gemini_pupper/tests/test_foundation.py": "639696ed8b1aa38acb49af2522e346535646389751405d18d6219846a580d185",
+    "gemini_pupper/tests/test_session_context.py": "ce7986e85ca2f6effd47555fb8b5bc36e1d0eabc869f8f8a587d11ae9b86b520",
+    "gemini_pupper/tests/test_submission_marker.py": "8332f479b0c2ec27c5a344b2ff5f68c678a8b294026fb944021f561ff39c38ab",
+    "gemini_pupper/tests/test_stop_receipts.py": "c1634c028ad2e289771c21ececb8b8330efe50959aa787a2ac50da54a2c6e54c",
+    "gemini_pupper/tests/test_post_stop_movement.py": "2e94f580021723b22c81ad4b0eb3e38c6d2b7ec959b521c79fc9957ec34f5467",
+    "gemini_pupper/tests/test_status_inventory.py": "9a9a36c05c59dc99f4b463d8f843b313de82e24ce45ec3e05d5b2056434fef26",
+    "gemini_pupper/tests/test_secret_gate_resets.py": "439f1fd16d08b3ee38311bc10d26a083cd94010fc4ab099854af64496dd99187",
+    "foundation/hardware/test_lab6_session_profile.py": "7d1587c72d1d690d58e1004bd52262ae3b1fb0266cf1d89c86dbb2af53624386",
+    "gemini_pupper/docs/foundation.md": "b39c3bf76cac84ad184c8321c7e8e9e728220c65c448e4bb53da11dfe15ca893",
+    "gemini_pupper/docs/architecture.md": "18422ce67d87d863a2b4eb5a57acf99c3f369d69e75e21e9816cbcbb14ba22c8"
+  },
+  "archive": {
+    "path": "artifacts/access/ws1-trick-quantity-20261101/ws1-trick-quantity-20261101.tar.gz",
+    "durable_path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/ws1-trick-quantity-20261101.tar.gz",
+    "sha256": "a22ccbe8f8d28796a596587da6b270eb5355cdf6656868e90108bdf1cbf957be",
+    "bytes": 8375519,
+    "files_verified": 122,
+    "member_index_sha256": "819746a8128bd4756211d4e594a61b02ecae743e963aae8361d0f7780e86c9c0"
+  },
+  "next_actions": [
+    "Deploy client and server with the same tool schema when root schedules the next integration.",
+    "Use one routine explicitly until counted physical cycles and repeated execution are independently validated.",
+    "Test further spoken quantity interpretation without claiming the schema alone binds ASR to commands."
+  ]
+}

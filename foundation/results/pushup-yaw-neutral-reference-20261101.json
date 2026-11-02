@@ -1,0 +1,71 @@
+{
+  "schema": "pupper_pushup_yaw_neutral_reference_result_v1",
+  "date": "2026-11-01",
+  "status": "nominal_reference_candidate_only",
+  "decision": "Nominal reference candidate is promising; preserve for a separately approved matched policy-training/evaluation comparison. No policy substitution or physical-readiness approval.",
+  "hardware_trial_evidence": "artifacts/hardware/2026-11-01/action-latency/three-trial-addendum",
+  "original_policy_sha256": "728e97538d7f3c779ccab079bd4c72f223958a16b4502a5b70d99fe19ee7393a",
+  "raw_recording_sha256": "27e3f23ad7138aeee71a8915728d2c3dfd02a20b869c453f064651ad7b2283b2",
+  "candidate_motion_sha256": "7a066ba5523539973c2764b3b1a98a7d2d3d971c86e5f5c192f451b59cd61dd6",
+  "comparison_sha256": "9a006e3c26e49ff8f4ae31a01633ea819906e93495e9bf4f8aa9eed6a11a79ff",
+  "assessment": {
+    "schema": "pushup_yaw_neutral_reference_assessment_v1",
+    "comparison_sha256": "9a006e3c26e49ff8f4ae31a01633ea819906e93495e9bf4f8aa9eed6a11a79ff",
+    "decision": "Nominal reference candidate is promising; preserve for a separately approved matched policy-training/evaluation comparison. No policy substitution or physical-readiness approval.",
+    "screens_passed": 12,
+    "screen_count": 12,
+    "key_results": {
+      "original_net_yaw_deg": 9.38261481832737,
+      "mirrored_net_yaw_deg": -0.0003739895839755769,
+      "height_curve_absmax_delta_m": 0.006638608872890472,
+      "height_curve_rms_delta_m": 0.000920238730031997,
+      "planar_excursion_original_m": 0.06022444773931586,
+      "planar_excursion_mirrored_m": 0.0724547041125426,
+      "planar_excursion_change_fraction": 0.20307793317036182,
+      "height_cycles_original": 2,
+      "height_cycles_mirrored": 2,
+      "peak_joint_speed_change_fraction": -0.1240627442594564,
+      "peak_actuator_force_change_fraction": -0.13459065787131597,
+      "force_weighted_contact_tangent_rms_change_fraction": -0.3098993316479405
+    },
+    "parity": "Instrumented existing replay root_pos/root_quat/joint_pos array-identical. Generated original and shipped NPZ all pose/quaternion/jointvel arrays bit-identical; body linear/angular velocity absmax differences 3.64e-12/1.46e-11. Therefore observed yaw correction is not an absolute/default-offset reconstruction bug.",
+    "remaining_limits": [
+      "Posthoc tradeoff: peak planar root excursion increases from 6.02cm to 7.25cm despite tiny final displacement; this was not a predeclared screen and the candidate is not uniformly improved.",
+      "Candidate still ends 0.4646rad away from its initial pose at the worst joint; it is not seamless repeatable or permission to remove measured-joint initialization.",
+      "Both exporter runs use ground contacts on lower-leg hulls, not exclusively foot spheres; no new loaded geometry does not establish equal support stability.",
+      "Soft simulated joint limit penetration remains: candidate0.00636rad vs original0.01509rad. Zero raw-target limit violations does not imply zero physical limit risk.",
+      "No learned controller has been trained or evaluated on the changed reference. Original policy checkpoint must not be silently paired with new reference.",
+      "One nominal symmetric model/floor only. Motor mismatch, IMU bias, tracking generalization and actual floor slip remain physical/evaluation concerns.",
+      "Walking return has separate measured opposite-sign yaw. This reference repair does not resolve or isolate that controller behavior."
+    ],
+    "why_not_yaw_only": "Subtracting time-varying root yaw alone leaves asymmetric joint targets and changes implied world stance-foot trajectories. That postprocessed motion is not shown dynamically consistent. Mirror-averaging targets and replaying the unchanged dynamics produces mutually consistent simulated body/joint/contact trajectories under this one condition.",
+    "next_bounded_work_if_authorized": [
+      "Freeze original/current policy as comparator and train a candidate with identical training recipe and new exact motion identity.",
+      "Evaluate original and candidate under matched native policy observations/action limits/history with the existing full-hull/return handoff harness; include yaw, tracking, limits, contacts and return settling.",
+      "Do not promote solely on training reward or this reference replay; retain supervised physical comparison after simulation evidence."
+    ]
+  },
+  "predeclared_screens": {
+    "absolute_yaw": true,
+    "yaw_reduction": true,
+    "two_height_cycles": true,
+    "no_new_nonfoot_contact_geometries": true,
+    "tangent_rms": true,
+    "joint_speed_peak": true,
+    "actuator_force_peak": true,
+    "joint_limits": true,
+    "final_height": true,
+    "final_tilt": true,
+    "final_settled_joint_speed": true,
+    "numeric_warnings": true
+  },
+  "peer_review": "peer-review.json",
+  "archive": {
+    "artifact_root": "artifacts/generated/pushup-yaw-neutral-reference-20261101",
+    "index_sha256": "8e9b5edbedb2c16f7cb2f76ee4543132f425df0a0739b0b8605690ff10e31157",
+    "archive": "artifacts/generated/pushup-yaw-neutral-reference-20261101.tar.gz",
+    "archive_sha256": "6279e72e903301548349dfc3481f5208f5026ca7f5fe51fa164c1fb7615837a2",
+    "archive_bytes": 18861984,
+    "verified_entries": 33
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "schema": "pupper_supervised_imu_candidate_session_v1",
+  "recorded_utc": "2026-11-02T00:36:44.358609+00:00",
+  "scope": "One supervised physical session with reviewed IMU packet/freshness driver; stock policies, gains and joint limits unchanged. Direct and actual browser voice trials on carpet. These are bounded observations, not a robust release or proof the driver caused every improvement.",
+  "runtime": {
+    "robot_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-imu-candidate",
+    "boot_id": "337baad7-7998-4454-b36b-2bf54474754f",
+    "application_initial": "98101dec92ec6e43778324cc3af44dfadd1a3cf9",
+    "application_after_voice_update": "97b28ac0fe10f79fb4451c982522f4b7954917aa",
+    "driver_source_archive_sha256": "a703e4be44d3dfbb4ef1ecd9d0da7758b0a1a5acf1afc958dd303fb9c0443ed6",
+    "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "loaded_library_verified": true,
+    "gateway": "gateway-overlay-v4 unchanged",
+    "web_bundle": "index-DTwQlDSa.js",
+    "web_sha256": "401f47a022db5f19aaf7dc3b57c029cfd6d97ffe8e0625e4b30cbf6591ce8ad7",
+    "selected_skills": [
+      "pee",
+      "push_up",
+      "sit_stay_shake",
+      "stand_downward_dog",
+      "stand_sit_stand"
+    ],
+    "generated_motion_selected": false,
+    "camera_started_epoch_s": 1793578483.55,
+    "inputs": "Frozen runtime-manifest.json, environment.json, persistent_controllers.yaml, voice-update.json and exact prior application backup are inside the session archive. Reviewed native source/build evidence remains in imu-parser-candidate-20261101.json."
+  },
+  "startup": {
+    "homing": "One supervised homing, startup stationary gate passed, operator then confirmed standing normally and staying in place.",
+    "post_homing_stationary": {
+      "samples": 3000,
+      "duration_s": 12.000873,
+      "yaw_change_deg": 0.104388,
+      "tilt_range_deg": [
+        2.7024,
+        2.7798
+      ],
+      "mean_body_gyro_rad_s": [
+        0.0001892,
+        0.0003171,
+        0.0001165
+      ],
+      "peak_gyro_norm_rad_s": 0.006176,
+      "source": "post-homing-stationary-imu.json"
+    },
+    "limit": "Small stationary variation in this run does not establish long-term calibration or recovery cause."
+  },
+  "observations": [
+    {
+      "trial": "direct-comparison1",
+      "sequence": "stand handoff, forward0.2m/s1s, wait1s, Sit, wait10s, left paw, right paw, standing",
+      "start_epoch_s": 1793577865.303,
+      "end_epoch_s": 1793577905.433,
+      "software_exit": 0,
+      "operator": "All controlled; no tipping or unwanted turn."
+    },
+    {
+      "trial": "finite-comparison1",
+      "sequence": [
+        "stand_downward_dog",
+        "pee",
+        "stand_sit_stand",
+        "push_up"
+      ],
+      "start_epoch_s": 1793577947.304,
+      "end_epoch_s": 1793578017.12,
+      "software_exit": 0,
+      "operator": "Much better; no unwanted turn noticed; requested repeat.",
+      "limit": "Later telemetry shows smaller push-up heading change; visual observation is not a zero-yaw measurement."
+    },
+    {
+      "trial": "finite-comparison2",
+      "sequence": [
+        "stand_downward_dog",
+        "pee",
+        "stand_sit_stand",
+        "push_up"
+      ],
+      "start_epoch_s": 1793578057.702,
+      "end_epoch_s": 1793578127.982,
+      "software_exit": 0,
+      "operator": "Much better; no unwanted rotations noticed. Overall sequence and transitions slow.",
+      "limit": "About70s includes all4recorded routines and walking returns; this is not fast/flawless acceptance."
+    },
+    {
+      "trial": "actual-voice-movement",
+      "request": "Greeting then forward0.2m/s for1s",
+      "operator": "Movement correct; one consistent voice.",
+      "evidence": "Actual /tools/move and queue outcome in api-voice-update.log and voice-observed-status.jsonl."
+    },
+    {
+      "trial": "actual-voice-sit-chain",
+      "request": "Sit, wait10s, left paw, right paw, standing",
+      "operator": "Correct sequence and stable return.",
+      "evidence": "All5actual tool calls in api-voice-update.log. Second observed clean full Sit/paws chain on this driver."
+    },
+    {
+      "trial": "actual-voice-finite-quantity-failure",
+      "request": "Downward dog, rear-leg lift, stand-sit-stand, 10push-ups",
+      "actual_dispatch": "Four play_trick calls; only one push_up routine. Last queue idle observed1793578896.816.",
+      "operator": "Did not do10push-ups; perhaps2. Pretty sure other routines occurred. Small counterclockwise rotation during push-ups.",
+      "accepted": false,
+      "failure": "Spoken repetition count was lost: old external tool schema accepted only a name. A fixed clip is not a single physical repetition."
+    }
+  ],
+  "push_up_investigation": {
+    "reference": "Exact supplied539-frame50Hz reference has2nominal lowering/rising cycles and+9.3827deg anchor yaw first-to-last. These are reference properties, not a physical count guarantee.",
+    "existing_native_simulation": "Exact same policy nominal simulation changes+9.3229deg during playback.",
+    "interpretation": "Consistent CCW playback and clockwise return are measured. The reference encodes a CCW turn; no causal attribution for every degree, slip, sensor variation or transition is claimed.",
+    "status": "Final derived analysis independently recomputed114phase/timing metrics without mismatch. All108recordedcmd_vel messages hadangular.z=0; precedingcommand for eachpush-up waszero. Noexternalfoot-slip or thermalcausality proof.",
+    "next": "Compare original and mirror-symmetrized raw-joint reference exporter offline. No new trained policy, gain, timing or limit changes deployed.",
+    "current_bag_phase_yaw_deg": {
+      "post_fade_playback": [
+        8.763674553551473,
+        7.869810545627876,
+        6.031644660986989
+      ],
+      "following_walking_return": [
+        -6.9947160524108405,
+        -9.043566908093043,
+        -12.808553945759158
+      ]
+    },
+    "derived_report": "artifacts/hardware/2026-11-01/action-latency/three-trial-addendum/three-pushup-hardware-review.json",
+    "derived_sha256": "bc005f900adae481b682e9dc7f4d08767bdfb218829b1117cefd246ef0359cea",
+    "derived_archive_sha256": "f22947c7fe694b1db618ff3abd99bd1bf4d277b5b9f2825123848d12fbce6bff",
+    "new_reference_report": "foundation/results/pushup-yaw-neutral-reference-20261101.json",
+    "new_reference_limit": "Mirror-symmetrized reference is a promising nominal exporter result, not a trained policy. Retargeting the old actor failed5comparison screens, so no replacement is deployed."
+  },
+  "quantity_fix_status": "Separate local required count/unit contract rejects unsupported physical counts and multi-routine requests before preparation/queue. Interpretation of spoken intent remains model-dependent. A proposed blanket voice-push_up block was rejected because it removed ordinary functionality without a usable transcript-binding protocol; isolated experiment preserved.",
+  "shutdown": {
+    "operator_supported": true,
+    "manager": "Hardware deactivated, shutdown complete, process33785 finished cleanly.",
+    "api_launch_camera_recorders": "All task-owned processes exited. Camera ros2 wrapper required signaling its verified camera child; no motor shutdown defect.",
+    "receipts": [
+      "shutdown.json",
+      "shutdown-recorder-camera.json"
+    ],
+    "ended_epoch_s": 1793579374.60655,
+    "physical_release_observation": "No new explicit tactile release observation requested; do not infer it from logs."
+  },
+  "recording": {
+    "first_mcap_sha256": "002a2c4455260783e7a77c6100162def31f1de3a33ca1b2cb1859324ade9986e",
+    "first_mcap_bytes": 358157229,
+    "first_closed_epoch_s": 1793579020.989,
+    "followup_started_epoch_s": 1793579206.959,
+    "gap": "No commanded trial during the recording gap; first closed to analyze and replaced by passive follow-up recorder.",
+    "all_remote_regular_files_verified": 38,
+    "transfer_recovery": "Initial150s scp timeout left a partial file; verified its prefix against remote, resumed in8MiB bounded chunks, verified whole-file SHA. No repeated physical test for lost data."
+  },
+  "archive": {
+    "created_utc": "2026-11-02T00:31:52.384485+00:00",
+    "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/imu-candidate-physical/imu-candidate-physical-20261101.tar.gz",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/imu-candidate-physical-20261101.tar.gz",
+    "bytes": 60239324,
+    "sha256": "62aaa13fdca5da5302346474b7759e70e8f028ed1f9f9562fb1b3af83c60a1a6",
+    "main_mcap": {
+      "bytes": 358157229,
+      "sha256": "002a2c4455260783e7a77c6100162def31f1de3a33ca1b2cb1859324ade9986e"
+    },
+    "remote_manifest_verified": true,
+    "link_note": "Absolute roslogs/latest symlink preserved in original tar and explicit index, not followed on extraction."
+  },
+  "remaining": [
+    "Push-up quantity handling and yaw-neutral motion quality",
+    "One more observed full Sit/paws chain plus relevant interruption cases as initial repeatability screen",
+    "Live voice stop/interruption and Optional3 context/gate behavior under current UI",
+    "Generated motion remains unaccepted; test current unchanged policy with corrected reader and richer target telemetry before choosing a treatment",
+    "Follower/Spider teammate handoffs remain external dependencies",
+    "Cached same-Puck acknowledgments approved by user listening but not deployed or physically evaluated"
+  ]
+}
