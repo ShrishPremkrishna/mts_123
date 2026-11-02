@@ -1,0 +1,38 @@
+{
+  "schema": "pupper_live_context_prepared_v1",
+  "updated_utc": "2026-11-02T09:43:27.367154+00:00",
+  "status": "not_run_pending_specific_egress_approval",
+  "source_commit": "7af1309",
+  "planned_destination": "Google Gemini API, model gemini-robotics-er-2-streaming-preview",
+  "planned_payload": "Current Pupper system prompt, registered tool definitions, and three constructed text requests. No microphone, camera, images, robot access or cloud TTS. API key used only for authentication; not printed or saved in artifacts.",
+  "cases": [
+    "Unknown whole-day Sit history including before connection",
+    "Ambiguous handshake with selected server camera but no images/calibration",
+    "Explicit right-paw request against fake tools"
+  ],
+  "budget": {
+    "max_output_tokens_per_invocation": 512,
+    "max_send_invocations_per_case": 8,
+    "max_context_bytes_per_case": 32000,
+    "max_tool_calls_per_case": 5,
+    "fresh_cases": 3,
+    "conservative_batch_upper_estimate_usd": 0.82944,
+    "pricing_source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "pricing_checked_utc": "2026-11-02",
+    "input_usd_per_million": 1,
+    "output_usd_per_million": 5
+  },
+  "approval": {
+    "reason": "Automatic approval review rejected transmitting private project prompt/tool context to Google without specific payload/destination authorization. No provider invocation executed. Await user answer; do not bypass or retry before authorization.",
+    "asked_in_chat": true
+  },
+  "pre_run_review": "Agent lab6_gemini_execution reviewed actual-service/gate preservation, fake health guard, no TTS/media, sink currentness callbacks and budget. Root corrected scope wording and refuses overwriting case directories.",
+  "cleanup": "Local fake backend stopped cleanly with exit0. No Node/provider process started.",
+  "probe_sha256": "477c4e846e9ab8bc39557efdb35a168bbd719bc5223b8c69ffd6211da1578a14",
+  "resume": "After explicit payload permission, reverify current source and fake API only, then run each named case once; root owns credential/provider calls. Use prepared harness with production service, not old snapshots.",
+  "artifacts": {
+    "repo": "artifacts/access/ws1-live-context-prepared-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-live-context-prepared",
+    "copies_verified": true
+  }
+}
