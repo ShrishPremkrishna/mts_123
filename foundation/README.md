@@ -4,382 +4,124 @@ tags: [cs123, foundation]
 ---
 # Pupper engineering foundation
 
-This branch turns the Fall 2026 course software into a reviewed, testable starting
-point for a final project. It preserves the student's coursework on `main`.
-**The branch is not yet a hardware-validated release.** Implementation, trained
-weights, simulation results, and performance on this particular robot are
-separate claims. A passing unit test or a training reward curve cannot establish
-the last two.
+This branch turns the Fall 2026 course software into a reviewed, reproducible
+foundation for a final project. Coursework remains in the separate `main`
+checkout. **Workstream 1 and the full foundation are not complete.** Code,
+training, simulation, controller completion and observed robot behavior are
+different evidence; none alone establishes a generally reliable capability.
 
 ## Start here
 
-Use the [three workstream handoff](WORKSTREAMS.md) for team ownership, deliverables, completion evidence and work with or without the robot.
+From `/Users/shrish/workspace/cs123-foundation` on `pupper-foundation`:
 
-Run `python3 foundation/scripts/session_status.py` for current activity, the tested
-interpreter, blockers and next actions. Add `--verify-inputs` to check the frozen
-floor input archive and historical recovery record. This command is local and
-never starts or contacts the robot. The compact
-[current-state record](results/interruption-recovery.json) is the sole owner of
-operational status; completed experiment reports retain their dated evidence.
+```sh
+python3 foundation/scripts/session_status.py
+```
 
-The [later supervised IMU-candidate session](results/workstream1-imu-candidate-physical-20261101.json) demonstrated improved standing and skill sequences, actual voice movement with one consistent voice, and the full voice Sit/hold/both-paws/standing sequence. It also exposed a dropped request for ten push-ups and a repeatable smaller heading change in the supplied push-up routine. Those remain defects; the workstream is not complete. Earlier reports below retain their historical outcomes.
+This local command never contacts or starts the robot. It identifies current
+owners, activity, tested Python, blockers and next actions. The
+[recovery record](results/interruption-recovery.json) alone owns operational
+status and exact deployed versions; do not reconstruct them from old reports.
+Use the [three workstreams](WORKSTREAMS.md) for ownership and acceptance goals,
+and the [hardware checklist](HARDWARE_CHECKLIST.md) for the supervised workflow.
+Read only the report relevant to the next decision.
 
-The [1 November supervised Workstream 1 session](results/workstream1-hardware-20261101.json) now records actual voice movement, the full Sit/ten-second hold/both-paws/standing sequence, automatic Sit-to-walk exit, and queued cancellation with operator observations. The generated sway was slow/jittery and is **not accepted**; the two-voice, continuously listening experience also needs redesign. Full driver shutdown released the legs; the ordinary rest command retains damping. These are bounded successes, not a robust or complete Lab 6 release. Earlier dated reports below retain their historical evidence; current activity remains in the single recovery record.
+## What the evidence supports
 
-The [deliberate voice-input candidate](results/workstream1-deliberate-voice-20261101.json) adds hold-to-talk without reconnecting and replaces OS-spoken receipts with immediate visible feedback. It preserves native conversation and the existing action-claim boundary. It passed 188 web checks and 24 actual-browser synthetic-media checks, then was deployed in the 1 November continuation; the operator confirmed a real held-microphone greeting worked. Broader real-speech acceptance and whole-turn reply latency remain. The later exact-receipt audio candidate is separate and not yet deployed.
+- **Observed on this robot:** bounded direct and voice movement, standing,
+  Sit/ten-second hold/both paws/standing, automatic Sit-to-walk exit, and
+  cancellation of active and queued work. The
+  [corrected-driver session](results/workstream1-imu-candidate-physical-20261101.json)
+  records the actual sequences, operator observations and finite-trick limits.
+  The [later spoken Stop trial](results/workstream1-voice-repair-physical-20261101.json)
+  includes audible acknowledgments and recorded cancellation; it does not measure
+  acoustic Stop latency or establish a universal stopping bound.
+- **Not yet dependable:** vision-selected paw choice, complete context behavior,
+  responsive speech across conditions, generated-motion quality, general policy
+  robustness, follower integration and the required Spider walking handoff.
+  Selected successful trials do not close these gaps.
+- **Failures remain part of the baseline:** earlier finite routines turned
+  unexpectedly and a paw attempt tipped the robot. A supported stationary IMU
+  then drifted about 110° in 20 seconds. The
+  [failure record](results/workstream1-hardware-imu-failure-20261101.json) and
+  [reviewed parser/freshness repair](results/imu-parser-candidate-20261101.json)
+  explain the driver work. Later improved trials do not prove every failure was
+  caused by that defect or that sensor bias cannot recur.
+- **Software feedback has a narrower meaning than motion:** “queued” follows
+  actual queue insertion; controller receipts prove matching playback progress,
+  not physical posture. Current voice work retains conversation and commands
+  together, with server-derived action acknowledgments. The
+  [speech-boundary fix](results/workstream1-generation-seal-20261101.json) removes
+  an avoidable playback wait; the [ER/Puck alternative](results/workstream1-er-receipts-candidate-20261101.json)
+  is separately evaluated. Natural-language interpretation, free-form claim
+  screening and generative speech remain fallible. Use current state for which
+  source and model are actually running.
 
-The [Workstream 1 offline integration](results/workstream1-offline-20261030.json)
-adds selected profiles, controller limits, lifecycle fixes and a fake HTTP runtime.
-The [combined conversation/control revision](results/workstream1-combined-conversation-20261031.json)
-restores natural conversation and all robot tools in one default session. A
-bounded turn buffer replaces tool-bearing narration with actual server receipts;
-ordinary conversation retains native speech after a best-effort English claim
-screen. Tool execution and Stop do not wait for speech. This adds conversational
-playback latency and cannot guarantee the truth of every tool-free utterance.
-Receipt-only output remains an optional diagnostic setting.
-The earlier [code-enforced feedback follow-up](results/workstream1-code-feedback-20261030.json)
-introduced fixed client receipts after matching API
-responses. “Queued” requires a typed marker after actual queue insertion;
-generic success supports only acceptance, never completion or physical state.
-Stale replies and Stop races cannot refresh current operator acknowledgments.
-That earlier version separated conversation from movement; the combined revision
-above supersedes that restriction. Its frozen candidate passed 660 Python, 166 course and 102 web
-checks; an independent 57-case corpus agrees across both clients. This is an
-undeployed output-boundary improvement, not a claim that Gemini's interpretation
-or the robot's physical execution is always correct.
-The [Stop, grounding and media follow-up](results/workstream1-stop-grounding-20261030.json)
-closes reproduced delayed-command, CLI interruption, video ordering and stale-camera
-defects. Stop receipts now distinguish a cancelled running job from removed waiting
-jobs. The reviewed candidate passes 609 Python checks, 166 course checks and 80 web
-checks; actual Gemini fake conversations and synthetic-media checks are preserved.
-The earlier 8.776-second Stop mostly elapsed before tool-handler entry; its exact
-service/network/pre-send cause remains unknown and cloud latency has no proven bound.
-Grounded wording reduced false claims, but that earlier study still found premature
-acceptance narration; this motivated the code boundary above. HIGH is retained;
-two alternatives were rejected on measured regressions.
-This is an undeployed software candidate. Native integration, actual microphone/camera
-and supervised skills still need testing. The [prior browser study](results/workstream1-offline-rehearsal-20261030.json)
-retains the original outlier and earlier evidence.
+## Course coverage
 
-The [offline workflow changes](results/offline-workflow-improvements-20261030.json)
-record the continuity, preservation, input-preflight and Gemini timing fixes with
-their exact test evidence and remaining native limitations.
+This is a capability map, not a percentage-complete claim. The
+[handout coverage ledger](results/course-capability-coverage.json) preserves the
+inspected source hashes, locators and code inventory; its dated operational
+comments are historical. Source handouts live in the class library under
+`Fall2026Classes/Cs123/References/`.
 
-The [30 October floor baseline](results/lab6-floor-basic-20261030.json) records
-observed standing, bounded forward/backward and left/right movement, and cancellation
-of active and queued commands through Lab 6. Reuse the persistent Lab 6 session
-profile: home once, then operate the direct controls between trials. The earlier
-chat-timed floor trial workflow is retired. Consult the
-[robot session checklist](HARDWARE_CHECKLIST.md) for physical setup, but use the
-current-state record for the selected workflow and exact deployed versions.
-The [earlier failed attempt](results/floor-stock-trial-20261030.json) and its
-[recovered raw evidence](results/floor-stock-raw-recovery-20261030.json) remain
-historical failures, not instructions to repeat those setup cycles.
-
-The [real-time fake Gemini checks](results/gemini-realtime-live-reviewed.json)
-now exercise real elapsed queue timing. Wait/cancel and wait/move/status examples
-worked, but two delayed-stop requests produced unsupported narration; one claimed
-a stop without making any tool call. The accurate wording and diagnostic client
-are retained, but live model reliability is **not accepted for robot integration**.
-The physical/controller stop path remains independent.
-
-The [measured-timing and slew study](results/generated-motion-timing-slew-20261101.json) completed ten simulations. Limiting target slew reduced command jumps but did not consistently improve joint oscillation; the candidate remains unpromoted. The [Optional3 context study](results/optional3-context-20261101.json) preserves 36 actual Gemini turns and identifies missing or suppressed context behavior. Neither report establishes physical capability. In the active continuation, the operator observed large unwanted yaw during downward dog and stand–sit–stand on carpet; those skills are not accepted, and their command/IMU/joint recording is under review. Operational details remain solely in the current-state record.
-
-The [later physical failures and sensor audit](results/workstream1-hardware-imu-failure-20261101.json) supersede any impression of repeatable skill acceptance: the operator observed large unwanted turns during finite skills and an actual tip during a left-paw attempt. While supported motionless, the IMU then reported about 110° of yaw change in 20 seconds. [A later original-configuration stationary repeat](results/workstream1-imu-probe3-20261101.json) reported only 0.166° in 30 seconds; the cause of that recovery is unresolved. Captured packets expose framing, truncation, freshness and timestamp defects in the driver. These findings justify a reviewed driver candidate and further stationary checks, not a conclusion that the sensor alone caused every motion failure. Earlier simulated timing perturbations used the driver's logged age, whose calculation is defective; they were not replay of verified physical sensor age.
-
-## Current robot preparation
-
-The first supervised baseline homing completed on 29 October. All twelve motors
-reported homed, the operator observed normal motion, and joint/IMU feedback was
-captured. Shutdown disabled holding (confirmed by the operator), but the original
-driver then aborted while destroying a joinable IMU thread. The minimal cleanup
-fix builds in a separate Pi overlay and passes five lifecycle tests. A subsequent
-[actual IMU/SPI initialization/destruction probe](results/driver-init-only-pi-reviewed.json)
-passed without enabling motors or homing; subsequent supervised stock-controller
-trials also exited cleanly, as recorded below. See the [supervised homing record](results/supervised-homing-20261029-reviewed.json).
-
-The [full stock-policy test and release investigation](results/full-stock-release-investigation.json)
-completed normal initialization/fade, about half a second of fully active zero-speed
-policy operation, latched stop and clean process shutdown. The operator did not
-watch the motion and reported similar powered resistance in all four lower joints.
-A subsequent non-enabling initialization/zero-command probe reduced that resistance.
-The host shutdown had cleared enable flags while retaining prior command fields;
-the minimal fix now clears every command field before shutdown. It passes ten native
-tests and a supervised short stock-pose comparison: clean process exit, and the
-operator confirmed normal motion and relaxed joints while still powered.
-That supported-stand trial did not validate floor gait or mechanical health; the later bounded floor evidence is linked above. The whole foundation remains unvalidated.
-
-The [actual Lab 6 API stand test](results/lab6-stand-hardware-reviewed.json)
-now passed on this robot: HTTP `stand_up` was queued and completed, the shared
-gateway handed control to `gemini_walk`, the multiplexer output stayed zero, and
-normal shutdown left the legs relaxed according to the operator. This is a bounded
-supported-stand test; subsequent bounded floor evidence is linked above. Live Gemini on the robot remains unvalidated.
-Earlier stationary synthetic-peer tests and the 383 Gemini/166 course checks are
-preserved. Status reporting and harmless idle waits were fixed. The
-[earlier short trial](results/console-motion-trial-r2-reviewed.json) and
-[first recorder failure](results/console-motion-trial-20261029-reviewed.json)
-remain preserved.
-
-The [shared gamepad/Gemini stop gateway](results/shared-stop-v4-pi-reviewed.json)
-has passed independent review and is staged in v4: all ten native ROS test groups,
-366 Gemini tests and 166 course checks pass on the Pi. The paired DualSense and its R3/button-12 input have now been observed in isolation.
-Subsequent bounded floor walking and direct API cancellation are recorded above;
-tricks, following and broader stop reliability remain unvalidated. New trained policies still
-need applicable course approval. The [stationary preparation record](results/hardware-session-20261029-reviewed.json)
-preserves earlier backups, policy recovery, native builds, CPU policy comparisons
-and synthetic Hailo inference. [Live camera and Hailo perception](results/live-camera-perception-reviewed.json)
-now passed a bounded six-frame check, detecting two people in every frame. Actual
-following, color calibration, and live Gemini on the robot remain separate validation steps. The original working directories and coursework main remain preserved.
-The [battery-monitor source fix](results/battery-monitor-reviewed.json) corrects
-stale voltage readings, boundary percentages and repeated shutdown scheduling;
-21 mocked tests pass locally and on the Pi. A reversible service override is now
-active; the original utility/unit remain preserved, and an actual one-shot read
-returned 18.55 V. Low-voltage shutdown was not exercised on the robot.
-
-## Course coverage and where it lives
-
-| Source | Capability implemented here | Evidence and remaining boundary |
+| Area | Implementation and evidence | Remaining boundary |
 |---|---|---|
-| Lab 1 | Signed bounded PD control, consistent position/velocity targets, measured-pose initialization, configurable sampled delay, sensor-loss zero-torque command | [Classical tests](tests/test_classical.py), [runtime tests](tests/test_pd_runtime.py); gains, feedback, delay and thermal behavior need the supported single-joint robot setup |
-| Lab 2 | Homogeneous-transform FK, read-only topic recording, offline MCAP import and validated foot-motion export | [Recording review](results/lab2-recorded-motion-review.json) covers the saved bag and explicit trimming. Its front-right foot is static; the moving back-right trajectory exceeds a knee bound and is refused. Physical frame/sign calibration remains |
-| Lab 3 and extensions | Bounded damped IK, strict unreachable-target rejection, validated gait caches, trajectory interpolation, tuner-to-keyframe conversion, cycloidal swing, additional gait patterns | [Position tests](tests/test_position_controllers.py), [single-leg tests](tests/test_single_leg.py); the full default gait is checked against bounds and FK. Geometric reachability does not prove dynamic stability |
-| Lab 4 | Course PPO training/deployment stack, recovered team baseline, reproducible configuration and export checking | Recovered team checkpoints/exports agree numerically. [Paired GPU comparison](results/lab4-stablegait-clamp-gpu-comparison.json) finds improved tracking after controller-clamp finetuning, but more effort/slip and no fall-count improvement. No promotion; tighter driver limits and the shipped policy remain separate comparisons |
-| Lab 5 and options | Person following, target persistence, clothing-color reacquisition, timed obstacle detours, detection watchdog, explicit integration into Lab 6 | Required and optional lab checks plus fault tests. Color and avoidance remain separate opt-ins; camera/Hailo and physical stopping behavior need the robot |
-| Lab 6 tools | Finite movement limits, turn/move/arc, follow interruption, serialized jobs, honest queued/completed outcomes, interactive actions and transitions | [Gemini behavior and operation](../gemini_pupper/docs/foundation.md); course checks and fault-injection tests cover stops, failures and late service responses. Live Gemini and ROS are separate tests |
-| Lab 6 sit/stay/shake | Motion editing, seated idle, left/right shake, standing exit, PPO training and exported clip contract | [Expanded-COM policy](results/lab6-sit-comx02-reviewed.json) installed locally after all eight existing scenarios passed on CPU and GPU with class driver limits. The +2 cm weakness improved; +2.5 cm remains backend-sensitive and outside the training range. [The full interactive sequence and actual default return](results/sit-interactive-default-return-reviewed.json) pass a nominal native check. Hardware checks remain |
-| Lab 6 spider | Entry/idle/exit clips, separate slow walking policy, and tested controller handoff | [Final matched sensing study](results/spider-encoder-observation-study-reviewed.json): both policies complete 512/512 sampled GPU stops; measured sensing improves the stopping tail but retains support and tracking tradeoffs. [Ten full native chains](results/spider-encoder-native-reviewed.json): both nominal returns settle; all eight selected adverse returns remain moving under the fixed default. Walking code and research pairs are staged; no walking pair is installed |
-| Supplied finite tricks | Twelve active finite course policies through native activation, playback and terminal hold | [Nominal screen](results/course-tricks-native-screen.json) completed all twelve with full hull contacts and driver limits. [Five standing-ending tricks and the generated trick](results/finite-tricks-default-return-reviewed.json) return to actual default walking; [seven lying-ending tricks](results/lying-tricks-later-default-return-reviewed.json) return on a later explicit request. Sneeze peak speed and randomized/hardware performance remain limitations |
-| Supplied reference jump | Exact shipped table through native gait controller with paired no-jump controls | [The exact Gemini reference-message path](results/gemini-jump-api-reviewed.json), using zero velocity and the actual immediate callback, recovers only two of four trials after fresh activation and two of four after prior walking; paired no-jump controls pass all four each. [Earlier forward0.3m/s success](results/shipped-jump-native-reviewed.json) does not validate this stopped-jump tool. No reliable standing-jump or hardware claim |
-| Optional Lab 1 | Timestamp-aligned motor and tactile-image datasets, recording-level splits, multitask models, PCGrad, held-out evaluation, TorchScript contact export, nonblocking contact pause | [Data/model evidence](../implicit_compliance/README.md). Contact pause is opt-in on single-leg IK; terrain heads are not connected to robot behavior. This model needs live calibration |
-| Optional Lab 2 | Longer/faster references, shared multigait policy, rollout capture, phase folding, reference bootstrapping, configurable reward comparisons, randomized/bumpy evaluation, Mystery jump capture | [Experiment protocol](../pupper-mjlab/configs/optional2/README.md). Corrected flat and Bumpy studies are complete with no promotion. [Final Mystery continuation](results/optional2-mystery-reviewed.json) reduces failures but produces only 0/0/1/1 strict flight-and-recovery events across four seeds. No reliable new jump policy or promotion; all nine complete archives preserved and its idle GPU released. Earlier altered-reference runs are explicitly labeled |
-| Optional Lab 3 | Pupper character/context, deterministic local hidden-trick gate, pinned UniMate generation, fitting/repair, candidate inspection, physics playback and trained tracking policy | [Reviewed standing trick](results/generated-motion-trained-review.json) is installed locally behind the secret gate: a modest rise/sway/return, not a complex dance. Seven CPU/GPU scenarios and native activation/hold passed; hardware approval remains |
+| Lab 1 | Bounded signed PD, measured-pose entry, consistent position/velocity targets, sampled delay and sensor-loss handling; [runtime tests](tests/test_pd_runtime.py). | Supported joint experiments, timing, gains and thermal response require physical validation. |
+| Lab 2 | Four-leg FK, read-only recording, MCAP import and validated export to Lab 3; [recording review](results/lab2-recorded-motion-review.json). | Saved front-right record is essentially static; moving back-right replay exceeds a knee bound and is refused. Physical frame/sign calibration remains. |
+| Lab 3 and extensions | Bounded IK, unreachable-target rejection, interpolated gait caches, cycloidal swing, additional patterns and tuner conversion; [position](tests/test_position_controllers.py) and [single-leg](tests/test_single_leg.py) tests. | Reachability is not dynamic stability. Live tuner ownership, fresh feedback and transitions belong to workstream 2. |
+| Lab 4 | PPO training/evaluation/export, recovered team policies and [matched clamp comparison](results/lab4-stablegait-clamp-gpu-comparison.json). [Native comparisons](results/shipped-policy-native-screen.json) support retaining the shipped gait. | Better tracking can worsen slip, effort or reverse stability. No general promotion or measured hardware speed rating. |
+| Lab 5 and options | Following, target persistence, clothing-color recovery, timed detours and detection watchdog; [integration guide](../follow_me_pupper/README.md). [Camera/Hailo detection](results/live-camera-perception-reviewed.json) ran on the robot. | Full following, target recovery, color calibration, stopping and Lab 6 takeover need workstream 3's physical evidence. Timed detours do not establish geometric clearance. |
+| Lab 6 tools and UI | Bounded move/turn/arc/wait, serialized jobs, cancellation, transitions, selected profiles and fake HTTP; [runtime guide](../gemini_pupper/docs/foundation.md). Direct and voice examples are linked above. | Broader repeatability, spoken refusals, context and correct model arguments remain. Explicit [routine quantity validation](results/workstream1-trick-quantity-20261101.json) prevents unsupported counts; a playback is not a counted physical repetition. |
+| Lab 6 Sit/stay/shake | [Expanded-COM policy](results/lab6-sit-comx02-reviewed.json), [native full sequence](results/sit-interactive-default-return-reviewed.json), and observed robot sequences above. | +2.5 cm COM remains outside training range and backend-sensitive. Repeated real sequences and interruption coverage remain bounded, not general fall recovery. |
+| Lab 6 Spider | Entry/idle/exit, separate slow walker and controller handoff; [matched sensing study](results/spider-encoder-observation-study-reviewed.json) and [native chains](results/spider-encoder-native-reviewed.json). | Nominal returns settle; all eight selected adverse default returns remain moving. Walking pairs remain research assets, not an accepted integrated capability. |
+| Supplied finite tricks | [Twelve-policy native screen](results/course-tricks-native-screen.json), [standing-ending returns](results/finite-tricks-default-return-reviewed.json), [lying-ending later returns](results/lying-tricks-later-default-return-reviewed.json). Four standing-ending routines have bounded physical observations above. | Do not generalize those observations to all twelve. Sneeze speed, lying exits, transitions and push-up drift remain limits. [Retrained yaw candidate](results/pushup-yaw-training-20261101.json) improves simulated yaw but worsens tracking, target steps and clipping versus supplied weights; no automatic replacement. |
+| Supplied reference jump | [Actual stopped-jump API path](results/gemini-jump-api-reviewed.json) and paired no-jump controls. | Recovery only 2/4 after fresh activation and 2/4 after walking; controls 4/4 each. Earlier forward-motion success does not establish a reliable standing jump or hardware result. |
+| Optional Lab 1 | Aligned motor/tactile datasets, recording-level splits, multitask/PCGrad models, contact export and single-leg pause; [data/model evidence](../implicit_compliance/README.md). | Standard Pupper lacks the tactile/single-leg setup. Weak labels and effort semantics need calibration; terrain heads do not control locomotion. This is not a whole-body contact reflex. |
+| Optional Lab 2 | Faster/mixed references, capture/bootstrap, reward and terrain comparisons; [experiment protocol](../pupper-mjlab/configs/optional2/README.md). Corrected flat/Bumpy studies and [Mystery continuation](results/optional2-mystery-reviewed.json) are preserved. | No promotion. Mystery yields only 0/0/1/1 strict flight-and-recovery events across four seeds. Earlier double-offset runs remain labeled altered-reference experiments. |
+| Optional Lab 3 | Character/context, local secret gate, pinned UniMate generation, motion repair and trained tracking; [context study](results/optional3-context-20261101.json) and [server-session counter follow-up](results/workstream1-context-and-transport-followup-20261101.json). | Generated sway is physically attempted but jittery/unaccepted; [corrected-reader evidence](results/generated-motion-corrected-reader-20261101.json) and [clearer-reference failure](results/generated-motion-clearer-reference-20261101.json) retain that limit. Conversation memory is not identity authentication. [Synthetic vision tests](results/workstream1-vision-paw-native-20261101.json) do not validate physical camera-to-paw choice. |
 
-The course support sources are also present: the robot monorepo, class rebase
-bundle, deployment controller, gait tuner, ROS reference material, and pinned
-UniMate source. Their presence does not mean the laptop has a ROS installation
-or that the robot should be upgraded to a different upstream build. Inspect the
-actual class-image revision before any installation.
+## Contracts that change how results should be read
 
-## Simulator corrections that affect the evidence
+1. **Actuation and contacts:** simulations must name controller clamps, the
+   tighter absolute [driver joint bounds](results/local-driver-position-limit-audit.json),
+   [realized inertial randomization](results/pupper-randomization-audit.json)
+   and [full body/leg contacts](results/tracking-body-contact-audit.json).
+   The driver bounds are not a per-step 0.1 rad slew limit. Disabled hulls and
+   torso-supported motion can make an animation misleading.
+2. **Sensing:** real controllers observe measured joint angles. New locomotion
+   experiments explicitly select `--encoder-observation-mode deployment_measured`;
+   historical `legacy_true` checkpoints retain their provenance. See the
+   [hardware-coordinate audit](results/encoder-hardware-semantics-review.json).
+   Driver host-receipt freshness is not physical sensor age; older logged-age
+   perturbations were not verified sensor-delay replay.
+3. **References and jumps:** exported class joint tables are absolute. Do not
+   add the default pose again. The [seed correction](results/optional2-class-seed-correction.json)
+   and [capture audit](results/optional2-capture-independent-review.json) retain
+   rejected originals. Flight requires no body contact, upward COM motion and
+   sustained landing recovery; five 50 Hz samples span 80 ms, not 100 ms.
+4. **Transitions and stopping:** evaluate continuous entry/playback/return with
+   the actual default controller. [Selected adverse default-start cases](results/spider-default-restoration-independent-review.json)
+   remain moving even after eight seconds of zero command. Playback receipts
+   are [activation/request-correlated](results/controller-completion-v2-reviewed.json),
+   but are not physical-stillness measurements. Ordinary rest retains controller
+   damping; full driver shutdown is a different operation. Cloud speech has no
+   proven Stop-latency bound; physical stopping remains independently available.
 
-The audit found consequential differences between apparent and tested
-behavior: the Pi clamps motor targets while the original simulator did not;
-inertial randomization erased the earlier center-of-mass offset; and tracking
-body/leg collision hulls were disabled after creation. Each correction has an
-explicit run flag, actual-model tests and a recorded contract, so old results stay
-reproducible without being mistaken for corrected results. See the
-[target comparison](results/lab4-deployment-contract-comparison.json),
-[realized-dynamics audit](results/pupper-randomization-audit.json), and
-[body-contact audit](results/tracking-body-contact-audit.json).
+Classical PD/IK experiments and the learned behavior stack share geometry and
+data contracts, but must not compete for motor interfaces. The learned stack
+routes tools through checked queue/ownership transitions; following relinquishes
+control before another behavior, and interactive skills use their explicit exits.
+Full follower and Spider handoffs remain acceptance work, not presumed integration.
 
-The source class hardware driver adds a **second, tighter joint target clamp**,
-0.10 radians inside the exported controller limits on all twelve joints. Its
-coordinate transform was checked. The captured Pi description now matches all
-twelve named class limits; its source and installed libraries are preserved in
-the [stationary-session report](results/hardware-session-20261029-reviewed.json).
-Actual loaded values and physical calibration remain unverified.
-The original `--deployment-target-clamp` flag matches the neural controller only.
-New runs can additionally specify `--driver-limits foundation/configs/class-driver-joint-limits.json`;
-the exact named limits and file hash become part of the run contract. See the
-[driver source/target audit](results/local-driver-position-limit-audit.json) and
-[tracking re-evaluation](results/local-driver-tracking-evaluation.json). The latter
-retains one failed robustness case for Sit and eight passing Spider-clip cases;
-it does not establish Spider walking or a physical robot result.
+## Reproduce, preserve and extend
 
-The corrected body-contact evaluation changed the original sit and spider tracking
-verdicts. The first driver-limit Sit continuation was rejected, and a
-reference-margin sweep also worsened tracking. The stock training distribution
-covered torso x-COM offsets of ±1 cm; the difficult +2 cm case lay outside it.
-Expanding only that axis to ±2 cm improved the case on both CPU and GPU while
-retaining the original reference and reward weights. That reviewed policy is now
-installed locally. At +2.5 cm, CPU still wobbles while GPU passes: this is an
-explicit boundary, not a claim of general robustness. Spider walking remains staged because reviewed candidates retain
-tracking/support tradeoffs and adverse-case failures. Historical “HOLDS UP” labels describe the simulator used at the time. They are not
-sufficient evidence for deployment; new evaluations must name the actual contact,
-actuation and randomization contracts. A stable-looking animation can still be
-physically wrong when contact is disabled.
-
-A later sensor audit found that the locomotion actor observes true simulated
-joint angles while its action subtracts a persistent encoder calibration bias.
-The hardware controller observes measured angles, including that bias; tracking
-actors already model this correctly. Earlier randomized walking comparisons
-remain paired, but their calibration-robustness evidence is incomplete. Nominal
-zero-bias native tests cannot expose this mismatch. An explicit, versioned
-measured-angle training correction is implemented and passes the full offline
-regression. The [completed matched 1,000-iteration study](results/spider-encoder-observation-study-reviewed.json)
-evaluates both policies using measured angles. Both pass 512 sampled base-speed
-stops; measured-mode training reduces the slowest stop from 1.86 to 1.26 seconds,
-but increases light idle torso support and slightly worsens tracking. The
-[independent raw-trace review](results/spider-encoder-gpu-independent-review.json)
-confirms these tradeoffs. No walking policy is promoted. The [hardware-coordinate derivation](results/encoder-hardware-semantics-review.json)
-pins the source evidence.
-
-For new locomotion experiments, explicitly select
-`--encoder-observation-mode deployment_measured`. Historical behavior remains
-available as `legacy_true`; continuing a legacy checkpoint in the corrected mode
-requires an explicit, hash-bound override documented in the study. Exported mode
-metadata describes training inputs. Hardware always supplies measured joint
-angles; metadata cannot reveal its unknown true calibration error.
-
-A separate reference audit caught a misleading class description: the exported
-jump table contains **absolute joint angles**, while the policy observation uses
-angles relative to the default pose. The first seed helper added the default
-pose twice. [The correction record](results/optional2-class-seed-correction.json)
-preserves all affected inputs and labels their descendants as altered-reference
-experiments. The corrected helper is checked through the actual training loader
-and independent exported-controller math. Capture acceptance now requires
-all-body contact-free flight, upward center-of-mass motion and sustained landing
-recovery; foot lift alone can happen while the torso supports the robot. See the
-[independent capture audit](results/optional2-capture-independent-review.json).
-The current gate uses observed first-to-last sample span: five 50 Hz samples
-cover 80 ms, not 100 ms. The earlier captured continuation input remains
-unchanged and explicitly fails the newer recovery gate. The
-[final four-seed audit](results/optional2-mystery-final-flight-audit.json) applies
-the corrected gate and retains the negative jump-reliability result.
-
-## How the capabilities fit together
-
-There are two operating modes. The classical PD/IK exercises use the position or
-effort controller for a supported experiment. The learned behavior stack uses
-the locomotion/trick controllers, camera follower, command arbitration, and
-Gemini tool server. They share geometry, data contracts and validation tools;
-they must not compete for the same motor command interfaces.
-
-In the learned stack, Gemini selects a bounded tool, the server checks and queues
-it, the current controller executes it, and feedback determines the outcome.
-Following is explicitly stopped before another motion. A seated trick exits
-through its standing clip. The Spider handoff between a clip policy and a
-separate slow walking policy is implemented and tested with staged pairs; no
-walking pair is installed in the current catalog, which retains the supplied
-finite Spider trick. Unknown service outcomes quarantine new motion
-instead of assuming that a timed-out request never happened.
-
-A [controller completion audit](results/controller-completion-v2-reviewed.json)
-found timers and stale interactive receipts could falsely report completion.
-Reference requests now carry unique IDs; policy receipts identify the activation;
-interactive clips also identify the specific request throughout queued playback.
-Receipts follow successful command application and require the expected fresh
-endpoint. The actual ROS Jazzy implementation passes 21 isolated tests, including
-the reproduced stale-exit failure. Playback receipts establish controller
-progress, not measured physical posture, flight or landing.
-
-The new contact model augments the **single front-right leg trajectory** through
-`ik.py --contact-model <export-directory>`. It freezes trajectory time for one
-second after fresh high-confidence contact, without blocking ROS. It requires
-published effort channels with verified semantics and valid timestamps. The local
-class driver estimates effort from its PD controller; it does not measure torque.
-See the [interface audit](../implicit_compliance/results/2026-10-27/deployment-interface-audit.json).
-It is not a whole-body reflex or a general
-collision detector, and it does not feed unvalidated material/slope predictions
-into locomotion.
-
-## What “maxed out” can honestly mean
-
-The class supplies local feedback control, learned locomotion and motion
-tracking, camera-based person following, language-driven behavior composition,
-and experimental learned contact and generated motions. It does **not** by
-itself establish navigation with a map, obstacle clearance from depth, robust
-person identity, object manipulation, terrain adaptation outside the training
-distribution, calibrated force sensing, or reliable recovery from arbitrary
-falls. Timed visual detours are especially limited: a bounding box is not a
-geometric guarantee of free space.
-
-Command limits are permissions for a controller to receive a request. They are
-not measured speed, accuracy, payload capacity, endurance or safety margins.
-Likewise, a faster simulated gait is not automatically the better final-project
-baseline if it slips more, uses more torque, or fails at transitions.
-
-The [native exported-policy screen](results/shipped-policy-native-screen.json)
-supports keeping the shipped course gait as the integrated default. It completed
-the four nominal full-range trials; the new Mixed baseline and fast candidate
-triggered tilt stops in three and two trials respectively. The fast candidate
-tracked forward speed better but lost stability in reverse. These are bounded
-simulation results using the policies' actual references, clocks and limits;
-they do not establish a hardware speed rating. The shipped gait also retains the
-reference-jump contract that the new flat-walking exports lack.
-
-The default also has a documented robustness boundary. In selected full-hull
-startup cases it keeps moving after eight seconds at zero command, even without
-a preceding Spider trick. [Independent controls and parameter restorations](results/spider-default-restoration-independent-review.json)
-confirm that nominal mechanics settle, while changing gains or encoder bias does
-not resolve these cases. With nominal gains and zero bias, restoring the entire
-mass/inertia group resolves all four cases; restoring the center of mass alone
-does not. These are simulated parameter combinations, not measurements of this
-Pupper, and no default policy was improved by those diagnostic interventions.
-[Stop and status messages](results/stop-reporting-reviewed.json) therefore describe
-commands and controller state without claiming unmeasured physical stopping or
-posture. This reporting correction leaves controller behavior unchanged.
-
-For a final project, freeze a reliable evaluated checkpoint first. Then choose
-one concrete missing behavior and a repeatable success measure, such as following
-the same person through an occlusion, adapting a gait to a measured surface
-change, or executing a language request with verified completion. Compare against
-this frozen foundation on held-out scenarios. That produces a clearer result
-than stacking several new demos whose failures cannot be attributed.
-
-## Reproduce and inspect
-
-Use Python 3.10–3.13; the local system Python 3.15 is outside the course training
-environment's range. The GPU environment is pinned by `pupper-mjlab/uv.lock`.
-The provided [Colab bootstrap](scripts/colab_bootstrap.py) uses the isolated
-`pupper-foundation` branch. Runtime output under `/content` is temporary and must
-be copied out before releasing a runtime. Model hashes, configuration, seed and
-source provenance travel with each run; never replace them with a label such as
-`best` without preserving the actual checkpoint identity.
-
-The permanent local checkout is `/Users/shrish/workspace/cs123-foundation` on
-`pupper-foundation`; the coursework checkout remains on `main`. The
-[local environment inventory](results/local-environment.json) records the tested
-Python packages, browser build/type check and relocation verification. It is an
-observed macOS environment, not a cross-platform lock. Older result paths under
-`/private/tmp/cs123-pupper-foundation` remain historical provenance and map to the
-permanent checkout; full archives live separately in
-`/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-27`.
-
-The [interruption recovery record](results/interruption-recovery.json) identifies
-exactly which temporary outputs were lost and which inputs survived. Current
-long training runs must use a bounded local checkpoint collector (none is currently running):
-
-```sh
-python foundation/scripts/preserve_colab_run.py --colab .venv/bin/colab \
-  --session SESSION --remote-root /content/pupper-RUN \
-  --out /durable/NEW-ARCHIVE --hours 6
-python foundation/scripts/restore_colab_snapshot.py /durable/NEW-ARCHIVE /new/recovered-run
-```
-
-For an existing periodic index, verify its current objects without restoring or
-starting any job:
-
-```sh
-python3 foundation/scripts/restore_colab_snapshot.py /durable/EXISTING-ARCHIVE --verify
-```
-
-Verification covers that current index, not remote completion or every historical
-version. `--once` now exits nonzero on transfer/manifest errors, unchanged objects
-are rehashed, and an OS lock prevents concurrent index writers. Corrupt objects
-are reported and preserved rather than silently replaced. Large final archives
-use `foundation/scripts/download_colab_archive.py` for bounded verified chunks;
-the periodic collector still has a bounded whole-file transfer limit.
-
-The collector verifies downloads against remote SHA-256 hashes, retains earlier
-versions by content hash and receipt history, and downloads the latest two visible
-checkpoints per folder each cycle. Restore checks hashes and sizes before writing
-to a new directory. The index is a rolling **per-file** snapshot; a checkpoint and
-status file may describe different moments. Recovery still requires inspecting
-the actual exit record, source, inputs and references, which are preserved
-separately. Collectors require the laptop and network to remain available. Keep a
-complete final archive as well; neither periodic downloads nor `/content` storage
-guarantees that the final interval survives a runtime loss.
-
-The [current verification record](results/offline-validation-composite-c3ad206.json)
-combines the 905-test full regression, 225 course checks and native C++ checks
-with exact source hashes. The later stop-reporting correction separately passes
-237 Gemini tests and 166 course tool checks; its controller logic is unchanged.
-The 21 isolated ROS Jazzy tests remain separate evidence. All 17 installed policy
-files still match their audited identities. Both GPU runtimes have been released
-after completed outputs were preserved; no training is left running.
-
-Useful offline checks from the outer repository (with dependencies installed):
+Use the tested interpreter and validation commands in current state, and
+`pupper-mjlab/uv.lock` for training dependencies. The
+[environment inventory](results/local-environment.json) records an observed setup,
+not a universal platform guarantee. Run checks affected by a change; source hashes
+and exact commands in each dated report determine what a passing result covers.
+Typical offline checks from the outer checkout are:
 
 ```sh
 python -m pytest foundation/tests implicit_compliance/tests gemini_pupper/tests
@@ -387,17 +129,25 @@ python gemini_pupper/lab/test.py
 python foundation/scripts/check_foundation.py
 ```
 
-Simulation and deployment parity checks live under `pupper-mjlab/tests/` and
-`pupper_gait_deploy/test/`; run the relevant tests after changing those contracts.
-The standalone C++ tests check gait references, command filtering, observation
-layout and clip playback without connecting to a robot. Missing dependencies are
-reported as an environment gap, not counted as passing tests.
+Native parity checks live in `pupper_gait_deploy/test/` and simulation checks in
+`pupper-mjlab/tests/`. Missing dependencies are environment gaps, not passing tests.
+Course support repositories, ROS references and pinned UniMate sources are inputs;
+their presence does not authorize replacing the robot's class image.
 
-Use the [hardware checklist](HARDWARE_CHECKLIST.md) and
-[read-only inventory](scripts/robot_inventory.sh) for later state changes. Start
-from the current stationary-session report rather than repeating completed
-backups and builds.
-Before any motion, a person beside the robot must approve that specific test and
-be ready to use the physical stop. The course requires TA approval before a new
-policy's first hardware run. Keep the current approved robot setup intact until
-the replacement has earned promotion.
+Keep exact code, model, reference, configuration, seed, exits and raw evidence with
+every experiment. Dated reports under [results](results/) point to verified
+archives in `artifacts/` and `/Users/shrish/workspace/pupper-foundation-artifacts/`.
+Preserve failed runs and originals. Training `/content` and temporary directories
+are not durable storage. Reuse [checkpoint collection](scripts/preserve_colab_run.py),
+[verified restore](scripts/restore_colab_snapshot.py) and
+[bounded final downloads](scripts/download_colab_archive.py); demonstrate one
+verified checkpoint before a long run and preserve the full final archive before
+release. A periodic per-file snapshot can contain different moments and does not
+prove job completion. Inspect actual owners/exits before retrying any interrupted job.
+
+A useful final-project baseline is a frozen, repeatedly evaluated set of skills
+with measured limits. The class does not itself provide mapped navigation, reliable
+person identity, depth-based obstacle clearance, object manipulation, calibrated
+force sensing or arbitrary fall recovery. Pick a concrete missing behavior and a
+repeatable metric, then compare against that baseline on held-out scenarios.
+More trained policies and passing tests alone do not mean Pupper is “maxed out.”

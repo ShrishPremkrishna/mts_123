@@ -1,0 +1,298 @@
+{
+  "schema": "pupper_er2_vision_paw_rehearsal_v1",
+  "recorded_utc": "2026-11-02T02:17:28.515447+00:00",
+  "decision": "No improvement in side grounding established; no root prompt/model/source change by this test.",
+  "scope": "Actual Google ER2 Live TEXT plus Puck TTS using reviewed production service and isolated fake HTTP tools; identical synthetic JPEGs/typed requests. No ASR, browser, personal media, speaker playback or robot.",
+  "source": {
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "thinking": "not explicitly set",
+    "voice": "Puck",
+    "tts_model": "gemini-3.1-flash-tts-preview",
+    "service_sha256": "6c2bb1f70fcfeef4c5ad9d7272d1f2560d7275cfc6c887fae10e1358e9087cee",
+    "prompt_sha256": "88f5aa95861ee30efe8d776af5da0b6545676a4ba5615d413e3dc4a940b1b0ad",
+    "base_commit": "acb07df7e5376ef09babf102c7716ec42f8c2c3d",
+    "production_candidate": "Reviewed ER receipt support snapshot; only maxOutputTokens2048 added for probe. No rejected paw-selection prompt or orientation hint added."
+  },
+  "findings": [
+    "ER2 selected right paw for all5handshake cases: left-person, right-person, two-person ambiguity, no-view, explicitly namedright. Wrong-side/missing-view problem persists; exactnamedright still honored.",
+    "Greeting-only case called robot_status and offered handshake in raw narration without motion. Unlike native baseline no-tool greeting, ER2 status call makes that model turn tool-bearing: the free-form friendly offer remains withheld and code-owned status speech is used instead.",
+    "Each actual action reply still controlled its own fixed cue; unverified action narration stayed muted. This does not establish correct semantic action selection.",
+    "Ambiguity was not reliably detected: two-people/no-view queued an arbitrary right-paw action in ER2, whereas native candidate asked questions (muted after status). No narrow prompt was promoted."
+  ],
+  "cases": [
+    {
+      "case": "left_person",
+      "complete": true,
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "name": "sit_stay_shake",
+            "count_unit": "routine_playback",
+            "count": 1
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_transcript": "I would love to shake your hand! I have queued up my sitting routine and will offer you my right paw.",
+      "tts_requested_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "first_admission_after_text_ms": 1992.1197079999997,
+      "tts_usage_updates": [
+        184
+      ]
+    },
+    {
+      "case": "right_person",
+      "complete": true,
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count": 1,
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake"
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_transcript": "I'll sit down and offer my right paw for a friendly handshake!",
+      "tts_requested_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "first_admission_after_text_ms": 1746.1027920000015,
+      "tts_usage_updates": [
+        103
+      ]
+    },
+    {
+      "case": "two_people",
+      "complete": true,
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count": 1,
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake"
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_transcript": "I have queued the sit routine and a right paw shake to shake your hand!",
+      "tts_requested_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "first_admission_after_text_ms": 1597.9443329999995,
+      "tts_usage_updates": [
+        124
+      ]
+    },
+    {
+      "case": "no_view",
+      "complete": true,
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count_unit": "routine_playback",
+            "count": 1,
+            "name": "sit_stay_shake"
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_transcript": "I've queued up the commands to sit and shake your right paw with you!",
+      "tts_requested_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "first_admission_after_text_ms": 1924.837999999996,
+      "tts_usage_updates": [
+        121
+      ]
+    },
+    {
+      "case": "named_right_overrides_image",
+      "complete": true,
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count": 1,
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake"
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_transcript": "I've queued up the sit-and-stay routine and will offer my right paw as soon as I'm seated!",
+      "tts_requested_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "first_admission_after_text_ms": 1881.2056250000023,
+      "tts_usage_updates": [
+        145
+      ]
+    },
+    {
+      "case": "greeting_only",
+      "complete": true,
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        }
+      ],
+      "raw_transcript": "Hi Alex! It is so nice to meet you! Would you like to try our special handshake?",
+      "tts_requested_text": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [],
+      "first_admission_after_text_ms": 2810.389541999997,
+      "tts_usage_updates": [
+        221
+      ]
+    }
+  ],
+  "cost": {
+    "official_source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "ER_per_million": {
+      "input": 1,
+      "output": 5
+    },
+    "TTS_per_million": {
+      "input": 1,
+      "audio_output": 20
+    },
+    "live_conservative_usage_estimate_usd": 0.099109,
+    "tts_per_request_max_counter_estimate_usd": 0.019658000000000002,
+    "total_estimate_usd": 0.11876700000000001,
+    "authorized_additional_budget_usd": 0.5,
+    "aggregation": "ER counts all prompt+tooluse and response+thought counters. TTS updates are cumulative: use maximum perrequest prompt/output, notsumchunks.",
+    "limitations": "Estimated observed token usage, not provider invoice or enforced billing cap. Cancelled TTS may not supply final billing counters. Raw usage arrays preserved."
+  },
+  "limitations": [
+    "One ordered trial percase; no stochastic reliability claim.",
+    "Same syntheticJPEGs as nativebaseline, each repeated3timesat1Hz beforetext; not actual camera/lens pipeline or physical mounting proof.",
+    "Native baseline cap1024 vsER2048; no causal speed/model-quality claim from unmatchedcap.",
+    "Sink records offered audio chunks; no acoustic playback, human-listening or real microphone result.",
+    "Current model may guess which paw despite missing information. Exact receipt gates guarantee source/currentness, not correctness of selected toolarguments.",
+    "Selection/admission probe: queued Sit/paw jobs can still be pending when the model turn ends, and the harness cancels them during cleanup. No claim that every accepted fake sequence reached its terminal clip."
+  ],
+  "shutdown": {
+    "google_sessions": "All6service disconnect calls completed; final report saved.",
+    "fake_API": "SIGINTexit0 after lastcase.",
+    "probe_process": "Node retained transport handles after finaloutput; explicitly SIGINTterminated after completion. No retry or remaining ownedjob."
+  },
+  "validation": {
+    "independent_peer": "clear; peer-review.json",
+    "matched_http_tool_calls": 16,
+    "live_completed_turns": 6,
+    "fake_job_completion": "All5 actioncases still had1running and1pending at snapshot; cleanupStopped them. Selection/admission only."
+  },
+  "dependencies": {
+    "node": "v26.12.1",
+    "google_genai_js": "1.50.1"
+  },
+  "artifacts": {
+    "repo_directory": "artifacts/access/ws1-vision-paw-er-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/vision-paw-er",
+    "archive_name": "ws1-vision-paw-er-20261101.tar.gz",
+    "sha256": "f56861597cc82347d4c35126022eac2cac2c1674ee35178ce6fd03cbac08c245",
+    "bytes": 20627289,
+    "indexed_files": 217,
+    "index_sha256": "2c55b1d9159410a19942a1bbafb1221e39b5f51a1746be001c788c81a0bcf2a5",
+    "verified_archive_members": 217,
+    "both_stores_all_files_verified": true
+  },
+  "next": "Two fresh natural-only image-description controls are separately authorized to distinguish image observation from handshake selection. No prompt/model promotion follows this six-case study.",
+  "interpretation_qualification": {
+    "class_source": "/Users/shrish/Library/Mobile Documents/iCloud~md~obsidian/Documents/vaulted/Fall2026Classes/Cs123/References/Lecture 6/Lab 6 - Instructions.txt",
+    "locator": "Q12, lines1386\u20131391",
+    "wording": "Then stand to Pupper\u2019s left and ask it to shake your hand, without saying which paw. Does it shake the paw on your side? If not, trace the request through your code...",
+    "interpretation": "Choosing the caller-side paw is the class\u2019s desired diagnostic capability. The baseline prompt and generic handshake request did not explicitly impose a nearest-paw rule; choosing right is not by itself proof of an unsafe action or violation of an explicit instruction. Earlier wrong-side/failure labels refer to the stated synthetic test convention/Q12 goal. Asking for a paw when no image is available is an isolated candidate design choice, not a universal class requirement.",
+    "preservation": "Raw results and originally reviewed archives are unchanged; this qualification corrects interpretation only."
+  }
+}

@@ -123,8 +123,11 @@ interface ReceiptRequest {
   accepted: boolean;
   queued: boolean;
 }
+export const PAW_CLARIFICATION = 'Which paw would you like, left or right?';
+interface StatusChoice { text: string; questionAllowed: boolean; current: () => boolean; speak?: (text: string) => void; }
 interface ReceiptTurn {
   tools: number;
+  statusChoice?: StatusChoice;
   requests: ReceiptRequest[];
   invalid: boolean;
   cancelled: boolean;
@@ -197,6 +200,18 @@ export class NativeReceiptOutputGate {
     turn.authorized = text;
     return text;
   }
+  /** One settled read-only lookup may offer a fixed question. ER fallback always
+   * uses the actual typed receipt; model paraphrase is never synthesized. */
+  offerPawClarification(turn: ReceiptTurn | null, source: object, text: string,
+      current: () => boolean, speak?: (text: string) => void): { question: string | null } | null {
+    if (!turn || this.turn !== turn || this.generationSealed || turn.cancelled || turn.tools !== 1
+        || turn.requests.length !== 1 || !current() || !text.trim() || text.length > 1000) return null;
+    const request = turn.requests[0];
+    if (request.token !== source || request.role !== 'status' || !request.returned || !request.accepted) return null;
+    const questionAllowed = !turn.invalid && !turn.outputSeen;
+    turn.statusChoice = { text, questionAllowed, current, speak };
+    return { question: questionAllowed ? PAW_CLARIFICATION : null };
+  }
   observe(message: LiveServerMessage): ReceiptTurn | null {
     const content = message.serverContent;
     const calls = (message.toolCall?.functionCalls ?? []).filter(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
@@ -259,7 +274,17 @@ export class NativeReceiptOutputGate {
       if (hadActivity) this.handshakeStreak = turn && this.acceptedHandshake(turn) ? Math.min(4, this.handshakeStreak + 1) : 0;
       if (turn) {
         clearTimeout(turn.timer);
-        const expected = turn.authorized && normalizeReceiptTranscript(turn.authorized);
+        const choice = turn.statusChoice;
+        const statusOnly = !turn.cancelled && turn.tools === 1 && turn.requests.length === 1
+          && turn.requests[0].role === 'status' && turn.requests[0].returned && turn.requests[0].accepted;
+        const currentChoice = statusOnly && choice?.current() ? choice : null;
+        const words = normalizeReceiptTranscript(turn.transcript || turn.text);
+        const consistent = !turn.text || !turn.transcript || normalizeReceiptTranscript(turn.text) === words;
+        const questionChosen = currentChoice?.questionAllowed && !turn.invalid && consistent
+          && words === normalizeReceiptTranscript(PAW_CLARIFICATION);
+        if (currentChoice?.speak) currentChoice.speak(questionChosen ? PAW_CLARIFICATION : currentChoice.text);
+        const expected = questionChosen ? normalizeReceiptTranscript(PAW_CLARIFICATION)
+          : turn.authorized && normalizeReceiptTranscript(turn.authorized);
         if (!turn.invalid && expected && turn.audio.length && normalizeReceiptTranscript(turn.transcript) === expected
             && (!turn.text || normalizeReceiptTranscript(turn.text) === expected)) this.release(turn.audio);
       }

@@ -6,7 +6,7 @@ import RobotBridge from './robotBridge';
 import { ConversationOutputGate, NativeReceiptOutputGate, type ConversationOutput } from './conversationOutput';
 import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLabel, hasMalformedOutcomeFlags, isOperatorReceiptNarration } from './operatorFeedback';
 import { toolResponseStatus, type ToolDispatch } from './executionStatus';
-import { ReceiptAudioCache, serverReceiptAudioText } from './receiptAudioCache';
+import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer } from './receiptAudioCache';
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 
 /** Robot tools come from GET /tools. TEXT models return ordinary completed text;
@@ -17,6 +17,15 @@ export function isAudioOutputModel(modelName: string): boolean {
     return false;
   }
   return true;
+}
+
+/** Existing structured server catalog must advertise the complete handshake path. */
+export function supportsPawClarification(tools: FunctionDeclaration[], tricks: any, actions: any): boolean {
+  const names = new Set(tools.map(tool => tool.name));
+  return ['robot_status', 'play_trick', 'interactive_action'].every(name => names.has(name))
+    && !!tricks && Object.prototype.hasOwnProperty.call(tricks, 'sit_stay_shake')
+    && !!actions && ['shake_left', 'shake_right'].every(name => Object.prototype.hasOwnProperty.call(actions, name)
+      && actions[name]?.trick === 'sit_stay_shake');
 }
 
 /** Known status/gate failures alone do not fence motion; Stop/status remain usable when paused. */
@@ -71,6 +80,7 @@ export class GeminiLiveService {
   private conversationOutput: ConversationOutputGate;
   private nativeReceiptOutput: NativeReceiptOutputGate;
   private apiKey = '';
+  private pawClarificationAvailable = false;
   private receiptPreloadController: AbortController | null = null;
   private cancelledToolIds = new Set<string>();
   private dispatchedActionIds = new Set<string>();
@@ -125,7 +135,7 @@ export class GeminiLiveService {
       output => { void this.releaseConversation(output, this.outputTurnTiming).catch(() => this.log('info', 'Conversation playback failed; no replacement narration was produced.')); }, message => {
         this.log('info', message);
       });
-    this.nativeReceiptOutput = new NativeReceiptOutputGate(audio => { void this.releaseNativeReceipt(audio).catch(() => this.log('info', 'Receipt audio unavailable; the server receipt remains visible.')); });
+    this.nativeReceiptOutput = new NativeReceiptOutputGate(audio => { if (!isAudioOutputModel(this.config.modelName)) return; void this.releaseNativeReceipt(audio).catch(() => this.log('info', 'Receipt audio unavailable; the server receipt remains visible.')); });
     this.robotBridge = new RobotBridge(config.robotApiUrl);
     this.onLog = onLog;
     this.onAudioLevel = onAudioLevel;
@@ -340,10 +350,25 @@ export class GeminiLiveService {
     }
     let systemInstruction = [spec?.prompt, config.extraInstructions].filter(Boolean).join('\n\n');
     if (isAudioOutput && this.outputPolicy === 'conversation') {
-      systemInstruction += '\nComplete every tool call needed for the user request before acknowledging it; do not end a multi-step request just to speak. Remain silent while planning tools and waiting for their replies. After all needed replies arrive, if the latest response contains operator_acknowledgment.text, speak exactly that text and nothing else. If absent, do not invent an acknowledgment. An explicit stand request uses stand_up by itself; do not add Stop unless the user requests cancellation. A busy-paws joke never replaces the requested handshake: still check status and request the paw; use only the exact supplied acknowledgment for any joke.';
+      systemInstruction += '\nComplete every tool call needed for the user request before acknowledging it; do not end a multi-step request just to speak. Remain silent while planning tools and waiting for their replies. After all needed replies arrive, if the latest response contains operator_acknowledgment.text, speak exactly that text and nothing else, unless its explicitly offered optional_clarification is needed for an unclear paw request. If absent, do not invent an acknowledgment. An explicit stand request uses stand_up by itself; do not add Stop unless the user requests cancellation. A busy-paws joke never replaces the requested handshake: still check status and request the paw; use only the exact supplied acknowledgment for any joke.';
     }
     if (!isAudioOutput && this.outputPolicy === 'conversation') {
       systemInstruction += '\n\nReturn conversation directly as text. The application screens completed text and speaks it with the selected voice. Do not call a speech tool. Robot actions still require their robot tools.';
+    }
+
+    // Capability comes from the existing structured catalog, never model prose.
+    this.pawClarificationAvailable = false;
+    if (['robot_status', 'play_trick', 'interactive_action'].every(name => robotTools.some(tool => tool.name === name))) {
+      try {
+        const [tricks, actions]: any[] = await Promise.all([
+          this.robotBridge.getAnimations(), this.robotBridge.getInteractiveActions(),
+        ]);
+        this.ensureOpen();
+        this.pawClarificationAvailable = supportsPawClarification(robotTools, tricks, actions);
+      } catch { this.ensureOpen(); }
+    }
+    if (this.pawClarificationAvailable) {
+      systemInstruction += '\nA successful status reply may offer operator_acknowledgment.optional_clarification. Choose that exact question only when the person requests a handshake and the paw side is unclear. For an explicitly named paw, continue the requested action instead. For an ordinary status/count question, use the actual status receipt. Never add words or invented state to the offered question.';
     }
 
     const functionDeclarations = robotTools;
@@ -602,13 +627,13 @@ export class GeminiLiveService {
     }
   }
 
-  private async playAudioBase64(audioData: string, timing?: TurnTiming): Promise<void> {
+  private async playAudioBase64(audioData: string, timing?: TurnTiming, isCurrent: () => boolean = () => true): Promise<void> {
     if (this.outputPolicy !== 'conversation') return;
     const ctx = this.audioContext, analyser = this.analyser, generation = this.playbackGeneration;
-    if (!ctx || !analyser || this.disposed) return;
+    if (!ctx || !analyser || this.disposed || !isCurrent()) return;
     if (ctx.state === 'suspended') await ctx.resume();
     const buffer = await decodeAudioData(audioData, ctx);
-    if (this.disposed || generation !== this.playbackGeneration || ctx !== this.audioContext) return;
+    if (this.disposed || generation !== this.playbackGeneration || ctx !== this.audioContext || !isCurrent()) return;
     this.nextStartTime = Math.max(this.nextStartTime, ctx.currentTime);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -631,12 +656,12 @@ export class GeminiLiveService {
     };
   }
 
-  private async synthesizeAndPlaySpeech(text: string): Promise<void> {
+  private async synthesizeAndPlaySpeech(text: string, isCurrent: () => boolean = () => true): Promise<void> {
     if (this.outputPolicy !== 'conversation') return;
     const generation = this.playbackGeneration;
-    const cancelled = () => this.disposed || generation !== this.playbackGeneration;
+    const cancelled = () => this.disposed || generation !== this.playbackGeneration || !isCurrent();
     try {
-      if (!this.ai) return;
+      if (!this.ai || cancelled()) return;
       const configuredModel = this.config.ttsModelName || "gemini-3.1-flash-tts-preview";
       const ttsModel = configuredModel === "gemini-2.5-flash-preview"
         ? "gemini-2.5-flash-preview-tts"
@@ -670,7 +695,7 @@ export class GeminiLiveService {
             const audioData = part.inlineData?.data;
             if (audioData) {
               receivedAudio = true;
-              await this.playAudioBase64(audioData);
+              await this.playAudioBase64(audioData, undefined, isCurrent);
             }
           }
         }
@@ -683,7 +708,7 @@ export class GeminiLiveService {
           const audioData = part.inlineData?.data;
           if (audioData) {
             receivedAudio = true;
-            await this.playAudioBase64(audioData);
+            await this.playAudioBase64(audioData, undefined, isCurrent);
           }
         }
       }
@@ -762,7 +787,7 @@ export class GeminiLiveService {
     const hasRobotTool = (message.toolCall?.functionCalls ?? [])
       .some(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
     if (hasRobotTool) this.stopPlayback(true, false);
-    const receiptTurn = this.outputPolicy === 'conversation' && isAudioOutputModel(this.config.modelName)
+    const receiptTurn = this.outputPolicy === 'conversation'
       ? this.nativeReceiptOutput.observe(message) : null;
     if (this.outputPolicy === 'conversation') {
       this.conversationOutput.observe(message, this.pendingRobotTools > 0, !isAudioOutputModel(this.config.modelName));
@@ -893,16 +918,25 @@ export class GeminiLiveService {
           && typeof result?.success === 'boolean' && !hasMalformedOutcomeFlags(result) && !result.outcome_unknown && !result.superseded && !result.not_dispatched
           ? nativeReceiptFeedback(fc.name, result) : null;
         const receiptAuthorization = actualReceipt ? this.nativeReceiptOutput.authorize(receiptTurn, actualReceipt, fc, result) : null;
+        const textReceiptModel = !isAudioOutputModel(this.config.modelName)
+          && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName);
+        const statusChoice = this.pawClarificationAvailable && fc.name === 'robot_status'
+          && result?.success === true && actualReceipt && currentFeedback()
+          ? this.nativeReceiptOutput.offerPawClarification(receiptTurn, fc, actualReceipt, currentFeedback,
+            textReceiptModel ? text => {
+              if (currentFeedback()) void this.synthesizeAndPlaySpeech(text, currentFeedback)
+                .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
+            } : undefined) : null;
         // The immutable clip is code-owned: its own current actual HTTP reply
         // is sufficient even when a multi-tool model turn cannot be narrated.
         const cacheText = actualReceipt && currentFeedback() && this.outputPolicy === 'conversation'
-          && isAudioOutputModel(this.config.modelName) ? serverReceiptAudioText(fc.name, fc.args, result) : null;
+          && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) ? serverReceiptAudioText(fc.name, fc.args, result) : null;
         // Keep an explicitly composed native receipt (the fourth-handshake joke)
         // intact instead of replacing it with the shorter generic cached cue.
         const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
           && receiptAuthorization !== cacheText;
         const cachedAudio = cacheText && !composedNativeReceipt
-          ? this.receiptAudioCache?.lookup(cacheText, this.config.modelName, this.config.voiceName || 'Puck') : null;
+          ? this.receiptAudioCache?.lookup(cacheText, this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
         const cachedReceipt = !!cachedAudio;
         if (cachedReceipt) {
           // Mute this model turn's later duplicate, without cancelling queued
@@ -910,6 +944,15 @@ export class GeminiLiveService {
           this.nativeReceiptOutput.invalidate(false);
           this.trace('cached_receipt_admitted', { bytes: Math.floor(cachedAudio.length * 3 / 4) });
           void this.playAudioBase64(cachedAudio, turnTiming).catch(() => this.log('info', 'Cached receipt audio unavailable; the server receipt remains visible.'));
+        }
+        // TEXT dialogue cannot supply native receipt audio. Speak only the exact
+        // code-owned current authorization, never the model's tool-turn prose.
+        // A later request in this same batch invalidates outstanding TTS chunks.
+        if (!cachedReceipt && !statusChoice && receiptAuthorization && currentFeedback()
+            && !isAudioOutputModel(this.config.modelName)
+            && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName)) {
+          void this.synthesizeAndPlaySpeech(receiptAuthorization, currentFeedback)
+            .catch(() => this.log('info', 'Receipt speech unavailable; the server receipt remains visible.'));
         }
         if (this.connected && this.sessionPromise && !(fc.id && this.cancelledToolIds.has(fc.id))) {
           this.sessionPromise.then(session => {
@@ -921,7 +964,7 @@ export class GeminiLiveService {
                 functionResponses: {
                   id: fc.id,
                   name: fc.name,
-                  response: { result, ...(receiptAuthorization && !cachedReceipt && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization } } : {}) }
+                  response: { result, ...(receiptAuthorization && !cachedReceipt && currentFeedback() ? { operator_acknowledgment: { text: receiptAuthorization, ...(statusChoice?.question ? { optional_clarification: { id: 'paw_side', text: statusChoice.question } } : {}) } } : {}) }
                 }
               });
               this.trace('function_response_send_return', { message_sequence: messageSequence,

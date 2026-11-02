@@ -1,0 +1,537 @@
+{
+  "schema": "pupper_er2_explicit_side_rule_v1",
+  "recorded_utc": "2026-11-02T02:28:01.235294+00:00",
+  "decision": "Existing isolated side-selection rule plus declared synthetic camera orientation resolved the sampled left/right mapping. Promising prompt candidate, not proof of reliable vision or physical camera mapping; no production source or prompt changed by this study.",
+  "scope": "Actual Google ER2 Live TEXT plus Puck TTS using reviewed production service and isolated fake HTTP tools; identical synthetic JPEGs/typed requests. No ASR, browser, personal media, speaker playback or robot.",
+  "source": {
+    "base_commit": "acb07df7e5376ef09babf102c7716ec42f8c2c3d",
+    "service_sha256": "6c2bb1f70fcfeef4c5ad9d7272d1f2560d7275cfc6c887fae10e1358e9087cee",
+    "probe_sha256": "e710594fbadfae7e7d1b08f7ec31b7a65241cdc87d66a7c90d822fb8b43fcecb",
+    "tools_sha256": "8aad5d91706ec8542e465608c09ddf297a765a2b6cd183311fbb7565f1048403",
+    "prompt_candidate_sha256": "95122cd3c4631815f826e452ea76b7621cba0d01beeca5900d9c44ae917ad0fc",
+    "baseline_prompt_sha256": "88f5aa95861ee30efe8d776af5da0b6545676a4ba5615d413e3dc4a940b1b0ad",
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "voice": "Puck",
+    "TTS_model": "gemini-3.1-flash-tts-preview",
+    "original_rule_probe_sha256": "fea789d13c3a3e2ddf6e863be5ae6a945ac07b52c01e4ecdd36510cbeda678b5",
+    "rule_unchanged_from_native_candidate": true,
+    "extraInstructions": "For this synthetic rehearsal, any supplied image stream represents the robot\u2019s upright, unmirrored, forward-facing camera. This declares camera orientation only, not the positions of any people.",
+    "baseline_archive_sha256": "f56861597cc82347d4c35126022eac2cac2c1674ee35178ce6fd03cbac08c245"
+  },
+  "class_source": {
+    "path": "/Users/shrish/Library/Mobile Documents/iCloud~md~obsidian/Documents/vaulted/Fall2026Classes/Cs123/References/Lecture 6/Lab 6 - Instructions.txt",
+    "locator": "Q12 lines1386\u20131391",
+    "requirement_scope": "Class asks whether an unspecified handshake while standing on robot left chooses paw on caller side, and asks students to trace if not. Baseline generic request/prompt did not explicitly impose nearest-paw; its default right choice is a desired capability gap, not necessarily unsafe or explicit-instruction violation. No-view clarification is this candidate policy, not universal class requirement."
+  },
+  "findings": [
+    "Left fixture now chose shake_left; right fixture shake_right. Explicit right request with left image still chose right. Native candidate had not resolved left selection, while ER2 did in this one matched trial.",
+    "Two-person ambiguity asked which paw with no tools; greeting-only offered handshake with no tools. Both natural replies were offered to TTS.",
+    "No-view asked which paw but first queried status, so only fixed status TTS was offered. Existing tool-turn gating still suppresses that free-form clarification.",
+    "All actual action cues came after their actual fake-API replies. No physical execution claim; selected fake Sit/paw sequences were still queued/running when turns ended and were stopped during cleanup.",
+    "The two independent natural-only ER controls correctly described image left/right, narrowing an all-images-dropped explanation without establishing every handshake-turn image interpretation."
+  ],
+  "cases": [
+    {
+      "case": "left_person",
+      "request": "Please shake my hand.",
+      "image": "person-left.jpg",
+      "baseline_tools": [
+        {
+          "name": "robot_status",
+          "args": {}
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "name": "sit_stay_shake",
+            "count_unit": "routine_playback",
+            "count": 1
+          }
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          }
+        }
+      ],
+      "candidate_tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "name": "sit_stay_shake",
+            "count": 1,
+            "count_unit": "routine_playback"
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_left"
+          },
+          "success": true
+        }
+      ],
+      "raw_reply": "Since you are on the left side of my camera view, I have queued the sit and stay trick, followed by a left paw shake action!",
+      "TTS_texts": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Left paw command queued."
+      ],
+      "complete": true,
+      "queue_after": {
+        "queued": 1,
+        "running": true,
+        "current_action": {
+          "name": "trick sit_stay_shake",
+          "state": "running"
+        },
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "seconds_left": 7.6,
+        "following": false,
+        "controller_fault": null,
+        "state": "sit_stay_shake",
+        "state_after_queue": "sit_stay_shake",
+        "last_outcome": {
+          "name": "stand up",
+          "success": true,
+          "message": "already in that state"
+        },
+        "session_context": {
+          "schema": "pupper_session_context_v1",
+          "server_instance": "715ffaebd24141ddb10b2b0070edb6f7",
+          "scope": "this_server_session",
+          "completed_sit_entries": 0
+        },
+        "runtime": "fake",
+        "hardware_connected": false,
+        "command_epoch": "715ffaebd24141ddb10b2b0070edb6f7:1",
+        "command_epoch_required": true
+      },
+      "cost_estimate_usd": 0.0322
+    },
+    {
+      "case": "right_person",
+      "request": "Please shake my hand.",
+      "image": "person-right.jpg",
+      "baseline_tools": [
+        {
+          "name": "robot_status",
+          "args": {}
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count": 1,
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake"
+          }
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          }
+        }
+      ],
+      "candidate_tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake",
+            "count": 1
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_reply": "I've queued up the sit-and-stay routine and will offer you my right paw to shake!",
+      "TTS_texts": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "complete": true,
+      "queue_after": {
+        "queued": 1,
+        "running": true,
+        "current_action": {
+          "name": "trick sit_stay_shake",
+          "state": "running"
+        },
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "seconds_left": 8.7,
+        "following": false,
+        "controller_fault": null,
+        "state": "sit_stay_shake",
+        "state_after_queue": "sit_stay_shake",
+        "last_outcome": {
+          "name": "stand up",
+          "success": true,
+          "message": "ok"
+        },
+        "session_context": {
+          "schema": "pupper_session_context_v1",
+          "server_instance": "715ffaebd24141ddb10b2b0070edb6f7",
+          "scope": "this_server_session",
+          "completed_sit_entries": 0
+        },
+        "runtime": "fake",
+        "hardware_connected": false,
+        "command_epoch": "715ffaebd24141ddb10b2b0070edb6f7:3",
+        "command_epoch_required": true
+      },
+      "cost_estimate_usd": 0.019599
+    },
+    {
+      "case": "two_people",
+      "request": "Please shake my hand.",
+      "image": "two-people.jpg",
+      "baseline_tools": [
+        {
+          "name": "robot_status",
+          "args": {}
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count": 1,
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake"
+          }
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          }
+        }
+      ],
+      "candidate_tools": [],
+      "raw_reply": "Since I see two of you, which paw would you like me to shake, left or right?",
+      "TTS_texts": [
+        "Since I see two of you, which paw would you like me to shake, left or right?"
+      ],
+      "cache_cues": [],
+      "complete": true,
+      "queue_after": {
+        "queued": 0,
+        "running": false,
+        "current_action": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "seconds_left": 0,
+        "following": false,
+        "controller_fault": null,
+        "state": "locomotion",
+        "state_after_queue": "locomotion",
+        "last_outcome": {
+          "name": "stand up",
+          "success": true,
+          "message": "ok"
+        },
+        "session_context": {
+          "schema": "pupper_session_context_v1",
+          "server_instance": "715ffaebd24141ddb10b2b0070edb6f7",
+          "scope": "this_server_session",
+          "completed_sit_entries": 0
+        },
+        "runtime": "fake",
+        "hardware_connected": false,
+        "command_epoch": "715ffaebd24141ddb10b2b0070edb6f7:5",
+        "command_epoch_required": true
+      },
+      "cost_estimate_usd": 0.012331000000000002
+    },
+    {
+      "case": "no_view",
+      "request": "Please shake my hand.",
+      "image": null,
+      "baseline_tools": [
+        {
+          "name": "robot_status",
+          "args": {}
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count_unit": "routine_playback",
+            "count": 1,
+            "name": "sit_stay_shake"
+          }
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          }
+        }
+      ],
+      "candidate_tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        }
+      ],
+      "raw_reply": "Which paw would you like to shake, my left or my right?",
+      "TTS_texts": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [],
+      "complete": true,
+      "queue_after": {
+        "queued": 0,
+        "running": false,
+        "current_action": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "seconds_left": 0,
+        "following": false,
+        "controller_fault": null,
+        "state": "locomotion",
+        "state_after_queue": "locomotion",
+        "last_outcome": {
+          "name": "stand up",
+          "success": true,
+          "message": "already in that state"
+        },
+        "session_context": {
+          "schema": "pupper_session_context_v1",
+          "server_instance": "715ffaebd24141ddb10b2b0070edb6f7",
+          "scope": "this_server_session",
+          "completed_sit_entries": 0
+        },
+        "runtime": "fake",
+        "hardware_connected": false,
+        "command_epoch": "715ffaebd24141ddb10b2b0070edb6f7:7",
+        "command_epoch_required": true
+      },
+      "cost_estimate_usd": 0.017149
+    },
+    {
+      "case": "named_right_overrides_image",
+      "request": "Please give me your right paw.",
+      "image": "person-left.jpg",
+      "baseline_tools": [
+        {
+          "name": "robot_status",
+          "args": {}
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "count": 1,
+            "count_unit": "routine_playback",
+            "name": "sit_stay_shake"
+          }
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          }
+        }
+      ],
+      "candidate_tools": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "success": true
+        },
+        {
+          "name": "play_trick",
+          "args": {
+            "name": "sit_stay_shake",
+            "count_unit": "routine_playback",
+            "count": 1
+          },
+          "success": true
+        },
+        {
+          "name": "interactive_action",
+          "args": {
+            "action": "shake_right"
+          },
+          "success": true
+        }
+      ],
+      "raw_reply": "I have queued up the sit and stay trick to give you my right paw!",
+      "TTS_texts": [
+        "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session."
+      ],
+      "cache_cues": [
+        "Trick queued.",
+        "Right paw command queued."
+      ],
+      "complete": true,
+      "queue_after": {
+        "queued": 1,
+        "running": true,
+        "current_action": {
+          "name": "trick sit_stay_shake",
+          "state": "running"
+        },
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "seconds_left": 9,
+        "following": false,
+        "controller_fault": null,
+        "state": "sit_stay_shake",
+        "state_after_queue": "sit_stay_shake",
+        "last_outcome": {
+          "name": "stand up",
+          "success": true,
+          "message": "already in that state"
+        },
+        "session_context": {
+          "schema": "pupper_session_context_v1",
+          "server_instance": "715ffaebd24141ddb10b2b0070edb6f7",
+          "scope": "this_server_session",
+          "completed_sit_entries": 0
+        },
+        "runtime": "fake",
+        "hardware_connected": false,
+        "command_epoch": "715ffaebd24141ddb10b2b0070edb6f7:9",
+        "command_epoch_required": true
+      },
+      "cost_estimate_usd": 0.019093
+    },
+    {
+      "case": "greeting_only",
+      "request": "Hi Pupper, my name is Alex!",
+      "image": "person-left.jpg",
+      "baseline_tools": [
+        {
+          "name": "robot_status",
+          "args": {}
+        }
+      ],
+      "candidate_tools": [],
+      "raw_reply": "Hi Alex! It's so wonderful to meet you! Would you like to try my special handshake?",
+      "TTS_texts": [
+        "Hi Alex! It's so wonderful to meet you! Would you like to try my special handshake?"
+      ],
+      "cache_cues": [],
+      "complete": true,
+      "queue_after": {
+        "queued": 0,
+        "running": false,
+        "current_action": null,
+        "physical_observation": {
+          "pose": null,
+          "speed": null,
+          "stopped": null
+        },
+        "seconds_left": 0,
+        "following": false,
+        "controller_fault": null,
+        "state": "locomotion",
+        "state_after_queue": "locomotion",
+        "last_outcome": {
+          "name": "stand up",
+          "success": true,
+          "message": "ok"
+        },
+        "session_context": {
+          "schema": "pupper_session_context_v1",
+          "server_instance": "715ffaebd24141ddb10b2b0070edb6f7",
+          "scope": "this_server_session",
+          "completed_sit_entries": 0
+        },
+        "runtime": "fake",
+        "hardware_connected": false,
+        "command_epoch": "715ffaebd24141ddb10b2b0070edb6f7:11",
+        "command_epoch_required": true
+      },
+      "cost_estimate_usd": 0.00891
+    }
+  ],
+  "cost": {
+    "official_source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "ER_input_per_million": 1,
+    "ER_output_per_million": 5,
+    "TTS_input_per_million": 1,
+    "TTS_output_per_million": 20,
+    "live_observed_estimate_usd": 0.088831,
+    "tts_request_max_estimate_usd": 0.020451,
+    "total_observed_estimate_usd": 0.10928199999999999,
+    "authorized_additional_budget_usd": 0.3,
+    "method": "Live observed prompt/tooluse+output/thought counters. TTS maximum cumulative prompt/output counters per request, never sum stream updates.",
+    "limitations": "Observed usage estimate, not invoice or provider-enforced cap; Live responseTokenCount can be absent, cancelled TTS may omit final counters. No retries."
+  },
+  "limitations": [
+    "One ordered trial per case; baseline and candidate are separate sessions, not a reliability benchmark.",
+    "Candidate changes prompt rule AND declares an upright unmirrored forward camera. Physical mounting is unverified, so this declaration must not be added blindly to hardware.",
+    "Exact same synthetic JPEGs and three realtime-video sends at1Hz before typed text; provider has no per-frame semantic acknowledgment. No camera fisheye/capture pipeline, ASR, real microphone, actual browser or acoustic playback.",
+    "No deterministic natural-language intent or visual truth guarantee. It remains possible to choose a wrong tool or suppress a useful question.",
+    "Synthetic expected image/body-side convention is part of the test, not a verified mapping of the real robot."
+  ],
+  "shutdown": {
+    "Live": "All6service disconnects completed.",
+    "fake_API": "SIGINT exit0.",
+    "probe": "Final result saved; retained transport handles then explicit SIGINT exit130. No retries or owned jobs left."
+  },
+  "independent_review": {
+    "verdict": "clear for bounded sample and conditional prompt integration",
+    "receipt": "peer-review.json",
+    "sha256": "7e8b907be946db6fd6b09cc8c04de5faf2c10de1eee03dd75a4b205fd927bf8c"
+  },
+  "integration": {
+    "prompt_only_patch": "integration/prompt.patch",
+    "prompt_file": "integration/prompt.md",
+    "handoff": "integration/handoff.json",
+    "exact_tested_orientation_config": "integration/tested-config-fragment.json",
+    "root_source_modified_by_task": false
+  },
+  "artifacts": {
+    "repo_directory": "artifacts/access/ws1-vision-paw-er-side-rule-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/vision-paw-er-side-rule",
+    "archive_name": "ws1-vision-paw-er-side-rule-20261101.tar.gz",
+    "sha256": "3b42528dc87b3e72d77eb245b59cf8e16124b3c4ad4fb15ebd8a3ad261034ece",
+    "bytes": 20641360,
+    "indexed_files": 224,
+    "index_sha256": "eef31d8edbdd1be83cfbd3e25272bceb02392d496288d2c9a7f7b49f9783c1db",
+    "verified_archive_members": 224,
+    "both_stores_all_files_verified": true
+  }
+}

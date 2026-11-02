@@ -1,0 +1,78 @@
+{
+  "schema": "pupper_vision_paw_native_v1",
+  "recorded_utc": "2026-11-02T02:15:21.278365+00:00",
+  "decision": "Native baseline gap reproduced; isolated prompt candidate rejected. No production source/prompt changed.",
+  "scope": "12 actual-Google native HIGH/Puck sessions, typed requests, synthetic unlabeled cartoon JPEGs, actual fake HTTP API. No user media, browser, real acoustics, camera pipeline or robot.",
+  "class_case": "Lab6Q12: ask to shake while standing on robot left without naming paw, trace wrong choice through tool/clip.",
+  "findings": [
+    "Baseline selected right paw for left-person image, right for right image; namedright and greeting/no-motion controls passed.",
+    "Baseline with no image guessedleft. Two-person baseline called status only and produced no admitted clarification.",
+    "Candidate added conditional camera/body-side rule and uniform synthetic forward-camera orientation metadata. It asked for paw on clear left image (no left execution), selectedright on right image, and preserved namedright/greeting controls.",
+    "Candidate stopped arbitrary paw motion for ambiguous/no-view but still queriedstatus before asking; existing whole-tool-turn narration guard withheld those free-form clarification questions. This is a practical conversation-composition limitation, not permission to release arbitrary tool-turn prose.",
+    "No source mirroring found in current server/browsersource; actual camera-to-body mounting is still unverified."
+  ],
+  "validation": {
+    "completed_google_sessions": 12,
+    "fixture_images": 3,
+    "fixture_reproduction_hash_exact": true,
+    "independent_coordinate_and_cost_review": "clear; coordinate-peer-review.json and cost-conclusion-peer.json",
+    "hardware_browser_or_acoustic_validation": false
+  },
+  "cost": {
+    "official_pricing_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "section": "Gemini3.8Live,3.8LiveExtendedThinking,and3.1FlashLivePreview (shared table)",
+    "variants": [
+      {
+        "variant": "baseline",
+        "conservative_token_rate_upper_estimate_usd": 0.258054,
+        "classified_modality_subtotal_usd": 0.07739549999999999,
+        "unclassified_prompt_tokens": 7400,
+        "with_residual_at_text_rate_usd": 0.08333249999999999,
+        "with_residual_at_audio_rate_usd": 0.1006275,
+        "unclassified_response_tokens": 86
+      },
+      {
+        "variant": "candidate",
+        "conservative_token_rate_upper_estimate_usd": 0.21537299999999998,
+        "classified_modality_subtotal_usd": 0.06674774999999998,
+        "unclassified_prompt_tokens": 5780,
+        "with_residual_at_text_rate_usd": 0.07131674999999998,
+        "with_residual_at_audio_rate_usd": 0.08471174999999999,
+        "unclassified_response_tokens": 52
+      }
+    ],
+    "total_conservative_token_rate_upper_estimate_usd": 0.473427,
+    "authorized_ceiling_usd": 0.5,
+    "correction": "Probe log originally priced all prompt tokens at$1/M and called that conservative. Usage includes AUDIO context tokens even without a microphone. This posthoc estimate correctly prices AUDIO at$3/M; upper estimate prices all prompt+tool-use tokens at$3/M and all response+thought tokens at$12/M. Possible duplicated fields make upper estimate deliberately conservative; neither is a provider billing receipt or enforced spending limit. Independent review also found promptTokenCount exceeds classified prompt modality totals. The modality range now prices that unclassified residual from TEXT$.75/M through AUDIO$3/M; the fully conservative upper estimate already included all prompt tokens and is unchanged. Unclassified response-token residuals are likewise included at$4.50/M\u2013$12/M.",
+    "modality_estimate_including_unclassified_prompt_and_output_range_usd": [
+      0.15464924999999996,
+      0.18533924999999998
+    ]
+  },
+  "limitations": [
+    "One trial per case/variant, ordered rather than randomized; no reliability statistic.",
+    "Candidate also adds uniform camera-orientation context; do not attribute differences solely to one rule.",
+    "Three repeated frames at1Hz precede input; IMAGE token usage confirms image content was counted, not exact frame-semantic ingestion or understanding.",
+    "Synthetic JPEGs bypass actual fisheye lens/remap; robot-left mapping assumes an upright unmirrored forward-facing camera.",
+    "Model can still choose wrong arguments. Do not disable voice handshakes or claim deterministic natural-language intent binding."
+  ],
+  "next": "Compare the same baseline cases on the separately reviewed ER2 service before broader prompt work. Retain finite status-only clarification design for a separate review; no arbitrary tool-turn narration exemption. Actual camera mounting and human-side test remain unverified.",
+  "shutdown": "All12 Google sessions disconnected; isolated fake API terminated cleanly (exec exit0).",
+  "artifacts": {
+    "repo_directory": "artifacts/access/ws1-vision-paw-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/vision-paw-native",
+    "archive_name": "ws1-vision-paw-native-20261101.tar.gz",
+    "sha256": "a1f28095301f03e97bf4db43e67ddac18465d3f48e2b379197b9d363553eadce",
+    "bytes": 20916169,
+    "indexed_files": 233,
+    "index_sha256": "d1eaaae9ee75ad24ee4da9316963c57a388c823bf01b1f55af2c549eda33eed4",
+    "both_stores_all_files_verified": true
+  },
+  "interpretation_qualification": {
+    "class_source": "/Users/shrish/Library/Mobile Documents/iCloud~md~obsidian/Documents/vaulted/Fall2026Classes/Cs123/References/Lecture 6/Lab 6 - Instructions.txt",
+    "locator": "Q12, lines1386\u20131391",
+    "wording": "Then stand to Pupper\u2019s left and ask it to shake your hand, without saying which paw. Does it shake the paw on your side? If not, trace the request through your code...",
+    "interpretation": "Choosing the caller-side paw is the class\u2019s desired diagnostic capability. The baseline prompt and generic handshake request did not explicitly impose a nearest-paw rule; choosing right is not by itself proof of an unsafe action or violation of an explicit instruction. Earlier wrong-side/failure labels refer to the stated synthetic test convention/Q12 goal. Asking for a paw when no image is available is an isolated candidate design choice, not a universal class requirement.",
+    "preservation": "Raw results and originally reviewed archives are unchanged; this qualification corrects interpretation only."
+  }
+}

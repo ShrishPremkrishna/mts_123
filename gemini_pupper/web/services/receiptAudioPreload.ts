@@ -1,16 +1,16 @@
 import approvedManifest from './receiptAudioManifest.json';
-import { ReceiptAudioCache } from './receiptAudioCache';
+import { ReceiptAudioCache, supportsPuckReceiptConsumer } from './receiptAudioCache';
 import type { AppConfig } from '../types';
 
 export const RECEIPT_PRELOAD_TIMEOUT_MS = 2500;
-export function supportsQuickReceipts(config: Pick<AppConfig, 'modelName' | 'voiceName' | 'outputPolicy' | 'quickReceipts'>): boolean {
+export function supportsQuickReceipts(config: Pick<AppConfig, 'modelName' | 'voiceName' | 'outputPolicy' | 'quickReceipts' | 'ttsModelName'>): boolean {
   return config.quickReceipts === true && config.outputPolicy === 'conversation'
-    && config.modelName.replace(/^models\//, '') === approvedManifest.model && config.voiceName === approvedManifest.voice;
+    && supportsPuckReceiptConsumer(config.modelName, config.voiceName, config.ttsModelName);
 }
 
 /** Bundled hashes pin the exact human-approved clips; only PCM is fetched.
  * A single bounded connect-time attempt, never an action-dispatch dependency. */
-export async function preloadReceiptAudio(config: Pick<AppConfig, 'modelName' | 'voiceName' | 'outputPolicy' | 'quickReceipts'>,
+export async function preloadReceiptAudio(config: Pick<AppConfig, 'modelName' | 'voiceName' | 'outputPolicy' | 'quickReceipts' | 'ttsModelName'>,
     signal?: AbortSignal, fetchAsset: typeof fetch = fetch): Promise<ReceiptAudioCache | null> {
   if (!supportsQuickReceipts(config) || signal?.aborted) return null;
   const controller = new AbortController();

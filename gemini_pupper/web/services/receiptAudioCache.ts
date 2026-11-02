@@ -3,6 +3,12 @@ import { hasMalformedOutcomeFlags } from './operatorFeedback';
 
 const MODEL = 'gemini-3.1-flash-live-preview';
 const VOICE = 'Puck';
+/** Asset model remains its generation provenance; this closed list names consumers. */
+export function supportsPuckReceiptConsumer(model: string, voice: string, ttsModel?: string): boolean {
+  const name = model.replace(/^models\//, '');
+  return voice === VOICE && (name === MODEL || (name === 'gemini-robotics-er-2-streaming-preview'
+    && (ttsModel || 'gemini-3.1-flash-tts-preview') === 'gemini-3.1-flash-tts-preview'));
+}
 const PHRASES = new Set([
   'Move queued.', 'Stop requested.', 'Left paw command queued.', 'Right paw command queued.',
   'Stand queued.', 'Turn queued.', 'Arc queued.', 'Wait queued.', 'Trick queued.', 'Interactive action queued.',
@@ -41,8 +47,8 @@ interface ReadyClip { audio: string; approved: boolean; }
 export class ReceiptAudioCache {
   private constructor(private readonly clips: ReadonlyMap<string, ReadyClip>) {}
 
-  lookup(text: string, model: string, voice: string): string | null {
-    if (model.replace(/^models\//, '') !== MODEL || voice !== VOICE) return null;
+  lookup(text: string, model: string, voice: string, ttsModel?: string): string | null {
+    if (!supportsPuckReceiptConsumer(model, voice, ttsModel)) return null;
     const clip = this.clips.get(text);
     return clip?.approved ? clip.audio : null;
   }

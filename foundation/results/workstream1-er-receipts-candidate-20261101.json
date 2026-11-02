@@ -1,0 +1,121 @@
+{
+  "created_utc": "2026-11-02T02:14:10.662849+00:00",
+  "status": "Isolated candidate ready for root integration; not deployed or default-selected by this agent.",
+  "scope": "Optional ER2 TEXT +Puck TTS with approved cached fixed receipts. Native model default and native behavior unchanged.",
+  "implementation": [
+    "Closed consumer tuple admits exact ER2/3.1FlashTTS/Puck while keeping approved PCM generation model and hashes unchanged.",
+    "Code-owned fixed cues require current actual HTTP response and existing typed queued/known-Stop/known-failure authority.",
+    "Uncached exact typed authorization, including status/count and fourth-handshake joke, uses selected TTS; arbitrary model tool narration remains suppressed.",
+    "Optional per-request predicate is checked before/during TTS streaming and again after awaited audio decode, preventing stale same-batch responses, PTT, Stop and disconnect from scheduling late sound.",
+    "No robot queue waits, gains, motions, API contracts, server settings or default model changed."
+  ],
+  "files": {
+    "services/geminiLive.ts": "6c2bb1f70fcfeef4c5ad9d7272d1f2560d7275cfc6c887fae10e1358e9087cee",
+    "services/receiptAudioCache.ts": "3c4503605cf42d919123e7bc5ab7fba1cd95fa595e54ff78cac13d6d1e747e7e",
+    "services/receiptAudioPreload.ts": "b2f320c0de01d5b9f7484b0fba50fe9968b4e7c1abb15a78e0d220c5d94eab85",
+    "tests/er-receipts.test.mjs": "aba6dbbb73e71a5789454cabdafb0eeb2b81763df9d6cb7e15372d6a2ec27532",
+    "tests/output-policy.test.mjs": "8928c19e01950920d48cc82b0784e62c647f79ef22ae50fdb5e2d96aae885feb"
+  },
+  "unchanged_inputs": {
+    "services/conversationOutput.ts": "42d598564073d51b7cfb710757b3bceaa79a6a3c76c8d5007af66039f5b0015f",
+    "services/operatorFeedback.ts": "6e701c22651c1bea0368c3ba3641ec3d09ecc7b2c9a13e9c5b37388bbacb965e",
+    "services/receiptAudioManifest.json": "3c6af05335cbd4907c4a5f23468fdcbd3f9251395ddfd77d1351260edca7df6e",
+    "types.ts": "ff4f1e721394614e9ddf796256dedf84b8e416b20efde5dc83ae7ccf2a92e406",
+    "constants.ts": "cd49787f380f51ac069c59e015eb8e5b46627c64a030097bfa6773734fb7131b"
+  },
+  "tests": {
+    "focused": 8,
+    "full": 285,
+    "typecheck": "PASS",
+    "build": "PASS",
+    "before_log": "Historical seven-case preimplementation run preserved. It includes missing-feature failures and fixture-preparation errors; not seven claimed runtime defects.",
+    "peer": "Independent source review plus eight focused tests PASS; post-decode currentness race fixed before freeze."
+  },
+  "dist": {
+    "dist/index.html": {
+      "sha256": "040bd2aa84a8c070351db69ecff156413c617b9e252bfcb81491fe6bedf8ca11",
+      "bytes": 1345
+    },
+    "dist/receipt-audio/stand-queued.pcm": {
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "bytes": 63362
+    },
+    "dist/receipt-audio/request-failed.pcm": {
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "bytes": 163230
+    },
+    "dist/receipt-audio/right-paw-command-queued.pcm": {
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "bytes": 90242
+    },
+    "dist/receipt-audio/left-paw-command-queued.pcm": {
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "bytes": 90242
+    },
+    "dist/receipt-audio/wait-queued.pcm": {
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "bytes": 58082
+    },
+    "dist/receipt-audio/physical-count-unsupported.pcm": {
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "bytes": 167522
+    },
+    "dist/receipt-audio/trick-queued.pcm": {
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "bytes": 58082
+    },
+    "dist/receipt-audio/arc-queued.pcm": {
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "bytes": 56190
+    },
+    "dist/receipt-audio/stop-requested.pcm": {
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "bytes": 61922
+    },
+    "dist/receipt-audio/turn-queued.pcm": {
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "bytes": 57602
+    },
+    "dist/receipt-audio/move-queued.pcm": {
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "bytes": 52830
+    },
+    "dist/receipt-audio/interactive-action-queued.pcm": {
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "bytes": 97922
+    },
+    "dist/assets/index-3iuDIzOU.js": {
+      "sha256": "6db1b2dfc9fc4989a4ca0729ffc1ebdaeb07fef71e6717ffb2cfe10ccc73ae52",
+      "bytes": 721709
+    }
+  },
+  "peer_review_sha256": "9fd764cf4da4076bb67d23e2c7e1993e841fe077778f927a6a192a788064df51",
+  "actual_google_evidence": "foundation/results/workstream1-er-tts-feasibility-20261101.json; earlier service, not this integrated cached/action-TTS candidate.",
+  "human_audio_evidence": "User accepted exact natural ER2+Puck TTS WAV. Existing12cached clips were already human-approved; no assets regenerated.",
+  "remaining": [
+    "Actual browser/Google rehearsal of this exact integrated candidate, including mixed chat/actions, fourth handshake and interruption.",
+    "TTS waveform may differ from exact input; only immutable cached clips have individual waveform review.",
+    "Currentness drops stale streaming chunks but cannot retract sound already heard.",
+    "Consumer tuple intentionally limited to ER2+3.1FlashTTS+Puck; no model migration or other-voice fallback.",
+    "Natural conversation claim screening remains heuristic; these changes do not guarantee free-form model truth."
+  ],
+  "archive": {
+    "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-er-receipts-20261101/workstream1-er-receipts-candidate-20261101.tar.gz",
+    "sha256": "c17a8767393499715d242b6ec3d1035607ff2ed7f9bbf5d0680ceefad1269340",
+    "bytes": 1118761,
+    "verified_files": 37,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-er-receipts-candidate-20261101.tar.gz",
+    "manifest_sha256": "259cfa803947a580a141f5e7bf89fed867dd937111770d8aaa81007216460e20"
+  },
+  "root_integration": {
+    "source_matches_freeze": true,
+    "affected_checks": 8,
+    "human_tts_sample": "Yeah, the sample sounds fine.",
+    "browser": "Verified exactindex-3iuDIzOU.js, FAKEbanner, selectedER2/Puck/TTS3.1, Connected actualmicrophone; awaiting humanthree-requestcheck.",
+    "default_model": "Unchanged; current browser deliberately selectedER2 forcomparison.",
+    "ui_followup": {
+      "scope": "Source-only concisebanner and namedConversationbutton reviewed,12existingchecks; oldApp remains in the running index-3iu build until nextcombinedbuild.",
+      "receipt": "artifacts/access/ws1-ui-wording-20261101/receipt.json"
+    }
+  }
+}

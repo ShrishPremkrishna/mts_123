@@ -1,0 +1,1005 @@
+{
+  "created_utc": "2026-11-02T02:00:07.112132+00:00",
+  "verdict": "Natural ER2 TEXT plus Puck streaming TTS works after billing, and exact fake move/Stop tools pass in the2048-cap follow-up. No default migration: one natural sample, missing audible task receipts and Optional3 parity, human accepted this natural sample.",
+  "scope": "Actual reviewed production-service candidate, actual Google Live/TTS, explicit localhost fake API, constructed typed requests. No hardware, microphone, camera, browser playback or measured sound.",
+  "models": {
+    "modelName": "gemini-robotics-er-2-streaming-preview",
+    "voiceName": "Puck",
+    "ttsModelName": "gemini-3.1-flash-tts-preview",
+    "outputPolicy": "conversation",
+    "extraInstructions": "",
+    "enableVideo": false,
+    "enableAudio": false,
+    "quickReceipts": false,
+    "robotApiUrl": "http://127.0.0.1:18097",
+    "cameraSource": "server"
+  },
+  "sources": {
+    "initial": {
+      "service_sha256": "aa10dea7d757e66506fac6ee38c6e5f8e2b07f0148e84c1967cfbef72a5a4876",
+      "gate_sha256": "42d598564073d51b7cfb710757b3bceaa79a6a3c76c8d5007af66039f5b0015f",
+      "bundle_sha256": "0987516fca608366d70a7093f4af82e4f323116cd36dd1162fb0b3023e532f18",
+      "tools_sha256": "8acbedec7fc0fafa3c55889855156ab75ed15d20d0bf10703d92726e923520e8",
+      "probe_sha256": "1cd3e0450641d4b30b3c0675cdc40ee7f9414114e7a1d5643999b63fc3fd0102",
+      "sdk_version": "1.50.1",
+      "diagnostic_only_change": "Live maxOutputTokens1024; TTS maxOutputTokens2048. No root/candidate source edits."
+    },
+    "remaining": {
+      "service_sha256": "aa10dea7d757e66506fac6ee38c6e5f8e2b07f0148e84c1967cfbef72a5a4876",
+      "gate_sha256": "42d598564073d51b7cfb710757b3bceaa79a6a3c76c8d5007af66039f5b0015f",
+      "bundle_sha256": "19ba13a2013d90b2b2674df67a1ff6b8fb690b415a84ff1e22e3b546ee8c0451",
+      "tools_sha256": "8acbedec7fc0fafa3c55889855156ab75ed15d20d0bf10703d92726e923520e8",
+      "probe_sha256": "910868f110ceea2ca2e2dee1b6dad6c0b286dce077bbfb265d274038f5aa6aa0",
+      "sdk_version": "1.50.1",
+      "diagnostic_only_change": "Remaining tool-only diagnostic: Live maxOutputTokens128, six sends max, zero TTS requests. Original natural speech path already measured without this smaller cap. No root/candidate source edits."
+    },
+    "generation_seal_peer": "/private/tmp/ws1-generation-seal-20261101/peer-review.json"
+  },
+  "results": {
+    "natural": {
+      "requested": "Hi Pupper! In two short sentences, greet me and explain the difference between a 15-degree turn and a turn rate of 20 degrees per second. Do not call robot tools.",
+      "screened_text": "Hi there, I'm Pupper! A 15-degree turn is the total angle I'm aiming to rotate, while 20 degrees per second is the speed at which I'll spin to get there.",
+      "first_admitted_pcm_ms": 2777.699417,
+      "generation_complete_ms": 1850.4339999999997,
+      "tts_request_ms": 1852.5076669999999,
+      "tts_to_first_pcm_ms": 925.19175,
+      "tts_stream_complete_ms": 6028.785,
+      "audio": {
+        "pcm_path": "/private/tmp/ws1-er-tts-billed-20261101/greeting_units.pcm",
+        "wav_path": "/private/tmp/ws1-er-tts-billed-20261101/greeting_units.wav",
+        "pcm_sha256": "c6e0f2c512e53eaf849c4315b79ee8b4d42a07d97844ffa5082a818263884e00",
+        "wav_sha256": "b25201214258d4c259258ec70276f22a7e59b4c853deba7d650b9a417fd1b7bd",
+        "bytes": 512640,
+        "duration_seconds": 10.68,
+        "sample_rate": 24000,
+        "channels": 1,
+        "format": "PCM signed16 little endian; service codec assumption; verify response MIME",
+        "human_review": "approved for this listening sample"
+      },
+      "waveform_checks": {
+        "sample_count": 256320,
+        "peak_abs_int16": 28399,
+        "peak_dbfs": -1.2429377448226981,
+        "rms_dbfs": -17.963537802345208,
+        "full_scale_samples": 0,
+        "note": "PCM signed16 little endian per production decoder and this little-endian host; content and voice require human listening."
+      },
+      "returned_mime": "audio/l16; rate=24000; channels=1",
+      "semantic_review": "Correctly distinguishes total angle from angular rate; no robot tool or action claim in this sample. User subsequently accepted this exact natural sample."
+    },
+    "status": {
+      "calls": [
+        {
+          "name": "robot_status",
+          "args": {},
+          "entry_ms": 926.207958,
+          "result": {
+            "success": true,
+            "message": "controller mode: locomotion controller active. 0 queued; running: False. No action is currently running. Confirmed Sit-entry playbacks in this server session: 0. Physical pose, speed and stopping have not been measured.",
+            "details": {
+              "queued": 0,
+              "running": false,
+              "current_action": null,
+              "physical_observation": {
+                "pose": null,
+                "speed": null,
+                "stopped": null
+              },
+              "seconds_left": 0,
+              "following": false,
+              "controller_fault": null,
+              "state": "locomotion",
+              "state_after_queue": "locomotion",
+              "last_outcome": null,
+              "session_context": {
+                "schema": "pupper_session_context_v1",
+                "server_instance": "148e99b5fc6646a3a002652f28e8e751",
+                "scope": "this_server_session",
+                "completed_sit_entries": 0
+              },
+              "observed_controller_mode": "locomotion"
+            }
+          },
+          "reply_ms": 930.026042
+        }
+      ],
+      "visible_receipt": "Controller: locomotion. No command running; 0 queued. Following off. Confirmed Sit-entry playbacks in this server session: 0.",
+      "audio_bytes": 0
+    },
+    "move": {
+      "tool_calls": [],
+      "admitted_audio_bytes": 0,
+      "turn_ms": 890.822291,
+      "assessment": "No model action dispatched. Smaller128-token diagnostic cap is a confound, not evidence that the normal model cannot move."
+    },
+    "stop": {
+      "tool_calls": [],
+      "admitted_audio_bytes": 0,
+      "turn_ms": 880.2901659999998,
+      "assessment": "No model Stop dispatched. Harness cleanup Stop is separate and does not count as passing this request."
+    },
+    "action_followup": {
+      "source": {
+        "service_sha256": "aa10dea7d757e66506fac6ee38c6e5f8e2b07f0148e84c1967cfbef72a5a4876",
+        "gate_sha256": "42d598564073d51b7cfb710757b3bceaa79a6a3c76c8d5007af66039f5b0015f",
+        "bundle_sha256": "0e9ac60d486283c23b4d8dbc8ea6f5290bea7cfcab8e747a24e6d42dc4f34f4e",
+        "tools_sha256": "8acbedec7fc0fafa3c55889855156ab75ed15d20d0bf10703d92726e923520e8",
+        "probe_sha256": "16f5e9271fdcca0b3a10d6c64d73a9a7e5e9d313e1239d6f9c5f7461e3d0e431",
+        "sdk_version": "1.50.1",
+        "diagnostic_only_change": "Remaining tool-only diagnostic: Live maxOutputTokens2048, four sends max, zero TTS requests. Original natural speech path already measured without this smaller cap. No root/candidate source edits."
+      },
+      "move": {
+        "name": "move",
+        "text": "Move forward at 0.2 metres per second for half a second.",
+        "started": 259.2355,
+        "logs": [
+          {
+            "at_ms": 1279.918792,
+            "id": "0.2i4oq1lon0a",
+            "timestamp": 1793584845979,
+            "type": "function",
+            "message": "Request: move"
+          },
+          {
+            "at_ms": 1286.673042,
+            "id": "0.nzy9xz29gn",
+            "timestamp": 1793584845986,
+            "type": "receipt",
+            "message": "Move queued."
+          },
+          {
+            "at_ms": 1949.3428339999998,
+            "id": "0.mzg3b876tr",
+            "timestamp": 1793584846649,
+            "type": "info",
+            "message": "Timing {\"turn\":1,\"basis\":\"ms from first observed server callback\",\"reason\":\"complete\",\"latest_audio_release_sent_at_ms\":null,\"latest_audio_release_to_first_callback_ms\":null,\"input_transcript_first_ms\":null,\"input_transcript_end_ms\":null,\"first_model_output_ms\":1426,\"first_native_chunk_ms\":null,\"tool_entry_ms\":757,\"tool_reply_ms\":764,\"receipt_ms\":764,\"tool_count\":1,\"native_playback_expected\":false,\"generation_complete_ms\":1426,\"turn_complete_ms\":1426,\"native_playback_scheduled_ms\":null,\"observed_input_end_to_model_ms\":null,\"native_chunk_to_turn_complete_ms\":null,\"generation_complete_to_playback_ms\":null,\"turn_complete_to_playback_ms\":null,\"note\":\"Input transcript callbacks are not guaranteed to align with model turns or acoustic speech end. Audio release is an SDK send boundary, not acoustic end or guaranteed turn association. Native playback is scheduled, not measured sound. Null means unobserved.\"}"
+          }
+        ],
+        "dispatch": [
+          {
+            "at_ms": 1279.951209,
+            "id": "fc_3272781855707969827",
+            "name": "move",
+            "timestamp": 1793584845979,
+            "status": "sending",
+            "message": "Sending request"
+          },
+          {
+            "at_ms": 1286.654125,
+            "id": "fc_3272781855707969827",
+            "name": "move",
+            "timestamp": 1793584845986,
+            "status": "accepted",
+            "message": "Move queued."
+          }
+        ],
+        "timing": [
+          {
+            "at_ms": 155.578709,
+            "phase": "server_message_callback",
+            "atMs": 414.802917,
+            "metadata": {
+              "message_sequence": 1,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 522.544209,
+            "phase": "server_message_callback",
+            "atMs": 781.777834,
+            "metadata": {
+              "message_sequence": 2,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 878.3235,
+            "phase": "server_message_callback",
+            "atMs": 1137.557375,
+            "metadata": {
+              "message_sequence": 3,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1279.729584,
+            "phase": "server_message_callback",
+            "atMs": 1538.962042,
+            "metadata": {
+              "message_sequence": 4,
+              "tool_count": 1,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1279.95825,
+            "phase": "tool_call_start",
+            "atMs": 1539.193,
+            "metadata": {
+              "message_sequence": 4,
+              "request_id": "fc_3272781855707969827",
+              "tool": "move"
+            }
+          },
+          {
+            "at_ms": 1286.599084,
+            "phase": "tool_call_resolved",
+            "atMs": 1545.832292,
+            "metadata": {
+              "message_sequence": 4,
+              "request_id": "fc_3272781855707969827",
+              "tool": "move",
+              "status": "accepted"
+            }
+          },
+          {
+            "at_ms": 1286.77975,
+            "phase": "function_response_send_start",
+            "atMs": 1546.014542,
+            "metadata": {
+              "message_sequence": 4,
+              "request_id": "fc_3272781855707969827",
+              "tool": "move"
+            }
+          },
+          {
+            "at_ms": 1286.941792,
+            "phase": "function_response_send_return",
+            "atMs": 1546.1765,
+            "metadata": {
+              "message_sequence": 4,
+              "request_id": "fc_3272781855707969827",
+              "tool": "move"
+            }
+          },
+          {
+            "at_ms": 1716.03175,
+            "phase": "server_message_callback",
+            "atMs": 1975.263834,
+            "metadata": {
+              "message_sequence": 5,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1948.081042,
+            "phase": "server_message_callback",
+            "atMs": 2207.310334,
+            "metadata": {
+              "message_sequence": 6,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 76,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1948.389417,
+            "phase": "server_message_callback",
+            "atMs": 2207.620625,
+            "metadata": {
+              "message_sequence": 7,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": true,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1948.8412500000002,
+            "phase": "server_message_callback",
+            "atMs": 2208.072792,
+            "metadata": {
+              "message_sequence": 8,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": true,
+              "generation_complete": false,
+              "disposed": false
+            }
+          }
+        ],
+        "packets": [
+          {
+            "at_ms": 155.2495,
+            "keys": [
+              "setupComplete"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 522.504042,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 878.3091669999999,
+            "keys": [
+              "sessionResumptionUpdate"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1279.712209,
+            "keys": [
+              "toolCall"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [
+              {
+                "name": "move",
+                "args": {
+                  "speed": 0.2,
+                  "direction": "forward",
+                  "duration": 0.5
+                },
+                "id": "fc_3272781855707969827"
+              }
+            ],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1716.005542,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1948.0369589999998,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": "I have queued a forward movement for half a second at 0.2 meters per second!",
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1948.346209,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": true,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1948.808417,
+            "keys": [
+              "serverContent",
+              "usageMetadata"
+            ],
+            "turn_complete": true,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          }
+        ],
+        "calls": [
+          {
+            "name": "move",
+            "args": {
+              "speed": 0.2,
+              "direction": "forward",
+              "duration": 0.5
+            },
+            "entry_ms": 1283.14625,
+            "result": {
+              "success": true,
+              "message": "move vx=0.2 vy=0 wz=0 0.5s queued (accepted, not completed); estimated queue time 0.5 s",
+              "details": {
+                "submission": {
+                  "schema": "pupper_submission_v1",
+                  "state": "queued"
+                }
+              }
+            },
+            "reply_ms": 1286.554459
+          }
+        ],
+        "playable": [],
+        "send_return_ms": 0.16254199999997354,
+        "generation_complete_ms": 1948.3632919999998,
+        "turn_complete_ms": 1948.817167,
+        "finished_ms": 2030.5102089999998,
+        "queue_after": {
+          "queued": 0,
+          "running": false,
+          "current_action": null,
+          "physical_observation": {
+            "pose": null,
+            "speed": null,
+            "stopped": null
+          },
+          "seconds_left": 0,
+          "following": false,
+          "controller_fault": null,
+          "state": "locomotion",
+          "state_after_queue": "locomotion",
+          "last_outcome": {
+            "name": "move vx=0.2 vy=0 wz=0 0.5s",
+            "success": true,
+            "message": "sent velocity commands vx=0.2 vy=0 wz=0 for 0.50 s; then requested zero velocity"
+          },
+          "session_context": {
+            "schema": "pupper_session_context_v1",
+            "server_instance": "605e77bc6f28486eb9a1f67d01f8683c",
+            "scope": "this_server_session",
+            "completed_sit_entries": 0
+          },
+          "runtime": "fake",
+          "hardware_connected": false,
+          "command_epoch": "605e77bc6f28486eb9a1f67d01f8683c:0",
+          "command_epoch_required": true
+        }
+      },
+      "stop": {
+        "name": "stop",
+        "text": "Stop now.",
+        "started": 2293.397292,
+        "logs": [
+          {
+            "at_ms": 728.5540000000001,
+            "id": "0.8vymmpcueow",
+            "timestamp": 1793584847462,
+            "type": "function",
+            "message": "Request: Stop"
+          },
+          {
+            "at_ms": 735.6281669999998,
+            "id": "0.zeo9g9x22gr",
+            "timestamp": 1793584847469,
+            "type": "receipt",
+            "message": "Stop requested."
+          },
+          {
+            "at_ms": 1435.5141249999997,
+            "id": "0.kd8t8u8bua",
+            "timestamp": 1793584848169,
+            "type": "info",
+            "message": "Timing {\"turn\":2,\"basis\":\"ms from first observed server callback\",\"reason\":\"complete\",\"latest_audio_release_sent_at_ms\":null,\"latest_audio_release_to_first_callback_ms\":null,\"input_transcript_first_ms\":null,\"input_transcript_end_ms\":null,\"first_model_output_ms\":1004,\"first_native_chunk_ms\":null,\"tool_entry_ms\":299,\"tool_reply_ms\":306,\"receipt_ms\":306,\"tool_count\":1,\"native_playback_expected\":false,\"generation_complete_ms\":1004,\"turn_complete_ms\":1006,\"native_playback_scheduled_ms\":null,\"observed_input_end_to_model_ms\":null,\"native_chunk_to_turn_complete_ms\":null,\"generation_complete_to_playback_ms\":null,\"turn_complete_to_playback_ms\":null,\"note\":\"Input transcript callbacks are not guaranteed to align with model turns or acoustic speech end. Audio release is an SDK send boundary, not acoustic end or guaranteed turn association. Native playback is scheduled, not measured sound. Null means unobserved.\"}"
+          }
+        ],
+        "dispatch": [
+          {
+            "at_ms": 728.6160420000001,
+            "id": "fc_13227924342194099849",
+            "name": "stop",
+            "timestamp": 1793584847462,
+            "status": "sending",
+            "message": "Sending request"
+          },
+          {
+            "at_ms": 735.5911249999999,
+            "id": "fc_13227924342194099849",
+            "name": "stop",
+            "timestamp": 1793584847469,
+            "status": "accepted",
+            "message": "Stop requested."
+          }
+        ],
+        "timing": [
+          {
+            "at_ms": 284.60591699999986,
+            "phase": "server_message_callback",
+            "atMs": 2578.001834,
+            "metadata": {
+              "message_sequence": 9,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 429.68783299999996,
+            "phase": "server_message_callback",
+            "atMs": 2723.084209,
+            "metadata": {
+              "message_sequence": 10,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 726.497292,
+            "phase": "server_message_callback",
+            "atMs": 3019.892917,
+            "metadata": {
+              "message_sequence": 11,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 728.1807920000001,
+            "phase": "server_message_callback",
+            "atMs": 3021.576667,
+            "metadata": {
+              "message_sequence": 12,
+              "tool_count": 1,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 728.683458,
+            "phase": "tool_call_start",
+            "atMs": 3022.080084,
+            "metadata": {
+              "message_sequence": 12,
+              "request_id": "fc_13227924342194099849",
+              "tool": "stop"
+            }
+          },
+          {
+            "at_ms": 735.569958,
+            "phase": "tool_call_resolved",
+            "atMs": 3028.965875,
+            "metadata": {
+              "message_sequence": 12,
+              "request_id": "fc_13227924342194099849",
+              "tool": "stop",
+              "status": "accepted"
+            }
+          },
+          {
+            "at_ms": 735.6531669999999,
+            "phase": "function_response_send_start",
+            "atMs": 3029.050042,
+            "metadata": {
+              "message_sequence": 12,
+              "request_id": "fc_13227924342194099849",
+              "tool": "stop"
+            }
+          },
+          {
+            "at_ms": 735.9813749999998,
+            "phase": "function_response_send_return",
+            "atMs": 3029.378292,
+            "metadata": {
+              "message_sequence": 12,
+              "request_id": "fc_13227924342194099849",
+              "tool": "stop"
+            }
+          },
+          {
+            "at_ms": 1153.89725,
+            "phase": "server_message_callback",
+            "atMs": 3447.29375,
+            "metadata": {
+              "message_sequence": 13,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1434.0135,
+            "phase": "server_message_callback",
+            "atMs": 3727.410375,
+            "metadata": {
+              "message_sequence": 14,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 94,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": false,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1434.0786669999998,
+            "phase": "server_message_callback",
+            "atMs": 3727.475709,
+            "metadata": {
+              "message_sequence": 15,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": false,
+              "generation_complete": true,
+              "disposed": false
+            }
+          },
+          {
+            "at_ms": 1435.457708,
+            "phase": "server_message_callback",
+            "atMs": 3728.85475,
+            "metadata": {
+              "message_sequence": 16,
+              "tool_count": 0,
+              "audio_parts": 0,
+              "input_transcription_chars": 0,
+              "input_transcription_finished": null,
+              "output_transcription_chars": 0,
+              "interrupted": false,
+              "turn_complete": true,
+              "generation_complete": false,
+              "disposed": false
+            }
+          }
+        ],
+        "packets": [
+          {
+            "at_ms": 284.59087499999987,
+            "keys": [
+              "sessionResumptionUpdate"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 429.662875,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 726.4743749999998,
+            "keys": [
+              "sessionResumptionUpdate"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 728.1059580000001,
+            "keys": [
+              "toolCall"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [
+              {
+                "name": "stop",
+                "args": {},
+                "id": "fc_13227924342194099849"
+              }
+            ],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1153.8763329999997,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1433.9966249999998,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": "I have requested a stop! The command queue is clear and zero walking speed has been requested.",
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1434.0722499999997,
+            "keys": [
+              "serverContent"
+            ],
+            "turn_complete": false,
+            "generation_complete": true,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          },
+          {
+            "at_ms": 1435.448417,
+            "keys": [
+              "serverContent",
+              "usageMetadata"
+            ],
+            "turn_complete": true,
+            "generation_complete": false,
+            "interrupted": false,
+            "text": "",
+            "output_transcript": null,
+            "tools": [],
+            "cancellations": null
+          }
+        ],
+        "calls": [
+          {
+            "name": "stop",
+            "args": {},
+            "entry_ms": 732.4896249999997,
+            "result": {
+              "success": true,
+              "message": "No running job existed when Stop began. Cleared 0 pending queued commands, separate from the running job. zero walking speed requested. Physical stopping has not been measured.",
+              "details": {
+                "running_job": null,
+                "pending_queued_commands_cleared": 0,
+                "physical_observation": {
+                  "stopped": null,
+                  "pose": null
+                }
+              },
+              "command_epoch": "605e77bc6f28486eb9a1f67d01f8683c:1",
+              "command_epoch_required": true
+            },
+            "reply_ms": 735.5470829999999
+          }
+        ],
+        "playable": [],
+        "send_return_ms": 0.11245800000006057,
+        "generation_complete_ms": 1434.074083,
+        "turn_complete_ms": 1435.451,
+        "finished_ms": 1523.826333,
+        "queue_after": {
+          "queued": 0,
+          "running": false,
+          "current_action": null,
+          "physical_observation": {
+            "pose": null,
+            "speed": null,
+            "stopped": null
+          },
+          "seconds_left": 0,
+          "following": false,
+          "controller_fault": null,
+          "state": "locomotion",
+          "state_after_queue": "locomotion",
+          "last_outcome": {
+            "name": "move vx=0.2 vy=0 wz=0 0.5s",
+            "success": true,
+            "message": "sent velocity commands vx=0.2 vy=0 wz=0 for 0.50 s; then requested zero velocity"
+          },
+          "session_context": {
+            "schema": "pupper_session_context_v1",
+            "server_instance": "605e77bc6f28486eb9a1f67d01f8683c",
+            "scope": "this_server_session",
+            "completed_sit_entries": 0
+          },
+          "runtime": "fake",
+          "hardware_connected": false,
+          "command_epoch": "605e77bc6f28486eb9a1f67d01f8683c:1",
+          "command_epoch_required": true
+        }
+      },
+      "assessment": "Correct requested parameters, typed queued acceptance and known Stop receipt. No audible task confirmation in current ER2 path; raw model narration remains muted. The Stop occurred after the finite move completed, so this is not an in-flight interruption test."
+    }
+  },
+  "spending": {
+    "authorized_subagent_cap_usd": 1,
+    "root_entire_batch_cap_usd": 5,
+    "requests_executed": 6,
+    "live_connections": 3,
+    "tts_requests": 1,
+    "first_conservative_sum_usd": 0.8073900000000003,
+    "final_conservative_accounting_usd": 0.8443780000000003,
+    "returned_usage_request_level_live_estimate_usd": 0.042475,
+    "tts_cumulative_stream_max_estimate_usd": 0.005646,
+    "request_level_total_estimate_usd": 0.048121,
+    "source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "rates_per_million_tokens": {
+      "er2_input": 1,
+      "er2_output": 5,
+      "tts_text_input": 1,
+      "tts_audio_output": 20
+    },
+    "accounting_limit": "TTS repeated cumulative usage on268chunks; summing it counted input/output repeatedly. Request-level estimate uses each TTS request maximum counters and retains raw values. Live missing response counts remain missing, not inferred exact charges. This is not an invoice.",
+    "review_rejection": "Automatic approval rejected first continuation because historical$0.807 conservative sum was omitted. No network run occurred. Revised continuation included all$0.807 and capped worst-case additional usage$0.14784, total$0.95523. One intermediate syntax error also occurred before network.",
+    "remaining_diagnostic_caps": {
+      "previous_conservative_usd": 0.8073900000000003,
+      "max_remaining_model_invocations": 6,
+      "max_context_tokens_upper_bound": 24000,
+      "max_output_tokens_per_invocation": 128,
+      "additional_max_usd": 0.14784,
+      "total_max_usd": 0.9552300000000002,
+      "tts_requests_allowed": 0,
+      "note": "Count each UTF-8 context byte conservatively as one input token, plus2000 setup overhead; abort before sending beyond24k or six invocations. Remaining three tool turns have no audible receipts in current ER path."
+    },
+    "additional_authorization": "Root explicitly authorized two2048-token follow-up requests because128-token cases were inconclusive. Added hard max$0.14496; total hard ceiling$0.970355."
+  },
+  "limitations": [
+    "Current ER2 path has visible code-owned tool receipts but no audible action/status acknowledgments; it is not full functional parity with native voice.",
+    "Natural TTS admission was recorded in a Node sink, not physical sound latency; a different prompt/native sample is not a matched latency comparison.",
+    "The tighter128-token continuation is confounded. Two missing action responses are preserved as failures/inconclusive; no silent reruns.",
+    "Synthetic typed input did not exercise speech recognition or audio interruption.",
+    "Puck selection does not prove acoustic consistency with Live Puck; human listening required.",
+    "A successful single response does not establish robust latency or availability.",
+    "A later root-authorized2048-token follow-up established the two basic tools; it did not retest audio, pending-action cancellation, full skills or Optional3."
+  ],
+  "cleanup": {
+    "fake_server_port": 18097,
+    "pid": 90698,
+    "stopped": "SIGINT; Application shutdown complete, process exited0",
+    "google_sessions": "disconnected in finally; fake immediateStop requested separately after each run",
+    "no_production_change": true,
+    "followup": "Task-owned fake server restarted only for two additional requests, then SIGINT shutdown completed and exited0."
+  },
+  "cache_extension_proposal": {
+    "production_edits": false,
+    "assessment": "Existing approved Live-generated Puck PCM may be reused for exact ER2+3.1FlashTTS+Puck consumer tuple, retaining original generation model and hashes. Preserve current-HTTP and typed queued/Stop/known-failure authority, all cancellation/failure sequencing and suppressed tool-turn model text.",
+    "minimal_boundaries": [
+      "Explicit consumer tuple allowlist at preload and cache lookup; do not relabel manifest generation model.",
+      "Remove native-only condition from cached code-owned cue admission after actual current reply.",
+      "Keep natural text generation and TTS unchanged. No cloud call on action response."
+    ],
+    "still_missing": [
+      "Dynamic status audible receipt",
+      "Fourth-handshake native-joke composition parity",
+      "Actual browser interruption/voice latency"
+    ],
+    "status": "Implemented separately in isolated candidate /private/tmp/ws1-er-receipts-20261101; peer/integration separate from these cloud results."
+  },
+  "human_listening": {
+    "scope": "User listened to this exact natural ER2+Puck TTS WAV and said: Yeah, the sample sounds fine.",
+    "wav_sha256": "b25201214258d4c259258ec70276f22a7e59b4c853deba7d650b9a417fd1b7bd",
+    "effect": "Qualitative sample voice/content acceptance only; no measured latency or broad voice equivalence."
+  },
+  "archive": {
+    "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-er-tts-billed-20261101/workstream1-er-tts-feasibility-20261101.tar.gz",
+    "sha256": "2aa2be2c01980ef945f28217881aeca04ad1273eeffae3469fafa04a5f5faaff",
+    "bytes": 1759581,
+    "verified_files": 24,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-er-tts-feasibility-20261101.tar.gz",
+    "manifest_sha256": "624c6a43e00b56d988e1f581251a4a2df62bdb832cf77913c5f8de5092d9b2ba"
+  }
+}

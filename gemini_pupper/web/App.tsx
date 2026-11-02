@@ -314,7 +314,7 @@ const App: React.FC = () => {
       <div role="status" className="shrink-0 px-3 py-2 text-xs bg-gray-900 text-amber-200">
         {(geminiRef.current?.outputPolicy ?? normalizeOutputPolicy(config.outputPolicy)) === 'receipts'
           ? 'Receipt-only control — model narration is muted. Feedback describes server responses, not observed motion.'
-          : 'Conversation + control — native speech waits for a complete turn. Tool turns show server receipts; other speech and vision descriptions remain unverified.'}
+          : 'Conversation + control — action feedback follows server replies, not observed motion. Conversation and camera descriptions remain unverified.'}
         {logs.filter(entry => entry.type === 'receipt').at(-1)?.message && <div aria-live="polite">
           Latest response: {logs.filter(entry => entry.type === 'receipt').at(-1)?.message}
         </div>}
@@ -431,6 +431,8 @@ const App: React.FC = () => {
         <div className="flex bg-gray-800 rounded-lg p-1">
           <button 
             onClick={() => setView('face')}
+            aria-label="Conversation"
+            title="Conversation"
             className={`p-2 rounded ${view === 'face' ? 'bg-gray-700 text-cyan-400' : 'text-gray-500'}`}
           >
             <FaceIcon />

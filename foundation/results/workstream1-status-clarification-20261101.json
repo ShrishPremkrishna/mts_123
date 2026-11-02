@@ -1,0 +1,192 @@
+{
+  "created_utc": "2026-11-02T02:30:08.738904+00:00",
+  "status": "Isolated peer-reviewed candidate, not applied or deployed by this agent.",
+  "problem": "Successful read-only status lookup previously muted an appropriate follow-up paw clarification.",
+  "contract": [
+    "Requires advertised robot_status/play_trick/interactive_action plus structured Sit and both named paw mappings.",
+    "Exactly one current successful read-only status may offer Which paw would you like, left or right? No motion, auth/gate, Stop or mixed call grants this exception.",
+    "Native audio requires complete exact question transcript; existing status receipt audio behavior remains.",
+    "Eligible ER single-status waits until generationComplete: exact fixed question replaces the typed receipt, otherwise the actual authorized typed status is spoken. Model paraphrase never supplies receipt speech.",
+    "Same currentness, pre-response, stale/reusedID, cancellation, Stop/PTT/disconnect, pending decode and fourth-handshake rules remain.",
+    "Two existing catalog reads occur at connect only when the needed tools are advertised; catalog failure disables the exception."
+  ],
+  "files": {
+    "services/conversationOutput.ts": "5a01c9507ec81ac832b0519cb7bce064120ca1cf9060c8d8bd625b8f168e417f",
+    "services/geminiLive.ts": "23f9ac5948572ed2b0b4c20d623e19d5a61b0e326b0f95b36b12afe2de7f75ce",
+    "tests/status-clarification.test.mjs": "48cfea0a661bee12b119e84b6b54f5c0030ddc90e99ae0b2dbf4960260d8cd1f"
+  },
+  "tests": {
+    "before": "4 failed/4 passed in original eightcases",
+    "focused": 9,
+    "full": 294,
+    "typecheck": "PASS",
+    "build": "PASS",
+    "source_peer_sha256": "74a6345e6278c48c56487404f30077d402dca18b6783fe6bef8d6de6e51d4b3c",
+    "actual_result_peer_sha256": "a2ba9cd7d08d99d31c324ea9742936f1d52f10f1cdd30f1b2eb89b1fda56002e"
+  },
+  "actual_google_fake": {
+    "result_sha256": "65f63bdddece97f36db8fa557477000bcf7ad813ddc83a0483f0a2dd6b112156",
+    "script_sha256": "c110ce8b727f33ac15d25dd1a250bdce79bc10fa30fd931160498c47a61ac6a7",
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "tts": "gemini-3.1-flash-tts-preview",
+    "voice": "Puck",
+    "cases": [
+      {
+        "name": "ambiguous_handshake",
+        "request": "Can we shake paws? I have not picked a side yet.",
+        "tool_calls": [
+          {
+            "name": "robot_status",
+            "args": {},
+            "success": true,
+            "reply_ms": 1351.371333
+          }
+        ],
+        "actual_synthesized_text": "Which paw would you like, left or right?",
+        "generation_complete_ms": 2453.975583,
+        "first_admitted_pcm_ms": 3684.5082079999997,
+        "audio": {
+          "pcm_path": "/private/tmp/ws1-status-clarification-20261101/ambiguous_handshake.pcm",
+          "wav_path": "/private/tmp/ws1-status-clarification-20261101/ambiguous_handshake.wav",
+          "pcm_sha256": "020a0acd49fa6fe1f8d9d9badd3555483538c84cc43d99fb3abe01f115d32885",
+          "wav_sha256": "fca9fe684d0504723b39d6d7b728674ef32d716d3e7059b8d4bcff48c24ba93c",
+          "bytes": 155520,
+          "duration_seconds": 3.24,
+          "sample_rate": 24000,
+          "channels": 1,
+          "format": "PCM signed16 little endian; service codec assumption; verify response MIME",
+          "human_review": "pending"
+        }
+      },
+      {
+        "name": "status_count",
+        "request": "What is the completed Sit-entry software count in this server session? Check robot_status. I am asking about status, not asking for a handshake.",
+        "tool_calls": [
+          {
+            "name": "robot_status",
+            "args": {},
+            "success": true,
+            "reply_ms": 1477.4727079999993
+          }
+        ],
+        "actual_synthesized_text": "Walking controller active. No command running; 0 queued. 0 Sit-entry playbacks confirmed this server session.",
+        "generation_complete_ms": 2150.5874999999996,
+        "first_admitted_pcm_ms": 2985.639083,
+        "audio": {
+          "pcm_path": "/private/tmp/ws1-status-clarification-20261101/status_count.pcm",
+          "wav_path": "/private/tmp/ws1-status-clarification-20261101/status_count.wav",
+          "pcm_sha256": "028a3ed5ed92a7ecc9eff8eb72ef4a4e7181afa77ac1c3568888ae631d46fa9b",
+          "wav_sha256": "46d650af78178253a11f085a9db1556f21988ad11ee8def60880e5f7505e006c",
+          "bytes": 416640,
+          "duration_seconds": 8.68,
+          "sample_rate": 24000,
+          "channels": 1,
+          "format": "PCM signed16 little endian; service codec assumption; verify response MIME",
+          "human_review": "pending"
+        }
+      }
+    ],
+    "motion_calls": 0,
+    "observed_usage_estimate_usd": 0.02817,
+    "budget": {
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "model": "gemini-robotics-er-2-streaming-preview",
+      "input_per_million": 1,
+      "output_per_million": 5,
+      "tts_model": "gemini-3.1-flash-tts-preview",
+      "tts_input_per_million": 1,
+      "tts_audio_output_per_million": 20,
+      "maximum_live_invocations": 6,
+      "maximum_context_tokens_upper_bound": 32000,
+      "max_output_tokens": 2048,
+      "maximum_tts_requests": 4,
+      "tts_max_output_tokens": 1024,
+      "additional_hard_bound_usd": 0.34,
+      "authorized_additional_cap_usd": 0.5,
+      "user_requests": 2,
+      "no_retries": true
+    },
+    "review": "Both cases met fixed expectations once. Ambiguity produced only status+fixed question; ordinary status produced typed count0/status despite model paraphrase. No broad vision or stochastic reliability claim."
+  },
+  "dist": {
+    "dist/index.html": {
+      "sha256": "0fbdb0f54a17da131814de2351797ce4337a0c6ece8d9d05f16f38c18cab0e07",
+      "bytes": 1345
+    },
+    "dist/receipt-audio/stand-queued.pcm": {
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "bytes": 63362
+    },
+    "dist/receipt-audio/request-failed.pcm": {
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "bytes": 163230
+    },
+    "dist/receipt-audio/right-paw-command-queued.pcm": {
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "bytes": 90242
+    },
+    "dist/receipt-audio/left-paw-command-queued.pcm": {
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "bytes": 90242
+    },
+    "dist/receipt-audio/wait-queued.pcm": {
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "bytes": 58082
+    },
+    "dist/receipt-audio/physical-count-unsupported.pcm": {
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "bytes": 167522
+    },
+    "dist/receipt-audio/trick-queued.pcm": {
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "bytes": 58082
+    },
+    "dist/receipt-audio/arc-queued.pcm": {
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "bytes": 56190
+    },
+    "dist/receipt-audio/stop-requested.pcm": {
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "bytes": 61922
+    },
+    "dist/receipt-audio/turn-queued.pcm": {
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "bytes": 57602
+    },
+    "dist/receipt-audio/move-queued.pcm": {
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "bytes": 52830
+    },
+    "dist/receipt-audio/interactive-action-queued.pcm": {
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "bytes": 97922
+    },
+    "dist/assets/index-7auHb9iP.js": {
+      "sha256": "d5b53f209dbe034f20bd445da3a65aeddc5795c8c197177f927bf5c98c0ffa35",
+      "bytes": 724245
+    }
+  },
+  "integration": "Apply only three-file patch to root and rebuild; isolated App snapshot predates separately owned wording polish. Do not copy old App/dist over root.",
+  "limits": [
+    "Actual probe used typed constructed inputs, no camera/image, microphone, browser or robot.",
+    "First PCM is an application sink boundary, not measured audible latency. Generated waveforms are retained; no new human waveform review yet.",
+    "Question relevance remains model-selected; wrong-side visual inference is not fixed or validated here.",
+    "ER eligible status audio waits for generation completion; provider stalls leave visible status available but audio pending.",
+    "TTS input is code-owned; waveform exactness is not mathematically guaranteed. Natural conversation screening remains heuristic."
+  ],
+  "cleanup": {
+    "fake_api": "127.0.0.1:18101",
+    "pid": 93884,
+    "process": "SIGINT requested; Application shutdown complete and Finished server process observed; exec exited0.",
+    "google": "Probe process exited0 after finally immediateStop(fake) and service.disconnect. result.closed=false is callback state, not the shutdown evidence.",
+    "no_remaining_owned_jobs": true
+  },
+  "archive": {
+    "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/access/ws1-status-clarification-20261101/workstream1-status-clarification-20261101.tar.gz",
+    "sha256": "6bbb12a7b6135e04c33753763cf15677563d830e03d233128afe274717fe0b6c",
+    "bytes": 6702779,
+    "verified_files": 90,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/workstream1-status-clarification-20261101.tar.gz",
+    "manifest_sha256": "5a0bc19d27f0bd593bbd435f50fb55c8957821ebc3b36ff94912b1022ab85174"
+  }
+}

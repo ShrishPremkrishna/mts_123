@@ -162,13 +162,13 @@ test('completion arriving before tool HTTP reply cannot release tool-turn narrat
  assert.deepEqual(e.audio,[]);assert.equal(e.logs.some(x=>x.type==='receipt'),false);
  d.resolve({success:true});await pending;assert.deepEqual(e.audio,[]);assert.equal(e.logs.filter(x=>x.type==='receipt').length,1);
 });
-test('non-native speak is buffered, never awaited by tools, and discarded for tool turns',async()=>{
+test('non-native model speak is buffered and discarded for tool turns while code receipts remain',async()=>{
  const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
  await e.s.handleMessage(call('say','speak',{text:'Hello there'}));assert.deepEqual(e.speech,[]);
  await e.s.handleMessage(call('move','move'));await e.s.handleMessage({serverContent:{turnComplete:true}});
- assert.deepEqual(e.speech,[]);assert.deepEqual(e.calls,['move']);
+ assert.deepEqual(e.speech,['Move request accepted.']);assert.deepEqual(e.calls,['move']);
  await e.s.handleMessage(call('next','speak',{text:'How is your day?'}));await e.s.handleMessage({serverContent:{turnComplete:true}});
- await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['How is your day?']);
+ await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Move request accepted.','How is your day?']);
 });
 
 
@@ -208,13 +208,13 @@ test('ER transcript-only output reaches TTS at the complete generation screen wi
  await e.s.handleMessage({serverContent:{generationComplete:true}});await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Hello friend!']);
  await e.s.handleMessage({serverContent:{turnComplete:true}});await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Hello friend!']);
 });
-test('ER transcript-only claims, mixed tool turns and interrupted tails never reach TTS',async()=>{
+test('ER transcript-only claims, mixed tool narration and interrupted tails never reach TTS',async()=>{
  for(const kind of ['claim','tool','interrupted']) {
   const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
   if(kind==='tool')await e.s.handleMessage(call('move','move'));
   if(kind==='interrupted')await e.s.handleMessage({serverContent:{interrupted:true}});
   await e.s.handleMessage({serverContent:{outputTranscription:{text:kind==='claim'?'I have finished moving.':'Hello friend!'},turnComplete:true}});
-  await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,[],kind);
+  await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,kind==='tool'?['Move request accepted.']:[],kind);
  }
 });
 test('ER text and speak aliases do not create duplicate TTS or use native transcription as a second voice',async()=>{

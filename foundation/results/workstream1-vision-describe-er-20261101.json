@@ -1,0 +1,124 @@
+{
+  "schema": "pupper_synthetic_vision_description_v1",
+  "recorded_utc": "2026-11-02T02:25:04.156037+00:00",
+  "decision": "Both synthetic image-side descriptions were correct. Prior handshake choices cannot be attributed to a universal image-delivery failure in this matched ER2 pipeline. No prompt/source changes promoted.",
+  "scope": "Actual Google ER2 Live TEXT plus Puck TTS using reviewed production service and isolated fake HTTP tools; identical synthetic JPEGs/typed requests. No ASR, browser, personal media, speaker playback or robot.",
+  "source": {
+    "service_sha256": "6c2bb1f70fcfeef4c5ad9d7272d1f2560d7275cfc6c887fae10e1358e9087cee",
+    "probe_sha256": "641ffcaaf2981ff6e5fa0167256bfbf55ef79f02f212e276dfe8da55307804f2",
+    "tools_sha256": "e843be380ace242a74c8a826f8b844d2c7578a40ddbe722dd5ab4fa073cee345",
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "tts_model": "gemini-3.1-flash-tts-preview",
+    "voice": "Puck",
+    "prompt_sha256": "88f5aa95861ee30efe8d776af5da0b6545676a4ba5615d413e3dc4a940b1b0ad",
+    "original_source_archive": "ws1-vision-paw-er-20261101.tar.gz",
+    "original_source_archive_sha256": "f56861597cc82347d4c35126022eac2cac2c1674ee35178ce6fd03cbac08c245",
+    "probe_only_config": "maxOutputTokens2048; no extra instructions, no side hints. Each session used baseline prompt and selected fake tools. Model tool calls would have been refused; none occurred."
+  },
+  "cases": [
+    {
+      "case": "describe_left_person",
+      "request": "Describe where the person is in this image; do not call tools.",
+      "image": "person-left.jpg",
+      "frames": [
+        {
+          "at_ms": 139.268125,
+          "sha256": "ed389ba3d9f1787bf8c5b65cfedc42567043d6d5d333f0f7ad8c292df96e75c4"
+        },
+        {
+          "at_ms": 1142.409416,
+          "sha256": "ed389ba3d9f1787bf8c5b65cfedc42567043d6d5d333f0f7ad8c292df96e75c4"
+        },
+        {
+          "at_ms": 2145.88875,
+          "sha256": "ed389ba3d9f1787bf8c5b65cfedc42567043d6d5d333f0f7ad8c292df96e75c4"
+        }
+      ],
+      "text_sent_ms": 3146.563583,
+      "description": "The illustrated person is standing on the left side of the image on a grey surface against a plain, light-colored background.",
+      "tool_calls": [],
+      "turn_complete_ms": 4702.622791,
+      "first_text_or_transcript_after_send_ms": 1551.0244169999996,
+      "tts_texts": [
+        "The illustrated person is standing on the left side of the image on a grey surface against a plain, light-colored background."
+      ],
+      "live_usage_estimate_usd": 0.005472,
+      "tts_usage_estimate_usd": 0.003864,
+      "error": null,
+      "timeout": false
+    },
+    {
+      "case": "describe_right_person",
+      "request": "Describe where the person is in this image; do not call tools.",
+      "image": "person-right.jpg",
+      "frames": [
+        {
+          "at_ms": 313.20695800000067,
+          "sha256": "ec0878a9fedbf79122c06f452a213ba8a4b74b9495c2353454907618410e2305"
+        },
+        {
+          "at_ms": 1314.2953749999997,
+          "sha256": "ec0878a9fedbf79122c06f452a213ba8a4b74b9495c2353454907618410e2305"
+        },
+        {
+          "at_ms": 2316.3655,
+          "sha256": "ec0878a9fedbf79122c06f452a213ba8a4b74b9495c2353454907618410e2305"
+        }
+      ],
+      "text_sent_ms": 3317.6765410000007,
+      "description": "The person is standing on the right side of the image, wearing a blue long-sleeved shirt and dark blue pants.",
+      "tool_calls": [],
+      "turn_complete_ms": 4850.977166000001,
+      "first_text_or_transcript_after_send_ms": 1523.615167,
+      "tts_texts": [
+        "The person is standing on the right side of the image, wearing a blue long-sleeved shirt and dark blue pants."
+      ],
+      "live_usage_estimate_usd": 0.005467,
+      "tts_usage_estimate_usd": 0.003684,
+      "error": null,
+      "timeout": false
+    }
+  ],
+  "cost": {
+    "source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "er_input_per_million": 1,
+    "er_output_per_million": 5,
+    "tts_input_per_million": 1,
+    "tts_output_per_million": 20,
+    "live_observed_usage_estimate_usd": 0.010939,
+    "tts_request_max_usage_estimate_usd": 0.007548,
+    "total_observed_usage_estimate_usd": 0.018487,
+    "authorized_additional_budget_usd": 0.15,
+    "method": "Live observed prompt/tooluse and response/thought counters; TTS maximum cumulative counters per request, not sum per chunk.",
+    "limitations": "Observed usage estimate, not invoice/enforced cap. Live responseTokenCount is missing for both cases; no invented output count. Raw usage preserved. Only these two requests; no retries."
+  },
+  "interpretation": [
+    "The same synthetic JPEG/three-send realtime-video path produced semantically correct image-side descriptions in two fresh sessions. IMAGE tokens were accounted for, but provider does not acknowledge ingestion of each sent frame.",
+    "This narrows the prior all-right handshake result toward request-dependent decision/side-to-tool mapping; it does not identify a unique cause, establish image understanding on every turn, or show reliable social hand selection.",
+    "Synthetic fixtures bypass camera capture/lens processing; no physical camera mounting or robot/body-side proof. No real microphone, browser, audible speaker playback or hardware.",
+    "Same source/prompt/images as ER handshake study, different task text. Prior poor handshake cases remain preserved; no prompting candidate promoted."
+  ],
+  "shutdown": {
+    "google": "Both service disconnect calls completed.",
+    "probe": "Exec exit0 observed when polled after final result; no lingering task-owned process.",
+    "fake_API": "SIGINT exit0 after closed cases.",
+    "hardware": "No hardware, SSH, motors or user media accessed."
+  },
+  "interpretation_qualification": {
+    "source": "Lab 6 - Instructions.txt",
+    "locator": "Q12 lines1386\u20131391",
+    "scope": "The class probes paw on the caller side; baseline generic handshakes did not explicitly require nearest paw. Correct descriptions here isolate the desired capability gap toward task-dependent choice, not prove baseline instruction violation. No-view clarification is an optional design policy."
+  },
+  "independent_review": "clear; peer-review.json",
+  "artifacts": {
+    "repo_directory": "artifacts/access/ws1-vision-describe-er-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/vision-describe-er",
+    "archive_name": "ws1-vision-describe-er-20261101.tar.gz",
+    "sha256": "9425ee1933528d8b6e1321847e37d6e014c75c5416d328f3c8bb49c166665388",
+    "bytes": 20561034,
+    "indexed_files": 217,
+    "index_sha256": "55ca9bf601eba6c4596f01ec43cbb9f8ca085ec8c4dbdeefd71b7817d7392b13",
+    "verified_archive_members": 217,
+    "both_stores_all_files_verified": true
+  }
+}

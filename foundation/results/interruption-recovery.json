@@ -1,6 +1,6 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-11-02T02:03:20.268437+00:00",
+  "updated_utc": "2026-11-02T02:35:12.060024+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
   "mode": "workstream1_active_until_complete",
   "authorization": "User explicitly requires continuing Workstream 1 until done, progressing on independent work when inputs are missing. User confirmed exclusive supervised robot block and normal standing after one homing. Root alone owns live hardware; no teammate follower/Spider handoffs yet.",
@@ -21,7 +21,7 @@
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
   "hardware_session": {
-    "status": "STOPPED: user observed Sit/right-paw/standing repeat normal, supported robot on stand at14% battery; task API/native/recorder gracefully stopped. No motor software running.",
+    "status": "STOPPED prior motor session; fresh battery/new boot has camera only, selected seven-skill profile prepared. Waiting for physical controller PS reconnect; no new homing yet.",
     "ssh": "mts",
     "owner": "/root",
     "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-voice-generated",
@@ -106,13 +106,28 @@
         "bytes": 199453112,
         "files_verified": 110
       }
+    },
+    "next_session": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-pushup-yaw-candidate",
+      "boot_id": "6488fbb6-b9b4-4f6c-a83e-b24c4db3c3bd",
+      "status": "Camera only PID4738 started1793585299.59; native/API not launched. Chargedbattery onstand operatorconfirmed; controllerPSrequestpending,js0absent atlastread.",
+      "prepared_profile_sha256": "d12173e18689a0d064f2a6e000c52546d2ebfd9dae8f3b7a3d58e149542e9b21",
+      "runtime_manifest_sha256": "102f2b31b45839d039415faffa33e7ac6b8555e462ab6421b315affbcfb31201",
+      "pins_sha256": "b8950b2755fe6596e35ef5007b3234750d1e1f8d821f183e39a95d43182acb91",
+      "staged_app": "acb07df plus separate research push_up_yaw_candidate policya84e8872; native/gains/limitsunchanged",
+      "delta_sha256": "940e12f7be09e021b565c43e9f1bdd7f7012be1f02fd573356cfe065f99ccb32",
+      "readiness": "ActualPi prepare_session_profile passed9motioncontrollers/13stoproster. No activation. Freshbootvcgencmdthrottled0/temp70.8C.",
+      "web_delta_sha256": "56e094bb318f19c0b2e1cd576ccd63b295b86e1cb14a51a17da249e13c7142a4",
+      "web_bundle": "index-Cre9VoGW.js",
+      "web_sha256": "64fbf53487c4b292969b7fafc7746ecbb0c781fa7f62fad4c81a60476089fbba",
+      "source_scope": "ER receipt consumer, fixed status-only paw clarification, conditional visual-side prompt and UI polish; 294 root web tests/typecheck/build passed. Physical camera orientation context has NOT been asserted."
     }
   },
   "activity": {
     "automation": "PAUSED; persistent goal ACTIVE",
-    "compute": "All training GPUs released. Pi native/API/recorders stopped. Local fake voice API91183 at8000 for reviewed generation-complete browser check; bounded cloud comparisons.",
-    "root": "Actual microphone test of reviewed generation-complete client, preserve completed robot session, stage next API update. Owns SSH/browser.",
-    "agents": "trial_preparation: vision-guided paw gap; gemini_execution: \u2264$1 ER2+TTS comparison; native_shutdown_fix: pushup candidate readiness independent review."
+    "compute": "Fresh matched sway/bob Colab pilot authorized<=15 prepaidCU, no purchase, immutable45min limit; inspect agent before allocation/retry. Robot camera only; local fake8000 PID91183.",
+    "root": "Reviewed changes integrated/built/staged without native restart; waiting controller reconnect. Root owns all actual robot actions.",
+    "agents": "native_shutdown_fix: authorized bounded matched sway/bob training; gemini_execution: combined voice guard review; trial_preparation: remaining acceptance matrix."
   },
   "evidence": {
     "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
@@ -154,20 +169,31 @@
     "voice_repair_physical": "foundation/results/workstream1-voice-repair-physical-20261101.json",
     "live_idle": "foundation/results/live-idle-diagnostic-20261101.json",
     "context_transport": "foundation/results/workstream1-context-and-transport-followup-20261101.json",
-    "generation_seal": "foundation/results/workstream1-generation-seal-20261101.json"
+    "generation_seal": "foundation/results/workstream1-generation-seal-20261101.json",
+    "er_feasibility": "foundation/results/workstream1-er-tts-feasibility-20261101.json",
+    "er_receipts": "foundation/results/workstream1-er-receipts-candidate-20261101.json",
+    "vision_native": "foundation/results/workstream1-vision-paw-native-20261101.json",
+    "status_clarification": "foundation/results/workstream1-status-clarification-20261101.json",
+    "vision_er": "foundation/results/workstream1-vision-paw-er-20261101.json",
+    "vision_description": "foundation/results/workstream1-vision-describe-er-20261101.json",
+    "vision_er_side_rule": "foundation/results/workstream1-vision-paw-er-side-rule-20261101.json"
   },
   "next": [
     {
-      "id": "voice_protocol",
-      "action": "Generation-seal integrated and actualChrome3turnswaitingfixconfirmed. Peer/testER2PuckTTS+cachecandidate thenactualbrowsercomparison. No newhoming before codeprepared anduserready."
-    },
-    {
-      "id": "voice_alternative",
-      "action": "Afterbillingenabled,dataagent compares existingER2TEXT+PuckTTS within$1,withactualusage andfeaturelimitations. No defaultswitchyet."
-    },
-    {
       "id": "physical",
-      "action": "ValidspokenStop passed. Remainingcontext/gateaudio,clearergeneratedmotion,newpushupcandidatewithtradeoffs andexternalhandoffs. Checkhuman/batterybeforefurthermotorblock."
+      "action": "Controller PS reconnect pending; once connected and user watching start prepared start-session.py ONE homing, start API, floor stockstand, one direct watched pushup yaw candidate; preserve actual IMU and routine/return."
+    },
+    {
+      "id": "voice",
+      "action": "Combined ER2/Puck receipt+clarification+conditional paw-side prompt integrated. Check actual audible browser/robot conversation; confirm physical camera orientation before adding specific test context. Named paw works without that assertion."
+    },
+    {
+      "id": "generated",
+      "action": "Agent running bounded matched sway/bob pilot using existing credits; no auto deployment. Keep complete checkpoint collector/archive and native comparison."
+    },
+    {
+      "id": "external_handoffs",
+      "action": "Follower and Spider pair still awaited from teammates; do not claim tested integration."
     }
   ],
   "do_not_repeat": [
@@ -242,11 +268,12 @@
     "prepared_six_turn_fake_browser": "Prepared but unrun; superseded as the next priority by actual supervised voice/hardware progress. Do not record it as a passed rehearsal."
   },
   "local_rehearsal": {
-    "url": "http://localhost:8000/?build=generation-seal-413072ed",
+    "url": "http://localhost:8000/?build=clarify-er-Cre9VoGW",
     "runtime": "fake",
-    "status": "Generation-seal browser3natural turns evaluated:playback1\u20137msaftergeneration; still longgeneration and weakunits explanations. WaitingER2TTS+receiptcandidate.",
+    "status": "Exact bundle verified loaded; fake rehearsal only. Human microphone check remains pending, no result inferred.",
     "process_receipt": "/private/tmp/ws1-generation-seal-browser/process.json",
-    "robot_forward": "Removed exact127.0.0.1:8000:127.0.0.1:18090; sharedmux preserved; about:blank thenfreshnavigation prevents old keepalive route."
+    "robot_forward": "Removed exact127.0.0.1:8000:127.0.0.1:18090; sharedmux preserved; about:blank thenfreshnavigation prevents old keepalive route.",
+    "ui_bundle_sha256": "64fbf53487c4b292969b7fafc7746ecbb0c781fa7f62fad4c81a60476089fbba"
   },
   "archives_latest": [
     {
@@ -273,7 +300,7 @@
       "link_note": "Absolute roslogs/latest symlink preserved in original tar and explicit index, not followed on extraction."
     }
   ],
-  "updated_at": "2026-11-02T02:03:20.268437+00:00",
+  "updated_at": "2026-11-02T02:35:12.060024+00:00",
   "offline_count_candidate": {
     "commit": "950988d",
     "deployed": true,
@@ -308,6 +335,7 @@
   "compute_spend_policy": {
     "user_billing_enabled_now": true,
     "approval_threshold_usd": 5,
-    "interpretation": "Ask user before a run or exploration batch expected above$5; currentcombinedvoicecomparison cap$5, ER2+TTS subbudget$1. No spendinglimit beyond notification/approval threshold; do not split work to evade it."
+    "interpretation": "Ask user before a run or exploration batch expected above$5; currentcombinedvoicecomparison cap$5, ER2+TTS subbudget$1. No spendinglimit beyond notification/approval threshold; do not split work to evade it.",
+    "current_voice_batch": "Shared cap$5. ERconservative$.8444/observedestimated$.0481; nativevision upper$.4734; ERvision observed$.1188; descriptionprobe \u2264$.15; clarificationtestreserved\u2264$.50. Browserusage additional/uninvoiced; no requestexpectedtoapproach$5."
   }
 }
