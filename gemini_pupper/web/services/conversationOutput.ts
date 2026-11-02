@@ -17,6 +17,7 @@ export interface ConversationOutput {
   transcript: string;
 }
 interface Turn extends ConversationOutput {
+  sealed: boolean;
   toolBearing: boolean;
   dropped: boolean;
   bytes: number;
@@ -29,7 +30,7 @@ export class ConversationOutputGate {
   private turn: Turn | null = null;
   constructor(private release: (output: ConversationOutput) => void, private notice: (message: string) => void) {}
   private start(): Turn {
-    const turn = { audio: [], text: [], speech: [], transcript: '', toolBearing: false, dropped: false,
+    const turn = { audio: [], text: [], speech: [], transcript: '', sealed: false, toolBearing: false, dropped: false,
       bytes: 0, items: 0, textChars: 0, timer: undefined } as unknown as Turn;
     turn.timer = setTimeout(() => {
       if (this.turn === turn) this.drop('Conversation output omitted: no complete turn boundary arrived.');
@@ -55,9 +56,15 @@ export class ConversationOutputGate {
     const content = message.serverContent;
     if (content?.interrupted || message.toolCallCancellation?.ids?.length) this.discard();
     const calls = message.toolCall?.functionCalls ?? [];
-    const meaningful = !!content?.modelTurn?.parts?.length || !!content?.outputTranscription?.text || calls.length > 0;
+    const meaningful = !!content?.modelTurn?.parts?.length || !!content?.outputTranscription?.text || calls.length > 0 || !!content?.generationComplete;
     if (!meaningful && !this.turn) return;
     const turn = this.turn ?? this.start();
+    // Generation is complete, but its logical turn still owns any late tail.
+    // Never open another output turn until the provider closes this one.
+    if (turn.sealed) {
+      if (content?.turnComplete) { clearTimeout(turn.timer); this.turn = null; }
+      return;
+    }
     if (pendingTool || calls.some(call => !['speak', 'say', 'narrate'].includes(call.name || ''))) {
       turn.toolBearing = true; this.drop();
     }
@@ -82,9 +89,13 @@ export class ConversationOutputGate {
         add(args?.text ?? args?.message ?? args?.content, 'speech');
       }
     }
-    // generationComplete/transcription.finished are not an aligned turn boundary.
-    if (!content?.turnComplete) return;
-    clearTimeout(turn.timer); this.turn = null;
+    // The Live protocol places the final output transcript before generationComplete.
+    // turnComplete may wait for virtual playback; retain its tombstone but do not
+    // wait that extra playback duration. Older providers can close with turnComplete.
+    // https://ai.google.dev/api/live#bidigeneratecontentservercontent
+    if (!content?.generationComplete && !content?.turnComplete) return;
+    clearTimeout(turn.timer); turn.sealed = true;
+    if (content?.turnComplete) this.turn = null;
     if (turn.dropped || turn.toolBearing) return;
     if (turn.audio.length && !turn.transcript.trim()) {
       this.notice('Conversation audio omitted: no output transcript was available at the turn boundary.'); return;
@@ -131,6 +142,7 @@ const HANDSHAKE_JOKE = 'At this rate, I should charge for pawtographs.';
  * The streak counts accepted requests in this connection, never physical handshakes. */
 export class NativeReceiptOutputGate {
   private turn: ReceiptTurn | null = null;
+  private generationSealed = false;
   private unscopedOutputSeen = false;
   private handshakeStreak = 0;
   constructor(private release: (audio: string[]) => void) {}
@@ -142,12 +154,14 @@ export class NativeReceiptOutputGate {
       this.turn.audio = []; this.turn.transcript = ''; this.turn.text = '';
     }
   }
+  /** New input cancels output but preserves a handshake already counted at generation end. */
+  discardPending() { this.invalidate(!this.generationSealed); }
   resetContext() { this.handshakeStreak = 0; this.invalidate(); }
-  close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.unscopedOutputSeen = false; this.handshakeStreak = 0; }
+  close() { if (this.turn) clearTimeout(this.turn.timer); this.turn = null; this.generationSealed = false; this.unscopedOutputSeen = false; this.handshakeStreak = 0; }
   /** A code-owned cached receipt replaces only this authorized native response.
    * Preserve accepted-request bookkeeping; do not permit later duplicate audio. */
   consumeAuthorized(turn: ReceiptTurn | null, text: string): boolean {
-    if (!turn || this.turn !== turn || turn.invalid || turn.outputSeen || turn.authorized !== text) return false;
+    if (!turn || this.turn !== turn || this.generationSealed || turn.invalid || turn.outputSeen || turn.authorized !== text) return false;
     turn.invalid = true; turn.authorized = null;
     turn.audio = []; turn.transcript = ''; turn.text = '';
     return true;
@@ -161,7 +175,7 @@ export class NativeReceiptOutputGate {
       && turn.requests.every(r => r.returned && r.accepted && (r.role === 'status' || r.queued));
   }
   authorize(turn: ReceiptTurn | null, text: string, source: object, result: any): string | null {
-    if (!turn || this.turn !== turn) return null;
+    if (!turn || this.turn !== turn || this.generationSealed) return null;
     const request = turn.requests.find(r => r.token === source);
     if (!request || request.returned) { this.invalidate(); return null; }
     request.returned = true;
@@ -187,6 +201,15 @@ export class NativeReceiptOutputGate {
     const content = message.serverContent;
     const calls = (message.toolCall?.functionCalls ?? []).filter(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
     if (content?.interrupted || message.toolCallCancellation?.ids?.length || calls.some(call => call.name === 'stop')) this.handshakeStreak = 0;
+    if (this.generationSealed) {
+      const turn = this.turn;
+      if (calls.length || content?.interrupted || message.toolCallCancellation?.ids?.length) this.invalidate();
+      if (content?.turnComplete) {
+        if (turn) clearTimeout(turn.timer);
+        this.turn = null; this.generationSealed = false; this.unscopedOutputSeen = false;
+      }
+      return turn;
+    }
     const parts = (content?.modelTurn?.parts ?? []).filter(part => !part.thought);
     const hasOutput = !!content?.outputTranscription?.text || parts.some(part => !!part.text || !!part.inlineData?.data);
     if (calls.length && !this.turn) {
@@ -229,14 +252,19 @@ export class NativeReceiptOutputGate {
       add(content?.outputTranscription?.text, 'transcript');
     }
     if (hasOutput) this.unscopedOutputSeen = true;
-    if (content?.turnComplete) {
-      this.unscopedOutputSeen = false;
-      this.handshakeStreak = turn && this.acceptedHandshake(turn) ? Math.min(4, this.handshakeStreak + 1) : 0;
+    if (content?.generationComplete || content?.turnComplete) {
+      // A duplicate empty closure is not a new unrelated conversational turn.
+      const hadActivity = !!turn || this.unscopedOutputSeen;
+      this.generationSealed = true;
+      if (hadActivity) this.handshakeStreak = turn && this.acceptedHandshake(turn) ? Math.min(4, this.handshakeStreak + 1) : 0;
       if (turn) {
-        clearTimeout(turn.timer); this.turn = null;
+        clearTimeout(turn.timer);
         const expected = turn.authorized && normalizeReceiptTranscript(turn.authorized);
         if (!turn.invalid && expected && turn.audio.length && normalizeReceiptTranscript(turn.transcript) === expected
             && (!turn.text || normalizeReceiptTranscript(turn.text) === expected)) this.release(turn.audio);
+      }
+      if (content?.turnComplete) {
+        this.turn = null; this.generationSealed = false; this.unscopedOutputSeen = false;
       }
     }
     return turn;

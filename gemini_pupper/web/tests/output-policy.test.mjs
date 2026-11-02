@@ -202,10 +202,10 @@ test('both modes show matching actual server receipts only after response and ne
 });
 
 
-test('ER transcript-only completed output reaches TTS only after the existing turn screen',async()=>{
+test('ER transcript-only output reaches TTS at the complete generation screen without duplicate turn playback',async()=>{
  const e=service('conversation');e.s.config.modelName='gemini-robotics-er-2-streaming-preview';
  await e.s.handleMessage({serverContent:{outputTranscription:{text:'Hello friend!'}}});assert.deepEqual(e.speech,[]);
- await e.s.handleMessage({serverContent:{generationComplete:true}});assert.deepEqual(e.speech,[]);
+ await e.s.handleMessage({serverContent:{generationComplete:true}});await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Hello friend!']);
  await e.s.handleMessage({serverContent:{turnComplete:true}});await new Promise(r=>setImmediate(r));assert.deepEqual(e.speech,['Hello friend!']);
 });
 test('ER transcript-only claims, mixed tool turns and interrupted tails never reach TTS',async()=>{
@@ -445,4 +445,47 @@ test('Stop/cancel invalidates a final pending chain response and cannot replay t
   d.resolve(queuedHandshake);await pending;await e.s.handleMessage(nativeReply('Left paw command queued. At this rate, I should charge for pawtographs.','stale'));
   assert.deepEqual(e.audio,['handshake1','handshake2','handshake3']);
  }
+});
+
+test('actual service admits complete screened generation before turn end, without replaying its tail',async()=>{
+ const e=service('conversation');
+ await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'hello'}}]},outputTranscription:{text:'Hello there'},generationComplete:true}});
+ await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,['hello']);
+ await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'late'}}]},outputTranscription:{text:'late'},generationComplete:true}});
+ await e.s.handleMessage({serverContent:{turnComplete:true}});assert.deepEqual(e.audio,['hello']);
+ await e.s.disconnect();
+});
+test('actual service pending HTTP cannot authorize native output after generation has sealed',async()=>{
+ const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=()=>d.promise;
+ const pending=e.s.handleMessage(call('pending','move'));
+ await e.s.handleMessage({serverContent:{generationComplete:true}});
+ d.resolve({success:true,details:{submission:{schema:'pupper_submission_v1',state:'queued'}}});await pending;
+ await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'late-receipt'}}]},outputTranscription:{text:'Move queued.'},turnComplete:true}});
+ assert.deepEqual(e.audio,[]);assert.equal(e.logs.filter(x=>x.type==='receipt').length,1,'actual server receipt remains visible');
+ await e.s.disconnect();
+});
+test('Stop during generation-sealed playback invalidates deferred later chunks and preserves dispatch',async()=>{
+ const e=service('conversation'),decoded=deferred();let stopped=0;
+ e.s.playAudioBase64=async data=>{if(data==='first')await decoded.promise;else e.audio.push(data);};
+ await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'first'}},{inlineData:{data:'must-not-play'}}]},outputTranscription:{text:'Hello there'},generationComplete:true}});
+ e.s.robotBridge.callTool=async()=>{stopped++;return {success:true};};await e.s.handleMessage(call('stop','stop'));assert.equal(stopped,1);
+ decoded.resolve();await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,[]);
+ await e.s.handleMessage({serverContent:{turnComplete:true}});await e.s.disconnect();
+});
+
+test('new PTT after generation seal preserves the accepted-handshake streak while Stop still resets it',async()=>{
+ const e=service('conversation');e.s.config.enableAudio=true;e.s.inputAudioContext={state:'running'};
+ e.s.mediaStream={getAudioTracks:()=>[{enabled:false}]};e.s.sessionPromise=Promise.resolve({sendToolResponse:r=>e.responses.push(r),sendRealtimeInput(){}});
+ e.s.robotBridge.callTool=async name=>name==='robot_status'?{success:true}:queuedHandshake;
+ async function shake(i){
+  await e.s.handleMessage(call('s'+i,'robot_status'));
+  await e.s.handleMessage(call('p'+i,'interactive_action',{action:'shake_left'}));
+  const ack=e.responses.at(-1).functionResponses.response.operator_acknowledgment.text;
+  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'paw'+i}}]},outputTranscription:{text:ack},generationComplete:true}});
+  assert.equal(e.s.beginAudioInput(),true);e.s.endAudioInput();
+  await e.s.handleMessage({serverContent:{turnComplete:true}});return ack;
+ }
+ for(let i=1;i<=4;i++)assert.equal((await shake(i)).includes('pawtographs'),i===4);
+ e.s.pauseRobotTools();e.s.robotToolsPaused=false;
+ assert.equal((await shake(5)).includes('pawtographs'),false);
 });

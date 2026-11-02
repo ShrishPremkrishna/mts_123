@@ -1,0 +1,122 @@
+{
+  "schema": "pupper_workstream1_generation_seal_v1",
+  "recorded_utc": "2026-11-02T01:57:33.417410+00:00",
+  "decision": "Reviewed candidate accepted by parent for integration. This report preserves offline software and existing actual-Google evidence; actual candidate browser/acoustic latency remains pending.",
+  "source_base": "6a2506541895a38fe00a9e103cad5b2d5cf5091b",
+  "problem": "The browser withheld complete screened natural audio until turnComplete. Google can delay that marker while it assumes its already-generated audio is playing, adding a second playback-length wait before local playback begins.",
+  "protocol": {
+    "source": "https://ai.google.dev/api/live#bidigeneratecontentservercontent",
+    "contract": "Final output transcription precedes generationComplete; turnComplete can follow only after assumed playback. Interrupted turns may omit generationComplete. The candidate seals at generationComplete, with turnComplete fallback.",
+    "sdk_version": "@google/genai 1.50.1"
+  },
+  "changes": [
+    "Screen and release the full buffered generation once at generationComplete. No partial-audio streaming or removal of existing claim/receipt checks.",
+    "Retain sealed logical-turn tombstones and native request identity through turnComplete; late output, duplicate closure and late HTTP replies cannot reopen authorization.",
+    "Exact native tool receipts still require a current settled actual server reply and full matching transcript. Pending tool calls remain immediate and independent of audio.",
+    "Count an accepted handshake once at generation seal. A new deliberate PTT hold cancels old output while preserving the already-counted streak; explicit Stop/cancellation still resets it.",
+    "Add metadata-only generation_complete_ms and generation_complete_to_playback_ms to existing timing summaries. Model, HIGH thinking, prompt and approved audio assets are unchanged."
+  ],
+  "validation": {
+    "full_web_tests": 277,
+    "typecheck_pass": true,
+    "build_pass": true,
+    "independent_affected_tests": 166,
+    "peer": "evidence/peer-review.json",
+    "source_manifest": "evidence/freeze.json",
+    "bundle": "index-C-SxFecC.js",
+    "bundle_sha256": "413072ede56abf1d856f66ba20c13fcb51120dbc66312a3ea083e3ca4202e4c6",
+    "before_after": "Initial gate failures and fast-PTT handshake regression are preserved, followed by passing final results.",
+    "candidate_browser_latency": "pending",
+    "new_cloud_calls_for_boundary_patch": 0,
+    "hardware_calls": 0
+  },
+  "retained_google_evidence": {
+    "scope": "15 typed constructed requests through actual Google and production GeminiLiveService with isolated HTTP fake robot; output sink records admission, not actual speaker playback. These precede this boundary patch.",
+    "all15_final_audio_and_transcript_before_generationComplete": true,
+    "examples_ms": {
+      "HIGH_explanation": {
+        "generation_complete": 6750,
+        "turn_complete": 13773,
+        "extra_wait": 7023
+      },
+      "LOW_explanation": {
+        "generation_complete": 5548,
+        "turn_complete": 11311,
+        "extra_wait": 5762
+      },
+      "LOW_brief_joke": {
+        "generation_complete": 2418,
+        "turn_complete": 4909,
+        "extra_wait": 2491
+      },
+      "LOW_brief_status": {
+        "generation_complete": 5694,
+        "turn_complete": 10540,
+        "extra_wait": 4846
+      }
+    },
+    "analysis": "evidence/retained-trace-analysis.json",
+    "limitation": "These old traces estimate removable protocol wait; they are not measured speedup of the new browser bundle. Cached fixed cues already bypassed this wait."
+  },
+  "not_promoted": [
+    "LOW thinking: single small ordered comparison showed mixed latency and behavior; no default change justified.",
+    "LOW plus one-brief-sentence instruction: explanation remained verbose, included unsolicited question and was slower than prior LOW sample. Unsafe raw tool-turn claims remained withheld."
+  ],
+  "limitations": [
+    "Actual browser microphone/speaker timing and subjective responsiveness require parent-owned verification.",
+    "Full output transcript does not prove every waveform word matches it; ordinary no-tool English claim filter remains heuristic.",
+    "Generation time and provider delays remain; this removes the extra documented playback wait, not all latency.",
+    "No model-planning, physical capability, universal Stop latency or global optimization claim."
+  ],
+  "artifacts": {
+    "repo_directory": "artifacts/access/ws1-generation-seal-20261101",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generation-seal",
+    "archive_name": "generation-seal-reviewed.tar.gz",
+    "archive_sha256": "8a00d480b48a071a525050bc99eca0549d0cf9be32c9a4c3b4f2fad7eb57bdb4",
+    "archive_bytes": 3078088,
+    "indexed_files": 77,
+    "index_sha256": "84f68e5582e98e77aed6449f7e2990cd824d19d14ebcb0dbdce00ba231318dc5",
+    "verified_all_indexed_files_in_both_stores": true
+  },
+  "actual_browser": {
+    "url": "http://localhost:8000/?build=generation-seal-413072ed",
+    "runtime": "fake; banner and actual module script verified",
+    "bundle": "index-C-SxFecC.js",
+    "operator": "check logs but it seems chill",
+    "recorded_utc": "2026-11-02T02:03:20.251513+00:00",
+    "turns": [
+      {
+        "turn": 1,
+        "first_native_chunk_ms": 2397,
+        "generation_complete_ms": 3565,
+        "turn_complete_ms": 6994,
+        "playback_scheduled_ms": 3572,
+        "generation_to_playback_ms": 7,
+        "native_wait_saved_ms": 3422,
+        "transcript": "Hello! It's always great to meet someone new on campus. How can I help you today?"
+      },
+      {
+        "turn": 2,
+        "first_native_chunk_ms": 8772,
+        "generation_complete_ms": 11816,
+        "turn_complete_ms": 20519,
+        "playback_scheduled_ms": 11816,
+        "generation_to_playback_ms": 1,
+        "native_wait_saved_ms": 8703,
+        "transcript": "I'd be happy to turn for you, would you prefer left or right? The only difference is that I'd request a shorter duration from my turning controller for 15 degrees compared to 20. Should I make that left or right turn?"
+      },
+      {
+        "turn": 3,
+        "first_native_chunk_ms": 11118,
+        "generation_complete_ms": 17252,
+        "turn_complete_ms": 33881,
+        "playback_scheduled_ms": 17253,
+        "generation_to_playback_ms": 1,
+        "native_wait_saved_ms": 16628,
+        "transcript": "Turning 15 degrees is about changing my heading by that amount and then stopping. Walking at a specific rate, like 0.2 degrees per second, describes how fast my heading changes while moving, but my controls don't really work that way. I can walk forward along an arc, or turn in place with the turn tool, but I can't set an explicit walking turn rate. Would you like to try a forward arc or turn in place?"
+      }
+    ],
+    "scope": "Offsets from first observed server callback, not acoustic end; no input transcript content captured so exact user wording unresolved. Natural speech still slow and unit/capability explanations not fully reliable. No tool calls in these3 turns.",
+    "decision": "Protocol waiting fixed, not a general latency/correctness acceptance. Explore reviewed ER2TEXT+TTS alternative."
+  }
+}

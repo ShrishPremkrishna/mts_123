@@ -12,9 +12,9 @@ test('normalization handles compatibility characters, curly quotes and whitespac
  assert.equal(screenConversation('Ｉ’ve   just stopped.'),false);
  assert.equal(screenConversation('Hello!\n How is your day?'),true);
 });
-test('generationComplete and transcript.finished never release before turnComplete',t=>{
+test('generationComplete seals before the virtual playback turnComplete, without duplicate release',t=>{
  const e=setup(t);e.gate.observe({...packet('Hello','data',false),serverContent:{...packet('Hello','data',false).serverContent,generationComplete:true,outputTranscription:{text:'Hello',finished:true}}},false,false);
- assert.equal(e.released.length,0);e.gate.observe({serverContent:{turnComplete:true}},false,false);assert.equal(e.released.length,1);
+ assert.equal(e.released.length,1);e.gate.observe({serverContent:{turnComplete:true}},false,false);assert.equal(e.released.length,1);
 });
 test('byte, item and text bounds drop the entire turn and its continuation',async t=>{
  for(const kind of ['bytes','items','text'])await t.test(kind,t=>{

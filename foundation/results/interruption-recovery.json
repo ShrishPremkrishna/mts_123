@@ -1,9 +1,9 @@
 {
   "schema": "pupper_current_session_v2",
-  "updated_utc": "2026-11-01T22:30:11.254234+00:00",
+  "updated_utc": "2026-11-02T02:03:20.268437+00:00",
   "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
-  "mode": "workstream1_hardware_closed_offline_candidate_reviewed",
-  "authorization": "User is present and supervising the 2026-11-01 robot session, including selected Sit/generated trials. User explicitly stated TA approval is unnecessary; this records the user's statement, not independently verified course approval. Root alone owns SSH, browser, credentials, API/hardware actions and shutdown.",
+  "mode": "workstream1_active_until_complete",
+  "authorization": "User explicitly requires continuing Workstream 1 until done, progressing on independent work when inputs are missing. User confirmed exclusive supervised robot block and normal standing after one homing. Root alone owns live hardware; no teammate follower/Spider handoffs yet.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
@@ -21,510 +21,98 @@
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
   "hardware_session": {
+    "status": "STOPPED: user observed Sit/right-paw/standing repeat normal, supported robot on stand at14% battery; task API/native/recorder gracefully stopped. No motor software running.",
     "ssh": "mts",
-    "staging_root": "/home/pi/pupper-foundation-session-20261029",
-    "status": "INACTIVE. Full voice Sit/hold/both paws/standing, automatic Sit-to-walk and queued cancellation received operator confirmation. Controller rest retained damping; full driver shutdown clearly released the legs. All owned hardware processes exited and the complete archive is locally and durably verified. Generated motion remains unaccepted. Next UI candidate is reviewed offline, not deployed.",
     "owner": "/root",
-    "observation_source": "Root live-session report supplied to state-update agent; this agent made no SSH/API/hardware calls.",
-    "recorded_utc": "2026-11-01T22:20:22.166041+00:00",
-    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1",
-    "native_runtime": {
-      "gateway": "gateway-v4",
-      "driver": "driver-v2",
-      "change": "Existing baseline native overlay, stock limits and gains preserved."
-    },
-    "homing": {
-      "finished_joint_count": 12,
-      "log_epoch_s": 1793569475,
-      "walking_controllers": "Originally configured inactive; stock/direct/voice and selected skill operation since observed. Same homed session retained across API restart; no native configuration or homing change."
-    },
-    "selected_skills": [
-      "sit_stay_shake",
-      "secret_dance"
-    ],
-    "new_skill_motion": "Full voice Sit/ten-second hold/left paw/right paw/standing confirmed good by user. Direct move from Sit automatically exited and walked normally; subsequent queued movement did not execute after Stop. Generated trial2 remains an unaccepted slow/jittery attempt.",
-    "processes": {},
-    "manual_ui": {
-      "url": "http://localhost:8000",
-      "ssh_tunnel": "localhost:8000 -> Pi localhost:18090",
-      "chrome_tab_id": 360980962,
-      "state": "Disconnected; robot API and native processes stopped. Browser key remains user-configured. Last physically tested UI adcf0ce; offline candidate 6e37397 is not deployed.",
-      "deployed_bundle": "index-BBXDn-SK.js",
-      "bundle_sha256": "b759fd27e50c56d5d5d6ea09e733e9f8c6fa909b2e05a138741bc4986df958a8"
-    },
-    "passive_observations": {
-      "battery_percentage": 100,
-      "camera_image": {
-        "http_status": 200,
-        "size_bytes": 58698
-      },
-      "meaning": "Root-reported software observations, not battery-health or visual-understanding validation."
-    },
-    "environment_pins": {
-      "path": "/home/pi/pupper-foundation-session-20261029/environment-ws1-20261101-r2-pins.json",
-      "sha256": "c71a15cf506386e8f8b3035505cb53b9251ca52c1cf260dd0dc93deb70378ba9",
-      "previous_r1": {
-        "path": "/home/pi/pupper-foundation-session-20261029/environment-ws1-20261101-pins.json",
-        "sha256": "c2fdc00b6b1342aa642898856a2be688768af565482eca6d5be0643164921d3a"
-      }
-    },
-    "deployment": {
-      "base_commit": "9a01b29",
-      "base_source_archive_sha256": "ce2f25be5b1518946a9231058a1fab2abfa7521de25068f81c030470af4118fc",
-      "base_receipt": "ws1-deployment-20261101.json",
-      "backup": {
-        "name": "ws1-before-20261101.tar.gz",
-        "sha256": "ce9ff12cb034de63b1f79b6f2e00630781191e9d29b4bdb436ffb1ad4a19e664"
-      },
-      "scope": "All reviewed software updates deployed, per root: fresh observed-controller status, concise receipts, the two live noun-subject claim fixes, turn timing and silent guard notices. No native code/configuration, stock gain or limit changes in this API/UI iteration.",
-      "useful_feedback_local_receipt": "/private/tmp/ws1-useful-feedback-freeze.json",
-      "useful_feedback_peer_review": "/private/tmp/ws1-useful-feedback-peer-review.json",
-      "current_software_commit": "adcf0ce4c34bda75d163edf8ad51f0ccd748d075",
-      "api_r2_source_commit": "8818ce8daab2a84b6d9e206e3ab5340d2bdd62fe",
-      "validation": {
-        "source": "Root report; software checks only, not robot performance.",
-        "before_quiet_guard": {
-          "python_passed": 743,
-          "web_passed": 177,
-          "typecheck": "pass",
-          "build": "pass"
-        },
-        "quiet_guard_delta": {
-          "focused_web_passed": 28,
-          "independent_peer_passed": 4,
-          "scope": "Two-line suppression of spoken guard notice; real server receipts remain audible."
-        }
-      }
-    },
-    "previous_session_20261030": {
-      "ssh": "mts",
-      "staging_root": "/home/pi/pupper-foundation-session-20261029",
-      "status": "PAUSED, CLEANLY SHUT DOWN: user confirmed normal stock standing, stable 2 s forward/backward at 0.2 m/s and left/right turns at 20 deg/s, plus prompt cancellation and no queued turn. Qualitative bounded evidence only. Manager/API/recorder/launch exited; voice unvalidated. Original archive/API receipts preserved in both stores. Empty finalization files disclosed; separately recovered metadata spans movement-test timestamps but final 31.08 s of telemetry are missing. Process exits remain supported by original shutdown stdout.",
-      "last_verified_environment": {
-        "script": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/overlay-env-v5.sh",
-        "pins": "/home/pi/pupper-foundation-session-20261029/environment-v5-review/environment-v5-pins.json",
-        "pins_sha256": "cfc5447581cd0d6f47221499bb91ae8143a4bc07d48346a7c5647beef5367929",
-        "meaning": "Previously verified staged environment, not fresh proof of loaded processes or latest local-source deployment."
-      },
-      "policy": "Keep shipped stock policy, limits and gains. New trained policies require applicable course approval. User has standard Pupper, no tactile rig.",
-      "recovered_remote_archive": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T080848Z-9bd71fc07753469e969fc2f49e325fa5",
-      "recovery_receipt": "foundation/results/floor-stock-raw-recovery-20261030.json",
-      "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6",
-      "persistent_profile": {
-        "launch": "foundation/hardware/lab6_session.launch.py",
-        "launch_sha256": "6b2e4b1dde4bdc4903d4aeb03cb820e68665f69a0d221043fa78131a44fddbfe",
-        "config": "foundation/hardware/lab6-session.yaml",
-        "config_sha256": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
-        "urdf": "foundation/hardware/floor_stock/baseline-expanded.urdf",
-        "urdf_sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
-        "state": "Completed bounded supervised floor baseline; all owned processes stopped. Preserve exact selected inputs and reuse only after next owner read-only inventory/readiness.",
-        "operation": "Fresh launch homes; stock and gemini_walk initially inactive; one physical Options release then direct API/UI commands without repeated homing. R3 latches abort; API Stop zeros/cancels without session shutdown. No teleop velocity publisher or timed trial shutdown; required-process exit tears down launch."
-      },
-      "previous_floor_attempt3_archive": {
-        "path": "artifacts/hardware/2026-10-30/workstream1-floor-attempt3.tar.gz",
-        "sha256": "aace6e1c04946eee743e7cd6e376259a86af2b2831a901b73469bed7b773e3ae",
-        "result": "Not a floor-policy test: activation_observed=false; input window expired; nominal cleanup, no fallback."
-      },
-      "manual_ui": {
-        "url": "http://127.0.0.1:18090",
-        "api_binding": "Pi localhost:18090 via SSH local tunnel",
-        "state": "Browser closed and API stopped; no current live tunnel/session should be assumed. Live Gemini voice was not validated.",
-        "bundle": "index-DFsX71Sq.js",
-        "bundle_sha256": "b68feb99b790dc05b7daa78e3c57b67015368606604c0131a7b37f03b5a4ce8f",
-        "review": "artifacts/validation/lab6-web-manual-20261030-v2/review.json",
-        "validation": "15 mocked tests, typecheck and build passed; deployed for ended session. Direct API floor behavior observed; this does not separately establish every manual UI interaction."
-      },
-      "floor_observation": {
-        "source": "User observation during persistent session",
-        "stock_rise_stand": "Reported normal on floor.",
-        "push_recovery": "Some recovery, described as weak; qualitative uncontrolled observation, not formal perturbation validation.",
-        "walking": "User confirmed clear stable forward/backward at 0.2 m/s and left/right turning at 20 deg/s, each 2 s. Half-second backward/turn screens were too small to judge and are not physical passes.",
-        "current_posture": "Session ended for battery/teammate handoff; current physical placement/power state must be checked by next owner.",
-        "cancellation": "User confirmed prompt stopping of active forward command and no execution of queued left turn."
-      },
-      "latest_queue_status": {
-        "source": "Final cancellation trial receipt before cleanup",
-        "queued": 0,
-        "running": false,
-        "controller_fault": null,
-        "last_outcome": "Active forward cancelled; one queued turn cleared.",
-        "interpretation": "Historical API result; server now stopped."
-      },
-      "direct_api_trial": {
-        "source": "Root API/native evidence with subsequent user confirmation of normal forward step and stop.",
-        "precondition": {
-          "operator": "Upright, standing and ready.",
-          "imu_tilt_rad": 0.04984765,
-          "stop_latched": false,
-          "controller_fault": false,
-          "buttons": "All released."
-        },
-        "events": [
-          {
-            "event": "stand_up accepted",
-            "epoch_s": 1793399280.581
-          },
-          {
-            "event": "native default controller deactivated",
-            "epoch_s": 1793399280.64997
-          },
-          {
-            "event": "native gemini_walk activated",
-            "epoch_s": 1793399280.79938
-          },
-          {
-            "event": "stand_up completed",
-            "epoch_s": 1793399285.409,
-            "outcome": "success"
-          },
-          {
-            "event": "forward accepted",
-            "epoch_s": 1793399285.42709,
-            "speed_m_s": 0.2,
-            "duration_s": 0.5
-          },
-          {
-            "event": "forward completed",
-            "epoch_s": 1793399286.45897,
-            "outcome": "success"
-          },
-          {
-            "event": "immediate Stop succeeded; zero speed requested",
-            "epoch_s": 1793399286.47656
-          }
-        ],
-        "queue_after": "Empty; no fault.",
-        "native_filtered_log": "No new emergency/tilt stop observed.",
-        "operator_forward_observation": "Confirmed normal forward step and stop.",
-        "raw_receipt": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/api-forward-trial.jsonl",
-        "selected_inputs": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/selected-inputs/manifest.json",
-        "selected_inputs_scope": "Frozen launch/config/URDF/web HTML/web JS (5 files).",
-        "subsequent_report": "foundation/results/lab6-floor-basic-20261030.json"
-      },
-      "known_live_limit": {
-        "finding": "A second fall during recovery can produce latent false-success in server reporting.",
-        "owner": "/root/native_shutdown_fix",
-        "state": "Recovery-reporting fix committed8dcc24c; expanded offline runtime/profile/cap/voice fixes reviewed and bundled in current report. None deployed in ended session.",
-        "operating_constraint": "Review/deploy deliberately in next session; do not treat historical API success as physical completion."
-      },
-      "closed_processes": {
-        "owner": "root",
-        "observation_source": "Original manager-first cleanup stdout recorded the exact owned process exits. Archived session-shutdown.json is empty; see the disclosed archive finalization gap.",
-        "launch": {
-          "pid": 27141,
-          "already_exited_observed_epoch_s": 1793399754.2368824
-        },
-        "manager": {
-          "pid": 27146,
-          "exited_epoch_s": 1793399753.4334595
-        },
-        "api": {
-          "pid": 27345,
-          "exited_epoch_s": 1793399754.0355675
-        },
-        "shutdown": "Complete; do not restart or auto-home on reconnect.",
-        "recorder": {
-          "pid": 27750,
-          "exited_epoch_s": 1793399754.2367826
-        }
-      },
-      "shutdown_receipt": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/session-shutdown.json",
-      "archive": {
-        "state": "Original archive preserved and hash-verified in both stores; incomplete finalization disclosed. Separate metadata recovery succeeded, with approximately 31.08 s final telemetry gap remaining.",
-        "remote": "/home/pi/pupper-foundation-session-20261029/lab6-persistent-20261030-complete.tar.gz",
-        "command_exit_code": 0,
-        "sha256": "11e57a8237208d3f36dbac97018b0d551a8c9ea67bb3ca7fa687a9a83ac6d159",
-        "reported_size": "24M",
-        "closed_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6",
-        "shutdown_receipt": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261030T222104Z-persistent-lab6/session-shutdown.json",
-        "download": "Original download and durable copy remain byte/hash verified and must be preserved unchanged.",
-        "local_api_receipts": {
-          "directory": "artifacts/hardware/2026-10-30/persistent-lab6-local",
-          "manifest": "artifacts/hardware/2026-10-30/persistent-lab6-local/manifest.json",
-          "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local",
-          "durable_manifest": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/manifest.json",
-          "verification": "All 4 receipt files SHA256-verified in both locations."
-        },
-        "recovery": [
-          "Preserve original archive and separate recovered metadata/log with recorded hashes.",
-          "Optional offline quantitative analysis can inspect the movement-test time range; account for missing index/footer and final 31.08 s gap.",
-          "Do not treat recovered metadata as complete MCAP repair or shutdown telemetry. No physical retest required solely for the logging gap."
-        ],
-        "local": "artifacts/hardware/2026-10-30/lab6-persistent-20261030-complete.tar.gz",
-        "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/lab6-persistent-20261030-complete.tar.gz",
-        "size_bytes": 25085526,
-        "content_review": {
-          "zero_byte_files": [
-            "session-shutdown.json",
-            "telemetry/metadata.yaml"
-          ],
-          "cause": "Unconfirmed; no storage/power-off cause asserted.",
-          "state": "Metadata reindex completed offline with exit 0; final telemetry gap remains. No further recovery work planned now.",
-          "original_archive": "Preserved exact with existing SHA256; recovered metadata/log are separately labeled."
-        },
-        "telemetry_recovery": {
-          "operation": "Native ros2 bag reindex -s mcap telemetry",
-          "exit_code": 0,
-          "motor_operation": false,
-          "original_mcap_size_bytes": 209145793,
-          "original_condition": "Zeroed tail; footer absent. Original archive preserved unchanged.",
-          "recovered_messages": 495296,
-          "recovered_start_epoch_s": 1793399006.691505,
-          "recovered_end_epoch_s": 1793399723.1549826,
-          "recovered_duration_s": 716.463477718,
-          "recorder_exit_epoch_s": 1793399754.2367826,
-          "missing_final_span_s": 31.08179998397827,
-          "trial_window_statement": "Recovered timestamp range contains all direct-trial HTTP windows (approximately 1793399280 through 1793399544). This establishes time-range coverage, not every expected sample or synchronized metric.",
-          "limitations": [
-            "Reindex warned of missing message index and read file order; this is metadata recovery, not full MCAP repair.",
-            "Approximately31.08 s before recorder exit are missing, including finalization/shutdown telemetry.",
-            "Archived session-shutdown.json remains empty; confirmed process exits are supported by original shutdown stdout."
-          ],
-          "artifacts": [
-            {
-              "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/telemetry-metadata-reindexed.yaml",
-              "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/telemetry-metadata-reindexed.yaml",
-              "sha256": "3a87d524082de4bce3e71102f4abdf3138bc03791c8b190ffbc866f7e8040896",
-              "label": "Recovered metadata/log; separate from original archive."
-            },
-            {
-              "path": "artifacts/hardware/2026-10-30/persistent-lab6-local/telemetry-reindex.log",
-              "durable_copy": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-10-30/persistent-lab6-local/telemetry-reindex.log",
-              "sha256": "adb37d5d5766bf4cae9d321956d099ff004ada062b9d02405f4f39b7185e964d",
-              "label": "Recovered metadata/log; separate from original archive."
-            }
-          ],
-          "next": "No further recovery work planned now. Optional offline quantitative analysis may use available data with these limits; physical retests are not required solely for this log gap."
-        }
-      },
-      "hardware_followup": {
-        "battery": "16.49V/0% matches bundled five-cell calibration; user reported low battery. Earlier inconsistent-gauge claim corrected; actual pack not independently inspected.",
-        "pi_temperature_c": 75,
-        "source": "Root-reported prior status; not a fresh measurement."
-      }
-    },
-    "closed_processes_this_session": {
-      "api_r1": {
-        "pid": 8727,
-        "created_epoch_s": 1793569501.38,
-        "port": 18090,
-        "exit": "Clean exit reported by root; replaced by API r2 without restarting native session."
+    "latest_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-voice-generated",
+    "boot_id": "389bd5e3-d17b-4a5c-aab9-273eebe89875",
+    "processes": {
+      "recorder": {
+        "pid": 9677
       },
       "launch": {
-        "pid": 8183,
-        "created_epoch_s": 1793569467.61,
-        "exit": "Exited during root-owned final shutdown; see shutdown receipt."
+        "pid": 5645,
+        "created": 1793580667.59
       },
       "manager": {
-        "pid": 8197,
-        "created_epoch_s": 1793569468.95,
-        "exit": "Exited during root-owned final shutdown; see shutdown receipt."
+        "pid": 5864,
+        "created": 1793580671.5,
+        "loaded_driver": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+        "sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4"
       },
       "api": {
-        "pid": 20065,
-        "created_epoch_s": 1793570573.67,
-        "port": 18090,
-        "instance": "r2",
-        "source_commit": "8818ce8daab2a84b6d9e206e3ab5340d2bdd62fe",
-        "exit": "Exited during root-owned final shutdown; see shutdown receipt."
-      },
-      "recorder": {
-        "pid": 8728,
-        "created_epoch_s": 1793569501.39,
-        "exit": "Exited during root-owned final shutdown; see shutdown receipt."
-      },
-      "camera": {
-        "pid": 7619,
-        "created_epoch_s": 1793569421.37,
-        "exit": "Exited during root-owned final shutdown; see shutdown receipt."
+        "pid": 6627,
+        "created": 1793580736.62
       }
     },
-    "credentials": {
-      "browser_key": "Configured by user at localhost:8000; never recorded here.",
-      "secret_password_file": "/home/pi/.config/gemini-pupper/secret_password",
-      "secret_password_file_mode": "0600",
-      "scope": "Private root-provisioned file; no credential contents in logs/repository."
+    "selected_skills": [
+      "pee",
+      "push_up",
+      "secret_dance",
+      "sit_stay_shake",
+      "stand_downward_dog",
+      "stand_sit_stand"
+    ],
+    "deployment": {
+      "application_revision": "f45954627c80cf5408ca57bd618a783876b39da0",
+      "driver_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+      "driver_overlay": "/home/pi/pupper-foundation-session-20261029/imu-diagnostic-20261101/candidate-build",
+      "ui_bundle": "index-DpeuNo6e.js",
+      "ui_sha256": "0b9c13248c8258143f1c17d34c175627e736273ccc2482cd77948ae05ff6dfb6",
+      "pins_sha256": "9700e70ed560b01372510ea46499eaa91cf3ae9cc466efc1803ea42a916ed3f6",
+      "app_delta_sha256": "bc906a36381f84cce117371f91a1c6c66a10814268aea96001bb47622247406b",
+      "native_policies_gains_limits": "unchanged; secret_dance is the same previousgeneratedpolicy, not slewcandidate ornewpushupreference",
+      "ui_revision": "6a2506541895a38fe00a9e103cad5b2d5cf5091b",
+      "web_only_update_record": "voice-banner-update.json"
     },
-    "observations_20261101": {
-      "source": "Root supplied native/API evidence and user observations; state-update agent performed no remote access.",
-      "stand_and_direct_arc": {
-        "user_observation": "Normal standing and direct left arc.",
-        "command": {
-          "speed_m_s": 0.2,
-          "radius_m": 0.75,
-          "angle_deg": 30
-        },
-        "scope": "One bounded supervised case, not a robustness estimate."
+    "observations": {
+      "standing": "User good after askingfornormalstockstanding andreadytowatchgeneratedtest",
+      "battery_last": {
+        "percentage": 14,
+        "voltage": 16.73,
+        "pi_cpu_temperature_c": 82.05
       },
-      "voice_movement": {
-        "user_observation": "Backward movement and arc matched the requested actions.",
-        "remaining": "Broader voice/refusal/interruption and exact latency measurements remain incomplete."
+      "generated_motion": "Firsttestnotwatched. Repeat: user sawchangedstandingstance, smallsway, kindofjittery/shookaroundforfewseconds; notaccepted asclear/polishedmotion.",
+      "voice_sit_chain": "User observed full Sit/10second wait/both paws/stand, pretty good, about1second between queued actions. No confirmations audible; audio defect reproduced.",
+      "voice_stop_failed": "Root mistakenly specified0.15m/s below0.2minimum; API rejected move but old client permitted subsequent turn. User saw only turns, slow/missing speech. Not Stop acceptance.",
+      "spoken_stop": "Onevalidsupervisedtrialpassed physicalobservation+queueandcmd_vel evidence; seevoice_repair_physical report.",
+      "right_paw_repeat": "First repeat not watched; requested second Sit/right-paw/stand repeat: user yeah works and yes on stand."
+    },
+    "current_batch": "Complete. Operator confirmed repeatedSit/right-paw/stand; robot supported, drivercleanlyshutdown, completearchiveverified; batteryreplacement can proceed.",
+    "prior_session": {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1-imu-candidate",
+      "status": "Shutdown cleanly, complete archiveverified; see ws1_imu_candidate_physical report"
+    },
+    "recording": {
+      "closed_generated_capture": "generated-diagnostic-capture.tar.gz",
+      "archive_sha256": "3bffdf4a7b56bb37f691f771776d6c26ce5d42cc689305c04dd4a3939105367f",
+      "local": "/private/tmp/ws1-generated-corrected-capture",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/generated-corrected-reader-capture.tar.gz",
+      "continuing_directory": "telemetry-final",
+      "recorder_pid": 33861,
+      "note": "Readlatestowned-processes.json forcreationidentity; no action duringrecorderrollover.",
+      "recorder_created": 1793583539.3,
+      "latest_closed_capture": {
+        "archive_sha256": "20688692a14571153decb2f7af11e32d55285d2e73264c44a9ba0f50e507b277",
+        "bytes": 123231076,
+        "indexed_files_verified": 33,
+        "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/voice-reviewed-capture.tar.gz"
       },
-      "camera": {
-        "result": "Actual Google answered a room-description question using the live camera.",
-        "limitation": "Specific description accuracy was not confirmed by the user."
-      },
-      "sit_hold_exit": {
-        "software": "Sit entry, ten-second hold and exit sequence passed.",
-        "user_observation": "In this earlier direct trial the user noticed Sit but did not watch the full hold; later full voice sequence confirmation is recorded separately."
-      },
-      "sit_both_paws_exit": {
-        "software": "Both paw clips and exit completed; root reported Pi local time 13:55:41.",
-        "user_observation": "User explicitly confirmed both paws looked normal and Pupper stood afterward."
-      },
-      "generated_trial1": {
-        "software": "Controller playback and secret gate checks passed.",
-        "user_observation": "User was not watching; physical performance unverified."
-      },
-      "generated_trial2": {
-        "started_epoch_s": 1793570694,
-        "sequence": [
-          "stand_up",
-          "unlock",
-          "secret_dance",
-          "stand_up"
-        ],
-        "expected_duration_s": 16,
-        "user_readiness": "User confirmed ready to observe before submission.",
-        "result": "Software final status: queue empty, mode reported locomotion, terminal stand_up succeeded. Physical trial attempted but NOT accepted.",
-        "user_observation": "User explicitly watched: swaying took a long time, a few seconds for each, and was a bit jittery, like low frame rate.",
-        "decision": "Root excludes generated motion from the normal repertoire and keeps it locked pending offline diagnosis; no more generated trials in this block.",
-        "diagnosis_owner": "/root/lab6_gemini_execution"
-      },
-      "secret_gate": {
-        "result": "Locked playback and wrong password refused; correct unlock added no queue job. Stop relocked the gate and subsequent playback was refused.",
-        "scope": "Software gate behavior; does not establish physical dance quality."
-      },
-      "voice_full_sit_sequence": {
-        "sequence": [
-          "sit_stay_shake",
-          "hold 10 seconds",
-          "shake_left",
-          "shake_right",
-          "stand_up"
-        ],
-        "user_observation": "User explicitly confirmed the FULL sequence was good.",
-        "scope": "Observed bounded supervised execution; not a general robustness or balance claim."
-      },
-      "sit_to_walk_and_cancel": {
-        "first_sequence": {
-          "steps": [
-            "sit_stay_shake",
-            "wait 1 second",
-            "forward 0.2 m/s for 1 second"
-          ],
-          "move_finished_epoch_s": 1793571150.478,
-          "result": "Ordinary movement automatically exited Sit before walking.",
-          "user_observation": "Normal transition and walk."
-        },
-        "cancellation": {
-          "submitted": [
-            "wait 10 seconds",
-            "forward 0.2 m/s for 1 second"
-          ],
-          "stop_epoch_s": 1793571151.496,
-          "running_wait": "cancelled",
-          "pending_commands_cleared": 1,
-          "epoch_suffix": ":2",
-          "later_queue": "Stayed empty well beyond the original deadline.",
-          "user_observation": "No extra movement."
-        },
-        "scope": "Direct API cancellation and physical observations; not a measured voice recognition/physical Stop latency."
-      },
-      "voice_experience": {
-        "user_complaints": [
-          "Two voices: native Puck and operating-system receipt speech.",
-          "Continuous listening.",
-          "Slow responses."
-        ],
-        "action": "Voice deliberately disconnected; fix or mitigate offline before claiming a polished voice interface."
-      },
-      "voice_timing": {
-        "whole_turn_audio_hold_examples_s": [
-          9.898,
-          13.656
-        ],
-        "api_reply_examples_ms": [
-          38,
-          59
-        ],
-        "input_end": "Not known from the observed callbacks.",
-        "scope": "Two longer-turn audio-hold examples and two API reply examples. Not total utterance-to-action latency, acoustic timing, or a cause attribution."
-      },
-      "supported_lie_down": {
-        "requested_epoch_s": 1793571397.773,
-        "completed_epoch_s": 1793571398.032,
-        "software_result": "success; motors idle; queue empty; typed observed_controller_mode none.",
-        "physical_observation": "User reported less stiff and folding under pressure, but not fully relaxed. This is NOT a full release pass.",
-        "reporting_defect": "Raw robot_status prose incorrectly calls typed imu/joint-state broadcasters unclassified active controllers while structured mode correctly reports none; minimal offline correction assigned, not deployed.",
-        "source_explanation": "Root inspected NeuralController::on_deactivate: controller deactivation retains params.estop_kd damping; hardware deactivation zeroes the packet. Full hardware shutdown is distinct from lie_down."
-      },
-      "final_hardware_release": {
-        "software": "Root completed owned native hardware shutdown and verified no owned survivors.",
-        "user_observation": "Yes, clearly released now.",
-        "scope": "User confirmed release after full shutdown, not after lie_down alone."
+      "status": "All recorders stopped; complete archive verified110 members and durable copy.",
+      "complete_capture": {
+        "archive": "/private/tmp/ws1-voice-generated-complete/20261101-ws1-voice-generated-complete.tar.gz",
+        "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/20261101-ws1-voice-generated-complete.tar.gz",
+        "sha256": "8ef6deb3f53bf8576eab05603e3681a9e015a0acc9cbda01a37cb7a0b80995fd",
+        "bytes": 199453112,
+        "files_verified": 110
       }
-    },
-    "deferred": {
-      "finite_candidates": [
-        "push_up",
-        "pee",
-        "stand_downward_dog"
-      ],
-      "finite_state": "Prepared but not loaded or physically tested; deferred while current block ends for rest. Requires deliberate new profile/native session because the stop roster is immutable.",
-      "excluded": "Do not select sneeze high-speed or known lying-clip clamping cases for this next finite block.",
-      "lie_down": "Completed; reduced resistance but not full physical release. Full release confirmed after separate native hardware shutdown."
-    },
-    "archive_state": "Complete: 219 file hashes and sizes plus durable archive verified; finalized telemetry contains 1,123,733 messages with nonempty metadata and MCAP trailer. See completed_archive_20261101.",
-    "latest_queue_status": {
-      "source": "Root verified supported lie_down final result.",
-      "queued": 0,
-      "planning_state": "motors idle",
-      "observed_controller_mode": "none",
-      "terminal_action": "lie_down",
-      "terminal_success": true,
-      "command_epoch": "464ecc1e1cf64f65866d23a6f6fc4bed:2",
-      "physical_observation": "Historical lie_down receipt; user reported residual resistance then clearly released only after later full shutdown.",
-      "interpretation": "Historical API result; API r2 is now stopped."
-    },
-    "latest_pi_readings": {
-      "source": "Root reported native readings; not independently read by state updater.",
-      "temperature_c": 82.05,
-      "vcgencmd_throttled": "0x80000",
-      "battery_voltage_v": 18.53,
-      "battery_percentage": 74,
-      "interpretation": "Record raw readings. No inference that heat caused generated-motion jitter; no independent battery-health conclusion."
-    },
-    "shutdown_receipt": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261101-ws1/session-shutdown.json",
-    "shutdown": {
-      "source": "Root verified native/log/process evidence; state-update agent made no remote calls.",
-      "complete": true,
-      "owned_process_survivors": [],
-      "manager_sigint_epoch_s": 1793571477.8,
-      "manager_result": "Clean controller deactivation and hardware shutdown; native joy, mux, e-stop and state-publisher children exited cleanly. API r2 exited.",
-      "camera_result": "Wrapper ignored initial SIGINT for 12 seconds; root verified and signaled the camera child with SIGINT, then wrapper exited.",
-      "recorder_sigint_epoch_s": 1793571512.03,
-      "recorder_result": "Recorder flushed and ended.",
-      "telemetry_metadata_size_bytes": 5088,
-      "telemetry_mcap_size_bytes": 505397236,
-      "telemetry_mcap_final_magic": "verified by root",
-      "user_physical_observation": "After full shutdown: Yes, clearly released now.",
-      "scope": "Shutdown and final magic are supported; archive transfer/completeness verification remains pending."
-    },
-    "completed_archive_20261101": {
-      "archive": "artifacts/hardware/2026-11-01/20261101-ws1-complete.tar.gz",
-      "sha256": "ce7e9e28337df7f4f0b4300f03e9e465020dd8ea215faaa7422213153b7f2d3e",
-      "bytes": 125833437,
-      "verified_files": 219,
-      "receipt": "artifacts/hardware/2026-11-01/local-preservation.json",
-      "durable_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/20261101-ws1-complete.tar.gz"
     }
   },
   "activity": {
-    "automation": "PAUSED",
-    "compute": "No new GPU work; no owned hardware or local rehearsal server remains running. Completed archive and diagnostic artifacts are durably verified.",
-    "root": "Finished supervised block, preservation, diagnostic review and offline hold-to-talk candidate. No queued motion or implicit hardware restart.",
-    "agents": "All focused subagents completed their assigned work; none owns live hardware."
+    "automation": "PAUSED; persistent goal ACTIVE",
+    "compute": "All training GPUs released. Pi native/API/recorders stopped. Local fake voice API91183 at8000 for reviewed generation-complete browser check; bounded cloud comparisons.",
+    "root": "Actual microphone test of reviewed generation-complete client, preserve completed robot session, stage next API update. Owns SSH/browser.",
+    "agents": "trial_preparation: vision-guided paw gap; gemini_execution: \u2264$1 ER2+TTS comparison; native_shutdown_fix: pushup candidate readiness independent review."
   },
   "evidence": {
     "hardware_stand": "foundation/results/lab6-stand-hardware-reviewed.json",
@@ -549,28 +137,37 @@
     "ws1_combined_conversation": "foundation/results/workstream1-combined-conversation-20261031.json",
     "ws1_hardware": "foundation/results/workstream1-hardware-20261101.json",
     "ws1_deliberate_voice": "foundation/results/workstream1-deliberate-voice-20261101.json",
-    "generated_hardware_diagnostic": "foundation/results/generated-motion-hardware-diagnostic-20261101.json"
+    "generated_hardware_diagnostic": "foundation/results/generated-motion-hardware-diagnostic-20261101.json",
+    "prior_continuation_start": "foundation/results/history/interruption-recovery-20261101-before-continuation.json",
+    "generated_timing_slew": "foundation/results/generated-motion-timing-slew-20261101.json",
+    "ws1_hardware_imu_failure": "foundation/results/workstream1-hardware-imu-failure-20261101.json",
+    "ws1_native_receipts": "foundation/results/workstream1-native-receipts-20261101.json",
+    "optional3_context": "foundation/results/optional3-context-20261101.json",
+    "ws1_handshake_chain": "foundation/results/workstream1-handshake-chain-20261101.json",
+    "ws1_probe3": "foundation/results/workstream1-imu-probe3-20261101.json",
+    "imu_candidate": "foundation/results/imu-parser-candidate-20261101.json",
+    "ws1_imu_candidate_physical": "foundation/results/workstream1-imu-candidate-physical-20261101.json",
+    "trick_quantity": "foundation/results/workstream1-trick-quantity-20261101.json",
+    "approved_receipt_audio": "foundation/results/workstream1-approved-receipt-audio-20261101.json",
+    "pushup_neutral_reference": "foundation/results/pushup-yaw-neutral-reference-20261101.json",
+    "voice_sequencing": "foundation/results/workstream1-voice-sequencing-20261101.json",
+    "voice_repair_physical": "foundation/results/workstream1-voice-repair-physical-20261101.json",
+    "live_idle": "foundation/results/live-idle-diagnostic-20261101.json",
+    "context_transport": "foundation/results/workstream1-context-and-transport-followup-20261101.json",
+    "generation_seal": "foundation/results/workstream1-generation-seal-20261101.json"
   },
   "next": [
     {
-      "id": "deliberate_voice_live",
-      "action": "Deploy reviewed UI 6e37397 and status/wording fix b4a946d with fresh pins; test real microphone hold/release, last-word recognition and one-voice comfort against fake execution first. Do not confuse this with the completed synthetic-browser check."
+      "id": "voice_protocol",
+      "action": "Generation-seal integrated and actualChrome3turnswaitingfixconfirmed. Peer/testER2PuckTTS+cachecandidate thenactualbrowsercomparison. No newhoming before codeprepared anduserready."
     },
     {
-      "id": "conversation_latency",
-      "action": "Choose and implement a lower-latency speech architecture while retaining server-confirmed action receipts. Current whole-turn buffering still caused roughly 10\u201314 seconds of added playback hold on two long replies; regex changes cannot remove it."
+      "id": "voice_alternative",
+      "action": "Afterbillingenabled,dataagent compares existingER2TEXT+PuckTTS within$1,withactualusage andfeaturelimitations. No defaultswitchyet."
     },
     {
-      "id": "remaining_robot_skills",
-      "action": "Use one deliberate next native roster for selected supplied finite tricks. Check camera-guided paw selection, voice refusal/Stop, and repeatability. Integrate teammate following and Spider only after their evidence is reconciled. Native session is ended; next launch needs one normal stand homing."
-    },
-    {
-      "id": "generated_motion",
-      "action": "Keep generated sway excluded. Diagnose with a simulation timing comparison and later synchronized command/observation/actual-joint capture; existing telemetry does not identify the jitter cause. No blind gain changes or retraining."
-    },
-    {
-      "id": "scope_agreement",
-      "action": "Agree on Lab 6 demonstration coverage, Workstream 1 integration evidence, and the desired interaction experience separately. Do not equate a successful sequence or test count with robust maxed-out capability."
+      "id": "physical",
+      "action": "ValidspokenStop passed. Remainingcontext/gateaudio,clearergeneratedmotion,newpushupcandidatewithtradeoffs andexternalhandoffs. Checkhuman/batterybeforefurthermotorblock."
     }
   ],
   "do_not_repeat": [
@@ -622,10 +219,11 @@
       "report": "foundation/results/workstream1-deliberate-voice-20261101.json",
       "web_tests": 188,
       "browser_synthetic_checks": 24,
-      "deployed": false,
-      "real_speech_checked": false,
+      "deployed": true,
+      "real_speech_checked": true,
       "bundle": "index-ByVhJ0MN.js",
-      "sha256": "2ae75785f593eb19120d5f4ae39a952751dce894b1f134f101d6f5ee7396ff34"
+      "sha256": "2ae75785f593eb19120d5f4ae39a952751dce894b1f134f101d6f5ee7396ff34",
+      "real_speech_scope": "One user-confirmed actual PTT greeting; broader repeatability/comfort still pending."
     }
   },
   "offline_diagnostics": {
@@ -642,5 +240,74 @@
       "actual_gemini_fake_sessions": 2
     },
     "prepared_six_turn_fake_browser": "Prepared but unrun; superseded as the next priority by actual supervised voice/hardware progress. Do not record it as a passed rehearsal."
+  },
+  "local_rehearsal": {
+    "url": "http://localhost:8000/?build=generation-seal-413072ed",
+    "runtime": "fake",
+    "status": "Generation-seal browser3natural turns evaluated:playback1\u20137msaftergeneration; still longgeneration and weakunits explanations. WaitingER2TTS+receiptcandidate.",
+    "process_receipt": "/private/tmp/ws1-generation-seal-browser/process.json",
+    "robot_forward": "Removed exact127.0.0.1:8000:127.0.0.1:18090; sharedmux preserved; about:blank thenfreshnavigation prevents old keepalive route."
+  },
+  "archives_latest": [
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/continuation-powerloss.tar.gz",
+      "bytes": 61853812,
+      "sha256": "02e061170d9642d4cf7b769730ef3c3d200d107d68fc8ec157443ceb2ce79ecb"
+    },
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/battery2-imu-failure.tar.gz",
+      "bytes": 45038700,
+      "sha256": "3c56a0712ea2d6efb4931a45935754f0c1ae8bb3f764f6d8cc1344cc84bc38d8"
+    },
+    {
+      "created_utc": "2026-11-02T00:31:52.384485+00:00",
+      "archive": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-11-01/imu-candidate-physical/imu-candidate-physical-20261101.tar.gz",
+      "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/imu-candidate-physical-20261101.tar.gz",
+      "bytes": 60239324,
+      "sha256": "62aaa13fdca5da5302346474b7759e70e8f028ed1f9f9562fb1b3af83c60a1a6",
+      "main_mcap": {
+        "bytes": 358157229,
+        "sha256": "002a2c4455260783e7a77c6100162def31f1de3a33ca1b2cb1859324ade9986e"
+      },
+      "remote_manifest_verified": true,
+      "link_note": "Absolute roslogs/latest symlink preserved in original tar and explicit index, not followed on extraction."
+    }
+  ],
+  "updated_at": "2026-11-02T02:03:20.268437+00:00",
+  "offline_count_candidate": {
+    "commit": "950988d",
+    "deployed": true,
+    "regression_checks": 866,
+    "actual_gemini_fake_typed_requests": 6,
+    "meaning": "Explicit count/unit required; unsupported quantities rejected before queue. Sampled model requests correctly refused10push-ups andtwice, ordinaryonce/chainsworked. Speech interpretation and arbitrarymodelreliability notproven.",
+    "rejected_design": "Blanket voice-push_up disable based on unavailable final transcript binding; preserved separately, not integrated. Ordinary voice tools remain available."
+  },
+  "offline_voice_candidate": {
+    "status": "Committed and web-only assets installed onPi; native/API not restarted. Corrected actual Chrome fake rehearsal underway; root verified script identity after catching old cached index infirstfakeattempt.",
+    "root": "/private/tmp/ws1-model-action-failure-20261101",
+    "web_tests": 262,
+    "peer_tests": 35,
+    "cli_selected_tests": 93,
+    "human_review": "Original4clips approved;8additionalclips user listened and said Clear and consistent.",
+    "bundle": "index-bxqP8BKy.js",
+    "sha256": "6aa8e97fc5e403b428c5dc6c48e1b190c5904c72a280ee048392f32db87f63db",
+    "commit": "5830b84",
+    "actual_fake": "Verifiednewbundle: all5Sit-chaincallsaccepted; invalid.15m/smove rejected, subsequentturn Not sent/noPOST. User I believe it worked. Browser schedulesfirstfixedcue3msafterHTTPresponse, notacousticmeasurement. Priorstaleoldbundleattemptrejected. OneGoogle1008abortafteridle recorded, automaticStopresponseconfirmed; causeunknown."
+  },
+  "pushup_training": {
+    "owner": "/root/native_shutdown_fix",
+    "session": "pushup-yaw-20261101",
+    "gpu": "RTX PRO6000 Blackwell98GB",
+    "remote_root": "/content/pupper-pushup-yaw-20261101",
+    "local_receipts": "/private/tmp/ws1-pushup-training",
+    "status": "Both500iteration matchedarmscompleted;86filefullarchiveverified andcollector36/36; GPUreleased01:24:38UTC. Agent owns nativeevaluation, no deployment.",
+    "hypothesis": "Train original and mirror-symmetrized references with matchedclassPPO ratherthanretargetingshippedweights, whichfailed5nativecomparison screens.",
+    "budget": "OneGPU,45minmaximum fromsmokestart;64env2iteration smoke then locallyverifiedcheckpointcollectionbefore4096env1000iterationspermatchedarm.",
+    "do_not_duplicate": "Readactualagent/jobexit/checkpointcollector evidencebeforeanyretry. No newpolicy hardwarepromotion."
+  },
+  "compute_spend_policy": {
+    "user_billing_enabled_now": true,
+    "approval_threshold_usd": 5,
+    "interpretation": "Ask user before a run or exploration batch expected above$5; currentcombinedvoicecomparison cap$5, ER2+TTS subbudget$1. No spendinglimit beyond notification/approval threshold; do not split work to evade it."
   }
 }

@@ -44,6 +44,7 @@ interface TurnTiming {
   toolFirst?: number;
   toolReply?: number;
   receipt?: number;
+  generated?: number;
   complete?: number;
   nativeScheduled?: number;
   expectsNative: boolean;
@@ -190,6 +191,7 @@ export class GeminiLiveService {
     const parts = content?.modelTurn?.parts?.filter(part => !part.thought) ?? [];
     if (content?.outputTranscription?.text || parts.some(part => part.text || part.inlineData?.data)) turn.outputFirst ??= now;
     if (parts.some(part => part.inlineData?.data)) turn.audioFirst ??= now;
+    if (content?.generationComplete) turn.generated ??= now;
     if (content?.turnComplete) {
       turn.complete = now; this.currentTurnTiming = null;
     }
@@ -216,9 +218,10 @@ export class GeminiLiveService {
       input_transcript_first_ms: offset(turn.inputFirst), input_transcript_end_ms: offset(turn.inputEnd),
       first_model_output_ms: offset(turn.outputFirst), first_native_chunk_ms: offset(turn.audioFirst),
       tool_entry_ms: offset(turn.toolFirst), tool_reply_ms: offset(turn.toolReply), receipt_ms: offset(turn.receipt),
-      tool_count: turn.tools, native_playback_expected: turn.expectsNative, turn_complete_ms: offset(turn.complete), native_playback_scheduled_ms: offset(turn.nativeScheduled),
+      tool_count: turn.tools, native_playback_expected: turn.expectsNative, generation_complete_ms: offset(turn.generated), turn_complete_ms: offset(turn.complete), native_playback_scheduled_ms: offset(turn.nativeScheduled),
       observed_input_end_to_model_ms: gap(turn.inputEnd, Number.isFinite(firstEvent) ? firstEvent : undefined),
       native_chunk_to_turn_complete_ms: gap(turn.audioFirst, turn.complete),
+      generation_complete_to_playback_ms: gap(turn.generated, turn.nativeScheduled),
       turn_complete_to_playback_ms: gap(turn.complete, turn.nativeScheduled),
       note: 'Input transcript callbacks are not guaranteed to align with model turns or acoustic speech end. Audio release is an SDK send boundary, not acoustic end or guaranteed turn association. Native playback is scheduled, not measured sound. Null means unobserved.' };
     // Optional telemetry must never throw into dispatch or Stop.
@@ -380,7 +383,7 @@ export class GeminiLiveService {
     }
 
     // Connect and store the promise
-    this.log('info', this.outputPolicy === 'receipts' ? 'Receipt-only control: model narration is muted.' : 'Conversation + control: native speech is buffered until the turn ends; tool turns use server receipts. Speech remains unverified.');
+    this.log('info', this.outputPolicy === 'receipts' ? 'Receipt-only control: model narration is muted.' : 'Conversation + control: native speech is buffered until generation finishes; tool turns use server receipts. Speech remains unverified.');
     this.log('info', `Connecting to ${modelName} (Audio Output: ${isAudioOutput ? 'Native' : 'Completed text via configured TTS'})...`);
     this.sessionPromise = this.ai.live.connect({
       model: modelName,
@@ -455,8 +458,9 @@ export class GeminiLiveService {
     if (this.audioInputActive) return true;
     // A fresh deliberate turn owns the output immediately; do not wait for a
     // provider interruption before cancelling older receipt decodes/replies.
-    this.stopPlayback(false);
+    this.stopPlayback(false, false);
     this.conversationOutput.discardPending();
+    this.nativeReceiptOutput.discardPending();
     const generation = ++this.audioInputGeneration;
     this.audioInputActive = true;
     this.mediaStream.getAudioTracks().forEach(track => { track.enabled = true; });
@@ -754,7 +758,7 @@ export class GeminiLiveService {
     }
     if (message.toolCallCancellation?.ids?.length) this.stopPlayback();
     // Mark the whole output turn before any tool/Stop await. Concurrent SDK
-    // callbacks can deliver turnComplete while an HTTP request is unresolved.
+    // callbacks can close generation or the turn while HTTP is unresolved.
     const hasRobotTool = (message.toolCall?.functionCalls ?? [])
       .some(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
     if (hasRobotTool) this.stopPlayback(true, false);

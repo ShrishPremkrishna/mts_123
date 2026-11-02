@@ -1,0 +1,76 @@
+{
+  "schema": "ws1_voice_repair_physical_v1",
+  "recorded_utc": "2026-11-02T01:50:30.450689+00:00",
+  "decision": "Observed valid-speed spoken Stop and audible confirmations passed one supervised floor trial. Workstream remains incomplete; conversation latency/provider idle close and policy quality remain active work.",
+  "runtime": {
+    "session": "20261101-ws1-voice-generated",
+    "boot_id": "389bd5e3-d17b-4a5c-aab9-273eebe89875",
+    "application_revision": "f45954627c80cf5408ca57bd618a783876b39da0",
+    "web_revision": "6a25065",
+    "bundle": "index-DpeuNo6e.js",
+    "bundle_sha256": "0b9c13248c8258143f1c17d34c175627e736273ccc2482cd77948ae05ff6dfb6",
+    "native_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
+    "native_policies_gains_limits": "Unchanged; no homing or native restart during voice updates"
+  },
+  "earlier_failures": [
+    {
+      "case": "root_invalid_speed",
+      "finding": "Root requested0.15m/s below0.2m/s minimum. Old client wrongly allowed later turn after refused move; not a passed Stop test."
+    },
+    {
+      "case": "stale_browser",
+      "finding": "First fake rehearsal had fake backend banner but cached old index-D1HY6a8p.js. User reported neither request worked. Rejected as repaired-client evidence. Explicit build URL and actual script check corrected it."
+    },
+    {
+      "case": "valid_speed_instruction_not_exercised",
+      "finding": "User later clarified both real attempts used0.15. New client correctly rejected move and blocked turn; this was not recognition failure or a valid-speed trial."
+    }
+  ],
+  "repaired_fake_rehearsal": {
+    "bundle": "index-bxqP8BKy.js",
+    "five_tools": "Sit,wait10s,leftpaw,rightpaw,stand all accepted; user I believe it worked",
+    "invalid_sequence": "Move rejected below minimum; later turn Not sent and no turn POST",
+    "speech": "Approved cache ready; firstfixedcue scheduled3ms after firstHTTPreply in capturedbrowser timing, not measured sound"
+  },
+  "supervised_stop": {
+    "request": "Move forward at0.2m/s for6s,then turnleft15degrees; spokenStop after stepping starts",
+    "user_observation": "Yes,it worked,and the stop worked as well,and I heard the confirmations.",
+    "queue_first_running_epoch_s": 1793583228.2010188,
+    "queue_turn_waiting_epoch_s": 1793583228.303671,
+    "queue_cancelled_idle_epoch_s": 1793583232.3027654,
+    "command_epoch_after_stop": "06edebd0865e424ea36df3add583bf4e:9",
+    "derived_analysis": "artifacts/hardware/2026-11-01/voice-stop-derived/report.json",
+    "evidence": "81forwardcommands atvx0.2,4.049621scommandedinterval; thenzero,no laterangular/nonzerocommand inrecordedwindow;499postStopAPIpollsidle/empty. Independentpeer checked.",
+    "limits": "Command records do not measure displacement, acoustic Stop latency, or a general stopping bound."
+  },
+  "natural_conversation_failure": {
+    "statement": "Model incorrectly stated20degrees minimum turn angle; the actual minimum is angular rate20deg/s.15-degree angle isvalid.",
+    "timing_ms": {
+      "release_to_first_callback": 325,
+      "first_audio": 3605,
+      "turn_complete": 19850,
+      "playback_scheduled": 19852
+    },
+    "interpretation": "About16.25s of buffering after firstaudio; free-form units claim was wrong and audible. Exactactionreceipts do not make ordinaryconversation universallytrue.",
+    "pending": "Reviewedpromptunits patch and generationComplete-boundarycandidate; no claim these were active in this physicaltrial."
+  },
+  "archive": {
+    "archive_sha256": "20688692a14571153decb2f7af11e32d55285d2e73264c44a9ba0f50e507b277",
+    "bytes": 123231076,
+    "indexed_files_verified": 33,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-01/voice-reviewed-capture.tar.gz"
+  },
+  "capture_scope": "Completeclosedtelemetry-voicebag and33verifiedindexedfiles. API/native logs are explicit partialsnapshots while main sessioncontinues; newrecorder33861 writes telemetry-final.",
+  "remaining": [
+    "Verify generationComplete speech revision with actual microphone/speakers.",
+    "Final Optional3 conversation/context/gate audio and clearer generated-motion quality.",
+    "Push-up newresearchcandidate has simulation tradeoffs; notdeployed.",
+    "Follower andSpider handoffs absent atlastknownstatus."
+  ],
+  "right_paw_repeat": {
+    "first": "Unobserved; no physical acceptance.",
+    "second": "observed-right-paw-repeat2 Sit/right paw/standing; all API outcomes successful, operator confirmed yeah works.",
+    "counter_final": 3,
+    "shutdown": "User supported robot on stand at14% battery. Stop epoch12, task API/launch/recorder absent, driver log clean, all bags closed."
+  }
+}

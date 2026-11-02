@@ -1,0 +1,106 @@
+{
+  "schema": "ws1_live_idle_diagnostic_v1",
+  "created_utc": "2026-11-02T01:45:20.343265+00:00",
+  "status": "reproduced_provider_close_without_robot_or_application",
+  "scope": "Two actual Google Live synthetic-input sessions using installed Node SDK1.50.1; no robotHTTP, tools, Pupper access, browser, microphone, camera, or production changes. One replica per condition.",
+  "identity": {
+    "model": "gemini-3.1-flash-live-preview",
+    "voice": "Puck",
+    "thinking": "HIGH",
+    "compression": true,
+    "probe_sha256": "1f4ada28acb4fc4238182c0f173a6924e39b49168c4af59cb1f727069cf95310",
+    "source_and_docs_sha256": "ec89d5b25fafdb070d98eeafed041fb21adb0a09351e45beba0fa977078757b5"
+  },
+  "runs": [
+    {
+      "case": "typed_no_end",
+      "raw": "typed_no_end.json",
+      "raw_sha256": "e8ff7068d8c2069ffaa0247102639f824f24488bf7dac48c5ca2a4d6444aba9d",
+      "closed_code": 1008,
+      "closed_reason": "The operation was aborted.",
+      "closed_at_s": 154.442792042,
+      "last_output_at_s": 2.1464484169999998,
+      "last_turn_complete_at_s": 4.329232958,
+      "idle_after_output_s": 152.296315958,
+      "idle_after_turn_complete_s": 150.113559084,
+      "go_away_count": 0,
+      "output_pcm_bytes": 134910,
+      "completed": true
+    },
+    {
+      "case": "audio_end",
+      "raw": "audio_end.json",
+      "raw_sha256": "99ea3adad2656fbc92aaea411906bf05e3fb506655ac6671fb21be0d6d673b98",
+      "closed_code": 1008,
+      "closed_reason": "The operation was aborted.",
+      "closed_at_s": 155.55969224999998,
+      "last_output_at_s": 3.182095916,
+      "last_turn_complete_at_s": 4.527149582999999,
+      "idle_after_output_s": 152.377581667,
+      "idle_after_turn_complete_s": 151.03254266699997,
+      "go_away_count": 0,
+      "output_pcm_bytes": 75390,
+      "completed": true
+    }
+  ],
+  "conclusions": [
+    "Both isolated sessions received remote code1008 with The operation was aborted after approximately150\u2013151seconds from turnComplete, without priorGoAway.",
+    "Typed/no-audio/no-end case reproduces it: audioStreamEnd, PTT, robot tools, controller execution and application lifecycle are not necessary causes.",
+    "The two root-observed browser cases were approximately101seconds after visible reply; this is not established as a universal fixed100second limit.",
+    "Official Google docs inspected describe longer context/connection limits and resumption, but did not document this shorter idle interval. Do not relabel it a documentedtimeout or assume all1008reasons share this cause.",
+    "No providerinternal rootcause is proven. Model-specific behavior, account/service policy and network path remain possible. Node transport is not identical to Chrome; neither experiment measures long-session reliability."
+  ],
+  "usage": {
+    "live_sessions": 2,
+    "user_turns": 2,
+    "constructed_typed_turns": 1,
+    "synthetic_input_audio_s": 0.8039375,
+    "received_output_pcm_bytes": 210300,
+    "received_output_audio_s_at_24k_16bit": 4.38125,
+    "billing_cost": null,
+    "provider_token_counts": null,
+    "limitation": "usageMetadata event presence was recorded but its token fields were not captured in the original bounded probe. Actual billed cost is unknown; audio duration is not a billing estimate. No further calls made to recover that metadata.",
+    "active_sessions_after_completion": 0
+  },
+  "proposal_not_implemented": {
+    "immediate_minimum": [
+      "Keep documentedPTT audioStreamEnd unchanged and retain current automaticStop/actionpause on disconnect.",
+      "Show connection-ended state and explicitReconnect; do not imply the robot crashed or that a serveraccepted action was reversed.",
+      "Log metadata-only connection age,lastsend,lastoutput,lastturnComplete,GoAway timeLeft,pending tool count and closecode/reason. Never log keys, resumption handles or raw microphone data."
+    ],
+    "resumption_contract": [
+      "Enable sessionResumption:{} only in a reviewed candidate; retain latest valid resumable/newHandle in memory with current connection generation and completion boundary.",
+      "On any close/GoAway, pause tools and microphone, invalidate queued audio/output/tool generations, and perform existingStop handling. Connection recovery is not command retry.",
+      "If a tool is pending, Stop outcome unknown, state identity changed, or latest stable resumable token is unavailable, discard continuation and offer a fresh explicitconnection. Do not use an older token to replay a possiblyexecuted action.",
+      "On explicitReconnect, pass same-modelhandle only from a stable,known checkpoint. Keep mutations paused across session creation/resumption; do not let its initial continuations or function calls resume motion.",
+      "Refresh current serverinstance/epoch and status. Require a new deliberate userturn before enabling new motion intent; never replay bufferedPCM, queuedHTTP requests or prior functioncalls.",
+      "Bound one resumeattempt then visible freshconnection fallback; no silencekeepalive, hiddenretryloop or automaticmotionrearm."
+    ],
+    "offline_acceptance_cases": [
+      "expired/stale resumptiontoken fails visibly with no dispatch",
+      "close during pending mutation keeps tools paused andStop unresolved accurately",
+      "resumed provider emits old functioncall before newinput: reject locally",
+      "late oldconnection callbacks cannot send/authorizeoutput",
+      "GoAway absent doesnot blockclosecleanup",
+      "explicit newturn after settledStop/freshinstance can issue onlynewintent"
+    ],
+    "scope_warning": "Provider resumption preserves context, not application action correctness. Documentation says generating/pending-function-call states may be nonresumable and oldhandle can lose data; this proposal must be reviewed/tested before implementation."
+  },
+  "official_sources": [
+    "https://ai.google.dev/gemini-api/docs/live-api/session-management",
+    "https://ai.google.dev/api/live"
+  ],
+  "preservation": {
+    "raw_model_text": "Constructed nonpersonal conversation retained; no microphone recording.",
+    "secrets": "APIkey read from existing private file and never logged. Resumptiontoken contents deliberately omitted.",
+    "main_workspace_changes": "None",
+    "hardware_access": "None"
+  },
+  "durable_artifact_root": "artifacts/access/ws1-live-idle-20261101",
+  "archive": {
+    "path": "artifacts/access/ws1-live-idle-20261101/complete.tar.gz",
+    "sha256": "82b5f40cca7072e96e855f84b301fac115a5fccc802e1dd622698a9ff9cb4c9b",
+    "bytes": 9510,
+    "verified_original_files": 8
+  }
+}
