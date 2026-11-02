@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-02",
+  "scope": "Offline constructed replay of the actual browser service; no provider or robot calls",
+  "status": "Integrated, not robot deployed",
+  "defect": "A repeated provider call ID could execute motion twice. Reproduced in same packet, overlapping packets and after a turn boundary; not observed in retained live traces.",
+  "change": "Session-lifetime IDs claimed before awaits. Duplicate dispatch/response/ack suppressed; original owns its response. Stop can reuse an ordinary ID once; distinct IDs and fresh sessions remain intentional new requests.",
+  "validation": {
+    "baseline_new_regressions": "15 failed,13 passed",
+    "focused": "28 passed",
+    "full_web": "381 passed",
+    "root_affected": "87 passed",
+    "typescript": "passed",
+    "production_build": "passed; existing chunk-size warning",
+    "independent_review": "Final-byte read-only review; no blocking findings; no independent test rerun"
+  },
+  "limits": [
+    "Not an HTTP end-to-end idempotency protocol or physical result.",
+    "Missing IDs retain previous behavior; no content-based deduplication.",
+    "Model intent and natural-language claims still require evidence; no new intent classifier."
+  ],
+  "evidence": {
+    "repo": "artifacts/access/ws1-duplicate-dispatch-20261102",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-duplicate-dispatch",
+    "archive": "complete.tar.gz",
+    "sha256": "dcb5b3292150b170d5f06834cb699b0326c22d5a0bcf02ad122ca9889cfed5b5",
+    "bytes": 2352668,
+    "verified_files": 104
+  },
+  "source_sha256": {
+    "gemini_pupper/web/services/geminiLive.ts": "168fd0f11fc0915522e2ccba8c0132ee1b7fd1a000bb7cd251c87f011b67d0ce",
+    "gemini_pupper/web/tests/request-order.test.mjs": "2b5152f93cdc628c9f8791e6e9453e96107357ed2bbb24febb4eb566d5df0ad3",
+    "gemini_pupper/web/tests/output-policy.test.mjs": "a2131adbe824adf9d8b4fb293198c3997997d4c6f1f85da80ef68f4b60c70a05"
+  }
+}

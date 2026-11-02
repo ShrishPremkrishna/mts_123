@@ -95,7 +95,7 @@ test('current unknown response remains visible after it pauses later model actio
 });
 test('reused model call ID cannot turn an older response into a current acknowledgment',async()=>{
  const e=service('receipts'),old=deferred();e.s.robotBridge.callTool=name=>name==='move'?old.promise:Promise.resolve({success:true});
- const pending=e.s.handleMessage(call('same-id','move'));await e.s.handleMessage(call('same-id','stop')); 
+ const pending=e.s.handleMessage(call('same-id','move'));await e.s.handleMessage(call('same-id','stop'));
  const before=e.dispatches.length;old.resolve({success:true});await pending;assert.equal(e.dispatches.length,before);
  assert.equal(e.logs.filter(x=>x.type==='receipt').length,1);
 });
@@ -426,13 +426,19 @@ test('pre-response chain speech is entirely muted while accepted request bookkee
 
 test('chain permit waits for the final actual reply and rejects failures, unknowns, wrong actions and duplicate IDs',async()=>{
  for(const bad of ['pending','failed','unknown','wrong-action','duplicate','extra-move']){
-  const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=async name=>name==='robot_status'?{success:true}:name==='interactive_action'?(bad==='pending'?d.promise:bad==='failed'?{success:false}:bad==='unknown'?{success:false,outcome_unknown:true}:queuedHandshake):queuedHandshake;
+  const e=service('conversation'),d=deferred();e.s.robotBridge.callTool=async name=>{e.calls.push(name);return name==='robot_status'?{success:true}:name==='interactive_action'?(bad==='pending'?d.promise:bad==='failed'?{success:false}:bad==='unknown'?{success:false,outcome_unknown:true}:queuedHandshake):queuedHandshake};
   await e.s.handleMessage(call('s','robot_status'));
   const actions=[{id:bad==='duplicate'?'s':'p',name:'interactive_action',args:{action:bad==='wrong-action'?'stand_up':'shake_left'}},...(bad==='extra-move'?[{id:'m',name:'move',args:{}}]:[])];
   const pending=e.s.handleMessage({toolCall:{functionCalls:actions}});
   if(bad==='pending'){await e.s.handleMessage(nativeReply('Left paw command queued.','pre-reply'));d.resolve(queuedHandshake);}
   await pending;await e.s.handleMessage(nativeReply('Left paw command queued.','unapproved'));
-  assert.deepEqual(e.audio,[],bad);assert.equal(e.responses.at(-1).functionResponses.response.operator_acknowledgment,undefined,bad);
+  assert.deepEqual(e.audio,[],bad);
+  if(bad==='duplicate'){
+   // The original status reply remains legitimate; the duplicate produces no
+   // second HTTP action, response or acknowledgment, and its narration is muted.
+   assert.deepEqual(e.calls,['robot_status']);assert.equal(e.responses.length,1);
+   assert.equal(e.responses[0].functionResponses.response.operator_acknowledgment.text,'Status request accepted.');
+  }else assert.equal(e.responses.at(-1).functionResponses.response.operator_acknowledgment,undefined,bad);
  }
 });
 

@@ -84,6 +84,10 @@ export class GeminiLiveService {
   private receiptPreloadController: AbortController | null = null;
   private cancelledToolIds = new Set<string>();
   private dispatchedActionIds = new Set<string>();
+  // Session-lifetime admission tombstones, including refused/expired calls.
+  // Turn resets must not revive a replay. A new service gets fresh sets.
+  private claimedToolIds = new Set<string>();
+  private claimedStopIds = new Set<string>();
   private automaticStop: Promise<void> | null = null;
   private stopRequestsPending = 0;
   private messageSequence = 0;
@@ -839,6 +843,26 @@ export class GeminiLiveService {
     const hasRobotTool = (message.toolCall?.functionCalls ?? [])
       .some(call => !['speak', 'say', 'narrate'].includes(call.name || ''));
     const calls = message.toolCall?.functionCalls ?? [];
+    // Claim synchronously, before the ordinary lane or any HTTP await. The
+    // original invocation owns its sole result/response; a repeated ID neither
+    // retries HTTP nor replays an old success as a fresh acknowledgment.
+    const admittedCalls = calls.filter(call => {
+      if (!call.id) return true;
+      // Stop alone may reuse an ordinary ID once. All later ordinary uses of
+      // that ID remain closed; this is not general ID+tool-name deduplication.
+      const claimed = call.name === 'stop' ? this.claimedStopIds : this.claimedToolIds;
+      if (claimed.has(call.id)) {
+        this.trace('duplicate_tool_call_ignored', { message_sequence: messageSequence,
+          request_id: call.id, tool: call.name ?? 'unknown' });
+        this.log('info', `Duplicate tool call ignored: ${toolLabel(call.name)}`);
+        return false;
+      }
+      claimed.add(call.id);
+      this.claimedToolIds.add(call.id);
+      return true;
+    });
+    // Even a repeated Stop retains its conservative packet/queue precedence,
+    // without another Stop HTTP. Observe the raw message to quarantine prose.
     const hasStop = calls.some(call => call.name === 'stop' && !(call.id && this.cancelledToolIds.has(call.id)));
     const deferPacketOutput = !!message.toolCall && !hasStop && this.ordinaryToolTail !== null;
     const invalidatePacketOutput = (deferred = false) => {
@@ -876,7 +900,7 @@ export class GeminiLiveService {
         if (hasStop) this.endAudioInput();
         // Stop is an interrupt, never the tail of a queued sequence. Dispatch it
         // first and reject other actions in that same model batch before HTTP.
-        const ordered = hasStop ? [...calls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : calls;
+        const ordered = hasStop ? [...admittedCalls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : admittedCalls;
         for (const fc of ordered) {
           if (this.disposed) break;
           if (fc.name === 'stop') this.stopPlayback(false, false); // Packet already invalidated its output turn synchronously.
@@ -891,7 +915,7 @@ export class GeminiLiveService {
           let result: any = { success: true };
           let receivedServerReply = false;
           let dispatch: { id: string; name: string; timestamp: number } | null = null;
-          
+
           try {
             // Helper args
             const args = fc.args as any;
