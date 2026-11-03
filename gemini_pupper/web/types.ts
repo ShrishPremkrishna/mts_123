@@ -30,10 +30,13 @@ export interface LogEntry {
 export type EyeTrackingSource = 'mouse' | 'server' | 'mediapipe';
 export type CameraSource = 'browser' | 'server';
 
+export type VoiceInputMode = 'hold_to_talk' | 'hands_free';
+
 export type OutputPolicy = 'receipts' | 'conversation';
 
 export interface AppConfig {
   outputPolicy: OutputPolicy;
+  voiceInputMode?: VoiceInputMode; // Reconnect to arm hands-free; unknown/absent means hold-to-talk.
   quickReceipts?: boolean; // Four human-approved Puck clips; reconnect to change.
   modelName: string;
   ttsModelName?: string;

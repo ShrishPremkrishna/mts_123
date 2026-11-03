@@ -32,8 +32,8 @@ function find(node, predicate) {
   return null;
 }
 function wake(tree) { return find(tree, n => n.type === 'button' && n.props.children.includes(' WAKE PUPPER')); }
-async function app(t) {
-  const cells = [], effects = [], instances = [], cleanups=[]; const events={}; let cursor = 0;
+async function app(t, options = {}) {
+  const cells = [], effects = [], effectRecords = [], instances = [], cleanups=[], stored=[], scrubbed=[]; const events={}; let cursor = 0;
   t.after(()=>cleanups.forEach(fn=>fn()));
   const setGlobal = (name, value) => {
     const old = Object.getOwnPropertyDescriptor(globalThis, name);
@@ -48,26 +48,41 @@ async function app(t) {
   setGlobal('__appHooks', {
     useState: state, useRef: value => state(() => ({ current: value }))[0],
     useMemo: fn => state(fn)[0], useCallback: fn => fn,
-    useEffect(fn, deps) { const [done, setDone] = state(false); if (!done && deps.length === 0) { effects.push(fn); setDone(true); } },
+    useEffect(fn, deps) {
+      const [record] = state(() => { const record = { deps: null, cleanup: null, setup: null }; effectRecords.push(record); return record; });
+      record.setup = fn;
+      const changed = !record.deps || deps.some((v, i) => v !== record.deps[i]);
+      if (changed && (options.allEffects || deps.length === 0)) {
+        record.deps = deps;
+        effects.push(() => { record.cleanup?.(); record.cleanup = fn(); return () => record.cleanup?.(); });
+      }
+    },
   });
   setGlobal('__appLive', class {
     constructor(...callbacks) {
       this.callbacks = callbacks; this.connection = deferred(); this.stop = deferred();
       this.robotBridge = { immediateStop: () => this.stop.promise }; instances.push(this);
     }
-    connect() { return this.connection.promise; }
+    connect(...args) { this.connectArguments=args; return this.connection.promise; }
+    get voiceInputMode() { return this.callbacks[0].voiceInputMode; }
     beginAudioInput() { this.begins=(this.begins??0)+1;this.active=true;return true; }
     endAudioInput() { this.ends=(this.ends??0)+1;this.active=false; }
     pauseRobotTools() {}
     async disconnect() { this.connection.reject(new Error('Voice connection cancelled')); }
   });
-  setGlobal('localStorage', { getItem: key => key === 'pupster_api_key' ? 'TEST_ONLY' : null });
-  setGlobal('window', { location: { origin: 'http://test-server' },addEventListener:(n,f)=>events[n]=f,removeEventListener:(n)=>delete events[n] });
+  setGlobal('localStorage', { getItem: key => key === 'pupster_api_key' ? 'TEST_ONLY' : options.savedConfig ? JSON.stringify(options.savedConfig) : null, setItem:(key,value)=>stored.push([key,value]) });
+  const location={ origin:'http://localhost:8000',hostname:'localhost',pathname:'/',search:'',hash:options.hash??'' };
+  setGlobal('window', { location,history:{replaceState:(_state,_title,url)=>{scrubbed.push(url);location.hash='';}},addEventListener:(n,f)=>events[n]=f,removeEventListener:(n)=>delete events[n] });
+  if(options.fetch) setGlobal('fetch',options.fetch);
+  if(options.allEffects){setGlobal('setInterval',()=>123);setGlobal('clearInterval',()=>{});}
   setGlobal('document', { createElement: () => ({}),visibilityState:'visible',addEventListener:(n,f)=>events[n]=f,removeEventListener:(n)=>delete events[n] });
   const { default: App } = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64') + '#' + Math.random());
   const render = () => { cursor = 0; return App(); };
-  render(); effects.splice(0).forEach(fn => {const cleanup=fn();if(cleanup)cleanups.push(cleanup);});
-  return { render, instances, events };
+  const flushEffects=()=>effects.splice(0).forEach(fn=>{const cleanup=fn();if(cleanup)cleanups.push(cleanup);});
+  render(); flushEffects();
+  const cleanupEffects=()=>effectRecords.forEach(record=>{record.cleanup?.();record.cleanup=null;});
+  const replayEffects=()=>{cleanupEffects();effectRecords.forEach(record=>{if(record.deps)record.cleanup=record.setup();});};
+  return { render, instances, events, stored, scrubbed, flushEffects, replayEffects, cleanupEffects };
 }
 
 test('App holds reconnect while explicit disconnect waits for independent Stop', async t => {
@@ -302,4 +317,89 @@ test('a pending connect resolution cannot restore Connected after transport ende
  assert.equal(talk(render).props.disabled,true);
  s.callbacks[3]();assert.equal(connectVoice(render).props.disabled,false);
  assert.match(wake(render()).props.title,/fresh voice conversation/i);
+});
+
+
+const onboardResponse = () => ({schema:'pupper_onboard_bootstrap_v1',apiKey:'MEMORY_ONLY_TEST_KEY',autoConnect:true,
+ config:{voiceInputMode:'hands_free',robotApiUrl:'',cameraSource:'server',eyeTrackingSource:'server',enableAudio:true,enableVideo:true,
+ modelName:'gemini-robotics-er-2-streaming-preview',ttsModelName:'gemini-3.1-flash-tts-preview',voiceName:'Puck',outputPolicy:'conversation',quickReceipts:true}});
+const tick = () => new Promise(resolve=>setImmediate(resolve));
+test('explicit onboard bootstrap strips nonce, connects once and never persists its key',async t=>{
+ let requests=0;
+ const e=await app(t,{allEffects:true,hash:'#onboard='+'n'.repeat(43),fetch:async(url,options)=>{
+  requests++;assert.equal(window.location.hash,'');assert.equal(url,'/onboard/bootstrap');
+  assert.equal(options.cache,'no-store');return new Response(JSON.stringify(onboardResponse()),{status:200});
+ }});
+ e.render();e.flushEffects();await tick();
+ assert.equal(requests,1);assert.equal(e.instances.length,1);assert.deepEqual(e.scrubbed,['/']);
+ const s=e.instances[0];assert.equal(s.connectArguments[0],'MEMORY_ONLY_TEST_KEY');
+ assert.equal(s.connectArguments[1].voiceInputMode,'hands_free');
+ assert.equal(s.connectArguments[1].modelName,'gemini-robotics-er-2-streaming-preview');
+ s.connection.resolve();await tick();e.render();e.flushEffects();
+ assert.equal(find(e.render(),n=>n.props['aria-label']==='Hold to talk'),null);
+ assert.ok(find(e.render(),n=>n.props['data-hands-free']!==undefined));
+ assert.equal(e.stored.some(([key,value])=>key==='pupster_api_key'||value.includes('MEMORY_ONLY_TEST_KEY')),false);
+ // A lost provider connection can expose explicit Connect, never replay bootstrap.
+ s.callbacks[3]();e.render();e.flushEffects();await tick();
+ assert.equal(requests,1);assert.equal(e.instances.length,1);
+});
+test('Stop while one-use bootstrap is pending prevents delayed automatic Connect',async t=>{
+ const response=deferred();let requests=0;
+ const e=await app(t,{allEffects:true,hash:'#onboard='+'n'.repeat(43),fetch:async()=>{requests++;return response.promise;}});
+ e.render();e.flushEffects();
+ // No service exists; use the nonmoving pending-setup cancellation route.
+ // Direct Stop uses an independent bridge; intercept only that fake request.
+ globalThis.fetch=async()=>new Response(JSON.stringify({success:true}),{status:200});
+ await find(e.render(),n=>n.type==='ExecutionStatus').props.onStop();
+ response.resolve(new Response(JSON.stringify(onboardResponse()),{status:200}));await tick();e.render();e.flushEffects();
+ assert.equal(requests,1);assert.equal(e.instances.length,0);
+ assert.equal(e.stored.some(([,v])=>v.includes('MEMORY_ONLY_TEST_KEY')),false);
+});
+test('failed onboard setup is one-shot and errors never include response key or nonce',async t=>{
+ let requests=0;
+ const e=await app(t,{allEffects:true,hash:'#onboard='+'n'.repeat(43),fetch:async()=>{requests++;throw Error('MEMORY_ONLY_TEST_KEY '+'n'.repeat(43));}});
+ e.render();e.flushEffects();await tick();e.render();e.flushEffects();
+ assert.equal(requests,1);assert.equal(e.instances.length,0);
+ const alert=find(e.render(),n=>n.props.role==='alert');assert.ok(alert);
+ assert.doesNotMatch(alert.props.children.join(''),/MEMORY_ONLY_TEST_KEY|nnnn/);
+ assert.equal(wake(e.render()).props.disabled,false);
+});
+test('saved hands-free selection still requires explicit Connect and exposes no hold control',async t=>{
+ const e=await app(t,{savedConfig:{voiceInputMode:'hands_free'}});
+ assert.equal(e.instances.length,0);assert.equal(talk(e.render),null);
+ const connecting=wake(e.render()).props.onClick();const s=e.instances[0];s.connection.resolve();await connecting;
+ s.callbacks[8](true);assert.match(find(e.render(),n=>n.props['data-hands-free']!==undefined).props.children.join(''),/Hands-free listening/);
+ e.events.blur();assert.equal(s.active,false);
+ assert.ok(find(e.render(),n=>n.props['aria-label']==='Disconnect disarmed voice'));
+ assert.equal(e.instances.length,1);
+});
+
+
+test('pending onboard bootstrap survives effect cleanup/replay and video replacement with one grant',async t=>{
+ const response=deferred();let requests=0,signal;
+ const e=await app(t,{allEffects:true,hash:'#onboard='+'n'.repeat(43),fetch:async(_url,options)=>{requests++;signal=options.signal;return response.promise;}});
+ e.render();e.flushEffects();assert.equal(requests,1);
+ // Equivalent setup→cleanup→setup ordering used by StrictMode, after the
+ // video exists. The repeated video effect also replaces its element.
+ e.replayEffects();e.render();e.flushEffects();await tick();
+ assert.equal(signal.aborted,false);assert.equal(requests,1);
+ response.resolve(new Response(JSON.stringify(onboardResponse()),{status:200}));await tick();
+ assert.equal(e.instances.length,1);assert.equal(requests,1);
+ e.instances[0].connection.resolve();await tick();e.render();e.flushEffects();
+ assert.equal(e.stored.some(([,v])=>v.includes('MEMORY_ONLY_TEST_KEY')),false);
+});
+test('actual effect unmount aborts pending onboard grant and ignores late response',async t=>{
+ const response=deferred();let signal;
+ const e=await app(t,{allEffects:true,hash:'#onboard='+'n'.repeat(43),fetch:async(_url,options)=>{signal=options.signal;return response.promise;}});
+ e.render();e.flushEffects();e.cleanupEffects();await tick();assert.equal(signal.aborted,true);
+ response.resolve(new Response(JSON.stringify(onboardResponse()),{status:200}));await tick();
+ assert.equal(e.instances.length,0);assert.equal(e.stored.some(([,v])=>v.includes('MEMORY_ONLY_TEST_KEY')),false);
+});
+test('opening Settings cancels pending onboard Connect instead of arming behind the dialog',async t=>{
+ const response=deferred();let signal;
+ const e=await app(t,{allEffects:true,hash:'#onboard='+'n'.repeat(43),fetch:async(_url,options)=>{signal=options.signal;return response.promise;}});
+ e.render();e.flushEffects();find(e.render(),n=>n.props.title==='Settings').props.onClick();
+ assert.equal(signal.aborted,true);
+ response.resolve(new Response(JSON.stringify(onboardResponse()),{status:200}));await tick();
+ assert.equal(e.instances.length,0);
 });

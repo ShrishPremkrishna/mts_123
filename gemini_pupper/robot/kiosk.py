@@ -1,79 +1,108 @@
-"""Drive the kiosk browser on the robot's screen through Chromium's local debugging port.
+"""Explicit, browser-only onboard voice; attaches to an already healthy API.
 
-The robot's screen has no keyboard or touch input, so this writes the Gemini key
-and on-robot settings into the page's storage before the app loads, presses
-WAKE PUPPER, and presses it again whenever the Gemini session drops.
-Usage (start.sh runs it):  python3 robot/kiosk.py <api-key-file>
+Enable PUPPER_ONBOARD_BOOTSTRAP_DIR and GEMINI_KEY_FILE in that API's environment.
+Then run: python3 robot/kiosk.py --url http://localhost:18090 --bootstrap-dir /run/user/1000/pupper-onboard
+No ROS, API or motor startup, CDP, reconnection, key injection or device selection.
+USB microphone and speaker must already be selected as the OS default devices.
 """
-import asyncio, json, sys, time, urllib.request
+from __future__ import annotations
 
-import websockets
+import argparse
+import fcntl
+import html
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import threading
+import urllib.request
 
-SETTINGS = {"robotApiUrl": "", "cameraSource": "server", "eyeTrackingSource": "server",
-            "enableVideo": True, "enableAudio": True}
+from onboard_bootstrap import BootstrapError, CONFIG, MODEL_NAMES, TTS_MODELS, VOICES, SCHEMA, TTL_SECONDS, directory_id, issue_grant, launch_config, loopback_origin, private_directory
 
 
-def page_ws():
-    for _ in range(60):
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *_args, **_kwargs):
+        raise BootstrapError('Onboard API redirects are not allowed.')
+
+
+def get_json(origin, path):
+    request = urllib.request.Request(origin + path, headers={'Origin': origin})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(request, timeout=3) as response:
+        return json.loads(response.read(8192))
+
+
+def launch(origin: str, directory: Path, *, browser='chromium', get=get_json, run=subprocess.run, model=CONFIG['modelName'], tts_model=CONFIG['ttsModelName'], voice=CONFIG['voiceName']) -> int:
+    origin = loopback_origin(origin)
+    config = launch_config(model, tts_model, voice)
+    directory = private_directory(directory)
+    # One explicit voice browser per bootstrap directory, held for its lifetime.
+    fd = os.open(directory / 'browser.lock', os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
         try:
-            for t in json.load(urllib.request.urlopen("http://127.0.0.1:9222/json")):
-                if t.get("type") == "page" and "localhost:8000" in t.get("url", ""):
-                    return t["webSocketDebuggerUrl"]
-        except Exception:
-            pass
-        time.sleep(1)
-    sys.exit("kiosk: the app page never appeared in Chromium")
-
-
-class Page:
-    def __init__(self, ws):
-        self.ws, self.n = ws, 0
-
-    async def call(self, method, params=None):
-        self.n += 1
-        await self.ws.send(json.dumps({"id": self.n, "method": method, "params": params or {}}))
-        while True:
-            m = json.loads(await self.ws.recv())
-            if m.get("id") == self.n:
-                if "error" in m:
-                    raise RuntimeError(f"{method}: {m['error']}")
-                return m.get("result", {})
-
-    async def ev(self, expr):
-        r = await self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True})
-        return r.get("result", {}).get("value")
-
-
-async def main(key_file):
-    key = open(key_file).read().strip()
-    setup = f"""(() => {{ try {{
-      const cfg = Object.assign(JSON.parse(localStorage.getItem('pupster_config') || '{{}}'), {json.dumps(SETTINGS)});
-      localStorage.setItem('pupster_api_key', {json.dumps(key)});
-      localStorage.setItem('pupster_config', JSON.stringify(cfg));
-    }} catch (e) {{}} }})();"""
-    async with websockets.connect(page_ws(), max_size=None) as ws:
-        p = Page(ws)
-        await p.call("Page.enable")
-        await p.call("Page.addScriptToEvaluateOnNewDocument", {"source": setup})
-        await p.call("Page.reload", {"ignoreCache": True})
-        await asyncio.sleep(5)
-        ok = await p.ev("(localStorage.getItem('pupster_api_key') || '').length > 0")
-        print("kiosk: settings applied" if ok else "kiosk: WARNING settings not applied", flush=True)
-    while True:  # press Wake whenever it shows, e.g. after the Gemini session drops
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise BootstrapError('An onboard browser launcher is already active.') from None
+        health = get(origin, '/health')
+        if health.get('status') != 'running' or health.get('tools') is not True:
+            raise BootstrapError('The selected API is not healthy; no browser was launched.')
+        status = get(origin, '/onboard/status')
+        if status.get('schema') != SCHEMA or status.get('enabled') is not True or status.get('directory_id') != directory_id(directory):
+            raise BootstrapError('The selected API has not enabled onboard bootstrap.')
+        profile = directory / 'browser-profile'
+        if (profile / 'SingletonLock').exists() or (profile / 'SingletonLock').is_symlink():
+            raise BootstrapError('The onboard browser profile is already owned; close it before starting another.')
+        nonce, grant = issue_grant(directory, origin, status.get('server_instance'), config=config)
+        # Do not put the bearer nonce in Chromium argv, which another OS user
+        # may inspect. Only this UID can read the short-lived local launch page.
+        page_fd, page_name = tempfile.mkstemp(prefix='launch-', suffix='.html', dir=directory)
+        launch_page = Path(page_name)
+        with os.fdopen(page_fd, 'w') as page:
+            target = html.escape(origin + '/#onboard=' + nonce, quote=True)
+            page.write('<!doctype html><meta name="referrer" content="no-referrer">'
+                       '<meta http-equiv="refresh" content="0;url=' + target + '">')
+        def cleanup():
+            for path in (launch_page, grant):
+                try: path.unlink(missing_ok=True)
+                except OSError: pass  # The grant still expires; never expose its contents.
+        expiry = threading.Timer(TTL_SECONDS, cleanup)
+        expiry.daemon = True
+        expiry.start()
         try:
-            async with websockets.connect(page_ws(), max_size=None) as ws:
-                p = Page(ws)
-                while True:
-                    if await p.ev("""(() => { const b = [...document.querySelectorAll('button')]
-                            .find(b => b.textContent.includes('WAKE PUPPER'));
-                            if (b) { b.click(); return true; } return false; })()"""):
-                        print(time.strftime("%H:%M:%S"), "kiosk: pressed WAKE PUPPER", flush=True)
-                        await asyncio.sleep(10)
-                    await asyncio.sleep(3)
-        except Exception as e:
-            print("kiosk: reconnecting after", type(e).__name__, flush=True)
-            await asyncio.sleep(2)
+            # Profile and media grants are local to this one owned browser.
+            command = [browser, '--ozone-platform=wayland', '--kiosk', '--noerrdialogs',
+                       '--disable-infobars', '--no-first-run', '--no-default-browser-check',
+                       '--password-store=basic', '--use-fake-ui-for-media-stream',
+                       '--autoplay-policy=no-user-gesture-required',
+                       f'--user-data-dir={directory / "browser-profile"}', launch_page.as_uri()]
+            # Keep the lock in Chromium as well: a launcher crash cannot admit a
+            # second voice browser while the first process still owns the profile.
+            result = run(command, pass_fds=(fd,), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return result.returncode
+        finally:
+            expiry.cancel()
+            cleanup()
+    finally:
+        os.close(fd)
 
 
-if __name__ == "__main__":
-    asyncio.run(main(sys.argv[1]))
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--url', required=True, help='Existing HTTP loopback API origin (no path).')
+    parser.add_argument('--bootstrap-dir', required=True, type=Path)
+    parser.add_argument('--model', choices=MODEL_NAMES, default=CONFIG['modelName'])
+    parser.add_argument('--tts-model', choices=TTS_MODELS, default=CONFIG['ttsModelName'])
+    parser.add_argument('--voice', choices=VOICES, default=CONFIG['voiceName'])
+    args = parser.parse_args(argv)
+    try:
+        return launch(args.url, args.bootstrap_dir, model=args.model, tts_model=args.tts_model, voice=args.voice)
+    except (BootstrapError, OSError, ValueError):
+        # Do not reflect process argv, launch nonce, HTTP bodies or credentials.
+        print('Onboard launch failed. Check the enabled API, private bootstrap directory, and existing browser ownership.', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

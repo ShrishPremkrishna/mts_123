@@ -3,6 +3,7 @@ import { AppConfig } from './types';
 
 export const DEFAULT_CONFIG: AppConfig = {
   outputPolicy: 'conversation',
+  voiceInputMode: 'hold_to_talk',
   quickReceipts: true,
   modelName: 'gemini-3.1-flash-live-preview',
   ttsModelName: 'gemini-3.1-flash-tts-preview',

@@ -8,7 +8,12 @@ import { GeminiLiveService } from './services/geminiLive';
 import RobotBridge from './services/robotBridge';
 import { normalizeOutputPolicy, operatorFeedback } from './services/operatorFeedback';
 import ExecutionStatus from './components/ExecutionStatus';
+import { takeOnboardBootstrap, consumeOnboardBootstrap } from './services/onboardBootstrap';
 import { requestIndependentStop, updateLatestDispatch, type ToolDispatch } from './services/executionStatus';
+
+// Capture once per page load, outside React StrictMode render retries. The URL
+// is scrubbed before any asynchronous bootstrap, media or provider operation.
+const onboardStartup = takeOnboardBootstrap();
 
 // Icons
 const CogIcon = () => (
@@ -35,7 +40,7 @@ const App: React.FC = () => {
   
   // Load API Key from localStorage
   const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem('pupster_api_key') || '';
+    return onboardStartup.present ? '' : localStorage.getItem('pupster_api_key') || '';
   });
 
   // Load Config from localStorage
@@ -56,7 +61,7 @@ const App: React.FC = () => {
   
   // Persist API Key changes
   useEffect(() => {
-    localStorage.setItem('pupster_api_key', apiKey);
+    if (!onboardStartup.present) localStorage.setItem('pupster_api_key', apiKey);
   }, [apiKey]);
 
   // Persist Config changes
@@ -138,6 +143,18 @@ const App: React.FC = () => {
   }, [view]);
 
   const geminiRef = useRef<GeminiLiveService | null>(null);
+  const onboardStarted = useRef(false);
+  const onboardAllowed = useRef(onboardStartup.present);
+  const onboardAbort = useRef<AbortController | null>(null);
+  const onboardResult = useRef<ReturnType<typeof consumeOnboardBootstrap> | null>(null);
+  const onboardSubscriber = useRef<object | null>(null);
+  const [onboardPending, setOnboardPending] = useState(onboardStartup.present);
+  const cancelOnboardStart = () => {
+    onboardAllowed.current = false;
+    onboardAbort.current?.abort();
+    onboardAbort.current = null;
+    setOnboardPending(false);
+  };
   const disconnectingRef = useRef<GeminiLiveService | null>(null);
   const endedTransportRef = useRef<GeminiLiveService | null>(null);
   const releaseTalk = useCallback(() => {
@@ -164,7 +181,7 @@ const App: React.FC = () => {
     };
   }, []);
   const beginTalk = (owner: { pointer: number } | { key: string }) => {
-    if (talkOwner.current || showSettings || isStopPending() || connState !== ConnectionState.CONNECTED) return;
+    if (config.voiceInputMode === 'hands_free' || talkOwner.current || showSettings || isStopPending() || connState !== ConnectionState.CONNECTED) return;
     if (geminiRef.current?.beginAudioInput()) {
       talkOwner.current = owner;
       setAudioInputActive(true);
@@ -189,10 +206,10 @@ const App: React.FC = () => {
 
   const [connectionError, setConnectionError] = useState('');
 
-  const handleConnect = async () => {
+  const connectVoice = async (keyToUse = apiKey, configToUse = config) => {
     // Ref is synchronous, so repeated clicks cannot create overlapping sessions.
     if (geminiRef.current || isStopPending()) return;
-    if (!apiKey) {
+    if (!keyToUse) {
       addLog({ id: 'err-key', timestamp: Date.now(), type: 'error', message: 'API Key missing' });
       setShowSettings(true);
       return;
@@ -213,7 +230,7 @@ const App: React.FC = () => {
       setLogs(current => current.filter(entry => entry.type !== 'receipt'));
       
       service = new GeminiLiveService(
-        config,
+        configToUse,
         entry => { if (geminiRef.current === service) addLog(entry); },
         level => { if (geminiRef.current === service) setAudioLevel(level); },
         () => {
@@ -265,7 +282,7 @@ const App: React.FC = () => {
       // Store before awaiting so Stop can pause dispatch even while connecting.
       geminiRef.current = service;
       setModelActionsPaused(false);
-      await service.connect(apiKey, config, videoElement);
+      await service.connect(keyToUse, configToUse, videoElement);
       if (geminiRef.current === service && endedTransportRef.current !== service) setConnState(ConnectionState.CONNECTED);
     } catch (err: any) {
       // Explicit disconnect owns this session until its independent Stop settles.
@@ -277,7 +294,66 @@ const App: React.FC = () => {
     }
   };
 
+  const handleConnect = async () => {
+    if (onboardAllowed.current && !onboardStarted.current || onboardAbort.current) return;
+    await connectVoice();
+  };
+
+  useEffect(() => {
+    if (!videoElement || !onboardStartup.present || !onboardAllowed.current) return;
+    const subscriber = {};
+    onboardSubscriber.current = subscriber;
+    if (!onboardStarted.current) {
+      onboardStarted.current = true;
+      onboardAbort.current = new AbortController();
+      onboardResult.current = onboardStartup.nonce
+        ? consumeOnboardBootstrap(onboardStartup.nonce, onboardAbort.current.signal)
+        : Promise.reject(new Error('Invalid onboard launch.'));
+    }
+    const controller = onboardAbort.current;
+    const result = onboardResult.current;
+    if (!controller || !result) return;
+    const current = () => onboardSubscriber.current === subscriber;
+    void (async () => {
+      try {
+        // A replayed effect subscribes to the same one-use request; it never
+        // consumes the grant twice or starts a connection from stale cleanup.
+        const bootstrap = await result;
+        if (!current() || !onboardAllowed.current || controller.signal.aborted) return;
+        // apiKey is intentionally never put into config, logs or localStorage.
+        const selected = { ...config, ...bootstrap.config };
+        setApiKey(bootstrap.apiKey);
+        setConfig(selected);
+        onboardAbort.current = null;
+        onboardAllowed.current = false;
+        setOnboardPending(false);
+        await connectVoice(bootstrap.apiKey, selected);
+      } catch {
+        if (current() && !controller.signal.aborted) {
+          onboardAllowed.current = false;
+          setConnectionError('Onboard setup failed or expired. Start a new onboard session, or enter a key in Settings.');
+          setConnState(ConnectionState.ERROR);
+        }
+      } finally {
+        if (current()) {
+          if (onboardAbort.current === controller) onboardAbort.current = null;
+          setOnboardPending(false);
+        }
+      }
+    })();
+    return () => {
+      if (current()) onboardSubscriber.current = null;
+      // React's immediate cleanup/setup replay (or a replacement video element)
+      // keeps the one request alive. A real unmount has no new subscriber and
+      // aborts before any late response is allowed to Connect.
+      queueMicrotask(() => {
+        if (!onboardSubscriber.current && onboardAbort.current === controller) controller.abort();
+      });
+    };
+  }, [videoElement]);
+
   const handleStop = async () => {
+    cancelOnboardStart();
     releaseTalk();
     // This does not wait for a model turn and future model calls remain paused.
     setModelActionsPaused(true);
@@ -297,6 +373,7 @@ const App: React.FC = () => {
   };
 
   const handleDisconnect = async () => {
+    cancelOnboardStart();
     releaseTalk();
     const service = geminiRef.current;
     if (service) {
@@ -347,13 +424,13 @@ const App: React.FC = () => {
           <button
             aria-label="Connect voice"
             title="Start a fresh voice conversation. Previous requests will not be replayed."
-            disabled={stopPending || showSettings || connState === ConnectionState.RECOVERING}
+            disabled={stopPending || showSettings || onboardPending || connState === ConnectionState.RECOVERING}
             onClick={handleConnect}
             className="rounded-full bg-cyan-500 px-4 py-2 font-semibold text-black hover:bg-cyan-400 disabled:opacity-40">
             Connect voice
           </button>
         )}
-        <button
+        {(geminiRef.current?.voiceInputMode ?? config.voiceInputMode) !== 'hands_free' && <button
           aria-label="Hold to talk" aria-pressed={audioInputActive}
           disabled={connState !== ConnectionState.CONNECTED || showSettings || stopPending || !config.enableAudio}
           onPointerDown={event => {
@@ -389,7 +466,15 @@ const App: React.FC = () => {
           onContextMenu={event => event.preventDefault()}
           className={`touch-none select-none rounded-full px-5 py-2 font-semibold disabled:opacity-40 ${audioInputActive ? 'bg-red-500 text-white' : 'bg-cyan-500 text-black'}`}>
           {audioInputActive ? 'Listening — release to finish' : 'Hold to talk'}
-        </button>
+        </button>}
+        {(geminiRef.current?.voiceInputMode ?? config.voiceInputMode) === 'hands_free' && <div role="status" data-hands-free className="text-sm text-cyan-200">
+          {audioInputActive ? 'Hands-free listening — no wake word. Say Stop to stop and disarm.'
+            : connState === ConnectionState.CONNECTED ? 'Hands-free disarmed. Disconnect, then Connect to listen again.'
+            : 'Hands-free selected. Connect to start listening.'}
+          {connState === ConnectionState.CONNECTED && !audioInputActive && <button
+            aria-label="Disconnect disarmed voice" onClick={handleDisconnect} className="ml-2 underline">Disconnect voice</button>}
+        </div>}
+        {onboardPending && <span role="status" data-onboard-pending>Preparing the one-time onboard voice connection…</span>}
         <span role="status" className="text-xs text-gray-300">
           {audioInputActive ? 'Microphone sending' : 'Microphone not sending'}
         </span>
@@ -434,7 +519,7 @@ const App: React.FC = () => {
            <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center bg-black/50 backdrop-blur-sm z-10 pointer-events-auto">
               <button 
                 onClick={handleConnect}
-                disabled={stopPending || showSettings}
+                disabled={stopPending || showSettings || onboardPending}
                 title="Start a fresh voice conversation. Previous requests will not be replayed."
                 className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-4 px-8 rounded-full shadow-[0_0_30px_rgba(34,211,238,0.5)] transform hover:scale-105 transition-all text-xl flex items-center gap-2"
               >
@@ -500,6 +585,7 @@ const App: React.FC = () => {
           )}
           <button 
             onClick={() => {
+              cancelOnboardStart();
               releaseTalk();
               setShowSettings(true);
               if (document.fullscreenElement) {

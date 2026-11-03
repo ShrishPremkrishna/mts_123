@@ -274,7 +274,9 @@ class SessionTests(unittest.TestCase):
             (args.run_dir / 'runtime-manifest.json').write_text('{}')
             output = args.run_dir / 'controllers.yaml'; output.write_text('controllers: []')
             return output, ['fixture_controller']
-        with patch.dict(os.environ, {'PUPPER_SESSION_SKILLS': '', 'ROS_DOMAIN_ID': '168', 'PUPPER_FOLLOWER_MODE': 'lab5', 'FOLLOW_ME_DIR': '/reviewed/follower', 'FOLLOW_ALWAYS_DETECT': 'true', 'ROS_LOCALHOST_ONLY': '1'}), \
+        with patch.dict(os.environ, {'PUPPER_SESSION_SKILLS': '', 'ROS_DOMAIN_ID': '168', 'PUPPER_FOLLOWER_MODE': 'lab5', 'FOLLOW_ME_DIR': '/reviewed/follower', 'FOLLOW_ALWAYS_DETECT': 'true', 'ROS_LOCALHOST_ONLY': '1',
+             'PUPPER_ONBOARD_BOOTSTRAP_DIR': '/run/user/1000/onboard',
+             'GEMINI_KEY_FILE': '/private/operator/api_key'}), \
              patch.object(session, 'module', return_value=SimpleNamespace(prepare_session_profile=prepare_profile)), \
              patch.object(session.subprocess, 'Popen') as spawn:
             result = session.prepare(args)
@@ -286,6 +288,13 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(saved['environment']['FOLLOW_ALWAYS_DETECT'], 'true')
         self.assertEqual(saved['environment']['ROS_LOCALHOST_ONLY'], '1')
         self.assertEqual(saved['rollback_app'], '/preserved/rollback')
+        self.assertEqual(saved['environment']['PUPPER_ONBOARD_BOOTSTRAP_DIR'], '/run/user/1000/onboard')
+        self.assertEqual(saved['environment']['GEMINI_KEY_FILE'], '/private/operator/api_key')
+        with patch.dict(os.environ, {'PUPPER_ONBOARD_BOOTSTRAP_DIR': '/wrong/dir', 'GEMINI_KEY_FILE': '/wrong/key'}), \
+             patch.object(session, 'pinned'), patch.object(session, 'module', return_value=self.life):
+            session.load(args.run_dir, verify=False)
+            self.assertEqual(os.environ['PUPPER_ONBOARD_BOOTSTRAP_DIR'], '/run/user/1000/onboard')
+            self.assertEqual(os.environ['GEMINI_KEY_FILE'], '/private/operator/api_key')
 
 
 

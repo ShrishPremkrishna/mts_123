@@ -106,8 +106,8 @@
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
     "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "mode": "harness_release_prepared",
-  "updated_utc": "2026-11-03T06:32:25.444904+00:00",
+  "mode": "r4_closed_minimum_skills_observed_onboard_implementation",
+  "updated_utc": "2026-11-03T07:52:21.302845+00:00",
   "authorization": "User approved the seven-item sprint, explicitly requested an active goal, Claude Code and subagents. Coding, dependency/access fixes, offline validation and read-only Pi inventory authorized. Confirm physical readiness before a new motor block. Soccer and Lecture 7 remain deferred. User specifically approved relevant repository source/tests/manifests to Anthropic and signed-in Claude account use; no need to repeat this request for same scope.",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
@@ -116,48 +116,60 @@
     "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
   },
   "hardware_session": {
-    "status": "Pi powered; new app release and Lab5-follower/Sit walking profile prepared only. No API/camera/recorder/controller launch started. Prior physical release remains separate evidence.",
+    "status": "R4 fully shut down; owned process exit and native driver deactivation verified, user confirmed legs released. Robot supported on stand. No automatic restart.",
     "ssh": "mts",
-    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-media-coldboot",
-    "boot_id": "f05b9ce4-01f9-4bae-b28a-7d6ff9b71311",
-    "api_instance": "2c3ec27b892041b28411d895efa05fce",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r4",
+    "boot_id": "3765c5e9-73a9-4a25-83e6-52cd2e691dfc",
+    "api_instance": "80896162b1604ee9ad6f09f3bd1e7281",
     "motor_api_recorders_active": false,
     "active_processes": {},
     "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
     "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "queued_imu_age_guard_deployed": false,
     "archive_local_verified": true,
-    "latest_reachability": "Nov3UTC read-only inventory and stage/prepare succeeded; detector synthetic-frame check closed cleanly. No owned-session or native-readiness receipt exists for prepared run.",
-    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared",
-    "prepared_release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103"
+    "latest_reachability": "API reachable; latest battery 73%,18.51V before swim block. Check again before prolonged testing.",
+    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r4",
+    "prepared_release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r4",
+    "session_id": "60d43f393a534db39756108a00dba98b",
+    "shutdown": {
+      "owned_processes_exited": true,
+      "native_driver_deactivated": true,
+      "operator_released": true,
+      "archive_sha256": "f57a778d737e5081da02802066ef8272c5ab78f2e6d60095cd7a5987d1f5a42a",
+      "verified_members": 29,
+      "evidence": "artifacts/validation/harness-sprint-20261103/r4-closed"
+    }
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "All agents, tests, source reviews and no-motion staging completed. No active training/provider jobs; awaiting first supervised acceptance block.",
+    "compute": "Noactivecompute. Sourcecommits0327403and068a028 reviewed;108affectedtests+4subtests,webbuild/typecheckpassed. R4frozenprepared; nofurtheredits.",
     "owners": {
-      "/root": "Integration and sole robot owner; waiting for user physical readiness. Other agents completed and reusable."
+      "/root": "Integrate reviewed onboard changes; R4 closed and archived; sole future robot owner",
+      "/root/owned_lifecycle": "Offline onboard bootstrap/kiosk implementation; no hardware",
+      "/root/sensor_decision_review": "Offline explicit hands-free input/frontend bootstrap implementation",
+      "/root/preserve_local_close": "Read-only Spider transition diagnosis, then independent onboard review with Claude"
     },
     "goal_status": "New active goal created for approved general-harness and minimum-Lab6 sprint."
   },
   "browser": {
     "browser": "Chrome1",
-    "tab": "360981083",
+    "tab": "360981108",
     "url": "http://127.0.0.1:18090/",
-    "connection": "DISCONNECTED",
-    "bundle": "index-bTR6ec1i.js",
+    "connection": "Disconnected after R4; old tab retained for later tests, API now stopped.",
+    "bundle": "index-B1w3LMEm.js",
     "model": "gemini-robotics-er-2-streaming-preview",
     "tts": "gemini-3.1-flash-tts-preview / Puck",
     "key": "Private configured; never include in logs/repo/chat.",
-    "pending_user_prompt": "Physical readiness for first follower/voice/Stop block: stand, controller PS/R3, power, exclusive access."
+    "pending_user_prompt": null
   },
   "next": [
     {
-      "id": "supervised_follower",
-      "action": "Use prepared20261103-lab6-prepared once user is watching; one homing then follower, voice takeover and Stop. Do not rerun setup or stage."
+      "id": "r4_acceptance",
+      "action": "Integrate/final-check onboard bootstrap+handsfree candidates after independent/Claude review. No robot start needed; do fake rehearsal first. User explicitly approved new credential endpoint, onboard existingkeyuse, and namedfourfilestoClaude(max$1.50)."
     },
     {
       "id": "minimum_lab6",
-      "action": "Existing stock model supports class running; opt-in profile is offline tested, not physically accepted. Spider scratch pair ready with limitations; swim repeat physical check and four required videos/student deliverables remain."
+      "action": "Basic swimtwice, short stock run and Spider floorwalking/exit now observed. Remaining onboard audio/handsfreeacceptance, finalreleasecoursechecks and fourvideos/studentdeliverables. Physicalspeaker unknown; do notclaimonboardvoicepassed."
     },
     {
       "id": "workspace",
@@ -172,7 +184,12 @@
     "Selected profile supports explicit Lab5 follower and validated walking pairs, with dependencies and Stop coverage bound.",
     "Opt-in class_run uses the existing class helper and stock model; normal walking profile unchanged.",
     "API1023, web422, course166, final affected93+41subtests passed.",
-    "Verified new release and inactive follower/Sit profile on Pi; rollback preserved."
+    "Verified new release and inactive follower/Sit profile on Pi; rollback preserved.",
+    "R2 recovered existing homed manager after monitoring permission failure without rehoming; API healthy; user confirmed normal standing. Following not tested.",
+    "R3 measured following, conversation while following, paw takeover and spoken Stop passed watched checks. R3 closed and archived with verified outputs.",
+    "R4 readiness race fixed and independently reviewed; normal homing completed without manual recovery. Swim twice and follow-exit guard deployed; 108 affected tests plus 4 subtests and web build/typecheck passed.",
+    "Wireless USB lavalier now produces clear audio, confirmed by user. Onboard browser/speaker acceptance remains.",
+    "R4 on-stand Spider entry/exit and floor swim twice/standing completed with user-confirmed controlled motion."
   ],
   "preservation": {
     "directory": "artifacts/hardware/2026-11-02/startup-close",
@@ -183,7 +200,8 @@
     "remote_archive_sha256": "80f9472935902281635ae47c55a831e22687ef16063d8d0d1fed564c56795e78",
     "remote_indexed_entries": 3167,
     "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
-    "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs."
+    "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs.",
+    "current_pending": "None for R4 output: complete29-memberarchive verified in both existing artifact stores, SHA f57a778d737e5081da02802066ef8272c5ab78f2e6d60095cd7a5987d1f5a42a. R2/R3 already preserved."
   },
   "build_distinction": "Retained, tested offline, not deployed in this trial.",
   "scope_reset": {
@@ -193,5 +211,12 @@
     "lecture7": "Deferred by user after live page showed slides not yet posted and projectdeck inaccessible. Current final-project directions saved in course library.",
     "user_goal": "General harness first; soccer offense/defense deferred until it is locked down.",
     "plan_status": "Approved; implementation active. Seven checklist items are the current scope."
+  },
+  "microphone": {
+    "device": "JieliUSBCompositeDevice,ALSAcardDevice",
+    "status": "Firstthreecapturesallzero;afteruserwirelesslink/powerchange10s48kHzdirectrecordingnonzero,no clipping; userconfirmedclear. Default16kHzcapturealsohasnonzeros.",
+    "onboard_browser_verified": false,
+    "speaker": "HiFiBerry default sink unmuted at35%; sample software playback succeeded but inaudible to user; physical speaker presence unknown.",
+    "sample": "/private/tmp/pupper-usb-mic-paired-20261103.wav"
   }
 }

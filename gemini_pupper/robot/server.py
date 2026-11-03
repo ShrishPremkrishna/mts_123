@@ -27,7 +27,7 @@ import psutil
 import uvicorn
 from fastapi import Body, Depends, FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from starlette.requests import HTTPConnection
+from starlette.requests import HTTPConnection, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field
 import tool_registry as gemini_tools
 from robot_api import CALL_STOPS, Robot
 from runtime_config import component_dir, follower_config
+from onboard_bootstrap import BootstrapError, OnboardBootstrap, directory_id, SCHEMA as ONBOARD_SCHEMA
 
 behaviors = gemini_tools.load_lab()  # lab/: every tool, and the behaviors they call
 
@@ -47,6 +48,7 @@ PROMPT_FILE = REPO / "lab" / "prompt.md"
 BATTERY_SCRIPT = component_dir("pupperv3-monorepo", "PUPPER_MONOREPO_DIR") / "robot/utils/check_batt_voltage.py"
 
 tools: Robot | None = None
+onboard_bootstrap = OnboardBootstrap.from_environment()
 FAKE_MODE = False  # only the explicit localhost fake_server.py entrypoint sets this
 
 
@@ -141,7 +143,7 @@ async def require_command_epoch(connection: HTTPConnection):
     if (connection.scope["type"] != "http"
             or connection.scope["method"] not in {"POST", "PUT", "PATCH", "DELETE"}
             or (connection.scope["method"] == "POST" and connection.url.path.rstrip("/") in {
-                "/stop/immediate", "/queue/stop", "/tools/stop", "/tools/robot_status"})):
+                "/stop/immediate", "/queue/stop", "/tools/stop", "/tools/robot_status", "/onboard/bootstrap"})):
         yield
         return
     robot = T()
@@ -517,6 +519,51 @@ class WebStaticFiles(StaticFiles):
         if path.strip("/") in ("", ".", "index.html"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         return response
+
+
+# Bootstrap authorizes only this browser's provider connection, never robot motion.
+# Same-origin loopback + one-use local grant replace the old CDP key injection.
+def onboard_request(request: Request):
+    if onboard_bootstrap is None:
+        raise BootstrapError("Onboard bootstrap is disabled.", 404)
+    return onboard_bootstrap, onboard_bootstrap.check_request(request)
+
+
+def onboard_response(content, status=200):
+    return JSONResponse(content, status_code=status, headers={
+        "Cache-Control": "no-store", "Pragma": "no-cache", "Referrer-Policy": "no-referrer"})
+
+
+@app.get("/onboard/status")
+async def onboard_status(request: Request):
+    try:
+        onboard_request(request)
+        return onboard_response({"schema": ONBOARD_SCHEMA, "enabled": True,
+                                 "server_instance": T().command_instance,
+                                 "directory_id": directory_id(onboard_bootstrap.directory)})
+    except BootstrapError as error:
+        return onboard_response({"message": str(error)}, error.status)
+
+
+@app.post("/onboard/bootstrap")
+async def redeem_onboard_bootstrap(request: Request):
+    try:
+        bootstrap, origin = onboard_request(request)
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > 256:
+                raise BootstrapError("Invalid onboard launch request.", 400)
+        import json
+        try:
+            document = json.loads(body)
+            if not isinstance(document, dict) or set(document) != {"nonce"}:
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise BootstrapError("Invalid onboard launch request.", 400) from None
+        return onboard_response(bootstrap.consume(document["nonce"], origin, T().command_instance))
+    except BootstrapError as error:
+        return onboard_response({"message": str(error)}, error.status)
 
 
 # The built web app (npm run build in web/ -> web/dist/) is served at /, so the robot's own

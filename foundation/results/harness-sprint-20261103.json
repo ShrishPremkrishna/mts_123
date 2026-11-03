@@ -1,7 +1,7 @@
 {
   "schema": "pupper_sprint_result_v1",
-  "updated_utc": "2026-11-03T06:32:25.444904+00:00",
-  "status": "software_reviewed_pi_prepared_not_started",
+  "updated_utc": "2026-11-03T07:52:21.302845+00:00",
+  "status": "r4_closed_minimum_skills_observed_onboard_implementation",
   "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
   "changes": [
     "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
@@ -43,11 +43,21 @@
     "profile_and_pair_checks": 43,
     "typecheck_and_production_build": "passed",
     "web_bundle": "index-B1w3LMEm.js",
-    "claude": "Three scoped Opus5.5 reviews; findings adjudicated, no account limit reported. Reported list-price usage totals approximately1.99USD; not an inferred additional charge to the Max account."
+    "claude": "Three scoped Opus5.5 reviews; findings adjudicated, no account limit reported. Reported list-price usage totals approximately1.99USD; not an inferred additional charge to the Max account.",
+    "lifecycle_followup": {
+      "passed": 50,
+      "subtests_passed": 2,
+      "scope": "persistent_session and session_processes changed-source tests; not physical shutdown proof"
+    },
+    "r4_affected": {
+      "passed": 108,
+      "subtests_passed": 4,
+      "typecheck_and_production_build": "passed"
+    }
   },
   "pi": {
-    "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103",
-    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared",
+    "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r2",
+    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r2",
     "stage_members_verified": 40,
     "baseline_files_verified": 101,
     "final_files_verified": 122,
@@ -57,11 +67,15 @@
     ],
     "follower": "lab5; optional color/avoidance/always-detect disabled",
     "motion_mode": "walking",
-    "motor_launch": false,
-    "owned_process_receipt_exists": false,
+    "motor_launch": true,
+    "owned_process_receipt_exists": true,
     "native_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
     "imu_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
-    "rollback": "software-ws1-media-20261102"
+    "rollback": "software-ws1-media-20261102",
+    "session_id": "dbcd92b42e2f42438676ec5c1e651772",
+    "physical_observation": "Normal floor standing confirmed by user; following not activated.",
+    "shutdown": "Unconfirmed: SSH timed out after user supported on stand; advised physical power off/battery swap. Preserve logs after reconnect.",
+    "historical": "R2 snapshot below retained for battery incident provenance; current live identities are r4_result and interruption-recovery.json."
   },
   "detector_smoke": {
     "scope": "Existing detector on three synthetic blank frames; no camera/ROS/motors",
@@ -90,12 +104,69 @@
     "swim_status": "Actual-descriptor double playback/reentry/Stop fake queue passed; repeated-playback physics and physical demo unverified."
   },
   "remaining": [
-    "Fresh supervised follower/voice/takeover/Stop acceptance on prepared release.",
-    "Watched running, Spider and swim-twice demos; no new gait training required merely to test stock class running mode.",
-    "Four required videos, observed answers/Q1\u2013Q20/student reflection/contributions and course checkoffs.",
-    "Pi inventory currently has speaker output but no ALSA microphone capture device; onboard recording setup must be completed.",
-    "Current chat needs a fresh session rooted in the now-correct project to remove old working-directory restrictions."
+    "Finish reviewed explicit hands-free and browser-only onboard bootstrap; actual USB microphone works, physical speaker still unconfirmed.",
+    "Onboard voice/echo/Stop acceptance and four required filmed demonstrations Q7/Q12/Q16/Q19. Existing laptop voice/direct physical trials are evidence, not final recordings.",
+    "Final selected-release lab/test.py output; actual Q1\u2013Q20 answers, reflection/contributions/fork/course checkoffs.",
+    "Fresh chat rooted in corrected project at natural handoff. No new gait training/polish needed for observed minimum routines."
   ],
   "evidence_root": "artifacts/validation/harness-sprint-20261103",
-  "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint"
+  "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
+  "deployment_incidents": [
+    {
+      "stage": "original start-native",
+      "failure": "PermissionError reading unrelated /proc/1/exe before any spawn",
+      "resolution": "Use readable command-line inventory; original preparation retained, separate R2."
+    },
+    {
+      "stage": "R2 readiness monitor after native launch/homing",
+      "failure": "PermissionError reading unrelated protected /proc/962/environ",
+      "resolution": "Strictly captured existing tagged manager with parent/library checks; API recovered without rehoming. Discovery fix local and under review; R2 app unchanged."
+    }
+  ],
+  "r2_package": {
+    "manifest_sha256": "6e0feae1a65908e3dad7eeea41d3f18c69e564ffcf9fdb95b0cab101d284e8ac",
+    "archive_sha256": "9153ca741e378d6d7eab2afe6b880ecbee914f656db0faed0f83d4341b8f13da",
+    "helper_sha256": "3aedc485beb299b44ed5332f0c17cd829eb9adba6a2bf74ad0d1f7f2186af5d0"
+  },
+  "microphone": {
+    "device": "JieliUSBCompositeDevice,ALSAcardDevice",
+    "status": "Firstthreecapturesallzero;afteruserwirelesslink/powerchange10s48kHzdirectrecordingnonzero,no clipping; userconfirmedclear. Default16kHzcapturealsohasnonzeros.",
+    "onboard_browser_verified": false,
+    "speaker": "PiPulse/PipeWiredefaultoutputvolume0; nooutputchangeormicprovidertransmissionmade.",
+    "sample": "/private/tmp/pupper-usb-mic-paired-20261103.wav"
+  },
+  "r3_result": {
+    "following": "Measured repeat tracked person and stopped, confirmed by user; initial search trial was imperfect.",
+    "voice": "Conversation retained following; left-paw takeover and spoken Stop confirmed.",
+    "archive_sha256": "b3e7cff222c009fc2cdc992a12529743e831c41f3032b786ff91fd7549225e1c",
+    "archive_members_verified": 25,
+    "archive": "artifacts/validation/harness-sprint-20261103/r3-closed"
+  },
+  "r4_result": {
+    "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r4",
+    "run": "Job8 commanded1.0m/s for0.50s, then zero; user confirmed controlled forward motion and stopping. Actual physical speed not measured.",
+    "session_id": "60d43f393a534db39756108a00dba98b",
+    "api_instance": "80896162b1604ee9ad6f09f3bd1e7281",
+    "source_commits": [
+      "0327403",
+      "068a028"
+    ],
+    "onstand_spider": "Entry and exit succeeded; user confirmed controlled motion.",
+    "swim_twice_floor": "Job3 completed two playbacks; job4 standing exit completed. User: Two playbacks; controlled return.",
+    "floor_spider": "Direct entry, forward1s and exit controlled, body clear during walk. Voice entry\u2192forward2s\u2192left2s\u2192exit completed. User clarified belly contact only during entry/exit and follow request was refused. Reference deliberately lies/wiggles before rising; this is expected routine contact, not proof of walking support failure. No speed measurement or general robustness claim.",
+    "evidence": "/private/tmp/lab6-deployment-20261102/deployment-r4",
+    "web_bundle": "index-DRYBH2Vg.js",
+    "limitations": "Experimental Spider nominal simulation only; adverse-return failures retained. Full ordered stand-then-follow semantics still not implemented; in-flight exit takeover is refused.",
+    "speaker": "35% unmuted HiFiBerry default output, cached Okay aplay succeeded; user heard no sound and is unsure physical speaker exists.",
+    "voice_spider": "Actual jobs9\u201312: entry, forward2s, left2s, spider_up. All succeeded; user confirmed refusal separately (no follow tool call recorded). Laptop voice observed, not onboard filmed demo.",
+    "shutdown": {
+      "owned_processes_exited": true,
+      "native_driver_deactivated": true,
+      "operator_released": true,
+      "archive_sha256": "f57a778d737e5081da02802066ef8272c5ab78f2e6d60095cd7a5987d1f5a42a",
+      "verified_members": 29,
+      "evidence": "artifacts/validation/harness-sprint-20261103/r4-closed"
+    },
+    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93\u201313.99s; exit14.01\u201314.04s; swim x2 23.68s; normal standing after swim4.42s."
+  }
 }

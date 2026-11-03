@@ -1070,3 +1070,74 @@ test('actual Live setup declares camera selection and unknown body alignment wit
   await e.s.disconnect();
  }
 });
+
+
+test('hands-free explicitly arms one existing PCM pipeline with provider VAD and AEC',async t=>{
+ const sent=[];let setup,mediaConstraints;
+ const e=mediaEnvironment(t,async x=>{setup=x;x.callbacks.onopen();return {close(){},sendRealtimeInput:x=>sent.push(x)};},async c=>{
+  mediaConstraints=c;return new e.FakeStream(e.tracks);
+ });
+ e.config.voiceInputMode='hands_free';await e.s.connect('TEST',e.config,{});
+ assert.equal(e.s.audioInputActive,true);assert.equal(e.tracks[0].enabled,true);
+ assert.equal(mediaConstraints.audio.echoCancellation,true);assert.equal(mediaConstraints.audio.noiseSuppression,true);
+ assert.notEqual(setup.config.realtimeInputConfig?.automaticActivityDetection?.disabled,true);
+ audioFrame(e.s);await Promise.resolve();audioFrame(e.s);await Promise.resolve();
+ assert.equal(sent.filter(x=>x.audio).length,2);assert.equal(e.contexts.length,2);
+ e.s.endAudioInput();await Promise.resolve();assert.equal(e.s.beginAudioInput(),false);
+ assert.equal(e.s.connected,true);assert.equal(e.tracks[0].enabled,false);
+ assert.equal(sent.filter(x=>x.audioStreamEnd).length,1);
+});
+test('hands-free model Stop disarms immediately and cannot admit a later model movement',async t=>{
+ const sent=[],calls=[];
+ const e=mediaEnvironment(t,async({callbacks})=>{callbacks.onopen();return {close(){},sendRealtimeInput:x=>sent.push(x),sendToolResponse(){}};});
+ e.config.voiceInputMode='hands_free';await e.s.connect('TEST',e.config,{});audioFrame(e.s);
+ e.s.robotBridge.callTool=async name=>{calls.push(name);assert.equal(e.s.audioInputActive,false);return {success:true};};
+ await e.s.handleMessage({toolCall:{functionCalls:[{id:'stop',name:'stop',args:{}}]}});
+ assert.deepEqual(calls,['stop']);assert.equal(e.s.beginAudioInput(),false);assert.equal(e.s.robotToolsPaused,true);
+ audioFrame(e.s);await Promise.resolve();assert.equal(sent.some(x=>x.audio),false);
+ await e.s.handleMessage({toolCall:{functionCalls:[{id:'late',name:'move',args:{}}]}});
+ assert.deepEqual(calls,['stop']);
+});
+for(const ending of ['independent-stop','error','close','disconnect','send-error']){
+ test(`hands-free ${ending} leaves input disarmed without reconnect`,async t=>{
+  let callbacks,connections=0;const sent=[];
+  const e=mediaEnvironment(t,async x=>{callbacks=x.callbacks;connections++;callbacks.onopen();return {
+   close(){},sendRealtimeInput:value=>{if(ending==='send-error')throw Error('send failed');sent.push(value);}};});
+  e.config.voiceInputMode='hands_free';await e.s.connect('TEST',e.config,{});assert.equal(e.s.audioInputActive,true);
+  e.s.robotBridge.immediateStop=async()=>({success:true});
+  if(ending==='independent-stop')await requestIndependentStop(e.s,e.s.robotBridge);
+  if(ending==='error')callbacks.onerror({message:'test transport error'});
+  if(ending==='close')await callbacks.onclose({code:1006});
+  if(ending==='disconnect')await e.s.disconnect();
+  if(ending==='send-error'){audioFrame(e.s);await Promise.resolve();await Promise.resolve();}
+  assert.equal(e.s.audioInputActive,false);assert.equal(e.s.beginAudioInput(),false);assert.equal(e.tracks[0].enabled,false);
+  assert.equal(connections,1);
+ });
+}
+test('Stop during hands-free connection prevents late onopen from arming the microphone',async t=>{
+ const opened=deferred();let callbacks;
+ const e=mediaEnvironment(t,async x=>{callbacks=x.callbacks;await opened.promise;callbacks.onopen();return {close(){},sendRealtimeInput(){}};});
+ e.config.voiceInputMode='hands_free';const connecting=e.s.connect('TEST',e.config,{});await new Promise(r=>setImmediate(r));
+ e.s.pauseRobotTools();opened.resolve();await connecting;
+ assert.equal(e.s.audioInputActive,false);assert.equal(e.s.beginAudioInput(),false);assert.equal(e.tracks[0].enabled,false);
+});
+
+
+for(const failure of ['provider-error','pcm-send-error']){
+ test(`hands-free ${failure} after accepted follow sends one independent Stop even without socket close`,async t=>{
+  let callbacks,stops=0;const received=[],stop=deferred();
+  const e=mediaEnvironment(t,async x=>{callbacks=x.callbacks;callbacks.onopen();return {
+   close(){},sendRealtimeInput(value){if(failure==='pcm-send-error'&&value.audio)throw Error('send failed');},sendToolResponse(){}};});
+  e.config.voiceInputMode='hands_free';await e.s.connect('TEST',e.config,{});
+  e.s.robotBridge.callTool=async name=>{received.push(name);return {success:true};};
+  e.s.robotBridge.immediateStop=()=>{stops++;return stop.promise;};
+  await e.s.handleMessage({toolCall:{functionCalls:[{id:'active-follow',name:'follow',args:{}}]}});
+  assert.deepEqual(received,['follow']);
+  if(failure==='provider-error'){callbacks.onerror({message:'transport failed'});callbacks.onerror({message:'still failed'});}
+  else{audioFrame(e.s);await Promise.resolve();await Promise.resolve();audioFrame(e.s);}
+  assert.equal(e.s.audioInputActive,false);assert.equal(e.s.beginAudioInput(),false);assert.equal(stops,1);
+  await e.s.handleMessage({toolCall:{functionCalls:[{id:'late-move',name:'move',args:{}}]}});
+  assert.deepEqual(received,['follow']);
+  stop.resolve({success:true});await e.s.automaticStop;
+ });
+}

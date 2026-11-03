@@ -1,9 +1,15 @@
 #!/bin/bash
 # Start Gemini Pupper on the robot.
 #   robot/start.sh            robot stack + robot server (use from a laptop through an SSH tunnel)
-#   robot/start.sh --kiosk    also show the app full-screen on the robot, using its mic and speaker
+#   --kiosk is retired; robot/kiosk.py explicitly attaches to an existing API.
 # Stop everything with robot/stop.sh.
 set -uo pipefail
+# Refuse the retired full-stack kiosk path before receipt creation or homing.
+if [ "${1:-}" = "--kiosk" ]; then
+  echo "--kiosk no longer starts a robot stack. Start voice explicitly against an existing healthy API:" >&2
+  echo "python3 robot/kiosk.py --url http://localhost:<api-port> --bootstrap-dir <private-onboard-directory>" >&2
+  exit 2
+fi
 HERE=$(cd "$(dirname "$0")" && pwd); REPO=$(dirname "$HERE")
 LOG=/tmp/gemini-pupper
 lifecycle() { python3 "$HERE/session_processes.py" --directory "$LOG" "$@"; }

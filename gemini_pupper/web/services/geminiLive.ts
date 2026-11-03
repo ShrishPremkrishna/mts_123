@@ -108,6 +108,7 @@ export class GeminiLiveService {
   private outputTurnTiming: TurnTiming | undefined;
   private audioSequence = 0;
   private audioInputActive = false;
+  private handsFreeDisarmed = false;
   private audioInputGeneration = 0;
   private audioBoundaryFailed = false;
   private lastAudioReleaseSent?: number;
@@ -126,6 +127,10 @@ export class GeminiLiveService {
   onToolDispatch: (entry: ToolDispatch) => void;
 
   public robotBridge: RobotBridge;
+
+  public get voiceInputMode() {
+    return this.config.voiceInputMode === 'hands_free' ? 'hands_free' : 'hold_to_talk';
+  }
 
   // Callbacks
   onLog: (entry: LogEntry) => void;
@@ -467,6 +472,9 @@ export class GeminiLiveService {
           this.log('info', 'Session connected');
           if (this.inputAudioContext && this.mediaStream?.getAudioTracks().length) {
             this.setupAudioInput(this.inputAudioContext, this.mediaStream);
+            // Explicit Connect (or the one-use onboard launcher) arms once.
+            // The same PCM stream uses provider VAD and browser AEC/NS.
+            if (this.voiceInputMode === 'hands_free') this.beginAudioInput();
           }
           if (config.enableVideo) {
             this.setupVideoInput(videoElement, config.cameraSource);
@@ -494,7 +502,10 @@ export class GeminiLiveService {
           if (this.disposed) return;
           const details = err.message || err.error?.message || String(err.error || 'WebSocket error');
           this.log('error', `Session error: ${details}`);
-
+          if (this.voiceInputMode === 'hands_free') {
+            this.pauseRobotTools();
+            if (this.dispatchedActionIds.size) void this.requestAutomaticStop('Hands-free voice failed after an action request');
+          }
         }
       }
     });
@@ -528,6 +539,7 @@ export class GeminiLiveService {
 
   /** Deliberate audio transmission; the Live connection and camera stay open. */
   public beginAudioInput(): boolean {
+    if (this.voiceInputMode === 'hands_free' && (this.handsFreeDisarmed || this.robotToolsPaused)) return false;
     if (!this.connected || this.disposed || !this.config.enableAudio || this.audioBoundaryFailed
         || !this.inputAudioContext || !this.mediaStream?.getAudioTracks().length) return false;
     if (this.audioInputActive) return true;
@@ -545,12 +557,15 @@ export class GeminiLiveService {
         if (generation === this.audioInputGeneration) this.endAudioInput();
       });
     }
-    this.trace('audio_hold_start');
+    this.trace(this.voiceInputMode === 'hands_free' ? 'audio_hands_free_start' : 'audio_hold_start');
     return true;
   }
 
   /** Close the local gate before any pending SDK callback can send more PCM. */
   public endAudioInput() {
+    // Stop, pause, blur/hidden, settings or connection loss cannot silently
+    // rearm an open microphone. A fresh explicit connection is required.
+    if (this.voiceInputMode === 'hands_free') this.handsFreeDisarmed = true;
     const wasActive = this.audioInputActive;
     this.audioInputActive = false;
     ++this.audioInputGeneration;
@@ -617,7 +632,12 @@ export class GeminiLiveService {
            this.trace('audio_send_return', { audio_sequence: audioSequence });
         } catch(err) {
            this.trace('audio_send_failed', { audio_sequence: audioSequence });
-           // Ignore errors if session is closing
+           if (this.voiceInputMode === 'hands_free') {
+             this.pauseRobotTools();
+             this.log('error', 'Microphone sending failed. Reconnect before sending more speech.');
+             if (this.dispatchedActionIds.size) void this.requestAutomaticStop('Hands-free microphone failed after an action request');
+           }
+           // Hold-to-talk retains its existing close/error handling.
         }
       }).catch(() => {});
     };
@@ -955,7 +975,15 @@ export class GeminiLiveService {
         // stays current until this lane is acquired; do not create a new output
         // tombstone if generation happened to close while it was waiting.
         if (deferPacketOutput && admissionGeneration === this.toolAdmissionGeneration) invalidatePacketOutput(true);
-        if (hasStop) this.endAudioInput();
+        if (hasStop) {
+          this.endAudioInput();
+          if (this.voiceInputMode === 'hands_free') {
+            // No new microphone intent exists after disarming. Fence any later
+            // provider motion packet without invalidating this Stop receipt.
+            this.robotToolsPaused = true;
+            try { this.onRobotToolsPaused(); } catch {}
+          }
+        }
         // Stop is an interrupt, never the tail of a queued sequence. Dispatch it
         // first and reject other actions in that same model batch before HTTP.
         const ordered = hasStop ? [...admittedCalls].sort((a, b) => Number(b.name === 'stop') - Number(a.name === 'stop')) : admittedCalls;

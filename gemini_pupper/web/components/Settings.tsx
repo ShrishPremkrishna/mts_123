@@ -29,7 +29,18 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
             <option value="receipts">Receipt-only robot control</option>
             <option value="conversation">Conversation + control</option>
           </select>
-          <p className="text-xs text-amber-200 mt-1">Disconnect before changing modes. Receipt mode mutes model narration and displays server feedback. Conversation + control keeps robot tools enabled, buffers native speech until turn completion, and displays server receipts for tool turns. Hold to talk sends microphone audio only while pressed; the connection and camera remain active. Other speech/vision output is unverified.</p>
+          <p className="text-xs text-amber-200 mt-1">Disconnect before changing modes. Receipt mode mutes model narration and displays server feedback. Conversation + control keeps robot tools enabled, buffers native speech until turn completion, and displays server receipts for tool turns. Choose microphone behavior below; the connection and camera remain active. Other speech/vision output is unverified.</p>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-300 mb-1">Microphone mode</label>
+          <select aria-label="Microphone mode" disabled={sessionActive}
+            value={config.voiceInputMode === 'hands_free' ? 'hands_free' : 'hold_to_talk'}
+            onChange={e => setConfig({ ...config, voiceInputMode: e.target.value === 'hands_free' ? 'hands_free' : 'hold_to_talk' })}
+            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white disabled:opacity-50">
+            <option value="hold_to_talk">Hold to talk (default)</option>
+            <option value="hands_free">Hands-free while connected</option>
+          </select>
+          <p className="text-xs text-amber-200 mt-1">Hands-free starts listening when you Connect. There is no wake word. Stop, a hidden tab, Settings or a lost connection disarms it; disconnect and Connect again to listen. Use R3 for immediate physical stopping.</p>
         </div>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <div>

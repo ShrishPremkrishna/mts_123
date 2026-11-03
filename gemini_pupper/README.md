@@ -85,10 +85,22 @@ On the Pupper, supported on the stand for initialization/homing, with the
 operator present and ready to use the physical stop:
 
 ```bash
-robot/start.sh --kiosk    # robot + the app on Pupper's own screen (uses its mic and speaker)
+python3 robot/kiosk.py --url http://localhost:18090 --bootstrap-dir /run/user/1000/pupper-onboard # browser only; existing API required
 robot/start.sh            # robot only; open the app from your laptop (below)
 robot/stop.sh             # request Stop/deactivation; clean up this start's owned processes
 ```
+
+For onboard voice, explicitly enable `PUPPER_ONBOARD_BOOTSTRAP_DIR` and
+`GEMINI_KEY_FILE` (private key-file path) in the existing API environment; use the
+same bootstrap directory for the launcher. Select the USB microphone and speaker
+as OS defaults first. The launcher opens one hands-free conversation using ER2,
+3.1 TTS and Puck; it starts no API, camera or motors and never reconnects.
+Stop/disconnect disarms voice; a new explicit connection is required afterward.
+`start.sh --kiosk` now refuses before startup. Abrupt browser/launcher termination
+is not a confirmed robot Stop; use the existing independent Stop/R3 path. The
+short-lived launch nonce stays in a private local page, outside browser arguments;
+the provider key is returned once to app memory and is never stored by the launcher.
+
 
 In this engineering checkout, these entrypoints require Linux Python with
 `pidfd` support and the sibling

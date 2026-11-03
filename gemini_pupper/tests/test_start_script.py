@@ -45,7 +45,7 @@ sys.exit(0)
            'MOCK_LOG': str(log), 'MOCK_MODE': mode, 'MOCK_RUNTIME': str(runtime), 'GEMINI_KEY_FILE': str(key)}
     result = subprocess.run(['/bin/bash', str(script), *(['--kiosk'] if kiosk else [])], env=env,
                             text=True, capture_output=True, timeout=10)
-    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
     actions = [args[3:] for name, args in calls if name == 'python3' and args[0].endswith('session_processes.py')]
     return result, calls, actions
 
@@ -85,12 +85,13 @@ def test_failed_readiness_retains_recovery_and_does_not_start_server(tmp_path):
     assert not any(action[0] == 'cleanup' for action in actions)
 
 
-def test_kiosk_children_and_gui_change_are_recorded(tmp_path):
-    result, calls, actions = run_start(tmp_path, 'created', kiosk=True)
-    assert result.returncode == 0
-    assert [action[1] for action in actions if action[0] == 'spawn'] == ['launch', 'server', 'chromium', 'kiosk']
-    assert ['stop-gui'] in actions
-    assert not any(name == 'pkill' for name, _ in calls)
+def test_retired_kiosk_refuses_before_receipt_preflight_or_hardware():
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory() as directory:
+        result, calls, actions = run_start(Path(directory), 'created', kiosk=True)
+    assert result.returncode == 2
+    assert calls == actions == []
+    assert 'existing healthy API' in result.stderr and 'robot/kiosk.py --url' in result.stderr
 
 
 def test_stop_progresses_while_start_is_blocked_in_readiness(tmp_path):
