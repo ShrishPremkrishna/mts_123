@@ -66,7 +66,15 @@ void unit_health() {
   pupper_imu::StartupWindow bias;
   for(int i=0;i<=1600;++i){auto t=now+milliseconds(i*10);auto s=output(t);s.gyro.x()=.13;require(!bias.observe(s,t),"stationary bias accepted");}
   pupper_imu::StartupWindow drift;
-  for(int i=0;i<=1600;++i){auto t=now+milliseconds(i*10);auto s=output(t);s.quat=Eigen::Quaternionf(Eigen::AngleAxisf(i*.0001f,Eigen::Vector3f::UnitZ()));require(!drift.observe(s,t),"attitude drift accepted");}
+  for(int i=0;i<=1600;++i){auto t=now+milliseconds(i*10);auto s=output(t);s.quat=Eigen::Quaternionf(Eigen::AngleAxisf(i*.0001f,Eigen::Vector3f::UnitX()));require(!drift.observe(s,t),"gravity drift accepted");}
+  pupper_imu::StartupWindow yaw;
+  for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto sample=output(t);sample.quat=Eigen::Quaternionf(Eigen::AngleAxisf(i*.001f,Eigen::Vector3f::UnitZ()));require(yaw.observe(sample,t)==(i==300),"yaw-only rotation changed gravity gate");}
+  pupper_imu::StartupWindow modest_bias;
+  for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto sample=output(t);sample.gyro.x()=.0144f;require(modest_bias.observe(sample,t)==(i==300),"allowed gyro mean rejected");}
+  pupper_imu::StartupWindow coherent_bias;
+  for(int i=0;i<=1600;++i){auto t=now+milliseconds(i*10);auto sample=output(t);sample.gyro.x()=.03f;pupper_imu::StartupObservation d;require(!coherent_bias.observe(sample,t,&d),"coherent gyro mean accepted");if(i==300)require(std::strcmp(d.reason,"gyro_mean")==0,"mean rejection reason missing");if(i==301)require(d.gyro_samples==1,"mean rejection did not clear window");}
+  pupper_imu::StartupWindow distinct;
+  for(int i=0;i<=600;++i){auto t=now+milliseconds(i*5);auto sample=output(t);sample.gyro.x()=.0144f;sample.gyro_receipt_time=now+milliseconds((i/2)*10);pupper_imu::StartupObservation d;require(distinct.observe(sample,t,&d)==(i==600),"distinct-receipt dwell timing wrong");require(d.gyro_samples==static_cast<std::size_t>(i/2+1),"cached gyro counted twice in mean");}
   pupper_imu::StartupWindow duplicated;
   o=output(now);
   for(int i=0;i<=400;++i)require(!duplicated.observe(o,now+milliseconds(i*10)),"cached sample advanced startup");
@@ -77,7 +85,7 @@ void unit_health() {
   pupper_imu::StartupWindow sign;
   for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto s=output(t);if(i%2)s.quat.coeffs()*=-1;require(sign.observe(s,t)==(i==300),"q/-q treated as rotation");}
   pupper_imu::StartupWindow spike;
-  for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto s=output(t);if(i==250)s.gyro.x()=.03;require(!spike.observe(s,t),"gyro spike did not restart window");}
+  for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto s=output(t);if(i==250)s.gyro.x()=.06;require(!spike.observe(s,t),"gyro spike did not restart window");}
 }
 }
 void init_spi(){command={};data={};}

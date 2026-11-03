@@ -1,0 +1,104 @@
+{
+  "schema": "pupper_evidence_report_v1",
+  "date": "2026-11-02",
+  "outcome": "Reviewed startup screen no longer rejects heading change alone; one homing, observed standing, voice right-paw and standing return succeeded. Clean supported shutdown. Workstream1 incomplete.",
+  "change": {
+    "old": "Every cached gyro norm <=0.005rad/s and full quaternion excursion <=1deg for3s.",
+    "new": "3s of fresh component receipts, gravity excursion <=1deg, peak gyro <=0.05rad/s and distinct-report vector mean norm <=0.025rad/s. Same15s timeout and100ms freshness.",
+    "unchanged": "Runtime feedback/fall/Stop controls, sensor calibration, gains, joint limits, policies and full motion durations.",
+    "reason": "TA/user accept modest heading drift; separate balance-relevant gravity from heading. Engineering screen, not sensor calibration or a guarantee."
+  },
+  "investigation": {
+    "failed_native_starts_before_enable": 5,
+    "interpretation": "These were startup failures before homing, not5 homings. Early captures were handling-confounded; later camera/sensor comparisons and a full powercycle retained discrepancy. No hardware defect diagnosed.",
+    "coldboot_30s": {
+      "yaw_delta_deg": 17.009,
+      "gravity_max_change_deg": 1.802,
+      "gyro_mean_sensor_x_rad_s": 0.014384
+    },
+    "camera_limit": "Fixed-scene image consistency is not calibrated odometry and does not exclude vibration.",
+    "no_calibration_change": true
+  },
+  "verification": {
+    "selected_pi_memory_tests": 13,
+    "current_repo_full_driver_tests": 54,
+    "current_repo_full_driver_build": "passed",
+    "independent_recorded_replay": "Admits four lower-rate stationary records; rejects historical large-rate fault and deliberate tilt/rate excursions. Quiet lead-in of handling capture can pass; whole broad interval is not all negative.",
+    "current_repo_additional_queued_age_guard": "Retained, tested offline, not deployed in this trial."
+  },
+  "identities": {
+    "base_commit": "50b287f",
+    "physical_imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+    "physical_native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "repo_variant_build_sha256": "edbfcf087960a29a33e1c5b2ecad4ed22a77cb3fa7766e762d1bbecc3c21b0aa",
+    "runtime_manifest_sha256": "8134a19d495ad56cd7d0cd2f0913883a82326a4c113e5093d1f7184fa12d83d6",
+    "web_bundle": "index-bTR6ec1i.js",
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "tts": "gemini-3.1-flash-tts-preview / Puck"
+  },
+  "physical": {
+    "operator_observed": "Standing normal; voice and right-paw/stand motion both worked.",
+    "server_confirmed": [
+      "sit_stay_shake shake_right",
+      "stand up"
+    ],
+    "server_jobs": 2,
+    "outcomes": [
+      "succeeded",
+      "succeeded"
+    ],
+    "mixed_sequence": "User reported five-step mixed sequence success, but complete API log and browser history contain only2 initial tool calls. Unreconciled; not counted as current server-confirmed mixed acceptance. Prior sessions have separate mixed-sequence evidence.",
+    "spoken_stop": "Not exercised against active motion in this session. Prior successful cases remain historical.",
+    "navigation": "Two visible model refusals, no tool calls. First also refused forward5s within navigation context; explicit-direct-command over-refusal remains a focused follow-up. Refusal is not guaranteed obstacle avoidance."
+  },
+  "shutdown": {
+    "operator_supported": true,
+    "shutdown_helper_exit": 0,
+    "hardware_deactivated_wall_s": 1793671965.7723713,
+    "api_and_manager_clean_exit_logs": true,
+    "fresh_process_check": "No task control/camera/recorder processes remaining; pgrep only matched its own checking shell.",
+    "mcap_metadata_closed": true,
+    "browser": "DISCONNECTED; microphone not sending; model requests paused.",
+    "browser_disconnect_stop": "Separate UI Stop after server shutdown could not confirm; earlier direct Stop and native disable independently confirmed.",
+    "local_api_port_forward": "Cancelled after successful archive recovery; shared SSH mux retained."
+  },
+  "latency_limits": "Browser logs preserve receipt timing and long provider callback intervals; do not convert callback/release associations into measured acoustic latency. No new broad expiry or parameter sweep.",
+  "preservation": {
+    "directory": "artifacts/hardware/2026-11-02/startup-close",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/startup-close",
+    "local_archive_sha256": "779145996c0da93801b586c122afbaffecca79b939ac0255b086df0307bd434c",
+    "local_members_verified": 514,
+    "remote_fully_verified": true,
+    "remote_archive_sha256": "80f9472935902281635ae47c55a831e22687ef16063d8d0d1fed564c56795e78",
+    "remote_indexed_entries": 3167,
+    "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
+    "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs."
+  },
+  "claude_audit": {
+    "source_only": true,
+    "reported_usd": 0.7929258,
+    "result": "No high-confidence software defect explaining drift. Inputs/output/receipt preserved; no camera or credentials supplied."
+  },
+  "next": [
+    "Receive follower and Spider teammate handoffs; mandatory Lab6 capability gaps.",
+    "Prepare exact Q7/Q12/Q16/Q19 videos and written-answer evidence with the student; no claim of submission/checkoff.",
+    "Next observed block: concise explicit compound request and spoken cancellation; avoid another open-ended sensor session.",
+    "Discuss foundation-model/tool authority and user final-project idea; retrieve actual newly released Lecture7 content (localcopy is only an old webpage stub).",
+    "Keep generated motion/push-up drift and long-duration reliability explicit; no speculative broad training."
+  ],
+  "closed_recording_report": {
+    "path": "artifacts/hardware/2026-11-02/startup-close/session-report/report.html",
+    "json": "artifacts/hardware/2026-11-02/startup-close/session-report/report.json",
+    "bags": 1,
+    "events": 120,
+    "detected_data_gaps": 0,
+    "inputs_unchanged": true,
+    "right_paw_api_execution_s": 9.27420965,
+    "standing_return_api_execution_s": 7.980498114,
+    "clip_request_to_first_applied_receipt_ms": [
+      2.460177,
+      10.948649
+    ],
+    "interpretation": "Same-bag matched request/execution IDs. Receipt intervals are not physical onset, acoustic latency or total action duration. No new physical execution."
+  }
+}

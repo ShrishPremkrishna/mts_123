@@ -12,7 +12,8 @@
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
     "ros_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
     "claude": "Authenticated Max account; credential-store metadata requires approved OS access. Restricted read-only review completed without a permission bypass.",
-    "workspace_limit": "Engineering checkout is not app-managed and attach_worktree could not attach it. Explicit workdir plus approved writes works; no permissions weakened. Additional folder access requires a user app action later and is not a blocker."
+    "workspace_limit": "Engineering checkout is not app-managed and attach_worktree could not attach it. Explicit workdir plus approved writes works; no permissions weakened. Additional folder access requires a user app action later and is not a blocker.",
+    "report_plot_cache": "For future report generation, set MPLCONFIGDIR to a writable task temp directory; latest report succeeded with automatic temp cache, no dependency change."
   },
   "compute_spend_policy": {
     "user_billing_enabled_now": true,
@@ -71,74 +72,6 @@
     "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
     "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
   ],
-  "mode": "workstream1_ready_for_supervised_media_acceptance",
-  "updated_utc": "2026-11-03T01:06:36.539394+00:00",
-  "authorization": "User is not yet available for floor supervision and explicitly requested continued offline work. No motor activation/homing. Use focused subagents and Claude as useful; prioritize latency/flexibility/robustness. Existing ready session stays inactive.",
-  "current_report": "foundation/results/workstream1-clip-admission-20261102.json",
-  "historical_recovery": {
-    "path": "foundation/results/history/interruption-recovery-20261102T224517Z-before-active-native-checkpoint.json",
-    "sha256": "c3eadc1822a9aedd620c902311f9dadfce5a46be68b367fc0e6df7c0056a9980",
-    "meaning": "Historical detail only. Current active identities below supersede prior shutdown and process fields."
-  },
-  "hardware_session": {
-    "status": "Available on stand per user; read-only SSH confirms fresh boot and no matching robot-control process. Motor controls not started.",
-    "ssh": "mts",
-    "owner": "/root",
-    "boot_id": "2faf2547-eb90-48b9-95dd-7ebdf8adc175",
-    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-static-idle",
-    "owned_processes": "owned-processes.json in that run; verify PID AND create time before signals",
-    "api_instance": "6a1724bfc8ba45d4ac931911365ad532",
-    "api_remote": "http://127.0.0.1:18090",
-    "app_directory": "/home/pi/pupper-foundation-session-20261029/software-ws1-product-20261102",
-    "app_commit": "c1acea9",
-    "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
-    "imu_library_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4",
-    "selection": "Actual live manager maps verified. Native change is constant Sit-idle admission only; same policy files, gains and full durations. Queued-IMU-age guard remains undeployed.",
-    "battery_last_percent": 49,
-    "thermal_last": "82C; vcgencmd throttled=0x0. No asserted thermal fault.",
-    "camera_recording_limit": "900 seconds from22:32:04UTC; verify actual coverage before interpreting the later navigation incident.",
-    "shutdown_helpers": "Closed recording recovery only. Inspect actual archive receipt/index/tar before retrying close-evidence.py. This run records actual_driver_libraries, not the previous run's selected_driver_libraries_after_shutdown. Do not restart controls or homing for archive recovery.",
-    "physical_quality": "First native chain missed by operator; second observed controlled with shorter pauses. Do not count first as observed.",
-    "active_trial": null,
-    "motor_api_recorders_active": false,
-    "closed_at_utc": "2026-11-02T22:50:00Z",
-    "archive_recovery": "Recovered closed run and full native build. Original index923/924matches: frozen library copy truncated16MiB; original left unchanged. Exact50,182,064B library37938659... recovered separately from indexed native install; all1041nativefiles verified. Complete recovery archive c373fe051293dfe7cd85d7e20007fc5af6c84a7a1bfdc67aa6bba0e035cca78e,613457149B saved in artifacts/hardware/2026-11-02/static-idle-recovery and durable samefolder.",
-    "last_processes": {
-      "api_pid": 45824,
-      "manager_pid": 44968,
-      "launch_pid": 44890,
-      "camera_pid": 44887,
-      "camera_evidence_pid": 44888,
-      "recorder_pid": 44889
-    },
-    "active_processes": [],
-    "current_boot_observed": "3693dbb3-6ed5-4509-93fa-8379c5e1b429"
-  },
-  "activity": {
-    "automation": "No scheduled automation is active.",
-    "compute": "All owned analyses, exactly2Sit-padding physics arms, archives, fakechecks andproviderreviews complete. All subagentsidle. No motorcontrol, fakebackend orproviderconnection active.",
-    "owners": {
-      "/root": "Final checkpoint and await renewed supervised readiness.",
-      "/root/owned_lifecycle": "Completed; idle.",
-      "/root/owned_lifecycle/app_delta_audit": "Completed; idle.",
-      "/root/sensor_decision_review": "Completed; idle."
-    },
-    "goal_status": "Active; Workstream1 remains incomplete."
-  },
-  "browser": {
-    "browser": "Chrome1",
-    "tab": "360981047",
-    "url": "http://127.0.0.1:18091/",
-    "selected_robot_api": "http://127.0.0.1:18091",
-    "bundle": "index-bTR6ec1i.js",
-    "model": "gemini-robotics-er-2-streaming-preview",
-    "tts": "gemini-3.1-flash-tts-preview / Puck",
-    "key": "User saved in browser; private file configured. Never print or copy into reports.",
-    "vision": "Disabled for offline check; next physical session must explicitly select actualAPI and RobotCamera.",
-    "connection": "Foreground connection to fakeAPI verified then explicitly disconnected; testtabs360981058/360981059 closed.",
-    "microphone_friction": "Offline fix3538d9f plus actual Chrome foreground connect/disconnect succeeded. Real hidden-tab behavior not observed; task tabs closed, fake API stopped. Next robot session must restore real API and RobotCamera explicitly.",
-    "pending_user_prompt": null
-  },
   "evidence": {
     "overnight_release": "foundation/results/workstream1-overnight-release-20261102.json",
     "raw15": "foundation/results/workstream1-raw-gyro15-20261102.json",
@@ -156,55 +89,9 @@
     "clip_admission": "foundation/results/workstream1-clip-admission-20261102.json",
     "navigation_camera": "foundation/results/workstream1-navigation-camera-20261102.json",
     "standing_return_data": "foundation/results/workstream1-standing-return-data-20261102.json",
-    "initial_sit_padding": "foundation/results/workstream1-sit-entry-padding-20261102.json"
+    "initial_sit_padding": "foundation/results/workstream1-sit-entry-padding-20261102.json",
+    "startup_gravity": "foundation/results/workstream1-startup-gravity-physical-20261102.json"
   },
-  "completed_this_session": [
-    "c1acea9: atomic handshake server tool and batched provider results. Backend238 tests +43 independent review; final395 web tests, typecheck and build pass. Claude review used; exact source/evidence archived.",
-    "Actual Google typed handshake:1.70s to admitted cue; compound:2.04s. Single cases, not acoustic/statistical guarantee. Gemini usage estimate$0.022445; Claude reported$1.51689375; browser usage extra.",
-    "User-spoken fake greeting, named paw and move/wait/turn all audible; user confirmed actual45deg wording.",
-    "Pi app smoke and100 selected file hashes pass; extra pinned fake YAML supplied. Physical right paw+stand, forward1s+leftpaw+left15deg and forward/backward Stop observed successful. Original written five-step request was changed by user.",
-    "Previous physical archive315104977bytes SHAa3f3a764c4c81487fdff4905255cc2a3dd2d8240d4989f1cbe2097931cae200d preserved in repo and durable store; all932 indexed files verified.",
-    "New Pi-compatible native build has exact4-file production delta. Six memory-only suites17 production cases pass, assertions enabled, ldd-r clean. Isolated install selected explicitly for active trial.",
-    "36cf675: reviewed capability metadata/UI and unsupported-navigation guidance. Offline39 transport and398 web tests, typecheck/build pass;3 actual Gemini typed fake cases pass, no audio/video or robot. Gemini estimated$0.025416; failed earlier Claude audit reported$1.51775225 and yielded no usable review.",
-    "All local deployment/native comparison followups and new navigation source/test/live evidence archived and verified in repo plus durable store. Latest Pi native physical archive remains pending.",
-    "3538d9f: hidden-tab media setup fix;13 new regressions,411 integrated web tests, typecheck/build pass; independent review. No actual microphone/provider/robot call for this change."
-  ],
-  "native_candidate": {
-    "local": "/private/tmp/ws1-static-idle-pi-20261102",
-    "remote": "/home/pi/pupper-foundation-session-20261029/static-idle-native-20261102",
-    "build_records": "All6suites17production cases previouslypassed; completebuild/tests/install nowverified against1041-file remote index in recoveredarchive. Original16MiB frozenlibpartial preserved, exactcomplete library recovered separately.",
-    "direct_chains": "Local comparison/chain-01.jsonl and chain-02.jsonl; exec43190/48890 completed exit0. User observed chain02 only.",
-    "baseline_delays_ms": [
-      647.407,
-      959.868,
-      594.425,
-      948.463
-    ],
-    "baseline_limit": "First native queued receipt to applied receipt; request topic absent from old capture. New capture includes requests.",
-    "new_receipt_admission_ms_range": [
-      3.626897,
-      25.681539
-    ],
-    "new_metric_limit": "8samebagrequestUUID/executionUUIDmatches; notphysicalonset or identical oldbaselineclock. Existing3.5sclips and4.2swalkingreadiness unchanged."
-  },
-  "next": [
-    {
-      "id": "physical_readiness",
-      "action": "WaitforuserReady; read-onlycontroller/bootcheck. Prepared20261102-ws1-media-acceptance currentlyinactive, bootguard3693dbb3-6ed5-4509-93fa-8379c5e1b429. Onehomingthenfloorvoicecompound/Stopblock; no rehomingbetweenactions."
-    },
-    {
-      "id": "browser_selection",
-      "action": "Use existingChrome window, restoreactualAPI18090 andRobotCamera explicitly. Lastbrowserfake18091/videooff. Userkeyremainsprivate; no neednewprovidercredentials."
-    },
-    {
-      "id": "keep_rejections",
-      "action": "No shorterstandingreturn orinitialSitpaddingdeployment. Actualnative37938659/IMUf84d65 unchanged. Researchbobunpromoted. Hardconfirmationnavigationauthoritychoice remainsdeferred."
-    },
-    {
-      "id": "external",
-      "action": "Follower/Spider handoffs absent. Hardware/sensorreliability andgenerated-motion/pushupqualitynotclosed. No usefulbroadtraining/expiry sweep justified."
-    }
-  ],
   "acceptance_boundaries": [
     "Foundation is not globally optimized or hardware-reliable. Successful bounded voice sequences do not establish long-duration robustness.",
     "Before previous job chain, and in a short post-chain window, fixed camera patches and IMU heading disagree; actual scene movements between windows excluded. No hardware-cause diagnosis.",
@@ -215,93 +102,86 @@
   "deferred_decision": {
     "topic": "Foundation model and tool authority: immediate voice motion versus explicit plan confirmation.",
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
-    "implementation": "Keep immediate direct voice movement; navigation disclosure/prompt mitigation36cf675 is offline only, not deterministic enforcement."
+    "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "offline_release": {
-    "code_commit": "3538d9f",
-    "navigation_commit": "36cf675",
-    "deployed_to_robot": false,
-    "web_bundle": "index-bTR6ec1i.js",
-    "web_bundle_sha256": "b9e84b69a34332b9b5a0d5226b71faf4610ab031282658fa670fe67fc225034a",
-    "final_validation": "411 web tests, typecheck and build pass. Backend39 transport tests and166 class checks passed for navigation changes; no backend edits since.",
-    "provider_tests": "3 typed fake cases passed before media admission fix; latter changes connection visibility only and was validated offline without repeating paid probes."
+  "mode": "workstream1_shutdown_checkpoint",
+  "updated_utc": "2026-11-03T02:29:06.299020+00:00",
+  "authorization": "User ended physical session to move locations, confirmed supported shutdown. No automatic reconnect, homing or motion. Offline checkpoint work authorized.",
+  "current_report": "foundation/results/workstream1-startup-gravity-physical-20261102.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
+    "sha256": "fef6ce50c06ccd35e9509c8f7fd41a41b0df9dd958962bd2614724ffab8f7fa3",
+    "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
   },
-  "last_goal_turn": {
-    "classification": "progress",
-    "evidence": "Committed navigation/media improvements and preserved current release; current continuation also observed actual Chrome foreground connection and identified one untried bounded contact sensitivity question.",
-    "no_progress_blocker_count": 0
-  },
-  "offline_bob_pair": {
-    "directory": "/private/tmp/ws1-bob-friction-20261102",
-    "owner": "/root/sensor_decision_review",
-    "current_exec": null,
-    "arm": "both completed",
-    "runs_authorized": "Exactly one successful physics execution per arm; no extra sweep or training. Pre-physics path correction was authorized after hash verification.",
-    "recovery": "Inspect actual agent and execution/exit records before retrying. Never restart merely because observation expired.",
-    "execution_record": "/private/tmp/ws1-bob-friction-20261102/execution-record.json",
-    "preliminary_result": "Actual hull friction changes1.0\u21920.6; active bob height range changes+0.089mm, planarexcursion+0.135mm, driverclippingzero both. Strictnonfootgate stillfails. No further runs justified by this pair.",
-    "status": "Complete, independently reviewed, fully archived and verified in checkout and durable store. Do not rerun.",
-    "archive_copies": {
-      "/Users/shrish/workspace/cs123-foundation/artifacts/generated/bob-friction-pair-20261102": "5a4185874fee3bb62394987ecc7c64e40e5d30902afab8958bbeea732183722e",
-      "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/bob-friction-pair": "5a4185874fee3bb62394987ecc7c64e40e5d30902afab8958bbeea732183722e"
-    },
-    "conclusion": "Tiny motion differences; zero clipping both; strict nonfoot gate fails both. Return completes but settlement unproven; no promotion or further training justified by this pair."
-  },
-  "pause_checkpoint": {
-    "head": "bb27c59",
-    "pending_source_sha256": {
-      "foundation/scripts/report_lab6_session.py": "85a0b3ab08703920f62ab5f7266892d629cdb7f61fb6b0626f78fb8090ce3110",
-      "foundation/tests/test_report_lab6_session.py": "763e4f9b2707a9267367b1ace20c3240cb265da29b5aaa53507befa8a199af51"
-    },
-    "timing_evidence": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/clip-admission-report",
-    "timing_validation": "44 focused tests passed by author; revision2 fixes tied record ordering and summary-less MCAP filtering. Root final review and one real older-bag read remain; no repeated tests needed absent edits.",
-    "bob_report": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/bob-friction-pair/generated-bob-friction-pair-20261102.json",
-    "uncommitted": "Timing source/tests and this checkpoint intentionally preserved without asserting final integration.",
-    "no_robot_contact": true
-  },
-  "recovery_in_progress": {
-    "status": "raw preserved; derived analysis active",
-    "original_transfer_exit": 20,
-    "original_transfer_reason": "Root interrupted task-owned raw rsync to enable compression; partial retained.",
-    "compressed_transfer_exec": 83934,
-    "compressed_transfer_exit": 0,
-    "native_transfer_exec": 97237,
-    "native_transfer_exit": 0
-  },
-  "prepared_next_session": {
-    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-media-acceptance",
-    "app": "/home/pi/pupper-foundation-session-20261029/software-ws1-media-20261102",
-    "app_staged": true,
-    "started": false,
-    "staging_selected_files_verified": 101,
-    "fake_desk_checks": 166,
-    "runtime_manifest_sha256": "47423a34330ae7ca3ab58e41c5b35a265e411550c2730ef755fbbc0d9f93c364",
-    "same_native_policies_gains": true,
+  "hardware_session": {
+    "status": "Stopped: API and native driver shut down cleanly after supported confirmation; camera and MCAP closed; voice disconnected. User may power off for relocation.",
+    "ssh": "mts",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-media-coldboot",
+    "boot_id": "f05b9ce4-01f9-4bae-b28a-7d6ff9b71311",
+    "api_instance": "2c3ec27b892041b28411d895efa05fce",
+    "motor_api_recorders_active": false,
+    "active_processes": {},
+    "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "queued_imu_age_guard_deployed": false,
-    "camera_capture_seconds": 3600,
-    "readiness": "Renewed readinessquestionpending afterofflineworkcompleted; waitforactualReady. Lastjs0absent; useraskedPSwhenready. No hominguntilwatching.",
-    "controller_present_last_check": false
+    "archive_local_verified": true
   },
-  "paid_probe": {
-    "scope": "2savedimage-conditionedrequests, fakeexecution, no microphone/video/TTS/robot",
-    "approved_by_user": true,
-    "status": "completed",
-    "usage_estimate_usd": 0.024039,
-    "provider_invoice": false,
-    "result": "Imagecaption+findme refusal:no toolcalls; explicitmove.2m/s.5s\u2192wait1s\u2192left15deg allsuccess, oneacceptedcachedcue in capture sink. Notaudibility orreal-timecamera-orderproof.",
-    "usage_limit": "Reported usage estimate, not invoice/upperbound; caption responseTokenCount missing. Conservative reservation$1.835008 before calls."
+  "activity": {
+    "automation": "No scheduled automation is active.",
+    "compute": "None: no owned training, provider, robot or recording jobs. Evidence transfer verified complete; local API port-forward removed.",
+    "owners": {
+      "/root": "Checkpoint complete; next discussion is Lab6 submission, final-project idea and Lecture7.",
+      "/root/owned_lifecycle": "Completed acceptance/shutdown audit.",
+      "/root/sensor_decision_review": "Completed course requirements review.",
+      "/root/preserve_local_close": "Completed local archive verification."
+    },
+    "goal_status": "Active; Workstream1 incomplete."
   },
-  "transition_followup": {
-    "claude": "/private/tmp/ws1-transition-claude-20261102",
-    "claude_exec": 45759,
-    "claude_exit": 0,
-    "claude_cost_reported": 0.74487225,
-    "hypothesis": "Only initialSit confirmation0.3spadding may be removable with existing freshcorrelatedendpoint guard. Exactly1nominalmatchedpair proposed; preservefullclips/timeouts/nativephases/limits/gains. No productionchangeyet.",
-    "standing_return": "Measuredjointmovement during return confirms notpureidle4.4s. Nativeinit is2slinear interpolation then2sfade, notconstanttargethold. Prior2sdeletion remainsrejected. Adaptiveinit Claudehypothesis unvalidated and notinthissmalltest.",
-    "evidence_in_progress": "Owner analyzing /gemini_walk/position_command andpolicy_output in same3windowstoidentifyactualtargetphases; no causalIMUdiagnosis.",
-    "status": "Completed; no production timing change",
-    "initial_sit_pair": "Rejected: .278846s firstpaw/.257692stotal saved but subsequentwalking effort+17.97%,slip+51.78%,jointspeed/tilt alsohigher; all3fullclips/deadline preserved, strictinheritedfailures retained. Exactly2physicsruns, independentlyreviewed.",
-    "data_conclusion": "3recordedreturns show realjointmotion in2s linearinit+2sactorfade, only.235\u2013.320s afterfullfadebound. Target/feedbackdifference notgivenforce/stabilitycause; noinit targetpublications."
+  "browser": {
+    "browser": "Chrome1",
+    "tab": "360981083",
+    "url": "http://127.0.0.1:18090/",
+    "connection": "DISCONNECTED",
+    "bundle": "index-bTR6ec1i.js",
+    "model": "gemini-robotics-er-2-streaming-preview",
+    "tts": "gemini-3.1-flash-tts-preview / Puck",
+    "key": "Private configured; never include in logs/repo/chat.",
+    "pending_user_prompt": null
   },
-  "teammate_handoff_check": "gitfetchorigin completed; no newteammatebranches/handoffs. origin/main13299fa andorigin/pupper-foundationb1467b0; localfoundationpreserved."
+  "next": [
+    {
+      "id": "course_completion",
+      "action": "Receive tested follower service and Spider clip/walker pair. Prepare exact Lab6 demo and written-evidence checklist; no current teammate handoffs."
+    },
+    {
+      "id": "focused_next_robot_block",
+      "action": "Only after user returns: inspect actual boot/controller, use verified selected build, one homing if needed. Test explicit compound sequence and spoken Stop in one watched block; preserve request transcript and job IDs."
+    },
+    {
+      "id": "offline_followup",
+      "action": "Reconcile mixed-sequence evidence if additional records arrive. Focus explicit-command over-refusal and provider latency on saved evidence; do not redo passed broad suites."
+    },
+    {
+      "id": "project_discussion",
+      "action": "Discuss final-project idea and deferred tool-authority choice. Retrieve new Lecture7 actual deck/recording; local October27 page is only a stub."
+    }
+  ],
+  "completed_this_session": [
+    "Revised overrestrictive startup screen on reviewed gravity/rate evidence; selected Pi13 tests and current repository54 tests passed.",
+    "Homed once with revised startup; user-observed standing, right-paw and stand worked; no motor/policy/gain changes.",
+    "Independent audit reconciled exact2jobs and preserved contradictory mixed-sequence user report without marking it verified.",
+    "Supported shutdown completed; full recordings and exactsource/library preservation indexed."
+  ],
+  "preservation": {
+    "directory": "artifacts/hardware/2026-11-02/startup-close",
+    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/startup-close",
+    "local_archive_sha256": "779145996c0da93801b586c122afbaffecca79b939ac0255b086df0307bd434c",
+    "local_members_verified": 514,
+    "remote_fully_verified": true,
+    "remote_archive_sha256": "80f9472935902281635ae47c55a831e22687ef16063d8d0d1fed564c56795e78",
+    "remote_indexed_entries": 3167,
+    "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
+    "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs."
+  },
+  "build_distinction": "Retained, tested offline, not deployed in this trial."
 }

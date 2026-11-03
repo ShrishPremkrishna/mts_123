@@ -118,6 +118,8 @@ was rejected because its faster return substantially increased simulated effort.
 The [ER2 video probe](results/workstream1-er-vision-20261102.json) incorrectly called
 a seated endpoint standing; use its annotations for inspection, not acceptance.
 
+The [later startup/voice closeout](results/workstream1-startup-gravity-physical-20261102.json) separates heading drift from gravity stability in the startup screen. The revised screen passed recorded negative controls, 13 selected Pi tests and 54 current-source driver tests; one homing and an observed voice right-paw/standing return succeeded. Sensor calibration and long-duration reliability remain unresolved. A user-reported mixed sequence is retained separately because this run's browser/API logs contain only the two initial actions.
+
 ## Course coverage
 
 This is a capability map, not a percentage-complete claim. The

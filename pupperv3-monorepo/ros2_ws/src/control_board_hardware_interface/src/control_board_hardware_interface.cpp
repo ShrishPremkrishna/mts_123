@@ -1,5 +1,6 @@
 #include "control_board_hardware_interface/control_board_hardware_interface.hpp"
 #include "control_board_hardware_interface/imu_health.hpp"
+#include "control_board_hardware_interface/imu_startup_trace.hpp"
 
 #include <fcntl.h>
 #include <sched.h>
@@ -239,16 +240,27 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   if (imu_manager_.enabled) {
     pupper_imu::StartupWindow stationary;
+    auto trace = pupper_imu::StartupTrace::from_environment();
+    const auto finish_trace = [&](bool passed) {
+      if (trace && !trace->finish(passed))
+        RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                    "IMU startup diagnostic trace could not be written (gate outcome unchanged)");
+    };
     const auto deadline = std::chrono::steady_clock::now() + pupper_imu::startup_timeout;
     RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
                 "Keep body supported and stationary: checking fresh IMU reports before motor enable");
     while (true) {
       const auto sample = imu_manager_.get_imu_data();
-      if (stationary.observe(sample, std::chrono::steady_clock::now())) break;
+      const auto observed_at = std::chrono::steady_clock::now();
+      pupper_imu::StartupObservation observation;
+      const bool ready = stationary.observe(sample, observed_at, trace ? &observation : nullptr);
+      if (trace) trace->record(sample, observed_at, observation, ready);
+      if (ready) { finish_trace(true); break; }
       if (std::chrono::steady_clock::now() >= deadline) {
         RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
-                     "IMU startup check failed: requires three seconds of fresh reports, gyro norm <=0.005 rad/s and orientation change from start <=1 degree");
+                     "IMU startup check failed: requires three seconds of fresh reports, gyro norm <=0.05 rad/s, distinct-report gyro mean norm <=0.025 rad/s and gravity change from start <=1 degree");
         deactivate_motors();
+        finish_trace(false);
         return hardware_interface::CallbackReturn::ERROR;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
