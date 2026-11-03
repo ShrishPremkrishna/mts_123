@@ -102,12 +102,17 @@ def ACTION_IDS(robot: Robot) -> list:
     return list(robot.action_ids())
 
 
+# Secret tricks never appear in these lists, locked or not: a live session keeps the text it
+# read at connect, so a connection made while unlocked would keep them after a relock. The
+# unlock reply names them instead.
 def _trick_list(robot: Robot) -> str:
-    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.available_tricks().items()) or "(none available)"
+    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.available_tricks().items()
+                     if not t.secret) or "(none available)"
 
 
 def _action_list(robot: Robot) -> str:
-    lines = [f'- "{aid}" (during "{t.name}"): {t.actions[clip]}' for aid, (t, clip) in robot.action_ids().items()]
+    lines = [f'- "{aid}" (during "{t.name}"): {t.actions[clip]}' for aid, (t, clip) in robot.action_ids().items()
+             if not t.secret]
     return "\n".join(lines) or "(none installed yet)"
 
 

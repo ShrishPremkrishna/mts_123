@@ -1,0 +1,16 @@
+{
+  "policy_run": null,
+  "walk_run": null,
+  "policy_source": {
+    "type": "local",
+    "path": "/Users/tejkosaraju/Downloads/classes/cs123/optlab3/trained/stretch_dance/policy.json",
+    "sha256": "c1c26b04f6578eef7746221834cd5aef3939099f7f9dffb2e4fe27d8fe8d648e"
+  },
+  "walk_source": null,
+  "files": {
+    "policy.json": "c1c26b04f6578eef7746221834cd5aef3939099f7f9dffb2e4fe27d8fe8d648e",
+    "trick.yaml": "bb66d48d435e84fb349f82d2ab882eb9985d1dff9385a1ade2e6cb429d4bda83"
+  },
+  "hardware_validated": false,
+  "ta_approval_recorded": false
+}

@@ -1,0 +1,9 @@
+description: The secret dance. From standing, with all four feet planted, it sits back
+  onto its hind legs, rises a little, sits back deeper, then stands still again
+  (about 10.5 s). Generated from a sentence with UniMate (Optional Lab 3).
+type: policy
+policy: policy.json
+start_pose: standing
+end_pose: standing
+max_body_angle_deg: 60
+secret: true

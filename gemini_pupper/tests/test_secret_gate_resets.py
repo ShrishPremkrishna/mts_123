@@ -52,7 +52,8 @@ def test_safety_event_revokes_unlock_and_hides_secret_actions(tmp_path, monkeypa
             trick = rig.ts.tricks["hold_pose"]
             trick.secret = True
             assert (await tool_registry.call(rig.ts, "unlock", {"password": "offline-test-only"})).ok
-            assert "hold_pose" in json.dumps(tool_registry.declarations(rig.ts))
+            # Secret tricks stay out of the declarations even while unlocked (tool_registry._trick_list).
+            assert rig.ts.secret_gate.unlocked
             if event == "fall_log":
                 rig.ts._on_rosout(harness._Msg(name=LOCOMOTION_CONTROLLER, msg=ESTOP_LOG))
             elif event == "gamepad_stop":

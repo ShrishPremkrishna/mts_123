@@ -8,6 +8,7 @@ Run them after every change to a file in lab/ (lab/test.py runs this file):
     python3 lab/test.py part2      # one part of the lab (part1 ... part7; part6, the spider, is the notebook)
     python3 lab/test.py robot      # the provided robot (should always pass)
     python3 lab/test.py optional_jump   # the optional jump
+    python3 lab/test.py secrets         # Optional Lab 3: unlock and play_trick (also: optional3)
 
 A fake robot stands in for ROS. It keeps track of which controllers are on,
 records every message the robot sends, and plays trick clips instantly. Time
@@ -1231,6 +1232,220 @@ async def todo11() -> None:
           passes='"- If the person asks for several things in a row, call the tools in that order."')
 
 
+# ----------------------------------------------------------------------------- Optional Lab 3
+_TEST_PASSWORD = "papaya-test-7"  # a made-up desk-test value; the real one lives only on the robot
+_SECRET_WORDS = ("moonwalk", "disco_routine", "disco_in", "disco_groove", "bow_low", "hip_wiggle", "disco_out")
+
+
+def secret_fixture_tricks() -> dict[str, Trick]:
+    """The fake tricks, plus two secret ones: a playback dance that ends standing, and
+    a clip routine whose actions are dance steps (the Part 3 stretch)."""
+    made = fixture_tricks()
+    made["moonwalk"] = Trick(name="moonwalk", description="A secret moonwalk dance.", kind="policy",
+                             path=Path("moonwalk.json"), duration=5.0, frame_count=250, secret=True)
+    made["disco_routine"] = Trick(
+        name="disco_routine", description="A secret dance, one step at a time.", kind="policy",
+        path=Path("disco_routine.json"), duration=10.0, secret=True,
+        clips=[
+            _clip("disco_in", 0, 100, next="disco_groove"),
+            _clip("disco_groove", 99, 150, loop=True),
+            _clip("bow_low", 149, 250, next="disco_groove"),
+            _clip("hip_wiggle", 249, 350, next="disco_groove"),
+            _clip("disco_out", 349, 450),
+        ],
+        actions={"bow_low": "Bows with the chest low.", "hip_wiggle": "Wiggles the hips.", "disco_out": "Stands still."},
+        exit_clip="disco_out",
+    )
+    return made
+
+
+async def _play(rig: Rig, name: str, settle: bool = True):
+    """play_trick the way Gemini calls it (the tool, so the registry's checks run too)."""
+    res = await tools.call(rig.ts, "play_trick", {"name": name, "count": 1, "count_unit": "routine_playback"})
+    if settle:
+        await rig.settle()
+    return res
+
+
+def _names_a_secret(text: str) -> list[str]:
+    return [w for w in _SECRET_WORDS if w in text]
+
+
+def _everything(res) -> str:
+    """All that Gemini receives from a tool: the message and the details."""
+    return json.dumps(res.as_dict(), ensure_ascii=False)
+
+
+async def secrets() -> None:
+    """Optional Lab 3, Part 3: what unlock and play_trick reply, locked and unlocked,
+    right and wrong password. The password file holds a made-up test value."""
+    print("Optional Lab 3: unlock and play_trick (the fake secret tricks: moonwalk, disco_routine)")
+    from secret_gate import SecretGate
+
+    tmp = tempfile.TemporaryDirectory()
+    secret_file = Path(tmp.name) / "secret_password"
+    secret_file.write_text(_TEST_PASSWORD + "\n")
+    rig = Rig(secret_fixture_tricks)
+    try:
+        gate = rig.ts.secret_gate = SecretGate(secret_file)
+        moonwalk, disco = rig.ts.tricks["moonwalk"], rig.ts.tricks["disco_routine"]
+
+        # ---- locked: Gemini can't see the secrets, and can't play them
+        decls = json.dumps(tools.declarations(rig.ts), ensure_ascii=False)
+        play = {d["name"]: d for d in tools.declarations(rig.ts)}.get("play_trick", {})
+        check("locked: play_trick's {tricks} list leaves out the secret tricks",
+              "Bows." in play.get("description", "") and not _names_a_secret(play.get("description", "")),
+              f"description: {play.get('description')!r}",
+              passes='{tricks} filled from robot.available_tricks(), not robot.tricks')
+        check("... and no tool Gemini reads names a secret trick or a secret dance step",
+              not _names_a_secret(decls), f"found {_names_a_secret(decls)}",
+              passes="no enum of every trick name: TRICK_NAMES and ACTION_IDS hide locked tricks")
+        check("... and no tool Gemini reads, nor prompt.md, contains the password",
+              not gate.appears_in(decls + system_prompt()), passes="the password only in the file on the robot")
+        check("... and the Part 3 prompt no longer holds Part 1's password (bananas)",
+              "bananas" not in system_prompt().lower(), passes="remove the in-prompt password in Part 3")
+
+        n = len(rig.robot.switches)
+        res = await _play(rig, "moonwalk")
+        check("locked: play_trick refuses a secret trick", not res.ok, f"got {res}",
+              passes='Result(False, "This trick is locked. Ask for the password, then use unlock(password).")')
+        check("... and the reply tells Gemini what to do: ask for the password, then call unlock",
+              "password" in res.message.lower() and "unlock" in res.message, f"got {res.message!r}",
+              passes='"This trick is locked. Ask for the password, then use unlock(password)."')
+        check("... and nothing moved or was queued", len(rig.robot.switches) == n and rig.ts.last_outcome is None,
+              f"switches: {rig.robot.switches[n:]}; last outcome: {rig.ts.last_outcome}")
+        direct = await behaviors.play_trick(rig.ts, "moonwalk")
+        check("... and the lab's play_trick refuses it too, when called directly",
+              not direct.ok and "password" in direct.message.lower(), f"got {direct}")
+        res = await _play(rig, "backflip")
+        direct = await behaviors.play_trick(rig.ts, "backflip")
+        check("locked: an unknown trick's reply lists the real tricks, but not the secret ones",
+              not res.ok and "bow" in res.message and not _names_a_secret(_everything(res))
+              and not direct.ok and not _names_a_secret(_everything(direct)), f"got {res.message!r} / {direct.message!r}",
+              passes='"play_trick: name must be one of [\'bow\', \'roll_over\', \'hold_pose\', \'hop\'], not \'backflip\'"')
+        res = await rig.call("interactive_action", action="hip_wiggle")
+        check("locked: a secret dance step is refused, and the reply names no secret",
+              not res.ok and not _names_a_secret(_everything(res).replace("hip_wiggle", "", 1)), f"got {res.message!r}")
+
+        # ---- the wrong password, or the right one in the wrong form
+        res = await rig.call("unlock", password="pineapple")
+        check("unlock with a wrong password fails", not res.ok, f"got {res}",
+              passes='Result(False, "Unlock refused. Ask the owner for the password; do not guess or repeat it.")')
+        check("... and the reply repeats neither the guess nor the password",
+              "pineapple" not in _everything(res).lower() and not gate.appears_in(_everything(res)), f"got {res}")
+        check("... and tells Gemini not to guess again", "guess" in res.message.lower(), f"got {res.message!r}",
+              passes='"... ask the owner for the password; do not guess or repeat it."')
+        res = await _play(rig, "moonwalk")
+        check("... and the secret tricks stay locked", not res.ok and "password" in res.message.lower(), f"got {res}")
+        near = {"a sentence around it": f"the password is {_TEST_PASSWORD}",
+                "the password and more words": f"{_TEST_PASSWORD} now dance",
+                "its first half": _TEST_PASSWORD[:6], "all but its last letter": _TEST_PASSWORD[:-1],
+                "one letter more": _TEST_PASSWORD + "8", "an empty string": "",
+                "the password after 290 spaces (too long)": " " * 290 + _TEST_PASSWORD}
+        for what, guess in near.items():
+            res = await rig.call("unlock", password=guess)
+            check(f"unlock refuses {what}", not res.ok and not gate.unlocked, f"got {res}",
+                  passes="compare the whole normalized argument with the file; refuse over 256 characters first")
+
+        # ---- the right password
+        n, start, twists = len(rig.robot.switches), len(rig.records), len(walk_twists(rig))
+        res = await rig.call("unlock", password=f" {_TEST_PASSWORD.upper()}. ")
+        check("unlock with the right password succeeds (spoken case, spaces and a final period are fine)",
+              res.ok and gate.unlocked, f"got {res}", passes="normalize case, outer spaces and outer punctuation on both sides")
+        check("... and nothing it returns contains the password", not gate.appears_in(_everything(res)), f"got {res}")
+        check("... and names the secret tricks now available, so Gemini can play them",
+              "moonwalk" in res.message and "disco_routine" in res.message, f"got {res.message!r}",
+              passes='"Unlocked ... Available tricks: ...; moonwalk: A secret moonwalk dance. ..."')
+        check("... and unlocking moves nothing (no switch, no walking, no job)",
+              len(rig.robot.switches) == n and len(walk_twists(rig)) == twists
+              and not any("queued" in o or "played" in o for o in rig.outcomes(start)),
+              f"switches: {rig.robot.switches[n:]}; log: {rig.outcomes(start)}")
+        check("... and the tool list Gemini reads still names no secret (a reconnect now would keep it after a relock)",
+              not _names_a_secret(json.dumps(tools.declarations(rig.ts))),
+              passes="_trick_list and _action_list skip secret tricks even when unlocked")
+        res = await _play(rig, "moonwalk")
+        check("unlocked: play_trick plays the secret trick", res.ok and bool(rig.robot.activations(moonwalk.controller)),
+              f"got {res}; log: {rig.outcomes(start)}")
+        check("... and hands the legs back to walking (it ends standing)",
+              LOCOMOTION_CONTROLLER in rig.robot.active() and moonwalk.controller not in rig.robot.active(),
+              f"active: {sorted(rig.robot.active())}")
+        res = await _play(rig, "disco_routine")
+        res2 = await rig.call("interactive_action", action="hip_wiggle")
+        check("unlocked: the secret routine takes a dance step on request (the stretch)",
+              res.ok and res2.ok and rig.ts.state_now is disco and "hip_wiggle" in rig.robot.clips(disco.controller),
+              f"got {res}, {res2}; clips: {rig.robot.clips(disco.controller)}")
+        await rig.call("lock_tricks")
+        status = _everything(await rig.call("robot_status"))
+        check("locked while inside the secret routine: robot_status names no secret", not _names_a_secret(status),
+              f"found {_names_a_secret(status)}", passes="public_state_name / public_outcome say 'locked trick'")
+        res = await rig.call("unlock", password=_TEST_PASSWORD)
+        res2 = await rig.call("interactive_action", action="disco_out")
+        check("... and after a new unlock its exit step hands the legs back to walking",
+              res.ok and res2.ok and LOCOMOTION_CONTROLLER in rig.robot.active(), f"got {res}, {res2}")
+        logged = " ".join(rig.outcomes()) + " " + " ".join(r.getMessage() for r in rig.records)
+        check("the password is in no log line", not gate.appears_in(logged))
+        server_src = (HERE / "server.py").read_text()
+        check("the robot server logs unlock's argument as [redacted]",
+              '"[redacted]" if name == "unlock"' in server_src, passes='server.py tool_call: "[redacted]" for unlock')
+
+        # ---- a secret trick queued while unlocked, then locked before it starts, does not play
+        await _play(rig, "bow", settle=False)
+        queued = await _play(rig, "moonwalk", settle=False)
+        before = len(rig.robot.activations(moonwalk.controller))
+        await tools.call(rig.ts, "lock_tricks", {})
+        await rig.settle()
+        check("a secret trick queued while unlocked does not play once locked before its turn",
+              queued.ok and len(rig.robot.activations(moonwalk.controller)) == before,
+              f"queued: {queued}; activations: {rig.robot.activations(moonwalk.controller)}",
+              passes="the queued job checks robot.trick_available(trick) again when it starts")
+
+        # ---- what locks the secrets again (each from a confirmed unlock)
+        for name, args in (("lie_down", {}), ("stop", {}), ("unlock", {"password": "pineapple"}), ("lock_tricks", {})):
+            if name == "stop" or name == "unlock":
+                await rig.call("stand_up")
+            ok = (await rig.call("unlock", password=_TEST_PASSWORD)).ok and gate.unlocked
+            await rig.call(name, **args)
+            res = await _play(rig, "moonwalk")
+            label = "a wrong password" if name == "unlock" else name
+            check(f"{label} locks the secret tricks again", ok and not gate.unlocked and not res.ok,
+                  f"unlocked first: {ok}; got {res}")
+
+        # ---- a password that is part of a trick name: saying the reply would say it
+        secret_file.write_text("moonwalk\n")
+        res = await rig.call("unlock", password="moonwalk")
+        check("if the password is part of a trick name, unlock refuses (its reply would say it) and stays locked",
+              not res.ok and not gate.unlocked and not gate.appears_in(res.message), f"got {res}",
+              passes="build the reply, then refuse if gate.appears_in(reply)")
+        secret_file.write_text(_TEST_PASSWORD + "\n")
+        await rig.call("unlock", password=_TEST_PASSWORD)
+        check("(a restart test needs the robot unlocked here)", gate.unlocked)
+    finally:
+        rig.close()
+
+    rig = Rig(secret_fixture_tricks)
+    try:
+        check("a restarted robot starts locked", not rig.ts.secret_gate.unlocked)
+    finally:
+        rig.close()
+        tmp.cleanup()
+
+    real = SecretGate()
+    if real.path.exists():  # on the robot: the real password file, against the real tricks
+        import tricks as installed
+        rig = Rig(installed.load_tricks)
+        try:
+            words = [system_prompt(), json.dumps(tools.declarations(rig.ts), ensure_ascii=False), behaviors.REFUSED]
+            for t in rig.ts.tricks.values():
+                words += [t.name, t.description, *t.actions, *t.actions.values()]
+            check("the robot's real password is in no prompt, tool description, trick name or description",
+                  not real.appears_in("\n".join(words)),
+                  passes="choose a password that is no trick name, word of a description, or prompt word")
+        finally:
+            rig.close()
+    else:
+        print(f"  --   no password file at {real.path} on this computer (it lives on the robot)")
+
+
 # ----------------------------------------------------------------------------- provided
 async def provided() -> None:
     print("The provided robot (these should pass before you change anything)")
@@ -1516,7 +1731,7 @@ async def provided() -> None:
 GROUPS = {
     "todo1": todo1, "todo2": todo2, "todo3": todo3, "todo4": todo4, "todo5": todo5, "todo6": todo6,
     "todo7": todo7, "todo8": todo8, "todo9": todo9, "todo10": todo10, "todo11": todo11, "robot": provided,
-    "optional_jump": optional_jump,
+    "optional_jump": optional_jump, "secrets": secrets,
 }
 OPT_IN = {"optional_jump"}  # run only when asked for by name
 PARTS = {
@@ -1526,6 +1741,7 @@ PARTS = {
     "part4": ["todo7", "todo8"],
     "part5": ["todo9", "todo10"],
     "part7": ["todo11"],
+    "optional3": ["secrets"],
 }
 
 
