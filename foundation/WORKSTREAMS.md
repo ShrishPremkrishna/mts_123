@@ -4,15 +4,15 @@ tags: [cs123, pupper, project]
 ---
 # Pupper: current scope and proposed sprint
 
-Updated November 2, 2026 from Shrish's explicit reset. This replaces the October 30 three-workstream plan. Earlier scope remains in Git history, not an active backlog. We are discussing the plan; do not resume deployment, training or motor tests until Shrish confirms the direction.
+Updated November 2, 2026 from Shrish's explicit reset. This replaces the October 30 three-workstream plan. Earlier scope remains in Git history, not an active backlog. Current request is to finalize the action checklist. Soccer implementation is deferred until the general agentic harness is dependable and extensible. Next implementation starts with environment cleanup, not soccer-specific work.
 
 ## Current goal and ownership
 
-**Our lane:** finish the required minimum of Lab 6, then make the existing voice/tool/control system cohesive and easy to extend for a soccer robot. Offense and defense are the final-project goals. Better hardware comes later; start with a bounded prototype on existing hardware.
+**Our lane:** finish the required minimum of Lab 6 and make the existing voice/tool/control system cohesive, dependable and easy to extend. Soccer offense/defense remains future project context; no ball tracking, kick/block training or soccer integration belongs in this sprint.
 
 - Teammate: gait, sprinting, jumping and physical movement capabilities.
 - Teammate: Optional Lab 3 implementation and generated motion work.
-- Shrish + this agent: Lab 6 minimum, workspace/deployment cleanup, agent harness, skill integration and soccer software interfaces. Ball perception/predictor ownership needs explicit team coordination; propose our lane owns the initial integration and replay.
+- Shrish + this agent: Lab 6 minimum, workspace/deployment cleanup, general agent harness, skill integration and validation. Soccer software ownership is a later decision.
 - Lecture 7 analysis is deferred at Shrish's request. Actual slides are not posted at the inspected link; do not invent their contents.
 
 Do not make Lab 6 completion depend on pretty tricks, perfect heading, all twelve routines, generated dances, general navigation, fall recovery or broad policy optimization. Optional Lab 3 is no longer our completion requirement.
@@ -30,18 +30,19 @@ Current source: [Lab 6 handout](https://cs123-stanford.readthedocs.io/en/latest/
 
 Recording setup: Part 0 describes on-Pupper kiosk/mic/speaker without a laptop for videos. Our inspected voice evidence is laptop-based; settle this setup before filming. No extra polish is required if the course demonstration works adequately.
 
-## Proposed next few days: outcomes, not a new framework
+## Action checklist for the next sprint
 
-| Work block | Deliverable | Exit criterion |
-|---|---|---|
-| Environment and deployment first | Engineering repo becomes the primary working project; source library/artifact directory are explicit additional folders. Promote the already working stage/start/status/stop helpers into one maintained path, with pinned app/native/policy identities and rollback. | A fresh agent can find the goal, edit/run a focused test, stage an app-only change and identify the running release without rediscovering paths or restarting motors. No real launch in a setup test. |
-| Minimum Lab 6 | Follower + usable Spider + remaining required exercises, four videos and student submission evidence. | Required checklist demonstrated on one selected configuration; no unresolved mandatory item hidden as optional. |
-| Cohesive tool interface | One capability registry, consistent acceptance/outcome/status, one voice feedback path, generic new-skill integration and explicit ownership of continuous behaviors. | Add one small test skill without editing several speech/router special cases; compose it with existing actions; Stop, cancellation, timeout/failure and takeover work in fake execution. Then bounded physical acceptance. |
-| First soccer integration | Timestamped ball-state interface and recorded-frame replay; one local continuous behavior adapter; accept a teammate skill through the same contract. | Demonstrate detection/state → selected behavior → status/stop in replay, then a bounded watched ball approach when perception/control are ready. No claim of kick/block success from API acceptance alone. |
+1. **Fix the workspace.** Make the engineering checkout the primary app project; expose course/artifact folders and verify practical write/network access. Reuse working Python/Node/ROS environments and authenticated coding tools. Done when normal edits and focused checks work without recurring path/permission setup.
+2. **Unify deployment.** Maintain one existing prepare/deploy/start/status/stop workflow; reconcile source and actual app/native/policy versions; preserve rollback. App/browser restarts are separate from motor initialization. Done when a release can be reproduced and identified without manual dated-path assembly.
+3. **Simplify continuity.** Keep short goals, enduring rules and current state in the existing entry points. Move historical detail out of default reading; use compact result/decision records and agreed telemetry retention. Done when another agent can resume from a few short files without replaying the chat.
+4. **Finish core harness behavior.** Consistent typed tools, authoritative status and accepted/running/completed/failed/cancelled outcomes; one coherent voice path; correct compound ordering and control ownership. Address reproducible latency, reconnect, over-refusal and duplicate/missing feedback problems. Keep prompts concise and derive capabilities/state from code.
+5. **Prove extensibility.** Add a small test skill through a handler and declaration, without scattered frontend/speech edits. Exercise composition, failure, timeout, Stop and takeover of a continuous behavior using fake execution, then existing physical skills. Reuse the registry/queue; no new agent framework.
+6. **Close minimum Lab 6.** Basic follower, usable Spider, swim-twice exercise, required Sit/movement/vision demonstrations, four videos, Q1–Q20 and checkoffs as detailed above. Reuse trained assets; polish and OptionalLab3 are excluded.
+7. **Accept and freeze the baseline.** Run one concise end-to-end acceptance set covering conversation, compound commands, skill transitions, Stop, failure/reconnect and adding a tool. Capture useful timing and repeat core scenarios on the selected release. Fix observed blockers; save the accepted release, operating limits and short run instructions. Then discuss soccer implementation.
 
-Keep the existing typed tools, queue, cancellation epochs and controller infrastructure. Extend their interfaces; no wholesale rewrite, agent framework, general skill marketplace or broad training sweep.
+Order: workspace/deployment/continuity first; core harness and minimumLab6 proceed in parallel where possible; final acceptance joins them. Subagents/Claude handle independent implementation and review tasks, with one owner of robot commands. No wholesale rewrite or broad training sweep.
 
-## Soccer design proposal
+## Deferred soccer design context — outside this sprint
 
 The current architecture is a foundation model choosing tools plus local controllers, not an end-to-end VLA that directly predicts robot actions. Keep that separation:
 
@@ -58,7 +59,7 @@ Ball state needs timestamp, coordinate frame, track identity/confidence, bearing
 ## Environment findings and intended fixes
 
 - This chat starts in the Obsidian vault; the engineering repo is outside writable roots. Put `/Users/shrish/workspace/cs123-foundation` in a proper local project as primary. Keep course notes in the vault and coursework main untouched. Folder access may require a project UI change/new correctly rooted session; conversation permission does not itself change a running sandbox.
-- Prefer Mac for agent/browser/development and Pi for robot runtime and hardware-specific work. Moving everything to the Pi is not currently justified; it would tie development to robot availability. Read-only SSH timed out in this review, so no fresh Pi resource audit was obtained.
+- Prefer Mac for agent/browser/development and Pi for robot runtime and hardware-specific work. Moving everything to the Pi is not currently justified; it would tie development to robot availability. Earlier read-only SSH timed out; a later November2 hostname/uptime check succeeded. No services or motors were started by that check.
 - Three launch paths currently exist, and the last physical release combines separate app/native/IMU builds. Reconcile source and deployed components explicitly; do not assume HEAD was physically tested. App-only updates must not rebuild/rehome native control.
 - Python environments work but one is buried in an old evidence folder. Give the maintained commands a stable dependency/configuration entry point without speculative reinstalling or blindly moving a venv.
 - One stable browser origin, visible release identity and microphone/speaker status should eliminate repeated key/configuration/setup ambiguity.
@@ -73,4 +74,4 @@ Use subagents or Claude for independent code/review tasks with clear ownership. 
 
 ## First decision after this review
 
-Agree on this scope and a bounded first soccer demonstration, then fix project access/deployment before restarting robot work. Obtain the teammates' actual follower/Spider/motion assets as needed; do not assume their current progress from the old workstream assignments. Current code/release/evidence are in the recovery record.
+Start with project access/deployment when implementation resumes. Soccer choices wait until harness acceptance. Obtain the teammates' actual follower/Spider/motion assets as needed; do not assume their current progress from the old workstream assignments. Current code/release/evidence are in the recovery record.
