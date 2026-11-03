@@ -1,7 +1,7 @@
 {
   "schema": "pupper_sprint_result_v1",
-  "updated_utc": "2026-11-03T09:50:36.808442+00:00",
-  "status": "Offline release reviewed and packaged; not deployed. Supervised acceptance, remaining videos and student submission remain.",
+  "updated_utc": "2026-11-03T10:30:55.556991+00:00",
+  "status": "Reviewed offline app release ready and preserved; additional client-loss robustness review underway. No deployment; supervised acceptance and student deliverables remain.",
   "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
   "changes": [
     "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
@@ -54,7 +54,7 @@
       "subtests_passed": 4,
       "typecheck_and_production_build": "passed"
     },
-    "scope": "Historical initial sprint checks; current runtime verification is under offline_composition_release.validation."
+    "scope": "Historical initial checks. Python production last full integration is offline_composition_release.validation; final browser and extension proofs are offline_completion_audit.validation."
   },
   "pi": {
     "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r2",
@@ -101,13 +101,13 @@
   },
   "candidate_evidence": {
     "spider_archive": "ws1-spider-swim-handoff-20261102.tar.gz",
-    "spider_status": "Exact experimental pair/descriptor validated in scratch; not installed into production. Nominal \u00b1.10m/s sideways commands yield about\u00b1.014m/s lateral with similar forward drift; zero sampled moving torso support and quiet returns. Adverse failures remain documented.",
+    "spider_status": "Exact experimental pair/descriptor validated in scratch; not installed into production. Nominal ±.10m/s sideways commands yield about±.014m/s lateral with similar forward drift; zero sampled moving torso support and quiet returns. Adverse failures remain documented.",
     "swim_status": "Actual-descriptor double playback/reentry/Stop fake queue passed; repeated-playback physics and physical demo unverified."
   },
   "remaining": [
     "Next user-authorized robot block: charged wireless mic; deploy the reviewed app, verify ordered follow, audible follow-off-before-motion and spoken Stop. No auto-start from this offline checkpoint.",
-    "Finish Q7 and Q19 recordings; inspect existing Q12 standing exit/camera-side handshake footage first and retain/check reported Q16. See WORKSTREAMS.md.",
-    "Student Q1\u2013Q20 explanations and missing actual experiment observations, reflection/contributions/fork link, video links and course checkoffs. Do not invent observations.",
+    "Recharge microphone; finish Q7, rerecord interrupted Q12 sequence including complete standing return and camera-side handshake, and record Q19 with a newcomer. User owns footage review; Q16 reported captured.",
+    "Student Q1–Q20 explanations and missing actual experiment observations, reflection/contributions/fork link, video links and course checkoffs. Do not invent observations.",
     "First watched app-only update/rollback remains an engineering acceptance check; not needed to repeat homing between ordinary actions.",
     "Fresh correctly rooted chat may remove remaining app folder approval friction; user already changed project, so do not ask them to repeat it. Current approved commands worked."
   ],
@@ -155,12 +155,12 @@
     ],
     "onstand_spider": "Entry and exit succeeded; user confirmed controlled motion.",
     "swim_twice_floor": "Job3 completed two playbacks; job4 standing exit completed. User: Two playbacks; controlled return.",
-    "floor_spider": "Direct entry, forward1s and exit controlled, body clear during walk. Voice entry\u2192forward2s\u2192left2s\u2192exit completed. User clarified belly contact only during entry/exit and follow request was refused. Reference deliberately lies/wiggles before rising; this is expected routine contact, not proof of walking support failure. No speed measurement or general robustness claim.",
+    "floor_spider": "Direct entry, forward1s and exit controlled, body clear during walk. Voice entry→forward2s→left2s→exit completed. User clarified belly contact only during entry/exit and follow request was refused. Reference deliberately lies/wiggles before rising; this is expected routine contact, not proof of walking support failure. No speed measurement or general robustness claim.",
     "evidence": "/private/tmp/lab6-deployment-20261102/deployment-r4",
     "web_bundle": "index-DRYBH2Vg.js",
     "limitations": "Experimental Spider nominal simulation only; adverse-return failures retained. Full ordered stand-then-follow semantics still not implemented; in-flight exit takeover is refused.",
     "speaker": "35% unmuted HiFiBerry default output, cached Okay aplay succeeded; user heard no sound and is unsure physical speaker exists.",
-    "voice_spider": "Actual jobs9\u201312: entry, forward2s, left2s, spider_up. All succeeded; user confirmed refusal separately (no follow tool call recorded). Laptop voice observed, not onboard filmed demo.",
+    "voice_spider": "Actual jobs9–12: entry, forward2s, left2s, spider_up. All succeeded; user confirmed refusal separately (no follow tool call recorded). Laptop voice observed, not onboard filmed demo.",
     "shutdown": {
       "owned_processes_exited": true,
       "native_driver_deactivated": true,
@@ -169,7 +169,7 @@
       "verified_members": 29,
       "evidence": "artifacts/validation/harness-sprint-20261103/r4-closed"
     },
-    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93\u201313.99s; exit14.01\u201314.04s; swim x2 23.68s; normal standing after swim4.42s.",
+    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93–13.99s; exit14.01–14.04s; swim x2 23.68s; normal standing after swim4.42s.",
     "running_burst": "Job8 commanded1.0m/s for0.50s, then zero; user confirmed controlled forward motion and stopping. Actual physical speed not measured."
   },
   "r5_onboard": {
@@ -199,14 +199,14 @@
     },
     "claude_review_cost_usd": 0.3490702,
     "review": "artifacts/validation/harness-sprint-20261103/onboard-review/review-receipt.json",
-    "remaining": "Q7 complete voice video and new spoken handoff acceptance; Q12 inspect existing footage for missing portion; keep Q16 recording; Q19 newcomer. Microphone needs recharge. Browser/launcher abrupt crash is not a verified Stop path.",
+    "remaining": "Q7 voice video; user-confirmed Q12 interrupted-sequence rerecord; retain/check reported Q16; Q19 newcomer. Recharge microphone. Abrupt browser/launcher crash is being assessed offline, not a verified Stop path.",
     "real_filming": {
       "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
       "session_id": "a5f86032a8d94ebaa9f50890ecf1f2f7",
       "api_instance": "e003eb82fb0a4a778dd59b236913e9d7",
       "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
       "Q7": "Unfinished; mic battery died before remaining movement/follower filming.",
-      "Q12": "User reports all captured and controlled. Logs confirm Sit,10s wait,both paws; Stop cancelled API standing-exit wait and separate camera-side handshake is absent. User explicitly deferred review. Inspect footage before requesting only missing portion.",
+      "Q12": "Logs confirm Sit, ten-second wait and both paws; Stop cancelled API standing-exit wait and separate camera-side handshake is absent. User now explicitly confirms first interrupted recording needs a later rerecord and owns footage review.",
       "Q16": "User reports captured, body clear while walking. Server confirms entry, forward2s, left2s and spider_up. Spoken follow refusal observed by user; no follow tool call recorded.",
       "Q19": "Deferred: newcomer not available.",
       "shutdown": "Immediate Stop, user R3 and supported, browser-only cleanup then native shutdown verified. No independent physical-release observation.",
@@ -338,22 +338,23 @@
     "archive_sha256": "c3d7afa07cf35f576ed5a3fe2495868aaf35762e47dba8483795fa34258d1da4"
   },
   "offline_app_release": {
-    "status": "Ready offline; no robot contact or deployment",
-    "source_checkout_head": "41efcc84e2c7ed2dda70dd5dfb55e8dbf86ea2ae",
-    "runtime_commit": "fd5f2b91e284307f0fe2e90a8da7e0fd3140afb6",
-    "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-final/package",
-    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-final",
-    "manifest_sha256": "df6f5ba875826a21e76c0d1c872e55d9ae70ba675dd2d3f4746451005835c65e",
+    "status": "Committed, independently reviewed, packaged and locally staged; not deployed.",
+    "source_checkout_head": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
+    "runtime_commit": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
+    "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-followup/package",
+    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-followup",
+    "manifest_sha256": "38bb82035aae7234b5f10cf40d5a7f632f9459f9e10b1d5e00ece2225e26e2e6",
     "app_archive": {
       "name": "lab6-application.tar.gz",
-      "sha256": "ff1e1ff6180061297541a803aa1a7428c5e4a7cffe3ed6bff5c5aa7221f2bf4e",
-      "bytes": 1230182,
+      "sha256": "29f0f2a32fa91afa0e7224cdb706bd1029a8ad4f6c20d2cffa12fa324adc046b",
+      "bytes": 1231031,
       "regular_members": 36,
       "symlinks": 0,
       "strip_components": 0
     },
-    "source_build_freeze_sha256": "8d18770d1a512ba60777ddff1fe4bb77ddd910651f344e8e807d494dd997581e",
-    "evidence_archive_sha256": "00f0ecff64e186dc7d4436a7c96e166bee66a5c3706b3125aad64572e44ca53d",
+    "source_build_freeze_sha256": "b51111ad6eb016010bc0087d11d3696061d3ae448f29f35a92356d1cff37255b",
+    "bundle": "index--CC0txrj.js",
+    "evidence_archive_sha256": "a6469f668d65fa3727ffe6aedfe17a9dbf88b5a605928efb4a2305537ce49208",
     "local_staging": {
       "baseline_files": 132,
       "final_selected_files": 136,
@@ -370,6 +371,51 @@
       "subtests": 51,
       "independent_review": "accepted",
       "meaning": "One pinned baseline, final reviewed source/dist freeze and explicit additions replace editing dated package scripts. No build/deploy/start; launch recipes remain separate."
+    },
+    "supersedes_preserved_candidate": {
+      "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-final",
+      "manifest_sha256": "df6f5ba875826a21e76c0d1c872e55d9ae70ba675dd2d3f4746451005835c65e",
+      "reason": "Additional reproduced fresh-reply cancellation defect fixed; old package retained as historical evidence."
     }
+  },
+  "offline_completion_audit": {
+    "status": "Both concrete gaps closed, committed and independently reviewed.",
+    "source_commit": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
+    "extensibility": "Real in-process HTTP/registry/queue with fake ROS proves active-follow takeover waits for confirmed off, existing backend timeout fails the exact extension and cancels dependents, and Stop/late replies cannot revive work. No arbitrary extension watchdog added.",
+    "conversation": "Idle local Stop or late failure no longer manufactures an empty discarded turn that swallows the next fresh reply. Owed/open replies remain quarantined; older boundaries cannot retire newer inputs. Motion remains paused.",
+    "validation": {
+      "extension_focused_tests": 14,
+      "web_tests": 521,
+      "typecheck": "passed",
+      "build": "passed",
+      "browser_sources_unchanged": 83,
+      "bundle": "index--CC0txrj.js",
+      "python_baseline": "Unchanged production Python retains prior 1103 API and 166 course checks; one course assertion adaptation remains disclosed. No full Python rerun for this frontend fix/tests-only extension addition."
+    },
+    "independent_controls": "Original idle-silence and later three-input counterexamples retained. Independent prior-code three-input probe fails; corrected source passes.",
+    "limits": [
+      "Synthetic client/fake ROS evidence does not prove provider timing or physical behavior.",
+      "No provider input correlation IDs: silent/coalesced inputs can conservatively suppress output until later boundaries or reconnect.",
+      "Backend timeout is existing bounded service-call behavior; queue seconds remain an estimate."
+    ],
+    "model_context": "No fabricated terminal model receipt. Original queued acceptance remains historical; robot_status exposes actual last_outcome. Automatic context injection deferred; free-form claim screening remains best effort.",
+    "evidence": [
+      {
+        "path": "artifacts/validation/harness-sprint-20261103/offline-completion-proof",
+        "archive_sha256": "80fef09933428ecc6504f4e50413053974177df0eb8e3b87ae44255b1fbc16cc",
+        "scope": "Initial fixes, extension proof, Claude implementations and reviews; preserves intermediate browser results."
+      },
+      {
+        "path": "artifacts/validation/harness-sprint-20261103/oldest-watermark-proof",
+        "archive_sha256": "0459edd6462baf6353605bd640117694f9b7bdf5f71710f3d6efa8dca98d1f9b",
+        "scope": "Final two-site correction, independent negative/positive controls and final 521-test build."
+      }
+    ],
+    "video_update": "User owns footage review and confirms interrupted Q12 first sequence needs later rerecord; no file request pending."
+  },
+  "offline_client_loss_review": {
+    "status": "In progress after user renewed overnight offline scope.",
+    "scope": "Existing browser/launcher crash and connection-loss behavior; reproduce before proposing bounded changes. No robot, broad framework or silent change to HTTP queue persistence.",
+    "owner": "/root/client_loss_review"
   }
 }
