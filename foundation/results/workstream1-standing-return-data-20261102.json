@@ -1,0 +1,129 @@
+{
+  "date_local": "2026-11-02",
+  "status": "Frozen offline analysis of three recorded stand returns; no duration change or physical-stability verdict.",
+  "scope": "Contextual API jobs 3, 6 and 8 in the recovered 20261102-ws1-static-idle session. Only job 6 belongs to the explicitly watched second chain.",
+  "question": "Does the previously reported approximately 4.4-second post-clip return contain measured movement, or only a redundant timer?",
+  "prior_receipt_report": {
+    "path": "foundation/results/workstream1-clip-admission-20261102.json",
+    "stand_endpoint_receipt_to_api_finish_s": [
+      4.357745170593262,
+      4.437005281448364,
+      4.428388595581055
+    ],
+    "definition": "Software endpoint-status receipt to contextual API completion, not physical settling or exact native activation duration."
+  },
+  "conclusion": "The approximately 4.4-second return contains prescribed interpolation and policy blending, with measured joint movement during both. Only 0.235\u20130.320 seconds remains after the bounded full-blend end. These observations do not establish minimum necessary durations or justify a shorter return.",
+  "native_contract_correction": {
+    "initial_phase": "2 seconds of linear interpolation from measured activation joints to the default pose; not a constant-target hold.",
+    "following_phase": "2 seconds of blending from the default anchor toward changing actor targets.",
+    "api_readiness": "4.2-second timer starts after the switch-service reply; this is later than the unlogged native init_time origin.",
+    "native_origin": "Source-ordered activation logs bound init_time to 35\u201355 milliseconds; requires a common ROS/log clock.",
+    "target_telemetry": "No position_command publication in the init branch; the first published targets are consistent with init ending around 2 seconds. Later actor-rate samples do not reconstruct every held or slew-limited control tick.",
+    "source_sha256": "bb4197d7020e81d2800e4c0fc30bffe06c0ee5036803bf0088204cbc6d8e6ce6",
+    "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "source_locators": "neural_controller.cpp:460\u2013467 (measured init pose/time), 722\u2013746 (linear init and early return), 749\u2013750 (fade origin), 1248\u20131270 (blended target), 1304\u20131310 (publication); frozen 015-robot_api.py:798\u2013802 and 901\u2013907 (API readiness)."
+  },
+  "observations": {
+    "stand_reference_endpoint_max_default_difference_rad": 0.007900980926513701,
+    "per_return": [
+      {
+        "contextual_job_number": 3,
+        "measured_endpoint_max_default_difference_rad": 0.11151357650756832,
+        "max_joint_excursion_within_linear_init_rad": 0.1091012954711914,
+        "max_joint_excursion_within_actor_fade_rad": 0.0759134292602539,
+        "api_finish_after_full_fade_s_bounds": [
+          0.234625932,
+          0.269752407
+        ],
+        "max_joint_excursion_after_latest_fade_end_rad": 0.0019073486328125
+      },
+      {
+        "contextual_job_number": 6,
+        "measured_endpoint_max_default_difference_rad": 0.09930654525756832,
+        "max_joint_excursion_within_linear_init_rad": 0.0896463394165039,
+        "max_joint_excursion_within_actor_fade_rad": 0.060654640197753906,
+        "api_finish_after_full_fade_s_bounds": [
+          0.274399259,
+          0.319864705
+        ],
+        "max_joint_excursion_after_latest_fade_end_rad": 0.0072479248046875
+      },
+      {
+        "contextual_job_number": 8,
+        "measured_endpoint_max_default_difference_rad": 0.10312124252319332,
+        "max_joint_excursion_within_linear_init_rad": 0.0854501724243164,
+        "max_joint_excursion_within_actor_fade_rad": 0.0743875503540039,
+        "api_finish_after_full_fade_s_bounds": [
+          0.255599088,
+          0.310989136
+        ],
+        "max_joint_excursion_after_latest_fade_end_rad": 0.0003814697265625
+      }
+    ],
+    "target_comparison": "Final half-second maximum near-receipt joint-to-target differences are approximately 0.120\u20130.130 rad. This is a recorded vector difference, not a synchronized physical tracking-error measurement or a cause diagnosis. Default pose is an anchor; the full actor target can differ from it."
+  },
+  "data_and_execution": {
+    "joint_messages_selected": 3807,
+    "position_commands_selected": 415,
+    "policy_outputs_selected": 415,
+    "joint_decode_issues": [],
+    "target_decode_issues": [],
+    "joint_decode_exit": 0,
+    "target_decode_exit": 0,
+    "analysis_exit": 0,
+    "history": "No source edits or tests. Joint-only decode once and exactly2target-topic decode once, each clean exit0. Derived analysis rerun once from savedarrays solely to correct plot autoscaling by unseen padded data; raw/decode outputs unchanged.",
+    "raw_mcap_sha256_before_and_after": "e46a03c9a840dac3ad9a4b20f132ef530509498bf6b280e96b0314ebea16600a"
+  },
+  "limits": [
+    "Reported positions/velocities do not establish foot contact, force, body stillness, stability or permission to shorten a transition.",
+    "Default pose is the interpolation/fade anchor; full actor targets can differ at zero velocity. Residual q\u2212default is not alone a tracking defect.",
+    "API job association uses contextual wall-time containment; source log brackets require common ROS/log clock. No physical measurement-age guarantee.",
+    "Only chain2/job6 was explicitly operator-watched in supplied session context.",
+    "One joint-only decode and one exactly-two-target-topic decode; no report/test rerun, source change, hardware or provider.",
+    "Position-command and policy-output messages lack execution UUIDs or frame IDs. Their alignment to joint samples is by nearby receipt times only.",
+    "No body-stability, foot-contact, force, mechanical-cause, sensor-health or minimum-safe-duration claim follows from these joint data. No IMU inference is used here.",
+    "The archive preserves frozen code with original local-path assumptions; exact external dependencies and replay layout are recorded in package-manifest.json."
+  ],
+  "raw_recovery": {
+    "archive": "artifacts/hardware/2026-11-02/static-idle-recovery/complete-recovery.tar.gz",
+    "sha256": "c373fe051293dfe7cd85d7e20007fc5af6c84a7a1bfdc67aa6bba0e035cca78e",
+    "bytes": 613457149,
+    "members_regular": 1978,
+    "literal_symlinks": 1,
+    "original_closed_index_passed": 923,
+    "original_closed_index_total": 924,
+    "failure_preserved": "Frozen-input neural library is truncated to16MiB. Original file/index unchanged; exact50,182,064B library recovered from native install in labeled supplement. All1041native build files match separate remote index.",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/static-idle-recovery"
+  },
+  "derived_evidence_candidate": {
+    "archive": "/private/tmp/ws1-standing-return-preservation-20261102/standing-return-analysis-20261102.tar.gz",
+    "sha256": "6413313ff95a1949d416ac2e6495deac498128c1b1e2b0bfa7214519d7d52e2e",
+    "bytes": 4234539,
+    "regular_members": 24,
+    "all_members_stream_verified": true,
+    "archive_receipt": "/private/tmp/ws1-standing-return-preservation-20261102/archive-receipt.json",
+    "summary_member": "standing-return/summary.json",
+    "summary_sha256": "cb7d6fe8b217f77a32e28d84b9000cda5e8e3fa9bddabd228322b6c0986781c8",
+    "analysis_member": "standing-return/standing-return-analysis.json",
+    "analysis_sha256": "96127ec85bdb1f1cb9752228ed1c99ddd35cb96ed1b0dddd048a082a01593110",
+    "plot_member": "standing-return/standing-return-target-vs-measured.png",
+    "plot_sha256": "122a4535fbfbf6fd699bd484934ffdde834914c32c1efb20b5786a94157e148a",
+    "plot_review": {
+      "image": "standing-return-target-vs-measured.png",
+      "sha256": "122a4535fbfbf6fd699bd484934ffdde834914c32c1efb20b5786a94157e148a",
+      "author": "Viewed exact final image; all three rows, labels and legend are legible.",
+      "root": "Root confirmed independent view_image of this exact PNG and legible three rows/labels in collaboration message before this package was created.",
+      "image_edited_during_packaging": false
+    },
+    "integration_note": "Root owns durable copy and repository integration; replace this candidate archive path with the chosen durable artifact reference."
+  },
+  "next": "Preserve the reviewed native return behavior. Any proposed shortening needs its own bounded motion comparison; these data alone do not authorize it.",
+  "canonical_archive": {
+    "archive": "artifacts/hardware/2026-11-02/standing-return-observed/standing-return-analysis-20261102.tar.gz",
+    "sha256": "6413313ff95a1949d416ac2e6495deac498128c1b1e2b0bfa7214519d7d52e2e",
+    "bytes": 4234539,
+    "members": 24,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/standing-return-observed/standing-return-analysis-20261102.tar.gz",
+    "candidate_sha256": "de221f4ac395df0a7960c7b136eaa27ee50bf4ec99049a04c5c428cf13fdda4b"
+  }
+}

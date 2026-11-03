@@ -86,7 +86,12 @@ compound movement and running-walk cancellation worked in bounded supervised
 checks. A native change removed avoidable constant-idle waits; the watched repeat
 was controlled with shorter pauses. The [recovered recording](results/workstream1-clip-admission-20261102.json)
 now shows all eight recorded clip requests reaching first-applied status in
-3.627–25.682 ms; these are software receipt intervals, not physical onset. The same session exposed a separate limitation: “find me” caused
+3.627–25.682 ms; these are software receipt intervals, not physical onset. The
+[recorded joints and targets](results/workstream1-standing-return-data-20261102.json)
+show motion through the remaining two-second interpolation and two-second policy
+fade. A [separate initial-Sit padding reduction](results/workstream1-sit-entry-padding-20261102.json)
+saved only 0.258 seconds overall and worsened subsequent simulated walking; it
+was rejected, with production unchanged. The same session exposed a separate limitation: “find me” caused
 model-generated turns and walking into a backpack. **Camera understanding is not
 navigation or obstacle avoidance.** Capability metadata and explicit model guidance
 now disclose that gap; they do not enforce the purpose of every valid movement

@@ -1,0 +1,147 @@
+{
+  "date": "2026-11-02",
+  "status": "REJECTED initial Sit confirmation-padding candidate; production unchanged",
+  "scope": "Exactly one deterministic nominal baseline/candidate pair, two local runs total; no physics reruns, tuning, training, provider or robot contact.",
+  "intervention": {
+    "entry_first_poll_s": {
+      "baseline": 5.5,
+      "candidate": 5.2
+    },
+    "unchanged_entry_earliest_receipt_s": 5.2,
+    "unchanged_absolute_entry_timeout_s": 6.5,
+    "full_native_motion_preserved": true,
+    "unchanged_walking_readiness_s": 4.2,
+    "code_change": "Isolated evaluator override only; no production patch."
+  },
+  "finding": "First-paw request advances0.278846s and full chain completes0.257692s earlier, but following walking effort, speed, slip and tilt increase; reject under preregistered no-regression criterion.",
+  "decision": "Keep existing initial Sit padding and standing return unchanged. No further arms or optimization from this pair.",
+  "latency": {
+    "first_paw_request_savings_s": 0.2788461538461542,
+    "full_sequence_savings_s": 0.2576923076923059
+  },
+  "first_paw_request_s": {
+    "baseline": 5.501923076923077,
+    "candidate": 5.223076923076923
+  },
+  "full_sequence_s": {
+    "baseline": 24.263461538461538,
+    "candidate": 24.005769230769232
+  },
+  "following_walking_absolute_metrics": {
+    "baseline": {
+      "peak_effort_nm_sampled": 1.300688618409926,
+      "max_joint_speed_rad_s_sampled": 10.211012530367165,
+      "loaded_contact_force_weighted_slip_m_s_sampled": 0.01327519444892417,
+      "max_tilt_deg": 2.349172482193155
+    },
+    "candidate": {
+      "peak_effort_nm_sampled": 1.5343733580162775,
+      "max_joint_speed_rad_s_sampled": 10.947948779300722,
+      "loaded_contact_force_weighted_slip_m_s_sampled": 0.02014855747266535,
+      "max_tilt_deg": 3.92835619716909
+    }
+  },
+  "stop_tail_motion": {
+    "baseline": {
+      "final_root_linear_speed_m_s": 0.00019069097036580602,
+      "last_half_second_peak_quaternion_angular_speed_rad_s": 0.007215169357906145,
+      "angular_method": "Shortest successive quaternion rotation /52Hz sample interval; sampled motion, not exact instantaneous angular velocity",
+      "samples": 27
+    },
+    "candidate": {
+      "final_root_linear_speed_m_s": 0.0002459327419376767,
+      "last_half_second_peak_quaternion_angular_speed_rad_s": 0.00822960035445075,
+      "angular_method": "Shortest successive quaternion rotation /52Hz sample interval; sampled motion, not exact instantaneous angular velocity",
+      "samples": 27
+    }
+  },
+  "validation": {
+    "root_exit_codes": [
+      0,
+      0
+    ],
+    "analysis_exit_code": 0,
+    "native_stops": [
+      null,
+      null
+    ],
+    "all_three_requested_clips_s": 3.5,
+    "identical_prefix_trajectory_rows": {
+      "identical": true,
+      "baseline_count": 272,
+      "candidate_count": 272
+    },
+    "identical_prefix_inference_rows": {
+      "identical": true,
+      "baseline_count": 246,
+      "candidate_count": 246
+    },
+    "baseline_entire_trajectory_matches_prior_nominal": true,
+    "baseline_entire_inference_matches_prior_nominal": true,
+    "quality_increases_over_1e_6": 31,
+    "failed_gates": {
+      "baseline": [
+        "strict_no_loaded_nonfoot_support",
+        "strict_zero_controller_clamping",
+        "strict_zero_driver_clamping"
+      ],
+      "candidate": [
+        "strict_no_loaded_nonfoot_support",
+        "strict_zero_controller_clamping",
+        "strict_zero_driver_clamping"
+      ]
+    },
+    "review": "Independent saved-results review approved bounded rejection; no reruns.",
+    "prevented_duplicate_launch": "Author log exclusive-open refused before subprocess creation;0 additional native/physics processes. Exact receipt archived."
+  },
+  "frozen_identities": {
+    "original_report": "inputs/report.json",
+    "original_study": "/private/tmp/ws1-completion-driven-sit-20261102",
+    "native_host_sha256": "aa729f0a163c17ab8cfcda9cd9367f2cb4657acdb031c7bf22d14cd4c4e3f26d",
+    "model_sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+    "sit_policy_sha256": "bf260b19669affa6452ea124d6800823583d1dcecf64814b0f5e5cc83ee1d429",
+    "default_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+  },
+  "evidence": {
+    "suggested_repo_directory": "artifacts/hardware/2026-11-02/sit-entry-padding",
+    "suggested_durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/sit-entry-padding",
+    "copies_not_performed_by_author": true,
+    "archive": "/private/tmp/ws1-sit-entry-padding-20261102/complete.tar.gz",
+    "archive_sha256": "89565fd46c21192f2aed1130b491fa3c5936f266cb6be3c8bd32cbea95705f5e",
+    "archive_bytes": 58720584,
+    "regular_members": 84,
+    "symlinks": 0,
+    "uncompressed_regular_bytes": 144277469,
+    "manifest": "/private/tmp/ws1-sit-entry-padding-20261102/archive-manifest.json",
+    "manifest_sha256": "b2e00d11e46d6fa6f4af7b53beee36ad60e274e3d775707deb4d45e7257d8a23",
+    "all_members_stream_verified": true,
+    "frozen_inputs_rechecked": true,
+    "independent_review_sha256": "f9b626c7d177f9c2833b630560d8065416c702c315b16ff54ab63f9a30bd167e",
+    "comparison_sha256": "13e14f59a0e72e68a961c8fa1fce296208799a75cfd3164c78c4014d181acbe2",
+    "physics_runs": 2,
+    "extra_physics_from_prelaunch_refusal": 0,
+    "root_execution_ids": [
+      54588,
+      45461
+    ],
+    "production_modified": false,
+    "completed_epoch_s": 1793667654.5033112
+  },
+  "limits": [
+    "One deterministic nominal comparison; sampled differences are not statistical estimates or proof of physical deterioration.",
+    "Zero common ROS/service/event-loop delay in evaluator;20ms polling rounds up to520Hz simulation ticks.",
+    "Reference durations, native initialization/fade, gains, limits, full hull contacts,16ms actuator delay and initial state unchanged.",
+    "Per-active-clip/equal-stage metrics avoid different idle-duration weighting; raw52Hz sample phase can differ after earlier requests.",
+    "Inherited loaded nonfoot support and clipping remain strict screen failures in both arms; no reclassification, threshold relaxation or baseline hardware-safety certification.",
+    "Short quiet-tail speeds are reported, not interpreted as perfect settlement.",
+    "The original2s standing-return shortcut and any distance-adaptive initialization proposal are outside this experiment."
+  ],
+  "canonical_archive": {
+    "archive": "artifacts/hardware/2026-11-02/sit-entry-padding/complete.tar.gz",
+    "sha256": "89565fd46c21192f2aed1130b491fa3c5936f266cb6be3c8bd32cbea95705f5e",
+    "bytes": 58720584,
+    "members": 84,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/sit-entry-padding/complete.tar.gz",
+    "candidate_sha256": "c55cf969462a03785c12ad9484d9fe22b1664d19984f2a31645ac6fd7a2d464f"
+  }
+}
