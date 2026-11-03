@@ -1,0 +1,659 @@
+{
+  "schema": "generated_bob_friction_pair_result_v1",
+  "recorded_utc": "2026-11-02T23:41:47.447508+00:00",
+  "status": "bounded_sensitivity_complete_no_policy_promotion",
+  "hardware_validated": false,
+  "policy_promoted": false,
+  "purpose": "Test whether lowering only named foot spheres misses the lower-leg-hull support friction, without retraining or changing geometry/priority/gains.",
+  "source_revision_at_freeze": "bb27c597126e3c15016f5ec126845934c165ee6d",
+  "conclusions": [
+    "The contact-scope concern is confirmed: foot-sphere-only material change leaves every loaded lower-leg hull at solver sliding friction1.0; sphere+hull+floor change produces0.6 at all eight loaded leg-end geometries.",
+    "The changed effective support friction does not produce a large bob-motion failure in this one deterministic pair: active height range remains29.0/29.1mm, with approximately0.0265/0.0267rad tracking RMSE and no driver target clipping.",
+    "Both arms finish bob, terminal hold, standing return, short default walking and stop without a native tilt/numeric stop. This is measured completion, not a claim of flawless settlement or hardware robustness.",
+    "Both still fail the original strict nonfoot-contact screen because lower-leg hulls carry load. The gate and affected originals are preserved, so neither result approves a policy.",
+    "This comparison does not diagnose or fix the real robot jitter and does not justify another policy sweep; the next useful step requires physical contact/target evidence or a defensible model-contact audit before any promotion."
+  ],
+  "configuration": {
+    "arms": {
+      "sphere_only": {
+        "sliding_friction": 0.6,
+        "geoms": [
+          "leg_front_r_3_collision",
+          "leg_front_l_3_collision",
+          "leg_back_r_3_collision",
+          "leg_back_l_3_collision"
+        ],
+        "expected_loaded_solver_friction": {
+          "sphere": 0.6,
+          "lower_leg_hull": 1.0
+        }
+      },
+      "all_loaded_floor": {
+        "sliding_friction": 0.6,
+        "geoms": [
+          "terrain",
+          "leg_front_r_3_collision",
+          "leg_front_l_3_collision",
+          "leg_back_r_3_collision",
+          "leg_back_l_3_collision",
+          "leg_front_r_3_hull",
+          "leg_front_l_3_hull",
+          "leg_back_r_3_hull",
+          "leg_back_l_3_hull"
+        ],
+        "expected_loaded_solver_friction": {
+          "sphere": 0.6,
+          "lower_leg_hull": 0.6
+        }
+      }
+    },
+    "preserved": "All geometry, priorities, other friction components, solref/solimp/solver options, masses/inertia, root and joint initial state, actor/gains/clamps/16ms delay, finite stage durations and no-jump return remain unchanged. Model serialization is restored and compared after undoing friction to verify no other model change.",
+    "initial_state": "New deterministic world each arm: root [0,0,.18,1,0,0,0], bob/default identical default_joint_pos, zero joint/root velocity; no RNG or resets after initialization. Training seed42 is provenance, not a random evaluation seed.",
+    "stage_plan": [
+      [
+        "default_entry",
+        "default",
+        6.2,
+        [
+          0,
+          0,
+          0
+        ],
+        ""
+      ],
+      [
+        "motion",
+        "trick",
+        9.8,
+        [
+          0,
+          0,
+          0
+        ],
+        "all"
+      ],
+      [
+        "terminal_hold",
+        "trick",
+        2,
+        [
+          0,
+          0,
+          0
+        ],
+        ""
+      ],
+      [
+        "default_activation",
+        "default",
+        4.2,
+        [
+          0,
+          0,
+          0
+        ],
+        ""
+      ],
+      [
+        "default_forward",
+        "default",
+        2,
+        [
+          0.1,
+          0,
+          0
+        ],
+        ""
+      ],
+      [
+        "default_stop",
+        "default",
+        2,
+        [
+          0,
+          0,
+          0
+        ],
+        ""
+      ]
+    ],
+    "runtime": {
+      "physics_hz": 520,
+      "native_inference_hz": 52,
+      "target_delay_ms": 16,
+      "actor_kp": 5.5,
+      "actor_kd": 0.25,
+      "python": "/Users/shrish/workspace/cs123-foundation/.venv/bin/python",
+      "no_recompilation": true
+    },
+    "scope_limit": "Arm B also changes terrain sliding friction for any other contacting geom, according to unchanged priority/max mixing. Every encountered loaded geometry/effective coefficient will be reported. Not a single-geom or real-floor-calibrated ablation.",
+    "non_target_loaded_contact_geometries_observed": []
+  },
+  "execution": {
+    "recorded_utc": "2026-11-02T23:38:13.082572+00:00",
+    "environment": {
+      "MPLCONFIGDIR": "/private/tmp/ws1-bob-friction-20261102/mpl",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "working_directory": "/Users/shrish/workspace/cs123-foundation",
+    "commands": {
+      "sphere_only": [
+        "/Users/shrish/workspace/cs123-foundation/.venv/bin/python",
+        "/private/tmp/ws1-bob-friction-20261102/run_pair_arm.py",
+        "sphere_only"
+      ],
+      "all_loaded_floor": [
+        "/Users/shrish/workspace/cs123-foundation/.venv/bin/python",
+        "/private/tmp/ws1-bob-friction-20261102/run_pair_arm.py",
+        "all_loaded_floor"
+      ]
+    },
+    "active_arm": null,
+    "tool_exec_session_id": null,
+    "physics_started_per_arm": {
+      "sphere_only": 1,
+      "all_loaded_floor": 1
+    },
+    "precondition_failure_preserved": "failed-launch-before-simulation",
+    "important_path_contract": "trick_descriptor must use sibling bob-policy.json from original repo native-inputs. run_pair_arm.py asserts identity before existing evaluator copies inputs into output.",
+    "completion": "both arms exit0; one physical simulation each; analysis complete"
+  },
+  "precondition_failure": {
+    "path": "failed-launch-before-simulation",
+    "physics_started": false,
+    "cause": "The descriptor requires its original sibling policy path; a temporary policy copy violates path identity before output creation/model/native startup.",
+    "correction": "Use the original repo bob-trick.yaml descriptor and original sibling bob-policy.json after verifying both against frozen input hashes. Preserve failed invocation and corrected runner identity.",
+    "extra_physics_runs": 0
+  },
+  "inputs": {
+    "model.mjb": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/bob/model.mjb",
+      "sha256": "3a0035d4262e5d7dfafa96336fec7330f01a6247584a0896e415ca8dfa5129ad",
+      "bytes": 26895744
+    },
+    "handoff_controller": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/bob/handoff_controller",
+      "sha256": "56d5db78f5168141210f5e58ebc4fc068a247a65ef9e65ddaa4635bb50f8f57e",
+      "bytes": 465584
+    },
+    "bob-policy.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/bob/trick-policy.json",
+      "sha256": "918f3636b1cac85719b680498191bb5928496eafe30d1376109e30cbeb73aadd",
+      "bytes": 1598318
+    },
+    "default-policy.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/bob/default-policy.json",
+      "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+      "bytes": 6807363
+    },
+    "original-report.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/bob/report.json",
+      "sha256": "97ee94457c4f6dcdf139725841eda1202bff487cc5726a6b3df480adcb1165cf",
+      "bytes": 21524
+    },
+    "original-runner-identity.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/bob/runner-identity.json",
+      "sha256": "efa61d3e7fed403fc7c5417aeb6dee0b88c5a1fa5abfe9af0422684a85875844",
+      "bytes": 2155
+    },
+    "bob-trick.yaml": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-inputs/bob-trick.yaml",
+      "sha256": "749fe544bb9a4c4f372d19744b104c733d4a7c16dd894079628bd861b1351508",
+      "bytes": 131
+    },
+    "gentle_bob.npz": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/clearer-motion-20261101/gentle_bob.npz",
+      "sha256": "182f060cd72cbe4e85bf8cc0957727912c3c86e3695d7c40385f603f41a39e96",
+      "bytes": 323874
+    },
+    "class-driver-joint-limits.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/foundation/configs/class-driver-joint-limits.json",
+      "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+      "bytes": 2660
+    },
+    "criteria.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/gentle-bob-training-20261101/native-eval/criteria.json",
+      "sha256": "bd388dd3c93afe8c92cbd34361a0d345645d6ac8f9f8edeb1038725c984fc7f8",
+      "bytes": 2534
+    },
+    "foot_end_low.json": {
+      "source": "/Users/shrish/workspace/cs123-foundation/artifacts/generated/pushup-yaw-training-20261101/native-evaluation/original-foot_end_low/physical-variant.json",
+      "sha256": "8d733a19bd0ddace161657498292ee3ca066169bd367709d3b3ecb5573ce2aa6",
+      "bytes": 185
+    },
+    "source/check_spider_handoff.py": {
+      "source": "/Users/shrish/workspace/cs123-foundation/foundation/scripts/check_spider_handoff.py",
+      "sha256": "990c545b562ac53a85d96e1b44ae765245d40804a027077d5d3bcec3dc98d940"
+    },
+    "source/native_timing.py": {
+      "source": "/Users/shrish/workspace/cs123-foundation/foundation/scripts/native_timing.py",
+      "sha256": "d554b859748ba79d9b571448a783a0f32629008b442c0543dbf1c0b044020e89"
+    }
+  },
+  "frozen_source_hashes": {
+    "plan.json": "2834f87a6893950082eba8216a0756de3c4130fd6cd07aea51f45abdb7064b5b",
+    "input-manifest.json": "b791f4cd3ffab1592fdb1e85c0c1b494936131ec015d9ea3087516367e8c63cf",
+    "run_pair_arm.py": "fb0600085773f1add4c2ecfd26e29f746d5ef617b7b1c3a308e5db19d6dc6b6a",
+    "source/check_spider_handoff.py": "990c545b562ac53a85d96e1b44ae765245d40804a027077d5d3bcec3dc98d940",
+    "source/native_timing.py": "d554b859748ba79d9b571448a783a0f32629008b442c0543dbf1c0b044020e89",
+    "source/original-compare.py": "30f6b63971b841425f7ec3ef0d88c0f1c17aa9cfd17355353c72fd2f359e327a",
+    "analyze_pair.py": "a7afe8d87e1e9172a5f1b45465dc88871082787731a4dc55c1ebde6db407f0b7"
+  },
+  "arms": {
+    "sphere_only": {
+      "exit": {
+        "arm": "sphere_only",
+        "started_epoch_s": 1793662653.0293381,
+        "ended_epoch_s": 1793662667.023911,
+        "success": true,
+        "error": null
+      },
+      "identity": {
+        "policy_sha256": "918f3636b1cac85719b680498191bb5928496eafe30d1376109e30cbeb73aadd",
+        "binary_sha256": "56d5db78f5168141210f5e58ebc4fc068a247a65ef9e65ddaa4635bb50f8f57e",
+        "model_sha256": "90230fddffae0df5540234f3eaa4f4f69c01c2ff10bcb6d6fb2c9bf79846fa2e",
+        "trajectory_sha256": "9f52ef4145811b8ce36761456ae17c7031c0714d080630c9b6741a33f4a1fb60",
+        "inference_sha256": "40ba750a22a7583fafd1fd5da7c5b4558ef92c18951458ff260fa00345dd9d3a",
+        "report_sha256": "910862e35d670615cc8d7fb53b35e86813c5c7f948f885182e13424c9e79635c"
+      },
+      "effective_loaded_solver_sliding_friction": {
+        "leg_back_l_3_collision": [
+          0.6
+        ],
+        "leg_back_l_3_hull": [
+          1.0
+        ],
+        "leg_back_r_3_collision": [
+          0.6
+        ],
+        "leg_back_r_3_hull": [
+          1.0
+        ],
+        "leg_front_l_3_collision": [
+          0.6
+        ],
+        "leg_front_l_3_hull": [
+          1.0
+        ],
+        "leg_front_r_3_collision": [
+          0.6
+        ],
+        "leg_front_r_3_hull": [
+          1.0
+        ]
+      },
+      "loaded_geometries_entire_sequence": [
+        "leg_back_l_3_collision",
+        "leg_back_l_3_hull",
+        "leg_back_r_3_collision",
+        "leg_back_r_3_hull",
+        "leg_front_l_3_collision",
+        "leg_front_l_3_hull",
+        "leg_front_r_3_collision",
+        "leg_front_r_3_hull"
+      ],
+      "screens": {
+        "complete_no_tilt_or_numeric_stop": true,
+        "bob_visible_height_range": true,
+        "bob_dip_rise_then_return": true,
+        "no_driver_target_clipping": true,
+        "no_loaded_nonfoot_contacts_sampled": false,
+        "default_return_present": true
+      },
+      "strict_all_screens_pass": false,
+      "active_reference": {
+        "samples": 431,
+        "time_s": [
+          7.711538461538462,
+          15.98076923076923
+        ],
+        "reference_frame_first_last": [
+          0,
+          413
+        ],
+        "height_min_max_m": [
+          0.14322268795791074,
+          0.1722610248494182
+        ],
+        "height_range_m": 0.02903833689150745,
+        "height_min_max_at_s": [
+          11.076923076923077,
+          13.596153846153847
+        ],
+        "height_end_minus_start_m": 0.001003859288976866,
+        "planar_excursion_from_start_m": 0.002536956597368435,
+        "root_displacement_m": [
+          0.0005805614718784014,
+          0.00015125901804115513,
+          0.001003859288976866
+        ],
+        "yaw_change_deg": 0.015705098238022575,
+        "yaw_range_deg": 0.39983543930134435,
+        "tilt_peak_deg": 0.8669409428199523,
+        "joint_tracking_rmse_rad": 0.026528827856200598,
+        "joint_speed_peak_rad_s": 1.025294582574598,
+        "joint_speed_rms_rad_s": 0.15852209537223413,
+        "effort_peak_nm": 0.6036658417212317,
+        "target_step_peak_accumulated_rad": 0.02066326141357422,
+        "driver_clamp_peak_rad": 0.0,
+        "clipped_joint_fraction": 0.0,
+        "clipped_joint_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "loaded_contact_force_threshold_n": 0.1,
+        "loaded_nonfoot_geometries": [
+          "leg_back_l_3_hull",
+          "leg_back_r_3_hull",
+          "leg_front_l_3_hull",
+          "leg_front_r_3_hull"
+        ],
+        "loaded_nonfoot_samples": 431,
+        "no_loaded_contact_samples": 0,
+        "contact_speed_force_weighted_rms_m_s": 0.00045715493435738875,
+        "contact_speed_peak_m_s": 0.0011658561412449262,
+        "quiet_tail_peak_joint_speed_rad_s": 0.011914096898434128,
+        "quiet_tail_peak_root_linear_speed_m_s": 0.0006610283546899117,
+        "quiet_tail_mean_signed_yaw_rate_deg_s": 0.04935214510506292
+      },
+      "plateaus_m": {
+        "dip": 0.1434971453402598,
+        "rise": 0.17222317905063306,
+        "return": 0.1605261892486919
+      },
+      "standing_return_and_stop": {
+        "terminal_hold": {
+          "planar_excursion_from_start_m": 0.0001876684809740872,
+          "yaw_change_deg": -0.00409072543452782,
+          "tilt_peak_deg": 0.1095191573240833,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 0.0019352872088925306,
+          "quiet_tail_peak_root_linear_speed_m_s": 4.250164298514172e-05,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": -0.007274778166718843
+        },
+        "default_activation": {
+          "planar_excursion_from_start_m": 0.0058434827951180605,
+          "yaw_change_deg": 1.0818591544058676,
+          "tilt_peak_deg": 0.5860961641826062,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 0.03585440712865068,
+          "quiet_tail_peak_root_linear_speed_m_s": 0.004159001556717435,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": 0.046760688965662434
+        },
+        "default_forward": {
+          "planar_excursion_from_start_m": 0.22980826476241606,
+          "yaw_change_deg": -0.6478618497667135,
+          "tilt_peak_deg": 2.578701748496652,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 10.075793781213658,
+          "quiet_tail_peak_root_linear_speed_m_s": 0.1688788016423409,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": -0.8898948172705893
+        },
+        "default_stop": {
+          "planar_excursion_from_start_m": 0.01900708397233661,
+          "yaw_change_deg": -3.8566328693695775,
+          "tilt_peak_deg": 0.5938151148046363,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 0.0169634021184732,
+          "quiet_tail_peak_root_linear_speed_m_s": 0.0008977602306205909,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": -0.8167745883805093
+        }
+      },
+      "runner_identity_sha256": "bc54126dba4f9c3f8e75252fddc2136fa418e35f1bb4745a1fa7b3be309eeb70",
+      "model_delta_sha256": "c2eb0d4af5793626fb760c8b31bf0f1c880e36a23b94fab28b1fc7aa7b849064"
+    },
+    "all_loaded_floor": {
+      "exit": {
+        "arm": "all_loaded_floor",
+        "started_epoch_s": 1793662693.315443,
+        "ended_epoch_s": 1793662701.146698,
+        "success": true,
+        "error": null
+      },
+      "identity": {
+        "policy_sha256": "918f3636b1cac85719b680498191bb5928496eafe30d1376109e30cbeb73aadd",
+        "binary_sha256": "56d5db78f5168141210f5e58ebc4fc068a247a65ef9e65ddaa4635bb50f8f57e",
+        "model_sha256": "1aad7a38a4ee94115ef178fa75d091409ff1997eb1c77a5372fc74910cc9246e",
+        "trajectory_sha256": "410840024772c9705f1ac699f1821f7a650920580dba249bf858a82ab4a29a19",
+        "inference_sha256": "dd9f4b92c7a0d73c1c7048449614c90e3c562999fd98a5082b645472f91f6e15",
+        "report_sha256": "a39cb4fc558f61bfe44e0a7a718893e0289ef0e201865bc756f6b4dd87601a9a"
+      },
+      "effective_loaded_solver_sliding_friction": {
+        "leg_back_l_3_collision": [
+          0.6
+        ],
+        "leg_back_l_3_hull": [
+          0.6
+        ],
+        "leg_back_r_3_collision": [
+          0.6
+        ],
+        "leg_back_r_3_hull": [
+          0.6
+        ],
+        "leg_front_l_3_collision": [
+          0.6
+        ],
+        "leg_front_l_3_hull": [
+          0.6
+        ],
+        "leg_front_r_3_collision": [
+          0.6
+        ],
+        "leg_front_r_3_hull": [
+          0.6
+        ]
+      },
+      "loaded_geometries_entire_sequence": [
+        "leg_back_l_3_collision",
+        "leg_back_l_3_hull",
+        "leg_back_r_3_collision",
+        "leg_back_r_3_hull",
+        "leg_front_l_3_collision",
+        "leg_front_l_3_hull",
+        "leg_front_r_3_collision",
+        "leg_front_r_3_hull"
+      ],
+      "screens": {
+        "complete_no_tilt_or_numeric_stop": true,
+        "bob_visible_height_range": true,
+        "bob_dip_rise_then_return": true,
+        "no_driver_target_clipping": true,
+        "no_loaded_nonfoot_contacts_sampled": false,
+        "default_return_present": true
+      },
+      "strict_all_screens_pass": false,
+      "active_reference": {
+        "samples": 431,
+        "time_s": [
+          7.711538461538462,
+          15.98076923076923
+        ],
+        "reference_frame_first_last": [
+          0,
+          413
+        ],
+        "height_min_max_m": [
+          0.14318823308959305,
+          0.17231572768031103
+        ],
+        "height_range_m": 0.02912749459071798,
+        "height_min_max_at_s": [
+          11.076923076923077,
+          13.615384615384615
+        ],
+        "height_end_minus_start_m": 0.0010326547797110952,
+        "planar_excursion_from_start_m": 0.0026717148595749845,
+        "root_displacement_m": [
+          0.0006405271263063145,
+          0.00019333795773242862,
+          0.0010326547797110952
+        ],
+        "yaw_change_deg": 0.06452369846964068,
+        "yaw_range_deg": 0.44460973789706926,
+        "tilt_peak_deg": 0.8699065919069908,
+        "joint_tracking_rmse_rad": 0.026669940623688628,
+        "joint_speed_peak_rad_s": 1.0280794643396833,
+        "joint_speed_rms_rad_s": 0.15859995014642783,
+        "effort_peak_nm": 0.624080525746854,
+        "target_step_peak_accumulated_rad": 0.020786702632904053,
+        "driver_clamp_peak_rad": 0.0,
+        "clipped_joint_fraction": 0.0,
+        "clipped_joint_counts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "loaded_contact_force_threshold_n": 0.1,
+        "loaded_nonfoot_geometries": [
+          "leg_back_l_3_hull",
+          "leg_back_r_3_hull",
+          "leg_front_l_3_hull",
+          "leg_front_r_3_hull"
+        ],
+        "loaded_nonfoot_samples": 431,
+        "no_loaded_contact_samples": 0,
+        "contact_speed_force_weighted_rms_m_s": 0.0003364963561839757,
+        "contact_speed_peak_m_s": 0.0008483609898872581,
+        "quiet_tail_peak_joint_speed_rad_s": 0.01182139007118525,
+        "quiet_tail_peak_root_linear_speed_m_s": 0.0006772661984413364,
+        "quiet_tail_mean_signed_yaw_rate_deg_s": 0.05632910772543309
+      },
+      "plateaus_m": {
+        "dip": 0.14345067905400508,
+        "rise": 0.17227452372725668,
+        "return": 0.1605260925743213
+      },
+      "standing_return_and_stop": {
+        "terminal_hold": {
+          "planar_excursion_from_start_m": 0.00018645857349350808,
+          "yaw_change_deg": 0.004320452368623107,
+          "tilt_peak_deg": 0.12208822393071214,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 0.001882134505422492,
+          "quiet_tail_peak_root_linear_speed_m_s": 4.038231219715909e-05,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": -0.004483692534319683
+        },
+        "default_activation": {
+          "planar_excursion_from_start_m": 0.00575868726148638,
+          "yaw_change_deg": 1.0823248346206527,
+          "tilt_peak_deg": 0.589231305582997,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 0.03525636032165284,
+          "quiet_tail_peak_root_linear_speed_m_s": 0.0041003578580017675,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": 0.04021168026652999
+        },
+        "default_forward": {
+          "planar_excursion_from_start_m": 0.22864893359678762,
+          "yaw_change_deg": -1.3752710201357852,
+          "tilt_peak_deg": 3.1293379151347813,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 9.976758217559661,
+          "quiet_tail_peak_root_linear_speed_m_s": 0.17664794542457882,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": -1.7907247474434613
+        },
+        "default_stop": {
+          "planar_excursion_from_start_m": 0.01701297081756068,
+          "yaw_change_deg": -2.9009616298653222,
+          "tilt_peak_deg": 1.5646354543741856,
+          "driver_clamp_peak_rad": 0.0,
+          "quiet_tail_peak_joint_speed_rad_s": 0.011764618609873602,
+          "quiet_tail_peak_root_linear_speed_m_s": 0.00047728924825729796,
+          "quiet_tail_mean_signed_yaw_rate_deg_s": -0.6449993179592877
+        }
+      },
+      "runner_identity_sha256": "7ae0fd72c0bb44f621ebe12d2ab72116b5997806c7017adb7b3611fe9bcf509a",
+      "model_delta_sha256": "a7500466e5bfeacf7e15c4d365cacae2120a5db0d77200d17dbd069dc528789d"
+    }
+  },
+  "active_B_minus_A": {
+    "height_range_m": 8.915769921052918e-05,
+    "joint_tracking_rmse_rad": 0.00014111276748803026,
+    "joint_speed_peak_rad_s": 0.0027848817650852897,
+    "effort_peak_nm": 0.0204146840256223,
+    "planar_excursion_from_start_m": 0.00013475826220654945,
+    "yaw_change_deg": 0.0488186002316181,
+    "contact_speed_force_weighted_rms_m_s": -0.00012065857817341306,
+    "target_step_peak_accumulated_rad": 0.00012344121932983398,
+    "driver_clamp_peak_rad": 0.0
+  },
+  "criteria_policy": "Original strict geom-identity nonfoot screen is preserved; no success threshold was invented for quiet settlement. Passing a conditional diagnostic would not approve hardware.",
+  "limitations": [
+    "Two deterministic worlds with same initialization, no uncertainty distribution or repetition estimate.",
+    "Different initial friction changes the complete default-entry trajectory; this is continuous-sequence sensitivity, not a state-matched intervention at bob start.",
+    "No training, policy/reference/gains/geometry/priority/other friction axes/solver-option changes.",
+    "Ground contacts are preintegration scratch samples at52Hz; joint/root state follows one520Hz step. Active reference/plateau matching reuses original frame convention.",
+    "The paired evaluator is frozen current Python with exact historical native binary/model. Generic report current C++ inventory is not compilation provenance; original binary headers/report and runner identities retain that separation.",
+    "No measured physical friction, current/torque, downstream motor target or independent capture data; no diagnosis or remedy of physical jitter.",
+    "No sampled loaded geoms beyond the four named foot spheres and four lower-leg hulls; this does not prove absence of unsampled contacts.",
+    "Quiet-tail metrics are descriptive only. Default-stop yaw changes were -3.86deg/-2.90deg over the phase; no perfect heading hold is claimed.",
+    "This bob is a hand-designed research reference trained through the class pipeline, not a new natural-language UniMate generation."
+  ],
+  "evidence": {
+    "comparison": "comparison.json",
+    "comparison_sha256": "5b9150f8f2e399a00a211a8a45a55af3081d254d1e34208b1a96a81bb7aa74fc",
+    "full_trajectories": [
+      "sphere_only/trajectory.json",
+      "sphere_only/trajectory.npz",
+      "all_loaded_floor/trajectory.json",
+      "all_loaded_floor/trajectory.npz"
+    ],
+    "analysis_source": "analyze_pair.py",
+    "analysis_source_sha256": "a7afe8d87e1e9172a5f1b45465dc88871082787731a4dc55c1ebde6db407f0b7",
+    "original_report": "inputs/original-report.json",
+    "original_criteria": "inputs/criteria.json",
+    "original_working_directory": "/private/tmp/ws1-bob-friction-20261102",
+    "archive": "artifacts/generated/bob-friction-pair-20261102/ws1-bob-friction-20261102.tar.gz",
+    "archive_member_prefix": "ws1-bob-friction-20261102/",
+    "path_convention": "Comparison, trajectories, analysis source, original report/criteria and independent-review receipt are archive members relative to archive_member_prefix."
+  },
+  "independent_review": {
+    "status": "approved_bounded_interpretation_no_blocker",
+    "reviewer": "/root/owned_lifecycle",
+    "receipt": "independent-review.json",
+    "receipt_sha256": "1f9a6d626d176fb5c77ebe3bd87473dd9879545b8c1c76a00838917488ec7f97",
+    "scope": "Read-only saved models/raw data/identities. Restoring only friction reproduced exact baseline model bytes in both arms. No physics/native execution or test rerun."
+  },
+  "artifacts_root": "artifacts/generated/bob-friction-pair-20261102",
+  "parent_results": [
+    "foundation/results/generated-bob-training-20261101.json",
+    "foundation/results/generated-bob-contact-extent-20261101.json"
+  ],
+  "archive": {
+    "file": "artifacts/generated/bob-friction-pair-20261102/ws1-bob-friction-20261102.tar.gz",
+    "sha256": "5a4185874fee3bb62394987ecc7c64e40e5d30902afab8958bbeea732183722e",
+    "bytes": 104377448,
+    "member_count": 76,
+    "uncompressed_bytes": 258226843,
+    "all_member_names_sizes_hashes_verified": true,
+    "manifest_sha256": "3ffc8de3679f72dd31148474cd0492bf14a180932dbacf495448c1ae3d24476f",
+    "verification_receipt": "artifacts/generated/bob-friction-pair-20261102/ws1-bob-friction-20261102-archive-receipt.json",
+    "verification_receipt_sha256": "8990c1007a414b8fefbc17bb4099facda70fc5327b8caa4cbad1a9fdefc32c14",
+    "second_store": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/bob-friction-pair/ws1-bob-friction-20261102.tar.gz",
+    "second_store_sha256_matches": true,
+    "archived_reviewed_candidate": "artifacts/generated/bob-friction-pair-20261102/generated-bob-friction-pair-20261102.json",
+    "archived_reviewed_candidate_sha256": "f38b64a12942a220ec8041d785f3c28b0fe9a9d72035ede13ab70b7de15825fb",
+    "second_store_candidate": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/bob-friction-pair/generated-bob-friction-pair-20261102.json",
+    "second_store_receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/bob-friction-pair/ws1-bob-friction-20261102-archive-receipt.json",
+    "integration_note": "Canonical report adds verified archive locations and parent references to the preserved reviewed candidate. No experiment, metric or conclusion changed; archived candidate hash is not the canonical report hash."
+  }
+}

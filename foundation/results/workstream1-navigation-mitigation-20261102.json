@@ -128,5 +128,6 @@
       "Authoritative confirmation before model-generated locomotion"
     ],
     "status": "deferred; not blocking current offline latency work"
-  }
+  },
+  "saved_image_followup": "foundation/results/workstream1-navigation-camera-20261102.json"
 }

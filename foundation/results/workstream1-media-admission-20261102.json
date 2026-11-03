@@ -57,5 +57,24 @@
       "verified_members": 6,
       "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-media-admission/browser-check"
     }
+  },
+  "pi_staging": {
+    "date_local": "2026-11-02",
+    "app": "/home/pi/pupper-foundation-session-20261029/software-ws1-media-20261102",
+    "prior_release_preserved": true,
+    "selected_baseline_and_final_files": 101,
+    "payload_regular_members": 23,
+    "fake_pi_checks_passed": 166,
+    "native_policies_gains_changed": false,
+    "motor_control_started": false,
+    "profile_prepared": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-media-acceptance",
+    "profile_sha256": "47423a34330ae7ca3ab58e41c5b35a265e411550c2730ef755fbbc0d9f93c364",
+    "camera_capture_seconds": 3600,
+    "archive": "artifacts/access/ws1-media-stage-20261102/ws1-media-stage-20261102-complete.tar.gz",
+    "archive_sha256": "d84c5133d9959bf237300ca86e29a0ba2f145b1203c3b567d39b023d1679c0fc",
+    "archive_bytes": 2119734,
+    "archive_members": 45,
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/ws1-media-stage",
+    "physical_acceptance": "Pending supervised readiness; staged app not yet used with active robot."
   }
 }

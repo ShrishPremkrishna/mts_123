@@ -84,14 +84,17 @@ The [November 2 voice/product session](results/workstream1-voice-product-2026110
 added an atomic handshake and batched model tool replies. Spoken handshake,
 compound movement and running-walk cancellation worked in bounded supervised
 checks. A native change removed avoidable constant-idle waits; the watched repeat
-was controlled with shorter pauses, while exact timing awaits the closed Pi
-recording. The same session exposed a separate limitation: “find me” caused
+was controlled with shorter pauses. The [recovered recording](results/workstream1-clip-admission-20261102.json)
+now shows all eight recorded clip requests reaching first-applied status in
+3.627–25.682 ms; these are software receipt intervals, not physical onset. The same session exposed a separate limitation: “find me” caused
 model-generated turns and walking into a backpack. **Camera understanding is not
 navigation or obstacle avoidance.** Capability metadata and explicit model guidance
 now disclose that gap; they do not enforce the purpose of every valid movement
 primitive or make a route safe. The [offline follow-up](results/workstream1-navigation-mitigation-20261102.json)
 records two declined navigation requests and a preserved direct compound request;
-the confirmation-gate design decision is deferred. A separate
+the confirmation-gate design decision is deferred. A [saved-image follow-up](results/workstream1-navigation-camera-20261102.json)
+retained the refusal with a visible backpack and preserved an explicit compound
+request; it does not establish realtime camera delivery or guaranteed refusal. A separate
 [media setup fix](results/workstream1-media-admission-20261102.json) avoids waiting
 for microphone permission in a known-hidden tab.
 
@@ -132,7 +135,7 @@ comments are historical. Source handouts live in the class library under
 | Supplied reference jump | [Actual stopped-jump API path](results/gemini-jump-api-reviewed.json) and paired no-jump controls. | Recovery only 2/4 after fresh activation and 2/4 after walking; controls 4/4 each. Earlier forward-motion success does not establish a reliable standing jump or hardware result. |
 | Optional Lab 1 | Aligned motor/tactile datasets, recording-level splits, multitask/PCGrad models, contact export and single-leg pause; [data/model evidence](../implicit_compliance/README.md). | Standard Pupper lacks the tactile/single-leg setup. Weak labels and effort semantics need calibration; terrain heads do not control locomotion. This is not a whole-body contact reflex. |
 | Optional Lab 2 | Faster/mixed references, capture/bootstrap, reward and terrain comparisons; [experiment protocol](../pupper-mjlab/configs/optional2/README.md). Corrected flat/Bumpy studies and [Mystery continuation](results/optional2-mystery-reviewed.json) are preserved. | No promotion. Mystery yields only 0/0/1/1 strict flight-and-recovery events across four seeds. Earlier double-offset runs remain labeled altered-reference experiments. |
-| Optional Lab 3 | Character/context, local secret gate, pinned UniMate generation, motion repair and trained tracking; [context study](results/optional3-context-20261101.json) and [server-session counter follow-up](results/workstream1-context-and-transport-followup-20261101.json). | Generated sway is physically attempted but jittery/unaccepted; [corrected-reader evidence](results/generated-motion-corrected-reader-20261101.json) and [clearer-reference failure](results/generated-motion-clearer-reference-20261101.json) retain that limit. Subsequent [matched bob training](results/generated-bob-training-20261101.json) already reproduced visible motion, but [loaded lower-leg hull contacts](results/generated-bob-contact-extent-20261101.json) keep its strict screen failed; do not repeat that training from the earlier report's proposed next step. Conversation memory is not identity authentication. [Synthetic vision tests](results/workstream1-vision-paw-native-20261101.json) do not validate physical camera-to-paw choice. |
+| Optional Lab 3 | Character/context, local secret gate, pinned UniMate generation, motion repair and trained tracking; [context study](results/optional3-context-20261101.json) and [server-session counter follow-up](results/workstream1-context-and-transport-followup-20261101.json). | Generated sway is physically attempted but jittery/unaccepted; [corrected-reader evidence](results/generated-motion-corrected-reader-20261101.json) and [clearer-reference failure](results/generated-motion-clearer-reference-20261101.json) retain that limit. Subsequent [matched bob training](results/generated-bob-training-20261101.json) already reproduced visible motion, but [loaded lower-leg hull contacts](results/generated-bob-contact-extent-20261101.json) keep its strict screen failed. A [bounded friction comparison](results/generated-bob-friction-pair-20261102.json) changed actual hull support friction but barely changed the bob and passed neither strict contact screen; it does not justify another training sweep. Conversation memory is not identity authentication. [Synthetic vision tests](results/workstream1-vision-paw-native-20261101.json) do not validate physical camera-to-paw choice. |
 
 ## Contracts that change how results should be read
 

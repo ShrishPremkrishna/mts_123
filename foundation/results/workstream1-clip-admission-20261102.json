@@ -1,0 +1,131 @@
+{
+  "date_local": "2026-11-02",
+  "status": "Reviewed software-receipt measurement; bounded physical observation retained separately",
+  "change": "Existing session reporter now retains versioned clip requests and matches same-bag controller/request/execution IDs. Missing, duplicate, replayed, pre-request or endpoint-only records yield unavailable timing with reasons.",
+  "validation": {
+    "affected_tests": 45,
+    "independent_reviews": "Revision2 and actual-data revision3 reviewed; new8request arithmetic/identity review passed. No full regression repeated for an isolated reporter change.",
+    "older_bag": "1355statuses, no requests: timing unavailable with explicit reason; no fabricated intervals.",
+    "new_bag": {
+      "recorded_clip_requests": 8,
+      "recorded_clip_statuses": 2164,
+      "admission_measurements": 8,
+      "usable_admission_measurements": 8,
+      "statuses_without_request_id": 750,
+      "malformed_clip_records": 0
+    },
+    "source_sha256": "811ff64d18b18d859121f1127c2c5914e58a59776e14736b0b20aa528c6f08b8"
+  },
+  "observations": {
+    "all_eight_admission_ms": [
+      4.448265,
+      4.656616,
+      25.681539,
+      3.626897,
+      24.026321,
+      8.450994999999999,
+      12.082040000000001,
+      18.514447999999998
+    ],
+    "all_first_frames_match_clip_start": true,
+    "by_clip_type": {
+      "paw": {
+        "request_to_first_observed_applied_ms": {
+          "count": 5,
+          "min": 3.626897,
+          "median": 4.656616,
+          "max": 24.026321
+        },
+        "applied_to_endpoint_receipt_s": {
+          "count": 5,
+          "min": 3.496791629,
+          "median": 3.506113251,
+          "max": 3.519512904
+        },
+        "contextual_endpoint_to_job_finish_s": {
+          "count": 5,
+          "min": 0.004142284393310547,
+          "median": 0.014409065246582031,
+          "max": 0.018384933471679688
+        }
+      },
+      "exit": {
+        "request_to_first_observed_applied_ms": {
+          "count": 3,
+          "min": 8.450994999999999,
+          "median": 18.514447999999998,
+          "max": 25.681539
+        },
+        "applied_to_endpoint_receipt_s": {
+          "count": 3,
+          "min": 3.507630559,
+          "median": 3.512738646,
+          "max": 3.515171077
+        },
+        "contextual_endpoint_to_job_finish_s": {
+          "count": 3,
+          "min": 4.357745170593262,
+          "median": 4.428388595581055,
+          "max": 4.437005281448364
+        }
+      }
+    },
+    "first_paw_job_setup_s": [
+      5.741,
+      5.812
+    ],
+    "interpretation": "The selected constant-idle controller admits these requests promptly. Remaining first-paw delay includes Sit entry/initialization; clip playback is unchanged, and walking readiness still accounts for most post-exit delay. No gains, policies or controller durations changed in this analysis.",
+    "physical_observation": "User watched second direct chain and reported controlled motion with shorter pauses. First chain was missed; do not count it as observed."
+  },
+  "input": {
+    "remote_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-static-idle",
+    "mcap_bytes": 472750011,
+    "mcap_sha256": "e46a03c9a840dac3ad9a4b20f132ef530509498bf6b280e96b0314ebea16600a",
+    "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "imu_library_unchanged_sha256": "f84d65e014d4db26a3d0df68f985b414e0793ad91ccd4332be706da7cb6333d4"
+  },
+  "gaps": {
+    "read_error": null,
+    "invalid_messages": {},
+    "malformed_clip_records": 0,
+    "request_matching_issue_count": 0,
+    "api_log_gap_count": 0,
+    "joint_receipt_gaps_over_1s": 0,
+    "imu_receipt_gaps_over_1s": 0,
+    "llm_command_receipt_gaps_over_1s": 10,
+    "command_receipt_gaps_over_1s": 10
+  },
+  "limitations": [
+    "New admission uses exact same-bag controller/request UUID and unique explicit execution UUID; endpoint uses that same identity and frozen clip graph/frame bounds.",
+    "API jobs contain no clip request UUID. contextual_api_jobs uses only unique wall-time containment, not an exact request-to-job ID link; do not interpret it as causal proof.",
+    "New timing begins with recorded request receipt. Old baseline begins with first positive queue status and associates the later request ID heuristically. Different starts/selection and sessions: no direct subtraction, percentage speedup or identical-metric claim.",
+    "First observed applied status may lag actual controller application; first endpoint is software playback evidence. Neither is physical motion onset, posture, audible response or observed safety.",
+    "Only direct chain2 was operator-watched per root session context; chain1/later voice have recorded software outcomes but are not equivalent physical acceptance.",
+    "API queue/execution durations use per-server monotonic time. Cross API/status context uses wall times with receipt/scheduling uncertainty.",
+    "The captured initial/idle statuses legitimately carry request none; they do not provide a request receipt latency. All gaps and raw decoded clip records remain in bag-info.json.",
+    "The command topics are intermittent; their ten gaps each are preserved, not interpreted as missing packets or held zero velocity.",
+    "No full HTML/plot rendering, further tests, mechanical/IMU assessment, provider call, SSH or robot operation occurred in this analysis. Numeric arrays were decoded only for report statistics; raw MCAP remains the source."
+  ],
+  "old_baseline": "594\u2013960ms was queued-status-observation to applied-status observation using heuristic association. New metric starts at request receipt; do not subtract, report a percentage speedup or claim identical metrics.",
+  "raw_recovery": {
+    "archive": "artifacts/hardware/2026-11-02/static-idle-recovery/complete-recovery.tar.gz",
+    "sha256": "c373fe051293dfe7cd85d7e20007fc5af6c84a7a1bfdc67aa6bba0e035cca78e",
+    "bytes": 613457149,
+    "members_regular": 1978,
+    "literal_symlinks": 1,
+    "original_closed_index_passed": 923,
+    "original_closed_index_total": 924,
+    "failure_preserved": "Frozen-input neural library is truncated to16MiB. Original file/index unchanged; exact50,182,064B library recovered from native install in labeled supplement. All1041native build files match separate remote index.",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/static-idle-recovery"
+  },
+  "derived_evidence": {
+    "archive": "artifacts/hardware/2026-11-02/clip-admission-report/ws1-clip-admission-report-20261102.tar.gz",
+    "sha256": "e863d0e196215510a51bdea4f9254306d0c2785fd7907db6e8f82c6d47d6ab52",
+    "bytes": 905096,
+    "members": 57,
+    "summary_member": "new-bag/summary.json",
+    "summary_sha256": "230b9f37f7dcfd808ae021aed8d0c1f97889f9bec713bbaf5bcdffee2ac63d9d",
+    "durable": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/clip-admission-report"
+  },
+  "next": "Preserve current native behavior for supervised product use. Further transition acceleration requires redesign and matched motion validation; the prior two-second standing shortcut remains rejected."
+}

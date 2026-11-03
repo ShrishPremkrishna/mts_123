@@ -111,9 +111,11 @@ FIFO, startup fades, action history and Stop remain intact.
 saved 0.019–0.981 seconds before requested clips; some effort/yaw metrics worsened
 slightly. The [later Pi comparison](../../foundation/results/workstream1-voice-product-20261102.json)
 passed six native test suites; one watched repeat was controlled with shorter
-pauses. Exact new native timing awaits recovery of its closed recording. This is
-bounded observation, not general motion validation; walker initialization/fades
-are unchanged.
+pauses. The [recovered recording](../../foundation/results/workstream1-clip-admission-20261102.json)
+contains eight exact request-to-first-applied receipt intervals of 3.627–25.682 ms.
+Paw/exit playback remains about 3.5 seconds, followed by about 4.4 seconds of
+walking-controller handoff after exit. These are software receipts, not physical
+onset or settlement; walker initialization/fades are unchanged.
 
 A timed-out or cancelled controller or follower activation may still execute remotely. The
 server keeps its future, attempts deactivation when the late response arrives,

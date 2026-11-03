@@ -25,6 +25,8 @@ IMU = "/imu_sensor_broadcaster/imu"
 JOINTS = "/joint_states"
 COMMANDS = {"/cmd_vel", "/llm_cmd_vel"}
 TOPICS = {IMU, JOINTS, *COMMANDS, "/estop_controller/stop_status", "/emergency_stop"}
+CLIP_TOPIC = re.compile(r"/trick_[^/]+/(clip|clip_status)")
+CLIP_ID = re.compile(r"[0-9a-f]{32}")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 NATIVE = re.compile(r"\[(\d{9,}\.\d+)\]\s*\[([^]]+)\]:\s*(.*)")
 API = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d[,.]\d+)\s+(\S+)\s+(\S+)\s+(.*)")
@@ -37,6 +39,7 @@ LIMITS = [
     "Each bag is plotted separately; overlapping recordings are retained, not summed, deduplicated by timestamp, or silently concatenated.",
     "Historical name/time matches are candidate correlations without request IDs, not causal links or execution-latency measurements.",
     "Structured started/finished events describe API job invocation/result, not physical movement onset/completion.",
+    "Clip admission measures same-bag request receipt to first observed applied-status receipt, not API dispatch, controller processing time or physical onset. Missing intermediate statuses can lengthen this observation interval; no queued=1 observation is required.",
     "Camera receipt/header timestamps are not exposure times. Selected thumbnails are observations, not visual odometry or automatic motion validation.",
     "Plots subsample long traces for display and may omit brief peaks. Euler unwrap and joint-position baselines reset per bag/data gap; no cross-gap continuity is inferred.",
 ]
@@ -203,6 +206,87 @@ def meaningful_status(topic, raw):
         return "unrecognized stop status format (raw retained in bag)"
 
 
+def clip_record(topic, raw, log_time_ns, index):
+    """Retain every wire message; only the explicit native v1 IDs authorize matching."""
+    row = {"topic": topic, "controller": topic.rsplit("/", 1)[0], "raw": raw,
+           "log_time_ns": log_time_ns, "record_index": index,
+           "kind": "request" if topic.endswith("/clip") else "status"}
+    parts = raw.split()
+    if row["kind"] == "request":
+        if (raw.startswith("pupper_clip_") and len(parts) == 3 and parts[0] == "pupper_clip_v1"
+                and CLIP_ID.fullmatch(parts[1])):
+            row.update(request_id=parts[1], clip=parts[2])
+        else:
+            row["issue"] = "legacy or malformed request: no usable explicit request ID"
+    elif (len(parts) == 10 and parts[1] in {"playing", "holding", "stopped"}
+          and parts[2] == "frame" and parts[4] == "queued"
+          and parts[6] == "execution" and parts[8] == "request"
+          and parts[3].isdigit() and parts[5].isdigit()
+          and all(value == "none" or CLIP_ID.fullmatch(value) for value in (parts[7], parts[9]))):
+        row.update(clip=parts[0], phase=parts[1], frame=int(parts[3]), queued=int(parts[5]),
+                   execution_id=None if parts[7] == "none" else parts[7],
+                   request_id=None if parts[9] == "none" else parts[9])
+    else:
+        row["issue"] = "legacy or malformed status: explicit execution/request IDs unavailable"
+    return row
+
+
+def clip_admission_timings(records):
+    """One bag only. Request IDs bind to a unique explicitly reported execution ID.
+
+    Native request IDs change when a queued clip is selected, not when enqueued,
+    and persist through automatic next/loop/hold transitions. An endpoint or a
+    different clip as the first same-ID observation cannot locate admission.
+    """
+    requests, statuses = defaultdict(list), defaultdict(list)
+    for row in records:
+        if row.get("request_id"):
+            target = requests if row["kind"] == "request" else statuses
+            target[(row["controller"], row["request_id"])].append(row)
+    result = []
+    for controller, request_id in sorted(requests.keys() | statuses.keys()):
+        key = controller, request_id
+        sent = requests.get(key, [])
+        observed = sorted(statuses.get(key, []), key=lambda r: (r["log_time_ns"], r["record_index"]))
+        issues = []
+        if len(sent) != 1:
+            issues.append("request missing" if not sent else "multiple request records: duplicate or replay is ambiguous")
+        executions = {r.get("execution_id") for r in observed}
+        execution = next(iter(executions)) if len(executions) == 1 and None not in executions else None
+        if not observed:
+            issues.append("matching applied status missing")
+        elif execution is None:
+            issues.append("execution ID missing or multiple executions share this request ID")
+        first = observed[0] if observed else None
+        if len(sent) == 1 and first:
+            if (first["log_time_ns"], first["record_index"]) < (sent[0]["log_time_ns"], sent[0]["record_index"]):
+                issues.append("same-ID status precedes request: retained, replayed or receipt order is unresolved")
+            if first["clip"] != sent[0]["clip"] or first["phase"] != "playing":
+                issues.append("first same-ID status is not playing the requested clip: endpoint or earlier application unobserved")
+        if execution and len(observed) > 1:
+            # An ID can persist through next/loop transitions, but cannot return
+            # after another selected request without replay or record ambiguity.
+            lo = first["log_time_ns"], first["record_index"]
+            hi = observed[-1]["log_time_ns"], observed[-1]["record_index"]
+            if any(r["kind"] == "status" and r["controller"] == controller
+                   and r.get("execution_id") == execution and r.get("request_id") != request_id
+                   and lo < (r["log_time_ns"], r["record_index"]) < hi for r in records):
+                issues.append("request ID reappears after a different selected request")
+        result.append({"controller": controller, "request_id": request_id, "execution_id": execution,
+                       "requested_clip": sent[0]["clip"] if len(sent) == 1 else None,
+                       "request_record_indices": [r["record_index"] for r in sent],
+                       "matching_status_count": len(observed),
+                       "first_observed_status_record_index": first["record_index"] if first else None,
+                       "request_to_first_observed_applied_s":
+                           (first["log_time_ns"] - sent[0]["log_time_ns"]) / 1e9 if not issues else None,
+                       "issues": issues})
+    return {"clock": "same-bag MCAP log_time receipts; not physical latency",
+            "available": any(r["request_to_first_observed_applied_s"] is not None for r in result),
+            "issues": [] if requests else ["no versioned clip requests recorded; admission timing unavailable"],
+            "unidentified_record_indices": [r["record_index"] for r in records if not r.get("request_id")],
+            "requests": result}
+
+
 def overlap_records(bags):
     overlaps = []
     for index, a in enumerate(bags):
@@ -251,14 +335,23 @@ def read_bag(path, relative):
     streams = defaultdict(list)
     names = None
     state_events = []
+    clip_records = []
     with path.open("rb") as stream:
         reader = make_reader(stream, validate_crcs=True, decoder_factories=[DecoderFactory()])
         try:
             summary = reader.get_summary()
             info["has_summary"] = summary is not None
-            topics = TOPICS | {c.topic for c in summary.channels.values() if c.topic.endswith("/clip_status")} if summary else TOPICS
+            # Without summary channels, discover topics from raw records first.
+            # Decoding all channels before filtering would fail on unrelated
+            # non-ROS schemas. The seekable reader resets for the selected pass.
+            channels = (summary.channels.values() if summary and summary.channels else
+                        (channel for _, channel, _ in reader.iter_messages(log_time_order=False)))
+            topics = TOPICS | {c.topic for c in channels
+                              if c.topic.endswith("/clip_status") or CLIP_TOPIC.fullmatch(c.topic)}
             for _, channel, message, data in reader.iter_decoded_messages(topics=sorted(topics)):
                 topic, stamp = channel.topic, message.log_time / 1e9
+                if topic not in TOPICS and not topic.endswith("/clip_status") and not CLIP_TOPIC.fullmatch(topic):
+                    continue
                 rowinfo = info["topics"].setdefault(topic, {"messages": 0, "start": stamp, "end": stamp})
                 rowinfo["messages"] += 1
                 rowinfo["start"], rowinfo["end"] = min(rowinfo["start"], stamp), max(rowinfo["end"], stamp)
@@ -292,6 +385,10 @@ def read_bag(path, relative):
                     elif topic == "/emergency_stop":
                         state_events.append({"at": stamp, "kind": "telemetry_event", "source": relative, "text": topic + " message received (payload not interpreted)"})
                     else:
+                        if CLIP_TOPIC.fullmatch(topic):
+                            clip_records.append(clip_record(topic, str(data.data), message.log_time, len(clip_records)))
+                        if topic.endswith("/clip"):
+                            continue  # Retained separately; no periodic-status collapse or job inference.
                         value = meaningful_status(topic, str(data.data))
                         if not streams[topic] or value != streams[topic][-1][1]:
                             streams[topic].append([stamp, value])
@@ -303,6 +400,8 @@ def read_bag(path, relative):
             info["error"] = f"{type(error).__name__}: {error}"
     numeric = {k: np.asarray(v, dtype=float) for k, v in streams.items() if k in {IMU, JOINTS, *COMMANDS}}
     info["joint_names"] = names
+    info["clip_records"] = clip_records
+    info["clip_admission"] = clip_admission_timings(clip_records)
     info["status_transitions"] = {topic: len(values) for topic, values in streams.items() if topic not in {IMU, JOINTS, *COMMANDS}}
     for topic, values in numeric.items():
         delta = np.diff(values[:, 0])
@@ -537,6 +636,7 @@ def build_report(root, output, zone_name, camera_count=12):
 <h2>Timed evidence</h2><table><thead><tr><th>Elapsed s</th><th>Kind</th><th>Recorded event</th><th>Source</th></tr></thead><tbody>{rows}</tbody></table>
 <details open><summary>Data gaps and overlapping recordings</summary><pre>{esc(json.dumps({'gaps':gaps,'overlaps':report['bag_overlaps'],'topic_coverage':report['topic_coverage']},indent=2))}</pre></details>
 <details><summary>Structured job timings and historical candidate correlations</summary><pre>{esc(json.dumps({'jobs':report['structured_jobs'],'historical_candidates':report['historical_candidate_correlations']},indent=2))}</pre></details>
+<details><summary>Clip request-to-applied-status receipt intervals (not physical latency)</summary><pre>{esc(json.dumps([{'source':b['source'],**b['clip_admission']} for b in bags],indent=2))}</pre><p>Every clip request and status, including repeated statuses, is retained in report.json under each bag's clip_records. Indices above refer only to that bag.</p></details>
 <details><summary>Untimed HTTP rows — no time assigned</summary><pre>{esc(json.dumps(untimed,indent=2))}</pre></details>
 <details><summary>Input identities and package versions</summary><pre>{esc(json.dumps({'inputs':inputs,'packages':versions,'source_sha256':report['source_sha256']},indent=2))}</pre></details>
 <h2>Interpretation limits</h2><ul>{''.join('<li>'+esc(x)+'</li>' for x in LIMITS)}</ul></body></html>"""
