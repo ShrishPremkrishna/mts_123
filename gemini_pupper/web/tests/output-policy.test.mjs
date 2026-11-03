@@ -138,9 +138,17 @@ test('native no-tool output without transcript is not released at boundary',asyn
 
 
 test('Stop before a late first packet quarantines output until boundary then conversation recovers',async()=>{
- const e=service('conversation');e.s.pauseRobotTools();
+ const e=service('conversation'),track={enabled:false};
+ e.config.enableAudio=true;e.s.inputAudioContext={state:'running'};
+ e.s.mediaStream={getAudioTracks:()=>[track]};
+ e.s.sessionPromise=Promise.resolve({sendRealtimeInput(){}});
+ // Establish a real owed spoken reply: Stop must still quarantine its late
+ // first packet. A fresh fixture with no input is genuinely idle instead.
+ assert.equal(e.s.beginAudioInput(),true);e.s.endAudioInput();await Promise.resolve();
+ e.s.pauseRobotTools();
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'old'}}]},outputTranscription:{text:'Hello old friend'},turnComplete:true}});
  assert.deepEqual(e.audio,[]);
+ assert.equal(e.s.beginAudioInput(),true);e.s.endAudioInput();await Promise.resolve();
  await e.s.handleMessage({serverContent:{modelTurn:{parts:[{inlineData:{data:'new'}}]},outputTranscription:{text:'How is your day?'},turnComplete:true}});
  await new Promise(r=>setImmediate(r));assert.deepEqual(e.audio,['new']);
 });

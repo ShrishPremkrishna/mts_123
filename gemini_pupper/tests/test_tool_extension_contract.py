@@ -36,6 +36,63 @@ def extension(monkeypatch):
     return events, entered
 
 
+TAKEOVER = 'extension_takeover_probe'
+
+
+@pytest.fixture
+def takeover_extension(monkeypatch):
+    """A parameterless motion extension that follows the handler contract."""
+    original_names = set(tool_registry.TOOLS)
+    monkeypatch.setattr(tool_registry, 'TOOLS', dict(tool_registry.TOOLS))
+    events = []
+
+    @tool_registry.tool(TAKEOVER, 'A fake bounded walk used only to test follow takeover.',
+                        _ends_following=True)
+    async def extension_takeover_probe(robot):
+        # _ends_following is catalog metadata; the backend handoff is this call.
+        prepared = await harness.behaviors.prepare_to_move(robot)
+        if isinstance(prepared, robot_api.Result):
+            return prepared
+        note = prepared
+        events.append(('note', note))
+
+        async def job():
+            events.append('job')
+            switched = await robot.switch_to(robot_api.LOCOMOTION_CONTROLLER)
+            events.append(('switched', switched.ok, robot_api.time.monotonic()))
+            if not switched.ok:
+                return switched
+            robot.send_speed(.2, 0, 0)
+            events.append('commanded')
+            await robot.sleep(.1)
+            robot.send_speed(0, 0, 0)
+            return robot_api.Result(True, 'fake takeover probe walked briefly')
+        queued = await robot.queue('extension takeover probe', job, .1, then=robot_api.LOCOMOTION)
+        return robot_api.with_note(note, queued)
+
+    return events, original_names
+
+
+class Deferred:
+    """A ROS client future whose reply the test releases explicitly."""
+    def __init__(self):
+        self.value, self.finished, self.cancelled = None, False, False
+    def done(self): return self.finished
+    def result(self): return self.value
+    def cancel(self): self.cancelled = True
+    def release(self, value): self.value, self.finished = value, True
+
+
+def _outcome(payload, job_id):
+    """An exact job ID in the public terminal-history schema."""
+    return next((row for row in payload['recent_outcomes']['outcomes']
+                 if row['job_id'] == job_id), None)
+
+
+def _activations(rig, start):
+    return [s for s in rig.robot.switches[start:] if s[2]]
+
+
 def test_duplicate_name_cannot_replace_stop_or_an_extension(extension):
     original_stop = tool_registry.TOOLS['stop']
     original_extension = tool_registry.TOOLS['extension_probe']
@@ -136,4 +193,139 @@ def test_stop_interrupts_extension_and_clears_later_motion(server, extension):
                 assert outcomes[result['details']['submission']['job_id']]['terminal_state'] == 'cancelled'
             assert extension[0] == ['block']
             assert not harness.walk_twists(rig)
+    asyncio.run(case())
+
+
+def test_extension_takes_over_active_follow_only_after_confirmed_off(server, takeover_extension, monkeypatch):
+    events, original_names = takeover_extension
+
+    async def case():
+        async with client_with_rig(server) as (client, rig):
+            assert (await client.post('/tools/follow', json={'enabled': True})).json()['success']
+            assert await rig.settle()
+            assert rig.robot.follower_on and rig.ts.following
+            follow_calls = list(rig.robot.follow_calls)
+            twists = len(harness.walk_twists(rig))
+            switches = len(rig.robot.switches)
+            outcomes = len(rig.ts.recent_outcomes()['outcomes'])
+
+            off = rig.ts.follow_off
+            future, pending, submitted = Deferred(), [], asyncio.Event()
+            def deferred_off(request):
+                pending.append(request)
+                submitted.set()
+                return future
+            monkeypatch.setattr(off, 'call_async', deferred_off)
+
+            request = asyncio.create_task(client.post('/tools/' + TAKEOVER, json={}))
+            await asyncio.wait_for(submitted.wait(), 5)
+            # Deactivation submitted but unanswered: the fake follower is still on.
+            assert len(pending) == 1 and not request.done()
+            assert rig.robot.follower_on and rig.robot.follow_calls == follow_calls
+            assert events == []
+            assert rig.ts.commands.empty() and rig.ts.current is None
+            assert len(rig.ts.recent_outcomes()['outcomes']) == outcomes
+            assert len(harness.walk_twists(rig)) == twists and len(rig.robot.switches) == switches
+
+            future.release(rig.robot.handle(off.name, pending[0]))
+            events.append('off_handled')
+            assert not rig.robot.follower_on
+            response = (await asyncio.wait_for(request, 5)).json()
+            assert response['success'] is True
+            submission = response['details']['submission']
+            assert submission['state'] == 'queued' and submission['server_instance'] == rig.ts.command_instance
+            # Released synchronously, so the handler resumes only after this marker.
+            assert events[0] == 'off_handled'
+            assert events[1] == ('note', 'Stopped following the person first.')
+            assert response['message'].startswith(events[1][1].strip())
+            assert await rig.settle()
+
+            assert events[2] == 'job'
+            assert events[3][:2] == ('switched', True) and events[4:] == ['commanded']
+            status = (await client.get('/queue/status', params={'observe_controllers': 'false'})).json()
+            row = _outcome(status, submission['job_id'])
+            assert row is not None and row['terminal_state'] == 'succeeded'
+            assert len(harness.walk_twists(rig)) > twists
+            assert not rig.robot.follower_on and not rig.ts.following
+            assert rig.robot.follow_calls == follow_calls + ['off'] and len(pending) == 1
+
+            catalog = (await client.get('/tools')).json()
+            declaration = next(t for t in catalog['tools'] if t['name'] == TAKEOVER)
+            assert 'parameters' not in declaration
+            assert TAKEOVER in catalog['follow_handoff']['tools']
+            assert set(tool_registry.TOOLS) - original_names == {TAKEOVER}
+    asyncio.run(case())
+
+
+@pytest.mark.parametrize('ending', ['timeout', 'stop'])
+def test_extension_controller_lookup_is_bounded_by_existing_deadline_or_stop(
+        server, takeover_extension, monkeypatch, ending):
+    events, _ = takeover_extension
+
+    async def case():
+        async with client_with_rig(server) as (client, rig):
+            assert not rig.robot.follower_on
+            follow_calls = list(rig.robot.follow_calls)
+            switches = len(rig.robot.switches)
+            lister = rig.ts.list_client
+            passthrough = lister.call_async
+            future, pending, submitted = Deferred(), [], asyncio.Event()
+            def deferred_list(request):
+                if 'job' not in events or pending:
+                    return passthrough(request)
+                pending.append((request, rig.clock.now))
+                submitted.set()
+                return future
+            monkeypatch.setattr(lister, 'call_async', deferred_list)
+            # Hold virtual time while the dependent is admitted; the 3 s lookup
+            # deadline itself is the unchanged one in Robot._call.
+            frozen = [True]
+            advance = rig.clock.sleep
+            async def gated_sleep(seconds, result=None):
+                if frozen[0]:
+                    await harness._real_sleep(0)
+                    return result
+                return await advance(seconds, result)
+            monkeypatch.setattr(rig.clock, 'sleep', gated_sleep)
+
+            current = (await client.post('/tools/' + TAKEOVER, json={})).json()
+            assert current['success']
+            await asyncio.wait_for(submitted.wait(), 5)
+            running = rig.ts.current
+            assert running is not None and not running.done()
+            later = (await client.post('/tools/move', json={'direction': 'forward', 'speed': .2, 'duration': .1})).json()
+            assert later['success']
+            assert not future.finished and events[1:] == ['job']
+
+            frozen[0] = False
+            if ending == 'stop':
+                stopped = (await asyncio.wait_for(client.post('/tools/stop', json={}), 5)).json()
+                assert stopped['success'] and not future.finished
+            assert await rig.settle()
+
+            status = (await client.get('/queue/status', params={'observe_controllers': 'false'})).json()
+            extension = _outcome(status, current['details']['submission']['job_id'])
+            dependent = _outcome(status, later['details']['submission']['job_id'])
+            assert running.done()
+            assert running.cancelled() is (ending == 'stop')
+            assert extension['terminal_state'] == ('failed' if ending == 'timeout' else 'cancelled')
+            assert dependent['terminal_state'] == 'cancelled' and not dependent['execution_started']
+            if ending == 'timeout':
+                assert events[2][:2] == ('switched', False)
+                assert 3.0 <= events[2][2] - pending[0][1] < 4.0
+                assert future.cancelled
+            else:
+                assert events[1:] == ['job']
+            assert 'commanded' not in events
+            assert not harness.walk_twists(rig) and not _activations(rig, switches)
+
+            snapshot = status['recent_outcomes']
+            future.release(rig.robot.handle(lister.name, pending[0][0]))
+            # The completed/cancelled job cannot be resumed by this old reply.
+            assert await rig.settle()
+            after = (await client.get('/queue/status', params={'observe_controllers': 'false'})).json()
+            assert running.done() and after['recent_outcomes'] == snapshot
+            assert 'commanded' not in events and not any(e[:2] == ('switched', True) for e in events[1:])
+            assert not harness.walk_twists(rig) and not _activations(rig, switches)
+            assert rig.robot.follow_calls == follow_calls and not rig.robot.follower_on
     asyncio.run(case())

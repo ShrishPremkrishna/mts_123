@@ -116,6 +116,14 @@ export class GeminiLiveService {
   private audioInputActive = false;
   private handsFreeDisarmed = false;
   private audioInputGeneration = 0;
+  // Local input watermarks distinguish idle cancellation from an owed reply,
+  // even before its first model packet. An open turn keeps its original input
+  // watermark across barge-in; a delayed boundary cannot consume newer input.
+  // No provider input IDs: silent/coalesced inputs remain conservative until
+  // their boundaries or reconnect, rather than being presumed answered.
+  private audioInputStarts = 0;
+  private answeredAudioInputs = 0;
+  private providerTurnInputs: number | null = null;
   private audioBoundaryFailed = false;
   private lastAudioReleaseSent?: number;
   private speechVisualInterval: number | null = null;
@@ -176,13 +184,26 @@ export class GeminiLiveService {
 
   /** Synchronous: later model motion calls cannot rearm; stop/status remain available. */
   public pauseRobotTools() {
+    // Local cancellation has no future provider tail when fully idle. Keep
+    // existing tombstones, and quarantine any actual or still-owed reply.
+    // Read before endAudioInput clears an active hold.
+    const tombstone = this.replyMayBeOwed();
     this.acceptedJobs.clear();
     this.toolAdmissionGeneration++;
     this.endAudioInput();
     this.robotToolsPaused = true;
     try { this.onRobotToolsPaused(); } catch {}
     this.nativeReceiptOutput.resetContext();
-    this.stopPlayback();
+    this.stopPlayback(tombstone);
+    if (!tombstone) this.conversationOutput.discardPending();
+  }
+
+  /** Conservative: any open provider turn, active/hands-free input, or input
+   * started since the last completed provider turn began may still be answered. */
+  private replyMayBeOwed(): boolean {
+    return this.audioInputActive || this.voiceInputMode === 'hands_free' || this.providerTurnInputs !== null
+      || this.audioInputStarts !== this.answeredAudioInputs
+      || this.pendingRobotTools > 0 || this.pendingModelActions > 0 || this.ordinaryToolTail !== null;
   }
 
   /** The status poll uses its cheap snapshot only while accepted voice jobs are tracked. */
@@ -599,6 +620,10 @@ export class GeminiLiveService {
     this.conversationOutput.discardPending();
     this.nativeReceiptOutput.discardPending();
     const generation = ++this.audioInputGeneration;
+    this.audioInputStarts++;
+    // Bind the oldest still-outstanding input, including before any model
+    // packet; a later PTT must not take ownership of an older input's boundary.
+    this.providerTurnInputs ??= Math.min(this.audioInputStarts, this.answeredAudioInputs + 1);
     this.audioInputActive = true;
     this.mediaStream.getAudioTracks().forEach(track => { track.enabled = true; });
     try { this.onAudioInputChange(true); } catch { /* Optional UI. */ }
@@ -982,6 +1007,11 @@ export class GeminiLiveService {
       interrupted: !!content?.interrupted, turn_complete: !!content?.turnComplete,
       generation_complete: !!content?.generationComplete, disposed: this.disposed });
     if (this.disposed) return;
+    if (message.toolCall || content?.modelTurn || content?.outputTranscription || content?.generationComplete
+        || content?.interrupted || content?.turnComplete) {
+      this.providerTurnInputs ??= Math.min(this.audioInputStarts, this.answeredAudioInputs + 1);
+      if (content?.turnComplete) { this.answeredAudioInputs = this.providerTurnInputs; this.providerTurnInputs = null; }
+    }
     // Interruption must invalidate pending decodes/TTS before any awaits.
     if (message.serverContent?.interrupted) {
       this.log('info', 'Model speech interrupted; robot actions are unchanged');
@@ -1451,6 +1481,7 @@ export class GeminiLiveService {
     this.nativeReceiptOutput.close();
     if (this.currentTurnTiming) this.finishTurnTiming(this.currentTurnTiming, 'disconnected-before-boundary');
     this.currentTurnTiming = null; this.outputTurnTiming = undefined;
+    this.providerTurnInputs = null; this.answeredAudioInputs = this.audioInputStarts;
     this.acceptedJobs.clear();
     // An old onmessage handler may still be waiting for a tool response.
     // Do not let the remainder of that message dispatch motion after close.

@@ -62,7 +62,8 @@ function fakeAudio() {
     createBufferSource: () => { const source = { buffer: null, connect() {}, disconnect() {}, start() { started.push(source); }, stop() { source.stopped = true; } }; return source; },
     resume: () => new Promise(r => { resume = () => { ctx.state = 'running'; r(); }; }),
     close: async () => { ctx.state = 'closed'; } };
-  return { ctx, cues: () => started.filter(source => source.buffer.frames === 2).length, release: () => resume?.() };
+  return { ctx, cues: () => started.filter(source => source.buffer.frames === 2).length,
+    replies: () => started.filter(source => source.buffer.frames === 5).length, release: () => resume?.() };
 }
 
 let servers = 0;
@@ -353,4 +354,155 @@ test('late failure fences a different action already in flight with the existing
   s.observeQueueStatus(report(s, failed(2))); await flush();
   assert.ok(env.audio.cues() <= 1, 'Stop may interrupt the one cue but never duplicates it');
   assert.equal(env.server.paths.filter(p => p === '/stop/immediate').length, 1);
+});
+
+// A screened native conversational reply: 10 PCM bytes (5 frames), unlike cue/Okay clips.
+const REPLY_AUDIO = 'AAAAAAAAAAAAAA==';
+function enableMic(s) {
+  const track = { enabled: false };
+  s.config.enableAudio = true;
+  s.inputAudioContext = { state: 'running' };
+  s.mediaStream = { getAudioTracks: () => [track] };
+}
+function holdToTalk(s, release = true) {
+  assert.equal(s.beginAudioInput(), true, 'deliberate hold-to-talk starts');
+  if (release) s.endAudioInput();
+}
+async function replyOpen(s) {
+  await s.handleMessage({ serverContent: { modelTurn: { parts: [{ inlineData: { data: REPLY_AUDIO, mimeType: 'audio/pcm;rate=24000' } }] },
+    outputTranscription: { text: 'Hello there.' } } });
+}
+async function replyClose(s) {
+  await s.handleMessage({ serverContent: { generationComplete: true } });
+  await s.handleMessage({ serverContent: { turnComplete: true } });
+  await flush();
+}
+async function reply(s) { await replyOpen(s); await replyClose(s); }
+
+test('late failure after a completed turn does not swallow the next deliberate conversational reply', async t => {
+  const env = setup(t), { s } = env;
+  enableMic(s);
+  await accept(env, s, 'a', 1);
+  s.observeQueueStatus(report(s, failed(1))); await flush();
+  assert.equal(env.audio.cues(), 1, 'existing cached failure cue still plays once');
+  assert.equal(s.robotToolsPaused, true);
+  holdToTalk(s);
+  await reply(s);
+  assert.equal(env.audio.replies(), 1, 'first fresh screened reply reaches the audio sink');
+  assert.equal(env.tts, 0, 'no replacement voice');
+  assert.equal(env.server.paths.includes('/stop/immediate'), false, 'historical failure alone sends no Stop');
+  const requests = env.server.paths.length;
+  await s.handleMessage({ toolCall: { functionCalls: [call('c')] } });
+  assert.equal(env.server.paths.length, requests, 'model motion stays paused');
+  assert.equal(s.robotToolsPaused, true);
+});
+
+test('late failure during open provider output suppresses its tail; the next fresh reply speaks', async t => {
+  const env = setup(t), { s } = env;
+  enableMic(s);
+  await accept(env, s, 'a', 1);
+  holdToTalk(s);
+  await replyOpen(s);
+  s.observeQueueStatus(report(s, failed(1))); await flush();
+  await replyClose(s);
+  assert.equal(env.audio.replies(), 0, 'interrupted turn never plays its head or tail');
+  assert.equal(env.audio.cues(), 1);
+  holdToTalk(s);
+  await reply(s);
+  assert.equal(env.audio.replies(), 1);
+  assert.equal(s.robotToolsPaused, true);
+});
+
+test('late failure while a deliberate reply is owed but unstarted quarantines that reply only', async t => {
+  for (const released of [true, false]) await t.test(released ? 'after release' : 'while held', async t2 => {
+    const env = setup(t2), { s } = env;
+    enableMic(s);
+    await accept(env, s, 'a', 1);
+    holdToTalk(s, released);
+    s.observeQueueStatus(report(s, failed(1))); await flush();
+    assert.equal(s.audioInputActive, false, 'pause ends the hold');
+    await reply(s);
+    assert.equal(env.audio.replies(), 0, 'reply awaited before the failure stays quarantined');
+    holdToTalk(s);
+    await reply(s);
+    assert.equal(env.audio.replies(), 1, 'next genuine turn recovers');
+  });
+});
+
+test('idle manual Stop preserves the first fresh PTT reply without rearming motion', async t => {
+  const env = setup(t), { s } = env;
+  enableMic(s);
+  await accept(env, s, 'a', 1);
+  s.pauseRobotTools(); await s.robotBridge.immediateStop();
+  holdToTalk(s); await reply(s);
+  assert.equal(env.audio.replies(), 1, 'idle local Stop must not erase the next genuine reply');
+  assert.equal(s.robotToolsPaused, true);
+  assert.equal(env.server.paths.filter(p => p === '/stop/immediate').length, 1);
+});
+
+test('an older turn boundary cannot consume a barge-in still awaiting its first model packet', async t => {
+  for (const earlierOutput of [false, true]) await t.test(earlierOutput ? 'old output already started' : 'old output not started', async t2 => {
+    const env = setup(t2), { s } = env;
+    enableMic(s); await accept(env, s, 'a', 1);
+    holdToTalk(s);
+    if (earlierOutput) await replyOpen(s);
+    holdToTalk(s);
+    await s.handleMessage({ serverContent: { interrupted: true } });
+    await s.handleMessage({ serverContent: { turnComplete: true } });
+    s.observeQueueStatus(report(s, failed(1))); await flush();
+    await reply(s);
+    assert.equal(env.audio.replies(), 0, 'the newer outstanding reply stays quarantined');
+    holdToTalk(s); await reply(s);
+    assert.equal(env.audio.replies(), 1, 'a subsequent fresh reply recovers');
+  });
+});
+
+test('manual Stop while a reply is owed keeps that reply quarantined', async t => {
+  const env = setup(t), { s } = env;
+  enableMic(s); await accept(env, s, 'a', 1);
+  holdToTalk(s);
+  s.pauseRobotTools(); await s.robotBridge.immediateStop();
+  await reply(s);
+  assert.equal(env.audio.replies(), 0);
+  holdToTalk(s); await reply(s);
+  assert.equal(env.audio.replies(), 1);
+  assert.equal(s.robotToolsPaused, true);
+});
+
+
+test('hands-free pause preserves quarantine across completed turns and disarms until reconnect', async t => {
+  const env = setup(t), { s } = env;
+  enableMic(s); s.config.voiceInputMode = 'hands_free';
+  assert.equal(s.beginAudioInput(), true);
+  await accept(env, s, 'a', 1);
+  assert.equal(s.audioInputActive, true, 'hands-free remains armed between provider turns');
+  s.observeQueueStatus(report(s, failed(1))); await flush();
+  assert.equal(s.audioInputActive, false);
+  assert.equal(s.handsFreeDisarmed, true);
+  assert.equal(env.audio.cues(), 1);
+  await reply(s);
+  assert.equal(env.audio.replies(), 0, 'a continuous-mic reply may still be pending');
+  assert.equal(s.beginAudioInput(), false, 'paused hands-free cannot silently rearm');
+});
+
+
+test('older turn boundaries cannot retire a third input still awaiting its response', async t => {
+  for (const thirdBeforeFirstBoundary of [false, true]) await t.test(thirdBeforeFirstBoundary ? 'provider packet binds oldest outstanding input' : 'new PTT binds oldest outstanding input', async t2 => {
+    const env = setup(t2), { s } = env;
+    enableMic(s); await accept(env, s, 'a', 1);
+    holdToTalk(s); // input 1, no provider output yet
+    holdToTalk(s); // input 2, still awaiting its first output
+    if (thirdBeforeFirstBoundary) holdToTalk(s);
+    await s.handleMessage({ serverContent: { turnComplete: true } }); // older input 1 boundary
+    if (!thirdBeforeFirstBoundary) holdToTalk(s); // input 3 must not consume input 2's boundary
+    await s.handleMessage({ serverContent: { generationComplete: true } });
+    await s.handleMessage({ serverContent: { turnComplete: true } }); // older input 2 boundary
+    s.pauseRobotTools(); await s.robotBridge.immediateStop();
+    await reply(s); // outstanding input 3, first packet after Stop
+    assert.equal(env.audio.replies(), 0, 'third outstanding reply stays quarantined');
+    holdToTalk(s); await reply(s);
+    assert.equal(env.audio.replies(), 1, 'a subsequent fresh PTT reply recovers');
+    assert.equal(s.robotToolsPaused, true);
+    assert.equal(env.server.paths.filter(path => path === '/stop/immediate').length, 1);
+  });
 });
