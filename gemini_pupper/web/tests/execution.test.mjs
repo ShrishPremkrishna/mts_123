@@ -1134,10 +1134,128 @@ for(const failure of ['provider-error','pcm-send-error']){
   await e.s.handleMessage({toolCall:{functionCalls:[{id:'active-follow',name:'follow',args:{}}]}});
   assert.deepEqual(received,['follow']);
   if(failure==='provider-error'){callbacks.onerror({message:'transport failed'});callbacks.onerror({message:'still failed'});}
-  else{audioFrame(e.s);await Promise.resolve();await Promise.resolve();audioFrame(e.s);}
+  else{
+   // Capture an already-scheduled callback before retirement releases the node.
+   const stale={inputScriptProcessor:{onaudioprocess:e.s.inputScriptProcessor.onaudioprocess}};
+   audioFrame(e.s);await Promise.resolve();await Promise.resolve();
+   assert.equal(e.s.inputScriptProcessor,null);audioFrame(stale);
+  }
   assert.equal(e.s.audioInputActive,false);assert.equal(e.s.beginAudioInput(),false);assert.equal(stops,1);
   await e.s.handleMessage({toolCall:{functionCalls:[{id:'late-move',name:'move',args:{}}]}});
   assert.deepEqual(received,['follow']);
   stop.resolve({success:true});await e.s.automaticStop;
  });
 }
+
+function pttSession(t, failure = 'provider') {
+ const sessions=[],responses=[],closed=[];
+ const e=mediaEnvironment(t,async x=>{sessions.push(x.callbacks);x.callbacks.onopen();return {
+  close(){closed.push(true);},
+  sendRealtimeInput(value){
+   if ((failure==='pcm'&&value.audio)||(failure==='boundary'&&value.audioStreamEnd)) throw Error('input send failed');
+  },
+  sendToolResponse:r=>responses.push(...[r.functionResponses].flat())};});
+ return {...e,sessions,responses,closed};
+}
+async function failPtt(e, failure) {
+ if (failure==='provider') e.sessions[0].onerror({message:'transport failed'});
+ else {
+  assert.equal(e.s.beginAudioInput(),true);
+  if (failure==='pcm') audioFrame(e.s); else e.s.endAudioInput();
+ }
+ await flushCallbacks();
+}
+
+for (const failure of ['provider','pcm','boundary']) {
+ test(`hold-to-talk ${failure} failure before motion retires without an unsolicited Stop`,async t=>{
+  let stops=0,statuses=0;const calls=[],events=[];const e=pttSession(t,failure);
+  e.s.onTransportEnded=event=>events.push(event);e.s.onDisconnect=()=>events.push('released');
+  await e.s.connect('TEST',e.config,{});
+  e.s.robotBridge.callTool=async name=>{calls.push(name);return {success:true};};
+  e.s.robotBridge.immediateStop=async()=>{stops++;return {success:true};};
+  e.s.robotBridge.getQueueStatus=async()=>{statuses++;return valid;};
+  await failPtt(e,failure);
+  assert.equal(stops,0);assert.deepEqual(e.stops,[]);assert.equal(e.s.robotToolsPaused,true);
+  assert.equal(e.s.disposed,true);assert.equal(e.s.connected,false);assert.equal(e.s.beginAudioInput(),false);
+  assert.equal(e.closed.length,1);assert.equal(events[0].kind,'closed');assert.match(events[0].reason,/reconnect/);
+  assert.equal(events[1],'released');
+  await e.sessions[0].onmessage({toolCall:{functionCalls:[{id:'late',name:'move',args:{}}]}});
+  assert.deepEqual(calls,[],'dead connection cannot admit a new tool');
+  // Direct controls still work independently of a voice connection.
+  assert.deepEqual(await e.s.robotBridge.getQueueStatus(),valid);
+  await requestIndependentStop(e.s,e.s.robotBridge);assert.equal(stops,1);assert.equal(statuses,1);
+ });
+ test(`hold-to-talk ${failure} failure after follow retires and holds reconnect until one Stop settles`,async t=>{
+  let stops=0;const calls=[],events=[],pending=[],stop=deferred();const e=pttSession(t,failure);
+  e.s.onTransportEnded=event=>events.push(event.kind);e.s.onDisconnect=()=>events.push('released');
+  e.s.onStopPending=v=>pending.push(v);
+  await e.s.connect('TEST',e.config,{});const [callbacks]=e.sessions;
+  e.s.robotBridge.callTool=async name=>{calls.push(name);return {success:true,message:'server response'};};
+  e.s.robotBridge.immediateStop=()=>{stops++;return stop.promise;};
+  await callbacks.onmessage({toolCall:{functionCalls:[{id:'follow',name:'follow',args:{enabled:true}}]}});
+  await failPtt(e,failure);
+  assert.equal(stops,1,'failure requests Stop without waiting for socket close');
+  assert.equal(e.s.disposed,true);
+  callbacks.onerror({message:'still failed'});const closing=callbacks.onclose({code:1006,reason:'late close'});
+  await callbacks.onmessage({toolCall:{functionCalls:[{id:'late',name:'move',args:{}}]}});
+  assert.equal(stops,1);assert.deepEqual(pending,[true]);assert.deepEqual(events,['closed']);
+  assert.equal(e.s.robotToolsPaused,true);assert.equal(e.s.beginAudioInput(),false);assert.equal(e.s.audioInputActive,false);
+  assert.deepEqual(calls,['follow']);assert.equal(e.closed.length,1);
+  stop.resolve({success:false,outcome_unknown:true});await e.s.automaticStop;await closing;await flushCallbacks();
+  assert.deepEqual(pending,[true,false]);assert.deepEqual(events,['closed','released']);assert.equal(stops,1);
+  assert.equal(e.stops.at(-1),'I could not confirm that request.');
+  assert.ok(e.stops.every(m=>!/\bstopped\b|standing still|motors off/i.test(m)));
+ });
+}
+
+test('hold-to-talk provider error during an unresolved tool POST fences its late result and remaining envelope',async t=>{
+ let stops=0;const calls=[],dispatches=[],reply=deferred();const e=pttSession(t);
+ e.s.onToolDispatch=v=>dispatches.push(v);
+ await e.s.connect('TEST',e.config,{});const [callbacks]=e.sessions;
+ e.s.robotBridge.callTool=name=>{calls.push(name);return reply.promise;};
+ e.s.robotBridge.immediateStop=async()=>{stops++;return {success:true,message:'zero requested'};};
+ const handling=callbacks.onmessage({toolCall:{functionCalls:[{id:'wait',name:'wait',args:{}},{id:'move',name:'move',args:{}}]}});
+ callbacks.onerror({message:'transport failed'});
+ assert.equal(stops,1,'the unresolved POST may already be queued');
+ reply.resolve({success:true,message:'wait queued'});await handling;await e.s.automaticStop;await flushCallbacks();
+ assert.deepEqual(calls,['wait']);assert.deepEqual(dispatches.map(d=>d.status),['sending']);
+ assert.deepEqual(e.responses,[],'closed session emits no stale tool response or acknowledgment');
+});
+
+for (const sdkFirst of [false,true]) test(`failed connection retires with a pending SDK promise; ${sdkFirst?'SDK':'Stop'} resolves first`,async t=>{
+ let callbacks,stops=0,closed=0;const sdk=deferred(),stop=deferred(),events=[];
+ const e=mediaEnvironment(t,async x=>{callbacks=x.callbacks;callbacks.onopen();return sdk.promise;});
+ e.s.onTransportEnded=event=>{events.push(event.kind);throw Error('UI observer failed');};
+ e.s.onDisconnect=()=>events.push('released');
+ e.s.robotBridge.callTool=async()=>({success:true,message:'follow queued'});
+ e.s.robotBridge.immediateStop=()=>{stops++;return stop.promise;};
+ const connecting=e.s.connect('TEST',e.config,{});const rejected=assert.rejects(connecting,/cancelled/);
+ await flushCallbacks();
+ const handling=callbacks.onmessage({toolCall:{functionCalls:[{id:'follow',name:'follow',args:{enabled:true}}]}});
+ await flushCallbacks(); // Tool HTTP dispatch can precede SDK connection promise resolution.
+ callbacks.onerror({message:'transport failed'});await flushCallbacks();
+ assert.equal(stops,1);assert.deepEqual(events,['closed']);assert.equal(e.s.disposed,true);
+ const finishSdk=()=>sdk.resolve({close(){closed++;},sendRealtimeInput(){},sendToolResponse(){}});
+ if (sdkFirst) { finishSdk();await flushCallbacks();assert.equal(closed,1);assert.deepEqual(events,['closed']); }
+ stop.resolve({success:true});await e.s.automaticStop;await flushCallbacks();assert.deepEqual(events,['closed','released']);
+ if (!sdkFirst) finishSdk();
+ await rejected;await handling;await flushCallbacks();assert.equal(closed,1);assert.equal(stops,1);
+});
+
+test('provider error from a disposed old session cannot pause or Stop a fresh session',async t=>{
+ let stops=0;const calls=[];const e=pttSession(t);
+ e.s.robotBridge.callTool=async()=>({success:true,message:'move queued'});
+ e.s.robotBridge.immediateStop=async()=>{stops++;return {success:true};};
+ await e.s.connect('TEST',e.config,{});
+ await e.sessions[0].onmessage({toolCall:{functionCalls:[{id:'old',name:'move',args:{}}]}});
+ await e.s.disconnect();
+ const fresh=new GeminiLiveService(e.config,()=>{},()=>{},()=>{});t.after(()=>fresh.disconnect());
+ fresh.robotBridge.getTools=async()=>({tools:[]});
+ fresh.robotBridge.callTool=async name=>{calls.push(name);return {success:true,message:'move queued'};};
+ fresh.robotBridge.immediateStop=async()=>{stops++;return {success:true};};
+ await fresh.connect('TEST',e.config,{});
+ e.sessions[0].onerror({message:'old socket error'});
+ assert.equal(stops,0);assert.equal(e.s.automaticStop,null);assert.equal(fresh.robotToolsPaused,false);
+ await e.sessions[1].onmessage({toolCall:{functionCalls:[{id:'fresh',name:'move',args:{}}]}});
+ assert.deepEqual(calls,['move']);
+});

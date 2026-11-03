@@ -119,6 +119,33 @@ The attachment path has passed offline tests and independent review; its first
 live upgrade/rollback acceptance is still pending. A closed native session cannot
 be recovered by this command.
 
+### Onboard voice in the exclusive robot session
+
+After the selected API is healthy and its onboard bootstrap is enabled, explicitly
+start the owned voice browser. Use the API's exact loopback origin and the same
+private bootstrap directory configured in its environment; no key belongs in the
+command. The launcher does not start the API, ROS or motors.
+
+```sh
+"$SESSION_PYTHON" "$APP_RELEASE/gemini_pupper/robot/kiosk.py" \
+  --url "$ONBOARD_API_ORIGIN" \
+  --bootstrap-dir "$PUPPER_ONBOARD_BOOTSTRAP_DIR" \
+  --stop-on-browser-exit
+```
+
+The option is intentional for our exclusive onboard session. On browser exit or
+handled launcher interruption, it requests the existing **global Stop** against
+the original API instance. It cancels other clients' work on that same instance,
+so do not use this option for a shared robot session. A replaced API rejects the
+stale request. Generic launcher behavior without the flag is unchanged.
+
+An unconfirmed Stop produces a warning and nonzero exit; it does not prove the
+robot stopped physically. Launcher SIGKILL, renderer hangs, unavailable API/host
+and silent network failures remain outside this exit-based protection. Stop does
+not fully release the motor driver. Keep the supported shutdown procedure below
+for ending a physical session. This new exit behavior has offline evidence only
+until its first watched acceptance.
+
 `shutdown --run-dir RUN` closes owned ingress, uses the existing coordinator to
 stop the manager before launch cleanup, then closes owned camera/recorder children.
 It never name-kills unrelated processes or uses SIGKILL. Inspect recording closure

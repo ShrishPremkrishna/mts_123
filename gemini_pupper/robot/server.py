@@ -344,11 +344,24 @@ async def queue_reset():
     return (await gemini_tools.dispatch(T(), lambda: T().clear_queue(), name="clear_queue")).as_dict()
 
 
+STOP_INSTANCE_MISMATCH = ("Stop not dispatched: this API is not the expected server instance. "
+                          "No command, queue or epoch was changed; use this API's operator Stop if needed.")
+
+
 @app.post("/queue/stop")
 @app.post("/stop/immediate")
-async def stop_immediate():
-    result = await T().immediate_stop(relax_playing_trick=True)
-    return {**result.as_dict(), "command_epoch": T().command_epoch, "command_epoch_required": True}
+async def stop_immediate(request: Request):
+    # An opt-in launcher Stop names the API instance it started against. Compare
+    # before any await and use one captured robot for both Stop and its receipt.
+    # Without the header this is the unrestricted operator Stop.
+    robot = T()
+    expected = request.headers.getlist("x-pupper-expected-server-instance")
+    if expected and expected != [robot.command_instance]:
+        return JSONResponse(status_code=409, content={
+            "success": False, "not_dispatched": True, "message": STOP_INSTANCE_MISMATCH})
+    result = await robot.immediate_stop(relax_playing_trick=True)
+    return {**result.as_dict(), "command_epoch": robot.command_epoch, "command_epoch_required": True,
+            "server_instance": robot.command_instance}
 
 
 @app.get("/queue/status")

@@ -573,10 +573,10 @@ export class GeminiLiveService {
           if (this.disposed) return;
           const details = err.message || err.error?.message || String(err.error || 'WebSocket error');
           this.log('error', `Session error: ${details}`);
-          if (this.voiceInputMode === 'hands_free') {
-            this.pauseRobotTools();
-            if (this.dispatchedActionIds.size) void this.requestAutomaticStop('Hands-free voice failed after an action request');
-          }
+          // An error need not be followed by onclose. Retire the unusable
+          // connection explicitly in either input mode; never replay requests.
+          void this.retireVoiceSession({ kind: 'closed', reason: 'Voice connection failed; reconnect to continue.' },
+            'Voice connection failed after an action request');
         }
       }
     });
@@ -659,7 +659,9 @@ export class GeminiLiveService {
         this.lastAudioReleaseSent = performance.now();
         this.trace('audio_hold_end_sent');
       } catch { this.failAudioBoundary(); }
-    }).catch(() => this.failAudioBoundary());
+    }).catch(() => {
+      if (this.sessionPromise === pending) this.failAudioBoundary();
+    });
   }
 
   private failAudioBoundary() {
@@ -670,6 +672,8 @@ export class GeminiLiveService {
     this.mediaStream?.getAudioTracks().forEach(track => { track.enabled = false; });
     try { this.onAudioInputChange(false); } catch { /* Optional UI. */ }
     try { this.log('error', 'Audio release could not be sent. Reconnect before sending more speech.'); } catch {}
+    void this.retireVoiceSession({ kind: 'closed', reason: 'Audio release failed; reconnect to continue.' },
+      'Audio release failed after an action request');
   }
 
   private setupAudioInput(ctx: AudioContext, stream: MediaStream) {
@@ -707,12 +711,9 @@ export class GeminiLiveService {
            this.trace('audio_send_return', { audio_sequence: audioSequence });
         } catch(err) {
            this.trace('audio_send_failed', { audio_sequence: audioSequence });
-           if (this.voiceInputMode === 'hands_free') {
-             this.pauseRobotTools();
-             this.log('error', 'Microphone sending failed. Reconnect before sending more speech.');
-             if (this.dispatchedActionIds.size) void this.requestAutomaticStop('Hands-free microphone failed after an action request');
-           }
-           // Hold-to-talk retains its existing close/error handling.
+           this.log('error', 'Microphone sending failed. Reconnect before sending more speech.');
+           void this.retireVoiceSession({ kind: 'closed', reason: 'Microphone sending failed; reconnect to continue.' },
+             'Microphone sending failed after an action request');
         }
       }).catch(() => {});
     };
@@ -976,22 +977,28 @@ export class GeminiLiveService {
 
   private async retireExpiringSession() {
     if (this.disposed) return;
-    const sentActions = this.dispatchedActionIds.size > 0 || this.pendingModelActions > 0;
     this.log('info', 'Voice session is expiring. Reconnect for a new conversation; earlier requests will not be replayed.');
-    this.trace('session_go_away', { sent_actions: sentActions });
-    // disconnect() invalidates input/output/tools synchronously and closes even
-    // a late SDK session. Its promise never waits for the connection to resolve.
+    this.trace('session_go_away', { sent_actions: this.dispatchedActionIds.size > 0 || this.pendingModelActions > 0 });
+    await this.retireVoiceSession({ kind: 'goaway' }, 'Voice session expired after an action request');
+  }
+
+  /** Failed input/transport and expiry share the existing explicit reconnect
+   * lifecycle. Normal local Stop remains separate and preserves conversation. */
+  private async retireVoiceSession(event: VoiceTransportEnded, stopReason: string) {
+    if (this.disposed) return;
+    const sentActions = this.dispatchedActionIds.size > 0 || this.pendingModelActions > 0;
+    // cleanup marks disposed before ending input, so a broken audio boundary
+    // cannot recursively send or retire again. Late SDK sessions still close.
     const closing = this.disconnect();
-    const stop = sentActions
-      ? this.requestAutomaticStop('Voice session expired after an action request') : null;
-    this.reportTransportEnded({ kind: 'goaway' });
+    const stop = sentActions ? this.requestAutomaticStop(stopReason) : this.automaticStop;
+    this.reportTransportEnded(event);
     try {
       await closing;
       if (stop) await stop;
     } finally {
-      // Keep the existing shared Stop gate until its response settles. This is
-      // explicit reconnect, never automatic motion rearming or command retry.
-      this.onDisconnect();
+      // Hold reconnect ownership until the shared Stop settles. A failed Stop
+      // remains an unconfirmed result, never a claim of physical stopping.
+      try { this.onDisconnect(); } catch { /* Presentation cannot break cleanup. */ }
     }
   }
 
