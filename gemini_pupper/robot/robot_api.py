@@ -255,6 +255,8 @@ class Robot:
         self.clip_status: dict[str, tuple[str, bool]] = {}  # controller -> (clip, holding)
         self.clip_receipts: dict[str, tuple[str, bool, int, float, str, str, int]] = {}
         self.clip_requests: dict[str, str] = {}
+        # Published exit requests still owned by their originating action.
+        self._exit_clip_requests: dict[str, str] = {}
         self.policy_execution_requests: dict[str, str] = {}
         self.policy_activation_since: dict[str, float] = {}
         self.clip_pubs: dict[str, object] = {}
@@ -1276,19 +1278,38 @@ class Robot:
         except MotionBlockedError as error:
             return Result(False, str(error))
         deadline = requested_at + longest + minimum_playback + 1.0
-        while True:
-            if reason := self.motion_block_reason():
-                return Result(False, reason)
-            if generation != self.stops or self.fallen or self.stopped_during_call():
-                return Result(False, "clip interrupted by a fall or stop")
-            if self._matches_clip_endpoint(trick.controller, endpoint, request_id, requested_at + minimum_playback):
-                return Result(True, f"played {clip}")
-            if time.monotonic() >= deadline:
-                message = f"{trick.name} did not confirm completion of {clip} for this request"
-                self.controller_fault = message + "; motion quarantined. Inspect/restart the controller stack before restarting this tool server"
-                relaxed = await self._relax_controllers()
-                return Result(False, f"{message}; {relaxed.message}. {self.controller_fault}")
-            await asyncio.sleep(0.02)
+        exit_owner = None
+        def clear_exit_request(_task=None):
+            if self._exit_clip_requests.get(trick.controller) == request_id:
+                self._exit_clip_requests.pop(trick.controller, None)
+        if clip == trick.exit_clip:
+            self._exit_clip_requests[trick.controller] = request_id
+            if asyncio.current_task() is self.current:
+                # The clip endpoint precedes the locomotion handoff. Keep its
+                # ownership until the existing queue action finishes/cancels;
+                # otherwise takeover in that gap would publish the exit again.
+                exit_owner = self.current
+                exit_owner.add_done_callback(clear_exit_request)
+        try:
+            while True:
+                if reason := self.motion_block_reason():
+                    return Result(False, reason)
+                if generation != self.stops or self.fallen or self.stopped_during_call():
+                    return Result(False, "clip interrupted by a fall or stop")
+                if self._matches_clip_endpoint(trick.controller, endpoint, request_id, requested_at + minimum_playback):
+                    return Result(True, f"played {clip}")
+                if time.monotonic() >= deadline:
+                    message = f"{trick.name} did not confirm completion of {clip} for this request"
+                    self.controller_fault = message + "; motion quarantined. Inspect/restart the controller stack before restarting this tool server"
+                    relaxed = await self._relax_controllers()
+                    return Result(False, f"{message}; {relaxed.message}. {self.controller_fault}")
+                await asyncio.sleep(0.02)
+        finally:
+            # A direct call has no later queue handoff to protect. Queue-owned
+            # markers clear on task completion, including CancelledError/Stop.
+            if exit_owner is None:
+                clear_exit_request()
+
 
     async def confirm_finite_endpoint(self, trick: Trick) -> Result:
         """Confirm a fresh terminal frame belonging to this activation.
@@ -1454,6 +1475,12 @@ class Robot:
             return Result(False, "following state is unknown; use stop and check the follower service first")
         if self.following:
             return Result(True, "already following the nearest person")
+        if self._exit_clip_requests:
+            # Class follow is an immediate takeover, not an ordered queue job.
+            # Cancelling an awaited exit would leave its native request live;
+            # switch_to would then publish that exit again with another UUID.
+            return Result(False, "Following not started: a trick exit is still in progress. "
+                          "Follow did not cancel the transition; wait for its outcome before requesting following.")
         await self.clear_queue(reason="follow_takeover")
         if self.current and not self.current.done():
             self._cancel_current_job("follow_takeover")

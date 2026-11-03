@@ -73,11 +73,16 @@ only labeled candidate correlations; no request-to-completion certainty is added
 `POST /tools/play_trick` requires all three fields, for example
 `{"name":"sit_stay_shake","count":1,"count_unit":"routine_playback"}`.
 `count` must be an integer from 1 to 10; the units are `routine_playback` or
-`physical_repetition`. Currently only one routine playback is executable.
-Physical repetition counts and multiple playbacks are refused before preparing
-movement or queuing a job. A fixed routine can contain several reference cycles;
-one playback does not mean one measured physical repetition. Do not split a
-refused count into repeated calls.
+`physical_repetition`. One routine playback is supported for an installed trick.
+The exception is the installed finite `swim` routine: `count=2` with
+`count_unit="routine_playback"` queues both complete playbacks as one job. It
+releases the held lying endpoint before reactivation, without inserting a stand;
+a later stand must be requested separately. Stop or a failed playback aborts the
+remainder. Other multi-playback counts and all physical repetition counts are
+refused before preparing movement or queuing a job. A fixed routine can contain
+several reference cycles; one playback does not mean one measured physical
+repetition. Do not split a refused count into repeated calls. This queue behavior
+is covered by fake-robot checks; physical double-playback acceptance is separate.
 
 The manual `POST /animation` button route accepts only
 `{"animation_name":"sit_stay_shake"}` and explicitly requests one routine.

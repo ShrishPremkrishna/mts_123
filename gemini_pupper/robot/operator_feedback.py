@@ -95,7 +95,7 @@ def _trick_quantity_reason(details):
         return None
     return {
         "physical_count_unsupported": "Exact physical repetition counts are not supported.",
-        "playback_count_unsupported": "Only one routine playback is supported per request.",
+        "playback_count_unsupported": "Requested routine playback count is unsupported.",
         "invalid_quantity": "Trick quantity must be an integer from 1 to 10 with a supported unit.",
     }.get(code)
 

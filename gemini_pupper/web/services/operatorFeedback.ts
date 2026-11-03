@@ -63,7 +63,7 @@ function trickQuantityReason(details: any): string | null {
   if (reason?.schema !== 'pupper_trick_quantity_refusal_v1' || typeof reason.code !== 'string') return null;
   const messages: Record<string, string> = {
     physical_count_unsupported: 'Exact physical repetition counts are not supported.',
-    playback_count_unsupported: 'Only one routine playback is supported per request.',
+    playback_count_unsupported: 'Requested routine playback count is unsupported.',
     invalid_quantity: 'Trick quantity must be an integer from 1 to 10 with a supported unit.',
   };
   return Object.prototype.hasOwnProperty.call(messages, reason.code) ? messages[reason.code] : null;
@@ -154,7 +154,7 @@ export function nativeReceiptFeedback(name: unknown, value: unknown): string {
  * This classifies our fixed receipt forms, not general truth or natural language. */
 export function isOperatorReceiptNarration(text: string): boolean {
   const normalized = text.normalize('NFKC').toLowerCase().replace(/[.,!?;:\-–—]/g, ' ').replace(/\s+/g, ' ').trim();
-  const prefixes = ['exact physical repetition counts are not supported', 'only one routine playback is supported per request', 'trick quantity must be an integer', 'left paw command queued', 'right paw command queued', 'walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
+  const prefixes = ['exact physical repetition counts are not supported', 'only one routine playback is supported per request', 'requested routine playback count is unsupported', 'trick quantity must be an integer', 'left paw command queued', 'right paw command queued', 'walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
     'sit controller active', 'generated motion controller active', 'skill controller active', 'walking skill controller active', 'locked skill controller active', 'controller locomotion', 'controller no active command controller', 'controller unknown', 'controller sit',
     'controller generated motion', 'controller skill', 'controller walking skill', 'controller locked skill', 'cached mode', 'cached status', 'confirmed sit entry playbacks',
     'that request was superseded', 'i could not confirm that request', 'that request failed', 'stop requested'];

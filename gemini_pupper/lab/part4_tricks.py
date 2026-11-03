@@ -24,7 +24,7 @@ from trick_quantity import validate_trick_quantity
 
 
 # ============================================================ what the robot does
-async def play_trick(robot: Robot, name: str) -> Result:
+async def play_trick(robot: Robot, name: str, *, count: int = 1) -> Result:
     """Play a trick from <repo>/tricks. Every trick in the lab is played by trick
     policies on their own controllers (the job is play_policy_trick below).
 
@@ -72,6 +72,9 @@ async def play_trick(robot: Robot, name: str) -> Result:
     trick = robot.tricks.get(name)
     if trick is None:
         return Result(False, f"unknown trick '{name}'; available: {list(robot.available_tricks())}")
+    refused = validate_trick_quantity(count, "routine_playback", trick=trick)
+    if refused is not None:
+        return refused
     if not robot.trick_available(trick):
         return Result(False, "This trick is locked. Ask for the password, then use unlock(password).")
     if robot.fallen:
@@ -81,22 +84,38 @@ async def play_trick(robot: Robot, name: str) -> Result:
         return note
 
     async def job() -> Result:
-        if not robot.trick_available(trick):
-            return Result(False, "The trick was locked before it started; unlock it first.")
-        if robot.fallen:
-            return Result(False, FELL_MESSAGE)
-        if trick.kind == "reference":
-            return await robot.play_reference_trick(trick)
-        return await play_policy_trick(robot, trick)
+        # One accepted job owns both swim playbacks. A failure or cancellation
+        # aborts the remainder; the queue's existing failure cascade handles any
+        # later dependent commands. Each playback retains its own endpoint token.
+        for index in range(count):
+            if robot.stopped_during_call():
+                return Result(False, "trick playback cancelled by a stop")
+            if not robot.trick_available(trick):
+                return Result(False, "The trick was locked before playback; unlock it first.")
+            if robot.fallen:
+                return Result(False, FELL_MESSAGE)
+            result = (await robot.play_reference_trick(trick) if trick.kind == "reference"
+                      else await play_policy_trick(robot, trick))
+            if not result.ok:
+                if count == 1:
+                    return result
+                return Result(False, f"{name} playback {index + 1}/{count} failed: {result.message}", result.details)
+        if count == 1:
+            return result
+        return Result(True, f"controller playback completed for {name} (2 routine playbacks); "
+                            f"holding final controller frame (configured target pose: {trick.end_pose})")
 
     then = LOCOMOTION if trick.kind == "reference" or (not trick.interactive and trick.end_pose == "standing") else trick
     controller = LOCOMOTION_CONTROLLER if trick.kind == "reference" else trick.controller
-    estimate = trick.total_time + robot.transition_time_estimate(controller)
+    estimate = count * trick.total_time + robot.transition_time_estimate(controller)
     if trick.kind == "policy":
-        estimate += 0.3  # existing playback pad in play_policy_trick
+        estimate += count * 0.3  # full blend-in/playback and pad for each activation
         if not trick.interactive and trick.end_pose == "standing":
             estimate += WALK_READY_S  # switch_to waits for the final walking handoff
-    return with_note(note, await robot.queue(f"trick {name}", job, estimate, then=then))
+    # The same-swim reset adds no timed wait; ROS service latency is unknown,
+    # as for a single playback. A stand is not inserted between lying endpoints.
+    label = f"trick {name}" if count == 1 else f"trick {name} x{count} routine playbacks"
+    return with_note(note, await robot.queue(label, job, estimate, then=then))
     # ====================================
 
 
@@ -190,9 +209,11 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
 # ========== TODO 8: YOUR CODE HERE ==========
 @tool(
     "play_trick",
-    "Play one installed recorded routine, not one measured physical repetition. Copy the person's explicit quantity"
+    "Play an installed recorded routine, not a measured physical repetition. Copy the person's explicit quantity"
     " into count and distinguish routine_playback from physical_repetition; do not silently substitute or split requests."
-    " Only count=1 with count_unit=routine_playback is currently executable; other counts are refused."
+    " Use count_unit=routine_playback: count=1 for any installed trick, or count=2 only for finite swim (swim twice)."
+    " Two swim playbacks are one queued request; the existing lying-endpoint reset restarts the routine without a stand between."
+    " Other counts and all physical_repetition counts are refused. Do not append standing unless requested."
     " Read its description and starting pose before choosing. A playback trick keeps its final"
     " pose unless it ends standing; an interactive trick stays until an action or another motion leaves it."
     " Use sit_stay_shake for sit-and-stay once installed. A queued reply means accepted, not already completed."
@@ -203,7 +224,7 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
 )
 # ====================================
 async def play_trick_tool(robot: Robot, name: str, count: int, count_unit: str) -> Result:
-    refused = validate_trick_quantity(count, count_unit)
+    refused = validate_trick_quantity(count, count_unit, trick=robot.tricks.get(name))
     if refused is not None:
         return refused
-    return await play_trick(robot, name)
+    return await play_trick(robot, name, count=count)

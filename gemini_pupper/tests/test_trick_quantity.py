@@ -84,7 +84,7 @@ def test_explicit_once_retains_existing_one_playback_behavior():
 
 @pytest.mark.parametrize("code,expected", [
     ("physical_count_unsupported", "Exact physical repetition counts are not supported."),
-    ("playback_count_unsupported", "Only one routine playback is supported per request."),
+    ("playback_count_unsupported", "Requested routine playback count is unsupported."),
     ("invalid_quantity", "Trick quantity must be an integer from 1 to 10 with a supported unit."),
 ])
 def test_quantity_feedback_uses_closed_facts_with_unknown_precedence(code, expected):
