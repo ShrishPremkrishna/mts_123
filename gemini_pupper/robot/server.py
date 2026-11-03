@@ -143,7 +143,7 @@ async def require_command_epoch(connection: HTTPConnection):
     if (connection.scope["type"] != "http"
             or connection.scope["method"] not in {"POST", "PUT", "PATCH", "DELETE"}
             or (connection.scope["method"] == "POST" and connection.url.path.rstrip("/") in {
-                "/stop/immediate", "/queue/stop", "/tools/stop", "/tools/robot_status", "/onboard/bootstrap"})):
+                "/stop/immediate", "/stop/owned", "/queue/stop", "/tools/stop", "/tools/robot_status", "/onboard/bootstrap"})):
         yield
         return
     robot = T()
@@ -348,20 +348,31 @@ STOP_INSTANCE_MISMATCH = ("Stop not dispatched: this API is not the expected ser
                           "No command, queue or epoch was changed; use this API's operator Stop if needed.")
 
 
-@app.post("/queue/stop")
-@app.post("/stop/immediate")
-async def stop_immediate(request: Request):
-    # An opt-in launcher Stop names the API instance it started against. Compare
-    # before any await and use one captured robot for both Stop and its receipt.
-    # Without the header this is the unrestricted operator Stop.
+async def instance_checked_stop(request: Request, *, require_instance: bool):
+    # Compare before any await and use one captured robot for Stop and receipt.
+    # The dedicated route requires identity; ordinary operator Stop remains
+    # unrestricted when it has no optional identity header.
     robot = T()
     expected = request.headers.getlist("x-pupper-expected-server-instance")
-    if expected and expected != [robot.command_instance]:
+    if (require_instance or expected) and expected != [robot.command_instance]:
         return JSONResponse(status_code=409, content={
             "success": False, "not_dispatched": True, "message": STOP_INSTANCE_MISMATCH})
     result = await robot.immediate_stop(relax_playing_trick=True)
     return {**result.as_dict(), "command_epoch": robot.command_epoch, "command_epoch_required": True,
             "server_instance": robot.command_instance}
+
+
+@app.post("/queue/stop")
+@app.post("/stop/immediate")
+async def stop_immediate(request: Request):
+    return await instance_checked_stop(request, require_instance=False)
+
+
+@app.post("/stop/owned")
+async def stop_owned(request: Request):
+    # Older APIs do not have this route, so a late launcher cannot stop an old
+    # replacement server that would silently ignore an unknown identity header.
+    return await instance_checked_stop(request, require_instance=True)
 
 
 @app.get("/queue/status")
@@ -562,7 +573,8 @@ async def onboard_status(request: Request):
         onboard_request(request)
         return onboard_response({"schema": ONBOARD_SCHEMA, "enabled": True,
                                  "server_instance": T().command_instance,
-                                 "directory_id": directory_id(onboard_bootstrap.directory)})
+                                 "directory_id": directory_id(onboard_bootstrap.directory),
+                                 "instance_guarded_stop": True})
     except BootstrapError as error:
         return onboard_response({"message": str(error)}, error.status)
 

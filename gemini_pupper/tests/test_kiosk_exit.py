@@ -36,7 +36,7 @@ def healthy(directory):
         if path == '/health': return {'status': 'running', 'tools': True}
         assert path == '/onboard/status'
         return {'schema': ob.SCHEMA, 'enabled': True, 'server_instance': INSTANCE,
-                'directory_id': ob.directory_id(directory)}
+                'directory_id': ob.directory_id(directory), 'instance_guarded_stop': True}
     return get
 
 
@@ -218,7 +218,7 @@ def test_stop_helper_sends_one_exact_bounded_request(monkeypatch):
     assert kiosk.post_stop(ORIGIN, INSTANCE) is True
     request = seen['request']
     assert seen['opens'] == 1 and seen['timeout'] == 3
-    assert request.full_url == ORIGIN + '/stop/immediate'
+    assert request.full_url == ORIGIN + '/stop/owned'
     assert request.get_method() == 'POST' and request.data == b''
     assert {name.lower(): value for name, value in request.header_items()} == {
         'origin': ORIGIN, HEADER.lower(): INSTANCE}  # no cookies or credentials
@@ -274,7 +274,7 @@ async def held_move(client, rig):
     return pending
 
 
-@pytest.mark.parametrize('path', ['/stop/immediate', '/queue/stop'])
+@pytest.mark.parametrize('path', ['/stop/immediate', '/queue/stop', '/stop/owned'])
 @pytest.mark.parametrize('following', [False, True])
 def test_matching_instance_stop_cancels_following_and_waiting_work(server, path, following):
     async def case():
@@ -302,7 +302,7 @@ def test_matching_instance_stop_cancels_following_and_waiting_work(server, path,
     asyncio.run(case())
 
 
-@pytest.mark.parametrize('path', ['/stop/immediate', '/queue/stop'])
+@pytest.mark.parametrize('path', ['/stop/immediate', '/queue/stop', '/stop/owned'])
 @pytest.mark.parametrize('expected', ['other', 'empty', 'duplicate'])
 def test_mismatched_instance_is_409_without_dispatch_and_operator_stop_still_works(server, monkeypatch, path, expected):
     async def case():
@@ -333,7 +333,7 @@ def test_mismatched_instance_is_409_without_dispatch_and_operator_stop_still_wor
                 assert refused.json() == {'success': False, 'not_dispatched': True, 'message': server.STOP_INSTANCE_MISMATCH}
                 assert calls == [] and not pending.done() and snapshot() == before
                 # No header: the unrestricted operator Stop.
-                operator = await asyncio.wait_for(client.post(path), timeout=1.0)
+                operator = await asyncio.wait_for(client.post('/stop/immediate'), timeout=1.0)
             finally:
                 rig.ts.action_lock.release()
             assert operator.status_code == 200 and len(calls) == 1
@@ -360,7 +360,7 @@ def test_stop_receipt_uses_captured_robot_when_tools_swap_during_await(server):
         try:
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app),
                                          base_url='http://in-process.invalid') as client:
-                response = await client.post('/stop/immediate', headers={HEADER: INSTANCE})
+                response = await client.post('/stop/owned', headers={HEADER: INSTANCE})
         finally:
             server.tools = None
         receipt = response.json()
@@ -385,7 +385,7 @@ def test_matching_instance_stops_active_follow_and_cancels_admitted_queue(server
             await asyncio.wait_for(entered.wait(), 1.)
             queued = await rig.ts.wait(.2)
             assert running.ok and queued.ok and rig.ts.commands.qsize() == 1
-            response = await client.post('/stop/immediate', headers={HEADER: rig.ts.command_instance})
+            response = await client.post('/stop/owned', headers={HEADER: rig.ts.command_instance})
             assert response.status_code == 200 and response.json()['success'] is True
             assert not rig.robot.follower_on and not rig.ts.following
             assert await rig.settle()
@@ -394,4 +394,60 @@ def test_matching_instance_stops_active_follow_and_cancels_admitted_queue(server
                 assert outcomes[receipt.details['submission']['job_id']]['terminal_state'] == 'cancelled'
             assert outcomes[queued.details['submission']['job_id']]['execution_started'] is False
             assert rig.ts.commands.empty() and not harness.walk_twists(rig)
+    asyncio.run(case())
+
+
+@pytest.mark.parametrize('marker', [None, False, 1, 'true', '/stop/owned'])
+def test_opt_in_refuses_unsupported_api_before_grant_or_browser(directory, marker):
+    def get(origin, path):
+        status = healthy(directory)(origin, path)
+        if path == '/onboard/status':
+            status.pop('instance_guarded_stop')
+            if marker is not None:
+                status['instance_guarded_stop'] = marker
+        return status
+    def no_browser(*_args, **_kwargs):
+        pytest.fail('unsupported API started browser')
+    with pytest.raises(ob.BootstrapError, match='does not support instance-guarded'):
+        kiosk.launch(ORIGIN, directory, get=get, run=no_browser,
+                     stop_on_browser_exit=True, stop=never_stop)
+    assert not leftovers(directory) and not lock_held(directory)
+    # The legacy/default launch is still allowed; it makes no Stop promise.
+    assert kiosk.launch(ORIGIN, directory, get=get, run=Browser([], 0), stop=never_stop) == 0
+
+
+def test_unknown_guarded_route_never_falls_back_to_unrestricted_stop(monkeypatch):
+    seen = fake_opener(monkeypatch, error=urllib.error.HTTPError(
+        ORIGIN + '/stop/owned', 404, 'Not Found', {}, None))
+    assert kiosk.post_stop(ORIGIN, INSTANCE) is False
+    assert seen['opens'] == 1
+    assert seen['request'].full_url == ORIGIN + '/stop/owned'
+
+
+def test_owned_stop_requires_instance_without_mutating_robot(server):
+    async def case():
+        async with client_with_rig(server) as (client, rig):
+            assert (await client.post('/tools/follow', json={'enabled': True})).json()['success']
+            assert await rig.settle() and rig.robot.follower_on
+            before = (rig.ts.stops, rig.ts.command_epoch, len(rig.robot.twists()), list(rig.robot.follow_calls))
+            response = await client.post('/stop/owned')
+            assert response.status_code == 409
+            assert response.json()['not_dispatched'] is True
+            assert (rig.ts.stops, rig.ts.command_epoch, len(rig.robot.twists()), list(rig.robot.follow_calls)) == before
+            assert rig.robot.follower_on and rig.ts.following
+            assert (await client.post('/stop/immediate')).json()['success']
+    asyncio.run(case())
+
+
+def test_onboard_status_advertises_instance_guarded_stop(server, tmp_path):
+    async def case():
+        key = tmp_path / 'test-key'
+        key.write_text('TEST-ONLY-NOT-A-CREDENTIAL')
+        key.chmod(0o600)
+        server.onboard_bootstrap = ob.OnboardBootstrap(tmp_path / 'onboard', key)
+        async with client_with_rig(server) as (client, rig):
+            response = await client.get(ORIGIN + '/onboard/status', headers={'Origin': ORIGIN})
+            assert response.status_code == 200
+            assert response.json()['instance_guarded_stop'] is True
+            assert response.json()['server_instance'] == rig.ts.command_instance
     asyncio.run(case())

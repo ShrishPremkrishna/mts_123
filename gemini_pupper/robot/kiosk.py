@@ -9,7 +9,9 @@ USB microphone and speaker must already be selected as the OS default devices.
 After the owned browser returns, for any exit status, or when this launcher is
 interrupted by SIGINT/SIGTERM, it sends one global Stop to the API instance it
 launched against. That Stop also stops every other client's activity on that
-API. It is not a release, homing or shutdown and does not prove the robot is
+API. Older APIs without the dedicated instance-guarded Stop are refused before
+launch; if the API is rolled back during the session, Stop is unconfirmed and
+never falls back to the unrestricted operator endpoint. It is not a release, homing or shutdown and does not prove the robot is
 physically still. On an interrupt subprocess.run kills (SIGKILL) and reaps
 the direct browser process; this is not a graceful browser exit. Not covered:
 SIGKILL of this launcher, a hung renderer whose browser never exits, and host
@@ -35,6 +37,7 @@ import urllib.request
 from onboard_bootstrap import BootstrapError, CONFIG, MODEL_NAMES, TTS_MODELS, VOICES, SCHEMA, TTL_SECONDS, directory_id, issue_grant, launch_config, loopback_origin, private_directory
 
 STOP_INSTANCE_HEADER = 'X-Pupper-Expected-Server-Instance'
+OWNED_STOP_PATH = '/stop/owned'
 STOP_UNCONFIRMED = ('Onboard browser session ended, but Stop of the original API was not confirmed. '
                     'Check the robot and use the operator Stop.')
 
@@ -53,7 +56,9 @@ def get_json(origin, path):
 
 def post_stop(origin, server_instance) -> bool:
     """One Stop attempt, no retry; True only for the original instance's receipt."""
-    request = urllib.request.Request(origin + '/stop/immediate', data=b'', method='POST',
+    # A distinct route is essential: old servers ignore unknown headers on
+    # ordinary Stop. They reject this route without stopping a replacement API.
+    request = urllib.request.Request(origin + OWNED_STOP_PATH, data=b'', method='POST',
                                      headers={'Origin': origin, STOP_INSTANCE_HEADER: server_instance})
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     try:
@@ -87,6 +92,8 @@ def launch(origin: str, directory: Path, *, browser='chromium', get=get_json, ru
         status = get(origin, '/onboard/status')
         if status.get('schema') != SCHEMA or status.get('enabled') is not True or status.get('directory_id') != directory_id(directory):
             raise BootstrapError('The selected API has not enabled onboard bootstrap.')
+        if stop_on_browser_exit and status.get('instance_guarded_stop') is not True:
+            raise BootstrapError('The selected API does not support instance-guarded browser-exit Stop; no browser was launched.')
         profile = directory / 'browser-profile'
         if (profile / 'SingletonLock').exists() or (profile / 'SingletonLock').is_symlink():
             raise BootstrapError('The onboard browser profile is already owned; close it before starting another.')
