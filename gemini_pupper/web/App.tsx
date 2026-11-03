@@ -11,6 +11,7 @@ import ExecutionStatus from './components/ExecutionStatus';
 import { takeOnboardBootstrap, consumeOnboardBootstrap } from './services/onboardBootstrap';
 import { requestIndependentStop, updateLatestDispatch, type ToolDispatch } from './services/executionStatus';
 import type { StatusReport } from './services/acceptedJobs';
+import { TimingCapture, type TimingScope } from './services/timingCapture';
 
 // Capture once per page load, outside React StrictMode render retries. The URL
 // is scrubbed before any asynchronous bootstrap, media or provider operation.
@@ -157,6 +158,14 @@ const App: React.FC = () => {
     setOnboardPending(false);
   };
   const disconnectingRef = useRef<GeminiLiveService | null>(null);
+  // Diagnostics stay in memory; recording never triggers a React update.
+  const timingRef = useRef<TimingCapture | null>(null);
+  if (!timingRef.current) timingRef.current = new TimingCapture();
+  const timingCapture = timingRef.current;
+  const timingScopes = useRef<WeakMap<GeminiLiveService, TimingScope> | null>(null);
+  if (!timingScopes.current) timingScopes.current = new WeakMap();
+  const [, setTimingCleared] = useState(0);
+  const clearTiming = () => { timingCapture.clear(); setTimingCleared(value => value + 1); };
   const endedTransportRef = useRef<GeminiLiveService | null>(null);
   const releaseTalk = useCallback(() => {
     talkOwner.current = null;
@@ -231,6 +240,7 @@ const App: React.FC = () => {
 
     let service: GeminiLiveService | null = null;
     let automaticStopSequence: number | null = null;
+    const timing = timingCapture.beginConnection();
     try {
       setConnectionError('');
       endedTransportRef.current = null;
@@ -240,9 +250,11 @@ const App: React.FC = () => {
       
       service = new GeminiLiveService(
         configToUse,
-        entry => { if (geminiRef.current === service) addLog(entry); },
+        entry => { if (geminiRef.current === service) { addLog(entry); timing.log(entry); } },
         level => { if (geminiRef.current === service) setAudioLevel(level); },
         () => {
+          // Final disconnect logs precede this callback.
+          timing.close();
           if (geminiRef.current !== service || disconnectingRef.current === service) return;
           talkOwner.current = null;
           setAudioInputActive(false);
@@ -251,6 +263,7 @@ const App: React.FC = () => {
         },
         (entry) => {
           if (geminiRef.current !== service) return;
+          timing.dispatch(entry);
           setLastDispatch(current => updateLatestDispatch(current, entry));
           if (entry.status === 'unknown') setModelActionsPaused(true);
         },
@@ -265,7 +278,7 @@ const App: React.FC = () => {
           // an old service must still release its pending request after closing.
           if (pending) beginStop(); else endStop();
         },
-        undefined,
+        event => { if (geminiRef.current === service) timing.trace(event); },
         active => {
           if (geminiRef.current !== service) return;
           if (!active) talkOwner.current = null;
@@ -289,11 +302,14 @@ const App: React.FC = () => {
       );
 
       // Store before awaiting so Stop can pause dispatch even while connecting.
+      timingScopes.current!.set(service, timing);
       geminiRef.current = service;
       setModelActionsPaused(false);
       await service.connect(keyToUse, configToUse, videoElement);
       if (geminiRef.current === service && endedTransportRef.current !== service) setConnState(ConnectionState.CONNECTED);
     } catch (err: any) {
+      // connect() has already run its synchronous cleanup and final timing log.
+      timing.close();
       // Explicit disconnect owns this session until its independent Stop settles.
       if (geminiRef.current !== service || disconnectingRef.current === service) return;
       geminiRef.current = null;
@@ -391,6 +407,8 @@ const App: React.FC = () => {
       // Pause/stop immediately, and release local media without waiting for HTTP.
       const stop = handleStop();
       await service.disconnect();
+      // disconnect() logs its final timing summary synchronously.
+      timingScopes.current!.get(service)?.close();
       await stop;
       disconnectingRef.current = null;
       if (geminiRef.current !== service) return;
@@ -523,6 +541,10 @@ const App: React.FC = () => {
             onStop={handleStop}
             stopPending={stopPending}
             isStopPending={isStopPending}
+            timingRecordCount={timingCapture.count}
+            timingHasData={timingCapture.hasData}
+            getTimingSnapshot={() => timingCapture.snapshot()}
+            onClearTiming={clearTiming}
           />
         )}
 

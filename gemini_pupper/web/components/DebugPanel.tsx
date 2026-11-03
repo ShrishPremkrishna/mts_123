@@ -58,9 +58,28 @@ interface DebugPanelProps {
   onStop: () => Promise<void>;
   stopPending: boolean;
   isStopPending: () => boolean;
+  timingRecordCount?: number;
+  timingHasData?: boolean;
+  getTimingSnapshot: () => string;
+  onClearTiming: () => void;
 }
 
-const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge, systemStatus, onStatusUpdate, cameraSource, onStop, stopPending, isStopPending }) => {
+const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge, systemStatus, onStatusUpdate, cameraSource, onStop, stopPending, isStopPending, timingRecordCount = 0, timingHasData = false, getTimingSnapshot, onClearTiming }) => {
+  const downloadTiming = () => {
+    let url: string | null = null;
+    try {
+      url = URL.createObjectURL(new Blob([getTimingSnapshot()], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'pupper-browser-timing.json';
+      link.click();
+    } catch { /* Optional diagnostics; captured data is never logged. */ }
+    finally {
+      const created = url;
+      // Revoke after the click has started the download.
+      if (created) setTimeout(() => URL.revokeObjectURL(created), 0);
+    }
+  };
   const logEndRef = useRef<HTMLDivElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -547,8 +566,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
                 </div>
             </div>
 
+            <div className="shrink-0 flex flex-wrap items-center gap-2 text-[10px]">
+              <button onClick={downloadTiming} disabled={!timingHasData} aria-label="Download timing JSON" className="text-cyan-300 disabled:opacity-40">Download timing JSON</button>
+              <button onClick={onClearTiming} disabled={!timingHasData} aria-label="Clear timing" className="text-cyan-300 disabled:opacity-40">Clear timing</button>
+              <span className="text-gray-500">{timingRecordCount} numeric timing records; excludes content. Not physical or acoustic latency.</span>
+            </div>
+
             <div className="h-px bg-gray-700 shrink-0" />
-            
+
             <div className="flex items-center justify-between shrink-0">
               <div className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Skills</div>
               <button onClick={refreshCatalog} className="text-cyan-300 text-[10px]" aria-label="Refresh skill catalog">Refresh</button>
