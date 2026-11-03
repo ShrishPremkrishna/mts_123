@@ -106,8 +106,8 @@
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
     "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "mode": "r5_closed_voice_filming_deferred_offline_fixes_finishing",
-  "updated_utc": "2026-11-03T08:41:36.694573+00:00",
+  "mode": "r5_closed_offline_fixes_reviewed_ready_for_next_session",
+  "updated_utc": "2026-11-03T08:44:59.541371+00:00",
   "authorization": "User approved the seven-item sprint, explicitly requested an active goal, Claude Code and subagents. Coding, dependency/access fixes, offline validation and read-only Pi inventory authorized. Confirm physical readiness before a new motor block. Soccer and Lecture 7 remain deferred. User specifically approved relevant repository source/tests/manifests to Anthropic and signed-in Claude account use; no need to repeat this request for same scope.",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
@@ -137,12 +137,12 @@
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "No training, paid provider jobs or scheduled automation. Offline Q7 integrated regression and app-only attachment review finishing; do not rerun completed R5 hardware.",
+    "compute": "No active hardware, provider, training, test or automation job. Q7 integrated API1082/web475/course166/build passed; app-only helper30tests+10subtests passed. Both changes independently reviewed and not deployed.",
     "owners": {
-      "/root": "Preserve verified R5 archive, integrate reviewed offline fixes and checkpoint.",
-      "/root/sensor_decision_review": "Q7 handoff candidate frozen and independently accepted; no live deployment.",
-      "/root/preserve_local_close": "Independent app-only API attachment review. Q7 review complete.",
-      "/root/owned_lifecycle": "App-only API attachment candidate frozen in scratch; review pending, no live deployment."
+      "/root": "Closed-session handoff; no background robot ownership.",
+      "/root/sensor_decision_review": "Completed Q7 implementation; idle.",
+      "/root/preserve_local_close": "Completed independent review of both candidates; idle.",
+      "/root/owned_lifecycle": "Completed app-only attachment implementation; idle."
     },
     "goal_status": "New active goal created for approved general-harness and minimum-Lab6 sprint."
   },
@@ -158,16 +158,20 @@
   },
   "next": [
     {
-      "id": "finish_offline",
-      "action": "Finish current Q7 regression and app-only attachment independent review, then preserve/commit. No new physical test during this deferred block."
+      "id": "voice_setup",
+      "action": "Recharge wireless microphone. User deferred filming. Existing selected Pi release R5 is closed; no auto homing/restart. Check actual boot/receipts at next authorized session."
     },
     {
-      "id": "voice_deliverables",
-      "action": "Recharge wireless microphone. Use foundation/WORKSTREAMS.md voice-recording table: Q7 unfinished, Q12 existing footage review/partial mismatch deferred, Q16 reported captured, Q19 needs newcomer. Do not repeat completed demos by default."
+      "id": "deploy_accept",
+      "action": "Next reviewed app contains Q7 confirmed-follow-off \u2192 completed cue \u2192 held-motion admission. Preserve current native/model/gain identities. Accept cue audibility/order and spoken Stop during following. API-only attachment is ready offline for a future still-running homed session; first live upgrade/rollback remains untested."
     },
     {
-      "id": "next_robot_block",
-      "action": "Deploy only reviewed app candidate on next authorized session; verify onboard following-stop cue finishes before takeover and spoken Stop cancels. App-only attachment must preserve native/PIDs and be accepted before claiming rehome-free upgrades."
+      "id": "recordings",
+      "action": "Use foundation/WORKSTREAMS.md voice checklist: Q7 unfinished; inspect Q12 footage first for standing exit and camera-side handshake (mismatch deferred by user); Q16 captured by user with matching walk/exit logs, retain video; Q19 needs newcomer."
+    },
+    {
+      "id": "submission",
+      "action": "Finish student answers/training comparisons, actual video links, reflection/contributions/fork/checkoffs. No broader gait retraining or Optional3 polish needed for minimum Lab6."
     }
   ],
   "completed_this_session": [
@@ -186,7 +190,9 @@
     "R4 on-stand Spider entry/exit and floor swim twice/standing completed with user-confirmed controlled motion.",
     "R4 short class run and Spider voice entry/walk/exit observed; reference belly contact is intentional during entry/exit, not walking.",
     "R5 onboard key bootstrap, hands-free microphone/speaker and fake Stop/disarm passed; Q12/Q16 footage reported captured with explicit Q12 log mismatch retained.",
-    "R5 shut down after supported confirmation; complete closed archive verified (32 members) in both durable stores."
+    "R5 shut down after supported confirmation; complete closed archive verified (32 members) in both durable stores.",
+    "Q7 follow-to-motion cue now gates held movement on actual WebAudio completion and original Stop/epoch/currentness; integrated API1082/web475/course166 passed, independent review accepted. Not yet deployed.",
+    "App-only release attachment preserves homed native session and exact policy/config contracts;30tests+10subtests passed with independent review. Live upgrade acceptance pending."
   ],
   "preservation": {
     "directory": "artifacts/hardware/2026-11-02/startup-close",
@@ -226,5 +232,18 @@
     "hardware_connected": false,
     "outcome": "Bootstrap200, real USBmic and DACstreams active, three user-intended Move calls and oneStop confirmed; user speaker audible and hands-free disarmed.",
     "closure": "Oldfakeprocesses ended by userbatteryreboot: newbootbb2dcd96 differsrecorded3765c5e9; nooldprocessesfound. Gracefulcleanupunverified; preserve historicalreceipt/logs instead ofreusing it."
+  },
+  "offline_ready": {
+    "follow_handoff": {
+      "source_commit": "03c4ec8",
+      "patch_sha256": "2cd6104981036f3da4d37063a790a3de12e6adc04b5e0fb94572234bea02ab03",
+      "bundle": "index-BvOAW0_Q.js",
+      "deployed": false
+    },
+    "api_attachment": {
+      "helper_sha256": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde",
+      "evidence": "artifacts/validation/harness-sprint-20261103/api-attachment",
+      "deployed": false
+    }
   }
 }

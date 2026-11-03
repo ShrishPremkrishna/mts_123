@@ -1,7 +1,7 @@
 {
   "schema": "pupper_sprint_result_v1",
-  "updated_utc": "2026-11-03T08:41:36.694573+00:00",
-  "status": "r5_closed_voice_filming_deferred_offline_fixes_finishing",
+  "updated_utc": "2026-11-03T08:44:59.541371+00:00",
+  "status": "r5_closed_offline_fixes_reviewed_ready_for_next_session",
   "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
   "changes": [
     "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
@@ -225,6 +225,16 @@
       "typecheck": "passed in frozen owner check",
       "build": "passed",
       "bundle": "index-BvOAW0_Q.js"
-    }
+    },
+    "source_commit": "03c4ec8"
+  },
+  "offline_api_attachment": {
+    "status": "Applied, independently reviewed and tested offline; not deployed",
+    "patch_sha256": "013ea7ff61a3e3fac4446177030f9f5dc701b97437caa2f714d6950d2cbbcd1d",
+    "helper_sha256": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde",
+    "validation": "30 passed,10 subtests passed in0.38s",
+    "evidence": "artifacts/validation/harness-sprint-20261103/api-attachment",
+    "meaning": "Explicit app-only start-api override preserves live native session, ownership, controllers, models, gains and follower paths; exact compatible catalog required. Original API rollback after confirmed exit.",
+    "limits": "First live upgrade/rollback acceptance pending. Unconfirmed spawn requires identity recovery. Closed R5 cannot be attached or auto-restarted."
   }
 }

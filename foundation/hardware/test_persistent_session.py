@@ -3,6 +3,7 @@ from contextlib import nullcontext
 from copy import deepcopy
 import importlib.util
 import json
+import shutil
 import os
 from pathlib import Path
 import sys
@@ -14,6 +15,7 @@ from unittest.mock import patch, Mock
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import persistent_session as session
+SOURCE_ROOT = HERE.parents[1]
 
 
 READY_SPAWNERS = '''[spawner-7] [INFO] [spawner_motion]: Loaded neural_controller_default
@@ -79,6 +81,237 @@ class SessionTests(unittest.TestCase):
         self.owned = patch.object(session, 'owned_api').start()
         self.maps = patch.object(session, 'check_loaded').start()
         self.addCleanup(patch.stopall)
+
+    def attachment_fixture(self):
+        self.run = self.run.resolve()
+        self.plan['app_root'] = str(Path(self.plan['app_root']).resolve())
+        old = Path(self.plan['app_root']); new = self.run / 'new-app'
+        mutable = ['gemini_pupper/robot/server.py', 'gemini_pupper/robot/robot_api.py',
+                   'gemini_pupper/robot/tool_registry.py', 'gemini_pupper/lab/part2_walk.py',
+                   'gemini_pupper/web/dist/index.html']
+        extra = ['gemini_pupper/tricks/sit_stay_shake/policy.json',
+                 'gemini_pupper/tricks/sit_stay_shake/trick.yaml',
+                 'follow_me_pupper/robot/follow_service.py', 'follow_me_pupper/robot/yolov8n_seg.hef']
+        for relative in (*session.API_FIXED_FILES, *mutable, *extra):
+            path = old / relative; path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('unchanged fixture: ' + relative)
+        shutil.copytree(old, new)
+        (new / 'gemini_pupper/robot/server.py').write_text('reviewed new API server')
+        (new / 'gemini_pupper/robot/robot_api.py').write_text('reviewed application queue change')
+        (new / 'gemini_pupper/web/dist/index.html').write_text('reviewed new browser')
+        self.plan['components']['lifecycle'] = session.pinned(old / 'gemini_pupper/robot/session_processes.py')
+        for role in ('native', 'imu'):
+            library = self.run / (role + '.so'); library.write_text('selected ' + role)
+            self.plan['components'][role] = session.pinned(library)
+        original_app = old / 'app-stage-manifest.json'
+        original_app.write_text(json.dumps({'final_selected_files': [
+            {'path': str(path.relative_to(old)), 'sha256': session.sha(path)}
+            for path in sorted(old.rglob('*')) if path.is_file() and path != original_app]}))
+        self.plan['components']['app_manifest'] = session.pinned(original_app)
+        config = self.run / 'persistent_controllers.yaml'; config.write_text('original exact controller parameters')
+        self.plan['generated_config'] = session.pinned(config)
+        native_runtime = self.run / 'runtime-manifest.json'
+        catalog = {str(old / relative): session.sha(old / relative) for relative in extra[:2]}
+        runtime = {'schema': 'pupper_persistent_session_v1', 'skills': ['sit_stay_shake'],
+                   'motion_mode': 'class_run', 'motion_controllers': self.plan['controllers'],
+                   'configuration': str(config), 'catalog': {'sit_stay_shake': catalog},
+                   'follower': {'mode': 'lab5', 'service_dir': str(old / 'follow_me_pupper/robot'),
+                                'always_detect': False, 'use_color': False, 'avoid_obstacles': False},
+                   'assets': {str(old / relative): session.sha(old / relative)
+                              for relative in (*session.API_FIXED_FILES, *mutable[:-1], *extra)}}
+        runtime['assets'][str(config)] = session.sha(config)
+        session.write(native_runtime, runtime)
+        self.plan['runtime_manifest'] = session.pinned(native_runtime)
+        self.plan['environment'].update(PUPPER_SESSION_SKILLS='sit_stay_shake',
+            PUPPER_SESSION_MOTION_MODE='class_run', PUPPER_FOLLOWER_MODE='lab5',
+            FOLLOW_ME_DIR=str(old / 'follow_me_pupper/robot'), FOLLOW_ALWAYS_DETECT='false',
+            FOLLOW_USE_COLOR='false', FOLLOW_AVOID_OBSTACLES='false',
+            PUPPER_SESSION_MANIFEST=str(native_runtime), PUPPER_PROBE_SESSION_ID=self.plan['session_id'])
+        session.write(self.run / 'selected-session.json', self.plan)
+        manifest = new / 'app-stage-manifest.json'
+        def refresh_manifest():
+            entries = [{'path': str(path.relative_to(new)), 'sha256': session.sha(path)}
+                       for path in sorted(new.rglob('*')) if path.is_file() and path != manifest]
+            manifest.write_text(json.dumps({'destination_remote_path': str(new),
+                'baseline_remote_path': str(old), 'final_selected_files': entries}))
+            return session.sha(manifest)
+        digest = refresh_manifest()
+        return SimpleNamespace(old=old, new=new, manifest=manifest, digest=digest,
+                               refresh=refresh_manifest, runtime=runtime)
+
+    def test_explicit_api_attachment_preserves_native_and_uses_original_profile(self):
+        fixture = self.attachment_fixture()
+        plan_before = (self.run / 'selected-session.json').read_bytes()
+        runtime_before = Path(self.plan['runtime_manifest']['path']).read_bytes()
+        manager = deepcopy(self.life.receipt['processes']['manager'])
+        native_launch = deepcopy(self.life.receipt['processes']['launch'])
+        original_spawn = self.life.spawn
+        environments = []
+        def spawn(*args):
+            environments.append(dict(os.environ)); original_spawn(*args)
+        with patch.object(self.life, 'spawn', side_effect=spawn), patch.dict(os.environ, self.plan['environment']):
+            result = session.start_api(self.run, self.plan, self.life,
+                app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+            self.assertEqual(os.environ['PUPPER_SESSION_MANIFEST'], self.plan['runtime_manifest']['path'])
+        self.assertTrue(result['api_ready']); self.assertFalse(result['motor_launch'])
+        self.assertEqual([row[0] for row in self.life.spawned], ['server'])
+        self.assertEqual(self.life.spawned[0][1], str(fixture.new / 'gemini_pupper/robot/server.py'))
+        self.assertEqual(self.life.receipt['processes']['manager'], manager)
+        self.assertEqual(self.life.receipt['processes']['launch'], native_launch)
+        self.assertEqual(self.life.receipt['session_id'], self.plan['session_id'])
+        self.assertEqual(environments[0]['FOLLOW_ME_DIR'], self.plan['environment']['FOLLOW_ME_DIR'])
+        self.assertEqual(environments[0]['PUPPER_PROBE_SESSION_ID'], self.plan['session_id'])
+        self.assertEqual((self.run / 'selected-session.json').read_bytes(), plan_before)
+        self.assertEqual(Path(self.plan['runtime_manifest']['path']).read_bytes(), runtime_before)
+        selection = result['api_application']
+        document = session.verify_api_attachment(selection, self.plan)
+        self.assertEqual(document['native_parent']['lifecycle'], self.plan['components']['lifecycle'])
+        self.assertEqual(document['rollback_app_root'], str(fixture.old))
+        derived = json.loads(Path(document['runtime_manifest']['path']).read_text())
+        self.assertEqual(derived['configuration'], fixture.runtime['configuration'])
+        self.assertEqual(derived['follower'], fixture.runtime['follower'])
+        self.assertEqual(derived['motion_controllers'], fixture.runtime['motion_controllers'])
+        self.assertTrue(set(fixture.runtime['assets']) <= set(derived['assets']))
+        self.assertTrue(all(str(fixture.new) in path for path in derived['catalog']['sit_stay_shake']))
+        # Exercise the unchanged real startup validator, rather than only assert
+        # our dictionary layout: fresh catalog paths remain exact pinned bytes.
+        spec = importlib.util.spec_from_file_location('attachment_runtime_validator',
+            SOURCE_ROOT / 'gemini_pupper/robot/runtime_config.py')
+        runtime_module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = runtime_module
+        try:
+            spec.loader.exec_module(runtime_module)
+            trick = SimpleNamespace(path=fixture.new / 'gemini_pupper/tricks/sit_stay_shake/policy.json',
+                walk_path=None, controller='trick_sit_stay_shake', walks=False)
+            with patch.dict(os.environ, environments[0]):
+                self.assertEqual(runtime_module.validate_session_catalog({'sit_stay_shake': trick}), derived)
+        finally:
+            sys.modules.pop(spec.name, None)
+
+    def test_api_attachment_refuses_model_descriptor_contract_or_follower_changes(self):
+        fixture = self.attachment_fixture()
+        for relative in ('gemini_pupper/tricks/sit_stay_shake/policy.json',
+                         'gemini_pupper/tricks/sit_stay_shake/trick.yaml',
+                         'gemini_pupper/robot/tricks.py', 'gemini_pupper/robot/runtime_config.py',
+                         'foundation/hardware/lab6-session.yaml',
+                         'follow_me_pupper/robot/follow_service.py'):
+            with self.subTest(relative=relative):
+                path = fixture.new / relative; original = path.read_bytes()
+                path.write_bytes(b'changed incompatible input')
+                digest = fixture.refresh()  # Even a valid new manifest cannot authorize it.
+                with self.assertRaises(ValueError):
+                    session.start_api(self.run, self.plan, self.life,
+                        app_manifest=fixture.manifest, app_manifest_sha256=digest)
+                self.assertEqual(self.life.spawned, [])
+                self.assertFalse((self.run / 'api-attachments').exists())
+                self.assertEqual(self.life.receipt['status'], 'running')
+                path.write_bytes(original)
+
+    def test_api_attachment_rejects_alive_api_unknown_port_and_mapping_mismatch_before_writes(self):
+        fixture = self.attachment_fixture()
+        self.life.receipt['processes']['server'] = {'role': 'server'}
+        with self.assertRaisesRegex(ValueError, 'API receipt exists'):
+            session.start_api(self.run, self.plan, self.life,
+                app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        self.life.receipt['processes'].pop('server')
+        self.life.receipt['pending']['server'] = {'gate': {'pid': 99}}
+        with self.assertRaisesRegex(ValueError, 'API receipt exists'):
+            session.start_api(self.run, self.plan, self.life,
+                app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        self.life.receipt['pending'].clear()
+        self.port.side_effect = OSError('unknown listener')
+        with self.assertRaises(OSError):
+            session.start_api(self.run, self.plan, self.life,
+                app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        self.port.side_effect = None; self.maps.side_effect = ValueError('different native map')
+        with self.assertRaisesRegex(ValueError, 'different native map'):
+            session.start_api(self.run, self.plan, self.life,
+                app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        self.assertEqual(self.life.spawned, [])
+        self.assertFalse((self.run / 'api-attachments').exists())
+
+    def test_api_attachment_records_failure_without_native_cleanup_and_can_roll_back_explicitly(self):
+        fixture = self.attachment_fixture()
+        original_spawn = self.life.spawn
+        def exited(*args):
+            original_spawn(*args); self.life.states['server'] = 'exited'
+        with patch.object(self.life, 'spawn', side_effect=exited):
+            with self.assertRaisesRegex(ValueError, 'API exited before readiness'):
+                session.start_api(self.run, self.plan, self.life,
+                    app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        selection = self.life.receipt['api_application']
+        self.assertEqual(self.life.states['manager'], 'running')
+        self.assertFalse(self.life.closed); self.assertEqual(self.life.sent, [])
+        session.stop_api(self.run, self.plan, self.life)
+        self.assertEqual(self.life.receipt['retired_servers'][-1]['api_application'], selection)
+        self.assertNotIn('api_application', self.life.receipt)
+        result = session.start_api(self.run, self.plan, self.life)  # original default is explicit rollback
+        self.assertTrue(result['api_ready']); self.assertIsNone(result['api_application'])
+        self.assertEqual(self.life.spawned[-1][1], str(fixture.old / 'gemini_pupper/robot/server.py'))
+        self.assertEqual([row[0] for row in self.life.spawned], ['server', 'server'])
+        self.assertEqual(self.life.states['manager'], 'running')
+
+    def test_api_attachment_is_immutable_and_detects_modified_new_source(self):
+        fixture = self.attachment_fixture()
+        selection, _ = session.prepare_api_attachment(self.run, self.plan, fixture.manifest, fixture.digest)
+        before = Path(selection['path']).read_bytes()
+        repeated, _ = session.prepare_api_attachment(self.run, self.plan, fixture.manifest, fixture.digest)
+        self.assertEqual(selection, repeated)
+        self.assertEqual(Path(selection['path']).read_bytes(), before)
+        (fixture.new / 'gemini_pupper/robot/server.py').write_text('unreviewed replacement')
+        with self.assertRaises(ValueError): session.verify_api_attachment(selection, self.plan)
+        self.assertEqual(self.life.spawned, [])
+
+    def test_modified_attached_source_cannot_prevent_explicit_owned_api_stop(self):
+        fixture = self.attachment_fixture()
+        session.start_api(self.run, self.plan, self.life,
+            app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        selection = self.life.receipt['api_application']
+        (fixture.new / 'gemini_pupper/robot/server.py').write_text('changed after launch')
+        with self.assertRaises(ValueError): session.verify_api_attachment(selection, self.plan)
+        stopped = session.stop_api(self.run, self.plan, self.life)
+        self.assertTrue(stopped['api_exited']); self.assertTrue(stopped['native_session_retained'])
+        self.assertEqual(self.life.sent, ['server'])
+        self.assertEqual(self.life.states['manager'], 'running')
+        self.assertEqual(self.life.receipt['retired_servers'][-1]['api_application'], selection)
+
+    def test_app_selection_cannot_be_misread_as_native_start_override(self):
+        with patch.object(sys, 'argv', ['persistent_session.py', 'start-native',
+                '--run-dir', str(self.run), '--app-manifest', '/candidate/manifest.json',
+                '--app-manifest-sha256', 'a' * 64]), patch.object(session, 'load') as load:
+            with self.assertRaises(SystemExit) as caught:
+                session.main()
+        self.assertEqual(caught.exception.code, 2)
+        load.assert_not_called(); self.assertEqual(self.life.spawned, [])
+
+    def test_api_attachment_cannot_omit_loaded_application_source_from_new_pins(self):
+        fixture = self.attachment_fixture()
+        manifest = json.loads(fixture.manifest.read_text())
+        manifest['final_selected_files'] = [row for row in manifest['final_selected_files']
+            if row['path'] != 'gemini_pupper/robot/robot_api.py']
+        fixture.manifest.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, 'omits preserved source'):
+            session.start_api(self.run, self.plan, self.life,
+                app_manifest=fixture.manifest, app_manifest_sha256=session.sha(fixture.manifest))
+        self.assertEqual(self.life.spawned, [])
+        self.assertFalse((self.run / 'api-attachments').exists())
+
+    def test_unconfirmed_api_spawn_retains_attachment_and_refuses_guessed_rollback(self):
+        fixture = self.attachment_fixture()
+        def pending(*_args):
+            self.life.receipt['pending']['server'] = {'gate': {'pid': 99}}
+            raise ValueError('spawn identity not confirmed')
+        with patch.object(self.life, 'spawn', side_effect=pending):
+            with self.assertRaisesRegex(ValueError, 'spawn identity not confirmed'):
+                session.start_api(self.run, self.plan, self.life,
+                    app_manifest=fixture.manifest, app_manifest_sha256=fixture.digest)
+        self.assertIn('api_application', self.life.receipt)
+        self.assertIn('server', self.life.receipt['pending'])
+        with self.assertRaisesRegex(ValueError, 'No confirmed API identity'):
+            session.stop_api(self.run, self.plan, self.life)
+        self.assertEqual(self.life.sent, [])
+        self.assertEqual(self.life.states['manager'], 'running')
+        self.assertFalse(self.life.closed)
 
     def test_same_python_binary_with_different_virtualenv_is_refused(self):
         first = self.run / 'venv-a/bin/python'; second = self.run / 'venv-b/bin/python'

@@ -5,6 +5,7 @@ Reuses the Gemini ownership receipt and manager-first shutdown implementation;
 no supervisor, automatic restart, shell environment installation or watchdog.
 """
 from contextlib import contextmanager
+from copy import deepcopy
 import argparse
 import hashlib
 import importlib.util
@@ -19,7 +20,7 @@ import time
 import urllib.request
 import uuid
 
-from stage_app import sha, verify_selected
+from stage_app import sha, verify_selected, checked_path, entries_by_path
 
 ENV_KEYS = ('PATH', 'PYTHONPATH', 'AMENT_PREFIX_PATH', 'CMAKE_PREFIX_PATH',
             'LD_LIBRARY_PATH', 'ROS_DISTRO', 'ROS_DOMAIN_ID', 'ROS_LOCALHOST_ONLY', 'RMW_IMPLEMENTATION',
@@ -120,6 +121,135 @@ def prepare(args):
             'components': components, 'rollback_app': plan['rollback_app']}
 
 
+# An API release may change application behavior, but cannot reinterpret the
+# currently loaded controller/profile contract. Native lifecycle stays original.
+API_FIXED_FILES = (
+    'gemini_pupper/robot/runtime_config.py', 'gemini_pupper/robot/tricks.py',
+    'gemini_pupper/robot/controller_coverage.py', 'gemini_pupper/robot/session_processes.py',
+    'foundation/hardware/lab6_session.launch.py', 'foundation/hardware/lab6-session.yaml',
+    'foundation/hardware/floor_stock/baseline-expanded.urdf',
+    'foundation/hardware/floor_stock/shutdown_coordinator.py',
+)
+
+
+def immutable_json(path, value):
+    content = json.dumps(value, indent=2, allow_nan=False) + '\n'
+    if path.exists():
+        if path.read_text() != content:
+            raise ValueError('Existing API attachment differs; inspect it, never overwrite')
+    else:
+        write(path, value)
+    return pinned(path)
+
+
+def api_asset_may_change(relative):
+    return (relative in {'gemini_pupper/robot/robot_api.py', 'gemini_pupper/robot/server.py',
+                         'gemini_pupper/robot/tool_registry.py', 'gemini_pupper/lab/prompt.md'}
+            or (Path(relative).parent.as_posix() == 'gemini_pupper/lab' and relative.endswith('.py')))
+
+
+def prepare_api_attachment(run, plan, app_manifest, expected_sha):
+    """Bind a new API to immutable existing native inputs; never generate a profile."""
+    manifest_pin = pinned(app_manifest, expected_sha)
+    app = json.loads(app_manifest.read_text())
+    selected = entries_by_path(app['final_selected_files'])
+    original_manifest = plan['components']['app_manifest']
+    pinned(Path(original_manifest['path']), original_manifest['sha256'])
+    original_app = json.loads(Path(original_manifest['path']).read_text())
+    previous = entries_by_path(original_app['final_selected_files'])
+    if {name for name in previous if not name.startswith('gemini_pupper/web/dist/')} - set(selected):
+        raise ValueError('API manifest omits preserved source/dependency identities')
+    root = Path(app['destination_remote_path'])
+    original = Path(plan['app_root'])
+    if (not root.is_absolute() or root.is_symlink() or not root.is_dir()
+            or root.resolve().is_relative_to(original.resolve())):
+        raise ValueError('API attachment requires a separately staged release')
+    root = root.resolve()
+    verify_selected(root, list(selected.values()))
+    if pinned(root / 'app-stage-manifest.json')['sha256'] != manifest_pin['sha256']:
+        raise ValueError('API release installed manifest differs from selected manifest')
+    required = {*API_FIXED_FILES, 'gemini_pupper/robot/server.py', 'gemini_pupper/web/dist/index.html'}
+    if not required <= set(selected):
+        raise ValueError('API manifest omits required application/controller contract files')
+    for relative in API_FIXED_FILES:
+        if sha(checked_path(root, relative)) != sha(checked_path(original, relative)):
+            raise ValueError('API controller/native contract changed: ' + relative)
+    native = plan['runtime_manifest']
+    pinned(Path(native['path']), native['sha256'])
+    pinned(Path(plan['generated_config']['path']), plan['generated_config']['sha256'])
+    runtime = json.loads(Path(native['path']).read_text())
+    if (runtime.get('schema') != 'pupper_persistent_session_v1'
+            or runtime.get('configuration') != plan['generated_config']['path']
+            or runtime.get('motion_controllers') != plan['controllers'] or not runtime.get('assets')):
+        raise ValueError('Original native profile is incomplete or inconsistent')
+    derived = deepcopy(runtime)
+    # Preserve every original native input, including old source and follower
+    # paths. New source pins supplement them; they never replace old evidence.
+    for filename, digest in runtime['assets'].items():
+        path = Path(filename)
+        pinned(path, digest)
+        if path.is_relative_to(original):
+            relative = str(path.relative_to(original))
+            if api_asset_may_change(relative) and relative not in selected:
+                raise ValueError('API manifest omits runtime-bound application source: ' + relative)
+            if not api_asset_may_change(relative):
+                if sha(checked_path(root, relative)) != digest:
+                    raise ValueError('Native-bound asset changed in API release: ' + relative)
+    for name, policies in runtime['catalog'].items():
+        relocated = {}
+        for filename, digest in policies.items():
+            old = Path(filename)
+            if not old.is_relative_to(original / 'gemini_pupper/tricks'):
+                raise ValueError('Selected policy path is outside the original trick catalog')
+            new = checked_path(root, str(old.relative_to(original)))
+            pinned(old, digest)
+            pinned(new, digest)  # descriptors, entry policy and walking policy
+            relocated[str(new)] = digest
+            derived['assets'][str(new)] = digest
+        derived['catalog'][name] = relocated
+    for relative, entry in selected.items():
+        derived['assets'][str(checked_path(root, relative))] = entry['sha256']
+    parent = {'session_id': plan['session_id'],
+              'native_plan': pinned(run / 'selected-session.json'),
+              'runtime_manifest': native, 'generated_config': plan['generated_config'],
+              'native': plan['components']['native'], 'imu': plan['components']['imu'],
+              'lifecycle': plan['components']['lifecycle']}
+    derived['api_attachment_parent'] = parent
+    # All compatibility checks precede writes or process changes.
+    directory = checked_path(run, 'api-attachments/' + manifest_pin['sha256'])
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    runtime_pin = immutable_json(directory / 'runtime-manifest.json', derived)
+    document = {'schema': 'pupper_api_attachment_v1', 'app_root': str(root),
+                'app_manifest': manifest_pin, 'runtime_manifest': runtime_pin,
+                'native_parent': parent, 'management_helper': pinned(Path(__file__)),
+                'rollback_app_root': plan['app_root'],
+                'rollback_app_manifest': plan['components']['app_manifest']}
+    return immutable_json(directory / 'api-application.json', document), document
+
+
+def verify_api_attachment(selection, plan):
+    pinned(Path(selection['path']), selection['sha256'])
+    document = json.loads(Path(selection['path']).read_text())
+    parent = document['native_parent']
+    if (document.get('schema') != 'pupper_api_attachment_v1'
+            or parent['session_id'] != plan['session_id']
+            or parent['runtime_manifest'] != plan['runtime_manifest']
+            or parent['generated_config'] != plan['generated_config']
+            or any(parent[name] != plan['components'][name] for name in ('native', 'imu', 'lifecycle'))):
+        raise ValueError('API attachment belongs to a different native session')
+    for item in (parent['native_plan'], document['app_manifest'], document['runtime_manifest'],
+                 document['management_helper']):
+        pinned(Path(item['path']), item['sha256'])
+    app = json.loads(Path(document['app_manifest']['path']).read_text())
+    if app['destination_remote_path'] != document['app_root']:
+        raise ValueError('API application root differs from its manifest')
+    verify_selected(Path(document['app_root']), app['final_selected_files'])
+    runtime = json.loads(Path(document['runtime_manifest']['path']).read_text())
+    for filename, digest in runtime['assets'].items():
+        pinned(Path(filename), digest)
+    return document
+
+
 def load(run, verify=True):
     plan = json.loads((run / 'selected-session.json').read_text())
     if (plan.get('schema') != 'pupper_selected_session_v1' or not plan.get('prepared') or
@@ -143,6 +273,10 @@ def load(run, verify=True):
         os.environ.pop(name, None)
     os.environ.update(plan['environment'])
     life = module(Path(plan['components']['lifecycle']['path']), 'selected_lifecycle')
+    if verify and (run / 'owned_session.json').exists():
+        receipt = receipt_for(life, run, plan)
+        if receipt.get('api_application'):
+            verify_api_attachment(receipt['api_application'], plan)
     return plan, life
 
 
@@ -286,7 +420,7 @@ def start_native(run, plan, life):
     raise ValueError('Native readiness (homing, selected libraries, controller spawners) not observed within90s; receipt retained, no automatic retry or cleanup')
 
 
-def start_api(run, plan, life):
+def start_api(run, plan, life, *, app_manifest=None, app_manifest_sha256=None):
     port = int(plan['environment']['PORT'])
     with lock(life, run):
         receipt = receipt_for(life, run, plan)
@@ -298,9 +432,26 @@ def start_api(run, plan, life):
             raise ValueError('API receipt exists; use stop-api before an explicit restart')
         check_loaded(plan, receipt['processes']['manager'])
         port_free(port)
+        if (app_manifest is None) != (app_manifest_sha256 is None):
+            raise ValueError('API attachment requires both app manifest and its SHA256')
+        application = None
+        overrides = {}
+        if app_manifest is not None:
+            selection, application = prepare_api_attachment(run, plan, app_manifest, app_manifest_sha256)
+            receipt['api_application'] = selection
+            overrides = {'PUPPER_GEMINI_DIR': application['app_root'] + '/gemini_pupper',
+                         'PUPPER_STAGED_GEMINI_DIR': application['app_root'] + '/gemini_pupper',
+                         'PUPPER_SESSION_MANIFEST': application['runtime_manifest']['path']}
         receipt['status'] = 'starting'; life.save(run, receipt)
-        server = str(Path(plan['app_root']) / 'gemini_pupper/robot/server.py')
-        life.spawn(run, 'server', server, [sys.executable, '-u', server])
+        server = str(Path(application['app_root'] if application else plan['app_root']) / 'gemini_pupper/robot/server.py')
+        previous = {name: os.environ.get(name) for name in overrides}
+        try:
+            os.environ.update(overrides)
+            life.spawn(run, 'server', server, [sys.executable, '-u', server])
+        finally:
+            for name, value in previous.items():
+                if value is None: os.environ.pop(name, None)
+                else: os.environ[name] = value
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         with lock(life, run):
@@ -315,7 +466,8 @@ def start_api(run, plan, life):
             if (isinstance(health, dict) and health.get('status') == 'running' and
                     health.get('tools') is True and health.get('runtime') == 'robot'):
                 life.operate(run, 'ready', [], plan['session_id'])
-                return {'api_ready': True, 'port': port, 'health': health, 'motor_launch': False}
+                return {'api_ready': True, 'port': port, 'health': health, 'motor_launch': False,
+                        'api_application': receipt.get('api_application'), 'native_app_root': plan['app_root']}
         time.sleep(.1)
     raise ValueError('API readiness timed out; receipt retained, no automatic restart')
 
@@ -344,6 +496,7 @@ def stop_api(run, plan, life):
         if life.state(target, plan['session_id']) == 'running':
             raise ValueError('API exit unconfirmed; native session unchanged, receipt retained')
         receipt.setdefault('retired_servers', []).append({'target': target, 'stop_request_error': error,
+            'api_application': receipt.pop('api_application', None),
             'events': [event for event in receipt['events'] if event['event'] == 'term_server']})
         del receipt['processes']['server']
         receipt['events'] = [event for event in receipt['events'] if event['event'] != 'term_server']
@@ -371,6 +524,8 @@ def main():
     parser.add_argument('--telemetry-topics', type=Path)
     parser.add_argument('--port', type=int, default=18090)
     args = parser.parse_args(); os.umask(0o077)
+    if args.action not in ('prepare', 'start-api') and (args.app_manifest or args.app_manifest_sha256):
+        parser.error('app manifest selection is only supported for prepare or explicit start-api')
     if args.action == 'prepare':
         if any(getattr(args, key) is None for key in ('app_manifest', 'app_manifest_sha256', 'native_library', 'native_sha256', 'imu_library', 'imu_sha256', 'telemetry_topics')):
             parser.error('prepare requires pinned app manifest, both native/IMU libraries and telemetry topics JSON')
@@ -378,7 +533,8 @@ def main():
     else:
         run = args.run_dir.resolve(); plan, life = load(run, verify=args.action in ('start-native', 'start-api', 'status'))
         if args.action == 'start-native': result = start_native(run, plan, life)
-        elif args.action == 'start-api': result = start_api(run, plan, life)
+        elif args.action == 'start-api': result = start_api(run, plan, life,
+            app_manifest=args.app_manifest, app_manifest_sha256=args.app_manifest_sha256)
         elif args.action == 'stop-api': result = stop_api(run, plan, life)
         elif args.action == 'shutdown':
             with lock(life, run):
@@ -391,7 +547,8 @@ def main():
         else:
             receipt = receipt_for(life, run, plan)
             result = {'components': plan['components'], 'rollback_app': plan['rollback_app'],
-                      'status': receipt['status'], 'processes': {name: life.state(target, plan['session_id'])
+                      'status': receipt['status'], 'api_application': receipt.get('api_application'),
+                      'processes': {name: life.state(target, plan['session_id'])
                       for name, target in receipt['processes'].items()}}
     print(json.dumps(result, indent=2))
 

@@ -66,9 +66,30 @@ camera recorder remains separately owned and must also be closed by its owner.
 `start-api --run-dir RUN` starts only the API after native readiness and checks
 that its own listener serves healthy ROBOT mode. `stop-api --run-dir RUN` requests
 API Stop and waits for the owned API to exit; it leaves the homed native session
-intact. An explicit subsequent `start-api` restarts the **same pinned release**.
-Staging another release does not alter a live profile; changing pinned code/assets
-requires deliberate new profile preparation, not editing the old run in place.
+intact. Without an override, the next `start-api` uses the original pinned release.
+
+For a reviewed app-only update, first disconnect voice, stage the new release,
+and use the reviewed helper from that release against the **existing** run.
+Run these separately; continue only after Stop and API exit are confirmed:
+
+```sh
+"$SESSION_PYTHON" "$APP_UPDATE/foundation/hardware/persistent_session.py" stop-api --run-dir "$RUN_DIR"
+"$SESSION_PYTHON" "$APP_UPDATE/foundation/hardware/persistent_session.py" start-api \
+  --run-dir "$RUN_DIR" \
+  --app-manifest "$APP_UPDATE/app-stage-manifest.json" \
+  --app-manifest-sha256 "$UPDATE_MANIFEST_SHA256"
+```
+
+This records a separate API attachment and preserves the original native session,
+process ownership, follower, controller configuration, policies and gains. Those
+contracts must match; changing them still requires new profile preparation.
+No `prepare` or `start-native` belongs in this app-only sequence. Reconnect voice
+explicitly after checking the new API identity. To roll back after a confirmed API
+exit, run `start-api` without the override. An unconfirmed spawn requires receipt
+and process-identity recovery first; do not guess a PID or retry automatically.
+The attachment path has passed offline tests and independent review; its first
+live upgrade/rollback acceptance is still pending. A closed native session cannot
+be recovered by this command.
 
 `shutdown --run-dir RUN` closes owned ingress, uses the existing coordinator to
 stop the manager before launch cleanup, then closes owned camera/recorder children.
