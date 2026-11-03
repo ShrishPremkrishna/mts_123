@@ -9,6 +9,7 @@ All my CS 123 labs, one folder per lab.
   - [Shrish’s Steps 6–7 training handoff](pupper-mjlab/lab4_runs/shrish_stablegait/) — settings, Colab, W&B results, and videos.
 - `follow_me_pupper/` — week 5
 - `gemini_pupper/` — week 6
+- `implicit_compliance_lab/` — optional lab 1 (implicit compliance: tactile vs joint-state contact classifiers, contact pause on Pupper)
 
 Supporting repos (not weekly labs):
 

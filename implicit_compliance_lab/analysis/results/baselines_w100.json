@@ -1,0 +1,26 @@
+{
+ "window": 100,
+ "n_train": 86262,
+ "n_val": 21424,
+ "majority_class_val": 0.5142830470500374,
+ "threshold_mean_abs_velocity": {
+  "val_acc": 0.7487864077669902,
+  "threshold": 0.23441279798746112,
+  "contact_when": "below"
+ },
+ "logreg_pos": {
+  "val_acc": 0.8144137415982076
+ },
+ "logreg_abs_vel": {
+  "val_acc": 0.6991691560866318
+ },
+ "logreg_eff": {
+  "val_acc": 0.8917102315160568
+ },
+ "logreg_vel_eff": {
+  "val_acc": 0.8915702016430171
+ },
+ "logreg_all": {
+  "val_acc": 0.8940440627333831
+ }
+}
