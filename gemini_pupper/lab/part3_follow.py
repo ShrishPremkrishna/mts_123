@@ -48,17 +48,15 @@ async def prepare_to_move(robot: Robot) -> str | Result:
     Test:                python3 lab/test.py todo5
     """
     # ========== TODO 5: YOUR CODE HERE ==========
-    # 1. If robot.following is False, there is nothing to do: return "".
-    # 2. Turn the person follower off: await robot.stop_following()
-    # 3. Stand still (the follower may have been walking): robot.send_speed(0, 0, 0)
-    # 4. Return the note Gemini will read, e.g. "Stopped following the person first."
-    if not robot.following:
-        return ""
-    result = await robot.stop_following()
-    robot.send_speed(0, 0, 0)
-    if result is not None and not result.ok:
+    # The shared handoff handles both queued follow intent and active following.
+    # A superseded entry can finish its owned exit before the motion executes;
+    # a submitted follow activation must be confirmed off before admission.
+    # Pending FIFO entry is superseded without cancelling earlier ordinary
+    # jobs. Only confirmed active-follow shutdown warrants the spoken note.
+    result = await robot.prepare_follow_handoff()
+    if not result.ok:
         return result
-    return "Stopped following the person first."
+    return "Stopped following the person first." if result.details["following"]["changed"] else ""
     # ====================================
 
 
@@ -76,12 +74,15 @@ async def prepare_to_move(robot: Robot) -> str | Result:
 # ========== TODO 6: YOUR CODE HERE ==========
 @tool(
     "follow",
-    "Follow the nearest person using the camera, or stop following. Questions and conversation keep follow mode on;"
-    " any other motion ends it. Requires locomotion, and cannot start in a walking trick such as the spider."
+    "Queue following the nearest person using the camera after earlier commands, or stop following immediately."
+    " Queued is acceptance, not active following. Questions, wait and conversation keep follow mode on;"
+    " A later takeover tool (move, turn, arc, play_trick, stand_up, lie_down or shake_hand)"
+    " cancels pending follow entry or ends active following, preserving earlier queued commands."
+    " Requires locomotion; stand_up first to leave a walking trick such as the spider."
     " Use only for a requested following behavior, not find me, come to me, approach an object,"
     " or search the room. This does not authenticate identity or provide collision avoidance;"
     " never replace unavailable following with move/turn/arc calls.",
-    enabled=Param("boolean", "True starts following; false stops following and stands still."),
+    enabled=Param("boolean", "True queues following after earlier commands; false cancels pending following, stops active following and requests zero speed."),
 )
 async def follow_tool(robot: Robot, enabled: bool) -> Result:
     # One line: robot.set_following(enabled) (provided) starts or stops following, and

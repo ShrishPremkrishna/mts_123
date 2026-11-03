@@ -9,6 +9,9 @@ import { toolResponseStatus, acceptedJobIdentity, type ToolDispatch } from './ex
 import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer } from './receiptAudioCache';
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 import { FOLLOW_HANDOFF_CUE, followHandoffTools, confirmedFollowHandoff } from './followHandoff';
+import { AcceptedJobTracker, type StatusReport } from './acceptedJobs';
+
+const LATE_FAILURE_CUE = 'That request failed. Check the controls for details.';
 
 /** A background permission request may never be presented by the browser. */
 class MediaVisibilityError extends Error {
@@ -127,6 +130,8 @@ export class GeminiLiveService {
   private connected = false;
   private config: AppConfig;
   private robotToolsPaused = false;
+  // Every clean queued voice acceptance, not only the latest UI receipt.
+  private acceptedJobs = new AcceptedJobTracker();
   onToolDispatch: (entry: ToolDispatch) => void;
 
   public robotBridge: RobotBridge;
@@ -171,12 +176,53 @@ export class GeminiLiveService {
 
   /** Synchronous: later model motion calls cannot rearm; stop/status remain available. */
   public pauseRobotTools() {
+    this.acceptedJobs.clear();
     this.toolAdmissionGeneration++;
     this.endAudioInput();
     this.robotToolsPaused = true;
     try { this.onRobotToolsPaused(); } catch {}
     this.nativeReceiptOutput.resetContext();
     this.stopPlayback();
+  }
+
+  /** The status poll uses its cheap snapshot only while accepted voice jobs are tracked. */
+  public hasTrackedJobs(): boolean {
+    return this.connected && !this.disposed && this.acceptedJobs.pending(this.robotBridge.statusGeneration());
+  }
+
+  /** Fresh ExecutionStatus evidence for this session's own bridge. Only an exact
+   * terminal failure speaks; success/cancellation and unknown evidence stay silent. */
+  public observeQueueStatus(report: StatusReport) {
+    if (this.disposed || !this.connected || report.bridge !== this.robotBridge || report.serverUrl !== this.robotBridge.baseUrl) return;
+    const failures = this.acceptedJobs.observe(report, this.robotBridge.statusGeneration());
+    if (!failures.length) return;
+    for (const failure of failures) this.log('error', `Accepted ${toolLabel(failure.dispatch.name)} request later failed on the server `
+      + `(job ${failure.dispatch.job!.job_id}, turn ${failure.turn}). ${failure.text}`);
+    // One cue per failure cluster; a turn that already heard a failure stays quiet.
+    const speak = failures.some(failure => !this.acceptedJobs.failedTurn(failure.turn));
+    failures.forEach(failure => this.acceptedJobs.noteFailedTurn(failure.turn));
+    this.acceptedJobs.clear();
+    const firstPause = !this.robotToolsPaused;
+    this.pauseRobotTools();
+    if (firstPause) this.log('error', 'Model actions paused after an accepted request later failed. Reconnect voice to resume; Stop and status remain available.');
+    // An already-sent later action may otherwise be accepted after the worker's
+    // failure cleared its queue. Reuse the existing shared Stop fence only for
+    // that overlap; a historical failure alone needs no new robot command.
+    if (this.pendingModelActions > 0) void this.requestAutomaticStop(
+      'An accepted job failed while another model action was in flight');
+    if (speak) this.playLateFailureCue();
+  }
+
+  private playLateFailureCue() {
+    if (this.outputPolicy !== 'conversation') return; // Receipt-only control logs without speech.
+    const audio = supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName)
+      ? this.receiptAudioCache?.lookup(LATE_FAILURE_CUE, this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
+    if (!audio) { this.log('info', 'Failure cue audio unavailable; see the controls for details. No replacement voice was used.'); return; }
+    // playAudioBase64 captures the post-pause generation: this cue survives its
+    // own pause, while a later Stop, pause, new turn or disconnect cancels it.
+    const stopSerial = this.robotBridge.statusGeneration();
+    const current = () => this.connected && !this.disposed && stopSerial === this.robotBridge.statusGeneration();
+    void this.playAudioBase64(audio, undefined, current).catch(() => this.log('info', 'Failure cue audio unavailable; see the controls for details.'));
   }
 
   async connect(apiKey: string, config: AppConfig, videoElement: HTMLVideoElement) {
@@ -989,7 +1035,7 @@ export class GeminiLiveService {
       this.conversationOutput.observe(message, this.pendingRobotTools > 0, !isAudioOutputModel(this.config.modelName));
     }
     if (message.toolCall) {
-      if (hasStop) this.toolAdmissionGeneration++;
+      if (hasStop) { this.toolAdmissionGeneration++; this.acceptedJobs.clear(); }
       const admissionGeneration = this.toolAdmissionGeneration;
       let releaseOrdinary: (() => void) | undefined;
       let ownTail: Promise<void> | undefined;
@@ -1063,6 +1109,7 @@ export class GeminiLiveService {
           let receivedServerReply = false;
           let followHandoffAnnounced = false;
           let dispatch: { id: string; name: string; timestamp: number } | null = null;
+          let requestStopSerial: number | null = null;
 
           try {
             // Helper args
@@ -1118,6 +1165,7 @@ export class GeminiLiveService {
                 if (actionRequest) this.pendingModelActions++;
                 try {
                   const stopSerial = this.robotBridge.statusGeneration();
+                  requestStopSerial = stopSerial;
                   const handoffPlaybackGeneration = this.playbackGeneration;
                   const current = () => this.connected && !this.disposed && !this.robotToolsPaused
                     && admissionGeneration === this.toolAdmissionGeneration
@@ -1177,6 +1225,7 @@ export class GeminiLiveService {
                 try { this.onRobotToolsPaused(); } catch {}
                 this.stopPlayback(true, false);
               } else this.pauseRobotTools();
+              if (failedAction && turnTiming) this.acceptedJobs.noteFailedTurn(turnTiming.id);
               if (failedAction && firstPause && this.connected && !this.disposed) this.log('error',
                 `Model actions paused after a ${toolLabel(fc.name)} request failed. Reconnect voice to resume; Stop and status remain available.`);
               // SDK callbacks can overlap. Stop's existing shared HTTP epoch
@@ -1188,6 +1237,14 @@ export class GeminiLiveService {
               if (wasCurrent) feedbackGeneration = this.feedbackGeneration;
             }
             if (currentFeedback()) this.onToolDispatch({ ...dispatch, status, message: operatorFeedback(fc.name, result), timestamp: Date.now(), job: acceptedJobIdentity(result), serverUrl: this.robotBridge.baseUrl });
+            // Track this actual queued job even if a later call owns the UI receipt.
+            // A Stop, pause, cancellation or disposal while HTTP was pending never tracks.
+            const job = receivedServerReply && isModelAction(fc.name) ? acceptedJobIdentity(result) : undefined;
+            if (job && turnTiming && this.connected && !this.disposed && admissionGeneration === this.toolAdmissionGeneration
+                && requestStopSerial === this.robotBridge.statusGeneration() && !(fc.id && this.cancelledToolIds.has(fc.id))) {
+              this.acceptedJobs.track({ ...dispatch, status: 'accepted', message: '', job, serverUrl: this.robotBridge.baseUrl },
+                turnTiming.id, requestStopSerial, this.robotBridge.sentEpoch(result));
+            }
           }
           const speechAlias = ['speak', 'say', 'narrate'].includes(fc.name || '');
           if (!speechAlias && currentFeedback()) {
@@ -1394,6 +1451,7 @@ export class GeminiLiveService {
     this.nativeReceiptOutput.close();
     if (this.currentTurnTiming) this.finishTurnTiming(this.currentTurnTiming, 'disconnected-before-boundary');
     this.currentTurnTiming = null; this.outputTurnTiming = undefined;
+    this.acceptedJobs.clear();
     // An old onmessage handler may still be waiting for a tool response.
     // Do not let the remainder of that message dispatch motion after close.
     this.pauseRobotTools();

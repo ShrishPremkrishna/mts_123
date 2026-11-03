@@ -212,6 +212,7 @@ def test_following_stops_before_queue():
     async def case():
         async with installed_rig() as rig:
             assert (await tool_registry.call(rig.ts, 'follow', {'enabled': True})).ok
+            assert await rig.settle()  # active following, not merely queued entry
             result = await tool_registry.call(rig.ts, 'shake_hand', {'paw': 'right'})
             marker(result, 'right')
             assert not rig.ts.following and 'follow' in result.message

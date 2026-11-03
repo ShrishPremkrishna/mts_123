@@ -11,8 +11,9 @@ submission. Original creation credit remains with Peng Xu and the CS123 staff.
 
 ## What is implemented
 
-The tools validate motion limits, walk/turn/arc, stop following before a new
-movement, play policy or reference tricks, and sequence interactive clips. The
+The tools validate motion limits, walk/turn/arc, supersede pending or end active
+following before a new movement, play policy or reference tricks, and sequence
+interactive clips. The
 queue distinguishes acceptance from completion. `robot_status` and `/queue/status`
 separate `current_action` (running now) from `last_outcome` (the latest finished
 job); a previous completed move does not mean a current wait finished.
@@ -53,6 +54,18 @@ restarted or evicted evidence stays unconfirmed; a status check overlapping Stop
 cannot establish fresh evidence. Manual commands retain their separate feedback.
 An endpoint that queues several jobs can return its final job receipt; the log
 retains each job. A matched result is not whole-route or physical completion.
+
+The voice session also retains up to 64 accepted job identities for five minutes,
+including earlier requests no longer shown as latest. The existing status poll
+checks them against exact server/job identities and the epoch used to send the
+command. A matching terminal failure produces one approved cached failure cue
+and pauses further model actions; success and cancellation are silent. Missing,
+stale, restarted or evicted evidence is not guessed. Stop and disconnect discard
+tracking. This is server failure feedback, not observation of the robot. No model
+or speech-generation request is added. While jobs are tracked, the poll uses an
+in-memory snapshot and shows controller observation as unverified; normal
+controller observation resumes afterward. Older or overflowed jobs remain
+unconfirmed rather than producing a delayed claim.
 
 Estimated queue time includes planned exits and controller readiness once. It is
 not a deadline or a physical-duration measurement. The read-only reporter combines
@@ -494,6 +507,29 @@ mass/inertia cases keep moving despite that command. Deactivating a controller
 confirms software state, not motor torque, physical stillness or a lying pose.
 The tool and prompt must not turn either acknowledgement into a physical claim.
 See the [default-policy diagnostic](../../foundation/results/spider-default-inertial-ablation-reviewed.json).
+
+### Ordered follow handoff
+
+When not already following, `follow(enabled=true)` queues an entry job after
+earlier work; its queued reply is acceptance, not active following. An already-active
+repeat returns that state without queuing another entry. Previously queued stand, walk and wait jobs
+are retained and run first. Conversation, status and wait do not end the pending
+or active follow intent. A later explicit takeover tool supersedes it: a pending entry is
+cancelled before activation (`follow_superseded`), while ordinary queued
+predecessors keep their FIFO order. An entry whose exit transition is already
+running completes that exit once rather than abandoning it. If the follower
+activation request is already submitted, the handoff waits for its outcome; a late
+activation is turned off and zero speed requested before the new motion is
+admitted. An unconfirmed shutdown still refuses motion. Only a confirmed change
+from active following produces the “Stopped following the person first.” note.
+Stop remains immediate and does not wait for this handoff. Low-level interactive
+actions still require the appropriate planned trick; a refused action is not
+uniformly a takeover. Browser takeover preparation can stop following before the
+subsequent tool arguments are validated.
+
+Consequently, rapidly admitted follow → wait → move is **not** a guaranteed timed
+follow segment: the move supersedes the still-pending follow entry, so the wait
+may run without following ever activating.
 
 ## Policies and training
 

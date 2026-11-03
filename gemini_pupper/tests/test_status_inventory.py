@@ -191,8 +191,21 @@ def test_queued_idle_wait_rechecks_mode_and_actual_inventory_before_execution(ch
             rig.ts._call = missing
         switches = list(rig.robot.switches)
         assert await rig.settle()
-        assert not rig.ts.last_outcome['success']
-        assert 'idle wait could not be confirmed' in rig.ts.last_outcome['message']
+        outcome = rig.ts.last_outcome
+        assert not outcome['success']
+        assert outcome['terminal_state'] == 'failed'
+        assert outcome['name'] == 'wait 0.25s'
+        assert 'shared stop authority blocks motion' in outcome['message']
+        if change == 'local_state':
+            # UNCHANGED resolves from actual state: an active pose is refused
+            # by the worker before the wait body or inventory recheck runs.
+            assert outcome['execution_started'] is False
+            assert 'idle wait could not be confirmed' not in outcome['message']
+        else:
+            # Locally idle still requires a successful actual-inventory check.
+            assert outcome['execution_started'] is True
+            assert outcome['message'].endswith('; idle wait could not be confirmed')
+        assert rig.ts.commands.empty()
         assert rig.robot.switches == switches
         assert not harness.walk_twists(rig)
     run_case(case)

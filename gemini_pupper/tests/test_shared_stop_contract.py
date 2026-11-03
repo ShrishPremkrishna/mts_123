@@ -225,7 +225,8 @@ def test_follower_start_receipt_after_latch_is_cleaned_up_not_reported_success(m
             return result
         monkeypatch.setattr(rig.robot,'handle',handle)
         result=await rig.ts.set_following(True)
-        assert not result.ok and not rig.robot.follower_on
+        assert result.ok and await rig.settle()
+        assert not rig.ts.last_outcome['success'] and not rig.robot.follower_on
         assert rig.robot.follow_calls[-1]=='off'
     run_case(case)
 

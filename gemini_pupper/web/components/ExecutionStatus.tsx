@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toolLabel } from '../services/operatorFeedback';
 import type RobotBridge from '../services/robotBridge';
 import { parseQueueStatus, queueSummary, runtimeSummary, motionCapabilitySummary, matchJobEvidence, type QueueStatus, type ToolDispatch } from '../services/executionStatus';
+import type { StatusReport } from '../services/acceptedJobs';
 
 interface Props {
   robotBridge: RobotBridge;
@@ -9,13 +10,20 @@ interface Props {
   modelActionsPaused: boolean;
   onStop: () => Promise<void>;
   stopMessage: string;
+  /** Each fresh valid poll result, with the bridge, times and Stop generation it used. */
+  onStatusReport?: (report: StatusReport) => void;
+  /** Read at each poll; false requests the cheap snapshot without controller observation. */
+  observeControllers?: () => boolean;
 }
 
-export default function ExecutionStatus({ robotBridge, lastDispatch, modelActionsPaused, onStop, stopMessage }: Props) {
+export default function ExecutionStatus({ robotBridge, lastDispatch, modelActionsPaused, onStop, stopMessage, onStatusReport, observeControllers }: Props) {
   const [report, setReport] = useState<{ status: QueueStatus; received: number; started: number; generation: number; bridge: RobotBridge } | null>(null);
   const [error, setError] = useState('Waiting for server status');
   const [checking, setChecking] = useState(false);
   const [now, setNow] = useState(Date.now());
+  // Latest callbacks without restarting the poll on every render.
+  const callbacks = useRef({ onStatusReport, observeControllers });
+  callbacks.current = { onStatusReport, observeControllers };
 
   useEffect(() => {
     let active = true;
@@ -28,13 +36,20 @@ export default function ExecutionStatus({ robotBridge, lastDispatch, modelAction
       const started = Date.now();
       const generation = robotBridge.statusGeneration();
       try {
-        const result = await robotBridge.getQueueStatus();
+        let observe = true;
+        try { observe = callbacks.current.observeControllers?.() ?? true; } catch {}
+        const result = await robotBridge.getQueueStatus(observe);
         if (!active) return;
         const status = parseQueueStatus(result);
         if (status) {
-          setReport({ status, received: Date.now(), started, generation, bridge: robotBridge });
-          setNow(Date.now());
+          const received = Date.now();
+          setReport({ status, received, started, generation, bridge: robotBridge });
+          setNow(received);
           setError('');
+          try {
+            callbacks.current.onStatusReport?.({ bridge: robotBridge, serverUrl: robotBridge.baseUrl, status,
+              pollStartedAt: started, receivedAt: received, generation });
+          } catch { /* A consumer cannot stop status polling. */ }
         } else {
           setReport(null);
           setError(result?.message || 'Server status unavailable or invalid');

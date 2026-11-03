@@ -278,6 +278,13 @@ class Robot:
                                 | {t.walk_controller for t in self.tricks.values() if t.walks})
         self.param_clients: dict[str, object] = {}  # controller -> its set_parameters client
         self.following = False
+        # Follow entry is FIFO work; later motion supersedes only that intent.
+        # An entry already owning a native transition finishes it once before
+        # suppressing activation. Stop still cancels the actual queue task.
+        self._follow_generation = 0
+        self._follow_jobs: set[str] = set()
+        self._follow_activation_pending = False
+        self._follow_activation_count = 0
         self.follow_available = True  # server fills from explicit startup configuration
         self.follow_state_uncertain = False
         self.startup_error: str | None = None
@@ -568,22 +575,31 @@ class Robot:
     async def _call(self, client, request, timeout: float = 3.0):
         # A blocking wait here would prevent the stop tool from being handled.
         follower_activation = client is self.follow_on
+        follow_generation = self._follow_generation
         activation = follower_activation or (client is self.switch_client and bool(getattr(request, "activate_controllers", [])))
-        if activation:
+        def require_activation():
             self._require_motion()
+            # A pending mode entry can be superseded while service discovery
+            # yields. Reject before submission; after submission the existing
+            # response/late-cleanup path must reconcile the remote activation.
+            if follower_activation and follow_generation != self._follow_generation:
+                raise asyncio.CancelledError
+
+        if activation:
+            require_activation()
         deadline = time.monotonic() + timeout
         while not client.wait_for_service(timeout_sec=0.0):
             if activation:
-                self._require_motion()
+                require_activation()
             if time.monotonic() >= deadline:
                 return None
             await asyncio.sleep(0.02)
         if activation:
-            self._require_motion()
+            require_activation()
         try:
             if activation:
                 with self._stop_lock:
-                    self._require_motion()
+                    require_activation()
                     future = client.call_async(request)
             else:
                 future = client.call_async(request)
@@ -972,6 +988,7 @@ class Robot:
 
     def _finish_job(self, job_id: str, name: str, outcome: str, message: str, *,
                     execution_started: bool, reason: str | None = None, set_last: bool = True) -> None:
+        self._follow_jobs.discard(job_id)
         row = self._job_event(job_id, name, "finished", outcome=outcome,
                               execution_started=execution_started, reason=reason)
         record = {"job_id": job_id, "server_instance": self.command_instance,
@@ -1011,12 +1028,12 @@ class Robot:
             self.ready.set()
         while True:
             name, job, then, job_id = await self.commands.get()
-            self._running_job_then = then
+            self._running_job_then = self.state_now if then is UNCHANGED else then
             token = CALL_STOPS.set(self.stops)
             execution_started = False
             async def guarded_job():
                 nonlocal execution_started
-                if then != MOTORS_IDLE and (reason := self.motion_block_reason()):
+                if self._running_job_then != MOTORS_IDLE and (reason := self.motion_block_reason()):
                     return Result(False, reason)
                 execution_started = self.current_execution_started = True
                 self._job_event(job_id, name, "started", execution_started=True)
@@ -1105,7 +1122,7 @@ class Robot:
         self.busy_until = max(self.busy_until, now) + seconds
         self._job_sequence += 1
         job_id = f"{self.command_instance}:{self._job_sequence}"
-        await self.commands.put((name, job, self.state_after_queue, job_id))
+        await self.commands.put((name, job, then, job_id))
         self._job_event(job_id, name, "queued")
         # Historical submission only: not current queue state, completion, or physical motion.
         return Result(True, f"{name} queued (accepted, not completed); estimated queue time {self.busy_until - now:.1f} s",
@@ -1459,81 +1476,148 @@ class Robot:
                                      "changed": changed, "server_instance": self.command_instance,
                                      "command_epoch": self.command_epoch}})
 
+    def _supersede_follow_entries(self) -> None:
+        """Cancel mode-entry intent, retaining ordinary FIFO work and owned exits."""
+        self._follow_generation += 1
+        kept = []
+        while not self.commands.empty():
+            item = self.commands.get_nowait()
+            name, _job, _then, job_id = item
+            if job_id in self._follow_jobs:
+                self._finish_job(job_id, name, "cancelled", "following entry superseded before activation",
+                                 execution_started=False, reason="follow_superseded", set_last=False)
+            else:
+                kept.append(item)
+        running = self.current is not None and not self.current.done()
+        # Dequeue schedules the child before it starts. A superseded child that
+        # never began cannot own an exit or change the projected stance.
+        unstarted_follow = (running and self.current_job_id in self._follow_jobs
+                            and not self.current_execution_started)
+        projected = self._running_job_then if running and not unstarted_follow else self.state_now
+        for item in kept:
+            self.commands.put_nowait(item)
+            if item[2] is not UNCHANGED:
+                projected = item[2]
+        self.state_after_queue = projected
+        if running and self.current_job_id in self._follow_jobs:
+            self._job_event(self.current_job_id, self.current_action_name, "cancel_requested",
+                            execution_started=self.current_execution_started, reason="follow_superseded")
+        # Retain the conservative estimate for ordinary work; deleting a mode
+        # entry cannot make the old estimate too short.
+        if not running and not kept:
+            self.busy_until = time.monotonic()
+
     async def prepare_follow_handoff(self) -> Result:
-        """Existing endpoint's opt-in preparation: no command at all when off."""
+        """Supersede pending entry; confirm an active follower off before a cue."""
+        return await self._end_following(for_motion=True)
+
+    async def _end_following(self, *, for_motion: bool) -> Result:
         await self.ready.wait()
-        if self.stopped_during_call():
+        if for_motion and self.stopped_during_call():
             return Result(False, "follow handoff superseded by Stop")
-        if self.follow_state_uncertain:
-            return Result(False, "following state is unknown; use stop before new motion")
-        if not self.following:
-            return self._following_off_receipt(False)
-        return await self.set_following(False)
+        changed = self.following
+        activations = self._follow_activation_count
+        self._supersede_follow_entries()
+        # A native exit may finish in the worker without delaying admission.
+        # A submitted follow_on must instead be reconciled before claiming off.
+        task = self.current
+        if self._follow_activation_pending and self.current_job_id in self._follow_jobs and task is not None:
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if not task.done():  # caller cancelled, not the superseded entry
+                    raise
+            except Exception:
+                return Result(False, "following entry failed during handoff; check its job outcome")
+        if for_motion and self.stopped_during_call():
+            return Result(False, "follow handoff superseded by Stop")
+        changed = changed or self.following or self._follow_activation_count != activations
+        if self.following:
+            result = await self.stop_following()
+            if not result.ok:
+                return result
+        if changed:
+            self.send_speed(0, 0, 0)
+        if self.follow_state_uncertain or (for_motion and self.controller_fault):
+            return Result(False, self.controller_fault or "following state is unknown; use stop before new motion")
+        return self._following_off_receipt(changed)
 
     async def set_following(self, enabled: bool) -> Result:
         await self.ready.wait()
-        if enabled and self.startup_error:
-            return Result(False, self.startup_error)
-        if enabled and (reason := self.motion_block_reason()):
-            return Result(False, reason)
         if not enabled:
-            changed = self.following
-            result = await self.stop_following()
+            result = await self._end_following(for_motion=False)
             self.send_speed(0, 0, 0)
-            if not result.ok:
-                return result
-            return self._following_off_receipt(changed)
+            return result
+        if self.startup_error:
+            return Result(False, self.startup_error)
+        if reason := self.motion_block_reason():
+            return Result(False, reason)
         if self.fallen:
             return Result(False, FELL_MESSAGE)
         if not self.follow_available:
             return Result(False, "following is disabled in this robot's startup configuration")
-        if any(isinstance(s, Trick) and s.walks for s in (self.state_now, self.state_after_queue)):
+        if isinstance(self.state_after_queue, Trick) and self.state_after_queue.walks:
             return Result(False, "following needs the normal locomotion stance; stand_up to leave the walking trick first")
         if self.follow_state_uncertain:
             return Result(False, "following state is unknown; use stop and check the follower service first")
         if self.following:
             return Result(True, "already following the nearest person")
-        if self._exit_clip_requests:
-            # Class follow is an immediate takeover, not an ordered queue job.
-            # Cancelling an awaited exit would leave its native request live;
-            # switch_to would then publish that exit again with another UUID.
-            return Result(False, "Following not started: a trick exit is still in progress. "
-                          "Follow did not cancel the transition; wait for its outcome before requesting following.")
-        await self.clear_queue(reason="follow_takeover")
-        if self.current and not self.current.done():
-            self._cancel_current_job("follow_takeover")
-            try:
-                await self.current
-            except asyncio.CancelledError:
-                pass
+        generation = self._follow_generation
+        async def job():
+            return await self._start_following(generation)
+        result = await self.queue("start following", job,
+                                  self.transition_time_estimate(LOCOMOTION_CONTROLLER), then=LOCOMOTION)
+        if result.ok:
+            self._follow_jobs.add(result.details["submission"]["job_id"])
+        return result
+
+    async def _start_following(self, generation: int) -> Result:
+        if generation != self._follow_generation:
+            raise asyncio.CancelledError
+        if not self.follow_available:
+            return Result(False, "following is disabled in this robot's startup configuration")
+        if isinstance(self.state_now, Trick) and self.state_now.walks:
+            return Result(False, "following needs the normal locomotion stance; stand_up first")
+        # Do not cancel this transition merely because later motion supersedes
+        # the following intent: its native exit request is already owned here.
         res = await self.switch_to(LOCOMOTION_CONTROLLER)
         if not res.ok:
-            self.state_after_queue = self.state_now
             return res
-        self.state_after_queue = LOCOMOTION
-        if self.stopped_during_call():  # stop came in while the legs were switching
+        if generation != self._follow_generation:
+            raise asyncio.CancelledError
+        if self.stopped_during_call():
             return Result(False, "stopped before follow mode started; not following")
+        if self.following:
+            return Result(True, "already following the nearest person")
+        self._follow_activation_pending = True
         try:
-            r = await self._call(self.follow_on, Trigger.Request())
-        except MotionBlockedError as error:
-            return Result(False, str(error))
-        if r is None or not r.success:
-            # A timed-out activation might still have reached the service. Confirm
-            # deactivation before future movement; don't equate no reply with off.
+            try:
+                r = await self._call(self.follow_on, Trigger.Request())
+            except MotionBlockedError as error:
+                return Result(False, str(error))
+            if r is None or not r.success:
+                # Keep the existing unknown-activation quarantine/late cleanup.
+                self.following = True
+                stopped = await self.stop_following()
+                if not stopped.ok:
+                    await self._relax_controllers()
+                return Result(False, "person_follower did not confirm startup; " + stopped.message
+                              + (f". {self.controller_fault}" if self.controller_fault else ""))
             self.following = True
-            stopped = await self.stop_following()
-            if not stopped.ok:
-                await self._relax_controllers()
-            return Result(False, "person_follower did not confirm startup; " + stopped.message
-                          + (f". {self.controller_fault}" if self.controller_fault else ""))
-        self.following = True
-        if self.stopped_during_call() or self.motion_block_reason():  # ... or while the follower was starting
-            stopped = await self.stop_following()
-            if not stopped.ok:
-                relaxed = await self._relax_controllers()
-                return Result(False, f"stop interrupted follower startup; {stopped.message}; {relaxed.message}")
-            return Result(False, "stopped before follow mode started; not following")
-        return Result(True, "following the nearest person. Any new motion (walk, turn, trick, stand, lie down) will end follow mode.")
+            self._follow_activation_count += 1
+            superseded = generation != self._follow_generation
+            if superseded or self.stopped_during_call() or self.motion_block_reason():
+                stopped = await self.stop_following()
+                self.send_speed(0, 0, 0)
+                if not stopped.ok:
+                    relaxed = await self._relax_controllers()
+                    return Result(False, f"follower startup interrupted; {stopped.message}; {relaxed.message}")
+                if superseded:
+                    raise asyncio.CancelledError
+                return Result(False, "stopped before follow mode started; not following")
+            return Result(True, "following the nearest person. Any new motion (walk, turn, trick, stand, lie down) will end follow mode.")
+        finally:
+            self._follow_activation_pending = False
 
     # ---------------------------------------------------------------- stopping
     def _on_estop(self, _msg: Empty) -> None:

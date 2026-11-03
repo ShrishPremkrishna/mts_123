@@ -10,6 +10,7 @@ import { normalizeOutputPolicy, operatorFeedback } from './services/operatorFeed
 import ExecutionStatus from './components/ExecutionStatus';
 import { takeOnboardBootstrap, consumeOnboardBootstrap } from './services/onboardBootstrap';
 import { requestIndependentStop, updateLatestDispatch, type ToolDispatch } from './services/executionStatus';
+import type { StatusReport } from './services/acceptedJobs';
 
 // Capture once per page load, outside React StrictMode render retries. The URL
 // is scrubbed before any asynchronous bootstrap, media or provider operation.
@@ -189,6 +190,14 @@ const App: React.FC = () => {
   };
   // Stable for polling; changing the configured server immediately replaces it.
   const robotBridge = useMemo(() => new RobotBridge(config.robotApiUrl), [config.robotApiUrl]);
+
+  // The existing status poll feeds late job evidence only to the current
+  // session that owns that exact bridge; no second polling loop.
+  const forwardStatusReport = useCallback((report: StatusReport) => {
+    const service = geminiRef.current;
+    if (service && service.robotBridge === report.bridge) service.observeQueueStatus(report);
+  }, []);
+  const observeControllers = useCallback(() => !geminiRef.current?.hasTrackedJobs(), []);
 
   const addLog = useCallback((entry: LogEntry) => {
     setLogs(prev => [...prev.slice(-99), entry]); // Keep last 100 logs
@@ -417,6 +426,8 @@ const App: React.FC = () => {
         modelActionsPaused={modelActionsPaused}
         onStop={handleStop}
         stopMessage={stopMessage}
+        onStatusReport={forwardStatusReport}
+        observeControllers={observeControllers}
       />
 
       <div className="shrink-0 flex flex-wrap items-center justify-center gap-3 px-3 py-2 bg-gray-900 border-t border-gray-800">

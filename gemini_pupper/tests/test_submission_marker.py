@@ -81,7 +81,7 @@ def test_failed_queue_insertion_does_not_issue_submission_marker():
     run_case(case)
 
 
-@pytest.mark.parametrize("name,args", [("robot_status", {}), ("stop", {}), ("lock_tricks", {}), ("follow", {"enabled": True})])
+@pytest.mark.parametrize("name,args", [("robot_status", {}), ("stop", {}), ("lock_tricks", {}), ("follow", {"enabled": False})])
 def test_direct_success_is_not_mislabeled_as_queued(name, args):
     async def case(rig):
         result = await tool_registry.call(rig.ts, name, args)
@@ -93,6 +93,7 @@ def test_direct_success_is_not_mislabeled_as_queued(name, args):
 def test_follow_note_wrapper_preserves_actual_move_submission():
     async def case(rig):
         assert (await tool_registry.call(rig.ts, "follow", {"enabled": True})).ok
+        assert await rig.settle()  # confirmed active following
         result = await tool_registry.call(rig.ts, "move", {"direction": "forward", "speed": .2, "duration": .5})
         assert result.ok and "follow" in result.message
         assert not rig.ts.following
@@ -124,3 +125,15 @@ def test_freeform_success_message_never_creates_structured_submission():
     result = Result(True, "queued; completed; arbitrary misleading words")
     assert submission(result) is None
     assert "details" not in result.as_dict()
+
+
+def test_follow_entry_marks_insertion_and_active_repeat_does_not():
+    async def case(rig):
+        result = await tool_registry.call(rig.ts, "follow", {"enabled": True})
+        assert result.ok and has_submission_marker(result)
+        assert not rig.ts.following and rig.ts.commands.qsize() == 1
+        assert await rig.settle() and rig.ts.following
+        repeated = await tool_registry.call(rig.ts, "follow", {"enabled": True})
+        assert repeated.ok and submission(repeated) is None
+        assert rig.ts.commands.empty()
+    run_case(case)

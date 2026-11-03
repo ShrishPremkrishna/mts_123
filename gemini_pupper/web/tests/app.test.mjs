@@ -131,6 +131,34 @@ test('remote-close callback cannot release explicit Disconnect ownership before 
 });
 
 
+test('App forwards status reports only to the current service with that exact bridge', async t => {
+  const { render, instances } = await app(t);
+  const connecting = wake(render()).props.onClick();
+  const service = instances[0]; service.connection.resolve(); await connecting;
+  const seen = []; let tracked = true;
+  service.observeQueueStatus = report => seen.push(report);
+  service.hasTrackedJobs = () => tracked;
+  const status = find(render(), n => n.type === 'ExecutionStatus');
+  assert.equal(status.props.robotBridge, service.robotBridge);
+  assert.equal(status.props.observeControllers(), false, 'tracked voice jobs select the cheap snapshot');
+  tracked = false;
+  assert.equal(status.props.observeControllers(), true);
+  const report = { bridge: service.robotBridge, serverUrl: 'http://x', status: {}, pollStartedAt: 1, receivedAt: 2, generation: 0 };
+  status.props.onStatusReport(report);
+  status.props.onStatusReport({ ...report, bridge: {} });
+  assert.deepEqual(seen, [report]);
+  const disconnecting = find(render(), n => n.props.title === 'Sleep / Disconnect').props.onClick();
+  service.stop.resolve({ success: true, message: 'zero requested' }); await disconnecting;
+  status.props.onStatusReport(report);
+  assert.equal(seen.length, 1, 'a disconnected service receives nothing');
+  assert.equal(status.props.observeControllers(), true);
+  const retry = wake(render()).props.onClick();
+  const next = instances[1]; next.connection.resolve(); await retry;
+  const nextSeen = []; next.observeQueueStatus = r => nextSeen.push(r);
+  status.props.onStatusReport(report);
+  assert.deepEqual(nextSeen, [], 'an old bridge report never reaches the reconnected service');
+});
+
 function controls(render) {
   find(render(), n => n.props['aria-label'] === 'Robot controls').props.onClick();
   return find(render(), n => n.type === 'DebugPanel');

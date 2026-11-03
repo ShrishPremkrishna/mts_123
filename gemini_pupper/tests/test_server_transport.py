@@ -148,6 +148,34 @@ def test_motion_capabilities_disclose_config_without_authorizing_navigation(serv
     asyncio.run(case())
 
 
+def test_queue_status_cheap_snapshot_skips_controller_observation(server, monkeypatch):
+    """Default status observes controllers; the opt-in snapshot never calls mode()."""
+    async def case():
+        async with client_with_rig(server) as (client, rig):
+            calls = []
+            original = rig.ts.mode
+
+            async def counted(*args, **kwargs):
+                calls.append(args)
+                return await original(*args, **kwargs)
+            monkeypatch.setattr(rig.ts, "mode", counted)
+            switches = list(rig.robot.switches)
+            default = (await client.get("/queue/status")).json()
+            assert len(calls) == 1
+            cheap = (await client.get("/queue/status", params={"observe_controllers": "false"})).json()
+            assert len(calls) == 1, "cheap snapshot must not observe ROS controllers"
+            assert cheap["state_basis"] == default["state_basis"] == "cached_queue_plan"
+            assert cheap["observed_controller_mode"] == "unknown"
+            assert set(cheap) == set(default)
+            for key in ("recent_outcomes", "command_epoch", "capabilities", "queued", "running"):
+                assert cheap[key] == default[key]
+            explicit = (await client.get("/queue/status", params={"observe_controllers": "true"})).json()
+            assert len(calls) == 2 and explicit["state_basis"] == "cached_queue_plan"
+            assert rig.robot.switches == switches
+            assert not harness.walk_twists(rig)
+    asyncio.run(case())
+
+
 def test_http_declarations_and_tool_response_round_trip_through_sdk_types(server):
     async def case():
         async with client_with_rig(server) as (client, rig):

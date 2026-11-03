@@ -15,6 +15,7 @@ def test_prepare_handoff_off_is_noop_then_on_confirms_disabled_before_motion(ser
             assert off['success'] and off['details']['following']['changed'] is False
             assert rig.robot.published == before and rig.robot.follow_calls == initial_follow_calls
             assert (await client.post('/tools/follow', json={'enabled': True})).json()['success']
+            assert await rig.settle()
             active = (await client.post('/following/deactivate?if_active=true')).json()
             state = active['details']['following']
             assert active['success'] and state == {
@@ -32,6 +33,7 @@ def test_prepare_handoff_failure_never_confirms_disabled(server):
     async def run():
         async with client_with_rig(server) as (client, rig):
             assert (await client.post('/tools/follow', json={'enabled': True})).json()['success']
+            assert await rig.settle()
             original = rig.ts._call
             async def fail_off(handle, request, timeout=3.0):
                 if handle is rig.ts.follow_off: return SimpleNamespace(success=False)

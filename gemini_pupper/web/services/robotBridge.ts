@@ -17,6 +17,8 @@ const commandStates = new Map<string, CommandState>();
 class RobotBridge {
   readonly baseUrl: string;
   private readonly state: CommandState;
+  // The exact command epoch each returned response was sent with.
+  private readonly sentEpochs = new WeakMap<object, string>();
 
   constructor(baseUrl: string) {
     // Canonicalize host casing/default ports while retaining API path prefixes.
@@ -80,6 +82,7 @@ class RobotBridge {
         original_response: result };
     }
     if (result?.not_dispatched && result?.command_epoch_required === true) this.state.commandEpoch = null;
+    if (result && typeof result === 'object') this.sentEpochs.set(result, epoch!);
     // Never retry a rejected motion or adopt the newer epoch from its response.
     return result;
   }
@@ -117,7 +120,7 @@ class RobotBridge {
       return await response.json();
     } catch (e) {
       // Suppress log spam for polling
-      if(endpoint !== '/system/status' && endpoint !== '/camera/image' && endpoint !== '/queue/status') {
+      if(!['/system/status', '/camera/image', '/queue/status'].includes(endpoint.split('?')[0])) {
          console.error(`[RobotBridge] Error calling ${endpoint}`, e);
       }
       // Aborting a client request does not establish whether a POST ran.
@@ -223,11 +226,17 @@ class RobotBridge {
   /** Read-only freshness token; Stop changes it synchronously across same-URL bridges. */
   statusGeneration(): number { return this.state.stopSerial; }
 
-  async getQueueStatus() {
+  /** Epoch header this bridge sent for a returned command response, if any. */
+  sentEpoch(result: unknown): string | undefined {
+    return result && typeof result === 'object' ? this.sentEpochs.get(result) : undefined;
+  }
+
+  /** observeControllers=false asks for the cached queue snapshot without ROS controller observation. */
+  async getQueueStatus(observeControllers = true) {
     const before = this.state.manualUnknownEpoch;
     const serial = this.state.stopSerial;
     const stopPendingAtStart = this.state.pendingStops > 0;
-    const result = await this.request('/queue/status', 'GET');
+    const result = await this.request(observeControllers ? '/queue/status' : '/queue/status?observe_controllers=false', 'GET');
     if (stopPendingAtStart || serial !== this.state.stopSerial || this.state.pendingStops) {
       return { success: false, outcome_unknown: true,
         message: 'Status check overlapped Stop; waiting for a fresh server report.' };

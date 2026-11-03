@@ -1384,7 +1384,7 @@ async def provided() -> None:
         check("... and the walk's speeds stop", all(m.linear.x == 0.0 for _, m in rig.robot.twists()),
               f"speeds after the stop: {sorted({m.linear.x for _, m in rig.robot.twists()})}")
 
-        # follow(true) waits while the legs switch; a stop in that time wins.
+        # follow(true) queues leg setup; Stop cancels it before activation.
         await behaviors.lie_down(rig.ts)
         await rig.settle()
         follow = asyncio.ensure_future(tools.call(rig.ts, "follow", {"enabled": True}))
@@ -1397,7 +1397,11 @@ async def provided() -> None:
             await tools.call(rig.ts, "stop", {})
             await rig.settle()
             res = await follow
-            check("a stop while follow mode is starting: it doesn't start", not rig.ts.following and not res.ok,
+            job_id = (res.details or {}).get("submission", {}).get("job_id")
+            outcome = next((row for row in rig.ts.recent_outcomes()["outcomes"] if row["job_id"] == job_id), {})
+            check("a stop while follow mode is starting: it doesn't start", not rig.ts.following and
+                  (res.ok and isinstance(job_id, str) and job_id.startswith(rig.ts.command_instance + ":")
+                   and outcome.get("terminal_state") == "cancelled" and not rig.robot.follower_on),
                   f"following: {rig.ts.following}; follow said: {res}")
 
         # A request still in its *now* part when the stop came in doesn't queue its job.

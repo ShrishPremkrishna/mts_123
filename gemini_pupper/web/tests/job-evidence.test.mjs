@@ -157,7 +157,7 @@ const componentBundle = await build({
   bundle:true,write:false,format:'esm',platform:'node',jsx:'transform',tsconfigRaw:{compilerOptions:{jsx:'react'}},
   plugins:[{name:'component-hooks',setup(b){
     b.onResolve({filter:/^react$/},()=>({path:'react',namespace:'hooks'}));
-    b.onLoad({filter:/.*/,namespace:'hooks'},()=>({contents:"export const {useState,useEffect}=globalThis.__jobHooks; export default {createElement:(type,props,...children)=>({type,props:{...props,children}})};"}));
+    b.onLoad({filter:/.*/,namespace:'hooks'},()=>({contents:"export const {useState,useEffect,useRef}=globalThis.__jobHooks; export default {createElement:(type,props,...children)=>({type,props:{...props,children}})};"}));
   }}],
 });
 const treeText = tree => typeof tree==='string'||typeof tree==='number' ? String(tree)
@@ -168,6 +168,7 @@ async function rendered(t, initialStatus=status()) {
   const cells=[],effects=[],restore=[],timers=new Map();let cursor=0,serial=0,time=1000;
   const globals=(name,value)=>{const prior=Object.getOwnPropertyDescriptor(globalThis,name);Object.defineProperty(globalThis,name,{configurable:true,writable:true,value});restore.push(()=>prior?Object.defineProperty(globalThis,name,prior):delete globalThis[name]);};
   globals('__jobHooks',{
+    useRef(value){const i=cursor++;if(!(i in cells))cells[i]={current:value};return cells[i];},
     useState(initial){const i=cursor++;if(!(i in cells))cells[i]=typeof initial==='function'?initial():initial;return[cells[i],value=>cells[i]=typeof value==='function'?value(cells[i]):value];},
     useEffect(fn,deps){const i=cursor++,prior=cells[i];if(!prior||deps.some((x,j)=>!Object.is(x,prior.deps[j])))effects.push(()=>{prior?.cleanup?.();cells[i]={deps,cleanup:fn()};});},
   });

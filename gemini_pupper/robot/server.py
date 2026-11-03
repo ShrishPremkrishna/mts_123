@@ -352,14 +352,19 @@ async def stop_immediate():
 
 
 @app.get("/queue/status")
-async def queue_status():
+async def queue_status(observe_controllers: bool = True):
     robot = T()
     # Options can change controllers outside this API. Observe without adopting
     # that state into the queue plan; an inventory wait must never own action_lock.
-    observation = await robot.mode()
+    # observe_controllers=false is the browser's cheap job snapshot: no ROS mode
+    # or controller inventory call, so the observed controller stays unknown.
+    observed = "unknown"
+    if observe_controllers:
+        observation = await robot.mode()
+        observed = (observation.details or {}).get("observed_controller_mode", "unknown")
     return {**robot.status(), "recent_outcomes": robot.recent_outcomes(), "state_basis": "cached_queue_plan",
             "capabilities": motion_capabilities(robot),
-            "observed_controller_mode": (observation.details or {}).get("observed_controller_mode", "unknown"),
+            "observed_controller_mode": observed,
             **runtime_info()}
 
 

@@ -1,4 +1,4 @@
-"""Follower takeover while a real installed Sit exit is pending; fake ROS only."""
+"""FIFO following while a real installed Sit exit is pending; fake ROS only."""
 import asyncio
 from pathlib import Path
 import sys
@@ -45,18 +45,17 @@ def test_follow_during_published_exit_preserves_one_request_and_prior_jobs():
             assert wait.ok and rig.ts.commands.qsize() == 1
             result = await tool_registry.call(rig.ts, 'follow', {'enabled': True})
             assert rig.robot.clips(sit.controller) == [sit.exit_clip], 'takeover replayed native exit'
-            assert not result.ok and 'exit' in result.message and 'in progress' in result.message
+            assert result.ok and result.details['submission']['state'] == 'queued'
             assert not rig.robot.follower_on and not rig.ts.following
             assert rig.ts.current_job_id == stand_id and not rig.ts.current.cancelled()
-            assert rig.ts.commands.qsize() == 1  # refusal did not clear dependent work
+            assert rig.ts.commands.qsize() == 2  # wait then follow, neither replaced
             release.set()
             assert await rig.settle()
             outcomes = {row['job_id']: row for row in rig.ts.recent_outcomes()['outcomes']}
             assert outcomes[stand_id]['terminal_state'] == 'succeeded'
             assert outcomes[wait.details['submission']['job_id']]['terminal_state'] == 'succeeded'
             assert not rig.ts._exit_clip_requests
-            # A later explicit request works after the original transition finishes.
-            assert (await tool_registry.call(rig.ts, 'follow', {'enabled': True})).ok
+            assert outcomes[result.details['submission']['job_id']]['terminal_state'] == 'succeeded'
             assert rig.robot.follower_on and rig.robot.clips(sit.controller) == [sit.exit_clip]
         finally:
             rig.close()
@@ -70,7 +69,7 @@ def test_immediate_stop_cancels_pending_exit_and_clears_guard():
         try:
             sit, stand_id, _release = await pending_exit(rig)
             result = await tool_registry.call(rig.ts, 'follow', {'enabled': True})
-            assert not result.ok and 'in progress' in result.message
+            assert result.ok and result.details['submission']['state'] == 'queued'
             assert (await tool_registry.call(rig.ts, 'stop', {})).ok
             assert await rig.settle()
             assert not rig.ts._exit_clip_requests  # CancelledError must not leave a permanent block.
@@ -90,7 +89,7 @@ def test_isolated_follow_from_sit_still_exits_once_then_activates():
         try:
             sit = rig.ts.tricks['sit_stay_shake']
             result = await tool_registry.call(rig.ts, 'follow', {'enabled': True})
-            assert result.ok and rig.robot.follower_on
+            assert result.ok and await rig.settle() and rig.robot.follower_on
             assert rig.robot.clips(sit.controller) == [sit.exit_clip]
             assert not rig.ts._exit_clip_requests
         finally:
@@ -116,14 +115,14 @@ def test_follow_after_exit_endpoint_waits_for_original_locomotion_handoff():
             assert accepted.ok
             await reached_handoff.wait()  # exit endpoint already confirmed, Sit still owns legs
             result = await tool_registry.call(rig.ts, 'follow', {'enabled': True})
-            assert not result.ok and 'in progress' in result.message
+            assert result.ok and result.details['submission']['state'] == 'queued'
             assert rig.robot.clips(sit.controller) == [sit.exit_clip]
             assert rig.ts._exit_clip_requests and not rig.robot.follower_on
             release.set()
             assert await rig.settle()
-            assert rig.ts.last_outcome['job_id'] == accepted.details['submission']['job_id']
+            assert rig.ts.last_outcome['job_id'] == result.details['submission']['job_id']
             assert rig.ts.last_outcome['success'] and not rig.ts._exit_clip_requests
-            assert (await tool_registry.call(rig.ts, 'follow', {'enabled': True})).ok
+            assert rig.robot.follower_on
             assert rig.robot.clips(sit.controller) == [sit.exit_clip]
         finally:
             rig.close()

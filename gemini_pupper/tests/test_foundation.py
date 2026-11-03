@@ -349,6 +349,7 @@ def test_graceful_shutdown_stops_autonomous_work_and_finishes_worker(autonomous)
     async def case(rig):
         if autonomous == 'follower':
             assert (await rig.ts.set_following(True)).ok
+            assert await rig.settle()
         else:
             entered = asyncio.Event()
             async def job():
@@ -393,6 +394,7 @@ def test_gamepad_stop_does_not_erase_fall_evidence():
 def test_failed_follower_stop_blocks_new_motion_and_stop_relaxes():
     async def case(rig):
         assert (await rig.ts.set_following(True)).ok
+        assert await rig.settle()
         original = rig.robot.handle
         def refuse(service, request):
             if service == "deactivate_person_following":
@@ -622,9 +624,12 @@ def test_stop_cleans_up_delayed_follower_activation():
         await starting.wait()
         assert (await tool_registry.call(rig.ts, "stop", {})).ok
         proceed.set()
-        assert not (await request).ok
+        accepted = await request
+        assert accepted.ok and await rig.settle()
+        assert rig.ts.last_outcome['job_id'] == accepted.details['submission']['job_id']
+        assert rig.ts.last_outcome['terminal_state'] == 'cancelled'
         assert not rig.robot.follower_on and not rig.ts.following
-        assert rig.robot.follow_calls[-2:] == ["on", "off"]
+        assert 'on' not in rig.robot.follow_calls
     run_case(case)
 
 
@@ -636,7 +641,8 @@ def test_unconfirmed_follower_activation_requires_confirmed_shutdown():
             return None if client is rig.ts.follow_on else response
         rig.ts._call = lost_response
         result = await tool_registry.call(rig.ts, "follow", {"enabled": True})
-        assert not result.ok
+        assert result.ok and await rig.settle()
+        assert rig.ts.last_outcome['terminal_state'] == 'failed'
         assert not rig.robot.follower_on and not rig.ts.following
         assert rig.robot.follow_calls[-2:] == ["on", "off"]
     run_case(case)
@@ -660,14 +666,17 @@ def test_late_follower_start_after_timeout_or_cancellation_is_stopped(cancelled)
             started.set()
             return future
         client.call_async = delayed
-        task = asyncio.create_task(rig.ts.set_following(True))
+        accepted = await rig.ts.set_following(True)
+        assert accepted.ok
         await started.wait()
+        task = rig.ts.current
         if cancelled:
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
         else:
             assert not (await task).ok
+        assert await rig.settle()
         assert rig.ts.controller_fault and not future.cancelled
         assert not (await tool_registry.call(rig.ts, "move", {"direction": "forward"})).ok
         rig.robot.handle(client.name, pending[0])  # remote activation completes late
