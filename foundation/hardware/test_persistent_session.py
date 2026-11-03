@@ -16,6 +16,16 @@ sys.path.insert(0, str(HERE))
 import persistent_session as session
 
 
+READY_SPAWNERS = '''[spawner-7] [INFO] [spawner_motion]: Loaded neural_controller_default
+[spawner-7] [INFO] [spawner_motion]: Loaded gemini_walk
+[spawner-7] [INFO] [spawner_motion]: Loaded trick_sit_stay_shake
+[spawner-6] [INFO] [spawner_feedback]: Configured and activated joint_state_broadcaster
+[spawner-6] [INFO] [spawner_feedback]: Configured and activated imu_sensor_broadcaster
+[INFO] [spawner-6]: process has finished cleanly [pid 36]
+[INFO] [spawner-7]: process has finished cleanly [pid 37]
+'''
+
+
 class Life:
     SCHEMA = 'gemini_owned_processes_v1'
     def __init__(self, run):
@@ -25,7 +35,7 @@ class Life:
             'pending': {}, 'events': []}
         self.states = {'manager': 'running', 'launch': 'running'}
         self.spawned = []; self.sent = []; self.closed = False
-        self.native_log = 'Finished homing!\n'
+        self.native_log = 'Finished homing!\n' + READY_SPAWNERS
     def coordinator(self):
         return SimpleNamespace(execution_lock=lambda *a: nullcontext())
     def check_support(self, run): pass
@@ -58,7 +68,7 @@ class SessionTests(unittest.TestCase):
         self.run = Path(self.tmp.name)
         self.life = Life(self.run)
         topics = self.run / 'topics.json'; topics.write_text('["/joint_states","/llm_cmd_vel"]')
-        self.plan = {'session_id': 'a' * 32, 'app_root': str(self.run / 'app'),
+        self.plan = {'session_id': 'a' * 32, 'controllers': ['neural_controller_default', 'gemini_walk', 'trick_sit_stay_shake'], 'app_root': str(self.run / 'app'),
             'environment': {'PORT': '18090'}, 'components': {
                 'launch': {'path': '/selected/lab6_session.launch.py'},
                 'telemetry_topics': {'path': str(topics)}}}
@@ -134,6 +144,32 @@ class SessionTests(unittest.TestCase):
             session.stop_api(self.run, self.plan, self.life)
         self.assertEqual(self.life.sent, ['server'])
 
+    def test_homing_then_delayed_plugin_and_spawner_completion_share_one_deadline(self):
+        self.life.native_log = 'Finished homing!\n'
+        clock = SimpleNamespace(now=0., waits=0)
+        self.maps.side_effect = [False, True, True, True]
+        def sleep(seconds):
+            self.assertEqual(self.life.receipt['status'], 'starting')
+            self.assertFalse((self.run / 'native-readiness.json').exists())
+            clock.now += seconds; clock.waits += 1
+            if clock.waits == 1:
+                # Plugin appears, but only the first controller has loaded.
+                log = 'Finished homing!\n[spawner-7] [INFO] [spawner_motion]: Loaded neural_controller_default\n'
+            elif clock.waits == 2:
+                # All Loaded lines still do not prove final configuration completed.
+                log = 'Finished homing!\n' + READY_SPAWNERS.rsplit('[INFO] [spawner-7]', 1)[0]
+            else:
+                log = 'Finished homing!\n' + READY_SPAWNERS
+            (self.run / 'robot.log').write_text(log)
+        (self.run / 'native-readiness.json').unlink()  # Normally absent before first startup.
+        with patch.object(session, 'time', SimpleNamespace(monotonic=lambda: clock.now, sleep=sleep)):
+            result = session.start_native(self.run, self.plan, self.life)
+        self.assertEqual(clock.waits, 3)
+        self.assertEqual(self.maps.call_count, 4)
+        self.assertTrue(result['controller_spawners_finished'])
+        self.assertEqual([r[0] for r in self.life.spawned], ['camera', 'recorder', 'launch'])
+        self.assertEqual(self.life.receipt['status'], 'running')
+
     def test_native_start_preserves_one_camera_recorder_and_current_launch(self):
         result = session.start_native(self.run, self.plan, self.life)
         self.assertTrue(result['homing_finished'])
@@ -147,6 +183,42 @@ class SessionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'stale readiness'):
             session.start_native(self.run, self.plan, self.life)
         self.assertEqual(self.life.spawned, [])
+
+    def test_unrelated_system_exe_permission_does_not_block_cmdline_inventory(self):
+        system = self.life.PROC / '1'; system.mkdir()
+        (system / 'cmdline').write_bytes(b'/sbin/init\0')
+        original = Path.resolve
+        def guarded(path, *args, **kwargs):
+            if path.name == 'exe': raise PermissionError('ptrace denied')
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'resolve', guarded):
+            result = session.start_native(self.run, self.plan, self.life)
+        self.assertTrue(result['homing_finished'])
+
+    def test_global_cmdline_controller_and_camera_owners_block_before_spawn(self):
+        proc = self.life.PROC / '42'; proc.mkdir()
+        for executable in ('/opt/ros/lib/ros2_control_node', '/opt/ros/lib/camera_node'):
+            with self.subTest(executable=executable):
+                (proc / 'cmdline').write_bytes(executable.encode() + b'\0--ros-args\0')
+                with self.assertRaisesRegex(ValueError, 'Existing controller/camera owner'):
+                    session.start_native(self.run, self.plan, self.life)
+        self.assertEqual(self.life.spawned, [])
+
+    def test_cmdline_permission_denial_is_not_silently_ignored(self):
+        proc = self.life.PROC / '43'; proc.mkdir()
+        original = Path.read_bytes
+        def denied(path):
+            if path == proc / 'cmdline': raise PermissionError('owned process unreadable')
+            return original(path)
+        with patch.object(Path, 'read_bytes', denied), patch.object(self.life, 'save') as save:
+            with self.assertRaises(PermissionError):
+                session.start_native(self.run, self.plan, self.life)
+        save.assert_not_called(); self.assertEqual(self.life.spawned, [])
+
+    def test_disappeared_pid_is_ignored_before_start(self):
+        (self.life.PROC / '44').mkdir()  # vanished cmdline during the scan
+        result = session.start_native(self.run, self.plan, self.life)
+        self.assertTrue(result['homing_finished'])
 
     def test_native_unknown_port_refuses_before_camera_or_motion(self):
         self.port.side_effect = OSError('unknown owner')
@@ -215,5 +287,24 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(saved['environment']['ROS_LOCALHOST_ONLY'], '1')
         self.assertEqual(saved['rollback_app'], '/preserved/rollback')
 
+
+
+
+class SelectedMappingTests(unittest.TestCase):
+    def test_only_absent_library_is_pending_wrong_or_deleted_library_fails(self):
+        plan = {'components': {'native': {'path': '/selected/libnative.so'},
+                               'imu': {'path': '/selected/libimu.so'}}}
+        def line(path): return '1-2 r-xp 0 00:00 1 ' + path + '\n'
+        with patch.object(Path, 'read_text', return_value=line('/selected/libimu.so')):
+            self.assertFalse(session.check_loaded(plan, {'pid': 1}, allow_pending=True))
+            with self.assertRaisesRegex(ValueError, 'not mapped'):
+                session.check_loaded(plan, {'pid': 1})
+        for path in ('/wrong/libnative.so', '/selected/libnative.so (deleted)'):
+            with self.subTest(path=path), patch.object(Path, 'read_text', return_value=line(path)):
+                with self.assertRaisesRegex(ValueError, 'Unexpected or deleted'):
+                    session.check_loaded(plan, {'pid': 1}, allow_pending=True)
+        with patch.object(Path, 'read_text', side_effect=PermissionError('maps unavailable')):
+            with self.assertRaises(PermissionError):
+                session.check_loaded(plan, {'pid': 1}, allow_pending=True)
 
 if __name__ == '__main__': unittest.main()

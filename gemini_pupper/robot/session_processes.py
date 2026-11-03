@@ -211,7 +211,22 @@ def refresh(directory, receipt, *, children=False):
         if not entry.name.isdigit(): continue
         try:
             if entry.stat().st_uid != os.getuid(): continue
-            if (TAG + '=' + session).encode() not in (entry / 'environ').read_bytes().split(b'\0'): continue
+            # Global cmdline/stat are readable without ptrace access. Startup
+            # needs only the manager, not every unrelated user's environment.
+            args = (entry / 'cmdline').read_bytes().split(b'\0')
+            manager_candidate = any(Path(os.fsdecode(arg)).name == 'ros2_control_node'
+                                    for arg in args if arg)
+            if not children and not manager_candidate: continue
+            fields = (entry / 'stat').read_text().rsplit(')', 1)[1].split()
+            identity = (int(entry.name), fields[19])
+            environment = entry / 'environ'
+            # Linux can expose a user-owned proc directory whose protected
+            # environ belongs to root. It is not an inspectable owned child.
+            # A recorded target or manager candidate must still prove its tag;
+            # never hide its permission/identity failure or authorize a signal.
+            if (environment.stat().st_uid != os.getuid() and
+                    identity not in known and not manager_candidate): continue
+            if (TAG + '=' + session).encode() not in environment.read_bytes().split(b'\0'): continue
             target = capture(int(entry.name), session)
         except (FileNotFoundError, ProcessLookupError):
             continue

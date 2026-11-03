@@ -264,3 +264,44 @@ def test_pending_exec_refusal_does_not_skip_known_server_cleanup(proc, monkeypat
     assert sent == [(20, signal.SIGTERM)]
     assert 'launch' in owned.load(proc.directory)['pending']
     assert owned.load(proc.directory)['status'] == 'stopping'
+
+
+@pytest.mark.parametrize('children', [False, True])
+def test_unrelated_protected_root_environment_does_not_block_discovery(proc, monkeypatch, children):
+    # A proc directory can have our uid while its protected environ has root's.
+    proc.make(962, 'unrelated-service', session='f' * 32)
+    proc.make(10, 'ros2_control_node')
+    original_read = Path.read_bytes
+    original_stat = Path.stat
+    protected = proc.root / '962/environ'
+    def denied(path):
+        if path == protected: pytest.fail('unrelated protected environ must not be opened')
+        return original_read(path)
+    def stat(path, *args, **kwargs):
+        if path == protected: return SimpleNamespace(st_uid=os.getuid() + 1)
+        return original_stat(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'read_bytes', denied)
+    monkeypatch.setattr(Path, 'stat', stat)
+    owned.refresh(proc.directory, proc.receipt, children=children)
+    assert proc.receipt['processes']['manager']['pid'] == 10
+    assert all(target['pid'] != 962 for target in proc.receipt['processes'].values())
+
+
+@pytest.mark.parametrize('role', ['manager', 'recorded-child'])
+def test_owned_or_manager_environment_denial_is_not_suppressed(proc, monkeypatch, role):
+    target = proc.make(10, 'ros2_control_node' if role == 'manager' else 'owned-child')
+    if role == 'recorded-child': proc.receipt['processes']['child'] = target
+    original_read = Path.read_bytes
+    original_stat = Path.stat
+    protected = proc.root / '10/environ'
+    def denied(path):
+        if path == protected: raise PermissionError('owned identity unavailable')
+        return original_read(path)
+    def stat(path, *args, **kwargs):
+        if path == protected: return SimpleNamespace(st_uid=os.getuid() + 1)
+        return original_stat(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'read_bytes', denied)
+    monkeypatch.setattr(Path, 'stat', stat)
+    monkeypatch.setattr(owned, 'send', lambda *args: pytest.fail('no signal'))
+    with pytest.raises(PermissionError):
+        owned.refresh(proc.directory, proc.receipt, children=True)

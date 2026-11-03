@@ -175,13 +175,42 @@ def http(port, path, post=False):
         return json.load(response)
 
 
-def check_loaded(plan, manager):
+def check_loaded(plan, manager, *, allow_pending=False):
     paths = {line.split(None, 5)[5] for line in
              (Path('/proc') / str(manager['pid']) / 'maps').read_text().splitlines()
              if len(line.split(None, 5)) == 6}
+    missing = []
     for name in ('native', 'imu'):
-        if plan['components'][name]['path'] not in paths:
-            raise ValueError('Selected ' + name + ' library is not mapped by owned manager')
+        expected = plan['components'][name]['path']
+        conflicting = [path for path in paths if path != expected and
+                       Path(path.removesuffix(' (deleted)')).name == Path(expected).name]
+        if conflicting:
+            raise ValueError('Unexpected or deleted ' + name + ' library mapped by owned manager')
+        if expected not in paths:
+            missing.append(name)
+    if missing and not allow_pending:
+        raise ValueError('Selected ' + ', '.join(missing) + ' library is not mapped by owned manager')
+    return not missing
+
+
+def spawners_ready(log, controllers):
+    """Current-run spawner completion, not just homing or a Loaded message.
+
+    The selected launch configures motion controllers with --inactive. Each
+    spawner exits cleanly only after its complete controller list is configured.
+    Feedback broadcasters must also have their activation acknowledgments.
+    """
+    clean = re.sub(r'\x1b\[[0-9;]*m', '', log)
+    finished = set(re.findall(r'^\[INFO\] \[(spawner-\d+)\]: process has finished cleanly \[pid \d+\]\s*$',
+                              clean, re.MULTILINE))
+    loaded = {name: owner for owner, name in re.findall(
+        r'^\[(spawner-\d+)\].*?: Loaded ([A-Za-z0-9_]+)\s*$', clean, re.MULTILINE)}
+    active = {name: owner for owner, name in re.findall(
+        r'^\[(spawner-\d+)\].*?: Configured and activated ([A-Za-z0-9_]+)\s*$', clean, re.MULTILINE)}
+    if not controllers:
+        raise ValueError('Prepared profile has no selected motion controllers')
+    return (all(loaded.get(name) in finished for name in controllers) and
+            all(active.get(name) in finished for name in ('joint_state_broadcaster', 'imu_sensor_broadcaster')))
 
 
 def receipt_for(life, run, plan):
@@ -202,7 +231,13 @@ def start_native(run, plan, life):
         for proc in life.PROC.iterdir():
             if proc.name.isdigit():
                 try:
-                    if (proc / 'exe').resolve(strict=True).name in ('ros2_control_node', 'camera_node'):
+                    # exe is ptrace-protected for unrelated system processes
+                    # (including PID1); cmdline is the readable global inventory.
+                    # Only vanished processes are skipped. Permission failures
+                    # remain visible before any receipt/spawn or potential homing.
+                    arguments = (proc / 'cmdline').read_bytes().split(b'\0')
+                    names = {Path(os.fsdecode(arg)).name for arg in arguments if arg}
+                    if names & {'ros2_control_node', 'camera_node'}:
                         raise ValueError('Existing controller/camera owner; do not launch another')
                 except (FileNotFoundError, ProcessLookupError): pass
         receipt = dict(schema=life.SCHEMA, uid=os.getuid(), root=str(life.HERE),
@@ -233,14 +268,21 @@ def start_native(run, plan, life):
             if 'IMU startup check failed:' in log or 'process has died' in log:
                 raise ValueError('Native startup failed; inspect robot.log and owned receipt')
             if 'Finished homing!' in log and 'manager' in receipt['processes']:
-                check_loaded(plan, receipt['processes']['manager'])
-                life.operate(run, 'ready', [], plan['session_id'])
-                result = {'session_id': plan['session_id'], 'homing_finished': True,
-                          'selected_libraries_mapped': True, 'physical_release_verified': False}
-                write(run / 'native-readiness.json', result)
-                return result
+                mapped = check_loaded(plan, receipt['processes']['manager'], allow_pending=True)
+                if not mapped or not spawners_ready(log, plan['controllers']):
+                    # Homing precedes asynchronous motion-controller plugin loading.
+                    # Missing maps/completion is pending within the same deadline;
+                    # genuine identity, mapping conflicts and I/O errors still fail.
+                    pass
+                else:
+                    life.operate(run, 'ready', [], plan['session_id'])
+                    result = {'session_id': plan['session_id'], 'homing_finished': True,
+                              'selected_libraries_mapped': True, 'controller_spawners_finished': True,
+                              'controllers': plan['controllers'], 'physical_release_verified': False}
+                    write(run / 'native-readiness.json', result)
+                    return result
         time.sleep(.25)
-    raise ValueError('Homing not observed within90s; receipt retained, no automatic retry or cleanup')
+    raise ValueError('Native readiness (homing, selected libraries, controller spawners) not observed within90s; receipt retained, no automatic retry or cleanup')
 
 
 def start_api(run, plan, life):
