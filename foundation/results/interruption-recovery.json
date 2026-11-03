@@ -1,6 +1,6 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "A reproducible class foundation: implemented course behaviors, measured improvements, explicit physical/simulation/unavailable/rejected boundaries; no claim of global optimization.",
+  "objective": "Minimum viable Lab 6 submission plus a cohesive, extensible software harness for offensive and defensive soccer. Teammates own locomotion performance and Optional Lab 3 implementation. Implementation plan awaiting user agreement.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
@@ -104,9 +104,9 @@
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
     "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "mode": "workstream1_shutdown_checkpoint",
-  "updated_utc": "2026-11-03T02:29:06.299020+00:00",
-  "authorization": "User ended physical session to move locations, confirmed supported shutdown. No automatic reconnect, homing or motion. Offline checkpoint work authorized.",
+  "mode": "scope_reset_discussion",
+  "updated_utc": "2026-11-03T05:03:37.371310+00:00",
+  "authorization": "User authorized current course review and read-only environment/Pi audit. No resumed implementation/deployment/motion until scope agreement. Latest user deferred Lecture 7 analysis.",
   "current_report": "foundation/results/workstream1-startup-gravity-physical-20261102.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
@@ -128,14 +128,11 @@
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "None: no owned training, provider, robot or recording jobs. Evidence transfer verified complete; local API port-forward removed.",
+    "compute": "None. Three focused read-only audits complete. One read-only SSH attempt timed out; no motor/API/provider actions.",
     "owners": {
-      "/root": "Checkpoint complete; next discussion is Lab6 submission, final-project idea and Lecture7.",
-      "/root/owned_lifecycle": "Completed acceptance/shutdown audit.",
-      "/root/sensor_decision_review": "Completed course requirements review.",
-      "/root/preserve_local_close": "Completed local archive verification."
+      "/root": "Discuss reset and environment plan; wait for scope agreement before implementation."
     },
-    "goal_status": "Active; Workstream1 incomplete."
+    "goal_status": "Legacy Workstream 1 goal is paused and superseded; do not resume it unchanged."
   },
   "browser": {
     "browser": "Chrome1",
@@ -150,20 +147,24 @@
   },
   "next": [
     {
-      "id": "course_completion",
-      "action": "Receive tested follower service and Spider clip/walker pair. Prepare exact Lab6 demo and written-evidence checklist; no current teammate handoffs."
+      "id": "agree_scope",
+      "action": "Review foundation/WORKSTREAMS.md updated November2. Agree minimumLab6 + soccer harness scope and first bounded soccer demo; no old optional3 mandate."
     },
     {
-      "id": "focused_next_robot_block",
-      "action": "Only after user returns: inspect actual boot/controller, use verified selected build, one homing if needed. Test explicit compound sequence and spoken Stop in one watched block; preserve request transcript and job IDs."
+      "id": "project_access",
+      "action": "After agreement, make engineeringcheckout the primary local project and expose source/artifact folders. Verify actual sandbox and basic tools; no need move everything or run development on Pi."
     },
     {
-      "id": "offline_followup",
-      "action": "Reconcile mixed-sequence evidence if additional records arrive. Focus explicit-command over-refusal and provider latency on saved evidence; do not redo passed broad suites."
+      "id": "deployment",
+      "action": "Consolidate existing persistent workflow; reconcile selected component source/builds, app-only staging and stable browser origin. Preserve rollback and no auto-homing."
     },
     {
-      "id": "project_discussion",
-      "action": "Discuss final-project idea and deferred tool-authority choice. Retrieve new Lecture7 actual deck/recording; local October27 page is only a stub."
+      "id": "lab6_minimum",
+      "action": "Basic follower, minimum usable Spider, swim-twice exercise, four required videos andQ1-20/checkoffs. Reuse trainedassets; avoidpolish/broadtraining."
+    },
+    {
+      "id": "soccer_harness",
+      "action": "Existingregistry/queue + generic newskillfeedback and continuous localbehaviorownership; timestampedballstate/replay; agreeball/surface/speedlimits beforepolicytraining."
     }
   ],
   "completed_this_session": [
@@ -183,5 +184,13 @@
     "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
     "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs."
   },
-  "build_distinction": "Retained, tested offline, not deployed in this trial."
+  "build_distinction": "Retained, tested offline, not deployed in this trial.",
+  "scope_reset": {
+    "source": "foundation/WORKSTREAMS.md",
+    "date": "2026-11-02",
+    "optional3_owner": "teammate",
+    "lecture7": "Deferred by user after live page showed slides not yet posted and projectdeck inaccessible. Current final-project directions saved in course library.",
+    "user_goal": "Soccer offense + defense; custom hardware later; local predictive blocking and motion skills, model orchestrates capabilities.",
+    "plan_status": "Proposed sprint acceptance and environment changes awaiting agreement; no implementation performed."
+  }
 }
