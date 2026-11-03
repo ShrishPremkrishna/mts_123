@@ -11,11 +11,39 @@ shown. Do not restart historical processes or repeat old timed floor choreograph
 
 ## Maintained deployment commands
 
-Use `hardware/stage_app.py` for a reviewed application overlay and
+Use `hardware/package_app.py` to package the final reviewed source/build,
+`hardware/stage_app.py` to stage its application overlay, and
 `hardware/persistent_session.py` for the selected persistent profile. They replace
 copying the dated session scripts into another run. The generic Gemini `start.sh`
 and gait `deploy.sh` are different paths: both can initialize hardware, and
 `deploy.sh --no-launch` still installs/rebuilds. Do not use them as staging checks.
+
+Package locally after tests and the browser build are finished. Use **one** approved
+final freeze, not a merge of historical manifests. Its `files` array contains
+`{"path": "repo/relative/path", "sha256": "64-hex-digest"}` entries for every selected
+runtime source, browser build input and complete current `web/dist` file; an
+optional `source_checkout_head` must match the expected commit. The freeze may
+also pin reviewed tests. Unchanged skill assets and native identities are inherited
+from the baseline manifest, never replaced from the current checkout.
+
+```sh
+python3 /Users/shrish/workspace/cs123-foundation/foundation/hardware/package_app.py \
+  --repo /Users/shrish/workspace/cs123-foundation \
+  --baseline-manifest "$BASELINE_MANIFEST" --baseline-manifest-sha256 "$BASELINE_SHA256" \
+  --freeze-manifest "$FINAL_FREEZE" --freeze-manifest-sha256 "$FREEZE_SHA256" \
+  --expected-head "$REVIEWED_COMMIT" --client-bundle "$BUILT_INDEX_JS" \
+  --output "$NEW_LOCAL_PACKAGE" --destination "$NEW_REMOTE_RELEASE" \
+  --add-file "$NEW_RUNTIME_FILE"
+```
+
+These variables are explicit reviewed paths/hashes; `BUILT_INDEX_JS` is the actual
+`index-*.js` from the completed build. Repeat `--add-file` only for newly selected
+runtime files, or omit it if there are none. Additions must be pinned in the same
+freeze. The local output must be a new directory outside the source checkout and
+preserved baseline. The command creates the manifest, verified archive and final
+`packaging-receipt.json`; it does not build, deploy, start processes or generate
+launch recipes. A missing completion receipt means inspect the partial output,
+not overwrite/retry. Stage only the resulting verified manifest/archive below.
 
 `stage_app.py --manifest MANIFEST --manifest-sha256 SHA256 --archive ARCHIVE`
 verifies the complete payload and selected baseline before copying into the
