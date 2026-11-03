@@ -5,7 +5,7 @@
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
   "mode": "offline_release_ready",
-  "updated_utc": "2026-11-03T11:28:29.803621+00:00",
+  "updated_utc": "2026-11-03T11:30:48.694626+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
@@ -35,7 +35,7 @@
     "owners": {
       "completed": "Client-loss implementation/review, timing implementation/review, final regression and release preservation all terminal. Check actual agents/exits before retrying."
     },
-    "goal_status": "Sprint remains active/incomplete. Current meaningful offline backlog is closed; supervised acceptance and student work remain."
+    "goal_status": "Blocked after three consecutive goal-turn checks of the same remaining dependency. Offline release is ready; supervised robot acceptance/recordings and student submission material are unavailable in this offline-only session. Full objective retained, not complete. Resume on robot readiness or relevant new evidence."
   },
   "hardware_session": {
     "status": "R5 closed after user R3 and supported-on-stand confirmation. Immediate Stop cleared work; browser and native/API/recorders have stopped receipts. Driver log confirms hardware shutdown. No automatic restart; microphone battery died, filming deferred.",
