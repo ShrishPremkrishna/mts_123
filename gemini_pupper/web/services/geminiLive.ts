@@ -1093,17 +1093,24 @@ export class GeminiLiveService {
               } : undefined) : null;
           // The immutable clip is code-owned: its own current actual HTTP reply
           // is sufficient even when a multi-tool model turn cannot be narrated.
-          const cacheText = actualReceipt && currentFeedback() && this.outputPolicy === 'conversation'
-            && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) ? serverReceiptAudioText(fc.name, fc.args, result) : null;
+          const canUseReceiptAudio = actualReceipt && currentFeedback() && this.outputPolicy === 'conversation'
+            && supportsPuckReceiptConsumer(this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName);
+          const cacheText = canUseReceiptAudio ? serverReceiptAudioText(fc.name, fc.args, result) : null;
+          // Extensions use the same queue contract without a frontend tool-name
+          // entry. Known tools retain their stricter typed receipt requirements.
+          // The generic cue says only that this server accepted a job;
+          // it never speaks the extension's name, arguments or result prose.
+          const genericQueuedAcceptance = canUseReceiptAudio && toolLabel(fc.name) === 'robot'
+            && isModelAction(fc.name) && acceptedJobIdentity(result);
           // Keep an explicitly composed native receipt (the fourth-handshake joke)
           // intact instead of replacing it with the shorter generic cached cue.
           const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
             && receiptAuthorization !== cacheText;
-          const neutralAudio = cacheText && result?.success === true && fc.name !== 'stop'
+          const neutralAudio = (cacheText || genericQueuedAcceptance) && result?.success === true && fc.name !== 'stop'
             ? this.receiptAudioCache?.lookup('Okay.', this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
-          // cacheText is a closed helper result: for successful non-Stop calls it
-          // exists only for an allowlisted typed queued submission. "Okay" marks
-          // its first acceptance, never completion or acceptance of later steps.
+          // Existing cached phrases require their typed submission; generic
+          // extensions additionally require a valid server/job identity. "Okay"
+          // marks first acceptance, never completion or acceptance of later steps.
           const neutralQueued = !!neutralAudio && !!receiptTurn;
           const firstQueuedCue = neutralQueued && this.nativeReceiptOutput.claimQueuedCue(receiptTurn);
           const queuedCueUsed = this.nativeReceiptOutput.hasQueuedCue(receiptTurn);

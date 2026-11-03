@@ -10,7 +10,8 @@
   "environment": {
     "PUPPER_SESSION_SKILLS": "pee,push_up,sit_stay_shake,stand_downward_dog,stand_sit_stand",
     "PUPPER_FOLLOWER_MODE": "disabled",
-    "ROS_DOMAIN_ID": "168"
+    "ROS_DOMAIN_ID": "168",
+    "PUPPER_SESSION_MOTION_MODE": "walking"
   },
   "launcher": "foundation/hardware/lab6_session.launch.py",
   "motion_controllers": [
@@ -33,7 +34,7 @@
     "gemini_pupper/tricks/stand_downward_dog/trick.yaml": "ce880056f69741d6918e4ba4afd37a1224443204280fdd9d4a879d78e21677ba",
     "gemini_pupper/tricks/stand_sit_stand/policy.json": "195c77ea08fd1a864bdc700d3b9ab79eaf1e3e17c6260fca749d6204fc51c8cc",
     "gemini_pupper/tricks/stand_sit_stand/trick.yaml": "6edfc693c81355a0a63ba3ef4014c3d9d42afdf9122611d1b357a70349d14977",
-    "foundation/hardware/lab6_session.launch.py": "29d5bcd8f35be0564380a2936cd1e47e72800422e97dd08a885b237f843fcfa9",
+    "foundation/hardware/lab6_session.launch.py": "02c2efb0888db3edcbc25c1b1c88952fade496e1520b3c48f6bdb6f582308044",
     "foundation/hardware/lab6-session.yaml": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
     "foundation/hardware/floor_stock/baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
     "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
@@ -145,5 +146,6 @@
     "stand_sit_shake_sit_stand": "Replaced by interactive Sit."
   },
   "reuse": "Set exactly the same selector in launch/API. Keep reviewed native overlay, stock policy/limits/gains and existing launch paths. Generate a new runtime manifest for this roster; preserve previous session manifests. All selected motion controllers spawn inactive. One normal stand homing belongs to next supervised native session.",
-  "limits": "No new trained policy, filtering, caps or gain changes. Nominal simulations include transient driver clipping and do not prove physical safety/robustness. No extra controller is automatically promoted by appearing in the roster."
+  "limits": "No new trained policy, filtering, caps or gain changes. Nominal simulations include transient driver clipping and do not prove physical safety/robustness. No extra controller is automatically promoted by appearing in the roster.",
+  "launcher_update": "Selected-profile support now also handles explicit Lab5 follower and walking pairs. This existing five-skill roster remains unchanged with follower disabled. Updated source hash is offline evidence only; prior physical release remains separately pinned in current state."
 }

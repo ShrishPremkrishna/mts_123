@@ -4,6 +4,8 @@ tags: [cs123, foundation]
 ---
 # Foundation operation
 
+Current sprint operations: use [the maintained selected-session commands](../../foundation/HARDWARE_CHECKLIST.md) and [current state](../../foundation/results/interruption-recovery.json). The broader integration reference below includes alternative launch paths; do not mix them into a running selected session.
+
 This branch is the engineering implementation, separate from the student's Lab 6
 submission. Original creation credit remains with Peng Xu and the CS123 staff.
 

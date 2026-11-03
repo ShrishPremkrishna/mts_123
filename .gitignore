@@ -14,3 +14,6 @@ wandb/
 
 # Local atomic-import rollback copies; trained artifacts are versioned separately.
 gemini_pupper/tricks/.backups/
+
+# Stable alias of the existing tested API environment.
+.venv-api

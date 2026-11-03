@@ -67,6 +67,12 @@ def tool(tool_name: str, description: str, /, **params: Param):
     ``/`` lets a tool have a parameter called name, like play_trick.)"""
 
     def register(fn):
+        previous = TOOLS.get(tool_name)
+        if previous is not None:
+            raise ValueError(
+                f"duplicate tool name {tool_name!r}: already registered by "
+                f"{previous.run.__module__}.{previous.run.__qualname__}"
+            )
         TOOLS[tool_name] = Tool(tool_name, description, params, fn, fn.__module__)
         return fn
 

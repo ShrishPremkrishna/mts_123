@@ -25,8 +25,13 @@ the next physical session procedure. Do not maintain another parallel status log
   operate the robot unless root explicitly delegates that ownership.
 - Root alone normally owns SSH, credentials, hardware and live API access.
   No credentials in repository, logs, tool output or artifacts.
-- Use the tested Python path in current state; numerical tests may need the
-  separate numerical environment. Do not reinstall dependencies speculatively.
+- Use `.venv-api/bin/python` for API/course checks and `.venv/bin/python` for
+  numerical work. The API path aliases the existing tested environment;
+  `check_foundation.py` retains legacy discovery. Do not reinstall speculatively.
+- Use the maintained staging/persistent-session commands in
+  `foundation/HARDWARE_CHECKLIST.md`. Only explicit `start-native` initializes
+  motors; prepare/status/app staging do not. Keep source/model identity separate
+  from observed physical capability.
 - Provider connections and Claude credential-store checks need the approved
   network/OS-access execution path in this app. A sandbox ConnectError or logged-out
   status is not evidence of a provider outage or absent account; verify once with

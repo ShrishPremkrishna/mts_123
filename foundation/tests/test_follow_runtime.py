@@ -222,3 +222,66 @@ def test_service_rejects_duplicate_camera_stamps(service):
     assert obj.latest_image is first
     obj.on_image(SimpleNamespace())
     assert obj.latest_image is first
+
+
+def test_service_deactivate_replies_without_waiting_for_blocked_inference(service):
+    """Stop delivery must not wait for Hailo cleanup; stale work stays fenced."""
+    obj = service_object(service)
+    obj.always_detect = False
+    obj.state = fm.State.TRACK
+    obj.lock = target_lock.Lock()
+    obj.sent = []
+    obj.command_publisher = SimpleNamespace(publish=obj.sent.append)
+    obj.get_logger = lambda: SimpleNamespace(info=lambda _: None, warning=lambda _: None,
+                                            error=lambda _: None)
+    obj.get_parameter = lambda _: SimpleNamespace(value=10.)
+    obj.image_sub = object()
+    obj.destroy_subscription = lambda _: None
+    obj.latest_image = (SimpleNamespace(data=b'123'), time.monotonic())
+    obj.image_ready.set()
+    entered, release, closed, replied = (threading.Event() for _ in range(4))
+    eyes = []
+    obj.send_eyes = eyes.append
+    obj.detection_callback = lambda _: pytest.fail('result after deactivation must be discarded')
+
+    class Detector:
+        def infer(self, frame):
+            entered.set()
+            if not release.wait(4):
+                raise RuntimeError('test failed to release inference')
+            return []
+
+        def close(self):
+            closed.set()
+
+    obj.detector = Detector()
+    obj.pipeline = threading.Thread(target=obj.run_pipeline, args=(obj.detector,), daemon=True)
+    response = SimpleNamespace(success=None, message=None)
+
+    def deactivate():
+        obj.on_deactivate(None, response)
+        replied.set()
+
+    request = threading.Thread(target=deactivate, daemon=True)
+    obj.pipeline.start()
+    try:
+        assert entered.wait(1)
+        request.start()
+        assert replied.wait(.5), 'service reply waited on the still-running inference worker'
+        assert response.success and response.message == 'stopped following'
+        assert not obj.tracking_enabled and obj.state == fm.State.IDLE
+        assert obj.tracking_generation == 2
+        assert len(obj.sent) == 1
+        assert obj.sent[0].linear.x == obj.sent[0].angular.z == 0
+        assert not obj.running and obj.image_sub is None
+        assert not closed.is_set(), 'only the inference worker may close its detector'
+        assert 'still stopping' in obj.start_pipeline()
+    finally:
+        release.set()
+        obj.pipeline.join(2)
+        if request.ident is not None:
+            request.join(2)
+    assert not obj.pipeline.is_alive() and not request.is_alive()
+    assert closed.is_set() and obj.detector is None
+    assert eyes == [[]]  # the worker clears old person locations when it exits
+    assert len(obj.sent) == 1  # late inference did not resume commands

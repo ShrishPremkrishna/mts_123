@@ -9,6 +9,73 @@ active owners and the next unresolved failure. This file owns the reusable
 procedure. [Capability evidence](README.md) owns what the robot has actually
 shown. Do not restart historical processes or repeat old timed floor choreography.
 
+## Maintained deployment commands
+
+Use `hardware/stage_app.py` for a reviewed application overlay and
+`hardware/persistent_session.py` for the selected persistent profile. They replace
+copying the dated session scripts into another run. The generic Gemini `start.sh`
+and gait `deploy.sh` are different paths: both can initialize hardware, and
+`deploy.sh --no-launch` still installs/rebuilds. Do not use them as staging checks.
+
+`stage_app.py --manifest MANIFEST --manifest-sha256 SHA256 --archive ARCHIVE`
+verifies the complete payload and selected baseline before copying into the
+manifest's **new** destination. It never installs, builds, starts processes or
+calls the robot API. The old release remains the rollback. The allowed overlay
+contains Gemini, the named persistent helpers/launch, and Lab 5 follower code and
+perception assets, plus the byte-identical pinned baseline URDF; native libraries, policy weights and baseline gains/config
+cannot be replaced by this command. Keep the resulting `app-stage-manifest.json`,
+`APP-SELECTED-SHA256SUMS` and `app-stage-receipt.json` with that release.
+
+Source the already selected ROS environment; use the existing API Python. Set
+`ROS_DOMAIN_ID=168`, explicit `PUPPER_SESSION_SKILLS` (empty selects baseline),
+`PUPPER_SESSION_MOTION_MODE=walking` and `PUPPER_FOLLOWER_MODE=disabled` or `lab5`.
+Lab 5 requires `FOLLOW_ME_DIR` pointing to the selected follower checkout or its
+`robot` directory, including the sibling `lab` modules, calibration and HEF.
+`class_run` is an explicit alternate motion mode; it is not selected by default.
+Do not substitute the current checkout's native build for the selected binaries:
+current source can contain driver changes that were never deployed.
+
+Prepare a new run without launching anything:
+
+```sh
+"$SESSION_PYTHON" "$APP_RELEASE/foundation/hardware/persistent_session.py" prepare \
+  --run-dir "$RUN_DIR" \
+  --app-manifest "$APP_RELEASE/app-stage-manifest.json" \
+  --app-manifest-sha256 "$STAGE_MANIFEST_SHA256" \
+  --native-library "$NATIVE_LIBRARY" --native-sha256 "$NATIVE_SHA256" \
+  --imu-library "$IMU_LIBRARY" --imu-sha256 "$IMU_SHA256" \
+  --telemetry-topics "$TOPICS_JSON"
+"$SESSION_PYTHON" "$APP_RELEASE/foundation/hardware/persistent_session.py" status --run-dir "$RUN_DIR"
+```
+
+The variables above are explicit selected paths/hashes, not defaults to guess.
+`TOPICS_JSON` is a JSON array of absolute ROS topics including `/joint_states` and
+`/llm_cmd_vel`; include selected controllers' `/clip` and status topics. Preparation
+uses the existing profile generator, pins its complete assets/configuration and
+records app rollback, exact native/IMU identities and the Python executable path/virtualenv prefix. It requires the config/URDF beside the selected launch and a new run
+folder and leaves failed preparation evidence for inspection.
+
+With the operator ready on the stand, the separate `start-native --run-dir RUN`
+command starts one owned camera, one MCAP recorder and the selected launch. It
+waits up to 90 seconds for fresh homing completion, captures manager ownership,
+and checks that the selected libraries are mapped. A successful return is not
+permission to release motion. Failure preserves the receipt; there is no retry.
+The helper uses the exercised camera settings; an optional existing MJPEG/external
+camera recorder remains separately owned and must also be closed by its owner.
+
+`start-api --run-dir RUN` starts only the API after native readiness and checks
+that its own listener serves healthy ROBOT mode. `stop-api --run-dir RUN` requests
+API Stop and waits for the owned API to exit; it leaves the homed native session
+intact. An explicit subsequent `start-api` restarts the **same pinned release**.
+Staging another release does not alter a live profile; changing pinned code/assets
+requires deliberate new profile preparation, not editing the old run in place.
+
+`shutdown --run-dir RUN` closes owned ingress, uses the existing coordinator to
+stop the manager before launch cleanup, then closes owned camera/recorder children.
+It never name-kills unrelated processes or uses SIGKILL. Inspect recording closure
+and driver logs separately: verified process exit is not verified physical motor
+release. App Stop, API process exit and full native shutdown remain distinct.
+
 ## Prepare without consuming supervision time
 
 - Freeze the selected source, models, configurations and scenario list. Finish

@@ -25,7 +25,7 @@ class Item:
 def profile(monkeypatch, tmp_path):
     for name, symbols in {
         "launch": ["LaunchDescription"],
-        "launch.actions": ["EmitEvent", "RegisterEventHandler"],
+        "launch.actions": ["EmitEvent", "ExecuteProcess", "RegisterEventHandler"],
         "launch.event_handlers": ["OnProcessExit"],
         "launch.events": ["Shutdown"],
         "launch_ros.actions": ["Node"],
@@ -42,6 +42,8 @@ def profile(monkeypatch, tmp_path):
     package_module.get_package_share_directory = lambda name: str(share)
     monkeypatch.setitem(sys.modules, "ament_index_python.packages", package_module)
     monkeypatch.setenv("ROS_DOMAIN_ID", "168")
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "disabled")
+    monkeypatch.delenv("PUPPER_SESSION_MOTION_MODE", raising=False)
     monkeypatch.setenv("PUPPER_GEMINI_DIR", str(ROOT / "gemini_pupper"))
     monkeypatch.setenv("PUPPER_GAIT_DEPLOY_DIR", str(ROOT / "pupper_gait_deploy"))
     monkeypatch.setenv("PUPPER_SESSION_MANIFEST", str(tmp_path / "runtime_manifest.json"))
@@ -245,3 +247,123 @@ def test_selected_supplied_trick_returns_before_a_following_walk(monkeypatch, na
             rig.close()
             await asyncio.sleep(0)
     asyncio.run(case())
+
+
+def test_selected_walking_pair_loads_and_stops_both_controllers(profile, monkeypatch):
+    # Routing fixture only; independent walking-handoff tests reject incompatible
+    # real model pairs. This does not qualify these two unrelated fixture assets.
+    import tricks
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "sit_stay_shake")
+    paired = deepcopy(load_tricks()["sit_stay_shake"])
+    paired.name = "pair_fixture"
+    paired.walk_path = ROOT / "pupper_gait_deploy/policies/default_policy.json"
+    monkeypatch.setattr(tricks, "load_tricks", lambda: {paired.name: paired})
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", paired.name)
+    profile.generate_launch_description()
+    manifest = runtime_config.validate_session_catalog(tricks.load_tricks())
+    assert manifest["motion_controllers"] == ["neural_controller_default", "gemini_walk", paired.controller, paired.walk_controller]
+    config = yaml.safe_load(Path(manifest["configuration"]).read_text())
+    assert config[paired.walk_controller]["ros__parameters"]["model_path"] == str(paired.walk_path)
+    stop = config["estop_controller"]["ros__parameters"]["controller_names"]
+    assert paired.controller in stop and paired.walk_controller in stop
+    manifest["motion_controllers"].remove(paired.walk_controller)
+    runtime_config.session_manifest_path().write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="controller set"):
+        runtime_config.validate_session_catalog(tricks.load_tricks())
+
+
+def test_follower_selection_binds_sources_and_adds_one_owned_service(profile, monkeypatch, tmp_path):
+    service = tmp_path / "follow/robot"
+    service.mkdir(parents=True)
+    for name in ("follow_service.py", "fisheye_converter.py", "perception_safety.py", "yolo_seg.py",
+                 "coco.txt", "yolov8n_seg.hef", "camera_params.yaml"):
+        (service / name).write_text("fixture")
+    (service.parent / "lab").mkdir()
+    for name in ("follow_me.py", "boxes.py", "target_lock.py", "avoidance.py"):
+        (service.parent / "lab" / name).write_text("fixture")
+    monkeypatch.setenv("FOLLOW_ME_DIR", str(service.parent))
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "lab5")
+    description = profile.generate_launch_description()
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    assert manifest["follower"]["mode"] == "lab5"
+    entities = description.args[0]
+    followers = [e for e in entities if type(e).__name__ == "ExecuteProcess"]
+    assert len(followers) == 1
+    assert followers[0].kwargs["cwd"] == str(service)
+    assert "always_detect:=false" in followers[0].kwargs["cmd"]
+    guards = [e for e in entities if type(e).__name__ == "RegisterEventHandler"]
+    assert any(e.args[0].kwargs["target_action"] is followers[0] for e in guards)
+    assert not any(e.kwargs.get("package") == "camera_ros" for e in entities)
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "disabled")
+    with pytest.raises(ValueError, match="follower selection"):
+        runtime_config.validate_session_catalog(load_tricks())
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "lab5")
+    (service / "follow_service.py").write_text("changed")
+    with pytest.raises(ValueError, match="input changed"):
+        runtime_config.validate_session_catalog(load_tricks())
+
+
+def test_missing_detector_rejected_before_profile_or_nodes(profile, monkeypatch, tmp_path):
+    monkeypatch.setenv("FOLLOW_ME_DIR", str(tmp_path / "missing"))
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "lab5")
+    with pytest.raises(ValueError, match="follower unavailable"):
+        profile.generate_launch_description()
+    assert not runtime_config.session_manifest_path().exists()
+
+
+def test_legacy_manifest_cannot_enable_previously_disabled_follower(profile, monkeypatch):
+    profile.generate_launch_description()
+    path = runtime_config.session_manifest_path()
+    manifest = json.loads(path.read_text())
+    del manifest["follower"]
+    path.write_text(json.dumps(manifest))
+    assert runtime_config.validate_session_catalog(load_tricks())
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "lab5")
+    with pytest.raises(ValueError, match="no follower identity"):
+        runtime_config.validate_session_catalog(load_tricks())
+
+
+@pytest.mark.parametrize("missing", ["coco.txt", "../lab/target_lock.py"])
+def test_required_follower_dependencies_cannot_be_omitted(profile, monkeypatch, tmp_path, missing):
+    service = tmp_path / "follow/robot"
+    service.mkdir(parents=True)
+    (service.parent / "lab").mkdir()
+    for name in ("follow_service.py", "fisheye_converter.py", "perception_safety.py", "yolo_seg.py",
+                 "coco.txt", "camera_params.yaml", "yolov8n_seg.hef", "../lab/follow_me.py",
+                 "../lab/boxes.py", "../lab/target_lock.py", "../lab/avoidance.py"):
+        (service / name).write_text("fixture")
+    (service / missing).unlink()
+    monkeypatch.setenv("FOLLOW_ME_DIR", str(service.parent))
+    monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "lab5")
+    with pytest.raises(ValueError, match="dependencies missing"):
+        profile.generate_launch_description()
+    assert not runtime_config.session_manifest_path().exists()
+
+
+def test_class_run_is_explicit_and_only_uses_existing_course_api_settings(profile, monkeypatch):
+    from tricks import walk_controller_params
+    baseline = yaml.safe_load((profile.ROOT / "lab6-session.yaml").read_text())
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "class_run")
+    profile.generate_launch_description()
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    config = yaml.safe_load(Path(manifest["configuration"]).read_text())
+    expected = walk_controller_params(baseline["neural_controller_default"]["ros__parameters"])
+    actual = config["gemini_walk"]["ros__parameters"]
+    expected["model_path"] = actual["model_path"]
+    assert actual == expected
+    old = deepcopy(baseline["neural_controller_default"])
+    current = deepcopy(config["neural_controller_default"])
+    old["ros__parameters"].pop("model_path"); current["ros__parameters"].pop("model_path")
+    assert old == current  # joystick/default policy is not widened
+    assert runtime_config.session_motion_bounds(manifest) == pytest.approx({
+        "forward": 1.5, "backward": 1.5, "sideways": .5, "yaw_deg_s": 114.59155902616465})
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "walking")
+    with pytest.raises(ValueError, match="motion mode"):
+        runtime_config.validate_session_catalog(load_tricks())
+
+
+def test_persistent_follower_choice_is_explicit(profile, monkeypatch):
+    monkeypatch.delenv("PUPPER_FOLLOWER_MODE")
+    with pytest.raises(ValueError, match="PUPPER_FOLLOWER_MODE explicitly"):
+        profile.generate_launch_description()
+    assert not runtime_config.session_manifest_path().exists()

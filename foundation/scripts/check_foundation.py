@@ -21,7 +21,8 @@ import sys
 import tempfile
 import time
 
-API_ENV = 'artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python'
+API_ENV = '.venv-api/bin/python'
+LEGACY_API_ENV = 'artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python'
 REQUIRED = {
     'api': ('pytest', 'numpy', 'yaml', 'fastapi', 'httpx', 'google.genai'),
     'numerical': ('pytest', 'numpy', 'yaml', 'scipy', 'torch', 'mujoco', 'warp', 'mjlab'),
@@ -148,7 +149,7 @@ def interpreter_candidates(root, kind, explicit):
     if explicit:
         located = shutil.which(str(explicit)) if os.sep not in str(explicit) else str(explicit)
         return [Path(located or explicit).expanduser().absolute()]
-    known = [root / API_ENV, root / '.venv/bin/python'] if kind == 'api' else [root / '.venv/bin/python']
+    known = [root / API_ENV, root / LEGACY_API_ENV, root / '.venv/bin/python'] if kind == 'api' else [root / '.venv/bin/python']
     # Never resolve interpreter symlinks: doing so can silently leave its venv.
     return list(dict.fromkeys([p.absolute() for p in known] + [Path(sys.executable).absolute()]))
 

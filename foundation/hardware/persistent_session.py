@@ -1,0 +1,360 @@
+#!/usr/bin/env python3
+"""Explicit selected Lab 6 operations. Only start-native can initialize/home hardware.
+
+Reuses the Gemini ownership receipt and manager-first shutdown implementation;
+no supervisor, automatic restart, shell environment installation or watchdog.
+"""
+from contextlib import contextmanager
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import subprocess
+import sys
+import time
+import urllib.request
+import uuid
+
+from stage_app import sha, verify_selected
+
+ENV_KEYS = ('PATH', 'PYTHONPATH', 'AMENT_PREFIX_PATH', 'CMAKE_PREFIX_PATH',
+            'LD_LIBRARY_PATH', 'ROS_DISTRO', 'ROS_DOMAIN_ID', 'ROS_LOCALHOST_ONLY', 'RMW_IMPLEMENTATION',
+            'PUPPER_MONOREPO_DIR', 'PUPPER_GAIT_DEPLOY_DIR', 'FOLLOW_ME_DIR',
+            'PUPPER_FOLLOWER_MODE', 'PUPPER_SESSION_MOTION_MODE', 'FOLLOW_USE_COLOR', 'FOLLOW_AVOID_OBSTACLES', 'FOLLOW_ALWAYS_DETECT')
+
+
+def module(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    loaded = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(loaded)
+    return loaded
+
+
+def write(path, value):
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    with temporary.open('x') as stream:
+        json.dump(value, stream, indent=2, allow_nan=False)
+        stream.write('\n'); stream.flush(); os.fsync(stream.fileno())
+    os.replace(temporary, path)
+
+
+def pinned(path, digest=None):
+    path = path.resolve(strict=True)
+    actual = sha(path)
+    if digest is not None and (not re.fullmatch('[0-9a-f]{64}', digest) or digest != actual):
+        raise ValueError('Component identity mismatch: ' + str(path))
+    return {'path': str(path), 'sha256': actual}
+
+
+def interpreter_identity():
+    # Resolving the executable alone discards which virtualenv supplies imports.
+    return {'executable': os.path.abspath(sys.executable), 'prefix': os.path.abspath(sys.prefix)}
+
+
+def check_interpreter(plan):
+    if interpreter_identity() != plan['interpreter']:
+        raise ValueError('Use the same selected Python executable path and virtualenv prefix used to prepare')
+
+
+def prepare(args):
+    # This operation imports profile generation only; no ROS process is launched.
+    manifest = pinned(args.app_manifest, args.app_manifest_sha256)
+    app = json.loads(args.app_manifest.read_text())
+    root = Path(app['destination_remote_path']).resolve(strict=True)
+    verify_selected(root, app['final_selected_files'])
+    if 'PUPPER_SESSION_SKILLS' not in os.environ:
+        raise ValueError('Set explicit PUPPER_SESSION_SKILLS (empty means baseline)')
+    if os.environ.get('ROS_DOMAIN_ID') != '168':
+        raise ValueError('Source the selected ROS environment with ROS_DOMAIN_ID=168 before preparation')
+    if not 1 <= args.port <= 65535:
+        raise ValueError('Invalid API port')
+    launch_root = args.launch.resolve().parent
+    if (args.config.resolve() != (launch_root / 'lab6-session.yaml').resolve() or
+            args.urdf.resolve() != (launch_root / 'floor_stock/baseline-expanded.urdf').resolve()):
+        raise ValueError('Preparation config/URDF must match the selected launch sibling inputs')
+    components = {'native': pinned(args.native_library, args.native_sha256),
+                  'imu': pinned(args.imu_library, args.imu_sha256),
+                  'launch': pinned(args.launch), 'config': pinned(args.config),
+                  'urdf': pinned(args.urdf), 'app_manifest': manifest,
+                  'python': pinned(Path(sys.executable)),
+                  'helper': pinned(Path(__file__)),
+                  'lifecycle': pinned(root / 'gemini_pupper/robot/session_processes.py'),
+                  'telemetry_topics': pinned(args.telemetry_topics)}
+    topics = json.loads(args.telemetry_topics.read_text())
+    if (not isinstance(topics, list) or not topics or len(set(topics)) != len(topics) or
+            any(not isinstance(topic, str) or not re.fullmatch(r'/[A-Za-z0-9_/]+', topic) for topic in topics) or
+            not {'/joint_states', '/llm_cmd_vel'} <= set(topics)):
+        raise ValueError('Telemetry JSON must list distinct absolute topics including joint_states and llm_cmd_vel')
+    run = args.run_dir.resolve()
+    run.mkdir(mode=0o700, parents=True, exist_ok=False)
+    tag = uuid.uuid4().hex
+    env = {k: os.environ[k] for k in ENV_KEYS if k in os.environ}
+    env.setdefault('PUPPER_FOLLOWER_MODE', 'disabled')
+    env.setdefault('PUPPER_SESSION_MOTION_MODE', 'walking')
+    env.update(PUPPER_GEMINI_DIR=str(root / 'gemini_pupper'),
+               PUPPER_STAGED_GEMINI_DIR=str(root / 'gemini_pupper'),
+               PUPPER_SESSION_SKILLS=os.environ['PUPPER_SESSION_SKILLS'],
+               PUPPER_SESSION_MANIFEST=str(run / 'runtime-manifest.json'),
+               PUPPER_PROBE_SESSION_ID=tag, ROS_LOG_DIR=str(run / 'roslogs'),
+               HOST='127.0.0.1', PORT=str(args.port))
+    # Keep trace output scoped to this run only when the selected driver supports it.
+    if os.environ.get('PUPPER_IMU_STARTUP_TRACE'):
+        env['PUPPER_IMU_STARTUP_TRACE'] = str(run / 'native-startup-trace.csv')
+    os.environ.update(env)
+    plan = {'schema': 'pupper_selected_session_v1', 'session_id': tag,
+            'run_dir': str(run), 'app_root': str(root), 'environment': env,
+            'components': components, 'interpreter': interpreter_identity(), 'prepared': False,
+            'rollback_app': app['baseline_remote_path'], 'motor_launch': False}
+    write(run / 'selected-session.json', plan)  # Retain partial preparation evidence.
+    profile = module(args.launch.resolve(), 'selected_lab6_profile')
+    config, controllers = profile.prepare_session_profile(args.config.resolve(), args.urdf.resolve())
+    plan.update(prepared=True, runtime_manifest=pinned(run / 'runtime-manifest.json'),
+                generated_config=pinned(Path(config)), controllers=controllers)
+    write(run / 'selected-session.json', plan)
+    return {'prepared': True, 'motor_launch': False, 'run_dir': str(run),
+            'components': components, 'rollback_app': plan['rollback_app']}
+
+
+def load(run, verify=True):
+    plan = json.loads((run / 'selected-session.json').read_text())
+    if (plan.get('schema') != 'pupper_selected_session_v1' or not plan.get('prepared') or
+            plan['run_dir'] != str(run.resolve())):
+        raise ValueError('Incomplete or foreign session preparation')
+    # Stop remains available when an unrelated staged asset has changed. The
+    # selected process-identity implementation itself must still be authentic.
+    pinned(Path(plan['components']['lifecycle']['path']), plan['components']['lifecycle']['sha256'])
+    if verify:
+        for item in [*plan['components'].values(), plan['runtime_manifest'], plan['generated_config']]:
+            pinned(Path(item['path']), item['sha256'])
+        check_interpreter(plan)
+        app = json.loads(Path(plan['components']['app_manifest']['path']).read_text())
+        verify_selected(Path(plan['app_root']), app['final_selected_files'])
+        runtime = json.loads(Path(plan['runtime_manifest']['path']).read_text())
+        if not isinstance(runtime.get('assets'), dict) or not runtime['assets']:
+            raise ValueError('Prepared runtime manifest has no pinned assets')
+        for path, digest in runtime['assets'].items():
+            pinned(Path(path), digest)
+    for name in (*ENV_KEYS, 'PUPPER_IMU_STARTUP_TRACE'):
+        os.environ.pop(name, None)
+    os.environ.update(plan['environment'])
+    life = module(Path(plan['components']['lifecycle']['path']), 'selected_lifecycle')
+    return plan, life
+
+
+@contextmanager
+def lock(life, run):
+    with life.coordinator().execution_lock(run, {'manager_exit_allowance_s': 10., 'launch_exit_allowance_s': 3.}):
+        yield
+
+
+def port_free(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+        connection.bind(('127.0.0.1', port))
+
+
+def owned_api(life, receipt, port):
+    target = receipt['processes'].get('server')
+    if target is None or life.state(target, receipt['session_id']) != 'running':
+        raise ValueError('Recorded API is not running')
+    result = subprocess.run(['ss', '-H', '-ltnp', 'sport = :' + str(port)],
+                            capture_output=True, text=True, timeout=3, check=True)
+    lines = result.stdout.strip().splitlines()
+    if not lines or any(set(re.findall(r'pid=(\d+)', line)) != {str(target['pid'])} for line in lines):
+        raise ValueError('API port is not owned by the recorded server')
+
+
+def http(port, path, post=False):
+    request = urllib.request.Request('http://127.0.0.1:' + str(port) + path,
+                                     data=b'{}' if post else None,
+                                     headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(request, timeout=2) as response:
+        return json.load(response)
+
+
+def check_loaded(plan, manager):
+    paths = {line.split(None, 5)[5] for line in
+             (Path('/proc') / str(manager['pid']) / 'maps').read_text().splitlines()
+             if len(line.split(None, 5)) == 6}
+    for name in ('native', 'imu'):
+        if plan['components'][name]['path'] not in paths:
+            raise ValueError('Selected ' + name + ' library is not mapped by owned manager')
+
+
+def receipt_for(life, run, plan):
+    receipt = life.load(run)
+    if receipt['session_id'] != plan['session_id']:
+        raise ValueError('Session receipt does not match prepared profile')
+    return receipt
+
+
+def start_native(run, plan, life):
+    with lock(life, run):
+        life.check_support(run)
+        if (run / 'owned_session.json').exists():
+            raise ValueError('Session already started; inspect receipt, never retry initialization automatically')
+        if any((run / name).exists() for name in ('robot.log', 'camera.log', 'recorder.log', 'telemetry')):
+            raise ValueError('Startup output already exists; refuse stale readiness/reused recording')
+        port_free(int(plan['environment']['PORT']))  # Before any potential homing.
+        for proc in life.PROC.iterdir():
+            if proc.name.isdigit():
+                try:
+                    if (proc / 'exe').resolve(strict=True).name in ('ros2_control_node', 'camera_node'):
+                        raise ValueError('Existing controller/camera owner; do not launch another')
+                except (FileNotFoundError, ProcessLookupError): pass
+        receipt = dict(schema=life.SCHEMA, uid=os.getuid(), root=str(life.HERE),
+                       boot_id=life.boot_id(), session_id=plan['session_id'], status='starting',
+                       ros='created', kiosk=False, gui_stopped=False, processes={}, pending={}, events=[])
+        life.save(run, receipt)
+        launch = plan['components']['launch']['path']
+        # The selected follower subscribes this existing camera; no second camera
+        # or velocity mux is created by the helper.
+        camera = ['ros2', 'run', 'camera_ros', 'camera_node', '--ros-args', '-r', '__node:=camera',
+                  '-p', 'format:=RGB888', '-p', 'width:=1400', '-p', 'height:=1050',
+                  '-p', 'AwbEnable:=false', '-p', 'ColourGains:=[1.4,3.3]',
+                  '-p', 'FrameDurationLimits:=[100000,100000]']
+        topics = json.loads(Path(plan['components']['telemetry_topics']['path']).read_text())
+        life.spawn(run, 'camera', 'camera_node', camera)
+        life.spawn(run, 'recorder', 'bag', ['ros2', 'bag', 'record', '-s', 'mcap',
+                                          '-o', str(run / 'telemetry'), *topics])
+        life.spawn(run, 'launch', launch, ['ros2', 'launch', launch])
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        with lock(life, run):
+            receipt = receipt_for(life, run, plan); life.require_starting(receipt)
+            life.refresh(run, receipt)
+            target = receipt['processes']['launch']
+            if life.state(target, receipt['session_id']) != 'running':
+                raise ValueError('Launch exited before homing completed; receipt retained')
+            log = (run / 'robot.log').read_text(errors='replace')
+            if 'IMU startup check failed:' in log or 'process has died' in log:
+                raise ValueError('Native startup failed; inspect robot.log and owned receipt')
+            if 'Finished homing!' in log and 'manager' in receipt['processes']:
+                check_loaded(plan, receipt['processes']['manager'])
+                life.operate(run, 'ready', [], plan['session_id'])
+                result = {'session_id': plan['session_id'], 'homing_finished': True,
+                          'selected_libraries_mapped': True, 'physical_release_verified': False}
+                write(run / 'native-readiness.json', result)
+                return result
+        time.sleep(.25)
+    raise ValueError('Homing not observed within90s; receipt retained, no automatic retry or cleanup')
+
+
+def start_api(run, plan, life):
+    port = int(plan['environment']['PORT'])
+    with lock(life, run):
+        receipt = receipt_for(life, run, plan)
+        readiness = json.loads((run / 'native-readiness.json').read_text())
+        if (receipt['status'] != 'running' or readiness['session_id'] != plan['session_id'] or
+                not readiness['homing_finished'] or life.state(receipt['processes']['manager'], plan['session_id']) != 'running'):
+            raise ValueError('Prepared native session is not ready/running')
+        if 'server' in receipt['processes'] or 'server' in receipt['pending']:
+            raise ValueError('API receipt exists; use stop-api before an explicit restart')
+        check_loaded(plan, receipt['processes']['manager'])
+        port_free(port)
+        receipt['status'] = 'starting'; life.save(run, receipt)
+        server = str(Path(plan['app_root']) / 'gemini_pupper/robot/server.py')
+        life.spawn(run, 'server', server, [sys.executable, '-u', server])
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        with lock(life, run):
+            receipt = receipt_for(life, run, plan); life.require_starting(receipt)
+            if life.state(receipt['processes']['server'], plan['session_id']) != 'running':
+                raise ValueError('API exited before readiness; receipt retained')
+            try:
+                owned_api(life, receipt, port)
+                health = http(port, '/health')
+            except (OSError, ValueError, subprocess.SubprocessError):
+                health = None
+            if (isinstance(health, dict) and health.get('status') == 'running' and
+                    health.get('tools') is True and health.get('runtime') == 'robot'):
+                life.operate(run, 'ready', [], plan['session_id'])
+                return {'api_ready': True, 'port': port, 'health': health, 'motor_launch': False}
+        time.sleep(.1)
+    raise ValueError('API readiness timed out; receipt retained, no automatic restart')
+
+
+def stop_api(run, plan, life):
+    with lock(life, run):
+        receipt = receipt_for(life, run, plan)
+        if receipt['status'] not in ('running', 'starting'):
+            raise ValueError('Session is stopping/stopped; API restart not permitted')
+        target = receipt['processes'].get('server')
+        if target is None:
+            raise ValueError('No confirmed API identity; inspect pending receipt')
+        error = None
+        if life.state(target, plan['session_id']) == 'running':
+            try:
+                owned_api(life, receipt, int(plan['environment']['PORT']))
+                result = http(int(plan['environment']['PORT']), '/stop/immediate', post=True)
+                if result.get('success') is not True:
+                    raise ValueError('API Stop was not acknowledged as successful')
+            except (OSError, ValueError, subprocess.SubprocessError) as caught:
+                error = str(caught)  # Still terminate the verified ingress process.
+            life.terminate(run, receipt, 'server', target)
+            deadline = time.monotonic() + 5
+            while life.state(target, plan['session_id']) == 'running' and time.monotonic() < deadline:
+                time.sleep(.05)
+        if life.state(target, plan['session_id']) == 'running':
+            raise ValueError('API exit unconfirmed; native session unchanged, receipt retained')
+        receipt.setdefault('retired_servers', []).append({'target': target, 'stop_request_error': error,
+            'events': [event for event in receipt['events'] if event['event'] == 'term_server']})
+        del receipt['processes']['server']
+        receipt['events'] = [event for event in receipt['events'] if event['event'] != 'term_server']
+        receipt['status'] = 'running'; life.save(run, receipt)
+        result = {'api_exited': True, 'native_session_retained': True,
+                  'stop_request_error': error, 'physical_stopping_proven': False}
+        write(run / 'api-stop.json', result)
+        if error: raise ValueError('API exited but Stop acknowledgment unavailable: ' + error)
+        return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['prepare', 'start-native', 'start-api', 'stop-api', 'shutdown', 'status'])
+    parser.add_argument('--run-dir', type=Path, required=True)
+    parser.add_argument('--app-manifest', type=Path)
+    parser.add_argument('--app-manifest-sha256')
+    for name in ('native', 'imu'):
+        parser.add_argument('--' + name + '-library', type=Path)
+        parser.add_argument('--' + name + '-sha256')
+    here = Path(__file__).resolve().parent
+    parser.add_argument('--launch', type=Path, default=here / 'lab6_session.launch.py')
+    parser.add_argument('--config', type=Path, default=here / 'lab6-session.yaml')
+    parser.add_argument('--urdf', type=Path, default=here / 'floor_stock/baseline-expanded.urdf')
+    parser.add_argument('--telemetry-topics', type=Path)
+    parser.add_argument('--port', type=int, default=18090)
+    args = parser.parse_args(); os.umask(0o077)
+    if args.action == 'prepare':
+        if any(getattr(args, key) is None for key in ('app_manifest', 'app_manifest_sha256', 'native_library', 'native_sha256', 'imu_library', 'imu_sha256', 'telemetry_topics')):
+            parser.error('prepare requires pinned app manifest, both native/IMU libraries and telemetry topics JSON')
+        result = prepare(args)
+    else:
+        run = args.run_dir.resolve(); plan, life = load(run, verify=args.action in ('start-native', 'start-api', 'status'))
+        if args.action == 'start-native': result = start_native(run, plan, life)
+        elif args.action == 'start-api': result = start_api(run, plan, life)
+        elif args.action == 'stop-api': result = stop_api(run, plan, life)
+        elif args.action == 'shutdown':
+            with lock(life, run):
+                receipt_for(life, run, plan)
+                life.cleanup(run)
+            result = {'owned_processes_exited': True, 'physical_motor_release_verified': False}
+        elif not (run / 'owned_session.json').exists():
+            result = {'status': 'prepared', 'motor_launch': False, 'components': plan['components'],
+                      'rollback_app': plan['rollback_app']}
+        else:
+            receipt = receipt_for(life, run, plan)
+            result = {'components': plan['components'], 'rollback_app': plan['rollback_app'],
+                      'status': receipt['status'], 'processes': {name: life.state(target, plan['session_id'])
+                      for name, target in receipt['processes'].items()}}
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == '__main__':
+    try: main()
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        print('Session refused: ' + str(error) + '. Inspect retained evidence; no automatic retry.', file=sys.stderr)
+        raise SystemExit(1)

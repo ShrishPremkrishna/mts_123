@@ -4,7 +4,7 @@ tags: [cs123, pupper, project]
 ---
 # Pupper: current scope and proposed sprint
 
-Updated November 2, 2026 from Shrish's explicit reset. This replaces the October 30 three-workstream plan. Earlier scope remains in Git history, not an active backlog. Current request is to finalize the action checklist. Soccer implementation is deferred until the general agentic harness is dependable and extensible. Next implementation starts with environment cleanup, not soccer-specific work.
+Updated November 2, 2026 from Shrish's explicit reset. This replaces the October 30 three-workstream plan. Earlier scope remains in Git history, not an active backlog. The action checklist is approved and implementation is active. Soccer implementation is deferred until the general agentic harness is dependable and extensible. Implementation starts with environment cleanup and the general harness.
 
 ## Current goal and ownership
 
@@ -72,6 +72,6 @@ Normal run record: intended test, selected release, result, useful timing and ne
 
 Use subagents or Claude for independent code/review tasks with clear ownership. Integrate one result and retire the subtask. A fresh session should start from this small record rather than replaying the conversation.
 
-## First decision after this review
+## Current execution
 
-Start with project access/deployment when implementation resumes. Soccer choices wait until harness acceptance. Obtain the teammates' actual follower/Spider/motion assets as needed; do not assume their current progress from the old workstream assignments. Current code/release/evidence are in the recovery record.
+Project access/deployment and focused harness/Lab 6 work are underway. Soccer choices wait until harness acceptance. Obtain the teammates' actual follower/Spider/motion assets as needed; do not assume their current progress from the old workstream assignments. Current code/release/evidence are in the recovery record.

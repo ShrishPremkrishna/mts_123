@@ -7,7 +7,7 @@ import json
 import math
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import yaml
@@ -63,6 +63,29 @@ def follower_config() -> FollowerConfig:
     elif flags["use_color"] or flags["avoid_obstacles"]:
         raise ValueError("FOLLOW_USE_COLOR and FOLLOW_AVOID_OBSTACLES require PUPPER_FOLLOWER_MODE=lab5")
     return FollowerConfig(mode, service, **flags)
+
+
+def follower_identity(config: FollowerConfig) -> dict:
+    """Plain comparable selection; no detector startup or hardware access."""
+    return {key: str(value) if isinstance(value, Path) else value
+            for key, value in asdict(config).items()}
+
+
+def session_motion_mode() -> str:
+    """The default keeps the observed low-speed profile; class_run is opt-in."""
+    mode = os.environ.get("PUPPER_SESSION_MOTION_MODE", "walking").strip().lower()
+    if mode not in ("walking", "class_run"):
+        raise ValueError("PUPPER_SESSION_MOTION_MODE must be walking or class_run")
+    return mode
+
+
+def session_skill_controllers(tricks: dict) -> list[str]:
+    names = []
+    for _, trick in sorted(tricks.items()):
+        names.append(trick.controller)
+        if trick.walks:
+            names.append(trick.walk_controller)
+    return names
 
 
 SESSION_SCHEMA = "pupper_persistent_session_v1"
@@ -125,9 +148,16 @@ def validate_session_catalog(tricks: dict) -> dict | None:
             raise ValueError("server skill selection differs from persistent launch")
         if session_catalog_identity(tricks) != manifest["catalog"]:
             raise ValueError("selected descriptors or policies differ from persistent launch")
-        expected = ["neural_controller_default", "gemini_walk"] + [tricks[name].controller for name in names]
+        if manifest.get("motion_mode", "walking") != session_motion_mode():
+            raise ValueError("server motion mode differs from persistent launch")
+        expected = ["neural_controller_default", "gemini_walk"] + session_skill_controllers(tricks)
         if manifest["motion_controllers"] != expected:
             raise ValueError("selected controller set differs from persistent launch")
+        if "follower" in manifest:
+            if manifest["follower"] != follower_identity(follower_config()):
+                raise ValueError("server follower selection differs from persistent launch")
+        elif follower_mode() != "disabled":
+            raise ValueError("legacy persistent profile has no follower identity; prepare a new profile before enabling following")
         if not manifest["assets"]:
             raise ValueError("persistent profile has no bound input assets")
         for filename, digest in manifest["assets"].items():

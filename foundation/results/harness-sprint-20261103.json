@@ -1,0 +1,101 @@
+{
+  "schema": "pupper_sprint_result_v1",
+  "updated_utc": "2026-11-03T06:32:25.444904+00:00",
+  "status": "software_reviewed_pi_prepared_not_started",
+  "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
+  "changes": [
+    "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
+    "Generic new queued tools receive one Okay after authoritative acceptance; duplicate names cannot replace handlers.",
+    "Follower stop no longer waits for blocked inference cleanup; late results and restart ownership stay fenced.",
+    "Maintained explicit stage/prepare/start-native/start-api/stop-api/status/shutdown reuses existing process receipts; app staging cannot replace policies.",
+    "Selected profile supports explicit Lab5 follower and validated walking pairs, with dependencies and Stop coverage bound.",
+    "Opt-in class_run uses the existing class helper and stock model; normal walking profile unchanged."
+  ],
+  "source_base_commit": "82d0cdf8d645eeb4d0b96096005365790287f55f",
+  "runtime_sha256": {
+    "gemini_pupper/robot/runtime_config.py": "c96c89458fb905549e73a8beab3b8ae23fb45b94941c40f4eedba6a1a7720913",
+    "gemini_pupper/robot/tool_registry.py": "c7a517dd1290c6876882a942ed09483450681ef9929c6650cee7e27b79e2fa47",
+    "gemini_pupper/web/services/geminiLive.ts": "7894256516a80adce770e7bd82d0209d4a703193ce86bd361f7c468f586aa103",
+    "follow_me_pupper/robot/follow_service.py": "96bd7658e5c61c5c296b5a2cada6c67a2486272c2dddfcd241cd16802f592c76",
+    "foundation/hardware/lab6_session.launch.py": "02c2efb0888db3edcbc25c1b1c88952fade496e1520b3c48f6bdb6f582308044",
+    "foundation/hardware/persistent_session.py": "653dbdf2a0bbf9e0a82c58b8a514db5c9205a26bb9f0d00b0e9d4bfd922cb25f",
+    "foundation/hardware/stage_app.py": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973"
+  },
+  "validation": {
+    "api_suite": {
+      "passed": 1023,
+      "log": "integration/api-tests.log",
+      "scope": "Harness/follower core; subsequent profile-mode changes covered by final affected suite."
+    },
+    "web_suite": {
+      "passed": 422,
+      "log": "integration/web-tests.log"
+    },
+    "course_lab6": {
+      "passed": 166,
+      "log": "integration/course-lab6.log"
+    },
+    "final_affected": {
+      "passed": 93,
+      "subtests_passed": 41,
+      "log": "integration/final-affected.log"
+    },
+    "profile_and_pair_checks": 43,
+    "typecheck_and_production_build": "passed",
+    "web_bundle": "index-B1w3LMEm.js",
+    "claude": "Three scoped Opus5.5 reviews; findings adjudicated, no account limit reported. Reported list-price usage totals approximately1.99USD; not an inferred additional charge to the Max account."
+  },
+  "pi": {
+    "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103",
+    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared",
+    "stage_members_verified": 40,
+    "baseline_files_verified": 101,
+    "final_files_verified": 122,
+    "runtime_assets": 38,
+    "skills": [
+      "sit_stay_shake"
+    ],
+    "follower": "lab5; optional color/avoidance/always-detect disabled",
+    "motion_mode": "walking",
+    "motor_launch": false,
+    "owned_process_receipt_exists": false,
+    "native_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "imu_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+    "rollback": "software-ws1-media-20261102"
+  },
+  "detector_smoke": {
+    "scope": "Existing detector on three synthetic blank frames; no camera/ROS/motors",
+    "load_s": 0.556,
+    "wall_ms": [
+      50.77,
+      24.76,
+      24.01
+    ],
+    "accelerator_ms": [
+      27.63,
+      23.08,
+      22.59
+    ],
+    "detections": [
+      0,
+      0,
+      0
+    ],
+    "model_sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
+    "limitation": "Blank-frame execution verifies stack compatibility, not person detection accuracy. Hailo8L-compiled model runs on Hailo8 with a performance warning; no rebuild needed for this check."
+  },
+  "candidate_evidence": {
+    "spider_archive": "ws1-spider-swim-handoff-20261102.tar.gz",
+    "spider_status": "Exact experimental pair/descriptor validated in scratch; not installed into production. Nominal \u00b1.10m/s sideways commands yield about\u00b1.014m/s lateral with similar forward drift; zero sampled moving torso support and quiet returns. Adverse failures remain documented.",
+    "swim_status": "Actual-descriptor double playback/reentry/Stop fake queue passed; repeated-playback physics and physical demo unverified."
+  },
+  "remaining": [
+    "Fresh supervised follower/voice/takeover/Stop acceptance on prepared release.",
+    "Watched running, Spider and swim-twice demos; no new gait training required merely to test stock class running mode.",
+    "Four required videos, observed answers/Q1\u2013Q20/student reflection/contributions and course checkoffs.",
+    "Pi inventory currently has speaker output but no ALSA microphone capture device; onboard recording setup must be completed.",
+    "Current chat needs a fresh session rooted in the now-correct project to remove old working-directory restrictions."
+  ],
+  "evidence_root": "artifacts/validation/harness-sprint-20261103",
+  "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint"
+}

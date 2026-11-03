@@ -5,15 +5,16 @@
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
   "environment": {
-    "python": "artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python",
+    "python": ".venv-api/bin/python",
     "full_numerical_python": ".venv/bin/python",
     "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
     "ros_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
-    "claude": "Authenticated Max account; credential-store metadata requires approved OS access. Restricted read-only review completed without a permission bypass.",
-    "workspace_limit": "Engineering checkout is not app-managed and attach_worktree could not attach it. Explicit workdir plus approved writes works; no permissions weakened. Additional folder access requires a user app action later and is not a blocker.",
-    "report_plot_cache": "For future report generation, set MPLCONFIGDIR to a writable task temp directory; latest report succeeded with automatic temp cache, no dependency change."
+    "claude": "Authenticated Claude Code2.1.308, Opus5.5. User explicitly authorizes relevant Pupper source/tests/manifests to Anthropic for coding and second opinions on signed-in Max account; no keys/camera/audio/personal files. Alert on account limits. Approx1.99USD list-price usage reported this batch, not an additional-charge claim.",
+    "workspace_limit": "User moved this chat into pupper project and corrected primary path to cs123-foundation. App confirms project assignment/path, but this running chat still has vault cwd and sandbox writes fail. Approved commands work; a fresh correctly rooted session is the remaining environment reset. Do not ask user to add the same folder again.",
+    "report_plot_cache": "For future report generation, set MPLCONFIGDIR to a writable task temp directory; latest report succeeded with automatic temp cache, no dependency change.",
+    "api_environment": ".venv-api is an ignored local directory symlink to the existing tested API venv; no environment moved or dependencies reinstalled. check_foundation.py also retains the legacy fallback."
   },
   "compute_spend_policy": {
     "user_billing_enabled_now": true,
@@ -90,7 +91,8 @@
     "navigation_camera": "foundation/results/workstream1-navigation-camera-20261102.json",
     "standing_return_data": "foundation/results/workstream1-standing-return-data-20261102.json",
     "initial_sit_padding": "foundation/results/workstream1-sit-entry-padding-20261102.json",
-    "startup_gravity": "foundation/results/workstream1-startup-gravity-physical-20261102.json"
+    "startup_gravity": "foundation/results/workstream1-startup-gravity-physical-20261102.json",
+    "harness_sprint": "foundation/results/harness-sprint-20261103.json"
   },
   "acceptance_boundaries": [
     "Foundation is not globally optimized or hardware-reliable. Successful bounded voice sequences do not establish long-duration robustness.",
@@ -104,17 +106,17 @@
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
     "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "mode": "harness_sprint_checklist",
-  "updated_utc": "2026-11-03T05:27:36.999248+00:00",
-  "authorization": "User authorized current course review and read-only environment/Pi audit. No resumed implementation/deployment/motion until scope agreement. Latest user deferred Lecture 7 analysis.",
-  "current_report": "foundation/results/workstream1-startup-gravity-physical-20261102.json",
+  "mode": "harness_release_prepared",
+  "updated_utc": "2026-11-03T06:32:25.444904+00:00",
+  "authorization": "User approved the seven-item sprint, explicitly requested an active goal, Claude Code and subagents. Coding, dependency/access fixes, offline validation and read-only Pi inventory authorized. Confirm physical readiness before a new motor block. Soccer and Lecture 7 remain deferred. User specifically approved relevant repository source/tests/manifests to Anthropic and signed-in Claude account use; no need to repeat this request for same scope.",
+  "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
     "sha256": "fef6ce50c06ccd35e9509c8f7fd41a41b0df9dd958962bd2614724ffab8f7fa3",
     "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
   },
   "hardware_session": {
-    "status": "Stopped: API and native driver shut down cleanly after supported confirmation; camera and MCAP closed; voice disconnected. User may power off for relocation.",
+    "status": "Pi powered; new app release and Lab5-follower/Sit walking profile prepared only. No API/camera/recorder/controller launch started. Prior physical release remains separate evidence.",
     "ssh": "mts",
     "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261102-ws1-media-coldboot",
     "boot_id": "f05b9ce4-01f9-4bae-b28a-7d6ff9b71311",
@@ -125,15 +127,17 @@
     "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "queued_imu_age_guard_deployed": false,
     "archive_local_verified": true,
-    "latest_reachability": "November2 hostname/uptime succeeded: mts, uptime47min. No service/motor state inspection; earlier shutdown remains historical."
+    "latest_reachability": "Nov3UTC read-only inventory and stage/prepare succeeded; detector synthetic-frame check closed cleanly. No owned-session or native-readiness receipt exists for prepared run.",
+    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared",
+    "prepared_release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103"
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "None. Read-only hostname/uptime completed; no hardware/provider/compute jobs started.",
+    "compute": "All agents, tests, source reviews and no-motion staging completed. No active training/provider jobs; awaiting first supervised acceptance block.",
     "owners": {
-      "/root": "Finalize action checklist; next implementation begins with environment and deployment."
+      "/root": "Integration and sole robot owner; waiting for user physical readiness. Other agents completed and reusable."
     },
-    "goal_status": "Legacy Workstream 1 goal is paused and superseded; do not resume it unchanged."
+    "goal_status": "New active goal created for approved general-harness and minimum-Lab6 sprint."
   },
   "browser": {
     "browser": "Chrome1",
@@ -144,27 +148,31 @@
     "model": "gemini-robotics-er-2-streaming-preview",
     "tts": "gemini-3.1-flash-tts-preview / Puck",
     "key": "Private configured; never include in logs/repo/chat.",
-    "pending_user_prompt": null
+    "pending_user_prompt": "Physical readiness for first follower/voice/Stop block: stand, controller PS/R3, power, exclusive access."
   },
   "next": [
     {
-      "id": "environment",
-      "action": "Execute checklist1\u20133: correctprimaryproject/access, one reproducible deploymentworkflow, minimal currentcontext."
+      "id": "supervised_follower",
+      "action": "Use prepared20261103-lab6-prepared once user is watching; one homing then follower, voice takeover and Stop. Do not rerun setup or stage."
     },
     {
-      "id": "parallel_work",
-      "action": "Execute checklist4\u20136: cohesivevoice/tools/ownership/extensibility and minimumLab6. Soccerimplementationdeferred; reuseexistingassets."
+      "id": "minimum_lab6",
+      "action": "Existing stock model supports class running; opt-in profile is offline tested, not physically accepted. Spider scratch pair ready with limitations; swim repeat physical check and four required videos/student deliverables remain."
     },
     {
-      "id": "acceptance",
-      "action": "Checklist7: conciseobservedend-to-endacceptance, freezeacceptedrelease/limits/runinstructions. Discusssocceronlyafterharnessacceptance."
+      "id": "workspace",
+      "action": "Project primary path is corrected. Fresh correctly rooted chat at next handoff removes old vault cwd/sandbox; no more folder-add loops."
     }
   ],
   "completed_this_session": [
-    "Revised overrestrictive startup screen on reviewed gravity/rate evidence; selected Pi13 tests and current repository54 tests passed.",
-    "Homed once with revised startup; user-observed standing, right-paw and stand worked; no motor/policy/gain changes.",
-    "Independent audit reconciled exact2jobs and preserved contradictory mixed-sequence user report without marking it verified.",
-    "Supported shutdown completed; full recordings and exactsource/library preservation indexed."
+    "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
+    "Generic new queued tools receive one Okay after authoritative acceptance; duplicate names cannot replace handlers.",
+    "Follower stop no longer waits for blocked inference cleanup; late results and restart ownership stay fenced.",
+    "Maintained explicit stage/prepare/start-native/start-api/stop-api/status/shutdown reuses existing process receipts; app staging cannot replace policies.",
+    "Selected profile supports explicit Lab5 follower and validated walking pairs, with dependencies and Stop coverage bound.",
+    "Opt-in class_run uses the existing class helper and stock model; normal walking profile unchanged.",
+    "API1023, web422, course166, final affected93+41subtests passed.",
+    "Verified new release and inactive follower/Sit profile on Pi; rollback preserved."
   ],
   "preservation": {
     "directory": "artifacts/hardware/2026-11-02/startup-close",
@@ -184,6 +192,6 @@
     "optional3_owner": "teammate",
     "lecture7": "Deferred by user after live page showed slides not yet posted and projectdeck inaccessible. Current final-project directions saved in course library.",
     "user_goal": "General harness first; soccer offense/defense deferred until it is locked down.",
-    "plan_status": "Action checklist recorded. Current turn is planning and read-only reachability only; no implementation or motor launch."
+    "plan_status": "Approved; implementation active. Seven checklist items are the current scope."
   }
 }

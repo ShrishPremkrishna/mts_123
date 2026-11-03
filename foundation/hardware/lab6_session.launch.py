@@ -19,7 +19,7 @@ from pathlib import Path
 import yaml
 
 from launch import LaunchDescription
-from launch.actions import EmitEvent, RegisterEventHandler
+from launch.actions import EmitEvent, ExecuteProcess, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch_ros.actions import Node
@@ -58,8 +58,14 @@ def prepare_session_profile(config_path, urdf):
         raise ValueError("set PUPPER_SESSION_SKILLS explicitly in launch and server: empty selects baseline")
     loaded = catalog_module.load_tricks()
     selected = {name: loaded[name] for name in names}
-    if any(t.kind != "policy" or t.walks for t in selected.values()):
-        raise ValueError("persistent skill profile accepts policy clips only; reference jumps and walking research pairs require separate review")
+    if any(t.kind != "policy" for t in selected.values()):
+        raise ValueError("persistent skill profile accepts policy skills only; reference jumps require separate review")
+    if "PUPPER_FOLLOWER_MODE" not in os.environ:
+        raise ValueError("set PUPPER_FOLLOWER_MODE explicitly to disabled or lab5")
+    follower = runtime_config.follower_config()
+    motion_mode = runtime_config.session_motion_mode()
+    if follower.mode == "legacy":
+        raise ValueError("persistent profile supports the Lab 5 follower or disabled mode, not legacy")
     baseline = yaml.safe_load(config_path.read_text())
     models = []
     for name in ("neural_controller_default", "gemini_walk"):
@@ -71,22 +77,31 @@ def prepare_session_profile(config_path, urdf):
         if hashlib.sha256(model.read_bytes()).hexdigest() != STOCK_POLICY_SHA:
             raise ValueError("installed stock policy differs from the demonstrated baseline")
         models.append(model.resolve())
-    controllers = [selected[name].controller for name in names]
+    controllers = runtime_config.session_skill_controllers(selected)
     combined = combined_course_config(baseline, controllers) if controllers else deepcopy(baseline)
     base = baseline["neural_controller_default"]["ros__parameters"]
     for name, model in zip(("neural_controller_default", "gemini_walk"), models):
         combined[name]["ros__parameters"]["model_path"] = str(model)
+    if motion_mode == "class_run":
+        # Reuse the course API controller settings with this same pinned policy.
+        # This opt-in profile is a candidate, not observed running capability.
+        combined["gemini_walk"]["ros__parameters"] = catalog_module.walk_controller_params(base)
+        combined["gemini_walk"]["ros__parameters"]["model_path"] = str(models[1])
     for name in names:
         trick = selected[name]
         combined["controller_manager"]["ros__parameters"][trick.controller] = {"type": NEURAL_TYPE}
         combined[trick.controller] = {"ros__parameters": catalog_module.controller_params(trick, base)}
+        if trick.walks:
+            combined["controller_manager"]["ros__parameters"][trick.walk_controller] = {"type": NEURAL_TYPE}
+            combined[trick.walk_controller] = {"ros__parameters": catalog_module.walk_policy_params(trick, base)}
 
     validator_path = runtime_config.component_dir("pupper_gait_deploy", "PUPPER_GAIT_DEPLOY_DIR") / "download_policy.py"
     spec = importlib.util.spec_from_file_location("persistent_policy_validator", validator_path)
     validator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validator)
     with contextlib.redirect_stdout(io.StringIO()):
-        for model in dict.fromkeys([*models, *(t.path for t in selected.values())]):
+        for model in dict.fromkeys([*models, *(t.path for t in selected.values()),
+                                    *(t.walk_path for t in selected.values() if t.walks)]):
             validator.validate(model)
 
     manifest_path = runtime_config.session_manifest_path()
@@ -102,7 +117,23 @@ def prepare_session_profile(config_path, urdf):
               Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path,
               *(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py")),
               *sorted((repo / "lab").glob("*.py")), repo / "lab/prompt.md"]
+    if follower.service_dir is not None:
+        service = follower.service_dir
+        required_follower = [service / name for name in (
+            "follow_service.py", "fisheye_converter.py", "perception_safety.py", "yolo_seg.py",
+            "coco.txt", "camera_params.yaml", "yolov8n_seg.hef")]
+        required_follower += [service.parent / "lab" / name for name in (
+            "follow_me.py", "boxes.py", "target_lock.py", "avoidance.py")]
+        missing = [str(path) for path in required_follower if not path.is_file()]
+        if missing:
+            raise ValueError("Lab 5 follower runtime dependencies missing: " + ", ".join(missing))
+        assets.extend(required_follower)
+        # Pin any further local support modules present in the installed package.
+        assets.extend(sorted(service.glob("*.py")))
+        assets.extend(sorted((service.parent / "lab").glob("*.py")))
     manifest = {"schema": runtime_config.SESSION_SCHEMA, "skills": list(names),
+                "follower": runtime_config.follower_identity(follower),
+                "motion_mode": motion_mode,
                 "motion_controllers": ["neural_controller_default", "gemini_walk", *controllers],
                 "catalog": runtime_config.session_catalog_identity(selected),
                 "assets": {str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest() for path in assets},
@@ -139,7 +170,19 @@ def generate_launch_description():
                namespace="/", parameters=[config], output="screen")
     # A silent mux can otherwise leave a controller holding its last velocity.
     # Any required process exit tears down this owned session. No respawn.
-    required = (state, manager, gateway, mux, joy)
+    # Camera is owned once by the maintained session starter. This service only
+    # subscribes to /camera/image_raw/compressed and never opens the sensor.
+    import runtime_config
+    follower = runtime_config.follower_config()
+    follower_actions = []
+    if follower.mode == "lab5":
+        follower_actions.append(ExecuteProcess(
+            cmd=["python3", "-u", "follow_service.py", "--ros-args", "-r", "__node:=person_follower_node",
+                 "-p", f"always_detect:={str(follower.always_detect).lower()}",
+                 "-p", f"use_color:={str(follower.use_color).lower()}",
+                 "-p", f"avoid_obstacles:={str(follower.avoid_obstacles).lower()}"],
+            cwd=str(follower.service_dir), output="screen"))
+    required = (state, manager, gateway, mux, joy, *follower_actions)
     guards = [RegisterEventHandler(OnProcessExit(target_action=node,
         on_exit=[EmitEvent(event=Shutdown(reason="required Lab 6 session process exited"))]))
         for node in required]

@@ -181,7 +181,10 @@ class FollowService(StateMachineNode):
             if self.tracking_enabled:
                 self.stop_tracking()  # publishes a zero command
         if not self.always_detect:
-            self.stop_pipeline()
+            # Tracking is already disabled and its zero command published. Do not
+            # hold the service reply behind Hailo cleanup: the worker owns its
+            # device, and start_pipeline refuses reuse until that worker exits.
+            self.stop_pipeline(wait=False)
         response.success, response.message = True, 'stopped following'
         self.get_logger().warning(response.message)
         return response
@@ -217,18 +220,23 @@ class FollowService(StateMachineNode):
         self.pipeline.start()
         return None
 
-    def stop_pipeline(self):
-        """Stop detecting and release the Hailo and the camera subscription."""
+    def stop_pipeline(self, *, wait=True):
+        """Stop accepting frames; the worker releases Hailo when inference exits.
+
+        Service deactivation does not wait on inference. Process shutdown still
+        uses the bounded join before tearing down the ROS node.
+        """
         self.running = False
         if self.image_sub is not None:
             self.destroy_subscription(self.image_sub)
             self.image_sub = None
         self.image_ready.set()
         self.wake.set()
-        if self.pipeline is not None:
+        if wait and self.pipeline is not None:
             self.pipeline.join(timeout=3.0)
         if self.pipeline is not None and self.pipeline.is_alive():
-            self.get_logger().error('Detector inference has not stopped; restart is blocked until its worker exits')
+            if wait:
+                self.get_logger().error('Detector inference has not stopped; restart is blocked until its worker exits')
         else:
             self.send_eyes([])  # no worker can concurrently use the ZMQ socket
 
@@ -271,6 +279,7 @@ class FollowService(StateMachineNode):
                 if self.detector is detector:
                     self.detector = None
                 self.running = False
+                self.send_eyes([])  # also clear the feed after nonblocking deactivation
 
     def process(self, image_msg, received_at, detector):
         if not self.running or not fresh_frame(received_at, time.monotonic(), follow_me.TIMEOUT):
