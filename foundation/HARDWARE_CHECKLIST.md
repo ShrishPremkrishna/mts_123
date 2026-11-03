@@ -137,7 +137,9 @@ The option is intentional for our exclusive onboard session. On browser exit or
 handled launcher interruption, it requests the existing **global Stop** against
 the original API instance. It cancels other clients' work on that same instance,
 so do not use this option for a shared robot session. A replaced API rejects the
-stale request. Generic launcher behavior without the flag is unchanged.
+stale request. Opt-in launch requires the guarded-stop capability before opening
+the browser; old APIs are refused, and there is no unrestricted Stop fallback.
+Generic launcher behavior without the flag is unchanged.
 
 An unconfirmed Stop produces a warning and nonzero exit; it does not prove the
 robot stopped physically. Launcher SIGKILL, renderer hangs, unavailable API/host
@@ -191,6 +193,14 @@ controller execution, audio playback and observed physical response. Browser
 callbacks alone do not establish acoustic Stop latency. Display estimates as
 estimates; report actual measured intervals separately. Reported IMU angles are
 sensor output, not external truth or calibrated translation.
+
+For a short voice timing comparison, open Robot controls and use **Clear timing**
+before the trial, then **Download timing JSON** afterward. This is an in-memory
+window capped at 8 connections, 512 records and 256 KiB; it excludes conversation,
+media and raw request IDs. Reloading loses it. The export states dropped records
+and clock limitations. SDK sends, scheduled audio and tool handling are not
+physical or acoustic measurements; retain the existing server/native evidence
+for those layers. No provider or motion test is required merely to open Debug.
 
 ## Resolve a known sensor failure before tuning motions
 

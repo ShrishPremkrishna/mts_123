@@ -4,117 +4,38 @@
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
+  "mode": "offline_release_ready",
+  "updated_utc": "2026-11-03T11:28:29.803621+00:00",
+  "current_report": "foundation/results/harness-sprint-20261103.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
+    "sha256": "fef6ce50c06ccd35e9509c8f7fd41a41b0df9dd958962bd2614724ffab8f7fa3",
+    "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
+  },
+  "evidence": {
+    "current_sprint": "foundation/results/harness-sprint-20261103.json",
+    "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json"
+  },
   "environment": {
     "python": ".venv-api/bin/python",
     "full_numerical_python": ".venv/bin/python",
     "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
-    "ros_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
-    "claude": "Authenticated Claude Code on the signed-in account; relevant Pupper source/tests/manifests authorized for implementation and second opinions. No keys/media/personal files. Recent extension proof and fresh-reply fix used Claude; usage and reviews preserved in offline-completion-proof. Alert on account limits; no extra-charge inference from reported list prices.",
-    "workspace_limit": "User already corrected project assignment. Current running chat still starts in /Users/shrish/workspace/cs123 and does not grant foundation writes directly; approved commands work. A future correctly rooted chat can remove this residual friction. Do not ask user to add the same folder again.",
-    "report_plot_cache": "For future report generation, set MPLCONFIGDIR to a writable task temp directory; latest report succeeded with automatic temp cache, no dependency change.",
-    "api_environment": ".venv-api is an ignored local directory symlink to the existing tested API venv; no environment moved or dependencies reinstalled. check_foundation.py also retains the legacy fallback.",
-    "warp_cache": "For numerical runs under this sandbox set supported WARP_CACHE_PATH to a writable task directory. Q11 default ~/Library/Caches/warp failed before rollout; relocating only cache fixed it with unchanged source/physics/dependencies."
+    "workspace_limit": "User already corrected project assignment. Current running chat still starts in /Users/shrish/workspace/cs123 and does not grant foundation writes directly; approved commands work. A future correctly rooted chat can remove this residual friction. Do not ask user to add the same folder again."
   },
+  "authorization": "Current session OFFLINE ONLY. Coding, local fake browser/API checks and relevant Pupper source/tests/manifests to authenticated Claude authorized. No SSH, deployment, homing, motors or new robot evidence. Keys/media/personal files stay private. Robot work resumes only in a later supervised block.",
   "compute_spend_policy": {
-    "user_billing_enabled_now": true,
     "approval_threshold_usd": 5,
-    "interpretation": "Ask before an experiment or exploration batch expected above $5; do not split work to evade approval. Latest user explicitly authorizes offline API experiments including Gemini ER.",
-    "current_voice_batch": "Historical costs remain in dated reports. Current overnight call totals and estimate limitations are recorded under offline_in_progress.paid_calls; no pending provider calls."
+    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
-  "validation_commands": {
-    "interpreter": "Use environment.python for these commands; they make no hardware/API calls.",
-    "gemini": [
-      "-m",
-      "pytest",
-      "gemini_pupper/tests",
-      "-q",
-      "-p",
-      "no:cacheprovider"
-    ],
-    "preservation": [
-      "-m",
-      "pytest",
-      "foundation/tests/test_colab_preservation.py",
-      "foundation/tests/test_colab_archive_download.py",
-      "-q",
-      "-p",
-      "no:cacheprovider"
-    ],
-    "floor_input": [
-      "-m",
-      "pytest",
-      "foundation/hardware/floor_stock",
-      "-q",
-      "-p",
-      "no:cacheprovider"
-    ],
-    "course": [
-      "gemini_pupper/lab/test.py"
-    ],
-    "aggregate": [
-      "python3",
-      "foundation/scripts/check_foundation.py",
-      "--output",
-      "/private/tmp/pupper-validation-NEW"
-    ],
-    "ros_offline": [
-      "python3",
-      "foundation/scripts/check_ros_offline.py",
-      "--output",
-      "/private/tmp/pupper-ros-NEW"
-    ]
-  },
-  "do_not_repeat": [
-    "Do not restart completed Colab studies or rediscover baseline backups without a changed dependency.",
-    "Do not treat on-stand, mock, simulation or model-acceptance evidence as floor success.",
-    "Do not run broad suites or create another staged copy while owners still edit; first freeze the selected source.",
-    "Do not reread every historical report. Start with session_status.py and retrieve only the current blocker evidence.",
-    "Do not repeat chat-timed 20 s floor-stand choreography or rehome between ordinary API actions. The persistent workflow completed a bounded floor baseline; broader hardware capabilities remain unverified.",
-    "Use current check_foundation.py: it separately discovers/import-checks API and numerical interpreters and prints a writable output. No speculative reinstalls. Keep watched source frozen during aggregate checks."
-  ],
-  "evidence": {
-    "overnight_release": "foundation/results/workstream1-overnight-release-20261102.json",
-    "raw15": "foundation/results/workstream1-raw-gyro15-20261102.json",
-    "queued_imu_age": "foundation/results/workstream1-queued-imu-age-20261102.json",
-    "static_idle_latency": "foundation/results/workstream1-static-idle-latency-20261102.json",
-    "completion_driven_sit": "foundation/results/workstream1-completion-driven-sit-20261102.json",
-    "standing_return": "foundation/results/workstream1-standing-return-20261102.json",
-    "live_expiry": "foundation/results/workstream1-live-expiry-20261102.json",
-    "voice_product": "foundation/results/workstream1-voice-product-20261102.json",
-    "navigation_mitigation": "foundation/results/workstream1-navigation-mitigation-20261102.json",
-    "media_admission": "foundation/results/workstream1-media-admission-20261102.json",
-    "generated_bob_training": "foundation/results/generated-bob-training-20261101.json",
-    "generated_bob_contact_extent": "foundation/results/generated-bob-contact-extent-20261101.json",
-    "generated_bob_friction": "foundation/results/generated-bob-friction-pair-20261102.json",
-    "clip_admission": "foundation/results/workstream1-clip-admission-20261102.json",
-    "navigation_camera": "foundation/results/workstream1-navigation-camera-20261102.json",
-    "standing_return_data": "foundation/results/workstream1-standing-return-data-20261102.json",
-    "initial_sit_padding": "foundation/results/workstream1-sit-entry-padding-20261102.json",
-    "startup_gravity": "foundation/results/workstream1-startup-gravity-physical-20261102.json",
-    "harness_sprint": "foundation/results/harness-sprint-20261103.json"
-  },
-  "acceptance_boundaries": [
-    "Latest R6 candidate is tested offline only; robot last ran closed R5. No automatic deployment/homing/reconnect.",
-    "Selected physical observations are bounded; no globally optimized or generally reliable robot claim. No guaranteed navigation/obstacle avoidance, measured running speed or fall recovery.",
-    "Server job success is software/controller evidence, not observed motion. Late-failure speech only reports exact retained terminal failures, not model-memory synchronization.",
-    "Follow takeover is explicit. Low-level interactive_action keeps its pose prerequisite; rejected browser motion may already have ended follow during preflight.",
-    "Native/IMU/policy/config selection is unchanged in the staged application. Historical failures and adverse simulations remain valid limits."
-  ],
-  "deferred_decision": {
-    "topic": "Foundation model and tool authority: immediate voice motion versus explicit plan confirmation.",
-    "user_direction": "Discuss later; first latency, flexibility and robustness.",
-    "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
-  },
-  "mode": "offline_client_loss_review",
-  "updated_utc": "2026-11-03T10:30:55.556991+00:00",
-  "authorization": "User explicitly reconfirmed KEEP THIS SESSION OFFLINE after resumption. Coding, scoped Claude source review/implementation and local verification/preservation authorized; no robot contact or deployment in this session. Existing broad sprint authorization persists for a later supervised session, with actual physical readiness required before motors. Relevant source/tests to authenticated Claude account authorized; no keys/media/personal files. Soccer/teammate Optional3/gait and Lecture7 remain deferred.",
-  "current_report": "foundation/results/harness-sprint-20261103.json",
-  "historical_recovery": {
-    "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
-    "sha256": "fef6ce50c06ccd35e9509c8f7fd41a41b0df9dd958962bd2614724ffab8f7fa3",
-    "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
+  "activity": {
+    "automation": "No scheduled automation is active.",
+    "compute": "All owned tasks finished; no pending provider/training/browser/API process. Local fake server closed with durable exit receipt.",
+    "owners": {
+      "completed": "Client-loss implementation/review, timing implementation/review, final regression and release preservation all terminal. Check actual agents/exits before retrying."
+    },
+    "goal_status": "Sprint remains active/incomplete. Current meaningful offline backlog is closed; supervised acceptance and student work remain."
   },
   "hardware_session": {
     "status": "R5 closed after user R3 and supported-on-stand confirmation. Immediate Stop cleared work; browser and native/API/recorders have stopped receipts. Driver log confirms hardware shutdown. No automatic restart; microphone battery died, filming deferred.",
@@ -123,156 +44,89 @@
     "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
     "api_instance": "e003eb82fb0a4a778dd59b236913e9d7",
     "motor_api_recorders_active": false,
-    "active_processes": {},
     "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
     "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "queued_imu_age_guard_deployed": false,
-    "archive_local_verified": true,
-    "latest_reachability": "Archive retrieved after shutdown on boot bb2dcd96-27e1-406c-82ff-10cf0ab15329. No new motor commands. Last sampled battery during filming 60%17.82V; not a current reading.",
-    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
-    "prepared_release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
-    "session_id": "a5f86032a8d94ebaa9f50890ecf1f2f7",
-    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit.",
     "archive": "artifacts/validation/harness-sprint-20261103/r5-closed",
-    "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03"
-  },
-  "activity": {
-    "automation": "No scheduled automation is active.",
-    "compute": "Final build/package/local staging complete; interrupted packaging recovered from successful exit receipts without rerun. One focused offline browser/client-loss review active. No robot, Gemini rehearsal or training.",
-    "owners": {
-      "/root": "Current checkpoint and integration; latest user requests all useful offline work tonight.",
-      "/root/client_loss_review": "Bounded existing browser/launcher crash and connection-loss behavior review; no source changes yet."
-    },
-    "goal_status": "Active sprint, incomplete: offline robustness work continues; supervised acceptance, recordings and student submission remain."
+    "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03",
+    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit."
   },
   "browser": {
-    "browser": "Pi Chromium onWayland; MacPupper tabdisconnected",
-    "url": "http://localhost:18090/",
-    "connection": "Owned R5 onboard browser closed. No live voice session. Next connect must be explicit.",
-    "bundle": "index-FXa-YGat.js",
-    "model": "gemini-robotics-er-2-streaming-preview",
-    "tts": "gemini-3.1-flash-tts-preview / Puck",
-    "key": "PrivateonPi600file, bootstrapmemoryonly; neverincludeinlogs/repo/chat.",
-    "owned_gui_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-onboard-real-r5"
+    "state": "No owned voice session. Mac Pupper tab last inspected against local FAKE server 18093, now stopped. Real Pi browser last closed in R5. Never auto-connect from this checkpoint.",
+    "next": "Use final selected release and explicit runtime destination; do not reuse stale page/backend settings."
+  },
+  "microphone": {
+    "status": "Wireless lavalier/onboard speaker worked; transmitter battery died during filming. Recharge before next block."
+  },
+  "offline_ready": {
+    "application_release": {
+      "status": "Committed, independently reviewed, built, packaged and locally staged; NOT deployed or hardware accepted.",
+      "source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "runtime_commit": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final/package",
+      "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+      "bundle": "index-Cr13ul_q.js",
+      "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+      "app_archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+      "source_build_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
+      "evidence_archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+      "deployed": false,
+      "local_stage_verified": true,
+      "selected_native_imu_models_config_unchanged": true,
+      "local_staging": {
+        "baseline_files": 132,
+        "final_selected_files": 137,
+        "source_build_inputs": 130,
+        "inherited_skill_files": 7,
+        "launch_recipe_syntax_checks": 5,
+        "executed_recipes": false
+      },
+      "limits": "No remote native-byte recheck or physical reliability claim. The selected source/build is frozen; later documentation-only commits do not imply a new runtime."
+    },
+    "held_candidate": {
+      "path": "artifacts/validation/harness-sprint-20261103/app-release-r6-client-loss",
+      "status": "HELD; do not deploy",
+      "source_commit": "c5e11389a84cf1499b4a427bd6f46acd967c4b6b",
+      "reason": "Independent legacy-server reproduction showed an older Stop route ignored the new identity header. Replaced with mandatory dedicated guarded route/capability preflight in 8802672. Complete held candidate preserved."
+    },
+    "validation": "API 1201; web 544; typecheck/build pass; retained course 166 with documented adapted Stop assertion. Independent source/lifecycle/privacy probes pass. Software evidence only."
+  },
+  "preservation": {
+    "current_offline": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+    "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
+    "archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+    "archive_regular_members": 244,
+    "both_stores_verified": true,
+    "current_pending": null
   },
   "next": [
     {
-      "id": "client_loss_review",
-      "action": "Inspect /root/client_loss_review and its durable evidence before retrying. Assess known browser/launcher crash and connection-loss boundary; make only evidence-supported bounded changes, with no new orchestration framework or changed HTTP ownership by assumption."
-    },
-    {
       "id": "next_supervised_block",
-      "action": "User chose offline-only. At a later explicitly ready robot block, use the reviewed final package listed in offline_ready.application_release; inspect actual boot/session receipts first. R5 is closed, so cannot attach to it; do not auto-restart. Verify new ordered-follow and audible Q7 handoff/Stop in one homed session."
+      "action": "When user has robot and is ready: inspect actual boot/session; R5 is closed. Use final package in offline_ready, one homing only if a new motion session is needed. Verify ordered follow, audible follow-off before takeover, compound voice and Stop. Test application upgrade/rollback and new failure feedback; no auto-start tonight."
     },
     {
       "id": "recordings",
-      "action": "Recharge wireless mic. User owns footage review and explicitly confirms interrupted Q12 first recording needs later rerecord; do not ask for video files again. Q7 and Q19 remain, Q16 reported captured."
+      "action": "Recharge mic. Complete Q7, rerecord interrupted Q12 including full standing return/camera-side handshake, record Q19 with newcomer. Q16 reported captured; user owns footage review\u2014do not request files."
     },
     {
       "id": "submission",
-      "action": "Complete actual Q1–Q20 explanations/missing observations, video links, reflection/contributions/fork/checkoffs. Current166-course output has one explicitly documented adapted Stop assertion."
+      "action": "Use WORKSTREAMS.md question-by-question handoff; student supplies actual missing observations/reflection/contributions/fork/video links/checkoffs. No invented results."
     },
     {
-      "id": "engineering_acceptance",
-      "action": "First live app-only upgrade/rollback and new failure-cue audibility remain unverified. Do not rerun completed offline regressions or repackage unchanged sources to fill time."
+      "id": "offline_continuation",
+      "action": "No new experiment is justified by unchanged state. Reuse final exits; do not rebuild/repackage/rerun passed tests to fill time. Continue meaningful work only on new evidence, teammate handoff or user direction."
     }
   ],
-  "completed_this_session": [
-    "Recovered exact pending source and prior exits; no completed training or experiments restarted.",
-    "Reviewed/fixed ordered follow sequencing and two reproduced supersession races; committed fd5f2b9.",
-    "Claude implemented exact-job late failure feedback using existing poll and approved Pupper cue; independently reviewed, current-source API1103/web507/course166/typecheck/build pass.",
-    "Claude implemented maintained pure package_app.py;34tests+51subtests and independent review pass; committed41efcc8.",
-    "Final app package locally staged:132baseline and136final selected files verified; native/IMU/models/config unchanged; complete new evidence verified in both stores.",
-    "Q11 comparison and accurate remaining submission evidence are preserved; no new robot evidence added.",
-    "Closed extension timeout/follow takeover proof and reproduced idle-Stop/late-failure fresh-reply silence bug; committed d0591dd after independent review.",
-    "Final frontend 521 tests, typecheck and build passed; extension focused14 passed. Older input boundaries cannot retire a third pending input; independent failing-before/passing-after probe retained.",
-    "Final corrected app package and complete evidence preserved in both stores; local stage verifies132 baseline/136 final files, native/IMU/models/config unchanged. Interruption recovery reused successful exits, no rebuilt package."
+  "acceptance_boundaries": [
+    "Final R6 app is reviewed offline only; robot last ran closed R5. Native/IMU/policy/config selection unchanged. No global hardware reliability claim.",
+    "Server acceptance/job success and browser audio scheduling do not prove physical movement, stopping or audible playback.",
+    "Browser-exit Stop is opt-in/global to original API, not a guarantee against SIGKILL, hung renderer, host loss or silent network failure.",
+    "Navigation/obstacle avoidance and arbitrary fall recovery remain unavailable. Immediate explicit voice primitives retained; semantic refusal is mitigation, not a hard navigation gate. User deferred tool-authority decision."
   ],
-  "preservation": {
-    "directory": "artifacts/hardware/2026-11-02/startup-close",
-    "durable_directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/startup-close",
-    "local_archive_sha256": "779145996c0da93801b586c122afbaffecca79b939ac0255b086df0307bd434c",
-    "local_members_verified": 514,
-    "remote_fully_verified": true,
-    "remote_archive_sha256": "80f9472935902281635ae47c55a831e22687ef16063d8d0d1fed564c56795e78",
-    "remote_indexed_entries": 3167,
-    "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
-    "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs.",
-    "current_pending": "None for completed R3/R4/R5, runtime, completion proofs or final package. New client-loss review evidence will be preserved if it changes the next action.",
-    "current_offline": {
-      "runtime": "artifacts/validation/harness-sprint-20261103/offline-composition-release",
-      "runtime_archive_sha256": "c3d7afa07cf35f576ed5a3fe2495868aaf35762e47dba8483795fa34258d1da4",
-      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-followup",
-      "package_evidence_archive_sha256": "a6469f668d65fa3727ffe6aedfe17a9dbf88b5a605928efb4a2305537ce49208",
-      "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
-      "completion_proofs": [
-        "artifacts/validation/harness-sprint-20261103/offline-completion-proof",
-        "artifacts/validation/harness-sprint-20261103/oldest-watermark-proof"
-      ]
-    }
-  },
-  "build_distinction": "Retained, tested offline, not deployed in this trial.",
-  "scope_reset": {
-    "source": "foundation/WORKSTREAMS.md",
-    "date": "2026-11-02",
-    "optional3_owner": "teammate",
-    "lecture7": "Deferred by user after live page showed slides not yet posted and projectdeck inaccessible. Current final-project directions saved in course library.",
-    "user_goal": "General harness first; soccer offense/defense deferred until it is locked down.",
-    "plan_status": "Approved; implementation active. Seven checklist items are the current scope."
-  },
-  "microphone": {
-    "device": "JieliUSBCompositeDevice,ALSAcardDevice",
-    "status": "Wireless lavalier worked for onboard rehearsal and filming, then transmitter battery died; recharge before next voice block.",
-    "onboard_browser_verified": true,
-    "speaker": "User confirmed Pi speaker works; onboard fake Move/Stop and real filming used USB input plus HiFiBerry output. Current app closed.",
-    "sample": "/private/tmp/pupper-usb-mic-paired-20261103.wav"
-  },
-  "onboard_rehearsal": {
-    "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
-    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-onboard-fake-r5",
-    "port": 18091,
-    "api_instance": "6fa1c4d813f34d9da90cdb91bf3fa91b",
-    "bootstrap_dir": "/run/user/1000/pupper-onboard-rehearsal",
-    "runtime": "fake",
-    "hardware_connected": false,
-    "outcome": "Bootstrap200, real USBmic and DACstreams active, three user-intended Move calls and oneStop confirmed; user speaker audible and hands-free disarmed.",
-    "closure": "Oldfakeprocesses ended by userbatteryreboot: newbootbb2dcd96 differsrecorded3765c5e9; nooldprocessesfound. Gracefulcleanupunverified; preserve historicalreceipt/logs instead ofreusing it."
-  },
-  "offline_ready": {
-    "follow_handoff": {
-      "source_commit": "03c4ec8",
-      "patch_sha256": "2cd6104981036f3da4d37063a790a3de12e6adc04b5e0fb94572234bea02ab03",
-      "bundle": "index-BvOAW0_Q.js",
-      "deployed": false
-    },
-    "api_attachment": {
-      "helper_sha256": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde",
-      "evidence": "artifacts/validation/harness-sprint-20261103/api-attachment",
-      "deployed": false
-    },
-    "ordered_follow": {
-      "status": "Committed and independently reviewed offline",
-      "source_commit": "fd5f2b91e284307f0fe2e90a8da7e0fd3140afb6",
-      "evidence": "artifacts/validation/harness-sprint-20261103/offline-composition-release",
-      "deployed": false
-    },
-    "late_job_failure_feedback": {
-      "status": "Includes independently reviewed local-pause fresh-reply correction; final browser regression passed, not deployed.",
-      "source_commit": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
-      "bundle": "index--CC0txrj.js",
-      "deployed": false
-    },
-    "application_release": {
-      "source_checkout_head": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
-      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-followup/package",
-      "manifest_sha256": "38bb82035aae7234b5f10cf40d5a7f632f9459f9e10b1d5e00ece2225e26e2e6",
-      "source_build_freeze_sha256": "b51111ad6eb016010bc0087d11d3696061d3ae448f29f35a92356d1cff37255b",
-      "bundle": "index--CC0txrj.js",
-      "status": "Committed, independently reviewed, packaged and locally staged; not deployed.",
-      "app_archive_sha256": "29f0f2a32fa91afa0e7224cdb706bd1029a8ad4f6c20d2cffa12fa324adc046b",
-      "deployed": false,
-      "local_stage_verified": true,
-      "selected_native_imu_models_config_unchanged": true
-    }
-  }
+  "do_not_repeat": [
+    "Do not restart completed training, provider sweeps, regression or staging without a changed input or unresolved finding.",
+    "Start session_status.py; retrieve only relevant dated evidence. Do not reread all historical reports.",
+    "Do not ask for project-folder permission again; approved writes work. Use foundation checkout, preserve coursework.",
+    "No repeated homing/button exercises between ordinary commands. Offline work stays offline; physical readiness is not implied by reachability."
+  ]
 }

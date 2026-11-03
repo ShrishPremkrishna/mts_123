@@ -1,7 +1,7 @@
 {
   "schema": "pupper_sprint_result_v1",
-  "updated_utc": "2026-11-03T10:30:55.556991+00:00",
-  "status": "Reviewed offline app release ready and preserved; additional client-loss robustness review underway. No deployment; supervised acceptance and student deliverables remain.",
+  "updated_utc": "2026-11-03T11:28:29.803621+00:00",
+  "status": "Offline engineering release ready; supervised acceptance and minimum Lab 6 recordings/student submission remain.",
   "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
   "changes": [
     "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
@@ -54,7 +54,7 @@
       "subtests_passed": 4,
       "typecheck_and_production_build": "passed"
     },
-    "scope": "Historical initial checks. Python production last full integration is offline_composition_release.validation; final browser and extension proofs are offline_completion_audit.validation."
+    "scope": "Historical checks retained under their original source. Current final regression is offline_final_validation; selected package is offline_app_release. Counts and bundle names in earlier sections are not current release identities."
   },
   "pi": {
     "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r2",
@@ -76,7 +76,7 @@
     "session_id": "dbcd92b42e2f42438676ec5c1e651772",
     "physical_observation": "Normal floor standing confirmed by user; following not activated.",
     "shutdown": "Unconfirmed: SSH timed out after user supported on stand; advised physical power off/battery swap. Preserve logs after reconnect.",
-    "historical": "R2 snapshot below retained for battery incident provenance; current live identities are r4_result and interruption-recovery.json."
+    "historical": "Historical R2 battery-incident snapshot. R5 later closed; current operational state is interruption-recovery.json, and finalR6 is offline only."
   },
   "detector_smoke": {
     "scope": "Existing detector on three synthetic blank frames; no camera/ROS/motors",
@@ -101,15 +101,15 @@
   },
   "candidate_evidence": {
     "spider_archive": "ws1-spider-swim-handoff-20261102.tar.gz",
-    "spider_status": "Exact experimental pair/descriptor validated in scratch; not installed into production. Nominal ±.10m/s sideways commands yield about±.014m/s lateral with similar forward drift; zero sampled moving torso support and quiet returns. Adverse failures remain documented.",
+    "spider_status": "Exact experimental pair/descriptor validated in scratch; not installed into production. Nominal \u00b1.10m/s sideways commands yield about\u00b1.014m/s lateral with similar forward drift; zero sampled moving torso support and quiet returns. Adverse failures remain documented.",
     "swim_status": "Actual-descriptor double playback/reentry/Stop fake queue passed; repeated-playback physics and physical demo unverified."
   },
   "remaining": [
-    "Next user-authorized robot block: charged wireless mic; deploy the reviewed app, verify ordered follow, audible follow-off-before-motion and spoken Stop. No auto-start from this offline checkpoint.",
-    "Recharge microphone; finish Q7, rerecord interrupted Q12 sequence including complete standing return and camera-side handshake, and record Q19 with a newcomer. User owns footage review; Q16 reported captured.",
-    "Student Q1–Q20 explanations and missing actual experiment observations, reflection/contributions/fork link, video links and course checkoffs. Do not invent observations.",
-    "First watched app-only update/rollback remains an engineering acceptance check; not needed to repeat homing between ordinary actions.",
-    "Fresh correctly rooted chat may remove remaining app folder approval friction; user already changed project, so do not ask them to repeat it. Current approved commands worked."
+    "Later supervised session: inspect actual boot/services, use final package only, app-only upgrade/rollback acceptance and ordered follow/voice/Stop/failure-feedback acceptance. No automatic deployment, reconnect or homing.",
+    "Recharge wireless mic; finish Q7, rerecord interrupted Q12 with full standing return and camera-side handshake, and Q19 newcomer conversation. User reviews footage; Q16 reported captured.",
+    "Student Q1\u2013Q20 explanations/missing actual observations, reflection/contributions/fork/video links/checkoffs. Reuse supplied evidence without inventing observations.",
+    "Future correctly rooted chat may remove residual approved-write friction; user already fixed project settings. Do not request the same change again.",
+    "Soccer, teammate gait/Optional3 and Lecture7 implementation remain deferred; no new training needed just to assemble current minimum Lab6 evidence."
   ],
   "evidence_root": "artifacts/validation/harness-sprint-20261103",
   "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
@@ -155,12 +155,12 @@
     ],
     "onstand_spider": "Entry and exit succeeded; user confirmed controlled motion.",
     "swim_twice_floor": "Job3 completed two playbacks; job4 standing exit completed. User: Two playbacks; controlled return.",
-    "floor_spider": "Direct entry, forward1s and exit controlled, body clear during walk. Voice entry→forward2s→left2s→exit completed. User clarified belly contact only during entry/exit and follow request was refused. Reference deliberately lies/wiggles before rising; this is expected routine contact, not proof of walking support failure. No speed measurement or general robustness claim.",
+    "floor_spider": "Direct entry, forward1s and exit controlled, body clear during walk. Voice entry\u2192forward2s\u2192left2s\u2192exit completed. User clarified belly contact only during entry/exit and follow request was refused. Reference deliberately lies/wiggles before rising; this is expected routine contact, not proof of walking support failure. No speed measurement or general robustness claim.",
     "evidence": "/private/tmp/lab6-deployment-20261102/deployment-r4",
     "web_bundle": "index-DRYBH2Vg.js",
     "limitations": "Experimental Spider nominal simulation only; adverse-return failures retained. Full ordered stand-then-follow semantics still not implemented; in-flight exit takeover is refused.",
     "speaker": "35% unmuted HiFiBerry default output, cached Okay aplay succeeded; user heard no sound and is unsure physical speaker exists.",
-    "voice_spider": "Actual jobs9–12: entry, forward2s, left2s, spider_up. All succeeded; user confirmed refusal separately (no follow tool call recorded). Laptop voice observed, not onboard filmed demo.",
+    "voice_spider": "Actual jobs9\u201312: entry, forward2s, left2s, spider_up. All succeeded; user confirmed refusal separately (no follow tool call recorded). Laptop voice observed, not onboard filmed demo.",
     "shutdown": {
       "owned_processes_exited": true,
       "native_driver_deactivated": true,
@@ -169,7 +169,7 @@
       "verified_members": 29,
       "evidence": "artifacts/validation/harness-sprint-20261103/r4-closed"
     },
-    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93–13.99s; exit14.01–14.04s; swim x2 23.68s; normal standing after swim4.42s.",
+    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93\u201313.99s; exit14.01\u201314.04s; swim x2 23.68s; normal standing after swim4.42s.",
     "running_burst": "Job8 commanded1.0m/s for0.50s, then zero; user confirmed controlled forward motion and stopping. Actual physical speed not measured."
   },
   "r5_onboard": {
@@ -300,7 +300,9 @@
     "before_lab6": "Ordered follow entry now shares the existing finite-job queue and preserves earlier admitted work. Reviewed offline; next watched acceptance still required.",
     "next_harness_improvement": "Implemented bounded authoritative terminal-failure operator feedback through existing UI poll and cached Pupper cue. Success is not physical evidence; model memory is not automatically synchronized.",
     "future_autonomy": "Reuse proven continuous behavior entry/yield/Stop lifecycle for tracking behaviors; realtime control remains local. Defer soccer implementation.",
-    "deployment": "Maintained pure package_app.py replaces hardcoded release assembly. Existing stage_app and explicit persistent-session lifecycle remain unchanged. First watched app-only upgrade/rollback remains unverified; no new orchestration framework."
+    "deployment": "Maintained pure package_app.py replaces hardcoded release assembly. Existing stage_app and explicit persistent-session lifecycle remain unchanged. First watched app-only upgrade/rollback remains unverified; no new orchestration framework.",
+    "remaining_boundary": "Current foundation model selects tools; local controllers execute them. Transport lifecycle protection is bounded and explicit. A future unattended control lease/ownership design would be a product decision, not a claim of current crash-proof autonomy.",
+    "latency": "Use bounded Debug timing plus existing server/native records before further optimization. Do not infer physical delay from callbacks or alter intentional clip durations without evidence."
   },
   "offline_composition_release": {
     "status": "Committed, independently reviewed, regression passed; final package locally staged and preserved. Not deployed.",
@@ -338,45 +340,28 @@
     "archive_sha256": "c3d7afa07cf35f576ed5a3fe2495868aaf35762e47dba8483795fa34258d1da4"
   },
   "offline_app_release": {
-    "status": "Committed, independently reviewed, packaged and locally staged; not deployed.",
-    "source_checkout_head": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
-    "runtime_commit": "d0591ddd0b5d25e9ecd8b580ca2628f6dee13d6d",
-    "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-followup/package",
-    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-followup",
-    "manifest_sha256": "38bb82035aae7234b5f10cf40d5a7f632f9459f9e10b1d5e00ece2225e26e2e6",
-    "app_archive": {
-      "name": "lab6-application.tar.gz",
-      "sha256": "29f0f2a32fa91afa0e7224cdb706bd1029a8ad4f6c20d2cffa12fa324adc046b",
-      "bytes": 1231031,
-      "regular_members": 36,
-      "symlinks": 0,
-      "strip_components": 0
-    },
-    "source_build_freeze_sha256": "b51111ad6eb016010bc0087d11d3696061d3ae448f29f35a92356d1cff37255b",
-    "bundle": "index--CC0txrj.js",
-    "evidence_archive_sha256": "a6469f668d65fa3727ffe6aedfe17a9dbf88b5a605928efb4a2305537ce49208",
+    "status": "Committed, independently reviewed, built, packaged and locally staged; NOT deployed or hardware accepted.",
+    "source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+    "runtime_commit": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+    "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final/package",
+    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+    "bundle": "index-Cr13ul_q.js",
+    "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+    "app_archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+    "source_build_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
+    "evidence_archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+    "deployed": false,
+    "local_stage_verified": true,
+    "selected_native_imu_models_config_unchanged": true,
     "local_staging": {
       "baseline_files": 132,
-      "final_selected_files": 136,
-      "launch_recipe_syntax_checks": 4,
-      "baseline_unchanged": true,
-      "selected_native_imu_policy_config_unchanged": true,
+      "final_selected_files": 137,
+      "source_build_inputs": 130,
+      "inherited_skill_files": 7,
+      "launch_recipe_syntax_checks": 5,
       "executed_recipes": false
     },
-    "reusable_packager": {
-      "source": "foundation/hardware/package_app.py",
-      "sha256": "0cba741dd56e21d1b426b5139de873d53c2840ecc37dc5997db726554add2007",
-      "commit": "41efcc84e2c7ed2dda70dd5dfb55e8dbf86ea2ae",
-      "tests": 34,
-      "subtests": 51,
-      "independent_review": "accepted",
-      "meaning": "One pinned baseline, final reviewed source/dist freeze and explicit additions replace editing dated package scripts. No build/deploy/start; launch recipes remain separate."
-    },
-    "supersedes_preserved_candidate": {
-      "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-final",
-      "manifest_sha256": "df6f5ba875826a21e76c0d1c872e55d9ae70ba675dd2d3f4746451005835c65e",
-      "reason": "Additional reproduced fresh-reply cancellation defect fixed; old package retained as historical evidence."
-    }
+    "limits": "No remote native-byte recheck or physical reliability claim. The selected source/build is frozen; later documentation-only commits do not imply a new runtime."
   },
   "offline_completion_audit": {
     "status": "Both concrete gaps closed, committed and independently reviewed.",
@@ -414,8 +399,110 @@
     "video_update": "User owns footage review and confirms interrupted Q12 first sequence needs later rerecord; no file request pending."
   },
   "offline_client_loss_review": {
-    "status": "In progress after user renewed overnight offline scope.",
-    "scope": "Existing browser/launcher crash and connection-loss behavior; reproduce before proposing bounded changes. No robot, broad framework or silent change to HTTP queue persistence.",
-    "owner": "/root/client_loss_review"
-  }
+    "status": "Completed offline, independently reviewed, included in final release. Not hardware accepted.",
+    "commits": [
+      "c5e11389a84cf1499b4a427bd6f46acd967c4b6b",
+      "880267262b2a88369226c480da1673f5091e4158"
+    ],
+    "findings_fixed": [
+      "Onboard browser normal exit/crash left active following behind. Explicit exclusive-session launcher option now requests existing global Stop on browser exit or handled launcher interruption.",
+      "PTT provider error, PCM send error or audio-stream release failure could leave a dead voice session connected and outstanding actions active. These now retire input/tools/output synchronously and preserve a single Stop before reconnect when actions were sent/inflight.",
+      "Initial identity-header approach was incompatible with old servers. Dedicated /stop/owned plus instance_guarded_stop preflight rejects unsupported APIs before launch; replacement/legacy API cannot receive unrestricted fallback Stop."
+    ],
+    "held_candidate": {
+      "path": "artifacts/validation/harness-sprint-20261103/app-release-r6-client-loss",
+      "status": "HELD; do not deploy",
+      "source_commit": "c5e11389a84cf1499b4a427bd6f46acd967c4b6b",
+      "reason": "Independent legacy-server reproduction showed an older Stop route ignored the new identity header. Replaced with mandatory dedicated guarded route/capability preflight in 8802672. Complete held candidate preserved."
+    },
+    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+    "limits": [
+      "Launcher SIGKILL, renderer hangs, unavailable API/host and silent network black holes are not covered by exit handling.",
+      "Exit Stop is global on the original API instance, not per-client ownership. Opt-in only for our exclusive robot session.",
+      "Native shutdown and physical stopping remain separate. No new motion policy, gain or speed limit."
+    ]
+  },
+  "offline_timing_capture": {
+    "status": "Reviewed, tested, built and packaged; no provider or robot call required.",
+    "commit": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+    "author_used_authenticated_claude": true,
+    "function": "Existing Debug panel can manually download or clear bounded in-memory numeric browser timing. No transcripts, media, credentials, tool arguments or raw IDs in export.",
+    "limits": {
+      "connections": 8,
+      "records": 512,
+      "bytes": 262144,
+      "request_ordinals_per_connection": 128
+    },
+    "validation": "51 focused tests plus two independent App/privacy/boundary probes; final544 web checks, typecheck and build passed. Existing voice-service logic unchanged by this feature.",
+    "ui": "Actual Chrome final bundle loaded against local fake server; empty export/Clear correctly disabled, layout inspected. Blob export/Clear exercised by automated component test, not a new browser voice/provider run.",
+    "finding": "R5 evidence does not show a new queue bottleneck: five admissions within84.623ms, job gaps0.208\u20131.548ms;3.5s paw clips took about3.525s and Spider routines intentionally took about14s. No speculative duration or provider change.",
+    "measurement_limits": "SDK send is not wire receipt or acoustic speech end; playback scheduled is not heard sound; tool start includes preparation/handoff and tool completion may be failure. Export does not establish physical latency or provider input/turn identity.",
+    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final"
+  },
+  "offline_final_validation": {
+    "api": {
+      "passed": 1201,
+      "unchanged_backend_inputs": 135,
+      "scope": "Final guarded-route backend; no robot"
+    },
+    "web": {
+      "passed": 544,
+      "unchanged_inputs": 85,
+      "typecheck": "pass",
+      "build": "pass",
+      "bundle": "index-Cr13ul_q.js"
+    },
+    "course": {
+      "passed": 166,
+      "scope": "Retained unchanged production Lab source; one documented adapted Stop assertion. Not a pristine starter-suite claim."
+    },
+    "build_warning": "Vite reports a bundle above500kB. Build succeeds; no measured load regression justifies speculative code splitting tonight.",
+    "packaging": {
+      "head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "client_bundle": "index-Cr13ul_q.js",
+      "source_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
+      "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+      "archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+      "archive_bytes": 1249938,
+      "archive_members": 39,
+      "final_source_files": 130,
+      "changed_from_prior_selected_runtime": [
+        "gemini_pupper/robot/kiosk.py",
+        "gemini_pupper/robot/server.py",
+        "gemini_pupper/web/App.tsx",
+        "gemini_pupper/web/components/DebugPanel.tsx"
+      ],
+      "added_selected_source": "gemini_pupper/web/services/timingCapture.ts",
+      "baseline_verified_files": 132,
+      "final_verified_files": 137,
+      "inherited_skill_files": 7,
+      "baseline_preserved": true,
+      "native_imu_model_config_selection_unchanged": true,
+      "native_binaries_remotely_checked": false,
+      "recipes_syntax_checked": 5,
+      "both_browser_recipes_enable_exit_stop": true,
+      "recipe_commands_executed": false,
+      "robot_network_deployment": false,
+      "output": "/private/tmp/lab6-deployment-20261102/deployment-r6-offline-final",
+      "local_stage": "/private/tmp/lab6-deployment-20261102/local-stage-r6-offline-final-check",
+      "future_remote_destination": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r6"
+    },
+    "archive": {
+      "archive": "app-release-r6-offline-final-evidence.tar.gz",
+      "archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+      "archive_bytes": 3539260,
+      "regular_members": 244,
+      "indexed_members": 243,
+      "uncompressed_bytes": 7175160,
+      "index_sha256": "d164d879a29ca1a7bc6112760d1a5e57a73bc9ce66929aa8f029ab348a12918c",
+      "all_archive_member_hashes_verified": true,
+      "both_stores_verified": true,
+      "destinations": [
+        "/Users/shrish/workspace/cs123-foundation/artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+        "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint/app-release-r6-offline-final"
+      ]
+    },
+    "owned_processes": "All author/review/build/package tasks finished. Local fakeUI server9977 exited143 after ownedSIGTERM; its log confirms application shutdown and process closure. No robot/provider/training tasks started."
+  },
+  "record_reading": "Dated evidence contains historical trial snapshots. Start interruption-recovery.json for current state; offline_app_release and offline_final_validation are final offline selections. source_base_commit and top runtime_sha256 describe the initial sprint candidate, not the current release."
 }
