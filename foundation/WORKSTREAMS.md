@@ -28,7 +28,7 @@ Current source: [Lab 6 handout](https://cs123-stanford.readthedocs.io/en/latest/
 5. **Four videos.** Q7: movement including sidestep/run/circle, refusal, follow while answering, follow takeover. Q12: Sit/hold/both paws/stand and camera-side handshake. Q16: Spider entry/walk/refusal/exit. Q19: newcomer conversation, personality and camera understanding.
 6. **Student submission.** Complete Q1–Q20, actual requested experiment observations/training comparisons, personality examples/newcomer feedback, reflection (at most one page), contributions, fork link, shared videos and course checkoffs. Do not substitute engineering tests for missing observations or invent answers. The review deck/template contain numbering errors; use handout Q7/Q12/Q16/Q19 as four distinct videos.
 
-Recording setup: Part 0 describes on-Pupper kiosk/mic/speaker without a laptop for videos. Our inspected voice evidence is laptop-based; settle this setup before filming. No extra polish is required if the course demonstration works adequately.
+Recording setup: Part 0 describes on-Pupper kiosk/mic/speaker without a laptop for videos. That setup worked in R5; recharge the wireless microphone before resuming the remaining recordings. No extra polish is required if the course demonstration works adequately.
 
 ## Voice recordings to finish — November 3 checkpoint
 
@@ -44,6 +44,25 @@ The wireless microphone battery died; no further voice filming should be presume
 Use Pupper’s own screen/microphone/speaker for the demos. Current hands-free mode has no wake word; spoken Stop disarms listening until an explicit reconnect, so place Stop at the end of a recording block. R3 remains available throughout. Do not treat a spoken acknowledgment as physical-completion evidence.
 
 The swim-twice exercise (**Q8**) was observed successfully with a standing return; the handout does **not** require a separate swim video. The student’s explanation is still needed. Q1–Q20 answers, training comparisons, reflection/contributions/fork link and course checkoffs remain separate submission work. Exact operational state and source versions stay in the recovery record.
+
+## Written submission handoff
+
+The videos are only part of the submission. Use the current source and actual
+observations; the reinforced harness differs from the class starter, so passing
+regressions cannot stand in for the requested starter experiments.
+
+| Questions | Evidence or next action |
+|---|---|
+| **Q1, Q2, Q6** | Recover the original description/result ablations, two before/after prompt-rule observations, and the experiment bypassing `prepare_to_move`. Those observations are not established in the inspected records. If reconstructed with an isolated fake starter, label them reconstructed; do not disable production protection. |
+| **Q3, Q5, Q15** | Use the current [movement tools](../gemini_pupper/lab/part2_walk.py), [basics](../gemini_pupper/lab/basics.py), [registry](../gemini_pupper/robot/tool_registry.py) and [robot API](../gemini_pupper/robot/robot_api.py) to explain parameter enforcement and immediate admission versus later controller execution. State which source version the trace describes; filmed R5 predates the new following announcement. |
+| **Q4** | Explain periodic speed publication and asynchronous waiting from source. The requested five-second walk/late-failure observation still needs exact evidence; a fake cancellation exercise must not be described as a physical fall or as observed model belief. |
+| **Q8–Q10, Q13** | Swim twice has watched evidence. Explain reentry/final posture, clip continuity, mirror and reverse from [motion operations](../pupper-mjlab/src/mjlab/tasks/tracking/config/pupper/motion_ops.py) and the Sit/Spider clip definitions beside it. Mirror swaps paired legs and negates all three joint axes under this model's conventions. Kinematic continuity alone does not prove dynamic stability. |
+| **Q11, Q14** | The [sprint report](results/harness-sprint-20261103.json) points to exact selected-policy identities and numerical evidence. Q11 now has a [reviewed nominal comparison](../artifacts/lab6/q11-sit-replay-20261103/comparison.json): replay **WOBBLES** (7.188cm/32.720° worst errors), selected policy **HOLDS UP** (1.492cm/3.697°). Disclose the gain difference and simulation scope. Q14 uses the recovered StableGait weights and selected Spider manifest, including its separately recorded torso-support penalty; no new training is needed just to assemble the table. |
+| **Q17, Q20** | Use the actual personality prompt and recorded conversations, then supply the missing newcomer feedback and the student's own reflection (at most one page). Do not invent spoken examples or personal judgments. |
+| **Q18** | The [previous complete output](../artifacts/validation/harness-sprint-20261103/follow-handoff/course-integrated.txt) passed all 166 checks before ordered following. The current harness intentionally adapts one provided Stop assertion: a queued acceptance remains historical acceptance, while its exact job must later be **cancelled** and the follower off. Use the [current 166-check passing output](../artifacts/validation/harness-sprint-20261103/offline-composition-release/integration/final/course.log) for the submitted source and disclose this adaptation; do not present it as an unchanged starter test suite. |
+
+Video requirements remain in the table above. Add actual video links, the fork
+link, contributions and course checkoffs before calling the submission complete.
 
 ## Action checklist for the next sprint
 

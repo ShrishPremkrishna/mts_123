@@ -1,7 +1,7 @@
 {
   "schema": "pupper_sprint_result_v1",
-  "updated_utc": "2026-11-03T08:44:59.541371+00:00",
-  "status": "r5_closed_offline_fixes_reviewed_ready_for_next_session",
+  "updated_utc": "2026-11-03T09:50:36.808442+00:00",
+  "status": "Offline release reviewed and packaged; not deployed. Supervised acceptance, remaining videos and student submission remain.",
   "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
   "changes": [
     "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
@@ -53,7 +53,8 @@
       "passed": 108,
       "subtests_passed": 4,
       "typecheck_and_production_build": "passed"
-    }
+    },
+    "scope": "Historical initial sprint checks; current runtime verification is under offline_composition_release.validation."
   },
   "pi": {
     "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r2",
@@ -104,10 +105,11 @@
     "swim_status": "Actual-descriptor double playback/reentry/Stop fake queue passed; repeated-playback physics and physical demo unverified."
   },
   "remaining": [
-    "Complete outstanding voice recordings using foundation/WORKSTREAMS.md checklist; do not infer submission completion from direct API trials.",
-    "Deploy/accept reviewed Q7 spoken handoff and app-only attachment on a later supervised block. Onboard active-motion Stop and echo remain bounded acceptance work.",
-    "Student Q1\u2013Q20 answers, actual training comparisons, reflection/contributions/fork link, video links and course checkoffs.",
-    "Fresh chat rooted in the already-corrected project at natural handoff. No new gait training/polish needed for minimum observed routines."
+    "Next user-authorized robot block: charged wireless mic; deploy the reviewed app, verify ordered follow, audible follow-off-before-motion and spoken Stop. No auto-start from this offline checkpoint.",
+    "Finish Q7 and Q19 recordings; inspect existing Q12 standing exit/camera-side handshake footage first and retain/check reported Q16. See WORKSTREAMS.md.",
+    "Student Q1\u2013Q20 explanations and missing actual experiment observations, reflection/contributions/fork link, video links and course checkoffs. Do not invent observations.",
+    "First watched app-only update/rollback remains an engineering acceptance check; not needed to repeat homing between ordinary actions.",
+    "Fresh correctly rooted chat may remove remaining app folder approval friction; user already changed project, so do not ask them to repeat it. Current approved commands worked."
   ],
   "evidence_root": "artifacts/validation/harness-sprint-20261103",
   "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
@@ -236,5 +238,138 @@
     "evidence": "artifacts/validation/harness-sprint-20261103/api-attachment",
     "meaning": "Explicit app-only start-api override preserves live native session, ownership, controllers, models, gains and follower paths; exact compatible catalog required. Original API rollback after confirmed exit.",
     "limits": "First live upgrade/rollback acceptance pending. Unconfirmed spawn requires identity recovery. Closed R5 cannot be attached or auto-restarted."
+  },
+  "submission_evidence": {
+    "handout": "Lab 6 - Instructions - 2026-11-02.txt in course library, Lecture 6",
+    "observations_missing": [
+      "Q1 description/result/not-written behavior",
+      "Q2 two prompt rules before/after",
+      "Q4 exact five-second walk observation and late-failure interpretation",
+      "Q6 deliberately bypassed prepare_to_move experiment",
+      "Q17 newcomer three words and complete concrete conversations",
+      "Q20 student reflection"
+    ],
+    "source_explanations_ready": [
+      "Q3",
+      "Q5",
+      "Q8",
+      "Q9",
+      "Q10",
+      "Q13",
+      "Q15"
+    ],
+    "Q11": {
+      "comparison": "artifacts/lab6/q11-sit-replay-20261103/comparison.json",
+      "review": "artifacts/lab6/q11-sit-replay-20261103/independent-review.json",
+      "archive_sha256": "b6b9d30c81ed967f0355833dc18c624b4190ad172f3c9ba2660b06af3921056c",
+      "results": {
+        "plain": {
+          "verdict": "WOBBLES",
+          "worst_position_error_m": 0.07188158482313156,
+          "worst_orientation_error_deg": 32.72016544452546
+        },
+        "trained": {
+          "verdict": "HOLDS UP",
+          "worst_position_error_m": 0.014923383481800556,
+          "worst_orientation_error_deg": 3.6972888375372905
+        }
+      },
+      "scope": "Same corrected nominal scene/reference/seed/clamps; plain kp7.5 vs trained kp5.5, both kd0.25. Not gain-matched causal comparison or hardware validation. First plain wobble2.24s/sit_down; no course FALLS threshold. No new training."
+    },
+    "Q14": {
+      "stable_gait_weights": "foundation/configs/lab4-stablegait-original-rewards.json",
+      "selected_spider_manifest": "artifacts/lab6/spider-encoder-native-v1/inputs/measured/foundation-run.json",
+      "same_eight_weights": true,
+      "additional_weights": {
+        "base_height": 3.0,
+        "termination": -5.0,
+        "foot_slip": -0.1,
+        "joint_torques_l2": -0.0002,
+        "torso_support": -5.0
+      },
+      "note": "Torso support is separately recorded under torso_support_contract, not profile_config.rewards. Existing nominal/seed renders in same study; choose a matching inspected clip rather than claiming all adverse cases pass."
+    },
+    "Q18": {
+      "previous_unadapted_output": "artifacts/validation/harness-sprint-20261103/follow-handoff/course-integrated.txt",
+      "current_output": "artifacts/validation/harness-sprint-20261103/offline-composition-release/integration/final/course.log",
+      "current_checks": 166,
+      "adaptation": "One provided Stop assertion now distinguishes historical queued acceptance from matching terminal cancellation, with follower off; original test source preserved."
+    }
+  },
+  "architecture_recommendations": {
+    "before_lab6": "Ordered follow entry now shares the existing finite-job queue and preserves earlier admitted work. Reviewed offline; next watched acceptance still required.",
+    "next_harness_improvement": "Implemented bounded authoritative terminal-failure operator feedback through existing UI poll and cached Pupper cue. Success is not physical evidence; model memory is not automatically synchronized.",
+    "future_autonomy": "Reuse proven continuous behavior entry/yield/Stop lifecycle for tracking behaviors; realtime control remains local. Defer soccer implementation.",
+    "deployment": "Maintained pure package_app.py replaces hardcoded release assembly. Existing stage_app and explicit persistent-session lifecycle remain unchanged. First watched app-only upgrade/rollback remains unverified; no new orchestration framework."
+  },
+  "offline_composition_release": {
+    "status": "Committed, independently reviewed, regression passed; final package locally staged and preserved. Not deployed.",
+    "source_commit": "fd5f2b91e284307f0fe2e90a8da7e0fd3140afb6",
+    "evidence": "artifacts/validation/harness-sprint-20261103/offline-composition-release",
+    "ordered_follow": {
+      "meaning": "Following enters the existing FIFO queue after ordinary commands; takeover tools supersede pending follow intent without dropping preceding work or replaying an owned exit.",
+      "review_fixes": [
+        "Superseded discovery cannot submit follow activation when service appears later.",
+        "Dequeued but not-yet-started cancelled follow preserves actual seated projection."
+      ],
+      "limitations": [
+        "Low-level interactive_action still requires its projected trick; it is not a following-takeover tool.",
+        "Browser following preflight can stop following before a later invalid motion is rejected.",
+        "Rapid follow, wait, then motion admission supersedes pending follow; it is not guaranteed timed following."
+      ]
+    },
+    "late_failure_feedback": {
+      "meaning": "Track actual accepted job IDs across the spoken turn, then match fresh server/epoch terminal failed outcomes. Existing status polling emits one approved cached Pupper failure cue; no success-completion speech or cloud TTS fallback.",
+      "bounds": "64 accepted jobs, five-minute retention. Expected cancellations and missing/stale/malformed/evicted outcomes remain silent. UI retains diagnostic evidence.",
+      "limits": "Operator correction only; does not synchronize model conversation memory or prove physical completion. Live audibility/robot acceptance pending.",
+      "concurrency": "Pause later model actions; use existing automatic Stop only if another model action POST is already in flight."
+    },
+    "validation": {
+      "api_tests": 1103,
+      "web_tests": 507,
+      "course_checks": 166,
+      "typecheck": "passed",
+      "build": "passed",
+      "runtime_test_sources_unchanged": 197,
+      "bundle": "index-G2M-FEX2.js",
+      "course_scope": "One provided Stop assertion intentionally adapted for queued acceptance versus exact-job terminal cancellation; original preserved. Precise inventory test now distinguishes earlier shared-Stop rejection from later inventory failure."
+    },
+    "robot_access": false,
+    "archive_sha256": "c3d7afa07cf35f576ed5a3fe2495868aaf35762e47dba8483795fa34258d1da4"
+  },
+  "offline_app_release": {
+    "status": "Ready offline; no robot contact or deployment",
+    "source_checkout_head": "41efcc84e2c7ed2dda70dd5dfb55e8dbf86ea2ae",
+    "runtime_commit": "fd5f2b91e284307f0fe2e90a8da7e0fd3140afb6",
+    "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-final/package",
+    "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-final",
+    "manifest_sha256": "df6f5ba875826a21e76c0d1c872e55d9ae70ba675dd2d3f4746451005835c65e",
+    "app_archive": {
+      "name": "lab6-application.tar.gz",
+      "sha256": "ff1e1ff6180061297541a803aa1a7428c5e4a7cffe3ed6bff5c5aa7221f2bf4e",
+      "bytes": 1230182,
+      "regular_members": 36,
+      "symlinks": 0,
+      "strip_components": 0
+    },
+    "source_build_freeze_sha256": "8d18770d1a512ba60777ddff1fe4bb77ddd910651f344e8e807d494dd997581e",
+    "evidence_archive_sha256": "00f0ecff64e186dc7d4436a7c96e166bee66a5c3706b3125aad64572e44ca53d",
+    "local_staging": {
+      "baseline_files": 132,
+      "final_selected_files": 136,
+      "launch_recipe_syntax_checks": 4,
+      "baseline_unchanged": true,
+      "selected_native_imu_policy_config_unchanged": true,
+      "executed_recipes": false
+    },
+    "reusable_packager": {
+      "source": "foundation/hardware/package_app.py",
+      "sha256": "0cba741dd56e21d1b426b5139de873d53c2840ecc37dc5997db726554add2007",
+      "commit": "41efcc84e2c7ed2dda70dd5dfb55e8dbf86ea2ae",
+      "tests": 34,
+      "subtests": 51,
+      "independent_review": "accepted",
+      "meaning": "One pinned baseline, final reviewed source/dist freeze and explicit additions replace editing dated package scripts. No build/deploy/start; launch recipes remain separate."
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Finish minimum viable Lab 6 and establish a cohesive, dependable, extensible general robot agent harness. Fix environment/deployment friction first; defer soccer implementation until harness acceptance. Teammates own locomotion performance and Optional Lab 3.",
+  "objective": "Complete the agreed general Pupper harness and minimum Lab 6 sprint with honest software/supervised evidence and clear submission handoff; remove recurring workspace/deployment friction. Defer soccer implementation and teammate Optional Lab 3/gait work. Propose high-leverage structural changes when concrete codebase flaws impede autonomous agent development; no automatic broad rewrite.",
   "worktree": "/Users/shrish/workspace/cs123-foundation",
   "branch": "pupper-foundation",
   "coursework_main": "/Users/shrish/workspace/cs123",
@@ -14,7 +14,8 @@
     "claude": "Authenticated Claude Code2.1.308, Opus5.5. User explicitly authorizes relevant Pupper source/tests/manifests to Anthropic for coding and second opinions on signed-in Max account; no keys/camera/audio/personal files. Alert on account limits. Approx1.99USD list-price usage reported this batch, not an additional-charge claim.",
     "workspace_limit": "User moved this chat into pupper project and corrected primary path to cs123-foundation. App confirms project assignment/path, but this running chat still has vault cwd and sandbox writes fail. Approved commands work; a fresh correctly rooted session is the remaining environment reset. Do not ask user to add the same folder again.",
     "report_plot_cache": "For future report generation, set MPLCONFIGDIR to a writable task temp directory; latest report succeeded with automatic temp cache, no dependency change.",
-    "api_environment": ".venv-api is an ignored local directory symlink to the existing tested API venv; no environment moved or dependencies reinstalled. check_foundation.py also retains the legacy fallback."
+    "api_environment": ".venv-api is an ignored local directory symlink to the existing tested API venv; no environment moved or dependencies reinstalled. check_foundation.py also retains the legacy fallback.",
+    "warp_cache": "For numerical runs under this sandbox set supported WARP_CACHE_PATH to a writable task directory. Q11 default ~/Library/Caches/warp failed before rollout; relocating only cache fixed it with unchanged source/physics/dependencies."
   },
   "compute_spend_policy": {
     "user_billing_enabled_now": true,
@@ -95,20 +96,20 @@
     "harness_sprint": "foundation/results/harness-sprint-20261103.json"
   },
   "acceptance_boundaries": [
-    "Foundation is not globally optimized or hardware-reliable. Successful bounded voice sequences do not establish long-duration robustness.",
-    "Before previous job chain, and in a short post-chain window, fixed camera patches and IMU heading disagree; actual scene movements between windows excluded. No hardware-cause diagnosis.",
-    "Static-idle change preserves full motion and standing initialization; rejected2s standing-return shortcut is excluded.",
-    "Provider1008 closures remain unresolved. Existing stop-and-fresh-reconnect behavior works; no speculative repeated expiry sweeps.",
-    "Generated bob and push-up research candidates remain unpromoted; selected class finite tricks and Sit only."
+    "Latest R6 candidate is tested offline only; robot last ran closed R5. No automatic deployment/homing/reconnect.",
+    "Selected physical observations are bounded; no globally optimized or generally reliable robot claim. No guaranteed navigation/obstacle avoidance, measured running speed or fall recovery.",
+    "Server job success is software/controller evidence, not observed motion. Late-failure speech only reports exact retained terminal failures, not model-memory synchronization.",
+    "Follow takeover is explicit. Low-level interactive_action keeps its pose prerequisite; rejected browser motion may already have ended follow during preflight.",
+    "Native/IMU/policy/config selection is unchanged in the staged application. Historical failures and adverse simulations remain valid limits."
   ],
   "deferred_decision": {
     "topic": "Foundation model and tool authority: immediate voice motion versus explicit plan confirmation.",
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
     "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "mode": "r5_closed_offline_fixes_reviewed_ready_for_next_session",
-  "updated_utc": "2026-11-03T08:44:59.541371+00:00",
-  "authorization": "User approved the seven-item sprint, explicitly requested an active goal, Claude Code and subagents. Coding, dependency/access fixes, offline validation and read-only Pi inventory authorized. Confirm physical readiness before a new motor block. Soccer and Lecture 7 remain deferred. User specifically approved relevant repository source/tests/manifests to Anthropic and signed-in Claude account use; no need to repeat this request for same scope.",
+  "mode": "offline_release_ready_robot_closed",
+  "updated_utc": "2026-11-03T09:50:36.808442+00:00",
+  "authorization": "User explicitly reconfirmed KEEP THIS SESSION OFFLINE after resumption. Coding, scoped Claude source review/implementation and local verification/preservation authorized; no robot contact or deployment in this session. Existing broad sprint authorization persists for a later supervised session, with actual physical readiness required before motors. Relevant source/tests to authenticated Claude account authorized; no keys/media/personal files. Soccer/teammate Optional3/gait and Lecture7 remain deferred.",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
@@ -137,14 +138,11 @@
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "No active hardware, provider, training, test or automation job. Q7 integrated API1082/web475/course166/build passed; app-only helper30tests+10subtests passed. Both changes independently reviewed and not deployed.",
+    "compute": "All owned Claude jobs, tests, packaging and local staging finished; exit receipts preserved. No training/provider rehearsal, robot connection or background compute active.",
     "owners": {
-      "/root": "Closed-session handoff; no background robot ownership.",
-      "/root/sensor_decision_review": "Completed Q7 implementation; idle.",
-      "/root/preserve_local_close": "Completed independent review of both candidates; idle.",
-      "/root/owned_lifecycle": "Completed app-only attachment implementation; idle."
+      "/root": "Offline checkpoint complete; other task owners finished. Check actual agents/receipts before resuming."
     },
-    "goal_status": "New active goal created for approved general-harness and minimum-Lab6 sprint."
+    "goal_status": "Active sprint, incomplete: remaining supervised acceptance, videos and student deliverables. Current offline release is ready."
   },
   "browser": {
     "browser": "Pi Chromium onWayland; MacPupper tabdisconnected",
@@ -158,41 +156,29 @@
   },
   "next": [
     {
-      "id": "voice_setup",
-      "action": "Recharge wireless microphone. User deferred filming. Existing selected Pi release R5 is closed; no auto homing/restart. Check actual boot/receipts at next authorized session."
-    },
-    {
-      "id": "deploy_accept",
-      "action": "Next reviewed app contains Q7 confirmed-follow-off \u2192 completed cue \u2192 held-motion admission. Preserve current native/model/gain identities. Accept cue audibility/order and spoken Stop during following. API-only attachment is ready offline for a future still-running homed session; first live upgrade/rollback remains untested."
+      "id": "next_supervised_block",
+      "action": "User chose offline-only. At a later explicitly ready robot block, use the reviewed final package listed in offline_ready.application_release; inspect actual boot/session receipts first. R5 is closed, so cannot attach to it; do not auto-restart. Verify new ordered-follow and audible Q7 handoff/Stop in one homed session."
     },
     {
       "id": "recordings",
-      "action": "Use foundation/WORKSTREAMS.md voice checklist: Q7 unfinished; inspect Q12 footage first for standing exit and camera-side handshake (mismatch deferred by user); Q16 captured by user with matching walk/exit logs, retain video; Q19 needs newcomer."
+      "action": "Recharge wireless mic. WORKSTREAMS.md owns remaining voice videos: Q7 unfinished, Q19 newcomer missing; review Q12 footage before retake, preserve/check reported Q16. No need new policy training for minimum observed routines."
     },
     {
       "id": "submission",
-      "action": "Finish student answers/training comparisons, actual video links, reflection/contributions/fork/checkoffs. No broader gait retraining or Optional3 polish needed for minimum Lab6."
+      "action": "Complete actual Q1\u2013Q20 explanations/missing observations, video links, reflection/contributions/fork/checkoffs. Current166-course output has one explicitly documented adapted Stop assertion."
+    },
+    {
+      "id": "engineering_acceptance",
+      "action": "First live app-only upgrade/rollback and new failure-cue audibility remain unverified. Do not rerun completed offline regressions or repackage unchanged sources to fill time."
     }
   ],
   "completed_this_session": [
-    "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
-    "Generic new queued tools receive one Okay after authoritative acceptance; duplicate names cannot replace handlers.",
-    "Follower stop no longer waits for blocked inference cleanup; late results and restart ownership stay fenced.",
-    "Maintained explicit stage/prepare/start-native/start-api/stop-api/status/shutdown reuses existing process receipts; app staging cannot replace policies.",
-    "Selected profile supports explicit Lab5 follower and validated walking pairs, with dependencies and Stop coverage bound.",
-    "Opt-in class_run uses the existing class helper and stock model; normal walking profile unchanged.",
-    "API1023, web422, course166, final affected93+41subtests passed.",
-    "Verified new release and inactive follower/Sit profile on Pi; rollback preserved.",
-    "R2 recovered existing homed manager after monitoring permission failure without rehoming; API healthy; user confirmed normal standing. Following not tested.",
-    "R3 measured following, conversation while following, paw takeover and spoken Stop passed watched checks. R3 closed and archived with verified outputs.",
-    "R4 readiness race fixed and independently reviewed; normal homing completed without manual recovery. Swim twice and follow-exit guard deployed; 108 affected tests plus 4 subtests and web build/typecheck passed.",
-    "Wireless USB lavalier now produces clear audio, confirmed by user. Onboard browser/speaker acceptance remains.",
-    "R4 on-stand Spider entry/exit and floor swim twice/standing completed with user-confirmed controlled motion.",
-    "R4 short class run and Spider voice entry/walk/exit observed; reference belly contact is intentional during entry/exit, not walking.",
-    "R5 onboard key bootstrap, hands-free microphone/speaker and fake Stop/disarm passed; Q12/Q16 footage reported captured with explicit Q12 log mismatch retained.",
-    "R5 shut down after supported confirmation; complete closed archive verified (32 members) in both durable stores.",
-    "Q7 follow-to-motion cue now gates held movement on actual WebAudio completion and original Stop/epoch/currentness; integrated API1082/web475/course166 passed, independent review accepted. Not yet deployed.",
-    "App-only release attachment preserves homed native session and exact policy/config contracts;30tests+10subtests passed with independent review. Live upgrade acceptance pending."
+    "Recovered exact pending source and prior exits; no completed training or experiments restarted.",
+    "Reviewed/fixed ordered follow sequencing and two reproduced supersession races; committed fd5f2b9.",
+    "Claude implemented exact-job late failure feedback using existing poll and approved Pupper cue; independently reviewed, current-source API1103/web507/course166/typecheck/build pass.",
+    "Claude implemented maintained pure package_app.py;34tests+51subtests and independent review pass; committed41efcc8.",
+    "Final app package locally staged:132baseline and136final selected files verified; native/IMU/models/config unchanged; complete new evidence verified in both stores.",
+    "Q11 comparison and accurate remaining submission evidence are preserved; no new robot evidence added."
   ],
   "preservation": {
     "directory": "artifacts/hardware/2026-11-02/startup-close",
@@ -204,7 +190,14 @@
     "remote_indexed_entries": 3167,
     "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
     "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs.",
-    "current_pending": "None for R3/R4/R5. R5 combined native+real browser+old-boot fake archive: 32 members verified in both artifact stores. Fake receipt is historical running from previous boot; no graceful-close claim."
+    "current_pending": "None. R3/R4/R5 and current offline runtime/package evidence are fully preserved and verified; no active collector needed.",
+    "current_offline": {
+      "runtime": "artifacts/validation/harness-sprint-20261103/offline-composition-release",
+      "runtime_archive_sha256": "c3d7afa07cf35f576ed5a3fe2495868aaf35762e47dba8483795fa34258d1da4",
+      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-final",
+      "package_evidence_archive_sha256": "00f0ecff64e186dc7d4436a7c96e166bee66a5c3706b3125aad64572e44ca53d",
+      "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint"
+    }
   },
   "build_distinction": "Retained, tested offline, not deployed in this trial.",
   "scope_reset": {
@@ -244,6 +237,29 @@
       "helper_sha256": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde",
       "evidence": "artifacts/validation/harness-sprint-20261103/api-attachment",
       "deployed": false
+    },
+    "ordered_follow": {
+      "status": "Committed and independently reviewed offline",
+      "source_commit": "fd5f2b91e284307f0fe2e90a8da7e0fd3140afb6",
+      "evidence": "artifacts/validation/harness-sprint-20261103/offline-composition-release",
+      "deployed": false
+    },
+    "late_job_failure_feedback": {
+      "status": "Committed, independently reviewed; full integration passed",
+      "source_commit": "fd5f2b91e284307f0fe2e90a8da7e0fd3140afb6",
+      "bundle": "index-G2M-FEX2.js",
+      "deployed": false
+    },
+    "application_release": {
+      "source_checkout_head": "41efcc84e2c7ed2dda70dd5dfb55e8dbf86ea2ae",
+      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-final/package",
+      "manifest_sha256": "df6f5ba875826a21e76c0d1c872e55d9ae70ba675dd2d3f4746451005835c65e",
+      "app_archive_sha256": "ff1e1ff6180061297541a803aa1a7428c5e4a7cffe3ed6bff5c5aa7221f2bf4e",
+      "source_build_freeze_sha256": "8d18770d1a512ba60777ddff1fe4bb77ddd910651f344e8e807d494dd997581e",
+      "bundle": "index-G2M-FEX2.js",
+      "deployed": false,
+      "local_stage_verified": true,
+      "selected_native_imu_models_config_unchanged": true
     }
   }
 }
