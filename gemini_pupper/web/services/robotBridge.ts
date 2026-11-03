@@ -26,7 +26,7 @@ class RobotBridge {
     if (!existing) commandStates.set(this.baseUrl, this.state);
   }
 
-  private async request(endpoint: string, method: 'GET' | 'POST', body?: any, returnBlob: boolean = false) {
+  private async request(endpoint: string, method: 'GET' | 'POST', body?: any, returnBlob: boolean = false, requiredEpoch?: string) {
     const path = endpoint.replace(/\/+$/, '');
     const stopping = method === 'POST' && ['/stop/immediate', '/queue/stop', '/tools/stop'].includes(path);
     if (stopping) {
@@ -54,7 +54,9 @@ class RobotBridge {
     const refused = (message: string) => ({ success: false, outcome_unknown: false, not_dispatched: true, message });
     if (this.state.pendingStops) return refused('Not dispatched: a Stop response is pending.');
     if (this.state.stopUnconfirmed) return refused('Not dispatched: the previous Stop failed or its outcome is unknown. Use Stop again and confirm its response before new motion.');
-    let epoch = this.state.commandEpoch;
+    if (requiredEpoch && this.state.commandEpoch && this.state.commandEpoch !== requiredEpoch)
+      return refused('Not dispatched: follow handoff belongs to an earlier command epoch.');
+    let epoch = requiredEpoch ?? this.state.commandEpoch;
     if (!epoch) {
       const health = await this.sendRequest('/health', 'GET');
       if (serial !== this.state.stopSerial || this.state.pendingStops) return refused('Not dispatched: Stop occurred while preparing this request.');
@@ -201,8 +203,13 @@ class RobotBridge {
   }
 
   /** Run one of Gemini's tools on the robot. Returns {success, message}. */
-  async callTool(name: string, args: Record<string, unknown>) {
-    return this.request(`/tools/${encodeURIComponent(name)}`, 'POST', args);
+  async callTool(name: string, args: Record<string, unknown>, requiredEpoch?: string) {
+    return this.request(`/tools/${encodeURIComponent(name)}`, 'POST', args, false, requiredEpoch);
+  }
+
+  /** Same epoch/Stop boundary as motion, without commanding zero when already off. */
+  async prepareFollowHandoff() {
+    return this.request('/following/deactivate?if_active=true', 'POST');
   }
 
   async getLimits() {

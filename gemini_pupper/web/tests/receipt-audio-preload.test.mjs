@@ -12,9 +12,9 @@ const fetchAssets=async url=>response(asset(decodeURIComponent(String(url).split
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 function replace(t,key,value){const old=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});t.after(()=>old?Object.defineProperty(globalThis,key,old):delete globalThis[key]);}
 
-test('approved bundled manifest preloads exactly thirteen pinned local PCM files',async()=>{
+test('approved bundled manifest preloads exactly fourteen pinned local PCM files',async()=>{
   const requests=[],cache=await preloadReceiptAudio(config,undefined,async(url,options)=>{requests.push(url);assert.ok(options.signal);return fetchAssets(url);});
-  assert.ok(cache);assert.equal(requests.length,13);assert.ok(requests.every(x=>x.startsWith('/receipt-audio/')&&x.endsWith('.pcm')));
+  assert.ok(cache);assert.equal(requests.length,14);assert.ok(requests.every(x=>x.startsWith('/receipt-audio/')&&x.endsWith('.pcm')));
   for(const clip of manifest.clips){assert.equal(clip.review_status,'approved_human');assert.equal(cache.lookup(clip.text,config.modelName,'Puck'),Buffer.from(asset(clip.file)).toString('base64'));}
 });
 test('disabled, mismatched model/voice and receipt-only settings perform no preload',async()=>{
@@ -52,8 +52,8 @@ function environment(t,fetcher) {
   t.after(()=>s.disconnect());return {s,calls,logs,audio,responses,get connects(){return connects;}};
 }
 test('real service connect preloads once; cache dispatch does not fetch or wait for model audio',async t=>{
-  let downloads=0;const e=environment(t,async(...args)=>{downloads++;return fetchAssets(...args);});await e.s.connect('UNIT_TEST',config,{});assert.equal(downloads,13);assert.equal(e.connects,1);
-  await e.s.handleMessage({toolCall:{functionCalls:[{id:'m',name:'move',args:{}}]}});assert.equal(e.audio.length,1);assert.equal(downloads,13);assert.equal(e.responses[0].functionResponses.response.operator_acknowledgment,undefined);
+  let downloads=0;const e=environment(t,async(...args)=>{downloads++;return fetchAssets(...args);});await e.s.connect('UNIT_TEST',config,{});assert.equal(downloads,14);assert.equal(e.connects,1);
+  await e.s.handleMessage({toolCall:{functionCalls:[{id:'m',name:'move',args:{}}]}});assert.equal(e.audio.length,1);assert.equal(downloads,14);assert.equal(e.responses[0].functionResponses.response.operator_acknowledgment,undefined);
   assert.ok(e.logs.some(x=>x.message==='Quick Puck acknowledgments ready.'));
 });
 test('connect fallback preserves normal native receipt and disconnect cancels preload before SDK opens',async t=>{

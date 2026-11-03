@@ -10,7 +10,7 @@ export function supportsPuckReceiptConsumer(model: string, voice: string, ttsMod
     && (ttsModel || 'gemini-3.1-flash-tts-preview') === 'gemini-3.1-flash-tts-preview'));
 }
 const PHRASES = new Set([
-  'Okay.', 'Move queued.', 'Stop requested.', 'Left paw command queued.', 'Right paw command queued.',
+  "I've stopped following.", 'Okay.', 'Move queued.', 'Stop requested.', 'Left paw command queued.', 'Right paw command queued.',
   'Stand queued.', 'Turn queued.', 'Arc queued.', 'Wait queued.', 'Trick queued.', 'Interactive action queued.',
   'That request failed. Check the controls for details.', 'Exact physical repetition counts are not supported.',
 ]);

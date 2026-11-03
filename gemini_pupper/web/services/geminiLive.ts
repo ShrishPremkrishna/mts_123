@@ -8,6 +8,7 @@ import { normalizeOutputPolicy, operatorFeedback, nativeReceiptFeedback, toolLab
 import { toolResponseStatus, acceptedJobIdentity, type ToolDispatch } from './executionStatus';
 import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer } from './receiptAudioCache';
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
+import { FOLLOW_HANDOFF_CUE, followHandoffTools, confirmedFollowHandoff } from './followHandoff';
 
 /** A background permission request may never be presented by the browser. */
 class MediaVisibilityError extends Error {
@@ -89,6 +90,8 @@ export class GeminiLiveService {
   private nativeReceiptOutput: NativeReceiptOutputGate;
   private apiKey = '';
   private pawClarificationAvailable = false;
+  private followHandoffToolNames = new Set<string>();
+  private cancelFollowHandoffAudio: (() => void) | null = null;
   private receiptPreloadController: AbortController | null = null;
   private cancelledToolIds = new Set<string>();
   private dispatchedActionIds = new Set<string>();
@@ -386,6 +389,7 @@ export class GeminiLiveService {
     this.ensureOpen();
     const offeredTools: FunctionDeclaration[] = Array.isArray(spec?.tools) ? spec.tools : [];
     const robotTools = offeredTools;
+    this.followHandoffToolNames = followHandoffTools(spec?.follow_handoff, offeredTools);
     if (robotTools.length) {
       this.log('info', `Robot offers ${robotTools.length} tools: ${robotTools.map(t => t.name).join(', ')}`);
     } else {
@@ -726,6 +730,63 @@ export class GeminiLiveService {
     };
   }
 
+  /** Only the short code-owned takeover cue waits for playback, never ordinary
+   * conversation/TTS streaming. Stop cancels this barrier synchronously. */
+  private playFollowHandoffAudio(audio: string, current: () => boolean): Promise<boolean> {
+    const ctx = this.audioContext, analyser = this.analyser, generation = this.playbackGeneration;
+    if (!ctx || !analyser || ctx.state !== 'running' || !current()) return Promise.resolve(false);
+    return new Promise(resolve => {
+      let finished = false, source: AudioBufferSourceNode | null = null;
+      const valid = () => !this.disposed && ctx === this.audioContext && ctx.state === 'running'
+        && generation === this.playbackGeneration && current();
+      const finish = (completed: boolean) => {
+        if (finished) return;
+        finished = true; clearTimeout(timer);
+        if (this.cancelFollowHandoffAudio === cancel) this.cancelFollowHandoffAudio = null;
+        if (source) {
+          source.onended = null;
+          const index = this.queuedSources.indexOf(source);
+          if (index !== -1) this.queuedSources.splice(index, 1);
+          if (!completed) { try { source.stop(); } catch { /* Already ended. */ } }
+          try { source.disconnect(); } catch { /* Detached output. */ }
+        }
+        resolve(completed);
+      };
+      const cancel = () => finish(false);
+      const timer = setTimeout(cancel, 10000);
+      this.cancelFollowHandoffAudio = cancel;
+      void (async () => {
+        const buffer = await decodeAudioData(audio, ctx);
+        if (finished || !valid() || !Number.isFinite(buffer.duration) || buffer.duration <= 0 || buffer.duration > 5) { finish(false); return; }
+        source = ctx.createBufferSource(); source.buffer = buffer; source.connect(analyser);
+        const startAt = Math.max(this.nextStartTime, ctx.currentTime);
+        const endsAt = startAt + buffer.duration;
+        source.onended = () => finish(valid() && ctx.currentTime >= endsAt - .025);
+        this.queuedSources.push(source);
+        this.nextStartTime = endsAt;
+        source.start(startAt);
+        this.trace('follow_handoff_audio_started', { duration_ms: buffer.duration * 1000 });
+      })().catch(() => finish(false));
+    });
+  }
+
+  private async prepareFollowHandoff(current: () => boolean, confirmedResponse?: any): Promise<{ announced: boolean; epoch?: string; refusal?: any }> {
+    const refuse = (message: string) => ({ announced: false, refusal: { success: false, not_dispatched: true, message } });
+    if (!current()) return refuse('Held motion not sent: follow handoff was superseded.');
+    if (confirmedResponse === undefined) this.trace('follow_handoff_prepare_start');
+    const response = confirmedResponse ?? await this.robotBridge.prepareFollowHandoff();
+    const receipt = confirmedFollowHandoff(response);
+    if (!current() || !receipt) return refuse('Held motion not sent: could not confirm that follow mode is disabled.');
+    if (!receipt.changed) return { announced: false, epoch: receipt.epoch };
+    const audio = this.outputPolicy === 'conversation'
+      ? this.receiptAudioCache?.lookup(FOLLOW_HANDOFF_CUE, this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
+    if (!audio) return refuse('Follow mode is off. Held motion not sent: the handoff voice cue is unavailable.');
+    const played = await this.playFollowHandoffAudio(audio, current);
+    this.trace('follow_handoff_audio_finished', { completed: played });
+    if (!played || !current()) return refuse('Follow mode is off. Held motion not sent: the handoff announcement was interrupted or failed.');
+    return { announced: true, epoch: receipt.epoch };
+  }
+
   private async synthesizeAndPlaySpeech(text: string, isCurrent: () => boolean = () => true): Promise<void> {
     if (this.outputPolicy !== 'conversation') return;
     const generation = this.playbackGeneration;
@@ -1000,6 +1061,7 @@ export class GeminiLiveService {
           this.log('function', `Request: ${toolLabel(fc.name)}`);
           let result: any = { success: true };
           let receivedServerReply = false;
+          let followHandoffAnnounced = false;
           let dispatch: { id: string; name: string; timestamp: number } | null = null;
 
           try {
@@ -1054,7 +1116,34 @@ export class GeminiLiveService {
                 this.pendingRobotTools++;
                 const actionRequest = isModelAction(fc.name);
                 if (actionRequest) this.pendingModelActions++;
-                try { result = await this.robotBridge.callTool(fc.name, args ?? {}); receivedServerReply = true; }
+                try {
+                  const stopSerial = this.robotBridge.statusGeneration();
+                  const handoffPlaybackGeneration = this.playbackGeneration;
+                  const current = () => this.connected && !this.disposed && !this.robotToolsPaused
+                    && admissionGeneration === this.toolAdmissionGeneration
+                    && handoffPlaybackGeneration === this.playbackGeneration
+                    && stopSerial === this.robotBridge.statusGeneration()
+                    && !(fc.id && this.cancelledToolIds.has(fc.id));
+                  if (this.followHandoffToolNames.has(fc.name) && fc.name !== 'stop') {
+                    const prepared = await this.prepareFollowHandoff(current);
+                    followHandoffAnnounced = prepared.announced;
+                    if (prepared.refusal) result = prepared.refusal;
+                    else if (!current()) result = { success: false, not_dispatched: true, message: 'Held motion superseded before dispatch.' };
+                    else { this.trace('follow_handoff_motion_dispatch', timing); result = await this.robotBridge.callTool(fc.name, args ?? {}, prepared.epoch); receivedServerReply = true; }
+                  } else {
+                    result = await this.robotBridge.callTool(fc.name, args ?? {}); receivedServerReply = true;
+                    // A model may explicitly request follow(false) before the
+                    // next action. The same confirmed cue still owns this lane.
+                    if (this.followHandoffToolNames.size && fc.name === 'follow' && args?.enabled === false && result?.success === true) {
+                      const prepared = await this.prepareFollowHandoff(current, result);
+                      followHandoffAnnounced = prepared.announced;
+                      if (prepared.refusal) {
+                        result = { success: false, message: 'Follow-disable request returned, but its announcement failed or was superseded. Later motion is cancelled.' };
+                        receivedServerReply = false;
+                      }
+                    }
+                  }
+                }
                 catch (error) { this.trace('tool_call_failed', timing); throw error; }
                 finally {
                   if (turnTiming) turnTiming.toolReply ??= performance.now();
@@ -1134,6 +1223,8 @@ export class GeminiLiveService {
           // intact instead of replacing it with the shorter generic cached cue.
           const composedNativeReceipt = receiptAuthorization && receiptAuthorization !== actualReceipt
             && receiptAuthorization !== cacheText;
+          // This turn already heard the confirmed takeover, not another Okay.
+          if (followHandoffAnnounced && receiptTurn) this.nativeReceiptOutput.claimQueuedCue(receiptTurn);
           const neutralAudio = (cacheText || genericQueuedAcceptance) && result?.success === true && fc.name !== 'stop'
             ? this.receiptAudioCache?.lookup('Okay.', this.config.modelName, this.config.voiceName || 'Puck', this.config.ttsModelName) : null;
           // Existing cached phrases require their typed submission; generic
@@ -1272,6 +1363,7 @@ export class GeminiLiveService {
   }
 
   private stopPlayback(invalidateTurn = true, invalidateReceipt = true) {
+    this.cancelFollowHandoffAudio?.();
     if (invalidateReceipt) this.nativeReceiptOutput.invalidate();
     if (invalidateTurn) this.conversationOutput.discard();
     this.feedbackGeneration++;

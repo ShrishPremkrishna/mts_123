@@ -53,6 +53,7 @@ class Tool:
     params: dict[str, Param]
     run: Callable[..., Awaitable[Result]]
     module: str = ""
+    ends_following: bool = False
 
 
 TOOLS: dict[str, Tool] = {}
@@ -62,9 +63,12 @@ LAB_DIR = Path(__file__).resolve().parent.parent / "lab"
 LAB_MODULES = ["basics", "part2_walk", "part3_follow", "part4_tricks", "part5_interactive_action", "part8_secrets"]
 
 
-def tool(tool_name: str, description: str, /, **params: Param):
+def tool(tool_name: str, description: str, /, *, _ends_following: bool = False, **params: Param):
     """Register the function below as the tool Gemini calls ``tool_name``. (The
     ``/`` lets a tool have a parameter called name, like play_trick.)"""
+
+    if type(_ends_following) is not bool:
+        raise TypeError("_ends_following must be a boolean capability flag")
 
     def register(fn):
         previous = TOOLS.get(tool_name)
@@ -73,7 +77,7 @@ def tool(tool_name: str, description: str, /, **params: Param):
                 f"duplicate tool name {tool_name!r}: already registered by "
                 f"{previous.run.__module__}.{previous.run.__qualname__}"
             )
-        TOOLS[tool_name] = Tool(tool_name, description, params, fn, fn.__module__)
+        TOOLS[tool_name] = Tool(tool_name, description, params, fn, fn.__module__, _ends_following)
         return fn
 
     return register
@@ -190,6 +194,18 @@ def declarations(robot: Robot) -> list[dict]:
             decl["parameters"] = {"type": "OBJECT", "properties": props, "required": required}
         out.append(decl)
     return out
+
+
+def follow_handoff_metadata(robot: Robot) -> dict:
+    """Client admission behavior, separate from model parameters and prose.
+
+    Extensions that end follow mode opt in with @tool(..., _ends_following=True).
+    The existing server prepare_to_move remains the actuator ownership guard.
+    """
+    offered = {entry["name"] for entry in declarations(robot)}
+    return {"schema": "pupper_follow_handoff_v1", "prepare_if_active": True,
+            "tools": [t.name for t in _in_lab_order(list(TOOLS.values()))
+                      if robot.follow_available and t.ends_following and t.name in offered]}
 
 
 _TYPES = {"string": (str,), "number": (int, float), "integer": (int,), "boolean": (bool,)}

@@ -106,8 +106,8 @@
     "user_direction": "Discuss later; first latency, flexibility and robustness.",
     "implementation": "Immediate explicit primitives retained; capability disclosure and prompt navigation mitigation are deployed. Semantic navigation refusal is not hard enforcement."
   },
-  "mode": "r4_closed_minimum_skills_observed_onboard_implementation",
-  "updated_utc": "2026-11-03T07:52:21.302845+00:00",
+  "mode": "r5_closed_voice_filming_deferred_offline_fixes_finishing",
+  "updated_utc": "2026-11-03T08:41:36.694573+00:00",
   "authorization": "User approved the seven-item sprint, explicitly requested an active goal, Claude Code and subagents. Coding, dependency/access fixes, offline validation and read-only Pi inventory authorized. Confirm physical readiness before a new motor block. Soccer and Lecture 7 remain deferred. User specifically approved relevant repository source/tests/manifests to Anthropic and signed-in Claude account use; no need to repeat this request for same scope.",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
@@ -116,64 +116,58 @@
     "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
   },
   "hardware_session": {
-    "status": "R4 fully shut down; owned process exit and native driver deactivation verified, user confirmed legs released. Robot supported on stand. No automatic restart.",
+    "status": "R5 closed after user R3 and supported-on-stand confirmation. Immediate Stop cleared work; browser and native/API/recorders have stopped receipts. Driver log confirms hardware shutdown. No automatic restart; microphone battery died, filming deferred.",
     "ssh": "mts",
-    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r4",
-    "boot_id": "3765c5e9-73a9-4a25-83e6-52cd2e691dfc",
-    "api_instance": "80896162b1604ee9ad6f09f3bd1e7281",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
+    "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
+    "api_instance": "e003eb82fb0a4a778dd59b236913e9d7",
     "motor_api_recorders_active": false,
     "active_processes": {},
     "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
     "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "queued_imu_age_guard_deployed": false,
     "archive_local_verified": true,
-    "latest_reachability": "API reachable; latest battery 73%,18.51V before swim block. Check again before prolonged testing.",
-    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r4",
-    "prepared_release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r4",
-    "session_id": "60d43f393a534db39756108a00dba98b",
-    "shutdown": {
-      "owned_processes_exited": true,
-      "native_driver_deactivated": true,
-      "operator_released": true,
-      "archive_sha256": "f57a778d737e5081da02802066ef8272c5ab78f2e6d60095cd7a5987d1f5a42a",
-      "verified_members": 29,
-      "evidence": "artifacts/validation/harness-sprint-20261103/r4-closed"
-    }
+    "latest_reachability": "Archive retrieved after shutdown on boot bb2dcd96-27e1-406c-82ff-10cf0ab15329. No new motor commands. Last sampled battery during filming 60%17.82V; not a current reading.",
+    "prepared_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
+    "prepared_release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+    "session_id": "a5f86032a8d94ebaa9f50890ecf1f2f7",
+    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit.",
+    "archive": "artifacts/validation/harness-sprint-20261103/r5-closed",
+    "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03"
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "Noactivecompute. Sourcecommits0327403and068a028 reviewed;108affectedtests+4subtests,webbuild/typecheckpassed. R4frozenprepared; nofurtheredits.",
+    "compute": "No training, paid provider jobs or scheduled automation. Offline Q7 integrated regression and app-only attachment review finishing; do not rerun completed R5 hardware.",
     "owners": {
-      "/root": "Integrate reviewed onboard changes; R4 closed and archived; sole future robot owner",
-      "/root/owned_lifecycle": "Offline onboard bootstrap/kiosk implementation; no hardware",
-      "/root/sensor_decision_review": "Offline explicit hands-free input/frontend bootstrap implementation",
-      "/root/preserve_local_close": "Read-only Spider transition diagnosis, then independent onboard review with Claude"
+      "/root": "Preserve verified R5 archive, integrate reviewed offline fixes and checkpoint.",
+      "/root/sensor_decision_review": "Q7 handoff candidate frozen and independently accepted; no live deployment.",
+      "/root/preserve_local_close": "Independent app-only API attachment review. Q7 review complete.",
+      "/root/owned_lifecycle": "App-only API attachment candidate frozen in scratch; review pending, no live deployment."
     },
     "goal_status": "New active goal created for approved general-harness and minimum-Lab6 sprint."
   },
   "browser": {
-    "browser": "Chrome1",
-    "tab": "360981108",
-    "url": "http://127.0.0.1:18090/",
-    "connection": "Disconnected after R4; old tab retained for later tests, API now stopped.",
-    "bundle": "index-B1w3LMEm.js",
+    "browser": "Pi Chromium onWayland; MacPupper tabdisconnected",
+    "url": "http://localhost:18090/",
+    "connection": "Owned R5 onboard browser closed. No live voice session. Next connect must be explicit.",
+    "bundle": "index-FXa-YGat.js",
     "model": "gemini-robotics-er-2-streaming-preview",
     "tts": "gemini-3.1-flash-tts-preview / Puck",
-    "key": "Private configured; never include in logs/repo/chat.",
-    "pending_user_prompt": null
+    "key": "PrivateonPi600file, bootstrapmemoryonly; neverincludeinlogs/repo/chat.",
+    "owned_gui_run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-onboard-real-r5"
   },
   "next": [
     {
-      "id": "r4_acceptance",
-      "action": "Integrate/final-check onboard bootstrap+handsfree candidates after independent/Claude review. No robot start needed; do fake rehearsal first. User explicitly approved new credential endpoint, onboard existingkeyuse, and namedfourfilestoClaude(max$1.50)."
+      "id": "finish_offline",
+      "action": "Finish current Q7 regression and app-only attachment independent review, then preserve/commit. No new physical test during this deferred block."
     },
     {
-      "id": "minimum_lab6",
-      "action": "Basic swimtwice, short stock run and Spider floorwalking/exit now observed. Remaining onboard audio/handsfreeacceptance, finalreleasecoursechecks and fourvideos/studentdeliverables. Physicalspeaker unknown; do notclaimonboardvoicepassed."
+      "id": "voice_deliverables",
+      "action": "Recharge wireless microphone. Use foundation/WORKSTREAMS.md voice-recording table: Q7 unfinished, Q12 existing footage review/partial mismatch deferred, Q16 reported captured, Q19 needs newcomer. Do not repeat completed demos by default."
     },
     {
-      "id": "workspace",
-      "action": "Project primary path is corrected. Fresh correctly rooted chat at next handoff removes old vault cwd/sandbox; no more folder-add loops."
+      "id": "next_robot_block",
+      "action": "Deploy only reviewed app candidate on next authorized session; verify onboard following-stop cue finishes before takeover and spoken Stop cancels. App-only attachment must preserve native/PIDs and be accepted before claiming rehome-free upgrades."
     }
   ],
   "completed_this_session": [
@@ -189,7 +183,10 @@
     "R3 measured following, conversation while following, paw takeover and spoken Stop passed watched checks. R3 closed and archived with verified outputs.",
     "R4 readiness race fixed and independently reviewed; normal homing completed without manual recovery. Swim twice and follow-exit guard deployed; 108 affected tests plus 4 subtests and web build/typecheck passed.",
     "Wireless USB lavalier now produces clear audio, confirmed by user. Onboard browser/speaker acceptance remains.",
-    "R4 on-stand Spider entry/exit and floor swim twice/standing completed with user-confirmed controlled motion."
+    "R4 on-stand Spider entry/exit and floor swim twice/standing completed with user-confirmed controlled motion.",
+    "R4 short class run and Spider voice entry/walk/exit observed; reference belly contact is intentional during entry/exit, not walking.",
+    "R5 onboard key bootstrap, hands-free microphone/speaker and fake Stop/disarm passed; Q12/Q16 footage reported captured with explicit Q12 log mismatch retained.",
+    "R5 shut down after supported confirmation; complete closed archive verified (32 members) in both durable stores."
   ],
   "preservation": {
     "directory": "artifacts/hardware/2026-11-02/startup-close",
@@ -201,7 +198,7 @@
     "remote_indexed_entries": 3167,
     "remote_source": "/home/pi/pupper-foundation-session-20261029/archives/ws1-startup-close-20261102",
     "remote_recovery": "If local verification absent, resume existing hashed32MiB parts using /private/tmp/collect-ws1-startup-close.py; do not repeat robot runs.",
-    "current_pending": "None for R4 output: complete29-memberarchive verified in both existing artifact stores, SHA f57a778d737e5081da02802066ef8272c5ab78f2e6d60095cd7a5987d1f5a42a. R2/R3 already preserved."
+    "current_pending": "None for R3/R4/R5. R5 combined native+real browser+old-boot fake archive: 32 members verified in both artifact stores. Fake receipt is historical running from previous boot; no graceful-close claim."
   },
   "build_distinction": "Retained, tested offline, not deployed in this trial.",
   "scope_reset": {
@@ -214,9 +211,20 @@
   },
   "microphone": {
     "device": "JieliUSBCompositeDevice,ALSAcardDevice",
-    "status": "Firstthreecapturesallzero;afteruserwirelesslink/powerchange10s48kHzdirectrecordingnonzero,no clipping; userconfirmedclear. Default16kHzcapturealsohasnonzeros.",
-    "onboard_browser_verified": false,
-    "speaker": "HiFiBerry default sink unmuted at35%; sample software playback succeeded but inaudible to user; physical speaker presence unknown.",
+    "status": "Wireless lavalier worked for onboard rehearsal and filming, then transmitter battery died; recharge before next voice block.",
+    "onboard_browser_verified": true,
+    "speaker": "User confirmed Pi speaker works; onboard fake Move/Stop and real filming used USB input plus HiFiBerry output. Current app closed.",
     "sample": "/private/tmp/pupper-usb-mic-paired-20261103.wav"
+  },
+  "onboard_rehearsal": {
+    "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-onboard-fake-r5",
+    "port": 18091,
+    "api_instance": "6fa1c4d813f34d9da90cdb91bf3fa91b",
+    "bootstrap_dir": "/run/user/1000/pupper-onboard-rehearsal",
+    "runtime": "fake",
+    "hardware_connected": false,
+    "outcome": "Bootstrap200, real USBmic and DACstreams active, three user-intended Move calls and oneStop confirmed; user speaker audible and hands-free disarmed.",
+    "closure": "Oldfakeprocesses ended by userbatteryreboot: newbootbb2dcd96 differsrecorded3765c5e9; nooldprocessesfound. Gracefulcleanupunverified; preserve historicalreceipt/logs instead ofreusing it."
   }
 }

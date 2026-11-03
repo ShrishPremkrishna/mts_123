@@ -1,7 +1,7 @@
 {
   "schema": "pupper_sprint_result_v1",
-  "updated_utc": "2026-11-03T07:52:21.302845+00:00",
-  "status": "r4_closed_minimum_skills_observed_onboard_implementation",
+  "updated_utc": "2026-11-03T08:41:36.694573+00:00",
+  "status": "r5_closed_voice_filming_deferred_offline_fixes_finishing",
   "scope": "Approved general harness and minimum Lab6; soccer/Optional3 implementation deferred.",
   "changes": [
     "Stable API Python alias; selected project corrected; current running thread still retains old working-directory/sandbox.",
@@ -104,10 +104,10 @@
     "swim_status": "Actual-descriptor double playback/reentry/Stop fake queue passed; repeated-playback physics and physical demo unverified."
   },
   "remaining": [
-    "Finish reviewed explicit hands-free and browser-only onboard bootstrap; actual USB microphone works, physical speaker still unconfirmed.",
-    "Onboard voice/echo/Stop acceptance and four required filmed demonstrations Q7/Q12/Q16/Q19. Existing laptop voice/direct physical trials are evidence, not final recordings.",
-    "Final selected-release lab/test.py output; actual Q1\u2013Q20 answers, reflection/contributions/fork/course checkoffs.",
-    "Fresh chat rooted in corrected project at natural handoff. No new gait training/polish needed for observed minimum routines."
+    "Complete outstanding voice recordings using foundation/WORKSTREAMS.md checklist; do not infer submission completion from direct API trials.",
+    "Deploy/accept reviewed Q7 spoken handoff and app-only attachment on a later supervised block. Onboard active-motion Stop and echo remain bounded acceptance work.",
+    "Student Q1\u2013Q20 answers, actual training comparisons, reflection/contributions/fork link, video links and course checkoffs.",
+    "Fresh chat rooted in the already-corrected project at natural handoff. No new gait training/polish needed for minimum observed routines."
   ],
   "evidence_root": "artifacts/validation/harness-sprint-20261103",
   "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
@@ -144,7 +144,7 @@
   },
   "r4_result": {
     "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r4",
-    "run": "Job8 commanded1.0m/s for0.50s, then zero; user confirmed controlled forward motion and stopping. Actual physical speed not measured.",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r4",
     "session_id": "60d43f393a534db39756108a00dba98b",
     "api_instance": "80896162b1604ee9ad6f09f3bd1e7281",
     "source_commits": [
@@ -167,6 +167,64 @@
       "verified_members": 29,
       "evidence": "artifacts/validation/harness-sprint-20261103/r4-closed"
     },
-    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93\u201313.99s; exit14.01\u201314.04s; swim x2 23.68s; normal standing after swim4.42s."
+    "timing_basis": "Per-server monotonic lifecycle intervals, not physical onset or acoustic latency. Spider entry13.93\u201313.99s; exit14.01\u201314.04s; swim x2 23.68s; normal standing after swim4.42s.",
+    "running_burst": "Job8 commanded1.0m/s for0.50s, then zero; user confirmed controlled forward motion and stopping. Actual physical speed not measured."
+  },
+  "r5_onboard": {
+    "source_commit": "0f12383",
+    "manifest_sha256": "290aa2f7d8dea629ab0fe1f343664481ce3a4c8760b8390b72f4bad03d862ea8",
+    "archive_sha256": "1394af3c3dad352404ef0b7f056205ee3c5a0cde5dda4db9dede6336285022c3",
+    "web_bundle": "index-FXa-YGat.js",
+    "stage_verified_final_files": 132,
+    "stage_changed_native_policy_gains": false,
+    "fake_rehearsal": {
+      "release": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+      "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-onboard-fake-r5",
+      "port": 18091,
+      "api_instance": "6fa1c4d813f34d9da90cdb91bf3fa91b",
+      "bootstrap_dir": "/run/user/1000/pupper-onboard-rehearsal",
+      "runtime": "fake",
+      "hardware_connected": false,
+      "outcome": "Bootstrap200, real USBmic and DACstreams active, three user-intended Move calls and oneStop confirmed; user speaker audible and hands-free disarmed.",
+      "closure": "Oldfakeprocesses ended by userbatteryreboot: newbootbb2dcd96 differsrecorded3765c5e9; nooldprocessesfound. Gracefulcleanupunverified; preserve historicalreceipt/logs instead ofreusing it."
+    },
+    "validation": {
+      "backend_focused": 35,
+      "frontend_focused": 152,
+      "integrated_web": 456,
+      "course_lab6": 166,
+      "typecheck_build": "passed"
+    },
+    "claude_review_cost_usd": 0.3490702,
+    "review": "artifacts/validation/harness-sprint-20261103/onboard-review/review-receipt.json",
+    "remaining": "Q7 complete voice video and new spoken handoff acceptance; Q12 inspect existing footage for missing portion; keep Q16 recording; Q19 newcomer. Microphone needs recharge. Browser/launcher abrupt crash is not a verified Stop path.",
+    "real_filming": {
+      "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
+      "session_id": "a5f86032a8d94ebaa9f50890ecf1f2f7",
+      "api_instance": "e003eb82fb0a4a778dd59b236913e9d7",
+      "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
+      "Q7": "Unfinished; mic battery died before remaining movement/follower filming.",
+      "Q12": "User reports all captured and controlled. Logs confirm Sit,10s wait,both paws; Stop cancelled API standing-exit wait and separate camera-side handshake is absent. User explicitly deferred review. Inspect footage before requesting only missing portion.",
+      "Q16": "User reports captured, body clear while walking. Server confirms entry, forward2s, left2s and spider_up. Spoken follow refusal observed by user; no follow tool call recorded.",
+      "Q19": "Deferred: newcomer not available.",
+      "shutdown": "Immediate Stop, user R3 and supported, browser-only cleanup then native shutdown verified. No independent physical-release observation.",
+      "archive": "artifacts/validation/harness-sprint-20261103/r5-closed",
+      "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03",
+      "verified_members": 32
+    }
+  },
+  "offline_follow_handoff": {
+    "status": "Integrated regression passed, independently reviewed; not deployed",
+    "patch_sha256": "2cd6104981036f3da4d37063a790a3de12e6adc04b5e0fb94572234bea02ab03",
+    "evidence": "artifacts/validation/harness-sprint-20261103/follow-handoff",
+    "meaning": "Confirmed following disabled, approved Puck cue completes, then held motion may dispatch. Stop/interruption/disconnect/stale epoch blocks held motion. Other HTTP clients are not gated on browser speech.",
+    "validation": {
+      "api_tests": 1082,
+      "web_tests": 475,
+      "course_checks": 166,
+      "typecheck": "passed in frozen owner check",
+      "build": "passed",
+      "bundle": "index-BvOAW0_Q.js"
+    }
   }
 }

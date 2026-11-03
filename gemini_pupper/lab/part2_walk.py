@@ -203,6 +203,7 @@ DIRECT_MOVEMENT_ONLY = (
     + DIRECT_MOVEMENT_ONLY + PREPARES_MOVE,
     direction=Param("string", "Left or right relative to Pupper.", enum=["left", "right"]),
     angle=Param("number", "Positive degrees to turn, default 90; the duration limit still applies.", required=False),
+    _ends_following=True,
 )
 async def turn_tool(robot: Robot, direction: str, angle: float = 90.0) -> Result:
     # Turn in place: no forward or sideways speed, just a turning speed, for as long
@@ -230,6 +231,7 @@ async def turn_tool(robot: Robot, direction: str, angle: float = 90.0) -> Result
     run=Param("boolean", "Request a run forward/backward; sideways walks instead. Default false.", required=False),
     speed=Param("number", "Positive speed in m/s; omit for the current stance's default.", required=False),
     duration=Param("number", "Time in seconds, greater than 0 and at most 20; default 1.5.", required=False),
+    _ends_following=True,
 )
 async def move_tool(
     robot: Robot,
@@ -327,6 +329,7 @@ async def move_tool(
     angle=Param("number", "Positive degrees around the arc; required (90 is a quarter circle)."),
     radius=Param("number", "Radius in metres, default 0.5; zero makes a corner in place.", required=False),
     speed=Param("number", "Positive forward speed in m/s; omit for the current stance's walking speed.", required=False),
+    _ends_following=True,
 )
 async def arc_tool(
     robot: Robot,

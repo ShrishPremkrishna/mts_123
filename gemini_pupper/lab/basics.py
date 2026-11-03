@@ -82,7 +82,7 @@ async def lie_down(robot: Robot) -> Result:
 # ============================================================ what Gemini reads
 @tool("stand_up", "Queue a transition to the locomotion controller for an explicit stand-up request or supervised fall recovery. "
       "Move, turn and arc already prepare their controller and exit an active trick when needed; "
-      "do not add stand_up before or after another action unless requested." + PREPARES_MOVE)
+      "do not add stand_up before or after another action unless requested." + PREPARES_MOVE, _ends_following=True)
 async def stand_up_tool(robot: Robot) -> Result:
     return await stand_up(robot)
 
@@ -92,6 +92,7 @@ async def stand_up_tool(robot: Robot) -> Result:
     "Queue leg-controller deactivation when the user explicitly asks to sleep, relax"
     " or lie down. Configured damping may remain; this is not a full motor-board disable. "
     "Controller deactivation does not verify physical posture." + PREPARES_MOVE,
+    _ends_following=True,
 )
 async def lie_down_tool(robot: Robot) -> Result:
     return await lie_down(robot)

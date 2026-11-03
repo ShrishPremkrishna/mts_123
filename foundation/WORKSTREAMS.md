@@ -30,6 +30,21 @@ Current source: [Lab 6 handout](https://cs123-stanford.readthedocs.io/en/latest/
 
 Recording setup: Part 0 describes on-Pupper kiosk/mic/speaker without a laptop for videos. Our inspected voice evidence is laptop-based; settle this setup before filming. No extra polish is required if the course demonstration works adequately.
 
+## Voice recordings to finish — November 3 checkpoint
+
+The wireless microphone battery died; no further voice filming should be presumed complete. Recharge it before the next session. Pupper’s own microphone, speaker and explicit hands-free app have now worked together. Keep the recordings already made.
+
+| Deliverable | Evidence now | Next action |
+|---|---|---|
+| **Q7: movement, refusal, following and takeover** | Short running and movement have prior watched physical evidence, but this full voice video is **unfinished**. The final filming attempt was deferred when the mic died. | Record forward/backward, both turns, sidestep, a short run, a full circle where clear, an over-limit request with a spoken refusal, then following while answering a question and takeover by another motion. The spoken following-stop announcement fix is reviewed offline but not deployed; verify that it finishes before the new motion. Preserve any usable footage already captured. |
+| **Q12: Sit/stay/paws and camera-side handshake** | Shrish reports the sequence was recorded and controlled. Logs confirm Sit, ten-second wait and both paws, but show Stop cancelling the standing-exit wait. A separate camera-side handshake was not found in this run’s logs. | **Review the existing video first.** Confirm its standing return and the additional handshake from Pupper’s left, requested without naming a paw. Record only what is missing. Shrish explicitly deferred resolving the log mismatch during this session. |
+| **Q16: Spider walking/refusal/exit** | **Reported captured:** voice entry → forward two seconds → left two seconds → standing exit is confirmed in the server log. Shrish observed body clearance while walking and a spoken refusal to follow. | Keep and check the existing video for audible speech and complete framing. Belly-supported entry/exit is intentional in this reference; belly support during walking would fail the criterion. No automatic retake. |
+| **Q19: newcomer conversation** | **Not started:** no person outside this quarter’s CS123 class was available. | Arrange that participant; record conversation showing personality, a trick, and a genuine camera-understanding question. The preparation instruction also asks for five minutes with someone who has not met Pupper, without coaching them. |
+
+Use Pupper’s own screen/microphone/speaker for the demos. Current hands-free mode has no wake word; spoken Stop disarms listening until an explicit reconnect, so place Stop at the end of a recording block. R3 remains available throughout. Do not treat a spoken acknowledgment as physical-completion evidence.
+
+The swim-twice exercise (**Q8**) was observed successfully with a standing return; the handout does **not** require a separate swim video. The student’s explanation is still needed. Q1–Q20 answers, training comparisons, reflection/contributions/fork link and course checkoffs remain separate submission work. Exact operational state and source versions stay in the recovery record.
+
 ## Action checklist for the next sprint
 
 1. **Fix the workspace.** Make the engineering checkout the primary app project; expose course/artifact folders and verify practical write/network access. Reuse working Python/Node/ROS environments and authenticated coding tools. Done when normal edits and focused checks work without recurring path/permission setup.

@@ -135,6 +135,7 @@ async def interactive_action_tool(robot: Robot, action: str) -> Result:
     " or play_trick call is needed. Ask which paw if unclear. Does not stand afterward."
     " A queued reply is acceptance; completion requires the final paw's controller playback confirmation.",
     paw=Param("string", "Requested robot paw, left or right; do not infer an unclear side.", enum=["left", "right"]),
+    _ends_following=True,
 )
 async def shake_hand_tool(robot: Robot, paw: str) -> Result:
     """One cancellable queue job, ending only after the requested paw completes."""

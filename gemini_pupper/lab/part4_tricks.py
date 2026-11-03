@@ -221,6 +221,7 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
     name=Param("string", "Exact installed trick name from the available list.", enum=TRICK_NAMES),
     count=Param("integer", "Requested quantity, 1 through 10. Copy an explicit user count; use 1 only when the person requested one or did not specify a quantity."),
     count_unit=Param("string", "routine_playback means the entire recorded routine; physical_repetition means counted exercises such as ten push-ups. Physical counts are unsupported; call with the requested count to obtain an honest refusal.", enum=["routine_playback", "physical_repetition"]),
+    _ends_following=True,
 )
 # ====================================
 async def play_trick_tool(robot: Robot, name: str, count: int, count_unit: str) -> Result:

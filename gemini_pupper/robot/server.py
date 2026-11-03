@@ -246,7 +246,8 @@ def tool_list():
                       "approach/navigation or collision avoidance. Do not replace unavailable "
                       "navigation or following with move/turn/arc calls.")
     return {"prompt": system_prompt() + "\n\n" + runtime_prompt,
-            "tools": gemini_tools.declarations(robot), "capabilities": capabilities}
+            "tools": gemini_tools.declarations(robot), "capabilities": capabilities,
+            "follow_handoff": gemini_tools.follow_handoff_metadata(robot)}
 
 
 @app.post("/tools/{name}")
@@ -368,7 +369,10 @@ async def following_on():
 
 
 @app.post("/following/deactivate")
-async def following_off():
+async def following_off(if_active: bool = False):
+    if if_active:
+        robot = T()
+        return (await gemini_tools.dispatch(robot, robot.prepare_follow_handoff, name="follow_handoff")).as_dict()
     return (await gemini_tools.call(T(), "follow", {"enabled": False})).as_dict()
 
 

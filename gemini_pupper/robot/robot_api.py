@@ -1453,6 +1453,23 @@ class Robot:
             self.follow_state_uncertain = False
         return Result(True, "following is off")
 
+    def _following_off_receipt(self, changed: bool) -> Result:
+        return Result(True, "stopped following",
+                      {"following": {"schema": "pupper_follow_state_v1", "enabled": False,
+                                     "changed": changed, "server_instance": self.command_instance,
+                                     "command_epoch": self.command_epoch}})
+
+    async def prepare_follow_handoff(self) -> Result:
+        """Existing endpoint's opt-in preparation: no command at all when off."""
+        await self.ready.wait()
+        if self.stopped_during_call():
+            return Result(False, "follow handoff superseded by Stop")
+        if self.follow_state_uncertain:
+            return Result(False, "following state is unknown; use stop before new motion")
+        if not self.following:
+            return self._following_off_receipt(False)
+        return await self.set_following(False)
+
     async def set_following(self, enabled: bool) -> Result:
         await self.ready.wait()
         if enabled and self.startup_error:
@@ -1460,11 +1477,12 @@ class Robot:
         if enabled and (reason := self.motion_block_reason()):
             return Result(False, reason)
         if not enabled:
+            changed = self.following
             result = await self.stop_following()
             self.send_speed(0, 0, 0)
             if not result.ok:
                 return result
-            return Result(True, "stopped following")
+            return self._following_off_receipt(changed)
         if self.fallen:
             return Result(False, FELL_MESSAGE)
         if not self.follow_available:

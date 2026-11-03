@@ -148,6 +148,17 @@
       "review_status": "approved_human",
       "wav_file": "okay.wav",
       "wav_sha256": "62e020a1c4ebbc624db03f5e6070cb6f7cab8eb7cc90d89faea72338c31550b1"
+    },
+    {
+      "text": "I've stopped following.",
+      "file": "following-stopped.pcm",
+      "sha256": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2",
+      "bytes": 74880,
+      "duration_s": 1.56,
+      "transcript": "I've stopped following.",
+      "review_status": "approved_human",
+      "generation_model": "gemini-3.1-flash-tts-preview",
+      "review_note": "User approved sample: Yes\u2014use it. Confirms follow controller disabled, not physical stillness."
     }
   ]
 }
