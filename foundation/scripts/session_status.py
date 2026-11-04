@@ -14,30 +14,41 @@ STATE = ROOT / "foundation/results/interruption-recovery.json"
 def inspect(root=ROOT, verify_inputs=False):
     state = json.loads((root / STATE.relative_to(ROOT)).read_text())
     errors = []
+    missing_local = []
     if state.get("schema") != "pupper_current_session_v2":
         raise ValueError("Unknown current-state schema; inspect the handoff before proceeding")
     def git(*args):
         return subprocess.check_output(["git", "-C", str(root), *args], text=True, timeout=5).strip()
     branch, head = git("branch", "--show-current"), git("rev-parse", "--short", "HEAD")
     dirty = len(git("status", "--porcelain").splitlines())
-    if branch != state["branch"]:
-        errors.append(f"Expected branch {state['branch']}, found {branch}")
+    allowed_branches = [state["branch"], *state.get("legacy_branches", [])]
+    if branch not in allowed_branches:
+        errors.append(f"Expected {', '.join(allowed_branches)}, found {branch or 'detached HEAD'}")
     refs = [state["current_report"], state["historical_recovery"]["path"], *state["evidence"].values()]
-    for ref in refs:
+    for ref in dict.fromkeys(refs):
         p = Path(ref)
-        if p.is_absolute() or ".." in p.parts or not (root / p).is_file():
-            errors.append(f"Missing or invalid evidence reference: {ref}")
+        if p.is_absolute() or ".." in p.parts:
+            raise ValueError(f"Invalid evidence reference: {ref}")
+        if not (root / p).is_file():
+            errors.append(f"Missing evidence reference: {ref}")
     py = root / state["environment"]["python"]
     if not py.is_file():
-        errors.append(f"Test interpreter unavailable: {py}")
+        missing_local.append(f"API test interpreter: {py}")
+    hardware = Path(state["environment"]["frozen_hardware_inputs"])
+    if hardware.is_absolute() or ".." in hardware.parts:
+        raise ValueError(f"Invalid frozen hardware input path: {hardware}")
+    if not (root / hardware).is_file():
+        missing_local.append(f"Frozen hardware archive: {hardware}")
     if verify_inputs:
+        errors.extend(f"Required for verification: {item}" for item in missing_local)
         for name, expected in [
             (state["historical_recovery"]["path"], state["historical_recovery"]["sha256"]),
             (state["environment"]["frozen_hardware_inputs"], state["environment"]["frozen_hardware_sha256"]),
         ]:
             p = root / name
-            if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != expected:
-                errors.append(f"Pinned local input missing or changed: {name}")
+            # Missing tracked reports and local archives are reported above.
+            if p.is_file() and hashlib.sha256(p.read_bytes()).hexdigest() != expected:
+                errors.append(f"Pinned input checksum mismatch: {name}")
     return {"mode": state["mode"], "updated_utc": state["updated_utc"],
             "branch": branch, "head": head, "changed_paths": dirty,
             "automation": state["activity"]["automation"],
@@ -45,13 +56,14 @@ def inspect(root=ROOT, verify_inputs=False):
             "robot_status_is_live": False, "test_python": str(py),
             "next": state["next"], "activity": state["activity"],
             "errors": errors, "local_references_ok": not errors,
+            "missing_local": missing_local, "verify_inputs_requested": verify_inputs,
             "scope": "Local handoff checks only; no readiness for physical motion implied."}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("--verify-inputs", action="store_true", help="Also verify the small pinned history/input files")
+    parser.add_argument("--verify-inputs", action="store_true", help="Require the local API test interpreter and verify both pinned input digests")
     args = parser.parse_args()
     try:
         r = inspect(verify_inputs=args.verify_inputs)
@@ -64,7 +76,11 @@ def main():
         print(f"{r['mode']} | {r['branch']} @ {r['head']} | {r['changed_paths']} changed paths")
         print(f"Automation: {r['automation']} | local references: {'OK' if r['local_references_ok'] else 'ERROR'}")
         print(f"Robot (last observation, not a live check): {r['robot_last_observation']}")
-        print(f"Test Python: {r['test_python']}")
+        print(f"Configured API test Python: {r['test_python']}")
+        if not r["verify_inputs_requested"]:
+            print("Pinned input digests: unchecked (use --verify-inputs for strict verification)")
+            for item in r["missing_local"]:
+                print(f"Local setup missing: {item}")
         owners = r['activity'].get('owners', {})
         if owners:
             print(f"Saved owners/activity ({r['updated_utc']}; verify actual agents and exits before resuming):")

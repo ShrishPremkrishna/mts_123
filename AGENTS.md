@@ -4,13 +4,16 @@ tags: [cs123, workflow]
 ---
 # Pupper foundation working agreement
 
-This is the engineering branch, not graded coursework. Preserve the separate
-coursework checkout. The goal is a reproducible, measured class foundation;
-research candidates and simulation passes are not physical capabilities.
+`main` integrates coursework, reusable Pupper packages and final-project work.
+`pupper-foundation` preserves the earlier engineering checkout. Consult the
+selected release record for what has actually run on the robot.
 
 ## Start with current state
 
-Run `python3 foundation/scripts/session_status.py` from this checkout. Read
+Run `python3 foundation/scripts/session_status.py` from the checkout. It works
+with standard Python on a fresh clone and reports missing machine-local setup.
+For strict evidence verification, restore the pinned hardware archive and API
+test environment, then run the same command with `--verify-inputs`. Read
 `foundation/results/interruption-recovery.json` only if more detail is needed.
 That compact file owns current activity, blockers, environment and next actions.
 The archived recovery record and dated result reports are historical evidence,
@@ -23,8 +26,9 @@ the next physical session procedure. Do not maintain another parallel status log
 - One person/agent owns each changed file. Delegate concrete independent work;
   root integrates once authors freeze their sources. Agents do not commit or
   operate the robot unless root explicitly delegates that ownership.
-- Root alone normally owns SSH, credentials, hardware and live API access.
-  No credentials in repository, logs, tool output or artifacts.
+- Coordinate with the teammate currently operating Pupper. One operator owns
+  motion, camera configuration and service restarts for each test block.
+  Keep credentials out of the repository, logs, tool output and artifacts.
 - Use `.venv-api/bin/python` for API/course checks and `.venv/bin/python` for
   numerical work. The API path aliases the existing tested environment;
   `check_foundation.py` retains legacy discovery. Do not reinstall speculatively.

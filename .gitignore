@@ -17,3 +17,6 @@ gemini_pupper/tricks/.backups/
 
 # Stable alias of the existing tested API environment.
 .venv-api
+
+# A linked checkout may share this machine-local evidence directory.
+/artifacts

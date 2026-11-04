@@ -1,11 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
   "objective": "Complete the agreed general Pupper harness and minimum Lab 6 sprint with honest software/supervised evidence and clear submission handoff; remove recurring workspace/deployment friction. Defer soccer implementation and teammate Optional Lab 3/gait work. Propose high-leverage structural changes when concrete codebase flaws impede autonomous agent development; no automatic broad rewrite.",
-  "worktree": "/Users/shrish/workspace/cs123-foundation",
-  "branch": "pupper-foundation",
-  "coursework_main": "/Users/shrish/workspace/cs123",
-  "mode": "offline_release_ready",
-  "updated_utc": "2026-11-03T11:30:48.694626+00:00",
+  "worktree": "/Users/shrish/workspace/cs123",
+  "branch": "main",
+  "mode": "r6_staged_waiting_for_robot_slot",
+  "updated_utc": "2026-11-04T21:30:59.048644+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
@@ -22,23 +21,23 @@
     "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
-    "workspace_limit": "User already corrected project assignment. Current running chat still starts in /Users/shrish/workspace/cs123 and does not grant foundation writes directly; approved commands work. A future correctly rooted chat can remove this residual friction. Do not ask user to add the same folder again."
+    "workspace_limit": "main in the shared local project is canonical. Legacy engineering checkout retains machine-local archives and numerical environment; those are not prerequisites to reading a clean clone."
   },
-  "authorization": "Current session OFFLINE ONLY. Coding, local fake browser/API checks and relevant Pupper source/tests/manifests to authenticated Claude authorized. No SSH, deployment, homing, motors or new robot evidence. Keys/media/personal files stay private. Robot work resumes only in a later supervised block.",
+  "authorization": "User authorizes GitHub publication, shared main and a separate Pi staging/source checkout. Perception teammate owns live robot tests. No takeover, hardware or shared-service changes during this staging session. Keep Tej’s optional-lab branch separate until ready.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "No scheduled automation is active.",
-    "compute": "All owned tasks finished; no pending provider/training/browser/API process. Local fake server closed with durable exit receipt.",
+    "compute": "No Workstream 1 robot processes started by R6 staging. Other team sessions are independently owned.",
     "owners": {
-      "completed": "Client-loss implementation/review, timing implementation/review, final regression and release preservation all terminal. Check actual agents/exits before retrying."
+      "physical_robot": "Perception teammate per user; this staging operation did not acquire motion, camera or Hailo ownership."
     },
-    "goal_status": "Blocked after three consecutive goal-turn checks of the same remaining dependency. Offline release is ready; supervised robot acceptance/recordings and student submission material are unavailable in this offline-only session. Full objective retained, not complete. Resume on robot readiness or relevant new evidence."
+    "goal_status": "R6 staged; robot acceptance, recordings and student submission still pending. The shared robot is currently being tested by a teammate."
   },
   "hardware_session": {
-    "status": "R5 closed after user R3 and supported-on-stand confirmation. Immediate Stop cleared work; browser and native/API/recorders have stopped receipts. Driver log confirms hardware shutdown. No automatic restart; microphone battery died, filming deferred.",
+    "status": "Last owned physical release: R5; its API/native/recorders shut down. On November 4 the separate R6 release was staged without activation. Check the current owner before a new physical session.",
     "ssh": "mts",
     "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
     "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
@@ -60,7 +59,7 @@
   },
   "offline_ready": {
     "application_release": {
-      "status": "Committed, independently reviewed, built, packaged and locally staged; NOT deployed or hardware accepted.",
+      "status": "Published runtime selection staged on Pi; not activated or physically accepted.",
       "source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
       "runtime_commit": "cdae59825be048e79a79076f65b11a2ad9da30a1",
       "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final/package",
@@ -70,7 +69,7 @@
       "app_archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
       "source_build_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
       "evidence_archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
-      "deployed": false,
+      "deployed": true,
       "local_stage_verified": true,
       "selected_native_imu_models_config_unchanged": true,
       "local_staging": {
@@ -81,7 +80,24 @@
         "launch_recipe_syntax_checks": 5,
         "executed_recipes": false
       },
-      "limits": "No remote native-byte recheck or physical reliability claim. The selected source/build is frozen; later documentation-only commits do not imply a new runtime."
+      "limits": "Staging verifies the selected files, not current loaded native libraries or behavior. Archive and compiled dependencies are separate from the source checkout.",
+      "remote_staged": true,
+      "activated_by_this_stage": false,
+      "hardware_accepted": false,
+      "pi_stage_receipt": {
+        "staged_utc": "2026-11-04T21:24:43.469285+00:00",
+        "baseline_preserved": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+        "new": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r6",
+        "archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+        "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+        "stage_script_sha256": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973",
+        "verified_archive_members": 39,
+        "verified_baseline_files": 132,
+        "verified_final_selected_files": 137,
+        "native_driver_policy_or_gains_changed": false,
+        "started": false,
+        "scope": "Separate inherited checkout plus reviewed application overlay; no install/build/start/Stop/profile/homing action."
+      }
     },
     "held_candidate": {
       "path": "artifacts/validation/harness-sprint-20261103/app-release-r6-client-loss",
@@ -101,24 +117,24 @@
   },
   "next": [
     {
-      "id": "next_supervised_block",
-      "action": "When user has robot and is ready: inspect actual boot/session; R5 is closed. Use final package in offline_ready, one homing only if a new motion session is needed. Verify ordered follow, audible follow-off before takeover, compound voice and Stop. Test application upgrade/rollback and new failure feedback; no auto-start tonight."
+      "id": "next_exclusive_robot_block",
+      "action": "R6 is ALREADY STAGED in the receipt path. After perception teammate hands over the robot, check current ownership/boot/services. Use the reviewed session procedure to accept the package, ordered follow/voice/Stop and rollback, then film remaining demos. Do not rerun stage-only on the existing destination."
     },
     {
       "id": "recordings",
-      "action": "Recharge mic. Complete Q7, rerecord interrupted Q12 including full standing return/camera-side handshake, record Q19 with newcomer. Q16 reported captured; user owns footage review\u2014do not request files."
+      "action": "Recharge mic. Complete Q7, rerecord interrupted Q12 including full standing return/camera-side handshake, record Q19 with newcomer. Q16 reported captured; user owns footage review—do not request files."
     },
     {
       "id": "submission",
       "action": "Use WORKSTREAMS.md question-by-question handoff; student supplies actual missing observations/reflection/contributions/fork/video links/checkoffs. No invented results."
     },
     {
-      "id": "offline_continuation",
-      "action": "No new experiment is justified by unchanged state. Reuse final exits; do not rebuild/repackage/rerun passed tests to fill time. Continue meaningful work only on new evidence, teammate handoff or user direction."
+      "id": "final_project",
+      "action": "See final_project/README.md for proposed perception, gait and harness deliverables. Benchmark the detector and lateral reach before training new soccer policies."
     }
   ],
   "acceptance_boundaries": [
-    "Final R6 app is reviewed offline only; robot last ran closed R5. Native/IMU/policy/config selection unchanged. No global hardware reliability claim.",
+    "R6 is staged only. Last owned physical evidence is from earlier releases. Staging changed no native driver, policy or gains; there is no new hardware validation claim.",
     "Server acceptance/job success and browser audio scheduling do not prove physical movement, stopping or audible playback.",
     "Browser-exit Stop is opt-in/global to original API, not a guarantee against SIGKILL, hung renderer, host loss or silent network failure.",
     "Navigation/obstacle avoidance and arbitrary fall recovery remain unavailable. Immediate explicit voice primitives retained; semantic refusal is mitigation, not a hard navigation gate. User deferred tool-authority decision."
@@ -126,7 +142,11 @@
   "do_not_repeat": [
     "Do not restart completed training, provider sweeps, regression or staging without a changed input or unresolved finding.",
     "Start session_status.py; retrieve only relevant dated evidence. Do not reread all historical reports.",
-    "Do not ask for project-folder permission again; approved writes work. Use foundation checkout, preserve coursework.",
+    "Use main in the shared project. Keep historical releases, local archives and teammate feature branches intact.",
     "No repeated homing/button exercises between ordinary commands. Offline work stays offline; physical readiness is not implied by reachability."
-  ]
+  ],
+  "legacy_branches": [
+    "pupper-foundation"
+  ],
+  "legacy_worktree": "/Users/shrish/workspace/cs123-foundation"
 }

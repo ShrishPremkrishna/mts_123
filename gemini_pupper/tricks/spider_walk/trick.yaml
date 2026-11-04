@@ -1,0 +1,25 @@
+type: policy
+policy: policy.json
+start_pose: standing
+max_body_angle_deg: 57.29577951308232
+description: Experimental low spider stance. Move, turn and arc requests command this
+  walking policy; actual travel is slower and sideways motion also drifts forward.
+  stand_up exits to normal locomotion. No running or following. Hardware unverified.
+end_pose: spider
+exit_clip: spider_up
+actions:
+  spider_up: Wiggle back up to standing and return to normal locomotion.
+walk:
+  policy: walk_policy.json
+  speed: 0.1
+  max_forward: 0.1
+  max_sideways: 0.1
+  turn: 11.459155902616466
+  run: false
+  note: Experimental commanded-speed caps from nominal simulation, not promised physical
+    speed. At sideways +/-0.10 m/s, measured lateral means were +0.0146/-0.0139 m/s
+    with unwanted forward +0.0193/+0.0136 m/s. Forward/backward means at +/-0.10 were
+    +0.0777/-0.0392 m/s. Positive turning tested at 11.46 deg/s command; negative
+    turning unverified. Eight adverse chains failed quiet return. Supervised hardware
+    acceptance required; not promoted.
+evaluation_source: /private/tmp/ws1-spider-swim-handoff-20261102/handoff.json

@@ -4,14 +4,14 @@ tags: [cs123, pupper, project]
 ---
 # Pupper: current scope and proposed sprint
 
-Updated November 2, 2026 from Shrish's explicit reset. This replaces the October 30 three-workstream plan. Earlier scope remains in Git history, not an active backlog. The action checklist is approved and implementation is active. Soccer implementation is deferred until the general agentic harness is dependable and extensible. Implementation starts with environment cleanup and the general harness.
+Lab 6 scope reflects the November 2 reset. The [November 4 final-project handoff](../final_project/README.md) describes the updated perception and gait goals after optional-lab work. This replaces the October 30 three-workstream plan. Earlier scope remains in Git history, not an active backlog. The action checklist is approved and implementation is active. Soccer implementation is deferred until the general agentic harness is dependable and extensible. Implementation starts with environment cleanup and the general harness.
 
 ## Current goal and ownership
 
 **Our lane:** finish the required minimum of Lab 6 and make the existing voice/tool/control system cohesive, dependable and easy to extend. Soccer offense/defense remains future project context; no ball tracking, kick/block training or soccer integration belongs in this sprint.
 
 - Teammate: gait, sprinting, jumping and physical movement capabilities.
-- Teammate: Optional Lab 3 implementation and generated motion work.
+- Perception teammate: finish the optional-lab credit work, then evaluate ball detection and motion prediction. Teammate feature work stays separate until ready.
 - Shrish + this agent: Lab 6 minimum, workspace/deployment cleanup, general agent harness, skill integration and validation. Soccer software ownership is a later decision.
 - Lecture 7 analysis is deferred at Shrish's request. Actual slides are not posted at the inspected link; do not invent their contents.
 
@@ -36,7 +36,7 @@ The wireless microphone battery died; no further voice filming should be presume
 
 | Deliverable | Evidence now | Next action |
 |---|---|---|
-| **Q7: movement, refusal, following and takeover** | Short running and movement have prior watched physical evidence, but this full voice video is **unfinished**. The final filming attempt was deferred when the mic died. | Record forward/backward, both turns, sidestep, a short run, a full circle where clear, an over-limit request with a spoken refusal, then following while answering a question and takeover by another motion. The spoken following-stop announcement fix is reviewed offline but not deployed; verify that it finishes before the new motion. Preserve any usable footage already captured. |
+| **Q7: movement, refusal, following and takeover** | Short running and movement have prior watched physical evidence, but this full voice video is **unfinished**. The final filming attempt was deferred when the mic died. | Record forward/backward, both turns, sidestep, a short run, a full circle where clear, an over-limit request with a spoken refusal, then following while answering a question and takeover by another motion. The spoken following-stop announcement fix is staged on the Pi but has not run there; verify that it finishes before the new motion. Preserve any usable footage already captured. |
 | **Q12: Sit/stay/paws and camera-side handshake** | Shrish confirms the first recorded sequence was interrupted and needs a rerecord. Logs retain the ten-second Sit and both paws, plus Stop cancelling the standing-exit wait; camera-side handshake is not established by this run. | **Rerecord the interrupted sequence in a later robot session.** Shrish owns footage review; do not request files or repeat the review question. Include the complete standing return and required handshake from Pupper’s left without naming a paw. |
 | **Q16: Spider walking/refusal/exit** | **Reported captured:** voice entry → forward two seconds → left two seconds → standing exit is confirmed in the server log. Shrish observed body clearance while walking and a spoken refusal to follow. | Keep and check the existing video for audible speech and complete framing. Belly-supported entry/exit is intentional in this reference; belly support during walking would fail the criterion. No automatic retake. |
 | **Q19: newcomer conversation** | **Not started:** no person outside this quarter’s CS123 class was available. | Arrange that participant; record conversation showing personality, a trick, and a genuine camera-understanding question. The preparation instruction also asks for five minutes with someone who has not met Pupper, without coaching them. |
@@ -92,7 +92,7 @@ Ball state needs timestamp, coordinate frame, track identity/confidence, bearing
 
 ## Environment findings and intended fixes
 
-- The user already corrected the project folder. This running chat still starts in the coursework checkout and requires approved commands for foundation writes; those commands work. Use the engineering checkout in a future correctly rooted chat without asking the user to repeat the project setup. Preserve coursework main.
+- Use the top-level team repository on main for class and final-project work. The older engineering worktree remains available for its pinned environments and archives.
 - Prefer Mac for agent/browser/development and Pi for robot runtime and hardware-specific work. Moving everything to the Pi is not currently justified; it would tie development to robot availability. Earlier read-only SSH timed out; a later November2 hostname/uptime check succeeded. No services or motors were started by that check.
 - The maintained packager now pins reviewed source/build inputs and produces an app delta for the existing stage/persistent-session workflow. Native, IMU and policy identities remain separate. App-only attachment is tested offline; its first live upgrade/rollback acceptance is still required. HEAD is not presumed physically tested.
 - `.venv-api/bin/python` now provides the stable API-test entry point while reusing the existing tested environment; no speculative reinstall or venv move is needed.
@@ -108,4 +108,4 @@ Use subagents or Claude for independent code/review tasks with clear ownership. 
 
 ## Current execution
 
-The final overnight offline release is reviewed, built, packaged and preserved. Ordered following, terminal-failure feedback, fresh replies after idle Stop, extension composition, transport failure handling and guarded browser-exit Stop have software evidence. A bounded Debug timing export supports diagnosis without retaining conversation or media. All owned jobs are finished; no deployment or new robot evidence was added. Next: supervised acceptance of this release, Q7, the interrupted Q12 rerecord, Q19 and student submission. Q16 remains reported captured. Soccer and gait optimization stay deferred. Use the recovery record for the selected package; a superseded candidate is explicitly held after a reproduced rollback-compatibility bug.
+The final overnight offline release is reviewed, built, packaged and preserved. Ordered following, terminal-failure feedback, fresh replies after idle Stop, extension composition, transport failure handling and guarded browser-exit Stop have software evidence. A bounded Debug timing export supports diagnosis without retaining conversation or media. On November 4 the reviewed R6 application was staged in a separate directory on the Pi without starting it. No new physical evidence was added. Next: supervised acceptance of this release, Q7, the interrupted Q12 rerecord, Q19 and student submission. Q16 remains reported captured. Soccer and gait optimization stay deferred. Use the recovery record for the selected package; a superseded candidate is explicitly held after a reproduced rollback-compatibility bug.

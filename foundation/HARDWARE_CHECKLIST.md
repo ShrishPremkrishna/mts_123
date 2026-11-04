@@ -27,7 +27,7 @@ also pin reviewed tests. Unchanged skill assets and native identities are inheri
 from the baseline manifest, never replaced from the current checkout.
 
 ```sh
-python3 /Users/shrish/workspace/cs123-foundation/foundation/hardware/package_app.py \
+python3 foundation/hardware/package_app.py \
   --repo /Users/shrish/workspace/cs123-foundation \
   --baseline-manifest "$BASELINE_MANIFEST" --baseline-manifest-sha256 "$BASELINE_SHA256" \
   --freeze-manifest "$FINAL_FREEZE" --freeze-manifest-sha256 "$FREEZE_SHA256" \
