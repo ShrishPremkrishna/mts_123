@@ -1,1 +1,1 @@
-README.md
+This folder deploys trained gait policies to the robot. Read [the README](README.md), [the hardware checklist](../foundation/HARDWARE_CHECKLIST.md) and [the gait handoff](../final_project/GAIT_HANDOFF.md) when needed. The generic `deploy.sh` can initialize the robot. With `--no-launch` it still installs and rebuilds. For app staging, use the hardware checklist. Record physical acceptance separately from installation.

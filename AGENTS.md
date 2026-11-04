@@ -1,80 +1,27 @@
----
-date: 2026-10-30T03:22
-tags: [cs123, workflow]
----
-# Pupper foundation working agreement
+# Pupper working agreement
 
-`main` integrates coursework, reusable Pupper packages and final-project work.
-`pupper-foundation` preserves the earlier engineering checkout. Consult the
-selected release record for what has actually run on the robot.
+`main` is the shared branch. The [README](README.md) maps the repository. `gemini_pupper/` holds Lab 6 and the general harness. `final_project/` holds soccer-specific work. `foundation/` holds releases and evidence.
 
-## Start with current state
+## Start here
 
-Run `python3 foundation/scripts/session_status.py` from the checkout. It works
-with standard Python on a fresh clone and reports missing machine-local setup.
-For strict evidence verification, restore the pinned hardware archive and API
-test environment, then run the same command with `--verify-inputs`. Read
-`foundation/results/interruption-recovery.json` only if more detail is needed.
-That compact file owns current activity, blockers, environment and next actions.
-The archived recovery record and dated result reports are historical evidence,
-not instructions to restart old work. Read only evidence relevant to the task.
-`foundation/README.md` owns capability explanations; the hardware checklist owns
-the next physical session procedure. Do not maintain another parallel status log.
+Run `python3 foundation/scripts/session_status.py`. Add `--verify-inputs` to check the pinned local inputs and API interpreter. [The current-state record](foundation/results/interruption-recovery.json) is canonical. Dated reports are historical evidence only. Use `.venv-api/bin/python` for course and API checks. `.venv/bin/python` exists only in a provisioned numerical checkout.
 
-## Keep the work narrow and useful
+## Editing
 
-- One person/agent owns each changed file. Delegate concrete independent work;
-  root integrates once authors freeze their sources. Agents do not commit or
-  operate the robot unless root explicitly delegates that ownership.
-- Coordinate with the teammate currently operating Pupper. One operator owns
-  motion, camera configuration and service restarts for each test block.
-  Keep credentials out of the repository, logs, tool output and artifacts.
-- Use `.venv-api/bin/python` for API/course checks and `.venv/bin/python` for
-  numerical work. The API path aliases the existing tested environment;
-  `check_foundation.py` retains legacy discovery. Do not reinstall speculatively.
-- Use the maintained staging/persistent-session commands in
-  `foundation/HARDWARE_CHECKLIST.md`. Only explicit `start-native` initializes
-  motors; prepare/status/app staging do not. Keep source/model identity separate
-  from observed physical capability.
-- Provider connections and Claude credential-store checks need the approved
-  network/OS-access execution path in this app. A sandbox ConnectError or logged-out
-  status is not evidence of a provider outage or absent account; verify once with
-  the applicable approval before asking the user to reconfigure credentials.
-- Before more training, name the hypothesis, comparison metric and stopping limit.
-  Prioritize a repeatable floor baseline over broad new policy sweeps.
-- Native integration checks must use the exact executable, names, configuration
-  and message contract selected for the trial. Test inputs without motors first.
-- Fix the smallest observed defect. Reuse current tools; do not introduce another
-  wrapper, job framework or versioned staging directory without a concrete need.
-- Run the tests affected by a change. Run a broader regression once sources are
-  frozen, and repeat only after relevant changes or a new unresolved concern.
-  For small isolated edits, use focused tests; run the full regression after
-  integration in the actual checkout instead of repairing unrelated fixtures in
-  partial copies. Test counts are software evidence, not native behavior.
-- Keep tool output bounded: summarize counts, distinct values and short errors;
-  preserve raw output in files. Use bounded subprocess timeouts and a fresh SSH
-  connection for read-only recovery; do not spin on an unavailable robot.
-- Do not use human supervision time for offline packaging, dependency discovery,
-  large builds or tests that could have been completed without the robot.
+Adapted from the community’s [Karpathy-inspired guidelines](https://github.com/forrestchang/andrej-karpathy-skills/blob/main/CLAUDE.md).
 
-## Robot, evidence and stopping
+- State material assumptions and how you will verify success.
+- Prefer the simplest complete change using existing tools.
+- Make surgical edits. One agent owns each changed file, and the lead integrates and commits.
+- Verify the normal path. Also verify failures and cancellation when they apply.
 
-Follow the user's current authorization and the applicable course hardware rules.
-Existing authorization does not need repeated permission questions; ask for actual
-physical readiness/observations when the planned motion requires them. No motion
-in an offline session, no automatic homing on reconnect, and no widened limits or
-gains. Hardware initialization itself may home. Newly trained policies need the
-applicable course approval before first hardware execution.
+## Robot and evidence
 
-Preserve frozen trial inputs and complete outputs; source in `artifacts/` is
-historical evidence, not the editable implementation. Current reusable hardware
-helpers live in `foundation/hardware/`. Do not repackage edited inputs as if an
-older passing run tested them. Missing remote output is a recovery task, not a
-passed run. Before future long compute, demonstrate collection of one verified
-checkpoint and keep collector health visible; preserve a complete final archive
-before releasing that runtime. Periodic snapshots remain partial.
-
-At a handoff, update current state with exact blocker, next action, active owners,
-process/exit evidence and pending archives. Leave completed agents and schedules
-idle unless the user asked for continuing work. A fresh session should resume in
-minutes without rereading the entire conversation or launching anything.
+- One supervised operator owns camera, motion and service restarts for each block. Follow the [hardware checklist](foundation/HARDWARE_CHECKLIST.md).
+- The maintained `start-native` step initializes motors and can home the legs. Confirm operator readiness before starting it or commanding motion.
+- Offline work never moves the robot. Document proposed limit or gain changes in a separate profile and simulate them before supervised use.
+- Simulate new or changed motion. New policies need the applicable approval before they first run on hardware.
+- Verify the running release before attributing a physical observation to it. Record software checks, staging and observed motion separately.
+- Preserve the exact source, configuration, policy and outcomes. Long jobs need a verified checkpoint and a verified final archive.
+- Keep credentials out of source, logs and shared artifacts.
+- When operational state changes, update the current-state record for handoff.

@@ -28,7 +28,7 @@ from the baseline manifest, never replaced from the current checkout.
 
 ```sh
 python3 foundation/hardware/package_app.py \
-  --repo /Users/shrish/workspace/cs123-foundation \
+  --repo . \
   --baseline-manifest "$BASELINE_MANIFEST" --baseline-manifest-sha256 "$BASELINE_SHA256" \
   --freeze-manifest "$FINAL_FREEZE" --freeze-manifest-sha256 "$FREEZE_SHA256" \
   --expected-head "$REVIEWED_COMMIT" --client-bundle "$BUILT_INDEX_JS" \

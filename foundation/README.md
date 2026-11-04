@@ -4,30 +4,11 @@ tags: [cs123, foundation]
 ---
 # Pupper engineering foundation
 
-This branch turns the Fall 2026 course software into a reviewed, reproducible
-foundation for a final project. Coursework remains in the separate `main`
-checkout. **Workstream 1 and the full foundation are not complete.** Code,
-training, simulation, controller completion and observed robot behavior are
-different evidence; none alone establishes a generally reliable capability.
+This folder holds the shared robot foundation on `main`. For the team handoff, read the [Lab 6 submission](WORKSTREAMS.md). Current goals and owners are in [project ownership](../final_project/README.md). Before any hardware work, follow the [operating procedure](HARDWARE_CHECKLIST.md) and check the [recovery record](results/interruption-recovery.json). The sections below are historical capability evidence. Use the release receipt to identify staged code and supervised observations to identify demonstrated behavior.
 
 ## Start here
 
-From `/Users/shrish/workspace/cs123-foundation` on `pupper-foundation`:
-
-```sh
-python3 foundation/scripts/session_status.py
-```
-
-This local command never contacts or starts the robot. It identifies current
-owners, activity, tested Python, blockers and next actions. The
-[recovery record](results/interruption-recovery.json) alone owns operational
-status and exact deployed versions; do not reconstruct them from old reports.
-Use the [three workstreams](WORKSTREAMS.md) for ownership and acceptance goals,
-and the [hardware checklist](HARDWARE_CHECKLIST.md) for the supervised workflow.
-Read only the report relevant to the next decision.
-The [offline workflow improvements](results/workstream1-offline-workflow-20261101.json)
-add a reusable closed-session report and server action timeline. They improve
-measurement and diagnosis; they do not close the physical reliability gap.
+Run `python3 foundation/scripts/session_status.py` from the repo root.
 
 ## What the evidence supports
 
@@ -173,7 +154,7 @@ Classical PD/IK experiments and the learned behavior stack share geometry and
 data contracts, but must not compete for motor interfaces. The learned stack
 routes tools through checked queue/ownership transitions; following relinquishes
 control before another behavior, and interactive skills use their explicit exits.
-Full follower and Spider handoffs remain acceptance work, not presumed integration.
+The [Lab 6 sprint report](results/harness-sprint-20261103.json) records observed following and Spider transitions on earlier releases. Check the recovery record for acceptance of the selected release.
 
 ## Reproduce, preserve and extend
 

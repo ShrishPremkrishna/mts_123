@@ -18,7 +18,7 @@ robot/     provided: camera, detector, viewer, launch file, Karel API (read, don
 scripts/   download the model, run everything at once, clean up
 ```
 
-Run every command below from the repo root (`~/follow_me_pupper`).
+Run the commands below from the `follow_me_pupper/` subdirectory of this repo.
 
 ## Setup (once)
 
@@ -33,8 +33,7 @@ the robot's current model before replacing it.
 
 ## Running
 
-Three terminals on the Pupper. Keeping them separate means you can restart your
-state machine without restarting the robot.
+This is the standalone Lab 5 procedure. It drives the motors, camera and Hailo directly. One operator must own the robot and these resources, so follow the [hardware checklist](../foundation/HARDWARE_CHECKLIST.md) first. Use three terminals so the state machine can restart independently.
 
 ```bash
 # 1) robot + camera + viewer + detection
@@ -148,19 +147,14 @@ parameter above.
 
 ## In the robot foundation model lab
 
-Gemini Pupper's "follow me" runs *your* follow-me: its launch file starts
-`robot/follow_service.py` from `~/follow_me_pupper`, which wraps the state machine in
-`lab/follow_me.py` (with your target lock and stop distance) behind two services,
-`activate_person_following` and `deactivate_person_following`. It needs no
-viewer, keeps the Hailo off until it is asked to follow, and leaves obstacle
-avoidance off. So keep this repo on the robot, with the model downloaded.
+In the shared foundation runtime, the launcher resolves the configured `FOLLOW_ME_DIR` and requires the detector model. It then starts `follow_service.py` in Lab 5 mode. The service wraps `lab/follow_me.py` through `activate_person_following` and `deactivate_person_following`. It runs without a viewer and starts the detector only on demand. Obstacle avoidance is disabled by default.
 
 ```bash
 python3 robot/follow_service.py                             # by hand, for a try
 python3 robot/follow_service.py --ros-args -p always_detect:=true   # keep detecting (eyes)
 ```
 
-## Engineering branch integration
+## Shared runtime integration
 
 Optional color recovery and timed detours are implemented but remain off by
 default. Enable them separately, after camera/stop-distance validation:

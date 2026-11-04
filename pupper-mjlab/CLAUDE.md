@@ -1,1 +1,1 @@
-README.md
+This folder trains and evaluates gait policies in simulation. Read [the README](./README.md) and [the gait handoff](../final_project/GAIT_HANDOFF.md) when needed. Keep changes scoped to training, rewards, configs or evaluation. For each change, name the hypothesis, the comparator and the metric. Verify logic with tests. Treat simulation results as separate from physical evidence.

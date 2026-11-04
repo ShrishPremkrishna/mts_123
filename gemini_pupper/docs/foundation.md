@@ -4,10 +4,9 @@ tags: [cs123, foundation]
 ---
 # Foundation operation
 
-Current sprint operations: use [the maintained selected-session commands](../../foundation/HARDWARE_CHECKLIST.md) and [current state](../../foundation/results/interruption-recovery.json). The broader integration reference below includes alternative launch paths; do not mix them into a running selected session.
+The shared `main` branch contains the Lab 6 package and team runtime changes. Original creation credit remains with Peng Xu and the CS123 staff.
 
-This branch is the engineering implementation, separate from the student's Lab 6
-submission. Original creation credit remains with Peng Xu and the CS123 staff.
+For the physical workflow, follow the maintained [hardware checklist](../../foundation/HARDWARE_CHECKLIST.md). To see the current state, run [`session_status.py`](../../foundation/scripts/session_status.py) or read [interruption-recovery.json](../../foundation/results/interruption-recovery.json). Submission tracking lives in [WORKSTREAMS.md](../../foundation/WORKSTREAMS.md). Consult the class launcher details below only when maintaining that launcher.
 
 ## What is implemented
 
@@ -72,7 +71,7 @@ not a deadline or a physical-duration measurement. The read-only reporter combin
 existing closed-session logs, MCAP and timestamped camera observations:
 
 ```sh
-# From the foundation checkout, using its existing numerical environment:
+# From a checkout with its numerical environment provisioned locally:
 .venv/bin/python foundation/scripts/report_lab6_session.py CLOSED_RUN NEW_REPORT_DIR --timezone America/Los_Angeles
 ```
 
@@ -386,7 +385,7 @@ certificate: it cannot establish physical condition, camera calibration, service
 emergency-stop operation, or policy performance.
 
 When ROS is already running, `start.sh` first inspects it without changing it.
-Reuse requires this branch's combined-launch manifest, unchanged policy and
+Reuse requires the class launcher's combined-launch manifest, unchanged policy and
 descriptor files, configured controllers, feedback broadcasters, the mux with
 joystick priority, the selected follower services/flags, and matching controller
 parameters. A course-only or stale stack is refused before any server is replaced.
@@ -618,7 +617,7 @@ emergency stop and known baseline, then camera/follower behavior, then one new
 component at a time. Use the existing course motion reports and simulation replay
 before changed motions. Newly trained policies require the course's TA approval
 before first hardware use. No hardware validation or API session is implied by
-the test output in this branch.
+test output alone.
 
 ### Deploying a voice update
 

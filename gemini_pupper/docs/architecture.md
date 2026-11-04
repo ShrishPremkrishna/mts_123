@@ -1,12 +1,12 @@
 # Gemini Pupper Architecture
 
-This page explains how the browser application, Gemini models, and the physical Pupper robot work together.
+The browser connects to Gemini for voice and reasoning and sends robot requests to the local FastAPI server. Use the [hardware checklist](../../foundation/HARDWARE_CHECKLIST.md) for the team's physical session.
 
 ## The 30-second explanation
 
 Gemini Pupper is a browser-based voice and vision interface for a robot dog. The browser captures microphone and camera data and streams it directly to Gemini Live. When Gemini decides the robot should move or perform a trick, it returns a structured function call. The browser translates that call into an HTTP request to a small FastAPI server running locally on the robot. That server uses the Pupper ROS stack to queue motion, animation, and follow-person commands.
 
-The upstream cloud deployment serves the web application; it does not proxy robot commands or media. This checkout also serves the built app directly from the local FastAPI server. The browser is the coordinator between Gemini and the robot.
+In the selected setup, the existing FastAPI server serves the built app from the same origin as the robot API. Upstream Cloud Run static hosting is an alternative way to serve the same files. Gemini stays a cloud service in both cases, and the browser coordinates between Gemini and the robot.
 
 The default combines conversation and robot tools in one session. A bounded
 client buffer holds model output until the turn ends; tool-bearing turns use
@@ -24,7 +24,7 @@ flowchart LR
     User[Person] -->|voice, gestures, requests| Browser
 
     subgraph Cloud["Public cloud"]
-        CloudRun["Cloud Run<br/>nginx + static React app"]
+        CloudRun["Optional upstream static host"]
         GeminiLive["Gemini Live API<br/>audio, video, reasoning"]
         GeminiTTS["Gemini Flash TTS<br/>conversation + text-output only"]
     end
@@ -38,14 +38,15 @@ flowchart LR
     end
 
     subgraph Robot["Pupper on the local network"]
-        API["robot/server.py<br/>FastAPI, port 8000"]
+        API["robot/server.py<br/>FastAPI + built app"]
         Agent["lab/<br/>Gemini's tools"]
         Tools["robot_api.py<br/>queue, controllers"]
         ROS["Pupper ROS services"]
         Hardware["Motors, camera, battery,<br/>speaker, person tracking"]
     end
 
-    CloudRun -->|downloads HTML, JS, assets| Browser
+    API -->|serves selected app| Browser
+    CloudRun -. optional app hosting .-> Browser
     Media --> LiveService
     LiveService <-->|Live WebSocket<br/>audio, video, tool calls| GeminiLive
     GeminiLive -->|native audio, buffered per turn| LiveService
@@ -69,14 +70,14 @@ flowchart LR
 | React application | Owns UI state, settings, logs, connection state, and periodic status polling | [App.tsx](../web/App.tsx) |
 | Gemini integration | Captures media, opens the Live session, plays audio, executes tool calls, and returns tool results | [web/services/geminiLive.ts](../web/services/geminiLive.ts) |
 | Robot bridge | Maps browser operations to the robot's HTTP API | [web/services/robotBridge.ts](../web/services/robotBridge.ts) |
-| Robot API | Exposes control, camera, tracking, and telemetry endpoints on port 8000 | [robot/server.py](../robot/server.py) |
+| Robot API | Exposes control, camera, tracking, and telemetry endpoints on the selected listener | [robot/server.py](../robot/server.py) |
 | Gemini's tools | The prompt, what Gemini reads about each tool, and what each tool does | [lab/prompt.md](../lab/prompt.md) and the `@tool`s and behaviors in [lab/](../lab/) |
 | Robot side | The job queue, the robot's state, leg-controller switching, interactive tricks, falls, follow mode, the e-stop | [robot/robot_api.py](../robot/robot_api.py) |
 | Robot stack | Converts high-level requests into queued ROS motion and behavior operations | [Pupper v3 monorepo](https://github.com/Nate711/pupperv3-monorepo) |
 
 ## End-to-end conversation and action
 
-The browser, rather than Cloud Run, owns the live conversation and function-call loop.
+The browser owns the live conversation and function-call loop.
 
 ```mermaid
 sequenceDiagram
@@ -167,7 +168,7 @@ flowchart TB
         WSClient["Browser WebSocket<br/>/ws/detections"]
     end
 
-    subgraph Server["FastAPI process on port 8000"]
+    subgraph Server["FastAPI process"]
         Routes["FastAPI routes"]
         Agent["tool_registry.py + lab/ tools<br/>checks each call, words to numbers"]
         Status["Status collectors<br/>battery, CPU, services, network"]
@@ -245,46 +246,38 @@ The main application polls slowly for critical warnings, while the debug panel p
 ## Deployment and network topology
 
 ```mermaid
-flowchart TB
-    Source["GitHub repository"] -->|gcloud run deploy --source| Build["Google Cloud Build"]
-    Build --> Image["Container image<br/>Vite build + nginx"]
-    Image --> Run["Public Cloud Run service<br/>port 8080"]
-    Run -->|HTTPS static assets| Browser["Chrome browser"]
-
-    Browser -->|Google API connection| Gemini["Gemini APIs"]
-    Browser -->|http://localhost:8000<br/>or robot LAN address| Robot["Pupper FastAPI"]
+flowchart LR
+    API["Pupper FastAPI<br/>(serves app + robot API)"] -->|built app| Browser["Browser"]
+    Browser -->|same-origin robot requests| API
+    Browser -->|direct connection| Gemini["Gemini APIs"]
 ```
 
-The Cloud Run container contains only static files and nginx. There is no application backend in Cloud Run and robot traffic does not pass through Google Cloud.
-
-The default Robot API URL is empty, meaning the origin serving the page; the robot server commonly uses port 8000. A separate hosted page must be configured with the reachable API origin. If Chrome runs on another computer, set the Robot API URL to the Pupper's reachable LAN address and ensure browser mixed-content and local-network permission policies allow that connection.
+Robot traffic stays between the browser and the local FastAPI server. Upstream static hosting, such as Cloud Run, is an alternative. It needs a compatible API origin that the browser can reach, and browser mixed-content and local-network policies must allow that connection.
 
 ## Trust and safety boundaries
 
-- The Gemini API key is entered in the browser settings and stored in browser local storage. It is used for direct browser-to-Gemini connections.
-- The robot FastAPI server currently permits all CORS origins and does not authenticate control requests. Command epochs prevent stale dispatch; they are not credentials or network isolation.
-- Keep port 8000 on a trusted robot/local network. Do not expose it directly to the public internet.
-- Motion commands can move physical hardware. Use the immediate-stop path when behavior is unexpected, and keep physical clearance around the robot.
-- The server includes maintenance endpoints such as upgrade and restart. Network isolation is therefore important even if the browser UI does not normally invoke them.
+- CORS uses `allow_origin_regex` to allow `localhost` and `127.0.0.1` with an optional port.
+- CORS and command epochs do not authenticate anyone. Epochs only stop stale commands from being dispatched.
+- The project's bootstrap gives a one-time localhost grant that delivers the existing Gemini key into browser memory. Browser settings off the robot can store the key persistently.
+- Limit the API to a trusted host or network.
+- API Stop cancels work and requests zero velocity. The operator retains R3 and the power disconnect during motion.
 
 ## Startup lifecycle
 
-1. `robot/start.sh` validates/reuses a compatible combined stack or launches it before the FastAPI process. Hardware initialization can home even while neural controllers are inactive; use the reviewed supervised procedure. The selected persistent profile is an alternative documented in the [hardware checklist](../../foundation/HARDWARE_CHECKLIST.md), not a second competing stack.
-2. FastAPI's lifespan hook creates the `Robot` (`robot/robot_api.py`); its queue first checks which state the robot was left in before a restart (an interactive trick it is still in, say).
-3. If ZMQ is available, a background subscriber connects to the local person-detection publisher.
-4. The user opens the Cloud Run URL in Chrome.
-5. The browser loads settings and connects to the robot API.
-6. When the user wakes Pupper, the browser requests media access and opens the Gemini Live session.
-7. Gemini responses, robot commands, status polling, and tracking streams then operate independently until disconnect.
+Staging and preparation operate on files. A supervised operator then runs `start-native` explicitly, and this step may home the robot. The operator starts the API separately after native readiness. FastAPI's HTTP listener port is configurable, and 8000 is only the class default.
+
+The user then opens the selected app over loopback on the robot and connects the microphone and voice explicitly. Match the served bundle and API instance against the selected release before sending commands. For physical runs, Stop and shutdown, follow the [hardware checklist](../../foundation/HARDWARE_CHECKLIST.md).
+
+`robot/start.sh` is an optional, separate class launcher. Never use it to restart the app.
 
 ## Failure isolation
 
 | Symptom | Likely boundary to inspect |
 |---|---|
-| Page does not load | Cloud Run, nginx, browser cache |
+| Page does not load | Selected API origin, built web assets and browser cache |
 | Camera or microphone unavailable | Browser permissions, HTTPS secure context, Linux audio/video devices |
 | Gemini connects and immediately closes | Model ID, API key, unsupported Live configuration; inspect close code in debug logs |
-| Voice works but robot does not move | Robot API URL, LAN access, CORS/mixed-content policy, the robot server (`/tmp/gemini-pupper/server.log`) |
+| Voice works but robot does not move | Robot API URL, LAN access, CORS/mixed-content policy, the selected run’s API log |
 | Manual controls work but Gemini actions do not | Gemini function declarations and tool-call handling |
 | Robot moves but eye tracking is absent | ZMQ detector, port 5556 publisher, `/ws/detections` |
 | Debug status is empty | `/system/status`, robot service, battery script, network reachability |
