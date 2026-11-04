@@ -9,8 +9,11 @@ Run on Pupper, robot on its stand, two terminals:
     python3 contact_ik.py --no-pause --log ramp.csv         # 2. detect only, ramp under the foot
     python3 contact_ik.py                                   # 3. pause 1 s on each touchdown
 
-The trajectory, IK and PD publishing are the team's Lab 3 node (ik_heuristic_walking_lab/ik.py);
-this file subclasses it and only adds the detector and the pause.
+The IK and PD publishing are the team's Lab 3 node (ik_heuristic_walking_lab/ik.py); this file
+subclasses it and adds the detector and the pause. By default it replaces the Lab 3 triangle
+(+-15 cm stroke) with a dataset-sized one: the Lab 3 triangle is out of the leg's reach, so the
+IK drives joints 2 and 3 past their limits, and the effort (kp times the tracking error) is
+5 to 50 times larger than anything in the training data.
 """
 
 import argparse
@@ -28,12 +31,24 @@ IK_LAB = os.environ.get('IK_LAB_DIR', os.path.join(HERE, '..', '..', 'ik_heurist
 sys.path.insert(0, os.path.abspath(IK_LAB))
 
 import rclpy  # noqa: E402
+from rclpy.executors import ExternalShutdownException  # noqa: E402
 from rclpy.utilities import remove_ros_args  # noqa: E402
 from sensor_msgs.msg import JointState  # noqa: E402
 
-from contact_detector import JOINTS, Hysteresis, JointStateBuffer, JointStateCNN, PauseOnContact  # noqa: E402
+from contact_detector import (JOINTS, Hysteresis, JointStateBuffer, JointStateCNN,  # noqa: E402
+                              PauseOnContact, PhaseBaseline)
 from ik import InverseKinematics  # noqa: E402
 from kinematics import fr_leg_fk, inverse_kinematics  # noqa: E402
+
+# Foot vertices relative to the hip: touchdown, liftoff, mid-swing (m). "dataset" follows the
+# foot path that forward kinematics gives for the recorded dataset joint angles
+# (x -3.6..+4.5 cm, z -13.0..-6.9 cm). Mid-swing is at -8 cm so that the knee stays 0.14 rad
+# inside its 0.61 rad limit.
+TRIANGLES = {
+    'dataset': [[0.04, 0.0, -0.125], [-0.035, 0.0, -0.125], [0.0, 0.0, -0.08]],
+    'lab3': None,  # keep ik.py's own triangle
+}
+CENTER_TO_RF_HIP = np.array([0.07500, -0.08350, 0])
 
 
 class ContactIK(InverseKinematics):
@@ -41,13 +56,21 @@ class ContactIK(InverseKinematics):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        if TRIANGLES[args.triangle] is not None:
+            self.ee_triangle_positions = np.array(TRIANGLES[args.triangle]) + CENTER_TO_RF_HIP
         # The classifier was trained on the ~1 kHz joint_states stream; a deeper queue
         # than ik.py's 10 keeps samples while a slow IK callback runs.
         self.destroy_subscription(self.joint_subscription)
         self.joint_subscription = self.create_subscription(JointState, 'joint_states', self.listener_callback, 200)
         self.model = JointStateCNN(args.model)
         self.buffer = JointStateBuffer(self.model.window)
-        self.hysteresis = Hysteresis(args.p_on, args.p_off, args.n_on, args.n_off)
+        self.phase = np.zeros(self.model.window)   # trajectory time of each buffered sample
+        if args.detector == 'residual':
+            # Score = z-score of the effort residual, so the thresholds are in standard deviations.
+            self.baseline = PhaseBaseline(args.baseline)
+            self.hysteresis = Hysteresis(args.z_on, args.z_off, args.n_on, args.n_off)
+        else:
+            self.hysteresis = Hysteresis(args.p_on, args.p_off, args.n_on, args.n_off)
         self.pauser = PauseOnContact(args.pause_s, args.rearm_s)
         self.paused = False
         self.p_contact = 0.0
@@ -65,7 +88,8 @@ class ContactIK(InverseKinematics):
                               + ['p_contact', 'contact', 'paused', 'traj_t'])
         self.get_logger().info(
             f'model {args.model}: window {self.model.window} samples, channels {self.model.channels.tolist()}, '
-            f'inference {args.rate_hz} Hz, pause {"off" if args.no_pause else f"{args.pause_s} s"}')
+            f'inference {args.rate_hz} Hz, pause {"off" if args.no_pause else f"{args.pause_s} s"}, '
+            f'triangle {args.triangle}, detector {args.detector}')
 
     def listener_callback(self, msg):
         if self._index is None or len(msg.name) != self._n_names:
@@ -84,6 +108,7 @@ class ContactIK(InverseKinematics):
                 self.args.no_pause = True
         self.joint_positions = np.array(pos)
         self.joint_velocities = np.array(vel)
+        self.phase[self.buffer.count % self.buffer.size] = self.t
         self.buffer.push(pos, vel, eff)
         if self.log_file:
             stamp = msg.header.stamp.sec + 1e-9 * msg.header.stamp.nanosec
@@ -93,8 +118,13 @@ class ContactIK(InverseKinematics):
     def detect_timer_callback(self):
         if not self.buffer.full():
             return
-        p, incline, material = self.model(self.buffer.window())
+        window = self.buffer.window()
+        p, incline, material = self.model(window)
         self.p_contact = float(p[0])
+        if self.args.detector == 'residual':
+            i = self.buffer.count % self.buffer.size
+            phase = np.concatenate([self.phase[i:], self.phase[:i]])
+            self.p_contact = self.baseline.score(window[:, 6:9], phase)
         if not np.isfinite(self.p_contact):
             # A NaN joint state would otherwise freeze the hysteresis; treat it as release.
             if not self._warned_nan:
@@ -113,7 +143,7 @@ class ContactIK(InverseKinematics):
         self.paused = False if self.args.no_pause else self.pauser.update(now, self.contact, rising)
         if rising:
             self.get_logger().info(
-                f'CONTACT p={self.p_contact:.2f} at triangle t={self.t % 3:.2f} | model guess: '
+                f'CONTACT score={self.p_contact:.2f} at triangle t={self.t % 3:.2f} | CNN guess: '
                 f'{self.model.incline_classes[int(incline[0].argmax())]} deg, '
                 f'{self.model.material_classes[int(material[0].argmax())]}'
                 + (' -> pause' if self.paused and not was_paused else ''))
@@ -123,13 +153,25 @@ class ContactIK(InverseKinematics):
         if self.joint_positions is None or self.paused:
             return
         target_ee = self.interpolate_triangle(self.t)
-        self.target_joint_positions = inverse_kinematics(fr_leg_fk, target_ee, self.joint_positions)
+        # Start the IK from its previous solution (zero pose at first), not from the measured
+        # joints: a leg that rests at an odd pose could otherwise send the IK to another branch.
+        guess = self.target_joint_positions if self.target_joint_positions is not None else np.zeros(3)
+        self.target_joint_positions = inverse_kinematics(fr_leg_fk, target_ee, guess)
         self.t += 3 * self.step_frequency * self.ik_timer_period
 
 
 def parse_args(argv):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--model', default=os.path.join(HERE, 'implicit_classifier.npz'))
+    ap.add_argument('--triangle', choices=list(TRIANGLES), default='dataset',
+                    help="foot triangle: 'dataset' (default, reachable) or 'lab3' (ik.py's own)")
+    ap.add_argument('--detector', choices=['residual', 'cnn'], default='residual',
+                    help="'residual': effort against a free-swing baseline of this robot (default); "
+                         "'cnn': the dataset-trained classifier alone")
+    ap.add_argument('--baseline', default=os.path.join(HERE, 'free_swing_baseline.npz'),
+                    help='output of: python3 contact_detector.py calibrate free_swing.csv ...')
+    ap.add_argument('--z-on', type=float, default=4.0, help='residual z-score that counts as contact')
+    ap.add_argument('--z-off', type=float, default=2.0, help='residual z-score that counts as release')
     ap.add_argument('--rate-hz', type=float, default=50.0, help='classifier evaluations per second')
     ap.add_argument('--p-on', type=float, default=0.7, help='probability that counts as contact')
     ap.add_argument('--p-off', type=float, default=0.3, help='probability that counts as release')
@@ -149,7 +191,12 @@ def main():
     node = ContactIK(args)
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
+        print('Program terminated by user')
+    except RuntimeError:
+        # Ctrl-C during a message conversion surfaces as RuntimeError after the context shuts down.
+        if rclpy.ok():
+            raise
         print('Program terminated by user')
     finally:
         # The position controller keeps the last command, so the leg holds still.

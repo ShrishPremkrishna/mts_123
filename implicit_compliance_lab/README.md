@@ -1,6 +1,6 @@
 # Optional Lab 1: Implicit Compliance
 
-This folder holds the completed Optional Lab 1 ([spec](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/opt-lab-1.html)): the two classifier notebooks with outputs, the answers to questions 3 and 4, an ablation study, and Pupper code that pauses the Lab 3 triangle trajectory for 1 s when the joint states show contact. On the handout splits, the explicit (DenseTact image) classifier gave 98.2 % incline and 89.8 % material accuracy at its final epoch. That epoch was its best, and its last-5-epoch mean is 92.4 % and 72.5 %. The implicit (joint-state) classifier gave 95.9 % contact, 85.7 % incline and 79.0 % material accuracy. Joint states reproduce the contact labels with 93 % to 96 % accuracy under every split, also in a later recording session, and joint effort alone gives 92 % to 94 %. In a later session, terrain identity from joint states falls to chance level, but the images keep most of their incline accuracy.
+This folder holds the completed Optional Lab 1 ([spec](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/opt-lab-1.html)): the two classifier notebooks with outputs, the answers to questions 3 and 4, an ablation study, and Pupper code that pauses the Lab 3 triangle trajectory for 1 s when the joint states show contact. On the handout splits, the explicit (DenseTact image) classifier gave 98.2 % incline and 89.8 % material accuracy at its final epoch. That epoch was its best, and its last-5-epoch mean is 92.4 % and 72.5 %. The implicit (joint-state) classifier gave 95.9 % contact, 85.7 % incline and 79.0 % material accuracy. Joint states reproduce the contact labels with 93 % to 96 % accuracy under every split, also in a later recording session, and joint effort alone gives 92 % to 94 %. In a later session, terrain identity from joint states falls to chance level, but the images keep most of their incline accuracy. On the team's Pupper (2026-11-04), the dataset-trained classifier did not transfer to the standard leg. A detector calibrated on 25 s of the robot's own free swing, which uses the same joint effort, completed the challenge: 0 pauses in 19 s of free swing and 10 pauses in 29 s with a book under the foot.
 
 ## Answers
 
@@ -135,6 +135,27 @@ Thus effort is the deflection of the position-controlled joint, scaled by the PD
 
 ## Deployment challenge
 
+### Result on Pupper (2026-11-04)
+
+The team ran the challenge on the Pupper `mts` (ROS 2 Jazzy, `joint_states` at 916 to 935 Hz with the effort field). Claude ran the steps over SSH with the robot on its stand. The logs are in `~/Downloads/classes/cs123/optlab1_robot_logs/` (outside the repository).
+
+| Run | Detector | Triangle | Result |
+|---|---|---|---|
+| Free swing, 23 s, detect only | dataset CNN | Lab 3 (±15 cm) | 15 false contacts in 7.6 cycles (2 per cycle). Effort up to −12.5 (training data: below approximately 1) |
+| Free swing, 25 s, detect only | dataset CNN | dataset-sized | Effort inside the training range, but mean p = 0.59 in free air |
+| Book under the foot, 25 s, detect only | dataset CNN | dataset-sized | Mean p = 0.48: lower than in free air. The CNN does not separate contact on this leg |
+| Free swing, 19 s, pause on | residual (calibrated) | dataset-sized | 0 pauses, maximum score 2.7 (threshold 4) |
+| Book under the foot, 29 s, pause on | residual (calibrated) | dataset-sized | 10 pauses in 7 cycles, each 1 s. Scores 4.2 to 11.5 |
+
+Two problems appeared on the robot, and the code now handles both:
+
+1. **The Lab 3 triangle is out of reach.** The team's `ik.py` triangle has a ±15 cm stroke. Offline, its IK error reaches 27 mm, and it commands joint 2 to −2.51 rad and joint 3 to −3.36 rad, past their limits (−0.32 and −2.69 rad). The driver clamps the motor command but computes effort from the unclamped command, so effort reached −12.5. `contact_ik.py --triangle dataset` (the default) uses a triangle with the size of the dataset's foot path: touchdown (+4.0, 0, −12.5) cm, liftoff (−3.5, 0, −12.5) cm, mid-swing (0, 0, −8.0) cm from the hip. Forward kinematics on the dataset joint angles gives x from −3.6 to +4.5 cm and z from −13.0 to −6.9 cm. The IK error of this triangle is 0.02 mm, and all joints stay inside their limits, with 0.14 rad of margin at the knee.
+2. **The dataset classifier does not transfer to the standard leg.** With a reachable triangle, the robot's free-swing effort (mean −0.22, −0.01, 0.02) is inside the training range, but the CNN reports contact in free air and does not respond to the book. The dataset leg had a DenseTact lower leg, with a different mass and length, so its load profile differs. The effort itself does respond: on the book, the joint-1 effort in the back stroke is −0.57 against −0.28 in free air.
+
+**Robot-calibrated detector (`--detector residual`, the default).** The trajectory repeats every 3 time units, so the free-air effort at each point of the triangle repeats too. `python3 contact_detector.py calibrate free_swing.csv free_swing_baseline.npz` stores the mean and standard deviation of the 3 efforts in 60 phase bins. During a run, the score is the largest absolute z-score of the 20 ms mean residual of joints 1 and 3. Contact sets at a score ≥ 4 for 3 evaluations, and clears below 2 for 5 evaluations. This is still implicit sensing: it uses only the motors' PD deflection. But it is calibrated on 25 s of the robot's own free swing, not trained on the DenseTact dataset. On held-out robot data (baseline from the first half of a free-swing log), it gives 0 contacts in 4 free-swing cycles and 7 in 7 cycles on the book.
+
+The book run has 10 pauses in 7 cycles. Three pauses were at touchdown (triangle t = 0.2 to 0.3). Others came during the descent (t = 2.2 to 2.9), probably because the hand-held book was higher, or during the slide (t = 0.55 to 1.3), probably because the score fell below 2 and rose again. No synchronized video confirms each one. `--rearm-s 0.5` makes a second pause during one slide less likely.
+
 ### Design
 
 | Problem | Decision |
@@ -146,6 +167,8 @@ Thus effort is the deflection of the position-controlled joint, scaled by the PD
 | Pause loop | The leg is still during the pause, and in the dataset a still leg looks like contact. One pause is allowed per touchdown: the next pause is armed only after the detector reports release for 0.2 s after the pause ends (`--rearm-s`). |
 | Transfer to a Pupper without DenseTact | The deployed model uses only the 3 effort channels, standardized with the training mean and standard deviation. Positions depend on the leg geometry (the dataset leg had a DenseTact lower leg) and on the collection trajectory, which can differ from the team's `ik.py` triangle. Effort is the load signal. With effort only, the blocked-split contact accuracy is 93.2 %, against 94.6 % with all 9 channels (W = 100, 20 epochs). |
 | Missing effort field | If `joint_states` has no effort, the node logs an error and disables the pause. |
+| Reachable trajectory | `--triangle dataset` (default) replaces the out-of-reach Lab 3 triangle (see above). The IK starts from its previous solution, not from the measured joints, so a leg at an odd pose does not send it to another branch. |
+| Leg differs from the dataset leg | `--detector residual` (default) compares effort with a free-swing baseline of the same robot. `--detector cnn` uses the dataset classifier alone, with `--p-on` and `--p-off`. |
 | More training data | `contact_ik.py --log run.csv` writes every joint-state sample in the dataset's `joint_states.csv` format, plus the detector output. Use these files to fine-tune the model or to set the thresholds. |
 
 ### Answers to the challenge topics
@@ -161,7 +184,7 @@ Thus effort is the deflection of the position-controlled joint, scaled by the PD
 * A non-finite joint state counts as no contact, and a missing effort field disables the pause.
 * `--no-pause` runs and logs the detector but never pauses, so that you can do a check of the detector first.
 
-**Do we collect more data or modify the model?** We modified the model for this task, and more data is probably necessary.
+**Do we collect more data or modify the model?** Both were necessary. The dataset classifier, even with the effort-only and newest-sample changes, did not transfer to the team's standard leg (see "Result on Pupper"). The robot data that solved it was 25 s of free swing, which calibrates the residual detector. No contact labels are necessary for this calibration.
 
 * Model changes: effort-only inputs, standardization and the newest-sample label (Table E). Positions depend on the dataset leg (a DenseTact lower leg) and on its trajectory. Velocity depends on the 1 s pause of the collection program.
 * More data: the team's leg is different from the dataset leg. Also, terrain identity did not transfer to a later session, although contact did (92.5 % with effort only). To collect data, run `contact_ik.py --no-pause --log run.csv`, which writes `joint_states.csv` rows. For the labels, write a `contact.csv` (`timestamp,contact_value`) from a known reference, for example from forward kinematics with a ramp at a known height. Put both files in a `tactile_data`-style folder, next to the original recordings, and retrain with `analysis/ablation.py --channels eff --label last --norm --save-model`. The script trains from random weights, so keep the original recordings in the folder.
@@ -183,39 +206,47 @@ The replay delay is measured from the `contact.csv` label, which has its own del
 
 ### Procedure on Pupper
 
-WARNING: Put Pupper on its stand before you start a controller. The front-right leg moves through the full triangle.
+WARNING: Put Pupper on its stand before you start a controller. Homing moves all four legs, and then the front-right leg moves through the triangle.
 
-The robot procedure writes to the robot, so the team does these steps. Claude did not copy files to the robot.
+This is the procedure that ran on 2026-11-04.
 
-1. Pull this folder onto the robot, in the same checkout as `ik_heuristic_walking_lab/`.
-2. In terminal 1, start the Lab 3 controller stack. Replace `<checkout>` with the folder of the repository on the robot:
-
-   ```bash
-   cd <checkout>/implicit_compliance_lab/robot
-   ros2 launch ../../ik_heuristic_walking_lab/ik.launch.py
-   ```
-
-3. In terminal 2, do the desk check on the Pi. Make sure that the speed line shows less than 10 ms per window:
+1. On the Mac, copy the two folders to the robot (the layout keeps `../../ik_heuristic_walking_lab` correct):
 
    ```bash
-   python3 test_contact_detector.py
+   cd ~/Downloads/classes/cs123/mts_123 && rsync -a --relative --exclude __pycache__ implicit_compliance_lab/robot ik_heuristic_walking_lab mts-pi:~/optlab1/
    ```
 
-4. With nothing under the foot, run the detector without the pause for 30 s:
+2. In terminal 1 on the robot, start the Lab 3 controller stack and wait for "Finished homing":
+
+   ```bash
+   cd ~/optlab1/ik_heuristic_walking_lab && ros2 launch ik.launch.py
+   ```
+
+3. In terminal 2, do the desk check. Make sure that the speed line shows less than 10 ms per window (the Pi gave 1.0 to 1.6 ms):
+
+   ```bash
+   cd ~/optlab1/implicit_compliance_lab/robot && python3 test_contact_detector.py
+   ```
+
+4. With nothing under the foot, record 25 s of free swing, then push Ctrl-C:
 
    ```bash
    python3 contact_ik.py --no-pause --log free_swing.csv
    ```
 
-   Make sure that no `CONTACT` line appears and that the status line shows approximately 1000 Hz.
-5. Put a ramp or a book under the foot at touchdown height. Then run the same command with `--log ramp.csv`. Make sure that one `CONTACT` line appears for each touchdown.
-6. Run the full challenge. The leg must stop for 1 s at each touchdown:
+5. Calibrate the residual detector from that log. The repository already has a baseline from the `mts` robot. Do this step again for a different robot, a different `--triangle`, or a changed stand:
 
    ```bash
-   python3 contact_ik.py
+   python3 contact_detector.py calibrate free_swing.csv free_swing_baseline.npz
    ```
 
-7. If step 4 shows false contacts, increase `--p-on` (for example 0.85) or `--n-on`. If step 5 misses touchdowns, decrease them.
+6. Hold a book flat under the foot, 1 to 2 cm above the lowest point of the stroke, and run the challenge. The leg stops for 1 s at each touch:
+
+   ```bash
+   python3 contact_ik.py --log pause_run.csv
+   ```
+
+7. Push Ctrl-C in terminal 2, then in terminal 1. If the free swing pauses, increase `--z-on` (for example 6). If a touch does not pause, decrease it (for example 3).
 
 If `IK_LAB_DIR` is set, `contact_ik.py` imports `ik.py` and `kinematics.py` from that folder. Otherwise it uses `../../ik_heuristic_walking_lab`. Unlike `ik.py`, `contact_ik.py` does not send `[0, 0, 0]` on exit, so the leg holds its last position.
 
@@ -257,4 +288,5 @@ The local runs used Python 3.12 with PyTorch 2.15 (MPS backend on an Apple M4). 
 | `robot/contact_detector.py` | NumPy CNN, ring buffer, hysteresis, pause state machine |
 | `robot/contact_ik.py` | Lab 3 IK node with the contact pause (ROS 2) |
 | `robot/test_contact_detector.py` | Desk checks: state machine, speed, NumPy-PyTorch parity, replay |
-| `robot/implicit_classifier.npz` | Deployed model |
+| `robot/implicit_classifier.npz` | Dataset-trained classifier (effort only); `--detector cnn` |
+| `robot/free_swing_baseline.npz` | Free-swing effort baseline of the `mts` robot with the dataset triangle; `--detector residual` (default) |
