@@ -158,8 +158,24 @@ The [Lab 6 sprint report](results/harness-sprint-20261103.json) records observed
 
 ## Reproduce, preserve and extend
 
-Use the tested interpreter and validation commands in current state, and
-`pupper-mjlab/uv.lock` for training dependencies. The
+The Mac runs CPU simulation and numerical tests in a checkout-local `.venv`.
+To provision a fresh checkout, run this from its root in zsh or bash with
+`python3.12` installed. It installs `uv` locally, uses the checked-in training
+lock and adds the Mac lab-report and compliance packages.
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install uv==0.13.6
+source .venv/bin/activate
+UV_PROJECT_ENVIRONMENT="$PWD/.venv" uv sync --project pupper-mjlab --locked --inexact --extra cpu --python 3.12
+uv pip install --python .venv/bin/python -r foundation/configs/macos-numerical-extras.txt \
+  -c <(uv export --project pupper-mjlab --locked --extra cpu --no-emit-project --no-hashes)
+uv pip check --python .venv/bin/python
+```
+
+Run `.venv/bin/python` from this checkout for numerical work. The regression
+runner checks that `mjlab` loads from its own `pupper-mjlab/src`. GPU training
+uses a CUDA host. The
 [environment inventory](results/local-environment.json) records an observed setup,
 not a universal platform guarantee. Run checks affected by a change; source hashes
 and exact commands in each dated report determine what a passing result covers.

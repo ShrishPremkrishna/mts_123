@@ -10,7 +10,7 @@ Our first field demo uses one Pupper in two roles. On offense it finds the ball,
 | Gait | Finish Optional Lab 2. Measure sprinting, lateral reach, braking and stable transitions. Evaluate jumping and use the real ball to characterize front contact. | [Gait handoff](GAIT_HANDOFF.md) |
 | Harness | Finish Lab 6 and verify compound commands, handoff between behaviors and Stop on the staged release. Use replayed ball observations to exercise a soccer tool before field integration. | [Lab 6 handoff](../foundation/WORKSTREAMS.md) · [Tool registry](../gemini_pupper/robot/tool_registry.py) |
 
-The fourth teammate can join whichever experiment needs a second set of hands. Rolling repeatable shots and filming from a fixed position lets the owner concentrate on the robot. A clear floor, tape, the intended ball, two colored goal markers and a soft obstacle are enough for the first trials.
+The fourth teammate owns the [Lab 6 written submission](../foundation/submission/lab6/README.md), with footage from Shrish. For soccer trials, a second person can roll repeatable shots and film from a fixed position. A clear floor, tape, the intended ball, two colored goal markers and a soft obstacle are enough for the first trials.
 
 ## How the pieces fit
 

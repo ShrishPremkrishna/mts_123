@@ -1,0 +1,192 @@
+The provided robot (these should pass before you change anything)
+  ok   a tool call with a parameter the tool doesn't have is refused
+  ok   a value outside a tool's choices is refused, listing the choices
+  ok   stand_up hands the legs to the locomotion policy
+  ok   ... and waits until the policy is ready before the next job starts
+  ok   lie_down relaxes every leg controller
+  ok   after a fall, robot_status says it fell over
+  ok   standing up while still tipped over is refused, asking for help
+  ok   once upright and still, standing up works again
+  ok   stop clears the queue
+  ok   a restarted server notices the robot is still in an interactive trick
+  ok   ... so standing up plays the trick's exit clip first
+  ok   chat.py gives Gemini the same prompt as the robot server
+  ok   ... and the same tools
+  ok   (setup) the bow is playing
+  ok   stop in the middle of a trick deactivates its autonomous controller
+  ok   ... and reports deactivation without claiming measured stopping or posture
+  ok   stop during a walk leaves the locomotion controller active with a zero-speed request
+  ok   stop while a trick only holds its pose leaves that controller active
+  ok   stop sends a zero speed at once, before anything else
+  ok   ... and empties the queue right away (the running job is cancelled)
+  ok   ... so nothing that was queued behind runs (the bow never plays)
+  ok   ... and the walk's speeds stop
+  ok   a stop while follow mode is starting: it doesn't start
+  ok   a request that began before a stop doesn't queue anything after it
+  ok   a walking trick: its clips play, then its walking policy takes the legs
+  ok   ... and the outcome says it walks in its stance
+  ok   robot.speeds() in a walking trick: its own defaults and limits
+  ok   a move too fast for the trick is refused, with its limit, and nothing is sent
+  ok   a move within its limits drives the trick's walking policy, and Pupper stays in the trick
+  ok   turn in the trick turns at its speed (robot.speeds().turn), as far as asked
+  ok   standing up leaves through the exit clip: the trick's policy, started at it
+  ok   the e-stop relaxes a trick's walking policy too
+  ok   a trick with replaced_by is there while its replacement isn't
+  ok   ... and steps aside once the replacement is installed
+  ok   interactive_action is offered to Gemini even before an interactive trick is installed
+  ok   ... and says nothing is installed yet
+
+TODO 1: prompt.md, first pass
+  ok   the prompt says who Pupper is and how it moves (at least 60 words in the three sections)
+  ok   it tells Gemini it moves only by calling tools (says "tool")
+
+TODO 2: check_move refuses what the robot can't or shouldn't do
+  ok   allows: walk forward 0.4 m/s for 2 s
+  ok   allows: walk backward 0.4 m/s for 2 s
+  ok   allows: sidestep 0.3 m/s
+  ok   allows: turn in place 60 deg/s
+  ok   allows: run 1.2 m/s for 4 s (4.8 m)
+  ok   allows: the fastest allowed forward speed
+  ok   refuses: forward faster than vx_max
+  ok     ... and the reason includes the limit 1.5 (so Gemini knows what to try instead)
+  ok   refuses: backward faster than vx_max
+  ok     ... and the reason includes the limit 1.5 (so Gemini knows what to try instead)
+  ok   refuses: sideways faster than vy_max
+  ok     ... and the reason includes the limit 0.5 (so Gemini knows what to try instead)
+  ok   refuses: turning faster than wz_max
+  ok     ... and the reason includes the limit 114.0 (so Gemini knows what to try instead)
+  ok   refuses: too slow to move at all
+  ok   refuses: a zero duration
+  ok   refuses: a negative duration
+  ok   refuses: longer than duration_max
+  ok     ... and the reason includes the limit 20.0 (so Gemini knows what to try instead)
+  ok   refuses: farther than distance_max in one move
+  ok     ... and the reason includes the limit 7.0 (so Gemini knows what to try instead)
+  (provided) walk, with your check_move: sends the speed for the whole move, then stands still
+  ok   an impossible speed comes back as a failure
+  ok   ... and Gemini hears your check_move reason, limit included (1.5)
+  ok   ... and nothing was queued or published
+  ok   a good move is accepted right away (queued)
+  ok   the job ran without crashing
+  ok   the locomotion policy took the legs
+  ok   it sent the forward speed
+  ok   for about the requested 2 s
+  ok   often enough that cmd_vel_mux never drops it (every < 0.5 s)
+  ok   and ends with a zero command (stand still)
+  ok   at roughly LLM_CMD_RATE
+  ok   the outcome reports velocity commands and the final zero request
+  ok   a turn sends its turn rate in rad/s
+  ok   if the robot falls while walking, it stops sending the speed
+  ok   ... ends on a zero command
+  ok   ... and the outcome reports the tilt/fall stop
+  ok   a walk asked for while fallen is refused right away, saying so
+
+TODO 3: the turn tool, then the move tool
+  ok   turn has a real description (at least 20 characters)
+  ok   ... and every parameter of turn is described
+  ok   turn left turns counter-clockwise (+z)
+  ok   ... by about the angle asked for (90 deg)
+  ok   ... in place (no forward or sideways speed)
+  ok   turn right turns clockwise (-z)
+  ok   move has a real description (at least 20 characters)
+  ok   ... and every parameter of move is described
+  ok   move's words give the real speed limit (LIMITS.vx_max, 1.5)
+  ok   ... and say that it ends follow mode (says "follow")
+  ok   move("forward") walks forward at the default 0.4 m/s
+  ok   move("backward", speed=0.3) sends vx = -0.3
+  ok   move("left", speed=0.3) sends vy = +0.3 (the robot's left is +y)
+  ok   move("backward", run=True) runs at RUN_DEFAULT_SPEED (vx = -1.2)
+  ok   move("forward", run=True, speed=0.6) still runs: at least 1.0 m/s
+  ok   move("right", run=True) sidesteps at walking speed (vy = -0.4): sideways never runs
+  ok   ... and says so: the reply says "walk"
+  ok   a move the robot refuses comes back as a failure with the reason
+
+TODO 4: the arc tool (walk and turn at the same time)
+  ok   arc has a real description (at least 20 characters)
+  ok   ... and every parameter of arc is described
+  ok   arc's words give how far one arc can go (LIMITS.distance_max, 7.0)
+  ok   ... and say that it ends follow mode (says "follow")
+  ok   arc("left", angle=90, radius=0.5) goes forward at the default 0.4 m/s and turns left
+  ok   ... at wz = speed / radius = 45.8 deg/s
+  ok   ... for about 90 deg of the circle
+  ok   arc("right", ...) turns right (wz < 0), still going forward (vx > 0)
+  ok   arc("left", speed=0.6, radius=1.0) sends vx = 0.6, wz = +34.4 deg/s
+  ok   arc("left", angle=90, radius=0) turns in place, left, about 90 deg (a sharp corner)
+  ok   ... and the reply says so (says "place")
+  ok   arc("left", radius=-1) is a failure that says "radius", and sends nothing
+  ok   a too-tight arc (radius 0.1 m at 0.4 m/s) fails, says "radius", and gives the smallest radius (0.2-0.3 m)
+
+TODO 5: any motion ends follow mode right away, and Gemini hears about it
+  ok   (provided) following starts
+  ok   standing up ends follow mode right away (before the queue reaches it)
+  ok   the tool result tells Gemini it stopped following (says "follow")
+  ok   lying down ends follow mode too
+  ok   ... and says so (says "follow")
+  ok   walking ends follow mode
+  ok   ... and says so (says "follow")
+  ok   with follow mode off, results don't mention following
+  ok   asking what mode it is in keeps following
+
+TODO 6: the follow tool
+  ok   follow has a real description (at least 20 characters)
+  ok   ... and every parameter of follow is described
+  ok   follow's description says what ends follow mode (says "end" or "stop")
+  ok   the prompt's Follow mode section says what ends following (says "end" or "stop")
+  ok   follow(enabled=True) starts following
+  ok   follow(enabled=False) stops it
+
+TODO 7: play_trick (the fake tricks: bow, roll_over, hold_pose)
+  ok   an unknown trick fails
+  ok   ... and the message lists the tricks that exist
+  ok   a trick is accepted right away (queued)
+  ok   the trick's controller took the legs
+  ok   ... for the whole trick (trick.total_time)
+  ok   a trick that ends standing hands the legs back to walking
+  ok   ... and the outcome says so (says "locomotion")
+  ok   a trick that ends lying down keeps its controller holding the pose
+  ok   ... and the outcome says it holds the final pose (says "hold" or "pose")
+  ok   playing it again restarts its controller (relax, then switch to it)
+  ok   an interactive trick: Pupper stays in it
+  ok   ... and the outcome lists its actions and its exit clip
+  ok   asking for the interactive trick Pupper is already in does nothing, and says so
+  ok   a trick ends follow mode (TODO 5's rule), and says so (says "follow")
+
+TODO 8: the play_trick tool
+  ok   play_trick has a real description (at least 20 characters)
+  ok   ... and every parameter of play_trick is described
+  ok   its description lists every trick with its own description (has {tricks})
+  ok   its choices are the installed tricks
+  ok   ... and it says a trick keeps its final pose (says "pose")
+
+TODO 9: interactive actions (the fake interactive trick 'hold_pose': wave_left, wave_right, leave)
+  ok   an unknown action fails
+  ok   ... and the message lists the actions that exist
+  ok   an action while its trick is not running fails right away
+  ok   ... the message says which trick has to run first
+  ok   ... and nothing was sent to the trick
+  ok   an action while the trick holds its pose is accepted
+  ok   ... and plays that clip
+  ok   ... without a failure in the queue
+  ok   ... and Pupper stays in the trick afterwards
+  ok   the exit clip plays
+  ok   ... then the locomotion policy takes the legs back
+  ok   ... and Pupper is in locomotion mode again
+  ok   after the exit clip, actions are refused again
+  ok   an action queued right behind its trick is accepted and plays
+  ok   when the queue gets to an action, it checks again that its trick is running
+
+TODO 10: the interactive_action tool
+  ok   interactive_action has a real description (at least 20 characters)
+  ok   ... and every parameter of interactive_action is described
+  ok   its description lists the actions (has {actions})
+  ok   its choices are the installed actions
+  ok   calling the interactive_action tool plays the clip
+  ok   sit_stay_shake/trick.yaml describes the trick (at least 20 characters)
+  ok   ... and each of its actions (at least 10 characters each)
+
+TODO 11: prompt.md, second pass
+  ok   the prompt says what to do when someone says stop (says "stop")
+  ok   ... and when Pupper falls over (says "fall" or "fell")
+  ok   ... and how to handle several requests in a row (says "order", "row" or "sequence")
+
+All 166 checks passed. Now try it on the robot (with a TA's OK for new policies).

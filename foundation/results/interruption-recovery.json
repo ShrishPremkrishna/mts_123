@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Complete the agreed general Pupper harness and minimum Lab 6 sprint with honest software/supervised evidence and clear submission handoff; remove recurring workspace/deployment friction. Defer soccer implementation and teammate Optional Lab 3/gait work. Propose high-leverage structural changes when concrete codebase flaws impede autonomous agent development; no automatic broad rewrite.",
+  "objective": "Deliver the minimum Lab 6 videos and writer handoff, and prepare the shared harness for one cancellable soccer play in replay. The fourth teammate owns the write-up; the perception and gait teammates own sensing and motion performance.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "r6_staged_waiting_for_robot_slot",
-  "updated_utc": "2026-11-04T21:39:09.032401+00:00",
+  "updated_utc": "2026-11-04T22:42:45.165586+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
@@ -21,7 +21,8 @@
     "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
-    "workspace_limit": "main in the shared local project is canonical. Legacy engineering checkout retains machine-local archives and numerical environment; those are not prerequisites to reading a clean clone."
+    "workspace_limit": "The prepared Mac has checkout-local API and CPU simulation environments on main. Rebuild instructions are in gemini_pupper/README.md and foundation/README.md. The historical artifacts alias still points to the legacy checkout. Frozen archives are needed for strict input verification and historical replay; ordinary harness development uses the tracked source and dependency pins.",
+    "mac_verification": "November 4, shared checkout: fresh Python 3.12 API environment passed 1,201 API checks. A clean npm install passed 544 browser checks and typechecking, and rebuilt the matching JS bundle. CPU simulation imported this checkout's mjlab and stepped the 12-actuator Pupper. The ARM ROS image passed the six controller and ten joystick suites plus the fake-IMU diagnostic with networking and hardware devices excluded."
   },
   "authorization": "User authorizes GitHub publication, shared main and a separate Pi staging/source checkout. Perception teammate owns live robot tests. No takeover, hardware or shared-service changes during this staging session. Keep Tej’s optional-lab branch separate until ready.",
   "compute_spend_policy": {
@@ -137,11 +138,11 @@
     },
     {
       "id": "submission",
-      "action": "Use WORKSTREAMS.md question-by-question handoff; student supplies actual missing observations/reflection/contributions/fork/video links/checkoffs. No invented results."
+      "action": "The fourth teammate owns the written submission. Share foundation/submission/lab6/README.md, its Spider figure and complete course output. Shrish supplies video links and verifies his observations; collect missing evidence and contributions from the people involved."
     },
     {
       "id": "final_project",
-      "action": "See final_project/README.md for proposed perception, gait and harness deliverables. Benchmark the detector and lateral reach before training new soccer policies."
+      "action": "Proposed first harness test: start guard_goal against a fake robot and synthetic timestamped ball tracks; check bounded lateral motion, stale input, Stop and takeover. Perception tracks and measured gait reach/braking are needed before physical evaluation."
     }
   ],
   "acceptance_boundaries": [

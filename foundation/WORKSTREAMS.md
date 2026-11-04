@@ -4,7 +4,7 @@ tags: [cs123, pupper, project]
 ---
 # Lab 6 workstream handoff
 
-This document records the Lab 6 submission questions and evidence. For project goals, owners and the current split, see [the final project README](../final_project/README.md).
+Shrish records the videos. The fourth teammate owns the written submission. Send them the [writer handoff, Spider figure and full course test output](submission/lab6/README.md). This page retains the engineering evidence. For soccer work, see [the final project README](../final_project/README.md).
 
 ## Minimum Lab 6 action list
 

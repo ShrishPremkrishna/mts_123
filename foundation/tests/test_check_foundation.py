@@ -51,6 +51,23 @@ def test_actual_import_preflight_preserves_module_failure(tmp_path, monkeypatch)
     assert selected == str(Path(sys.executable).absolute()) and attempts[0]['runtime']['errors'] == {}
 
 
+@pytest.mark.parametrize('source_tree, accepted', [('current', True), ('old', False)])
+def test_numerical_preflight_checks_checkout_of_editable_install(tmp_path, monkeypatch, source_tree, accepted):
+    root = tmp_path / 'current'
+    root.mkdir()
+    source = tmp_path / source_tree / 'pupper-mjlab/src'
+    (source / 'mjlab').mkdir(parents=True)
+    (source / 'mjlab/__init__.py').write_text('')
+    env = runner.check_environment(tmp_path)
+    env['PYTHONPATH'] = str(source)
+    monkeypatch.setitem(runner.REQUIRED, 'numerical', ('mjlab',))
+    interpreter, attempts = runner.select_interpreter(root, 'numerical', sys.executable, tmp_path, env, 5)
+    assert bool(interpreter) == accepted
+    if not accepted:
+        assert str(source) in attempts[0]['error']
+        assert str(root / 'pupper-mjlab/src/mjlab/__init__.py') in attempts[0]['error']
+
+
 def test_explicit_output_failure_never_silently_redirects(tmp_path):
     exists = tmp_path / 'exists'
     exists.mkdir()

@@ -61,9 +61,36 @@ def test_clean_clone_can_read_handoff_before_strict_local_verification(checkout)
 def test_legacy_checkout_still_checks_tracked_reports_and_branch(checkout):
     subprocess.run(['git', 'switch', '-qc', 'pupper-foundation'], cwd=checkout, check=True)
     assert status(checkout)[0] == 0
-    subprocess.run(['git', 'switch', '-qc', 'unrelated'], cwd=checkout, check=True)
-    assert status(checkout)[0] == 1
-    subprocess.run(['git', 'switch', '-q', 'main'], cwd=checkout, check=True)
     (checkout / 'foundation/results/report.json').unlink()
     code, report = status(checkout)
     assert code == 1 and any('report.json' in error for error in report['errors'])
+
+
+def test_diverged_feature_branch_can_use_handoff_with_local_or_remote_main(checkout):
+    def git(*args):
+        subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Test',
+                        '-c', 'user.email=test@example.invalid', *args], cwd=checkout, check=True)
+    git('branch', 'soccer/replay')
+    git('commit', '--allow-empty', '--no-gpg-sign', '-qm', 'advance main')
+    git('switch', '-q', 'soccer/replay')
+    git('commit', '--allow-empty', '--no-gpg-sign', '-qm', 'advance replay')
+    code, report = status(checkout)
+    assert code == 0 and 'refs/heads/main' in report['branch_note']
+    git('update-ref', 'refs/remotes/origin/main', 'main')
+    git('branch', '-D', 'main')
+    code, report = status(checkout)
+    assert code == 0 and 'refs/remotes/origin/main' in report['branch_note']
+    assert status(checkout, '--verify-inputs')[0] == 1  # still missing local assets
+
+
+def test_detached_and_unrelated_histories_do_not_pass_readiness(checkout):
+    subprocess.run(['git', 'switch', '--detach', '-q'], cwd=checkout, check=True)
+    code, report = status(checkout)
+    assert code == 1 and 'Detached HEAD' in report['errors'][0]
+    # Keep the tracked handoff in the tree, but give this branch an unrelated root.
+    subprocess.run(['git', 'checkout', '-q', '--orphan', 'separate'], cwd=checkout, check=True)
+    subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Test',
+                    '-c', 'user.email=test@example.invalid', 'commit', '--no-gpg-sign', '-qm',
+                    'independent history'], cwd=checkout, check=True)
+    code, report = status(checkout)
+    assert code == 1 and 'Cannot establish shared history' in report['errors'][0]

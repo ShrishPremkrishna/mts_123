@@ -21,9 +21,20 @@ def inspect(root=ROOT, verify_inputs=False):
         return subprocess.check_output(["git", "-C", str(root), *args], text=True, timeout=5).strip()
     branch, head = git("branch", "--show-current"), git("rev-parse", "--short", "HEAD")
     dirty = len(git("status", "--porcelain").splitlines())
-    allowed_branches = [state["branch"], *state.get("legacy_branches", [])]
-    if branch not in allowed_branches:
-        errors.append(f"Expected {', '.join(allowed_branches)}, found {branch or 'detached HEAD'}")
+    primary = state["branch"]
+    branch_note = None
+    if not branch:
+        errors.append(f"Detached HEAD. Switch to a named branch to use the saved {primary} handoff.")
+    elif branch != primary and branch not in state.get("legacy_branches", []):
+        for ref in (f"refs/heads/{primary}", f"refs/remotes/origin/{primary}"):
+            common = subprocess.run(["git", "-C", str(root), "merge-base", "HEAD", ref],
+                                    capture_output=True, timeout=5)
+            if common.returncode == 0:
+                branch_note = f"{branch} shares history with {ref}. Showing this checkout's saved {primary} handoff."
+                break
+        else:
+            errors.append(f"Cannot establish shared history between {branch} and {primary}. "
+                          f"Check the checkout and fetch {primary} history if it is missing or shallow.")
     refs = [state["current_report"], state["historical_recovery"]["path"], *state["evidence"].values()]
     for ref in dict.fromkeys(refs):
         p = Path(ref)
@@ -50,7 +61,7 @@ def inspect(root=ROOT, verify_inputs=False):
             if p.is_file() and hashlib.sha256(p.read_bytes()).hexdigest() != expected:
                 errors.append(f"Pinned input checksum mismatch: {name}")
     return {"mode": state["mode"], "updated_utc": state["updated_utc"],
-            "branch": branch, "head": head, "changed_paths": dirty,
+            "branch": branch, "branch_note": branch_note, "head": head, "changed_paths": dirty,
             "automation": state["activity"]["automation"],
             "robot_last_observation": state["hardware_session"]["status"],
             "robot_status_is_live": False, "test_python": str(py),
@@ -73,7 +84,9 @@ def main():
     if args.json:
         print(json.dumps(r, indent=2))
     else:
-        print(f"{r['mode']} | {r['branch']} @ {r['head']} | {r['changed_paths']} changed paths")
+        print(f"{r['mode']} | {r['branch'] or 'detached HEAD'} @ {r['head']} | {r['changed_paths']} changed paths")
+        if r["branch_note"]:
+            print(r["branch_note"])
         print(f"Automation: {r['automation']} | local references: {'OK' if r['local_references_ok'] else 'ERROR'}")
         print(f"Robot (last observation, not a live check): {r['robot_last_observation']}")
         print(f"Configured API test Python: {r['test_python']}")

@@ -14,7 +14,17 @@ TODO 1–11 are [Lab 6](https://cs123-stanford.readthedocs.io/en/latest/schedule
 
 ## Offline checks
 
-Run these from the monorepo root. They use a fake robot.
+On a fresh Mac checkout, run these once from the monorepo root with Python 3.12 and Node 22.12+ (or a newer supported release). The Python pins reproduce the tested laptop API environment. The web dependencies come from the npm lockfile.
+
+```bash
+python3.12 -m venv .venv-api
+.venv-api/bin/python -m pip install -r gemini_pupper/requirements-dev.txt
+npm --prefix gemini_pupper/web ci
+```
+
+For an existing checkout, inspect `.venv-api` first. If it is a symlink, recreate the environment in a fresh checkout or move the link aside before installing. This keeps the old environment available to its owner.
+
+Run these checks from the same directory. They use a fake robot and require no Gemini key.
 
 ```bash
 .venv-api/bin/python gemini_pupper/lab/test.py todo3

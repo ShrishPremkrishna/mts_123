@@ -25,7 +25,7 @@ API_ENV = '.venv-api/bin/python'
 LEGACY_API_ENV = 'artifacts/hardware/2026-10-29/server-transport-review/venv/bin/python'
 REQUIRED = {
     'api': ('pytest', 'numpy', 'yaml', 'fastapi', 'httpx', 'google.genai'),
-    'numerical': ('pytest', 'numpy', 'yaml', 'scipy', 'torch', 'mujoco', 'warp', 'mjlab'),
+    'numerical': ('pytest', 'numpy', 'yaml', 'scipy', 'torch', 'mujoco', 'warp', 'sklearn', 'mcap_ros2', 'mjlab'),
 }
 NUMERICAL_TESTS = [
     'test_pupper_foundation.py', 'test_pupper_tracking.py', 'test_pupper_spider.py',
@@ -171,7 +171,14 @@ def select_interpreter(root, kind, explicit, output, env, timeout):
                     pass
                 break
         attempts.append(attempt)
-        if attempt['returncode'] == 0 and attempt.get('runtime', {}).get('errors') == {}:
+        runtime = attempt.get('runtime', {})
+        if kind == 'numerical' and runtime.get('errors') == {}:
+            source = runtime['module_files'].get('mjlab')
+            expected = (root / 'pupper-mjlab/src/mjlab/__init__.py').resolve()
+            if not source or Path(source).resolve() != expected:
+                attempt['error'] = f'mjlab imported from {source}. Expected {expected}.'
+                continue
+        if attempt['returncode'] == 0 and runtime.get('errors') == {}:
             return str(path), attempts
     return None, attempts
 
