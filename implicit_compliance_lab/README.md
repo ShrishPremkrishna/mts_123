@@ -148,6 +148,24 @@ Thus effort is the deflection of the position-controlled joint, scaled by the PD
 | Missing effort field | If `joint_states` has no effort, the node logs an error and disables the pause. |
 | More training data | `contact_ik.py --log run.csv` writes every joint-state sample in the dataset's `joint_states.csv` format, plus the detector output. Use these files to fine-tune the model or to set the thresholds. |
 
+### Answers to the challenge topics
+
+**How do we preprocess the motor states in real time to match the training format?** The node subscribes to `joint_states` and takes position, velocity and effort of `leg_front_r_1..3` in the column order of `joint_states.csv`. A ring buffer keeps the newest 200 samples, with no resampling, because the robot and the dataset both run at approximately 1 kHz. The node then selects the model's channels (the 3 efforts) and standardizes them with the training mean and standard deviation in the `.npz`. It evaluates the model at 50 Hz. The node prints the measured message rate, and it disables the pause if the effort field is missing.
+
+**Do we use the raw model predictions or apply filtering?** We apply filtering. A single-window output changes back and forth at the start and end of a contact. The hysteresis sets contact after 3 evaluations with p ≥ 0.7 and clears it after 5 evaluations with p < 0.3. On the replay of unseen data, this gives 89 of 90 touchdowns with a median delay of 61 ms and 2 false triggers in 3.5 min. With p ≥ 0.5 the delay is 43 ms, but there are 4 false triggers. The training label also matters: the notebook's majority label delays the output by approximately half a window (median 155 ms), and the newest-sample label removes most of this delay (61 ms).
+
+**How do we handle false positives and false negatives?** A false positive causes an unnecessary 1 s pause. A false negative lets the leg continue through the touchdown. The node uses four measures:
+
+* `--p-on` and `--n-on` set the balance between the two errors. Set them from the free-swing and ramp logs (procedure steps 4 and 5).
+* One pause is allowed per touchdown. The next pause is armed only after 0.2 s of release, because a held leg looks like contact.
+* A non-finite joint state counts as no contact, and a missing effort field disables the pause.
+* `--no-pause` runs and logs the detector but never pauses, so that you can do a check of the detector first.
+
+**Do we collect more data or modify the model?** We modified the model for this task, and more data is probably necessary.
+
+* Model changes: effort-only inputs, standardization and the newest-sample label (Table E). Positions depend on the dataset leg (a DenseTact lower leg) and on its trajectory. Velocity depends on the 1 s pause of the collection program.
+* More data: the team's leg is different from the dataset leg. Also, terrain identity did not transfer to a later session, although contact did (92.5 % with effort only). To collect data, run `contact_ik.py --no-pause --log run.csv`, which writes `joint_states.csv` rows. For the labels, write a `contact.csv` (`timestamp,contact_value`) from a known reference, for example from forward kinematics with a ramp at a known height. Put both files in a `tactile_data`-style folder, next to the original recordings, and retrain with `analysis/ablation.py --channels eff --label last --norm --save-model`. The script trains from random weights, so keep the original recordings in the folder.
+
 ### Desk checks (no robot)
 
 `python3 robot/test_contact_detector.py --parity --data <tactile_data> --part val`, with the deployed model:
