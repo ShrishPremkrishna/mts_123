@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "r6_staged_waiting_for_robot_slot",
-  "updated_utc": "2026-11-04T21:30:59.048644+00:00",
+  "updated_utc": "2026-11-04T21:39:09.032401+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
@@ -48,7 +48,18 @@
     "queued_imu_age_guard_deployed": false,
     "archive": "artifacts/validation/harness-sprint-20261103/r5-closed",
     "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03",
-    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit."
+    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit.",
+    "team_source_checkout": {
+      "path": "/home/pi/mts_123",
+      "repository": "ShrishPremkrishna/mts_123",
+      "branch": "main",
+      "verified_source_and_layout_commit": "bcd7078e7fe44ce3a58ad3d88020398eb0a39a68",
+      "selected_r6_files_verified": 137,
+      "tracked_at_verification": 120,
+      "ignored_detector_and_build_files": 17,
+      "vendor_lfs": "Unrelated vendor assets may remain pointers in source checkouts. R6 selected files are actual bytes.",
+      "activated": false
+    }
   },
   "browser": {
     "state": "No owned voice session. Mac Pupper tab last inspected against local FAKE server 18093, now stopped. Real Pi browser last closed in R5. Never auto-connect from this checkpoint.",
