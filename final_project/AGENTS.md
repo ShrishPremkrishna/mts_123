@@ -1,5 +1,5 @@
-# Soccer project guide
+# Final project context
 
-Start with the [project overview](README.md). Perception work continues in the [perception handoff](PERCEPTION_HANDOFF.md). Motion work continues in the [gait handoff](GAIT_HANDOFF.md). Harness work continues in the [Lab 6 handoff](../foundation/WORKSTREAMS.md).
+[README.md](README.md) states the current project status and links available components. The user is revising the final-project brief. Earlier soccer designs and teammate handoffs are dated planning references.
 
-Reuse the existing class packages. Add soccer-specific code here only when it is needed. When implementing a play, use the harness for dispatch and cancellation and a local controller for fresh observations and velocity updates. Request zero travel when pursuit loses its target. Verify cancellation and stale-track handling in replay. Report field outcomes from observed trials.
+This directory currently contains documentation. Inspect the existing harness, perception and training interfaces through the README when designing new work. Record chosen interfaces and verified results as implementation develops. The root [AGENTS.md](../AGENTS.md) contains shared working principles and physical access guidance.

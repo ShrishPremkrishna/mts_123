@@ -8,10 +8,12 @@ Gemini Pupper is a browser-based voice and vision interface for a robot dog. The
 
 In the selected setup, the existing FastAPI server serves the built app from the same origin as the robot API. Upstream Cloud Run static hosting is an alternative way to serve the same files. Gemini stays a cloud service in both cases, and the browser coordinates between Gemini and the robot.
 
-The default combines conversation and robot tools in one session. A bounded
+The [generic browser defaults](../web/constants.ts) select `gemini-3.1-flash-live-preview`, hold-to-talk and the browser camera. The [onboard bootstrap](../robot/onboard_bootstrap.py) instead defaults to `gemini-robotics-er-2-streaming-preview`, Gemini 3.1 Flash TTS with Puck, hands-free input and the robot camera. Saved browser settings and explicit onboard launch options can change these selections; [App.tsx](../web/App.tsx) applies the bootstrap configuration over the browser settings. These are source defaults, not proof of the currently running release; consult the [dated checkpoint](../../foundation/results/interruption-recovery.json) for deployment evidence.
+
+Both configurations combine conversation and robot tools in one session. A bounded
 client buffer holds model output until the turn ends; tool-bearing turns use
 fixed receipts after matching server replies instead of model narration.
-Tool-free turns retain native speech after best-effort screening for unsupported
+Tool-free turns use native speech or text-to-speech, depending on the selected model, after best-effort screening for unsupported
 action claims. Queue wording requires the server's `pupper_submission_v1` marker
 after insertion. Tool dispatch and direct Stop remain independent of speech
 playback. An optional receipt-only diagnostic setting mutes all model narration. See

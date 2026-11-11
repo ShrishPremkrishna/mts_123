@@ -2,12 +2,16 @@
 date: 2026-10-27T15:31
 tags: [cs123, foundation]
 ---
-# Workstream 1 robot sessions
+# Pupper session commands
 
-[Current state](results/interruption-recovery.json) owns deployment, authorization,
-active owners and the next unresolved failure. This file owns the reusable
-procedure. [Capability evidence](README.md) owns what the robot has actually
-shown. Do not restart historical processes or repeat old timed floor choreography.
+This reference describes the existing release and persistent-session helpers. The
+[checkpoint](results/interruption-recovery.json) stores dated release observations.
+Establish current robot ownership, boot and running processes before a physical
+session. The [evidence index](README.md) links prior observed behavior.
+
+Motor startup and motion require a supervising operator with the robot supported
+as appropriate and access to R3/power. Source installation, app activation,
+controller Stop and full motor-driver shutdown have different effects below.
 
 ## Maintained deployment commands
 
@@ -115,8 +119,8 @@ No `prepare` or `start-native` belongs in this app-only sequence. Reconnect voic
 explicitly after checking the new API identity. To roll back after a confirmed API
 exit, run `start-api` without the override. An unconfirmed spawn requires receipt
 and process-identity recovery first; do not guess a PID or retry automatically.
-The attachment path has passed offline tests and independent review; its first
-live upgrade/rollback acceptance is still pending. A closed native session cannot
+As of November 4, the attachment path had passed offline tests and independent
+review; its first live upgrade/rollback acceptance was still pending. A closed native session cannot
 be recovered by this command.
 
 ### Onboard voice in the exclusive robot session
@@ -145,8 +149,8 @@ An unconfirmed Stop produces a warning and nonzero exit; it does not prove the
 robot stopped physically. Launcher SIGKILL, renderer hangs, unavailable API/host
 and silent network failures remain outside this exit-based protection. Stop does
 not fully release the motor driver. Keep the supported shutdown procedure below
-for ending a physical session. This new exit behavior has offline evidence only
-until its first watched acceptance.
+for ending a physical session. As of November 4, this exit behavior had offline
+evidence and awaited its first watched acceptance.
 
 `shutdown --run-dir RUN` closes owned ingress, uses the existing coordinator to
 stop the manager before launch cleanup, then closes owned camera/recorder children.
@@ -154,21 +158,19 @@ It never name-kills unrelated processes or uses SIGKILL. Inspect recording closu
 and driver logs separately: verified process exit is not verified physical motor
 release. App Stop, API process exit and full native shutdown remain distinct.
 
-## Prepare without consuming supervision time
+## Runtime inputs and ownership
 
-- Freeze the selected source, models, configurations and scenario list. Finish
-  affected tests and package installation before the operator arrives. Reuse the
-  existing Python environments and persistent `lab6_session.launch.py`.
-- Select only the needed skills with `PUPPER_SESSION_SKILLS`; explicit empty
-  selects stock locomotion and unset refuses launch. Launch and API use the same
-  selection and `PUPPER_GEMINI_DIR`. Keep original gains, joint limits and caps.
-- Keep one robot owner. Record exact processes so shutdown stops only this session.
-  Browser/API development uses the explicit fake server with voice disconnected
-  unless a cloud test is intended. Confirm the visible FAKE/ROBOT destination.
-- Define a small batch and its decision before testing: the baseline, proposed
-  change, measured outcome and reason to stop or revert. Prepare successful and
-  failure/interruption cases offline. Three clean repetitions are an initial
-  acceptance screen, not general reliability.
+The launch and API use the same `PUPPER_GEMINI_DIR` and explicit
+`PUPPER_SESSION_SKILLS`. An empty skills value selects stock locomotion; an unset
+value refuses launch. The session profile identifies controller gains, joint
+limits and velocity caps. A changed profile needs its own simulation and
+supervised evaluation.
+
+One operator owns physical commands, service restarts, camera and detector use
+for a block. A persistent homed session supports multiple ordinary trials and
+app-only restarts. Controller discovery and homing depend on the current
+connection and session state. R3 and physical power access remain available
+independently of voice. Browser development has an explicit FAKE-server path.
 
 ## One capture for each persistent session
 
@@ -202,44 +204,23 @@ and clock limitations. SDK sends, scheduled audio and tool handling are not
 physical or acoustic measurements; retain the existing server/native evidence
 for those layers. No provider or motion test is required merely to open Debug.
 
-## Resolve a known sensor failure before tuning motions
+## Sensor investigation and physical observations
 
-If the current record identifies unreliable feedback, the next block begins
-supported with motors inactive. Use the reviewed standalone
-[IMU diagnostic](hardware/imu_diagnostic/README.md) separately from the native
-controller. Inspect current identity/configuration first. Its comparison mode
-requires explicit additional reports and verified restoration; it is not a
-calibration fix or a readiness certificate. No reset/homing is needed for this
-sensor-only block. Do not compensate for bad sensing by changing gains/rewards.
+The standalone [IMU diagnostic](hardware/imu_diagnostic/README.md) runs separately
+from the native controller, with Pupper supported and motors inactive. It reads
+identity/configuration and can compare selected reports with verified restoration.
+It does not home. Its source and earlier results are available when a sensor
+question warrants investigation.
 
-## Use supervised time for prepared physical comparisons
+An API Stop cancels active and queued work and requests zero velocity. R3 latches
+the abort. Full driver shutdown sends the board-disable sequence. Confirm motor
+release from physical observation when ending a session. The standing command
+has limited posture preconditions and supplies no arbitrary self-righting skill.
 
-1. Confirm current placement, battery, physical stop readiness and exclusive
-   ownership. Repeat controller discovery or button diagnostics only if connection
-   state changed or evidence requires it. Keep direct Stop/R3 independent of voice.
-2. When a fresh motion session is justified, home once on the stand. Place on the
-   floor while inactive; Options releases the gateway when the operator is ready.
-   Keep the same homed session between ordinary trials. API Stop cancels work and
-   requests zero velocity; R3 latches the abort; full driver shutdown disables the
-   boards. These are different operations.
-3. Establish undisturbed stock standing and Sit/hold/standing behavior with the
-   recording. If the baseline is inconsistent, diagnose that layer before adding
-   voice or more skills. Avoid running more motions merely to fill a checklist.
-4. Run prepared action chains: Sit/both paws/stand/walk, selected finite tricks and
-   returns, then an interrupted queued sequence. Compare each transition as well
-   as each isolated skill. Capture drift, tip/slip, duration and repeatability.
-5. Use the same accepted chains through voice. Include ordinary conversation,
-   camera understanding, one acceptance acknowledgment, refusals, cancellation
-   and reconnect behavior. Separate interpretation failure from execution failure.
-6. Integrate the tested follower and Spider pair from their owners. Generated
-   motion and push-up changes need demonstrated improvement before promotion.
-   Do not infer arbitrary self-righting from a normal standing command.
-
-The operator watches the whole prepared batch; request one concise assessment at
-its end unless something fails. Use recordings to review missed details instead
-of immediately consuming another battery on the same trial. For substantial code
-work, release the robot and finish offline. New/changed motions require simulation
-and the applicable current user/course authorization.
+The useful physical comparison depends on the change being evaluated. Existing
+recordings cover motion chains, policy transitions, interruption, voice and
+camera behavior. A fresh trial records its selected release, request, observed
+outcome and any missing view. Unobserved or ambiguous motion remains unresolved.
 
 ## Finish and resume reliably
 

@@ -1,19 +1,18 @@
-# Pupper soccer
+# Pupper final project
 
-Our first field demo uses one Pupper in two roles. On offense it finds the ball, aligns its nose behind it relative to the attacking goal, then drives through the ball and brakes. On defense it starts squarely in front of its own goal and moves sideways to block a rolling shot. Two Puppers playing against each other is the later team demo.
+As of November 10, 2026, Shrish is revising the final-project direction and will provide the new brief after the context cleanup. This folder contains documentation. The earlier discussion concerned robot soccer; its specific demo, architecture and division of work are recorded as [November 4 planning](PLANNING_20261104.md).
 
-## Team handoffs
+## Available implementation
 
-| Owner | Current work | Start here |
-| --- | --- | --- |
-| Perception | Finish Optional Labs 1 and 3. Detect and track the ball, identify the two colored goals, and approach the ball around a stationary obstacle. | [Perception handoff](PERCEPTION_HANDOFF.md) |
-| Gait | Finish Optional Lab 2. Measure sprinting, lateral reach, braking and stable transitions. Evaluate jumping and use the real ball to characterize front contact. | [Gait handoff](GAIT_HANDOFF.md) |
-| Harness | Finish Lab 6 and verify compound commands, handoff between behaviors and Stop on the staged release. Use replayed ball observations to exercise a soccer tool before field integration. | [Lab 6 handoff](../foundation/WORKSTREAMS.md) · [Tool registry](../gemini_pupper/robot/tool_registry.py) |
+- [Gemini Pupper](../gemini_pupper/README.md) provides conversation, tool discovery, queued actions, cancellation, job status and operator controls.
+- [Lab 5 code](../follow_me_pupper/README.md) provides camera calibration, a Hailo detector, person tracking and following.
+- [Training](../pupper-mjlab/README.md) and [native deployment](../pupper_gait_deploy/README.md) provide policy development and execution.
+- [The evidence index](../foundation/README.md) identifies observed capabilities, failed experiments and selected releases. [The dated checkpoint](../foundation/results/interruption-recovery.json) records source, staging and last observed hardware state.
 
-The fourth teammate owns the [Lab 6 written submission](../foundation/submission/lab6/README.md), with footage from Shrish. For soccer trials, a second person can roll repeatable shots and film from a fixed position. A clear floor, tape, the intended ball, two colored goal markers and a soft obstacle are enough for the first trials.
+These components provide a starting point for exploration. Current APIs and source describe how they connect. The new project brief will establish the intended demo, hardware, interfaces, ownership and acceptance criteria.
 
-## How the pieces fit
+## Earlier team work
 
-Perception supplies the ball’s acquisition time, frame, bearing and track validity. Where calibration supports a metric estimate, include position in metres and velocity in m/s. Motion supplies achieved speeds, stopping distance and lateral reach versus time. For a goalie trial, compare the predicted goal-line crossing against that measured reach. The harness starts or cancels the play. A local controller uses fresh observations to steer and requests zero travel when pursuit loses its target.
+The [perception handoff](PERCEPTION_HANDOFF.md) and [gait handoff](GAIT_HANDOFF.md) describe the November 4 assignments. Their tasks and proposed interfaces are historical until reconfirmed. At that point Shrish owned the harness and videos, and a fourth teammate owned the [Lab 6 written submission](../foundation/submission/lab6/README.md).
 
-Put soccer-specific tracking and replay in `final_project/perception/`, measured motion profiles and skill adapters in `final_project/motion/`, and offense and defense tools in `final_project/behaviors/` as code lands. Keep reusable class components in their existing packages. Agree on one owner for motion, camera and detector during each robot block. [Robot session checklist](../foundation/HARDWARE_CHECKLIST.md)
+On November 10, GitHub also showed unmerged teammate branches `tej/opt-lab1-implicit-compliance` at `f9aa7b9` and `tej/opt-lab-3` at `1d896d8`. The latter changes secret-gate code and adds stretch-dance assets. Branch presence establishes available source, while submission status and physical acceptance require their own evidence.

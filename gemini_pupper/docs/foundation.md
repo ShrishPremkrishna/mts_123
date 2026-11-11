@@ -8,6 +8,8 @@ The shared `main` branch contains the Lab 6 package and team runtime changes. Or
 
 For the physical workflow, follow the maintained [hardware checklist](../../foundation/HARDWARE_CHECKLIST.md). To see the current state, run [`session_status.py`](../../foundation/scripts/session_status.py) or read [interruption-recovery.json](../../foundation/results/interruption-recovery.json). Submission tracking lives in [WORKSTREAMS.md](../../foundation/WORKSTREAMS.md). Consult the class launcher details below only when maintaining that launcher.
 
+This reference combines implementation details with dated experiments. It does not identify the currently deployed release; use the checkpoint above for that distinction. Voice defaults differ between the generic browser and onboard launcher, as described under [operator feedback modes](#operator-feedback-modes).
+
 ## What is implemented
 
 The tools validate motion limits, walk/turn/arc, supersede pending or end active
@@ -153,7 +155,9 @@ Those earlier checks are not physical evidence. The [1 November supervised sessi
 
 ## Operator feedback modes
 
-The current browser candidate uses **hold-to-talk** while keeping the Live connection and camera open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks. The subsequent supervised session exercised real hold-to-talk speech, bounded voice movement and skill requests; the user confirmed a consistent native voice. This is session evidence, not a general recognition guarantee.
+The [generic browser defaults](../web/constants.ts) select Gemini 3.1 Flash Live Preview and **hold-to-talk**, while the [onboard bootstrap](../robot/onboard_bootstrap.py) defaults to Robotics ER 2 Streaming Preview with Gemini 3.1 Flash TTS/Puck and **hands-free** input. Both use conversation + control. Saved settings or explicit launch options can change the selection; these source defaults are distinct from deployment evidence.
+
+In hold-to-talk mode, the Live connection and camera remain open. Microphone tracks and PCM transmission are disabled between holds. Release, cancellation, focus loss, hidden pages, Stop and disconnect close the audio gate. Release ends the input stream; it does not stop robot actions, and automatic voice activity detection may respond before release. This is deliberate input control, not a wake-word implementation. The [offline revision](../../foundation/results/workstream1-deliberate-voice-20261101.json) passed browser synthetic-media checks. The subsequent supervised session exercised real hold-to-talk speech, bounded voice movement and skill requests; the user confirmed a consistent native voice. This is session evidence, not a general recognition guarantee.
 
 Local microphone/webcam setup now checks tab visibility before starting and
 cancels pending acquisition if the tab becomes hidden. Bring the tab forward
@@ -175,7 +179,7 @@ and Stop do not wait for speech. Later ordinary conversation remains available
 while an accepted job runs; no mode switch is required.
 
 Tool-free conversation retains the selected speech path after the generation
-check. The optional ER text + Puck TTS path is separately selectable; it does not
+check. The ER text + Puck TTS path is selectable in the browser and is the onboard bootstrap default; it does not
 change robot queue execution. Known English action-claim patterns are screened using the shared
 `conversation_guard.json`; suspicious replies get a visible, silent unconfirmed-action
 notice. Narrow explicit unknown-history phrases such as “I don’t know how many

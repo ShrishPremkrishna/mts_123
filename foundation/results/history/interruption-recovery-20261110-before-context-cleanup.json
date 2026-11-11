@@ -1,0 +1,164 @@
+{
+  "schema": "pupper_current_session_v2",
+  "objective": "Deliver the minimum Lab 6 videos and writer handoff, and prepare the shared harness for one cancellable soccer play in replay. The fourth teammate owns the write-up; the perception and gait teammates own sensing and motion performance.",
+  "worktree": "/Users/shrish/workspace/cs123",
+  "branch": "main",
+  "mode": "r6_staged_waiting_for_robot_slot",
+  "updated_utc": "2026-11-04T22:42:45.165586+00:00",
+  "current_report": "foundation/results/harness-sprint-20261103.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261103T-close-before-normalization.json",
+    "sha256": "fef6ce50c06ccd35e9509c8f7fd41a41b0df9dd958962bd2614724ffab8f7fa3",
+    "meaning": "Historical stale live fields superseded by current closed state; preserve provenance without resuming old processes."
+  },
+  "evidence": {
+    "current_sprint": "foundation/results/harness-sprint-20261103.json",
+    "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json"
+  },
+  "environment": {
+    "python": ".venv-api/bin/python",
+    "full_numerical_python": ".venv/bin/python",
+    "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
+    "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
+    "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
+    "workspace_limit": "The prepared Mac has checkout-local API and CPU simulation environments on main. Rebuild instructions are in gemini_pupper/README.md and foundation/README.md. The historical artifacts alias still points to the legacy checkout. Frozen archives are needed for strict input verification and historical replay; ordinary harness development uses the tracked source and dependency pins.",
+    "mac_verification": "November 4, shared checkout: fresh Python 3.12 API environment passed 1,201 API checks. A clean npm install passed 544 browser checks and typechecking, and rebuilt the matching JS bundle. CPU simulation imported this checkout's mjlab and stepped the 12-actuator Pupper. The ARM ROS image passed the six controller and ten joystick suites plus the fake-IMU diagnostic with networking and hardware devices excluded."
+  },
+  "authorization": "User authorizes GitHub publication, shared main and a separate Pi staging/source checkout. Perception teammate owns live robot tests. No takeover, hardware or shared-service changes during this staging session. Keep Tej’s optional-lab branch separate until ready.",
+  "compute_spend_policy": {
+    "approval_threshold_usd": 5,
+    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
+  },
+  "activity": {
+    "automation": "No scheduled automation is active.",
+    "compute": "No Workstream 1 robot processes started by R6 staging. Other team sessions are independently owned.",
+    "owners": {
+      "physical_robot": "Perception teammate per user; this staging operation did not acquire motion, camera or Hailo ownership."
+    },
+    "goal_status": "R6 staged; robot acceptance, recordings and student submission still pending. The shared robot is currently being tested by a teammate."
+  },
+  "hardware_session": {
+    "status": "Last owned physical release: R5; its API/native/recorders shut down. On November 4 the separate R6 release was staged without activation. Check the current owner before a new physical session.",
+    "ssh": "mts",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
+    "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
+    "api_instance": "e003eb82fb0a4a778dd59b236913e9d7",
+    "motor_api_recorders_active": false,
+    "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+    "queued_imu_age_guard_deployed": false,
+    "archive": "artifacts/validation/harness-sprint-20261103/r5-closed",
+    "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03",
+    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit.",
+    "team_source_checkout": {
+      "path": "/home/pi/mts_123",
+      "repository": "ShrishPremkrishna/mts_123",
+      "branch": "main",
+      "verified_source_and_layout_commit": "bcd7078e7fe44ce3a58ad3d88020398eb0a39a68",
+      "selected_r6_files_verified": 137,
+      "tracked_at_verification": 120,
+      "ignored_detector_and_build_files": 17,
+      "vendor_lfs": "Unrelated vendor assets may remain pointers in source checkouts. R6 selected files are actual bytes.",
+      "activated": false
+    }
+  },
+  "browser": {
+    "state": "No owned voice session. Mac Pupper tab last inspected against local FAKE server 18093, now stopped. Real Pi browser last closed in R5. Never auto-connect from this checkpoint.",
+    "next": "Use final selected release and explicit runtime destination; do not reuse stale page/backend settings."
+  },
+  "microphone": {
+    "status": "Wireless lavalier/onboard speaker worked; transmitter battery died during filming. Recharge before next block."
+  },
+  "offline_ready": {
+    "application_release": {
+      "status": "Published runtime selection staged on Pi; not activated or physically accepted.",
+      "source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "runtime_commit": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final/package",
+      "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+      "bundle": "index-Cr13ul_q.js",
+      "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+      "app_archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+      "source_build_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
+      "evidence_archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+      "deployed": true,
+      "local_stage_verified": true,
+      "selected_native_imu_models_config_unchanged": true,
+      "local_staging": {
+        "baseline_files": 132,
+        "final_selected_files": 137,
+        "source_build_inputs": 130,
+        "inherited_skill_files": 7,
+        "launch_recipe_syntax_checks": 5,
+        "executed_recipes": false
+      },
+      "limits": "Staging verifies the selected files, not current loaded native libraries or behavior. Archive and compiled dependencies are separate from the source checkout.",
+      "remote_staged": true,
+      "activated_by_this_stage": false,
+      "hardware_accepted": false,
+      "pi_stage_receipt": {
+        "staged_utc": "2026-11-04T21:24:43.469285+00:00",
+        "baseline_preserved": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+        "new": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r6",
+        "archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+        "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+        "stage_script_sha256": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973",
+        "verified_archive_members": 39,
+        "verified_baseline_files": 132,
+        "verified_final_selected_files": 137,
+        "native_driver_policy_or_gains_changed": false,
+        "started": false,
+        "scope": "Separate inherited checkout plus reviewed application overlay; no install/build/start/Stop/profile/homing action."
+      }
+    },
+    "held_candidate": {
+      "path": "artifacts/validation/harness-sprint-20261103/app-release-r6-client-loss",
+      "status": "HELD; do not deploy",
+      "source_commit": "c5e11389a84cf1499b4a427bd6f46acd967c4b6b",
+      "reason": "Independent legacy-server reproduction showed an older Stop route ignored the new identity header. Replaced with mandatory dedicated guarded route/capability preflight in 8802672. Complete held candidate preserved."
+    },
+    "validation": "API 1201; web 544; typecheck/build pass; retained course 166 with documented adapted Stop assertion. Independent source/lifecycle/privacy probes pass. Software evidence only."
+  },
+  "preservation": {
+    "current_offline": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+    "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
+    "archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+    "archive_regular_members": 244,
+    "both_stores_verified": true,
+    "current_pending": null
+  },
+  "next": [
+    {
+      "id": "next_exclusive_robot_block",
+      "action": "R6 is ALREADY STAGED in the receipt path. After perception teammate hands over the robot, check current ownership/boot/services. Use the reviewed session procedure to accept the package, ordered follow/voice/Stop and rollback, then film remaining demos. Do not rerun stage-only on the existing destination."
+    },
+    {
+      "id": "recordings",
+      "action": "Recharge mic. Complete Q7, rerecord interrupted Q12 including full standing return/camera-side handshake, record Q19 with newcomer. Q16 reported captured; user owns footage review—do not request files."
+    },
+    {
+      "id": "submission",
+      "action": "The fourth teammate owns the written submission. Share foundation/submission/lab6/README.md, its Spider figure and complete course output. Shrish supplies video links and verifies his observations; collect missing evidence and contributions from the people involved."
+    },
+    {
+      "id": "final_project",
+      "action": "Proposed first harness test: start guard_goal against a fake robot and synthetic timestamped ball tracks; check bounded lateral motion, stale input, Stop and takeover. Perception tracks and measured gait reach/braking are needed before physical evaluation."
+    }
+  ],
+  "acceptance_boundaries": [
+    "R6 is staged only. Last owned physical evidence is from earlier releases. Staging changed no native driver, policy or gains; there is no new hardware validation claim.",
+    "Server acceptance/job success and browser audio scheduling do not prove physical movement, stopping or audible playback.",
+    "Browser-exit Stop is opt-in/global to original API, not a guarantee against SIGKILL, hung renderer, host loss or silent network failure.",
+    "Navigation/obstacle avoidance and arbitrary fall recovery remain unavailable. Immediate explicit voice primitives retained; semantic refusal is mitigation, not a hard navigation gate. User deferred tool-authority decision."
+  ],
+  "do_not_repeat": [
+    "Do not restart completed training, provider sweeps, regression or staging without a changed input or unresolved finding.",
+    "Start session_status.py; retrieve only relevant dated evidence. Do not reread all historical reports.",
+    "Use main in the shared project. Keep historical releases, local archives and teammate feature branches intact.",
+    "No repeated homing/button exercises between ordinary commands. Offline work stays offline; physical readiness is not implied by reachability."
+  ],
+  "legacy_branches": [
+    "pupper-foundation"
+  ],
+  "legacy_worktree": "/Users/shrish/workspace/cs123-foundation"
+}

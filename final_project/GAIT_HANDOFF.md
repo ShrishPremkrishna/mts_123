@@ -1,5 +1,7 @@
 # Gait teammate handoff
 
+Historical assignment from November 4, 2026. Retained as project background while the user revises the brief. Current discussion starts at [README.md](README.md).
+
 Own Optional Lab 2 and the movement Pupper needs for soccer. The attacker needs a fast approach, a **grounded header** and a controlled stop. The goalie needs to move sideways before a rolling ball crosses the goal line and stay upright for the next shot. A taped lane and a marked lateral line are enough to start.
 
 Work from the team repository on `main`. Use `pupper-mjlab/` for gait training and `final_project/motion/` for soccer-specific profiles, skill adapters and the measured limits you hand to the other owners. [Team repository](https://github.com/ShrishPremkrishna/mts_123)

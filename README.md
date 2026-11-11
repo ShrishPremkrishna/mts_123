@@ -1,29 +1,44 @@
-# CS123: Pupper
+# CS123 Pupper
 
-Use **main** for shared class and final-project work. Make changes on short-lived branches and merge ready work here. Lab 6 stays in its original package, so its imports, notebooks, and robot release paths keep working.
+This is the team's shared repository, [ShrishPremkrishna/mts_123](https://github.com/ShrishPremkrishna/mts_123), with `main` as the integration branch. The local checkout is `/Users/shrish/workspace/cs123`.
 
-| Work | Start here |
+Start with [the project brief](final_project/README.md) and `python3 foundation/scripts/session_status.py`. The checkpoint records dated observations. Fresh robot access, service ownership and teammate progress require verification for the current session.
+
+## Code map
+
+| Component | Location and current role |
 | --- | --- |
-| Final project: soccer workstreams, interfaces and first field tests | [Final project](final_project/README.md) |
-| Lab 6: voice agent and robot tools | [Lab 6 package](gemini_pupper/README.md) · [assignment code](gemini_pupper/lab/) · [server and tool registry](gemini_pupper/robot/) · [voice client](gemini_pupper/web/) |
-| Lab 5: camera, object detector and person follower | [follow_me_pupper](follow_me_pupper/) |
-| Lab 4: gait training and deployment | [pupper-mjlab](pupper-mjlab/) · [team training handoff](pupper-mjlab/lab4_runs/shrish_stablegait/) · [native gait runtime](pupper_gait_deploy/) |
-| Labs 1–3 | [PD control](pd_control_lab/) · [forward kinematics](forward_kinematics_lab/) · [IK walking](ik_heuristic_walking_lab/) |
-| Reliable robot sessions, release tools and Lab 6 submission status | [foundation](foundation/README.md) · [robot checklist](foundation/HARDWARE_CHECKLIST.md) · [submission handoff](foundation/WORKSTREAMS.md) |
+| Voice and tool harness, including Lab 6 | [gemini_pupper](gemini_pupper/README.md). `web/` supplies conversation and operator controls, `robot/` hosts the API and execution queue, `lab/` defines tools and prompts, and `tricks/` contains selected skills. |
+| Person detection and following, including Lab 5 | [follow_me_pupper](follow_me_pupper/README.md), with camera calibration, Hailo inference, tracking and ROS velocity publication. |
+| Gait and trick training | [pupper-mjlab](pupper-mjlab/README.md), with simulation tasks, reward configurations, policy export and evaluation. |
+| Native policy deployment | [pupper_gait_deploy](pupper_gait_deploy/README.md), with ROS controllers, observation/action conventions and deployment helpers. |
+| Early labs | [PD control](pd_control_lab/README.md), [forward kinematics](forward_kinematics_lab/README.md), [IK walking](ik_heuristic_walking_lab/README.md), and [implicit compliance](implicit_compliance/README.md). |
+| Platform and supporting tools | [pupperv3-monorepo](pupperv3-monorepo/README.md) and [pupper_rebase](pupper_rebase/README.md) hold robot platform sources. [UniMate](UniMate/README.md) generates motion references; [pupper-gait-tuner](pupper-gait-tuner/README.md) supports gait authoring. |
+| Final project | [final_project](final_project/README.md). At the November 10 context checkpoint this folder contains planning documents. The revised project brief awaits the user. |
+| Evidence, releases and lab submission | [foundation](foundation/README.md), including [the Lab 6 writer packet](foundation/submission/lab6/README.md) and [hardware procedures](foundation/HARDWARE_CHECKLIST.md). |
 
-The top-level repository is the team monorepo. [pupperv3-monorepo](pupperv3-monorepo/) and [pupper_rebase](pupper_rebase/) contain robot platform code; [pupper-gait-tuner](pupper-gait-tuner/) and [UniMate](UniMate/) are supporting tools. Put new soccer perception, motion adapters, and game behaviors under [final_project](final_project/), importing shared code from its existing package. Do not fork a second copy of the Lab 6 app.
+The harness currently dispatches described tools through a server queue and ROS bridge. Native controllers execute policies on the robot. The person follower supplies velocity through its own ROS source. Training produces assets consumed by these controllers. Exact interfaces and units are in the relevant package sources and agent notes. These are descriptions of the implemented system, open to revision as project requirements develop.
 
-**Getting oriented:** run `python3 foundation/scripts/session_status.py` from the repository root. It does not contact the robot. A clone contains source and the [selected Spider policies](gemini_pupper/tricks/spider_walk/README.md). The Pi also needs its provisioned native runtime, the [pinned detector model](follow_me_pupper/scripts/download_model.sh), and the built web app. Installing source and starting a hardware session are separate operations. Keys, environments, recordings and experiment archives stay outside Git.
+The platform folders are ordinary vendored directories in this Git repository. The legacy `/Users/shrish/workspace/cs123-foundation` worktree retains an older engineering branch and local evidence. Historical plans and evidence include source versions so they can be interpreted in context.
 
+## Development and resources
 
-For harness development on a Mac, use the [Python and web setup](gemini_pupper/README.md#offline-checks). For the course report and videos, share the [Lab 6 writer handoff](foundation/submission/lab6/README.md).
+| Resource | Access and scope |
+| --- | --- |
+| Mac API and browser | [Setup and fake-robot checks](gemini_pupper/README.md#offline-checks), `.venv-api/bin/python`, and npm in `gemini_pupper/web`. |
+| Mac simulation and native checks | [CPU environment and offline checks](foundation/README.md). `.venv/bin/python` imports this checkout's `pupper-mjlab`. The offline ROS runner uses Docker Desktop. GPU training uses a suitable CUDA host. |
+| Claude Code and subagents | Claude CLI is installed on this Mac. Prior authenticated source-only work is recorded; check availability in the current session. Available agent/browser tools depend on the host application. |
+| Gemini | Existing local credential location is `~/.config/gemini-pupper/api_key`. Onboard setup uses an explicit key file and a one-use browser bootstrap. Verify access without printing credentials. Recorded spending preference requires confirmation before an API experiment expected above $5. |
+| Pupper | `ssh mts` uses the configured SSH alias and Tailscale. The November 4 source checkout observation was `/home/pi/mts_123`; the selected R6 app was staged in a separate release directory. [Release identities and observation dates](foundation/results/interruption-recovery.json). |
+| Class library | Local Obsidian course folder is `/Users/shrish/Library/Mobile Documents/iCloud~md~obsidian/Documents/vaulted/Fall2026Classes/Cs123`. Start at `CS123.md` or `References/Course Sources.md`. It contains dated handouts, slides, notebooks, source captures and learning notes. [Live course site](https://cs123-stanford.readthedocs.io/en/latest/). |
+| Experiment archives | Ignored `artifacts/` currently links into the legacy worktree. Additional archives are in `/Users/shrish/workspace/pupper-foundation-artifacts`. Retrieve the specific evidence named by a report. |
 
-On the team Pi, `/home/pi/mts_123` is the source checkout. The verified R6 application is staged separately at `/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r6`. Pulling code does not select a runtime or start the robot.
+The API, browser, CPU and offline ROS setup passed checks on November 4. The checkpoint records those results. Cloud runtime availability and physical readiness are session-specific.
 
-For a new **source checkout** of Lab 6 and the final project, skip automatic downloads of the vendored platform's large media and model files:
+## Fresh clone
 
 ```sh
 GIT_LFS_SKIP_SMUDGE=1 git clone --branch main https://github.com/ShrishPremkrishna/mts_123.git
 ```
 
-This keeps the Git pointers for those vendor assets; materialize the particular assets you need before running the vendored platform. Lab 6’s selected Spider weights are normal tracked files. Its Hailo detector and web build are separate dependencies as described above.
+This leaves the vendored platform's large LFS assets as pointers. Materialize assets needed for the component being run. Selected Spider weights are tracked normally. The Pi also uses its provisioned native runtime, the [pinned Hailo model](follow_me_pupper/scripts/download_model.sh) and a built browser bundle. Source checkout, app staging and hardware activation are distinct steps.

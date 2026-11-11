@@ -1,19 +1,9 @@
 ---
-allowed-tools: Bash(git checkout --branch:*), Bash(git add:*), Bash(git status:*), Bash(git push:*), Bash(git commit:*), Bash(gh pr create:*)
-description: Commit, push, and open a PR
+description: Review changes, commit and publish the requested pull request
 ---
 
-## Context
+Inspect the working tree, branch and diff, including untracked files relevant to the task. Identify existing user or teammate changes before staging.
 
-- Current git status: !`git status`
-- Current git diff (staged and unstaged changes): !`git diff HEAD`
-- Current branch: !`git branch --show-current`
+Run the checks relevant to the change. Use the current feature branch when appropriate, or create a branch for the requested work. Stage the intended files explicitly and describe the resulting behavior in the commit.
 
-## Your task
-
-Based on the above changes:
-1. Create a new branch if on main
-2. Create a single commit with an appropriate message
-3. Push the branch to origin
-4. Create a pull request using `gh pr create`
-5. You have the capability to call multiple tools in a single response. You MUST do all of the above in a single message. Do not use any other tools or do anything else. Do not send any other text or messages besides these tool calls.
+When publication is part of the request, push the branch and create or update its pull request. Include a concise explanation, validation and any remaining limitation. Report the actual commit and pull request link. Existing team coordination and publishing permissions apply.

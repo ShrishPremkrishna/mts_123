@@ -1,23 +1,14 @@
-# Gemini Pupper agent notes
+# Gemini Pupper
 
-Use the [shared working agreement](../AGENTS.md) for repo-wide guidance.
+Shared principles are in the [root AGENTS.md](../AGENTS.md). This package began as Peng Xu's course starter and is now implemented and extended. Classroom TODO and do-not-edit comments describe the original starter exercise.
 
-## Coursework
+- `lab/`: tool functions and the agent prompt.
+- `robot/`: tool registry, HTTP API, job queue and native ROS bridge.
+- `web/`: browser client.
+- `tricks/`: trick assets.
 
-- TODO 1–11 in `lab/` are lesson references already implemented on `main`. Keep student attribution and robot observations as recorded. Base submission claims on recorded results. Obtain missing personal reflections or unrecorded observations from the student.
-- For harness work, edit the relevant behavior in `lab/`, server component in `robot/`, or browser component in `web/`.
-- Keep Peng Xu's credit and the course design context.
+`LAB_MODULES` in `robot/tool_registry.py` controls which modules have their `@tool` functions registered. The server lists them at `GET /tools` and runs them at `POST /tools/<name>`. In the current implementation, finite actions are queued and Stop bypasses the queue. The current voice client gives one acknowledgement per spoken action request after server acceptance, and reports refusals or later failures. Receipts describe acceptance and controller execution; physical outcomes come from observation.
 
-## Tools and motion
+Course units are m/s, seconds, degrees and degrees/s. Native ROS yaw rate is rad/s.
 
-- Add a `@tool` function to a module listed in `LAB_MODULES` in `robot/tool_registry.py`. The server lists and runs it through `GET /tools` and `POST /tools/<name>` with no new server or web routing.
-- Finite actions run as queued jobs that check admission on request and robot state at execution.
-- Status queries run immediately. Stop bypasses the queue, interrupts active work and requests zero velocity.
-- Send one success acknowledgement per spoken action request, after the server accepts it. Use the server’s refusal or failure when a request fails.
-- Report terminal job and controller state as authoritative, and report physical motion only as observed.
-- Preserve receipts and stale-instance and command-epoch protection. Keep API keys external and out of logs.
-- Course units are m/s, seconds, degrees and deg/s. Native ROS angular velocity is rad/s.
-
-## Checks and hardware
-
-Run the [offline checks](README.md#offline-checks). Follow [Robot operation](README.md#robot-operation) for physical guardrails and [the workstreams doc](../foundation/WORKSTREAMS.md) for lab handoff.
+The README covers [Offline checks](README.md#offline-checks) and [Robot operation](README.md#robot-operation). Lab 6 write-up material goes through [the Lab 6 writer handoff](../foundation/submission/lab6/README.md).

@@ -1,19 +1,19 @@
 # Lab 6 handoff for the report writer
 
-**Shrish owns the four robot videos. The fourth teammate owns the write-up and submission.** You can write the implementation sections, assemble the policy comparison and attach the course test output now. Use the question numbers in the [course handout](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/lab-6.html) in your copy of the [submission template](https://docs.google.com/document/d/1kp3xRDpWT6fy1FBzcx5_VDpdCx2mRkD5-4JWlJbUOac/edit?usp=sharing).
+**Recorded assignment on November 4, 2026 — Shrish owns the four robot videos and the fourth teammate owns the write-up and submission.** The evidence below covers November 3–4. Later filming or submission progress has not been reported to this checkpoint. The implementation sections, policy comparison and course-test output are available for the writer. Use the question numbers in the [course handout](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/lab-6.html) in your copy of the [submission template](https://docs.google.com/document/d/1kp3xRDpWT6fy1FBzcx5_VDpdCx2mRkD5-4JWlJbUOac/edit?usp=sharing).
 
 ## What happened on the robot
 
-| Question | What the team has | What Shrish will send |
+| Question | Evidence recorded November 3–4 | Required footage or missing part at that date |
 |---|---|---|
 | **Q7 · Movement and following** | The operator saw a controlled short forward run and stop. The command was 1.0 m/s for 0.5 s. Actual speed was unmeasured. In a separate trial, Pupper tracked a person, kept following during conversation, then yielded to a paw request. The full recording was interrupted by the mic battery. | A voice-only demo on Pupper's own mic/speaker showing forward, backward, both turns, sidestep, run, circle, an explained refusal, and following through a question. The viewer must hear Pupper announce that following is ending **before** the next motion. |
 | **Q12 · Sit and paws** | The filming log contains Sit, a ten-second hold and both paws. Stop interrupted the standing exit. Earlier watched runs completed the chain. | A fresh complete take through standing. Then, standing to **Pupper's left**, ask for a handshake without naming a paw. Show which paw it offers. If it chooses incorrectly, record the actual tool call, selected action and clip. |
 | **Q16 · Spider** | Shrish reports the video captured. Server records show entry, two seconds forward, two seconds left, then exit. Shrish saw the body clear the floor while walking and heard it refuse following. Belly contact occurred during the lowering/rising clips. | The existing recording, after Shrish checks that entry, walking, audible refusal and reason, and standing exit are visible/audible. |
 | **Q19 · Newcomer** | Open. No eligible participant was present during filming. | A voice conversation with someone outside this quarter's CS123 class, including a trick and a genuine camera question. Choose someone new to Pupper, let them try it uncoached for five minutes, and collect their own three words for Q17. |
 
-The onboard filming release was **R5**. R3 supplied the observed follower check and R4 the run, swim and earlier Spider trials. **R6 is staged for its first watched test.** Record the actual release on each new take. In particular, the new audible follower handoff has passed offline tests and still needs to be heard on the robot. [Physical session records](../../results/harness-sprint-20261103.json) · [Current release state](../../results/interruption-recovery.json)
+The onboard filming release was **R5**. R3 supplied the observed follower check and R4 the run, swim and earlier Spider trials. **R6 was staged on November 4, with watched acceptance still open.** New footage needs its actual release identity. The new audible follower handoff had passed offline tests; audible hardware acceptance remained open in that record. [Physical session records](../../results/harness-sprint-20261103.json) · [Current release state](../../results/interruption-recovery.json)
 
-## What to put in the document
+## Source material and recorded gaps
 
 | Questions | Evidence and work left |
 |---|---|
@@ -27,4 +27,4 @@ The onboard filming release was **R5**. R3 supplied the observed follower check 
 
 **Q14 figure.** The right column shows the selected Spider walking policy trained with measured joint positions. The left column is the earlier training comparison. These are rendered frames from the nominal simulation. Use this for the viewer evidence. Q16 uses footage of the physical robot. [Download the Spider simulation figure](q14-spider-simulation.png)
 
-**Before submitting**, insert the four accessible video links, the submitted code/fork link, actual individual contributions and any required TA checkoffs. Have Shrish confirm the observations attributed to him. The detailed [question-by-question engineering notes](../../WORKSTREAMS.md) point to further source and experiment records if needed.
+**Before submitting**, insert the four accessible video links, the submitted code/fork link, actual individual contributions and any required TA checkoffs. Have Shrish confirm the observations attributed to him. The dated [November 4 question-by-question engineering notes](https://github.com/ShrishPremkrishna/mts_123/blob/59db01658ac9fe83e86ccc0b52574e5a28f43de3/foundation/WORKSTREAMS.md) point to further source and experiment records.
