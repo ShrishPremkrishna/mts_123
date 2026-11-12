@@ -1,5 +1,5 @@
-# Final project context
+# Pupper FC context
 
-[README.md](README.md) states the current project status and links available components. The user is revising the final-project brief. Earlier soccer designs and teammate handoffs are dated planning references.
+[README.md](README.md) is the current brief; [PLAN.md](PLAN.md) distinguishes agreed outcomes from proposals and open decisions. Its handoffs assign deliverables. Earlier dated plans are historical. Root [AGENTS.md](../AGENTS.md) supplies shared working principles, access and physical-effect guidance; CLAUDE.md imports this file.
 
-This directory currently contains documentation. Inspect the existing harness, perception and training interfaces through the README when designing new work. Record chosen interfaces and verified results as implementation develops. The root [AGENTS.md](../AGENTS.md) contains shared working principles and physical access guidance.
+This directory currently contains documentation. Choose implementations through working prototypes and evidence. Coordinate the few shared interfaces before changing what another owner consumes. Keep a runnable baseline, identify experiment versions and record useful failures alongside successes. Update the smallest relevant checkpoint rather than duplicating project status across instructions. Check current robot ownership and deployment authorization before hardware work.

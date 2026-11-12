@@ -1,6 +1,6 @@
 # Perception workstream
 
-Historical assignment from November 4, 2026. Retained as project background while the user revises the brief. Current discussion starts at [README.md](README.md).
+Historical assignment from November 4, 2026. Retained as project background. The current Pupper FC [perception handoff](handoffs/PERCEPTION.md) and [brief](README.md) supersede this assignment.
 
 Own Optional Labs 1 and 3 and give Pupper the vision it needs to approach a soccer ball around an obstacle. On offense, Pupper will line up behind the ball and drive through it with its head toward the opponent’s colored goal. On defense, it will start in front of its own goal and move laterally to intercept a rolling shot. A clear floor, tape, a ball, two colored goal markers and one soft obstacle are enough for the first trials.
 

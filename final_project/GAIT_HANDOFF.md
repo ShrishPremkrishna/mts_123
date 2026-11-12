@@ -1,6 +1,6 @@
 # Gait teammate handoff
 
-Historical assignment from November 4, 2026. Retained as project background while the user revises the brief. Current discussion starts at [README.md](README.md).
+Historical assignment from November 4, 2026. Retained as project background. The current Pupper FC [movement handoff](handoffs/MOVEMENT.md) and [brief](README.md) supersede this assignment.
 
 Own Optional Lab 2 and the movement Pupper needs for soccer. The attacker needs a fast approach, a **grounded header** and a controlled stop. The goalie needs to move sideways before a rolling ball crosses the goal line and stay upright for the next shot. A taped lane and a marked lateral line are enough to start.
 

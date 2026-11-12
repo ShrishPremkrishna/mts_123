@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Maintain a factual Pupper checkpoint while Shrish defines the revised final-project brief.",
+  "objective": "Build Pupper FC: two autonomous soccer-playing Puppers, including physical fall recovery and low-setup startup. Current block records the agreed outcomes and proposed plan locally before implementation discussion.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "context_checkpoint_awaiting_project_brief",
-  "updated_utc": "2026-11-11T00:04:09.888424+00:00",
+  "mode": "pupper_fc_local_plan_review",
+  "updated_utc": "2026-11-12T22:23:52.302411+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -25,21 +25,26 @@
     "mac_verification": "November 4, shared checkout: fresh Python 3.12 API environment passed 1,201 API checks. A clean npm install passed 544 browser checks and typechecking, and rebuilt the matching JS bundle. CPU simulation imported this checkout's mjlab and stepped the 12-actuator Pupper. The ARM ROS image passed the six controller and ten joystick suites plus the fake-IMU diagnostic with networking and hardware devices excluded.",
     "verified_date": "2026-11-04"
   },
-  "authorization": "Historical access: user authorized shared-main publication, Claude Code and separate Pi staging/source work. Current robot operator and hardware-test availability must be established for each physical block. Tej owns his unmerged optional-lab branches.",
+  "authorization": "November 12: local repository planning/context changes authorized. A teammate is using the repo and physical robot for Lab 6. Do not push this block or contact, deploy to, restart services on, home or command the Pi until Shrish gives the go and current ownership is established. Authenticated Claude Code drafting/review is authorized. Historical release staging and publication are not authorization to disrupt the current teammate session.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "November 10 context work was local documentation maintenance. Current Pi processes and teammate compute were not inspected.",
+    "compute": "November 12 local documentation, source audit, context-blind adversarial review and authenticated Claude drafting. No training or robot contact.",
     "owners": {
-      "physical_robot": "Unknown now. Perception teammate held access at the November 4 checkpoint."
+      "physical_robot": "User reported November 12: teammate using robot for Lab 6; live services/release not inspected.",
+      "gameplay_integration": "Shrish and lead agent; current work local plan/context only.",
+      "movement": "Marcus",
+      "shooting": "Tej",
+      "perception": "Ryan",
+      "arena": "Shrish"
     },
-    "goal_status": "Revised final-project brief pending from Shrish. Historical Lab 6 and release acceptance gaps are linked below."
+    "goal_status": "Confirmed Pupper FC scope recorded, including autonomous get-up as base. Proposed plan/rules/startup details await discussion before runtime implementation."
   },
   "hardware_session": {
-    "status": "Last owned session R5 closed on November 3. R6 staged without activation on November 4. Current robot ownership, processes and loaded release are unknown.",
+    "status": "Last owned physical evidence is R5 on November 3; R6 staged November 4. User reports November 12 teammate currently using robot for Lab 6. Current processes and loaded release not inspected; no Pi contact in this block.",
     "ssh": "mts",
     "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
     "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
@@ -66,7 +71,7 @@
       "later_documentation_sync_scope": "Recorded source-checkout documentation update on November 4; selected runtime verification above belongs to its original receipt."
     },
     "observed_date": "2026-11-03 for R5 shutdown; 2026-11-04 for source/staging receipts",
-    "live_status": "Unknown; no robot connection during the November 10 context cleanup.",
+    "live_status": "Not inspected in November 12 planning block; teammate owns current Lab 6 access per user.",
     "motor_api_recorders_last_observed_active": false
   },
   "browser": {
@@ -141,8 +146,16 @@
   },
   "next": [
     {
-      "id": "revised_project_brief",
-      "action": "Discuss Shrish’s revised final-project direction. Record the agreed outcome and open choices in final_project/README.md before assigning the next implementation sprint."
+      "id": "agree_fc_plan",
+      "action": "Discuss final_project/PLAN.md: required get-up, boot placement/arm/resume behavior, dead-ball rules, arena details and two-robot access. Technical choices remain open."
+    },
+    {
+      "id": "local_fc_prototypes",
+      "action": "After plan agreement, build the first local perception/gameplay/motion integration using a working baseline; coordinate teammate handoffs and start physical get-up development in parallel."
+    },
+    {
+      "id": "pi_handover",
+      "action": "Wait for explicit user go and teammate handover before Pi inspection/deployment; preserve current Lab 6 setup and verify actual loaded software before physical acceptance."
     }
   ],
   "acceptance_boundaries": [
@@ -155,12 +168,27 @@
     "pupper-foundation"
   ],
   "legacy_worktree": "/Users/shrish/workspace/cs123-foundation",
-  "context_review_date": "2026-11-10 America/Los_Angeles",
+  "context_review_date": "2026-11-12 America/Los_Angeles",
   "current_report_scope": "The November 3 sprint report contains the last recorded owned hardware session. It is a dated evidence reference; this context update performed no live robot inspection.",
   "recorded_open_items": {
     "as_of": "2026-11-04",
     "lab6": "Q7 unfinished; Q12 interrupted and awaiting rerecord; Q16 reported captured; Q19 awaiting newcomer. Shrish owned footage, fourth teammate owned written submission. See foundation/submission/lab6/README.md. Completion since that checkpoint is unknown.",
     "release": "R6 watched acceptance, audible follower handoff and live app update/rollback were open. No later owned acceptance is recorded here.",
     "source_vs_hardware": "Selected R6 runtime and local main have separate identities; source edits alone do not identify the currently loaded Pi software."
+  },
+  "project": {
+    "name": "Pupper FC",
+    "brief": "final_project/README.md",
+    "plan": "final_project/PLAN.md",
+    "requirements_date": "2026-11-12",
+    "local_branch": "codex/pupper-fc-plan",
+    "implementation_status": "Documentation only in final_project; no soccer runtime, boot service or self-righting added in this block.",
+    "review": "Context-blind adversarial review plus source audit; Claude Code drafted three teammate handoffs.",
+    "open_risks": [
+      "Physical self-righting is required and currently missing; existing tests assume a human-uprighted robot.",
+      "Native velocity path needs controller-local command expiry, beyond the existing upstream mux timeout.",
+      "Startup posture and goal/dead-ball restart rules need agreement.",
+      "Second robot commissioning and real two-robot match acceptance remain required."
+    ]
   }
 }

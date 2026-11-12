@@ -2,7 +2,7 @@
 
 This is the team's shared repository, [ShrishPremkrishna/mts_123](https://github.com/ShrishPremkrishna/mts_123), with `main` as the integration branch. The local checkout is `/Users/shrish/workspace/cs123`.
 
-Start with [the project brief](final_project/README.md) and `python3 foundation/scripts/session_status.py`. The checkpoint records dated observations. Fresh robot access, service ownership and teammate progress require verification for the current session.
+The final project is **Pupper FC**, two autonomous soccer-playing Puppers using overhead vision. Start with [the project brief](final_project/README.md) and `python3 foundation/scripts/session_status.py`. The checkpoint records dated observations. Fresh robot access, service ownership and teammate progress require verification for the current session.
 
 ## Code map
 
@@ -14,7 +14,7 @@ Start with [the project brief](final_project/README.md) and `python3 foundation/
 | Native policy deployment | [pupper_gait_deploy](pupper_gait_deploy/README.md), with ROS controllers, observation/action conventions and deployment helpers. |
 | Early labs | [PD control](pd_control_lab/README.md), [forward kinematics](forward_kinematics_lab/README.md), [IK walking](ik_heuristic_walking_lab/README.md), and [implicit compliance](implicit_compliance/README.md). |
 | Platform and supporting tools | [pupperv3-monorepo](pupperv3-monorepo/README.md) and [pupper_rebase](pupper_rebase/README.md) hold robot platform sources. [UniMate](UniMate/README.md) generates motion references; [pupper-gait-tuner](pupper-gait-tuner/README.md) supports gait authoring. |
-| Final project | [final_project](final_project/README.md). At the November 10 context checkpoint this folder contains planning documents. The revised project brief awaits the user. |
+| Final project | [Pupper FC](final_project/README.md). Current outcomes, ownership, plan and teammate handoffs. As of November 12 this folder contains documentation; soccer gameplay and self-righting are planned capabilities. |
 | Evidence, releases and lab submission | [foundation](foundation/README.md), including [the Lab 6 writer packet](foundation/submission/lab6/README.md) and [hardware procedures](foundation/HARDWARE_CHECKLIST.md). |
 
 The harness currently dispatches described tools through a server queue and ROS bridge. Native controllers execute policies on the robot. The person follower supplies velocity through its own ROS source. Training produces assets consumed by these controllers. Exact interfaces and units are in the relevant package sources and agent notes. These are descriptions of the implemented system, open to revision as project requirements develop.
