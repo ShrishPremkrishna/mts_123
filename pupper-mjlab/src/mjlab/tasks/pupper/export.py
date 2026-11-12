@@ -207,7 +207,11 @@ def command_clip_from_env(env) -> dict[str, tuple[float, float]] | None:
   """
   twist = env.cfg.commands.get("twist")
   if twist is None:
-    return None
+    # The header-kick task carries (ball_x, ball_y, aim) in the command slot and
+    # declares its own clamp in the same vx/vy/wz vocabulary.
+    kick = env.cfg.commands.get("kick")
+    clip = getattr(kick, "deploy_clip", None)
+    return {k: (float(lo), float(hi)) for k, (lo, hi) in clip.items()} if clip else None
   ranges = twist.ranges
   return {
     "vx": (float(ranges.lin_vel_x[0]), float(ranges.lin_vel_x[1])),
