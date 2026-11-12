@@ -4,7 +4,7 @@ November 12, 2026 · [Pupper FC brief](../README.md)
 
 **Outcome:** Turn overhead mounted iPhone video into usable shared state for two autonomous Pupper soccer players on a roughly 8×12 ft field. Track both robot IDs, positions and headings, the bright ground ball's position and velocity, goals, and derived shot angles, with capture timestamps, age, uncertainty, and validity.
 
-Coordinate the mount, field/robot AprilTags, goals, and ball with Shrish, who owns the arena. Shrish and the lead own gameplay integration.
+Coordinate the mount, field/robot AprilTags, goals, and ball with Shrish, who owns the arena. Shrish and assisting agents own gameplay integration.
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 

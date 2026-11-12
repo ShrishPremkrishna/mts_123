@@ -11,10 +11,10 @@ Two Puppers sustain offensive and defensive play using overhead vision and a 2D 
 | Marcus — [movement notes](handoffs/MOVEMENT.md) | Controllable forward/lateral motion, turning, acceleration, braking and stability; measured limits. |
 | Tej — [shooting](handoffs/SHOOTING.md) | Useful ball motion toward a target, known approach/entry conditions, strike and exit behavior. Start with existing locomotion. |
 | Ryan — [perception](handoffs/PERCEPTION.md) | iPhone ingestion, field coordinates, persistent robot identities/headings, ball position/velocity, goals, shooting geometry and observation age/validity. |
-| Shrish + lead agent — gameplay/integration | Offense/defense selection, approach execution, command ownership, interruption, recovery coordination, startup, operator view and whole-game validation. |
+| Shrish, assisted by agents — gameplay/integration | Offense/defense selection, approach execution, command ownership, interruption, recovery coordination, startup, operator view and whole-game validation. |
 | Shrish — arena | Camera mounting, boundaries/goals, markers, ball, surface and bumper arrangement for repeatable trials. Coordinate dimensions and markers with Ryan. |
 
-These are the team's current areas, not fixed roles for incoming agents. Get-up is a separate P0 work item with physical-motion ownership still open. Shrish and the lead own its gameplay integration. The first playable prototype can advance while recovery is open; it must not be described as having solved recovery. Technical boundaries may change jointly without dropping an outcome.
+These are the team's current areas, not fixed roles for incoming agents. Get-up is a separate P0 work item with physical-motion ownership still open. Shrish and assisting agents own its gameplay integration. The first playable prototype can advance while recovery is open; it must not be described as having solved recovery. Technical boundaries may change jointly without dropping an outcome.
 
 ## Game behavior and proposed rules
 

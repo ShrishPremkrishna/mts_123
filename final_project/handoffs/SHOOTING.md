@@ -2,7 +2,7 @@
 
 November 12, 2026 · [Pupper FC brief](../README.md)
 
-**Outcome:** Repeatable directional shots on a bright ground ball from stationary and moving starts. Two autonomous Puppers play on a roughly 8×12 ft field; overhead perception supplies robot/ball/goal geometry. Coordinate with Marcus on movement, Ryan on perception, and Shrish plus the lead on gameplay.
+**Outcome:** Repeatable directional shots on a bright ground ball from stationary and moving starts. Two autonomous Puppers play on a roughly 8×12 ft field; overhead perception supplies robot/ball/goal geometry. Coordinate with Marcus on movement, Ryan on perception, and Shrish and assisting agents on gameplay.
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 

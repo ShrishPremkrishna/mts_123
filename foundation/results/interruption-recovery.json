@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "pupper_fc_local_development_ready",
-  "updated_utc": "2026-11-12T22:53:11.845431+00:00",
+  "updated_utc": "2026-11-12T23:10:39.844419+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -47,13 +47,13 @@
     "compute": "Local context edits and bounded offline environment checks completed. Docker Desktop started locally; cached ROS image readiness verified in a network-disabled, read-only, device-free container which exited. No Pi contact, gameplay runtime, training or provider experiment.",
     "owners": {
       "physical_robot": "User reported November 12: teammate using robot for Lab 6; live services/release not inspected.",
-      "gameplay_integration": "Shrish and lead agent; current local context/environment task complete, next engineering task follows the user request.",
+      "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Marcus",
       "shooting": "Tej",
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Incoming-agent orientation and local development verified. Follow the current user task; handoffs are optional references. Supported startup and one start/resume signal are agreed. Physical get-up is separate P0 work with its owner open."
+    "goal_status": "Local context/environment checkpoint ready. Guidance now covers material-progress upkeep, dated authoritative facts, reproducible setup and Git collaboration without prescribing implementation methods. Follow the current user task; optional notes do not assign an agent role."
   },
   "hardware_session": {
     "status": "Last owned physical evidence is R5 on November 3; R6 staged November 4. User reports November 12 teammate currently using robot for Lab 6. Current processes and loaded release not inspected; no Pi contact in this block.",
@@ -163,7 +163,7 @@
     },
     {
       "id": "separate_p0_getup",
-      "action": "Keep physical self-righting as separate P0 work with physical-motion ownership open. Gameplay integration is Shrish/lead; the first playable baseline can proceed while recovery is unfinished. Do not mistake existing upright-restart tests for get-up."
+      "action": "Keep physical self-righting as separate P0 work with physical-motion ownership open. Gameplay integration is Shrish with assisting agents; the first playable baseline can proceed while recovery is unfinished. Do not mistake existing upright-restart tests for get-up."
     },
     {
       "id": "pi_handover",
@@ -195,7 +195,7 @@
     "requirements_date": "2026-11-12",
     "local_branch": "codex/pupper-fc-plan",
     "implementation_status": "Documentation only in final_project. Local development and agent orientation verified; no soccer runtime, boot service or self-righting implemented.",
-    "review": "Claude Code reviewed concise collaborator context. Independent local checks verified API/web/CPU/native environments; Docker ROS image readiness verified. A context-blind agent correctly recovered scope, role freedom, commands, access limits and agreed decisions; no material onboarding contradiction found. Handoffs remain optional notes.",
+    "review": "Independent context audit plus authenticated Claude Code Fable 5.1 and explicit claude-fable-5-2 final review completed. Adopted upkeep/Git guidance and deduplication, clarified machine-specific paths and human ownership; retained existing authorization rather than adding fresh-approval requirements. Links and AGENTS/CLAUDE imports verified. No runtime or robot changes.",
     "open_risks": [
       "Physical self-righting remains missing and is separate P0 work; ordinary stand tests assume an upright robot.",
       "Native controller needs command-expiry protection beyond an upstream mux timeout.",

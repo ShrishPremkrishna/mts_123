@@ -2,7 +2,7 @@
 
 November 12, 2026 · [Pupper FC brief](../README.md)
 
-**Outcome:** Give two autonomous Pupper soccer players fast, controllable movement on the roughly 8×12 ft field: body-frame forward/backward and lateral travel, turning, acceleration, braking and stability. Gameplay integration belongs to Shrish and the lead; shooting belongs to Tej. Get-up is separate P0 work with physical-motion ownership open.
+**Outcome:** Give two autonomous Pupper soccer players fast, controllable movement on the roughly 8×12 ft field: body-frame forward/backward and lateral travel, turning, acceleration, braking and stability. Gameplay integration belongs to Shrish and assisting agents; shooting belongs to Tej. Get-up is separate P0 work with physical-motion ownership open.
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
