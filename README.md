@@ -33,7 +33,21 @@ The platform folders are ordinary vendored directories in this Git repository. T
 | Class library | Local Obsidian course folder is `/Users/shrish/Library/Mobile Documents/iCloud~md~obsidian/Documents/vaulted/Fall2026Classes/Cs123`. Start at `CS123.md` or `References/Course Sources.md`. It contains dated handouts, slides, notebooks, source captures and learning notes. [Live course site](https://cs123-stanford.readthedocs.io/en/latest/). |
 | Experiment archives | Ignored `artifacts/` currently links into the legacy worktree. Additional archives are in `/Users/shrish/workspace/pupper-foundation-artifacts`. Retrieve the specific evidence named by a report. |
 
-The API, browser, CPU and offline ROS setup passed checks on November 4. The checkpoint records those results. Cloud runtime availability and physical readiness are session-specific.
+The [checkpoint](foundation/results/interruption-recovery.json) records dated environment verification. Cloud runtime availability and physical readiness are session-specific. Ordinary source work does not require the historical artifact archive or a robot connection.
+
+### Choose the check for the task
+
+Run these from the repository root after the one-time setup linked above. Select the relevant lane; broad regression is available in the foundation reference when a change warrants it.
+
+| Work | Focused offline check |
+| --- | --- |
+| API/tool behavior | `.venv-api/bin/python gemini_pupper/lab/test.py todo3` and `.venv-api/bin/python -m pytest -q gemini_pupper/tests/test_ordered_follow.py` |
+| Browser | `npm --prefix gemini_pupper/web test` |
+| CPU motion/model contracts | `FORCE_CPU=1 .venv/bin/python -m pytest -q pupper-mjlab/tests/test_pupper_foundation.py` |
+| Native controller math/reference behavior | `bash pupper_gait_deploy/test/run_host_test.sh` — no ROS or robot |
+| Linux ROS build/tests | [Offline ROS runner](foundation/README.md#local-numerical-setup), using Docker Desktop and its prepared image |
+
+These check different layers; passing them does not establish physical performance. Reuse the checkout-local environments. Reinstall or upgrade when a concrete dependency issue or chosen change requires it. For API/browser implementation, choose the specific tests nearest the changed behavior beyond the examples above.
 
 ## Fresh clone
 

@@ -1,13 +1,14 @@
 # Pupper project context
 
-[README.md](README.md) maps the code, setup and available resources. [The project brief](final_project/README.md) records the current discussion. Run `python3 foundation/scripts/session_status.py` for the dated checkpoint. The user's current request sets the task. Earlier plans remain available as historical references.
+[README.md](README.md) maps the code, setup and available resources. [The project brief](final_project/README.md) separates agreed outcomes from implementation status. Run `python3 foundation/scripts/session_status.py` for the dated task and access checkpoint. The user's current request sets the task. Earlier plans remain available as historical references.
 
 ## Working approach
 
+- Infer a useful role from the current request, source evidence and team context. Team ownership guides coordination, not the scope of help you can offer; handoffs are optional working notes.
 - State consequential assumptions and define an observable result. Resolve reversible details with judgment and ask when the answer changes the goal or required access.
 - Prefer understandable solutions sized to the task. Existing architecture is a starting point and may change when evidence or the goal warrants it.
 - **Speed.** Shorten time to a verified outcome. Fix recurring tooling friction, parallelize independent work and use Claude Code or focused subagents where they help. Give concurrent editors clear file ownership.
-- **Altitude.** Reassess the outcome behind the immediate task. Propose a better route when the current work stops advancing it.
+- **Altitude.** Reassess the outcome behind the immediate task. Challenge premises constructively and propose a better direction when evidence or the user's goal warrants it.
 - **Depth.** Examine source data and underlying mechanisms. Use appropriate instruments and independent checks to challenge assumptions and verify consequential claims.
 - **Range.** Draw on relevant disciplines and compare promising alternatives through concrete experiments. Keep exploratory ideas distinguishable from implemented behavior.
 - Update the smallest useful checkpoint when facts change. Include dates, source identities, evidence and unresolved questions. Load detailed historical records when relevant.

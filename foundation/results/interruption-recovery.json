@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Build Pupper FC: two autonomous soccer-playing Puppers, including physical fall recovery and low-setup startup. Current block records the agreed outcomes and proposed plan locally before implementation discussion.",
+  "objective": "Develop Pupper FC through working prototypes. Current task: make local development and incoming-agent context reliable; the user current request determines the next contribution.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "pupper_fc_local_plan_review",
-  "updated_utc": "2026-11-12T22:23:52.302411+00:00",
+  "mode": "pupper_fc_local_development_ready",
+  "updated_utc": "2026-11-12T22:53:11.845431+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -23,25 +23,37 @@
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
     "workspace_limit": "The prepared Mac has checkout-local API and CPU simulation environments on main. Rebuild instructions are in gemini_pupper/README.md and foundation/README.md. The historical artifacts alias still points to the legacy checkout. Frozen archives are needed for strict input verification and historical replay; ordinary harness development uses the tracked source and dependency pins.",
     "mac_verification": "November 4, shared checkout: fresh Python 3.12 API environment passed 1,201 API checks. A clean npm install passed 544 browser checks and typechecking, and rebuilt the matching JS bundle. CPU simulation imported this checkout's mjlab and stepped the 12-actuator Pupper. The ARM ROS image passed the six controller and ten joystick suites plus the fake-IMU diagnostic with networking and hardware devices excluded.",
-    "verified_date": "2026-11-04"
+    "verified_date": "2026-11-04",
+    "local_readiness": {
+      "date": "2026-11-12",
+      "source_revision": "fa52e87; subsequent edits are context/documentation only",
+      "api": "Checkout-local Python 3.12.8, imports/dependencies clean; 18 fake-tool checks and 19 ordered-follow tests passed.",
+      "web": "Node 26.12.1, npm 11.20.0; installed dependencies match lockfile; 544 tests passed.",
+      "numerical": "Checkout-local Python 3.12.8; mjlab resolves to this checkout; required imports and 155-package dependency check pass; 35 motion/model contract tests passed. No new policy rollout validation.",
+      "native_host": "Apple clang 21; reference/filter/motion/slew/execution tests passed, including 2724 static-loop assertions.",
+      "ros": "Docker Desktop engine 28.2.2 running; cached Linux ARM64 image sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44 launches offline and contains ROS Jazzy rclcpp/CMake 3.28.3. Full ROS suite not repeated.",
+      "claude": "Existing subscription authentication used successfully for scoped context drafting/review; no key inspected.",
+      "remaining_local_dependency": "Historical artifacts alias points to cs123-foundation/artifacts. Ordinary API/browser/CPU source work uses independent local environments; retrieve frozen archives only when relevant.",
+      "commands": "README.md#choose-the-check-for-the-task"
+    }
   },
-  "authorization": "November 12: local repository planning/context changes authorized. A teammate is using the repo and physical robot for Lab 6. Do not push this block or contact, deploy to, restart services on, home or command the Pi until Shrish gives the go and current ownership is established. Authenticated Claude Code drafting/review is authorized. Historical release staging and publication are not authorization to disrupt the current teammate session.",
+  "authorization": "November 12: local context, development-environment verification and fixes authorized. A teammate is using the repo and physical robot for Lab 6. This block remains local: do not push, contact/deploy to the Pi, change its services or command motors until Shrish gives the go and ownership is established. Authenticated Claude Code and focused subagents are authorized.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "November 12 local documentation, source audit, context-blind adversarial review and authenticated Claude drafting. No training or robot contact.",
+    "compute": "Local context edits and bounded offline environment checks completed. Docker Desktop started locally; cached ROS image readiness verified in a network-disabled, read-only, device-free container which exited. No Pi contact, gameplay runtime, training or provider experiment.",
     "owners": {
       "physical_robot": "User reported November 12: teammate using robot for Lab 6; live services/release not inspected.",
-      "gameplay_integration": "Shrish and lead agent; current work local plan/context only.",
+      "gameplay_integration": "Shrish and lead agent; current local context/environment task complete, next engineering task follows the user request.",
       "movement": "Marcus",
       "shooting": "Tej",
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Confirmed Pupper FC scope recorded, including autonomous get-up as base. Proposed plan/rules/startup details await discussion before runtime implementation."
+    "goal_status": "Incoming-agent orientation and local development verified. Follow the current user task; handoffs are optional references. Supported startup and one start/resume signal are agreed. Physical get-up is separate P0 work with its owner open."
   },
   "hardware_session": {
     "status": "Last owned physical evidence is R5 on November 3; R6 staged November 4. User reports November 12 teammate currently using robot for Lab 6. Current processes and loaded release not inspected; no Pi contact in this block.",
@@ -146,16 +158,16 @@
   },
   "next": [
     {
-      "id": "agree_fc_plan",
-      "action": "Discuss final_project/PLAN.md: required get-up, boot placement/arm/resume behavior, dead-ball rules, arena details and two-robot access. Technical choices remain open."
+      "id": "current_user_task",
+      "action": "Use final_project/README.md and relevant source to choose the next useful contribution with the current user. Team roles and handoff notes provide context, not an automatic task assignment. Local focused checks are documented in the root README."
     },
     {
-      "id": "local_fc_prototypes",
-      "action": "After plan agreement, build the first local perception/gameplay/motion integration using a working baseline; coordinate teammate handoffs and start physical get-up development in parallel."
+      "id": "separate_p0_getup",
+      "action": "Keep physical self-righting as separate P0 work with physical-motion ownership open. Gameplay integration is Shrish/lead; the first playable baseline can proceed while recovery is unfinished. Do not mistake existing upright-restart tests for get-up."
     },
     {
       "id": "pi_handover",
-      "action": "Wait for explicit user go and teammate handover before Pi inspection/deployment; preserve current Lab 6 setup and verify actual loaded software before physical acceptance."
+      "action": "Current teammate Lab 6 robot session remains untouched. Await explicit user go and coordinate ownership before Pi inspection/deployment or physical testing."
     }
   ],
   "acceptance_boundaries": [
@@ -182,13 +194,18 @@
     "plan": "final_project/PLAN.md",
     "requirements_date": "2026-11-12",
     "local_branch": "codex/pupper-fc-plan",
-    "implementation_status": "Documentation only in final_project; no soccer runtime, boot service or self-righting added in this block.",
-    "review": "Context-blind adversarial review plus source audit; Claude Code drafted three teammate handoffs.",
+    "implementation_status": "Documentation only in final_project. Local development and agent orientation verified; no soccer runtime, boot service or self-righting implemented.",
+    "review": "Claude Code reviewed concise collaborator context. Independent local checks verified API/web/CPU/native environments; Docker ROS image readiness verified. A context-blind agent correctly recovered scope, role freedom, commands, access limits and agreed decisions; no material onboarding contradiction found. Handoffs remain optional notes.",
     "open_risks": [
-      "Physical self-righting is required and currently missing; existing tests assume a human-uprighted robot.",
-      "Native velocity path needs controller-local command expiry, beyond the existing upstream mux timeout.",
-      "Startup posture and goal/dead-ball restart rules need agreement.",
-      "Second robot commissioning and real two-robot match acceptance remain required."
+      "Physical self-righting remains missing and is separate P0 work; ordinary stand tests assume an upright robot.",
+      "Native controller needs command-expiry protection beyond an upstream mux timeout.",
+      "Dead-ball rules, arena specifics and other downstream choices remain to be settled when relevant.",
+      "Real two-robot commissioning and match acceptance still needed."
+    ],
+    "confirmed_operating_choices": [
+      "Supported startup with one deliberate start/arm action accepted.",
+      "One resume signal after human goal-ball replacement accepted.",
+      "Get-up is separate P0 work; physical-motion owner open; baseline work can proceed."
     ]
   }
 }

@@ -10,7 +10,7 @@ This folder contains release tools, local validation, recorded experiments and t
 
 Run `python3 foundation/scripts/session_status.py` from the repository root. It reads the [checkpoint](results/interruption-recovery.json) and local references. `--verify-inputs` also requires the saved local inputs and verifies their pinned digests. It performs no robot connection.
 
-The checkpoint was reviewed on November 10, 2026. Its latest owned physical session is R5 from November 3; R6 was staged on November 4. Current Pi processes, ownership and loaded code require a live check. Release hashes, paths and held candidates are in that record. The [robot procedure](HARDWARE_CHECKLIST.md) explains the existing commands and their effects.
+The checkpoint states when its facts were observed. Its latest owned physical session is R5 from November 3; R6 was staged on November 4. Current Pi processes, ownership and loaded code require a live check when authorized. Release hashes, paths and held candidates are in that record. The [robot procedure](HARDWARE_CHECKLIST.md) explains the existing commands and their effects.
 
 ## Evidence by question
 
@@ -48,7 +48,9 @@ python3 foundation/scripts/check_foundation.py --output /private/tmp/pupper-vali
 python3 foundation/scripts/check_ros_offline.py --output /private/tmp/pupper-ros-NEW
 ```
 
-Both commands run offline checks. The first discovers the API and numerical environments, with explicit `--api-python` and `--numerical-python` overrides. The second requires Docker Desktop and the image described in [ros-offline.Dockerfile](scripts/ros-offline.Dockerfile). It uses networking-disabled containers without device mounts. [Recorded ROS validation](results/workstream1-offline-ros-20261102.json)
+Both commands run broad offline checks; the [root quick reference](../README.md#choose-the-check-for-the-task) lists focused checks. Replace `NEW` with a new output name for each run. Explicit output paths avoid writing through the historical artifacts alias, and existing output directories are refused.
+
+The first discovers the API and numerical environments, with explicit `--api-python` and `--numerical-python` overrides. The second requires Docker Desktop and the image described in [ros-offline.Dockerfile](scripts/ros-offline.Dockerfile). On this Mac, start the engine with `open -a Docker` when needed; `docker info` verifies readiness. Inspect the cached image with `docker image inspect cs123-ros-jazzy-slew-check:latest` before deciding a build is needed. The runner uses networking-disabled containers without device mounts. [Recorded ROS validation](results/workstream1-offline-ros-20261102.json)
 
 ## Archived inputs
 

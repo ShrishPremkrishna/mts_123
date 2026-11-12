@@ -6,7 +6,7 @@ November 12, 2026 · [Pupper FC brief](../README.md)
 
 Coordinate the mount, field/robot AprilTags, goals, and ball with Shrish, who owns the arena. Shrish and the lead own gameplay integration.
 
-This is a planning handoff. Implementation follows the final plan discussion; current work is local documentation while a teammate uses the robot for Lab 6.
+These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
 ## Immediate working baseline
 

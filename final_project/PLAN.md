@@ -1,6 +1,6 @@
 # Pupper FC delivery plan
 
-November 12, 2026. Confirmed outcomes guide this plan. Rules and implementation proposals below remain open to discussion. This is local planning while a teammate uses Pupper for Lab 6; it does not claim soccer implementation or hardware acceptance.
+November 12, 2026. Confirmed outcomes guide this plan. Rules and implementation proposals below remain open to discussion. Use this as project context when choosing work with the current user, not as an automatic task assignment. Current activity and robot access are in the [checkpoint](../foundation/results/interruption-recovery.json). This plan does not claim soccer implementation or hardware acceptance.
 
 ## Outcome and ownership
 
@@ -8,13 +8,13 @@ Two Puppers sustain offensive and defensive play using overhead vision and a 2D 
 
 | Owner | Outcome |
 | --- | --- |
-| Marcus — [movement](handoffs/MOVEMENT.md) | Controllable forward/lateral motion, turning, acceleration, braking and stability; measured limits. Physical get-up capability jointly developed with gameplay recovery. |
+| Marcus — [movement notes](handoffs/MOVEMENT.md) | Controllable forward/lateral motion, turning, acceleration, braking and stability; measured limits. |
 | Tej — [shooting](handoffs/SHOOTING.md) | Useful ball motion toward a target, known approach/entry conditions, strike and exit behavior. Start with existing locomotion. |
 | Ryan — [perception](handoffs/PERCEPTION.md) | iPhone ingestion, field coordinates, persistent robot identities/headings, ball position/velocity, goals, shooting geometry and observation age/validity. |
 | Shrish + lead agent — gameplay/integration | Offense/defense selection, approach execution, command ownership, interruption, recovery coordination, startup, operator view and whole-game validation. |
 | Shrish — arena | Camera mounting, boundaries/goals, markers, ball, surface and bumper arrangement for repeatable trials. Coordinate dimensions and markers with Ryan. |
 
-The movement/get-up split is proposed ownership within the confirmed recovery requirement. Technical boundaries may change jointly without dropping an outcome or leaving it unowned.
+These are the team's current areas, not fixed roles for incoming agents. Get-up is a separate P0 work item with physical-motion ownership still open. Shrish and the lead own its gameplay integration. The first playable prototype can advance while recovery is open; it must not be described as having solved recovery. Technical boundaries may change jointly without dropping an outcome.
 
 ## Game behavior and proposed rules
 
@@ -24,16 +24,16 @@ A missed shot, moving ball or blocked route causes reassessment rather than stal
 
 - Fixed opposing goals and robot identities. Both robots can attack and defend. Shared observations need not expose each robot's intended action to its opponent.
 - Define goal-mouth crossing using measured goal geometry and ball radius; count each goal once.
-- After a goal, cancel the old play, reach valid restart positions and wait while a person replaces the ball. Resume without restarting software or homing. The resume signal and human-clear determination remain open.
+- After a goal, cancel the old play, reach valid restart positions and wait while a person replaces the ball. Resume without restarting software or homing. One deliberate resume signal after the field is clear is accepted for the first version; the precise interaction can be chosen downstream.
 - Replan for stationary and boundary-adjacent balls. Decide how to handle out-of-bounds or physically trapped balls; routine human resets beyond goals are not agreed.
 - Avoid deliberate robot collisions. Boundary and opponent clearance must accommodate measured braking and recovery space.
 - Tracking loss, controller faults and physical obstruction are explicit states. Exceptional human interventions count against reported autonomy.
 
-## Autonomous recovery is required new motion work
+## Autonomous get-up is separate P0 work
 
 Required chain: detect a fall, cancel the old action, acquire exclusive recovery control, physically self-right, verify stable standing and localization, then select a fresh play. Ordinary stand, controller reactivation or clearing a tilt latch does not satisfy it. Stop must interrupt recovery; reconnect must not replay old attacks. Distinguish a recoverable fall from operator Stop, stale sensors, low power and hardware faults.
 
-Start this work alongside the first gameplay prototype. Catalogue expected postures on the arena surface with the bumper, including both sides and any reachable back/belly configurations. Compare suitable motion sequences or learned policies in simulation, then supervised physical trials. Record successes, duration, retries and failure postures. Unsolved expected falls keep base acceptance open; do not redefine them away after failure. Entrapment or damaged hardware may require exceptional assistance. Unbounded get-up retries do not establish recovery.
+The user has separated this priority from the immediate environment and baseline work. Assign a physical-motion owner when it is taken up. Catalogue expected postures on the arena surface with the bumper, including both sides and any reachable back/belly configurations. Compare suitable motion sequences or learned policies in simulation, then supervised physical trials. Record successes, duration, retries and failure postures. Unsolved expected falls keep the recovery deliverable open; do not redefine them away after failure. Entrapment or damaged hardware may require exceptional assistance. Unbounded retries do not establish recovery.
 
 ## Minimum integration agreement
 
@@ -51,7 +51,7 @@ Perception supplies state and candidate shooting geometry. Gameplay chooses and 
 
 Target: power on, the selected software prepares automatically and reports ready or a concrete missing dependency; one deliberate start/arm action begins play. No routine SSH recipes or repeated service setup. Goals and ordinary skill changes keep the session alive.
 
-Automatic software preparation and physical initialization have different effects. Existing `start-native` may home and assumes supervised placement. Determine whether startup requires a supported pose or a new method enables floor boot; do not blindly enable current homing at power-on. Missing camera, credentials, models, network or controller must produce actionable status. Pin the runnable release, retain rollback and avoid automatic updates from changing branches. Mac/iPhone readiness matters too; Pi power alone does not establish the overhead feed.
+Automatic software preparation and physical initialization have different effects. Supported startup followed by one deliberate start action is accepted for the first version. Existing `start-native` may home and assumes supervised placement; automated orchestration still needs implementation and verification. Missing camera, credentials, models, network or controller must produce actionable status. Pin the runnable release, retain rollback and avoid automatic updates from changing branches. Mac/iPhone readiness matters too; Pi power alone does not establish the overhead feed.
 
 Preserve the teammate's Lab 6 setup until handover. Shrish's go is required before Pi deployment/verification. No boot service or runtime is changed by this planning checkpoint.
 
@@ -72,4 +72,4 @@ Simulation of game decisions does not establish physical contact or sim-to-real 
 
 The local source audit found tilt stopping and supervised restart, not self-righting: [recovery logic](../gemini_pupper/robot/robot_api.py), [upright-injected tests](../gemini_pupper/tests/test_fall_recovery.py). The inspected [native velocity path](../pupper_gait_deploy/src/neural_controller.cpp) retains the last Twist without receipt-age checking; verify and implement controller-local expiration. [Session helpers](../foundation/hardware/persistent_session.py) and the [velocity mux](../pupperv3-monorepo/ros2_ws/src/cmd_vel_mux/src/cmd_vel_mux_node.cpp) are reusable but do not establish FC boot-to-ready or gameplay.
 
-Settle before physical acceptance: surface/ball/bumper/goal dimensions; mount and whole-field coverage; boot placement and start/resume signal; out-of-bounds/trapped-ball rules; expected recovery postures and clearance; match duration/success thresholds; second robot access and identity. Implementation can progress with explicit reversible assumptions. The adversarial review identified recovery, limited arena braking space, late robot-two access, occlusion, and boot/restart behavior as the principal risks; the plan includes evidence for each.
+Settle when the relevant work begins: surface/ball/bumper/goal dimensions; mount and whole-field coverage; out-of-bounds/trapped-ball rules; recovery ownership/postures/clearance; match duration/success thresholds; second robot access and identity. Supported startup and one start/resume action are agreed. Implementation can progress with explicit reversible assumptions. The adversarial review identified recovery, limited arena braking space, late robot-two access, occlusion, and boot/restart behavior as the principal risks; the plan includes evidence for each.

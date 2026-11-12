@@ -4,7 +4,7 @@ November 12, 2026 · [Pupper FC brief](../README.md)
 
 **Outcome:** Repeatable directional shots on a bright ground ball from stationary and moving starts. Two autonomous Puppers play on a roughly 8×12 ft field; overhead perception supplies robot/ball/goal geometry. Coordinate with Marcus on movement, Ryan on perception, and Shrish plus the lead on gameplay.
 
-This is a planning handoff. Implementation follows the final plan discussion; current work is local documentation while a teammate uses the robot for Lab 6.
+These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
 ## Immediate working baseline
 
@@ -17,7 +17,7 @@ Start from [simulation/training](../../pupper-mjlab/README.md), [native deployme
 - A runnable shot with documented starting conditions, inputs, contact behavior and exit to locomotion; compare specialized candidates against the existing-gait baseline.
 - Stationary and moving-entry results. When adding ball-contact simulation, report assumptions and transfer limitations separately from physical shooting results.
 - Measured contact success, ball direction/distance, misses, falls, and robot stability after contact. Show align → contact → regain controlled motion → resume, including interrupted and failed attempts.
-- Preconditions and interruption behavior gameplay can use. Coordinate falls with movement's physical get-up and gameplay's detection/preemption/recovery; autonomous fall recovery remains a base requirement.
+- Preconditions and interruption behavior gameplay can use. Coordinate falls with gameplay's detection/preemption and the separate P0 get-up work; physical-motion ownership remains open.
 
 Foot kicking and a dedicated goalie posture are stretch work.
 
