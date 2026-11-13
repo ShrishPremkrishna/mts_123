@@ -3,8 +3,8 @@
   "objective": "Develop Pupper FC through working prototypes. Current task: make local development and incoming-agent context reliable; the user current request determines the next contribution.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "pupper_fc_local_development_ready",
-  "updated_utc": "2026-11-12T23:10:39.844419+00:00",
+  "mode": "pupper_fc_development_ready",
+  "updated_utc": "2026-11-13T03:48:49.702257+00:00",
   "current_report": "foundation/results/harness-sprint-20261103.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -37,7 +37,7 @@
       "commands": "README.md#choose-the-check-for-the-task"
     }
   },
-  "authorization": "November 12: local context, development-environment verification and fixes authorized. A teammate is using the repo and physical robot for Lab 6. This block remains local: do not push, contact/deploy to the Pi, change its services or command motors until Shrish gives the go and ownership is established. Authenticated Claude Code and focused subagents are authorized.",
+  "authorization": "November 12: user authorized publishing all completed local Pupper FC/context work to GitHub shared main. Pi access/deployment/service changes and motor commands remain on hold until Shrish gives the go and teammate ownership is coordinated. Authenticated Claude Code, focused subagents and local development are authorized.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
@@ -53,7 +53,7 @@
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Local context/environment checkpoint ready. Guidance now covers material-progress upkeep, dated authoritative facts, reproducible setup and Git collaboration without prescribing implementation methods. Follow the current user task; optional notes do not assign an agent role."
+    "goal_status": "Pupper FC context and local development checkpoint ready for shared main. Follow the current user task; workstream notes remain optional. Supported startup and one start/resume signal are agreed; physical get-up is separate P0 with its owner open."
   },
   "hardware_session": {
     "status": "Last owned physical evidence is R5 on November 3; R6 staged November 4. User reports November 12 teammate currently using robot for Lab 6. Current processes and loaded release not inspected; no Pi contact in this block.",
@@ -193,7 +193,6 @@
     "brief": "final_project/README.md",
     "plan": "final_project/PLAN.md",
     "requirements_date": "2026-11-12",
-    "local_branch": "codex/pupper-fc-plan",
     "implementation_status": "Documentation only in final_project. Local development and agent orientation verified; no soccer runtime, boot service or self-righting implemented.",
     "review": "Independent context audit plus authenticated Claude Code Fable 5.1 and explicit claude-fable-5-2 final review completed. Adopted upkeep/Git guidance and deduplication, clarified machine-specific paths and human ownership; retained existing authorization rather than adding fresh-approval requirements. Links and AGENTS/CLAUDE imports verified. No runtime or robot changes.",
     "open_risks": [
