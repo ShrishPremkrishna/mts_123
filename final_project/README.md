@@ -14,7 +14,9 @@ The [plan](PLAN.md) records outcomes, proposals, integration responsibilities an
 
 ## Implementation and access
 
-This directory currently contains documentation, not a working soccer runtime or get-up implementation. Reusable components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
+The [offline approach-and-shot prototype](pupper_fc/README.md) now runs a Python gameplay controller in an interactive 2D sandbox. It supports approach/alignment/strike, goal return and restart, tracking disturbances, Stop and recorded replay. Run `.venv-api/bin/python -m final_project.pupper_fc` from the repository root. The observation, velocity-command and strike boundaries are documented for teammate integration. This is not a real soccer runtime or get-up implementation; simulated contact and motion do not establish physical performance.
+
+Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
 
 From the repository root, run `python3 foundation/scripts/session_status.py` for dated task, branch and access state in [the session checkpoint](../foundation/results/interruption-recovery.json). Verify current ownership and authorization before hardware work.
 

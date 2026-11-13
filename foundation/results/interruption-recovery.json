@@ -1,11 +1,11 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Develop Pupper FC through working prototypes. Current task: make local development and incoming-agent context reliable; the user current request determines the next contribution.",
+  "objective": "Develop Pupper FC through working prototypes. Offline approach-and-shot prototype built and verified; the current user request determines the next contribution.",
   "worktree": "/Users/shrish/workspace/cs123",
-  "branch": "main",
-  "mode": "pupper_fc_development_ready",
-  "updated_utc": "2026-11-13T03:48:49.702257+00:00",
-  "current_report": "foundation/results/harness-sprint-20261103.json",
+  "branch": "codex/fc-offline-prototype",
+  "mode": "pupper_fc_offline_prototype_ready",
+  "updated_utc": "2026-11-13T06:55:13.119485+00:00",
+  "current_report": "final_project/pupper_fc/validation.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
     "sha256": "4e605f7f51c44980519786833970e831fef5475b61c1eb521f41288f18e7c7b6",
@@ -13,7 +13,8 @@
   },
   "evidence": {
     "current_sprint": "foundation/results/harness-sprint-20261103.json",
-    "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json"
+    "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json",
+    "offline_gameplay": "final_project/pupper_fc/validation.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -37,14 +38,14 @@
       "commands": "README.md#choose-the-check-for-the-task"
     }
   },
-  "authorization": "November 12: user authorized publishing all completed local Pupper FC/context work to GitHub shared main. Pi access/deployment/service changes and motor commands remain on hold until Shrish gives the go and teammate ownership is coordinated. Authenticated Claude Code, focused subagents and local development are authorized.",
+  "authorization": "November 12: user authorized building an interactive offline approach-and-shot prototype using Claude Code and subagents. Earlier completed context work was published to main. Current prototype is local on codex/fc-offline-prototype. Pi access/deployment/service changes and motor commands remain on hold until Shrish gives the go and teammate ownership is coordinated.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "Local context edits and bounded offline environment checks completed. Docker Desktop started locally; cached ROS image readiness verified in a network-disabled, read-only, device-free container which exited. No Pi contact, gameplay runtime, training or provider experiment.",
+    "compute": "Offline controller, simulator and browser viewer completed with focused agents and authenticated Claude Code; all owned implementation/review jobs finished. Local loopback viewer at http://127.0.0.1:8765 remains running (restart command in final_project/pupper_fc/README.md). No Pi, cloud experiment or training used.",
     "owners": {
       "physical_robot": "User reported November 12: teammate using robot for Lab 6; live services/release not inspected.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -53,7 +54,7 @@
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Pupper FC context and local development checkpoint ready for shared main. Follow the current user task; workstream notes remain optional. Supported startup and one start/resume signal are agreed; physical get-up is separate P0 with its owner open."
+    "goal_status": "Offline approach, alignment, bounded strike, braking/replanning, goal return and one-signal ball replacement work in the sandbox. Observation/command interfaces documented for teammates. Physical transport, recovery, defense, opponents and wall extraction remain open."
   },
   "hardware_session": {
     "status": "Last owned physical evidence is R5 on November 3; R6 staged November 4. User reports November 12 teammate currently using robot for Lab 6. Current processes and loaded release not inspected; no Pi contact in this block.",
@@ -159,7 +160,7 @@
   "next": [
     {
       "id": "current_user_task",
-      "action": "Use final_project/README.md and relevant source to choose the next useful contribution with the current user. Team roles and handoff notes provide context, not an automatic task assignment. Local focused checks are documented in the root README."
+      "action": "Try the interactive prototype via final_project/pupper_fc/README.md. Next integration can replace observations with Ryan's field state, apply Marcus's measured limits, and replace the strike phase with Tej's behavior once its entry/cancel/exit conditions are known. Choose the next task with the user; current results are simulation only."
     },
     {
       "id": "separate_p0_getup",
@@ -181,7 +182,7 @@
   ],
   "legacy_worktree": "/Users/shrish/workspace/cs123-foundation",
   "context_review_date": "2026-11-12 America/Los_Angeles",
-  "current_report_scope": "The November 3 sprint report contains the last recorded owned hardware session. It is a dated evidence reference; this context update performed no live robot inspection.",
+  "current_report_scope": "Local 2D gameplay sandbox only; 143 tests plus 48 subtests, 16 score-and-return trials and two explicit near-wall blocked trials. No robot contact or physical validation.",
   "recorded_open_items": {
     "as_of": "2026-11-04",
     "lab6": "Q7 unfinished; Q12 interrupted and awaiting rerecord; Q16 reported captured; Q19 awaiting newcomer. Shrish owned footage, fourth teammate owned written submission. See foundation/submission/lab6/README.md. Completion since that checkpoint is unknown.",
@@ -193,8 +194,8 @@
     "brief": "final_project/README.md",
     "plan": "final_project/PLAN.md",
     "requirements_date": "2026-11-12",
-    "implementation_status": "Documentation only in final_project. Local development and agent orientation verified; no soccer runtime, boot service or self-righting implemented.",
-    "review": "Independent context audit plus authenticated Claude Code Fable 5.1 and explicit claude-fable-5-2 final review completed. Adopted upkeep/Git guidance and deduplication, clarified machine-specific paths and human ownership; retained existing authorization rather than adding fresh-approval requirements. Links and AGENTS/CLAUDE imports verified. No runtime or robot changes.",
+    "implementation_status": "Interactive offline gameplay prototype in final_project/pupper_fc. Controller consumes timestamped observations, produces expiring body-velocity commands, and is exercised by the browser and headless trials. Kinematic/contact assumptions are unvalidated on hardware; no boot service or self-righting implemented.",
+    "review": "Controller implementation/fixes delegated to authenticated Claude Code; focused simulator/viewer work and independent adversarial review completed. Four review findings and delayed-goal restart handling corrected. Source identities and bounded trial results saved in final_project/pupper_fc/validation.json.",
     "open_risks": [
       "Physical self-righting remains missing and is separate P0 work; ordinary stand tests assume an upright robot.",
       "Native controller needs command-expiry protection beyond an upstream mux timeout.",

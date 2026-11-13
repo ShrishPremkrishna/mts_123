@@ -57,6 +57,8 @@ Preserve the teammate's Lab 6 setup until handover. Shrish's go is required befo
 
 ## Working prototype ladder and evidence
 
+The first [offline approach-and-shot sandbox](pupper_fc/README.md) implements one-robot approach/alignment/strike and simulated goal restart, with interactive disturbances and replay. It establishes an executable gameplay baseline for integration; the physical and two-robot outcomes below remain open.
+
 These are integration outcomes, not a serial allocation of teammate time. Every increment leaves a demonstrable baseline.
 
 1. **See the field.** Live overlay and recorded replay show identities/headings, ball, goals and observation age. Check known positions, motion, occlusion and reacquisition.
