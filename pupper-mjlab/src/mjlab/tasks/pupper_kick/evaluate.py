@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 TASK = "Mjlab-HeaderKick-Flat-Pupper-v3"
-_REASONS = ("kick_done", "fell_over", "missed_ball", "time_out")
+_REASONS = ("kick_done", "foul", "fell_over", "body_ground", "missed_ball", "time_out")
 _DIST_BINS = ((0.45, 0.8), (0.8, 1.2), (1.2, 1.51))
 
 
@@ -62,9 +62,32 @@ def _summary(records: list[dict]) -> dict:
   return out
 
 
+def _json_policy(path: Path):
+  """The exported deploy JSON as a policy: same frame order and dense stack as the
+  robot (the command clip is applied by the env's command term, as on the robot)."""
+  from mjlab.tasks.pupper.export import json_forward, to_robot_order
+
+  spec = json.loads(Path(path).read_text())
+  history, frame = int(spec["observation_history"]), int(spec["single_observation_size"])
+
+  def policy(obs):
+    actor = obs["actor"] if not isinstance(obs, torch.Tensor) else obs
+    action = json_forward(spec, to_robot_order(actor, history, frame))
+    return torch.as_tensor(action, dtype=torch.float32)
+
+  return policy
+
+
 def main() -> None:
   ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-  ap.add_argument("--checkpoint", required=True, type=Path)
+  src = ap.add_mutually_exclusive_group(required=True)
+  src.add_argument("--checkpoint", type=Path, help="training checkpoint (PyTorch actor)")
+  src.add_argument(
+    "--policy-json",
+    type=Path,
+    help="exported deploy JSON, run as neural_controller runs it (newest-first "
+    "frames through the RTNeural dense stack)",
+  )
   ap.add_argument("--episodes", type=int, default=512, help="one episode per env")
   ap.add_argument("--level", type=float, default=1.0, help="curriculum level 0..1")
   ap.add_argument("--perception", choices=("full", "perfect"), default="full")
@@ -107,10 +130,14 @@ def main() -> None:
       cfg=cfg, device="cpu", render_mode="rgb_array" if args.video else None
     )
     wrapped = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-    runner_cls = load_runner_cls(TASK) or MjlabOnPolicyRunner
-    runner = runner_cls(wrapped, asdict(agent_cfg), device="cpu")
-    runner.load(str(args.checkpoint), load_cfg={"actor": True}, strict=True, map_location="cpu")
-  policy = runner.get_inference_policy(device="cpu")
+    if args.checkpoint is not None:
+      runner_cls = load_runner_cls(TASK) or MjlabOnPolicyRunner
+      runner = runner_cls(wrapped, asdict(agent_cfg), device="cpu")
+      runner.load(str(args.checkpoint), load_cfg={"actor": True}, strict=True, map_location="cpu")
+  if args.checkpoint is not None:
+    policy = runner.get_inference_policy(device="cpu")
+  else:
+    policy = _json_policy(args.policy_json)
 
   cmd = env.command_manager.get_term("kick")
   done_once = torch.zeros(env.num_envs, dtype=torch.bool)
@@ -157,7 +184,7 @@ def main() -> None:
 
   summary = _summary(records)
   summary.update(
-    checkpoint=str(args.checkpoint), level=args.level, perception=args.perception, seed=args.seed
+    checkpoint=str(args.checkpoint or args.policy_json), level=args.level, perception=args.perception, seed=args.seed
   )
   print(json.dumps(summary, indent=2))
   if args.json:
