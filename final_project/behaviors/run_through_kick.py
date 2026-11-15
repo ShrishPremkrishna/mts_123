@@ -27,6 +27,11 @@ States:
 
 Stale-track rule (team AGENTS.md): while aligning, an observation older than
 ``max_obs_age`` gives zero travel; ``lost_timeout`` without one aborts.
+
+Manual mode (``start(now, static_ball=...)``) is for trials before perception:
+the operator measures the ball position once and the controller dead-reckons
+it from its own commands. Dead reckoning drifts, so keep manual kicks short.
+Overhead tracking gives field coordinates; ``field_to_robot`` converts them.
 """
 
 from __future__ import annotations
@@ -95,8 +100,13 @@ class KickParams:
   brake_time: float = 0.6
   max_obs_age: float = 0.5  # s
   lost_timeout: float = 1.5  # s without a fresh ball while aligning
-  align_timeout: float = 20.0
+  align_timeout: float = 10.0
   charge_timeout: float = 4.0
+  # Commanded-travel budgets [m] (speed x efficiency, integrated). They bound a
+  # runaway when the ball estimate is wrong but looks fresh (clock offset,
+  # re-stamped old detections): CHARGE+COAST may travel run_up + overrun + margin.
+  align_travel_max: float = 2.5
+  charge_travel_margin: float = 0.3
 
 
 def wrap(angle: float) -> float:
@@ -105,6 +115,19 @@ def wrap(angle: float) -> float:
 
 def clip(value: float, limit: float) -> float:
   return max(-limit, min(limit, value))
+
+
+def finite(*values: float) -> bool:
+  return all(math.isfinite(v) for v in values)
+
+
+def field_to_robot(
+  robot_x: float, robot_y: float, robot_yaw: float, x: float, y: float
+) -> tuple[float, float]:
+  """A field-frame point in the robot's yaw-only frame (x forward, y left)."""
+  dx, dy = x - robot_x, y - robot_y
+  c, s = math.cos(robot_yaw), math.sin(robot_yaw)
+  return c * dx + s * dy, -s * dx + c * dy
 
 
 def aim_from_goal(ball_x: float, ball_y: float, goal_x: float, goal_y: float) -> float:
@@ -135,14 +158,33 @@ class RunThroughKick:
     self._history: deque[tuple[float, Command]] = deque(maxlen=200)
     self._ball = None  # type: tuple[float, float] | None  # best estimate, robot frame
     self._aim = 0.0
+    self._manual = False
+    self._aim0 = None  # type: float | None  # manual aim at start, robot frame
+    self._yaw_dr = 0.0  # dead-reckoned yaw since start (manual aim hold)
+    self._travel = 0.0  # commanded travel in the current phase [m]
 
   # ------------------------------------------------------------------ control
 
-  def start(self, now: float) -> None:
+  def start(
+    self,
+    now: float,
+    static_ball: tuple[float, float] | None = None,
+    static_aim: float | None = None,
+  ) -> None:
+    """Begin a kick. ``static_ball`` (robot frame, m) selects manual mode; then
+    ``static_aim`` (robot frame at start, rad) or None for straight through."""
     self._enter(State.ALIGN, now)
+    self.reason = ""
     self._t_fresh = now
+    self._t_last = None
     self._vx = 0.0
-    self._ball = None
+    self._last = ZERO
+    self._history.clear()
+    self._manual = static_ball is not None
+    self._ball = (float(static_ball[0]), float(static_ball[1])) if self._manual else None
+    self._aim0 = None if static_aim is None else wrap(static_aim)
+    self._yaw_dr = 0.0
+    self._travel = 0.0
 
   def stop(self, now: float, reason: str = "stopped") -> Command:
     self._abort(now, reason)
@@ -159,9 +201,19 @@ class RunThroughKick:
     self._dead_reckon(dt)
 
     p = self.params
-    fresh = ball is not None and now - ball.stamp <= p.max_obs_age
-    if fresh:
+    if ball is not None and not finite(ball.x, ball.y, ball.stamp):
+      ball = None
+    if aim is not None and not math.isfinite(aim):
+      aim = None
+    if self._manual:  # the dead-reckoned estimate stands in for perception
+      fresh, ball, aim = True, None, None
+      if self._aim0 is not None:
+        aim = self._aim0 - self._yaw_dr
+    else:
+      fresh = ball is not None and now - ball.stamp <= p.max_obs_age
+    if fresh and ball is not None:
       self._ball = self._compensate(ball, now)
+    if fresh:
       self._t_fresh = now
     if aim is not None:
       self._aim = wrap(aim)
@@ -181,6 +233,8 @@ class RunThroughKick:
     else:
       cmd = ZERO
 
+    if not finite(cmd.vx, cmd.vy, cmd.wz):
+      cmd = self._abort_cmd(now, "non-finite command")
     self._last = cmd
     self._history.append((now, cmd))
     return cmd
@@ -191,6 +245,8 @@ class RunThroughKick:
     p = self.params
     if now - self._t_state > p.align_timeout:
       return self._abort_cmd(now, "align timeout")
+    if self._travel > p.align_travel_max:
+      return self._abort_cmd(now, "align travel budget used (is the ball estimate fresh?)")
     if not fresh:
       if now - self._t_fresh > p.lost_timeout:
         return self._abort_cmd(now, "ball lost while aligning")
@@ -225,6 +281,8 @@ class RunThroughKick:
     p = self.params
     if now - self._t_state > p.charge_timeout:
       return self._abort_cmd(now, "charge timeout")
+    if self._travel > self._charge_budget():
+      return self._abort_cmd(now, "charge travel budget used (is the ball estimate fresh?)")
     bx, by = self._ball
     if math.hypot(bx, by) < p.blind_range or bx < p.contact_x + 0.05:
       self._enter(State.COAST, now)
@@ -240,6 +298,8 @@ class RunThroughKick:
     p = self.params
     if now - self._t_state > p.charge_timeout:
       return self._abort_cmd(now, "coast timeout")
+    if self._travel > self._charge_budget():
+      return self._abort_cmd(now, "coast travel budget used")
     if self._ball[0] < p.contact_x - p.overrun:
       self._enter(State.BRAKE, now)
       return ZERO
@@ -248,7 +308,13 @@ class RunThroughKick:
 
   # ------------------------------------------------------------------ helpers
 
+  def _charge_budget(self) -> float:
+    p = self.params
+    return p.run_up + p.overrun + p.charge_travel_margin
+
   def _enter(self, state: State, now: float) -> None:
+    if not (self.state == State.CHARGE and state == State.COAST):
+      self._travel = 0.0  # CHARGE and COAST share one budget
     self.state = state
     self._t_state = now
 
@@ -275,7 +341,12 @@ class RunThroughKick:
     return self._move(x, y, active, now - prev_t)
 
   def _dead_reckon(self, dt: float) -> None:
-    if self._ball is not None and dt > 0.0:
+    if dt <= 0.0:
+      return
+    e = self.params.speed_efficiency
+    self._yaw_dr += self._last.wz * e * dt
+    self._travel += math.hypot(self._last.vx, self._last.vy) * e * dt
+    if self._ball is not None:
       self._ball = self._move(*self._ball, self._last, dt)
 
   def _move(self, x: float, y: float, cmd: Command, dt: float) -> tuple[float, float]:

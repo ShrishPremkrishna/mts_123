@@ -21,6 +21,7 @@ from run_through_kick import (
   RunThroughKick,
   State,
   aim_from_goal,
+  field_to_robot,
   wrap,
 )
 
@@ -188,3 +189,36 @@ def test_latency_compensation_moves_the_estimate_to_now():
   ctrl.step(0.2, BallObs(2.0, 0.0, 0.0))  # same frame, 0.2 s old
   # The robot moved first.vx * 0.2 toward the ball since the capture.
   assert ctrl._ball[0] == pytest.approx(2.0 - first.vx * 0.2, abs=1e-9)
+
+
+def run_manual(world, ctrl, ball, aim=None, max_time=15.0):
+  """Manual mode: one measured ball position, no camera."""
+  ctrl.start(world.t, static_ball=ball, static_aim=aim)
+  while ctrl.active and world.t < max_time:
+    world.advance(ctrl.step(world.t, None), ctrl.state == State.ALIGN)
+  return world
+
+
+@pytest.mark.parametrize("efficiency", [0.8, 0.7])
+def test_manual_mode_kicks_without_a_camera(efficiency):
+  # The controller assumes 80%; at 70% the 0.25 m overrun must still carry it through.
+  ctrl = RunThroughKick()
+  w = run_manual(World(ball=(1.0, 0.0), efficiency=efficiency), ctrl, (1.0, 0.0))
+  assert ctrl.state == State.DONE, ctrl.reason
+  assert w.contact is not None
+  assert w.contact["speed"] > 0.5 and abs(w.contact["lateral"]) < 0.04
+
+
+def test_manual_mode_holds_the_aim_in_the_world():
+  ctrl = RunThroughKick()
+  # Ball ahead and left; kick it straight along the robot's start heading (+x).
+  w = run_manual(World(ball=(1.0, 0.3)), ctrl, (1.0, 0.3), aim=0.0)
+  assert w.contact is not None, ctrl.reason
+  assert abs(wrap(w.contact["yaw"])) < math.radians(6.0)
+  assert abs(w.contact["lateral"]) < 0.05
+
+
+def test_field_to_robot():
+  # Robot at (1, 2) facing +y (90 deg): a point 1 m further along +y is dead ahead.
+  assert field_to_robot(1.0, 2.0, math.pi / 2, 1.0, 3.0) == pytest.approx((1.0, 0.0))
+  assert field_to_robot(1.0, 2.0, math.pi / 2, 0.0, 2.0) == pytest.approx((0.0, 1.0))
