@@ -1,0 +1,109 @@
+{
+  "source": "/home/pi/kick on mts",
+  "recovered_utc": "2026-11-16",
+  "archive_sha256": "1e067b43a97c933f0fae2c3aa4752a15efe1adcf32281ed05ac7b219101df8f0",
+  "archive_local": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/pi-reconciliation/pupper-kick-recovery-20261116.tar.gz",
+  "status": "Recovered experimental source; not activated by reconciliation. README and ROBOT_RUNBOOK receive dated notices; original bytes remain in archive. Code/policy/manifest imported byte-identically.",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "cfc18391768c8fc221b8da27e47703ebeb2e2ec2bff1d53216188c37d3f3a831",
+      "bytes": 4982
+    },
+    {
+      "path": "ROBOT_RUNBOOK.md",
+      "sha256": "da4c1304cc0b4e005b22bfdd89e35e48895896c56598646b692c778eea58601b",
+      "bytes": 11175
+    },
+    {
+      "path": "_fake_ros.py",
+      "sha256": "b15500c3f9d8570602ae6e21c10408d171a386abdbf29cf064b50e43f4eb45dd",
+      "bytes": 7326
+    },
+    {
+      "path": "ball_color.py",
+      "sha256": "55bec52152b897f47d0440b334be6dc3c3d4407685831f1e03407e5d7e503c07",
+      "bytes": 2668
+    },
+    {
+      "path": "ball_detector_node.py",
+      "sha256": "d8249650ea111f7d4ab204eb63b267dc76099874e2aae4f08d61126ebfea6a27",
+      "bytes": 11545
+    },
+    {
+      "path": "ball_geometry.py",
+      "sha256": "9af637fece9489e81bb1b2d4fe0d96d98b2e5deed68bd5d58a7948c7d55a41f8",
+      "bytes": 4316
+    },
+    {
+      "path": "launch/kick_trial.launch.py",
+      "sha256": "e22e8f973672c0e15d97d6fa15a6075bad5864682d309349e36153b737316cdc",
+      "bytes": 3901
+    },
+    {
+      "path": "learned_kick.py",
+      "sha256": "918b428b0761aa800af821efeb2b3966e7841735339808fc080e3c99b2f6462e",
+      "bytes": 8057
+    },
+    {
+      "path": "learned_kick_node.py",
+      "sha256": "fcdfcc64a8c4aa31fe26a90a06becd4e81d99cd94f33b00d04d8fed12c3e896d",
+      "bytes": 20527
+    },
+    {
+      "path": "policies/header_kick_cpu_run2.json",
+      "sha256": "84928297311e51566148d5be0d3941892f070a9f6f0560af7674a6a32b69a860",
+      "bytes": 5497727
+    },
+    {
+      "path": "policies/header_kick_cpu_run2.manifest.json",
+      "sha256": "9f7256d24d357d72fd72cc308a69081a6a2affa1184b4a4c3a8c57ba48a5acec",
+      "bytes": 1813
+    },
+    {
+      "path": "run_through_kick.py",
+      "sha256": "ec1999c8942ef3b1ac89a5bdc037ca297ecb31a7f0297f255c4efd2a7f4efeb3",
+      "bytes": 13910
+    },
+    {
+      "path": "run_through_kick_node.py",
+      "sha256": "4bf1a566c8ee93ff1b18675080ffd49b00aba33f7a6714211a92f0496b0700f6",
+      "bytes": 14003
+    },
+    {
+      "path": "test_kick_nodes_offline.py",
+      "sha256": "1575fa50d2e012f67aa116d6a31f1ba3a4508e80b09e317c9dcde3f7f9d5edfb",
+      "bytes": 13788
+    },
+    {
+      "path": "test_run_through_kick.py",
+      "sha256": "28b46fddf400c6b40494976710276dfd8c509579bae9564162560af2a9c883f7",
+      "bytes": 8508
+    },
+    {
+      "path": "tools/ball_stats.py",
+      "sha256": "cf35a3b374dfb3e94f19574b13231a99ac98063a3efe36be2f0e80540410bbd2",
+      "bytes": 1358
+    },
+    {
+      "path": "tools/install_learned_policy.sh",
+      "sha256": "b53268ed4cbee825ce9aaba19a153843725d2741d4070c6dd8a612586c5317e3",
+      "bytes": 1784
+    },
+    {
+      "path": "tools/make_course_config.py",
+      "sha256": "37b149c159e4119d1170b0ca1a50ea00fd6ee6c003dfbc1606fff4ca5998fa33",
+      "bytes": 3592
+    },
+    {
+      "path": "tools/replay_ball.py",
+      "sha256": "7b5548363bd8f79cddef58508c01dfbaecfcd53654bdd0af0ed8440a1f3e25b0",
+      "bytes": 1617
+    },
+    {
+      "path": "trial_log.csv",
+      "sha256": "5b9e777ff800ac59a6624cdfa51f0a08c27ca63436d84aa109688ef4a25ced39",
+      "bytes": 197
+    }
+  ]
+}

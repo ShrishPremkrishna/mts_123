@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""ROS 2 service around ``run_through_kick``: one run-through kick per activation.
+
+Same shape as follow_me_pupper/robot/follow_service.py:
+
+    services   activate_run_through_kick, deactivate_run_through_kick (std_srvs/Trigger)
+    publishes  /kick_cmd_vel geometry_msgs/Twist, 20 Hz while active, into
+                             cmd_vel_mux (the mux sends zero when this node goes
+                             quiet); one zero Twist when the kick ends
+               /cmd_vel      zero only, three times at shutdown (a killed mux
+                             sends nothing, and the walker keeps its last command)
+               /run_through_kick/state  std_msgs/String  JSON {state, reason}
+    stops on   /emergency_stop (std_msgs/Empty), a face button or R3 on /joy, a
+               latched e-stop gateway, or a second /cmd_vel publisher
+
+Activation refuses unless exactly one other node (the mux) publishes /cmd_vel
+(joystick teleop or a missing mux would make the kick unsafe) and the e-stop
+gateway is released. Ball messages with a 0 or future stamp, or non-finite
+values, are dropped. KickParams are re-read at each activation, so
+`ros2 param set` changes the next kick.
+
+Ball input, parameter ``input_mode``:
+    manual  no perception. Before each activation set the measured ball centre
+            relative to base_link (manual_ball_x/y [m], x forward, y left) and
+            optionally manual_aim_deg (NaN = straight through the ball):
+              ros2 param set /run_through_kick manual_ball_x 1.0
+    robot   /soccer/ball and /soccer/goal (geometry_msgs/PointStamped) in the
+            base_link yaw-only frame; header.stamp = image capture time
+    field   /soccer/ball and /soccer/goal in the field frame, plus the robot
+            pose /soccer/robot_pose (geometry_msgs/PoseStamped, field frame)
+
+Every KickParams field is also a ROS parameter (for example charge_speed).
+charge_speed above 0.49 m/s needs the walker's speed cap raised (see README).
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import signal
+import sys
+import threading
+import time
+from dataclasses import fields, replace
+
+import rclpy
+from geometry_msgs.msg import PointStamped, PoseStamped, Twist
+from sensor_msgs.msg import Joy
+from rclpy.executors import ExternalShutdownException
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+from rclpy.signals import SignalHandlerOptions
+from std_msgs.msg import Empty, String
+from std_srvs.srv import Trigger
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from run_through_kick import (  # noqa: E402
+  BallObs,
+  KickParams,
+  RunThroughKick,
+  State,
+  aim_from_goal,
+  field_to_robot,
+)
+
+INPUT_MODES = ("manual", "robot", "field")
+STOP_BUTTONS = (0, 1, 2, 3, 12)  # the four face buttons and R3 (e-stop) in the course config
+MANUAL_X = (0.9, 1.5)  # m: no reversing toward the operator, short dead reckoning
+MANUAL_Y = 0.5  # m
+
+
+def stamp_seconds(header) -> float:
+  return header.stamp.sec + header.stamp.nanosec * 1e-9
+
+
+def yaw_from_quaternion(q) -> float:
+  return math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
+
+class RunThroughKickNode(Node):
+  def __init__(self):
+    super().__init__("run_through_kick")
+    # False on older course stacks with no e-stop gateway (no /estop_controller/stop_status):
+    # then the gateway check is skipped and switches go to controller_manager directly.
+    self.declare_parameter("require_gateway", True)
+    self.declare_parameter("input_mode", "manual")
+    self.declare_parameter("cmd_vel_topic", "/kick_cmd_vel")
+    self.declare_parameter("robot_cmd_vel_topic", "/cmd_vel")  # what the walker reads
+    self.declare_parameter("ball_topic", "/soccer/ball")
+    self.declare_parameter("goal_topic", "/soccer/goal")
+    self.declare_parameter("robot_pose_topic", "/soccer/robot_pose")
+    self.declare_parameter("rate_hz", 20.0)  # cmd_vel_mux drops a source quiet for 0.5 s
+    self.declare_parameter("goal_max_age", 1.0)  # s; older goal -> kick straight
+    self.declare_parameter("manual_ball_x", float("nan"))
+    self.declare_parameter("manual_ball_y", 0.0)
+    self.declare_parameter("manual_aim_deg", float("nan"))
+    defaults = KickParams()
+    for f in fields(KickParams):
+      self.declare_parameter(f.name, float(getattr(defaults, f.name)))
+    params = replace(
+      defaults, **{f.name: float(self.get_parameter(f.name).value) for f in fields(KickParams)}
+    )
+    self.mode = str(self.get_parameter("input_mode").value)
+    if self.mode not in INPUT_MODES:
+      raise ValueError(f"input_mode must be one of {INPUT_MODES}")
+    rate = float(self.get_parameter("rate_hz").value)
+    if not 5.0 <= rate <= 100.0:
+      raise ValueError("rate_hz must be in [5, 100]")
+
+    self.lock = threading.Lock()
+    self.kick = RunThroughKick(params)
+    self.gateway_blocked = None  # None until /estop_controller/stop_status arrives
+    self.last_owner_check = 0.0
+    self.ball = None  # latest ball message: (x, y, stamp), frame per input_mode
+    self.goal = None  # (x, y, receive time)
+    self.pose = None  # (x, y, yaw, stamp), field mode only
+    self.last_state = None
+    self.cmd_pub = self.create_publisher(Twist, self.get_parameter("cmd_vel_topic").value, 10)
+    self.robot_topic = str(self.get_parameter("robot_cmd_vel_topic").value)
+    self.robot_pub = self.create_publisher(Twist, self.robot_topic, 10)  # shutdown zeros only
+    self.state_pub = self.create_publisher(String, "run_through_kick/state", 10)
+    if self.mode != "manual":
+      self.create_subscription(PointStamped, self.get_parameter("ball_topic").value, self.on_ball, 10)
+      self.create_subscription(PointStamped, self.get_parameter("goal_topic").value, self.on_goal, 10)
+    if self.mode == "field":
+      self.create_subscription(
+        PoseStamped, self.get_parameter("robot_pose_topic").value, self.on_pose, 10
+      )
+    self.create_subscription(Empty, "/emergency_stop", self.on_emergency, 10)
+    self.create_subscription(Joy, "/joy", self.on_joy, 10)
+    self.create_subscription(String, "/estop_controller/stop_status", self.on_stop_status, 10)
+    self.create_service(Trigger, "activate_run_through_kick", self.on_activate)
+    self.create_service(Trigger, "deactivate_run_through_kick", self.on_deactivate)
+    self.create_timer(1.0 / rate, self.on_tick)
+    self.get_logger().info(f"run_through_kick ready, input_mode={self.mode}: {params}")
+
+  def now(self) -> float:
+    return self.get_clock().now().nanoseconds * 1e-9
+
+  # ------------------------------------------------------------ inputs
+  def usable_stamp(self, header):
+    """Capture time, or None if it is 0 or more than 50 ms in the future (clock fault)."""
+    stamp = stamp_seconds(header)
+    return stamp if stamp > 0.0 and stamp <= self.now() + 0.05 else None
+
+  def on_ball(self, msg: PointStamped) -> None:
+    x, y, stamp = float(msg.point.x), float(msg.point.y), self.usable_stamp(msg.header)
+    if stamp is not None and math.isfinite(x) and math.isfinite(y):
+      with self.lock:
+        self.ball = (x, y, stamp)
+
+  def on_goal(self, msg: PointStamped) -> None:
+    x, y = float(msg.point.x), float(msg.point.y)
+    if math.isfinite(x) and math.isfinite(y):
+      with self.lock:
+        self.goal = (x, y, self.now())
+
+  def on_pose(self, msg: PoseStamped) -> None:
+    p, stamp = msg.pose.position, self.usable_stamp(msg.header)
+    yaw = yaw_from_quaternion(msg.pose.orientation)
+    if stamp is not None and all(math.isfinite(v) for v in (p.x, p.y, yaw)):
+      with self.lock:
+        self.pose = (float(p.x), float(p.y), yaw, stamp)
+
+  def robot_frame_inputs(self, now: float) -> tuple[BallObs | None, float | None]:
+    """Latest ball observation and aim, both in the robot's yaw-only frame."""
+    if self.ball is None:
+      return None, None
+    bx, by, stamp = self.ball
+    goal = self.goal
+    if goal is not None and now - goal[2] > float(self.get_parameter("goal_max_age").value):
+      goal = None
+    if self.mode == "field":
+      if self.pose is None:
+        return None, None
+      rx, ry, ryaw, pose_stamp = self.pose
+      bx, by = field_to_robot(rx, ry, ryaw, bx, by)
+      stamp = min(stamp, pose_stamp)  # as old as the older of the two
+      if goal is not None:
+        gx, gy = field_to_robot(rx, ry, ryaw, goal[0], goal[1])
+        goal = (gx, gy, goal[2])
+    aim = None if goal is None else aim_from_goal(bx, by, goal[0], goal[1])
+    return BallObs(bx, by, stamp), aim
+
+  def stop_kick(self, reason: str) -> None:
+    if self.kick.active:
+      self.kick.stop(self.now(), reason)
+      self.cmd_pub.publish(Twist())
+
+  def on_emergency(self, msg) -> None:
+    with self.lock:
+      self.stop_kick("emergency stop")
+
+  def on_joy(self, msg) -> None:
+    pressed = [i for i in STOP_BUTTONS if 0 <= i < len(msg.buttons) and msg.buttons[i]]
+    if pressed:
+      with self.lock:
+        self.stop_kick(f"joystick button {pressed[0]}")
+
+  def on_stop_status(self, msg) -> None:
+    try:
+      status = json.loads(msg.data)
+    except ValueError:
+      return
+    blocked = bool(status.get("latched")) or bool(status.get("fault"))
+    with self.lock:
+      self.gateway_blocked = blocked
+      if blocked:
+        self.stop_kick("e-stop gateway latched")
+
+  # ------------------------------------------------------------ services
+  def on_activate(self, request, response):
+    with self.lock:
+      if self.kick.active:
+        response.success, response.message = True, "already kicking"
+        return response
+      if bool(self.get_parameter("require_gateway").value) and self.gateway_blocked is not False:
+        response.success = False
+        response.message = ("e-stop gateway latched or faulted (press Options so the walker stands)"
+                            if self.gateway_blocked else "no /estop_controller/stop_status yet")
+        return response
+      others = self.count_publishers(self.robot_topic) - 1  # minus our shutdown publisher
+      if others != 1:
+        response.success = False
+        response.message = (f"{others} publisher(s) on {self.robot_topic} besides this node; need exactly "
+                            "the cmd_vel_mux (course stack with teleop:=False plus the kick_trial launch)")
+        return response
+      # Parameters set since the last kick (for example speed_efficiency) apply now.
+      self.kick.params = replace(
+        self.kick.params,
+        **{f.name: float(self.get_parameter(f.name).value) for f in fields(KickParams)},
+      )
+      if self.mode == "manual":
+        x = float(self.get_parameter("manual_ball_x").value)
+        y = float(self.get_parameter("manual_ball_y").value)
+        aim_deg = float(self.get_parameter("manual_aim_deg").value)
+        if not (math.isfinite(x) and math.isfinite(y)) or not (
+          MANUAL_X[0] <= x <= MANUAL_X[1] and abs(y) <= MANUAL_Y
+        ):
+          response.success = False
+          response.message = (f"set manual_ball_x ({MANUAL_X[0]} to {MANUAL_X[1]} m) and "
+                              f"manual_ball_y (|y| <= {MANUAL_Y} m) first")
+          return response
+        aim = None if math.isnan(aim_deg) else math.radians(aim_deg)
+        self.kick.start(self.now(), static_ball=(x, y), static_aim=aim)
+        # Consume the measurement: the next kick needs a new one.
+        self.set_parameters([
+          Parameter("manual_ball_x", value=float("nan")),
+          Parameter("manual_ball_y", value=0.0),
+          Parameter("manual_aim_deg", value=float("nan")),
+        ])
+      else:
+        self.kick.start(self.now())
+    response.success, response.message = True, f"run-through kick started ({self.mode})"
+    self.get_logger().warning(response.message)
+    return response
+
+  def on_deactivate(self, request, response):
+    with self.lock:
+      was_active = self.kick.active
+      self.kick.stop(self.now())
+    self.cmd_pub.publish(Twist())  # zero travel immediately
+    response.success = True
+    response.message = "stopped" if was_active else "was not kicking"
+    return response
+
+  # ------------------------------------------------------------ tick
+  def on_tick(self) -> None:
+    with self.lock:
+      now = self.now()
+      if self.kick.active and now - self.last_owner_check >= 1.0:
+        self.last_owner_check = now
+        if self.count_publishers(self.robot_topic) != 2:  # the mux and our shutdown publisher
+          self.stop_kick("another node publishes /cmd_vel")
+      if self.kick.active:
+        ball, aim = (None, None) if self.mode == "manual" else self.robot_frame_inputs(now)
+        cmd = self.kick.step(now, ball, aim)
+        twist = Twist()
+        twist.linear.x, twist.linear.y, twist.angular.z = cmd.vx, cmd.vy, cmd.wz
+        self.cmd_pub.publish(twist)  # a finished kick publishes its final zero here
+      self.publish_state()
+
+  def publish_state(self) -> None:
+    state = (self.kick.state.value, self.kick.reason)
+    if state == self.last_state:
+      return
+    self.last_state = state
+    msg = String()
+    msg.data = json.dumps({"state": state[0], "reason": state[1]})
+    self.state_pub.publish(msg)
+    if self.kick.state in (State.DONE, State.ABORTED):
+      self.get_logger().warning(f"kick {state[0]} {state[1]}".strip())
+
+
+def main():
+  rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+
+  def interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+  previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM)}
+  node = RunThroughKickNode()
+  try:
+    rclpy.spin(node)
+  except (KeyboardInterrupt, ExternalShutdownException):
+    pass
+  finally:
+    for s in (signal.SIGINT, signal.SIGTERM):
+      signal.signal(s, signal.SIG_IGN)  # a second Ctrl-C must not skip the zeros
+    for _ in range(3):
+      node.cmd_pub.publish(Twist())
+      node.robot_pub.publish(Twist())
+      time.sleep(0.05)
+    node.destroy_node()
+    rclpy.try_shutdown()
+    for signum, handler in previous.items():
+      signal.signal(signum, handler)
+
+
+if __name__ == "__main__":
+  main()

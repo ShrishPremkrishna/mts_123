@@ -14,6 +14,8 @@ The [plan](PLAN.md) records outcomes, proposals, integration responsibilities an
 
 ## Implementation and access
 
+November 16: [recovered Pi shooting/perception experiments](behaviors/README.md) now include a stock-gait run-through controller, ROS adapters, onboard ball detection, tests and an experimental learned-kick policy. [Reconciliation findings](PI_RECONCILIATION.md) distinguish real trial receipts from unverified contact outcomes and identify integration blockers. Overhead field tracking is still missing from inspected source. These recovered nodes are not automatically enabled or connected to the gameplay prototype.
+
 The [offline approach-and-shot prototype](pupper_fc/README.md) now runs a Python gameplay controller in an interactive 2D sandbox. It supports approach/alignment/strike, goal return and restart, tracking disturbances, Stop and recorded replay. Run `.venv-api/bin/python -m final_project.pupper_fc` from the repository root. The observation, velocity-command and strike boundaries are documented for teammate integration. This is not a real soccer runtime or get-up implementation; simulated contact and motion do not establish physical performance.
 
 Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
