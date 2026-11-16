@@ -2,6 +2,10 @@
 
 The Pi contained unpublished shooting and onboard perception work in `/home/pi/kick`, outside its clean but older `/home/pi/mts_123` checkout (`c6f211c`). The older `/home/pi/workspace/mts_123` checkout was also clean (`7050d51`). No newer overhead perception implementation was found in the inspected project directories. This does not inspect teammates' computers.
 
+The combined source was fast-forwarded into GitHub `main` and `/home/pi/mts_123` at `16dd850`; later checkpoint-only commits may advance that revision. The Pi's previous source remains at `codex/pi-source-before-20261116`. Combined Mac tests passed **187 tests plus 48 subtests**; the Pi's stdlib headless smoke completed four simulated score/return scenarios and the expected blocked near-wall scenario. No ROS launch, homing or motor command was issued.
+
+The provisioned `/home/pi/pupperv3-monorepo` is a separate, modified native installation. Its test-policy slot already contained the recovered learned-kick policy, and its binaries differ from the historical R5/R6 identities. Selected source/config/policy/library hashes were checked before and after synchronization and did not change. Do not infer which policy a future launch selects from this source checkout alone.
+
 ## Recovered contribution
 
 [behaviors/](behaviors/README.md) preserves the recovered Python source, tests, launch/tools, learned policy and manifest. Code/model files are byte-identical to the snapshot; dated notices were added to the stale README/runbook. [RECOVERY.json](behaviors/RECOVERY.json) records original file hashes. Logs/images remain in the external archive, not Git. The installed native workspace and the original `~/kick` directory are preserved separately and are not replaced by this source import.

@@ -1,11 +1,11 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Reconcile the Pi source and perception work with the shared Pupper FC code, preserve teammate changes, and sync reviewed source without starting hardware.",
+  "objective": "Integrate Pupper FC with recovered onboard perception/shooting work and the still-missing overhead field-state pipeline. Source reconciliation complete; current user request determines the next implementation.",
   "worktree": "/Users/shrish/workspace/cs123",
-  "branch": "codex/fc-offline-prototype",
-  "mode": "pi_source_reconciliation_waiting_for_network",
-  "updated_utc": "2026-11-16T23:42:44.008657+00:00",
-  "current_report": "final_project/pupper_fc/validation.json",
+  "branch": "main",
+  "mode": "pi_source_reconciled_soccer_integration_open",
+  "updated_utc": "2026-11-16T23:54:35.114381+00:00",
+  "current_report": "foundation/results/pi-source-reconciliation-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
     "sha256": "4e605f7f51c44980519786833970e831fef5475b61c1eb521f41288f18e7c7b6",
@@ -14,7 +14,8 @@
   "evidence": {
     "current_sprint": "foundation/results/harness-sprint-20261103.json",
     "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json",
-    "offline_gameplay": "final_project/pupper_fc/validation.json"
+    "offline_gameplay": "final_project/pupper_fc/validation.json",
+    "pi_reconciliation": "foundation/results/pi-source-reconciliation-20261116.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -38,26 +39,26 @@
       "commands": "README.md#choose-the-check-for-the-task"
     }
   },
-  "authorization": "November 16: user authorized inspecting the powered Pi, reconciling its work with this checkout and syncing the new codebase onto it. GitHub publication remains authorized. No homing, motion, or interruption of another operator was requested; discover active ownership and services before changing runtime files. Earlier blanket Pi contact hold is superseded for source reconciliation.",
+  "authorization": "November 16: user authorized Pi inspection, reconciliation and source synchronization; shared main publication authorized. Completed source-only update. Motion/service activation was not requested or performed. Check operator readiness and ownership before any physical operation.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "November 16: read-only local/source reviews completed with focused subagents and authenticated Claude Code. No training or hardware operation. The earlier localhost viewer was not checked this session.",
+    "compute": "November 16 source reconciliation completed using focused subagents and authenticated Claude Code review. Local combined tests and Pi headless sandbox smoke passed. No training, API experiment or motor activation.",
     "owners": {
-      "physical_robot": "November 16: user reports Pi powered and authorizes source reconciliation. Network unavailable on first checks; current services and operator unknown.",
+      "physical_robot": "November 16 source-only block: no ROS controller/follower observed in process inventory; OS Pupper GUI and platform services left running. No physical supervision/readiness established.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Marcus",
       "shooting": "Tej",
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Offline approach, alignment, bounded strike, braking/replanning, goal return and one-signal ball replacement work in the sandbox. Observation/command interfaces documented for teammates. Physical transport, recovery, defense, opponents and wall extraction remain open."
+    "goal_status": "Offline FC prototype plus recovered experimental stock-gait shot and onboard ball detector are now on shared main and Pi source checkout. No live gameplay integration, overhead localization, defense or self-righting yet; learned kick remains unaccepted."
   },
   "hardware_session": {
-    "status": "November 16: ssh mts timed out; Mac Tailscale connected, mts-pi reported offline (last seen about 27 minutes earlier); two Tailscale pings had no reply. No remote command ran. Last owned physical evidence remains November 3 R5; current code, processes and loaded release uninspected.",
+    "status": "November 16: connected by ssh mts; clean /home/pi/mts_123 fast-forwarded from c6f211c to 16dd850 (later checkpoint-only commits may advance). Original ~/kick files and selected installed native source/config/policies/libraries verified unchanged. No ROS/motor launch. Installed test slot contains learned header-kick candidate; do not equate source sync with accepted runtime.",
     "ssh": "mts",
     "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
     "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
@@ -81,19 +82,25 @@
       "activated": false,
       "observed_date": "2026-11-04",
       "later_documentation_sync_commit": "c6f211c5951b14d88c5b3ac78388911fb30e994b",
-      "later_documentation_sync_scope": "Recorded source-checkout documentation update on November 4; selected runtime verification above belongs to its original receipt."
+      "later_documentation_sync_scope": "Recorded source-checkout documentation update on November 4; selected runtime verification above belongs to its original receipt.",
+      "current_source_commit": "16dd850959ad4b8da6a0307110061d14e813e928",
+      "current_sync_date": "2026-11-16",
+      "current_sync_receipt": "foundation/results/pi-source-reconciliation-20261116.json",
+      "current_checkout_clean": true
     },
     "observed_date": "2026-11-03 for R5 shutdown; 2026-11-04 for source/staging receipts",
-    "live_status": "Awaiting network reconnection or a current reachable address; no source transfer or hardware activation completed.",
+    "live_status": "Source checkout verified; no motor controller/API/follower launched by this session. OS Pupper GUI active. Installed runtime selection remains separate from source and needs deliberate verification before motion.",
     "motor_api_recorders_last_observed_active": false,
     "access_check": {
-      "observed_at_utc": "2026-11-16T23:42:44.008657+00:00",
+      "observed_at_utc": "2026-11-16T23:54:35.114381+00:00",
       "host": "mts",
-      "ssh": "connect timeout",
-      "tailscale": "Mac connected; mts-pi offline; two pings timed out",
-      "pi_changed": false,
-      "requested_user_help": "Check Pi Wi-Fi/boot; share reachable IP if changed."
-    }
+      "ssh": "connected",
+      "tailscale": "reachable after user reconnection",
+      "pi_changed": "team source checkout only; original kick and installed native files unchanged"
+    },
+    "current_boot_id": "06eebd3e-791e-4210-81c0-942fc2dc6a46",
+    "current_installed_native_receipt": "foundation/results/pi-source-reconciliation-20261116.json",
+    "current_installed_native_scope": "Hashes of on-disk install, not loaded controller identity. Historical R5 fields above remain dated historical evidence."
   },
   "browser": {
     "observed_date": "2026-11-03",
@@ -167,20 +174,24 @@
   },
   "next": [
     {
-      "id": "pi_source_reconcile",
-      "action": "Once ssh mts is reachable, inspect /home/pi/mts_123 and discovered standalone perception repos, Git status/history and active process ownership. Preserve local commits/uncommitted changes before integrating. Compare against the published codex/fc-offline-prototype branch; do not overwrite teammate work."
+      "id": "perception_handoff",
+      "action": "Ask Ryan for overhead-camera ingestion/calibration and timestamped field state for both robot poses and ball, plus one replayable clip/sample. Recovered onboard detector does not supply global state."
     },
     {
-      "id": "pi_source_sync",
-      "action": "Sync reconciled source through Git into a verified idle checkout or a separate source checkout, then verify exact commit and a stdlib FC headless smoke test. Source sync is not native build or runtime activation; do not use deploy.sh, install.py or Gemini start.sh for this operation."
+      "id": "live_soccer_boundary",
+      "action": "Connect FC external observations and stock-gait shot through exclusive continuously replaced motion ownership, explicit frames/units and native command expiry. Correct stale-IMU/frame and capture-time defects before wiring recovered detector."
     },
     {
-      "id": "perception_next",
-      "action": "Assess newly recovered perception work before duplicating it. Current shared source has no overhead camera-to-field-state implementation. Highest-value missing interfaces are real observations and continuously replaced robot motion commands."
+      "id": "physical_shot_evidence",
+      "action": "Recover teammate contact/video observations for manual run-through trials; arrange bounded supervised real-shot tests after selecting runtime and measuring motion. Software DONE is not shot success."
+    },
+    {
+      "id": "learned_kick_held",
+      "action": "Keep learned candidate unaccepted: resolve late activation, native fall-stop propagation and target-vs-velocity ownership before enabling. Installed test slot already contains candidate; source synchronization did not change it."
     },
     {
       "id": "separate_p0_getup",
-      "action": "Physical self-righting remains separate open P0; ordinary stand/restart requires the robot already upright."
+      "action": "Physical self-righting remains separate open P0; stand/restart requires the robot already upright."
     }
   ],
   "acceptance_boundaries": [
@@ -194,7 +205,7 @@
   ],
   "legacy_worktree": "/Users/shrish/workspace/cs123-foundation",
   "context_review_date": "2026-11-12 America/Los_Angeles",
-  "current_report_scope": "Local 2D gameplay sandbox only; 143 tests plus 48 subtests, 16 score-and-return trials and two explicit near-wall blocked trials. No robot contact or physical validation.",
+  "current_report_scope": "Verified source sync and offline tests only; no new hardware motion acceptance.",
   "recorded_open_items": {
     "as_of": "2026-11-04",
     "lab6": "Q7 unfinished; Q12 interrupted and awaiting rerecord; Q16 reported captured; Q19 awaiting newcomer. Shrish owned footage, fourth teammate owned written submission. See foundation/submission/lab6/README.md. Completion since that checkpoint is unknown.",
@@ -206,7 +217,7 @@
     "brief": "final_project/README.md",
     "plan": "final_project/PLAN.md",
     "requirements_date": "2026-11-12",
-    "implementation_status": "Interactive offline gameplay prototype in final_project/pupper_fc. Controller consumes timestamped observations, produces expiring body-velocity commands, and is exercised by the browser and headless trials. Kinematic/contact assumptions are unvalidated on hardware; no boot service or self-righting implemented.",
+    "implementation_status": "Offline FC prototype plus recovered onboard ball detector, run-through shot ROS adapters and experimental learned kick under final_project/behaviors. Source synced to Pi. Overhead perception, live FC transport, defense and self-righting missing; recovered learned kick has failed-trial evidence and unresolved lifecycle defects.",
     "review": "Controller implementation/fixes delegated to authenticated Claude Code; focused simulator/viewer work and independent adversarial review completed. Four review findings and delayed-goal restart handling corrected. Source identities and bounded trial results saved in final_project/pupper_fc/validation.json.",
     "open_risks": [
       "Physical self-righting remains missing and is separate P0 work; ordinary stand tests assume an upright robot.",
@@ -222,10 +233,11 @@
   },
   "source_reconciliation": {
     "date": "2026-11-16",
-    "local_source_commit": "d65b4717ed9464362c15fddc1f5718708141475d",
-    "remote_main_at_fetch": "a972e6b70e09eac7d7e08e8d9c4d2e781c53e9e7",
-    "prototype_branch": "codex/fc-offline-prototype",
-    "pi_result": "Not inspected or updated: unavailable over SSH/Tailscale.",
-    "runtime_result": "No processes started/stopped or hardware accessed."
+    "source_commit": "16dd850959ad4b8da6a0307110061d14e813e928",
+    "branch": "main",
+    "pi_checkout": "/home/pi/mts_123",
+    "previous_pi_ref": "codex/pi-source-before-20261116",
+    "result": "Source synchronized and checked; original experiments and native install preserved. Details in current report.",
+    "runtime_activated": false
   }
 }

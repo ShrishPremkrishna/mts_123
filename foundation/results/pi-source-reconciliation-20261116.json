@@ -1,0 +1,45 @@
+{
+  "captured_utc": "2026-11-16T23:53:22.518063+00:00",
+  "source_commit": "16dd850959ad4b8da6a0307110061d14e813e928",
+  "source_status": "",
+  "backup_ref": "c6f211c5951b14d88c5b3ac78388911fb30e994b",
+  "original_kick_files_checked": 20,
+  "original_kick_unchanged": true,
+  "imported_code_assets_checked": 18,
+  "imported_code_assets_identical": true,
+  "installed_native_unchanged": true,
+  "installed_native_hashes": {
+    "/home/pi/pupperv3-monorepo/ros2_ws/src/neural_controller/src/neural_controller.cpp": "f7b2a677b15396b318fccbe2b10910fc576e123fe89580061e15a68f51e52d09",
+    "/home/pi/pupperv3-monorepo/ros2_ws/src/neural_controller/launch/config.yaml": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3",
+    "/home/pi/pupperv3-monorepo/ros2_ws/src/neural_controller/launch/test_policy.json": "84928297311e51566148d5be0d3941892f070a9f6f0560af7674a6a32b69a860",
+    "/home/pi/pupperv3-monorepo/ros2_ws/src/neural_controller/launch/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "/home/pi/pupperv3-monorepo/ros2_ws/install/neural_controller/lib/libneural_controller.so": "899f7ffcc02fc1634d974487fdb22d043cfb821dd348f1c272d79b177062a385",
+    "/home/pi/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so": "01813d582a79f15226486a42e2b9352f82cb5104f14631ec6c380cb7c7ced5a1"
+  },
+  "boot_id": "06eebd3e-791e-4210-81c0-942fc2dc6a46",
+  "motor_activation_by_sync": false,
+  "schema": "pi_source_reconciliation_v1",
+  "source_scope": "Source-only integration of offline Pupper FC and recovered experimental behaviors; no native install/build/activation.",
+  "before_team_source": "c6f211c5951b14d88c5b3ac78388911fb30e994b",
+  "github_branch": "main",
+  "mac_checks": {
+    "pytest_passed": 187,
+    "subtests_passed": 48,
+    "paths": [
+      "final_project/pupper_fc/tests",
+      "final_project/behaviors"
+    ]
+  },
+  "pi_headless": {
+    "simulated_score_and_return": 4,
+    "expected_near_wall_blocked": 1,
+    "physical_validation": false,
+    "receipt_sha256": "64cc8ba9bfd82d775f6c5da14fe5332e544ac7226431cb4667d5bbdc86e41043"
+  },
+  "external_recovery_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/pi-reconciliation",
+  "kick_archive_sha256": "1e067b43a97c933f0fae2c3aa4752a15efe1adcf32281ed05ac7b219101df8f0",
+  "native_archive_sha256": "e6e0349c836616fb7c0d82f44b0a8a74134d17a2923c43bb25a251f33f38175c",
+  "native_archive_local_verified": true,
+  "review": "Focused perception/motion/integration subagents and authenticated Claude Code source-only review; imported behavior code intentionally unchanged.",
+  "findings": "final_project/PI_RECONCILIATION.md"
+}
