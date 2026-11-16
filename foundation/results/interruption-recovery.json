@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Develop Pupper FC through working prototypes. Offline approach-and-shot prototype built and verified; the current user request determines the next contribution.",
+  "objective": "Reconcile the Pi source and perception work with the shared Pupper FC code, preserve teammate changes, and sync reviewed source without starting hardware.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "codex/fc-offline-prototype",
-  "mode": "pupper_fc_offline_prototype_ready",
-  "updated_utc": "2026-11-13T06:55:13.119485+00:00",
+  "mode": "pi_source_reconciliation_waiting_for_network",
+  "updated_utc": "2026-11-16T23:42:44.008657+00:00",
   "current_report": "final_project/pupper_fc/validation.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -38,16 +38,16 @@
       "commands": "README.md#choose-the-check-for-the-task"
     }
   },
-  "authorization": "November 12: user authorized building an interactive offline approach-and-shot prototype using Claude Code and subagents. Earlier completed context work was published to main. Current prototype is local on codex/fc-offline-prototype. Pi access/deployment/service changes and motor commands remain on hold until Shrish gives the go and teammate ownership is coordinated.",
+  "authorization": "November 16: user authorized inspecting the powered Pi, reconciling its work with this checkout and syncing the new codebase onto it. GitHub publication remains authorized. No homing, motion, or interruption of another operator was requested; discover active ownership and services before changing runtime files. Earlier blanket Pi contact hold is superseded for source reconciliation.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "Offline controller, simulator and browser viewer completed with focused agents and authenticated Claude Code; all owned implementation/review jobs finished. Local loopback viewer at http://127.0.0.1:8765 remains running (restart command in final_project/pupper_fc/README.md). No Pi, cloud experiment or training used.",
+    "compute": "November 16: read-only local/source reviews completed with focused subagents and authenticated Claude Code. No training or hardware operation. The earlier localhost viewer was not checked this session.",
     "owners": {
-      "physical_robot": "User reported November 12: teammate using robot for Lab 6; live services/release not inspected.",
+      "physical_robot": "November 16: user reports Pi powered and authorizes source reconciliation. Network unavailable on first checks; current services and operator unknown.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Marcus",
       "shooting": "Tej",
@@ -57,7 +57,7 @@
     "goal_status": "Offline approach, alignment, bounded strike, braking/replanning, goal return and one-signal ball replacement work in the sandbox. Observation/command interfaces documented for teammates. Physical transport, recovery, defense, opponents and wall extraction remain open."
   },
   "hardware_session": {
-    "status": "Last owned physical evidence is R5 on November 3; R6 staged November 4. User reports November 12 teammate currently using robot for Lab 6. Current processes and loaded release not inspected; no Pi contact in this block.",
+    "status": "November 16: ssh mts timed out; Mac Tailscale connected, mts-pi reported offline (last seen about 27 minutes earlier); two Tailscale pings had no reply. No remote command ran. Last owned physical evidence remains November 3 R5; current code, processes and loaded release uninspected.",
     "ssh": "mts",
     "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
     "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
@@ -84,8 +84,16 @@
       "later_documentation_sync_scope": "Recorded source-checkout documentation update on November 4; selected runtime verification above belongs to its original receipt."
     },
     "observed_date": "2026-11-03 for R5 shutdown; 2026-11-04 for source/staging receipts",
-    "live_status": "Not inspected in November 12 planning block; teammate owns current Lab 6 access per user.",
-    "motor_api_recorders_last_observed_active": false
+    "live_status": "Awaiting network reconnection or a current reachable address; no source transfer or hardware activation completed.",
+    "motor_api_recorders_last_observed_active": false,
+    "access_check": {
+      "observed_at_utc": "2026-11-16T23:42:44.008657+00:00",
+      "host": "mts",
+      "ssh": "connect timeout",
+      "tailscale": "Mac connected; mts-pi offline; two pings timed out",
+      "pi_changed": false,
+      "requested_user_help": "Check Pi Wi-Fi/boot; share reachable IP if changed."
+    }
   },
   "browser": {
     "observed_date": "2026-11-03",
@@ -159,16 +167,20 @@
   },
   "next": [
     {
-      "id": "current_user_task",
-      "action": "Try the interactive prototype via final_project/pupper_fc/README.md. Next integration can replace observations with Ryan's field state, apply Marcus's measured limits, and replace the strike phase with Tej's behavior once its entry/cancel/exit conditions are known. Choose the next task with the user; current results are simulation only."
+      "id": "pi_source_reconcile",
+      "action": "Once ssh mts is reachable, inspect /home/pi/mts_123 and discovered standalone perception repos, Git status/history and active process ownership. Preserve local commits/uncommitted changes before integrating. Compare against the published codex/fc-offline-prototype branch; do not overwrite teammate work."
+    },
+    {
+      "id": "pi_source_sync",
+      "action": "Sync reconciled source through Git into a verified idle checkout or a separate source checkout, then verify exact commit and a stdlib FC headless smoke test. Source sync is not native build or runtime activation; do not use deploy.sh, install.py or Gemini start.sh for this operation."
+    },
+    {
+      "id": "perception_next",
+      "action": "Assess newly recovered perception work before duplicating it. Current shared source has no overhead camera-to-field-state implementation. Highest-value missing interfaces are real observations and continuously replaced robot motion commands."
     },
     {
       "id": "separate_p0_getup",
-      "action": "Keep physical self-righting as separate P0 work with physical-motion ownership open. Gameplay integration is Shrish with assisting agents; the first playable baseline can proceed while recovery is unfinished. Do not mistake existing upright-restart tests for get-up."
-    },
-    {
-      "id": "pi_handover",
-      "action": "Current teammate Lab 6 robot session remains untouched. Await explicit user go and coordinate ownership before Pi inspection/deployment or physical testing."
+      "action": "Physical self-righting remains separate open P0; ordinary stand/restart requires the robot already upright."
     }
   ],
   "acceptance_boundaries": [
@@ -207,5 +219,13 @@
       "One resume signal after human goal-ball replacement accepted.",
       "Get-up is separate P0 work; physical-motion owner open; baseline work can proceed."
     ]
+  },
+  "source_reconciliation": {
+    "date": "2026-11-16",
+    "local_source_commit": "d65b4717ed9464362c15fddc1f5718708141475d",
+    "remote_main_at_fetch": "a972e6b70e09eac7d7e08e8d9c4d2e781c53e9e7",
+    "prototype_branch": "codex/fc-offline-prototype",
+    "pi_result": "Not inspected or updated: unavailable over SSH/Tailscale.",
+    "runtime_result": "No processes started/stopped or hardware accessed."
   }
 }
