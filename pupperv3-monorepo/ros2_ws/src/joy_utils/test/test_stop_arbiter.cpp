@@ -242,6 +242,36 @@ static void known_start_refusal_is_inert() {
     check(r.port->calls.size()==calls && r.port->emergency_count==emergencies,"local refusal must not stop or switch");
   }
 }
+static void software_stop_fences_delayed_queued_and_inflight_start() {
+  Rig delayed; delayed.stopped(); const auto old_epoch=delayed.worker.status().epoch;
+  delayed.worker.request_stop();
+  check(delayed.worker.status().epoch>old_epoch && delayed.worker.status().latched,
+        "software Stop must advance an already-latched epoch");
+  check(delayed.worker.start_motion(old_epoch,"default",delayed.now,
+        delayed.now+std::chrono::milliseconds(200))==0,"software Stop must refuse an older ticket");
+  const auto next_epoch=delayed.worker.status().epoch;
+  delayed.worker.request_stop();
+  check(delayed.worker.status().epoch>next_epoch,"repeated software Stop cannot retain earlier tickets");
+
+  Rig queued; queued.stopped(); queued.port->available=false; const auto queued_id=start(queued);
+  queued.worker.request_stop(); const auto cancelled=queued.worker.take_completions();
+  check(cancelled.size()==1 && cancelled[0].command_id==queued_id && !cancelled[0].ok,
+        "software Stop cancels a queued Start exactly once");
+  const auto count=queued.port->calls.size(); queued.port->available=true; queued.tick();
+  check(queued.port->calls.size()==count+1 && queued.port->calls.back().stop,
+        "only cleanup can dispatch after software Stop");
+
+  Rig active; active.stopped(); const auto active_id=start(active); active.tick();
+  active.worker.request_stop();
+  check(active.worker.status().latched && active.worker.status().in_flight,
+        "software Stop latch acknowledgement must not imply in-flight cleanup finished");
+  active.port->answer(); active.tick(); const auto late=active.worker.take_completions();
+  check(late.size()==1 && late[0].command_id==active_id && !late[0].ok,
+        "late Start response cannot acknowledge success after software Stop");
+  check(active.port->calls.back().stop,"late software-stopped activation needs corrective deactivation");
+  active.complete(); check(active.port->remote_active.empty() && active.worker.status().latched,
+        "corrective acknowledgement removes active controllers without releasing latch");
+}
 int main(){
   try {
     simultaneous_and_held_stop();stale_queued_activation();delayed_activation_then_corrective_stop();
@@ -254,6 +284,7 @@ int main(){
     start_expiry_restores_latch_without_retry();start_stop_races_and_shutdown();
     expired_ready_check_preserves_running_controller();queued_start_grants_no_face_authority();
     known_start_refusal_is_inert();
-    std::cout<<"PASS 21 deterministic scenarios against actual candidate arbiter; no ROS/hardware\n";
+    software_stop_fences_delayed_queued_and_inflight_start();
+    std::cout<<"PASS 22 deterministic scenarios against actual candidate arbiter; no ROS/hardware\n";
   }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}
 }

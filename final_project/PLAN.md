@@ -176,9 +176,22 @@ relays can refresh. The opt-in direct FC mode now preserves original expiry
 through the actuation boundary, with device-free native failure tests and ROS
 startup/hold/Stop checks. It also requires native acknowledgement of the current
 bridge instance before arm. Target build and physical acceptance remain open.
-Refine the clearance envelope against this explicit command contract, keeping
-controller scheduling and physical braking distinct. The observed 491 ms legacy
-tail is a counterexample, not a worst-case or physical stopping bound.
+The bounded 12-run reassessment improved two approach times with shorter command
+survival, but retained two stalls: the assumed stopping reserve excludes usable
+staging/contact positions. Adding a whole-target veto also blocked useful shots.
+Neither planning change is selected. Resume that work when measured braking or
+another justified bound can replace the assumption; more waypoint tuning cannot
+fix an excluded target. The observed 491 ms legacy tail is a counterexample,
+not a worst-case or physical stopping bound.
+
+The existing finite pulse/IMU-turn client now exercises that direct command path
+without a field-pose substitute. A full software rehearsal exposed another
+boundary: native emergency damping did not cancel the gateway's pending Start.
+Software Stop now also enters the gateway's existing latch/epoch/corrective
+cleanup path, and both clients require that capability before software Start.
+Actual ROS cancellation checks retain delayed-activation cases and distinguish
+latch acknowledgement, backend deactivation and physical stopping. Target build
+and supported physical qualification remain the next acceptance boundary.
 
 Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
 

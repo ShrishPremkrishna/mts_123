@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T14:56:54.506029+00:00",
+  "updated_utc": "2026-11-17T15:54:49.275909+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,17 +29,23 @@
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
     "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
     "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
-    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-deadline-source-kit-20261117T144254Z/summary.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T154542Z/summary.json",
     "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
     "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json",
     "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/summary-final.json",
-    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/tests.json",
+    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/tests.json",
     "native_start_target_build": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt",
     "defense_navigation": "artifacts/pupper-fc/2026-11-17/defense-navigation-boundary-correction/summary.json",
     "defense_independent": "artifacts/pupper-fc/2026-11-17/defense-independent/final/verification.json",
     "defense_ros": "artifacts/pupper-fc/2026-11-17/ros-defense-20261117T125012Z/summary.json",
     "fc_deadline_ros": "artifacts/pupper-fc/2026-11-17/command-survival/bridge-start-smoke/summary.json",
-    "native_original_expiry": "artifacts/pupper-fc/2026-11-17/command-survival/authority-chain/summary.json"
+    "native_original_expiry": "artifacts/pupper-fc/2026-11-17/command-survival/authority-chain/summary.json",
+    "overnight_priority_review": "artifacts/pupper-fc/2026-11-17/overnight-value-review.json",
+    "opponent_reassessment": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/findings.json",
+    "actual_bridge_guard_native": "artifacts/pupper-fc/2026-11-17/deadline-full-chain/summary.json",
+    "strict_finite_native": "artifacts/pupper-fc/2026-11-17/strict-trial-native/summary.json",
+    "strict_client_fable": "artifacts/pupper-fc/2026-11-17/strict-trial-fable-focused/adjudication.json",
+    "gateway_stop_cancellation": "artifacts/pupper-fc/2026-11-17/strict-trial-stop-review/summary.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -77,7 +83,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Complete offline slice:1536 tests +134 subtests;37 native tests;3 actual native failure trials;5 actual ROS bridge cases including one software Start. Fresh extracted-package CMake build and six behavioral CTests pass. All containers/review jobs exited; all agents completed.314-file final evidence archive and linked trial archives verified. No pending archive or paid cloud job; no Pi access.",
+    "compute": "Offline source candidate integrated: final regression 1586 tests +134 subtests; actual gateway 12 CTests and 22 arbiter cases; both actual clients pass delayed-Start cancellation with real DDS and synthetic lifecycle backend. Extracted 53-file kit passes 696 tests +86 subtests. All experimental jobs exited, no active cloud allocation or robot access. Target build and physical acceptance remain open.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -85,9 +91,10 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrating the completed direct-deadline software slice, then selecting the next bounded opponent-clearance/liveness experiment. All delegates completed; no current robot session."
+      "project_lead": "Root owns final local integration and next useful offline preparation. All three bounded delegates completed, including final handoff review. No active experimental jobs, paid allocation or hardware owner beyond root for a future authorized session."
     },
-    "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
+    "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment.",
+    "pending_archives": []
   },
   "hardware_session": {
     "status": "CLOSED camera-only session: all owned camera, detector and recorder processes exited; motors never started. 19 files (1,413,999,311 bytes) copied and hash-verified. Pi may be powered off.",
@@ -137,20 +144,22 @@
     "defense_evidence": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/archive-verification.json",
     "participant_evidence": "artifacts/pupper-fc/2026-11-17/participant-integration-20261117T133702Z/archive-verification.json",
     "deadline_native_evidence": "artifacts/pupper-fc/2026-11-17/command-survival/authority-integration-archive-verification.json",
-    "deadline_final_integration": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/archive-verification.json"
+    "deadline_final_integration": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/archive-verification.json",
+    "opponent_reassessment": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/complete.tar.gz",
+    "strict_finite_gateway_stop": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/archive-verification.json"
   },
   "next": [
     {
-      "id": "opponent_clearance_liveness",
-      "action": "Reassess the unselected opponent-clearance model using the now-tested original-expiry contract. Distinguish genuine blocked routes from heuristic stalls; run a small hypothesis-driven comparison before more route sweeps. Keep physical braking/scheduler bounds separate and do not promote simulated clearance as physical acceptance."
-    },
-    {
       "id": "target_native_preparation",
-      "action": "Next authorized Pi preparation: capture actual ROS/Python/compiler dependencies, then build the 52-file strict source kit native-controller and native-Start source companions into fresh prefixes. Package-only builds; preserve accepted logfix release. Use explicit rebuilt-controller digest and strict 15-role index for new assembly. Cached Ubuntu binaries are test-only. No overnight SSH, deployment or homing."
+      "action": "Next authorized Pi preparation: capture actual ROS/Python/compiler dependencies, then build the current 53-file source kit native-controller and 11-source gateway companions into fresh prefixes. Select the complete target-built gateway package, generated service types and runtime closure explicitly; guarded assembly alone preserves the baseline gateway. Use explicit rebuilt-controller digest and strict 15-role source index. Preserve accepted logfix release. Cached Ubuntu binaries are test-only. No overnight SSH, deployment or homing."
     },
     {
       "id": "next_physical_acceptance",
-      "action": "Record the fixed camera at measured normal walking height/pitch, with exact capture/model/settings and measured person/actual pink-ball ranges and offsets; preserve a separate holdout. Measure capture age and spacing. Then qualify supported command routing and Start/Stop, followed by bounded floor heading/velocity/stopping and one pose-controlled play when a real field adapter exists. No wrong-ball contact probes."
+      "action": "Record the fixed camera at measured walking height/pitch with exact settings, person and actual pink-ball ranges/offsets and a separate holdout. Then supported command routing and Start/Stop, bounded floor translation/IMU heading/braking with the resident finite client. No wrong-ball contact tests. Gateway latch acknowledgement, backend completion, policy zero and physical stillness remain separate observations."
+    },
+    {
+      "id": "real_perception_and_demo",
+      "action": "When Ryan supplies an actual producer sample and clock semantics, implement its concrete adapter and prove one pose-controlled play before optional optimization. Keep two-robot availability, Tej kick interface and final video/presentation/code/blog deliverables visible. Do not invent pose accuracy, retrain a gait without a measured deficit, or tune opponent reserve on the same unsupported stopping assumption."
     }
   ],
   "recorded_open_items": {

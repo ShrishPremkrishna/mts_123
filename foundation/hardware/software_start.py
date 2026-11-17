@@ -15,6 +15,8 @@ from dataclasses import dataclass
 
 STATUS_MAX_AGE_S = 0.2
 ACK_TIMEOUT_S = 4.0
+STOP_TOPIC = "/estop_controller/request_stop"
+STOP_CONFIRM_TIMEOUT_S = 1.0
 BLOCKED = ("fault", "stop_required", "in_flight", "unknown_remote_submission", "shutting_down")
 
 
@@ -32,7 +34,8 @@ class ResidentStart:
     """Transport-injected state; no calls happen on status, capture or poll retry."""
 
     def __init__(self, submit, ready, *, clock=time.monotonic,
-                 selected_controller="neural_controller_default"):
+                 selected_controller="neural_controller_default", gateway_stop=None,
+                 emergency_stop=None):
         self.submit, self.ready, self.clock = submit, ready, clock
         self.selected_controller = selected_controller
         self.lock = threading.RLock()
@@ -42,6 +45,20 @@ class ResidentStart:
         self.consumed = set()
         self.pending = None
         self.uncertain = False
+        self.gateway_stop, self.emergency_stop = gateway_stop, emergency_stop
+        self.last_request = None
+        self.stop_latched = False
+        self.stop_request = self.stop_result = None
+        self._stop_pending = None
+
+    @property
+    def stop_pending(self):
+        return self._stop_pending is not None
+
+    @property
+    def stop_capable(self):
+        return (self.state is not None and self.state.get("software_stop_topic") == STOP_TOPIC and
+                callable(self.gateway_stop) and callable(self.emergency_stop))
 
     def observe(self, raw):
         """Malformed/reordered status invalidates readiness, never refreshes it."""
@@ -75,6 +92,8 @@ class ResidentStart:
             return True
 
     def _problem(self, now):
+        if self.stop_latched:
+            return "local Stop is latched; no further Start is permitted"
         if self.uncertain:
             return "previous Start result uncertain; inspect gateway, do not retry automatically"
         if self.pending is not None:
@@ -88,6 +107,8 @@ class ResidentStart:
         if (self.state is None or not math.isfinite(now) or
                 not 0 <= now - self.observed_at <= STATUS_MAX_AGE_S):
             return "no fresh observed gateway status"
+        if not self.stop_capable:
+            return "gateway lacks supported software Stop cancellation; use Options only"
         if any(self.state[key] for key in BLOCKED):
             return "gateway has pending work, Stop cleanup or a fault"
         if self.state["selected_controller"] != self.selected_controller:
@@ -134,12 +155,72 @@ class ResidentStart:
             self.consumed = {key for key in self.consumed if key[0] == ticket.instance_id}
             payload = {k: getattr(ticket, k) for k in
                        ("instance_id", "epoch", "sequence", "selected_controller")}
+            self.last_request = dict(payload)  # retain the anchor even if transport raises
             try:
                 self.pending = (self.submit(payload), now, payload)
             except Exception as exc:
                 self.uncertain = True  # the transport may have submitted first
                 raise ValueError("Start submission uncertain; inspect gateway before further action") from exc
             return payload
+
+    def request_stop(self, reason):
+        """Latch locally and send native plus gateway Stop once; neither is an ACK."""
+        with self.lock:
+            if self.stop_latched:
+                return self.stop_request
+            self.stop_latched = True
+            now = self.clock()
+            # A bad/new gateway status must not replace the identity of a Start
+            # that may already be queued remotely. For a no-Start Stop, use the
+            # already-observed identity; a missing anchor cannot be confirmed.
+            anchor = self.last_request or self.state
+            identity = anchor.get("instance_id") if anchor else None
+            epoch = anchor.get("epoch") if anchor else None
+            sequence = anchor.get("sequence") if anchor else None
+            if self.state is not None and self.state["instance_id"] == identity:
+                epoch = max(epoch, self.state["epoch"])
+                sequence = max(sequence, self.state["sequence"])
+            self.stop_request = {"instance_id": identity, "epoch": epoch, "sequence": sequence,
+                                 "requested_at": now if math.isfinite(now) else None,
+                                 "reason": str(reason)[:200]}
+            errors = []
+            # Keep native damping prompt even when the gateway path fails.
+            for label, send in (("native", self.emergency_stop), ("gateway", self.gateway_stop)):
+                try:
+                    if not callable(send):
+                        raise ValueError("publisher unavailable")
+                    send()
+                except Exception:
+                    errors.append(label + " Stop publication uncertain")
+            self._stop_pending = (now, self.stop_request, errors)
+            return self.stop_request
+
+    def poll_stop(self, *, force_unconfirmed=False):
+        """One bounded gateway-latch result, never physical release or zero feedback."""
+        with self.lock:
+            if self._stop_pending is None:
+                return None
+            began, request, errors = self._stop_pending
+            now = self.clock()
+            valid_clock = math.isfinite(now) and math.isfinite(began) and now >= began
+            state = self.state
+            confirmed = bool(valid_clock and state is not None and request["instance_id"] is not None and
+                self.observed_at is not None and began <= self.observed_at <= now and
+                now - self.observed_at <= STATUS_MAX_AGE_S and
+                state["instance_id"] == request["instance_id"] and state["epoch"] > request["epoch"] and
+                state["sequence"] > request["sequence"] and state["latched"] is True and
+                state.get("software_stop_topic") == STOP_TOPIC)
+            if not confirmed and valid_clock and now - began < STOP_CONFIRM_TIMEOUT_S and not force_unconfirmed:
+                return None
+            self._stop_pending = None
+            self.stop_result = {"event": "stop_result", "confirmed": confirmed,
+                "uncertain": not confirmed or bool(errors),
+                "request": dict(request), "publication_errors": errors,
+                "gateway_epoch": state["epoch"] if confirmed else None,
+                "message": ("matching gateway Stop latch and newer epoch observed" if confirmed else
+                            "gateway Stop unconfirmed at deadline or local shutdown; inspect gateway before further action"),
+                "scope": "gateway latch acknowledgement only; not backend deactivation, policy zero or physical stopping"}
+            return self.stop_result
 
     def poll(self):
         """Return one correlated result, or None; timeout never retries/cancels Stop."""
@@ -171,11 +252,11 @@ class ResidentStart:
                         "request": payload}
 
 
-def attach(node, *, clock=time.monotonic, selected_controller="neural_controller_default"):
+def attach(node, *, clock=time.monotonic, selected_controller="neural_controller_default", emergency_stop=None):
     """Attach to an already resident ROS node; absence of the service is inert."""
     from joy_utils.srv import StartMotion
     from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-    from std_msgs.msg import String
+    from std_msgs.msg import Empty, String
     client = node.create_client(StartMotion, "/estop_controller/start_motion")
 
     def submit(payload):
@@ -184,8 +265,13 @@ def attach(node, *, clock=time.monotonic, selected_controller="neural_controller
             setattr(request, key, value)
         return client.call_async(request)
 
+    stop_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
+    gateway = node.create_publisher(Empty, STOP_TOPIC, stop_qos)
+    native = None if emergency_stop is not None else node.create_publisher(Empty, "/emergency_stop", stop_qos)
     caller = ResidentStart(submit, client.service_is_ready, clock=clock,
-                           selected_controller=selected_controller)
+        selected_controller=selected_controller, gateway_stop=lambda: gateway.publish(Empty()),
+        emergency_stop=emergency_stop if emergency_stop is not None else lambda: native.publish(Empty()))
+    caller.stop_publisher, caller.emergency_publisher = gateway, native
     caller.client = client
     qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                      durability=DurabilityPolicy.TRANSIENT_LOCAL)

@@ -133,6 +133,14 @@ class StopArbiter {
     return request.command_id;
   }
 
+  // A software Stop is a new authority event even when already latched.
+  // Advancing the epoch invalidates every previously advertised Start ticket;
+  // latch_stop also cancels queued motion and retains late in-flight cleanup.
+  void request_stop() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!shutdown_) latch_stop(false);
+  }
+
   void joy(const std::vector<int32_t> &values) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (shutdown_) return;

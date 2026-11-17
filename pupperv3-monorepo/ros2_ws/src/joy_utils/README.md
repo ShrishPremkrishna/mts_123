@@ -12,7 +12,7 @@ is not joystickless support or a new continuous stopping watchdog.
 A caller echoes `instance_id`, `epoch`, `sequence` and `selected_controller` from
 one `/estop_controller/stop_status` message. The gateway accepts that challenge
 once, for 500 ms measured by its own steady clock, including time waiting for
-inventory before dispatch. Stop, changed selection, reconnect, outstanding work,
+inventory before dispatch. Gateway-observed Stop, changed selection, reconnect, outstanding work,
 fault, or expiry prevents activation. The latch stays unchanged until dispatch;
 an undispatched expiry never deactivates an already-running controller. A face
 edge while stopped cancels queued Start without authorizing another controller.
@@ -20,6 +20,23 @@ Options remains a separate deliberate release and can replace queued Start.
 A dispatched operation retains the existing bounded acknowledgement and
 late-Stop cleanup; a service success acknowledges controller state, not physical
 stability. Do not retry a failed/uncertain Start automatically.
+
+Software callers must send Stop to `/estop_controller/request_stop`
+(`std_msgs/msg/Empty`, reliable), as well as requesting immediate native damping
+on `/emergency_stop`. The latter alone does **not** latch this gateway and cannot
+cancel a queued Start. The separate request topic avoids a loop through the
+gateway's own native emergency publications. Each received request advances the
+epoch, cancels older queued Starts and retains corrective deactivation if an
+already-dispatched activation succeeds late.
+
+Status advertises `software_stop_topic` with that exact request-topic value.
+The shared caller requires this capability before software Start; an older
+gateway remains Options-only. On Stop, the caller latches locally and waits at
+most one second for fresh status from the same gateway with a newer epoch and
+`latched=true`. Missing acknowledgement is reported as uncertain. A latch
+acknowledgement is not completed backend deactivation, policy-zero feedback or
+physical stillness. The gateway continues to own delayed backend cleanup after
+the caller closes.
 
 Fresh controller inventory makes an already-active selected controller a no-op
 when no competing motion controller is active. Known competing controllers are
@@ -51,7 +68,7 @@ The caller can also deliberately ensure the selected controller is active when
 already released; the gateway uses fresh inventory to avoid redundant activation.
 
 Source, generated `StartMotion` interface, gateway binary and caller must be
-selected together. Older releases without this interface retain Options and
+selected together. Older releases without this interface and Stop capability retain Options and
 ordinary movement; they report software Start unavailable. This remains an
 offline candidate until staged and physically accepted.
 

@@ -4,12 +4,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from foundation.hardware.software_start import ResidentStart
+from foundation.hardware.software_start import ResidentStart, STOP_TOPIC, STOP_CONFIRM_TIMEOUT_S
 
 
 def state(**changes):
     result = dict(protocol="pupper_stop_v1", instance_id="one", epoch=3, sequence=20,
                   selected_controller="neural_controller_default", latched=True,
+                  software_stop_topic=STOP_TOPIC,
                   fault=False, stop_required=False, in_flight=False,
                   unknown_remote_submission=False, shutting_down=False)
     result.update(changes)
@@ -26,9 +27,12 @@ def rig():
         future = Future()
         futures.append(future)
         return future
-    caller = ResidentStart(submit, lambda: available[0], clock=lambda: now[0])
+    stops = []
+    caller = ResidentStart(submit, lambda: available[0], clock=lambda: now[0],
+                           gateway_stop=lambda: stops.append('gateway'),
+                           emergency_stop=lambda: stops.append('native'))
     caller.observe(state())
-    return SimpleNamespace(caller=caller, now=now, available=available, calls=calls, futures=futures)
+    return SimpleNamespace(caller=caller, now=now, available=available, calls=calls, futures=futures, stops=stops)
 
 
 def test_status_and_input_capture_are_inert_until_explicit_submission(rig):
@@ -236,3 +240,110 @@ def test_refusal_requires_a_new_deliberate_press_for_another_attempt(rig):
     assert rig.caller.poll() is None and len(rig.calls) == 1
     rig.caller.send(rig.caller.capture())
     assert len(rig.calls) == 2
+
+
+@pytest.mark.parametrize('capability', [None, False, True, '', '/other/stop'])
+def test_old_or_wrong_gateway_capability_keeps_software_start_unavailable(rig, capability):
+    assert rig.caller.observe(state(sequence=21, software_stop_topic=capability))
+    with pytest.raises(ValueError, match='Options only'):
+        rig.caller.capture()
+    assert not rig.calls and not rig.stops
+
+
+def test_stop_capability_and_transport_are_checked_again_at_send(rig):
+    ticket = rig.caller.capture()
+    rig.caller.observe(state(sequence=21, software_stop_topic=None))
+    with pytest.raises(ValueError, match='Options only'):
+        rig.caller.send(ticket)
+    rig.caller.observe(state(sequence=22))
+    rig.caller.gateway_stop = None
+    with pytest.raises(ValueError, match='Options only'):
+        rig.caller.send(ticket)
+    assert not rig.calls
+
+
+def test_stop_after_submitted_start_sends_both_paths_once_and_requires_new_latched_epoch(rig):
+    c = rig.caller
+    c.send(c.capture())
+    c.observe('invalid status after possible remote Start')
+    requested = c.request_stop('operator Stop')
+    assert requested['instance_id'] == 'one' and requested['epoch'] == 3
+    assert rig.stops == ['native', 'gateway'] and c.stop_pending
+    assert c.poll_stop() is None
+    rig.now[0] += .05
+    assert c.request_stop('repeated Stop') == requested
+    assert rig.stops == ['native', 'gateway']
+    assert c.observe(state(sequence=21, epoch=4, latched=True, stop_required=True, in_flight=True))
+    result = c.poll_stop()
+    assert result['confirmed'] and not result['uncertain'] and not c.stop_pending
+    assert result is c.stop_result and c.poll_stop() is None
+    assert 'not backend deactivation' in result['scope']
+    rig.futures[0].set_result(SimpleNamespace(success=True, message='late original response'))
+    assert c.poll()['success']  # report the correlated ACK; local cancellation remains latched
+    with pytest.raises(ValueError, match='local Stop'):
+        c.capture()
+    assert len(rig.calls) == 1
+
+
+@pytest.mark.parametrize('changes', [dict(epoch=3), dict(epoch=4, latched=False),
+    dict(epoch=4, instance_id='replacement'), dict(epoch=4, software_stop_topic='/other')])
+def test_stop_confirmation_refuses_old_epoch_unlatched_foreign_or_wrong_capability(rig, changes):
+    c = rig.caller
+    c.send(c.capture())
+    c.request_stop('stop')
+    rig.now[0] += .05
+    assert c.observe(state(sequence=21, **changes))
+    assert c.poll_stop() is None
+    rig.now[0] = 10 + STOP_CONFIRM_TIMEOUT_S
+    result = c.poll_stop()
+    assert not result['confirmed'] and result['uncertain'] and not c.stop_pending
+    assert c.poll_stop() is None
+
+
+def test_preexisting_latch_cannot_confirm_new_stop_or_extend_timeout(rig):
+    c = rig.caller
+    c.send(c.capture())
+    c.observe(state(sequence=21, epoch=4, latched=True))
+    request = c.request_stop('new Stop')
+    assert request['epoch'] == 4
+    assert c.poll_stop() is None
+    rig.now[0] += .9
+    c.request_stop('duplicate cannot restart timer')
+    rig.now[0] += .11
+    assert c.poll_stop()['uncertain']
+
+
+def test_stop_without_start_anchors_observed_identity_and_can_confirm(rig):
+    c = rig.caller
+    c.request_stop('Stop before any Start')
+    assert not rig.calls and rig.stops == ['native', 'gateway']
+    rig.now[0] += .01
+    c.observe(state(sequence=21, epoch=4))
+    assert c.poll_stop()['confirmed']
+    with pytest.raises(ValueError, match='local Stop'):
+        c.send(SimpleNamespace())
+
+
+@pytest.mark.parametrize('fault', ['missing_anchor', 'stale_ack', 'clock_rollback', 'native_publish_error'])
+def test_stop_reports_uncertainty_instead_of_optimistic_confirmation(rig, fault):
+    c = rig.caller
+    if fault == 'missing_anchor':
+        c.observe('invalid')
+    if fault == 'native_publish_error':
+        def failed():
+            raise RuntimeError('native publisher failure')
+        c.emergency_stop = failed
+    c.request_stop('Stop')
+    if fault == 'native_publish_error':
+        assert rig.stops == ['gateway']  # second publication still attempted
+    rig.now[0] += .01
+    c.observe(state(sequence=21, epoch=4))
+    if fault == 'stale_ack':
+        rig.now[0] += STOP_CONFIRM_TIMEOUT_S
+    elif fault == 'clock_rollback':
+        rig.now[0] = 9.
+    elif fault == 'missing_anchor':
+        rig.now[0] += STOP_CONFIRM_TIMEOUT_S
+    result = c.poll_stop()
+    assert result['uncertain']
+    assert result['confirmed'] is (fault == 'native_publish_error')

@@ -176,6 +176,14 @@ checked again on use. Stop wins during Start,
 camera interruption and cleanup. Ordinary camera holds keep the session running;
 a failed command path closes it while preserving healthy native standing.
 
+Software Start requires the gateway's advertised
+`software_stop_topic=/estop_controller/request_stop` capability. Hard Stop sends
+both immediate native emergency and gateway cancellation, then waits boundedly
+for a newer, same-instance Stop latch. Status separates interface availability,
+Start capability and the gateway Stop receipt. Native damping can end policy
+observations, so a gateway acknowledgement does not manufacture zero feedback
+or prove physical stillness. Older gateways retain Options activation.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Idle

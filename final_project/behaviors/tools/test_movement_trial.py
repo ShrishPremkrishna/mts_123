@@ -281,7 +281,8 @@ class FloatArray(_fake_ros._Msg):
 
 
 def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True, overrides=None,
-               lateral_calibration=False, command_topology="stock", command_path_check=None):
+               lateral_calibration=False, command_topology="stock", command_path_check=None,
+               node_options=None):
   ros = _fake_ros.install(overrides)
   qos = types.ModuleType("rclpy.qos")
   qos.qos_profile_sensor_data = object()
@@ -297,11 +298,18 @@ def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True,
   fixture.write_bytes(b"test-only stock policy fixture")
   guard.STOCK_POLICY_SHA256 = hashlib.sha256(fixture.read_bytes()).hexdigest()
   ros.controller_params["model_path"] = str(fixture)
+  options = dict(node_options or {})
+  if command_topology == mt.STRICT_CONTRACT:
+    options = {"monotonic_ns": lambda: round(ros.t * 1e9),
+               "command_clock_id": "linux-monotonic:fixture:1", "source_instance": "a" * 32, **options}
+    ros.controller_params.update(cmd_vel_loaded_contract=mt.STRICT_CONTRACT,
+        cmd_vel_original_deadline_supported=True, cmd_vel_source_clock_id=options["command_clock_id"])
   if kick_mux:
     ros.publishers["/cmd_vel"] += 1  # the kick trial mux
   node = mt.MovementTrialNode(mt.PulseRequest.build(axis, speed, duration,
                               lateral_calibration=lateral_calibration), out_dir=tmp_path, clock=lambda: ros.t,
-                              command_topology=command_topology, command_path_check=command_path_check)
+                              command_topology=command_topology, command_path_check=command_path_check,
+                              **options)
   node.stock.clock = lambda: ros.t
   node._test_emit_obs = True
   def emit():
@@ -1367,6 +1375,7 @@ def start_session_fixture(tmp_path, *, initial_latch=True, service_ready=True, a
   inbox = mt.SessionInbox(node.clock)
   submissions = []
   state = {"protocol": "pupper_stop_v1", "instance_id": "test-gateway", "epoch": 1,
+           "software_stop_topic": "/estop_controller/request_stop",
            "sequence": 0, "selected_controller": "neural_controller_default", "latched": initial_latch,
            "fault": False, "stop_required": False, "in_flight": False,
            "unknown_remote_submission": False, "shutting_down": False}
@@ -1376,7 +1385,11 @@ def start_session_fixture(tmp_path, *, initial_latch=True, service_ready=True, a
   def submit(payload):
     submissions.append(dict(payload))
     return future
-  caller = ResidentStart(submit, lambda: availability[0], clock=node.clock)
+  def gateway_stop():
+    state['epoch'] += 1
+    state['latched'] = True
+  caller = ResidentStart(submit, lambda: availability[0], clock=node.clock,
+                         gateway_stop=gateway_stop, emergency_stop=node.request_emergency)
   def status():
     state["sequence"] += 1
     caller.observe(state)
@@ -1389,7 +1402,9 @@ def start_session_fixture(tmp_path, *, initial_latch=True, service_ready=True, a
     for f in pending:
       f.resolve()
     if caller.pending is not None and acknowledge:
-      future.complete, state["latched"] = True, False
+      future.complete = True
+      if not caller.stop_latched:
+        state["latched"] = False
     status()
     observe(ros, *(node.request.twist if node.phase == "pulsing" else ZERO))
     node.on_tick()
@@ -1419,7 +1434,8 @@ def test_session_initial_latch_explicit_start_consumes_token_and_subsequent_stop
   assert code == 3 and len(submissions) == 1
   assert submissions[0]["sequence"] == captured[0] < state["sequence"]
   assert not twists(ros)
-  assert node.stop_requested == "e-stop gateway latched"
+  assert node.stop_requested == "gateway authority epoch or instance changed"
+  assert caller.stop_result['confirmed'] and not caller.stop_pending
 
 
 @pytest.mark.parametrize("changed", [{"epoch": 2}, {"instance_id": "restarted"}])
@@ -1602,6 +1618,8 @@ def test_session_stop_during_pending_start_reaches_gateway_and_discards_queued_s
   assert len(submissions) == len(ros.published["/emergency_stop"]) == 1
   assert not twists(ros)
   assert not any(e["event"] == "prepared" for e in events)
+  assert caller.stop_result is not None and not caller.stop_pending
+  assert caller.stop_result['confirmed'] is (shutdown != 'interrupt')
 
 
 def test_session_start_ack_timeout_stops_without_retry_or_running_a_trial(tmp_path):
@@ -1995,3 +2013,425 @@ def test_explicit_stop_remains_live_through_guard_only_finalization(tmp_path, mo
   assert len(ros.published["/emergency_stop"]) == 1
   assert len([event for event in events if event["event"] == "prepared"]) == 1
   assert inbox.normal.qsize() == 1
+
+
+def strict_trial(tmp_path, duration=.5, *, ready_now=True):
+  ros, node, mt = make_trial(tmp_path, duration=duration, kick_mux=False,
+      command_topology="fc_deadline_v1", command_path_check=lambda: True)
+  protocol = node.deadline.protocol
+  names = {protocol.REQUEST_TOPIC: ["movement_trial"], protocol.ADMITTED_TOPIC: ["fc_body_command_guard"],
+           mt.GUARD_STATUS_TOPIC: ["fc_body_command_guard"],
+           mt.NATIVE_AUTHORITY_TOPIC: ["neural_controller_default"]}
+  subscribers = {protocol.REQUEST_TOPIC: ["fc_body_command_guard"],
+                 protocol.ADMITTED_TOPIC: ["neural_controller_default"]}
+  info = lambda name: types.SimpleNamespace(node_name=name, node_namespace="/", topic_type="std_msgs/msg/String")
+  node.get_publishers_info_by_topic = lambda topic: [info(n) for n in names.get(topic, [])]
+  node.get_subscriptions_info_by_topic = lambda topic: [info(n) for n in subscribers.get(topic, [])]
+  ros.publishers.update({topic: len(rows) for topic, rows in names.items()})
+  source = {"value": node.deadline.source_instance, "camera": True, "emit_authority": True}
+  activation = round(ros.t * 1e9) - 1
+  def evidence():
+    node.check_command_path()
+    now = round(ros.t * 1e9)
+    node.on_stop_status(_fake_ros.String(json.dumps(dict(protocol="pupper_stop_v1", instance_id="gateway",
+        epoch=1, latched=False, fault=False))))
+    packets = strict_packets(ros, node)
+    packet = packets[-1] if packets else None
+    bound = packet is not None
+    camera = source["camera"]
+    row = dict(state="ready" if bound and camera else "hold", reason="fixture", input_state="valid" if bound else "missing",
+        camera_state="clear" if camera else "blocked", camera_permitted=camera,
+        max_frame_age_s=.35, frame_age_s=.01, sampled_at_monotonic_ns=now,
+        producer_instance="camera", sequence=now, clear_frames=3 if camera else 0,
+        requires_post_hold_zero=not bound or not camera, command_contract=mt.STRICT_CONTRACT,
+        clock_id=node.deadline.clock_id, source_bound=bound, source_instance=node.deadline.source_instance if bound else None,
+        source_seq=packet.seq if bound else None, source_issued_mono_ns=packet.issued_mono_ns if bound else None,
+        source_expires_mono_ns=packet.expires_mono_ns if bound else None,
+        source_vetoed=not bound or not camera, clearance_mono_ns=activation,
+        post_clear_zero_seq=1 if bound else None)
+    if packet and packet.expires_mono_ns <= now:
+      row.update(state="hold", input_state="expired", source_vetoed=True)
+    node.on_guard_status(_fake_ros.String(json.dumps(row)))
+    if source["emit_authority"]:
+      native = dict(schema="pupper_command_authority_v1", clock_id=node.deadline.clock_id,
+          generation=1, activation_mono_ns=activation, sampled_mono_ns=now,
+          bound_source_instance=source["value"] if bound else "")
+      node.on_native_authority(_fake_ros.String(json.dumps(native)))
+  node.create_timer(.05, evidence)
+  if ready_now:
+    ros.tick(25)
+    evidence()
+    assert node.start_problem() is None
+  return ros, node, mt, evidence, source, names, subscribers
+
+
+def strict_packets(ros, node):
+  return [node.deadline.protocol.decode(msg.data) for msg in ros.published[node.kick_topic]]
+
+
+def test_strict_binding_zeros_then_finite_pulse_never_publish_twist(tmp_path):
+  ros, node, mt, evidence, *_ = strict_trial(tmp_path)
+  assert node.phase == "waiting" and node.published == 0 and not node.ever_run
+  assert strict_packets(ros, node) and all(p.is_zero for p in strict_packets(ros, node))
+  assert node.robot_pub is None and not ros.published['/cmd_vel'] and not ros.published['/kick_cmd_vel']
+  ros.t += .001
+  evidence()
+  assert node.try_start() is None
+  end = node.started + node.request.duration_s
+  ros.tick(12)
+  packets = strict_packets(ros, node)
+  positives = [p for p in packets if not p.is_zero]
+  assert positives and node.phase == 'finished'
+  assert all(p.expires_mono_ns <= math.floor(end * 1e9) for p in positives)
+  assert all(p.expires_mono_ns - p.issued_mono_ns <= 150_000_000 for p in packets)
+  assert packets[-1].is_zero and not ros.published['/emergency_stop']
+  mt.finish_trial(node, {}, lambda _: True, session=True)
+  assert node.record['command_verification']['passed']
+  assert node.record['command_topic'] == node.kick_topic
+  old_source, old_seq = node.deadline.source_instance, node.deadline.sequence
+  node.prepare(mt.PulseRequest.build('left', .15, .4))
+  ros.tick(1)
+  assert node.phase == 'waiting' and strict_packets(ros, node)[-1].is_zero
+  assert node.deadline.source_instance == old_source and node.deadline.sequence > old_seq
+
+
+@pytest.mark.parametrize('bad_source', ['', 'b' * 32])
+def test_strict_restart_binding_refuses_trial_but_keeps_idle_zeros(tmp_path, bad_source):
+  ros, node, mt, evidence, source, *_ = strict_trial(tmp_path)
+  node.authority_status = None  # new client's first native binding observation
+  source['value'] = bad_source
+  ros.t += .001
+  evidence()
+  reason = node.try_start()
+  assert ('pending' if not bad_source else 'Stop/Start') in reason
+  ros.tick(2)
+  assert node.phase == 'waiting' and all(p.is_zero for p in strict_packets(ros, node))
+  assert not ros.published['/emergency_stop']
+
+
+@pytest.mark.parametrize('failure', ['guard_camera', 'guard_source', 'native_stale', 'native_twist'])
+def test_strict_active_hold_cancels_and_authority_faults_stop(tmp_path, failure):
+  ros, node, mt, evidence, source, names, subscribers = strict_trial(tmp_path, duration=2)
+  ros.t += .001
+  assert node.try_start() is None
+  ros.tick(1)
+  if failure == 'guard_camera':
+    source['camera'] = False
+    evidence()
+  elif failure == 'guard_source':
+    row = {**node.guard_status, 'source_instance': 'b' * 32}
+    node.on_guard_status(_fake_ros.String(json.dumps(row)))
+  elif failure == 'native_stale':
+    node.authority_at = ros.t - .31
+    node.on_tick()
+  else:
+    subscribers['/cmd_vel'] = ['neural_controller_default']
+    node.on_tick()
+  assert node.phase == 'finished'
+  if failure.startswith('guard_'):
+    assert node.record['outcome'] == 'interrupted' and not ros.published['/emergency_stop']
+  else:
+    assert node.stop_requested and len(ros.published['/emergency_stop']) == 1
+  ros.t += .01
+  node.on_tick()
+  if failure == 'guard_camera':
+    assert strict_packets(ros, node)[-1].is_zero
+    source['camera'] = True
+    evidence()
+    ros.tick(2)
+    assert node.phase == 'finished'  # clearance cannot resume a finite action
+
+
+@pytest.mark.parametrize('race', ['stop', 'emergency_receipt', 'expiry'])
+def test_strict_final_publication_fences_stop_and_original_trial_end(tmp_path, race):
+  ros, node, mt, evidence, *_ = strict_trial(tmp_path, duration=.4)
+  ros.t += .001
+  assert node.try_start() is None
+  inbox = mt.SessionInbox(node.clock)
+  node.operator_stop_received = inbox.stop_seen
+  original = node.deadline.encode
+  before = len(strict_packets(ros, node))
+  def late(command):
+    if race == 'expiry':
+      ros.t = node.started + node.request.duration_s + .001
+    result = original(command)
+    if race == 'stop':
+      inbox.put({'command':'stop'})
+    elif race == 'emergency_receipt':
+      node.stop_received.set()
+    return result
+  node.deadline.encode = late
+  ros.t += .001
+  node.publish((.2, 0., 0.))
+  after = strict_packets(ros, node)[before:]
+  assert not after or all(p.is_zero for p in after)
+  assert not ros.published['/cmd_vel'] and not ros.published['/kick_cmd_vel']
+
+
+def test_strict_stop_receipt_during_message_construction_cannot_publish(tmp_path, monkeypatch):
+  ros, node, mt, evidence, *_ = strict_trial(tmp_path)
+  ros.t += .001
+  assert node.try_start() is None
+  inbox = mt.SessionInbox(node.clock)
+  node.operator_stop_received = inbox.stop_seen
+  original = _fake_ros.String.__init__
+  def construct(message, data=''):
+    original(message, data)
+    inbox.put({'command':'stop'})
+  monkeypatch.setattr(_fake_ros.String, '__init__', construct)
+  before = len(strict_packets(ros, node))
+  ros.t += .001
+  node.publish((.2, 0., 0.))
+  assert len(strict_packets(ros, node)) == before and inbox.stop_seen.is_set()
+
+
+def test_strict_emergency_callback_receipt_fences_publish_while_control_lock_is_held(tmp_path):
+  import threading
+  ros, node, mt, evidence, *_ = strict_trial(tmp_path)
+  ros.t += .001
+  assert node.try_start() is None
+  original, workers = node.deadline.encode, []
+  def encoding(command):
+    result = original(command)
+    if command.vx:
+      ros.t += .001
+      worker = threading.Thread(target=node.on_emergency, args=(_fake_ros.Empty(),))
+      workers.append(worker)
+      worker.start()
+      assert node.stop_received.wait(1)
+    return result
+  node.deadline.encode = encoding
+  before = len(strict_packets(ros, node))
+  ros.t += .001
+  with node.lock:
+    node.publish((.2, 0., 0.))
+  workers[0].join(1)
+  assert not workers[0].is_alive()
+  assert node.phase == 'finished' and node.stop_requested == 'emergency stop'
+  assert all(p.is_zero for p in strict_packets(ros, node)[before:])
+
+
+@pytest.mark.parametrize('fields', [dict(axis='forward', speed=.31), dict(axis='left', speed=.4, profile='sprint')])
+def test_strict_prepare_keeps_selected_walk_envelope(tmp_path, fields):
+  ros, node, mt, *_ = strict_trial(tmp_path)
+  with pytest.raises(ValueError):
+    node.prepare(mt.PulseRequest.build(duration_s=.5, **fields))
+  assert node.phase == 'waiting' and all(p.is_zero for p in strict_packets(ros, node))
+
+
+@pytest.mark.parametrize('failure', ['contract', 'clock', 'original_expiry', 'no_gateway'])
+def test_strict_requires_loaded_capability_clock_and_gateway(tmp_path, failure):
+  ros, node, mt, evidence, *_ = strict_trial(tmp_path)
+  if failure == 'no_gateway':
+    with pytest.raises(ValueError, match='gateway'):
+      mt.validate_topology_request(mt.STRICT_CONTRACT, node.request, require_gateway=False)
+    return
+  key, value = {'contract': ('cmd_vel_loaded_contract', 'legacy_twist'),
+                'clock': ('cmd_vel_source_clock_id', 'linux-monotonic:other:1'),
+                'original_expiry': ('cmd_vel_original_deadline_supported', False)}[failure]
+  ros.controller_params[key] = value
+  node.stock.invalidate('changed fixture')
+  ros.tick(6)
+  assert node.try_start() is not None
+  assert not node.ever_run and all(p.is_zero for p in strict_packets(ros, node))
+
+
+def test_strict_heading_uses_real_imu_captures_and_finite_timeout(tmp_path):
+  ros, node, mt, evidence, *_ = strict_trial(tmp_path)
+  node.prepare(mt.HeadingRequest.build(.2, relative=True, timeout_s=2))
+  ros.t += .001
+  evidence()
+  heading_imu(ros, .4)
+  assert node.try_start() is None
+  assert node.heading.target_rad == pytest.approx(.6)
+  for i in range(14):
+    ros.t += .05
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    evidence()
+    heading_imu(ros, min(.6, .4 + i * .04))
+    observe(ros, wz=strict_packets(ros, node)[-1].wz)
+    node.on_tick()
+  assert node.record['outcome'] == 'completed' and node.record['heading_feedback']['stable_completion']
+  assert all(abs(p.wz) <= .35 for p in strict_packets(ros, node))
+  assert all(p.expires_mono_ns <= math.floor((node.started + 2) * 1e9)
+             for p in strict_packets(ros, node) if not p.is_zero)
+
+
+def test_strict_session_camera_hold_requires_fresh_prepare_and_retains_one_source(tmp_path):
+  ros, node, mt, evidence, source, *_ = strict_trial(tmp_path)
+  inbox = mt.SessionInbox(node.clock)
+  events, started, completed = [], [], []
+  spins = [0]
+  def spin(actual, timeout_sec):
+    spins[0] += 1
+    assert spins[0] < 100
+    ros.tick(1)
+  def emit(event):
+    events.append(event)
+    if event['event'] == 'session_ready':
+      inbox.put(dict(command='prepare', axis='forward', speed=.2, duration=.6))
+    elif event['event'] == 'prepared':
+      inbox.put(dict(command='run', token=event['token']))
+    elif event['event'] == 'started':
+      started.append(node.deadline.source_instance)
+      if len(started) == 1:
+        source['camera'] = False
+    elif event['event'] == 'trial_complete':
+      completed.append(event)
+      if len(completed) == 1:
+        assert event['outcome'] == 'interrupted' and event['interruption_verification']['passed']
+        assert not ros.published['/emergency_stop']
+        source['camera'] = True
+        inbox.put(dict(command='prepare', axis='left', speed=.15, duration=.5))
+      else:
+        inbox.put(dict(command='quit'))
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin) == 0
+  assert len(started) == 2 and len(set(started)) == 1
+  assert len([e for e in events if e['event']=='prepared']) == 2
+  assert completed[-1]['outcome'] == 'completed'
+  packets = strict_packets(ros, node)
+  assert all(a.seq < b.seq for a,b in zip(packets, packets[1:]))
+
+
+@pytest.mark.parametrize('outcome', ['appears', 'missing', 'guard_loss', 'stop_pending', 'stop_final'])
+def test_strict_software_start_only_relaxes_missing_native_during_bounded_discovery(tmp_path, outcome):
+  from foundation.hardware.software_start import ResidentStart
+  ros, node, mt, evidence, source, names, subscribers = strict_trial(tmp_path)
+  names[mt.NATIVE_AUTHORITY_TOPIC] = []
+  ros.publishers[mt.NATIVE_AUTHORITY_TOPIC] = 0
+  subscribers[node.deadline.protocol.ADMITTED_TOPIC] = []
+  source['emit_authority'] = False
+  node.authority_status = node.authority_at = None
+  node.authority_error = 'binding pending native activation'
+  node.guard_ready_once = False
+  ros.controllers['neural_controller_default'] = 'inactive'
+  node.stock.invalidate('fixture inactive before Start')
+  future = types.SimpleNamespace(complete=False)
+  future.done = lambda: future.complete
+  future.result = lambda: types.SimpleNamespace(success=True, message='activated')
+  calls = []
+  def submit(payload):
+    calls.append(dict(payload))
+    return future
+  state = dict(protocol='pupper_stop_v1', instance_id='gateway', epoch=1, sequence=1,
+      software_stop_topic='/estop_controller/request_stop',
+      selected_controller='neural_controller_default', latched=False, fault=False,
+      stop_required=False, in_flight=False, unknown_remote_submission=False, shutting_down=False)
+  def gateway_stop():
+    state['epoch'] += 1
+    state['latched'] = True
+  caller = ResidentStart(submit, lambda: True, clock=node.clock,
+                         gateway_stop=gateway_stop, emergency_stop=node.request_emergency)
+  assert caller.observe(state)
+  inbox = mt.SessionInbox(node.clock)
+  if outcome == 'stop_final':
+    original_guard = node.guard_problem
+    def final_guard(*, camera=True, allow_absent_native=False):
+      problem = original_guard(camera=camera, allow_absent_native=allow_absent_native)
+      if allow_absent_native:
+        inbox.put(dict(command='stop', reason='Stop during final Start graph query'))
+      return problem
+    node.guard_problem = final_guard
+  spins, pending_ticks, ack_ticks = [0], [0], [0]
+  events = []
+  def spin(actual, timeout_sec):
+    spins[0] += 1
+    assert spins[0] < 60
+    if calls and not future.complete:
+      pending_ticks[0] += 1
+      if outcome == 'guard_loss':
+        names[node.deadline.protocol.ADMITTED_TOPIC] = []
+        ros.publishers[node.deadline.protocol.ADMITTED_TOPIC] = 0
+      elif pending_ticks[0] >= 2 and outcome != 'stop_pending':
+        future.complete = True
+        ros.controllers['neural_controller_default'] = 'active'
+        if outcome == 'appears':
+          names[mt.NATIVE_AUTHORITY_TOPIC] = ['neural_controller_default']
+          ros.publishers[mt.NATIVE_AUTHORITY_TOPIC] = 1
+          subscribers[node.deadline.protocol.ADMITTED_TOPIC] = ['neural_controller_default']
+          source['emit_authority'] = True
+    ros.tick(1)
+    state['sequence'] += 1
+    assert caller.observe(state)
+    if future.complete:
+      ack_ticks[0] += 1
+      if outcome == 'appears' and ack_ticks[0] == 5:
+        assert node.phase == 'waiting' and not node.ever_run
+        assert not ros.published['/emergency_stop']
+        inbox.put(dict(command='quit'))
+  def emit(event):
+    events.append(event)
+    if event['event'] == 'session_ready':
+      inbox.put(dict(command='start'))
+    elif event['event'] == 'start_submitted' and outcome == 'stop_pending':
+      inbox.put(dict(command='stop'))
+  code = mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin, start_client=caller)
+  assert code == (3 if outcome in ('missing', 'guard_loss') else 0)
+  assert len(calls) == (0 if outcome == 'stop_final' else 1) and not node.ever_run
+  assert all(p.is_zero for p in strict_packets(ros, node))
+  if outcome != 'appears':
+    assert len(ros.published['/emergency_stop']) == 1
+  if outcome == 'missing':
+    assert ack_ticks[0] >= 6
+
+
+@pytest.mark.parametrize('acknowledge_stop', [True, False])
+def test_session_waits_for_gateway_stop_latch_or_reports_bounded_uncertainty(tmp_path, acknowledge_stop):
+  from foundation.hardware.software_start import STOP_CONFIRM_TIMEOUT_S
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+      tmp_path, acknowledge=False)
+  requests, events = [], []
+  caller.gateway_stop = lambda: requests.append(ros.t)
+  delivered = [False]
+  def spin_with_late_ack(actual, timeout_sec):
+    if (requests and acknowledge_stop and not delivered[0] and ros.t - requests[0] >= .08):
+      state['epoch'] += 1
+      state['latched'] = True
+      delivered[0] = True
+    spin(actual, timeout_sec)
+  def emit(event):
+    events.append(event)
+    if event['event'] == 'session_ready':
+      inbox.put(dict(command='start'))
+    elif event['event'] == 'start_submitted':
+      inbox.put(dict(command='stop'))
+  code = mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit,
+                        spin_once=spin_with_late_ack, start_client=caller)
+  assert code == (0 if acknowledge_stop else 3)
+  assert len(submissions) == len(requests) == len(ros.published['/emergency_stop']) == 1
+  result = caller.stop_result
+  assert result['confirmed'] is acknowledge_stop and result['uncertain'] is not acknowledge_stop
+  assert not caller.stop_pending and not twists(ros)
+  assert len([e for e in events if e['event']=='stop_result']) == 1
+  elapsed = ros.t - requests[0]
+  assert elapsed >= (.08 if acknowledge_stop else STOP_CONFIRM_TIMEOUT_S)
+  assert elapsed < STOP_CONFIRM_TIMEOUT_S + .05
+
+
+def test_old_gateway_with_start_interface_remains_options_only_and_preserves_finite_trials(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+      tmp_path, initial_latch=False)
+  state.pop('software_stop_topic')
+  state['sequence'] += 1
+  assert caller.observe(state)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event['event'] == 'session_ready':
+      assert event['software_start_interface_available'] and not event['software_start_supported']
+      inbox.put(dict(command='start'))
+    elif event['event'] == 'refused':
+      assert event['command'] == 'start' and 'Options only' in event['reason']
+      inbox.put(dict(command='prepare', axis='forward', speed=.2, duration=.5))
+    elif event['event'] == 'prepared':
+      inbox.put(dict(command='run', token=event['token']))
+    elif event['event'] == 'trial_complete':
+      assert event['outcome'] == 'completed'
+      inbox.put(dict(command='quit'))
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit,
+                        spin_once=spin, start_client=caller) == 0
+  assert not submissions and any(any(v) for v in twists(ros))
+  assert not caller.stop_pending and caller.stop_result is None
+  assert not ros.published['/emergency_stop']

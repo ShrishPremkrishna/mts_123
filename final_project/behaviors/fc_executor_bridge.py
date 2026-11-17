@@ -363,7 +363,8 @@ def _node_class():
             self.start_client = None
             try:
                 from foundation.hardware.software_start import attach
-                self.start_client = attach(self, clock=self.clock)
+                self.start_client = attach(self, clock=self.clock,
+                    emergency_stop=lambda: self.stop_pub.publish(EmptyMessage()))
             except ImportError:
                 pass
             self.inbox = OperatorInbox(self.clock, self.capture_start, self.capture_resume)
@@ -590,7 +591,12 @@ def _node_class():
             hard = hard or pending
             if hard and not self.hard_stopped:
                 self.hard_stopped = True
-                if publish_stop:
+                if self.start_client is not None:
+                    # Native damping alone does not cancel a queued gateway
+                    # Start. Keep the gateway's epoch/latch in the Stop path,
+                    # including when an external native emergency reached us.
+                    self.start_client.request_stop(reason)
+                elif publish_stop:
                     self.stop_pub.publish(EmptyMessage())
             self.guard_only_exit = not hard and not self.hard_stopped
             self.core.stop()
@@ -620,6 +626,8 @@ def _node_class():
                     if (not self.native_valid or not self.path_valid or self.identity_at is None or
                             not 0 <= self.clock() - self.identity_at <= .3):
                         raise ValueError("selected runtime is unavailable")
+                    if self.closing or self.inbox.stop_seen.is_set():
+                        raise ValueError("Stop received before Start dispatch")
                     self.start_client.send(message["_ticket"])
                     self.submitted_start = True
                     self.native_discovery_until = None
@@ -682,6 +690,9 @@ def _node_class():
                             self.native_discovery_until = self.clock() + NATIVE_DISCOVERY_S
                     if self.start_client.uncertain:
                         self.shutdown("Start result uncertain", hard=True)
+                    stop_result = self.start_client.poll_stop()
+                    if stop_result is not None:
+                        self.emit(stop_result)
                 if self.submitted_start and not self.closing:
                     if (not self.native_valid or self.identity_at is None or
                             not 0 <= self.clock() - self.identity_at <= .3):
@@ -743,7 +754,10 @@ def _node_class():
                         if self.zero_seen_at is None and (self.ever_armed or self.submitted_start):
                             self.shutdown("cleanup zero unconfirmed", hard=True)
                         self.drain_operator(urgent_only=True)
-                        self.closed = True
+                        # Wait only for the helper's bounded gateway-latch
+                        # confirmation. This is not a physical-stop receipt.
+                        if self.start_client is None or not self.start_client.stop_pending:
+                            self.closed = True
 
         def status(self):
             with self.lock:
@@ -779,6 +793,10 @@ def _node_class():
                                "reason": resume_problem or "current goal return and evidence permit resume"},
                     "armed": self.core.executor.armed, "closing": self.closing,
                     "hard_stopped": self.hard_stopped, "guard_only_exit": self.guard_only_exit,
+                    "software_start_interface_available": self.start_client is not None,
+                    "software_start_supported": bool(self.start_client is not None and self.start_client.stop_capable),
+                    "gateway_stop": self.start_client.stop_result if self.start_client is not None else None,
+                    "gateway_stop_pending": self.start_client.stop_pending if self.start_client is not None else False,
                     "reason": self.reason, "native_problem": self.native_problem(),
                     "guard_problem": self.guard_problem(), "zero_confirmed": self.zero_seen_at is not None,
                     "applied_command": list(self.observation[0]) if self.observation else None,
@@ -856,7 +874,9 @@ def main(argv=None):
                "required_participants": list(core.executor.required_participants),
                "command_contract": core.command_contract,
                "source_instance": core.deadline.source_instance if core.deadline else None,
-               "limits": asdict(LIMITS), "armed": False, "software_start_supported": node.start_client is not None,
+               "limits": asdict(LIMITS), "armed": False,
+               "software_start_interface_available": node.start_client is not None,
+               "software_start_supported": bool(node.start_client is not None and node.start_client.stop_capable),
                "identity_scope": "operational evidence; not authentication"})
     try:
         while rclpy.ok() and not node.closed:
@@ -866,6 +886,23 @@ def main(argv=None):
         if not node.closed:
             node.shutdown("bridge execution ended", hard=True)
         node.drain_operator(urgent_only=True)
+        # Exception-driven exit must not immediately destroy the publisher for
+        # an outstanding gateway cancellation. Confirmation remains bounded;
+        # unavailable ROS leaves the receipt pending/unconfirmed, never passed.
+        cleanup_until = time.monotonic()
+        if node.start_client is not None:
+            from foundation.hardware.software_start import STOP_CONFIRM_TIMEOUT_S
+            cleanup_until += STOP_CONFIRM_TIMEOUT_S + .1
+        while (rclpy.ok() and node.start_client is not None and node.start_client.stop_pending
+               and time.monotonic() < cleanup_until):
+            try:
+                rclpy.spin_once(node, timeout_sec=TICK_S)
+            except Exception:
+                break
+        if node.start_client is not None and node.start_client.stop_pending:
+            result = node.start_client.poll_stop(force_unconfirmed=True)
+            if result is not None:
+                node.emit(result)
         node.emit({**node.status(), "event": "bridge_closed"})
         node.destroy_node()
         rclpy.try_shutdown()

@@ -5,6 +5,53 @@ explains release selection and ownership. The [checkpoint](../../foundation/resu
 records current access. Commands below are for the selected, supervised session;
 a directory existing or tests passing does not authorize motion.
 
+The existing stock/guarded Twist procedures remain below. The updated finite
+trial client also supports an explicitly selected `fc_deadline_v1` release; use
+the strict qualification section for that path. A source update alone does not
+change the selected controller or client.
+
+## Direct-deadline qualification candidate
+
+This uses the same resident `movement_trial.py --session --execute` command and
+prepare/run workflow below. The verified runtime receipt selects the topology;
+there is no command-line bypass. Select the reviewed client and all its matching
+helpers from the source kit, the strict target-built release, the walk profile,
+and the real capture-stamped camera producer. Complete build/import checks before
+requesting supervised startup. This candidate still needs physical acceptance.
+
+The client publishes only deadline envelopes through the camera guard. It checks
+the native contract, clock, source binding and zero feedback before a trial.
+Idle zeros can establish binding but cannot start a trial. Translation is capped
+at 0.3 m/s, yaw at 1 rad/s; feedback turns retain their lower 0.35 rad/s limit.
+Each nonzero envelope expires within 150 ms and no later than the finite trial
+end. These are command bounds, not measured speed or braking distance.
+
+After one supported native activation, retain the same client across trials:
+
+1. Check `status`, then prepare a short pulse such as
+   `{"command":"prepare","axis":"forward","speed":0.2,"duration":1}`.
+2. With the operator watching the marked clear lane, run the returned token once.
+   Record travel, sideways drift, stability and braking alongside the receipt.
+3. For a relative IMU turn, prepare
+   `{"command":"prepare","turn_angle_rad":0.392699,"timeout_s":8}` and run
+   its fresh token. Measure the resulting angle independently; IMU completion is
+   sensor evidence. No overhead pose or invented field coordinates are used.
+
+Qualify the path on the stand before floor motion. Camera interruption cancels
+the finite trial and invalidates its token; clearance alone does not restart it.
+After verified zero and restored readiness, prepare a new trial. `stop` remains
+deliberate and latched. Emergency Stop can apply native damping without another
+policy observation: an unconfirmed zero receipt must not be reported as measured
+physical stillness or silently converted into a passing command check.
+
+When handing motion ownership to the gameplay bridge, close the qualification
+client and use one deliberate native Stop/Start for the bridge's different source
+instance. Do not share its source identity or home again merely to change clients.
+The separate software-Start service must actually be installed for `start` to
+work, including its advertised gateway Stop-cancellation endpoint; otherwise use
+the accepted Options activation once and verify its state. The client reports
+gateway-latch acknowledgement separately from policy zero and physical stopping.
+
 ## Select the runtime once
 
 Use a completed, pinned release with a compatible Pi-native controller, the repaired
@@ -20,9 +67,10 @@ startup, the loaded check verifies the newly started manager, supplied config,
 and actual mapped driver/controller libraries. `movement_trial.py --execute`
 requires this receipt and repeats the identity check before movement.
 
-The selected stock launch starts one mux, one stock walker (inactive), the stop
-gateway and feedback. It does not start camera, voice, alternate policies or a
-shot adapter. Home once on the stand; move to clear floor and activate only with
+The legacy stock/guarded Twist launch starts one mux, one stock walker (inactive),
+the stop gateway and feedback. Strict `fc_deadline_v1` uses the direct camera
+guard/native path with no mux. Neither launch starts camera production, voice,
+alternate policies or a shot adapter. Home once on the stand; move to clear floor and activate only with
 the supervisor ready. Keep this session between trials. Profiles are selected at
 startup; changing a ROS parameter store does not change cached native settings.
 
@@ -161,8 +209,10 @@ geometry; the owner explicitly deferred additional tests with the temporary
 ball. No bumper is fitted. The recovered multicolor detector is not calibrated
 for the intended ball and did not drive the previous manual shots.
 
-The selected stock session already owns its mux. After closing the pulse tool,
-start only the shot node, not a second `kick_trial.launch.py` mux:
+The following shot-node procedure is for the legacy stock/guarded Twist path;
+it does not run or qualify strict `fc_deadline_v1`. The selected legacy session
+already owns its mux. After closing the pulse tool, start only the shot node,
+not a second `kick_trial.launch.py` mux:
 
 ```sh
 python3 "$PUPPER_RELEASE/final_project/behaviors/run_through_kick_node.py" \

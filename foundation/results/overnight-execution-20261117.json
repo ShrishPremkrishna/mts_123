@@ -153,7 +153,7 @@
     "colab": "L4 stopped after approximately80s after upload review rejection. User later explicitly approved transfer; local fallback already worked. Final0 sessions/0CU/hour. Rounded balance326.94CU does not establish zero credit consumption; exact incremental dollar cost unreported.",
     "claude": "Existing subscription/account use; CLI list-price usage metadata is not a billing receipt."
   },
-  "remaining": "Pi-compatible assembly/import/preflight and physical acceptance; original-source command expiry through actuation; actual camera timing/coverage; shared-ball opponent-aware navigation and two-robot commissioning; Ryan producer/clock adapter; physical heading/braking/defense/shot tests; demo/video/presentation/code/blog deliverables. Independent ROS domains, participant freshness and solo ROS play cycles verified with fixtures. Current owners/next actions only in interruption-recovery.json.",
+  "remaining": "Target-compatible build, assembly/import/preflight and physical acceptance; actual camera coverage/capture cadence; measured heading, translation and braking; Ryan producer/clock adapter; opponent clearance and two-robot commissioning; complete physical play and video/presentation/code/blog deliverables. Original-source command expiry is verified through native updates with memory hardware, not a physical stopping guarantee. Current owners and next actions are only in interruption-recovery.json.",
   "core_commit": "d4f6d92",
   "ros_integration": {
     "receipt": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
@@ -671,5 +671,146 @@
     "all_owned_jobs_exited": true,
     "all_agents_completed": true,
     "hardware_access": false
+  },
+  "opponent_deadline_reassessment": {
+    "findings": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/findings.json",
+    "root_review": true,
+    "trace_count": 12,
+    "physics_rows": 15448,
+    "minimum_center_separation_m": 0.5900000000004394,
+    "archive_sha256": "becc9f0596c7b2406bcbdf67552c3de6aab75e1592789513e1e74cdedb5ea6fe",
+    "decision": "defer production admission/routing changes; fixed unqualified stopping reserve excludes otherwise possible approach geometry",
+    "limits": "Finite approximate-model precontact results; no physical or reciprocal proof.",
+    "cases": 12,
+    "source_changes": false,
+    "selected_for_deployment": false,
+    "outcome": "Shorter command survival improves two cases but two reserve-excluded cases still stall; whole-target feasibility rule makes all four geometries fail useful contact and is rejected. No further parameter tuning."
+  },
+  "overnight_priority_review": "artifacts/pupper-fc/2026-11-17/overnight-value-review.json",
+  "actual_bridge_guard_native": {
+    "summary": "artifacts/pupper-fc/2026-11-17/deadline-full-chain/summary.json",
+    "summary_sha256": "98577c303a469479d4628933cae1102686fc93dc34d9bd5161ef90748ce991d9",
+    "cases_passed": 2,
+    "actual_stack": "Bridge CLI/executor, guard, native callback/update, parameters, authority and observation with stock policy; memory hardware.",
+    "first_publish_to_native_nonzero_ms": 17.489916,
+    "latest_original_expiry_to_native_zero_ms": 0.3605,
+    "native_updates_beginning_after_expiry_all_zero": 1062,
+    "restart_wrong_binding_arm_refused": true,
+    "stop_result": "Memory damping confirmed; no fresh zero policy observation on emergency Stop, so cleanup zero remains unconfirmed. Exit3 is expected hard-Stop classification.",
+    "fixtures": "Gateway Start backend/inventory, release receipt, perception and joint/IMU values. No physical timing, braking or actual gateway scheduling claim.",
+    "source_pins_current": false,
+    "container_exit": 0,
+    "container_removed": true,
+    "all_children_exited": true,
+    "cleanup_exception": "Restarted guard exited1 on external SIGTERM with publisher context invalid after measurements; not a clean guard shutdown.",
+    "remaining_jobs": false,
+    "production_edits": false,
+    "source_scope": "Frozen pre-gateway-cancellation client snapshot. Native controller/deadline path unchanged; final callers and actual gateway cancellation are separately verified below. Do not treat this earlier gateway fixture as Stop-cancellation qualification."
+  },
+  "strict_finite_and_gateway_stop": {
+    "completed_utc": "2026-11-17T15:53:06.724062+00:00",
+    "implemented": [
+      "Existing finite pulse and IMU-turn tool supports explicit fc_deadline_v1 selected by runtime evidence, with the same guard/native authority checks as gameplay; no field-pose substitute.",
+      "Each nonzero command expires within 150 ms and by the finite trial end. Camera hold cancels the trial/token, with a fresh prepare required. Strict bounds remain walk-only 0.3 m/s translation, 1 rad/s yaw, 0.35 rad/s feedback turn.",
+      "A queued Stop received during graph checking is fenced before Start dispatch; final publication checks follow message construction.",
+      "Reliable gateway request_stop enters the existing latch/epoch/cancel path, invalidates old Start tickets and preserves corrective deactivation for a late activation.",
+      "Shared helper sends immediate native and gateway Stop once; final callers require advertised cancellation capability for software Start, prevent local rearm, and wait boundedly for fresh same-instance newer-epoch latch acknowledgement or explicit uncertainty."
+    ],
+    "fable": {
+      "model": "claude-fable-5-2",
+      "adjudication": "artifacts/pupper-fc/2026-11-17/strict-trial-fable-focused/adjudication.json",
+      "completed_focused_review_seconds": 90.065,
+      "finding": "Confirmed native-only Stop did not cancel gateway pending Start.",
+      "earlier_full_source_attempt": "Timed out at 180.414 s with no final answer; not counted as completed review.",
+      "billing": "0.479016 USD list-price-equivalent metadata for focused review is not an incremental-charge receipt."
+    },
+    "finite_native_rehearsal": {
+      "summary": "artifacts/pupper-fc/2026-11-17/strict-trial-native/summary.json",
+      "sha256": "9ddcca0f5e49803328e4f01711f3fbd16a68b2d5f1553fad0880596b38e2117d",
+      "scope": "Pre-gateway-fix finite client, actual guard/native controller and stock policy with memory interfaces; pulse, camera cancellation, fresh IMU turn and damping. Gateway lifecycle and yaw are explicit fixtures. Final gateway/caller correction separately verified below.",
+      "source_publish_to_native_ms": 19.181,
+      "finite_expiry_to_native_zero_ms": 1.692,
+      "camera_hold_to_native_zero_ms": 6.5,
+      "stop_to_memory_damping_ms": 4.97,
+      "physical_acceptance": false
+    },
+    "gateway_build": {
+      "summary": "artifacts/pupper-fc/2026-11-17/gateway-software-stop/summary.json",
+      "ctests_passed": 12,
+      "arbiter_cases_passed": 22,
+      "fresh_build_seconds": 51.95504366699606,
+      "binary_sha256": "bd150ee84cf39bba5e3e9c133ff92536ace8ffebb8dec15c325afed6f4d04beb",
+      "target_compatible": false
+    },
+    "independent_review": {
+      "report": "artifacts/pupper-fc/2026-11-17/gateway-client-review/review.json",
+      "independent_probes_passed": 5,
+      "focused_tests_passed": 25,
+      "additional_concrete_blockers": 0
+    },
+    "actual_gateway_DDS": {
+      "summary": "artifacts/pupper-fc/2026-11-17/strict-trial-stop-review/summary.json",
+      "sha256": "62757fe659e8d24a51b1998051abb98bf8e265def7fc3aa7265a2501c8bc6464",
+      "cases_passed": 2,
+      "scope": "Both actual callers, actual camera guard and gateway, real DDS; delayed synthetic lifecycle backend. No native controller/policy/hardware in these cancellation cases.",
+      "result": "Both clients sent one Start then Stop. Gateway epoch advanced, old ticket replay was refused, late activation was deactivated, and neither caller published nonzero commands.",
+      "finite_latch_ack_ms": 1.611834,
+      "finite_final_backend_deactivation_ms": 537.436209,
+      "finite_temporary_backend_active_ms": 127.455583,
+      "bridge_latch_ack_ms": 186.066334,
+      "bridge_final_backend_deactivation_ms": 383.135167,
+      "bridge_temporary_backend_active_ms": 80.457291,
+      "limit": "Latch acknowledgement precedes cleanup; an already-dispatched remote activation cannot be recalled and briefly became active in these fixtures. These are observations, not worst-case or physical bounds.",
+      "client_exits": {
+        "finite": 0,
+        "bridge": 3
+      },
+      "bridge_exit_reason": "No policy-zero publisher in fixture; zero remains unconfirmed.",
+      "cleanup_exception": "Finite guard SIGTERM cleanup exited 1 due to invalid ROS publisher context; preserved, not claimed clean."
+    },
+    "combined_validation": {
+      "receipt": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/tests.json",
+      "passed": 1586,
+      "subtests_passed": 134,
+      "pytest_seconds": 4.69,
+      "exit": 0,
+      "source_pins_unchanged": true,
+      "warning": "Existing Starlette/httpx deprecation."
+    },
+    "source_kit": {
+      "summary": "artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T154542Z/summary.json",
+      "summary_sha256": "57081d00a12ce2eb271b18d41720de93a1ad47efb907cf0ec7a12ba065a83faa",
+      "archive_sha256": "25396cd902171cd03d277e6eae9ce577c121ae79c74ec7e93d50f82e953359da",
+      "files": 53,
+      "repository_sources": 43,
+      "runtime_roles": 15,
+      "extracted_tests_passed": 696,
+      "extracted_subtests_passed": 86,
+      "module_origins_verified": 13,
+      "gateway_sources": 11,
+      "gateway_archive_sha256": "ebfbdd2b423600b22e5c1e69fccbdcfc91a3dd0a4b8956fb0dea5a98bb4c7aba",
+      "native_controller_sources": 779,
+      "native_controller_archive_sha256": "e6e6ab2bd5b1fe9832a5079ea5915d20dc0c4cc5135ecfd52496ddefde8a5a47",
+      "native_controller_companion_and_build_receipts_preserved": true,
+      "root_current_source_hashes_verified": 54,
+      "target_assembled": false,
+      "deployed": false,
+      "physical_acceptance": false,
+      "selection_limit": "Assembler preserves baseline gateway. New gateway requires separate target build and explicit complete-package selection including generated services/runtime dependencies."
+    },
+    "all_owned_processes_exited": true,
+    "all_containers_removed": true,
+    "hardware_access": false,
+    "active_paid_jobs": 0,
+    "limits": [
+      "No Pi access, deployment, homing or motion.",
+      "No new policy, gains or widened limits.",
+      "Physical camera, gait, heading, braking and complete play remain unaccepted.",
+      "Opponent-reserve candidate remains unselected; more geometry sweeps are deferred until justified stopping measurements."
+    ],
+    "archive_verification": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/archive-verification.json",
+    "archive_sha256": "1888c4bbebdedda94bfb354559907a632cafb44f89231332df2f42d084a50c3d",
+    "archive_files": 840,
+    "all_agents_completed": true
   }
 }

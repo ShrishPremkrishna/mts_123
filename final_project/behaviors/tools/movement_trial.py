@@ -51,6 +51,15 @@ gateway stop the pulse at once; loss of stock authority requests
 process dies, the mux times out. The selected movement release also expires
 silent velocity input in the native controller after 250 ms. These are zero
 requests, not proof of physical braking or protection against a hung controller.
+
+An explicitly selected ``fc_deadline_v1`` release instead uses only original-
+deadline String envelopes through the camera guard. It requires current native
+source binding and sends harmless binding zeros while idle, without starting a
+trial. Strict qualification is walk-only, at <=0.3 m/s and <=1 rad/s, with every
+nonzero deadline capped by the finite trial end. Keep this client resident across
+trials; changing to another source process requires deliberate native Stop/Start.
+No field observations or synthetic robot poses are needed for these body pulses
+and IMU turns. Command feedback still does not establish physical movement.
 """
 
 from __future__ import annotations
@@ -78,6 +87,7 @@ DEFAULT_SPEED = {"forward": 0.2, "backward": 0.2, "turn": 0.35, "lateral": 0.15}
 # Tool ceiling pending a measured policy envelope. The live guard additionally applies the
 # verified native caps; the stock node's forward limit is 0.49 and native backward 0.3.
 SPEED_CEILING = {"forward": 0.49, "backward": 0.3, "lateral": 0.3, "turn": 1.0}
+STRICT_SPEED_CEILING = {**SPEED_CEILING, "forward": 0.3}
 SPEED_PROFILES = {"walk": SPEED_CEILING,
                   "sprint": {**SPEED_CEILING, "forward": 1.0, "lateral": 0.5}}
 AXES = {"forward": ("forward", (1, 0, 0)), "backward": ("backward", (-1, 0, 0)),
@@ -95,10 +105,27 @@ HEADING_TOLERANCE_RAD = 0.05
 HEADING_DWELL_S = 0.3
 from command_path_evidence import (GUARD_STATUS_TOPIC, GUARD_INPUT_TOPIC,
     GUARD_STATUS_MAX_AGE_S, GUARD_FRAME_MAX_AGE_S, decode_guard_status,
-    guard_publishers_problem, guard_status_problem)
+    guard_publishers_problem, guard_status_problem, NATIVE_AUTHORITY_TOPIC,
+    decode_native_authority, native_authority_problem)
+STRICT_CONTRACT = "fc_deadline_v1"
+NATIVE_DISCOVERY_S = 0.3
 ZERO = (0.0, 0.0, 0.0)
 CLIENT_IDENTITY = {"path": str(Path(__file__).resolve()),
                    "sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+
+
+def validate_topology_request(topology, request, *, require_gateway=True):
+  if topology not in ("stock", "guarded", STRICT_CONTRACT):
+    raise ValueError("unsupported command topology")
+  if topology != "stock" and request.profile != "walk":
+    raise ValueError("guarded topology requires the walk profile")
+  if topology == STRICT_CONTRACT:
+    if not require_gateway:
+      raise ValueError("strict qualification requires the selected stop gateway")
+    vx, vy, wz = request.twist
+    if (not all(math.isfinite(v) for v in request.twist) or
+        math.hypot(vx, vy) > .3 + 1e-12 or abs(wz) > 1.):
+      raise ValueError("strict qualification exceeds 0.3 m/s translation or 1 rad/s yaw")
 
 
 # ---------------------------------------------------------------- pure helpers
@@ -488,17 +515,29 @@ def _node_class():
                  robot_topic="/cmd_vel", obs_topic="/neural_controller_default/observation",
                  imu_topic="/imu_sensor_broadcaster/imu", shot_state_topic="/run_through_kick/state",
                  rate_hz=20.0, require_gateway=True, quiet_s=1.0, clock=time.monotonic,
-                 command_topology="stock", command_path_check=None):
+                 command_topology="stock", command_path_check=None,
+                 monotonic_ns=time.monotonic_ns, command_clock_id=None, source_instance=None):
       super().__init__("movement_trial")
       self.clock = clock
       self.request, self.out_dir = request, Path(out_dir)
       self.kick_topic, self.robot_topic = kick_topic, robot_topic
       self.require_gateway, self.quiet_s = require_gateway, quiet_s
-      if command_topology not in ("stock", "guarded"):
-        raise ValueError("unsupported command topology")
-      if command_topology == "guarded" and request.profile != "walk":
-        raise ValueError("guarded topology requires the walk profile")
+      validate_topology_request(command_topology, request, require_gateway=require_gateway)
       self.command_topology, self.command_path_check = command_topology, command_path_check
+      self.deadline = None
+      if command_topology == STRICT_CONTRACT:
+        from fc_executor_bridge import DeadlineEncoder, Command as ExpiringCommand
+        self.deadline = DeadlineEncoder(monotonic_ns=monotonic_ns, clock_id=command_clock_id,
+                                        source_instance=source_instance)
+        self.source_command = ExpiringCommand
+        self.kick_topic = self.deadline.protocol.REQUEST_TOPIC
+      self.authority_status = self.authority_at = None
+      self.authority_error = "native source binding unavailable"
+      self.command_error = None
+      self.stop_received = threading.Event()
+      self.operator_stop_received = None
+      self.estop_sent = self.ever_run = False
+      self.software_start_client = None
       self.guard_status = self.guard_status_at = None
       self.guard_error = "no guard status received"
       self.guard_source = self.guard_frame_deadline = None
@@ -531,20 +570,25 @@ def _node_class():
       self.imu_end = None
       self.imu_source_stamp_ns = None
       self.heading = None
-      self.cmd_pub = self.create_publisher(Twist, kick_topic, 10)
-      self.robot_pub = self.create_publisher(Twist, robot_topic, 10)  # shutdown zeros only
+      self.cmd_pub = self.create_publisher(String if self.deadline else Twist, self.kick_topic, 10)
+      self.robot_pub = None if self.deadline else self.create_publisher(Twist, robot_topic, 10)
       self.estop_pub = self.create_publisher(Empty, "/emergency_stop", 10)
-      limits = SPEED_PROFILES[request.profile]
+      limits = STRICT_SPEED_CEILING if self.deadline else SPEED_PROFILES[request.profile]
       self.stock = StockWalkerEvidence(self, forward_ceiling=limits["forward"],
-                                       lateral_ceiling=limits["lateral"])
+          lateral_ceiling=limits["lateral"], **({"command_contract": STRICT_CONTRACT,
+          "command_clock_id": self.deadline.clock_id} if self.deadline else {}))
       self.create_subscription(Empty, "/emergency_stop", self.on_emergency, 10)
       self.create_subscription(Joy, "/joy", self.on_joy, 10)
       self.create_subscription(String, "/estop_controller/stop_status", self.on_stop_status, 10)
       self.create_subscription(String, shot_state_topic, self.on_shot_state, 10)
-      self.create_subscription(Twist, kick_topic, self.on_kick_cmd, 10)
+      if self.deadline:
+        self.create_subscription(String, NATIVE_AUTHORITY_TOPIC, self.on_native_authority,
+                                 qos_profile_sensor_data)
+      else:
+        self.create_subscription(Twist, kick_topic, self.on_kick_cmd, 10)
       self.create_subscription(Float32MultiArray, obs_topic, self.on_observation, 1)
       self.create_subscription(Imu, imu_topic, self.on_imu, qos_profile_sensor_data)
-      if self.command_topology == "guarded":
+      if self.command_topology != "stock":
         self.create_subscription(String, GUARD_STATUS_TOPIC, self.on_guard_status, 1)
       self.create_timer(1.0 / rate_hz, self.on_tick)
 
@@ -564,14 +608,15 @@ def _node_class():
           self.interrupt_guard("selected guard process identity lost", fatal=True)
       return valid
 
-    def guard_publishers_problem(self):
+    def guard_publishers_problem(self, *, allow_absent_native=False):
       return guard_publishers_problem(self, "/movement_trial", robot_topic=self.robot_topic,
-                                      kick_topic=self.kick_topic)
+          kick_topic=self.kick_topic, command_contract=STRICT_CONTRACT if self.deadline else "legacy_twist",
+          allow_absent_native=allow_absent_native)
 
-    def guard_problem(self, *, camera=True):
+    def guard_problem(self, *, camera=True, allow_absent_native=False):
       if self.command_topology == "stock":
         return None
-      problem = self.guard_publishers_problem()
+      problem = self.guard_publishers_problem(allow_absent_native=allow_absent_native)
       if problem and problem[0] == "authority":
         return problem
       if self.guard_fault:
@@ -582,14 +627,36 @@ def _node_class():
       if problem:
         return problem
       return guard_status_problem(self.guard_status, self.guard_status_at, self.guard_error,
-                                  self.guard_frame_deadline, self.now(), camera=camera)
+          self.guard_frame_deadline, self.now(), camera=camera,
+          command_contract=STRICT_CONTRACT if self.deadline else "legacy_twist")
+
+    def native_binding_problem(self):
+      if self.deadline:
+        return native_authority_problem(self.authority_status, self.authority_at,
+            self.authority_error, self.now(), self.deadline.source_instance)
+      return None
+
+    def on_native_authority(self, msg):
+      with self.lock:
+        now = self.now()
+        try:
+          self.authority_status = decode_native_authority(msg.data, now,
+              self.deadline.clock_id, self.authority_status)
+          self.authority_error = None
+        except (ValueError, TypeError, KeyError, OverflowError) as exc:
+          self.authority_error = "invalid native command authority: " + str(exc)
+        self.authority_at = now
+        if self.ever_run and self.native_binding_problem():
+          self.stop(self.native_binding_problem(), fault=True)
 
     def on_guard_status(self, msg):
       with self.lock:
         now = self.now()
         try:
           status, self.guard_source, self.guard_frame_deadline = decode_guard_status(
-            msg.data, now, self.guard_source, self.guard_frame_deadline)
+            msg.data, now, self.guard_source, self.guard_frame_deadline,
+            **({"command_contract": STRICT_CONTRACT, "clock_id": self.deadline.clock_id,
+                "source_instance": self.deadline.source_instance} if self.deadline else {}))
           self.guard_status, self.guard_status_at, self.guard_error = status, now, None
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
           self.guard_error = "invalid guard status: " + str(exc)
@@ -611,12 +678,14 @@ def _node_class():
 
     # -------------------------------------------------------- inputs
     def on_emergency(self, msg) -> None:
+      self.stop_received.set()  # receipt fence precedes the control lock
       with self.lock:
         self.stop("emergency stop", fault=False)
 
     def on_joy(self, msg) -> None:
       pressed = [i for i in STOP_BUTTONS if 0 <= i < len(msg.buttons) and msg.buttons[i]]
       if pressed:
+        self.stop_received.set()
         with self.lock:
           self.stop(f"joystick button {pressed[0]}", fault=True)
 
@@ -630,9 +699,11 @@ def _node_class():
       unsafe = any(bool(status.get(key)) for key in
                    ("fault", "stop_required", "unknown_remote_submission", "shutting_down"))
       blocked = bool(status.get("latched")) or unsafe
+      if blocked and (unsafe or self.gateway_released_once or self.phase == "pulsing"):
+        self.stop_received.set()
       with self.lock:
         has_identity = "instance_id" in status or "epoch" in status
-        if has_identity or self.gateway_authority is not None:
+        if self.deadline or has_identity or self.gateway_authority is not None:
           if (status.get("protocol") != "pupper_stop_v1" or
               not isinstance(status.get("instance_id"), str) or not status["instance_id"] or
               type(status.get("epoch")) is not int or not 0 <= status["epoch"] < 2**64):
@@ -728,14 +799,17 @@ def _node_class():
     # -------------------------------------------------------- control
     def start_problem(self) -> str | None:
       now = self.now()
+      if self.deadline and (self.stop_requested or self.shutdown_received()):
+        return "session Stop is latched"
       if self.phase != "waiting":
         return f"trial already {self.phase}"
       if self.require_gateway and self.gateway_blocked is not False:
         return ("e-stop gateway latched or faulted" if self.gateway_blocked
                 else "no /estop_controller/stop_status yet")
-      others = self.count_publishers(self.robot_topic) - 1
-      if others != 1:
-        return f"{others} publisher(s) on {self.robot_topic} besides this tool; need exactly the kick mux"
+      if not self.deadline:
+        others = self.count_publishers(self.robot_topic) - 1
+        if others != 1:
+          return f"{others} publisher(s) on {self.robot_topic} besides this tool; need exactly the kick mux"
       kick_others = self.count_publishers(self.kick_topic) - 1
       if kick_others != 0:
         return f"{kick_others} other publishers on {self.kick_topic}; expected no other command producers"
@@ -747,6 +821,13 @@ def _node_class():
         return f"another producer published on {self.kick_topic} within {self.quiet_s:g} s"
       if not self.latest_obs or not 0 <= now - self.latest_obs[1] <= OBS_MAX_AGE_S:
         return "no fresh stock policy observation; check schema/topic/active controller"
+      if self.deadline:
+        if self.gateway_seen_at is None or not 0 <= now - self.gateway_seen_at <= .6:
+          return "no fresh e-stop gateway status"
+        if any(abs(v) > MATCH_TOL for v in self.latest_obs[0]):
+          return "start requires a fresh zero command in controller feedback"
+        if self.native_binding_problem():
+          return self.native_binding_problem()
       if isinstance(self.request, HeadingRequest) and self.heading_problem():
         return self.heading_problem()
       problem = self.stock.problem(command=Command(*self.request.twist))
@@ -772,11 +853,12 @@ def _node_class():
           self.last_problem = problem
           return problem
         self.phase = "pulsing"
+        self.ever_run = True
         self.started = self.now()
         self.started_wall = datetime.now(timezone.utc).isoformat()
         self.imu_start = self.imu_latest[0] if self.imu_latest else None
         self.last_owner_check = self.started
-        self.guard_ready_once = self.command_topology == "guarded"
+        self.guard_ready_once = self.command_topology != "stock"
         if isinstance(self.request, HeadingRequest):
           self.heading = HeadingControl.start(self.request, self.imu_start,
                                               self.get_clock().now().nanoseconds)
@@ -786,6 +868,7 @@ def _node_class():
 
     def prepare(self, request) -> None:
       """Reset only trial data; subscriptions and own-message accounting persist."""
+      validate_topology_request(self.command_topology, request, require_gateway=self.require_gateway)
       if self.phase == "pulsing" or (self.phase == "finished" and not self.record.get("file")):
         raise ValueError("previous trial is still running or finalizing")
       if request.profile != self.request.profile:
@@ -797,13 +880,34 @@ def _node_class():
       self.imu_count = 0
       self.imu_source_stamp_ns = self.heading = None
 
+    def shutdown_received(self):
+      return self.stop_received.is_set() or (self.operator_stop_received is not None and
+                                             self.operator_stop_received.is_set())
+
     def publish(self, twist, *, record=True) -> None:
-      msg = Twist()
-      msg.linear.x, msg.linear.y, msg.angular.z = twist
-      self.recent_own.append(tuple(twist))
-      del self.recent_own[:-20]
+      if self.deadline:
+        now = self.now()
+        if any(twist) and (self.phase != "pulsing" or self.stop_requested or self.shutdown_received()):
+          twist = ZERO
+        expiry = now + .15
+        if any(twist):
+          expiry = min(expiry, self.started + min(self.request.duration_s, self.request.max_duration_s))
+        payload, nonzero, self.command_error = self.deadline.encode(self.source_command(*twist, expires_at=expiry))
+        if payload is None:
+          return
+        msg = String(data=payload)
+        if not nonzero:
+          twist = ZERO  # expired/invalid originals are recorded as the zero actually sent
+      else:
+        msg = Twist()
+        msg.linear.x, msg.linear.y, msg.angular.z = twist
+        self.recent_own.append(tuple(twist))
+        del self.recent_own[:-20]
+      # Check after message construction as well as source serialization.
+      if self.deadline and nonzero and (self.stop_requested or self.shutdown_received() or self.phase != "pulsing"):
+        return
       self.cmd_pub.publish(msg)
-      if not record:
+      if not record or self.started is None:
         return
       self.published += 1
       now = self.now()
@@ -816,12 +920,25 @@ def _node_class():
       with self.lock:
         now = self.now()
         self.stock.poll()
+        if self.deadline:
+          if self.stop_requested or self.shutdown_received():
+            if self.phase == "pulsing":
+              self.stop("Stop received before publication", fault=True)
+            return
+          if self.ever_run and self.native_binding_problem():
+            self.stop(self.native_binding_problem(), fault=True)
+            return
         if self.phase != "pulsing":
+          if self.deadline:
+            self.publish(ZERO, record=False)  # binding never starts or renews a finite trial
           return
         if not self.latest_obs or not 0 <= now - self.latest_obs[1] <= OBS_MAX_AGE_S:
           self.stop("stock policy observation stale", fault=True)
           return
         problem = self.stock.problem(command=Command(*self.request.twist))
+        if self.deadline and (self.gateway_blocked is not False or self.gateway_seen_at is None or
+                             not 0 <= now - self.gateway_seen_at <= .6):
+          problem = "e-stop gateway status unavailable or blocked"
         if problem:
           self.stop(problem, fault=True)
           return
@@ -833,7 +950,7 @@ def _node_class():
           if self.count_publishers(self.kick_topic) != 1:
             self.stop(f"another node publishes {self.kick_topic}", fault=True)
             return
-        if self.command_topology == "guarded":
+        if self.command_topology != "stock":
           problem = self.guard_problem()
           if problem:
             if problem[0] == "authority":
@@ -866,16 +983,29 @@ def _node_class():
 
     def stop(self, reason: str, *, fault: bool) -> None:
       self.stop_requested = reason
+      self.stop_received.set()
+      if fault and (self.phase == "pulsing" or self.deadline):
+        self.request_cancel(reason)
       if self.phase != "pulsing":
         return
-      if fault:
-        self.estop_pub.publish(Empty())  # zero alone is not a stop for a target-conditioned owner
       self.complete("stopped", reason)
+
+    def request_emergency(self):
+      if not self.deadline or not self.estop_sent:
+        self.estop_sent = True
+        self.estop_pub.publish(Empty())
+
+    def request_cancel(self, reason):
+      caller = self.software_start_client
+      if caller is not None and (caller.last_request is not None or caller.stop_capable):
+        caller.request_stop(reason)
+      else:
+        self.request_emergency()  # old gateways remain Options-only
 
     def cancel_start(self, reason):
       """A Stop during pending/uncertain activation must reach the gateway too."""
       with self.lock:
-        self.estop_pub.publish(Empty())
+        self.request_cancel(reason)
         self.stop(reason, fault=False)
 
     def complete(self, outcome: str, reason: str) -> None:
@@ -904,7 +1034,15 @@ def _node_class():
                           started_wall=self.started_wall, published_commands=self.published,
                           obs_error=self.obs_error)
       record["command_topology"] = self.command_topology
-      if self.command_topology == "guarded":
+      if self.software_start_client is not None:
+        record["software_stop_result"] = self.software_start_client.stop_result
+        record["software_stop_pending"] = self.software_start_client.stop_pending
+      if self.deadline:
+        record.update(command_topic=self.kick_topic, command_contract=STRICT_CONTRACT,
+            command_clock_id=self.deadline.clock_id, source_instance=self.deadline.source_instance,
+            source_sequence=self.deadline.sequence, command_error=self.command_error,
+            native_authority=self.authority_status, native_authority_error=self.native_binding_problem())
+      if self.command_topology != "stock":
         record["camera_guard"] = {
           "status": self.guard_status, "status_error": self.guard_error,
           "status_receipt_age_s": None if self.guard_status_at is None else self.now() - self.guard_status_at,
@@ -938,13 +1076,13 @@ def _node_class():
       """Zero-on-finally. Safe to call once from the shutdown path."""
       with self.lock:
         if self.phase == "pulsing":
-          self.estop_pub.publish(Empty())
+          self.request_cancel("process shutdown during pulse")
           self.complete("stopped", "process shutdown during pulse")
         stock_known = self.stock.problem() is None
         for _ in range(3):
           if self.published:
             self.publish(ZERO, record=False)
-          if stock_known and self.published:
+          if stock_known and self.published and self.robot_pub is not None:
             self.robot_pub.publish(Twist())
           sleep(0.05)
         if self.record is None:
@@ -972,13 +1110,14 @@ def finish_trial(node, runtime, same_manager, *, session=False):
   node.record["runtime_identity"] = runtime
   node.record["runtime_identity_held"] = same_manager(runtime)
   finalize_verification(node.record, node.record["runtime_identity_held"])
-  if node.command_topology == "guarded":
+  if node.command_topology != "stock":
     node.record["command_path_identity_held"] = node.check_command_path()
     node.record["camera_guard"]["process_identity_valid"] = node.record["command_path_identity_held"]
     node.record["camera_guard"]["fault"] = node.guard_fault
     if node.record["outcome"] == "interrupted":
       zero = node.record["summary"].get("zero_confirmed_in_observation_s") is not None
-      native = node.record["runtime_identity_held"] and node.stock.problem() is None and not node.stop_requested
+      native = (node.record["runtime_identity_held"] and node.stock.problem() is None and
+                node.native_binding_problem() is None and not node.stop_requested)
       guard = node.record["command_path_identity_held"] and node.guard_problem(camera=False) is None
       node.record["interruption_verification"] = {
         "passed": bool(zero and native and guard), "zero_confirmed": zero,
@@ -998,8 +1137,10 @@ class SessionInbox:
 
   def __init__(self, clock=time.monotonic, *, capture_start=None):
     from queue import SimpleQueue
+    import threading
     self.clock = clock
     self.capture_start = capture_start
+    self.stop_seen = threading.Event()
     self.urgent, self.normal = SimpleQueue(), SimpleQueue()
 
   def put(self, message):
@@ -1007,6 +1148,8 @@ class SessionInbox:
     message = dict(message)
     message.pop("_start_ticket", None)
     message.pop("_start_error", None)
+    if message.get("command") in ("stop", "quit"):
+      self.stop_seen.set()
     if message.get("command") == "start":
       try:
         if self.capture_start is None:
@@ -1066,7 +1209,7 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
   if start_client is None:
     try:
       from foundation.hardware.software_start import attach
-      start_client = attach(node, clock=node.clock)
+      start_client = attach(node, clock=node.clock, emergency_stop=node.request_emergency)
     except ImportError:
       pass  # legacy releases lack StartMotion; existing Options/movement still work
 
@@ -1077,7 +1220,7 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
     # lock. Queueing/lock contention must not refresh the operator's press.
     ticket = start_client.capture(pressed_at=pressed_at)
     with node.lock:
-      if node.stop_requested:
+      if node.stop_requested or node.shutdown_received():
         raise ValueError("session Stop is latched")
       if node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
         raise ValueError("trial is running or finalizing; Start was not queued")
@@ -1090,21 +1233,37 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
     threading.Thread(target=inbox.read, args=(sys.stdin,), daemon=True).start()
   else:
     inbox.capture_start = capture_start
+  node.operator_stop_received = inbox.stop_seen
+  node.software_start_client = start_client
   token, last_receipt = None, None
   accept_after, next_identity_check = -math.inf, 0.0
   exiting, code, has_run, submitted_start = False, 0, False, False
   guard_only_exit = False
+  native_discovery_until = None
+
+  def report_stop(result):
+    nonlocal code
+    if result is None:
+      return
+    emit(result)
+    if result["uncertain"]:
+      code = code or 3
+    if node.record is not None:
+      node.record["software_stop_result"] = result
+      node.record["software_stop_pending"] = False
+      if node.record.get("file"):
+        Path(node.record["file"]).write_text(json.dumps(node.record, indent=1, allow_nan=False) + "\n")
 
   def request_exit(message):
     nonlocal token, exiting, guard_only_exit
     command = message["command"]
     reason = message.get("reason", "session " + command)
     token, exiting = None, True
-    guard_stop = command == "stop" and node.command_topology == "guarded" and (
+    guard_stop = command == "stop" and node.command_topology != "stock" and (
       guard_only_exit or (node.record and node.record["outcome"] == "interrupted"))
     if command == "stop":
       guard_only_exit = False  # explicit Stop overrides a guard-only shutdown, even during cleanup
-    if submitted_start or guard_stop:
+    if submitted_start or guard_stop or (node.deadline and command == "stop"):
       node.cancel_start(reason)
     if node.phase == "pulsing":
       with node.lock:
@@ -1112,30 +1271,37 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
     emit({"event": "stopping", "reason": message.get("reason", command)})
 
   emit({"event": "session_ready", "profile": node.request.profile,
+        "command_topology": node.command_topology,
+        "source_instance": node.deadline.source_instance if node.deadline else None,
         "client_identity": dict(CLIENT_IDENTITY), "commands": ["list", "prepare", "start", "run", "stop", "status", "quit"],
-        "software_start_supported": start_client is not None})
+        "software_start_interface_available": start_client is not None,
+        "software_start_supported": bool(start_client is not None and start_client.stop_capable)})
   try:
     while True:
       spin_once(node, timeout_sec=0.02)
       if node.stop_requested and not exiting:
-        if start_client is not None and start_client.pending is not None:
+        if start_client is not None and (start_client.pending is not None or start_client.last_request is not None):
           node.cancel_start(node.stop_requested)
         exiting, token, code = True, None, 3
         emit({"event": "fault", "reason": node.stop_requested})
       item = inbox.get(urgent_only=exiting)  # Stop remains live throughout finalization
       urgent = item is not None and item[1].get("command") in ("stop", "quit")
-      if node.command_topology == "guarded" and not exiting and not urgent:
+      if node.command_topology != "stock" and not exiting and not urgent:
         if (node.command_path_checked_at is None or
             node.now() - node.command_path_checked_at >= OWNER_CHECK_S):
           node.check_command_path()
-        problem = node.guard_problem()
+        native_pending = (node.deadline and not node.ever_run and start_client is not None and
+            (start_client.pending is not None or (native_discovery_until is not None and
+                                                 node.now() < native_discovery_until)))
+        problem = node.guard_problem(camera=not native_pending, allow_absent_native=bool(native_pending))
         if problem is None:
           node.guard_ready_once = True
         elif problem[0] == "camera":
           token = None  # an interrupted/prepared action never revives after clearance
-        elif node.guard_ready_once or node.guard_fault:
+        elif node.guard_ready_once or node.guard_fault or (node.deadline and submitted_start):
           token = None
-          native_held = same_manager(runtime) and node.stock.problem() is None
+          native_held = (same_manager(runtime) and node.stock.problem() is None and
+                         node.native_binding_problem() is None)
           if (problem[0] == "authority" or not native_held or
               (start_client is not None and (start_client.pending is not None or start_client.uncertain))):
             node.cancel_start("command authority lost: " + problem[1])
@@ -1157,10 +1323,14 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
           elif command == "status":
             emit({"event": "status", "phase": node.phase, "prepared": token is not None,
                   "problem": node.start_problem() if node.phase == "waiting" else None,
+                  "software_start_interface_available": start_client is not None,
+                  "software_start_supported": bool(start_client is not None and start_client.stop_capable),
+                  "software_stop_result": start_client.stop_result if start_client is not None else None,
                   "last_receipt": last_receipt})
           elif command == "list":
             emit({"event": "trials", "axes": sorted(AXES), "defaults": DEFAULT_SPEED,
-                  "ceilings": SPEED_PROFILES[node.request.profile], "max_duration_s": MAX_PULSE_S,
+                  "ceilings": STRICT_SPEED_CEILING if node.deadline else SPEED_PROFILES[node.request.profile],
+                  "max_duration_s": MAX_PULSE_S,
                   "lateral_calibration": {"axes": ["left", "right"],
                     "max_duration_s": MAX_LATERAL_CALIBRATION_S,
                     "max_speed": MAX_LATERAL_CALIBRATION_SPEED, "requires_per_prepare_opt_in": True},
@@ -1180,12 +1350,21 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
               raise ValueError("native manager changed before Start")
             if not node.check_command_path():
               raise ValueError("selected command path is unavailable before Start")
+            if node.deadline:
+              problem = node.guard_problem(camera=False, allow_absent_native=not node.ever_run)
+              if problem:
+                raise ValueError(problem[1])
             ticket = message["_start_ticket"]
             if (ticket.instance_id, ticket.epoch) != node.gateway_authority:
               raise ValueError("Start ticket differs from this session's gateway authority")
+            # Receipt-time Stop must also win if it arrives during the final
+            # process/graph checks, after this Start was dequeued.
+            if node.stop_requested or node.shutdown_received():
+              raise ValueError("session Stop received before Start dispatch")
             token = None
             request = start_client.send(ticket)
             submitted_start = True
+            native_discovery_until = None
             emit({"event": "start_submitted", "request": request})
           elif command in ("prepare", "run"):
             if start_client is not None and (start_client.pending is not None or start_client.uncertain):
@@ -1195,7 +1374,7 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
             if received_at < accept_after:
               raise ValueError("command predates the last completed trial; send a fresh command")
             if command == "prepare":
-              if node.command_topology == "guarded":
+              if node.command_topology != "stock":
                 problem = node.guard_problem()
                 if problem:
                   raise ValueError(problem[1])
@@ -1235,18 +1414,23 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
         result = start_client.poll()
         if result is not None:
           emit(result)
+          if node.deadline and result.get("success") is True:
+            native_discovery_until = node.now() + NATIVE_DISCOVERY_S
         if start_client.uncertain and not exiting:
           node.cancel_start("Start result uncertain")
           exiting, token, code = True, None, 3
+        report_stop(start_client.poll_stop())
       if (has_run and not exiting and (node.phase == "waiting" or
           (node.phase == "finished" and node.record.get("file")))):
-        problem = node.stock.problem()
+        problem = node.stock.problem() or node.native_binding_problem()
         if not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S:
           problem = "stock policy observation stale"
         if node.require_gateway and (node.gateway_blocked is not False or
             node.gateway_seen_at is None or node.now() - node.gateway_seen_at > 0.6):
           problem = "e-stop gateway status unavailable or blocked"
         if problem:
+          if node.deadline:
+            node.cancel_start("session authority interrupted: " + problem)
           emit({"event": "fault", "reason": "session authority interrupted: " + problem})
           return 3
       if not exiting and node.now() >= next_identity_check:
@@ -1258,7 +1442,7 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
           if node.phase == "pulsing":
             with node.lock:
               node.stop("native manager changed during session", fault=True)
-          elif node.command_topology == "guarded" and node.record and node.record["outcome"] == "interrupted":
+          elif node.command_topology != "stock" and node.record and node.record["outcome"] == "interrupted":
             node.cancel_start("native manager changed during guard cancellation")
           emit({"event": "fault", "reason": "native manager changed during session"})
       if guard_only_exit and not same_manager(runtime):
@@ -1288,11 +1472,24 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
         while item is not None:
           request_exit(item[1])
           item = inbox.get(urgent_only=True)
-        return code
+        if start_client is None or not start_client.stop_pending:
+          return code
   finally:
     if (start_client is not None and not node.stop_requested and
         (start_client.pending is not None or start_client.uncertain or (submitted_start and not guard_only_exit))):
       node.cancel_start("session exit after Start request")
+    if start_client is not None and start_client.stop_pending:
+      # Exceptional shutdown still observes a bounded gateway-latch outcome.
+      # Native zero/deactivation remains separate and is never synthesized here.
+      from foundation.hardware.software_start import STOP_CONFIRM_TIMEOUT_S
+      until = time.monotonic() + STOP_CONFIRM_TIMEOUT_S
+      while start_client.stop_pending and time.monotonic() < until:
+        try:
+          spin_once(node, timeout_sec=.02)
+        except (Exception, KeyboardInterrupt):
+          break  # transport/shutdown cannot be reported as a gateway ACK
+        report_stop(start_client.poll_stop())
+      report_stop(start_client.poll_stop(force_unconfirmed=True))
 
 
 def parse_args(argv=None):
@@ -1332,8 +1529,8 @@ def run_execute(request, args) -> int:
       raise ValueError("--runtime-receipt is required before motion")
     preflight = read_json(args.runtime_receipt)
     runtime = verify_loaded(preflight)
-    if runtime.get("command_topology", "stock") == "guarded" and request.profile != "walk":
-      raise ValueError("guarded topology requires the walk profile")
+    validate_topology_request(runtime.get("command_topology", "stock"), request,
+                              require_gateway=not args.no_gateway)
     if read_json(preflight["manifest_path"]).get("trial_profile") != request.profile:
       raise ValueError("trial profile differs from the selected release")
     Path(args.out).mkdir(parents=True, exist_ok=True)

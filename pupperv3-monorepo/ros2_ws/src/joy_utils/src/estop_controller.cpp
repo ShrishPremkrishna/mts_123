@@ -19,6 +19,7 @@ constexpr char PROTOCOL[] = "pupper_stop_v1";
 constexpr char PUBLIC_SWITCH[] = "/controller_manager/switch_controller";
 constexpr char BACKEND_SWITCH[] = "/controller_manager/switch_controller_backend";
 constexpr char START_MOTION[] = "/estop_controller/start_motion";
+constexpr char SOFTWARE_STOP[] = "/estop_controller/request_stop";
 
 class RosSwitchPort final : public Port {
  public:
@@ -172,6 +173,12 @@ class StopBridge {
     std::lock_guard<std::mutex> lock(mutex_);
     worker_->tick(StopArbiter::Time::clock::now()); finish(); publish();
   }
+  void request_stop() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    worker_->request_stop();
+    challenges_.clear();
+    finish(); publish();  // New epoch/latch acknowledgement, not completion of cleanup.
+  }
   void request(Server::SharedPtr service, std::shared_ptr<rmw_request_id_t> header,
                Service::Request::SharedPtr request) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -262,6 +269,7 @@ class StopBridge {
     json << std::boolalpha << "{\"protocol\":\"" << PROTOCOL << "\",\"instance_id\":\"" << instance_
          << "\",\"sequence\":" << sequence_ << ",\"epoch\":" << state.epoch
          << ",\"selected_controller\":\"" << state.last_face << "\",\"start_freshness_ms\":" << StopArbiter::start_freshness.count()
+         << ",\"software_stop_topic\":\"" << SOFTWARE_STOP << "\""
          << ",\"latched\":" << state.latched << ",\"fault\":" << state.fault
          << ",\"stop_required\":" << state.stop_required << ",\"in_flight\":" << state.in_flight
          << ",\"unknown_remote_submission\":" << state.unknown_remote_submission
@@ -322,6 +330,9 @@ class EStopController : public rclcpp::Node {
     std::weak_ptr<StopBridge> weak = bridge_;
     subscription_ = create_subscription<sensor_msgs::msg::Joy>("/joy", 10,
       [weak](sensor_msgs::msg::Joy::ConstSharedPtr message) { if (auto bridge=weak.lock()) bridge->joy(message->buttons); });
+    // Separate from our own native damping publication, avoiding a feedback loop.
+    stop_subscription_ = create_subscription<std_msgs::msg::Empty>(SOFTWARE_STOP, rclcpp::QoS(10).reliable(),
+      [weak](std_msgs::msg::Empty::ConstSharedPtr) { if (auto bridge=weak.lock()) bridge->request_stop(); });
     gateway_ = create_service<RosSwitchPort::Service>(PUBLIC_SWITCH,
       [weak](StopBridge::Server::SharedPtr service, std::shared_ptr<rmw_request_id_t> header,
              RosSwitchPort::Service::Request::SharedPtr request) {
@@ -340,12 +351,13 @@ class EStopController : public rclcpp::Node {
   ~EStopController() override { stop_worker(); }
   void stop_worker() noexcept {
     try { if (timer_) timer_->cancel(); } catch (...) {}
-    subscription_.reset(); gateway_.reset(); start_.reset();
+    subscription_.reset(); stop_subscription_.reset(); gateway_.reset(); start_.reset();
     if (bridge_) bridge_->shutdown(); bridge_.reset();
   }
  private:
   std::shared_ptr<StopBridge> bridge_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr stop_subscription_;
   StopBridge::Server::SharedPtr gateway_;
   StopBridge::StartServer::SharedPtr start_;
   rclcpp::TimerBase::SharedPtr timer_;

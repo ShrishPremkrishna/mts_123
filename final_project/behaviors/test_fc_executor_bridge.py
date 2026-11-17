@@ -424,8 +424,9 @@ def test_stop_outranks_guard_loss_through_final_cleanup(ros_node, late):
 
 def test_guard_loss_during_pending_start_always_requests_emergency(ros_node):
     e = ros_node
-    e.node.start_client = SimpleNamespace(pending=object(), uncertain=False, poll=lambda: None)
-    e.node.submitted_start = True
+    attach_start(e)
+    e.node.inbox.put({"command": "start"})
+    e.node.on_tick()
     e.identities["path"] = False
     e.node.check_identity()
     e.node.on_tick()
@@ -491,8 +492,11 @@ def attach_start(env):
     def submit(request):
         calls.append(request)
         return future
-    caller = ResidentStart(submit, lambda: True, clock=lambda: env.ros.t)
-    status = {**env.state, "sequence": 1, "selected_controller": "neural_controller_default", "in_flight": False}
+    caller = ResidentStart(submit, lambda: True, clock=lambda: env.ros.t,
+        gateway_stop=lambda: env.ros.published.setdefault("/estop_controller/request_stop", []).append(SimpleNamespace()),
+        emergency_stop=lambda: env.node.stop_pub.publish(SimpleNamespace()))
+    status = {**env.state, "sequence": 1, "selected_controller": "neural_controller_default", "in_flight": False,
+              "software_stop_topic": "/estop_controller/request_stop"}
     caller.observe(status)
     env.node.start_client = caller
     return caller, calls, future, status
@@ -821,7 +825,8 @@ def test_unavailable_current_evidence_refuses_resume_at_processing(ros_node, fau
         e.core.executor.frame = (e.ros.t - .36, observations, goals)
     elif fault in ("pending_start", "uncertain_start"):
         e.node.start_client = SimpleNamespace(pending=object() if fault == "pending_start" else None,
-                                             uncertain=fault == "uncertain_start")
+                                             uncertain=fault == "uncertain_start", stop_result=None, stop_pending=False,
+                                             stop_capable=True)
     elif fault == "native":
         e.node.native_valid = False
     status = e.node.status()
@@ -1301,3 +1306,47 @@ def test_strict_dry_run_names_contract_without_linux_or_ros(capsys):
                         "--command-contract", "fc_deadline_v1"]) == 0
     row = json.loads(capsys.readouterr().out)
     assert row["command_contract"] == "fc_deadline_v1" and row["ros_started"] is False
+
+
+@pytest.mark.parametrize("ros_node", ["legacy", "strict"], indirect=True)
+@pytest.mark.parametrize("acknowledge", [True, False])
+def test_stop_after_start_waits_for_gateway_latch_or_bounded_uncertainty(ros_node, acknowledge):
+    e = ros_node
+    caller, calls, future, status = attach_start(e)
+    e.node.inbox.put({"command": "start"})
+    e.node.on_tick()
+    assert len(calls) == 1
+    e.node.inbox.put({"command": "stop"})
+    e.node.on_tick()
+    assert e.node.hard_stopped and caller.stop_pending
+    assert len(e.ros.published["/emergency_stop"]) == 1
+    assert len(e.ros.published["/estop_controller/request_stop"]) == 1
+    step(e, .55)
+    assert not e.node.closed  # policy zero alone cannot cancel gateway Start
+    if acknowledge:
+        caller.observe({**status, "sequence": 2, "epoch": status["epoch"] + 1, "latched": True})
+        step(e)
+    else:
+        step(e, .55)
+    assert e.node.closed and not caller.stop_pending
+    assert caller.stop_result["confirmed"] is acknowledge
+    assert caller.stop_result["uncertain"] is (not acknowledge)
+    assert e.node.status()["gateway_stop"] == caller.stop_result
+    # A late Start response cannot clear local Stop or restart gameplay.
+    future.done = lambda: True
+    future.result = lambda: SimpleNamespace(success=True, message="late backend result")
+    e.node.on_tick()
+    assert not e.core.executor.armed and e.node.hard_stopped
+    assert len(e.ros.published["/estop_controller/request_stop"]) == 1
+
+
+def test_bridge_software_start_refuses_gateway_without_cancel_endpoint(ros_node):
+    e = ros_node
+    caller, calls, _, status = attach_start(e)
+    caller.observe({**status, "sequence": 2, "software_stop_topic": "/unrelated"})
+    e.node.inbox.put({"command": "start"})
+    e.node.on_tick()
+    assert not calls and not e.node.submitted_start
+    assert not e.core.executor.armed
+    assert e.node.status()["software_start_interface_available"]
+    assert not e.node.status()["software_start_supported"]

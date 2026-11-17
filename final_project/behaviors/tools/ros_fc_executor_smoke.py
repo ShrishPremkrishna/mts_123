@@ -204,6 +204,8 @@ def main():
                              start_parameter_services=not strict)
             self.clock_name = None; self.epoch = "executor-smoke-1"
             self.frame_seq = self.intent_seq = self.camera_seq = self.gateway_seq = 0
+            self.gateway_epoch = 1
+            self.native_emergency = False
             self.fields_enabled = self.intents_enabled = False
             self.camera_enabled = True; self.near = False; self.camera_label = "tower"
             self.camera_identity = None; self.camera_detections = None; self.camera_packets = []
@@ -286,6 +288,7 @@ def main():
             self.create_subscription(String, "/fc/executor_bridge/status", lambda m: self.statuses.append((time.monotonic(), json.loads(m.data))), QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
             self.create_subscription(String, "/fc/body_command_guard/status", lambda m: self.guard_statuses.append((time.monotonic(), json.loads(m.data))), 1)
             self.create_subscription(Empty, "/emergency_stop", self.emergency, 10)
+            self.create_subscription(Empty, "/estop_controller/request_stop", self.gateway_stop, 10)
             self.create_timer(.02, self.authority)
             self.create_timer(.05, self.frame)
             self.create_timer(.10, self.intent)
@@ -304,6 +307,7 @@ def main():
             self.native_subscription = self.create_subscription(String,
                 deadline_protocol.ADMITTED_TOPIC, self.consume_envelope, 1)
             self.native_active = True
+            self.native_emergency = False
             self.latched = False
         def start_motion(self, request, response):
             # Real StartMotion DDS transport; this backend only schedules fake
@@ -312,7 +316,7 @@ def main():
             self.start_requests.append({"received_at": received, **{
                 k: getattr(request, k) for k in ("instance_id", "epoch", "sequence", "selected_controller")}})
             assert len(self.start_requests) == 1 and not self.native_active
-            assert request.instance_id == "fake-stock-gateway" and request.epoch == 1
+            assert request.instance_id == "fake-stock-gateway" and request.epoch == self.gateway_epoch
             assert request.selected_controller == "neural_controller_default"
             assert 0 < request.sequence <= self.gateway_seq
             # Endpoint discovery deliberately follows the acknowledgement.
@@ -380,7 +384,7 @@ def main():
             now_ns = time.monotonic_ns()
             command = self.native_envelope
             self.latest = ((command.vx, command.vy, command.wz)
-                if command is not None and command.allowed and not self.native_veto and
+                if command is not None and command.allowed and not self.native_veto and not self.native_emergency and
                 command.fresh(now_ns) else (0., 0., 0.))
             # These are explicitly synthetic native input/feedback samples;
             # raw admitted DDS envelopes are retained separately above.
@@ -421,7 +425,16 @@ def main():
                         "applied_final_cmd_vel": list(self.simulation_active_input),
                         "applied_final_received_at": self.simulation_active_receipt})
         def emergency(self, _):
-            self.estops += 1; self.latched = True
+            # A native emergency does not itself latch the real gateway.
+            self.estops += 1; self.native_emergency = True
+            self.latest = (0., 0., 0.)
+        def gateway_stop(self, _):
+            # Synthetic gateway receipt only; actual gateway cancellation is
+            # exercised separately against delayed controller-manager replies.
+            self.gateway_epoch += 1
+            self.latched = True
+            if self.activation_timer is not None:
+                self.activation_timer.cancel()
         def inventory(self, _, response):
             self.inventory_reads += 1
             row = ControllerState(); row.name = "neural_controller_default"
@@ -448,7 +461,8 @@ def main():
                     "original_expires_mono_ns": self.native_envelope.expires_mono_ns if self.native_envelope else None})
             self.gateway_seq += 1
             payload = {"protocol": "pupper_stop_v1", "instance_id": "fake-stock-gateway",
-                       "epoch": 1, "sequence": self.gateway_seq,
+                       "epoch": self.gateway_epoch, "sequence": self.gateway_seq,
+                       "software_stop_topic": "/estop_controller/request_stop",
                        "selected_controller": "neural_controller_default", "latched": self.latched,
                        **{key: False for key in ("fault", "stop_required", "in_flight", "unknown_remote_submission", "shutting_down")}}
             self.gateway.publish(String(data=json.dumps(payload)))

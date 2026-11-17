@@ -50,6 +50,10 @@ int main(int argc,char **argv){
   auto start_client=client_node->create_client<StopBridge::StartService>(START_MOTION);
   auto generic=client_node->create_client<RosSwitchPort::Service>(PUBLIC_SWITCH);
   auto joy_pub=client_node->create_publisher<sensor_msgs::msg::Joy>("/joy",10);
+  auto stop_pub=client_node->create_publisher<std_msgs::msg::Empty>(SOFTWARE_STOP,rclcpp::QoS(10).reliable());
+  std::atomic<unsigned> native_stops{0};
+  auto native_stop_sub=client_node->create_subscription<std_msgs::msg::Empty>("/emergency_stop",10,
+    [&](std_msgs::msg::Empty::ConstSharedPtr){++native_stops;});
   sensor_msgs::msg::Joy current_joy;current_joy.buttons.resize(13);
   std::atomic<bool> repeat_joy{false};
   auto joy_timer=client_node->create_wall_timer(std::chrono::milliseconds(20),[&]{
@@ -73,7 +77,8 @@ int main(int argc,char **argv){
   const auto send=[&](auto request){auto future=start_client->async_send_request(request);return response(future);};
   const auto joy=[&](std::initializer_list<size_t> buttons){sensor_msgs::msg::Joy msg;msg.buttons.resize(13);for(auto b:buttons)msg.buttons[b]=1;{std::lock_guard<std::mutex> lock(mutex);current_joy=msg;}joy_pub->publish(msg);};
   try{
-    wait_for([&]{return start_client->service_is_ready()&&generic->service_is_ready()&&joy_pub->get_subscription_count()==1&&idle()&&flag("latched",true);},3000,"startup discovery/cleanup");
+    wait_for([&]{return start_client->service_is_ready()&&generic->service_is_ready()&&joy_pub->get_subscription_count()==1&&stop_pub->get_subscription_count()==1&&idle()&&flag("latched",true);},3000,"startup discovery/cleanup");
+    check(field(snapshot(),"software_stop_topic")==SOFTWARE_STOP,"software Stop capability missing or mismatched");
     check(!send(challenge())&&switches==0,"Start accepted without Joy evidence");
     repeat_joy=true;joy({});std::this_thread::sleep_for(std::chrono::milliseconds(60));
     auto wrong=challenge();wrong->instance_id="previous-gateway";check(!send(wrong),"old gateway accepted");
@@ -127,12 +132,39 @@ int main(int argc,char **argv){
     check(!response(late),"Start acknowledged after Stop");switch_delay=0;
     wait_for([&]{return idle()&&flag("latched",true);},3000,"late activation cleanup");
     joy({});std::this_thread::sleep_for(std::chrono::milliseconds(60));check(send(challenge()),"fresh deliberate restart failed");wait_for(idle,1000,"restart status");
+    // A software Stop is received by the actual gateway, not just its native
+    // damping subscribers. The immediate newer epoch is only a latch ACK.
+    const auto software_stop=[&]{
+      const auto epoch=std::stoull(field(snapshot(),"epoch"));
+      const auto damping_before=native_stops.load(); stop_pub->publish(std_msgs::msg::Empty{});
+      wait_for([&]{return flag("latched",true)&&std::stoull(field(snapshot(),"epoch"))>epoch;},1000,"software Stop latch acknowledgement");
+      wait_for([&]{return native_stops>damping_before;},1000,"software Stop did not retain native damping request");
+    };
+    auto before_stop=challenge(); software_stop(); wait_for(idle,2000,"software Stop cleanup");
+    check(!send(before_stop),"delayed Start survived software Stop epoch change");
+    software_stop(); wait_for(idle,2000,"repeated software Stop cleanup");
+    // Hold Start at fresh inventory; a received Stop cancels before dispatch.
+    inventory_delay=200;const auto queued_calls=switches.load(),queued_reads=reads.load();
+    auto queued_start=start_client->async_send_request(challenge());
+    wait_for([&]{return reads>queued_reads;},1000,"queued Start inventory");
+    software_stop();check(!response(queued_start),"software Stop did not cancel queued Start");
+    inventory_delay=0;wait_for([&]{return idle()&&reads_finished>queued_reads;},2000,"queued cancellation cleanup");
+    check(switches==queued_calls,"cancelled queued Start reached backend");
+    // Once dispatched, retain its response and perform corrective deactivation.
+    switch_delay=250;const auto inflight_calls=switches.load();
+    auto inflight_start=start_client->async_send_request(challenge());
+    wait_for([&]{return switches>inflight_calls;},1000,"software-cancelled Start dispatch");
+    software_stop();check(flag("in_flight",true),"latch acknowledgement falsely implies cleanup completion");
+    check(!response(inflight_start),"late Start succeeded after software Stop");switch_delay=0;
+    wait_for([&]{return idle()&&flag("latched",true);},3000,"software Stop late activation cleanup");
+    {std::lock_guard<std::mutex> lock(mutex);check(active.empty(),"motion actor remained active after corrective acknowledgement");}
+    check(send(challenge()),"fresh Start after software Stop cleanup failed");wait_for(idle,1000,"post-software-Stop restart");
     // Generic STRICT continues to fail on a duplicate; new service alone is idempotent.
     auto strict=std::make_shared<RosSwitchPort::Service::Request>();strict->activate_controllers={"default"};strict->strictness=RosSwitchPort::Service::Request::STRICT;
     auto duplicate=generic->async_send_request(strict);wait_for([&]{return duplicate.wait_for(std::chrono::milliseconds(0))==std::future_status::ready;},2000,"STRICT response");
     check(!duplicate.get()->ok,"generic STRICT semantics changed");wait_for([&]{return flag("fault",true)&&idle();},2000,"fault cleanup");
     check(!send(challenge()),"Start cleared permanent fault");
-    std::cout<<"PASS Start DDS: stale/epoch/selection/replay rejection, Options idempotence, held Stop, expiry, late cleanup, STRICT preservation\n";
+    std::cout<<"PASS Start DDS: stale/epoch/selection/replay rejection, Options idempotence, software Stop delayed/queued/inflight cancellation, held Stop, expiry, late cleanup, STRICT preservation\n";
     }
   }catch(const std::exception &error){std::cerr<<"FAIL Start DDS: "<<error.what()<<'\n';result=1;}
   node->stop_worker();executor.cancel();thread.join();rclcpp::shutdown();return result;
