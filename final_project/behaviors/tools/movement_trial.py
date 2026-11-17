@@ -32,6 +32,7 @@ requests, not proof of physical braking or protection against a hung controller.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -61,7 +62,10 @@ MATCH_TOL = 0.02  # m/s or rad/s: requested vs native filtered command
 SETTLE_S = 0.2  # ignore the first ticks after onset when judging agreement
 OBS_MAX_AGE_S = 0.2
 OWNER_CHECK_S = 0.2
+RUN_TRIGGER_MAX_AGE_S = 0.2
 ZERO = (0.0, 0.0, 0.0)
+CLIENT_IDENTITY = {"path": str(Path(__file__).resolve()),
+                   "sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 
 
 # ---------------------------------------------------------------- pure helpers
@@ -163,6 +167,7 @@ def build_record(*, request, mode, outcome, reason, samples, imu, summary, stock
   return {
     "schema": SCHEMA,
     "tool": "final_project/behaviors/tools/movement_trial.py",
+    "client_identity": dict(CLIENT_IDENTITY),
     "mode": mode,
     "outcome": outcome,
     "reason": reason,
@@ -291,12 +296,14 @@ def _node_class():
       self.phase = "waiting"
       self.record = None
       self.last_problem = ""
+      self.stop_requested = None  # session lifetime; prepare never rearms a stop
       self.started = self.zero_sent_at = self.zero_confirmed_at = None
       self.started_wall = None
       self.published = 0
       self.samples = []
       self.recent_own = []  # our own recent twists, to discount loopback on the kick topic
       self.gateway_blocked = None
+      self.gateway_seen_at = None
       self.shot_state = None
       self.foreign_cmd_at = None
       self.created_at = self.now()
@@ -344,6 +351,7 @@ def _node_class():
       blocked = bool(status.get("latched")) or bool(status.get("fault"))
       with self.lock:
         self.gateway_blocked = blocked
+        self.gateway_seen_at = self.now()
         if blocked:
           self.stop("e-stop gateway latched", fault=False)
 
@@ -427,12 +435,26 @@ def _node_class():
         self.publish(self.request.twist)
         return None
 
-    def publish(self, twist) -> None:
+    def prepare(self, request) -> None:
+      """Reset only trial data; subscriptions and own-message accounting persist."""
+      if self.phase == "pulsing" or (self.phase == "finished" and not self.record.get("file")):
+        raise ValueError("previous trial is still running or finalizing")
+      if request.profile != self.request.profile:
+        raise ValueError("session profile cannot change")
+      self.request, self.phase, self.record = request, "waiting", None
+      self.last_problem, self.samples, self.published = "", [], 0
+      self.started = self.started_wall = self.zero_sent_at = self.zero_confirmed_at = None
+      self.imu_start = self.imu_end = self.imu_latest = None
+      self.imu_count = 0
+
+    def publish(self, twist, *, record=True) -> None:
       msg = Twist()
       msg.linear.x, msg.linear.y, msg.angular.z = twist
       self.recent_own.append(tuple(twist))
       del self.recent_own[:-20]
       self.cmd_pub.publish(msg)
+      if not record:
+        return
       self.published += 1
       now = self.now()
       fresh = self.latest_obs if self.latest_obs and now - self.latest_obs[1] <= OBS_MAX_AGE_S else None
@@ -467,6 +489,7 @@ def _node_class():
         self.publish(self.request.twist)
 
     def stop(self, reason: str, *, fault: bool) -> None:
+      self.stop_requested = reason
       if self.phase != "pulsing":
         return
       if fault:
@@ -507,7 +530,7 @@ def _node_class():
         stock_known = self.stock.problem() is None
         for _ in range(3):
           if self.published:
-            self.cmd_pub.publish(Twist())
+            self.publish(ZERO, record=False)
           if stock_known and self.published:
             self.robot_pub.publish(Twist())
           sleep(0.05)
@@ -529,10 +552,180 @@ def __getattr__(name):
 # ---------------------------------------------------------------- CLI
 
 
+def finish_trial(node, runtime, same_manager, *, session=False):
+  # A persistent loop has already spun for zero feedback. Do not pause callback
+  # handling for another 150 ms while sending its redundant cleanup zeros.
+  path = node.finish(sleep=lambda _: None) if session else node.finish()
+  node.record["runtime_identity"] = runtime
+  node.record["runtime_identity_held"] = same_manager(runtime)
+  finalize_verification(node.record, node.record["runtime_identity_held"])
+  path.write_text(json.dumps(node.record, indent=1, allow_nan=False) + "\n")
+  return path
+
+
+class SessionInbox:
+  """The input thread only parses messages; the ROS loop owns every action."""
+
+  def __init__(self, clock=time.monotonic):
+    from queue import SimpleQueue
+    self.clock = clock
+    self.urgent, self.normal = SimpleQueue(), SimpleQueue()
+
+  def put(self, message):
+    queue = self.urgent if message.get("command") in ("stop", "quit") else self.normal
+    queue.put((self.clock(), message))
+
+  def read(self, stream):
+    try:
+      for line in stream:
+        try:
+          message = json.loads(line)
+          if not isinstance(message, dict):
+            raise ValueError("command must be a JSON object")
+        except (ValueError, TypeError) as exc:
+          message = {"command": "invalid", "error": str(exc)}
+        self.put(message)
+    finally:
+      self.put({"command": "quit", "reason": "session stdin closed"})
+
+  def get(self):
+    from queue import Empty
+    for queue in (self.urgent, self.normal):
+      try:
+        return queue.get_nowait()
+      except Empty:
+        pass
+    return None
+
+
+def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once=None):
+  """One-use prepare tokens; no deferred start or automatic trial sequence.
+
+  JSON lines: {"command":"list"}, {"command":"status"},
+  {"command":"prepare","axis":"forward","speed":0.2,"duration":1},
+  {"command":"run","token":"<prepared response token>"},
+  {"command":"stop"}, {"command":"quit"}. EOF also stops and exits.
+  """
+  import threading
+  import uuid
+  if emit is None:
+    emit = lambda message: print(json.dumps(message, allow_nan=False), flush=True)
+  if spin_once is None:
+    import rclpy
+    spin_once = rclpy.spin_once
+  if inbox is None:
+    inbox = SessionInbox(node.clock)
+    threading.Thread(target=inbox.read, args=(sys.stdin,), daemon=True).start()
+  token, last_receipt = None, None
+  accept_after, next_identity_check = -math.inf, 0.0
+  exiting, code, has_run = False, 0, False
+  emit({"event": "session_ready", "profile": node.request.profile,
+        "client_identity": dict(CLIENT_IDENTITY), "commands": ["list", "prepare", "run", "stop", "status", "quit"]})
+  while True:
+    spin_once(node, timeout_sec=0.02)
+    if node.stop_requested and not exiting:
+      exiting, token, code = True, None, 3
+      emit({"event": "fault", "reason": node.stop_requested})
+    item = None if exiting else inbox.get()  # urgent stop/EOF bypass ordinary backlog
+    if item:
+      received_at, message = item
+      command = message.get("command")
+      try:
+        if command in ("stop", "quit"):
+          token = None
+          exiting = True  # a stop is latched until a new session
+          if node.phase == "pulsing":
+            with node.lock:
+              node.stop(message.get("reason", "session " + command), fault=True)
+          emit({"event": "stopping", "reason": message.get("reason", command)})
+        elif command == "status":
+          emit({"event": "status", "phase": node.phase, "prepared": token is not None,
+                "problem": node.start_problem() if node.phase == "waiting" else None,
+                "last_receipt": last_receipt})
+        elif command == "list":
+          emit({"event": "trials", "axes": sorted(AXES), "defaults": DEFAULT_SPEED,
+                "ceilings": SPEED_PROFILES[node.request.profile], "max_duration_s": MAX_PULSE_S})
+        elif command in ("prepare", "run"):
+          if exiting or node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
+            raise ValueError("trial is running or finalizing; command was not queued")
+          if received_at < accept_after:
+            raise ValueError("command predates the last completed trial; send a fresh command")
+          if command == "prepare":
+            if message.get("profile", node.request.profile) != node.request.profile:
+              raise ValueError("session profile cannot change")
+            request = PulseRequest.build(message["axis"], message.get("speed"),
+                                         message.get("duration", 1.0), node.request.profile)
+            node.prepare(request)
+            token = uuid.uuid4().hex
+            emit({"event": "prepared", "token": token, "request": asdict(request),
+                  "problem": node.start_problem()})
+          else:
+            if token is None or message.get("token") != token:
+              raise ValueError("run requires the current unused prepare token")
+            if not 0 <= node.now() - received_at <= RUN_TRIGGER_MAX_AGE_S:
+              raise ValueError("run trigger expired; send a fresh run command")
+            next_identity_check = node.now() + OWNER_CHECK_S
+            if not same_manager(runtime):
+              emit({"event": "fault", "reason": "native manager changed before session trial"})
+              return 3
+            if (node.require_gateway and (node.gateway_seen_at is None or
+                node.now() - node.gateway_seen_at > 0.6)):
+              raise ValueError("no fresh e-stop gateway status")
+            if (not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S or
+                any(abs(v) > MATCH_TOL for v in node.latest_obs[0])):
+              raise ValueError("start requires a fresh zero command in controller feedback")
+            problem = node.try_start()
+            if problem:
+              raise ValueError(problem)  # never retry a trigger later
+            token = None
+            has_run = True
+            emit({"event": "started", "request": asdict(node.request)})
+        else:
+          raise ValueError(message.get("error", "unknown command"))
+      except (ValueError, KeyError, TypeError) as exc:
+        emit({"event": "refused", "command": command, "reason": str(exc)})
+    if (has_run and not exiting and (node.phase == "waiting" or
+        (node.phase == "finished" and node.record.get("file")))):
+      problem = node.stock.problem()
+      if not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S:
+        problem = "stock policy observation stale"
+      if node.require_gateway and (node.gateway_blocked is not False or
+          node.gateway_seen_at is None or node.now() - node.gateway_seen_at > 0.6):
+        problem = "e-stop gateway status unavailable or blocked"
+      if problem:
+        emit({"event": "fault", "reason": "session authority interrupted: " + problem})
+        return 3
+    if not exiting and node.now() >= next_identity_check:
+      next_identity_check = node.now() + OWNER_CHECK_S
+      if not same_manager(runtime):
+        exiting, token, code = True, None, 3
+        if node.phase == "pulsing":
+          with node.lock:
+            node.stop("native manager changed during session", fault=True)
+        emit({"event": "fault", "reason": "native manager changed during session"})
+    if node.phase == "pulsing" and node.now() - node.started >= node.request.duration_s:
+      with node.lock:
+        node.complete("completed", "wall-clock duration reached")
+    if node.phase == "finished" and not node.record.get("file"):
+      if node.zero_confirmed_at is not None or node.now() - node.zero_sent_at >= 0.5:
+        last_receipt = str(finish_trial(node, runtime, same_manager, session=True))
+        accept_after = node.now()
+        trial_code = result_exit_code(node.record)
+        emit({"event": "trial_complete", "file": last_receipt, "outcome": node.record["outcome"],
+              "reason": node.record["reason"], "summary": node.record["summary"],
+              "command_verification": node.record["command_verification"]})
+        if trial_code:
+          exiting, code = True, trial_code  # fault/unconfirmed zero cannot be rearmed
+    if exiting and (node.phase == "waiting" or node.record.get("file")):
+      return code
+
+
 def parse_args(argv=None):
   parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
                                    epilog="Without --execute nothing is imported from ROS and nothing is published.")
-  parser.add_argument("axis", choices=sorted(AXES))
+  parser.add_argument("axis", nargs="?", choices=sorted(AXES))
+  parser.add_argument("--session", action="store_true",
+                      help="keep one verified ROS session; accept list/prepare/run/stop/status/quit JSON lines on stdin")
   parser.add_argument("--profile", choices=sorted(SPEED_PROFILES), default="walk",
                       help="must match selected release; sprint is a physically unaccepted candidate")
   parser.add_argument("--speed", type=float, default=None,
@@ -584,45 +777,48 @@ def run_execute(request, args) -> int:
   def interrupt(signum, frame):
     raise KeyboardInterrupt
 
-  previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM)}
+  previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
   node = _node_class()(request, args.out, require_gateway=not args.no_gateway)
   code = 3
   try:
-    deadline = time.monotonic() + args.wait
-    last_problem, next_try = None, 0.0
-    while node.phase == "waiting":
-      rclpy.spin_once(node, timeout_sec=0.05)
-      if time.monotonic() >= next_try:
-        next_try = time.monotonic() + 0.2
-        if node.start_problem() is None:
-          current_runtime = verify_loaded(preflight)
-          if ((current_runtime["manager_pid"], current_runtime["manager_start_ticks"]) !=
-              (runtime["manager_pid"], runtime["manager_start_ticks"])):
-            raise ValueError("manager changed while waiting for the trial")
-        problem = node.try_start()
-        if problem and problem != last_problem:
-          print(f"waiting: {problem}", file=sys.stderr)
-          last_problem = problem
-        if problem and time.monotonic() > deadline:
-          print(f"not started: {problem}", file=sys.stderr)
-          break
-    next_identity_check = 0.0
-    while node.phase == "pulsing":
-      rclpy.spin_once(node, timeout_sec=0.05)
-      now = time.monotonic()
-      # Full process scans can take ~20 ms on the Pi. Running one after every
-      # callback starves service replies and the command timer under sensor load.
-      if node.phase == "pulsing" and now >= next_identity_check:
-        next_identity_check = now + OWNER_CHECK_S
-        if not same_manager(runtime):
+    if args.session:
+      code = run_session(node, runtime, same_manager)
+    else:
+      deadline = time.monotonic() + args.wait
+      last_problem, next_try = None, 0.0
+      while node.phase == "waiting":
+        rclpy.spin_once(node, timeout_sec=0.05)
+        if time.monotonic() >= next_try:
+          next_try = time.monotonic() + 0.2
+          if node.start_problem() is None:
+            current_runtime = verify_loaded(preflight)
+            if ((current_runtime["manager_pid"], current_runtime["manager_start_ticks"]) !=
+                (runtime["manager_pid"], runtime["manager_start_ticks"])):
+              raise ValueError("manager changed while waiting for the trial")
+          problem = node.try_start()
+          if problem and problem != last_problem:
+            print(f"waiting: {problem}", file=sys.stderr)
+            last_problem = problem
+          if problem and time.monotonic() > deadline:
+            print(f"not started: {problem}", file=sys.stderr)
+            break
+      next_identity_check = 0.0
+      while node.phase == "pulsing":
+        rclpy.spin_once(node, timeout_sec=0.05)
+        now = time.monotonic()
+        # Full process scans can take ~20 ms on the Pi. Running one after every
+        # callback starves service replies and the command timer under sensor load.
+        if node.phase == "pulsing" and now >= next_identity_check:
+          next_identity_check = now + OWNER_CHECK_S
+          if not same_manager(runtime):
+            with node.lock:
+              node.stop("native manager changed during pulse", fault=True)
+        if node.phase == "pulsing" and time.monotonic() - node.started >= request.duration_s:
           with node.lock:
-            node.stop("native manager changed during pulse", fault=True)
-      if node.phase == "pulsing" and time.monotonic() - node.started >= request.duration_s:
-        with node.lock:
-          node.complete("completed", "wall-clock duration reached")
-    settle = time.monotonic() + 0.5  # give the observation a chance to confirm the zero
-    while node.phase == "finished" and node.zero_confirmed_at is None and time.monotonic() < settle:
-      rclpy.spin_once(node, timeout_sec=0.05)
+            node.complete("completed", "wall-clock duration reached")
+      settle = time.monotonic() + 0.5  # give the observation a chance to confirm the zero
+      while node.phase == "finished" and node.zero_confirmed_at is None and time.monotonic() < settle:
+        rclpy.spin_once(node, timeout_sec=0.05)
   except (KeyboardInterrupt, ExternalShutdownException):
     pass
   except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -631,15 +827,17 @@ def run_execute(request, args) -> int:
       with node.lock:
         node.stop(node.last_problem, fault=True)
   finally:
-    for s in (signal.SIGINT, signal.SIGTERM):
+    for s in previous:
       signal.signal(s, signal.SIG_IGN)  # a second Ctrl-C must not skip the zeros
-    path = node.finish()
-    node.record["runtime_identity"] = runtime
-    node.record["runtime_identity_held"] = same_manager(runtime)
-    finalize_verification(node.record, node.record["runtime_identity_held"])
-    path.write_text(json.dumps(node.record, indent=1, allow_nan=False) + "\n")
-    print(receipt_line(node.record))
-    code = result_exit_code(node.record)
+    if (not args.session or node.phase == "pulsing" or
+        (node.phase == "finished" and not node.record.get("file"))):
+      path = finish_trial(node, runtime, same_manager)
+      if args.session:
+        print(json.dumps({"event": "trial_complete", "file": str(path),
+                          "outcome": node.record["outcome"], "reason": node.record["reason"]}), flush=True)
+      else:
+        print(receipt_line(node.record))
+      code = result_exit_code(node.record)
     node.destroy_node()
     rclpy.try_shutdown()
     for signum, handler in previous.items():
@@ -649,8 +847,14 @@ def run_execute(request, args) -> int:
 
 def main(argv=None) -> int:
   args = parse_args(argv)
+  if args.session and not args.execute:
+    print("refused: --session requires --execute; it never starts a trial without prepare/run", file=sys.stderr)
+    return 2
+  if args.axis is None and not args.session:
+    print("refused: an axis is required outside --session", file=sys.stderr)
+    return 2
   try:
-    request = PulseRequest.build(args.axis, args.speed, args.duration, args.profile)
+    request = PulseRequest.build(args.axis or "forward", args.speed, args.duration, args.profile)
   except ValueError as exc:
     print(f"refused: {exc}", file=sys.stderr)
     return 2

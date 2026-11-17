@@ -83,6 +83,32 @@ controller, or cancel target-conditioned learned policies. R3/power remain the
 supervisor's stop controls. Sender and mux timeouts are additional layers, not
 proof that the robot stopped.
 
+### Keeping the trial client ready
+
+The reviewed client also supports `--session --execute`: one ROS process stays
+ready between trials, with separate receipts and the actual client source hash.
+Use the explicitly selected client directory; frozen older releases do not gain
+this mode when the source checkout changes. Native release and preflight receipt
+remain unchanged for a client-only update.
+
+```sh
+python3 "$PUPPER_CLIENT/final_project/behaviors/tools/movement_trial.py" \
+  --session --execute --profile "$PUPPER_PROFILE" \
+  --runtime-receipt "$PUPPER_RUNTIME_RECEIPT" --out "$PUPPER_RUN/trials"
+```
+
+Send JSON lines on its input: `{"command":"status"}` or
+`{"command":"prepare","axis":"forward","speed":0.7,"duration":3}`.
+Preparation returns a token; send `{"command":"run","token":"RETURNED_TOKEN"}`
+only when the operator is watching and the lane is clear. It runs once, with no
+queued follow-up. `stop`, `quit`, input disconnect, or an authority fault closes
+the client; none rehomes the robot. Motion still requires a ready active stock
+controller. The existing three-second maximum and command limits remain.
+
+Timed turning is not a commanded angle: the November 16 three-second turn at
+0.8 rad/s produced about 123 degrees of reported yaw. Do not call that a complete
+180-degree turn or start a return sprint without checking the return direction.
+
 ## Headbutt after movement is controlled
 
 First measure a no-ball advance and braking distance on the actual surface. Then

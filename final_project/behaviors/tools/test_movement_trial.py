@@ -597,6 +597,174 @@ def test_refused_competition_does_not_send_shutdown_commands(tmp_path):
   assert not ros.published["/cmd_vel"]
 
 
+def session_fixture(tmp_path, monkeypatch):
+  ros, node, mt = make_trial(tmp_path, duration=1.0)
+  ready(ros, node)
+  inbox = mt.SessionInbox(clock=lambda: ros.t)
+  next_tick = ros.t + 0.05
+
+  def spin_once(actual_node, timeout_sec):
+    nonlocal next_tick
+    assert actual_node is node
+    ros.t += 0.01
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    ros.publish("/estop_controller/stop_status", _fake_ros.String(
+      json.dumps({"latched": False, "fault": False})))
+    observe(ros, *(node.request.twist if node.phase == "pulsing" else ZERO))
+    if ros.t >= next_tick:
+      node.on_tick()
+      next_tick = ros.t + 0.05
+
+  return ros, node, mt, inbox, spin_once
+
+
+def test_session_reuses_node_for_two_explicit_trials_and_drains_old_own_loopbacks(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  events, paths, pending_loopbacks = [], [], []
+  starts = 0
+  publish = node.cmd_pub.publish
+
+  def capture(message):
+    publish(message)
+    pending_loopbacks.append(message)
+
+  node.cmd_pub.publish = capture
+
+  def emit(event):
+    nonlocal starts
+    events.append(event)
+    if event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+      inbox.put({"command": "run", "token": event["token"]})  # consumed token cannot replay
+    elif event["event"] == "started":
+      starts += 1
+      inbox.put({"command": "prepare", "axis": "forward", "speed": 999})
+    elif event["event"] == "trial_complete":
+      paths.append(Path(event["file"]))
+      if len(paths) == 1:
+        assert len(pending_loopbacks) >= 5  # last pulse, completion zero, three cleanup zeros
+        inbox.put({"command": "prepare", "axis": "turn_left", "duration": 0.35})
+      else:
+        inbox.put({"command": "quit"})
+
+  def spin(actual_node, timeout_sec):
+    spin_once(actual_node, timeout_sec)
+    if node.phase == "pulsing":
+      # Preserve trial one's final messages until trial two is already active.
+      count = len(pending_loopbacks) if starts == 2 else max(0, len(pending_loopbacks) - 1)
+      for message in pending_loopbacks[:count]:
+        node.on_kick_cmd(message)
+      del pending_loopbacks[:count]
+
+  inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin) == 0
+  assert starts == 2 and len(paths) == 2
+  assert node.foreign_cmd_at is None
+  assert not ros.published["/emergency_stop"]
+  records = [json.loads(path.read_text()) for path in paths]
+  assert [record["request"]["axis"] for record in records] == ["forward", "turn_left"]
+  for record in records:
+    assert record["command_verification"]["passed"]
+    assert record["samples"][0]["t"] == pytest.approx(0)
+    assert record["client_identity"]["sha256"] == hashlib.sha256(Path(mt.__file__).read_bytes()).hexdigest()
+  assert sum(event["event"] == "refused" for event in events) >= 4
+
+
+@pytest.mark.parametrize("cause", ["stop", "eof", "identity", "authority"])
+def test_session_latches_stop_disconnect_or_fault_and_does_not_play_queued_runs(tmp_path, monkeypatch, cause):
+  import io
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  events, identity_valid = [], True
+  started_at = None
+
+  def emit(event):
+    nonlocal identity_valid, started_at
+    events.append(event)
+    if event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "started":
+      started_at = ros.t
+      for _ in range(100):
+        inbox.put({"command": "status"})
+      inbox.put({"command": "prepare", "axis": "forward"})
+      if cause == "eof":
+        inbox.read(io.StringIO(""))
+      elif cause == "stop":
+        inbox.put({"command": "stop"})
+      elif cause == "identity":
+        identity_valid = False
+      else:
+        ros.controllers["neural_controller_default"] = "inactive"
+
+  inbox.put({"command": "prepare", "axis": "forward", "duration": 1})
+  code = mt.run_session(node, {}, lambda _: identity_valid, inbox=inbox, emit=emit, spin_once=spin_once)
+  assert code == 4
+  assert sum(event["event"] == "started" for event in events) == 1
+  assert sum(event["event"] == "trial_complete" for event in events) == 1
+  assert node.record["outcome"] == "stopped"
+  assert twists(ros)[-1] == ZERO
+  assert len(ros.published["/emergency_stop"]) == 1
+  if cause in ("stop", "eof"):
+    assert node.zero_sent_at - started_at <= 0.011
+    assert not any(event["event"] == "status" for event in events)
+  if cause == "eof":
+    assert node.record["reason"] == "session stdin closed"
+
+
+def test_session_idle_disconnect_publishes_nothing(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  inbox.put({"command": "quit", "reason": "session stdin closed"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=lambda _: None,
+                        spin_once=spin_once) == 0
+  assert not ros.published["/kick_cmd_vel"]
+  assert not ros.published["/cmd_vel"]
+  assert not list(tmp_path.glob("movement-*.json"))
+
+
+@pytest.mark.parametrize("stop_kind", ["emergency", "joystick"])
+def test_session_idle_stop_cannot_be_rearmed_by_prepare_and_run(tmp_path, monkeypatch, stop_kind):
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  events = []
+
+  def emit(event):
+    events.append(event)
+    if event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "trial_complete":
+      if stop_kind == "emergency":
+        node.on_emergency(None)
+      else:
+        node.on_joy(_fake_ros.Joy(buttons=[1]))
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+
+  inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin_once) == 3
+  assert sum(event["event"] == "started" for event in events) == 1
+  assert sum(event["event"] == "trial_complete" for event in events) == 1
+  assert any(event["event"] == "fault" for event in events)
+
+
+def test_session_run_trigger_expires_behind_backlog_without_moving(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  events = []
+
+  def emit(event):
+    events.append(event)
+    if event["event"] == "prepared":
+      for _ in range(30):
+        inbox.put({"command": "status"})
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "refused":
+      inbox.put({"command": "quit"})
+
+  inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin_once) == 0
+  assert any("expired" in event.get("reason", "") for event in events)
+  assert not ros.published["/kick_cmd_vel"]
+
+
 def test_sprint_candidate_profile_is_explicit_and_bounded():
   mt = pure()
   with pytest.raises(ValueError):

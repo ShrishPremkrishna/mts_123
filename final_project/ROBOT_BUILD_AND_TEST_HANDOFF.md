@@ -91,6 +91,13 @@ Pi deployment binaries.
 
 ## Selected release and startup commands
 
+For battery-swap/reboot checks, use a fresh bounded SSH connection:
+`ssh -S none -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 mts`.
+The Mac's November 16 `mts` configuration reused a connection for ten minutes
+and allowed roughly two minutes of unanswered keepalives. A stale shared connection
+can therefore delay recovery after power-off even with `ConnectTimeout` supplied.
+This command avoids that connection without changing anyone's SSH configuration.
+
 At **2026-11-17 02:10:56 UTC**, the build owner reported
 `/home/pi/pupper-fc-releases/movement-20261116-v2` staged: Pi-native build/tests,
 pinned files/config-policy link, four ROS package prefixes and target `ldd`
