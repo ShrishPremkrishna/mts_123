@@ -3,9 +3,9 @@
   "objective": "Reliable movement and headbutt baseline; finish build/runtime mismatch prevention and rapid supervised axis trials before shots.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "physical_session_closed_offline_handoff",
-  "updated_utc": "2026-11-17T02:31:10.537745+00:00",
-  "current_report": "foundation/results/movement-release-20261116.json",
+  "mode": "user_returning_v3_target_checks_pending",
+  "updated_utc": "2026-11-17T04:23:49.979042+00:00",
+  "current_report": "foundation/results/movement-offline-followthrough-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -17,7 +17,9 @@
     "stock_shot_failures": "foundation/results/stock-shot-session-20261116.json",
     "pi_reconciliation": "foundation/results/pi-source-reconciliation-20261116.json",
     "offline_gameplay": "final_project/pupper_fc/validation.json",
-    "historical_harness_sprint": "foundation/results/harness-sprint-20261103.json"
+    "historical_harness_sprint": "foundation/results/harness-sprint-20261103.json",
+    "offline_followthrough": "foundation/results/movement-offline-followthrough-20261116.json",
+    "v2_release": "foundation/results/movement-release-20261116.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -26,26 +28,26 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User ended physical work and will power robot off. No hardware activation or SSH required now. Await new user readiness after reboot; earlier pending supervision prompt is superseded.",
+  "authorization": "User returning with robot/ball/charged batteries. Read-only inventory and staging authorized. New readiness question pending for supported homing; no movement until supervision confirmed.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "Native build exit0 and all owned checks complete. No training or hardware process active. ABI guard rejects saved incompatible v1 and accepts Pi-native v2; 14 tests. Focused agents and authenticated Claude reviews completed; consult actual agents if resuming.",
+    "compute": "All offline checks complete:467 tests+48subtests,5ROS transport cases,15Linux process probes. No training; source-only Claude reviews unavailableDNS/timeout, independent subagents used.",
     "owners": {
-      "physical_robot": "User ended physical session. No agent-owned motor session or hardware process active; verify new boot/readiness next time.",
+      "physical_robot": "User preparing robot again; awaiting new stand/controller/exclusive-access confirmation. No agent-owned native session started.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish taking over movement and headbutt; teammate continues foot-kick policy.",
       "shooting": "Tej",
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "v2 target-compatible and preserved; physical acceptance remains open."
+    "goal_status": "Offline baseline complete; final recovery/context closeout being committed. Target verification and physical acceptance pending."
   },
   "hardware_session": {
-    "status": "Closed without startup at 02:27 UTC. No motor controller, movement node, or recorder process found. User told robot can be powered off. v2 staged, no new motion/homing.",
+    "status": "Last physical closure: no startup at02:27UTC. User now powering robot back up; fresh reachability/boot/readiness check pending.",
     "ssh": "mts",
     "observed_utc": "2026-11-17T02:27:19.546335+00:00",
     "current_boot_id": "e0ec5244-f04d-43f3-978a-eef050844135",
@@ -63,35 +65,35 @@
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
     "prepared_run": "/home/pi/pupper-fc-runs/movement-20261117T022613Z",
     "prepared_state": "CLOSED_WITHOUT_STARTUP; old preflight is invalid after reboot. Current-run pointer is historical, not an active session.",
-    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-closure-20261117T022613Z.json"
+    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-closure-20261117T022613Z.json",
+    "local_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+    "candidate_state": "v2 remains staged onPi; v3 archived locally, not yet transferred."
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
     "sha256": "975bc15afa44aa47a90dafdbb4100a3766db05354ce6ea1417c7fdcce118c6a0",
     "verification": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-archive-verification.json",
     "prior_physical_capture": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/stock-shot-20261117T004242Z/remote-closed",
-    "prior_capture_verification": "44 files, 479767987 bytes; all remote/local hashes match"
+    "prior_capture_verification": "44 files, 479767987 bytes; all remote/local hashes match",
+    "v3_package": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/offline-readiness/movement-20261116-v3.tar.gz",
+    "v3_sha256": "96eb5e80156413f693a7b1b74dd480297212e68a8e0f98971c4b9a4abb0e1f4f"
   },
   "next": [
     {
       "id": "supervised_movement",
-      "action": "After reboot and fresh supervisor readiness, verify idle ownership/controller and create a new v2 preflight. Home once, low turn/forward/braking pulses, then faster forward only after watched control. Keep same session for trials."
+      "action": "On user readiness/reboot: stage v3 into new directory, verify all role hashes and dependencies/package resolution, prepare fresh sprint-candidate receipt, then one supervised homing and low axis/braking trials before speed increase/ball contact."
     },
     {
-      "id": "perception_boundary",
-      "action": "Review consumer frame and goal capture-time gaps before camera-driven shots. Manual pulse trials are independent. Await Ryan overhead state/sample; onboard detector not accepted."
+      "id": "perception_upstream",
+      "action": "Consumer frame/time bugs fixed offline; obtain synchronized actual ball/goal/robot-pose stream before camera-driven shots. Temporary onboard detector remains uncalibrated."
     },
     {
       "id": "physical_capabilities",
-      "action": "Measure forward/braking/lateral and centered contact on actual floor. Stock forward and Markus ablated lateral are simulation shortlists only. No new policy training until existing candidates measured."
+      "action": "Measure forward/braking/lateral then centered contact on actual floor. Existing policy shortlists remain simulation evidence; do not train/swap policies before baseline measurement."
     },
     {
       "id": "project_open",
       "action": "Live FC transport, overhead tracking, two-robot commissioning and separate P0 get-up remain open; see project brief."
-    },
-    {
-      "id": "environment_followup",
-      "action": "Use pre-transfer ABI screen and target ldd for each candidate. Complete Pi-equivalent offline builder/dependency closure only when it reduces observed iteration cost; current isolated Pi-native build works. Loaded gateway/mux identity remains a documented gap."
     }
   ],
   "recorded_open_items": {

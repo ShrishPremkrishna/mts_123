@@ -3,12 +3,19 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
+from types import SimpleNamespace
 
 import pytest
 
 spec = importlib.util.spec_from_file_location("runtime_identity", Path(__file__).with_name("runtime_identity.py"))
 runtime = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runtime)
+
+
+def write_stat(directory, ticks=20000, state="S"):
+    fields = [state, *(["0"] * 18), str(ticks), "0"]
+    (directory / "stat").write_text(directory.name + " (process (test) name) " + " ".join(fields))
 
 
 @pytest.fixture
@@ -32,8 +39,7 @@ def setup(tmp_path):
         d = proc / str(pid)
         d.mkdir()
         (d / "cmdline").write_bytes(b"/opt/ros/bin/ros2_control_node\0--ros-args\0--params-file\0" + files['config']['path'].encode() + b"\0")
-        fields = ["S", *(["0"] * 18), str(ticks), "0"]
-        (d / "stat").write_text(str(pid) + " (ros control node) " + " ".join(fields))
+        write_stat(d, ticks)
         lines = []
         for role in runtime.LIBRARIES:
             p = Path(files[role]["path"])
@@ -44,12 +50,36 @@ def setup(tmp_path):
     return proc, manifest, files, receipt, manager
 
 
+@pytest.fixture
+def executable_setup(setup):
+    proc, manifest, files, _, manager = setup
+    for role, basename in runtime.EXECUTABLES.items():
+        path = manifest.parent / basename
+        path.write_bytes((role + "-selected-binary").encode())
+        files[role] = {"path": str(path), "sha256": runtime.sha(path)}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    receipt = runtime.preflight(manifest, runtime.sha(manifest), proc=proc, dependency_checker=lambda _: None)
+
+    def executable(role, pid=None, ticks=20000, actual=None, argv=None, state="S"):
+        pid = pid if pid is not None else {"gateway": 201, "mux": 202}[role]
+        directory = proc / str(pid)
+        directory.mkdir()
+        (directory / "cmdline").write_bytes(os.fsencode(argv or files[role]["path"]) + b"\0")
+        (directory / "exe").symlink_to(actual or files[role]["path"])
+        write_stat(directory, ticks, state)
+        return directory
+
+    return proc, manifest, files, receipt, manager, executable
+
+
 def test_verified_files_and_new_manager_are_bound_to_actual_maps(setup):
     proc, _, _, receipt, manager = setup
     manager()
     result = runtime.verify_loaded(receipt, proc=proc)
     assert result["verified"] and result["manager_pid"] == 123
     assert result["manager_start_ticks"] == 20000
+    assert result["executables"] == {}
+    assert runtime.same_manager(result, proc=proc)
     assert result["scope"].endswith("not physical acceptance")
 
 
@@ -146,3 +176,185 @@ def test_manager_replacement_during_verification_refuses(setup,monkeypatch):
   monkeypatch.setattr(runtime,"start_ticks",changing)
   with pytest.raises(ValueError,match="changed during"):
     runtime.verify_loaded(receipt,proc=proc)
+
+
+def test_actual_gateway_and_mux_images_are_bound_even_with_changed_argv(executable_setup):
+    proc, _, files, receipt, manager, executable = executable_setup
+    manager()
+    for role in runtime.EXECUTABLES:
+        executable(role, argv="/unrelated/process-name")
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    for role, pid in (("gateway", 201), ("mux", 202)):
+        st = Path(files[role]["path"]).stat()
+        assert evidence["executables"][role] == {
+            "pid": pid, "start_ticks": 20000, "path": files[role]["path"],
+            "device": st.st_dev, "inode": st.st_ino,
+        }
+    assert runtime.same_manager(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+def test_one_optional_executable_role_is_sufficient(executable_setup, role):
+    proc, manifest, files, _, manager, executable = executable_setup
+    files = {name: item for name, item in files.items()
+             if name not in runtime.EXECUTABLES or name == role}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    receipt = runtime.preflight(manifest, runtime.sha(manifest), proc=proc, dependency_checker=lambda _: None)
+    manager()
+    executable(role)
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    assert set(evidence["executables"]) == {role}
+    assert runtime.same_manager(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+@pytest.mark.parametrize("renamed_argv", [False, True])
+def test_preflight_refuses_preexisting_gateway_or_mux(executable_setup, role, renamed_argv):
+    proc, manifest, _, _, _, executable = executable_setup
+    executable(role, argv="/unrelated/name" if renamed_argv else None)
+    with pytest.raises(ValueError, match=role + " executable is running"):
+        runtime.preflight(manifest, runtime.sha(manifest), proc=proc, dependency_checker=lambda _: None)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+@pytest.mark.parametrize("fault", ["missing", "wrong_path", "deleted", "duplicate", "old",
+                                  "at_preflight", "missing_exe", "stopped", "zombie"])
+def test_loaded_executable_faults_refuse_valid_selected_files(executable_setup, role, fault):
+    proc, manifest, files, receipt, manager, executable = executable_setup
+    manager()
+    for selected_role in runtime.EXECUTABLES:
+        if selected_role != role:
+            executable(selected_role)
+    if fault != "missing":
+        ticks = 1 if fault == "old" else receipt["preflight_ticks"] if fault == "at_preflight" else 20000
+        directory = executable(role, ticks=int(ticks), state={"stopped": "T", "zombie": "Z"}.get(fault, "S"))
+        if fault in {"wrong_path", "deleted", "missing_exe"}:
+            (directory / "exe").unlink()
+            if fault == "wrong_path":
+                wrong = manifest.parent / "old" / runtime.EXECUTABLES[role]
+                wrong.parent.mkdir()
+                wrong.write_text("older binary")
+                (directory / "exe").symlink_to(wrong)
+            elif fault == "deleted":
+                (directory / "exe").symlink_to(files[role]["path"] + " (deleted)")
+        if fault == "duplicate":
+            executable(role, pid=303, argv="/unrelated/name")
+    with pytest.raises(ValueError, match=role):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+@pytest.mark.parametrize("field", ["st_dev", "st_ino"])
+def test_running_image_inode_and_device_must_match_selected_file(executable_setup, monkeypatch, role, field):
+    proc, _, _, receipt, manager, executable = executable_setup
+    manager()
+    for selected_role in runtime.EXECUTABLES:
+        directory = executable(selected_role)
+        if selected_role == role:
+            target = directory / "exe"
+    original_stat = Path.stat
+
+    def changed_stat(path, *args, **kwargs):
+        st = original_stat(path, *args, **kwargs)
+        if path == target:
+            fields = {"st_dev": st.st_dev, "st_ino": st.st_ino}
+            fields[field] += 1
+            return SimpleNamespace(**fields)
+        return st
+
+    # /proc/<pid>/exe is a kernel reference, unlike the ordinary symlink in
+    # this fixture; model its old inode while the selected on-disk file is good.
+    monkeypatch.setattr(Path, "stat", changed_stat)
+    with pytest.raises(ValueError, match="differs.*" + role):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+@pytest.mark.parametrize("fault", ["exit", "new_pid", "pid_reused", "exe_changed", "exe_deleted",
+                                  "duplicate", "stopped", "zombie"])
+def test_trial_identity_fails_when_gateway_or_mux_changes(executable_setup, role, fault):
+    proc, manifest, files, receipt, manager, executable = executable_setup
+    manager()
+    directories = {name: executable(name) for name in runtime.EXECUTABLES}
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    directory = directories[role]
+    if fault in {"exit", "new_pid"}:
+        shutil.rmtree(directory)
+        if fault == "new_pid":
+            executable(role, pid=404, ticks=20001)
+    elif fault == "pid_reused":
+        write_stat(directory, ticks=20001)
+    elif fault in {"exe_changed", "exe_deleted"}:
+        (directory / "exe").unlink()
+        if fault == "exe_changed":
+            replacement = manifest.parent / "replacement-binary"
+            replacement.write_text("different executable")
+            (directory / "exe").symlink_to(replacement)
+        else:
+            (directory / "exe").symlink_to(files[role]["path"] + " (deleted)")
+    elif fault == "duplicate":
+        executable(role, pid=404)
+    else:
+        write_stat(directory, state={"stopped": "T", "zombie": "Z"}[fault])
+    assert runtime.managers(proc) == [123]
+    assert not runtime.same_manager(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+def test_executable_replacement_during_loaded_verification_refuses(executable_setup, monkeypatch, role):
+    proc, _, _, receipt, manager, executable = executable_setup
+    manager()
+    for selected_role in runtime.EXECUTABLES:
+        executable(selected_role)
+    original_identity = runtime.executable_identity
+    changed = False
+
+    def replaced_identity(proc, selected_role, selected):
+        nonlocal changed
+        identity = original_identity(proc, selected_role, selected)
+        if selected_role == role and not changed:
+            changed = True
+            write_stat(proc / str(identity["pid"]), ticks=20001)
+        return identity
+
+    monkeypatch.setattr(runtime, "executable_identity", replaced_identity)
+    with pytest.raises(ValueError, match="changed during"):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+def test_trial_refuses_old_evidence_missing_selected_executable_identities(executable_setup):
+    proc, _, _, receipt, manager, executable = executable_setup
+    manager()
+    for role in runtime.EXECUTABLES:
+        executable(role)
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    del evidence["executables"]
+    assert not runtime.same_manager(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("role", runtime.EXECUTABLES)
+def test_identified_role_with_unreadable_executable_is_refused(executable_setup, monkeypatch, role):
+    proc, _, _, receipt, manager, executable = executable_setup
+    manager()
+    directories = {name: executable(name) for name in runtime.EXECUTABLES}
+    original_readlink = os.readlink
+
+    def unreadable(path, *args, **kwargs):
+        if path == directories[role] / "exe":
+            raise PermissionError("unreadable executable")
+        return original_readlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "readlink", unreadable)
+    with pytest.raises(ValueError, match="Cannot establish.*" + role):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+@pytest.mark.parametrize("state", ["T", "Z"])
+def test_stopped_or_zombie_manager_refuses_loaded_verification_and_trial(setup, state):
+    proc, _, _, receipt, manager = setup
+    directory = manager()
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    write_stat(directory, state=state)
+    assert not runtime.same_manager(evidence, proc=proc)
+    with pytest.raises(ValueError, match="changed during"):
+        runtime.verify_loaded(receipt, proc=proc)

@@ -34,7 +34,7 @@ def main():
       t = time.monotonic() - start
       msg = PointStamped()
       msg.header.stamp = node.get_clock().now().to_msg()
-      msg.header.frame_id = "base_link"
+      msg.header.frame_id = "base_link_yaw"
       msg.point.x = max(args.stop_x, args.x0 - args.speed * t)
       msg.point.y = args.y
       pub.publish(msg)

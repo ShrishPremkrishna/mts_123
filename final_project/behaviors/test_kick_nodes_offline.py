@@ -20,6 +20,19 @@ import pytest
 import _fake_ros
 
 ZERO = (0.0, 0.0, 0.0)
+
+
+def point(x=0.0, y=0.0, t=0.0, frame="base_link_yaw"):
+  msg = _fake_ros.PointStamped(x, y, t)
+  msg.header.frame_id = frame
+  return msg
+
+
+def pose(x, y, yaw, t, frame="field"):
+  msg = _fake_ros.PoseStamped(x, y, yaw, t)
+  msg.header.frame_id = frame
+  return msg
+
 POLICY_FIXTURE = None
 
 
@@ -121,10 +134,10 @@ def test_restamped_stale_ball_hits_the_travel_budget():
   # Perception republishes an old detection with fresh stamps: it looks fresh but
   # never comes closer. The travel budget ends the walk before the lane runs out.
   ros, node = make_node("run_through_kick_node", {"input_mode": "robot", "align_timeout": 12.0})
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(2.0, 0.0, ros.t))
+  ros.publish("/soccer/ball", point(2.0, 0.0, ros.t))
   assert ros.call("activate_run_through_kick").success
   for _ in range(220):  # 11 s
-    ros.publish("/soccer/ball", _fake_ros.PointStamped(2.0, 0.0, ros.t))
+    ros.publish("/soccer/ball", point(2.0, 0.0, ros.t))
     ros.tick(1)
   state = last_state(ros, "/run_through_kick/state")
   assert state["state"] == "aborted" and "budget" in state["reason"], state
@@ -134,9 +147,9 @@ def test_restamped_stale_ball_hits_the_travel_budget():
 
 def test_bad_ball_messages_are_dropped():
   ros, node = make_node("run_through_kick_node", {"input_mode": "robot"})
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(float("nan"), 0.0, ros.t))
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(1.0, 0.0, 0.0))  # stamp 0
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(1.0, 0.0, ros.t + 5.0))  # future clock
+  ros.publish("/soccer/ball", point(float("nan"), 0.0, ros.t))
+  ros.publish("/soccer/ball", point(1.0, 0.0, 0.0))  # stamp 0
+  ros.publish("/soccer/ball", point(1.0, 0.0, ros.t + 5.0))  # future clock
   assert node.ball is None
 
 
@@ -152,7 +165,7 @@ def test_robot_mode_without_a_ball_sends_zero_then_aborts():
 @pytest.mark.parametrize("how", ["service", "estop", "button", "latched", "teleop"])
 def test_run_through_stop_sends_zero_at_once(how):
   ros, node = make_node("run_through_kick_node", {"input_mode": "robot"})
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(2.0, 0.0, ros.t))
+  ros.publish("/soccer/ball", point(2.0, 0.0, ros.t))
   ros.call("activate_run_through_kick")
   ros.tick(5)
   assert ros.published["/kick_cmd_vel"][-1].linear.x > 0.0
@@ -175,12 +188,141 @@ def test_run_through_stop_sends_zero_at_once(how):
 def test_field_mode_converts_to_the_robot_frame():
   ros, node = make_node("run_through_kick_node", {"input_mode": "field"})
   # Robot at (2, 1) facing +y; ball at (2, 3): 2 m dead ahead in the robot frame.
-  ros.publish("/soccer/robot_pose", _fake_ros.PoseStamped(2.0, 1.0, math.pi / 2, ros.t))
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(2.0, 3.0, ros.t))
+  ros.publish("/soccer/robot_pose", pose(2.0, 1.0, math.pi / 2, ros.t))
+  ros.publish("/soccer/ball", point(2.0, 3.0, ros.t, "field"))
   ros.call("activate_run_through_kick")
   ros.tick(1)
   vx, vy, wz = twists(ros, "/kick_cmd_vel")[-1]
   assert vx == pytest.approx(0.3) and abs(vy) < 1e-6 and abs(wz) < 1e-6
+
+
+@pytest.mark.parametrize("kind", ["ball", "goal", "pose"])
+@pytest.mark.parametrize("fault", ["empty_frame", "wrong_frame", "zero", "future", "old", "bad_nsec"])
+def test_perception_admission_rejects_invalid_frames_and_capture_clocks(kind, fault):
+  mode = "field" if kind == "pose" else "robot"
+  ros, node = make_node("run_through_kick_node", {"input_mode": mode})
+  msg = pose(0, 0, 0, ros.t) if kind == "pose" else point(1, 0.2, ros.t)
+  if fault == "empty_frame":
+    msg.header.frame_id = ""
+  elif fault == "wrong_frame":
+    msg.header.frame_id = "base_link"  # body frame is not the levelled yaw frame
+  elif fault in ("zero", "future", "old"):
+    stamp = {"zero": 0, "future": ros.t + 0.001, "old": ros.t - 2}[fault]
+    msg.header.stamp = _fake_ros.Header(stamp).stamp
+  else:
+    msg.header.stamp.nanosec = 1_000_000_000
+  getattr(node, "on_" + kind)(msg)
+  assert node.capture_highwater[kind] == 0
+  assert not node.poses if kind == "pose" else getattr(node, kind) is None
+
+
+@pytest.mark.parametrize("kind", ["ball", "goal", "pose"])
+def test_duplicate_and_reordered_captures_do_not_replace_newer_data(kind):
+  ros, node = make_node("run_through_kick_node", {"input_mode": "field" if kind == "pose" else "robot"})
+  def message(x, stamp):
+    return pose(x, 0, 0, stamp) if kind == "pose" else point(x, 0, stamp)
+  callback = getattr(node, "on_" + kind)
+  callback(message(1, ros.t - 0.1))
+  callback(message(2, ros.t))
+  callback(message(3, ros.t - 0.05))
+  callback(message(4, ros.t))
+  if kind == "pose":
+    assert len(node.poses) == 2 and node.poses[-1][1] == 2
+  else:
+    assert getattr(node, kind)[0] == 2
+
+
+@pytest.mark.parametrize("q", [(0, 0, 0, 0), (0, 0, 0, 2), (0, 0, float("nan"), 1),
+                              (0, math.sqrt(0.5), 0, math.sqrt(0.5))])
+def test_field_pose_rejects_invalid_or_undefined_heading(q):
+  ros, node = make_node("run_through_kick_node", {"input_mode": "field"})
+  msg = pose(0, 0, 0, ros.t)
+  msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w = q
+  node.on_pose(msg)
+  assert not node.poses
+
+
+def test_field_points_require_their_own_exact_pose_epoch_and_tolerate_callback_order():
+  ros, node = make_node("run_through_kick_node", {"input_mode": "field"})
+  first = ros.t
+  node.on_ball(point(2, 3, first, "field"))
+  assert node.robot_frame_inputs(node.now()) == (None, None)
+  # Ball callback arrives before its corresponding pose. No latest-pose fallback.
+  node.on_pose(pose(2, 1, math.pi / 2, first))
+  ros.tick(2)
+  second = ros.t
+  node.on_goal(point(4, 3, second, "field"))
+  ball, goal = node.robot_frame_inputs(node.now())
+  assert (ball.x, ball.y) == pytest.approx((2, 0)) and goal is None
+  node.on_pose(pose(3, 1, 0, second))
+  ball, goal = node.robot_frame_inputs(node.now())
+  assert (ball.x, ball.y, ball.stamp) == pytest.approx((2, 0, first))
+  assert (goal.x, goal.y, goal.stamp) == pytest.approx((1, 2, second))
+  # A nearby timestamp is still a different epoch; never label it with min().
+  ros.tick(1)
+  node.on_ball(point(2, 3, ros.t, "field"))
+  assert node.robot_frame_inputs(node.now())[0] is None
+  for _ in range(140):
+    ros.tick(1)
+    node.on_pose(pose(0, 0, 0, ros.t))
+  assert len(node.poses) == 128
+
+
+def test_goal_capture_age_and_intent_survive_ball_updates_and_goal_replay():
+  ros, node = make_node("run_through_kick_node", {
+    "input_mode": "robot", "goal_max_age": 0.1, "lost_timeout": 0.2})
+  node.on_goal(point(3, 0.4, ros.t))
+  assert ros.call("activate_run_through_kick").success
+  saved_stamp = node.goal[2]
+  for _ in range(10):
+    ros.tick(1)
+    node.on_ball(point(1.2, 0, ros.t))
+    node.on_goal(point(3, 0.4, saved_stamp * 1e-9))
+  assert node.goal[2] == saved_stamp  # replay never refreshes capture age
+  assert node.kick.state.value == "aborted" and "goal lost" in node.kick.reason
+  assert twists(ros, "/kick_cmd_vel")[-1] == ZERO
+
+
+def test_expired_goal_from_previous_activation_does_not_require_a_goal_for_new_shot():
+  ros, node = make_node("run_through_kick_node", {"input_mode": "robot", "goal_max_age": 0.1})
+  node.on_goal(point(3, 0.4, ros.t))
+  ros.tick(4)
+  assert ros.call("activate_run_through_kick").success
+  ros.tick(1)
+  node.on_ball(point(1.2, 0, ros.t))
+  ros.tick(1)
+  assert twists(ros, "/kick_cmd_vel")[-1][0] > 0
+  assert not node.kick._goal_required
+
+
+def test_require_goal_waits_with_fresh_ball_before_first_goal_packet():
+  ros, node = make_node("run_through_kick_node", {"input_mode": "robot", "require_goal": True})
+  assert ros.call("activate_run_through_kick").success
+  for _ in range(5):
+    ros.tick(1)
+    node.on_ball(point(1.2, 0, ros.t))
+  assert all(c == ZERO for c in twists(ros, "/kick_cmd_vel"))
+  node.on_goal(point(3, 0.3, ros.t))
+  ros.tick(1)
+  assert twists(ros, "/kick_cmd_vel")[-1][0] > 0
+
+
+@pytest.mark.parametrize("ball_x,expected_state", [(1.2, "align"), (0.8, "aborted")])
+def test_first_goal_during_field_shot_latches_intent_before_matching_pose_arrives(ball_x, expected_state):
+  ros, node = make_node("run_through_kick_node", {"input_mode": "field"})
+  assert ros.call("activate_run_through_kick").success
+  ros.tick(1)
+  node.on_pose(pose(0, 0, 0, ros.t))
+  node.on_ball(point(ball_x, 0, ros.t, "field"))
+  ros.tick(2)
+  assert twists(ros, "/kick_cmd_vel")[-1][0] > 0
+  assert not node.kick._goal_required
+  # Valid capture, but no pose exists at this goal's distinct capture time.
+  node.on_goal(point(3, 0.4, ros.t - 0.025, "field"))
+  assert node.robot_frame_inputs(node.now())[1] is None
+  ros.tick(1)
+  assert twists(ros, "/kick_cmd_vel")[-1] == ZERO
+  assert node.kick._goal_required and node.kick.state.value == expected_state
 
 
 # ---------------------------------------------------------------- stock authority/caps
@@ -340,7 +482,7 @@ def test_per_command_guard_rejects_reverse_clipping_even_if_controller_changes_o
   ros, node = make_node("run_through_kick_node")
   assert manual_ready(ros, node).success
   module = importlib.import_module("run_through_kick")
-  monkeypatch.setattr(node.kick, "step", lambda *args: module.Command(-0.31, 0, 0))
+  monkeypatch.setattr(node.kick, "step", lambda *args, **kwargs: module.Command(-0.31, 0, 0))
   ros.tick(1)
   assert twists(ros, "/kick_cmd_vel")[-1] == ZERO
   assert ros.published["/emergency_stop"]
@@ -352,7 +494,7 @@ def test_per_command_guard_rejects_reverse_clipping_even_if_controller_changes_o
 
 def feed(ros, x, y, yaw=0.0):
   ros.publish("/imu_sensor_broadcaster/imu", _fake_ros.Imu(yaw))
-  ros.publish("/soccer/ball", _fake_ros.PointStamped(x, y, ros.t))
+  ros.publish("/soccer/ball", point(x, y, ros.t))
 
 
 def stage(ros):
@@ -490,7 +632,7 @@ def test_learned_kick_refuses_while_latched_and_stops_on_imu_loss():
   gateway(ros, latched=False)
   start(ros)
   for _ in range(30):  # ball updates continue, IMU stops
-    ros.publish("/soccer/ball", _fake_ros.PointStamped(0.9, 0.0, ros.t))
+    ros.publish("/soccer/ball", point(0.9, 0.0, ros.t))
     ros.tick(1)
   assert "IMU" in last_state(ros, "/learned_kick/state")["reason"]
 

@@ -60,6 +60,7 @@ OBS_FRAME_SIZE, OBS_COMMAND_OFFSET, OBS_HISTORY = 48, 6, 20  # pinned stock obs_
 MATCH_TOL = 0.02  # m/s or rad/s: requested vs native filtered command
 SETTLE_S = 0.2  # ignore the first ticks after onset when judging agreement
 OBS_MAX_AGE_S = 0.2
+OWNER_CHECK_S = 0.2
 ZERO = (0.0, 0.0, 0.0)
 
 
@@ -204,6 +205,31 @@ def _fmt(values, keys):
   return "none" if values is None else ",".join(f"{values[k]:+.3f}" for k in keys)
 
 
+def finalize_verification(record, runtime_identity_held):
+  """A timer finishing is distinct from verifying command delivery and zero."""
+  problems = []
+  summary = record.get("summary") or {}
+  if record["outcome"] != "completed":
+    problems.append("pulse did not complete")
+  if summary.get("applied_matched_requested") is not True:
+    problems.append("requested command was not confirmed at the policy input")
+  if summary.get("zero_confirmed_in_observation_s") is None:
+    problems.append("zero was not confirmed in controller feedback")
+  if not runtime_identity_held:
+    problems.append("selected runtime identity did not remain valid")
+  record["command_verification"] = {
+    "passed": not problems,
+    "problems": problems,
+    "scope": "command input and selected process identities; physical outcome remains unverified",
+  }
+
+
+def result_exit_code(record):
+  if record["outcome"] == "completed":
+    return 0 if record.get("command_verification", {}).get("passed") is True else 5
+  return 4 if record["outcome"] == "stopped" else 3
+
+
 def receipt_line(record) -> str:
   req, summary, imu = record["request"], record["summary"], record["imu"]
   parts = [f"movement_trial {req['axis']} {req['speed']:g} {req['duration_s']:g}s -> {record['outcome']}"]
@@ -218,6 +244,11 @@ def receipt_line(record) -> str:
     parts.append(f"obs={summary['observation_samples']}")
     zero = summary["zero_confirmed_in_observation_s"]
     parts.append("zero_seen=" + ("none" if zero is None else f"{zero:.2f}s"))
+  if record.get("command_verification") is not None:
+    check = record["command_verification"]
+    parts.append("command_verification=" + ("passed" if check["passed"] else "UNVERIFIED"))
+    if check["problems"]:
+      parts.append("issues=" + "; ".join(check["problems"]))
   if imu.get("status") == "sampled":
     yaw = imu.get("yaw_change_rad")
     parts.append("imu_yaw_change=" + ("unavailable" if yaw is None else f"{yaw:+.3f}rad"))
@@ -421,10 +452,13 @@ def _node_class():
         if problem:
           self.stop(problem, fault=True)
           return
-        if now - self.last_owner_check >= 1.0:
+        if now - self.last_owner_check >= OWNER_CHECK_S:
           self.last_owner_check = now
           if self.count_publishers(self.robot_topic) != 2:  # the mux and our shutdown publisher
             self.stop(f"another node publishes {self.robot_topic}", fault=True)
+            return
+          if self.count_publishers(self.kick_topic) != 1:
+            self.stop(f"another node publishes {self.kick_topic}", fault=True)
             return
         elapsed = now - self.started
         if not 0 <= elapsed < min(self.request.duration_s, MAX_PULSE_S):
@@ -596,9 +630,10 @@ def run_execute(request, args) -> int:
     path = node.finish()
     node.record["runtime_identity"] = runtime
     node.record["runtime_identity_held"] = same_manager(runtime)
+    finalize_verification(node.record, node.record["runtime_identity_held"])
     path.write_text(json.dumps(node.record, indent=1, allow_nan=False) + "\n")
     print(receipt_line(node.record))
-    code = {"completed": 0, "stopped": 4}.get(node.record["outcome"], 3)
+    code = result_exit_code(node.record)
     node.destroy_node()
     rclpy.try_shutdown()
     for signum, handler in previous.items():

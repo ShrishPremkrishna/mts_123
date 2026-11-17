@@ -147,6 +147,35 @@ def test_summary_without_observations_is_explicit():
   assert summary["observation_samples"] == 0
 
 
+@pytest.mark.parametrize("matched,zero,runtime,expected", [
+  (True, 0.1, True, 0),
+  (False, 0.1, True, 5),
+  (None, 0.1, True, 5),
+  (True, None, True, 5),
+  (True, 0.1, False, 5),
+])
+def test_completed_timer_requires_command_zero_and_runtime_evidence(matched, zero, runtime, expected):
+  mt = pure()
+  record = {"outcome": "completed", "summary": {
+    "applied_matched_requested": matched,
+    "zero_confirmed_in_observation_s": zero,
+  }}
+  mt.finalize_verification(record, runtime)
+  assert mt.result_exit_code(record) == expected
+  assert record["command_verification"]["passed"] == (expected == 0)
+  assert bool(record["command_verification"]["problems"]) == (expected != 0)
+  assert "physical outcome remains unverified" in record["command_verification"]["scope"]
+
+
+@pytest.mark.parametrize("outcome,code", [("stopped", 4), ("not_started", 3)])
+def test_stop_and_refusal_keep_their_distinct_exit_status(outcome, code):
+  mt = pure()
+  record = {"outcome": outcome, "summary": None}
+  mt.finalize_verification(record, False)
+  assert not record["command_verification"]["passed"]
+  assert mt.result_exit_code(record) == code
+
+
 # ---------------------------------------------------------------- pure: receipt
 
 
@@ -336,6 +365,23 @@ def test_recent_foreign_kick_command_refuses_start_until_quiet_again(tmp_path):
   ros.tick(25)
   assert node.try_start() is None
   assert not ros.published["/emergency_stop"]  # a refusal while waiting is not a fault
+
+
+def test_competing_same_command_publisher_is_detected_during_pulse(tmp_path):
+  ros, node, mt = make_trial(tmp_path)
+  ready(ros, node)
+  assert node.try_start() is None
+  # Equal payloads cannot be distinguished from our loopback by content alone.
+  ros.publishers["/kick_cmd_vel"] += 1
+  foreign = _fake_ros.Twist()
+  foreign.linear.x = node.request.speed
+  ros.publish("/kick_cmd_vel", foreign)
+  ros.tick(5)
+  assert node.phase == "finished"
+  assert node.record["outcome"] == "stopped"
+  assert "another node publishes /kick_cmd_vel" == node.record["reason"]
+  assert twists(ros)[-1] == ZERO
+  assert ros.published["/emergency_stop"]
 
 
 def test_start_waits_a_full_listening_window_before_trusting_silence(tmp_path):

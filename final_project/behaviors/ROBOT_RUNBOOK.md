@@ -70,6 +70,13 @@ prevents a start or ends the diagnostic pulse. Add the observed travel, stopping
 direction and stability to the operator observation; a completed command is not
 physical acceptance. IMU yaw is sensor evidence, not an external heading reference.
 
+The current source distinguishes a finished pulse timer from a verified command
+path: execution returns success only when the policy input matched, zero feedback
+arrived and the selected processes remained valid. A finished pulse with missing
+evidence returns status 5 and prints `command_verification=UNVERIFIED`; stopping
+and refusing a start have separate statuses. This reporting change is offline
+only until a new release is selected; frozen v2 retains its earlier reporting.
+
 The new controller expires silent velocity input after 250 ms, replacing the
 request with zero. This does not prove braking distance, protect against a hung
 controller, or cancel target-conditioned learned policies. R3/power remain the

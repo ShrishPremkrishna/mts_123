@@ -56,9 +56,36 @@ not that the ball was hit.
 - Services: `/activate_run_through_kick`, `/deactivate_run_through_kick` (`Trigger`).
 - Ball: `/soccer/ball` (`PointStamped`), metres, x forward/y left in
   `base_link_yaw`; stamp is original image capture time on the robot ROS clock.
-- Optional goal and robot pose support field mode, but no overhead field-state
-  producer was recovered. Consumer frame checks and goal capture-time handling
-  remain open before connecting this mode to live gameplay.
+- Optional `/soccer/goal` uses the same point contract. In `input_mode=field`,
+  both points and `/soccer/robot_pose` (`PoseStamped`) must use `frame_id=field`.
+  Every field point needs a robot pose with its **exact capture stamp**, including
+  a goal captured at a different time from the ball. A bounded 128-pose cache
+  tolerates either callback arrival order; missing matches withhold the point.
+  No overhead producer was recovered. It must supply synchronized snapshots;
+  this adapter does not estimate poses between independently timed samples.
+
+As of November 17, the stock shot consumer rejects wrong/empty frames, invalid,
+future, expired, duplicate and reordered captures. Goals retain capture time;
+arrival never extends their lifetime. Ball/goal captures are independently moved
+to the current robot frame using the shot's command history before aim is
+calculated. A capture preceding activation or retained history is unavailable.
+Field orientation must be finite and unit length (up to 1% normalization error),
+with a defined horizontal heading. Restart perception after a ROS clock reset;
+an active camera shot aborts if its clock moves backwards.
+
+`require_goal=true` waits for a goal even before its first packet. With the
+default false, a fresh goal at activation or accepted during the shot latches goal
+intent for that shot. Missing, stale or unsynchronized goal feedback pauses
+ALIGN and aborts after `lost_timeout`; CHARGE aborts immediately. It does not
+silently become a straight-through shot. An expired cache from a previous shot
+does not latch the next activation. Goal-free shots and manual measurements
+remain supported; the established blind-zone COAST behavior is unchanged.
+
+Compensation assumes a stationary ball and goal and estimates motion from
+commands scaled by `speed_efficiency`. It is not odometry and cannot correct
+gait slip, a moving ball or timestamps from different clocks. The pure controller
+also retains explicit `aim` for callers supplying an already-current direction;
+the ROS adapter uses stamped goal points instead.
 
 The onboard detector selects a valid preceding `base_link` IMU orientation for
 an image. `imu_max_age=0.2` limits the IMU-to-image capture gap;
@@ -83,7 +110,9 @@ From the repository root:
 .venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests
 ```
 
-`test_run_through_kick.py` uses a kinematic walker; node tests use fake ROS.
+`test_run_through_kick.py` uses a kinematic walker with separately delayed ball
+and goal captures, plus analytic turn/translation geometry; node tests use fake
+ROS to exercise admission, matching field snapshots and goal-loss handling.
 `test_ball_perception.py` checks geometry, source-time/frame handling and image
 publication without a camera. `ros_stock_guard_smoke.py` checks actual ROS service
 and topic wiring with synthetic services in an isolated, network-disabled

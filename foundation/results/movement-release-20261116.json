@@ -222,5 +222,9 @@
     "manual_trials_affected": false,
     "reproduced": "Optical-frame ball accepted as body coordinates; ten-second-old wrong-frame goal restamped at receipt produced fresh 90-degree aim; zero-stamp goal accepted.",
     "next": "Exact frame admission and original goal stamp validity/order; further goal/field time-coherent geometry needed before enabling live camera shots. No v2 runtime change."
+  },
+  "followthrough": {
+    "report": "foundation/results/movement-offline-followthrough-20261116.json",
+    "meaning": "New v3 source fixes are local only here; historical v2 identity and closure are unchanged."
   }
 }

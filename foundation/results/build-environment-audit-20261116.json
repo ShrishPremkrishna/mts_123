@@ -345,5 +345,10 @@
     }
   },
   "package_cache_note": "Owner verified v2 selected roles and archive hash. One nonselected runtime_identity.cpython-311.pyc cache entry changed after import; do not alter immutable v2. Future packages should exclude __pycache__/*.pyc; setup exports PYTHONDONTWRITEBYTECODE=1.",
-  "physical_closure_note": "Owner reported movement-20261117T022613Z CLOSED_WITHOUT_STARTUP; no additional SSH or hardware operations after closure instruction. V2 remains staged, not physically accepted."
+  "physical_closure_note": "Owner reported movement-20261117T022613Z CLOSED_WITHOUT_STARTUP; no additional SSH or hardware operations after closure instruction. V2 remains staged, not physically accepted.",
+  "followthrough": {
+    "report": "foundation/results/movement-offline-followthrough-20261116.json",
+    "current_source_gap_closed": "Gateway/mux executable identity now verified in source with 73 offline tests and 15 real Linux cases; v2 frozen helper unchanged, v3 local package contains the new checker.",
+    "current_target_state": "No v3 target acceptance; read current checkpoint."
+  }
 }

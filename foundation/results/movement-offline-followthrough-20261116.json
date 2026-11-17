@@ -1,0 +1,232 @@
+{
+  "schema": "pupper_movement_offline_followthrough_v1",
+  "updated_utc": "2026-11-17T04:23:49.979042+00:00",
+  "summary": "Required offline movement/headbutt baseline corrections complete and packaged. User returning with robot; v3 not yet transferred or activated. No new physical acceptance.",
+  "changes": {
+    "perception": "Consumer enforces base_link_yaw/field, valid monotonic capture times, normalized nondegenerate pose heading, exact matching field pose epochs. Ball and goal compensated independently to current frame; goal loss cannot silently change shot intent. Manual sequence preserved.",
+    "runtime": "Actual gateway/mux executable path/device/inode/PID/start identity checked alongside manager and mapped driver/controller. Missing, changed, duplicate, old, stopped or zombie processes refuse.",
+    "trials": "Complete timer is distinct from verified command input and zero. Execution returns status5 for insufficient command/runtime evidence; competing kick-input publishers are checked during pulse every0.2s.",
+    "context": "Project plan ownership/native-expiry claims updated; v2 target state remains separate from v3 local package."
+  },
+  "verification": {
+    "regression": {
+      "passed": 467,
+      "subtests": 48,
+      "warnings": "One existing Starlette deprecation warning",
+      "log": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/offline-readiness/regression-final.log",
+      "sha256": "a5fd1ba79882d36f51dfbe243a196f8b74f8fdc66731735eafbfb10786c820aa"
+    },
+    "ros": {
+      "competing_sender": {
+        "passed": true,
+        "outcome": "stopped",
+        "reason": "another node publishes /kick_cmd_vel",
+        "summary": {
+          "elapsed_s": 0.2033703329943819,
+          "ticks": 6,
+          "observation_samples": 6,
+          "requested_command_integral": {
+            "vx_m": 0.040627008199226114,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "applied_command_integral": {
+            "vx_m": 0.029886375446274874,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "max_abs_requested_minus_applied": null,
+          "applied_matched_requested": null,
+          "comparison_axes": [
+            "vx",
+            "vy"
+          ],
+          "applied_onset_s": 0.05393054099113215,
+          "zero_confirmed_in_observation_s": null
+        },
+        "emergency_stop_receipts": 1
+      },
+      "lost_observation": {
+        "passed": true,
+        "outcome": "stopped",
+        "reason": "stock policy observation stale",
+        "summary": {
+          "elapsed_s": 0.2520774580043508,
+          "ticks": 7,
+          "observation_samples": 6,
+          "requested_command_integral": {
+            "vx_m": 0.05034794159873855,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "applied_command_integral": {
+            "vx_m": 0.0,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "max_abs_requested_minus_applied": {
+            "vx": 0.2,
+            "vy": 0.0,
+            "wz": 0.0
+          },
+          "applied_matched_requested": false,
+          "comparison_axes": [
+            "vx",
+            "vy"
+          ],
+          "applied_onset_s": null,
+          "zero_confirmed_in_observation_s": null
+        },
+        "emergency_stop_receipts": 1
+      },
+      "pulse": {
+        "passed": true,
+        "outcome": "completed",
+        "reason": "",
+        "summary": {
+          "elapsed_s": 0.502395167000941,
+          "ticks": 12,
+          "observation_samples": 12,
+          "requested_command_integral": {
+            "vx_m": 0.10045321680081544,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "applied_command_integral": {
+            "vx_m": 0.09000983474208726,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "max_abs_requested_minus_applied": {
+            "vx": 2.980232227667301e-09,
+            "vy": 0.0,
+            "wz": 0.0
+          },
+          "applied_matched_requested": true,
+          "comparison_axes": [
+            "vx",
+            "vy"
+          ],
+          "applied_onset_s": 0.05234079199726693,
+          "zero_confirmed_in_observation_s": 0.02237483400676865
+        },
+        "emergency_stop_receipts": 0
+      },
+      "sprint": {
+        "passed": true,
+        "outcome": "completed",
+        "reason": "",
+        "summary": {
+          "elapsed_s": 0.5469613759923959,
+          "ticks": 12,
+          "observation_samples": 12,
+          "requested_command_integral": {
+            "vx_m": 0.3827736793973599,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "applied_command_integral": {
+            "vx_m": 0.3485395903627664,
+            "vy_m": 0.0,
+            "wz_rad": 0.0
+          },
+          "max_abs_requested_minus_applied": {
+            "vx": 1.1920928910669204e-08,
+            "vy": 0.0,
+            "wz": 0.0
+          },
+          "applied_matched_requested": true,
+          "comparison_axes": [
+            "vx",
+            "vy"
+          ],
+          "applied_onset_s": 0.049036374999559484,
+          "zero_confirmed_in_observation_s": 0.018752250005491078
+        },
+        "emergency_stop_receipts": 0
+      },
+      "wrong_stock": {
+        "passed": true,
+        "outcome": "not_started",
+        "reason": "stock controller evidence refused: expected only the stock walker active; controller ownership changed or missing",
+        "summary": null,
+        "emergency_stop_receipts": 0
+      }
+    },
+    "ros_scope": "Real rclpy services/topics against synthetic feedback in network-disabled Docker; no hardware/controller inference. Five cases including competing sender detected at about0.203s.",
+    "runtime_executables": {
+      "passed_real_linux_cases": 15,
+      "receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/offline-readiness/runtime-executables/result.json",
+      "sha256": "a1c9ab2ee54ac5d1d1db35718766377084d252ffff3477fc5d30db89d2ddc135",
+      "scope": "Temporary copied sleep binaries in local Linux container; no ROS/hardware. All children/container closed."
+    },
+    "perception": {
+      "receipt": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/shot-perception-admission-v1/checks.json",
+      "focused_tests": 125,
+      "independent_review": "12 focused checks; no remaining material blocker"
+    },
+    "source_sha256": {
+      "final_project/behaviors/run_through_kick.py": "df0f71d423c8f89f73ddf2a1aaa3258048038ce90d728288fc8bc1bbb71a4a4d",
+      "final_project/behaviors/run_through_kick_node.py": "e18073af0330cb06776d8de915f193324093d841d7c79c2e5835d63254a6413f",
+      "final_project/behaviors/tools/movement_trial.py": "5f4f3dc560ad2362dbdee9e5b5441ee58382d311a19b7c127acd6f7538f25f47",
+      "final_project/behaviors/tools/ros_movement_trial_smoke.py": "8e5d6a5d37ce69fec2a40b7388b7f9d97f58031e915ceb124fa421fbbba2bb74",
+      "foundation/hardware/runtime_identity.py": "f8489db0757e7d2ba854758effa12be3847aa4e740e4c2d047338b0232c92f5f",
+      "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+    }
+  },
+  "package": {
+    "schema": "pupper_movement_offline_package_v1",
+    "created_utc": "2026-11-17T04:19:41.822820+00:00",
+    "target_release": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+    "baseline_archive_sha256": "975bc15afa44aa47a90dafdbb4100a3766db05354ce6ea1417c7fdcce118c6a0",
+    "native_and_policy_bytes_unchanged": true,
+    "source_freeze_sha256": {
+      "final_project/behaviors/run_through_kick.py": "df0f71d423c8f89f73ddf2a1aaa3258048038ce90d728288fc8bc1bbb71a4a4d",
+      "final_project/behaviors/run_through_kick_node.py": "e18073af0330cb06776d8de915f193324093d841d7c79c2e5835d63254a6413f",
+      "final_project/behaviors/tools/movement_trial.py": "5f4f3dc560ad2362dbdee9e5b5441ee58382d311a19b7c127acd6f7538f25f47",
+      "final_project/behaviors/tools/ros_movement_trial_smoke.py": "8e5d6a5d37ce69fec2a40b7388b7f9d97f58031e915ceb124fa421fbbba2bb74",
+      "foundation/hardware/runtime_identity.py": "f8489db0757e7d2ba854758effa12be3847aa4e740e4c2d047338b0232c92f5f",
+      "final_project/behaviors/tools/replay_ball.py": "85c40d79900738159130d41a6d1886824318ab1b70300c54524df16f806b1f24"
+    },
+    "manifest_sha256": {
+      "walk": "5bc67c174e1d9b8cf00f18d6c566cfc418a6572ef8ce7bd22be033d145c72d32",
+      "sprint": "d1b8c405e1e05e4ab9fbce84e18d2dbd9bc200329bfecbf4a5e7e577342df20e"
+    },
+    "offline_checks": {
+      "regression": "467 passed, 48 subtests",
+      "ros_transport_cases": 5,
+      "real_linux_process_identity_cases": 15
+    },
+    "target_staged": false,
+    "target_ldd_repeated": false,
+    "hardware_started": false,
+    "notes": [
+      "Current Pi v2 remains unchanged. Never overlay onto it.",
+      "Target checks and fresh preflight remain required; prepared v2 run was closed without startup.",
+      "Staged root source and frozen release are separate identities."
+    ],
+    "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/offline-readiness/movement-20261116-v3.tar.gz",
+    "archive_sha256": "96eb5e80156413f693a7b1b74dd480297212e68a8e0f98971c4b9a4abb0e1f4f",
+    "archive_bytes": 21418829,
+    "verified_indexed_files": 128,
+    "package_script_sha256": "dc8d865d556fe61813dcb7f5d7dcb471d079bed64df8649559bf6acd63451816"
+  },
+  "claude": {
+    "status": "Unavailable for these final reviews; no successful review claim",
+    "first_attempt": "Authenticated CLI, actual reported claude-fable-5-1; DNS ENOTFOUND after7turns. Preserved in perception receipt.",
+    "bounded_retry": "Separate movement-tool review terminated after50s timeout; processgroup closed, exit143; metadata in offline-readiness/claude-trial-review.exit.json. No further retries.",
+    "fallback": "Focused subagent implementation and independent reviews; root regression and actual transport/OS checks."
+  },
+  "held_or_failed": {
+    "initial_ros_competing_case": "Correctly stopped via existing foreign-message callback; test wrongly required graph-change reason. Test changed to create an idle competing writer to specifically exercise new graph check. Initial logs retained in ros-output.",
+    "v2_archive_cache": "Historical index/cache discrepancy retained; v3 excludes all generated Python caches and pins every packaged file."
+  },
+  "acceptance_gaps": [
+    "No v3 target ldd/preflight or physical startup yet; v2 was closed without startup.",
+    "No newly accepted forward/lateral sprint, measured braking or headbutt/contact. Prior observed gait instability is not fully explained by build mismatch.",
+    "Command-based geometric compensation assumes stationary targets and estimated robot motion; no calibrated onboard ball tracker or upstream field producer is established.",
+    "Process checks are snapshots, not distributed ownership/health or hardware watchdogs. Full Pi-equivalent offline builder remains optional infrastructure.",
+    "Selected repaired R5 driver still lacks later queued-IMU-age change; exact selected driver preserved."
+  ],
+  "next": "On user readiness/reboot: stage v3 into new directory, verify all role hashes and dependencies/package resolution, prepare fresh sprint-candidate receipt, then one supervised homing and low axis/braking trials before speed increase/ball contact."
+}

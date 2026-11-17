@@ -11,6 +11,8 @@ Inputs each tick:
   * aim: wanted ball travel direction, relative to the robot heading [rad]
     (``aim_from_goal`` makes it from a goal position), or None to kick straight
     through the ball.
+  * goal: optional stamped goal point in the robot frame at its own capture
+    time. Ball and goal are moved to the same current frame before deriving aim.
 
 States:
   ALIGN   walk to the point ``run_up`` behind the ball on the aim line while
@@ -33,6 +35,8 @@ Manual mode (``start(now, static_ball=...)``) is for trials before perception:
 the operator measures the ball position once and the controller dead-reckons
 it from its own commands. Dead reckoning drifts, so keep manual kicks short.
 Overhead tracking gives field coordinates; ``field_to_robot`` converts them.
+Capture compensation assumes stationary ball/goal and estimates robot motion
+from commands, not measured odometry. It cannot repair gait slip or a moving ball.
 """
 
 from __future__ import annotations
@@ -100,6 +104,7 @@ class KickParams:
   # Timing.
   brake_time: float = 0.6
   max_obs_age: float = 0.5  # s
+  goal_max_age: float = 1.0  # s, measured from capture, never arrival
   lost_timeout: float = 1.5  # s without a fresh ball while aligning
   align_timeout: float = 10.0
   charge_timeout: float = 4.0
@@ -163,6 +168,8 @@ class RunThroughKick:
     self._aim0 = None  # type: float | None  # manual aim at start, robot frame
     self._yaw_dr = 0.0  # dead-reckoned yaw since start (manual aim hold)
     self._travel = 0.0  # commanded travel in the current phase [m]
+    self._goal_required = False
+    self._t_goal_fresh = 0.0
 
   # ------------------------------------------------------------------ control
 
@@ -171,6 +178,7 @@ class RunThroughKick:
     now: float,
     static_ball: tuple[float, float] | None = None,
     static_aim: float | None = None,
+    *, require_goal: bool = False,
   ) -> None:
     """Begin a kick. ``static_ball`` (robot frame, m) selects manual mode; then
     ``static_aim`` (robot frame at start, rad) or None for straight through."""
@@ -181,22 +189,39 @@ class RunThroughKick:
     self._vx = 0.0
     self._last = ZERO
     self._history.clear()
+    self._history.append((now, ZERO))  # motion before activation is unknown
     self._manual = static_ball is not None
     self._ball = (float(static_ball[0]), float(static_ball[1])) if self._manual else None
     self._aim0 = None if static_aim is None else wrap(static_aim)
     self._yaw_dr = 0.0
     self._travel = 0.0
+    self._goal_required = require_goal and not self._manual
+    self._t_goal_fresh = now
 
   def stop(self, now: float, reason: str = "stopped") -> Command:
     self._abort(now, reason)
     return ZERO
 
+  def expect_goal(self, now: float) -> None:
+    """Latch intent even while a valid goal packet awaits its capture pose."""
+    if not self._manual and not self._goal_required:
+      self._goal_required = True
+      self._t_goal_fresh = now
+
   @property
   def active(self) -> bool:
     return self.state in (State.ALIGN, State.CHARGE, State.COAST, State.BRAKE)
 
-  def step(self, now: float, ball: BallObs | None, aim: float | None = None) -> Command:
-    """Advance one tick and return the velocity command to publish."""
+  def step(self, now: float, ball: BallObs | None, aim: float | None = None,
+           *, goal: BallObs | None = None) -> Command:
+    """Advance one tick. ``aim`` is already current-frame; ``goal`` is captured.
+
+    A supplied goal latches goal-directed intent for this activation. Losing it
+    pauses ALIGN, then aborts; CHARGE aborts immediately. COAST remains the
+    established blind-zone run-through. Manual mode ignores perception inputs.
+    """
+    if not self._manual and self._t_last is not None and now < self._t_last:
+      return self._abort_cmd(now, "capture clock moved backwards; restart perception")
     dt = 0.0 if self._t_last is None else max(0.0, now - self._t_last)
     self._t_last = now
     self._dead_reckon(dt)
@@ -207,21 +232,36 @@ class RunThroughKick:
     if aim is not None and not math.isfinite(aim):
       aim = None
     if self._manual:  # the dead-reckoned estimate stands in for perception
-      fresh, ball, aim = True, None, None
+      fresh, ball, aim, goal = True, None, None, None
       if self._aim0 is not None:
         aim = self._aim0 - self._yaw_dr
     else:
-      fresh = ball is not None and now - ball.stamp <= p.max_obs_age
+      fresh = self._usable_capture(ball, now, p.max_obs_age)
     if fresh and ball is not None:
       self._ball = self._compensate(ball, now)
     if fresh:
       self._t_fresh = now
+    goal_ready = False
+    if goal is not None:
+      self.expect_goal(now)
+      if fresh and self._usable_capture(goal, now, p.goal_max_age):
+        gx, gy = self._compensate(goal, now)
+        if math.hypot(gx - self._ball[0], gy - self._ball[1]) > 1e-6:
+          aim = aim_from_goal(*self._ball, gx, gy)
+          goal_ready = True
+          self._t_goal_fresh = now
     if aim is not None:
       self._aim = wrap(aim)
-    elif self._ball is not None and self.state in (State.ALIGN, State.CHARGE):
+    elif (not self._goal_required and self._ball is not None
+          and self.state in (State.ALIGN, State.CHARGE)):
       self._aim = math.atan2(self._ball[1], self._ball[0])  # straight through
 
-    if self.state == State.ALIGN:
+    if self._goal_required and not goal_ready and self.state in (State.ALIGN, State.CHARGE):
+      if self.state == State.CHARGE or now - self._t_goal_fresh > p.lost_timeout:
+        cmd = self._abort_cmd(now, "goal lost before the blind zone")
+      else:
+        cmd = ZERO
+    elif self.state == State.ALIGN:
       cmd = self._align(now, fresh)
     elif self.state == State.CHARGE:
       cmd = self._charge(now, fresh, dt)
@@ -308,6 +348,11 @@ class RunThroughKick:
     return Command(self._vx, 0.0, 0.0)
 
   # ------------------------------------------------------------------ helpers
+
+  def _usable_capture(self, point: BallObs | None, now: float, max_age: float) -> bool:
+    return (point is not None and finite(point.x, point.y, point.stamp, max_age)
+            and max_age > 0.0 and 0.0 <= now - point.stamp <= max_age
+            and bool(self._history) and point.stamp >= self._history[0][0])
 
   def _charge_budget(self) -> float:
     p = self.params

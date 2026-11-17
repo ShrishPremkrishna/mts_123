@@ -16,8 +16,9 @@ Same shape as follow_me_pupper/robot/follow_service.py:
 
 Activation refuses unless exactly one other node (the mux) publishes /cmd_vel
 (joystick teleop or a missing mux would make the kick unsafe) and the e-stop
-gateway is released. Ball messages with a 0 or future stamp, or non-finite
-values, are dropped. KickParams are re-read at each activation, so
+gateway is released. Perception must have the expected frame and an increasing,
+positive, nonfuture capture stamp; expired or non-finite points are dropped.
+KickParams are re-read at each activation, so
 `ros2 param set` changes the next kick.
 
 Ball input, parameter ``input_mode``:
@@ -26,9 +27,19 @@ Ball input, parameter ``input_mode``:
             optionally manual_aim_deg (NaN = straight through the ball):
               ros2 param set /run_through_kick manual_ball_x 1.0
     robot   /soccer/ball and /soccer/goal (geometry_msgs/PointStamped) in the
-            base_link yaw-only frame; header.stamp = image capture time
-    field   /soccer/ball and /soccer/goal in the field frame, plus the robot
-            pose /soccer/robot_pose (geometry_msgs/PoseStamped, field frame)
+            base_link_yaw frame; header.stamp = image capture time
+    field   /soccer/ball and /soccer/goal in frame_id=field, plus the robot
+            pose /soccer/robot_pose (geometry_msgs/PoseStamped, frame_id=field).
+            Every point needs a pose with the exact same capture stamp; up to
+            128 poses are retained so callbacks may arrive in either order.
+
+Ball and goal are compensated independently to now from their capture frames.
+This assumes stationary targets and command-derived motion, not measured odometry.
+Before activation there is no command history, so a new capture is required.
+require_goal=true waits for a goal even before its first packet. Otherwise a
+fresh goal at activation or during the shot latches goal-directed intent; loss
+pauses ALIGN then aborts, or aborts CHARGE immediately. An expired previous-shot
+goal does not latch a new activation. Blind-zone COAST remains unchanged.
 
 Every KickParams field is also a ROS parameter (for example charge_speed).
 This node currently admits only the pinned stock walk profile, at most 0.49 m/s.
@@ -71,6 +82,7 @@ import stat
 import sys
 import threading
 import time
+from collections import deque
 from dataclasses import fields, replace
 from pathlib import Path
 
@@ -93,11 +105,11 @@ from run_through_kick import (  # noqa: E402
   KickParams,
   RunThroughKick,
   State,
-  aim_from_goal,
   field_to_robot,
 )
 
 INPUT_MODES = ("manual", "robot", "field")
+ROBOT_FRAME, FIELD_FRAME = "base_link_yaw", "field"
 STOP_BUTTONS = (0, 1, 2, 3, 12)  # the four face buttons and R3 (e-stop) in the course config
 MANUAL_X = (0.9, 1.5)  # m: no reversing toward the operator, short dead reckoning
 MANUAL_Y = 0.5  # m
@@ -264,7 +276,7 @@ class RunThroughKickNode(Node):
     self.declare_parameter("goal_topic", "/soccer/goal")
     self.declare_parameter("robot_pose_topic", "/soccer/robot_pose")
     self.declare_parameter("rate_hz", 20.0)  # cmd_vel_mux drops a source quiet for 0.5 s
-    self.declare_parameter("goal_max_age", 1.0)  # s; older goal -> kick straight
+    self.declare_parameter("require_goal", False)  # wait for a goal even before its first packet
     self.declare_parameter("manual_ball_x", float("nan"))
     self.declare_parameter("manual_ball_y", 0.0)
     self.declare_parameter("manual_aim_deg", float("nan"))
@@ -285,9 +297,10 @@ class RunThroughKickNode(Node):
     self.kick = RunThroughKick(params)
     self.gateway_blocked = None  # None until /estop_controller/stop_status arrives
     self.last_owner_check = 0.0
-    self.ball = None  # latest ball message: (x, y, stamp), frame per input_mode
-    self.goal = None  # (x, y, receive time)
-    self.pose = None  # (x, y, yaw, stamp), field mode only
+    self.ball = None  # (x, y, capture nanoseconds), frame per input_mode
+    self.goal = None  # same shape; never re-stamped on arrival
+    self.capture_highwater = dict(ball=0, goal=0, pose=0)
+    self.poses = deque(maxlen=128)  # (capture ns, x, y, yaw), field mode only
     self.last_state = None
     self.cmd_pub = self.create_publisher(Twist, self.get_parameter("cmd_vel_topic").value, 10)
     self.robot_topic = str(self.get_parameter("robot_cmd_vel_topic").value)
@@ -314,49 +327,77 @@ class RunThroughKickNode(Node):
     return self.get_clock().now().nanoseconds * 1e-9
 
   # ------------------------------------------------------------ inputs
-  def usable_stamp(self, header):
-    """Capture time, or None if it is 0 or more than 50 ms in the future (clock fault)."""
-    stamp = stamp_seconds(header)
-    return stamp if stamp > 0.0 and stamp <= self.now() + 0.05 else None
+  def usable_stamp(self, header, kind, max_age):
+    """Exact frame and increasing capture time on this node's ROS clock.
+
+    No arrival-time fallback, future tolerance, or clock-epoch auto-reset. A
+    reset requires restarting the producer/consumer, as for the detector.
+    """
+    sec, nano = header.stamp.sec, header.stamp.nanosec
+    expected = FIELD_FRAME if self.mode == "field" else ROBOT_FRAME
+    if (header.frame_id != expected or type(sec) is not int or type(nano) is not int
+        or sec < 0 or not 0 <= nano < 1_000_000_000
+        or not math.isfinite(max_age) or max_age <= 0.0):
+      return None
+    stamp = sec * 1_000_000_000 + nano
+    age = self.get_clock().now().nanoseconds - stamp
+    if stamp <= self.capture_highwater[kind] or not 0 <= age <= max_age * 1e9:
+      return None
+    return stamp
 
   def on_ball(self, msg: PointStamped) -> None:
-    x, y, stamp = float(msg.point.x), float(msg.point.y), self.usable_stamp(msg.header)
-    if stamp is not None and math.isfinite(x) and math.isfinite(y):
-      with self.lock:
+    x, y = float(msg.point.x), float(msg.point.y)
+    with self.lock:
+      stamp = self.usable_stamp(msg.header, "ball", self.kick.params.max_obs_age)
+      if stamp is not None and math.isfinite(x) and math.isfinite(y):
         self.ball = (x, y, stamp)
+        self.capture_highwater["ball"] = stamp
 
   def on_goal(self, msg: PointStamped) -> None:
     x, y = float(msg.point.x), float(msg.point.y)
-    if math.isfinite(x) and math.isfinite(y):
-      with self.lock:
-        self.goal = (x, y, self.now())
+    with self.lock:
+      stamp = self.usable_stamp(msg.header, "goal", self.kick.params.goal_max_age)
+      if stamp is not None and math.isfinite(x) and math.isfinite(y):
+        self.goal = (x, y, stamp)
+        self.capture_highwater["goal"] = stamp
+        if self.kick.active:
+          self.kick.expect_goal(self.now())
 
   def on_pose(self, msg: PoseStamped) -> None:
-    p, stamp = msg.pose.position, self.usable_stamp(msg.header)
-    yaw = yaw_from_quaternion(msg.pose.orientation)
-    if stamp is not None and all(math.isfinite(v) for v in (p.x, p.y, yaw)):
-      with self.lock:
-        self.pose = (float(p.x), float(p.y), yaw, stamp)
+    p, q = msg.pose.position, msg.pose.orientation
+    values = (q.x, q.y, q.z, q.w)
+    norm = math.sqrt(sum(v * v for v in values))
+    with self.lock:
+      stamp = self.usable_stamp(msg.header, "pose",
+                                max(self.kick.params.max_obs_age, self.kick.params.goal_max_age))
+      if (stamp is not None and all(math.isfinite(v) for v in (p.x, p.y, *values))
+          and abs(norm - 1.0) <= 0.01):
+        # Normalize the tolerated numerical error before extracting heading.
+        x, y, z, w = (v / norm for v in values)
+        forward_x, forward_y = 1.0 - 2.0 * (y * y + z * z), 2.0 * (w * z + x * y)
+        if math.hypot(forward_x, forward_y) < 1e-6:
+          return  # vertical forward axis has no defined field heading
+        yaw = math.atan2(forward_y, forward_x)
+        self.poses.append((stamp, float(p.x), float(p.y), yaw))
+        self.capture_highwater["pose"] = stamp
 
-  def robot_frame_inputs(self, now: float) -> tuple[BallObs | None, float | None]:
-    """Latest ball observation and aim, both in the robot's yaw-only frame."""
-    if self.ball is None:
-      return None, None
-    bx, by, stamp = self.ball
-    goal = self.goal
-    if goal is not None and now - goal[2] > float(self.get_parameter("goal_max_age").value):
-      goal = None
-    if self.mode == "field":
-      if self.pose is None:
-        return None, None
-      rx, ry, ryaw, pose_stamp = self.pose
-      bx, by = field_to_robot(rx, ry, ryaw, bx, by)
-      stamp = min(stamp, pose_stamp)  # as old as the older of the two
-      if goal is not None:
-        gx, gy = field_to_robot(rx, ry, ryaw, goal[0], goal[1])
-        goal = (gx, gy, goal[2])
-    aim = None if goal is None else aim_from_goal(bx, by, goal[0], goal[1])
-    return BallObs(bx, by, stamp), aim
+  def robot_frame_inputs(self, now: float) -> tuple[BallObs | None, BallObs | None]:
+    """Points in robot frames at their own capture times, never mixed epochs."""
+    def captured(point, max_age):
+      if point is None:
+        return None
+      x, y, stamp_ns = point
+      stamp = stamp_ns * 1e-9
+      if not 0.0 <= now - stamp <= max_age:
+        return None
+      if self.mode == "field":
+        pose = next((p for p in reversed(self.poses) if p[0] == stamp_ns), None)
+        if pose is None:
+          return None  # upstream must provide a pose for this same snapshot
+        x, y = field_to_robot(*pose[1:], x, y)
+      return BallObs(x, y, stamp)
+    return (captured(self.ball, self.kick.params.max_obs_age),
+            captured(self.goal, self.kick.params.goal_max_age))
 
   def stop_kick(self, reason: str, *, fault=False) -> None:
     if self.kick.active:
@@ -433,7 +474,11 @@ class RunThroughKickNode(Node):
           Parameter("manual_aim_deg", value=float("nan")),
         ])
       else:
-        self.kick.start(self.now())
+        now = self.now()
+        fresh_goal = (self.goal is not None and
+                      0.0 <= now - self.goal[2] * 1e-9 <= self.kick.params.goal_max_age)
+        self.kick.start(now, require_goal=(bool(self.get_parameter("require_goal").value)
+                                          or fresh_goal))
     response.success, response.message = True, f"run-through kick started ({self.mode})"
     self.get_logger().warning(response.message)
     return response
@@ -461,8 +506,8 @@ class RunThroughKickNode(Node):
         if self.count_publishers(self.robot_topic) != 2:  # the mux and our shutdown publisher
           self.stop_kick("another node publishes /cmd_vel", fault=True)
       if self.kick.active:
-        ball, aim = (None, None) if self.mode == "manual" else self.robot_frame_inputs(now)
-        cmd = self.kick.step(now, ball, aim)
+        ball, goal = (None, None) if self.mode == "manual" else self.robot_frame_inputs(now)
+        cmd = self.kick.step(now, ball, goal=goal)
         problem = self.stock.problem(command=cmd)
         if problem:
           self.stop_kick(problem, fault=True)

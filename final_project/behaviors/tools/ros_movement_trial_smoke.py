@@ -26,7 +26,7 @@ def main():
   if os.environ.get("PUPPER_ISOLATED_ROS_TEST") != "1":
     raise SystemExit("Use the networking-disabled ROS test container without devices.")
   parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("case", choices=("pulse", "sprint", "wrong_stock", "lost_observation"))
+  parser.add_argument("case", choices=("pulse", "sprint", "wrong_stock", "lost_observation", "competing_sender"))
   args = parser.parse_args()
   here = Path(__file__).resolve().parent
   sys.path.insert(0, str(here.parent))
@@ -123,7 +123,7 @@ def main():
         return response
 
     fake = FakeRobot()
-    duration = 2.0 if args.case == "lost_observation" else 0.5
+    duration = 2.0 if args.case in ("lost_observation", "competing_sender") else 0.5
     profile = "sprint" if args.case == "sprint" else "walk"
     speed = 0.7 if args.case == "sprint" else 0.2
     node = trial_module.MovementTrialNode(
@@ -156,6 +156,10 @@ def main():
         until(lambda: any(command != trial_module.ZERO for _, command in fake.commands))
         if args.case == "lost_observation":
           fake.emit_observations = False
+        if args.case == "competing_sender":
+          # An idle competing writer must be noticed through the actual ROS
+          # graph, without relying on different command payloads arriving.
+          competing = fake.create_publisher(Twist, "/kick_cmd_vel", 10)
         until(lambda: node.phase == "finished")
         until(lambda: fake.commands[-1][1] == trial_module.ZERO)
         if args.case in ("pulse", "sprint"):
@@ -166,8 +170,9 @@ def main():
         else:
           until(lambda: fake.emergency_stops > 0)
           assert node.record["outcome"] == "stopped"
-          assert "observation stale" in node.record["reason"]
-          assert node.zero_sent_at - node.started < 0.6
+          assert ("observation stale" in node.record["reason"] if args.case == "lost_observation"
+                  else "another node publishes /kick_cmd_vel" in node.record["reason"]), node.record["reason"]
+          assert node.zero_sent_at - node.started < (0.6 if args.case == "lost_observation" else duration)
 
       receipt = node.finish()
       spin(0.15)  # deliver finally's zeros through actual DDS callbacks

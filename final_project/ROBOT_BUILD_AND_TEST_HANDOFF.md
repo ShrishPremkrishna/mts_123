@@ -142,11 +142,20 @@ python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" loaded \
 
 The check binds boot, a newly started manager, supplied configuration bytes and
 actual driver/controller mappings by path/inode/device. It does not inspect
-weights in memory or prove physical behavior. Gateway/mux running mappings are
-not yet covered. The [runbook](behaviors/ROBOT_RUNBOOK.md) then supplies the exact
+weights in memory or prove physical behavior. v2 does not cover gateway/mux
+running executable identity. Current source and the offline v3 package add that
+check: exact executable path/device/inode, PID/start time, no duplicate or old
+process, and no stopped/zombie process. Trials recheck these identities. This is
+a process snapshot, not a lease or proof of application health. The [runbook](behaviors/ROBOT_RUNBOOK.md) supplies the exact
 receipt-required pulse commands and explains command receipts versus measured
 motion. Its stock layout is **20 frames × 48 values**, command indices **6:9** in
 the newest frame.
+
+The [offline continuation receipt](../foundation/results/movement-offline-followthrough-20261116.json)
+identifies the v3 package and its new Python sources. Its native binaries and
+stock actor are byte-identical to v2; no rebuild is needed. v3 is **local only**
+until staged into its own new directory and checked on the target. Do not mix
+its helper files with a v2 manifest or reuse the closed preflight after reboot.
 
 ## Shutdown, rollback and next improvements
 
@@ -195,8 +204,9 @@ Remaining small improvements:
    retain target `ldd` checks.
 2. Freeze the Pi build baseline and create the matching offline builder. Label
    test-only versus deployable outputs distinctly.
-3. Extend the existing receipt/status to gateway/mux process identities and an
-   explicit session owner, showing release/profile, boot and last trial together.
+3. Validate v3's new executable checks and pulse reporting in the next selected
+   session. Keep operator ownership explicit; process identity alone is not a
+   distributed lock across teammates.
 
 Evidence and remaining gaps: [build audit](../foundation/results/build-environment-audit-20261116.json).
 Movement candidates: [offline comparison](../foundation/results/movement-readiness-20261116.json).
