@@ -1,6 +1,7 @@
 """Actual viewer classes with mocked ROS/Hailo: image/stamp stay paired."""
 import ast
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import threading
@@ -33,7 +34,7 @@ def viewer(monkeypatch):
     tree = ast.parse(path.read_text())
     selected = [item for item in tree.body if isinstance(item, (ast.ClassDef, ast.FunctionDef))
                 and item.name in ("RosSource", "DetectionWorker", "DetectionPublisher",
-                                  "detection_projection")]
+                                  "detection_projection", "detector_source_frame", "display_detections")]
     projection_tree = ast.parse((ROOT / "follow_me_pupper/robot/fisheye_converter.py").read_text())
     selected = [item for item in projection_tree.body
                 if isinstance(item, ast.FunctionDef) and item.name == "equirect_height"] + selected
@@ -64,7 +65,7 @@ def viewer(monkeypatch):
         hypothesis=SimpleNamespace(class_id="", score=0))
     monkeypatch.setitem(sys.modules, "vision_msgs.msg", messages)
     strings = ModuleType("std_msgs.msg")
-    strings.String = object
+    strings.String = lambda: SimpleNamespace(data="")
     monkeypatch.setitem(sys.modules, "std_msgs.msg", strings)
     return SimpleNamespace(**scope, clock=clock)
 
@@ -86,13 +87,78 @@ def message(stamp, pixel=1):
 
 
 def publisher(viewer, now_ns=10_500_000_000):
-    messages = []
+    messages, obstacles = [], []
     node = SimpleNamespace(
-        now_ns=now_ns, create_publisher=lambda *args: SimpleNamespace(publish=messages.append),
+        now_ns=now_ns, obstacles=obstacles,
+        create_publisher=lambda kind, topic, qos: SimpleNamespace(
+            publish=(obstacles if topic == "/fc/obstacle_detections" else messages).append),
         create_subscription=lambda *args: None)
     node.get_clock = lambda: SimpleNamespace(now=lambda: SimpleNamespace(nanoseconds=node.now_ns))
     obj = viewer.DetectionPublisher(node, ["person"])
     return obj, messages
+
+
+def test_display_filter_cannot_remove_a_near_detection_from_published_guard_evidence(viewer):
+    pub, _ = publisher(viewer)
+    image = np.zeros((572, 700, 3), np.uint8)
+    det = SimpleNamespace(box=(280, 100, 420, 520), mask=None, class_id=0, score=.8)
+    inference = [det]
+    assert viewer.display_detections(inference, .9) == []
+    assert inference == [det]
+    pub.publish(inference, image, capture_stamp_ns=10_400_000_000, received_at=100)
+    envelope = json.loads(pub.node.obstacles[0].data)
+    assert envelope["healthy"] and envelope["detections"][0]["confidence"] == .8
+
+
+def test_display_rotation_and_color_edits_cannot_change_fixed_detector_source(viewer):
+    raw = np.arange(18, dtype=np.uint8).reshape(2, 3, 3)
+    expected = raw[:, :, ::-1].copy()
+    selected = viewer.detector_source_frame(raw, swap_rb=True)
+    displayed = np.rot90(raw[:, :, ::-1].copy(), 2)
+    displayed[:] = 0
+    assert np.array_equal(selected, expected)
+    assert viewer.detector_source_frame(raw, swap_rb=False) is raw
+
+
+def test_guard_envelope_preserves_source_identity_capture_projection_and_empty_results(viewer):
+    pub, _ = publisher(viewer)
+    image = np.zeros((572, 700, 3), np.uint8)
+    det = SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=0, score=.9)
+    pub.publish([det], image, capture_stamp_ns=10_400_000_000, received_at=100)
+    first = json.loads(pub.node.obstacles[0].data)
+    assert first == dict(schema="fc_camera_obstacles_v1", producer_instance=pub.obstacle_instance,
+        sequence=0, captured_at_ros_ns=10_400_000_000, valid=True, healthy=True,
+        format="normalized_xyxy_v1", image_width=700, image_height=572, horizontal_fov_deg=220.0,
+        detections=[dict(box=[.4, 100/572, .6, 500/572], confidence=.9, class_id="0")])
+    pub.publish([], image, capture_stamp_ns=10_500_000_000, received_at=100)
+    second = json.loads(pub.node.obstacles[1].data)
+    assert second["sequence"] == 1 and second["detections"] == [] and second["healthy"]
+    assert second["producer_instance"] == first["producer_instance"]
+    assert second["captured_at_ros_ns"] == 10_500_000_000
+    other, _ = publisher(viewer)
+    assert other.obstacle_instance != pub.obstacle_instance
+
+
+@pytest.mark.parametrize("box,score", [((0, 0, 701, 500), .9), ((0, 0, 0, 2), .9),
+    ((0, 0, 2, 2), float("nan")), ((0, 0, float("nan"), 2), .9)])
+def test_malformed_detection_publishes_explicit_unhealthy_not_empty_clear(viewer, box, score):
+    pub, legacy = publisher(viewer)
+    det = SimpleNamespace(box=box, mask=None, class_id=0, score=score)
+    assert pub.publish([det], np.zeros((572, 700, 3)),
+                       capture_stamp_ns=10_400_000_000, received_at=100) is None
+    envelope = json.loads(pub.node.obstacles[0].data)
+    assert envelope["valid"] is False and envelope["healthy"] is False
+    assert legacy == []
+    assert pub.publish([], np.zeros((572, 700, 3)),
+                       capture_stamp_ns=10_400_000_000, received_at=100) is None
+    assert len(pub.node.obstacles) == 1
+
+
+def test_wrong_projection_shape_is_explicitly_invalid(viewer):
+    pub, legacy = publisher(viewer)
+    pub.publish([], np.zeros((700, 700, 3)), capture_stamp_ns=10_400_000_000, received_at=100)
+    assert not json.loads(pub.node.obstacles[0].data)["valid"]
+    assert not legacy
 
 
 def test_atomic_snapshot_keeps_selected_image_stamp_after_new_camera_callback(viewer):

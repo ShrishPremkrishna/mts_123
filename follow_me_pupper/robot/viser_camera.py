@@ -8,6 +8,9 @@ detections are published on /detections, which is what follow_me.py tracks.
 Their header stamp is the selected camera image's capture stamp, carried through
 inference unchanged. Missing, stale or repeated capture metadata publishes no
 frame; a successful empty inference retains its real source stamp.
+The same inference also publishes /fc/obstacle_detections with explicit source
+identity and fixed projection. Its healthy flag means successful inference, not
+proof that the lens is unobscured or that every obstacle was recognized.
 
 The model always runs on the *undistorted* (equirectangular) image, never on the
 raw fisheye -- the lens bends people into shapes YOLO has never seen, and scores
@@ -15,6 +18,8 @@ drop badly. That happens regardless of which view the GUI is showing, so
 /detections keeps flowing either way; the overlays themselves are drawn in the
 220-degree equirectangular view, since that is the frame their pixels belong to.
 Display FOV/scale changes never change the detector's 220-degree projection.
+Display confidence, rotation and color controls do not change safety inference.
+Detector color correction is fixed by --swap-rb at startup; its confidence is0.4.
 
 Two ways to get frames:
 
@@ -68,6 +73,17 @@ from perception_safety import MAX_FRAME_AGE_S, image_stamp_ns, fresh_frame
 DETECTION_PUBLISH_WIDTH = 700
 DETECTION_PUBLISH_HEIGHT = 572
 DETECTION_H_FOV_DEG = 220.0
+DETECTION_MIN_CONFIDENCE = 0.4
+
+
+def detector_source_frame(frame, *, swap_rb=False):
+    """Pinned startup color correction, independent of viewer controls."""
+    return frame[:, :, ::-1].copy() if swap_rb else frame
+
+
+def display_detections(detections, confidence):
+    """Filtering for overlays only; never feeds the detection publisher."""
+    return [det for det in detections if det.score >= confidence]
 
 
 def detection_projection(frame, camera_model, width, *, displayed=None, display_fov=None):
@@ -238,6 +254,7 @@ class DetectionPublisher:
     """
 
     def __init__(self, node, labels):
+        import uuid
         from std_msgs.msg import String
         from vision_msgs.msg import Detection2DArray
 
@@ -248,8 +265,11 @@ class DetectionPublisher:
         self.tracking_object = None
         self.tracking_class_id = None
         self.last_published_stamp = None
+        self.obstacle_instance = uuid.uuid4().hex
+        self.obstacle_sequence = 0
 
         self.publisher = node.create_publisher(Detection2DArray, "/detections", 10)
+        self.obstacle_publisher = node.create_publisher(String, "/fc/obstacle_detections", 1)
         node.create_subscription(String, "/tracking_control", self._on_control, 10)
 
     def _on_control(self, msg):
@@ -302,6 +322,8 @@ class DetectionPublisher:
         uses the local monotonic clock independently; neither substitutes for
         source capture time. Legacy calls without metadata fail closed.
         """
+        import json
+        from std_msgs.msg import String
         from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 
         if type(capture_stamp_ns) is not int or capture_stamp_ns < 0:
@@ -323,11 +345,44 @@ class DetectionPublisher:
         except (AttributeError, TypeError, ValueError, OverflowError, RuntimeError):
             return None
 
+        # Both outputs describe the SAME selected inference. The explicit
+        # envelope lets the body-command gate reject a restarted producer,
+        # wrong projection and unhealthy output without guessing from boxes.
+        frame_shape = frame.shape[:2]
+        normalized = []
+        valid = (len(frame_shape) == 2 and frame_shape[1] > 0 and
+                 frame_shape[0] == equirect_height(frame_shape[1], DETECTION_H_FOV_DEG))
+        try:
+            for det in detections:
+                x1, y1, x2, y2 = (float(value) for value in det.box)
+                box = [x1 / frame_shape[1], y1 / frame_shape[0],
+                       x2 / frame_shape[1], y2 / frame_shape[0]]
+                score = float(det.score)
+                if (not all(np.isfinite(v) for v in (*box, score)) or
+                        not (0 <= box[0] < box[2] <= 1 and 0 <= box[1] < box[3] <= 1
+                             and 0 <= score <= 1)):
+                    raise ValueError("invalid detection geometry or confidence")
+                normalized.append(dict(box=box, confidence=score, class_id=str(det.class_id)))
+        except (TypeError, ValueError, ZeroDivisionError, IndexError, AttributeError):
+            valid = False
+            normalized = []
+        envelope = dict(schema="fc_camera_obstacles_v1", producer_instance=self.obstacle_instance,
+                        sequence=self.obstacle_sequence, captured_at_ros_ns=capture_stamp_ns,
+                        valid=bool(valid), healthy=bool(valid), format="normalized_xyxy_v1",
+                        image_width=DETECTION_PUBLISH_WIDTH, image_height=DETECTION_PUBLISH_HEIGHT,
+                        horizontal_fov_deg=DETECTION_H_FOV_DEG, detections=normalized)
+        obstacle_msg = String()
+        obstacle_msg.data = json.dumps(envelope, allow_nan=False, separators=(",", ":"))
+        self.obstacle_publisher.publish(obstacle_msg)
+        self.obstacle_sequence += 1
+        if not valid:
+            self.last_published_stamp = capture_stamp_ns
+            return None  # never publish malformed boxes as healthy legacy output
+
         msg = Detection2DArray()
         msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(capture_stamp_ns, 1_000_000_000)
         msg.header.frame_id = "camera"
 
-        frame_shape = frame.shape[:2]
         sx = DETECTION_PUBLISH_WIDTH / max(frame_shape[1], 1)
         sy = DETECTION_PUBLISH_HEIGHT / max(frame_shape[0], 1)
 
@@ -734,7 +789,7 @@ def main():
     parser.add_argument(
         "--swap-rb",
         action="store_true",
-        help="start with red and blue swapped (also toggleable in the GUI)",
+        help="fixed detector R/B correction; display color is separately adjustable",
     )
     parser.add_argument(
         "--detect",
@@ -784,14 +839,14 @@ def main():
         gui_fov = server.gui.add_slider(
             "Equirect FOV (deg)", min=90, max=280, step=5, initial_value=220
         )
-        gui_rotate = server.gui.add_checkbox("Rotate 180", False)
+        gui_rotate = server.gui.add_checkbox("Rotate display 180", False)
         # Off, the picture is stretched to fill the window and proportions go
         # wrong; on, it keeps its true shape and pads with bars instead.
         gui_lock_aspect = server.gui.add_checkbox("Lock aspect ratio", True)
         # The camera stack occasionally hands frames back with red and blue the
         # wrong way round (skin goes blue, the floor goes purple). Flip it here
-        # and both the view and the detector see the corrected colours.
-        gui_swap_rb = server.gui.add_checkbox("Swap R/B", args.swap_rb)
+        # for the display. Detector color is fixed by --swap-rb at startup.
+        gui_swap_rb = server.gui.add_checkbox("Display swap R/B", args.swap_rb)
         gui_scale = server.gui.add_slider(
             "Display scale", min=0.25, max=1.0, step=0.05, initial_value=0.5
         )
@@ -814,7 +869,7 @@ def main():
     publisher = None
     if args.detect:
         try:
-            detector = HailoYoloSeg(model_path=args.model)
+            detector = HailoYoloSeg(model_path=args.model, score_threshold=DETECTION_MIN_CONFIDENCE)
             print(f"Loaded {os.path.basename(args.model)} ({len(detector.labels)} classes).")
         except Exception as exc:
             print(f"[detection] disabled: {exc}")
@@ -830,7 +885,8 @@ def main():
         gui_boxes = server.gui.add_checkbox("Bounding boxes", True)
         gui_masks = server.gui.add_checkbox("Segmentation masks", True)
         gui_conf = server.gui.add_slider(
-            "Confidence", min=0.1, max=0.9, step=0.05, initial_value=0.4
+            "Display confidence", min=DETECTION_MIN_CONFIDENCE, max=0.9, step=0.05,
+            initial_value=DETECTION_MIN_CONFIDENCE
         )
         gui_mask_alpha = server.gui.add_slider(
             "Mask opacity", min=0.1, max=0.9, step=0.05, initial_value=0.45
@@ -903,6 +959,8 @@ def main():
                 time.sleep(0.01)
                 continue
 
+            detector_source = detector_source_frame(frame, swap_rb=args.swap_rb)
+            matching_orientation = not gui_rotate.value and gui_swap_rb.value == args.swap_rb
             if gui_swap_rb.value:
                 frame = frame[:, :, ::-1].copy()
 
@@ -937,8 +995,8 @@ def main():
                         equirect_height(out_w, display_fov), h_fov_deg=display_fov)
                 if submit_due:
                     detect_frame = detection_projection(
-                        frame, fisheye_model, args.detect_width,
-                        displayed=equirect, display_fov=display_fov)
+                        detector_source, fisheye_model, args.detect_width,
+                        displayed=equirect if matching_orientation else None, display_fov=display_fov)
 
             if showing_equirect:
                 frame = equirect
@@ -953,7 +1011,6 @@ def main():
 
             detections = []
             if detecting:
-                detector.score_threshold = float(gui_conf.value)
                 detector.want_masks = bool(gui_masks.value)
 
                 # Fixed detector projection is independent of display FOV/scale.
@@ -965,8 +1022,8 @@ def main():
                 # Boxes and masks live in equirectangular pixels, so they can
                 # only be drawn on a matching projection. A different display
                 # FOV is also different geometry; counts and /detections stay live.
-                if showing_equirect and display_fov == DETECTION_H_FOV_DEG:
-                    detections = worker.latest(frame.shape[:2])
+                if showing_equirect and display_fov == DETECTION_H_FOV_DEG and matching_orientation:
+                    detections = display_detections(worker.latest(frame.shape[:2]), float(gui_conf.value))
                     if detections and (gui_boxes.value or gui_masks.value):
                         frame = draw_detections(
                             frame,
@@ -976,7 +1033,7 @@ def main():
                             mask_alpha=float(gui_mask_alpha.value),
                         )
                 else:
-                    detections = worker.raw()
+                    detections = display_detections(worker.raw(), float(gui_conf.value))
 
             quality = int(gui_quality.value)
             push_background(

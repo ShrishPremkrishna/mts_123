@@ -1,6 +1,6 @@
 {
   "schema": "pupper_overnight_execution_v1",
-  "recorded_utc": "2026-11-17T10:11:36.876930+00:00",
+  "recorded_utc": "2026-11-17T10:25:44.547121+00:00",
   "scope": "Offline engineering and recorded-video comparison. No robot motion, SSH deployment, hardware initialization or policy promotion.",
   "base_commit": "e91196e",
   "source_sha256": {
@@ -8,7 +8,10 @@
     "foundation/hardware/software_start.py": "5ee198fbbe58a1d6e210e04d451453c66cbbe3ead2b65eb5136cf020d7d28dd4",
     "final_project/pupper_fc/controller.py": "2dccb57a06937209d9d92a8ae960a77c2c3391f5e0771007d2f2aac5d34f2cfb",
     "final_project/pupper_fc/integration.py": "329b5af01113d1a6a3d69bf2524d59ad9d5e4a48b59b28f81be11259956550c9",
-    "final_project/pupper_fc/model.py": "5c9f4ffc68378526b4707e7d2284c4f87469fac2759c19db9e15bfe0ee52212a"
+    "final_project/pupper_fc/model.py": "5c9f4ffc68378526b4707e7d2284c4f87469fac2759c19db9e15bfe0ee52212a",
+    "final_project/behaviors/body_command_guard.py": "f8448cb7e4016b5383974fb4ca838876ed9169a398223bbefe1e51c1abb9aa4b",
+    "follow_me_pupper/robot/viser_camera.py": "5664cfb87f17f39e688448510721832a28d6c00f1b2df232e0073814b8d8b8ce",
+    "final_project/behaviors/tools/ros_fc_guard_smoke.py": "b59355e839faa0b7a05da9fdb67fec019727e0f004ccae112ad08846345b8bfd"
   },
   "implemented": {
     "heading": "Persistent movement client accepts relative orientation or absolute IMU heading. Execution-time anchor, shortest route, exact antipode left, <=0.35rad/s,0.05rad tolerance,0.3s distinct capture-time dwell, hard timeout. Physical angle accuracy unaccepted.",
@@ -16,7 +19,9 @@
     "tactics": "Explicit expiring auto intent selects offense/defense per robot. External intents replace ownership; no auto fallback on lease loss. Defender preserves facing toward ball while repositioning.",
     "referee": "Nonzero goal pulses latch only after whole valid frame admission, including holds without motion authority. Every action yields to goal return before target lookup.",
     "resume": "Explicit session-checked per-robot resume references exact current field frame, completed return, correct home position/heading, cleared goal, current lease and clear configured camera. No queued reset or renewed authority.",
-    "software_start": "Resident helper and session Start freeze a challenge at actual input receipt. No discovery wait, newer-status repair, automatic retry or homing. Initial ordinary Stop may release; subsequent Stop epoch/gateway instance changes end session. Pending/uncertain exit requests emergency Stop. Real ROS integration result recorded separately when complete."
+    "software_start": "Resident helper and session Start freeze a challenge at actual input receipt. No discovery wait, newer-status repair, automatic retry or homing. Initial ordinary Stop may release; subsequent Stop epoch/gateway instance changes end session. Pending/uncertain exit requests emergency Stop. Real ROS integration passed three groups against the actual gateway and a fake controller backend.",
+    "camera_body_guard": "Actual-command guard candidate reuses ForwardObstacleGate after the existing mux. Rejects invalid/stale evidence, all axes held on obstacle, requires post-hold upstream zero before fresh motion, fences producer restart. Fixed-anchor source-clock mapping reserves50ms within350ms deadline (~300ms stable-clock capture age). Selected stock launch remains unchanged.",
+    "camera_producer": "Same inference publishes original capture stamp, per-process UUID, sequence, fixed geometry and explicit validity. Fixed0.4 detector confidence; display confidence/rotation/color do not modify detector input or published evidence. Startup --swap-rb configures detector color."
   },
   "reviews": {
     "fable_model": "claude-fable-5-2 (verified modelUsage), existing authorized Claude account",
@@ -24,15 +29,19 @@
     "execution_disposition": "Corrected goal-pulse loss, exact antipode roundoff, delayed-feedback false failure, idle IMU session fault, and missing public resume. A disturbed relative turn remains a fixed-orientation shortest-route request; direction reversal is intentional.",
     "resident_start_review": "artifacts/pupper-fc/2026-11-17/resident-start-review/review.json",
     "resident_start_disposition": "Corrected non-object JSON exception and completed ACK incorrectly treated as unknown after late polling. Gateway cadence concern disproved by50ms timer and incremented sequence. Uncertainty requires inspected new client; no auto recovery. Start while already released deliberately ensures selected controller active, using native fresh inventory.",
-    "independent_corrections": "Context-blind reviewer reproduced input-lock delay borrowing newer challenge and missed transient Stop bypassing initial-latch exemption. Both original repros now produce zero submissions;492 focused tests passed. Review found no additional concrete leased-role/resume/heading defect in bounded scope."
+    "independent_corrections": "Context-blind reviewer reproduced input-lock delay borrowing newer challenge and missed transient Stop bypassing initial-latch exemption. Both original repros now produce zero submissions;492 focused tests passed. Review found no additional concrete leased-role/resume/heading defect in bounded scope.",
+    "body_guard_review": "artifacts/pupper-fc/2026-11-17/body-guard-review/review.json",
+    "body_guard_disposition": "Independent reviewer and Fable both found receipt-clock mapping could rejuvenate captures. Corrected with conservative fixed anchor plus50ms reserve and startup history check. Fable also found timeout-before-hold and invalid-command barrier gaps; both corrected with exact regressions. Independent review found GUI threshold/rotation could silently weaken safety inference; separated display from fixed detector input. No physical acceptance inferred.",
+    "body_guard_correction_confirmation": "Independent rerun: original360ms true-age backward-offset case now holds/zero; +40ms capture to-40ms receipt case holds. Display confidence0.9 hides overlays but the same0.8-confidence logits still publish the near obstacle and block all three frames. 72 tests plus58 subtests passed; no remaining concrete defect in bounded correction review."
   },
   "combined_validation": {
     "exit_code": 0,
-    "summary": "968 passed,101 subtests passed; one existing Starlette/httpx deprecation warning.2.40s pytest time. Includes guard/producer candidates still awaiting real-ROS wiring review.",
-    "receipt": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests.json",
-    "log": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests.log",
+    "summary": "976 passed,106 subtests passed in2.57s. One existing Starlette/httpx deprecation warning.",
+    "receipt": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests-final.json",
+    "log": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests-final.log",
+    "prior_snapshot": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests.json",
     "not_evidence_of": "Physical stability, heading accuracy, Pi performance or collision avoidance",
-    "qualification": "This passing snapshot preceded a later independent guard finding: backward ROS offset can extend apparent source freshness. Guard author is correcting it; prior test pass is not acceptance of that defect. Core motion/tactics/Start corrections were included and independently reproduced."
+    "source_note": "All exercised Python sources unchanged after suite; ROS smoke runner later gained explicit synthetic timing-limit metadata and has its own exact final ROS receipt."
   },
   "two_robot_replay": {
     "summary": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/two-robot-summary.json",
@@ -81,5 +90,15 @@
     "colab": "L4 stopped after approximately80s after upload review rejection. User later explicitly approved transfer; local fallback already worked. Final0 sessions/0CU/hour. Rounded balance326.94CU does not establish zero credit consumption; exact incremental dollar cost unreported.",
     "claude": "Existing subscription/account use; CLI list-price usage metadata is not a billing receipt."
   },
-  "remaining": "Actual ROS Start/guard chain checks, selected release wiring/identity and Pi-compatible build; supervised heading/guard/latency acceptance; Ryan live pose integration and real soccer/deliverables. Current owners and next actions live only in interruption-recovery.json."
+  "remaining": "Selected guarded launch/process identity and Pi-compatible release preparation; real camera capture-age/inter-frame timing; supervised heading, native-watchdog and camera-stopping acceptance; Ryan live pose integration and soccer/deliverables. Current owners/next actions live only in interruption-recovery.json.",
+  "core_commit": "d4f6d92",
+  "ros_integration": {
+    "receipt": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
+    "start_groups_passed": 3,
+    "guard_groups_passed": 7,
+    "all_owned_processes_and_containers_exited": true,
+    "scope": "Real gateway and mux, production resident Start attachment/queue and body guard; fake controller backend/consumer, no hardware. Guard uses synthetic20Hz camera with5ms declared capture age. Does not prove Pi5Hz clearance, braking or native watchdog response.",
+    "supplement_sha256": "34b416d0f9068b1753981d0da5977d410bfffdad3e0f90698d587226760e7b8e",
+    "supplement_verified_files": 18
+  }
 }

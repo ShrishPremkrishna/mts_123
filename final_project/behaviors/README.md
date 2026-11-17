@@ -21,6 +21,7 @@ activation handling remain unresolved. Nothing here starts with a source sync.
 | `learned_kick.py`, `learned_kick_node.py`, `policies/` | Recovered target-conditioned learned candidate, held from activation |
 | `launch/kick_trial.launch.py` | Shot adapter and private mux on top of an already running plain course stack |
 | `tools/` | Recovered experimental helpers; the installer changes native source/config/policies and rebuilds, so it is not a baseline setup step |
+| `body_command_guard.py` | Offline candidate that gates the mux's actual body-command output using capture-stamped camera evidence |
 | [ROBOT_RUNBOOK.md](ROBOT_RUNBOOK.md) | Current supervised stock-shot baseline and evidence to collect |
 
 ## Stock shot
@@ -104,6 +105,29 @@ scale remain calibration inputs, not established accuracy guarantees.
 
 ## Offline checks
 
+The body-command guard candidate expects the existing mux output remapped to
+`/fc/requested_cmd_vel`, then publishes the admitted command on `/cmd_vel`.
+It does not select this wiring itself. The currently deployed stock launch is
+unchanged; a pinned guarded launch and process-identity check remain integration
+work. Starting a second normal `/cmd_vel` publisher would bypass this design.
+
+The viewer publishes `/fc/obstacle_detections` with original image capture
+nanoseconds, a per-process instance ID, increasing sequence, explicit validity,
+normalized boxes and fixed 700 × 572 / 220-degree projection. Detector confidence
+is fixed at 0.4; viewer confidence, rotation and color edits affect display only.
+Use `--swap-rb` at startup for detector color correction. A healthy empty result
+means inference found nothing; it does not prove unobscured or obstacle-free space.
+
+The guard requires three fresh clear frames. It reserves 50 ms for the supported
+ROS/monotonic clock-offset window, leaving approximately 300 ms usable capture
+age under the 350 ms deadline. Measure capture age **and frame spacing** before
+guarded motion: inference latency plus frame period must fit, or the guard will
+remain stopped. It stops every body axis during a hold. After vetoed motion,
+upstream must send zero and then fresh motion after clearance; repeated old mux
+commands cannot restart an interrupted action. A detector restart or clock fault
+requires an explicit guard restart. These are candidate contracts, not physical
+stopping-distance or detector-coverage acceptance.
+
 From the repository root:
 
 ```sh
@@ -119,3 +143,11 @@ and topic wiring with synthetic services in an isolated, network-disabled
 container. It must not run on the robot's ROS graph. The dated receipt in
 `foundation/results/shot-baseline-guards-20261116.json` records exact source and
 container identities. These checks do not simulate motor dynamics or ball impact.
+
+`tools/ros_fc_guard_smoke.py` exercises the real Start service and mux/guard ROS
+wiring against a fake controller backend and velocity consumer. It requires the
+isolated test container; never run it on a robot graph. Source/binary hashes,
+container invocation, failed attempts and final results are linked in the
+[overnight evidence](../../foundation/results/overnight-execution-20261117.json).
+Guard death establishes publication silence only in this test; the fake consumer
+does not implement or validate the native watchdog.
