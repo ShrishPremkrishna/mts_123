@@ -13,6 +13,11 @@ it follows but nothing moves, look at the gait.
     movement_trial.py forward                 # dry run: validate, write receipt, no ROS
     movement_trial.py turn_left --duration 1.5 --runtime-receipt RUN/preflight.json --execute
 
+Supervised lateral calibration may explicitly opt into a continuous pulse up to
+20 s at at most 0.15 m/s with ``--lateral-calibration`` (left/right only). This
+does not measure distance or establish gait stability; use a clear marked lane
+and an operator ready to Stop. All ordinary pulses remain limited to 3 s.
+
 What the receipt does NOT claim: the command integral is not achieved distance,
 IMU yaw is sensor output rather than external truth, and operator observation is
 left pending for the person watching the robot.
@@ -48,6 +53,8 @@ if str(BEHAVIORS) not in sys.path:
 
 SCHEMA = "pupper_movement_trial_v1"
 MAX_PULSE_S = 3.0
+MAX_LATERAL_CALIBRATION_S = 20.0
+MAX_LATERAL_CALIBRATION_SPEED = 0.15
 DEFAULT_SPEED = {"forward": 0.2, "backward": 0.2, "turn": 0.35, "lateral": 0.15}
 # Tool ceiling pending a measured policy envelope. The live guard additionally applies the
 # verified native caps; the stock node's forward limit is 0.49 and native backward 0.3.
@@ -79,9 +86,15 @@ class PulseRequest:
   duration_s: float
   twist: tuple
   profile: str = "walk"
+  lateral_calibration: bool = False
+
+  @property
+  def max_duration_s(self) -> float:
+    return MAX_LATERAL_CALIBRATION_S if self.lateral_calibration else MAX_PULSE_S
 
   @classmethod
-  def build(cls, axis: str, speed: float | None, duration_s: float, profile="walk") -> "PulseRequest":
+  def build(cls, axis: str, speed: float | None, duration_s: float, profile="walk",
+            *, lateral_calibration=False) -> "PulseRequest":
     if axis not in AXES:
       raise ValueError(f"axis must be one of {sorted(AXES)}")
     if profile not in SPEED_PROFILES:
@@ -93,9 +106,14 @@ class PulseRequest:
     speed, duration_s = float(speed), float(duration_s)
     if not math.isfinite(speed) or not 0 < speed <= ceilings[kind]:
       raise ValueError(f"{axis} speed {speed} outside the tool envelope (0, {ceilings[kind]}]")
-    if not math.isfinite(duration_s) or not 0 < duration_s <= MAX_PULSE_S:
-      raise ValueError(f"duration {duration_s} outside the tool envelope (0, {MAX_PULSE_S}] s")
-    return cls(axis, kind, speed, duration_s, tuple(s * speed for s in sign), profile)
+    if type(lateral_calibration) is not bool:
+      raise ValueError("lateral_calibration must be a boolean")
+    if lateral_calibration and (kind != "lateral" or speed > MAX_LATERAL_CALIBRATION_SPEED):
+      raise ValueError(f"lateral calibration requires left/right at at most {MAX_LATERAL_CALIBRATION_SPEED} m/s")
+    limit = MAX_LATERAL_CALIBRATION_S if lateral_calibration else MAX_PULSE_S
+    if not math.isfinite(duration_s) or not 0 < duration_s <= limit:
+      raise ValueError(f"duration {duration_s} outside the tool envelope (0, {limit}] s")
+    return cls(axis, kind, speed, duration_s, tuple(s * speed for s in sign), profile, lateral_calibration)
 
 
 @dataclass(frozen=True)
@@ -483,7 +501,7 @@ def _node_class():
             self.stop(f"another node publishes {self.kick_topic}", fault=True)
             return
         elapsed = now - self.started
-        if not 0 <= elapsed < min(self.request.duration_s, MAX_PULSE_S):
+        if not 0 <= elapsed < min(self.request.duration_s, self.request.max_duration_s):
           self.complete("completed", "")
           return
         self.publish(self.request.twist)
@@ -605,6 +623,8 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
   {"command":"prepare","axis":"forward","speed":0.2,"duration":1},
   {"command":"run","token":"<prepared response token>"},
   {"command":"stop"}, {"command":"quit"}. EOF also stops and exits.
+  Each extended left/right prepare must explicitly include
+  "lateral_calibration":true (at most 20 s and 0.15 m/s); it is never inherited.
   """
   import threading
   import uuid
@@ -644,7 +664,10 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
                 "last_receipt": last_receipt})
         elif command == "list":
           emit({"event": "trials", "axes": sorted(AXES), "defaults": DEFAULT_SPEED,
-                "ceilings": SPEED_PROFILES[node.request.profile], "max_duration_s": MAX_PULSE_S})
+                "ceilings": SPEED_PROFILES[node.request.profile], "max_duration_s": MAX_PULSE_S,
+                "lateral_calibration": {"axes": ["left", "right"],
+                  "max_duration_s": MAX_LATERAL_CALIBRATION_S,
+                  "max_speed": MAX_LATERAL_CALIBRATION_SPEED, "requires_per_prepare_opt_in": True}})
         elif command in ("prepare", "run"):
           if exiting or node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
             raise ValueError("trial is running or finalizing; command was not queued")
@@ -654,7 +677,8 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
             if message.get("profile", node.request.profile) != node.request.profile:
               raise ValueError("session profile cannot change")
             request = PulseRequest.build(message["axis"], message.get("speed"),
-                                         message.get("duration", 1.0), node.request.profile)
+                                         message.get("duration", 1.0), node.request.profile,
+                                         lateral_calibration=message.get("lateral_calibration", False))
             node.prepare(request)
             token = uuid.uuid4().hex
             emit({"event": "prepared", "token": token, "request": asdict(request),
@@ -730,7 +754,10 @@ def parse_args(argv=None):
                       help="must match selected release; sprint is a physically unaccepted candidate")
   parser.add_argument("--speed", type=float, default=None,
                       help=f"m/s or rad/s; defaults {DEFAULT_SPEED}, ceilings {SPEED_CEILING}")
-  parser.add_argument("--duration", type=float, default=1.0, help=f"seconds, at most {MAX_PULSE_S}")
+  parser.add_argument("--duration", type=float, default=1.0,
+                      help=f"seconds, at most {MAX_PULSE_S} unless --lateral-calibration is explicit")
+  parser.add_argument("--lateral-calibration", action="store_true",
+                      help="one-shot left/right calibration: up to 20 s at <=0.15 m/s; in sessions opt in on each prepare JSON")
   parser.add_argument("--out", default=str(BEHAVIORS / "logs" / "movement"), help="receipt directory")
   parser.add_argument("--execute", action="store_true",
                       help="publish the pulse; needs the running homed stock session described in ROBOT_RUNBOOK.md")
@@ -847,6 +874,9 @@ def run_execute(request, args) -> int:
 
 def main(argv=None) -> int:
   args = parse_args(argv)
+  if args.session and args.lateral_calibration:
+    print("refused: sessions require lateral_calibration:true on each prepare JSON", file=sys.stderr)
+    return 2
   if args.session and not args.execute:
     print("refused: --session requires --execute; it never starts a trial without prepare/run", file=sys.stderr)
     return 2
@@ -854,7 +884,8 @@ def main(argv=None) -> int:
     print("refused: an axis is required outside --session", file=sys.stderr)
     return 2
   try:
-    request = PulseRequest.build(args.axis or "forward", args.speed, args.duration, args.profile)
+    request = PulseRequest.build(args.axis or "forward", args.speed, args.duration, args.profile,
+                                 lateral_calibration=args.lateral_calibration)
   except ValueError as exc:
     print(f"refused: {exc}", file=sys.stderr)
     return 2

@@ -112,7 +112,22 @@ Preparation returns a token; send `{"command":"run","token":"RETURNED_TOKEN"}`
 only when the operator is watching and the lane is clear. It runs once, with no
 queued follow-up. `stop`, `quit`, input disconnect, or an authority fault closes
 the client; none rehomes the robot. Motion still requires a ready active stock
-controller. The existing three-second maximum and command limits remain.
+controller. Ordinary requests retain the three-second maximum and command limits.
+
+Current source additionally supports explicit `--lateral-calibration` for
+left/right only, at no more than 0.15 m/s and 20 seconds. In persistent mode,
+each prepare must include `"lateral_calibration":true`; it is never inherited.
+The same feedback, authority, identity and Stop guards remain. This extension
+has software-test evidence only until selected and physically qualified; the
+logging-correction release still contains the earlier three-second client.
+A duration or command integral is not a measured six-foot traverse.
+
+Options releases an ordinary gateway latch **and activates the remembered
+controller**. Confirm the resulting active state; do not issue a redundant
+STRICT activation. A gateway fault is different from an ordinary Stop and
+cannot be cleared by Options. Preserve the same healthy native session across
+trials to avoid repeated homing. Software Start remains a separate offline
+change until its reviewed release is selected.
 
 Timed turning is not a commanded angle: the November 16 three-second turn at
 0.8 rad/s produced about 123 degrees of reported yaw. Do not call that a complete

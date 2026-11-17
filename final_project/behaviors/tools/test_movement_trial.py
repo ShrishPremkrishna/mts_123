@@ -83,6 +83,31 @@ def test_request_rejects_out_of_envelope_or_malformed_pulses(axis, speed, durati
     mt.PulseRequest.build(axis, speed, duration)
 
 
+@pytest.mark.parametrize("axis", ["left", "right"])
+@pytest.mark.parametrize("profile", ["walk", "sprint"])
+def test_lateral_calibration_requires_explicit_opt_in_and_keeps_normal_limit(axis, profile):
+  mt = pure()
+  assert mt.PulseRequest.build(axis, None, 3, profile).max_duration_s == 3
+  with pytest.raises(ValueError, match="envelope"):
+    mt.PulseRequest.build(axis, None, 3.001, profile)
+  request = mt.PulseRequest.build(axis, None, 20, profile, lateral_calibration=True)
+  assert request.duration_s == request.max_duration_s == 20
+  assert request.speed == 0.15 and request.lateral_calibration is True
+
+
+@pytest.mark.parametrize("axis,speed,duration,opt_in", [
+  ("left", 0.15, 20.001, True), ("right", 0.15, float("inf"), True),
+  ("left", 0.15, float("nan"), True), ("left", 0.15, 0, True),
+  ("left", 0.151, 20, True), ("forward", 0.15, 20, True),
+  ("turn_right", 0.15, 20, True), ("left", 0.15, 20, "true"),
+  ("left", 0.15, 20, 1), ("left", 0.15, 20, False),
+])
+def test_lateral_calibration_rejects_unbounded_or_malformed_requests(axis, speed, duration, opt_in):
+  mt = pure()
+  with pytest.raises(ValueError):
+    mt.PulseRequest.build(axis, speed, duration, "sprint", lateral_calibration=opt_in)
+
+
 # ---------------------------------------------------------------- pure: observation extraction
 
 
@@ -222,6 +247,22 @@ def test_dry_run_rejects_over_envelope_before_touching_ros(tmp_path):
   assert not list(tmp_path.glob("*.json"))
 
 
+def test_one_shot_lateral_calibration_cli_is_explicit_and_recorded(tmp_path):
+  args = ["left", "--profile", "sprint", "--duration", "12.2", "--out", str(tmp_path)]
+  assert run_cli(*args).returncode == 2
+  assert not list(tmp_path.glob("*.json"))
+  dry = run_cli(*args, "--lateral-calibration")
+  assert dry.returncode == 0, dry.stderr
+  record = json.loads(next(tmp_path.glob("*.json")).read_text())
+  assert record["request"]["lateral_calibration"] is True
+  assert record["request"]["duration_s"] == 12.2
+  assert record["request"]["profile"] == "sprint"
+  assert record["published_commands"] == 0
+  assert record["interpretation"]["command_integral_is_distance"] is False
+  bad = run_cli("--session", "--execute", "--lateral-calibration")
+  assert bad.returncode == 2 and "each prepare" in bad.stderr
+
+
 def test_importing_the_module_does_not_import_rclpy():
   pure()
   assert "rclpy" not in sys.modules
@@ -239,7 +280,8 @@ class FloatArray(_fake_ros._Msg):
     super().__init__(data=list(data), layout=None)
 
 
-def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True, overrides=None):
+def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True, overrides=None,
+               lateral_calibration=False):
   ros = _fake_ros.install(overrides)
   qos = types.ModuleType("rclpy.qos")
   qos.qos_profile_sensor_data = object()
@@ -257,7 +299,8 @@ def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True,
   ros.controller_params["model_path"] = str(fixture)
   if kick_mux:
     ros.publishers["/cmd_vel"] += 1  # the kick trial mux
-  node = mt.MovementTrialNode(mt.PulseRequest.build(axis, speed, duration), out_dir=tmp_path, clock=lambda: ros.t)
+  node = mt.MovementTrialNode(mt.PulseRequest.build(axis, speed, duration,
+                              lateral_calibration=lateral_calibration), out_dir=tmp_path, clock=lambda: ros.t)
   node.stock.clock = lambda: ros.t
   node._test_emit_obs = True
   def emit():
@@ -308,6 +351,58 @@ def test_pulse_runs_for_its_duration_then_zeros_and_finishes(tmp_path):
   assert node.phase == "finished" and node.record["outcome"] == "completed"
   assert node.record["summary"]["applied_matched_requested"] is True
   assert not ros.published["/emergency_stop"]
+
+
+@pytest.mark.parametrize("axis,duration", [("left", 12.2), ("right", 20.0)])
+def test_lateral_calibration_runs_continuously_then_confirms_zero(tmp_path, axis, duration):
+  ros, node, mt = make_trial(tmp_path, axis=axis, speed=0.15, duration=duration, lateral_calibration=True)
+  ready(ros, node)
+  assert node.try_start() is None
+  ros.tick(80)
+  assert node.phase == "pulsing" and ros.t - node.started > 3
+  ros.tick(int(duration / 0.05) + 10)
+  assert node.phase == "finished" and node.record["outcome"] == "completed"
+  assert duration <= node.zero_sent_at - node.started <= duration + 0.051
+  mt.finish_trial(node, {}, lambda _: True, session=True)
+  assert node.record["command_verification"]["passed"]
+  assert node.record["summary"]["zero_confirmed_in_observation_s"] is not None
+  commands = twists(ros)
+  first_zero = commands.index(ZERO)
+  assert all(command == node.request.twist for command in commands[:first_zero])
+  assert all(command == ZERO for command in commands[first_zero:])
+  assert not ros.published["/emergency_stop"]
+
+
+@pytest.mark.parametrize("cause", ["feedback_stale", "emergency", "joystick", "stock_lost"])
+def test_lateral_calibration_still_stops_early_after_three_seconds(tmp_path, cause):
+  ros, node, mt = make_trial(tmp_path, axis="left", speed=0.15, duration=20, lateral_calibration=True)
+  ready(ros, node)
+  assert node.try_start() is None
+  ros.tick(80)
+  assert node.phase == "pulsing"
+  interrupted_at = ros.t
+  if cause == "feedback_stale":
+    assert mt.OBS_MAX_AGE_S == 0.2
+    node._test_emit_obs = False
+  elif cause == "emergency":
+    ros.publish("/emergency_stop", _fake_ros.Empty())
+  elif cause == "joystick":
+    ros.publish("/joy", _fake_ros.Joy(buttons=[0] * 12 + [1]))
+  else:
+    ros.controllers["neural_controller_default"] = "inactive"
+  ros.tick(25)
+  assert node.phase == "finished" and node.record["outcome"] == "stopped"
+  assert node.zero_sent_at - node.started < 20
+  assert twists(ros)[-1] == ZERO
+  if cause == "feedback_stale":
+    assert node.record["reason"] == "stock policy observation stale"
+    assert node.zero_sent_at - interrupted_at <= 0.251
+  if cause in ("emergency", "joystick"):
+    assert node.zero_sent_at == interrupted_at
+  assert len(ros.published["/emergency_stop"]) == (0 if cause == "emergency" else 1)
+  count = len(twists(ros))
+  ros.tick(20)
+  assert len(twists(ros)) == count
 
 
 @pytest.mark.parametrize("why", ["no_gateway", "latched", "no_mux", "teleop_too", "stock_inactive",
@@ -670,6 +765,38 @@ def test_session_reuses_node_for_two_explicit_trials_and_drains_old_own_loopback
     assert record["samples"][0]["t"] == pytest.approx(0)
     assert record["client_identity"]["sha256"] == hashlib.sha256(Path(mt.__file__).read_bytes()).hexdigest()
   assert sum(event["event"] == "refused" for event in events) >= 4
+
+
+def test_session_lateral_calibration_requires_fresh_opt_in_and_one_use_token(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  events = []
+  completed = 0
+
+  def emit(event):
+    nonlocal completed
+    events.append(event)
+    if event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "trial_complete":
+      completed += 1
+      assert event["command_verification"]["passed"]
+      if completed == 1:
+        assert event["summary"]["elapsed_s"] >= 4
+        inbox.put({"command": "prepare", "axis": "right", "duration": 4})
+      else:
+        inbox.put({"command": "quit"})
+    elif event["event"] == "refused" and event["command"] == "prepare":
+      assert "envelope" in event["reason"]
+      inbox.put({"command": "prepare", "axis": "right", "duration": 0.3})
+
+  inbox.put({"command": "prepare", "axis": "left", "duration": 4, "lateral_calibration": True})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin_once) == 0
+  started = [event["request"] for event in events if event["event"] == "started"]
+  assert [request["lateral_calibration"] for request in started] == [True, False]
+  assert completed == 2
+  assert sum(event["event"] == "refused" and event["command"] == "run" for event in events) == 2
+  assert twists(ros)[-1] == ZERO
 
 
 @pytest.mark.parametrize("cause", ["stop", "eof", "identity", "authority"])
