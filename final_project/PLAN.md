@@ -76,12 +76,16 @@ The owner accepted a bounded feasibility investigation before committing physica
 The November 17 source inventory found no side/back-to-standing reference among
 17 current trick exports. The existing `stand_up` API waits for an already-upright
 body; ordinary native gait also damps before inference at side/back tilt. Neither
-is physical get-up. Existing motion-design and contact/clamp replay tools can
-support a bounded side-roll feasibility experiment, but that experiment has not
-run. It would establish a simulation result only; recovery authority and Stop
-handling need their own design before any native use. Do not weaken the normal
-fall gate to make a recovery demonstration work. The current report links the
-inventory, proposed six cases and stopping limit.
+is physical get-up. The bounded [side-roll experiment](../artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json)
+is now closed after five direct-PD physics runs and one allowed trajectory revision.
+Standing and belly-to-standing controls passed a source-geometry contact gate:
+the lower-leg hulls include their feet. The original stricter gate failure is
+preserved. Both side attempts settled outside the specified 80–100° entry range
+and neither reached standing from its resulting posture. Right-side and perturbed
+cases were not run. This establishes no side-recovery capability and does not
+prove recovery impossible. Further work first needs representative, reproducible
+fallen postures; do not launch another sweep from these results. Native authority,
+gains, limits and fall stopping remain unchanged. Physical get-up stays open.
 
 ## Minimum integration agreement
 

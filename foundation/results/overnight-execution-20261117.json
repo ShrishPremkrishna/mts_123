@@ -857,12 +857,54 @@
     "finding": "No identified side/back-to-stand reference in inspected current assets. Existing API stand_up needs already-upright IMU; native tilt gate damps before gait inference from side/back.",
     "meaning": "Reference coverage and source inventory only; neither proof of physical infeasibility nor a completed recovery experiment.",
     "reusable": "Existing motion design, actual physics replay, ground hulls and controller/driver clamps; ordinary low-pose/stand segments.",
-    "bounded_proposal": "One side-to-belly reference and mirror plus compatible stand segment; 6 cases including controls, at most one revision/12 runs/2h, unchanged limits/gains and no resets. Not run. Back remains unresolved.",
+    "bounded_proposal": "Historical proposal subsequently executed in recovery_side_feasibility; consult that closed experiment, not this inventory, for actual results.",
     "decision": "No new training, production recovery integration or normal fall-gate weakening. Keep self-righting open; physical gameplay baseline and camera qualification have higher immediate value."
   },
-  "last_integrated_utc": "2026-11-17T16:07:54.834663+00:00",
+  "last_integrated_utc": "2026-11-17T17:28:10.451773+00:00",
   "course_deliverable_verification": {
     "path": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
     "result": "Current linked rubric recovered through signed-in browser; four25-point categories confirmed. Public deadlines unchanged. Exact wrap-up format still unspecified."
+  },
+  "executor_viewer": {
+    "summary": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/summary.json",
+    "summary_sha256": "5b1cb17de3ca5c7174efa3418c2a66c07ea94848a65e09db92079343e56cd441",
+    "change": "Existing browser/API now runs one real Executor with renewing auto intent. Role, action, hold, admitted input age, lease and epoch are visible. Atomic goal replacement/resume; Stop and expiry cannot silently rearm.",
+    "validation": {
+      "passed": 591,
+      "subtests": 48,
+      "seconds": 2.96,
+      "tests": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/tests.json",
+      "browser": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/browser-checks.json",
+      "fable_adjudication": "artifacts/pupper-fc/2026-11-17/executor-viewer-fable/adjudication.json",
+      "independent_five_findings_fixed": true
+    },
+    "rehearsal": {
+      "path": "artifacts/pupper-fc/2026-11-17/executor-viewer-rehearsal-final/pupper-fc-executor-rehearsal.json",
+      "sha256": "6f92fd8d238f3cc21f57cf3c7d970adf3fc9d693a76b14cd6b35519410839e78",
+      "frames": 399,
+      "simulated_seconds": 19.45,
+      "goals": 1,
+      "own_goals": 0,
+      "goal_injected": false,
+      "robot_teleported": false,
+      "scope": "One kinematic robot, explicit ball disturbances; no opponent physics/camera inference/hardware evidence."
+    },
+    "hardware_source_kit": "43 selected repository files still hash-identical; no repackaging or target deployment.",
+    "archive_verification": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json",
+    "archive_sha256": "bb96c2f22253bc100ce507ba4590aded090821a7aa86d844d942ca15cf8b60f5"
+  },
+  "recovery_side_feasibility": {
+    "summary": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json",
+    "summary_sha256": "d030016807942ffc0c326fa99bdc8ba536a216687421b88ada12d8f930d77c12",
+    "independent_review": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/independent-review.json",
+    "independent_review_sha256": "e8e29b5f174777ce0fd638da3096a74a5ecb7b92b2d0eefccd3cf7660abbef4a",
+    "runs": 5,
+    "trajectory_revisions": 1,
+    "outcome": "Standing and belly-to-standing controls pass corrected source-derived foot-contact gate. Both side attempts settle outside 80\u2013100 degree entry and neither stands. No side recovery established; right/perturbed cases unrun.",
+    "scope": "Direct-PD simulation only; fixed reference replay gains 7.5/.25, 3 Nm effort limit, actual qpos/qvel/contact recorded. No training, native changes or hardware.",
+    "next_condition": "Representative reproducible fallen posture and model/contact comparison required before any new scope; no continuation of this sweep.",
+    "sealed_files": 78,
+    "all_processes_exited": true,
+    "archive_verification": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json"
   }
 }

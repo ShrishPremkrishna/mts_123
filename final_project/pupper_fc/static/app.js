@@ -60,14 +60,14 @@ function updateControls() {
     $("start").disabled = !!live.running;
     $("pause").disabled = !live.running;
     $("step").disabled = !!live.running || !!live.stopped;
-    $("resume").disabled = live.decision?.phase !== "await_reset" || !!live.stopped;
+    $("resume").disabled = live.execution ? !live.execution.resume_available : live.decision?.phase !== "await_reset" || !!live.stopped;
   }
   if (replay) $("replay").querySelector("span").textContent = live?.running
     ? "Live practice is still running. STOP remains available." : "Recorded frames only. STOP remains available for live practice.";
 }
 function render(state) {
   shown = state;
-  const decision = state.decision || {}, command = decision.command || {}, metrics = state.metrics || {};
+  const decision = state.decision || {}, command = decision.command || {}, metrics = state.metrics || {}, execution = state.execution;
   $("pitch-empty").hidden = true;
   $("scenario-title").textContent = scenarios.find(s => s.id === state.scenario)?.name || phaseName(state.scenario || "Practice field");
   const label = replay ? "Recorded playback" : state.stopped ? "Stopped" : state.running ? "Practicing" : "Paused";
@@ -75,12 +75,20 @@ function render(state) {
   $("run-status").className = `status ${!replay && state.running ? "running" : state.stopped ? "stopped" : ""}`;
   $("phase").textContent = phaseName(decision.phase);
   $("reason").textContent = decision.reason || "Ready for the next step.";
+  $("role").textContent = decision.role ? phaseName(decision.role) : execution ? "Unassigned" : "Not recorded";
+  $("role").className = decision.role === "defense" ? "defense" : "";
+  $("authority").textContent = !execution ? "Not recorded" : execution.armed ? "Armed" : "Stopped";
+  $("authority").className = execution && !execution.armed ? "stopped" : "";
+  $("lease").textContent = Number.isFinite(execution?.lease_remaining_s) ? `${number(Math.max(0, execution.lease_remaining_s) * 1000, 0)} ms` : "—";
+  $("epoch").textContent = execution?.epoch || "—";
   $("recovery").hidden = !decision.recovery_requested;
-  const age = state.observation ? Math.max(0, state.time - state.observation.captured_at) : null;
+  $("tracking-age-label").textContent = execution ? "Decision input age" : "Recorded observation age";
+  const capture = execution ? execution.frame_captured_at : state.observation?.captured_at;
+  const age = Number.isFinite(capture) ? Math.max(0, state.time - capture) : null;
   $("tracking-age").textContent = age === null ? "Unavailable" : `${number(age * 1000, 0)} ms`;
   $("speed").textContent = `${number(Math.hypot(command.vx || 0, command.vy || 0), 2)} m/s`;
   $("turn").textContent = `${number(command.wz, 2)} rad/s`;
-  $("time").textContent = `${number(state.time)} s`;
+  $("time").textContent = `${number(state.time, 2)} s`;
   for (const [id, key] of [["goals", "goals"], ["shots", "shots"], ["own-goals", "own_goals"], ["phase-changes", "phase_changes"]]) $(id).textContent = metrics[key] || 0;
   $("goal-prompt").hidden = !(state.truth?.goal || String(decision.phase).toLowerCase().includes("goal"));
   let goalMessage = "Goal recorded. Return home is pending.";
@@ -89,6 +97,7 @@ function render(state) {
   else if (decision.phase === "await_reset") goalMessage = "Ready for the next play. Resume places the ball at center.";
   else if (!state.running) goalMessage = "Goal recorded. Practice is paused; return home is pending.";
   else if (decision.phase === "return_home") goalMessage = "Goal recorded. Pupper is returning home.";
+  if (execution && !execution.resume_available && execution.resume_reason) goalMessage = `Resume unavailable: ${execution.resume_reason}`;
   $("goal-message").textContent = goalMessage;
   const settings = state.settings || {};
   for (const [id, key] of Object.entries(names)) {
@@ -97,13 +106,15 @@ function render(state) {
   }
   $("hide-ball").checked = settings.ball_visible === false;
   $("freeze").checked = !!settings.freeze;
+  $("camera-hold").checked = !!execution?.external_hold;
+  $("intent-loss").checked = settings.renew_intent === false;
   $("fallen").checked = !!state.truth?.fallen;
   const events = (state.events || []).slice(-6).reverse(), key = JSON.stringify(events);
   if (key !== eventKey) {
     eventKey = key;
     $("events").replaceChildren(...events.map(event => {
       const li = document.createElement("li"), time = document.createElement("time"), phase = document.createElement("b"), reason = document.createElement("span");
-      time.textContent = `${number(event.time)}s`; phase.textContent = phaseName(event.phase); reason.textContent = event.reason;
+      time.textContent = `${number(event.time)}s`; phase.textContent = [event.role && phaseName(event.role), phaseName(event.phase)].filter(Boolean).join(" · "); reason.textContent = event.reason;
       li.append(time, phase, reason); return li;
     }));
     if (!events.length) { const li = document.createElement("li"); li.className = "empty-event"; li.textContent = "Start practice to follow the decisions."; $("events").append(li); }
@@ -229,10 +240,13 @@ for (const [id,key] of Object.entries(names)) {
 }
 $("hide-ball").onchange = () => control("configure", {settings: {ball_visible: !$("hide-ball").checked}});
 $("freeze").onchange = () => control("configure", {settings: {freeze: $("freeze").checked}});
+$("camera-hold").onchange = () => control("external_hold", {held: $("camera-hold").checked});
+$("intent-loss").onchange = () => control("configure", {settings: {renew_intent: !$("intent-loss").checked}});
 $("fallen").onchange = () => control("fall", {value: $("fallen").checked});
 $("nudge-up").onclick = () => control("nudge_ball", {vx: 0, vy: .65});
 $("nudge-down").onclick = () => control("nudge_ball", {vx: 0, vy: -.65});
 $("center-ball").onclick = () => control("move_ball", {x: 0, y: 0});
+$("threat-ball").onclick = () => control("move_ball", {x: -.33 * live.field.length * (live.field.attack_sign || 1), y: .22 * live.field.width});
 $("home-robot").onclick = () => control("move_robot", {x: -.9*(live?.field.attack_sign || 1), y: 0, yaw: live?.field.attack_sign === -1 ? Math.PI : 0});
 document.addEventListener("keydown", event => {
   if (event.code !== "Space" || event.repeat || /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(event.target.tagName) || event.target.isContentEditable) return;
@@ -263,9 +277,10 @@ $("trace-file").onchange = async event => {
     if (file.size > 30 * 1024 * 1024) throw new Error("Choose a trace smaller than 30 MB.");
     const trace = JSON.parse(await file.text());
     if (trace.schema !== "pupper_fc_trace_v1" || !Array.isArray(trace.frames) || !trace.frames.length || !trace.frames.every(validFrame)) throw new Error("This is not a valid PupperFC trace.");
-    let priorPhase = null; const events = [];
+    let priorState = null; const events = [];
     replay = trace.frames.map(frame => {
-      if (frame.decision?.phase !== priorPhase) { events.push({time: frame.time, phase: frame.decision?.phase, reason: frame.decision?.reason || ""}); priorPhase = frame.decision?.phase; }
+      const decision = frame.decision || {}, stateKey = JSON.stringify([decision.phase, decision.role, decision.reason]);
+      if (stateKey !== priorState) { events.push({time: frame.time, phase: decision.phase, role: decision.role, reason: decision.reason || ""}); priorState = stateKey; }
       return {...frame, events: events.slice(-6)};
     });
     replayIndex = 0; replayPlaying = false; drag = null; dragPending = null;

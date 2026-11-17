@@ -33,7 +33,19 @@ native controller with stock policy and memory interfaces. The gameplay bridge
 also reached native execution and refused an old-source restart. These qualify
 software connections, not physical movement or a complete game.
 
-Run `.venv-api/bin/python -m final_project.pupper_fc` from the active repository for the sandbox. Its contact/motion model is not physical validation. The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) distinguishes the Ubuntu test container from Pi-compatible deployment binaries; source synchronization does not select the running release. [Policy comparison](../foundation/results/movement-readiness-20261116.json) and [Pi reconciliation](PI_RECONCILIATION.md) retain candidate/provenance details without assigning new work.
+The [offline practice viewer](pupper_fc/README.md) now uses the real shared executor
+for offense/defense, expiring permission, camera interruptions and deliberate goal
+resume. Its importable rehearsal includes one naturally simulated goal and return;
+the display identifies the observation used by each decision. Run
+`.venv-api/bin/python -m final_project.pupper_fc` from the active repository.
+Its contact/motion model is not physical validation.
+
+The bounded [self-righting experiment](../artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json)
+closed after five physics runs. Standing and belly-to-standing controls passed;
+both side attempts failed to establish the prescribed starting posture and did
+not recover. No side-to-stand capability or native recovery policy is available.
+
+The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) distinguishes the Ubuntu test container from Pi-compatible deployment binaries; source synchronization does not select the running release. [Policy comparison](../foundation/results/movement-readiness-20261116.json) and [Pi reconciliation](PI_RECONCILIATION.md) retain candidate/provenance details without assigning new work.
 
 Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets.
 

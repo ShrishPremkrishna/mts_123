@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T16:07:54.834663+00:00",
+  "updated_utc": "2026-11-17T17:28:10.451773+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -48,7 +48,9 @@
     "gateway_stop_cancellation": "artifacts/pupper-fc/2026-11-17/strict-trial-stop-review/summary.json",
     "guard_shutdown": "artifacts/pupper-fc/2026-11-17/guard-shutdown-ros/summary.json",
     "recovery_inventory": "artifacts/pupper-fc/2026-11-17/recovery-feasibility-inventory/inventory.json",
-    "course_requirements": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json"
+    "course_requirements": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
+    "executor_viewer": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/summary.json",
+    "recovery_side_feasibility": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -86,7 +88,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Final offline regression1610 tests +134 subtests passes. Guard shutdown race fixed and independently verified in real ROS; live errors remain visible. Current53-file source kit validated with affected91 tests +86 subtests and source hashes; native companions/build receipts preserved. Prior gateway/native evidence remains scoped to its frozen source snapshots. All experiments and delegates completed; no active paid jobs or robot access.",
+    "compute": "Offline viewer integration complete: actual Executor, 591 tests +48 subtests, five Fable findings independently corrected, 399-frame replay verified in Chrome. Recovery experiment closed after five physics runs without side recovery. Complete 127-file evidence archive readback verified. No active training/cloud jobs; no hardware work.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -94,10 +96,22 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root owns project continuation and next useful action. All bounded delegates completed and are idle. Next major acceptance requires target-compatible preparation and supervised camera/motion measurements; exact next steps below."
+      "project_lead": "Root integrates and selects next evidence-backed offline deliverable. Viewer/runtime/docs sources frozen; selected hardware kit unchanged."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment.",
-    "pending_archives": []
+    "pending_archives": [],
+    "processes": {
+      "local_practice": {
+        "pid": 27855,
+        "tool_session": 38486,
+        "url": "http://127.0.0.1:8766/",
+        "status": "Running, user-facing offline viewer; live simulation stopped, browser showing completed recorded rehearsal. No robot transport.",
+        "source_runtime_sha256": "49ccc6a0795ea5e23d84913f7125f4921c4f98125dd695259cf39e0276bbdabb",
+        "verified_utc": "2026-11-17T17:28:10.451773+00:00"
+      },
+      "unowned_port_8765": "PID 95237 is preexisting reelrelay serve, not Pupper practice. Left untouched.",
+      "completed": "Fable68870 rc0; pytest62532 rc0; five recovery subprocesses exit0; delegates complete. Initial server27050 bind denied; old server27094 explicitly stopped."
+    }
   },
   "hardware_session": {
     "status": "CLOSED camera-only session: all owned camera, detector and recorder processes exited; motors never started. 19 files (1,413,999,311 bytes) copied and hash-verified. Pi may be powered off.",
@@ -150,9 +164,14 @@
     "deadline_final_integration": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/archive-verification.json",
     "opponent_reassessment": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/complete.tar.gz",
     "strict_finite_gateway_stop": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/archive-verification.json",
-    "guard_shutdown_followup": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json"
+    "guard_shutdown_followup": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json",
+    "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json"
   },
   "next": [
+    {
+      "id": "offline_deliverables",
+      "action": "Prepare an evidence-backed under-three-minute video shot plan and five-minute presentation structure using the verified course rubric and actual project artifacts. Identify footage still needed and avoid presenting simulated/ROS results as physical capability. Before further software edits, name a concrete defect or untested integration path; do not repeat completed viewer/recovery audits or restart side-roll sweeps."
+    },
     {
       "id": "target_native_preparation",
       "action": "Next authorized Pi preparation: capture actual ROS/Python/compiler dependencies, then build the current 53-file source kit native-controller and 11-source gateway companions into fresh prefixes. Select the complete target-built gateway package, generated service types and runtime closure explicitly; guarded assembly alone preserves the baseline gateway. Use explicit rebuilt-controller digest and strict 15-role source index. Preserve accepted logfix release. Cached Ubuntu binaries are test-only. No overnight SSH, deployment or homing."
@@ -187,6 +206,7 @@
     "regression": "python3 foundation/scripts/check_foundation.py --api-python .venv-api/bin/python --numerical-python .venv/bin/python --output <new-evidence-directory>",
     "fc_focused": ".venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests",
     "claude": "claude --print --model claude-fable-5-2 (bounded read-only tools, approved account/network path)",
-    "evidence": "foundation/results/takeover-audit-20261116.json"
+    "evidence": "foundation/results/takeover-audit-20261116.json",
+    "practice": ".venv-api/bin/python -m final_project.pupper_fc --port 8766 (root-owned PID27855 already serving; inspect ownership before another launch)"
   }
 }

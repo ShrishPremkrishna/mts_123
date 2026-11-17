@@ -1,6 +1,11 @@
-# Offline approach-and-shot prototype
+# Offline soccer decision rehearsal
 
-One gameplay controller approaches behind a ball, aligns the bumper toward the opposing goal, makes a bounded run-through, brakes and replans. After a goal it returns home and waits for ball replacement. The interactive field and headless trials run the same Python controller.
+The interactive field runs the shared gameplay executor with one simulated robot
+and an automatically renewed `auto` intent. Its real tactics choose offense or
+defense. Offense approaches, aligns, strikes and replans; defense takes a ball-clear
+goal-side position. After a goal, the controller returns home and waits for ball
+replacement and a deliberate resume. Role, action, session state and remaining
+play permission are displayed separately.
 
 This is a **2D kinematic/contact sandbox**, not MuJoCo, a gait rollout or evidence that a real Pupper can execute these commands. It contains no robot transport, ROS, camera access or cloud calls.
 
@@ -14,9 +19,37 @@ From the repository root, using the existing API environment:
 
 Open <http://127.0.0.1:8765>. The server binds loopback only; all tabs share one practice session. `--port 8766` selects another port. Stop the server with Ctrl-C. Python changes require a server restart; refresh the page after frontend changes. The [root setup instructions](../../README.md) cover the existing environment; headless runs need only Python's standard library.
 
-Choose a scenario and attack direction and press **Reset practice**, then **Start**. Drag the ball or robot, or use the reposition buttons. Add camera delay/noise, hide the ball, freeze observations or nudge the ball while it plays. **Pause** freezes simulated time; **Stop** commands bounded braking and stays latched until Start. An injected fall stops play and requests recovery; clearing that checkbox is an operator injection, not simulated physical get-up.
+Choose a scenario and attack direction and press **Reset practice**, then **Start**.
+Drag the ball or robot, or use the reposition buttons. **Ball near home goal**
+exercises automatic defense; **Ball at midfield** lets tactics reconsider offense.
+Add observation delay/noise, hide or freeze tracking, or nudge the ball.
+While paused, edits update field truth/settings immediately; the observation
+remains the last control input until the next tick. **Decision input age** uses
+the capture actually admitted by the executor. A changed packet with a reused
+capture is rejected and stops motion until fresh evidence arrives.
+**Simulate front-camera hold** calls the executor's external interruption path;
+it does not run a detector. **Interrupt play instructions** stops intent renewal
+while tracking continues, exposing authority expiry independently of perception.
 
-After a goal, **Replace ball & resume** becomes available once Pupper is home. It puts the ball at centre and starts a fresh play without resetting the robot or score. Reset practice starts a new trial and retains the selected tracking/speed settings.
+**Pause** freezes simulated time, including lease age. Start from pause continues
+the same session. **Stop** cancels authority and commands simulated braking; the
+next explicit Start creates a new epoch. Step from a fresh practice arms once and
+advances one tick; Step cannot release Stop. An injected fall requests recovery;
+clearing that checkbox is operator intervention, not physical get-up.
+
+After a goal, **Replace ball & resume** requires current observed home position
+and heading, fresh tracking, a live intent and no external hold. The simulated
+ball replacement and executor resume are validated together; refusal leaves the
+ball, score and authority unchanged. A new capture may require Step when paused.
+An accepted cue does not renew permission, re-arm or reposition the robot.
+Reset practice starts a new trial and retains selected tracking/speed/renewal
+settings; it explicitly resets the simulated field and injected hold/fall.
+
+The [saved executor rehearsal](../../artifacts/pupper-fc/2026-11-17/executor-viewer-rehearsal-final/pupper-fc-executor-rehearsal.json)
+opens through **Open trace**. Its 399 frames show offense, defense, camera hold,
+instruction expiry, a naturally simulated goal, return home, one accepted resume
+and Stop. Ball relocations are explicit disturbances; no goal is injected and
+the robot is never teleported. The trace pins its seven gameplay source files.
 
 **Export trace** saves the latest 2,400 frames (roughly two minutes, less with edits), including truth, observations, decisions, settings, metrics and source hashes captured at process startup. **Open trace** plays those frames locally; it does not rerun the controller or send recorded commands. Live controls are disabled during replay except Stop. Replay does not itself pause the background simulation. Truncated exports say so. Exports are opt-in; raw traces are not automatically added to Git.
 
@@ -25,7 +58,11 @@ python3 -m final_project.pupper_fc --headless --scenario all --seconds 40
 .venv-api/bin/python -m pytest -q final_project/pupper_fc/tests
 ```
 
-Headless JSON reports each outcome, including failures. `--seed 12` changes seeded sensor noise; changing the seed alone does not randomize scenario geometry. `--output /tmp/fc-trial.json` saves a summary to a new file.
+The `--headless` command remains the **isolated Controller baseline** in
+`simulation.py`; it does not exercise executor roles, leases or external holds.
+The browser/API and runtime tests exercise that orchestration. Headless JSON
+reports every outcome, including failures. `--seed 12` changes seeded sensor
+noise; changing the seed alone does not randomize geometry. `--output /tmp/fc-trial.json` saves a summary to a new file.
 
 ## Small integration seams
 
@@ -34,7 +71,7 @@ Headless JSON reports each outcome, including failures. `--seed 12` changes seed
 | Perception | `model.Observation`: capture time, robot pose/ID, optional ball position/velocity, fallen flag and goal event | The perception adapter supplies calibrated field coordinates and capture age. Missing data stays missing. The controller never receives simulator truth. |
 | Movement | `model.Command`: body-frame forward/lateral/yaw velocity, expiry and robot ID; `model.Limits` | Measured movement limits and a robot adapter replace simulated motion. Enforce expiry at the robot, exclusive command ownership and Stop before hardware use. |
 | Shooting | `Controller` stages/aligns, then produces a bounded velocity strike; decision exposes target pose and phase | A dedicated strike can replace that phase once its entry, cancellation and exit conditions are known. No policy loading is built into this sandbox. |
-| Gameplay | `Controller.tick(observation, now) -> Decision`; `reset()` clears play intent | Same controller can run against recorded or live observations. The runtime owns operator Stop, reset and metrics. |
+| Gameplay | `Executor` admits field frames and leased intents, then calls its `Controller` | Browser/API use the shared executor; the headless baseline calls the controller directly. The runtime owns simulated operator controls and metrics. |
 
 The [project brief](../README.md) records current owners and agreed outcomes for these interfaces.
 
