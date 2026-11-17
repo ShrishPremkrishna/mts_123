@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T12:02:03.614240+00:00",
+  "updated_utc": "2026-11-17T12:30:40.591679+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,11 +29,12 @@
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
     "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
     "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
-    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-bridge-source-kit-20261117T112908Z/summary.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-ready-source-kit-20261117T122628Z/summary.json",
     "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
     "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json",
-    "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-executor-20261117T110500Z/summary-final.json",
-    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/fc-bridge-integration-20261117T112200Z/tests.json"
+    "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/summary-final.json",
+    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/resume-integration-20261117T122439Z/tests.json",
+    "native_start_target_build": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -71,7 +72,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Arena candidate validated:1204tests+134subtests,3actualROS cases, independent and exactFable5.2 review; all owned jobs closed. Crop rejected. Next demonstrated gaps: human resume needs current-frame race removed; no full naturally scored play cycle through ROS. Source kit refresh after that coherent integration; old28file kit remains frozen pre-arena evidence.",
+    "compute": "Completed corrected fullROSplay cycle bothdirections + lifecycle;1232tests+134subtests passed. Independentcorrectionverification andexactFable review archived. New37file sourcekit includes nativeStartsource/buildrecipe; no deployment. All owned jobs closed; root integrating checkpoint.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -79,12 +80,12 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrates arena mode selection/runtime/assembler, reviews frozen source and evidence, updates source kit after checks. Goal active; offline only.",
+      "project_lead": "Root integrates verified arena/one-cue resume/fullROSplay evidence and37file preparedsourcekit; activegoal, offlineonly. Nextvaluablegap is shared-ball two-robot liveness, plus targetacceptance whenavailable.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Owns separate artifact-only15min saved-prediction miss diagnosis. No production edit, new inference, private upload or cloud job.",
-      "overnight_compute": "Completed/frozen two-domain and arena actualROS+Fable reviews; idle. No active container/process or file editing.",
-      "body_guard": "Arena source frozen and reviewed. Read-only gameplay audit complete: full ROS cycle missing; exact-frame resume races operator status. Awaiting bounded bridge/test ownership for correction.",
+      "overnight_harness": "Completed perceptiondiagnosis, PiABI/buildprep, exactFableadjudication andindependent3correctionchecks; alljobsclosed, idle.",
+      "overnight_compute": "Completed/frozen finalmirroredfullROSplay+lifecycle, independentlyreconstructedphysics traces; allcontainersclosed, idle.",
+      "body_guard": "Completed/frozen resume implementation and corrections; idle, no fileownership.",
       "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle.",
       "bridge_adversary": "Completed exact correction verification for5guard/bridge issues; evidence retained. Idle, no ownership."
     },
@@ -138,20 +139,16 @@
   },
   "next": [
     {
-      "id": "usable_goal_resume",
-      "action": "Implement trusted operator one-cue resume bound to current session/goal cycle and fresh evidence, with delayed/replayed cues fenced. Keep strict explicit-frame API. Publish useful frame/intent/goal readiness; root assigns bridge/test ownership before edit."
+      "id": "shared_match_liveness",
+      "action": "Boundedread-only audit/proposal for shared-ball two-robot offlineplay: solo ROScycles and domainisolation are verified, but not simultaneousopponents/collision/roleliveness. Prefer smallest existingSimulator/Executor extension that exposes deadlock; no broadnewframework or physicalclaim. Assign ownership beforeimplementation."
     },
     {
-      "id": "complete_ros_play_cycle",
-      "action": "Extend existing device-free ROS smoke with current Simulator driven ONLY by final /cmd_vel. Naturally generate goal crossing, return/reset/onecue resume/secondstrike; real-time cadence and60second cap perrun. Mirror isolated one-robot trials; do not claim shared-ball two-robot physics. Fake native boundary explicit."
+      "id": "camera_and_native_target_preparation",
+      "action": "Next authorized Pi boot/preparation: use37file kit, capture actualROS/Pythonunderlay; build onlyjoy_utils nativeStartpackage into freshprefix and verify ABI/typesupport/fakebackend before physicalreadiness. Assembleguardedstockwalk separately; preserve acceptedcontroller/driver/mux/policy. No overnightSSH/deployment/homing."
     },
     {
-      "id": "perception_diagnostic",
-      "action": "Finish approved15minute saved-prediction audit identifying confidence/classification/NMS/mapping/geometric causes. No tuning to this single clip."
-    },
-    {
-      "id": "guarded_target_acceptance",
-      "action": "After next integration freeze, refresh source kit once and concise target checklist. Future authorized Pi block: native compatiblegatewayStart build, imports/preflight, realcamera capture age+spacing and person/pinkball coverage before floorplay. No overnight SSH/deployment/homing/motion."
+      "id": "next_physical_acceptance",
+      "action": "Stationary fixedcamera recording at measured normalwalkingheight/pitch with exactframecapture/model/settings and measuredperson/actualpinkball ranges/offsets; separateholdout. Measurecaptureage+spacing. Then supportedcommand routing/StartStop, followed by boundedfloorheading/velocity/stopqualification andonepose-controlledplay when actualfieldadapterexists. No wrong-ball contactprobes."
     }
   ],
   "recorded_open_items": {

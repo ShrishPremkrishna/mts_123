@@ -129,6 +129,20 @@
       "all_jobs_exited": true,
       "images_uploaded": false,
       "cloud_spend_usd": 0
+    },
+    "saved_prediction_diagnostic": {
+      "report": "artifacts/pupper-fc/2026-11-17/saved-prediction-diagnostic-20261117T115908Z/REPORT.txt",
+      "scope": "No new inference. Trace saved245paired predictions through argmax, confidence, NMS, top20, letterbox remapping and spatial gate.",
+      "decoder": "All490sets reproduce class/count/order; box delta below.0001pixel; no mapping/NMS defect demonstrated.",
+      "person_misses": "Three full-view label misses precede NMS: partial-person maxscores.01438/.01290; one well-localized full-person candidate.36888 below.4threshold. Not evidence to tune threshold on this clip.",
+      "geometry": "16/20 recognized people outside provisional stop geometry; matched-box and sparse-label eligibility agree, but actual stopping range remains uncalibrated.",
+      "tower": "Fixed taxonomy lacks fan class; weak alternative-class scores. No decoder arithmetic defect shown.",
+      "historical_limit": "Old Hailo publications lack source-capture identity and fixed logged GUI settings; exact paired attribution to quantization/configuration is indeterminate.",
+      "next_data": "Stationary fixed-configuration source-stamped recording with measured ranges/lateral offsets and separate holdout; record realball/person coverage before motion.",
+      "archive_sha256": "3eaf9dcd171d9d5ea98defc59d8ae6aa141cde29d996f9e0263d6d4e7672b887",
+      "archive_files": 10,
+      "all_jobs_exited": true,
+      "production_changed": false
     }
   },
   "compute": {
@@ -287,5 +301,85 @@
     "all_jobs_exited": true,
     "owned_containers_remaining": 0,
     "new_cloud_compute_usd": 0
+  },
+  "software_start_target_build": {
+    "report": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt",
+    "conclusion": "Cached gateway is not target-compatible: requires GLIBCXX_3.4.32, pinned Pi provides through3.4.30. Exact Pi ROS development underlay absent from bounded relevant caches; package-only build on target remains required.",
+    "binary_sha256": "5b07fcc1100a20cf45e865a9fd8e7fd2ea94f634f851fc41e95ee05f3ad34127",
+    "target": "Recorded Debian12aarch64,GCC12.2,glibc2.36; exact currentPythonSOABI and completeROSunderlay still need capture.",
+    "cached_builder": "Ubuntu24.04.5arm64,GCC13.3,glibc2.39,Python3.12; generated service bindings must be regenerated for target.",
+    "scope_correction": "This gateway directglibc max2.34; do not inherit oldv1 GLIBC2.38 claim. Failure is directGLIBCXX3.4.32; passingotherdirectlibraries does not prove transitiveROS/Python closure.",
+    "prepared_source_archive_sha256": "e6f46207c1f2c26c6bce1bb3a55ce665719c602ea33cd1c7173be0292821ebfb",
+    "source_files": 11,
+    "source_evidence": "10 compiled/interface/testfiles match r4fixture that passed12CTest; documentation separatelyhashed. Not Pi acceptance.",
+    "audit_archive_sha256": "5ca31ad12e791cd83ead742f7f0d66ebeab77823851b12764654cf733e803a9b",
+    "next": "During next authorized Pi boot/preparation, capture exactunderlay/Python/dependencies and build onlyjoy_utils in freshisolatedprefix, run fakebackend tests and ABI/importchecks; retain driver/controller/mux/policy. No physicalactions until build/provenance/preflight ready.",
+    "target_build_duration": "unmeasured",
+    "build_performed": false,
+    "download_performed": false,
+    "hardware_access": false,
+    "owned_processes_exited": true
+  },
+  "goal_resume_and_complete_play": {
+    "implemented": "Trusted bare resume captures immutable completed goal-cycle marker whose first completion precedes receipt. Capture is nonblocking; full current native/guard/field/lease/home readiness rechecked in serialized processing. Final deadline/Stop/cycle fence before consumption. Explicit frame_seq retains processing-time equality. Readonly status reports frame/intent freshness and resume availability.",
+    "bridge_sha256": "d05684f50721a2f4087b12f1a2bc293cc3c4d45292f6bc20bb4bd36d24b2bfee",
+    "combined_validation": "artifacts/pupper-fc/2026-11-17/resume-integration-20261117T122439Z/tests.json",
+    "combined_summary": "1232 passed,134 subtests passed in3.24s; one existing Starlette/httpx warning; no tested source changed during run.",
+    "original_review": "artifacts/pupper-fc/2026-11-17/resume-cue-review-20261117T121154Z/fable-review.json",
+    "original_review_archive_sha256": "85bc6d85fb427ab5a62de3dcace623d42424a058fc400326fd5dfa6c537b5327",
+    "fable_model": "claude-fable-5-2",
+    "fable_seconds": 199.229808542,
+    "fable_list_price_equivalent_usd": 0.8943024,
+    "review_scope": "Fable reviewed original75ef source before corrections, not finald056. Conditional findings adjudicated against full source. Independent local review reproduced pre-completion cue upgrade while lock waited and deadline consumed after slow final query; corrected and independently verified. Resume capture made nonblocking for following Stop.",
+    "authorization": "Child external review initially refused because automatic approval could not see trusted user authorization. Root direct re-review with original user code-sharing permission succeeded; exact-model call completed. No permission bypass or additional user question.",
+    "correction_verification": "artifacts/pupper-fc/2026-11-17/resume-cue-correction-20261117T122414Z/verification.json",
+    "correction_archive_sha256": "69edbd63ae1602fe6a1faf6149dcc5e3577678c8391f9e856335e877956ae222",
+    "correction_archive_files": 5,
+    "actual_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/summary-final.json",
+    "actual_ros_scope": "Real productionbridge\u2192C++mux\u2192guard\u2192finalDDS receipts drive existingSimulator at realtime pace in two separate mirrored one-robot worlds. Syntheticcamera/perception and fake nativefeedback/processidentity. No scriptedgoal or ballnudge; sole manualballreplacement explicit.",
+    "actual_ros_cases": 3,
+    "groups": 18,
+    "group_note": "Two5groupclosedloops plus8grouplifecycle; startup/routing assertions repeat.",
+    "natural_goal_seconds": [
+      13.54,
+      13.47
+    ],
+    "next_strike_seconds": [
+      26.9083,
+      26.8853
+    ],
+    "observed_hold_zero_samples": [
+      42,
+      41
+    ],
+    "observed_zero_hold_seconds": [
+      0.504434,
+      0.504077
+    ],
+    "bridge_tick_p95_ms": [
+      21.5835,
+      21.5643
+    ],
+    "bridge_tick_max_ms": [
+      27.521458,
+      28.752041
+    ],
+    "timing_limit": "Short localDocker traces, not Pi/physical/realtime bounds. Synthetic20Hzcamera declares5msage. Modeled250msreceipt expiry is not new nativewatchdog proof.",
+    "trace_verification": "All526state samples perrobot independently reconstructed from finalDDS receipts plus declared manualrestart; maximum numericerror5.24e-16/6.66e-16.",
+    "final_ros_archive_sha256": "f201f44eb76339b6e6c454bb9b34609b8778cffefb280ea54a82674c461e05f5",
+    "final_ros_archive_files": 61,
+    "original_ros_archive_sha256": "14208d2fb65b2e0d92fd672d44f82284cf1c81132677cd08bb84aa7ed4faa037",
+    "visual_summary": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/visual-summary/ros-play-cycles.png",
+    "source_kit": "artifacts/pupper-fc/2026-11-17/fc-ready-source-kit-20261117T122628Z/summary.json",
+    "source_kit_sha256": "0ffdb999a0999c238f07cab31a2288b95758744859f47eebc3c0baf1e91a3979",
+    "source_kit_files": 37,
+    "source_kit_scope": "13runtime-source roles, camera source subset, tests/referenceSimulator and source-onlynativeStartbuildcompanion. Not assembled/deployed; existing nativegateway remains until separately target-built.",
+    "remaining": [
+      "No shared-ball two-robot match or physical shot/defense/heading acceptance.",
+      "No realRyanfeed/crosshostclock/calibratedfield.",
+      "Pinkball/person detectioncoverage and capture cadence/physicalstopping unaccepted.",
+      "NativeStart targetbuild and physicalStart/Stop acceptance pending."
+    ],
+    "processes": "All owned review/test/container/plot processes exited; no robot access or new cloud compute."
   }
 }

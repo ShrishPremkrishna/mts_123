@@ -73,6 +73,7 @@ import argparse
 from dataclasses import asdict, dataclass, replace
 import json
 import math
+from copy import copy
 from pathlib import Path
 import sys
 
@@ -379,12 +380,23 @@ class Executor:
         """One operator cue bound to current evidence, never queued authority."""
         self._session(event)
         robot_id = event.get("robot_id")
+        frame_seq = event.get("frame_seq")
+        self.check_resume(robot_id, frame_seq, now)
+        self.controllers[robot_id].resume_after_goal(self.frame[1][robot_id], now)
+        self.resume_frame_seq[robot_id] = frame_seq
+
+    def check_resume(self, robot_id, frame_seq, now):
+        """Read-only availability query; does not tick, consume or release a goal."""
+        self._session({"epoch": self.epoch, "clock": self.clock})
+        now = number(now, "now")
+        if self.last_now is not None and now < self.last_now:
+            raise ValueError("control clock moved backwards")
         if robot_id not in self.controllers:
             raise ValueError("unknown robot_id")
         problem = self._external_problem(robot_id)
         if problem:
             raise ValueError("resume refused: " + problem)
-        frame_seq = sequence(event.get("frame_seq"))
+        frame_seq = sequence(frame_seq)
         if self.frame is None or frame_seq != self.frame_seq:
             raise ValueError("resume must reference the current admitted frame_seq")
         if frame_seq <= self.resume_frame_seq[robot_id]:
@@ -396,12 +408,13 @@ class Executor:
         if intent is None or now >= intent.valid_until:
             raise ValueError("resume requires a current unexpired intent")
         gate = self.obstacle_gates.get(robot_id)
-        if gate is not None and not gate.evaluate(now).permitted:
+        # Gate state is scalars plus immutable config/decision dataclasses. Its
+        # clock/expiry evaluation must not mutate the live gate during a query.
+        if gate is not None and not copy(gate).evaluate(now).permitted:
             raise ValueError("resume requires a clear front-camera gate")
         if stamp < self.obstacle_resume_after[robot_id]:
             raise ValueError("resume requires a new field observation after obstacle hold")
-        self.controllers[robot_id].resume_after_goal(observations[robot_id], now)
-        self.resume_frame_seq[robot_id] = frame_seq
+        self.controllers[robot_id].check_resume_after_goal(observations[robot_id], now)
 
     def tick(self, now):
         try:

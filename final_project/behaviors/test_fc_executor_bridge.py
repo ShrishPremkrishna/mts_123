@@ -2,8 +2,10 @@
 from dataclasses import replace
 import hashlib
 import importlib
+import io
 import json
 import math
+import pickle
 import sys
 import threading
 import time
@@ -613,3 +615,324 @@ def test_excess_publisher_count_outranks_earlier_expected_name_snapshot(ros_node
     assert calls.count("/cmd_vel") == 1
     e.node.on_tick()
     assert e.node.hard_stopped and len(e.ros.published["/emergency_stop"]) == 1
+
+
+def goal_frame(env, goal=0, *, tick=True, refresh_intent=True):
+    env.ros.t += .01
+    env.update()
+    core = env.core
+    row = frame(core, env.ros.t, seq=core.executor.frame_seq + 1)
+    row["robots"][core.robot_id] = {"x": -1.098, "y": 0., "yaw": 0., "goal": goal}
+    assert core.ingest(row)["accepted"]
+    if refresh_intent:
+        assert core.ingest(intent(core, env.ros.t, seq=core.executor.intent_seq[core.robot_id] + 1,
+                                  intent_id="auto-1", kind="auto", target=None,
+                                  valid_until=env.ros.t + .45))["accepted"]
+    if tick:
+        env.node.on_tick()
+    return core.executor.frame_seq
+
+
+def awaiting_resume(env):
+    env.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    env.node.on_tick()
+    goal_frame(env, 1)
+    goal_frame(env, 0)
+    assert env.core.last_decision.phase == "await_reset"
+    assert env.node.status()["resume"]["available"]
+
+
+def resume_result(env):
+    return next(row for row in reversed(env.events)
+                if row.get("event") == "operator_result" and row.get("command") == "resume")
+
+
+def test_bare_resume_resolves_new_frame_after_receipt_without_renewing_ownership(ros_node):
+    e = ros_node
+    awaiting_resume(e)
+    old_seq = e.core.executor.frame_seq
+    old_intent = e.core.executor.intents[e.core.robot_id]
+    e.node.inbox.put({"command": "resume", "_ticket": "forged", "_error": "forged"})
+    e.ros.t += .04  # Combined with goal_frame's .01, one 20 Hz field period.
+    current_seq = goal_frame(e, tick=False, refresh_intent=False)
+    assert current_seq > old_seq
+    e.node.on_tick()
+    assert resume_result(e)["accepted"]
+    assert e.core.executor.resume_frame_seq[e.core.robot_id] == current_seq
+    assert e.core.executor.intents[e.core.robot_id] is old_intent
+    assert not e.core.executor.controllers[e.core.robot_id]._goal_latched
+
+
+@pytest.mark.parametrize("explicit", [True, False])
+def test_explicit_resume_keeps_exact_frame_contract_and_queue_expiry_is_not_refreshed(ros_node, explicit):
+    e = ros_node
+    awaiting_resume(e)
+    cue = {"command": "resume"}
+    if explicit:
+        cue["frame_seq"] = e.core.executor.frame_seq
+    e.node.inbox.put(cue)
+    if not explicit:
+        e.ros.t += .201
+    goal_frame(e, tick=False)
+    e.node.on_tick()
+    assert not resume_result(e)["accepted"]
+    assert ("current admitted frame_seq" if explicit else "expired") in resume_result(e)["reason"]
+    assert e.core.executor.controllers[e.core.robot_id]._goal_latched
+
+
+def test_duplicate_receipt_tickets_cannot_release_a_later_goal(ros_node):
+    e = ros_node
+    awaiting_resume(e)
+    e.node.inbox.put({"command": "resume"})
+    e.node.inbox.put({"command": "resume"})
+    e.node.on_tick()
+    assert resume_result(e)["accepted"]
+    consumed = e.core.executor.resume_frame_seq[e.core.robot_id]
+    goal_frame(e, 1, tick=False)
+    goal_frame(e, 0, tick=False)
+    e.node.on_tick()
+    assert not resume_result(e)["accepted"]
+    assert "goal cycle" in resume_result(e)["reason"]
+    assert e.core.executor.resume_frame_seq[e.core.robot_id] == consumed
+    assert e.core.executor.controllers[e.core.robot_id]._goal_latched
+    e.node.inbox.put({"command": "resume"})
+    e.node.on_tick()
+    assert resume_result(e)["accepted"]
+
+
+@pytest.mark.parametrize("fault", ["hold", "stale_frame", "expired_intent", "missing_frame", "newarm", "stop"])
+def test_resume_ticket_rechecks_evidence_and_session_at_processing(ros_node, fault):
+    e = ros_node
+    awaiting_resume(e)
+    e.node.inbox.put({"command": "resume"})
+    if fault == "hold":
+        e.guard.update(camera_state="blocked", camera_permitted=False)
+        e.update()
+    elif fault == "stale_frame":
+        stamp, observations, goals = e.core.executor.frame
+        e.core.executor.frame = (e.ros.t - .36, observations, goals)
+    elif fault == "expired_intent":
+        old = e.core.executor.intents[e.core.robot_id]
+        e.core.executor.intents[e.core.robot_id] = replace(old, valid_until=e.ros.t)
+    elif fault == "missing_frame":
+        e.core.executor.frame = None
+    elif fault == "newarm":
+        assert e.core.operator({"command": "arm", "epoch": "game-2"})["accepted"]
+        goal_frame(e, 1, tick=False)
+        goal_frame(e, 0, tick=False)
+    else:
+        e.node.inbox.put({"command": "stop"})
+    e.node.on_tick()
+    assert not any(row.get("command") == "resume" and row.get("accepted") for row in e.events)
+    if fault == "stop":
+        assert e.node.hard_stopped and not e.core.executor.armed
+        assert len(e.ros.published["/emergency_stop"]) == 1
+    else:
+        assert e.core.executor.controllers[e.core.robot_id]._goal_latched
+
+
+@pytest.mark.parametrize("fault", ["not_armed", "goal_flag", "hold", "old_frame", "pending_start", "uncertain_start", "native"])
+def test_unavailable_current_evidence_refuses_resume_at_processing(ros_node, fault):
+    e = ros_node
+    if fault != "not_armed":
+        awaiting_resume(e)
+    if fault == "goal_flag":
+        goal_frame(e, 1)
+    elif fault == "hold":
+        e.core.hold(True)
+    elif fault == "old_frame":
+        stamp, observations, goals = e.core.executor.frame
+        e.core.executor.frame = (e.ros.t - .36, observations, goals)
+    elif fault in ("pending_start", "uncertain_start"):
+        e.node.start_client = SimpleNamespace(pending=object() if fault == "pending_start" else None,
+                                             uncertain=fault == "uncertain_start")
+    elif fault == "native":
+        e.node.native_valid = False
+    status = e.node.status()
+    assert not status["resume"]["available"] and status["resume"]["reason"]
+    e.node.inbox.put({"command": "resume"})
+    with e.node.lock:
+        e.node.operator(*e.node.inbox.get())
+    assert not resume_result(e)["accepted"]
+
+
+def test_status_readiness_is_descriptive_and_does_not_mutate_executor_or_internal_gate(ros_node):
+    from final_project.pupper_fc.obstacles import DetectionFrame, ForwardObstacleGate, ObstacleConfig
+    e = ros_node
+    awaiting_resume(e)
+    gate = ForwardObstacleGate(ObstacleConfig(clear_frames=1))
+    gate.update(DetectionFrame(1, e.ros.t - .1), e.ros.t - .1)
+    e.core.executor.obstacle_gates[e.core.robot_id] = gate
+    before = pickle.dumps(e.core.executor)
+    for _ in range(5):
+        status = e.node.status()
+        e.core.executor.check_resume(e.core.robot_id, e.core.executor.frame_seq, e.ros.t)
+        assert status["resume"]["available"]
+        assert status["frame_seq"] == e.core.executor.frame_seq
+        assert status["capture_age_s"] == 0
+        assert status["intent"] == {"id": "auto-1", "kind": "auto", "age_s": 0.,
+                                    "time_left_s": pytest.approx(.45)}
+        assert status["decision"]["phase"] == "await_reset"
+        assert status["decision"]["role"] == "offense"
+        assert status["sampled_at_monotonic"] == e.ros.t
+    assert pickle.dumps(e.core.executor) == before
+    # A read-only availability query must not expire even a stale live gate.
+    stale = ForwardObstacleGate(ObstacleConfig(clear_frames=1))
+    stale.update(DetectionFrame(1, e.ros.t - .4), e.ros.t - .4)
+    e.core.executor.obstacle_gates[e.core.robot_id] = stale
+    before = pickle.dumps(e.core.executor)
+    assert not e.node.status()["resume"]["available"]
+    with pytest.raises(ValueError, match="clear front-camera"):
+        e.core.executor.check_resume(e.core.robot_id, e.core.executor.frame_seq, e.ros.t)
+    assert pickle.dumps(e.core.executor) == before
+
+
+def test_resume_capture_does_not_block_reader_from_following_stop_under_control_lock(ros_node):
+    e = ros_node
+    awaiting_resume(e)
+    e.node.lock.acquire()
+    try:
+        stream = io.StringIO('{"command":"resume"}\n{"command":"stop"}\n')
+        worker = threading.Thread(target=e.node.inbox.read, args=(stream,))
+        worker.start()
+        worker.join(1)
+        assert not worker.is_alive() and e.node.inbox.stop_seen.is_set()
+        assert e.node.inbox.normal.qsize() == 1  # Resume is queued, not consumed.
+    finally:
+        e.node.lock.release()
+    e.node.on_tick()
+    assert e.node.hard_stopped and not e.core.executor.armed
+    assert len(e.ros.published["/emergency_stop"]) == 1
+    assert not any(row.get("command") == "resume" and row.get("accepted") for row in e.events)
+
+
+@pytest.mark.parametrize("prior_state", ["before_goal", "returning_home", "previous_cycle"])
+def test_cue_before_completed_current_goal_cannot_gain_authority_while_lock_is_held(ros_node, prior_state):
+    e = ros_node
+    if prior_state == "previous_cycle":
+        awaiting_resume(e)
+        e.node.inbox.put({"command": "resume"})
+        e.node.on_tick()
+        assert resume_result(e)["accepted"]
+    else:
+        e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+        e.node.on_tick()
+        if prior_state == "returning_home":
+            row = frame(e.core, e.ros.t)
+            row["robots"][e.core.robot_id] = {"x": 0., "y": 0., "yaw": 0., "goal": 1}
+            assert e.core.ingest(row)["accepted"]
+            assert e.core.ingest(intent(e.core, e.ros.t))["accepted"]
+            e.node.on_tick()
+            assert e.core.last_decision.phase == "return_home"
+    assert not e.node.status()["resume"]["available"]
+    e.node.lock.acquire()
+    try:
+        worker = threading.Thread(target=e.node.inbox.put, args=({"command": "resume"},))
+        worker.start()
+        worker.join(1)  # No completed marker: refusal need not wait for the lock.
+        assert not worker.is_alive()
+        goal_frame(e, 1, tick=False)
+        goal_frame(e, 0, tick=False)
+        e.core.tick()  # Now this cycle genuinely reaches await_reset.
+        assert e.node.status()["resume"]["available"]
+    finally:
+        e.node.lock.release()
+    e.node.on_tick()
+    assert not resume_result(e)["accepted"]
+    expected = "goal cycle" if prior_state == "previous_cycle" else "not completed before resume receipt"
+    assert expected in resume_result(e)["reason"]
+    assert e.core.executor.controllers[e.core.robot_id]._goal_latched
+
+
+def test_completion_after_stamped_receipt_before_marker_read_cannot_authorize_cue(ros_node):
+    e = ros_node
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    stamped, release = threading.Event(), threading.Event()
+    original_capture = e.node.inbox.capture_resume
+    def delayed_capture(*, pressed_at):
+        stamped.set()
+        assert release.wait(1)
+        return original_capture(pressed_at=pressed_at)
+    e.node.inbox.capture_resume = delayed_capture
+    pressed_at = e.ros.t
+    worker = threading.Thread(target=e.node.inbox.put, args=({"command": "resume"},))
+    worker.start()
+    assert stamped.wait(1)
+    goal_frame(e, 1)
+    goal_frame(e, 0)
+    assert e.core.completed_goal_cycle[2] > pressed_at
+    release.set()
+    worker.join(1)
+    assert not worker.is_alive()
+    e.node.on_tick()
+    assert not resume_result(e)["accepted"]
+    assert "not completed before resume receipt" in resume_result(e)["reason"]
+
+
+def test_completed_cycle_cue_may_use_cleared_goal_evidence_that_arrives_before_processing(ros_node):
+    e = ros_node
+    awaiting_resume(e)
+    marker = e.core.completed_goal_cycle
+    goal_frame(e, 1)
+    assert not e.node.status()["resume"]["available"]
+    e.node.lock.acquire()
+    try:
+        worker = threading.Thread(target=e.node.inbox.put, args=({"command": "resume"},))
+        worker.start()
+        worker.join(1)
+        assert not worker.is_alive()
+        goal_frame(e, 0, tick=False)
+        e.core.tick()
+        assert e.node.status()["resume"]["available"]
+        assert e.core.completed_goal_cycle == marker  # Repeated ticks retain FIRST completion time.
+    finally:
+        e.node.lock.release()
+    e.node.on_tick()
+    assert resume_result(e)["accepted"]
+
+
+def test_status_requires_control_tick_completion_marker_and_cannot_create_it(ros_node):
+    e = ros_node
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    goal_frame(e, 1, tick=False)
+    goal_frame(e, 0, tick=False)
+    e.core.executor.check_resume(e.core.robot_id, e.core.executor.frame_seq, e.ros.t)
+    assert e.core.completed_goal_cycle is None
+    for _ in range(3):
+        assert not e.node.status()["resume"]["available"]
+        assert e.core.completed_goal_cycle is None
+    e.node.on_tick()
+    assert e.node.status()["resume"]["available"]
+
+
+@pytest.mark.parametrize("late", ["deadline", "stop", "new_cycle"])
+def test_resume_final_consumption_fence_after_slow_readiness_query(ros_node, late):
+    e = ros_node
+    awaiting_resume(e)
+    e.node.inbox.put({"command": "resume"})
+    original_guard = e.node.guard_problem
+    calls = []
+    def delayed_guard(*, camera=True):
+        calls.append(camera)
+        if len(calls) == 2:  # Last readiness query, after initial age/native checks.
+            if late == "deadline":
+                e.ros.t += .201
+            elif late == "stop":
+                e.node.inbox.put({"command": "stop"})
+            else:
+                assert e.core.operator({"command": "resume", "frame_seq": e.core.executor.frame_seq})["accepted"]
+                goal_frame(e, 1, tick=False)
+                goal_frame(e, 0, tick=False)
+        return original_guard(camera=camera)
+    e.node.guard_problem = delayed_guard
+    with e.node.lock:
+        e.node.operator(*e.node.inbox.get())
+    assert len(calls) == 2
+    assert not resume_result(e)["accepted"]
+    assert ("expired" if late == "deadline" else "stopping" if late == "stop" else "goal cycle changed") in resume_result(e)["reason"]
+    assert e.core.executor.controllers[e.core.robot_id]._goal_latched
+    if late == "stop":
+        e.node.on_tick()
+        assert e.node.hard_stopped and len(e.ros.published["/emergency_stop"]) == 1

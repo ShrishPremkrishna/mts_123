@@ -166,6 +166,12 @@ class Controller:
         The runtime must separately validate session and command authority.
         Unlike reset(), this operation cannot leave a pending reset request.
         """
+        self.check_resume_after_goal(observation, now)
+        self.reset()
+        self._update_goal_latch(0)
+
+    def check_resume_after_goal(self, observation, now):
+        """Raise when goal resume is unavailable, without changing control state."""
         if not self._goal_latched or not self._home_reached:
             raise ValueError("goal return is not complete")
         if (not isinstance(observation, Observation) or not _finite(now, observation.captured_at)
@@ -183,8 +189,6 @@ class Controller:
         if (math.hypot(robot.x - home_x, robot.y) > HOME_TOLERANCE
                 or abs(_wrap(robot.yaw - heading)) > HOME_HEADING_TOLERANCE):
             raise ValueError("resume requires the observed home position and heading")
-        self.reset()
-        self._update_goal_latch(0)
 
     def observation_problem(self, observation):
         """Shared state plausibility check for admission and controller ticks."""

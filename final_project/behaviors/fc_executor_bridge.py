@@ -7,14 +7,17 @@ ROS String /fc/normalized_events admits only normalized frame/intent packets;
 producer_id and clock='linux-monotonic:<this Linux boot UUID>' are operational
 bindings, not authentication. Only a same-host normalized fixture is supported.
 Incoming now is replaced by local receipt time; capture/issue/expiry never are.
-Operator stdin JSON commands: arm (new epoch), resume (current frame_seq),
+Operator stdin JSON commands: arm (new epoch), resume (optional strict frame_seq),
 start (optional gateway activation), status, stop, quit. Start never arms FC.
+Resume requires a goal return completed before receipt; a bare cue resolves the
+latest fresh admitted frame when processed. Current native/camera/field/intent
+readiness is rechecked then. Queued cues expire after 0.2 seconds.
 Neither camera clearance nor reconnect arms or renews an action. No homing.
 """
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
@@ -116,6 +119,7 @@ class BridgeCore:
         self.executor = Executor(fields, LIMITS)
         self.stopped = False
         self.last_decision = None
+        self.completed_goal_cycle = None  # Immutable (epoch, prior resume seq, first completion time).
 
     def stop(self):
         self.stopped = True
@@ -162,6 +166,10 @@ class BridgeCore:
 
     def tick(self):
         self.last_decision = self.executor.tick(self.clock())[self.robot_id]
+        if self.last_decision.phase == "await_reset":
+            binding = (self.executor.epoch, self.executor.resume_frame_seq[self.robot_id])
+            if self.completed_goal_cycle is None or self.completed_goal_cycle[:2] != binding:
+                self.completed_goal_cycle = (*binding, self.clock())
         return self.last_decision
 
     def output(self, decision):
@@ -189,9 +197,16 @@ class BridgeCore:
         return cmd
 
 
+@dataclass(frozen=True)
+class ResumeTicket:
+    epoch: str
+    prior_resume_frame_seq: int
+    pressed_at: float
+
+
 class OperatorInbox:
-    def __init__(self, clock, capture_start):
-        self.clock, self.capture_start = clock, capture_start
+    def __init__(self, clock, capture_start, capture_resume):
+        self.clock, self.capture_start, self.capture_resume = clock, capture_start, capture_resume
         self.urgent, self.normal = SimpleQueue(), SimpleQueue()
         self.stop_seen = threading.Event()
 
@@ -200,9 +215,10 @@ class OperatorInbox:
         message = dict(message)
         message.pop("_ticket", None)
         message.pop("_error", None)
-        if message.get("command") == "start":
+        if message.get("command") in ("start", "resume"):
             try:
-                message["_ticket"] = self.capture_start(pressed_at=at)
+                capture = self.capture_start if message["command"] == "start" else self.capture_resume
+                message["_ticket"] = capture(pressed_at=at)
             except ValueError as exc:
                 message["_error"] = str(exc)
         urgent = message.get("command") in ("stop", "quit")
@@ -279,7 +295,7 @@ def _node_class():
                 self.start_client = attach(self, clock=self.clock)
             except ImportError:
                 pass
-            self.inbox = OperatorInbox(self.clock, self.capture_start)
+            self.inbox = OperatorInbox(self.clock, self.capture_start, self.capture_resume)
             self.create_subscription(String, EVENT_TOPIC, self.on_event, 1)
             self.create_subscription(String, GUARD_STATUS_TOPIC, self.on_guard, 1)
             self.create_subscription(String, "/estop_controller/stop_status", self.on_gateway, 10)
@@ -310,6 +326,37 @@ def _node_class():
                 native, path = False, False
             with self.lock:
                 self.native_valid, self.path_valid, self.identity_at = native, path, self.clock()
+
+        def resume_binding(self):
+            return (self.core.executor.epoch,
+                    self.core.executor.resume_frame_seq[self.core.robot_id])
+
+        def resume_problem(self):
+            if self.closing or self.core.stopped or self.inbox.stop_seen.is_set():
+                return "bridge is stopping"
+            completed = self.core.completed_goal_cycle
+            if completed is None or completed[:2] != self.resume_binding():
+                return "current goal return has not completed on a control tick"
+            if self.start_client is not None and (self.start_client.pending is not None or self.start_client.uncertain):
+                return "Start pending or uncertain"
+            problem = self.native_problem() or self.guard_problem()
+            if problem:
+                return str(problem)
+            try:
+                self.core.executor.check_resume(self.core.robot_id, self.core.executor.frame_seq, self.clock())
+            except (ValueError, TypeError) as exc:
+                return str(exc)
+            return None
+
+        def capture_resume(self, *, pressed_at):
+            # Immutable proof only: never block the stdin reader from a later
+            # Stop. Mutable readiness is checked in serialized processing.
+            completed = self.core.completed_goal_cycle
+            if completed is None or completed[2] > pressed_at:
+                raise ValueError("goal return was not completed before resume receipt")
+            if not 0 <= self.clock() - pressed_at <= .2:
+                raise ValueError("operator action expired")
+            return ResumeTicket(*completed[:2], pressed_at)
 
         def native_problem(self):
             now = self.clock()
@@ -473,6 +520,26 @@ def _node_class():
                         raise ValueError(str(problem))
                     if command == "arm" and any(abs(v) > .02 for v in self.observation[0]):
                         raise ValueError("arm requires current zero controller feedback")
+                    if command == "resume":
+                        if message.get("_error"):
+                            raise ValueError(message["_error"])
+                        ticket = message.get("_ticket")
+                        if (not isinstance(ticket, ResumeTicket) or ticket.pressed_at != at or
+                                (ticket.epoch, ticket.prior_resume_frame_seq) != self.resume_binding()):
+                            raise ValueError("resume requires an unconsumed receipt ticket for this goal cycle")
+                        problem = self.resume_problem()
+                        if problem:
+                            raise ValueError(problem)
+                        message = dict(message)
+                        message.setdefault("frame_seq", self.core.executor.frame_seq)
+                        # Readiness/graph queries can take time or receive Stop.
+                        # Fence semantic consumption as well as later publication.
+                        if not 0 <= self.clock() - at <= .2:
+                            raise ValueError("operator action expired")
+                        if self.closing or self.inbox.stop_seen.is_set():
+                            raise ValueError("bridge is stopping")
+                        if (ticket.epoch, ticket.prior_resume_frame_seq) != self.resume_binding():
+                            raise ValueError("goal cycle changed before resume consumption")
                     result = self.core.operator(message)
                     self.ever_armed |= self.core.executor.armed
                 else:
@@ -553,8 +620,24 @@ def _node_class():
                         self.closed = True
 
         def status(self):
+            with self.lock:
+                return self._status()
+
+        def _status(self):
+            now = self.clock()
+            frame = self.core.executor.frame
+            intent = self.core.executor.intents[self.core.robot_id]
+            resume_problem = self.resume_problem()
             return {"event": "bridge_status", "robot_id": self.core.robot_id,
+                    "sampled_at_monotonic": now,
                     "clock": self.core.clock_name, "epoch": self.core.executor.epoch,
+                    "frame_seq": self.core.executor.frame_seq if frame else None,
+                    "capture_age_s": now - frame[0] if frame else None,
+                    "intent": {"id": intent.identity[0], "kind": intent.kind,
+                               "age_s": now - intent.issued_at,
+                               "time_left_s": intent.valid_until - now} if intent else None,
+                    "resume": {"available": resume_problem is None,
+                               "reason": resume_problem or "current goal return and evidence permit resume"},
                     "armed": self.core.executor.armed, "closing": self.closing,
                     "hard_stopped": self.hard_stopped, "guard_only_exit": self.guard_only_exit,
                     "reason": self.reason, "native_problem": self.native_problem(),

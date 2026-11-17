@@ -142,7 +142,11 @@ local monotonic clock and publishing only that robot's commands through the
 selected mux/guard. Isolated ROS checks passed expiry, hold recovery and Stop
 ordering; concurrent domains also separated lease loss, Stop and guard death
 while the other robot continued. Native feedback and field inputs were fixtures,
-so these results do not establish physical play. Synthetic, explicitly clock-normalized
+so these results do not establish physical play. Two additional mirrored
+one-robot ROS rehearsals naturally scored in the simulator, returned home,
+accepted one deliberate resume after ball replacement, and began another shot.
+They expose the entire solo play cycle but do not test a shared-ball match.
+Synthetic, explicitly clock-normalized
 frames let this advance before Ryan's feed. Do not equate clocks across machines
 or refresh old capture/intent times on receipt. Start with the guard-compatible
 symmetric envelope (0.3 m/s forward/backward and lateral, 1 rad/s yaw); the

@@ -141,6 +141,14 @@ distinct command stream or feed commands back into the stopped domain. This
 used fake native feedback on one Linux host; separate robot commissioning and
 cross-host clock conversion remain unverified.
 
+The same real ROS chain also completed two separate mirrored one-robot
+rehearsals: final `/cmd_vel` receipts drove the existing simulator through a
+natural goal crossing, return home, sustained zero, simulated manual ball
+replacement, one resume cue and another strike. Perception/native feedback and
+contact physics were fixtures. These are integration results, not a shared-ball
+match or physical shot evidence; the [overnight report](../../foundation/results/overnight-execution-20261117.json)
+links the frozen commands, trajectories, reviews and source kit.
+
 The CLI defaults to configuration validation with no ROS imports or processes:
 
 ```sh
@@ -158,7 +166,13 @@ procedure or an automatic startup service.
 Operator stdin accepts JSON `command` values `arm`, `resume`, `start`, `status`,
 `stop`, and `quit`. Arm needs a new `epoch` and fresh native, zero-command and
 camera evidence. Start is the optional native gateway activation; it never homes
-or arms gameplay. Resume names the current `frame_seq`. Stop wins during Start,
+or arms gameplay. A bare `{"command":"resume"}` captures the completed goal
+cycle when received and resolves the current fresh field frame when processed.
+The cue expires after 0.2 seconds and cannot survive consumption or a new epoch;
+it does not queue permission for a later goal. An explicit `frame_seq` remains
+strict for programmatic callers. Status includes field/intent freshness and
+read-only `resume.available`/`reason`; these are sampled observations and are
+checked again on use. Stop wins during Start,
 camera interruption and cleanup. Ordinary camera holds keep the session running;
 a failed command path closes it while preserving healthy native standing.
 

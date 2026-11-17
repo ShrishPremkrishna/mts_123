@@ -132,7 +132,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("case", choices=("lifecycle", "guard_death", "publication_stop",
                                         "domain_lease", "domain_stop", "domain_peer",
-                                        "arena_ball", "strict_ball", "_child"))
+                                        "arena_ball", "strict_ball", "closed_loop", "_child"))
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--mux", default="/mux")
     parser.add_argument("--robot-id", choices=("pupper-1", "pupper-2"), default="pupper-1")
@@ -174,6 +174,22 @@ def main():
             self.camera_identity = None; self.camera_detections = None; self.camera_packets = []
             self.kind = "move"; self.intent_id = "move-1"; self.pose_x = 0.
             self.pose_y = 0.; self.pose_yaw = 0.; self.target = {"x": 1., "y": 0., "yaw": 0.}
+            self.simulator = None; self.simulation_trace = []; self.simulation_events = []
+            self.simulation_input = (0., 0., 0.); self.simulation_received_at = None
+            self.simulation_receipt_index = 0
+            self.simulation_active_input = (0., 0., 0.); self.simulation_active_receipt = None
+            self.simulation_steps = 0; self.simulation_max_lag = 0.
+            if args.case == "closed_loop":
+                from final_project.behaviors.fc_executor_bridge import LIMITS, load_fields
+                from final_project.pupper_fc.simulation import Simulator
+                fields = load_fields({"field": {"length": 3.66, "width": 2.44, "goal_width": .6096,
+                    "robot_radius": .16, "ball_radius": .11, "bumper_offset": .19},
+                    "attack_signs": {"pupper-1": 1, "pupper-2": -1}})
+                self.simulator = Simulator(field=fields[args.robot_id], limits=LIMITS, scenario="center")
+                self.simulation_origin = time.monotonic()
+                self.kind = "auto"; self.intent_id = "auto-1"
+                self.simulation_events.append({"event": "initial", "at": self.simulation_origin,
+                                               "snapshot": self.simulator.snapshot()})
             if args.case in ("arena_ball", "strict_ball"):
                 from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
                 self.camera_identity = dict(ARENA_DETECTOR_IDENTITY)
@@ -208,12 +224,47 @@ def main():
             self.create_timer(.05, self.frame)
             self.create_timer(.10, self.intent)
             self.create_timer(.05, self.camera_frame)
+            if self.simulator is not None:
+                self.create_timer(.01, self.physics)
         def record(self, rows, message):
             value = (message.linear.x, message.linear.y, message.angular.z)
             rows.append((time.monotonic(), value))
             return value
         def consume(self, message):
+            if self.simulator is not None:
+                self.physics()  # Previous received command owns elapsed time.
             self.latest = self.record(self.final, message)
+            if self.simulator is not None:
+                self.simulation_input = self.latest
+                self.simulation_received_at = self.final[-1][0]
+        def physics(self):
+            if self.simulator is None: return
+            from final_project.pupper_fc.model import Command
+            now = time.monotonic(); elapsed = now - self.simulation_origin
+            lag = elapsed - self.simulator.time
+            self.simulation_max_lag = max(self.simulation_max_lag, lag)
+            # Fixed10ms steps never advance beyond elapsed wall time. Command
+            # numbers come ONLY from final /cmd_vel DDS receipts. The receipt
+            # TTL is a simulator boundary rule, not native-watchdog evidence.
+            while self.simulator.time + .01 <= elapsed:
+                step_started = self.simulation_origin + self.simulator.time
+                while (self.simulation_receipt_index < len(self.final) and
+                       self.final[self.simulation_receipt_index][0] <= step_started):
+                    self.simulation_active_receipt, self.simulation_active_input = self.final[self.simulation_receipt_index]
+                    self.simulation_receipt_index += 1
+                expires = (self.simulation_active_receipt - self.simulation_origin + .25
+                           if self.simulation_active_receipt is not None else 0.)
+                command = Command(*self.simulation_active_input, expires_at=expires,
+                                  robot_id="pupper-1")
+                previous_goal = self.simulator.goal
+                before_ball = asdict(self.simulator.ball)
+                self.simulator.step(command, .01); self.simulation_steps += 1
+                if self.simulator.goal != previous_goal:
+                    self.simulation_events.append({"event": "natural_goal_crossing", "at": now,
+                        "simulation_time": self.simulator.time, "goal": self.simulator.goal,
+                        "ball_before": before_ball, "ball_after": asdict(self.simulator.ball),
+                        "applied_final_cmd_vel": list(self.simulation_active_input),
+                        "applied_final_received_at": self.simulation_active_receipt})
         def emergency(self, _):
             self.estops += 1; self.latched = True
         def inventory(self, _, response):
@@ -251,9 +302,25 @@ def main():
                 robots = {"pupper-1": {"x": -.7, "y": -.2, "yaw": 0.},
                           "pupper-2": {"x": .7, "y": .2, "yaw": math.pi}}
                 robots[args.robot_id] = {"x": self.pose_x, "y": self.pose_y, "yaw": self.pose_yaw}
-                self.send({"event": "frame", "seq": self.frame_seq, "captured_at": now,
+                ball = {"x": 0., "y": 0.}
+                if self.simulator is not None:
+                    self.physics(); observation = self.simulator.observe()
+                    self.last_capture = self.simulation_origin + observation.captured_at
+                    other = "pupper-2" if args.robot_id == "pupper-1" else "pupper-1"
+                    sign = self.simulator.field.attack_sign
+                    robots = {other: {"x": sign, "y": .8, "yaw": math.pi if sign == 1 else 0.},
+                              args.robot_id: {**asdict(observation.robot), "goal": observation.goal,
+                                              "fallen": observation.fallen}}
+                    ball = asdict(observation.ball) if observation.ball else None
+                    self.simulation_trace.append({"at": now, "captured_at": self.last_capture,
+                        "frame_seq": self.frame_seq, "snapshot": self.simulator.snapshot(),
+                        "received_final_command": list(self.simulation_input),
+                        "received_final_at": self.simulation_received_at,
+                        "applied_final_command": list(self.simulation_active_input),
+                        "applied_final_at": self.simulation_active_receipt})
+                self.send({"event": "frame", "seq": self.frame_seq, "captured_at": self.last_capture,
                            "robots": robots,
-                           "ball": {"x": 0., "y": 0.},
+                           "ball": ball,
                            "goals": {"left": {"x": -1.83, "y": 0.}, "right": {"x": 1.83, "y": 0.}}})
         def intent(self, *, force=False, robot_id=None):
             if (self.intents_enabled or force) and self.clock_name:
@@ -284,6 +351,8 @@ def main():
     def pump(seconds):
         until = time.monotonic() + seconds
         while time.monotonic() < until:
+            if args.case == "closed_loop" and time.monotonic()-began >= 60.:
+                raise TimeoutError("closed-loop case exceeded60seconds")
             executor.spin_once(timeout_sec=min(.003, max(0., until-time.monotonic())))
             for _ in range(12): executor.spin_once(timeout_sec=0.)
     def wait(test, reason, seconds=4.):
@@ -361,7 +430,71 @@ def main():
                 "field_target": node.target, "attack_sign": 1 if args.robot_id == "pupper-1" else -1}
             if args.case != "domain_peer":
                 (args.coord_dir / "fault-start.json").write_text(json.dumps({"at": time.monotonic(), "case": args.case}) + "\n")
-        if args.case in ("arena_ball", "strict_ball"):
+        if args.case == "closed_loop":
+            wait(lambda: node.simulator.goal != 0, "simulator generates a natural goal", 40.)
+            assert node.simulator.goal == 1, "simulator scored an own goal"
+            natural_goal = next(e for e in node.simulation_events if e["event"] == "natural_goal_crossing")
+            field = node.simulator.field
+            assert abs(natural_goal["ball_after"]["x"]) >= field.length/2 + field.ball_radius - 1e-9
+            assert abs(natural_goal["ball_after"]["y"]) + field.ball_radius <= field.goal_width/2
+            assert field.attack_sign * natural_goal["ball_after"]["x"] > 0
+            wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "await_reset"),
+                 "scoring robot returns home and waits", 30.)
+            await_at = time.monotonic(); pump(.1); zero_start = time.monotonic(); pump(.5)
+            zero_end = time.monotonic()
+            samples = [value for at, value in node.final if zero_start <= at <= zero_end]
+            assert len(samples) >= 10 and all(all(abs(x) < 1e-6 for x in v) for v in samples)
+            assert not nonzero(node.commands, zero_start)
+            assert math.hypot(node.simulator.velocity.vx, node.simulator.velocity.vy) < .02
+            report["groups"].append("actual_final_cmd_vel_drives_natural_goal_and_return_home_then_sustained_zero")
+            node.physics(); restart_at = time.monotonic()
+            node.simulator.restart_play()
+            node.simulation_events.append({"event": "explicit_simulated_manual_restart_play", "at": restart_at,
+                                           "snapshot": node.simulator.snapshot()})
+            wait(lambda: node.last_capture is not None and node.last_capture > restart_at,
+                 "newer post-replacement field frame")
+            # Keep20Hz frames streaming: the human cue must not race a moving
+            # sequence number or require stopping the perception producer.
+            wait(lambda: status_matches(lambda s: (s.get("resume") or {}).get("available") is True,
+                                        restart_at), "descriptive resume readiness after fresh kickoff frame")
+            resume_ready = next(row for at, row in reversed(node.statuses)
+                                if at >= restart_at and (row.get("resume") or {}).get("available") is True)
+            resume_at = time.monotonic()
+            assert not nonzero(node.commands, zero_start), "ball replacement resumed motion without a cue"
+            resume_result = operator({"command": "resume"})
+            wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "strike", resume_at),
+                 "one human cue permits next strike", 30.)
+            second_strike_at = time.monotonic()
+            assert nonzero(node.final, resume_at)
+            phases = {}
+            for at, status in node.statuses:
+                phase = (status.get("decision") or {}).get("phase")
+                if phase is not None: phases.setdefault(phase, at)
+            assert {"approach", "align", "strike", "return_home", "await_reset"} <= phases.keys(), phases
+            assert phases["approach"] < phases["align"] < phases["strike"] < phases["return_home"] < phases["await_reset"]
+            assert len([e for e in events if e.get("event") == "operator_result" and e.get("command") == "resume"]) == 1
+            report["closed_loop"] = {"scenario": "center", "attack_sign": field.attack_sign,
+                "field": asdict(field), "limits": asdict(node.simulator.limits),
+                "physics_step_s": .01, "simulation_clock_origin_monotonic": node.simulation_origin,
+                "physics_steps": node.simulation_steps, "simulated_time": node.simulator.time,
+                "real_elapsed_since_simulation_origin": time.monotonic()-node.simulation_origin,
+                "max_physics_catchup_lag_s": node.simulation_max_lag,
+                "command_source": "Only actual final /cmd_vel DDS callback receipts, applied no earlier than next10ms substep",
+                "simulator_receipt_expiry_s": .25, "simulated_receipt_expiry_is_native_evidence": False,
+                "simulator_internal_robot_id": "pupper-1", "selected_bridge_robot_id": args.robot_id,
+                "shared_ball_two_robot_simulation": False,
+                "first_phase_observer_times": phases, "natural_goal": natural_goal,
+                "await_reset_observed_at": await_at, "sustained_zero": {"from": zero_start, "through": zero_end, "samples": len(samples)},
+                "manual_restart_at": restart_at, "resume_cue_at": resume_at, "resume_result": resume_result,
+                "descriptive_resume_readiness": {k: resume_ready.get(k) for k in
+                    ("resume", "frame_seq", "capture_age_s", "intent", "sampled_at_monotonic")},
+                "second_strike_observed_at": second_strike_at,
+                "auto_intent_id": node.intent_id, "scripted_goal_or_ball_nudge": False}
+            report["groups"].append("one_human_resume_after_manual_ball_replacement_and_fresh_frame_reaches_next_strike")
+            bridge.stdin.write('{"command":"stop","reason":"closed-loop smoke cleanup"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "closed-loop cleanup")
+            assert bridge.returncode == 3
+        elif args.case in ("arena_ball", "strict_ball"):
             from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
             ball = {"box": [.4, .3, .6, .85], "confidence": .9, "class_id": "32"}
             person = {**ball, "class_id": "0"}
@@ -596,6 +729,7 @@ def main():
                       final_output_samples=node.final, bridge_status=node.statuses, guard_status=node.guard_statuses,
                       normalized_packets=node.sent,
                       camera_packets=node.camera_packets,
+                      simulation_trace=node.simulation_trace, simulation_events=node.simulation_events,
                       synthetic_camera={"hz": 20, "declared_source_age_s": .005, "actual_inference": False})
         (args.out / "result.json").write_text(json.dumps(report, indent=2) + "\n")
         executor.shutdown(); node.destroy_node(); rclpy.try_shutdown()

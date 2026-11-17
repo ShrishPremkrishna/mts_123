@@ -55,6 +55,18 @@ imports with the selected Python without initializing ROS or motors. It does not
 prove camera throughput or runtime behavior. The newer native software-Start
 service needs a separate Pi-compatible gateway build; this assembly does not add
 it, and the existing Options path remains available.
+The frozen kit includes a source-only `native-start/` companion and package-only
+build recipe. The cached Ubuntu gateway requires `GLIBCXX_3.4.32`, while the
+recorded Debian Pi provides through `3.4.30`; do not stage that binary or its
+CPython 3.12 service bindings. Build and verify against the actual target
+underlay during preparation, before requesting physical readiness.
+
+For camera-only coverage, support the body at measured normal walking camera
+height/pitch; keep motors inactive. Mark person/ball ranges and lateral offsets,
+record fixed model/projection settings and original frame identities, and retain
+a separate validation sequence. The November 17 floor recording did not measure
+camera posture; the normalized bottom threshold is angular, not a measured
+stopping distance.
 
 Before motion, check capture age **and spacing**, detector scene coverage, selected
 publisher routing, and clear/blocked/stale stopping with supported legs. Camera
