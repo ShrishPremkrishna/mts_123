@@ -97,3 +97,18 @@ def test_refuses_destination_inside_baseline(selected):
     with pytest.raises(ValueError, match="separate"):
         assemble(**selected)
     assert not selected["destination"].exists()
+
+
+def test_does_not_repin_concurrent_change_to_preserved_source(selected, monkeypatch):
+    import assemble_guarded_release as module
+    original = module.shutil.copytree
+    def changed_during_copy(src, dst, **kwargs):
+        (src / "final_project/behaviors/run_through_kick.py").write_text("unreviewed change")
+        # Restore before invoking copytree's recursive calls through shutil.
+        monkeypatch.setattr(module.shutil, "copytree", original)
+        return original(src, dst, **kwargs)
+    monkeypatch.setattr(module.shutil, "copytree", changed_during_copy)
+    with pytest.raises(ValueError, match="Preserved baseline changed.*shot_core"):
+        assemble(**selected)
+    assert selected["destination"].exists()  # retained partial output, never selected
+    assert not (selected["destination"] / "STAGING.json").exists()

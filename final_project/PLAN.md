@@ -132,6 +132,18 @@ The owner authorized offline work for the rest of the night and up to **$50 tota
 6. **Gait readiness:** preserve the stock baseline; investigate observed yaw/braking tradeoffs and exact checkpoint/configuration parity. Train only after a useful hypothesis, working evaluation, resumed-step/export smoke and checkpoint collection are verified. No automatic policy promotion.
 7. **Demo readiness:** expose role, action, target, input age and hold reason in existing replay/operator tools; prepare Ryan's minimal adapter example and a scripted mock-input play. Keep actual hardware footage separate from simulated evidence. Update only authoritative setup/state documents and remove demonstrated stale instructions.
 
+The next executable slice is one resident gameplay executor plus ROS publisher
+per robot, sharing a local monotonic clock and publishing only that robot's
+commands through the selected mux/guard. Synthetic, explicitly clock-normalized
+frames let this advance before Ryan's feed. Do not equate clocks across machines
+or refresh old capture/intent times on receipt. Start with the guard-compatible
+symmetric envelope (0.3 m/s forward/backward and lateral, 1 rad/s yaw); the
+simulator defaults exceed it. An external camera hold must cancel the internal
+strike and require fresh field/intent evidence before replanning. Keep the
+finite movement trial client for qualification. Prove command routing, lease
+expiry, hold recovery, role replacement and Stop ordering in isolated ROS with
+memory hardware before using this bridge on a robot.
+
 Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
 
 ## Existing gaps and decisions to settle

@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T10:57:55.451179+00:00",
+  "updated_utc": "2026-11-17T11:02:11.352523+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,7 +29,7 @@
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
     "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
     "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
-    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T105800Z/summary.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T110200Z/summary.json",
     "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
     "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json"
   },
@@ -69,7 +69,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Guarded launch/identity/client integrated;1050 tests+106subtests passed. Actual ROS launch routing and actual native DDS/watchdog chain passed with fake hardware. Source kit19files hashed; no target assembly/deployment. ExactFable attempt timedout; local independent lateStop correction verified. All owned containers/review process exited.",
+    "compute": "Guarded launch/identity/client integrated;1050 tests+106subtests passed. Actual ROS launch routing and actual native DDS/watchdog chain passed with fake hardware. Source kit19files hashed; no target assembly/deployment. ExactFable attempt timedout; local independent lateStop correction verified. All owned containers/review process exited. Assembly preservation followup9tests passed; revised19file source kit verified and priorarchive retained.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -77,12 +77,12 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrates guarded-path commit/sourcekit and scopes next actual gameplay transport. No robot connection or deployment tonight.",
+      "project_lead": "Guarded integration committed754da44; assembly drift followup tested. Root resumes continuous gameplay bridge implementation next. No robot connection/deployment tonight.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
       "overnight_harness": "Completed/frozen guarded movement client and lateStop fix;285 focusedtests+58subtests and1050 integration passed. Idle, no ownership.",
       "overnight_compute": "Completed actual native watchdog chain;91file archive verified, allcontainersclosed. Idle, no ownership.",
-      "body_guard": "Launch/identity complete and realROS substitution checkpassed; now bounded read-only design for continuous FCExecutor-to-guarded-ROS bridge. No production ownership or hardware.",
+      "body_guard": "Completed bounded bridge design, recorded in PLAN and checkpoint. All tasks idle; no production ownership or processes.",
       "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
@@ -136,7 +136,7 @@
   "next": [
     {
       "id": "continuous_fc_transport",
-      "action": "Integrate bounded design from body_guard for smallest actual FCExecutor-to-selected-ROS bridge. Finite movement_trial remains qualification tool. Preserve lease/epoch/captureclock semantics, native and guard authority, Stop and finite strike cancellation. Prove path in isolated ROS before any hardware. No Ryan dependency for synthetic/recorded frames."
+      "action": "Implement minimal fc_executor_bridge.py: one local Executor+ROS process per pinned robot_id, independent20ms monotonic tick, local-clock normalized ingress only, explicit FCarm, finite commands withinLimits(.3,.3,1), expiry checked immediately before /kick_cmd_vel publication. Reuse StockWalkerEvidence/ResidentStart/native+guardidentity; extract only shared guardstatus/graph checks. Add per-robot external-hold seam to cancel internalstrike; require postholdfield+intent, newidentity forfinite shot. Prove isolatedROS routing/expiry/hold/role/Stop behavior with syntheticframes and memorycontroller. Finite movement_trial remains qualification tool."
     },
     {
       "id": "guarded_target_acceptance",

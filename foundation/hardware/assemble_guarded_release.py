@@ -86,7 +86,10 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
     for relative, digest in index["files"].items():
         if sha(within(sources, relative)) != digest:
             raise ValueError("Source file mismatch: " + relative)
-    config = (base / "walk.yaml").read_text()
+    config_bytes = (base / "walk.yaml").read_bytes()
+    if hashlib.sha256(config_bytes).hexdigest() != files["config"]["sha256"]:
+        raise ValueError("Baseline config changed while selecting inputs")
+    config = config_bytes.decode()
     environment = (base / "environment.sh").read_text()
     if "$(" in config or str(base) not in config or str(base) not in environment:
         raise ValueError("Baseline config/environment must select its expanded release paths")
@@ -106,9 +109,9 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
     selected = {role: {"path": str(destination / relative), "sha256": sha(destination / relative)}
                 for role, relative in relative_files.items()}
     selected["guard_python"] = {"path": str(guard_python), "sha256": sha(guard_python)}
-    for role in NATIVE_ROLES:
+    for role in files.keys() - SOURCE_ROLES.keys() - {"config"}:
         if selected[role]["sha256"] != files[role]["sha256"]:
-            raise ValueError("Native baseline changed while assembling: " + role)
+            raise ValueError("Preserved baseline changed while assembling: " + role)
     # Detect a concurrent source edit or failed copy before calling it assembled.
     for role, relative in SOURCE_ROLES.items():
         if selected[role]["sha256"] != index["files"][relative]:

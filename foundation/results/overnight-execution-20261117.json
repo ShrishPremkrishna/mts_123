@@ -15,7 +15,7 @@
     "follow_me_pupper/robot/perception_safety.py": "e330d585aa75cf416f11cd592a97ba0ff7c97bd645fe3334e8b7790e7beabc0f",
     "foundation/hardware/runtime_identity.py": "36da224a071e940209b0980fc901c8dda92d5c8382e63bcf4428b045ae7775b4",
     "foundation/hardware/stock_session.launch.py": "46ca98d724a7268da383110f9f79e6841a71e76c44d3e9791a25744c4fb67eca",
-    "foundation/hardware/assemble_guarded_release.py": "0c6012ca204c4135037427cb4f5b163752fcea86a579a0bc8a080306c3d41e6b",
+    "foundation/hardware/assemble_guarded_release.py": "1d7be279e7092f06ba0e7a375367ca1aeb5e69cb3f7f8fb66d58688003a6017b",
     "pupper_gait_deploy/test/test_guard_ros_watchdog.cpp": "43d8d807d9375fb3b85d010ec169e3b19d35812c44e9f3b6beb22897239dc203"
   },
   "implemented": {
@@ -125,9 +125,11 @@
     "independent_review": "artifacts/pupper-fc/2026-11-17/guarded-path-review-20261117T104916Z/review-status.json",
     "review_fix": "Stop arriving after guard-only fault during cleanup could be discarded. Author fixed urgent reads through finalization. Independent exact repro changes0 to1 emergency message and leaves0 queuedStops;10 focused tests pass. Earlier simultaneousStop precedence also corrected. Legacy idleStop/quit semantics intentionally unchanged.",
     "fable_attempt": "Exact claude-fable-5-2 attempt timedout240s with empty result and no modelUsage. Unrecognized-model SDK warning preserved; no review conclusion or permanent availability claim. Earlier successful Fable reviews apply only to their snapshots.",
-    "source_kit": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T105800Z/summary.json",
+    "source_kit": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T110200Z/summary.json",
     "source_kit_scope": "19files archive verified. Seven indexed guarded sources, maintained file-only assembler and camera source subset. Not target assembled/deployed. Pi target import/preflight, selected camera environment and physical acceptance pending. Native softwareStart service not included; needs separate Pi-compatible gatewaybuild.",
-    "source_kit_sha256": "d57f35e9550ef9567e6af3d2fc67e5a94f50fc65633d6ecb6844ee21e4c769d0",
-    "remaining": "Actual capture age/spacing+coverage, target imports, real client/guard transport rehearsal and supervised braking/heading tests. Continuous FC gameplay-to-ROS bridge still absent; finite trial tool is qualification only."
+    "source_kit_sha256": "bc7b8b930d499b1829114923b8c90a1b2805c7451712e15d30b5053c3760e6df",
+    "remaining": "Actual capture age/spacing+coverage, target imports, real client/guard transport rehearsal and supervised braking/heading tests. Continuous FC gameplay-to-ROS bridge still absent; finite trial tool is qualification only.",
+    "assembly_followup": "After1050combined checks, root tightened assembly to reject concurrent drift of all preserved baseline roles (including imported shot core/node and URDF).9focused assembly checks pass; guarded runtime/client source unchanged. Earlier source archive retained as superseded.",
+    "assembly_validation": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T110200Z/assembly-tests.json"
   }
 }
