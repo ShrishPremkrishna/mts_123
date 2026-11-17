@@ -93,8 +93,11 @@ def _clip(value, low, high):
 
 
 def _finite(*values):
-    return all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-               for v in values)
+    try:
+        return all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+                   for v in values)
+    except OverflowError:  # JSON permits integers too large for a float.
+        return False
 
 
 def _segment_distance(ax, ay, bx, by, px, py):
@@ -113,6 +116,7 @@ class Controller:
         self._goal_latched = False
         self._home_reached = False
         self._reset_requested = False
+        self._target_key = None
         self._clear_play()
 
     def reset(self):
@@ -122,6 +126,11 @@ class Controller:
         """
         self._clear_play()
         self._reset_requested = True
+
+    def cancel(self):
+        """Cancel current motion intent without releasing the referee goal latch."""
+        self._clear_play()
+        self._target_key = None
 
     def _clear_play(self):
         self._ball_anchor = None    # ball position the waypoint and dwell refer to
@@ -134,7 +143,15 @@ class Controller:
         self._clear_play()
         return Decision(phase, reason, zero(now, robot_id), recovery_requested=recovery)
 
-    def tick(self, observation: Observation, now: float) -> Decision:
+    def tick(self, observation: Observation, now: float, *, target_pose: Pose | None = None,
+             shot_target: tuple[float, float] | None = None) -> Decision:
+        """Choose a command; optional field targets replace the ordinary attack.
+
+        ``target_pose`` navigates without requiring a visible ball. ``shot_target``
+        changes the shot destination, retaining the existing approach/strike.
+        Changing either target cancels an old strike. Stop/arming remain runtime
+        responsibilities; these arguments do not provide transport or authority.
+        """
         if not _finite(now):
             # No finite expiry exists; 0.0 is already expired on the simulation clock.
             self._clear_play()
@@ -142,6 +159,25 @@ class Controller:
         if not isinstance(observation, Observation) or not isinstance(observation.robot_id, str):
             return self._halt("invalid_observation", "observation is missing or malformed", now, "pupper-1")
         robot_id = observation.robot_id
+        if target_pose is not None and shot_target is not None:
+            return self._halt("invalid_intent", "choose a pose or a shot target", now, robot_id)
+        if target_pose is not None:
+            if (not isinstance(target_pose, Pose)
+                    or not _finite(target_pose.x, target_pose.y, target_pose.yaw)):
+                return self._halt("invalid_intent", "target pose is not finite", now, robot_id)
+            if self._reachable(target_pose.x, target_pose.y) != (target_pose.x, target_pose.y):
+                return self._halt("blocked", "target pose leaves the robot outside the field", now, robot_id)
+            target_key = ("pose", target_pose)
+        elif shot_target is not None:
+            if (not isinstance(shot_target, (tuple, list)) or len(shot_target) != 2
+                    or not _finite(*shot_target) or not self._plausible(*shot_target)):
+                return self._halt("invalid_intent", "shot target is invalid or outside the field", now, robot_id)
+            target_key = ("shot", tuple(shot_target))
+        else:
+            target_key = None
+        if target_key != self._target_key:
+            self._clear_play()
+            self._target_key = target_key
         if not _finite(observation.captured_at):
             return self._halt("invalid_observation", "capture time is not finite", now, robot_id)
         age = now - observation.captured_at
@@ -166,9 +202,20 @@ class Controller:
             return self._halt("tracking_lost", "robot is not in view", now, robot_id)
         if self._goal_latched:
             return self._return_home(robot, now, robot_id)
+        if target_pose is not None:
+            target = (target_pose.x, target_pose.y)
+            if (math.hypot(target_pose.x - robot.x, target_pose.y - robot.y) <= HOME_TOLERANCE
+                    and abs(_wrap(target_pose.yaw - robot.yaw)) <= HOME_HEADING_TOLERANCE):
+                return Decision("target_reached", "at the requested field pose", zero(now, robot_id),
+                                target, target_pose.yaw)
+            return self._drive("move", "moving to the requested field pose", robot, target,
+                               self._travel_heading(robot, target, target_pose.yaw),
+                               self.limits.vx, now, robot_id)
         if ball is None:
             return self._halt("tracking_lost", "ball is not in view", now, robot_id)
-        return self._play(robot, ball, now, robot_id)
+        if shot_target is not None and math.hypot(shot_target[0] - ball.x, shot_target[1] - ball.y) <= 1e-6:
+            return self._halt("invalid_intent", "shot destination coincides with the ball", now, robot_id)
+        return self._play(robot, ball, now, robot_id, shot_target)
 
     def _pose_problem(self, robot):
         if robot is None:
@@ -252,7 +299,7 @@ class Controller:
         return self._drive("return_home", "goal recorded; returning to home position", robot, home,
                            self._travel_heading(robot, home, facing), self.limits.vx, now, robot_id)
 
-    def _play(self, robot, ball, now, robot_id):
+    def _play(self, robot, ball, now, robot_id, shot_target=None):
         if self._strike is not None:
             return self._continue_strike(robot, ball, now, robot_id)
         if self._reassess_until is not None:
@@ -270,7 +317,7 @@ class Controller:
             self._aligned_since = None
 
         field = self.field
-        plan = self._staging_point(ball)
+        plan = self._staging_point(ball, shot_target)
         if plan is None:
             self._clear_play()
             return Decision("blocked", "no goal-directed spot behind the ball fits inside the field; "
@@ -322,13 +369,14 @@ class Controller:
         self._strike = (robot.x, robot.y, heading, now)
         return self._continue_strike(robot, ball, now, robot_id)
 
-    def _staging_point(self, ball):
+    def _staging_point(self, ball, shot_target=None):
         """Point on the shot line behind the ball, or None when a wall leaves none.
 
         Returns ((x, y), heading, ux, uy) with (ux, uy) the unit shot direction.
         """
         field = self.field
-        gx, gy = field.attack_sign * field.length / 2 - ball.x, -ball.y
+        destination = shot_target if shot_target is not None else (field.attack_sign * field.length / 2, 0.0)
+        gx, gy = destination[0] - ball.x, destination[1] - ball.y
         goal_distance = math.hypot(gx, gy)
         ux, uy = (gx / goal_distance, gy / goal_distance) if goal_distance > 1e-6 else (field.attack_sign, 0.0)
         contact = field.bumper_offset + field.ball_radius
