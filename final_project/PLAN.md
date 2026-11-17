@@ -18,7 +18,7 @@ These are the team's current areas, not fixed roles for incoming agents. Get-up 
 
 ## Course deliverables
 
-Checked against the [live fall-26 directions](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/final_project.html) on November 16, 2026. Dates below use the course's local Pacific time. Submission/checkoff completion needs owner confirmation; source-code progress does not establish submission.
+Checked against the [live fall-26 directions](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/final_project.html) on November 17, 2026. Dates below use the course's local Pacific time. Submission/checkoff completion needs owner confirmation; source-code progress does not establish submission.
 
 | Due | Deliverable | Known status |
 | --- | --- | --- |
@@ -28,7 +28,12 @@ Checked against the [live fall-26 directions](https://cs123-stanford.readthedocs
 | December 3, 6:30 p.m., CoDA B90 | Five-minute presentation including live demo (30%); documented GitHub repository/install instructions | Open. Reserve rehearsal and two-robot access; retain a runnable, filmed fallback. |
 | December 9, 11:59 p.m. | Code/blog/other wrap-up (10%) | Open; exact linked wrap-up/rubric details still need verification. |
 
-No late days. The saved rubric emphasizes innovation, reliable execution, presentation and contribution/collaboration. Do not invent observations, personal contributions or checkoffs.
+No late days. The saved October 27 rubric assigns 25 points each to innovation,
+execution, presentation and overall impression (including collaboration and
+contribution to Pupper). The linked rubric still requires sign-in; its current
+revision was not verified on November 17. The public directions do not specify
+the wrap-up format beyond code/blog/etc. Do not invent observations, personal
+contributions or checkoffs.
 
 ## Execution agreement — November 16, 2026
 
@@ -132,17 +137,22 @@ The owner authorized offline work for the rest of the night and up to **$50 tota
 6. **Gait readiness:** preserve the stock baseline; investigate observed yaw/braking tradeoffs and exact checkpoint/configuration parity. Train only after a useful hypothesis, working evaluation, resumed-step/export smoke and checkpoint collection are verified. No automatic policy promotion.
 7. **Demo readiness:** expose role, action, target, input age and hold reason in existing replay/operator tools; prepare Ryan's minimal adapter example and a scripted mock-input play. Keep actual hardware footage separate from simulated evidence. Update only authoritative setup/state documents and remove demonstrated stale instructions.
 
-The next executable slice is one resident gameplay executor plus ROS publisher
-per robot, sharing a local monotonic clock and publishing only that robot's
-commands through the selected mux/guard. Synthetic, explicitly clock-normalized
+The resident gameplay executor and ROS publisher now run per robot, sharing a
+local monotonic clock and publishing only that robot's commands through the
+selected mux/guard. Isolated ROS checks passed expiry, hold recovery and Stop
+ordering; concurrent domains also separated lease loss, Stop and guard death
+while the other robot continued. Native feedback and field inputs were fixtures,
+so these results do not establish physical play. Synthetic, explicitly clock-normalized
 frames let this advance before Ryan's feed. Do not equate clocks across machines
 or refresh old capture/intent times on receipt. Start with the guard-compatible
 symmetric envelope (0.3 m/s forward/backward and lateral, 1 rad/s yaw); the
 simulator defaults exceed it. An external camera hold must cancel the internal
 strike and require fresh field/intent evidence before replanning. Keep the
-finite movement trial client for qualification. Prove command routing, lease
-expiry, hold recovery, role replacement and Stop ordering in isolated ROS with
-memory hardware before using this bridge on a robot.
+finite movement trial client for qualification. The next integration gates are
+real camera timing/coverage, target runtime acceptance and an actual overhead
+sample with calibrated geometry and clock mapping. The soccer-ball exception
+must be explicit and model-bound; a guard that always blocks the ball prevents
+approach, while a blanket obstacle bypass defeats person interruption.
 
 Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
 

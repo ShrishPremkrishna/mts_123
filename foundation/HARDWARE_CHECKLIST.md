@@ -40,6 +40,13 @@ python3 foundation/hardware/assemble_guarded_release.py \
   --destination "$NEW_RELEASE" --guard-python "$ROS_PYTHON"
 ```
 
+Default assembly pins the all-obstacle policy. `--arena-ball-contact` is an
+explicit candidate selection for soccer: only class `"32"` from the expected
+lab model and label map is exempt. Its generated policy file is hashed in the
+manifest and reflected in the verified process arguments. It does not establish
+recognition of the intended pink ball; collect ball/person coverage before any
+supervised contact trial. Never enable it as a remedy for missing camera data.
+
 No paths or hashes above are defaults. A failed assembly retains any partial
 destination; do not reuse it. The resulting `STAGING.json` identifies the new
 manifest. Source the new `environment.sh`, then use that release's existing

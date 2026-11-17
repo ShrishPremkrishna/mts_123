@@ -11,7 +11,11 @@ Detection String JSON uses schema fc_camera_obstacles_v1, producer_instance,
 sequence, captured_at_ros_ns (original image stamp, integer), valid, healthy,
 format normalized_xyxy_v1, image_width 700, image_height 572,
 horizontal_fov_deg 220, and detections [{box:[l,t,r,b], confidence, class_id}].
-Coordinates refer to that fixed projection. All classes use the same gate.
+Coordinates refer to that fixed projection. Default policy gates all classes.
+Explicit --arena-ball-contact exempts only class_id "32" from the selected HEF
+and canonical COCO labels, identified by detector_identity SHA256 fields. This
+permits approach/alignment as well as contact; it does not establish that the
+intended pink ball is recognized. Every other detection retains the same gate.
 Healthy describes inference, not unobscured visibility or proven free space.
 
 ROS and monotonic clocks are compared using integer nanoseconds. ROS clock
@@ -31,6 +35,7 @@ does not authenticate other publishers or establish native controller authority.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import argparse
 import json
 import math
 from pathlib import Path
@@ -55,6 +60,10 @@ INPUT_TIMEOUT_NS = 150_000_000
 CLOCK_JUMP_NS = 50_000_000
 MAX_PAYLOAD_BYTES = 65536
 MAX_DETECTIONS = 256
+ARENA_DETECTOR_IDENTITY = {
+    "model_sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
+    "labels_sha256": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a",
+}
 
 
 @dataclass(frozen=True)
@@ -100,8 +109,12 @@ def _unique_object(pairs):
 class BodyCommandGuard:
     """Synchronous pure core. The caller serializes callbacks and owns publishing."""
 
-    def __init__(self, obstacle_config=ObstacleConfig()):
+    def __init__(self, obstacle_config=ObstacleConfig(), *, arena_ball_contact=False):
+        if type(arena_ball_contact) is not bool:
+            raise ValueError("arena_ball_contact must be an explicit boolean")
         self.gate = ForwardObstacleGate(obstacle_config)
+        self._arena_ball_contact = arena_ball_contact
+        self._ignored_ball_count = 0
         self._anchor = None
         self._last_clocks = None
         self._fault = ""
@@ -246,6 +259,7 @@ class BodyCommandGuard:
         return frame, producer, seq, stamp, tuple(detections)
 
     def receive_frame(self, payload, *, ros_ns, mono_ns):
+        self._ignored_ball_count = 0
         if self._begin(ros_ns, mono_ns):
             now = mono_ns / 1e9
             try:
@@ -265,6 +279,18 @@ class BodyCommandGuard:
                 if captured_mono_ns < self._anchor[1]:
                     raise ValueError("capture predates guard clock history; require newer frame")
                 self._frame_mono_ns = captured_mono_ns
+                if self._arena_ball_contact:
+                    if frame.get("detector_identity") != ARENA_DETECTOR_IDENTITY:
+                        raise ValueError("arena contact requires selected detector identity")
+                    # Validate the complete frame before applying the exception.
+                    # Non-ball overlap is retained; no phase or target is inferred.
+                    if not frame["valid"] or not frame["healthy"]:
+                        raise ValueError("detector reports an invalid or unhealthy frame")
+                    if max(mono_ns - captured_mono_ns, ros_ns - stamp) >= int(
+                            self.gate.config.max_frame_age_s * 1e9):
+                        raise ValueError("source detection frame expired on arrival")
+                    self._ignored_ball_count = sum(d.class_id == "32" for d in detections)
+                    detections = tuple(d for d in detections if d.class_id != "32")
                 decision = self.gate.update(DetectionFrame(
                     seq, captured_mono_ns / 1e9, detections,
                     frame["valid"], frame["healthy"], frame["format"]), now)
@@ -305,6 +331,9 @@ class BodyCommandGuard:
         ) / 1e9, 6)
         return GuardResult(command, {
             "sampled_at_monotonic_ns": safe_now,
+            "contact_policy": "arena_ball_contact" if self._arena_ball_contact else "all_classes",
+            "ignored_ball_count": self._ignored_ball_count if (
+                decision.state in ("clear", "blocked") and not self._fault) else 0,
             "state": state, "reason": reason[:200], "input_age_s": age(self._input_ns),
             "input_state": self._input_state, "camera_state": decision.state,
             "camera_permitted": decision.permitted and not self._fault,
@@ -316,7 +345,7 @@ class BodyCommandGuard:
         })
 
 
-def create_ros_node(*, monotonic_ns=time.monotonic_ns):
+def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False):
     """Import ROS only here; default executor serializes all guard callbacks."""
     from geometry_msgs.msg import Twist
     from rclpy.clock import Clock
@@ -327,7 +356,7 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns):
     class BodyCommandGuardNode(Node):
         def __init__(self):
             super().__init__("fc_body_command_guard")
-            self.guard = BodyCommandGuard()
+            self.guard = BodyCommandGuard(arena_ball_contact=arena_ball_contact)
             self.command_pub = self.create_publisher(Twist, OUTPUT_TOPIC, 1)
             self.status_pub = self.create_publisher(String, STATUS_TOPIC, 1)
             self._last_status_ns = None
@@ -368,12 +397,16 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns):
     return BodyCommandGuardNode()
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--arena-ball-contact", action="store_true",
+                        help="allow selected COCO sports-ball contact; every other class still gates")
+    options, ros_args = parser.parse_known_args(argv)
     import rclpy
     from rclpy.executors import ExternalShutdownException
 
-    rclpy.init()
-    node = create_ros_node()
+    rclpy.init(args=ros_args)
+    node = create_ros_node(arena_ball_contact=options.arena_ball_contact)
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):

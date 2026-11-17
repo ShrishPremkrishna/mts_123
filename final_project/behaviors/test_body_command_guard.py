@@ -7,9 +7,9 @@ import unittest
 from unittest.mock import patch
 
 from final_project.behaviors.body_command_guard import (
-    BodyCommand, BodyCommandGuard, CLOCK_JUMP_NS, FRAME_TOPIC, INPUT_TOPIC,
+    ARENA_DETECTOR_IDENTITY, BodyCommand, BodyCommandGuard, CLOCK_JUMP_NS, FRAME_TOPIC, INPUT_TOPIC,
     INPUT_TIMEOUT_NS, MAX_DETECTIONS, OUTPUT_TOPIC, SCHEMA, STATUS_TOPIC,
-    TIMER_S, ZERO, create_ros_node,
+    TIMER_S, ZERO, create_ros_node, main,
 )
 
 
@@ -30,6 +30,7 @@ class Timeline:
     def frame(self, *, age_ns=0, producer="camera-a", detections=None):
         self.sequence += 1
         return dict(schema=SCHEMA, producer_instance=producer,
+                    detector_identity=dict(ARENA_DETECTOR_IDENTITY),
                     sequence=self.sequence, captured_at_ros_ns=self.ros - age_ns,
                     valid=True, healthy=True, format="normalized_xyxy_v1",
                     image_width=700, image_height=572, horizontal_fov_deg=220,
@@ -114,7 +115,7 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(self.command().command, BodyCommand(0.2))
 
     def test_all_classes_veto_the_actual_nonzero_body_command(self):
-        for label in ("ball", "person", "tower", "unrecognized", ""):
+        for label in ("32", "ball", "person", "tower", "unrecognized", ""):
             with self.subTest(label=label):
                 self.setUp()
                 self.passing()
@@ -431,6 +432,156 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(self.frame().status["clear_frames"], 2)
 
 
+class ArenaContactTests(unittest.TestCase):
+    frame, command = GuardTests.frame, GuardTests.command
+    clear, passing = GuardTests.clear, GuardTests.passing
+
+    def setUp(self):
+        self.guard = BodyCommandGuard(arena_ball_contact=True)
+        self.time = Timeline()
+        self.guard.evaluate(**self.time.clocks())
+
+    def test_exact_ball_can_earn_clearance_before_any_strike_or_command(self):
+        for expected in (1, 2, 3):
+            self.time.advance()
+            result = self.frame(detections=[obstacle("32")])
+            self.assertEqual(result.status["clear_frames"], expected)
+            self.assertEqual(result.status["ignored_ball_count"], 1)
+            self.assertEqual(result.status["camera_permitted"], expected == 3)
+            self.assertEqual(result.command, ZERO)
+        self.assertEqual(result.status["contact_policy"], "arena_ball_contact")
+        self.time.advance(.001)
+        self.assertEqual(self.command().command, BodyCommand(.2))
+
+    def test_ball_never_suppresses_overlapping_person_other_or_unknown_class(self):
+        for label in ("0", "person", "56", "unknown", "", "ball", "032", "32 ", "32.0"):
+            with self.subTest(label=label):
+                self.setUp()
+                self.passing()
+                self.time.advance()
+                result = self.frame(detections=[obstacle("32"), obstacle(label)])
+                self.assertEqual(result.command, ZERO)
+                self.assertEqual(result.status["camera_state"], "blocked")
+                self.assertEqual(result.status["ignored_ball_count"], 1)
+
+    def test_missing_wrong_or_malformed_identity_never_grants_arena_clearance(self):
+        bad_identities = [None, {}, "coco", [],
+            dict(ARENA_DETECTOR_IDENTITY, model_sha256="0" * 64),
+            dict(ARENA_DETECTOR_IDENTITY, labels_sha256="0" * 64),
+            dict(ARENA_DETECTOR_IDENTITY, extra="unselected")]
+        for identity in bad_identities:
+            with self.subTest(identity=identity):
+                self.setUp()
+                self.passing()
+                for _ in range(3):
+                    self.time.advance()
+                    frame = self.time.frame(detections=[obstacle("32")])
+                    if identity is None:
+                        frame.pop("detector_identity")
+                    else:
+                        frame["detector_identity"] = identity
+                    result = self.frame(frame)
+                    self.assertEqual(result.command, ZERO)
+                    self.assertFalse(result.status["camera_permitted"])
+                    self.assertEqual(result.status["ignored_ball_count"], 0)
+                    self.assertIn("detector identity", result.status["reason"])
+
+    def test_malformed_ball_is_validated_before_exemption(self):
+        invalid = [dict(obstacle("32"), box=[.4, .3, .6, 1.1]),
+                   dict(obstacle("32"), confidence=float("nan")),
+                   dict(obstacle("32"), class_id=32),
+                   dict(obstacle("32"), box=[.4, .3, .4, .8])]
+        for detection in invalid:
+            with self.subTest(detection=detection):
+                self.setUp()
+                self.passing()
+                self.time.advance()
+                result = self.frame(detections=[detection])
+                self.assertEqual(result.command, ZERO)
+                self.assertEqual(result.status["camera_state"], "invalid")
+                self.assertEqual(result.status["ignored_ball_count"], 0)
+
+    def test_ball_exemption_cannot_bypass_health_projection_freshness_or_restart(self):
+        edits = [("valid", False), ("healthy", False), ("image_width", 699),
+                 ("format", "pixels"), ("captured_at_ros_ns", "stale"),
+                 ("captured_at_ros_ns", "future"), ("producer_instance", "restarted")]
+        for field, value in edits:
+            with self.subTest(field=field, value=value):
+                self.setUp()
+                self.passing()
+                self.time.advance(.05)
+                frame = self.time.frame(detections=[obstacle("32")])
+                frame[field] = (self.time.ros - 350_000_000 if value == "stale" else
+                                self.time.ros + 1 if value == "future" else value)
+                result = self.frame(frame)
+                self.assertEqual(result.command, ZERO)
+                self.assertFalse(result.status["camera_permitted"])
+                self.assertEqual(result.status["ignored_ball_count"], 0)
+                if field == "producer_instance":
+                    self.time.advance()
+                    self.assertEqual(self.frame().status["state"], "fault")
+
+    def test_ball_frame_identity_cannot_be_replayed_and_expires_without_new_input(self):
+        self.passing()
+        self.time.advance()
+        frame = self.time.frame(detections=[obstacle("32")])
+        self.frame(frame)
+        self.time.advance(.001)
+        result = self.frame(frame)
+        self.assertEqual(result.command, ZERO)
+        self.assertIn("regressed", result.status["reason"])
+        self.clear()
+        self.time.advance(.001)
+        self.command(ZERO)
+        self.command()
+        self.time.advance(.3)
+        result = self.guard.evaluate(**self.time.clocks())
+        self.assertFalse(result.status["camera_permitted"])
+        self.assertEqual(result.status["ignored_ball_count"], 0)
+
+    def test_person_hold_then_ball_clear_still_requires_upstream_zero_and_new_command(self):
+        self.passing()
+        self.time.advance()
+        self.frame(detections=[obstacle("0"), obstacle("32")])
+        for _ in range(3):
+            self.time.advance()
+            self.frame(detections=[obstacle("32")])
+            self.time.advance(.001)
+            result = self.command()
+            self.assertEqual(result.command, ZERO)
+        self.assertTrue(result.status["camera_permitted"])
+        self.assertTrue(result.status["requires_post_hold_zero"])
+        self.command(ZERO)
+        self.time.advance(.001)
+        self.assertEqual(self.command().command, BodyCommand(.2))
+
+    def test_default_without_identity_keeps_ball_blocking_and_nonball_replay_is_unchanged(self):
+        default = BodyCommandGuard()
+        default.evaluate(**self.time.clocks())
+        for detections in ([], [], [], [obstacle("0")], [], [], [], [obstacle("56")]):
+            self.time.advance()
+            frame = self.time.frame(detections=detections)
+            selected = self.frame(frame)
+            frame.pop("detector_identity")
+            stock = default.receive_frame(json.dumps(frame), **self.time.clocks())
+            self.assertEqual(selected.command, stock.command)
+            for field in ("camera_state", "camera_permitted", "clear_frames", "frame_age_s"):
+                self.assertEqual(selected.status[field], stock.status[field])
+            self.assertEqual(stock.status["contact_policy"], "all_classes")
+            self.assertEqual(stock.status["ignored_ball_count"], 0)
+        self.time.advance()
+        frame = self.time.frame(detections=[obstacle("32")])
+        frame.pop("detector_identity")
+        result = default.receive_frame(json.dumps(frame), **self.time.clocks())
+        self.assertEqual(result.status["camera_state"], "blocked")
+        self.assertIn("(32)", result.status["reason"])
+
+    def test_policy_selection_requires_an_explicit_boolean(self):
+        for value in (1, "true", None):
+            with self.assertRaises(ValueError):
+                BodyCommandGuard(arena_ball_contact=value)
+
+
 class AdapterTests(unittest.TestCase):
     """Capture real factory wiring with a minimal fake ROS API; no robot services."""
 
@@ -500,6 +651,20 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(self.timers[0][0], TIMER_S)
         self.assertEqual(self.timers[0][2].clock_type, "steady")
         # Fake Node has no service/client APIs: factory cannot arm or touch motors.
+
+    def test_factory_selects_arena_and_cli_preserves_ros_arguments(self):
+        node = create_ros_node(monotonic_ns=lambda: self.time.mono, arena_ball_contact=True)
+        self.assertEqual(node.guard.evaluate(**self.time.clocks()).status["contact_policy"],
+                         "arena_ball_contact")
+        with patch("final_project.behaviors.body_command_guard.create_ros_node") as factory:
+            ros = sys.modules["rclpy"]
+            ros.init, ros.spin, ros.ok, ros.try_shutdown = (unittest.mock.Mock() for _ in range(4))
+            exceptions = types.ModuleType("rclpy.executors")
+            exceptions.ExternalShutdownException = type("ExternalShutdownException", (Exception,), {})
+            with patch.dict(sys.modules, {"rclpy.executors": exceptions}):
+                main(["--arena-ball-contact", "--ros-args", "-r", "__ns:=/candidate"])
+            factory.assert_called_once_with(arena_ball_contact=True)
+            ros.init.assert_called_once_with(args=["--ros-args", "-r", "__ns:=/candidate"])
 
     def test_timer_stops_output_without_callbacks_and_status_stays_bounded(self):
         for _ in range(3):

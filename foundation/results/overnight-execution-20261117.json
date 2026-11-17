@@ -98,7 +98,38 @@
     "complete_archive_sha256": "bff1df29874ee2efc72144763066caf79b838327b22f707c16a78e9b01866268",
     "complete_archive_files_verified": 804,
     "gate_archive_sha256": "de3317ffe71ad07ea2bb9783883c12b184244ead55e7decae15a7a37d215",
-    "gate_archive_files_verified": 9
+    "gate_archive_files_verified": 9,
+    "paired_crop": {
+      "summary": "artifacts/pupper-fc/2026-11-17/paired-crop-20261117T114634Z/result.json",
+      "decision": "Reject fixed crop replacement; retain current producer projection. No production change.",
+      "frames_per_branch": 245,
+      "crop_original_pixels": [
+        70,
+        29,
+        630,
+        543
+      ],
+      "source": "Official Hailo model-zoo v2.14 yolov8n-seg floating ONNX; public metadata linkage, not numeric/quantized HEF parity.",
+      "onnx_sha256": "df163919948c37228782dc24ac811e59204ced878ba30d25eb5a3484ef54272b",
+      "person_full_matches_before_after": [
+        13,
+        14
+      ],
+      "person_full_labels": 14,
+      "person_partial_matches_before_after": [
+        7,
+        6
+      ],
+      "person_partial_labels": 9,
+      "tower_first_direct_hold_delay_s": 0.8,
+      "timing": "Local CPU total medians32.97/33.10ms, p9540.19/39.56ms; paired preprocessing delta p95+0.470ms. Not Pi, source-to-command age or HEF parity.",
+      "root_visual_review": "Viewed both changed-contact sheets: crop removes hand/forearm detection, adds one full-person detection, delays visible tower detection across105.206\u2013106.006s. Reject despite improved sparse full-person count.",
+      "archive_sha256": "5b950f65196d3821a9e0a6abc184a07e754e623e12eccd89e31f47a30f8f3ec3",
+      "archive_files": 529,
+      "all_jobs_exited": true,
+      "images_uploaded": false,
+      "cloud_spend_usd": 0
+    }
   },
   "compute": {
     "additional_cloud_budget_usd": 50,
@@ -191,5 +222,70 @@
       "Final-check Stop is an explicitly labeled deterministic test injection, not a naturally observed scheduler race."
     ],
     "processes": "All test children and owned containers exited; no robot/SSH/deployment or new cloud spend in this bridge work."
+  },
+  "two_domain_ros": {
+    "summary": "artifacts/pupper-fc/2026-11-17/ros-fc-two-domain-20261117T113500Z/summary.json",
+    "passed": true,
+    "cases": [
+      "lease expiry",
+      "explicit Stop",
+      "guard death"
+    ],
+    "scope": "Concurrent production bridge/mux/guard chains on one device-free Linux host, ROS domains183/184; opposite robot headings and distinct command signatures. Native services, observation feedback and loaded process identity are fixtures.",
+    "verified": "Both refuse wrong robot intent. All publications address pinned robot; unaffected peer has no zero, emergency Stop or cross-signature during each fault window.",
+    "peer_nonzero_counts": [
+      108,
+      61,
+      61
+    ],
+    "peer_max_observer_gaps_ms": [
+      22.57325,
+      21.5345,
+      22.429958
+    ],
+    "default_lifecycle_regression": true,
+    "archive_sha256": "39a6a9adbd6ca416cbba48bd57cdad47af1e5a93d7396a33fc87b38f9d9247e0",
+    "archive_files": 108,
+    "all_children_exited": true,
+    "owned_containers_remaining": 0,
+    "cloud_spend_usd": 0,
+    "limitations": "Local DDS domain separation only, not authentication, multi-host clock conversion, two native managers on one host or physical two-robot acceptance."
+  },
+  "arena_ball_contact": {
+    "implemented": "Opt-in guard exempts exact class32 only with expected HEF and canonical loaded-label hashes; default remains all classes. Producer hashes selected model once and loaded label order, checks model file continuity during load. Optional pinned guard_policy file binds mode to exact verified process argv; assembler writes explicit default or arena candidate.",
+    "combined_validation": "artifacts/pupper-fc/2026-11-17/arena-integration-20261117T115808Z/tests.json",
+    "combined_summary": "1204 passed,134 subtests passed in3.38s; one existing Starlette/httpx warning; no tested source changed during run.",
+    "actual_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-arena-ball-20261117T120000Z/summary.json",
+    "actual_ros_cases": 3,
+    "actual_ros_scope": "Production bridge/mux/guard, synthetic camera+field inputs and fake native feedback; native process identity is stubbed.",
+    "verified": [
+      "ball-only pre-strike approach",
+      "person+ball holds zero",
+      "interrupted shot ID cannot revive; new ID+fresh frame replans",
+      "missing or wrong identity and malformed ball fail closed",
+      "strict default still blocks ball",
+      "prior lifecycle regression"
+    ],
+    "independent_review": "artifacts/pupper-fc/2026-11-17/ros-fc-arena-ball-20261117T120000Z/independent-audit.json",
+    "fable_review": "artifacts/pupper-fc/2026-11-17/ros-fc-arena-ball-20261117T120000Z/fable-review.json",
+    "fable_adjudication": "artifacts/pupper-fc/2026-11-17/ros-fc-arena-ball-20261117T120000Z/fable-adjudication.json",
+    "fable_model": "claude-fable-5-2",
+    "fable_seconds": 103.566,
+    "fable_list_price_equivalent_usd": 0.5870304,
+    "fable_limit": "Existing account usage metadata, not incremental billing receipt. No actionable defect after checking source; alleged absent assembler parent directory is created by mandatory SOURCE_ROLES copies.",
+    "archive_sha256": "f2abf998722cbf3c154b137fc98972e359fbde77e65499049dac2f8eac9d4edc",
+    "archive_files": 64,
+    "recorded_spatial_replay": "Author replay290historical detector messages: old/default/arena decisions identical40blocked250clear; no class32 in clip. Syntheticfresh capture clocks, not original live source-age evidence.",
+    "timing_limit": "Arena local tick p9521.39ms,max77.94ms; lifecycle max83.28ms. Desktop scheduler observations, not realtime or physical bounds.",
+    "limitations": [
+      "No intended pink-ball or physical person-interruption acceptance.",
+      "Other objects misclassified solely as sports ball are exempt; multiple sports balls likewise.",
+      "Ball co-detected as another class still blocks.",
+      "Self-reported model metadata is not authenticated or accelerator bytecode attestation.",
+      "No Pi/deploy/homing/motion. Source kit refresh pending next integrated resume correction."
+    ],
+    "all_jobs_exited": true,
+    "owned_containers_remaining": 0,
+    "new_cloud_compute_usd": 0
   }
 }

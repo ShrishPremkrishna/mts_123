@@ -6,7 +6,7 @@ import sys
 import pytest
 
 from assemble_guarded_release import assemble, sha, SOURCE_ROLES, NATIVE_ROLES
-from runtime_identity import verify_files
+from runtime_identity import verify_files, guard_command, guard_mode
 
 
 @pytest.fixture
@@ -67,6 +67,26 @@ def test_new_candidate_verifies_and_preserves_native_baseline(selected):
     assert all(sha(root / relative) == digest for relative, digest in payload.items())
     with pytest.raises(ValueError, match="Destination exists"):
         assemble(**selected)
+
+
+@pytest.mark.parametrize("arena", [False, True])
+def test_guard_mode_is_explicit_pinned_and_bound_to_launch_arguments(selected, arena):
+    receipt = assemble(**selected, arena_ball_contact=arena)
+    manifest = json.loads((selected["destination"] / "walk-manifest.json").read_text())
+    pins = verify_files(manifest)
+    mode = "arena_ball_contact" if arena else "all_obstacles"
+    assert receipt["guard_mode"] == guard_mode(pins) == mode
+    assert ("--arena-ball-contact" in guard_command(pins)) is arena
+    policy = Path(pins["guard_policy"]["path"])
+    policy.write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": "all_obstacles" if arena else "arena_ball_contact"}))
+    with pytest.raises(ValueError, match="mismatch.*guard_policy"):
+        verify_files(manifest)
+
+
+def test_guard_mode_refuses_ambiguous_truthy_selection(selected):
+    with pytest.raises(ValueError, match="must be boolean"):
+        assemble(**selected, arena_ball_contact="false")
+    assert not selected["destination"].exists()
 
 
 @pytest.mark.parametrize("drift", ["baseline_manifest", "native", "source_index", "source", "symlink", "profile"])

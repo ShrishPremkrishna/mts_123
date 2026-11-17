@@ -454,6 +454,51 @@ def test_guard_python_venv_invocation_is_distinct_from_resolved_image(guarded_se
     assert runtime.guard_command(pins)[0] == str(alias)
 
 
+@pytest.mark.parametrize("mode", ["all_obstacles", "arena_ball_contact"])
+def test_guard_policy_pins_exact_process_mode(guarded_setup, mode):
+    proc, manifest, files, receipt, _, running, _ = guarded_setup
+    path = manifest.parent / "guard-policy.json"
+    path.write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": mode}))
+    files["guard_policy"] = {"path": str(path), "sha256": runtime.sha(path)}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    updated = runtime.preflight(manifest, runtime.sha(manifest), proc=proc,
+                                dependency_checker=lambda _: None, python_checker=runtime.probe_guard_environment)
+    receipt.clear(); receipt.update(updated)
+    directory = running()
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    argv = evidence["guard_process"]["argv"]
+    assert ("--arena-ball-contact" in argv) is (mode == "arena_ball_contact")
+    assert runtime.guard_mode(evidence["files"]) == mode
+    wrong = argv[:-1] if mode == "arena_ball_contact" else [*argv, "--arena-ball-contact"]
+    (directory / "cmdline").write_bytes(b"\0".join(os.fsencode(arg) for arg in wrong) + b"\0")
+    assert not runtime.same_command_path(evidence, proc=proc)
+    path.write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": "arena_ball_contact" if mode == "all_obstacles" else "all_obstacles"}))
+    with pytest.raises(ValueError, match="guard policy changed"):
+        runtime.guard_command(evidence["files"])
+
+
+@pytest.mark.parametrize("policy", [None, [], {}, {"schema": "unknown", "mode": "arena_ball_contact"},
+    {"schema": "pupper_guard_policy_v1", "mode": "all"},
+    {"schema": "pupper_guard_policy_v1", "mode": "arena_ball_contact", "exclude": ["0"]}])
+def test_guard_policy_refuses_unknown_schema_or_options(guarded_setup, policy):
+    _, manifest, files, _, _, _, _ = guarded_setup
+    path = manifest.parent / "guard-policy.json"
+    path.write_text(json.dumps(policy))
+    files["guard_policy"] = {"path": str(path), "sha256": runtime.sha(path)}
+    with pytest.raises(ValueError, match="Invalid guard policy"):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": files})
+
+
+def test_guard_policy_cannot_select_arena_on_stock_path(guarded_setup):
+    _, manifest, files, receipt, _, _, _ = guarded_setup
+    assert runtime.guard_mode(receipt["files"]) == "all_obstacles"
+    assert "--arena-ball-contact" not in runtime.guard_command(receipt["files"])
+    stock = {name: pin for name, pin in files.items() if name not in runtime.GUARD_ROLES}
+    stock["guard_policy"] = {"path": str(manifest.parent / "not-read.json"), "sha256": "0" * 64}
+    with pytest.raises(ValueError, match="complete guarded"):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": stock})
+
+
 def test_preflight_refuses_existing_guard_before_any_native_manager(guarded_setup):
     proc, manifest, _, _, guard, _, _ = guarded_setup
     guard()

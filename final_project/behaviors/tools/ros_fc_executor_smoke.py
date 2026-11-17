@@ -13,6 +13,7 @@ import argparse
 from dataclasses import asdict
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -115,7 +116,7 @@ def child(args, policy):
     bridge._node_class = instrumented_factory
     try:
         return bridge.main(["--execute", "--runtime-receipt", str(receipt),
-                            "--robot-id", "pupper-1", "--producer-id", "fixture-1",
+                            "--robot-id", args.robot_id, "--producer-id", "fixture-" + args.robot_id,
                             "--field-config", str(args.out / "field-config.json")])
     finally:
         (args.out / "bridge-timing.json").write_text(json.dumps({
@@ -129,9 +130,13 @@ def main():
     if os.environ.get("PUPPER_ISOLATED_ROS_TEST") != "1":
         raise SystemExit("Only run in the isolated device-free ROS container.")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("case", choices=("lifecycle", "guard_death", "publication_stop", "_child"))
+    parser.add_argument("case", choices=("lifecycle", "guard_death", "publication_stop",
+                                        "domain_lease", "domain_stop", "domain_peer",
+                                        "arena_ball", "strict_ball", "_child"))
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--mux", default="/mux")
+    parser.add_argument("--robot-id", choices=("pupper-1", "pupper-2"), default="pupper-1")
+    parser.add_argument("--coord-dir", type=Path)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     policy = Path(os.environ["PUPPER_TEST_STOCK_POLICY"]).resolve(strict=True)
@@ -153,7 +158,9 @@ def main():
     executor = SingleThreadedExecutor()
     processes, streams, events = [], [], []
     reader_enabled = threading.Event(); reader_enabled.set()
-    report = {"case": args.case, "passed": False, "groups": [], "hardware": False,
+    report = {"case": args.case, "robot_id": args.robot_id,
+              "ros_domain_id": os.environ.get("ROS_DOMAIN_ID"),
+              "passed": False, "groups": [], "hardware": False,
               "native_identity_stubbed": True, "native_watchdog_retested": False}
     began = time.monotonic()
 
@@ -164,7 +171,22 @@ def main():
             self.frame_seq = self.intent_seq = self.camera_seq = self.gateway_seq = 0
             self.fields_enabled = self.intents_enabled = False
             self.camera_enabled = True; self.near = False; self.camera_label = "tower"
+            self.camera_identity = None; self.camera_detections = None; self.camera_packets = []
             self.kind = "move"; self.intent_id = "move-1"; self.pose_x = 0.
+            self.pose_y = 0.; self.pose_yaw = 0.; self.target = {"x": 1., "y": 0., "yaw": 0.}
+            if args.case in ("arena_ball", "strict_ball"):
+                from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
+                self.camera_identity = dict(ARENA_DETECTOR_IDENTITY)
+                self.kind = "shoot"; self.intent_id = "approach-1"; self.pose_x = -.9
+                if args.case == "arena_ball":
+                    self.camera_detections = [{"box": [.4, .3, .6, .85], "confidence": .9, "class_id": "32"}]
+            if args.coord_dir:
+                if args.robot_id == "pupper-1":
+                    self.pose_x, self.pose_y = -.7, -.2
+                    self.target = {"x": .6, "y": -.2, "yaw": 0.}
+                else:
+                    self.pose_x, self.pose_y, self.pose_yaw = .7, .2, math.pi
+                    self.target = {"x": -.6, "y": .6, "yaw": math.pi}
             self.latest = (0., 0., 0.); self.commands = []; self.raw = []; self.final = []
             self.statuses = []; self.guard_statuses = []; self.sent = []
             self.estops = self.inventory_reads = self.feedback_count = 0
@@ -219,36 +241,44 @@ def main():
             self.feedback.publish(Float32MultiArray(data=values)); self.feedback_count += 1
             joy = Joy(); joy.buttons = [0] * 13; self.joy.publish(joy)
         def send(self, payload):
-            payload = {"producer_id": "fixture-1", "clock": self.clock_name,
+            payload = {"producer_id": "fixture-" + args.robot_id, "clock": self.clock_name,
                        "epoch": self.epoch, "now": -999., **payload}
             self.sent.append({"at": time.monotonic(), "packet": payload})
             self.ingress.publish(String(data=json.dumps(payload)))
         def frame(self):
             if self.fields_enabled and self.clock_name:
                 self.frame_seq += 1; now = time.monotonic(); self.last_capture = now
+                robots = {"pupper-1": {"x": -.7, "y": -.2, "yaw": 0.},
+                          "pupper-2": {"x": .7, "y": .2, "yaw": math.pi}}
+                robots[args.robot_id] = {"x": self.pose_x, "y": self.pose_y, "yaw": self.pose_yaw}
                 self.send({"event": "frame", "seq": self.frame_seq, "captured_at": now,
-                           "robots": {"pupper-1": {"x": self.pose_x, "y": 0., "yaw": 0.},
-                                      "pupper-2": {"x": 1., "y": 0., "yaw": 3.141592653589793}},
+                           "robots": robots,
                            "ball": {"x": 0., "y": 0.},
                            "goals": {"left": {"x": -1.83, "y": 0.}, "right": {"x": 1.83, "y": 0.}}})
-        def intent(self, *, force=False, robot_id="pupper-1"):
+        def intent(self, *, force=False, robot_id=None):
             if (self.intents_enabled or force) and self.clock_name:
                 self.intent_seq += 1; now = time.monotonic(); self.last_lease_deadline = now + .45
                 packet = {"event": "intent", "seq": self.intent_seq, "issued_at": now,
-                          "valid_until": self.last_lease_deadline, "robot_id": robot_id,
+                          "valid_until": self.last_lease_deadline, "robot_id": robot_id or args.robot_id,
                           "intent_id": self.intent_id, "kind": self.kind}
-                if self.kind == "move": packet["target"] = {"x": 1., "y": 0., "yaw": 0.}
+                if self.kind == "move": packet["target"] = self.target
                 elif self.kind == "shoot": packet["target"] = {"x": 1.83, "y": 0.}
                 self.send(packet)
         def camera_frame(self):
             if not self.camera_enabled: return
             self.camera_seq += 1
-            self.camera.publish(String(data=json.dumps({"schema": "fc_camera_obstacles_v1",
+            packet = {"schema": "fc_camera_obstacles_v1",
                 "producer_instance": "executor-smoke-camera", "sequence": self.camera_seq,
                 "captured_at_ros_ns": self.get_clock().now().nanoseconds - 5_000_000,
                 "valid": True, "healthy": True, "format": "normalized_xyxy_v1",
                 "image_width": 700, "image_height": 572, "horizontal_fov_deg": 220,
-                "detections": [{"box": [.4, .3, .6, .85], "confidence": .9, "class_id": self.camera_label}] if self.near else []})))
+                "detections": self.camera_detections if self.camera_detections is not None else (
+                    [{"box": [.4, .3, .6, .85], "confidence": .9, "class_id": self.camera_label}] if self.near else [])}
+            if self.camera_identity is not None:
+                packet["detector_identity"] = self.camera_identity
+            if args.case in ("arena_ball", "strict_ball"):
+                self.camera_packets.append({"at": time.monotonic(), "packet": packet})
+            self.camera.publish(String(data=json.dumps(packet)))
 
     node = Fixture(); executor.add_node(node)
     def pump(seconds):
@@ -294,9 +324,10 @@ def main():
             "attack_signs": {"pupper-1": 1, "pupper-2": -1}}) + "\n")
         launch("mux", [args.mux, "--ros-args", "-p", "inputs:=[/kick_cmd_vel]", "-p",
                        "timeout_ms:=150", "-r", "/cmd_vel:=/fc/requested_cmd_vel"])
-        guard = launch("guard", [sys.executable, "-m", "final_project.behaviors.body_command_guard"])
+        guard = launch("guard", [sys.executable, "-m", "final_project.behaviors.body_command_guard",
+                                 *(["--arena-ball-contact"] if args.case == "arena_ball" else [])])
         env = dict(os.environ, PUPPER_TEST_GUARD_PID=str(guard.pid))
-        bridge = launch("bridge", [sys.executable, str(Path(__file__).resolve()), "_child", "--out", str(args.out)], interactive=True, env=env)
+        bridge = launch("bridge", [sys.executable, str(Path(__file__).resolve()), "_child", "--out", str(args.out), "--robot-id", args.robot_id], interactive=True, env=env)
         def reader():
             with (args.out / "bridge-stdout.jsonl").open("w") as transcript:
                 while True:
@@ -315,13 +346,84 @@ def main():
         operator({"command": "arm", "epoch": node.epoch})
         # Pause periodic input so the refusal remains visible in the latest
         # ingress result reported on the production ROS status topic.
-        at = time.monotonic(); node.intent(force=True, robot_id="pupper-2")
+        at = time.monotonic(); node.intent(force=True, robot_id="pupper-2" if args.robot_id == "pupper-1" else "pupper-1")
         wait(lambda: status_matches(lambda s: (s.get("ingress_result") or {}).get("accepted") is False and
                                     "pinned robot" in s["ingress_result"].get("reason", ""), at), "other robot refusal")
         assert not nonzero(node.commands, at)
         report["groups"].append("other_robot_intent_refused")
         flowing(); report["groups"].append("actual_bridge_mux_guard_nonzero")
-        if args.case == "guard_death":
+        if args.coord_dir:
+            args.coord_dir.mkdir(parents=True, exist_ok=True)
+            (args.coord_dir / ("ready-" + args.robot_id)).write_text(str(time.monotonic()) + "\n")
+            wait(lambda: all((args.coord_dir / ("ready-"+r)).exists() for r in ("pupper-1", "pupper-2")),
+                 "both ROS domains passing commands", 8.)
+            report["orientation"] = {"yaw": node.pose_yaw, "pose": [node.pose_x, node.pose_y],
+                "field_target": node.target, "attack_sign": 1 if args.robot_id == "pupper-1" else -1}
+            if args.case != "domain_peer":
+                (args.coord_dir / "fault-start.json").write_text(json.dumps({"at": time.monotonic(), "case": args.case}) + "\n")
+        if args.case in ("arena_ball", "strict_ball"):
+            from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
+            ball = {"box": [.4, .3, .6, .85], "confidence": .9, "class_id": "32"}
+            person = {**ball, "class_id": "0"}
+            def guard_status(test, since):
+                return any(at >= since and test(row) for at, row in node.guard_statuses)
+            def held(reason, since):
+                wait(lambda: guard_status(lambda s: not s["camera_permitted"] and reason in s["reason"], since),
+                     "camera hold: " + reason)
+                wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "external_hold", since),
+                     "bridge observes camera hold")
+                wait(lambda: zero_after(node.commands, since) and zero_after(node.final, since), "camera hold zeros chain")
+                pump(.08)
+                assert not nonzero(node.final, time.monotonic()-.05)
+            def cleared():
+                at = time.monotonic()
+                wait(lambda: guard_status(lambda s: s["camera_permitted"], at), "fresh camera clearance")
+                # The bridge receives guard status at 5 Hz. Wait for its own
+                # release observation before issuing post-release evidence.
+                wait(lambda: status_matches(lambda s: s.get("guard_problem") is None and
+                     (s.get("decision") or {}).get("phase") != "external_hold", at), "bridge hold releases")
+                pump(.08)
+            if args.case == "strict_ball":
+                at = time.monotonic(); node.camera_detections = [ball]
+                held("(32)", at)
+                assert guard_status(lambda s: s["contact_policy"] == "all_classes" and s["ignored_ball_count"] == 0, at)
+                report["groups"].append("strict_default_verified_ball_still_holds_and_zeros")
+            else:
+                wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "approach"),
+                     "verified ball permits pre-strike approach")
+                assert guard_status(lambda s: s["contact_policy"] == "arena_ball_contact" and s["ignored_ball_count"] == 1,
+                                    began)
+                assert not status_matches(lambda s: (s.get("decision") or {}).get("phase") == "strike")
+                report["groups"].append("verified_ball_earns_clearance_and_approach_before_strike")
+                at = time.monotonic(); node.camera_detections = [ball, person]
+                held("(0)", at)
+                node.fields_enabled = node.intents_enabled = False
+                node.camera_detections = [ball]; at = time.monotonic(); cleared()
+                assert not nonzero(node.commands, at+.05)
+                node.fields_enabled = True; node.frame(); pump(.08)
+                assert not nonzero(node.commands, at+.05), "fresh frame alone revived interrupted shot"
+                node.intent(force=True)
+                wait(lambda: status_matches(lambda s: "new intent_id" in
+                     (s.get("ingress_result") or {}).get("reason", ""), at), "interrupted shot ID refused")
+                assert not nonzero(node.commands, at+.05)
+                node.intent_id = "approach-2"; flowing()
+                report["groups"].append("person_with_ball_holds_old_shot_cannot_revive_fresh_id_and_frame_replan")
+                invalids = [("missing_identity", None, [ball], "detector identity"),
+                            ("wrong_model", {**ARENA_DETECTOR_IDENTITY, "model_sha256": "0"*64}, [ball], "detector identity"),
+                            ("malformed_ball", dict(ARENA_DETECTOR_IDENTITY), [{**ball, "box": [.4, .3, .6, 1.1]}], "box")]
+                for number, (label, identity, detections, reason) in enumerate(invalids, 3):
+                    at = time.monotonic(); node.camera_identity = identity; node.camera_detections = detections
+                    held(reason, at)
+                    assert guard_status(lambda s: s["camera_state"] == "invalid" and s["ignored_ball_count"] == 0, at)
+                    node.fields_enabled = node.intents_enabled = False
+                    node.camera_identity = dict(ARENA_DETECTOR_IDENTITY); node.camera_detections = [ball]
+                    cleared()
+                    node.intent_id = "approach-" + str(number); flowing()
+                    report["groups"].append(label + "_fails_closed_then_fresh_evidence_recovers")
+            bridge.stdin.write('{"command":"stop","reason":"ball policy smoke cleanup"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "ball fixture cleanup")
+            assert bridge.returncode == 3
+        elif args.case == "guard_death":
             at = time.monotonic(); count = node.estops; feedback = node.feedback_count
             guard.kill(); guard.wait(timeout=3)
             wait(lambda: bridge.poll() is not None, "bridge closes on guard loss")
@@ -329,6 +431,46 @@ def main():
             assert bridge.returncode == 0 and node.estops == count and node.feedback_count > feedback
             assert zero_after(node.commands, at) and zero_after(node.final, at)
             report["groups"].append("guard_death_closes_bridge_with_zero_and_retains_fake_native_authority")
+        elif args.case == "domain_lease":
+            node.intents_enabled = False; deadline = node.last_lease_deadline
+            wait(lambda: zero_after(node.commands, deadline) and zero_after(node.final, deadline), "own lease expires", .9)
+            pump(.3)
+            assert not nonzero(node.commands, deadline+.08) and not nonzero(node.final, deadline+.08)
+            report["domain_fault"] = {"lease_deadline": deadline, "zero_held_until": time.monotonic(),
+                "other_domain_did_not_feed_this_robot": True}
+            flowing()
+            report["groups"].append("own_lease_loss_zeros_despite_other_domain_motion_then_fresh_renewal_recovers")
+        elif args.case == "domain_stop":
+            at = time.monotonic()
+            bridge.stdin.write('{"command":"stop","reason":"domain isolation Stop"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "own Stop closes bridge")
+            pump(.2)
+            assert bridge.returncode == 3 and node.estops == 1 and zero_after(node.final, at)
+            assert not nonzero(node.final, at+.1)
+            report["groups"].append("own_Stop_zeros_and_latches_without_other_domain_feed")
+        elif args.case == "domain_peer":
+            wait(lambda: (args.coord_dir / "fault-done.json").exists(), "other domain completes fault", 8.)
+            pump(.3)
+            start = json.loads((args.coord_dir / "fault-start.json").read_text())["at"]
+            ended = time.monotonic()
+            samples = [(at, value) for at, value in node.final if start <= at <= ended]
+            # This peer faces -x and commands toward (-.6,+.6). Its body-frame
+            # lateral/yaw signs differ from pupper-1's straight +x command.
+            assert len(samples) >= 10 and all(value[0] > .2 and value[1] < -.05 and value[2] < -.1
+                                              for _, value in samples), samples[-10:]
+            assert bridge.poll() is None and node.estops == 0
+            gaps = [b[0]-a[0] for a, b in zip(samples, samples[1:])]
+            assert max(gaps, default=0.) < .15, "peer command stream paused"
+            assert all(row["robot_id"] == args.robot_id for _, row in node.statuses)
+            report["peer_isolation"] = {"fault_start": start, "verified_through": ended,
+                "nonzero_samples": len(samples), "max_observer_sample_gap_s": max(gaps, default=0.),
+                "unexpected_zeros_or_other_command_signatures": 0, "emergency_stops_before_own_cleanup": node.estops,
+                "bridge_alive_after_other_fault": True, "sample_signature": samples[-1][1]}
+            report["groups"].append("opposite_orientation_peer_keeps_own_stream_and_authority_through_other_domain_fault")
+            (args.coord_dir / "peer-verified").write_text(str(ended) + "\n")
+            bridge.stdin.write('{"command":"stop","reason":"peer own explicit cleanup"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "peer own cleanup")
+            assert bridge.returncode == 3
         elif args.case == "publication_stop":
             at = time.monotonic()
             (args.out / "inject-publication-stop").write_text(str(at) + "\n")
@@ -394,6 +536,12 @@ def main():
             wait(lambda: bridge.poll() is not None, "explicit Stop closes bridge")
             assert bridge.returncode == 3 and node.estops >= 1 and zero_after(node.commands, at)
             report["groups"].append("explicit_Stop_zero_and_session_latch")
+        if args.coord_dir and args.case != "domain_peer":
+            (args.coord_dir / "fault-done.json").write_text(json.dumps({"at": time.monotonic(), "case": args.case}) + "\n")
+            wait(lambda: (args.coord_dir / "peer-verified").exists(), "peer confirms isolation", 5.)
+            if bridge.poll() is None:
+                bridge.stdin.write('{"command":"stop","reason":"fault fixture own cleanup"}\n'); bridge.stdin.flush()
+                wait(lambda: bridge.poll() is not None, "fault fixture cleanup")
         thread.join(timeout=1)
         timing = json.loads((args.out / "bridge-timing.json").read_text())
         ticks, publications = timing["ticks"], timing["publications"]
@@ -403,6 +551,8 @@ def main():
             "p95_spacing_s": sorted(spacing)[int(.95*(len(spacing)-1))] if spacing else None,
             "max_callback_duration_s": max((row["after"]-row["before"] for row in ticks), default=0.),
             "source": "in-process on_tick tracing, not observer callback intervals"}
+        assert all(row["command"]["robot_id"] == args.robot_id for row in publications)
+        report["all_publications_address_pinned_robot"] = True
         if args.case == "publication_stop":
             assert len(timing["fault_injections"]) == 1
             injected = timing["fault_injections"][0]["at"]
@@ -445,6 +595,7 @@ def main():
                       bridge_output_samples=node.commands, mux_output_samples=node.raw,
                       final_output_samples=node.final, bridge_status=node.statuses, guard_status=node.guard_statuses,
                       normalized_packets=node.sent,
+                      camera_packets=node.camera_packets,
                       synthetic_camera={"hz": 20, "declared_source_age_s": .005, "actual_inference": False})
         (args.out / "result.json").write_text(json.dumps(report, indent=2) + "\n")
         executor.shutdown(); node.destroy_node(); rclpy.try_shutdown()

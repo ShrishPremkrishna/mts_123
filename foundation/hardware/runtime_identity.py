@@ -138,6 +138,8 @@ def verify_files(manifest):
     guard_roles = GUARD_ROLES & manifest["files"].keys()
     if guard_roles and guard_roles != GUARD_ROLES:
         raise ValueError("Guarded command path requires all four guard file identities")
+    if "guard_policy" in manifest["files"] and guard_roles != GUARD_ROLES:
+        raise ValueError("Guard policy requires the complete guarded command path")
     for role, item in manifest["files"].items():
         path = Path(item["path"])
         if not path.is_absolute() or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"]):
@@ -163,6 +165,7 @@ def verify_files(manifest):
             raise ValueError("Guard source files do not preserve the selected package layout")
         if (root / "final_project/__init__.py").exists():
             raise ValueError("Unexpected initializer in the selected final_project namespace")
+        guard_mode(result)
     config = yaml.safe_load(Path(result["config"]["path"]).read_text())
     model = config["neural_controller_default"]["ros__parameters"]["model_path"]
     if not Path(model).is_absolute() or str(Path(model).resolve(strict=True)) != result["policy"]["path"]:
@@ -177,8 +180,27 @@ def guard_root(pins):
     return path.parents[2]
 
 
+def guard_mode(pins):
+    """Old guarded manifests remain strict; a pinned policy selects arena contact."""
+    if "guard_policy" not in pins:
+        return "all_obstacles"
+    item = pins["guard_policy"]
+    data = Path(item["path"]).read_bytes()
+    if hashlib.sha256(data).hexdigest() != item["sha256"]:
+        raise ValueError("Selected guard policy changed")
+    policy = json.loads(data)
+    if (not isinstance(policy, dict) or set(policy) != {"schema", "mode"}
+            or policy["schema"] != "pupper_guard_policy_v1"
+            or policy["mode"] not in ("all_obstacles", "arena_ball_contact")):
+        raise ValueError("Invalid guard policy")
+    return policy["mode"]
+
+
 def guard_command(pins):
-    return [pins["guard_python"]["invocation_path"], "-B", "-s", pins["guard_script"]["path"]]
+    command = [pins["guard_python"]["invocation_path"], "-B", "-s", pins["guard_script"]["path"]]
+    if guard_mode(pins) == "arena_ball_contact":
+        command.append("--arena-ball-contact")
+    return command
 
 
 def guard_environment(environ=None):

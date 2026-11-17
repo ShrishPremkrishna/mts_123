@@ -1,7 +1,9 @@
 """Actual viewer classes with mocked ROS/Hailo: image/stamp stay paired."""
 import ast
+import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
 import threading
@@ -34,7 +36,8 @@ def viewer(monkeypatch):
     tree = ast.parse(path.read_text())
     selected = [item for item in tree.body if isinstance(item, (ast.ClassDef, ast.FunctionDef))
                 and item.name in ("RosSource", "DetectionWorker", "DetectionPublisher",
-                                  "detection_projection", "detector_source_frame", "display_detections")]
+                                  "detection_projection", "detector_source_frame", "display_detections",
+                                  "load_identified_detector")]
     projection_tree = ast.parse((ROOT / "follow_me_pupper/robot/fisheye_converter.py").read_text())
     selected = [item for item in projection_tree.body
                 if isinstance(item, ast.FunctionDef) and item.name == "equirect_height"] + selected
@@ -43,11 +46,11 @@ def viewer(monkeypatch):
         IMREAD_COLOR=1, COLOR_BGR2RGB=1,
         imdecode=lambda arr, _: np.full((2, 3, 3), int(arr[0]), np.uint8),
         cvtColor=lambda image, _: image)
-    scope = dict(threading=threading, time=clock, np=np, cv2=cv2,
+    scope = dict(threading=threading, time=clock, np=np, cv2=cv2, os=os,
                  fresh_frame=safety.fresh_frame, image_stamp_ns=safety.image_stamp_ns,
                  MAX_FRAME_AGE_S=safety.MAX_FRAME_AGE_S,
                  DETECTION_PUBLISH_WIDTH=700, DETECTION_PUBLISH_HEIGHT=572,
-                 DETECTION_H_FOV_DEG=220.0)
+                 DETECTION_H_FOV_DEG=220.0, DETECTION_MIN_CONFIDENCE=.4)
     exec(compile(ast.Module(selected, type_ignores=[]), str(path), "exec"), scope)
 
     def header():
@@ -86,7 +89,7 @@ def message(stamp, pixel=1):
                            header=SimpleNamespace(stamp=SimpleNamespace(sec=sec, nanosec=nanosec)))
 
 
-def publisher(viewer, now_ns=10_500_000_000):
+def publisher(viewer, now_ns=10_500_000_000, labels=("person",), identity=None):
     messages, obstacles = [], []
     node = SimpleNamespace(
         now_ns=now_ns, obstacles=obstacles,
@@ -94,8 +97,68 @@ def publisher(viewer, now_ns=10_500_000_000):
             publish=(obstacles if topic == "/fc/obstacle_detections" else messages).append),
         create_subscription=lambda *args: None)
     node.get_clock = lambda: SimpleNamespace(now=lambda: SimpleNamespace(nanoseconds=node.now_ns))
-    obj = viewer.DetectionPublisher(node, ["person"])
+    identity = identity or dict(model_sha256="a" * 64, labels_sha256=hashlib.sha256(
+        ("\n".join(labels) + "\n").encode()).hexdigest())
+    obj = viewer.DetectionPublisher(node, labels, detector_identity=identity)
     return obj, messages
+
+
+def test_startup_identity_hashes_actual_file_and_loaded_label_order_once(viewer, tmp_path, monkeypatch):
+    model = tmp_path / "model.hef"
+    model.write_bytes(b"actual selected model")
+    labels = (ROOT / "follow_me_pupper/robot/coco.txt").read_text().splitlines()
+    detector = SimpleNamespace(labels=labels, close=lambda: None)
+    calls = []
+    def load(**kwargs):
+        calls.append(kwargs)
+        return detector
+    monkeypatch.setitem(viewer.load_identified_detector.__globals__, "HailoYoloSeg", load)
+    loaded, identity = viewer.load_identified_detector(model)
+    assert loaded is detector and calls == [dict(model_path=model, score_threshold=.4)]
+    assert identity == dict(model_sha256=hashlib.sha256(model.read_bytes()).hexdigest(),
+        labels_sha256="bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a")
+    pub, _ = publisher(viewer, labels=labels, identity=identity)
+    identity["labels_sha256"] = "tampered caller dictionary"
+    model.unlink()  # No model reads/hashes in the frame publication path.
+    image = np.zeros((572, 700, 3), np.uint8)
+    detections = [SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=i, score=.9)
+                  for i in (32, 0, 56)]
+    pub.publish(detections, image, capture_stamp_ns=10_400_000_000, received_at=100)
+    pub.publish([], image, capture_stamp_ns=10_500_000_000, received_at=100)
+    first, second = [json.loads(msg.data) for msg in pub.node.obstacles]
+    assert [d["class_id"] for d in first["detections"]] == ["32", "0", "56"]
+    assert first["detector_identity"] == second["detector_identity"] == pub.detector_identity
+    assert first["detector_identity"]["labels_sha256"] != identity["labels_sha256"]
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("change", ["replace_model", "edit_model", "malformed_labels"])
+def test_startup_identity_refuses_file_change_or_invalid_loaded_labels(viewer, tmp_path, monkeypatch, change):
+    model = tmp_path / "model.hef"
+    model.write_bytes(b"original")
+    closed = []
+    def load(**kwargs):
+        if change == "replace_model":
+            replacement = tmp_path / "replacement"
+            replacement.write_bytes(b"original")
+            replacement.replace(model)
+        elif change == "edit_model":
+            model.write_bytes(b"replacement")
+        return SimpleNamespace(labels=["bad\nlabel"] if change == "malformed_labels" else ["person"],
+                               close=lambda: closed.append(True))
+    monkeypatch.setitem(viewer.load_identified_detector.__globals__, "HailoYoloSeg", load)
+    with pytest.raises(ValueError):
+        viewer.load_identified_detector(model)
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("class_id", ["32", 32.0, True, -1, 1])
+def test_invalid_class_index_is_unhealthy_not_an_arena_ball(viewer, class_id):
+    pub, legacy = publisher(viewer)
+    det = SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=class_id, score=.9)
+    pub.publish([det], np.zeros((572, 700, 3)), capture_stamp_ns=10_400_000_000, received_at=100)
+    envelope = json.loads(pub.node.obstacles[0].data)
+    assert not envelope["valid"] and not envelope["healthy"] and not legacy
 
 
 def test_display_filter_cannot_remove_a_near_detection_from_published_guard_evidence(viewer):
@@ -127,6 +190,7 @@ def test_guard_envelope_preserves_source_identity_capture_projection_and_empty_r
     pub.publish([det], image, capture_stamp_ns=10_400_000_000, received_at=100)
     first = json.loads(pub.node.obstacles[0].data)
     assert first == dict(schema="fc_camera_obstacles_v1", producer_instance=pub.obstacle_instance,
+        detector_identity=pub.detector_identity,
         sequence=0, captured_at_ros_ns=10_400_000_000, valid=True, healthy=True,
         format="normalized_xyxy_v1", image_width=700, image_height=572, horizontal_fov_deg=220.0,
         detections=[dict(box=[.4, 100/572, .6, 500/572], confidence=.9, class_id="0")])

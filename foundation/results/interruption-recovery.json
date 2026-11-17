@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T11:37:50.368995+00:00",
+  "updated_utc": "2026-11-17T12:02:03.614240+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -71,7 +71,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Bridge committed147fc61 after1173tests+106subtests and3actualROS cases. Next bounded tasks dispatched: two concurrent robot domains, ball-contact versus all-class obstacle-veto audit, exact native detector asset/projection investigation. No current robot access; inspect agent/job handles on resume.",
+    "compute": "Arena candidate validated:1204tests+134subtests,3actualROS cases, independent and exactFable5.2 review; all owned jobs closed. Crop rejected. Next demonstrated gaps: human resume needs current-frame race removed; no full naturally scored play cycle through ROS. Source kit refresh after that coherent integration; old28file kit remains frozen pre-arena evidence.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -79,12 +79,12 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root leads next integration decisions and reviews; continuous bridge147fc61 and28file source kit preserved. Goal active, offline only.",
+      "project_lead": "Root integrates arena mode selection/runtime/assembler, reviews frozen source and evidence, updates source kit after checks. Goal active; offline only.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Read-only bounded exact Hailo/model/preprocessing asset investigation; recommend one useful offline perception experiment with paired metrics and live route. No install/train/spend yet.",
-      "overnight_compute": "Owns ros_fc_executor_smoke.py plus new artifacts for concurrent two-domain robot fault-isolation rehearsal. No other production files or hardware.",
-      "body_guard": "Read-only bounded audit of all-class obstacle veto versus intended soccer ball contact; verify actual detector labels and propose minimal evidence-based rule. No source edits.",
+      "overnight_harness": "Owns separate artifact-only15min saved-prediction miss diagnosis. No production edit, new inference, private upload or cloud job.",
+      "overnight_compute": "Completed/frozen two-domain and arena actualROS+Fable reviews; idle. No active container/process or file editing.",
+      "body_guard": "Arena source frozen and reviewed. Read-only gameplay audit complete: full ROS cycle missing; exact-frame resume races operator status. Awaiting bounded bridge/test ownership for correction.",
       "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle.",
       "bridge_adversary": "Completed exact correction verification for5guard/bridge issues; evidence retained. Idle, no ownership."
     },
@@ -138,20 +138,20 @@
   },
   "next": [
     {
-      "id": "two_robot_transport_rehearsal",
-      "action": "Extend existing isolatedROS smoke for two concurrent robot domains/opposite field directions. Verify each own-ID command route, and one robot Stop/lease loss/guard failure cannot affect or feed the other. Reuse existing image/fake native feedback; no new native build. Keep single-domain source snapshot/archive intact."
+      "id": "usable_goal_resume",
+      "action": "Implement trusted operator one-cue resume bound to current session/goal cycle and fresh evidence, with delayed/replayed cues fenced. Keep strict explicit-frame API. Publish useful frame/intent/goal readiness; root assigns bridge/test ownership before edit."
     },
     {
-      "id": "ball_contact_guard_compatibility",
-      "action": "Resolve outcome conflict before live soccer: current guard explicitly vetoes detected balls. Body_guard audits exact class mapping and evidence, proposes smallest explicit play-ball exception while person/other obstacles still stop. No blanket production exception or presumed pink-ball recognition without evidence; contact geometry/coverage need physical acceptance."
+      "id": "complete_ros_play_cycle",
+      "action": "Extend existing device-free ROS smoke with current Simulator driven ONLY by final /cmd_vel. Naturally generate goal crossing, return/reset/onecue resume/secondstrike; real-time cadence and60second cap perrun. Mirror isolated one-robot trials; do not claim shared-ball two-robot physics. Fake native boundary explicit."
     },
     {
-      "id": "recorded_camera_next_screen",
-      "action": "After transport checkpoint, test one decision-changing perception hypothesis on frozen raw footage, targeting close-person misses and tower/partial-obstacle coverage. Investigate projection/crop suitability and available exact lab model before introducing another large model. Prior OWLv2 exceeded every350msdeadline; no deployment or threshold fitted only to this clip."
+      "id": "perception_diagnostic",
+      "action": "Finish approved15minute saved-prediction audit identifying confidence/classification/NMS/mapping/geometric causes. No tuning to this single clip."
     },
     {
       "id": "guarded_target_acceptance",
-      "action": "Next authorized Pi block: file-only assembly from verified logfix walk baseline and latest28file source kit, targetPython/import/preflight, reviewed camera source selection, capture age+spacing/scene coverage. Bridge needs explicit calibratedgeometry and realpose/clockadapter before floor navigation; same-host synthetic inputs are offlineonly. Software Start still needs separate Pi-compatible gatewaybuild. No overnight robot access/deploy/homing."
+      "action": "After next integration freeze, refresh source kit once and concise target checklist. Future authorized Pi block: native compatiblegatewayStart build, imports/preflight, realcamera capture age+spacing and person/pinkball coverage before floorplay. No overnight SSH/deployment/homing/motion."
     }
   ],
   "recorded_open_items": {

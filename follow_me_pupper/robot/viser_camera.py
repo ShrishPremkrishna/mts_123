@@ -76,6 +76,42 @@ DETECTION_H_FOV_DEG = 220.0
 DETECTION_MIN_CONFIDENCE = 0.4
 
 
+def load_identified_detector(model_path):
+    """Hash selected HEF once and actual loaded label order, before publishing.
+
+    File continuity across loading is checked, not accelerator loaded-bytecode
+    attestation. The canonical labels are UTF-8, one loaded string per line,
+    including a final newline. No per-frame file access or label remapping.
+    """
+    import hashlib
+
+    def file_identity(stat):
+        return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+    with open(model_path, "rb") as selected:
+        before = file_identity(os.fstat(selected.fileno()))
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: selected.read(1024 * 1024), b""):
+            digest.update(chunk)
+        if file_identity(os.fstat(selected.fileno())) != before:
+            raise ValueError("detector model changed while hashing")
+        detector = HailoYoloSeg(model_path=model_path, score_threshold=DETECTION_MIN_CONFIDENCE)
+        try:
+            if (file_identity(os.fstat(selected.fileno())) != before or
+                    file_identity(os.stat(model_path)) != before):
+                raise ValueError("detector model changed while loading")
+            labels = detector.labels
+            if not labels or any(not isinstance(s, str) or not s or "\n" in s or "\r" in s
+                                 for s in labels):
+                raise ValueError("invalid loaded detector labels")
+            identity = dict(model_sha256=digest.hexdigest(), labels_sha256=hashlib.sha256(
+                ("\n".join(labels) + "\n").encode("utf-8")).hexdigest())
+        except Exception:
+            detector.close()
+            raise
+    return detector, identity
+
+
 def detector_source_frame(frame, *, swap_rb=False):
     """Pinned startup color correction, independent of viewer controls."""
     return frame[:, :, ::-1].copy() if swap_rb else frame
@@ -253,13 +289,14 @@ class DetectionPublisher:
     mean of their box crop instead; an empty id means no color was available.
     """
 
-    def __init__(self, node, labels):
+    def __init__(self, node, labels, *, detector_identity):
         import uuid
         from std_msgs.msg import String
         from vision_msgs.msg import Detection2DArray
 
         self.node = node
-        self.labels = labels
+        self.labels = tuple(labels)
+        self.detector_identity = dict(detector_identity)
         self.class_name_to_id = {name: i for i, name in enumerate(labels)}
         self.tracking_enabled = False
         self.tracking_object = None
@@ -354,6 +391,9 @@ class DetectionPublisher:
                  frame_shape[0] == equirect_height(frame_shape[1], DETECTION_H_FOV_DEG))
         try:
             for det in detections:
+                if (isinstance(det.class_id, bool) or not isinstance(det.class_id, (int, np.integer))
+                        or not 0 <= det.class_id < len(self.labels)):
+                    raise ValueError("invalid detector class index")
                 x1, y1, x2, y2 = (float(value) for value in det.box)
                 box = [x1 / frame_shape[1], y1 / frame_shape[0],
                        x2 / frame_shape[1], y2 / frame_shape[0]]
@@ -367,6 +407,7 @@ class DetectionPublisher:
             valid = False
             normalized = []
         envelope = dict(schema="fc_camera_obstacles_v1", producer_instance=self.obstacle_instance,
+                        detector_identity=self.detector_identity,
                         sequence=self.obstacle_sequence, captured_at_ros_ns=capture_stamp_ns,
                         valid=bool(valid), healthy=bool(valid), format="normalized_xyxy_v1",
                         image_width=DETECTION_PUBLISH_WIDTH, image_height=DETECTION_PUBLISH_HEIGHT,
@@ -869,13 +910,13 @@ def main():
     publisher = None
     if args.detect:
         try:
-            detector = HailoYoloSeg(model_path=args.model, score_threshold=DETECTION_MIN_CONFIDENCE)
+            detector, detector_identity = load_identified_detector(args.model)
             print(f"Loaded {os.path.basename(args.model)} ({len(detector.labels)} classes).")
         except Exception as exc:
             print(f"[detection] disabled: {exc}")
 
     if detector is not None and args.publish_detections and isinstance(source, RosSource):
-        publisher = DetectionPublisher(source.node, detector.labels)
+        publisher = DetectionPublisher(source.node, detector.labels, detector_identity=detector_identity)
         print("Publishing /detections (follow_me.py can track off this).")
 
     with server.gui.add_folder("Detection"):

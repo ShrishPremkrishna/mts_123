@@ -53,7 +53,9 @@ def within(root, relative):
 
 
 def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
-             source_sha256, destination, guard_python):
+             source_sha256, destination, guard_python, arena_ball_contact=False):
+    if not isinstance(arena_ball_contact, bool):
+        raise ValueError("Arena ball contact selection must be boolean")
     baseline_manifest = Path(baseline_manifest).resolve(strict=True)
     base = baseline_manifest.parent
     sources = Path(source_root).resolve(strict=True)
@@ -110,6 +112,10 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
         path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(sources / relative, path)
         relative_files[role] = Path(relative)
+    mode = "arena_ball_contact" if arena_ball_contact else "all_obstacles"
+    policy_path = Path("foundation/hardware/guard-policy.json")
+    (destination / policy_path).write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": mode}, indent=2) + "\n")
+    relative_files["guard_policy"] = policy_path
     (destination / "walk.yaml").write_text(config.replace(str(base), str(destination)))
     (destination / "environment.sh").write_text(environment.replace(str(base), str(destination)))
     selected = {role: {"path": str(destination / relative), "sha256": sha(destination / relative)}
@@ -132,6 +138,7 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
               "manifest_sha256": sha(destination / "walk-manifest.json"),
               "native_unchanged": True, "hardware_started": False, "physical_acceptance": False,
               "target_preflight_required": True, "software_start_service_added": False}
+    record["guard_mode"] = mode
     (destination / "STAGING.json").write_text(json.dumps(record, indent=2) + "\n")
     payload = {str(path.relative_to(destination)): sha(path)
                for path in sorted(destination.rglob("*")) if path.is_file() and path.name != "FILE_SHA256.json"}
@@ -143,6 +150,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("baseline-manifest", "baseline-sha256", "source-root", "source-index", "source-sha256", "destination", "guard-python"):
         parser.add_argument("--" + name, required=True)
+    parser.add_argument("--arena-ball-contact", action="store_true",
+                        help="Explicit candidate: allow verified lab-model sports-ball detections; all other obstacles still gate motion")
     args = parser.parse_args()
     try:
         print(json.dumps(assemble(**vars(args)), indent=2))

@@ -110,6 +110,17 @@ The optional guarded stock launch remaps the existing mux output to
 `/fc/requested_cmd_vel`; the guard publishes admitted commands on `/cmd_vel`.
 Four manifest roles select the guard interpreter, script, obstacle logic and
 package initializer together. Stock manifests retain their original routing.
+An optional hashed `guard_policy` file selects `all_obstacles` (the default for
+old and new manifests) or explicit `arena_ball_contact`; runtime identity binds
+that selection to the exact guard process arguments. Arena mode exempts only
+class `"32"` from the expected lab HEF and canonical COCO label map. The producer
+reports hashes from the selected model and loaded labels once at startup.
+Missing or mismatched identity withholds arena motion; detection validation,
+freshness, clear-frame hysteresis and other obstacle classes still apply.
+The exception applies during approach as well as strike, since a strike-only
+exception would prevent reaching the ball. It does not identify the intended
+pink ball or protect against an obstacle misclassified solely as a sports ball.
+Real ball/person coverage must pass before this candidate is used on the field.
 Runtime selection verifies the guard process separately from native authority;
 the movement client also checks the named ROS publishers. Guard loss cancels
 requests without shutting down native standing or automatically restarting.
@@ -124,6 +135,11 @@ camera guard and native controller remain downstream. A 20 ms steady-clock tick
 checks command expiry independently of input traffic. The initial command
 envelope is ±0.3 m/s forward/lateral and ±1 rad/s yaw. Two robot instances need
 separate ROS domains with the existing absolute-topic stack.
+Concurrent isolated ROS trials exercised both domains with opposite headings:
+one robot's lease expiry, Stop and guard death did not interrupt the other's
+distinct command stream or feed commands back into the stopped domain. This
+used fake native feedback on one Linux host; separate robot commissioning and
+cross-host clock conversion remain unverified.
 
 The CLI defaults to configuration validation with no ROS imports or processes:
 
