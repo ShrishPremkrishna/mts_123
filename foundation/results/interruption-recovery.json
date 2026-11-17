@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Integrate Pupper FC with recovered onboard perception/shooting work and the still-missing overhead field-state pipeline. Source reconciliation complete; current user request determines the next implementation.",
+  "objective": "Establish a repeatable real run-through shot using the existing stock gait, following the TA progression before training a specialized kick. Physical readiness is pending; offline policy/config inspection completed.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "pi_source_reconciled_soccer_integration_open",
-  "updated_utc": "2026-11-16T23:54:35.114381+00:00",
+  "mode": "stock_shot_baseline_prepared_readiness_pending",
+  "updated_utc": "2026-11-17T00:10:26.147767+00:00",
   "current_report": "foundation/results/pi-source-reconciliation-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -174,6 +174,10 @@
   },
   "next": [
     {
+      "id": "stock_shot_baseline",
+      "action": "Await user supervision readiness, verify stock default actor and actual active caps, then one supported homing and persistent session. First short marked no-ball advance below 0.49 m/s cap, then observed contact trials with roughly 7-inch soft ball/no bumper. No learned policy activation. See final_project/PI_RECONCILIATION.md for policy inventory and cap/dead-reckoning trap."
+    },
+    {
       "id": "perception_handoff",
       "action": "Ask Ryan for overhead-camera ingestion/calibration and timestamped field state for both robot poses and ball, plus one replayable clip/sample. Recovered onboard detector does not supply global state."
     },
@@ -239,5 +243,16 @@
     "previous_pi_ref": "codex/pi-source-before-20261116",
     "result": "Source synchronized and checked; original experiments and native install preserved. Details in current report.",
     "runtime_activated": false
+  },
+  "shooting_preparation": {
+    "date": "2026-11-16",
+    "user_ball": "Approximately 7-inch soft/partly deflated mini basketball; no bumper.",
+    "fresh_policy_inventory": "14 files / 11 distinct actors: 9 locomotion, 1 learned header, 1 three-legged specialist. Aliases and old native-only backups excluded from candidate count.",
+    "first_actor_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "first_speed_proposal_m_s": 0.45,
+    "native_default_forward_cap_m_s": 0.49,
+    "runtime_not_started": true,
+    "operator_readiness": "Async readiness question pending; user said physical testing unavailable until ready.",
+    "audit": "Focused policy inventory and Claude Code config review; no physical experiments."
   }
 }

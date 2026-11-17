@@ -37,4 +37,12 @@ Which ball and bumper were used; whether manual run-through trials actually cont
 
 Use the stock-gait shot as the first candidate behind the gameplay command interface. Coordinate with the perception owner for overhead image ingestion, calibration and two-robot field state; onboard ball tracking does not replace them. Keep the learned policy as an experiment while its failure handling and physical behavior are addressed. Source checkout synchronization does not install native binaries, change selected policies, home or start services.
 
+### Shooting baseline preparation — November 16
+
+Fresh deployment/saved-policy inventory contains **nine distinct locomotion actors**: stock default, legacy, four Markus exports, Ryan, Shrish and Tej. There is also one learned header actor and one three-legged specialist. Fourteen filenames collapse to eleven unique exports/networks; historical native-only backups are outside this shortlist. Stock default and alternate controller slots use the **same** actor (`ecf3a4ab`); different caps do not create another policy. Inventory hashes are in the external recovery store's `policy-candidates-20261116.json`.
+
+The normal default slot caps forward commands at **0.49 m/s**, while run-through estimates travel from the requested command. Requests above the active cap can therefore brake before contact. This is a verified mechanism, not a demonstrated explanation of every recorded miss. The installed launch has no `config_file` argument; the historical runbook's override must not be assumed effective. Historical trials sometimes explicitly selected the alternate slot and sometimes used whichever slot was active.
+
+Next supervised baseline: select and verify stock default, command below its cap (initial target 0.45 m/s), measure one short no-ball advance and braking, then repeat with the ball and record actual contact/direction. Keep one homed session. User's temporary ball is approximately seven inches, soft/partly deflated, with no bumper fitted. Contact geometry remains to be observed. Do not enable the learned actor or test every archived gait before establishing this baseline.
+
 External recovery store: `/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/pi-reconciliation/`. `pupper-kick-recovery-20261116.tar.gz` SHA-256: `1e067b43a97c933f0fae2c3aa4752a15efe1adcf32281ed05ac7b219101df8f0`. Native source/config/policy archive SHA-256: `e6e0349c836616fb7c0d82f44b0a8a74134d17a2923c43bb25a251f33f38175c`. The session checkpoint records the final synchronized source and runtime distinction.
