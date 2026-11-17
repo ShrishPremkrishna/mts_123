@@ -57,6 +57,15 @@ controller_interface::CallbackReturn NeuralController::on_init() {
       RCLCPP_WARN(get_node()->get_logger(), "Gain_multiplier is set to %f",
                   params_.gain_multiplier);
     }
+    // Snapshotted here; later parameter changes do not move the deadline.
+    if (!(params_.cmd_vel_timeout_s >= kCmdVelTimeoutMin &&
+          params_.cmd_vel_timeout_s <= kCmdVelTimeoutMax)) {
+      RCLCPP_ERROR(get_node()->get_logger(), "cmd_vel_timeout_s must be in [%.2f, %.2f]. Stopping",
+                   kCmdVelTimeoutMin, kCmdVelTimeoutMax);
+      return controller_interface::CallbackReturn::ERROR;
+    }
+    cmd_vel_timeout_ = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::duration<double>(params_.cmd_vel_timeout_s));
 
     // Per-joint kp trim, for hardware variation between individual robots -- a
     // motor that is weak relative to the rest needs a stiffer loop to track the
@@ -277,6 +286,27 @@ controller_interface::CallbackReturn NeuralController::on_init() {
     get_node()->declare_parameter("interactive_clip_status_protocol",std::string(kInteractiveClipStatusProtocol),execution_descriptor,true);
     get_node()->declare_parameter("interactive_clip_status_active",use_trick_,execution_descriptor,true);
 
+    // /cmd_vel expiry only where the parsed policy makes Twist a velocity request
+    // (the gait reference consumes it as vx/vy/wz). Target-conditioned and trick
+    // policies give it other meanings, where zero is not a cancel; legacy
+    // walkers without a gait reference are left unsupported by this change.
+    cmd_vel_expiry_supported_ = use_gait_reference_ && obs_layout_.command >= 0 && !use_trick_;
+    rcl_interfaces::msg::ParameterDescriptor cmd_vel_descriptor;
+    cmd_vel_descriptor.read_only=true;
+    cmd_vel_descriptor.description="Loaded /cmd_vel receipt-expiry contract (zero requested locomotion after steady-clock receipt timeout; not a physical stop or hardware watchdog); ignores launch overrides";
+    get_node()->declare_parameter("cmd_vel_expiry_supported",cmd_vel_expiry_supported_,cmd_vel_descriptor,true);
+    get_node()->declare_parameter("cmd_vel_expiry_timeout_s",
+        std::chrono::duration<double>(cmd_vel_timeout_).count(),cmd_vel_descriptor,true);
+    if (cmd_vel_expiry_supported_) {
+      RCLCPP_INFO(get_node()->get_logger(), "/cmd_vel expires %.3f s after receipt (gait velocity path)",
+                  std::chrono::duration<double>(cmd_vel_timeout_).count());
+    } else {
+      RCLCPP_WARN(get_node()->get_logger(),
+                  "/cmd_vel expiry unsupported for this policy (%s); the last command is held",
+                  use_trick_ ? "trick" : !use_gait_reference_ ? "no gait reference: target or legacy"
+                                                               : "no command observation");
+    }
+
     // Teleop command clamp: the exporter stamps the trained command ranges (or a
     // deliberately tighter cap), and the policy should never see anything outside
     // them.
@@ -375,8 +405,7 @@ controller_interface::InterfaceConfiguration NeuralController::state_interface_c
 controller_interface::CallbackReturn NeuralController::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   // Clear command buffers to ignore pre-activation commands
-  rt_cmd_vel_ptr_ =
-      realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Twist>>(nullptr);
+  revoke_cmd_vel();
   rt_cmd_pose_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Pose>>(nullptr);
 
@@ -506,11 +535,21 @@ controller_interface::CallbackReturn NeuralController::on_activate(
   // A re-activation must not hold a heading captured in a previous run.
   heading_hold_.reset();
 
-  // Initialize the command subscriber
+  // Initialize the command subscriber. The callback is bound to this
+  // activation's generation, so one already in flight from a previous
+  // activation cannot replay its command. KeepLast(1) volatile limits queued
+  // old commands; it cannot bound how old a publisher's sample was.
+  cmd_vel_was_live_ = false;
+  {
+    const std::uint64_t generation = cmd_vel_generation_.load();
+    cmd_vel_callback_ = [this, generation](const geometry_msgs::msg::Twist::SharedPtr msg) {
+      receive_cmd_vel(msg, generation);
+    };
+  }
   cmd_vel_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Twist>(
-      "/cmd_vel", rclcpp::SystemDefaultsQoS(),
-      [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
-        rt_cmd_vel_ptr_.writeFromNonRT(msg);
+      "/cmd_vel", rclcpp::QoS(rclcpp::KeepLast(1)).reliable().durability_volatile(),
+      [callback = cmd_vel_callback_](const geometry_msgs::msg::Twist::SharedPtr msg) {
+        callback(msg);
       });
 
   cmd_pose_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Pose>(
@@ -642,8 +681,7 @@ controller_interface::CallbackReturn NeuralController::on_error(
 
 controller_interface::CallbackReturn NeuralController::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
-  rt_cmd_vel_ptr_ =
-      realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Twist>>(nullptr);
+  revoke_cmd_vel();
   rt_cmd_pose_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Pose>>(nullptr);
 
@@ -680,6 +718,35 @@ controller_interface::CallbackReturn NeuralController::on_deactivate(
 
   RCLCPP_INFO(get_node()->get_logger(), "Deactivate successful");
   return controller_interface::CallbackReturn::SUCCESS;
+}
+
+void NeuralController::receive_cmd_vel(const geometry_msgs::msg::Twist::SharedPtr &msg,
+                                       std::uint64_t generation) {
+  // A callback from a torn-down subscription drops its message. update() checks
+  // the generation again, for one that passed here just before the teardown.
+  if (!msg || generation != cmd_vel_generation_.load()) return;
+  auto sample = std::make_shared<CmdVelSample>();
+  sample->twist = *msg;
+  sample->receipt = cmd_vel_now();
+  sample->generation = generation;
+  // A nonfinite used axis is stored too, so it replaces (revokes) the prior
+  // command rather than leaving it alive.
+  sample->finite = std::isfinite(msg->linear.x) && std::isfinite(msg->linear.y) &&
+                   std::isfinite(msg->angular.z);
+  rt_cmd_vel_ptr_.writeFromNonRT(sample);
+}
+
+void NeuralController::revoke_cmd_vel() {
+  ++cmd_vel_generation_;
+  cmd_vel_subscriber_.reset();
+  cmd_vel_callback_ = nullptr;
+  rt_cmd_vel_ptr_.writeFromNonRT(std::shared_ptr<const CmdVelSample>{});
+}
+
+bool NeuralController::cmd_vel_live(const CmdVelSample *sample) const {
+  const auto now = cmd_vel_now();
+  return sample && sample->generation == cmd_vel_generation_.load() && sample->finite &&
+         sample->receipt <= now && now - sample->receipt < cmd_vel_timeout_;
 }
 
 void NeuralController::publish_reference_status() {
@@ -749,6 +816,21 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   double time_since_fade_in = (time - init_time_).seconds() - params_.init_duration;
   float fade_in_multiplier = std::min(time_since_fade_in / params_.fade_in_duration, 1.0);
 
+  // The latest /cmd_vel and, on the gait velocity path, whether it is still
+  // live. Checked before the held-action return: a command that expires or is
+  // revoked forces inference this cycle, so the zero request reaches the policy
+  // without waiting out repeat_action.
+  const auto *cmd_vel_slot = rt_cmd_vel_ptr_.readFromRT();
+  const CmdVelSample *cmd_vel_sample = cmd_vel_slot ? cmd_vel_slot->get() : nullptr;
+  bool cmd_vel_live_now = false;
+  if (cmd_vel_expiry_supported_) {
+    cmd_vel_live_now = cmd_vel_live(cmd_vel_sample);
+    if (cmd_vel_was_live_ && !cmd_vel_live_now) {
+      repeat_action_counter_ = params_.repeat_action - 1;
+    }
+    cmd_vel_was_live_ = cmd_vel_live_now;
+  }
+
   // Only get a new action from the policy when repeat_action_counter_ is 0
   repeat_action_counter_ += 1;
   repeat_action_counter_ %= params_.repeat_action;
@@ -763,11 +845,17 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   }
 
   // Get the latest commanded velocities
-  auto cmd_vel = rt_cmd_vel_ptr_.readFromRT();
-  if (cmd_vel && cmd_vel->get()) {
-    cmd_x_vel_ = cmd_vel->get()->linear.x;
-    cmd_y_vel_ = cmd_vel->get()->linear.y;
-    cmd_yaw_vel_ = cmd_vel->get()->angular.z;
+  if (cmd_vel_expiry_supported_) {
+    // Expired, revoked (nonfinite) or never received: zero requested
+    // locomotion. This is the request only, not proof the robot has stopped.
+    cmd_x_vel_ = cmd_vel_live_now ? cmd_vel_sample->twist.linear.x : 0.0;
+    cmd_y_vel_ = cmd_vel_live_now ? cmd_vel_sample->twist.linear.y : 0.0;
+    cmd_yaw_vel_ = cmd_vel_live_now ? cmd_vel_sample->twist.angular.z : 0.0;
+  } else if (cmd_vel_sample && cmd_vel_sample->generation == cmd_vel_generation_.load()) {
+    // Unsupported policies keep the existing hold-last semantics.
+    cmd_x_vel_ = cmd_vel_sample->twist.linear.x;
+    cmd_y_vel_ = cmd_vel_sample->twist.linear.y;
+    cmd_yaw_vel_ = cmd_vel_sample->twist.angular.z;
   }
 
   // Clamp the teleop command to the policy's declared bounds. The filtered
@@ -775,7 +863,10 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   // reference see, matching the command the policy trained on. The heading
   // hold may additionally replace cmd_yaw once the IMU is read below.
   double cmd_vx = cmd_x_vel_, cmd_vy = cmd_y_vel_, cmd_yaw_raw = cmd_yaw_vel_;
-  command_clip_.apply(cmd_vx, cmd_vy, cmd_yaw_raw);
+  const bool expired_velocity = cmd_vel_expiry_supported_ && !cmd_vel_live_now;
+  // A configured clip need not contain zero. It must not turn an expired
+  // request back into motion; valid commands still use the existing limits.
+  if (!expired_velocity) command_clip_.apply(cmd_vx, cmd_vy, cmd_yaw_raw);
   // Per-instance speed caps on top of the policy's own bounds, e.g. the
   // walk-only slot's asymmetric forward/backward limits.
   if (params_.max_vx_forward > 0.0) {
@@ -819,8 +910,10 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
                            : (run_held ? jump_slot_.run_speed_cap : jump_slot_.walk_speed_cap);
     // The cap applies to the filtered command (the one the observation and the
     // gait reference see), on top of the JSON's command_clip.
-    cmd_vx = std::min(std::max(cmd_vx, -cap), cap);
-    cmd_vy = std::min(std::max(cmd_vy, -cap), cap);
+    if (!expired_velocity) {
+      cmd_vx = std::min(std::max(cmd_vx, -cap), cap);
+      cmd_vy = std::min(std::max(cmd_vy, -cap), cap);
+    }
 
     // Retire slots whose busy window has fully passed.
     for (std::size_t i = 0; i < slot_starts_.size(); i++) {
@@ -1003,9 +1096,14 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
     // Heading hold: while walking with a quiet commanded yaw, the emitted yaw
     // command becomes the clipped P-correction toward the heading captured at
     // the quiet edge -- the same closed loop the policy trained against.
-    cmd_yaw = heading_hold_.apply(
-        yaw_from_quaternion(orientation_w, orientation_x, orientation_y, orientation_z),
-        cmd_vx, cmd_vy, cmd_yaw_raw);
+    if (expired_velocity) {
+      heading_hold_.reset();
+      cmd_yaw = 0.0;
+    } else {
+      cmd_yaw = heading_hold_.apply(
+          yaw_from_quaternion(orientation_w, orientation_x, orientation_y, orientation_z),
+          cmd_vx, cmd_vy, cmd_yaw_raw);
+    }
 
     // Fill the newest observation frame, at the offsets the policy's obs_spec
     // declared (-1 = the policy does not observe that component).

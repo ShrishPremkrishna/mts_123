@@ -69,6 +69,14 @@ neural_controller:
       description: "Extra backward speed cap (m/s, positive number) applied to the filtered command; 0 disables",
     }
 
+  cmd_vel_timeout_s:
+    {
+      type: double,
+      default_value: 0.25,
+      read_only: true,
+      description: "Receiver-side /cmd_vel expiry (s, steady-clock receipt age) for gait-reference velocity policies; after it the velocity request becomes zero. Snapshotted at load and must be in [0.05, 1.0]; there is no disable value. Ignored (see cmd_vel_expiry_supported) for target, trick and legacy policies",
+    }
+
   use_imu:
     {
       type: bool,

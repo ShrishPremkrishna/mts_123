@@ -5,6 +5,8 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -183,8 +185,38 @@ class NeuralController : public controller_interface::ControllerInterface {
            std::map<std::string, std::reference_wrapper<hardware_interface::LoanedStateInterface>>>
       state_interfaces_map_;
 
+  // /cmd_vel as received: the message plus its steady-clock receipt time and the
+  // activation generation of the subscription that delivered it, published as
+  // one immutable sample so update() sees a coherent triple.
+  struct CmdVelSample {
+    geometry_msgs::msg::Twist twist;
+    std::chrono::steady_clock::time_point receipt;
+    std::uint64_t generation = 0;
+    bool finite = false;  // linear.x, linear.y and angular.z all finite
+  };
+  // Receiver-side expiry, only for the parsed gait-reference velocity path (see
+  // on_init). Elsewhere /cmd_vel may be a target, so zero is not "stop" and the
+  // existing hold-last behavior is kept. Receipt age only: a publisher's sample
+  // age is not observable here, and this is no hardware watchdog.
+  bool cmd_vel_expiry_supported_ = false;
+  std::chrono::nanoseconds cmd_vel_timeout_{std::chrono::milliseconds(250)};
+  static constexpr double kCmdVelTimeoutMin = 0.05;
+  static constexpr double kCmdVelTimeoutMax = 1.0;
+  std::atomic<std::uint64_t> cmd_vel_generation_{0};
+  bool cmd_vel_was_live_ = false;
+  // Clock seam for tests; production receipts and expiry use steady_clock.
+  virtual std::chrono::steady_clock::time_point cmd_vel_now() const {
+    return std::chrono::steady_clock::now();
+  }
+  void receive_cmd_vel(const geometry_msgs::msg::Twist::SharedPtr &msg, std::uint64_t generation);
+  // Bump the generation and drop the subscription and any buffered command.
+  void revoke_cmd_vel();
+  bool cmd_vel_live(const CmdVelSample *sample) const;
+  // The callback the current subscription invokes (bound to its generation).
+  std::function<void(const geometry_msgs::msg::Twist::SharedPtr)> cmd_vel_callback_;
+
   // Realtime buffers for command and emergency stop subscriptions
-  realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Twist>> rt_cmd_vel_ptr_;
+  realtime_tools::RealtimeBuffer<std::shared_ptr<const CmdVelSample>> rt_cmd_vel_ptr_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_subscriber_ = nullptr;
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Pose>> rt_cmd_pose_ptr_;

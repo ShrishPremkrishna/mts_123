@@ -65,6 +65,27 @@ installed, so a fresh robot boots clean before your first deploy.
 
 ## How the controller reads a policy
 
+For gait-reference policies with a velocity-command observation, `/cmd_vel`
+expires **0.25 seconds after receipt** by default. Set `cmd_vel_timeout_s` before
+loading the controller to choose a value from 0.05 to 1.0 seconds; it is read-only
+after load. Missing, expired or nonfinite x/y/yaw commands become zero requested
+velocity. Expiry uses a steady clock and forces the next policy inference even
+on a cycle that would normally repeat the previous action. Initialization and
+skill/reference playback keep their existing behavior.
+
+The read-only parameters `cmd_vel_expiry_supported` and
+`cmd_vel_expiry_timeout_s` report the loaded behavior. Support is derived from
+the policy's gait-reference and command inputs, not its controller name. Legacy
+policies without gait references, motion-tracking skills, and target-conditioned
+learned kicks are **unsupported** by this timeout; zero can mean a ball target
+for a learned kick, so it is not used as cancellation there. Activation clears
+the previous command and rejects callbacks from older activations.
+
+This bounds receipt age at a running controller, not physical stopping time.
+It cannot detect an old command repeatedly republished upstream, establish the
+publisher's sample age, or stop a stalled controller or motor board. Normal Stop
+and emergency-stop procedures remain separate.
+
 The policy JSON is self-describing: the controller reads the network weights,
 kp/kd gains, action scale, default pose, joint limits, observation history,
 and the observation frame layout (an ordered list of named components —

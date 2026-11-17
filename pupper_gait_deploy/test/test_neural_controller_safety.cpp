@@ -1,4 +1,7 @@
 #include <thread>
+#include <chrono>
+#include <cmath>
+#include <limits>
 // Exercise production NeuralController::update against memory-backed ROS
 // command interfaces. No controller manager, driver or physical robot is used.
 #include <gtest/gtest.h>
@@ -105,6 +108,37 @@ class MemoryController : public neural_controller::NeuralController {
   }
   auto reference_state() const { return reference_execution_; }
   auto retained_reference() const { return last_reference_trick_; }
+  // /cmd_vel: receipts go through the production callback against a fake
+  // steady clock, so expiry is exact without sleeping.
+  std::chrono::steady_clock::time_point fake_now{std::chrono::seconds(100)};
+  std::chrono::steady_clock::time_point cmd_vel_now() const override { return fake_now; }
+  void advance(std::chrono::nanoseconds d) {
+    fake_now += std::chrono::duration_cast<std::chrono::steady_clock::duration>(d);
+  }
+  auto cmd_vel_callback() const { return cmd_vel_callback_; }
+  auto received_cmd_vel() { return *rt_cmd_vel_ptr_.readFromRT(); }
+  void deliver_late_sample(std::shared_ptr<const CmdVelSample> sample) {
+    rt_cmd_vel_ptr_.writeFromNonRT(sample);
+  }
+  bool has_cmd_vel_subscription() const { return cmd_vel_subscriber_ != nullptr; }
+  void send_cmd_vel(double vx, double vy, double wz, double vz = 0.) {
+    auto message=std::make_shared<geometry_msgs::msg::Twist>();
+    message->linear.x=vx;message->linear.y=vy;message->angular.z=wz;message->linear.z=vz;
+    cmd_vel_callback_(message);
+  }
+  std::array<float,3> observed_command() const {
+    const int c=obs_layout_.command;
+    return {observation_.at(c),observation_.at(c+1),observation_.at(c+2)};
+  }
+  float observed_gait() const { return observation_.at(obs_layout_.gait_reference); }
+  auto deactivate_in_memory() {
+    const auto result=on_deactivate(rclcpp_lifecycle::State());
+    // on_deactivate releases the loans; hand the same memory back for reactivation.
+    for(auto &handle:handles) command_interfaces_.emplace_back(*handle);
+    for(auto &handle:imu_handles) state_interfaces_.emplace_back(*handle);
+    return result;
+  }
+  int repeat_counter() const { return repeat_action_counter_; }
   void stop() { estop_active_ = true; }
   void set_held_cycle() { repeat_action_counter_ = 0; }
   controller_interface::return_type tick(double t) {
@@ -212,10 +246,45 @@ class ProductionRuntime : public ::testing::Test {
     if(moving)policy["motion"]["joint_pos"][1][0]=.001;
     return policy;
   }
-  controller_interface::return_type initialize(MemoryController &controller,const nlohmann::json &policy,bool spoof) {
+  // Minimal velocity-gait policy: a parsed gait reference plus the command
+  // component it reads vx/vy/wz from. Constant tables and zero weights, no real model.
+  nlohmann::json make_gait_policy() {
+    using Json=nlohmann::json;
+    auto policy=make_policy(false);
+    policy["in_shape"]={nullptr,21};
+    policy["layers"][0]["weights"][0]=std::vector<std::vector<double>>(21,std::vector<double>(12,0.));
+    policy["obs_spec"]={{"frame_order","newest_first"},{"components",Json::array({
+      {{"name","base_ang_vel"},{"size",3}},{{"name","projected_gravity"},{"size",3}},
+      {{"name","command"},{"size",3}},{{"name","gait_reference"},{"size",12}}})}};
+    policy["gait_reference"]={{"n_samples",2},{"frequency",2.},{"blend_speed",.5},{"gallop_speed",10.},
+      {"gallop_freq_mult",1.},{"dir_threshold",.05},
+      {"trot_table",std::vector<std::vector<double>>(2,std::vector<double>(12,.1))},
+      {"gallop_table",std::vector<std::vector<double>>(2,std::vector<double>(12,.1))}};
+    return policy;
+  }
+  // Target-conditioned layout: a command component with no gait reference.
+  // Twist is a target here, so it must not be treated as an expiring velocity.
+  nlohmann::json make_target_policy() {
+    using Json=nlohmann::json;
+    auto policy=make_policy(false);
+    policy["in_shape"]={nullptr,9};
+    policy["layers"][0]["weights"][0]=std::vector<std::vector<double>>(9,std::vector<double>(12,0.));
+    policy["obs_spec"]={{"frame_order","newest_first"},{"components",Json::array({
+      {{"name","base_ang_vel"},{"size",3}},{{"name","projected_gravity"},{"size",3}},
+      {{"name","command"},{"size",3}}})}};
+    return policy;
+  }
+  // Initialized, fed and activated; the first post-fade tick runs inference.
+  void activate_gait(MemoryController &controller) {
+    ASSERT_EQ(initialize(controller,make_gait_policy(),false),controller_interface::return_type::OK);
+    controller.add_flat_feedback();
+    ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  }
+  controller_interface::return_type initialize(MemoryController &controller,const nlohmann::json &policy,bool spoof,
+                                               std::vector<rclcpp::Parameter> extra={}) {
     const std::string path="/tmp/cs123-controller-policy-"+std::to_string(getpid())+".json";
     {std::ofstream output(path);output<<policy.dump();}
-    auto options=rclcpp::NodeOptions().parameter_overrides({
+    std::vector<rclcpp::Parameter> overrides{
       rclcpp::Parameter("model_path",path),rclcpp::Parameter("joint_names",neural_controller::position_slew_joint_names()),
       rclcpp::Parameter("action_types",std::vector<std::string>(12,"position")),
       rclcpp::Parameter("init_kps",std::vector<double>(12,7.5)),rclcpp::Parameter("init_kds",std::vector<double>(12,.25)),
@@ -227,7 +296,11 @@ class ProductionRuntime : public ::testing::Test {
       rclcpp::Parameter("interactive_clip_status_protocol",std::string("forged")),
       rclcpp::Parameter("interactive_clip_status_active",true),
       rclcpp::Parameter("position_target_slew_active",spoof),
-      rclcpp::Parameter("position_target_slew_contract_json",std::string("forged"))});
+      rclcpp::Parameter("position_target_slew_contract_json",std::string("forged")),
+      rclcpp::Parameter("cmd_vel_expiry_supported",!spoof),
+      rclcpp::Parameter("cmd_vel_expiry_timeout_s",9.)};
+    overrides.insert(overrides.end(),extra.begin(),extra.end());
+    auto options=rclcpp::NodeOptions().parameter_overrides(overrides);
     auto result=controller.init("slew_runtime_test","",520,"",options);
     std::remove(path.c_str());return result;
   }
@@ -466,6 +539,199 @@ TEST_F(ProductionRuntime, MovingLoopKeepsBoundaryAndStopPreemptsStaticRequest) {
       ASSERT_EQ(controller.tick_actor(3.),controller_interface::return_type::OK);
       EXPECT_EQ(controller.selected_clip(),1);
     }
+  }
+}
+
+using namespace std::chrono_literals;
+void expect_command(MemoryController &controller,float vx,float vy) {
+  const auto command=controller.observed_command();
+  EXPECT_FLOAT_EQ(command[0],vx);EXPECT_FLOAT_EQ(command[1],vy);
+}
+void expect_zero_command(MemoryController &controller) {
+  for(float value:controller.observed_command())EXPECT_FLOAT_EQ(value,0.f);
+}
+
+TEST_F(ProductionRuntime, CmdVelExpiryContractIsReadOnlySnapshotAndCannotBeSpoofed) {
+  for(double timeout:{.05,.25,1.}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,make_gait_policy(),false,{rclcpp::Parameter("cmd_vel_timeout_s",timeout)}),
+              controller_interface::return_type::OK);
+    auto node=controller.get_node();
+    EXPECT_TRUE(node->get_parameter("cmd_vel_expiry_supported").as_bool());
+    EXPECT_DOUBLE_EQ(node->get_parameter("cmd_vel_expiry_timeout_s").as_double(),timeout);
+    EXPECT_TRUE(node->describe_parameter("cmd_vel_expiry_supported").read_only);
+    EXPECT_TRUE(node->describe_parameter("cmd_vel_expiry_timeout_s").read_only);
+    EXPECT_TRUE(node->describe_parameter("cmd_vel_timeout_s").read_only);
+    EXPECT_FALSE(node->set_parameter(rclcpp::Parameter("cmd_vel_expiry_supported",false)).successful);
+    EXPECT_FALSE(node->set_parameter(rclcpp::Parameter("cmd_vel_expiry_timeout_s",.5)).successful);
+  }
+  // A later timeout change is refused and cannot move the loaded deadline.
+  MemoryController controller(false);activate_gait(controller);
+  ASSERT_FALSE(controller.get_node()->set_parameter(rclcpp::Parameter("cmd_vel_timeout_s",1.)).successful);
+  controller.send_cmd_vel(.3,.1,.5);controller.advance(250ms);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, InvalidCmdVelTimeoutRefusesLoad) {
+  for(double timeout:{0.,-.25,.049,1.001,std::numeric_limits<double>::quiet_NaN(),
+                      std::numeric_limits<double>::infinity()}) {
+    MemoryController controller(false);
+    EXPECT_EQ(initialize(controller,make_gait_policy(),false,{rclcpp::Parameter("cmd_vel_timeout_s",timeout)}),
+              controller_interface::return_type::ERROR) << timeout;
+  }
+}
+
+TEST_F(ProductionRuntime, StartupBeforeAnyCommandIsUnchangedAndZero) {
+  MemoryController controller(false);activate_gait(controller);
+  EXPECT_TRUE(controller.has_cmd_vel_subscription());
+  controller.send_cmd_vel(.3,.1,.5);
+  // Initialization still interpolates with init gains; commands are not read.
+  ASSERT_EQ(controller.tick(.5),controller_interface::return_type::OK);
+  for(const auto &joint:controller.values) {
+    EXPECT_DOUBLE_EQ(joint[0],0.);EXPECT_DOUBLE_EQ(joint[3],7.5);EXPECT_DOUBLE_EQ(joint[4],.25);
+  }
+  MemoryController quiet(false);activate_gait(quiet);
+  ASSERT_EQ(quiet.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_zero_command(quiet);
+}
+
+TEST_F(ProductionRuntime, FreshCmdVelSurvivesUntilExactBoundary) {
+  MemoryController controller(false);activate_gait(controller);
+  controller.send_cmd_vel(.3,.1,.5);
+  controller.advance(249999999ns);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_command(controller,.3f,.1f);
+  controller.advance(1ns);
+  ASSERT_EQ(controller.tick_actor(2.2),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+  // A fresh receipt restores the request.
+  controller.send_cmd_vel(.2,0.,.5);
+  ASSERT_EQ(controller.tick_actor(2.3),controller_interface::return_type::OK);
+  expect_command(controller,.2f,0.f);
+}
+
+TEST_F(ProductionRuntime, ExpiryDuringHeldActionForcesInferenceWithZeroTargets) {
+  MemoryController controller(false);activate_gait(controller);
+  controller.send_cmd_vel(.3,.1,.5);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  ASSERT_EQ(controller.repeat_counter(),0);expect_command(controller,.3f,.1f);
+  controller.advance(100ms);
+  ASSERT_EQ(controller.tick(2.1+1./520),controller_interface::return_type::OK);
+  EXPECT_EQ(controller.repeat_counter(),1);expect_command(controller,.3f,.1f);  // held, live
+  controller.advance(150ms);
+  ASSERT_EQ(controller.tick(2.1+2./520),controller_interface::return_type::OK);
+  EXPECT_EQ(controller.repeat_counter(),0);expect_zero_command(controller);  // new observation
+  ASSERT_EQ(controller.tick(2.1+3./520),controller_interface::return_type::OK);
+  EXPECT_EQ(controller.repeat_counter(),1);  // remaining expired does not force every inference
+  expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, ExpiryCannotBeUndoneByMalformedJumpSpeedCap) {
+  MemoryController controller(false);
+  auto policy=make_gait_policy();
+  policy["jump_slot"]={{"n_samples",2},{"playback_s",.94},{"active_s",.8},
+      {"cross_fade_s",.06},{"grid_s",.75},{"busy_s",1.},
+      {"walk_speed_cap",-.49},{"run_speed_cap",-1.5},
+      {"jump_table",std::vector<std::vector<double>>(2,std::vector<double>(12,0.))}};
+  ASSERT_EQ(initialize(controller,policy,false),controller_interface::return_type::OK);
+  controller.add_flat_feedback();
+  ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  controller.send_cmd_vel(.3,.1,.5);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  controller.advance(250ms);
+  ASSERT_EQ(controller.tick(2.1+1./520),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+  EXPECT_FLOAT_EQ(controller.observed_gait(),0.f);
+}
+
+TEST_F(ProductionRuntime, ExpiredZeroSurvivesClippingAndHeadingHoldIntoGaitObservation) {
+  MemoryController controller(false);
+  auto policy=make_gait_policy();
+  policy["command_clip"]={{"vx",{.1,.5}},{"vy",{.1,.5}},{"wz",{.1,1.}}};
+  policy["heading_hold"]={{"kp",1.5},{"clip",1.},{"yaw_threshold",.1},{"walk_threshold",.05}};
+  ASSERT_EQ(initialize(controller,policy,false),controller_interface::return_type::OK);
+  controller.add_flat_feedback();
+  ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  controller.send_cmd_vel(.3,.1,.5);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  EXPECT_GT(controller.observed_gait(),0.f);
+  controller.advance(250ms);
+  ASSERT_EQ(controller.tick(2.1+1./520),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+  EXPECT_FLOAT_EQ(controller.observed_gait(),0.f);
+}
+
+TEST_F(ProductionRuntime, FutureReceiptCannotExtendCommandLifetime) {
+  MemoryController controller(false);activate_gait(controller);
+  controller.send_cmd_vel(.3,.1,.5);
+  controller.advance(-1ns);  // injected bad clock/receipt ordering
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, NonfiniteCmdVelRevokesPriorCommandImmediately) {
+  const double nan=std::numeric_limits<double>::quiet_NaN(),inf=std::numeric_limits<double>::infinity();
+  for(int axis=0;axis<3;++axis) {
+    MemoryController controller(false);activate_gait(controller);
+    controller.send_cmd_vel(.3,.1,.5);
+    ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+    expect_command(controller,.3f,.1f);
+    controller.send_cmd_vel(axis==0?nan:.3,axis==1?inf:.1,axis==2?-inf:.5);
+    // The next (otherwise held) cycle infers with a zero request and no NaN error.
+    ASSERT_EQ(controller.tick(2.1+1./520),controller_interface::return_type::OK);
+    EXPECT_EQ(controller.repeat_counter(),0);expect_zero_command(controller);
+  }
+  // An axis the velocity path does not use does not revoke.
+  MemoryController controller(false);activate_gait(controller);
+  controller.send_cmd_vel(.3,.1,.5,nan);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_command(controller,.3f,.1f);
+}
+
+TEST_F(ProductionRuntime, DeactivationClearsCmdVelAndLateOldCallbackCannotReplay) {
+  MemoryController controller(false);activate_gait(controller);
+  controller.send_cmd_vel(.3,.1,.5);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_command(controller,.3f,.1f);
+  const auto old_callback=controller.cmd_vel_callback();
+  const auto old_sample=controller.received_cmd_vel();
+  ASSERT_EQ(controller.deactivate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  EXPECT_FALSE(controller.has_cmd_vel_subscription());
+  // An in-flight delivery from the torn-down subscription, while inactive.
+  auto late=std::make_shared<geometry_msgs::msg::Twist>();late->linear.x=.4;late->linear.y=.2;
+  old_callback(late);
+  ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  EXPECT_TRUE(controller.has_cmd_vel_subscription());
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  expect_zero_command(controller);  // neither the prior nor the late command survives
+  old_callback(late);  // and again after reactivation
+  ASSERT_EQ(controller.tick_actor(2.2),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+  // Simulate the old callback passing its first generation check before
+  // deactivation, then completing its buffer write after reactivation.
+  controller.deliver_late_sample(old_sample);
+  ASSERT_EQ(controller.tick_actor(2.25),controller_interface::return_type::OK);
+  expect_zero_command(controller);
+  controller.send_cmd_vel(.2,-.1,.5);  // the new activation's receiver works
+  ASSERT_EQ(controller.tick_actor(2.3),controller_interface::return_type::OK);
+  expect_command(controller,.2f,-.1f);
+}
+
+TEST_F(ProductionRuntime, TargetAndTrickPoliciesAreNotTreatedAsExpiringVelocity) {
+  MemoryController target(false);
+  ASSERT_EQ(initialize(target,make_target_policy(),false),controller_interface::return_type::OK);
+  EXPECT_FALSE(target.get_node()->get_parameter("cmd_vel_expiry_supported").as_bool());
+  target.add_flat_feedback();
+  ASSERT_EQ(target.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  target.send_cmd_vel(.3,.1,.5);target.advance(5s);
+  ASSERT_EQ(target.tick_actor(2.1),controller_interface::return_type::OK);
+  const auto held=target.observed_command();
+  EXPECT_FLOAT_EQ(held[0],.3f);EXPECT_FLOAT_EQ(held[1],.1f);EXPECT_FLOAT_EQ(held[2],.5f);
+  for(const auto &policy:{make_trick_policy(),make_policy(false)}) {
+    MemoryController controller(false);
+    ASSERT_EQ(initialize(controller,policy,false),controller_interface::return_type::OK);
+    EXPECT_FALSE(controller.get_node()->get_parameter("cmd_vel_expiry_supported").as_bool());
   }
 }
 
