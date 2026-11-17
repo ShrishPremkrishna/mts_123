@@ -3,8 +3,8 @@
   "objective": "Reliable movement and headbutt baseline; finish build/runtime mismatch prevention and rapid supervised axis trials before shots.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "waiting_for_firm_body_support",
-  "updated_utc": "2026-11-17T04:42:23.270089+00:00",
+  "mode": "paused_at_user_request",
+  "updated_utc": "2026-11-17T05:36:00.810250+00:00",
   "current_report": "foundation/results/movement-live-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,29 +29,29 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User/controller/exclusive access confirmed. No stand available; handheld arrangement tried and failed stationary gate. Awaiting firm body support; no startup until placement confirmed.",
+  "authorization": "User ended the session. Owned motor software and recorder are closed; no further work until the user resumes.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "All offline checks complete:467 tests+48subtests,5ROS transport cases,15Linux process probes. No training; source-only Claude reviews unavailableDNS/timeout, independent subagents used.",
+    "compute": "No active owned agents, training, test client or battery monitor. Latest offline runner checks are complete.",
     "owners": {
-      "physical_robot": "Exclusive block, motors inactive. User arranging stable support; no active jobs.",
+      "physical_robot": "No active owned session. User confirmed R3 and supported stand; root verified clean native shutdown and recording closure. User told power-off is safe.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish taking over movement and headbutt; teammate continues foot-kick policy.",
       "shooting": "Tej",
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Offline baseline complete; final recovery/context closeout being committed. Target verification and physical acceptance pending."
+    "goal_status": "Paused at user request; movement reliability and physical acceptance remain incomplete."
   },
   "hardware_session": {
-    "status": "v3 verified; four startups failed before enable. All launches/recorders closed. No homing or physical motion. User arranging firm support after handheld attempt failed.",
+    "status": "Closed at user request. Native and recorder exited 0; driver deactivation logged; no owned runtime PIDs remain. User told power-off is safe.",
     "ssh": "mts",
-    "observed_utc": "2026-11-17T04:42:23.270089+00:00",
-    "current_boot_id": "0bbcf4ca-9398-4ffb-819b-c742735ffd3e",
+    "observed_utc": "2026-11-17T05:36:00.810250+00:00",
+    "current_boot_id": "dfa2435c-75c7-488f-9db4-940a82507576",
     "active_run": null,
     "motor_api_recorders_last_observed_active": false,
     "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
@@ -61,14 +61,19 @@
     },
     "selected_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "selected_controller_sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc",
-    "last_physical_run": "/home/pi/pupper-fc-runs/movement-20261117T044050Z",
+    "last_physical_run": "/home/pi/pupper-fc-runs/movement-20261117T052404Z",
     "source_checkout": "/home/pi/mts_123; source sync alone does not choose binaries",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
     "prepared_run": null,
-    "prepared_state": "No open prepared/active session; previous two native starts failed before enable.",
-    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-closure-20261117T022613Z.json",
+    "prepared_state": "No prepared or active motion. Turn was never executed.",
     "local_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
-    "candidate_state": "v3 staged onPi; target verified; physical startup failed before homing."
+    "candidate_state": "v3 passed homing and loaded identity checks; physical results are partial and documented in the current report.",
+    "client_update": "/home/pi/pupper-fc-client-updates/client-session-20261116-r1",
+    "client_update_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "persistent_tool_session_id": null,
+    "persistent_prepared_token": null,
+    "persistent_prepared_action": null,
+    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/closeout-052404-verification.json"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -81,20 +86,24 @@
   },
   "next": [
     {
-      "id": "supervised_movement",
-      "action": "User arranging firm support with legs clear. Once ready, fresh receipt and one homing, loaded runtime verification, then same-session low turn/forward/braking trials before speed increase and ball contact."
+      "id": "resume_only_when_requested",
+      "action": "Read this checkpoint and the current report. Verify actual boot, ownership and running processes before robot contact or startup; no old prepared tokens are valid."
+    },
+    {
+      "id": "remaining_movement",
+      "action": "Next supervised block: longer forward repeatability with measured distance and braking, measured-angle turnaround, lateral baseline, then centered ball contact. Latest 0.7 m/s three-second run has no operator assessment. Investigate the persistent client idle stale-observation exit from saved evidence before reuse."
+    },
+    {
+      "id": "preserve_full_telemetry",
+      "action": "Both successful blocks retain closed MCAP files on the Pi; local closeout metadata and indexed hashes are saved. Copy and verify the two full MCAP files when the Pi is next available, without restarting experiments."
     },
     {
       "id": "perception_upstream",
-      "action": "Consumer frame/time bugs fixed offline; obtain synchronized actual ball/goal/robot-pose stream before camera-driven shots. Temporary onboard detector remains uncalibrated."
-    },
-    {
-      "id": "physical_capabilities",
-      "action": "Measure forward/braking/lateral then centered contact on actual floor. Existing policy shortlists remain simulation evidence; do not train/swap policies before baseline measurement."
+      "action": "Obtain synchronized ball, goal and robot-pose observations before camera-driven shots. Temporary onboard detector remains uncalibrated."
     },
     {
       "id": "project_open",
-      "action": "Live FC transport, overhead tracking, two-robot commissioning and separate P0 get-up remain open; see project brief."
+      "action": "Live FC transport, overhead tracking, two-robot commissioning and separate P0 get-up remain open; see the project brief."
     }
   ],
   "recorded_open_items": {
