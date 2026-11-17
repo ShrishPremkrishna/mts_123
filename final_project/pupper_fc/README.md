@@ -31,10 +31,12 @@ Headless JSON reports each outcome, including failures. `--seed 12` changes seed
 
 | Component | Current boundary | Teammate integration |
 | --- | --- | --- |
-| Perception | `model.Observation`: capture time, robot pose/ID, optional ball position/velocity, fallen flag and goal event | Ryan's adapter supplies calibrated field coordinates and capture age. Missing data stays missing. The controller never receives simulator truth. |
-| Movement | `model.Command`: body-frame forward/lateral/yaw velocity, expiry and robot ID; `model.Limits` | Marcus's measured limits and a robot adapter replace simulated motion. Enforce expiry at the robot, exclusive command ownership and Stop before hardware use. |
-| Shooting | `Controller` stages/aligns, then produces a bounded velocity strike; decision exposes target pose and phase | Tej's strike can replace that phase once its entry, cancellation and exit conditions are known. No policy loading is built into this sandbox. |
+| Perception | `model.Observation`: capture time, robot pose/ID, optional ball position/velocity, fallen flag and goal event | The perception adapter supplies calibrated field coordinates and capture age. Missing data stays missing. The controller never receives simulator truth. |
+| Movement | `model.Command`: body-frame forward/lateral/yaw velocity, expiry and robot ID; `model.Limits` | Measured movement limits and a robot adapter replace simulated motion. Enforce expiry at the robot, exclusive command ownership and Stop before hardware use. |
+| Shooting | `Controller` stages/aligns, then produces a bounded velocity strike; decision exposes target pose and phase | A dedicated strike can replace that phase once its entry, cancellation and exit conditions are known. No policy loading is built into this sandbox. |
 | Gameplay | `Controller.tick(observation, now) -> Decision`; `reset()` clears play intent | Same controller can run against recorded or live observations. The runtime owns operator Stop, reset and metrics. |
+
+The [project brief](../README.md) records current owners and agreed outcomes for these interfaces.
 
 Field coordinates are metres, origin at centre, +x right and +y up in the viewer. Heading is counterclockwise radians from +x. Body commands are +vx forward, +vy left and +wz counterclockwise radians/sec. The opponent goal is at `attack_sign * length/2`; tests exercise both attack directions. All timestamps currently use one simulation clock. A real adapter must reconcile camera and controller clocks rather than stamp old frames as new.
 

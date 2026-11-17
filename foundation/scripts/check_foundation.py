@@ -41,7 +41,8 @@ NUMERICAL_TESTS = [
 WATCHED = ('foundation/', 'forward_kinematics_lab/', 'pd_control_lab/',
            'ik_heuristic_walking_lab/', 'pupper-gait-tuner/', 'follow_me_pupper/',
            'gemini_pupper/', 'implicit_compliance/', 'pupper_gait_deploy/',
-           'pupper-mjlab/src/', 'pupper-mjlab/tests/', 'pupper-mjlab/configs/')
+           'pupper-mjlab/src/', 'pupper-mjlab/tests/', 'pupper-mjlab/configs/',
+           'final_project/')
 PROBE = '''import importlib,json,sys
 result={'executable':sys.executable,'prefix':sys.prefix,'version':sys.version,'modules':{},'module_files':{},'errors':{}}
 for name in sys.argv[1:]:
@@ -190,6 +191,7 @@ def build_checks(api_python, numerical_python):
         ('classical', pytest(numerical_python, 'foundation/tests')),
         ('floor_input', pytest(api_python, 'foundation/hardware/floor_stock')),
         ('tool_queue', pytest(api_python, 'gemini_pupper/tests')),
+        ('final_project', pytest(api_python, 'final_project/behaviors', 'final_project/pupper_fc/tests')),
         ('compliance', pytest(numerical_python, 'implicit_compliance/tests')),
         ('course_follow', [numerical_python, 'follow_me_pupper/lab/test.py']),
         ('course_color', [numerical_python, 'follow_me_pupper/lab/test.py', 'step5']),
@@ -206,7 +208,8 @@ def watched_files(root):
                                 cwd=root, capture_output=True, check=True, timeout=15).stdout.decode().split('\0')
     driver_sources = json.loads((root / 'foundation/configs/class-driver-joint-limits.json').read_text())['sources']
     return sorted({name for name in candidates if name.startswith(WATCHED) and (root / name).is_file()
-                   and Path(name).suffix in ('.py', '.cpp', '.hpp', '.h', '.sh', '.json', '.yaml', '.xml', '.npz')}
+                   and (Path(name).suffix in ('.py', '.cpp', '.hpp', '.h', '.sh', '.json', '.yaml', '.xml', '.npz')
+                        or (name.startswith('final_project/') and Path(name).suffix in ('.js', '.css', '.html')))}
                   | {str(path.relative_to(root)) for path in (root / 'foundation').rglob('*.py')}
                   | {item['path'] for item in driver_sources})
 
