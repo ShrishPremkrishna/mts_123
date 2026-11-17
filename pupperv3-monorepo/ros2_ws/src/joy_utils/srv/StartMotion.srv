@@ -1,0 +1,13 @@
+# One deliberate operator Start, using a fresh /estop_controller/stop_status.
+# Echo all four fields from ONE status sample. Its gateway-local challenge lasts
+# at most 500ms and is consumed on acceptance. Never retry automatically.
+# This releases an ordinary stop and ensures the selected controller is active;
+# it does not initialize/home hardware or clear a fault. Options remains valid.
+string instance_id
+uint64 epoch
+uint64 sequence
+string selected_controller
+---
+# Correlated controller acknowledgement, NOT proof of physical motion/readiness.
+bool success
+string message

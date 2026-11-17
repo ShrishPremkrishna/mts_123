@@ -1,4 +1,5 @@
 #include "joy_utils/stop_arbiter.hpp"
+#include "joy_utils/srv/start_motion.hpp"
 #include "controller_manager_msgs/srv/switch_controller.hpp"
 #include "controller_manager_msgs/srv/list_controllers.hpp"
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
@@ -17,6 +18,7 @@ namespace pupper_stop {
 constexpr char PROTOCOL[] = "pupper_stop_v1";
 constexpr char PUBLIC_SWITCH[] = "/controller_manager/switch_controller";
 constexpr char BACKEND_SWITCH[] = "/controller_manager/switch_controller_backend";
+constexpr char START_MOTION[] = "/estop_controller/start_motion";
 
 class RosSwitchPort final : public Port {
  public:
@@ -28,6 +30,9 @@ class RosSwitchPort final : public Port {
                 rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher)
       : client_(std::move(client)), inventory_client_(std::move(inventory)), publisher_(std::move(publisher)) {}
   void emergency() override { publisher_->publish(std_msgs::msg::Empty{}); }
+  void invalidate_inventory() noexcept override {
+    clear_inventory(); inventory_ready_ = false;
+  }
   bool ready() override {
     // The manager can advertise services before resources/controllers are ready.
     // Query fresh state before dispatch, without timing startup/homing as a
@@ -73,6 +78,33 @@ class RosSwitchPort final : public Port {
     auto request = std::make_shared<Service::Request>();
     request->activate_controllers = command.activate;
     request->deactivate_controllers = command.deactivate;
+    if (command.ensure_active) {
+      // Only the deliberate Start operation is idempotent. Never rewrite a
+      // generic STRICT request. This inventory is consumed by this operation.
+      const auto selected = command.activate.at(0);
+      if (types_.find(selected) == types_.end() ||
+          types_.at(selected) != "neural_controller/NeuralController") {
+        return 0; // known Start refusal, no backend request or latch mutation
+      }
+      const auto active = [&](const std::string &name) {
+        return std::find(active_.begin(), active_.end(), name) != active_.end();
+      };
+      for (const auto &name : active_) {
+        const bool feedback = (name == "joint_state_broadcaster" && types_.at(name) == "joint_state_broadcaster/JointStateBroadcaster")
+            || (name == "imu_sensor_broadcaster" && types_.at(name) == "imu_sensor_broadcaster/IMUSensorBroadcaster");
+        if (name != selected && !feedback &&
+            std::find(command.deactivate.begin(), command.deactivate.end(), name) == command.deactivate.end()) {
+          return 0; // unknown active owner: never ignore or switch it
+        }
+      }
+      if (active(selected)) request->activate_controllers.clear();
+      request->deactivate_controllers.clear();
+      for (const auto &name : command.deactivate)
+        if (active(name)) request->deactivate_controllers.push_back(name);
+      if (request->activate_controllers.empty() && request->deactivate_controllers.empty()) {
+        synthetic_ = true; return token_;
+      }
+    }
     if (command.stop) {
       request->deactivate_controllers.clear();
       for (const auto &name : command.deactivate)
@@ -123,11 +155,17 @@ class StopBridge {
  public:
   using Service = RosSwitchPort::Service;
   using Server = rclcpp::Service<Service>;
+  using StartService = joy_utils::srv::StartMotion;
+  using StartServer = rclcpp::Service<StartService>;
+  static constexpr std::chrono::milliseconds joy_freshness{250};
   StopBridge(std::shared_ptr<StopArbiter> worker, std::string instance,
-             rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status)
-      : worker_(std::move(worker)), instance_(std::move(instance)), publisher_(std::move(status)) {}
+             rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status, size_t stop_index)
+      : worker_(std::move(worker)), instance_(std::move(instance)), publisher_(std::move(status)), stop_index_(stop_index) {}
   void joy(const std::vector<int32_t> &buttons) {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (buttons.size() > stop_index_ && (buttons[stop_index_] == 0 || buttons[stop_index_] == 1))
+      last_joy_ = StopArbiter::Time::clock::now();
+    else last_joy_.reset();
     worker_->joy(buttons); finish(); publish();
   }
   void tick() {
@@ -148,15 +186,53 @@ class StopBridge {
     else responses_.emplace(id, Response{std::move(service), std::move(header)});
     publish();
   }
+  void start_request(StartServer::SharedPtr service, std::shared_ptr<rmw_request_id_t> header,
+                     StartService::Request::SharedPtr request) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto now = StopArbiter::Time::clock::now();
+    if (!last_joy_ || now < *last_joy_ || now - *last_joy_ >= joy_freshness) {
+      answer_start(service, header, false, "Start requires valid connected gamepad feedback within 250 ms; no action submitted");
+      return;
+    }
+    const auto challenge = std::find_if(challenges_.begin(), challenges_.end(), [&](const Challenge &c) {
+      return c.sequence == request->sequence && c.epoch == request->epoch
+          && c.selected == request->selected_controller && now >= c.issued
+          && now - c.issued < StopArbiter::start_freshness;
+    });
+    if (request->instance_id != instance_ || challenge == challenges_.end()) {
+      answer_start(service, header, false, "stale, consumed or mismatched Start challenge; no action submitted");
+      return;
+    }
+    const auto id = worker_->start_motion(request->epoch, request->selected_controller,
+        now, std::min(challenge->issued + StopArbiter::start_freshness, *last_joy_ + joy_freshness));
+    if (!id) {
+      answer_start(service, header, false, "Start refused: Stop held, fault, changed selection/epoch, or operation pending");
+      return;
+    }
+    challenges_.clear(); // acceptance consumes all previously advertised challenges
+    starts_.emplace(id, StartResponse{std::move(service), std::move(header)});
+    publish();
+  }
   void shutdown() noexcept {
     std::lock_guard<std::mutex> lock(mutex_);
     worker_->shutdown();
     try { finish(); publish(); } catch (...) {}
     for (auto &entry : responses_) answer(entry.second.service, entry.second.header, false);
     responses_.clear();
+    for (auto &entry : starts_) answer_start(entry.second.service, entry.second.header, false, "gateway shutting down");
+    starts_.clear(); challenges_.clear();
   }
  private:
   struct Response { Server::SharedPtr service; std::shared_ptr<rmw_request_id_t> header; };
+  struct StartResponse { StartServer::SharedPtr service; std::shared_ptr<rmw_request_id_t> header; };
+  struct Challenge { uint64_t sequence, epoch; std::string selected; StopArbiter::Time issued; };
+  static void answer_start(const StartServer::SharedPtr &service, const std::shared_ptr<rmw_request_id_t> &header,
+                           bool ok, const char *message) noexcept {
+    try {
+      StartService::Response response; response.success = ok; response.message = message;
+      service->send_response(*header, response);
+    } catch (...) {} // a disconnected caller cannot interrupt Stop cleanup
+  }
   static void answer(const Server::SharedPtr &service, const std::shared_ptr<rmw_request_id_t> &header, bool ok) noexcept {
     try { Service::Response response; response.ok = ok; service->send_response(*header, response); } catch (...) {}
   }
@@ -166,13 +242,26 @@ class StopBridge {
       if (it != responses_.end()) {
         answer(it->second.service, it->second.header, done.ok); responses_.erase(it);
       }
+      auto start = starts_.find(done.command_id);
+      if (start != starts_.end()) {
+        answer_start(start->second.service, start->second.header, done.ok,
+                     done.ok ? "selected controller acknowledged; no physical outcome implied"
+                             : "Start cancelled, expired or failed; inspect stop status; do not retry automatically");
+        starts_.erase(start);
+      }
     }
   }
   void publish() {
     const auto state = worker_->status();
+    const auto now = StopArbiter::Time::clock::now();
+    ++sequence_;
+    challenges_.push_back({sequence_, state.epoch, state.last_face, now});
+    while (challenges_.size() > 32 || (!challenges_.empty() && now - challenges_.front().issued >= StopArbiter::start_freshness))
+      challenges_.pop_front();
     std::ostringstream json;
     json << std::boolalpha << "{\"protocol\":\"" << PROTOCOL << "\",\"instance_id\":\"" << instance_
-         << "\",\"sequence\":" << ++sequence_ << ",\"epoch\":" << state.epoch
+         << "\",\"sequence\":" << sequence_ << ",\"epoch\":" << state.epoch
+         << ",\"selected_controller\":\"" << state.last_face << "\",\"start_freshness_ms\":" << StopArbiter::start_freshness.count()
          << ",\"latched\":" << state.latched << ",\"fault\":" << state.fault
          << ",\"stop_required\":" << state.stop_required << ",\"in_flight\":" << state.in_flight
          << ",\"unknown_remote_submission\":" << state.unknown_remote_submission
@@ -185,6 +274,10 @@ class StopBridge {
   uint64_t sequence_ = 0;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
   std::map<uint64_t, Response> responses_;
+  std::map<uint64_t, StartResponse> starts_;
+  std::deque<Challenge> challenges_;
+  size_t stop_index_;
+  std::optional<StopArbiter::Time> last_joy_;
 };
 
 static std::string boot_instance() {
@@ -225,7 +318,7 @@ class EStopController : public rclcpp::Node {
         std::chrono::milliseconds(1500), true); // restart never silently clears an old stop
     auto status = create_publisher<std_msgs::msg::String>("/estop_controller/stop_status",
         rclcpp::QoS(1).reliable().transient_local());
-    bridge_ = std::make_shared<StopBridge>(worker, instance, status);
+    bridge_ = std::make_shared<StopBridge>(worker, instance, status, static_cast<size_t>(stop));
     std::weak_ptr<StopBridge> weak = bridge_;
     subscription_ = create_subscription<sensor_msgs::msg::Joy>("/joy", 10,
       [weak](sensor_msgs::msg::Joy::ConstSharedPtr message) { if (auto bridge=weak.lock()) bridge->joy(message->buttons); });
@@ -235,19 +328,26 @@ class EStopController : public rclcpp::Node {
         if (auto bridge=weak.lock()) bridge->request(std::move(service),std::move(header),std::move(request));
         else { RosSwitchPort::Service::Response response; response.ok=false; service->send_response(*header,response); }
       });
+    start_ = create_service<StopBridge::StartService>(START_MOTION,
+      [weak](StopBridge::StartServer::SharedPtr service, std::shared_ptr<rmw_request_id_t> header,
+             StopBridge::StartService::Request::SharedPtr request) {
+        if (auto bridge=weak.lock()) bridge->start_request(std::move(service), std::move(header), std::move(request));
+        else { StopBridge::StartService::Response response; response.success=false; response.message="gateway unavailable"; service->send_response(*header,response); }
+      });
     timer_ = create_wall_timer(std::chrono::milliseconds(50), [weak]() { if (auto bridge=weak.lock()) bridge->tick(); });
     bridge_->tick();
   }
   ~EStopController() override { stop_worker(); }
   void stop_worker() noexcept {
     try { if (timer_) timer_->cancel(); } catch (...) {}
-    subscription_.reset(); gateway_.reset();
+    subscription_.reset(); gateway_.reset(); start_.reset();
     if (bridge_) bridge_->shutdown(); bridge_.reset();
   }
  private:
   std::shared_ptr<StopBridge> bridge_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
   StopBridge::Server::SharedPtr gateway_;
+  StopBridge::StartServer::SharedPtr start_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 } // namespace pupper_stop

@@ -7,7 +7,7 @@
 using namespace pupper_stop;
 static void check(bool condition, const char *message) { if (!condition) throw std::runtime_error(message); }
 struct FakePort : Port {
-  bool available = true, throw_start = false, throw_poll = false, throw_after_send = false;
+  bool available = true, throw_start = false, throw_poll = false, throw_after_send = false, refuse_start = false;
   unsigned emergency_count = 0;
   uint64_t next = 0;
   std::vector<Request> calls;
@@ -17,6 +17,7 @@ struct FakePort : Port {
   void emergency() override { ++emergency_count; }
   bool ready() override { return available; }
   uint64_t start(const Request &r) override {
+    if (r.ensure_active && refuse_start) return 0;
     if (throw_start) throw std::runtime_error("injected transport failure");
     calls.push_back(r); replies[++next] = std::nullopt;
     if (throw_after_send) throw std::runtime_error("submission outcome ambiguous");
@@ -168,6 +169,79 @@ static void gateway_timeout_single_response_and_safe_deactivation() {
   check(stop!=0,"deactivation remains available while latched");t.tick();t.complete();
   auto done=t.worker.take_completions();check(done.size()==1 && done[0].ok && t.worker.status().latched,"deactivation acknowledgement cannot rearm");
 }
+static uint64_t start(Rig &r, int lifetime_ms=500) {
+  const auto state=r.worker.status();
+  return r.worker.start_motion(state.epoch,state.last_face,r.now,r.now+std::chrono::milliseconds(lifetime_ms));
+}
+static void deliberate_start_and_duplicate_pending() {
+  Rig r;r.stopped();const auto epoch=r.worker.status().epoch;
+  auto id=start(r);check(id!=0 && r.worker.status().latched,"queued Start preserves ordinary latch");
+  check(start(r)==0,"pending Start cannot be duplicated");r.tick();
+  check(!r.worker.status().latched && r.port->calls.back().ensure_active && r.port->calls.back().activate==std::vector<std::string>{"default"},"dispatch releases latch and remembers Options controller");
+  r.complete();auto done=r.worker.take_completions();
+  check(done.size()==1 && done[0].command_id==id && done[0].ok && r.worker.status().epoch==epoch,"single correlated Start acknowledgement");
+}
+static void start_rejections_are_inert() {
+  Rig r;r.stopped();const auto before=r.worker.status();
+  check(r.worker.start_motion(before.epoch-1,before.last_face,r.now,r.now+std::chrono::milliseconds(500))==0,"old epoch refused");
+  check(r.worker.start_motion(before.epoch,"student",r.now,r.now+std::chrono::milliseconds(500))==0,"old selection refused");
+  check(start(r,0)==0 && start(r,501)==0,"expired and overlong Start refused");
+  const auto after=r.worker.status();check(after.latched && after.epoch==before.epoch && !after.in_flight && !after.fault,"rejected Start cannot mutate state");
+  r.joy({12});r.tick();r.complete();check(start(r)==0,"held Stop refuses even after cleanup");
+  r.joy({});check(start(r)!=0,"fresh deliberate Start after Stop release");r.tick();r.port->answer(false);r.tick();
+  check(start(r)==0 && r.worker.status().fault,"fault never cleared by Start");
+}
+static void start_expiry_restores_latch_without_retry() {
+  Rig r;r.stopped();r.port->available=false;auto id=start(r);r.tick(500);
+  auto done=r.worker.take_completions();check(done.size()==1 && done[0].command_id==id && !done[0].ok,"queued Start expires once");
+  check(r.worker.status().latched && !r.worker.status().fault,"undispatched expiry restores ordinary Stop");
+  const auto count=r.port->calls.size();r.port->available=true;r.tick();
+  check(r.port->calls.size()==count,"service recovery after expiry submits no mutation");
+  r.tick();check(r.worker.status().latched && r.port->calls.size()==count,"fresh Start required after expiry");
+}
+static void start_stop_races_and_shutdown() {
+  Rig r;r.stopped();auto id=start(r);r.joy({12});
+  auto queued=r.worker.take_completions();check(queued.size()==1 && queued[0].command_id==id && !queued[0].ok,"Stop cancels queued Start");
+  Rig t;t.stopped();auto active=start(t);t.tick();t.joy({12});t.port->answer();t.tick();
+  auto late=t.worker.take_completions();check(late.size()==1 && late[0].command_id==active && !late[0].ok,"Stop wins late activation response");
+  check(t.port->calls.back().stop,"late Start activation cleaned up");t.complete();check(t.worker.status().latched,"late completion never rearms");
+  Rig u;u.stopped();auto waiting=start(u);u.worker.shutdown();auto closed=u.worker.take_completions();
+  check(closed.size()==1 && closed[0].command_id==waiting && !closed[0].ok && start(u)==0,"shutdown cancels Start and refuses restart");
+}
+static void expired_ready_check_preserves_running_controller() {
+  Rig r;r.joy({9});r.tick();r.complete();r.joy({});
+  const auto before=r.worker.status();const auto calls=r.port->calls.size();const auto emergencies=r.port->emergency_count;
+  r.port->available=false;auto id=start(r);r.tick(500);auto done=r.worker.take_completions();
+  check(done.size()==1 && done[0].command_id==id && !done[0].ok,"expired ready check reports failure once");
+  check(!r.worker.status().latched && !r.worker.status().stop_required && r.worker.status().epoch==before.epoch,
+        "expired ready check must preserve running state");
+  r.port->available=true;r.tick();check(r.port->calls.size()==calls && r.port->emergency_count==emergencies,
+        "expired ready check must not stop or deactivate a running robot");
+  check(r.port->remote_active==std::set<std::string>{"default"},"healthy controller remains active");
+}
+static void queued_start_grants_no_face_authority() {
+  Rig r;r.stopped();const auto count=r.port->calls.size();r.port->available=false;auto id=start(r);
+  r.joy({1});auto done=r.worker.take_completions();
+  check(done.size()==1 && done[0].command_id==id && !done[0].ok,"face edge cancels stopped queued Start");
+  r.tick(5000);r.port->available=true;r.tick();
+  check(r.worker.status().latched && r.worker.status().last_face=="default" && r.port->calls.size()==count,
+        "cancelled queued Start cannot authorize delayed different controller");
+  // Options is a separate deliberate release, even while a Start is queued.
+  r.joy({});r.port->available=false;auto another=start(r);r.joy({9});auto replaced=r.worker.take_completions();
+  check(replaced.size()==1 && replaced[0].command_id==another && !replaced[0].ok,"Options explicitly replaces queued Start");
+  r.port->available=true;r.tick();check(!r.worker.status().latched && !r.port->calls.back().ensure_active,
+        "separate Options intent keeps its normal release behavior");
+}
+static void known_start_refusal_is_inert() {
+  for(bool running:{false,true}){
+    Rig r;if(running){r.joy({9});r.tick();r.complete();r.joy({});}else r.stopped();
+    const auto before=r.worker.status();const auto calls=r.port->calls.size();const auto emergencies=r.port->emergency_count;
+    r.port->refuse_start=true;const auto id=start(r);r.tick();auto done=r.worker.take_completions();
+    check(done.size()==1 && done[0].command_id==id && !done[0].ok,"known refusal completes once");
+    const auto after=r.worker.status();check(after.latched==before.latched && after.epoch==before.epoch && !after.in_flight && !after.fault && !after.stop_required,"known refusal preserves prior authority");
+    check(r.port->calls.size()==calls && r.port->emergency_count==emergencies,"local refusal must not stop or switch");
+  }
+}
 int main(){
   try {
     simultaneous_and_held_stop();stale_queued_activation();delayed_activation_then_corrective_stop();
@@ -176,6 +250,10 @@ int main(){
     gateway_external_epoch_and_completion();gateway_feedback_and_startup_latch();
     gateway_rejects_unlisted_and_ambiguous_requests();gateway_queue_deadline_prevents_late_dispatch();
     gateway_timeout_single_response_and_safe_deactivation();
-    std::cout<<"PASS 14 deterministic scenarios against actual candidate arbiter; no ROS/hardware\n";
+    deliberate_start_and_duplicate_pending();start_rejections_are_inert();
+    start_expiry_restores_latch_without_retry();start_stop_races_and_shutdown();
+    expired_ready_check_preserves_running_controller();queued_start_grants_no_face_authority();
+    known_start_refusal_is_inert();
+    std::cout<<"PASS 21 deterministic scenarios against actual candidate arbiter; no ROS/hardware\n";
   }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}
 }

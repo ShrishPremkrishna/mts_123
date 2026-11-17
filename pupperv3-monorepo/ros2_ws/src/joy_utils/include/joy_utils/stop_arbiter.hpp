@@ -23,12 +23,16 @@ struct Request {
   bool needs_clear = true;
   bool motion = true;
   std::chrono::steady_clock::time_point queue_deadline{};
+  bool ensure_active = false; // deliberate software Start only; never reinterpret STRICT
 };
 struct Completion { uint64_t command_id; bool ok; };
 struct Port {
   virtual ~Port() = default;
   virtual void emergency() = 0;
   virtual bool ready() = 0;
+  // Discard only read-side inventory. Start must observe state after admission.
+  virtual void invalidate_inventory() noexcept {}
+  // Zero is a known pre-dispatch refusal for ensure_active; no remote mutation.
   virtual uint64_t start(const Request &) = 0;
   virtual std::optional<bool> poll(uint64_t token) = 0;
   // Removes local response tracking ONLY; does not recall remote execution.
@@ -43,6 +47,7 @@ struct Status {
 class StopArbiter {
  public:
   using Time = std::chrono::steady_clock::time_point;
+  static constexpr std::chrono::milliseconds start_freshness{500};
   StopArbiter(std::shared_ptr<Port> port, std::vector<std::string> names,
               std::vector<size_t> buttons, size_t stop_button = 12,
               size_t release_button = 9,
@@ -108,6 +113,26 @@ class StopArbiter {
     auto result = std::move(completions_); completions_.clear(); return result;
   }
 
+  // The ROS bridge validates the gateway instance and one-use status challenge.
+  // This atomic operation fences Stop/selection changes and uses the same
+  // remembered controller as Options. Expiry also bounds eventual dispatch.
+  uint64_t start_motion(uint64_t expected_epoch, const std::string &selected,
+                        Time now, Time expires) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (shutdown_ || unknown_submission_ || fault_ || previous_stop_ || stop_required_
+        || inflight_ || pending_ || !external_.empty() || expected_epoch != epoch_
+        || selected != last_face_ || expires <= now || expires - now > start_freshness) return 0;
+    auto request = selection_request(last_face_);
+    request.command_id = ++next_command_;
+    request.queue_deadline = expires;
+    request.ensure_active = true;
+    port_->invalidate_inventory();
+    // Keep the existing latch until dispatch. Admission alone grants no face
+    // button authority, and expiry cannot stop an already-running controller.
+    external_.push_back(request);
+    return request.command_id;
+  }
+
   void joy(const std::vector<int32_t> &values) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (shutdown_) return;
@@ -136,7 +161,11 @@ class StopArbiter {
       }
       return;
     }
-    if (latched_) return;
+    if (latched_) {
+      if (std::any_of(face_edges.begin(), face_edges.end(), [](bool edge) { return edge; }))
+        cancel_external_motion(); // reject queued Start; do not grant a different activation
+      return;
+    }
     // Multiple face edges choose the lowest configured index deterministically.
     for (size_t i = 0; i < face_edges.size(); ++i) if (face_edges[i]) {
       last_face_ = names_[i];
@@ -150,7 +179,9 @@ class StopArbiter {
     std::lock_guard<std::mutex> lock(mutex_);
     if (shutdown_) return;
     for (auto it=external_.begin(); it!=external_.end();) {
-      if (now >= it->queue_deadline) { completions_.push_back({it->command_id, false}); it=external_.erase(it); }
+      if (now >= it->queue_deadline) {
+        completions_.push_back({it->command_id, false}); it=external_.erase(it);
+      }
       else ++it;
     }
     // Reassert the software stop at a bounded 10 Hz while a remote operation is
@@ -197,7 +228,7 @@ class StopArbiter {
       }
       if (!external_.empty()) {
         auto request = external_.front();
-        if (request.needs_clear && (latched_ || fault_ || request.epoch != epoch_)) {
+        if (request.needs_clear && ((latched_ && !request.ensure_active) || fault_ || request.epoch != epoch_)) {
           completions_.push_back({request.command_id, false}); external_.pop_front();
           return;
         }
@@ -206,9 +237,7 @@ class StopArbiter {
       }
       if (!latched_ && !fault_ && pending_ && pending_->epoch == epoch_ && port_->ready()) {
         auto selected = *pending_; pending_.reset();
-        std::vector<std::string> deactivate;
-        for (const auto &name : names_) if (name != selected.name) deactivate.push_back(name);
-        dispatch(Request{false, epoch_, {selected.name}, deactivate}, now);
+        dispatch(selection_request(selected.name), now);
       }
     } catch (...) {
       // Adapter errors cannot rearm the state machine or dispatch another actor.
@@ -242,6 +271,11 @@ class StopArbiter {
  private:
   struct Pending { std::string name; uint64_t epoch; };
   struct Flight { uint64_t token; Request request; Time deadline; bool timed_out; };
+  Request selection_request(const std::string &selected) const {
+    std::vector<std::string> deactivate;
+    for (const auto &name : names_) if (name != selected) deactivate.push_back(name);
+    return Request{false, epoch_, {selected}, deactivate};
+  }
   void cancel_external_motion() {
     for (auto it=external_.begin(); it!=external_.end();) {
       if (it->needs_clear) { completions_.push_back({it->command_id, false}); it=external_.erase(it); }
@@ -256,6 +290,11 @@ class StopArbiter {
   void dispatch(Request request, Time now) {
     try {
       auto token = port_->start(request);
+      if (request.ensure_active && token == 0) {
+        completions_.push_back({request.command_id, false});
+        return; // known local refusal: leave the previous latch/controller state intact
+      }
+      if (request.ensure_active) latched_ = false;
       inflight_ = Flight{token, std::move(request), now + timeout_, false};
     } catch (...) {
       // async_send_request can fail after an ambiguous remote submission. Do

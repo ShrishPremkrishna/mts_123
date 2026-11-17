@@ -26,6 +26,11 @@ int main(int argc,char**argv){
   auto token=port.start(Request{true,0,{}, {"old","fresh"}});std::optional<bool> answer;
   wait_for([&]{answer=port.poll(token);return answer.has_value();},2000,"filtered stop response");require(*answer,"stop refused");port.forget(token);
   {std::lock_guard<std::mutex>lock(mutex);require(deactivated==std::vector<std::string>{"fresh"},"stop used stale active-controller inventory");}
+  require(!port.ready(),"next inventory starts asynchronously");wait_for([&]{return reads.load()==3;},1000,"orphaned query");
+  port.invalidate_inventory();wait_for([&]{return port.ready();},2000,"inventory after new Start admission");
+  require(reads.load()==4,"new Start reused an earlier transaction's inventory");
+  port.invalidate_inventory();wait_for([&]{return port.ready();},2000,"discard ready inventory");
+  require(reads.load()==5,"new Start reused already-ready cached inventory");
   std::cout<<"PASS ready-but-stale inventory rejected and fresh active-only stop used\n";
  }catch(const std::exception&error){std::cerr<<error.what()<<'\n';result=1;}
  executor.cancel();thread.join();rclcpp::shutdown();return result;
