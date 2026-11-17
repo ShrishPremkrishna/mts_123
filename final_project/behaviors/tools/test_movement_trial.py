@@ -516,6 +516,77 @@ def test_execute_without_runtime_identity_refuses_before_ros_import(tmp_path):
   assert "rclpy" not in sys.modules
 
 
+@pytest.mark.parametrize("identity_change_after", [None, 0.23])
+def test_execute_bounds_process_scans_without_delaying_identity_loss_stop(
+    tmp_path, monkeypatch, identity_change_after):
+  ros, node, mt = make_trial(tmp_path, duration=1.0)
+  ready(ros, node)
+  monkeypatch.syspath_prepend(str(HERE.parents[2]))
+  from foundation.hardware import runtime_identity
+  guard = sys.modules["run_through_kick_node"]
+  runtime = {"manager_pid": 123, "manager_start_ticks": 456,
+             "files": {"policy": {"sha256": guard.STOCK_POLICY_SHA256}}}
+  preflight = {"manifest_path": "selected.json"}
+  full_checks, identity_checks, callbacks = [], [], []
+  next_tick = ros.t + 0.05
+
+  def verify_loaded(receipt):
+    full_checks.append(receipt)
+    return runtime
+
+  def same_manager(evidence):
+    assert evidence is runtime
+    identity_checks.append((node.phase, ros.t))
+    ros.t += 0.02  # measured Pi scan cost; this blocks callback processing
+    return (identity_change_after is None or node.started is None or
+            ros.t - node.started < identity_change_after)
+
+  def spin_once(actual_node, timeout_sec):
+    nonlocal next_tick
+    assert actual_node is node
+    ros.t += 0.001  # many ready sensor callbacks between command ticks
+    callbacks.append(ros.t)
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    observe(ros, *(node.request.twist if node.phase == "pulsing" else ZERO))
+    if ros.t >= next_tick:
+      node.on_tick()
+      next_tick = ros.t + 0.05
+
+  monkeypatch.setattr(runtime_identity, "read_json", lambda path:
+                      {"trial_profile": "walk"} if str(path) == "selected.json" else preflight)
+  monkeypatch.setattr(runtime_identity, "verify_loaded", verify_loaded)
+  monkeypatch.setattr(runtime_identity, "same_manager", same_manager)
+  monkeypatch.setattr(mt.time, "monotonic", lambda: ros.t)
+  monkeypatch.setattr(sys.modules["rclpy"], "spin_once", spin_once, raising=False)
+  monkeypatch.setattr(mt, "_node_class", lambda: lambda *a, **kw: node)
+  finish = node.finish
+  monkeypatch.setattr(node, "finish", lambda: finish(sleep=lambda _: None))
+  args = mt.parse_args(["forward", "--execute", "--duration", "1",
+                        "--out", str(tmp_path), "--runtime-receipt", "preflight.json"])
+
+  code = mt.run_execute(node.request, args)
+  checks = [t for phase, t in identity_checks if phase == "pulsing"]
+  assert len(full_checks) == 2  # initial and immediately before starting
+  assert identity_checks[-1][0] == "finished"  # final check is never throttled
+  assert 2 <= len(checks) <= 5
+  assert all(b - a >= mt.OWNER_CHECK_S for a, b in zip(checks, checks[1:]))
+  assert len(callbacks) > 10 * len(checks)
+  assert twists(ros)[-1] == ZERO
+  if identity_change_after is None:
+    assert code == 0
+    assert node.record["command_verification"]["passed"]
+    assert not ros.published["/emergency_stop"]
+  else:
+    assert code == 4
+    assert node.record["reason"] == "native manager changed during pulse"
+    # Cadence plus one callback and the bounded check's own execution time.
+    delay = node.zero_sent_at - node.started - identity_change_after
+    assert 0 <= delay <= mt.OWNER_CHECK_S + 0.001 + 0.02
+    assert len(ros.published["/emergency_stop"]) == 1
+
+
 def test_refused_competition_does_not_send_shutdown_commands(tmp_path):
   ros, node, mt = make_trial(tmp_path)
   ready(ros, node)

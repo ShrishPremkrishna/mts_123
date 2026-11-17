@@ -606,11 +606,17 @@ def run_execute(request, args) -> int:
         if problem and time.monotonic() > deadline:
           print(f"not started: {problem}", file=sys.stderr)
           break
+    next_identity_check = 0.0
     while node.phase == "pulsing":
       rclpy.spin_once(node, timeout_sec=0.05)
-      if node.phase == "pulsing" and not same_manager(runtime):
-        with node.lock:
-          node.stop("native manager changed during pulse", fault=True)
+      now = time.monotonic()
+      # Full process scans can take ~20 ms on the Pi. Running one after every
+      # callback starves service replies and the command timer under sensor load.
+      if node.phase == "pulsing" and now >= next_identity_check:
+        next_identity_check = now + OWNER_CHECK_S
+        if not same_manager(runtime):
+          with node.lock:
+            node.stop("native manager changed during pulse", fault=True)
       if node.phase == "pulsing" and time.monotonic() - node.started >= request.duration_s:
         with node.lock:
           node.complete("completed", "wall-clock duration reached")
