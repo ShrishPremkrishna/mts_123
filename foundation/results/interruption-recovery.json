@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Deliver reliable two-robot Pupper FC demo and final deliverables; execute measured gait gate, live play integration, simple defense and two-robot commissioning.",
+  "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "owner_goalpost_discussion",
-  "updated_utc": "2026-11-17T07:36:24.679835+00:00",
+  "updated_utc": "2026-11-17T08:22:26.330109+00:00",
   "current_report": "foundation/results/gait-gate-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -31,7 +31,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Project execution authorized. After leftward fall, user confirmedR3/body supported; owned driver and recorder closed. Pi remains available for read-only collection. No further motion until diagnosis and renewed physical readiness.",
+  "authorization": "Project execution authorized within agreed scope. Hardware session and recordings closed; robot last supported with R3 pressed and motors released. Current task is owner alignment, not motion. Any future hardware block needs current physical readiness and one operator.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -39,7 +39,7 @@
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "No running robot processes, temperature monitors, reviews or builds owned by this session. Delegates completed/idle. Longlateral client and Start software tested/committed but not deployed.",
+    "compute": "No running robot processes, temperature monitors or builds owned by this session. November 17 source audit and Claude Code/Fable 5.2 architecture review completed; reviewers idle. Long-lateral client and software Start candidates remain undeployed.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -48,9 +48,9 @@
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
       "project_lead": "Current Codex chat 01a1e800-1b8f-74e0-9e1e-3723fff803de; Shrish is owner/physical interface. Previous chat is idle after clean closure.",
-      "software_start": "environment_audit completed and idle; candidate committedc8e9213, follow-upreview pending."
+      "software_start": "Candidate committed c8e9213; follow-up review and resident caller integration pending."
     },
-    "goal_status": "Project goal remains incomplete. Owner requests achievements/future/goalpost discussion now; listen to new information before more experiments."
+    "goal_status": "Project goal incomplete and paused at owner request for alignment. November 17 priorities: native person avoidance, offense/defense roles, pose/heading targets, latency and measured gait improvement. Do not resume wrong-ball contact trials."
   },
   "hardware_session": {
     "status": "CLOSED for owner goalpost discussion. Driver deactivated, manager3196 absent, native and recorder exit0, no queued motion. All3corrected captures collected and hash-verified. Pi may now be powered off.",
@@ -96,15 +96,15 @@
   "next": [
     {
       "id": "alignment_conversation",
-      "action": "Discuss achievedshortfloorbaseline, provisionalstallcause, unsuccessfulcontact, workflowfriction and futurepriorities. User has new information. No new experiments before that conversation."
+      "action": "Discuss the November 17 architecture proposal in final_project/PLAN.md. Clarify hybrid versus onboard-only person avoidance and availability of an early Ryan pose/heading feed. Hardware remains closed."
     },
     {
-      "id": "next_physical_value",
-      "action": "After alignment: centeredmeasured ballcontact then a complete perception-to-action play; qualify extendedlateral only with markedclearance and reviewedclient. Exact-angle turns remain requested."
+      "id": "next_integrated_result",
+      "action": "Proposed after alignment: timestamped world-state adapter and role/executor tests in parallel with onboard person detection and motion/latency qualification. Demonstrate go-to-pose/heading, person interruption and fresh-state resumption before contact with the intended ball. Physical coordinate trials require independent live localization."
     },
     {
       "id": "software_start_release",
-      "action": "Follow-up Fable5.2 review of c8e9213 fixes, residentcaller freeze-at-click integration, then isolatedPi build/stage and supported acceptance. Existing startup still homes on stand."
+      "action": "Follow-up Fable 5.2 review of c8e9213 fixes, resident caller freeze-at-click integration, then isolated Pi build/stage and supported acceptance. Existing startup still homes on stand."
     }
   ],
   "recorded_open_items": {
@@ -120,7 +120,8 @@
   "alignment": {
     "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
     "open": "Actual Ryan source/sample, second robot availability, physical bumper design and recovery feasibility outcome.",
-    "next_discussion": "Owner wants specific-angle turns and onboard object detection/avoidance during motion. Discuss reusable capabilities, gaps and ball-vs-hazard semantics with subagent findings; do not implement obstacle work now."
+    "next_discussion": "Discuss role/action/override separation, one shot-geometry owner, hybrid person coverage, early pose-only feed and measurable navigation/gait acceptance. Proposal is in final_project/PLAN.md; native person avoidance is newly requested, not implemented.",
+    "owner_steering_2026_11_17": "Two-robot soccer target retained. Native object/person detection is important to demo: entering person should be avoided by both robots. Prioritize explicit offense/defense, coordinate/angle control, latency and rigorous directional/combined gait tests; defer temporary-ball contact. Intended ball pink size 5 with flowers. Ryan provides field state/shot targets; ball-specific onboard vision supplements overhead. Revised architecture proposal awaits discussion."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",
