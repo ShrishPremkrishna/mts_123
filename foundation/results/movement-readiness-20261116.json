@@ -1,0 +1,970 @@
+{
+  "schema": "pupper_movement_readiness_v1",
+  "requested_date": "2026-11-16",
+  "created_utc": "2026-11-17T01:38:58.698182+00:00",
+  "scope": "Local offline inventory, actual exported actor parity and bounded native-contract CPU simulation. No SSH, robot access, controller/checkpoint edits, training or policy promotion.",
+  "conclusion": "Existing stock and student actors justify measured forward/lateral evaluation before new training. Stock is the forward/profile baseline; Markus ablated is a lateral candidate. No policy is newly physically accepted.",
+  "inventory": {
+    "source": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/pi-reconciliation/policy-candidates-20261116.json",
+    "sha256": "43349b6c38ffed1aeed2e6d4061c37939801063b34f5aa70b2dffeb6e566d300",
+    "files": 14,
+    "unique_exports": 11,
+    "unique_networks": 11,
+    "unique_locomotion": 9,
+    "modern_locomotion_screened": 8,
+    "excluded": {
+      "legacy_walk": "647f45d4: old720-input contract lacks obs_spec/declared command bounds; not compatible with this48x20host",
+      "three_legged": "not a four-leg soccer baseline",
+      "learned_header": "target-command semantics; separate shooting path, not locomotion"
+    }
+  },
+  "current_stock_profile": {
+    "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "export_bounds": {
+      "vx": [
+        -1.5,
+        1.5
+      ],
+      "vy": [
+        -0.5,
+        0.5
+      ],
+      "wz": [
+        -2.0,
+        2.0
+      ]
+    },
+    "effective_default_bounds": {
+      "vx": [
+        -0.3,
+        0.49
+      ],
+      "vy": [
+        -0.49,
+        0.49
+      ]
+    },
+    "game_buttons": false,
+    "explanation": "JSON limits are further restricted by per-instance forward/reverse limits and jump-slot walk cap on BOTH X and Y. Simulator explicitly uses a 1.5 m/s profile cap; 0.7 m/s X and 0.5 m/s Y evidence therefore is not the currently installed default profile.",
+    "source": "pupper_gait_deploy/config.yaml:258; src/neural_controller.cpp:803"
+  },
+  "contracts": {
+    "observation": "20 newest-first frames of 48: gyro (3), projected gravity (3), command (3), desired world Z (3), relative joints (12), previous pre-clamp action (12), reference (12); 960 inputs and 12 outputs",
+    "action": "position target = default + .75*effective_action; kp 5.5, kd 0.25; per-export clamp plus class-driver clamp",
+    "reference": "Six StableGait students share identical non-network metadata; Tej has zero-reference tables. Stock has mixed-gait/slot metadata. Each actor uses its own exact exported reference and heading parameters.",
+    "parity": {
+      "existing_test_command": ".venv/bin/python -B -m pytest -q -p no:cacheprovider foundation/tests/test_export_locomotion.py",
+      "existing_tests_passed": 11,
+      "actual_actor_cases": 56,
+      "all_eight_passed": true,
+      "max_actor_absolute_error": 1e-06,
+      "max_reference_absolute_error": 0.0
+    },
+    "training": {
+      "confirmed_runs": [
+        "Shrish 4hkyvuxh",
+        "Tej vt55ode8"
+      ],
+      "confirmed_bounds": {
+        "vx": [
+          -0.7,
+          0.7
+        ],
+        "vy": [
+          -0.5,
+          0.5
+        ],
+        "wz": [
+          -2,
+          2
+        ]
+      },
+      "other_students": "same export bounds, original training config/run unproven",
+      "stock": "exact original training run unproven; export bounds do not certify physical tracking"
+    }
+  },
+  "simulation": {
+    "status": "complete",
+    "identical_models": true,
+    "source_changed": false,
+    "inputs_changed": false,
+    "protocol": "native_export_locomotion_screen_v1",
+    "replicas": 2,
+    "seed": 101,
+    "commands": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.45,
+        0,
+        0
+      ],
+      [
+        0.7,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0.5,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        -0.5,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "segment_seconds": 4,
+    "scoring_after_seconds": 1,
+    "physics_hz": 520,
+    "inference_hz": 52,
+    "activation_wait_seconds": 4.2,
+    "target_delay_seconds": 0.016,
+    "model": "nominal 3.17 kg, full-hull contact,flat ground; same model for all policies",
+    "stop_definition": "Planar speed below .05m/s continuously for .25s; threshold is engineering screen, not hardware stopping guarantee. Measures first available sample at or after command transition.",
+    "results": [
+      {
+        "name": "markus1",
+        "sha256": "b4c99214453515d67873e68a899468cacb1d2ac0685fef92776bad39f0a8b0e3",
+        "network_sha256": "a280bfc516b96a5fce11b1de7b2b792f98241a9cf4bac008daab12f8b7597af8",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0011-markus_policy_1.json",
+        "matches_fresh_inventory": true,
+        "reference": "stable_trot_lift",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "original training run/checkpoint not established",
+        "tilt_stop_failures": [],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.386088,
+            0.012727,
+            0.007575,
+            0.118782,
+            0.309699,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.630668,
+            -0.001618,
+            -0.008138,
+            0.140691,
+            0.217742,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            0.011594,
+            0.390843,
+            0.060334,
+            0.162239,
+            0.329275,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.048342,
+            -0.35978,
+            -0.00743,
+            0.19021,
+            0.329442,
+            [
+              0,
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 6,
+          "settled": 6,
+          "unsettled_or_tilt_stopped": 0,
+          "max_settle_s": 0.703846,
+          "max_displacement_before_settle_m": 0.176331
+        }
+      },
+      {
+        "name": "markus2",
+        "sha256": "970686515b1819a9ca05a2f1a6e958acbd2d1868c0cebbcd643fadff6df2aec5",
+        "network_sha256": "fe1c568f66dd3ad28dc885743bc87c2d102b02da26425277ac5a057165d07ac6",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0012-markus_policy_2.json",
+        "matches_fresh_inventory": true,
+        "reference": "stable_trot_lift",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "original training run/checkpoint not established",
+        "tilt_stop_failures": [
+          {
+            "replica": 0,
+            "time_s": 16.576923,
+            "segment": 3,
+            "tilt_rad": 1.055024,
+            "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+          }
+        ],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.350359,
+            -0.014222,
+            0.011177,
+            0.16218,
+            0.371144,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.386961,
+            -0.000198,
+            -0.020978,
+            0.352185,
+            0.451213,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            0.002875,
+            0.280199,
+            0.03284,
+            0.256209,
+            0.275256,
+            [
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.057307,
+            -0.228294,
+            -0.004922,
+            0.312684,
+            0.316894,
+            [
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 4,
+          "settled": 3,
+          "unsettled_or_tilt_stopped": 1,
+          "max_settle_s": 0.55,
+          "max_displacement_before_settle_m": 0.113551
+        }
+      },
+      {
+        "name": "markus_ablated",
+        "sha256": "8dabe46148b8d825ef42d6c155a3acba1229a96923f97abd58ba5455699959d6",
+        "network_sha256": "f94cf11733f9eb61b1654d112b9d28311206e83adcc2e8f2db46a7e3d9f88be3",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0005-markus_bumpy_ablated.json",
+        "matches_fresh_inventory": true,
+        "reference": "stable_trot_lift",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "original training run/checkpoint not established",
+        "tilt_stop_failures": [],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.444128,
+            -0.011004,
+            0.010169,
+            0.088569,
+            0.213022,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.582123,
+            -0.019458,
+            0.023914,
+            0.180082,
+            0.352164,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            -0.012273,
+            0.398081,
+            -0.053019,
+            0.153409,
+            0.343623,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.031096,
+            -0.441227,
+            -0.035099,
+            0.092638,
+            0.225197,
+            [
+              0,
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 6,
+          "settled": 6,
+          "unsettled_or_tilt_stopped": 0,
+          "max_settle_s": 0.588462,
+          "max_displacement_before_settle_m": 0.122819
+        }
+      },
+      {
+        "name": "markus_bumpy",
+        "sha256": "1f784d14b9eec99d758b02a00ee944a57c2348efaade9c1998f8740a851b1091",
+        "network_sha256": "383cfb8b38fdf7bee870ef19e425311e0e9a2809f6e038d38ae593d36f24d24b",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0004-markus_bumpy.json",
+        "matches_fresh_inventory": true,
+        "reference": "stable_trot_lift",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "original training run/checkpoint not established",
+        "tilt_stop_failures": [],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.433883,
+            -0.006268,
+            0.006171,
+            0.083619,
+            0.183782,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.582449,
+            0.006009,
+            0.03304,
+            0.184688,
+            0.347413,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            -0.001334,
+            0.347097,
+            -0.019702,
+            0.195854,
+            0.363783,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.08396,
+            -0.442721,
+            -0.008383,
+            0.152804,
+            0.331852,
+            [
+              0,
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 6,
+          "settled": 6,
+          "unsettled_or_tilt_stopped": 0,
+          "max_settle_s": 0.723077,
+          "max_displacement_before_settle_m": 0.162938
+        }
+      },
+      {
+        "name": "ryan",
+        "sha256": "02c03427f2764b2040cf9d5fb0ac2d7d02e82f60a00bc05ccc4ded9b894f5ee2",
+        "network_sha256": "53e2a430c4bbf74e0e3b1cf9ae20d0616d0874336dfc05dc94a42c8c668736de",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0007-ryan_stablegait.json",
+        "matches_fresh_inventory": true,
+        "reference": "stable_trot_lift",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "original training run/checkpoint not established",
+        "tilt_stop_failures": [
+          {
+            "replica": 0,
+            "time_s": 16.634615,
+            "segment": 3,
+            "tilt_rad": 1.084738,
+            "reason": "nonfinite state or gemini_walk inherited 1.0rad tilt stop"
+          }
+        ],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.456944,
+            -0.004981,
+            0.022702,
+            0.070071,
+            0.187137,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.596962,
+            -0.022628,
+            -0.016133,
+            0.178513,
+            0.472002,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            0.04046,
+            0.435982,
+            8.1e-05,
+            0.101342,
+            0.190389,
+            [
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.060552,
+            -0.371766,
+            0.009733,
+            0.175647,
+            0.281907,
+            [
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 4,
+          "settled": 3,
+          "unsettled_or_tilt_stopped": 1,
+          "max_settle_s": 0.530769,
+          "max_displacement_before_settle_m": 0.107919
+        }
+      },
+      {
+        "name": "shrish",
+        "sha256": "e897f150d1b7242ada9e85fe30a7dff1ca1c4db10c70358573334cd2a96b7732",
+        "network_sha256": "93e5faf0461b7696ee29150e02d3ad3bac8f8b332f29361e3188f19d8b688fb8",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0013-shrish_policy.json",
+        "matches_fresh_inventory": true,
+        "reference": "stable_trot_lift",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "run 4hkyvuxh/model_2999.pt; exact config and export parity",
+        "tilt_stop_failures": [],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.460039,
+            0.024254,
+            -0.027094,
+            0.095271,
+            0.186323,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.734996,
+            0.036288,
+            -0.003651,
+            0.174934,
+            0.274268,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            0.096562,
+            0.45749,
+            0.044681,
+            0.155198,
+            0.244965,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.004061,
+            -0.400515,
+            -0.018475,
+            0.165541,
+            0.341436,
+            [
+              0,
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 6,
+          "settled": 6,
+          "unsettled_or_tilt_stopped": 0,
+          "max_settle_s": 0.703846,
+          "max_displacement_before_settle_m": 0.160939
+        }
+      },
+      {
+        "name": "stock",
+        "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+        "network_sha256": "23c1120b3b71a70f56cc6ad1e345aef1d63faa9107d962bebeb258211d9aefae",
+        "local_path": "/Users/shrish/workspace/cs123/pupper_gait_deploy/policies/default_policy.json",
+        "matches_fresh_inventory": true,
+        "reference": "mixed_trot_fast_jump_slots_disabled",
+        "export_bounds": {
+          "vx": [
+            -1.5,
+            1.5
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "original training run/checkpoint not established",
+        "tilt_stop_failures": [],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.332691,
+            0.007009,
+            0.004805,
+            0.141848,
+            0.164286,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.698128,
+            -0.017905,
+            -0.007919,
+            0.128982,
+            0.198617,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            0.023678,
+            0.300557,
+            -0.011619,
+            0.226906,
+            0.199027,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            -0.048421,
+            -0.370022,
+            -0.032547,
+            0.162112,
+            0.158693,
+            [
+              0,
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 6,
+          "settled": 6,
+          "unsettled_or_tilt_stopped": 0,
+          "max_settle_s": 0.396154,
+          "max_displacement_before_settle_m": 0.080788
+        }
+      },
+      {
+        "name": "tej",
+        "sha256": "2346d0870e8fa61977534f6bb80b27ddb2aaa9db9cc7be94f038afed81db4eed",
+        "network_sha256": "d6ad06d3503508fac9490bad7d5c5cd2aa3309f3627feb901b15b0f25a3f46d2",
+        "local_path": "/Users/shrish/workspace/cs123-foundation/artifacts/hardware/2026-10-29/baseline-artifact/files/0008-tej_velocityfs.json",
+        "matches_fresh_inventory": true,
+        "reference": "zero",
+        "export_bounds": {
+          "vx": [
+            -0.7,
+            0.7
+          ],
+          "vy": [
+            -0.5,
+            0.5
+          ],
+          "wz": [
+            -2.0,
+            2.0
+          ]
+        },
+        "provenance": "run vt55ode8/model_2999.pt; exact config and export parity",
+        "tilt_stop_failures": [],
+        "tracking": [
+          [
+            0.45,
+            0,
+            0.484316,
+            0.01171,
+            0.015914,
+            0.078927,
+            0.148383,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0.7,
+            0,
+            0.69094,
+            0.00225,
+            -0.013595,
+            0.101165,
+            0.203932,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            0.5,
+            -0.001494,
+            0.452005,
+            0.033853,
+            0.066409,
+            0.119066,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            0,
+            -0.5,
+            0.014883,
+            -0.775791,
+            0.247671,
+            0.289764,
+            0.191275,
+            [
+              0,
+              1
+            ]
+          ]
+        ],
+        "stop_summary": {
+          "attempted": 6,
+          "settled": 2,
+          "unsettled_or_tilt_stopped": 4,
+          "max_settle_s": 1.280769,
+          "max_displacement_before_settle_m": 0.065194
+        }
+      }
+    ],
+    "tracking_columns": [
+      "command_x",
+      "command_y",
+      "mean_body_x",
+      "mean_body_y",
+      "mean_yaw_rate",
+      "mean_xy_error",
+      "max_tilt_rad",
+      "represented_replicas"
+    ]
+  },
+  "prior_stock_fast_evidence": {
+    "source": "foundation/results/shipped-policy-native-screen.json",
+    "sha256": "9024be41f5e64e4a4a07cb5659476ce85314ab937de0563ffa94ddad0ae8e614",
+    "replicas": 4,
+    "seconds_per_segment": 10.0,
+    "failures": [],
+    "results": [
+      {
+        "command": [
+          1.0,
+          0,
+          0
+        ],
+        "mean_velocity_body": [
+          0.923366,
+          -0.003476,
+          -0.027316
+        ],
+        "max_tilt_rad": 0.403069
+      },
+      {
+        "command": [
+          1.5,
+          0,
+          0
+        ],
+        "mean_velocity_body": [
+          1.164097,
+          -0.028358,
+          -0.029734
+        ],
+        "max_tilt_rad": 0.412214
+      }
+    ],
+    "scope": "Historical native-contract nominal simulation; no new physical sprint evidence"
+  },
+  "shortlist": [
+    {
+      "priority": 1,
+      "candidate": "stock",
+      "role": "forward sprint-profile and braking baseline",
+      "reason": "At 0.7 m/s command, mean 0.698 m/s; no tilt stops; six stop cases settled in 0.319\u20130.396 seconds with <=0.081 m displacement. Historical 1.0/1.5 m/s commands yielded 0.923/1.164 m/s. Existing default cap must be explicitly reviewed for higher commands."
+    },
+    {
+      "priority": 2,
+      "candidate": "markus_ablated",
+      "role": "balanced lateral challenger",
+      "reason": "At Y \u00b10.5 m/s, mean +0.398/\u22120.441 m/s, no tilt stops, both directions settled; better balanced lateral tracking than stock in this screen. Training provenance remains unknown."
+    },
+    {
+      "priority": 3,
+      "candidate": "shrish",
+      "role": "traceable forward/lateral comparator",
+      "reason": "Confirmed training identity; 0.7 m/s forward command yielded 0.735 m/s; lateral +0.457/\u22120.401 m/s but positive-Y segment has +0.097 m/s unwanted forward drift."
+    },
+    {
+      "priority": 4,
+      "candidate": "tej",
+      "role": "hold pending braking/asymmetry investigation",
+      "reason": "Left tracking good but right mean \u22120.776 m/s for \u22120.5 m/s request; four of six stops did not settle within 4 seconds. Strong positive tracking alone is insufficient."
+    },
+    {
+      "priority": 5,
+      "candidate": "ryan,markus2",
+      "role": "hold",
+      "reason": "One of two replicas each hit the 1 radian tilt stop while braking from 0.7 m/s; later survivor-only lateral values are not an aggregate ranking."
+    }
+  ],
+  "training_decision": {
+    "new_training_now": false,
+    "reason": "Existing actors already support forward 0.7 and lateral 0.5 m/s commands, and stock has higher forward export range with prior nominal evidence. Current failure cannot be assigned to insufficient policy training. First establish measured speed, braking and repeatability using an explicitly selected reviewed runtime/profile.",
+    "when_training_is_justified": [
+      "Required lateral speed exceeds all available modern export bounds \u00b10.5 m/s.",
+      "After runtime/config parity is established, repeatable tracking/braking failures persist across existing shortlist on the intended surface.",
+      "Contact experiments establish a repeatable headbutt behavior requirement that cannot be met with a bounded run-through approach."
+    ],
+    "headbutt": "A bounded run-through uses existing locomotion; no learned-header policy is prerequisite. Actual ball contact and exit/braking remain separate physical measurements."
+  },
+  "limitations": [
+    "Two small paired pose perturbations and nominal flat dynamics do not establish robustness; no friction/mass/sensor/voltage variation or collision/contact ball model.",
+    "The CPU host uses production dense/reference/filter headers but transcribes lifecycle plumbing; it is not ROS/native hardware execution. No active gait references/jump slots or game buttons.",
+    "Simulation uses 52 Hz inference/520 Hz physics versus confirmed training 50 Hz/250 Hz; 0.016 seconds target delay is a model assumption.",
+    "Driver limit file is a local source contract; its installed_robot_verified flag remains false. Recovered rt_spi.cpp bytes match local but installed URDF/homing/calibration are not proven by that match.",
+    "Derived geom/contact fields can lag integrated state by one 1/520 second step; fine contact timing and slip are not interpreted.",
+    "Current physical stock walk was poor in the Nov 16 manual trial; known driver regression does not prove why or guarantee repaired runtime improves it.",
+    "No lateral physical sprint, reverse sprint, field position control, headbutt success or new maximum safe speed is established here.",
+    "Stock uses its exported fast reference above the 0.5 m/s threshold; six StableGait student actors remain in their exported trot/lift references. Comparison is of complete policy/reference packages, not isolated neural weights."
+  ],
+  "next_actions": [
+    "Keep teammate as sole Pi operator; exchange identities/results without another process/session taking control.",
+    "Prepare offline explicit stock sprint-profile cap comparison (0.49, 0.7, 1.0 m/s) and preserve actor/gains/limits; authorize no activation from this report.",
+    "Shortlist stock and Markus ablated for next paired lateral/braking sensitivity check on measured intended surface; retain Shrish as provenance-backed comparator.",
+    "At next authorized physical handoff verify loaded driver/controller/actor/profile, then measure displacement+heading and zero-command braking at low speeds before increasing one axis.",
+    "If a candidate meets measured X/Y/braking needs, integrate it as one velocity capability shared by navigation and bounded headbutt approach; train only against a documented remaining deficit."
+  ],
+  "evidence": {
+    "directory": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-readiness",
+    "command": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-readiness/command.json",
+    "plan_sha256": "82e68cfe75513cf64f12fecceccd4df1113c56cf524296437a424bc43d227714",
+    "status_sha256": "790704f6643c718107285b6e801040426e9d8a1a830e0f273fc27b2f1095f8a0",
+    "actor_parity_sha256": "ad9f9867a985c21837be95fcc4162624d5dab482430a8a7942c5d254772159f7",
+    "derived_summary_sha256": "204af524e63195a40fdf970dfb55e607eb0757b34b29a1c8a219e61d5be41039",
+    "source_commit": "4110d82e084d67d24611fb9ed883ce5169a89a83",
+    "source_identity_note": "Full simulator/controller/policy hashes stored in plan.json; source/inputs unchanged during screen.",
+    "claude_review": {
+      "provider": "Authenticated Claude Code; source-only, read-only tools",
+      "first_attempt": "Reached 8-turn limit; no permission denials",
+      "final_continuation": "Success, one turn, no additional tool calls",
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-readiness/claude-review-final.json",
+      "sha256": "410b04ee688ec4719bd6c8e859e4b02dd2c6e7b572567d92fcfaf90a5cead403",
+      "conclusion": "No blocking forward/lateral harness parity defect identified. Explicit deployment-cap difference and slot-free reference scope remain. Stock switches to fast gait above 0.5 m/s; student Stable references retain trot. No automatic hop without a scheduled slot."
+    },
+    "post_run_worktree_note": {
+      "checked_utc": "2026-11-17T01:40:59.744291+00:00",
+      "paths_changed_after_completed_screen": [
+        "pupper_gait_deploy/src/neural_controller.cpp",
+        "pupper_gait_deploy/src/neural_controller.hpp"
+      ],
+      "scope": "Concurrent parent work occurred after the screen completed. Numerical evidence applies to frozen plan hashes; no claim that subsequent controller edits were revalidated."
+    }
+  }
+}

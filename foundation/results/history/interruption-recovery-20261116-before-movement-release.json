@@ -1,0 +1,278 @@
+{
+  "schema": "pupper_current_session_v2",
+  "objective": "Verify compatible movement runtime, then one supervised homing and rapid isolated turn/forward/braking trials before headbutt. User has exclusive robot again and is ready on stand.",
+  "worktree": "/Users/shrish/workspace/cs123",
+  "branch": "main",
+  "mode": "pi_native_build_user_away",
+  "updated_utc": "2026-11-17T02:07:09.193969+00:00",
+  "current_report": "foundation/results/stock-shot-session-20261116.json",
+  "historical_recovery": {
+    "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
+    "sha256": "4e605f7f51c44980519786833970e831fef5475b61c1eb521f41288f18e7c7b6",
+    "meaning": "Exact November 4 checkpoint, archived before the November 10 context cleanup. Includes the preceding recovery record, prior priorities, ownership observations and all release identities."
+  },
+  "evidence": {
+    "current_sprint": "foundation/results/harness-sprint-20261103.json",
+    "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json",
+    "offline_gameplay": "final_project/pupper_fc/validation.json",
+    "pi_reconciliation": "foundation/results/pi-source-reconciliation-20261116.json",
+    "stock_shot_guards": "foundation/results/shot-baseline-guards-20261116.json",
+    "stock_shot_session": "foundation/results/stock-shot-session-20261116.json",
+    "movement_readiness": "foundation/results/movement-readiness-20261116.json"
+  },
+  "environment": {
+    "python": ".venv-api/bin/python",
+    "full_numerical_python": ".venv/bin/python",
+    "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
+    "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
+    "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
+    "workspace_limit": "The prepared Mac has checkout-local API and CPU simulation environments on main. Rebuild instructions are in gemini_pupper/README.md and foundation/README.md. The historical artifacts alias still points to the legacy checkout. Frozen archives are needed for strict input verification and historical replay; ordinary harness development uses the tracked source and dependency pins.",
+    "mac_verification": "November 4, shared checkout: fresh Python 3.12 API environment passed 1,201 API checks. A clean npm install passed 544 browser checks and typechecking, and rebuilt the matching JS bundle. CPU simulation imported this checkout's mjlab and stepped the 12-actuator Pupper. The ARM ROS image passed the six controller and ten joystick suites plus the fake-IMU diagnostic with networking and hardware devices excluded.",
+    "verified_date": "2026-11-04",
+    "local_readiness": {
+      "date": "2026-11-12",
+      "source_revision": "fa52e87; subsequent edits are context/documentation only",
+      "api": "Checkout-local Python 3.12.8, imports/dependencies clean; 18 fake-tool checks and 19 ordered-follow tests passed.",
+      "web": "Node 26.12.1, npm 11.20.0; installed dependencies match lockfile; 544 tests passed.",
+      "numerical": "Checkout-local Python 3.12.8; mjlab resolves to this checkout; required imports and 155-package dependency check pass; 35 motion/model contract tests passed. No new policy rollout validation.",
+      "native_host": "Apple clang 21; reference/filter/motion/slew/execution tests passed, including 2724 static-loop assertions.",
+      "ros": "Docker Desktop engine 28.2.2 running; cached Linux ARM64 image sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44 launches offline and contains ROS Jazzy rclcpp/CMake 3.28.3. Full ROS suite not repeated.",
+      "claude": "Existing subscription authentication used successfully for scoped context drafting/review; no key inspected.",
+      "remaining_local_dependency": "Historical artifacts alias points to cs123-foundation/artifacts. Ordinary API/browser/CPU source work uses independent local environments; retrieve frozen archives only when relevant.",
+      "commands": "README.md#choose-the-check-for-the-task"
+    }
+  },
+  "authorization": "User stepped away after confirming supported robot. Continue coding/build/compatibility work on Pi; ping for a person to supervise before homing or floor motion. No hardware startup yet.",
+  "compute_spend_policy": {
+    "approval_threshold_usd": 5,
+    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
+  },
+  "activity": {
+    "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
+    "compute": "Offline fixes completed using focused implementation/review agents and authenticated Claude review; 263 tests plus 48 subtests pass. Actual isolated ROS smoke reproduced old controller-takeover failure and passes with corrected source. No training or robot activation.",
+    "owners": {
+      "physical_robot": "Root has Pi build/read-only work; robot supported, user away. No motor processes started. Request live supervision before homing/motion.",
+      "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
+      "movement": "Shrish taking over movement and headbutt; teammate continues foot-kick policy.",
+      "shooting": "Tej",
+      "perception": "Ryan",
+      "arena": "Shrish"
+    },
+    "goal_status": "Existing policies screened; stock forward and Markus ablated lateral shortlisted. Command expiry and fast trial tool pass offline/realROS fake-robot checks. Compile compatible native runtime before physical tests."
+  },
+  "hardware_session": {
+    "status": "Idle on stand; new stock runtime not started. Ubuntu-built ARM binaries refused by Debian12 ABI check. Native Pi rebuild ongoing.",
+    "ssh": "mts",
+    "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
+    "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
+    "api_instance": "e003eb82fb0a4a778dd59b236913e9d7",
+    "motor_api_recorders_active": false,
+    "native_library_sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68",
+    "imu_library_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+    "queued_imu_age_guard_deployed": false,
+    "archive": "artifacts/validation/harness-sprint-20261103/r5-closed",
+    "archive_sha256": "d004e12b65e10cb3affa0da0192110f081d0ce8b8a55e8cc304e901483944b03",
+    "physical_release_observation": "No new user observation after this R5 shutdown; do not infer physical release solely from the clean driver exit.",
+    "team_source_checkout": {
+      "path": "/home/pi/mts_123",
+      "repository": "ShrishPremkrishna/mts_123",
+      "branch": "main",
+      "verified_source_and_layout_commit": "bcd7078e7fe44ce3a58ad3d88020398eb0a39a68",
+      "selected_r6_files_verified": 137,
+      "tracked_at_verification": 120,
+      "ignored_detector_and_build_files": 17,
+      "vendor_lfs": "Unrelated vendor assets may remain pointers in source checkouts. R6 selected files are actual bytes.",
+      "activated": false,
+      "observed_date": "2026-11-04",
+      "later_documentation_sync_commit": "c6f211c5951b14d88c5b3ac78388911fb30e994b",
+      "later_documentation_sync_scope": "Recorded source-checkout documentation update on November 4; selected runtime verification above belongs to its original receipt.",
+      "current_source_commit": "5957800526ba555cc4cab5f104e61dc3cfa018a1",
+      "current_sync_date": "2026-11-16",
+      "current_sync_receipt": "foundation/results/shot-baseline-guards-20261116.json",
+      "current_checkout_clean": true,
+      "current_source_commit_scope": "Verified behavior code commit; later receipt-only commits may advance HEAD."
+    },
+    "observed_date": "2026-11-03 for R5 shutdown; 2026-11-04 for source/staging receipts",
+    "live_status": "Pi idle; controller connected, battery 100% at 01:56 UTC. New source built only in separate directory; original install untouched.",
+    "motor_api_recorders_last_observed_active": false,
+    "access_check": {
+      "observed_at_utc": "2026-11-16T23:54:35.114381+00:00",
+      "host": "mts",
+      "ssh": "connected",
+      "tailscale": "reachable after user reconnection",
+      "pi_changed": "team source checkout only; original kick and installed native files unchanged"
+    },
+    "current_boot_id": "e0ec5244-f04d-43f3-978a-eef050844135",
+    "current_installed_native_receipt": "foundation/results/pi-source-reconciliation-20261116.json",
+    "current_installed_native_scope": "Loaded native/hardware identities verified in closed stock-shot run; see current report. Other R5 fields remain historical, not this run.",
+    "active_run": null,
+    "last_stock_shot_run": "/home/pi/pupper-fc-runs/stock-shot-20261117T004242Z"
+  },
+  "browser": {
+    "observed_date": "2026-11-03",
+    "state": "Owned Pi browser closed in R5; the last local FAKE-server session was also stopped. Current browser sessions are unknown."
+  },
+  "microphone": {
+    "observed_date": "2026-11-03",
+    "status": "Wireless lavalier and onboard speaker worked. Transmitter battery died during filming; its current charge is unknown."
+  },
+  "offline_ready": {
+    "application_release": {
+      "status": "R6 staging receipt dated November 4. Activation and physical acceptance were still open in that record.",
+      "source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "runtime_commit": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+      "package": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final/package",
+      "evidence": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+      "bundle": "index-Cr13ul_q.js",
+      "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+      "app_archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+      "source_build_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
+      "evidence_archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+      "deployed": true,
+      "local_stage_verified": true,
+      "selected_native_imu_models_config_unchanged": true,
+      "local_staging": {
+        "baseline_files": 132,
+        "final_selected_files": 137,
+        "source_build_inputs": 130,
+        "inherited_skill_files": 7,
+        "launch_recipe_syntax_checks": 5,
+        "executed_recipes": false
+      },
+      "limits": "Staging verifies the selected files, not current loaded native libraries or behavior. Archive and compiled dependencies are separate from the source checkout.",
+      "remote_staged": true,
+      "activated_by_this_stage": false,
+      "hardware_accepted": false,
+      "pi_stage_receipt": {
+        "staged_utc": "2026-11-04T21:24:43.469285+00:00",
+        "baseline_preserved": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+        "new": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r6",
+        "archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+        "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+        "stage_script_sha256": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973",
+        "verified_archive_members": 39,
+        "verified_baseline_files": 132,
+        "verified_final_selected_files": 137,
+        "native_driver_policy_or_gains_changed": false,
+        "started": false,
+        "scope": "Separate inherited checkout plus reviewed application overlay; no install/build/start/Stop/profile/homing action."
+      },
+      "deployed_field_meaning": "Legacy deployed=true records completed file transfer. Use remote_staged, activated_by_this_stage and hardware_accepted for the distinct release states.",
+      "source_checkout_head_meaning": "Source revision pinned when the R6 application was packaged. The separate Pi team-source checkout has its own verification and later documentation-sync revisions under hardware_session.team_source_checkout."
+    },
+    "held_candidate": {
+      "path": "artifacts/validation/harness-sprint-20261103/app-release-r6-client-loss",
+      "status": "HELD; do not deploy",
+      "source_commit": "c5e11389a84cf1499b4a427bd6f46acd967c4b6b",
+      "reason": "Independent legacy-server reproduction showed an older Stop route ignored the new identity header. Replaced with mandatory dedicated guarded route/capability preflight in 8802672. Complete held candidate preserved."
+    },
+    "validation": "API 1201; web 544; typecheck/build pass; retained course 166 with documented adapted Stop assertion. Independent source/lifecycle/privacy probes pass. Software evidence only.",
+    "observed_date": "2026-11-04"
+  },
+  "preservation": {
+    "current_offline": "artifacts/validation/harness-sprint-20261103/app-release-r6-offline-final",
+    "durable_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-03/harness-sprint",
+    "archive_sha256": "1497189db1d620cc20c3769f043c13966321a8e7db5692c5d1dc98b43f8a8f78",
+    "archive_regular_members": 244,
+    "both_stores_verified": true,
+    "current_pending": null,
+    "verified_date": "2026-11-04"
+  },
+  "next": [
+    {
+      "id": "stock_shot_baseline",
+      "action": "Battery swap, recover closed run, verify/select reviewed hardware driver without changing stock policy/gains. Then one supervised homing and isolated turn/forward command-delivery checks before further shots. See current report."
+    },
+    {
+      "id": "perception_handoff",
+      "action": "Ask Ryan for overhead-camera ingestion/calibration and timestamped field state for both robot poses and ball, plus one replayable clip/sample. Recovered onboard detector does not supply global state."
+    },
+    {
+      "id": "live_soccer_boundary",
+      "action": "Connect FC observations and stock-gait shot through exclusive motion ownership, explicit frames/units and native command expiry. Detector producer IMU/frame/capture validity is now fixed; consumer frame validation and goal capture-time handling remain before live integration."
+    },
+    {
+      "id": "physical_shot_evidence",
+      "action": "Recover teammate contact/video observations for manual run-through trials; arrange bounded supervised real-shot tests after selecting runtime and measuring motion. Software DONE is not shot success."
+    },
+    {
+      "id": "learned_kick_held",
+      "action": "Keep learned candidate unaccepted: resolve late activation, native fall-stop propagation and target-vs-velocity ownership before enabling. Installed test slot already contains candidate; source synchronization did not change it."
+    },
+    {
+      "id": "separate_p0_getup",
+      "action": "Physical self-righting remains separate open P0; stand/restart requires the robot already upright."
+    }
+  ],
+  "acceptance_boundaries": [
+    "November 4 R6 receipt establishes staging only. Earlier reports identify the releases actually observed on hardware.",
+    "Server job and controller receipts describe software execution. Physical stopping, posture and audible playback need observations.",
+    "R6 browser-exit Stop handles selected launcher/browser exits. SIGKILL, renderer hangs, host loss and silent network failures remain outside that mechanism.",
+    "The inspected November 4 harness has explicit movement tools and a person follower. General navigation, guaranteed obstacle avoidance and arbitrary fall recovery have no accepted implementation in this checkpoint."
+  ],
+  "legacy_branches": [
+    "pupper-foundation"
+  ],
+  "legacy_worktree": "/Users/shrish/workspace/cs123-foundation",
+  "context_review_date": "2026-11-12 America/Los_Angeles",
+  "current_report_scope": "Observed manual-target shot failures, requested-command evidence and abnormal driver shutdown; no physical shot acceptance.",
+  "recorded_open_items": {
+    "as_of": "2026-11-04",
+    "lab6": "Q7 unfinished; Q12 interrupted and awaiting rerecord; Q16 reported captured; Q19 awaiting newcomer. Shrish owned footage, fourth teammate owned written submission. See foundation/submission/lab6/README.md. Completion since that checkpoint is unknown.",
+    "release": "R6 watched acceptance, audible follower handoff and live app update/rollback were open. No later owned acceptance is recorded here.",
+    "source_vs_hardware": "Selected R6 runtime and local main have separate identities; source edits alone do not identify the currently loaded Pi software."
+  },
+  "project": {
+    "name": "Pupper FC",
+    "brief": "final_project/README.md",
+    "plan": "final_project/PLAN.md",
+    "requirements_date": "2026-11-12",
+    "implementation_status": "Offline FC prototype plus recovered stock-shot/onboard detector/learned-candidate source. Stock authority/caps and detector capture/frame fixes pass offline; no live FC transport, overhead localization, defense or self-righting. Learned candidate remains held.",
+    "review": "Controller implementation/fixes delegated to authenticated Claude Code; focused simulator/viewer work and independent adversarial review completed. Four review findings and delayed-goal restart handling corrected. Source identities and bounded trial results saved in final_project/pupper_fc/validation.json.",
+    "open_risks": [
+      "Physical self-righting remains missing and is separate P0 work; ordinary stand tests assume an upright robot.",
+      "Native controller needs command-expiry protection beyond an upstream mux timeout.",
+      "Dead-ball rules, arena specifics and other downstream choices remain to be settled when relevant.",
+      "Real two-robot commissioning and match acceptance still needed."
+    ],
+    "confirmed_operating_choices": [
+      "Supported startup with one deliberate start/arm action accepted.",
+      "One resume signal after human goal-ball replacement accepted.",
+      "Get-up is separate P0 work; physical-motion owner open; baseline work can proceed."
+    ]
+  },
+  "source_reconciliation": {
+    "date": "2026-11-16",
+    "source_commit": "16dd850959ad4b8da6a0307110061d14e813e928",
+    "branch": "main",
+    "pi_checkout": "/home/pi/mts_123",
+    "previous_pi_ref": "codex/pi-source-before-20261116",
+    "result": "Source synchronized and checked; original experiments and native install preserved. Details in current report.",
+    "runtime_activated": false
+  },
+  "shooting_preparation": {
+    "date": "2026-11-16",
+    "user_ball": "Approximately 7-inch soft/partly deflated mini basketball; no bumper.",
+    "fresh_policy_inventory": "14 files / 11 distinct actors: 9 locomotion, 1 learned header, 1 three-legged specialist. Aliases and old native-only backups excluded from candidate count.",
+    "first_actor_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "first_speed_proposal_m_s": 0.45,
+    "native_default_forward_cap_m_s": 0.49,
+    "runtime_not_started": true,
+    "operator_readiness": "Operator supported robot; battery swap in progress. New readiness needed before restarting.",
+    "audit": "Stock authority/caps guard and capture-aligned detector reviewed and verified offline. Fresh unchanged runtime configuration remains a separate physical-session prerequisite.",
+    "offline_guards": "foundation/results/shot-baseline-guards-20261116.json",
+    "source_sync_commit": "5957800526ba555cc4cab5f104e61dc3cfa018a1"
+  },
+  "movement_recovery": {
+    "local_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline",
+    "held_release": "/home/pi/pupper-fc-releases/movement-20261116-v1",
+    "held_reason": "Built on Ubuntu24 ROS Docker; needs GLIBC2.38/GLIBCXX3.4.32 not on Debian12 Pi. No activation. Existing Docker image is test-only.",
+    "native_build": "/home/pi/pupper-fc-native-build-20261116",
+    "build_pid": 10315,
+    "exit_record": "/home/pi/pupper-fc-native-build-20261116/build.exit",
+    "next": "Inspect durable exit/log before retry. Assemble new v2 with Pi-compiled controller/gateway/mux plus verified R5driver, rerun ABI gate and manifest hashes, preflight before one homing. v1 preflight never led to startup.",
+    "new_runtime_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+    "original_session_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/stock-shot-20261117T004242Z/remote-closed",
+    "archive_verification": "44files,479767987bytes; complete remote/local SHA256 match"
+  }
+}

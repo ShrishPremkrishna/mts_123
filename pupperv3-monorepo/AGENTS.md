@@ -6,4 +6,6 @@ The ROS 2 robot platform lives in `ros2_ws/src`. The README documents the platfo
 
 The team's offline ROS runner is `python3 foundation/scripts/check_ros_offline.py` from the team root. It builds selected controllers with in-memory and fake-I2C interfaces inside the prepared Docker image.
 
+For the team's neural controller, `../pupper_gait_deploy/src/` is the maintained source; its installer overlays this vendor package. Inspect the install mappings before editing a vendor copy. The cached Ubuntu ROS image verifies software but does not produce compatible deployment binaries for the currently recorded Debian Pi. The [shared robot build handoff](../final_project/ROBOT_BUILD_AND_TEST_HANDOFF.md) records the target and release-selection workflow.
+
 The upstream [README](README.md) documents platform installation and simulation. Robot image and launch operations can replace software or initialize hardware; the team's [hardware procedure](../foundation/HARDWARE_CHECKLIST.md) describes the prepared runtime.

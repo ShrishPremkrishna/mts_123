@@ -28,7 +28,7 @@ Machine-specific paths and installed-tool observations below describe Shrish's M
 | Resource | Access and scope |
 | --- | --- |
 | Mac API and browser | [Setup and fake-robot checks](gemini_pupper/README.md#offline-checks), `.venv-api/bin/python`, and npm in `gemini_pupper/web`. |
-| Mac simulation and native checks | [CPU environment and offline checks](foundation/README.md). `.venv/bin/python` imports this checkout's `pupper-mjlab`. The offline ROS runner uses Docker Desktop. GPU training uses a suitable CUDA host. |
+| Mac simulation and native checks | [CPU environment and offline checks](foundation/README.md). `.venv/bin/python` imports this checkout's `pupper-mjlab`. The offline ROS runner uses Docker Desktop; that Ubuntu image is test-only for the Debian Pi. Build deployment binaries against the target environment. GPU training uses a suitable CUDA host. |
 | Claude Code and subagents | Claude CLI is installed on this Mac. Prior authenticated source-only work is recorded; check availability in the current session. Available agent/browser tools depend on the host application. |
 | Gemini | Existing local credential location is `~/.config/gemini-pupper/api_key`. Onboard setup uses an explicit key file and a one-use browser bootstrap. Verify access without printing credentials. Confirm before any API experiment expected above $5. |
 | Pupper | `ssh mts` uses Shrish's configured SSH alias and Tailscale. [The session checkpoint](foundation/results/interruption-recovery.json) holds access constraints and dated release observations. |
@@ -47,7 +47,7 @@ Run these from the repository root after the one-time setup linked above. Select
 | Browser | `npm --prefix gemini_pupper/web test` |
 | CPU motion/model contracts | `FORCE_CPU=1 .venv/bin/python -m pytest -q pupper-mjlab/tests/test_pupper_foundation.py` |
 | Native controller math/reference behavior | `bash pupper_gait_deploy/test/run_host_test.sh` — no ROS or robot |
-| Linux ROS build/tests | [Offline ROS runner](foundation/README.md#local-numerical-setup), using Docker Desktop and its prepared image |
+| Linux ROS tests | [Offline ROS runner](foundation/README.md#local-numerical-setup), using the test-only Docker image; [Pi deployment workflow](final_project/ROBOT_BUILD_AND_TEST_HANDOFF.md) |
 
 These check different layers; passing them does not establish physical performance. Reuse the checkout-local environments. Reinstall or upgrade when a concrete dependency issue or chosen change requires it. For API/browser implementation, choose the specific tests nearest the changed behavior beyond the examples above.
 

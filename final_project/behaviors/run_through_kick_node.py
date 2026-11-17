@@ -110,7 +110,11 @@ PARAM_NAMES = ("model_path", "max_vx_forward", "max_vx_backward", "speed_cap", "
 class StockWalkerEvidence:
   """Bounded read-only polling; no callback can start motion or rearm a stop."""
 
-  def __init__(self, node):
+  def __init__(self, node, *, forward_ceiling=0.49, lateral_ceiling=0.49):
+    if not (math.isfinite(forward_ceiling) and 0 < forward_ceiling <= 1.5 and
+            math.isfinite(lateral_ceiling) and 0 < lateral_ceiling <= 0.5):
+      raise ValueError("stock trial ceiling exceeds the exported policy envelope")
+    self.forward_ceiling, self.lateral_ceiling = forward_ceiling, lateral_ceiling
     self.clock = time.monotonic
     self.clients = (node.create_client(ListControllers, "/controller_manager/list_controllers"),
                     node.create_client(GetParameters, f"/{STOCK_CONTROLLER}/get_parameters"))
@@ -187,7 +191,8 @@ class StockWalkerEvidence:
       raise ValueError("stock baseline requires game_buttons=false")
     self._model_matches(values[0].string_value)
     forward, backward, speed = caps
-    return (min(0.49, forward, speed), min(0.49, backward, speed), min(0.49, speed), 2.0)
+    return (min(self.forward_ceiling, forward, speed), min(0.49, backward, speed),
+            min(self.lateral_ceiling, speed), 2.0)
 
   def poll(self):
     now = self.clock()

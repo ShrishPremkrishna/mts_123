@@ -1,0 +1,349 @@
+{
+  "schema": "pupper_build_environment_audit_v1",
+  "requested_date": "2026-11-16",
+  "created_utc": "2026-11-17T02:12:03.083645+00:00",
+  "scope": "Independent local source/image audit plus bounded read-only SSH OS, compiler, runtime symbol and path metadata. No ROS commands, hardware/device access, writes to Pi, build, process change or interruption of the parent-owned native build.",
+  "operator_state_at_assignment": "Robot supported; supervisor stepping away. No motion, homing, hardware startup or arm until supervisor returns. Native build may continue.",
+  "target": {
+    "observed_utc": "2026-11-17T02:08:18.045111+00:00",
+    "host_alias": "mts",
+    "os": "Debian GNU/Linux 12 (bookworm)",
+    "architecture": "aarch64",
+    "kernel": "6.12.47+rpt-rpi-2712",
+    "boot_id": "e0ec5244-f04d-43f3-978a-eef050844135",
+    "glibc": "2.36",
+    "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+    "libstdcxx_realpath": "/usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30",
+    "maximum_exported_symbol_versions": {
+      "GLIBCXX": "GLIBCXX_3.4.30",
+      "CXXABI": "CXXABI_1.3.13"
+    },
+    "underlay": "/opt/ros/jazzy",
+    "underlay_exists": true,
+    "full_underlay_identity_frozen": false
+  },
+  "inspection_methods": [
+    "Read /etc/os-release and /proc/sys/kernel/random/boot_id; platform machine/kernel",
+    "getconf GNU_LIBC_VERSION",
+    "c++ --version; g++ -print-file-name=libstdc++.so.6",
+    "readelf --version-info on target libstdc++ provider; extract version names",
+    "Path existence/resolution only for shared source, legacy install, build and v1/v2 release directories",
+    "docker image ls and docker image inspect only; no container creation/build/run"
+  ],
+  "inspection_limit": "Initial combined metadata query timed out at git rev-parse after 10 seconds. Did not retry git; reissued bounded OS/toolchain/path-only query successfully. Source HEAD/build progress not independently queried.",
+  "docker": {
+    "cached_ros_images": [
+      {
+        "tag": "cs123-ros-jazzy-slew-check:latest",
+        "id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+        "platform": "linux/arm64",
+        "ubuntu_label": "24.04"
+      },
+      {
+        "tag": "ros:jazzy-ros-base",
+        "id": "sha256:8eed0a4669bbf43ee331878a4c39bd8ebddea8e3312a58b4fae8edb14526b617",
+        "platform": "linux/arm64",
+        "ubuntu_label": "24.04"
+      }
+    ],
+    "compatible_cached_ros_builder_found": false,
+    "full_pi_sysroot_or_underlay_archive_found": false,
+    "search_limit": "Local artifact filenames and existing build recipes, not exhaustive inspection of every archive payload",
+    "role": "Existing Ubuntu 24.04 image is valid for offline ROS/fake-device tests, not Debian 12 deployment output. Dockerfile now explicitly labels this boundary."
+  },
+  "release_status": {
+    "legacy_install": "/home/pi/pupperv3-monorepo/ros2_ws/install remains mutable; existence is not selected or accepted identity",
+    "shared_source": "/home/pi/mts_123 exists; not the active release",
+    "active_build": {
+      "path": "/home/pi/pupper-fc-native-build-20261116",
+      "exists": true,
+      "owner": "parent/root build session",
+      "status": "Owner subsequently reported completed: native build exit 0; four neural suites including 28 production tests and ten joy tests passed."
+    },
+    "movement_v1": {
+      "path": "/home/pi/pupper-fc-releases/movement-20261116-v1",
+      "exists": true,
+      "state": "HELD",
+      "reason": "Owner reports staged Ubuntu binaries require GLIBC_2.38 / GLIBCXX_3.4.32, exceeding current target providers; stopped before activation"
+    },
+    "movement_v2": {
+      "path": "/home/pi/pupper-fc-releases/movement-20261116-v2",
+      "exists_at_check": false,
+      "state": "STAGED_TARGET_VERIFIED_NOT_STARTED",
+      "ready": false,
+      "ready_meaning": "Not authorized or accepted for physical use by this audit; fresh supervisor readiness pending",
+      "subsequent_owner_receipt": {
+        "observed_utc": "2026-11-17T02:10:56+00:00",
+        "source": "Parent build owner report; no independent second SSH or hardware operation",
+        "exists": true,
+        "build_exit_code": 0,
+        "neural_test_suites": 4,
+        "neural_production_tests": 28,
+        "joy_tests": 10,
+        "driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+        "controller_sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc",
+        "walk_manifest_sha256": "d21913f0f6addf332c7bac2ebebd89ea85637dda40d7a1c33d687e47c58c9bb2",
+        "sprint_manifest_sha256": "54afc5e568b8bbf54a0068c269565fbe53937c40c6ac862fcdeb9901e103a7b0",
+        "selected_files_and_config_policy_link": "PASS",
+        "ros_package_prefixes": 4,
+        "pi_ldd_driver_controller_gateway_mux": "PASS",
+        "hardware_started": false,
+        "physical_acceptance": false
+      },
+      "exists_at_check_utc": "2026-11-17T02:08:18.045111+00:00"
+    },
+    "historical_r5_driver": {
+      "sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+      "scope": "Historical Pi-native driver with physical evidence; not blanket acceptance of a new controller/configuration combination"
+    }
+  },
+  "repeat_failure": {
+    "prior_source": "foundation/results/workstream1-imu-sensor-session-20261102.json:11",
+    "prior_fact": "Ubuntu-built diagnostic failed GLIBCXX_3.4.32 on Pi; native Pi compilation fixed compatibility",
+    "prior_warning": "foundation/results/workstream1-queued-imu-age-20261102.json:128 explicitly said use Pi-compatible toolchain and not the newer-container binary",
+    "current_mistake": "We reused test-only Ubuntu outputs as deployment candidates despite known incompatibility. Offline test success was incorrectly treated as evidence of target deployability. v1 was held before hardware startup.",
+    "corrective_boundary": "Separate software test pass, target ABI/load pass, selected runtime identity and observed physical acceptance."
+  },
+  "current_gates": {
+    "preflight": "runtime_identity.py checks manifest/file hashes, expanded model_path, no existing manager, target ldd for driver/controller/gateway/mux; receipt binds boot and file inode/device/mtime",
+    "startup": "stock_session.launch.py verifies selected package resolution and receipt before launching; can home even with walker loaded inactive",
+    "loaded": "runtime_identity.py checks exactly one newly started manager, actual config bytes and driver/controller /proc maps by resolved path/inode/device; repeats boot/PID/start checks",
+    "pulse": "movement_trial.py requires matching profile/runtime receipt and checks current manager; records requested versus reported command plus zero receipt, not physical displacement",
+    "native_expiry": "Reviewed source implementation/offline tests and owner-reported v2 native build tests pass; hardware startup and physical expiry behavior remain untested. Legacy installed controller is not assumed to have this feature."
+  },
+  "gaps": [
+    "No reproducible, pinned Pi-equivalent offline builder or complete ROS underlay/dependency manifest yet.",
+    "Loaded identity gate covers driver/controller mappings, not actual gateway/mux process mappings.",
+    "File/config/new-process evidence does not directly read network weights from memory or validate firmware, calibration or motor behavior.",
+    "Standalone stock startup and trial tools exist; v2 native build and target dependency checks passed per later owner receipt, but startup/shutdown and physical pulse acceptance remain unestablished.",
+    "Pre-transfer checker now exists and passes real regression cases; packaging does not yet require its receipt automatically."
+  ],
+  "recommended_path": {
+    "now": "Complete isolated Pi-native build against current /opt/ros/jazzy; preserve global installation and active owners; pin exact outputs and require target dependency check before release selection. No extra build started by this audit.",
+    "future_offline": "Create ARM64 Debian 12/GCC 12 builder using exact Pi ROS Jazzy and dependent libraries/headers/Python tooling; pin image and package/source identities. Native ARM64 Docker on Mac avoids needing a different-architecture toolchain. Merely selecting GCC 12 inside Ubuntu 24.04 is insufficient when linked dependencies require newer symbols.",
+    "release_rule": "Immutable versioned directory per final artifact/config freeze. Separate named walk/sprint manifests; no runtime file overwrite or live profile mutation.",
+    "rollback_rule": "Owner stops old session and selects whole previously recorded release/profile, then preflight and supervised startup. No library replacement under live process."
+  },
+  "automation_priorities": [
+    {
+      "priority": 1,
+      "change": "Require the implemented check_pi_abi.py receipt in packaging; keep target ldd check.",
+      "acceptance": "Checker itself passes14tests: real v1 controller/gateway/mux rejected, v2 accepted, R5 driver preserved. Automatic packaging enforcement remains future work."
+    },
+    {
+      "priority": 2,
+      "change": "Freeze Pi build baseline and construct target-matching offline builder",
+      "acceptance": "Same reviewed source builds/tests offline, its required symbols are within target providers, and a no-hardware target load check passes."
+    },
+    {
+      "priority": 3,
+      "change": "Extend existing identity receipt/status to gateway/mux process identities and explicit session owner",
+      "acceptance": "One concise status reports selected release/profile, boot, process identities and stop state; handoff refuses unknown or competing ownership."
+    }
+  ],
+  "handoff": "final_project/ROBOT_BUILD_AND_TEST_HANDOFF.md",
+  "source_hashes_at_audit": {
+    "foundation/scripts/ros-offline.Dockerfile": "26e6dda13fabd4c7affa101b48b04dc65b318acb74c9c898c8dcec3ba78fee55",
+    "foundation/scripts/check_ros_offline.py": "a1e0e32686053de5962551e03942ab2c82b0efa0941574f501aa3de3c5bf007b",
+    "foundation/hardware/runtime_identity.py": "dfebe2f76707112043eb9d3f0cecd81f8fbb9d0f72844fd8484bf3257f59b649",
+    "foundation/hardware/stock_session.launch.py": "3fb9924d432926c376e62f481b6bccc8d279cf80da846848826c1d056359daf7",
+    "final_project/behaviors/tools/movement_trial.py": "a40551c2a3d8cfb47d71f8911074aa9a700d9a714ecb91b5689c17de08c2f59b",
+    "foundation/results/driver-init-only-pi-reviewed.json": "7dbe648c015ace44947025c0746b4ac054e828f010acb02f3b9bd318b29996e0",
+    "foundation/results/workstream1-imu-sensor-session-20261102.json": "63a9f95cb46ebf6c94377cc9294d1b64b8d509e7f6d998191f6ee29cb00a4028",
+    "final_project/behaviors/ROBOT_RUNBOOK.md": "bab23945bc1926f5aaa65e4125c8a5c0e2f60c22999d2969ce10abf39bc0ee76",
+    "foundation/scripts/check_pi_abi.py": "e2279967cadeaa2aa7c666f26612b663df76a497c59f88831dede32ecd55409e",
+    "foundation/tests/test_check_pi_abi.py": "9cba30c5342a1f309f1e6988b5d4c6c805e6f7e4533bc49e71c5c0555732de97"
+  },
+  "review": {
+    "status": "completed; no blocking gate defect identified; six documentation ambiguities reviewed",
+    "provider": "Authenticated Claude Code",
+    "reported_model": "claude-fable-5-1",
+    "scope": "Read-only handoff/audit/runtime checker/stock launch source review; no remote or hardware operations",
+    "turns": 5,
+    "permission_denials": [],
+    "artifact": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-readiness/handoff-review.json",
+    "sha256": "0b495525be38aedf9dc2ee4f914872abd7e8706d120d0dd55c3d2db99fe2d892",
+    "corrections": [
+      "Document eight manifest roles and conditional gateway/mux dependency coverage.",
+      "Use one selected release environment from a fresh shell; do not assert environment.sh is a required manifest role.",
+      "Explicitly require expanded config before preflight.",
+      "Use UTC in dated receipts; checkpoint remains authoritative for current owner/readiness rather than inferring nobody owns the robot.",
+      "Standardize layout as20 frames \u00d748 values and explain new run parent directory.",
+      "Shorten front to six actions and link current runbook for pulse/headbutt details."
+    ],
+    "not_adopted": [
+      "Did not assert session owner is none: supervisor absence does not establish lack of software/session ownership.",
+      "Did not assert release environment excludes the legacy underlay: the selected environment may intentionally source that underlay before pinned overlays."
+    ],
+    "neighbor_runbook": "Parent corrected runbook during this audit: actual960-value stock observation, receipt-required pulses, explicit profiles and one-mux ownership. Handoff links that workflow."
+  },
+  "handoff_sha256": "6fd3ad08739825ba0d42be36a62c463e5ec9275bd9a7c49f9a08777cf26777cb",
+  "target_abi_baseline": {
+    "schema": "pupper_pi_abi_target_v1",
+    "observed_utc": "2026-11-17T02:24:10.311216+00:00",
+    "elf_class": 64,
+    "byte_order": "little",
+    "machine": 183,
+    "architecture": "aarch64",
+    "providers": {
+      "libc.so.6": {
+        "path": "/usr/lib/aarch64-linux-gnu/libc.so.6",
+        "sha256": "7a43accdfa39aed44496d72b7a13f3f8402e874afd89c2ac6080e96660920eaf",
+        "provided_versions": [
+          "GLIBC_2.17",
+          "GLIBC_2.18",
+          "GLIBC_2.22",
+          "GLIBC_2.23",
+          "GLIBC_2.24",
+          "GLIBC_2.25",
+          "GLIBC_2.26",
+          "GLIBC_2.27",
+          "GLIBC_2.28",
+          "GLIBC_2.29",
+          "GLIBC_2.30",
+          "GLIBC_2.31",
+          "GLIBC_2.32",
+          "GLIBC_2.33",
+          "GLIBC_2.34",
+          "GLIBC_2.35",
+          "GLIBC_2.36",
+          "GLIBC_ABI_DT_RELR",
+          "GLIBC_PRIVATE"
+        ]
+      },
+      "libstdc++.so.6": {
+        "path": "/usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30",
+        "sha256": "532f3a12d7b8fef6cc7a064ea106b6c4ab2365674b73e743e4a385d4ffb6c8ab",
+        "provided_versions": [
+          "CXXABI_1.3",
+          "CXXABI_1.3.1",
+          "CXXABI_1.3.10",
+          "CXXABI_1.3.11",
+          "CXXABI_1.3.12",
+          "CXXABI_1.3.13",
+          "CXXABI_1.3.2",
+          "CXXABI_1.3.3",
+          "CXXABI_1.3.4",
+          "CXXABI_1.3.5",
+          "CXXABI_1.3.6",
+          "CXXABI_1.3.7",
+          "CXXABI_1.3.8",
+          "CXXABI_1.3.9",
+          "CXXABI_TM_1",
+          "GLIBCXX_3.4",
+          "GLIBCXX_3.4.1",
+          "GLIBCXX_3.4.10",
+          "GLIBCXX_3.4.11",
+          "GLIBCXX_3.4.12",
+          "GLIBCXX_3.4.13",
+          "GLIBCXX_3.4.14",
+          "GLIBCXX_3.4.15",
+          "GLIBCXX_3.4.16",
+          "GLIBCXX_3.4.17",
+          "GLIBCXX_3.4.18",
+          "GLIBCXX_3.4.19",
+          "GLIBCXX_3.4.2",
+          "GLIBCXX_3.4.20",
+          "GLIBCXX_3.4.21",
+          "GLIBCXX_3.4.22",
+          "GLIBCXX_3.4.23",
+          "GLIBCXX_3.4.24",
+          "GLIBCXX_3.4.25",
+          "GLIBCXX_3.4.26",
+          "GLIBCXX_3.4.27",
+          "GLIBCXX_3.4.28",
+          "GLIBCXX_3.4.29",
+          "GLIBCXX_3.4.3",
+          "GLIBCXX_3.4.30",
+          "GLIBCXX_3.4.4",
+          "GLIBCXX_3.4.5",
+          "GLIBCXX_3.4.6",
+          "GLIBCXX_3.4.7",
+          "GLIBCXX_3.4.8",
+          "GLIBCXX_3.4.9"
+        ]
+      },
+      "libm.so.6": {
+        "path": "/usr/lib/aarch64-linux-gnu/libm.so.6",
+        "sha256": "a84b0bfeb5abf4ad4eaebcd4a69a783736c2319c4f4fcd5d678b29c57d441951",
+        "provided_versions": [
+          "GLIBC_2.17",
+          "GLIBC_2.18",
+          "GLIBC_2.23",
+          "GLIBC_2.24",
+          "GLIBC_2.25",
+          "GLIBC_2.27",
+          "GLIBC_2.28",
+          "GLIBC_2.29",
+          "GLIBC_2.31",
+          "GLIBC_2.32",
+          "GLIBC_2.35"
+        ]
+      },
+      "ld-linux-aarch64.so.1": {
+        "path": "/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1",
+        "sha256": "1750da75874df8bda6b9fc3e788c84bd6dbc36ba01bc121cd236fecde2d0548e",
+        "provided_versions": [
+          "GLIBC_2.17",
+          "GLIBC_2.34",
+          "GLIBC_2.35",
+          "GLIBC_PRIVATE"
+        ]
+      }
+    },
+    "target_toolchain": {
+      "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
+      "member": "build-evidence/target-toolchain.json",
+      "sha256": "5effb699996ffceaf6f7b7f09137b09983dbae62edf75cc362250d4b7038ea19",
+      "provider_hashes_match": true
+    }
+  },
+  "pretransfer_abi_screen": {
+    "status": "implemented_and_verified_locally",
+    "script": "foundation/scripts/check_pi_abi.py",
+    "tests": "foundation/tests/test_check_pi_abi.py",
+    "command": ".venv-api/bin/python -m pytest -q -p no:cacheprovider foundation/tests/test_check_pi_abi.py",
+    "passed": 14,
+    "skipped": 0,
+    "actual_saved_elf_checks": 8,
+    "results": {
+      "driver": {
+        "v1_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+        "v1_screen_passed": true,
+        "v2_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+        "v2_screen_passed": true
+      },
+      "controller": {
+        "v1_sha256": "599d6c35577bc487a09db8e8bb7f0cdf46748c47ca4a4c9f7cf337d61e4d1ef5",
+        "v1_screen_passed": false,
+        "v2_sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc",
+        "v2_screen_passed": true
+      },
+      "gateway": {
+        "v1_sha256": "f3277062fe6e48aacf435a116658662f6433ea55cf2fdd5977eb9985f84ece6d",
+        "v1_screen_passed": false,
+        "v2_sha256": "6d649093a177ef549da92d5c36e8032cffe855b141b27a6274b8fc618afbd0b2",
+        "v2_screen_passed": true
+      },
+      "mux": {
+        "v1_sha256": "7cbdf6bfb413c45fb2a5501c1fd1ff85ddc0fbd0bf1b61c5dec0e00795c5e833",
+        "v1_screen_passed": false,
+        "v2_sha256": "8dae79d408bffc23d02f22d398c12c5a975b15258ba8261044ad4d480d9463b2",
+        "v2_screen_passed": true
+      }
+    },
+    "regression": "Actual Ubuntu v1 controller requires GLIBC_2.38 from libc/libm and GLIBCXX_3.4.32 from libstdc++; absent from exact captured target definitions. Pi-native v2 controller/gateway/mux pass. Unchanged Pi-native R5 driver passes in both releases.",
+    "reader": "Cached Ubuntu ARM64 image supplies GNU readelf only; no network, input mount read-only; candidate ELF is never executed.",
+    "target_baseline": "target_abi_baseline embedded in this audit; exact provider definitions, captured file hashes, libc/libstdc++ hashes verified against archived build-evidence/target-toolchain.json",
+    "source_review": "Independent subagent identified truncated readelf output could otherwise appear empty; fixed with declared provider/Name counts and refusal of exit-zero reader diagnostics, covered by regressions.",
+    "scope_limit": "Checks architecture and direct GLIBC/GLIBCXX/CXXABI version-definition membership. Does not prove dependency closure, individual symbol implementations, ROS ABI or target loadability. Retain target ldd/runtime gate. Sectionless ELF and extended section numbering are explicitly refused rather than interpreting empty version output as compatibility.",
+    "packaging_integration": "Manual pre-transfer command ready; not automatically wired into packaging yet.",
+    "sectionless_regression": {
+      "finding": "GNU readelf --version-info exits0 with No version information found for the real v1 controller after only e_shoff/e_shnum/e_shstrndx are cleared; loader-visible program headers and dynamic payload remain unchanged.",
+      "fix": "Require a complete ordinary section table before trusting readelf: reject missing table/count, extended section numbering and out-of-file table bounds. Dynamic-only version inspection remains unsupported.",
+      "validation": "Real v1 patched-header reproducer plus absent-offset/count unit cases. Checker refuses before reader interpretation and CLI returns2 with passed:false. Original v1/v2 and preserved R5 cases still pass their expected outcomes."
+    }
+  },
+  "package_cache_note": "Owner verified v2 selected roles and archive hash. One nonselected runtime_identity.cpython-311.pyc cache entry changed after import; do not alter immutable v2. Future packages should exclude __pycache__/*.pyc; setup exports PYTHONDONTWRITEBYTECODE=1.",
+  "physical_closure_note": "Owner reported movement-20261117T022613Z CLOSED_WITHOUT_STARTUP; no additional SSH or hardware operations after closure instruction. V2 remains staged, not physically accepted."
+}

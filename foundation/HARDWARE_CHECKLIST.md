@@ -13,6 +13,13 @@ Motor startup and motion require a supervising operator with the robot supported
 as appropriate and access to R3/power. Source installation, app activation,
 controller Stop and full motor-driver shutdown have different effects below.
 
+For the stock-only Pupper FC movement session, use the
+[build/test handoff](../final_project/ROBOT_BUILD_AND_TEST_HANDOFF.md) and
+[movement runbook](../final_project/behaviors/ROBOT_RUNBOOK.md). That separate,
+pinned launch does not start the Lab 6 API, voice or camera. The application
+packaging/session commands below remain the Lab 6 path; they do not select or
+build the new stock movement release.
+
 ## Maintained deployment commands
 
 Use `hardware/package_app.py` to package the final reviewed source/build,

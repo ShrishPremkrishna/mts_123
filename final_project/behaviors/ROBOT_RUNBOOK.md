@@ -1,55 +1,99 @@
-# Stock run-through shot: supervised baseline
+# Movement and stock-shot trials
 
-Updated November 16, 2026. This replaces the recovered experimental procedure;
-its original bytes remain in the archive listed in [RECOVERY.json](RECOVERY.json).
-See [the reconciliation report](../PI_RECONCILIATION.md) for the actual Pi trials
-and policy inventory. Software completion is not evidence of ball contact.
+Updated November 16, 2026. The [shared build handoff](../ROBOT_BUILD_AND_TEST_HANDOFF.md)
+explains release selection and ownership. The [checkpoint](../../foundation/results/interruption-recovery.json)
+records current access. Commands below are for the selected, supervised session;
+a directory existing or tests passing does not authorize motion.
 
-## Before motion
+## Select the runtime once
 
-- One operator owns the robot, confirms readiness and watches with R3/power
-  available. Use [the hardware procedure](../../foundation/HARDWARE_CHECKLIST.md)
-  for supported startup and shutdown. The current user has requested offline
-  preparation; this document does not authorize activation.
-- Use the stock default actor (`ecf3a4ab…`), a healthy battery and a clear lane.
-  The current temporary ball is about seven inches across, soft/partly deflated,
-  with no bumper. Whether the chassis makes clean contact remains to be measured.
-- Start from a verified native configuration with `game_buttons=false`, forward
-  cap 0.49 m/s and backward cap 0.3 m/s. Keep the native configuration and model
-  fixed for the session. The native controller caches parameters at initialization:
-  changing its ROS parameter store does **not** establish applied settings.
-  A changed configuration needs a fresh controller session.
-- Select `neural_controller_default`; the installed student slot contains the
-  unaccepted learned header policy. Do not select it or assume zero velocity is
-  a stop for that target-conditioned policy. No policy installer is needed here.
+Use a completed, pinned release with a compatible Pi-native controller, the repaired
+driver, stop gateway, expanded configuration and exact stock actor. The first
+November 16 contact trials used an older driver and failed physical acceptance;
+see [their receipt](../../foundation/results/stock-shot-session-20261116.json).
+The Ubuntu-built `movement-20261116-v1` is held. Source synchronization is not native deployment.
 
-Preserve `/home/pi/kick` as the recovered experiment. Run updated source from
-`/home/pi/mts_123/final_project/behaviors`; do not overwrite the old directory.
-Source synchronization does not install a native runtime. The currently installed
-native launch ignores the historical `config_file` override because it does not
-declare that argument, although the monorepo's newer source supports it.
+Follow the handoff's preflight/startup commands. Preflight verifies the boot,
+selected files, policy/config link and target ABI while no manager is running.
+The selected launch checks ROS package resolution before it can home. After
+startup, the loaded check verifies the newly started manager, supplied config,
+and actual mapped driver/controller libraries. `movement_trial.py --execute`
+requires this receipt and repeats the identity check before movement.
 
-## One session, successive measured trials
+The selected stock launch starts one mux, one stock walker (inactive), the stop
+gateway and feedback. It does not start camera, voice, alternate policies or a
+shot adapter. Home once on the stand; move to clear floor and activate only with
+the supervisor ready. Keep this session between trials. Profiles are selected at
+startup; changing a ROS parameter store does not change cached native settings.
 
-The plain course stack must have joystick **teleop off**, while retaining R3 and
-the e-stop gateway. Its startup can home the legs: only launch once the operator
-is ready on the stand. Do not start this private mux alongside Gemini's own
-motion owner. Keep the same homed session between trials.
+## Short axis trials before ball contact
 
-Once the approved stack is running and standing, start only the shot adapter:
+Use the release's copied tool, not a changing checkout. Populate `PUPPER_RELEASE`,
+`PUPPER_RUN` and `PUPPER_PROFILE` from the selected release; `PUPPER_RUNTIME_RECEIPT`
+is the completed preflight file. Stop any shot adapter before these trials.
 
 ```sh
-ros2 launch /home/pi/mts_123/final_project/behaviors/launch/kick_trial.launch.py kick:=run_through input_mode:=manual charge_speed:=0.45
+# Receipt-only dry run: no ROS and no movement.
+python3 "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" forward \
+  --profile "$PUPPER_PROFILE" --speed 0.2 --duration 1 --out "$PUPPER_RUN/trials"
+
+# With the supervisor watching, this moves the robot.
+python3 "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" turn_left \
+  --profile "$PUPPER_PROFILE" --duration 1.5 --out "$PUPPER_RUN/trials" \
+  --runtime-receipt "$PUPPER_RUNTIME_RECEIPT" --execute
 ```
 
-Activation requires fresh controller/parameter evidence, the pinned stock policy
-file, a released gateway and the expected publisher count. Unsupported settings
-are refused, not silently clipped. The node's alignment limit is 0.3 m/s; requested
-charge speed may not exceed the smaller of the native cap and 0.49 m/s.
+Use `forward`, `backward`, `left`, `right`, `turn_left` or `turn_right`. Defaults
+are 0.2 m/s forward/backward, 0.15 m/s lateral, 0.35 rad/s turning and one second.
+Each pulse is at most three seconds. It refuses missing/stale stock evidence,
+wrong policy, incompatible runtime, missing 960-value observation, competing
+publishers and a latched gateway. It never homes, arms or switches controllers.
+A refused trial publishes no cleanup zeros into someone else's stream.
 
-Measure the ball centre from the body centre: x forward, y left, in metres. Manual
-mode accepts x from 0.9 to 1.5 and |y| at most 0.5. Each accepted shot consumes the
-measurement; remeasure before the next shot. Decimal values are required.
+| Profile | Tool ceiling, further restricted by loaded native configuration |
+| --- | --- |
+| `walk` | Forward 0.49 m/s; backward/lateral 0.3 m/s; turning 1 rad/s |
+| `sprint` | Forward 1.0 m/s; backward 0.3 m/s; lateral 0.5 m/s; turning 1 rad/s |
+
+The sprint profile is an **explicit physical candidate**, supported by simulation,
+not a claim that these limits are reliable on carpet. Its initial pulses still
+use the low defaults. Progress to 0.45, 0.7 and 1.0 only after the preceding
+forward/braking observation is controlled. Do not change gains or motor limits
+while diagnosing command delivery. A configured high ceiling does not command
+that speed by itself.
+
+Every pulse prints its result immediately and saves one JSON. It records requested
+commands alongside the native policy input: **20 newest-first frames × 48 values**,
+with command at indices **6:9**. Forward/lateral matching compares X/Y; heading
+hold may intentionally change yaw, which remains in the record. Missing feedback
+prevents a start or ends the diagnostic pulse. Add the observed travel, stopping,
+direction and stability to the operator observation; a completed command is not
+physical acceptance. IMU yaw is sensor evidence, not an external heading reference.
+
+The new controller expires silent velocity input after 250 ms, replacing the
+request with zero. This does not prove braking distance, protect against a hung
+controller, or cancel target-conditioned learned policies. R3/power remain the
+supervisor's stop controls. Sender and mux timeouts are additional layers, not
+proof that the robot stopped.
+
+## Headbutt after movement is controlled
+
+First measure a no-ball advance and braking distance on the actual surface. Then
+use the temporary seven-inch soft ball/no bumper and measure real contact and
+ball travel. Start centered before offsets. The onboard multicolor detector is
+not calibrated and did not drive the previous manual shots; do not let detector
+errors obscure gait or contact geometry.
+
+The selected stock session already owns its mux. After closing the pulse tool,
+start only the shot node, not a second `kick_trial.launch.py` mux:
+
+```sh
+python3 "$PUPPER_RELEASE/final_project/behaviors/run_through_kick_node.py" \
+  --ros-args -p input_mode:=manual -p charge_speed:=0.45
+```
+
+Set fresh measured coordinates before each activation (metres, body centre,
+x forward/y left). Manual x is 0.9–1.5 m and |y| at most 0.5 m.
 
 ```sh
 ros2 param set /run_through_kick manual_ball_x 1.0
@@ -57,33 +101,13 @@ ros2 param set /run_through_kick manual_ball_y 0.0
 ros2 service call /activate_run_through_kick std_srvs/srv/Trigger
 ```
 
-| Trial | Observable result |
-| --- | --- |
-| Marked advance, no ball | Record actual displacement, elapsed time, braking distance and stability at 0.45 m/s. Compare with the command integral; calibrate `speed_efficiency` from measured travel, not a `done` receipt. |
-| Same approach with ball | Record contact/no contact, ball travel/direction, robot stability and stopping. Repeat up to five times if controlled; a miss or fall is useful evidence, not a reason to repeat unchanged. |
-| Offset/aim trial, after straight contact works | Measure lateral offset and requested heading, then compare the ball's actual direction. |
+The shot node retains its 0.49 m/s ceiling even in a sprint-capable native session.
+Its dead reckoning integrates requested motion, not measured travel. `done` only
+means the command sequence ended. Record contact/miss, ball distance/direction,
+robot stability and stopping; preserve failures. Do not activate the learned
+header or foot-kick slot through this velocity route: their targets have different
+semantics, and zero is not their stop command.
 
-If contact is poor, inspect ball/body geometry and measured motion before changing
-policies. Try one documented alternate only when its measured behavior addresses
-the failure. Faster profiles require a separate reviewed configuration/guard
-update; the recovered speed-ladder and learned-kick installer recipes are not the
-current procedure.
-
-## Stop and evidence
-
-R3/power remain available throughout. `/deactivate_run_through_kick` requests a
-normal stop when stock authority is known. Loss of stock authority during a shot
-requests `/emergency_stop`, then aborts; it never automatically resumes. This is
-software intent, not proof that the robot stopped. Support the robot and follow
-the hardware shutdown procedure before disconnecting the driver.
-
-Record source revision, initialized native config/model identities, ball/bumper,
-requested speed, measured displacement/contact, result and any video reference.
-The existing `trial_log.csv` is a compact starting point; raw evidence belongs
-outside onboarding docs. Keep failures as well as successful shots.
-
-Remaining boundaries: sampled controller evidence is not exclusive ownership;
-publisher counts do not identify a publisher; native command expiry is still
-missing if the mux itself fails. The camera path also needs real ball/range
-calibration and consumer frame/timestamp validation before integration. These
-limits do not disappear when offline tests pass.
+When finished, stop the active behavior, have the supervisor support Pupper,
+then close the recorded owned manager/launch/recorder and verify shutdown. Do not
+replace binaries, pull source into a live release or reuse old boot/PID receipts.

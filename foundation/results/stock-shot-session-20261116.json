@@ -1,0 +1,53 @@
+{
+  "updated_utc": "2026-11-17T01:22:31.820760+00:00",
+  "source_commit": "4110d82",
+  "status": "closed_for_battery_swap; physical shot not accepted",
+  "remote_run": "/home/pi/pupper-fc-runs/stock-shot-20261117T004242Z",
+  "local_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/stock-shot-20261117T004242Z",
+  "preservation": "Local trial receipts/images retained. Full closed native log, shutdown receipt and MCAP remain on Pi; collect after battery replacement. Do not keep dying battery on for transfer.",
+  "physical_results": {
+    "B01": "Refused while stock controller inactive; no movement.",
+    "B02": "Advanced and contacted ball inadvertently in path; operator said normal. Not a measured no-ball calibration.",
+    "C01": "Manual centered target: grazed ball while veering left. No centered shot acceptance.",
+    "C02": "Manual target x=1m y=+0.2m: requested positive yaw, operator saw no clear left movement and unstable forward gait. No physical acceptance."
+  },
+  "command_evidence": {
+    "C02_requested_twist_integrals": {
+      "body_forward_m": 1.29759,
+      "body_left_m": 0.03729,
+      "yaw_rad": 0.23281
+    },
+    "limitation": "Requested Twist integrals are not achieved motion; first recorder omitted actual policy observation input. A second recorder added it but no further motion occurred."
+  },
+  "shutdown": {
+    "observed_utc": "2026-11-17T01:15:03Z",
+    "operator": "R3 pressed and robot supported on stand",
+    "owned_processes": "All owned native/shot/mux/detector/recording processes exited; recording closed.",
+    "manager_exit_code": -6,
+    "failure": "ControlBoardHardwareInterface destructor -> std::terminate; abnormal exit, not clean shutdown.",
+    "physical_release": "Not observed after this shutdown; user instructed to switch power off before battery replacement."
+  },
+  "loaded_release": {
+    "policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "neural_sha256": "899f7ffcc02fc1634d974487fdb22d043cfb821dd348f1c272d79b177062a385",
+    "hardware_sha256": "01813d582a79f15226486a42e2b9352f82cb5104f14631ec6c380cb7c7ced5a1",
+    "scope": "Installed legacy stack; actual mapped libraries checked. Legacy R3 helper with documented gateway=false adapter compatibility, not modern gateway."
+  },
+  "diagnosis": {
+    "established": "Installed older driver lacks maintained IMU join-on-destruction, neutral shutdown and complete parser/freshness fixes. Shutdown trace matches previously reproduced lifecycle defect.",
+    "not_established": "Whether these regressions explain the poor gait/aim. C02 quaternion yaw and integrated body gyro disagree; supported stationary sample did not reproduce that large disagreement.",
+    "already_reviewed_replacement": {
+      "sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
+      "pi_expected_path": "/home/pi/pupper-foundation-session-20261029/imu-startup-trace-20261102/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+      "local_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-02/startup-close/remote-evidence.tar.gz",
+      "archive_member": "imu-startup-trace-20261102/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+      "verified": "Independent reviewer hashed archived install member; matches physically used historical R5. Pi path needs fresh verification. Includes lifecycle/neutral/parser/startup fixes; lacks later queued-age guard. Not selected or deployed in this session."
+    }
+  },
+  "vision": "All shots used manual coordinates, not detection. YOLO missed temporary multicolor ball. Color detector boxed a panel and overestimated approximate range. White-component candidate failed held-out position/distractor checks; source restored, experiment preserved. Do not deploy candidate.",
+  "next": [
+    "Collect complete closed run after Pi returns; retain installed driver backup.",
+    "Verify and select compatible reviewed hardware driver before restarting; preserve stock policy/gains/limits.",
+    "With renewed operator readiness, one homing after battery swap and isolated turn/forward tests recording actual policy commands before further ball shots."
+  ]
+}

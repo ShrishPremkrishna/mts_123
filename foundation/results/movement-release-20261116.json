@@ -1,0 +1,226 @@
+{
+  "schema": "pupper_movement_release_v1",
+  "updated_utc": "2026-11-17T02:31:10.538326+00:00",
+  "summary": "Compatible isolated Pi-native movement release prepared; identity/ABI/trial checks verified offline. No v2 homing or motion performed; supervisor readiness pending.",
+  "release": "/home/pi/pupper-fc-releases/movement-20261116-v2",
+  "source_base_commit": "4110d82",
+  "source_identity": "Maintained source hashes pinned in preserved STAGING.json; final source commit recorded by Git history.",
+  "build": {
+    "directory": "/home/pi/pupper-fc-native-build-20261116",
+    "exit_record": "/home/pi/pupper-fc-native-build-20261116/build.exit",
+    "exit_code": 0,
+    "target": {
+      "observed_utc": "2026-11-17T02:12:34.841310+00:00",
+      "os_release": "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"12\"\nVERSION=\"12 (bookworm)\"\nVERSION_CODENAME=bookworm\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n",
+      "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+      "libc": "ldd (Debian GLIBC 2.36-9+rpt2+deb12u13) 2.36",
+      "libraries": {
+        "libc": {
+          "path": "/usr/lib/aarch64-linux-gnu/libc.so.6",
+          "sha256": "7a43accdfa39aed44496d72b7a13f3f8402e874afd89c2ac6080e96660920eaf"
+        },
+        "libstdc++": {
+          "path": "/usr/lib/aarch64-linux-gnu/libstdc++.so.6.0.30",
+          "sha256": "532f3a12d7b8fef6cc7a064ea106b6c4ab2365674b73e743e4a385d4ffb6c8ab"
+        }
+      }
+    },
+    "test_scope": "Memory-backed controller tests and stop-gateway tests; no robot hardware nodes launched."
+  },
+  "selected": {
+    "walk": {
+      "manifest_sha256": "d21913f0f6addf332c7bac2ebebd89ea85637dda40d7a1c33d687e47c58c9bb2",
+      "trial_profile": "walk",
+      "files": {
+        "driver": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+          "sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429"
+        },
+        "controller": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/neural_controller/lib/libneural_controller.so",
+          "sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc"
+        },
+        "policy": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/policies/default_policy.json",
+          "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+        },
+        "launch": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/foundation/hardware/stock_session.launch.py",
+          "sha256": "3fb9924d432926c376e62f481b6bccc8d279cf80da846848826c1d056359daf7"
+        },
+        "urdf": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/foundation/hardware/floor_stock/baseline-expanded.urdf",
+          "sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+        },
+        "gateway": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/joy_utils/lib/joy_utils/estop_controller",
+          "sha256": "6d649093a177ef549da92d5c36e8032cffe855b141b27a6274b8fc618afbd0b2"
+        },
+        "mux": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/cmd_vel_mux/lib/cmd_vel_mux/cmd_vel_mux_node",
+          "sha256": "8dae79d408bffc23d02f22d398c12c5a975b15258ba8261044ad4d480d9463b2"
+        },
+        "runtime_checker": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/foundation/hardware/runtime_identity.py",
+          "sha256": "dfebe2f76707112043eb9d3f0cecd81f8fbb9d0f72844fd8484bf3257f59b649"
+        },
+        "trial_tool": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/final_project/behaviors/tools/movement_trial.py",
+          "sha256": "a40551c2a3d8cfb47d71f8911074aa9a700d9a714ecb91b5689c17de08c2f59b"
+        },
+        "shot_node": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/final_project/behaviors/run_through_kick_node.py",
+          "sha256": "36a4fb8cb71ab735cdba160727469d856b747a718a3b3ef3adebf88412623d3c"
+        },
+        "shot_core": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/final_project/behaviors/run_through_kick.py",
+          "sha256": "b82d08dbb6fefaa4c723fe748c1e80f22261b2cb9f47c06e85b3b39c4bea0b92"
+        },
+        "config": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/walk.yaml",
+          "sha256": "8d3705061ed3bba9d6cea44cc33e5d5bab274a7c070ceb3ad2b98ce311ae2fd8"
+        }
+      }
+    },
+    "sprint": {
+      "manifest_sha256": "54afc5e568b8bbf54a0068c269565fbe53937c40c6ac862fcdeb9901e103a7b0",
+      "trial_profile": "sprint",
+      "files": {
+        "driver": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+          "sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429"
+        },
+        "controller": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/neural_controller/lib/libneural_controller.so",
+          "sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc"
+        },
+        "policy": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/policies/default_policy.json",
+          "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+        },
+        "launch": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/foundation/hardware/stock_session.launch.py",
+          "sha256": "3fb9924d432926c376e62f481b6bccc8d279cf80da846848826c1d056359daf7"
+        },
+        "urdf": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/foundation/hardware/floor_stock/baseline-expanded.urdf",
+          "sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+        },
+        "gateway": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/joy_utils/lib/joy_utils/estop_controller",
+          "sha256": "6d649093a177ef549da92d5c36e8032cffe855b141b27a6274b8fc618afbd0b2"
+        },
+        "mux": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/prefix/cmd_vel_mux/lib/cmd_vel_mux/cmd_vel_mux_node",
+          "sha256": "8dae79d408bffc23d02f22d398c12c5a975b15258ba8261044ad4d480d9463b2"
+        },
+        "runtime_checker": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/foundation/hardware/runtime_identity.py",
+          "sha256": "dfebe2f76707112043eb9d3f0cecd81f8fbb9d0f72844fd8484bf3257f59b649"
+        },
+        "trial_tool": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/final_project/behaviors/tools/movement_trial.py",
+          "sha256": "a40551c2a3d8cfb47d71f8911074aa9a700d9a714ecb91b5689c17de08c2f59b"
+        },
+        "shot_node": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/final_project/behaviors/run_through_kick_node.py",
+          "sha256": "36a4fb8cb71ab735cdba160727469d856b747a718a3b3ef3adebf88412623d3c"
+        },
+        "shot_core": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/final_project/behaviors/run_through_kick.py",
+          "sha256": "b82d08dbb6fefaa4c723fe748c1e80f22261b2cb9f47c06e85b3b39c4bea0b92"
+        },
+        "config": {
+          "path": "/home/pi/pupper-fc-releases/movement-20261116-v2/sprint.yaml",
+          "sha256": "8e330949ac7ae89acf24d0072a4f1f69f9978439aa516aaa2ac2b24bd5134be8"
+        }
+      }
+    }
+  },
+  "verification": {
+    "native_production_controller_cases": 28,
+    "pi_neural_ctest_suites": 4,
+    "pi_joy_suites": 10,
+    "isolated_ubuntu_neural_suites": 6,
+    "local_regression": "351 passed plus 48 subtests: behaviors, FC and runtime identity. Existing Starlette warning only.",
+    "real_ros_fake_robot": "Walk and explicit sprint pulses, wrong-stock refusal without commands, lost observation abort at 0.251 s; synthetic 20x48 feedback. Launcher description-only verified seven nodes and seven exit handlers, zero actions executed.",
+    "target_checks": {
+      "exact_files": true,
+      "config_selects_pinned_policy": true,
+      "ament_package_prefixes": true,
+      "native_dependencies_resolve": true,
+      "native_build_exit": 0,
+      "controller_suites": 4,
+      "joystick_suites": 10,
+      "motion_started": false
+    },
+    "hardware_started": false,
+    "physical_acceptance": false,
+    "pretransfer_abi_screen": "14 tests passed with no skips, including 8 real saved ELF checks: incompatible v1 controller/gateway/mux rejected; Pi-native v2 accepted; same R5 driver accepted in both. See build audit. Independent review found and corrected a sectionless-ELF false pass; the patched real-v1 regression now refuses before inspection.",
+    "strict_checkpoint_recovery": "session_status.py --verify-inputs passed after current-state consolidation."
+  },
+  "evidence": {
+    "release_archive": {
+      "verified_utc": "2026-11-17T02:22:07.164523+00:00",
+      "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
+      "sha256": "975bc15afa44aa47a90dafdbb4100a3766db05354ce6ea1417c7fdcce118c6a0",
+      "bytes": 21426311,
+      "archive_regular_files": 133,
+      "indexed_release_files_matching": 126,
+      "index_mismatches": [
+        "foundation/hardware/__pycache__/runtime_identity.cpython-311.pyc"
+      ],
+      "both_manifest_roles_verified": true,
+      "remote_archive_sha256_matches": true,
+      "hardware_started": false,
+      "limitation": "One non-runtime generated Python bytecache changed during staging imports after inventory. Selected source/binaries/manifests match. Archive is retained exactly; per-member archive index is authoritative for this saved archive. Set PYTHONDONTWRITEBYTECODE=1 for receipt imports; exclude caches from future packages."
+    },
+    "ros_smoke": {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-trial-ros-v2/checks.json",
+      "sha256": "4006aa894705b45362c2f81205aec11a2669f5310b600f94e54b2212a9e30352"
+    },
+    "native_tests": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/cmd-vel-expiry-ros-v2",
+    "policy_comparison": "foundation/results/movement-readiness-20261116.json",
+    "previous_failed_physical_trials": "foundation/results/stock-shot-session-20261116.json",
+    "build_investigation": "foundation/results/build-environment-audit-20261116.json"
+  },
+  "changes": [
+    "Native velocity command expires 250 ms after last receipt; generation prevents old activation callbacks replaying. Existing unsupported target/trick semantics unchanged.",
+    "Preflight requires exact manifest/config/policy and Pi dependencies; launch verifies selected package resolution; each trial verifies actual driver/controller mappings and current manager.",
+    "Short axis pulse tool records requested/policy-input/zero timing and refuses competing publishers; same homed session supports multiple trials. No motion/gain/current/joint-limit changes from the trial tool.",
+    "Separate walk and sprint-candidate profiles select initialized velocity caps. Sprint candidate remains physically unaccepted; initial pulses stay low."
+  ],
+  "held": {
+    "v1": "Ubuntu24.04 binary requires GLIBC2.38/GLIBCXX3.4.32; Pi Debian12 provides GLIBC2.36/GLIBCXX3.4.30. Preserved, never activated.",
+    "prior_run": "Old installed driver lacked known shutdown/IMU fixes and aborted shutdown. It is not selected for v2; not a proven explanation for all observed gait instability.",
+    "detector": "Temporary multicolor ball candidate failed held-out alignment/distractor checks; not used as reliable shot input."
+  },
+  "unchanged": "Global Pi native installation and teammate /home/pi/kick preserved; no source pull/rebuild into a running teammate session.",
+  "limits": [
+    "v2 still needs watched startup, command delivery, stopping and full driver shutdown acceptance.",
+    "Runtime maps bind driver/controller; gateway/mux executable resolution checked before launch but process mappings not yet pinned. Underlay dependency closure is not frozen.",
+    "Source/config identities do not prove actual policy tracking, ball contact or braking distance. No accepted stock shot, sprint or lateral sprint yet.",
+    "R5 repaired driver lacks the later queued IMU age guard; exact selected driver is recorded, not assumed latest source.",
+    "Archive retains one regenerated nonselected Python cache entry differing from its staging inventory; all selected roles match and a full archive-members index is preserved."
+  ],
+  "next": "Physical work closed. After reboot and supervisor readiness: new v2 preflight; home once; low turn/forward/braking pulses and faster forward only if controlled; no shot adapter during pulses. Stock shots follow measured movement acceptance.",
+  "native_source_commit": "358a0f9",
+  "prepared_session": {
+    "run": "/home/pi/pupper-fc-runs/movement-20261117T022613Z",
+    "state": "CLOSED_WITHOUT_STARTUP",
+    "profile": "sprint",
+    "preflight_passed": true,
+    "homing_started": false,
+    "created_utc": "2026-11-17T02:26:14.234589+00:00",
+    "closed_utc": "2026-11-17T02:27:19.546335+00:00",
+    "relevant_processes_at_close": [],
+    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-closure-20261117T022613Z.json",
+    "resume": "After power cycle create a fresh preflight receipt for the unchanged v2 release. Old receipt is boot-bound and must not be reused."
+  },
+  "source_after_freeze": "Repository movement_trial.py introduction corrected after v2 freeze; executable logic unchanged. The selected copied v2 tool remains exactly pinned in its manifests.",
+  "future_perception_review": {
+    "manual_trials_affected": false,
+    "reproduced": "Optical-frame ball accepted as body coordinates; ten-second-old wrong-frame goal restamped at receipt produced fresh 90-degree aim; zero-stamp goal accepted.",
+    "next": "Exact frame admission and original goal stamp validity/order; further goal/field time-coherent geometry needed before enabling live camera shots. No v2 runtime change."
+  }
+}
