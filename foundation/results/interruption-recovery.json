@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T11:33:02.715856+00:00",
+  "updated_utc": "2026-11-17T11:37:50.368995+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -71,7 +71,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Resident FC bridge completed:1173tests+106subtests passed;3actualROS cases passed on final hashes. Guard/sourceage/Stop corrections independently verified; focused exactFable5.2 review succeeded.28file source kit verified,13selected Python sources. All owned jobs/containers exited. No robot/deployment.",
+    "compute": "Bridge committed147fc61 after1173tests+106subtests and3actualROS cases. Next bounded tasks dispatched: two concurrent robot domains, ball-contact versus all-class obstacle-veto audit, exact native detector asset/projection investigation. No current robot access; inspect agent/job handles on resume.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -79,12 +79,12 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrating continuous bridge/sourcekit commit. Goal active; next two-robot isolation rehearsal and bounded recorded-camera improvement.",
+      "project_lead": "Root leads next integration decisions and reviews; continuous bridge147fc61 and28file source kit preserved. Goal active, offline only.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Completed/frozen bridge/shared source parser/movement extraction;67bridge cases,281bridge+movement pass,1173combined pass. Idle.",
-      "overnight_compute": "Completed3actualROS bridgecases and52file final archive. Source hashes match; all test processes/containersclosed. Idle.",
-      "body_guard": "Completed/frozen externalhold and Fable corrections;167focusedFCtests pass. Idle, no file ownership.",
+      "overnight_harness": "Read-only bounded exact Hailo/model/preprocessing asset investigation; recommend one useful offline perception experiment with paired metrics and live route. No install/train/spend yet.",
+      "overnight_compute": "Owns ros_fc_executor_smoke.py plus new artifacts for concurrent two-domain robot fault-isolation rehearsal. No other production files or hardware.",
+      "body_guard": "Read-only bounded audit of all-class obstacle veto versus intended soccer ball contact; verify actual detector labels and propose minimal evidence-based rule. No source edits.",
       "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle.",
       "bridge_adversary": "Completed exact correction verification for5guard/bridge issues; evidence retained. Idle, no ownership."
     },
@@ -140,6 +140,10 @@
     {
       "id": "two_robot_transport_rehearsal",
       "action": "Extend existing isolatedROS smoke for two concurrent robot domains/opposite field directions. Verify each own-ID command route, and one robot Stop/lease loss/guard failure cannot affect or feed the other. Reuse existing image/fake native feedback; no new native build. Keep single-domain source snapshot/archive intact."
+    },
+    {
+      "id": "ball_contact_guard_compatibility",
+      "action": "Resolve outcome conflict before live soccer: current guard explicitly vetoes detected balls. Body_guard audits exact class mapping and evidence, proposes smallest explicit play-ball exception while person/other obstacles still stop. No blanket production exception or presumed pink-ball recognition without evidence; contact geometry/coverage need physical acceptance."
     },
     {
       "id": "recorded_camera_next_screen",
