@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "stock_shot_offline_guards_verified_readiness_pending",
-  "updated_utc": "2026-11-17T00:32:29.508129+00:00",
+  "updated_utc": "2026-11-17T00:33:55.818060+00:00",
   "current_report": "foundation/results/shot-baseline-guards-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
@@ -56,10 +56,10 @@
       "perception": "Ryan",
       "arena": "Shrish"
     },
-    "goal_status": "Offline FC prototype plus recovered experimental stock-gait shot and onboard ball detector are now on shared main and Pi source checkout. No live gameplay integration, overhead localization, defense or self-righting yet; learned kick remains unaccepted."
+    "goal_status": "Offline stock-shot and ball-frame fixes verified and published to GitHub/main and Pi source checkout. Physical stock-shot baseline awaits supervision. Live FC integration, overhead localization, defense, native expiry and self-righting remain open; learned kick held."
   },
   "hardware_session": {
-    "status": "November 16: connected by ssh mts; clean /home/pi/mts_123 fast-forwarded from c6f211c to 16dd850 (later checkpoint-only commits may advance). Original ~/kick files and selected installed native source/config/policies/libraries verified unchanged. No ROS/motor launch. Installed test slot contains learned header-kick candidate; do not equate source sync with accepted runtime.",
+    "status": "November 16: /home/pi/mts_123 main source advanced to 5957800 with nine changed code/test/launch identities verified; clean at verification. Original kick node and installed stock actor unchanged. No native installation, motor or ROS launch. Student slot still holds unaccepted learned header candidate.",
     "ssh": "mts",
     "run": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261103-lab6-prepared-r5",
     "boot_id": "bb2dcd96-27e1-406c-82ff-10cf0ab15329",
@@ -84,10 +84,11 @@
       "observed_date": "2026-11-04",
       "later_documentation_sync_commit": "c6f211c5951b14d88c5b3ac78388911fb30e994b",
       "later_documentation_sync_scope": "Recorded source-checkout documentation update on November 4; selected runtime verification above belongs to its original receipt.",
-      "current_source_commit": "16dd850959ad4b8da6a0307110061d14e813e928",
+      "current_source_commit": "5957800526ba555cc4cab5f104e61dc3cfa018a1",
       "current_sync_date": "2026-11-16",
-      "current_sync_receipt": "foundation/results/pi-source-reconciliation-20261116.json",
-      "current_checkout_clean": true
+      "current_sync_receipt": "foundation/results/shot-baseline-guards-20261116.json",
+      "current_checkout_clean": true,
+      "current_source_commit_scope": "Verified behavior code commit; later receipt-only commits may advance HEAD."
     },
     "observed_date": "2026-11-03 for R5 shutdown; 2026-11-04 for source/staging receipts",
     "live_status": "Source checkout verified; no motor controller/API/follower launched by this session. OS Pupper GUI active. Installed runtime selection remains separate from source and needs deliberate verification before motion.",
@@ -255,6 +256,7 @@
     "runtime_not_started": true,
     "operator_readiness": "User answered Not yet\u2014continue offline; wait for readiness before any motor block.",
     "audit": "Stock authority/caps guard and capture-aligned detector reviewed and verified offline. Fresh unchanged runtime configuration remains a separate physical-session prerequisite.",
-    "offline_guards": "foundation/results/shot-baseline-guards-20261116.json"
+    "offline_guards": "foundation/results/shot-baseline-guards-20261116.json",
+    "source_sync_commit": "5957800526ba555cc4cab5f104e61dc3cfa018a1"
   }
 }

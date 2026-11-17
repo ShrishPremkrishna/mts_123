@@ -50,9 +50,19 @@
     "Learned kick remains held; late-switch/native-fall/target-vs-velocity handling unresolved."
   ],
   "source_only_sync": {
-    "status": "pending",
+    "status": "verified",
+    "verified_at_utc": "2026-11-17T00:33:55.818060+00:00",
     "target": "mts:/home/pi/mts_123",
+    "branch": "main",
+    "code_commit": "5957800526ba555cc4cab5f104e61dc3cfa018a1",
+    "previous_commit": "f3bc88ecb0b35750f1ef1efa473c766073d251ef",
+    "source_files_verified": 9,
+    "checkout_clean_at_verification": true,
     "original_experiment_preserved": "/home/pi/kick",
-    "native_runtime_change": false
+    "original_run_through_node_hash_unchanged": true,
+    "installed_stock_actor_hash_unchanged": true,
+    "native_runtime_change": false,
+    "runtime_started": false,
+    "scope": "Code commit verified on Pi and published to origin/main. Later receipt-only commits may advance HEAD."
   }
 }
