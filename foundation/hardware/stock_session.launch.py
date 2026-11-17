@@ -9,13 +9,13 @@ import sys
 
 from ament_index_python.packages import get_package_prefix
 from launch import LaunchDescription
-from launch.actions import EmitEvent, RegisterEventHandler
+from launch.actions import EmitEvent, ExecuteProcess, LogInfo, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch_ros.actions import Node
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from runtime_identity import managers, read_json, verify_prepared
+from runtime_identity import guard_command, guard_root, managers, read_json, verify_prepared
 
 
 def selected_inputs():
@@ -52,7 +52,9 @@ def generate_launch_description():
                    remappings=[("controller_manager:/controller_manager/switch_controller",
                                 "/controller_manager/switch_controller_backend")])
     gateway = Node(package="joy_utils", executable="estop_controller", parameters=[config], output="both")
-    mux = Node(package="cmd_vel_mux", executable="cmd_vel_mux_node", parameters=[config], output="both")
+    guarded = "guard_script" in files
+    mux = Node(package="cmd_vel_mux", executable="cmd_vel_mux_node", parameters=[config], output="both",
+               **({"remappings": [("/cmd_vel", "/fc/requested_cmd_vel")]} if guarded else {}))
     joy = Node(package="joy", executable="joy_node", parameters=[config], output="both")
     required = (state, manager, gateway, mux, joy)
     exits = [RegisterEventHandler(OnProcessExit(target_action=n,
@@ -67,4 +69,14 @@ def generate_launch_description():
                 if event.returncode != 0 else [])
     exits.extend(RegisterEventHandler(OnProcessExit(target_action=n, on_exit=spawner_finished))
                  for n in (feedback, walker))
-    return LaunchDescription([*exits, *required, feedback, walker])
+    optional = []
+    if guarded:
+        guard = ExecuteProcess(cmd=guard_command(files), cwd=str(guard_root(files)),
+                               output="both", respawn=False)
+        # Command-path loss revokes motion readiness. It must not destroy native
+        # standing authority or silently restart/rearm the guard process.
+        exits.append(RegisterEventHandler(OnProcessExit(target_action=guard, on_exit=[
+            LogInfo(msg="FAULT: command guard exited; native manager retained, fresh preparation required")
+        ])))
+        optional.append(guard)
+    return LaunchDescription([*exits, *required, *optional, feedback, walker])

@@ -25,6 +25,12 @@ ROLES = {"driver", "controller", "config", "policy", "launch"}
 LIBRARIES = {"driver": "libcontrol_board_hardware_interface.so",
              "controller": "libneural_controller.so"}
 EXECUTABLES = {"gateway": "estop_controller", "mux": "cmd_vel_mux_node"}
+GUARD_ROLES = {"guard_python", "guard_script", "guard_obstacles", "guard_package_init"}
+GUARD_ENV_KEYS = ("PYTHONPATH", "PYTHONHOME", "PYTHONNOUSERSITE", "PYTHONSAFEPATH",
+                  "PYTHONPYCACHEPREFIX", "PYTHONOPTIMIZE", "LD_LIBRARY_PATH", "LD_PRELOAD",
+                  "AMENT_PREFIX_PATH", "COLCON_PREFIX_PATH", "ROS_DISTRO", "ROS_DOMAIN_ID",
+                  "ROS_LOCALHOST_ONLY", "RMW_IMPLEMENTATION", "ROS_AUTOMATIC_DISCOVERY_RANGE",
+                  "ROS_STATIC_PEERS", "CYCLONEDDS_URI", "FASTRTPS_DEFAULT_PROFILES_FILE")
 SCHEMA = "pupper_native_release_v1"
 
 
@@ -129,6 +135,9 @@ def verify_files(manifest):
     if manifest.get("schema") != SCHEMA or not ROLES <= manifest.get("files", {}).keys():
         raise ValueError("Release needs driver, controller, config, policy and launch identities")
     result = {}
+    guard_roles = GUARD_ROLES & manifest["files"].keys()
+    if guard_roles and guard_roles != GUARD_ROLES:
+        raise ValueError("Guarded command path requires all four guard file identities")
     for role, item in manifest["files"].items():
         path = Path(item["path"])
         if not path.is_absolute() or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"]):
@@ -142,11 +151,126 @@ def verify_files(manifest):
         result[role] = {"path": str(resolved), "sha256": item["sha256"],
                         "device": st.st_dev, "inode": st.st_ino,
                         "size": st.st_size, "mtime_ns": st.st_mtime_ns}
+        if role == "guard_python":
+            # Preserve a venv's invocation path while pinning its real image.
+            result[role]["invocation_path"] = os.path.abspath(path)
+    if guard_roles:
+        root = guard_root(result)
+        layout = {"guard_script": "final_project/behaviors/body_command_guard.py",
+                  "guard_obstacles": "final_project/pupper_fc/obstacles.py",
+                  "guard_package_init": "final_project/pupper_fc/__init__.py"}
+        if any(str(root / relative) != result[role]["path"] for role, relative in layout.items()):
+            raise ValueError("Guard source files do not preserve the selected package layout")
+        if (root / "final_project/__init__.py").exists():
+            raise ValueError("Unexpected initializer in the selected final_project namespace")
     config = yaml.safe_load(Path(result["config"]["path"]).read_text())
     model = config["neural_controller_default"]["ros__parameters"]["model_path"]
     if not Path(model).is_absolute() or str(Path(model).resolve(strict=True)) != result["policy"]["path"]:
         raise ValueError("Expanded stock config does not select the pinned policy")
     return result
+
+
+def guard_root(pins):
+    path = Path(pins["guard_script"]["path"])
+    if len(path.parents) < 3:
+        raise ValueError("Guard source files do not preserve the selected package layout")
+    return path.parents[2]
+
+
+def guard_command(pins):
+    return [pins["guard_python"]["invocation_path"], "-B", "-s", pins["guard_script"]["path"]]
+
+
+def guard_environment(environ=None):
+    """Explicit path/settings allowlist only; never retain the full environment."""
+    environ = os.environ if environ is None else environ
+    return {key: environ.get(key) for key in GUARD_ENV_KEYS}
+
+
+def probe_guard_environment(pins):
+    """Bounded selected-Python import readiness; no ROS init or controller calls.
+
+    Origin hashes are a small readiness receipt, not an exhaustive dependency
+    closure or proof of the bytecode loaded later by a different process.
+    """
+    program = '''import hashlib, importlib, json, pathlib, runpy, sys
+runpy.run_path(sys.argv[1], run_name="guard_import_probe")
+origins = {}
+for name in ("rclpy", "geometry_msgs.msg", "std_msgs.msg", "final_project.pupper_fc", "final_project.pupper_fc.obstacles"):
+    module = importlib.import_module(name)
+    path = pathlib.Path(module.__file__).resolve(strict=True)
+    origins[name] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+from geometry_msgs.msg import Twist
+from std_msgs.msg import String
+print(json.dumps({"python_executable": str(pathlib.Path(sys.executable).resolve()), "prefix": sys.prefix, "base_prefix": sys.base_prefix, "origins": origins}))
+'''
+    try:
+        result = subprocess.run([*guard_command(pins)[:3], "-c", program, pins["guard_script"]["path"]],
+                                cwd=guard_root(pins), capture_output=True, text=True, timeout=10, check=False)
+        if result.returncode or len(result.stdout) > 65536:
+            raise ValueError("Selected guard Python failed the import-readiness probe")
+        report = json.loads(result.stdout)
+        if report["python_executable"] != pins["guard_python"]["path"]:
+            raise ValueError("Guard probe used a different Python executable")
+        for name, role in (("final_project.pupper_fc", "guard_package_init"),
+                           ("final_project.pupper_fc.obstacles", "guard_obstacles")):
+            if report["origins"][name] != {key: pins[role][key] for key in ("path", "sha256")}:
+                raise ValueError("Guard probe imported a different selected package")
+    except (OSError, subprocess.TimeoutExpired, KeyError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("Cannot establish selected guard import readiness") from error
+    return {**report, "environment": guard_environment()}
+
+
+def guard_pids(proc, pins):
+    names = {"body_command_guard.py", Path(pins["guard_script"]["path"]).name}
+    found = []
+    for directory in proc.iterdir():
+        if directory.name.isdigit():
+            try:
+                argv = (directory / "cmdline").read_bytes().split(b"\0")
+                if any(Path(os.fsdecode(arg)).name in names for arg in argv[1:] if arg):
+                    found.append(int(directory.name))
+            except (FileNotFoundError, ProcessLookupError):
+                continue
+    return sorted(found)
+
+
+def guard_identity(proc, pins, expected_environment):
+    pids = guard_pids(proc, pins)
+    if len(pids) != 1:
+        raise ValueError("Expected exactly one running command guard process")
+    pid = pids[0]
+    directory = proc / str(pid)
+    try:
+        started = start_ticks(proc, pid)
+        argv = [os.fsdecode(arg) for arg in (directory / "cmdline").read_bytes().split(b"\0") if arg]
+        if argv != guard_command(pins):
+            raise ValueError("Running guard argv differs from the selected interpreter/script")
+        executable = directory / "exe"
+        image, st = os.readlink(executable), executable.stat()
+        python = pins["guard_python"]
+        if image != python["path"] or (st.st_dev, st.st_ino) != (python["device"], python["inode"]):
+            raise ValueError("Running guard Python image differs from selected interpreter")
+        if os.readlink(directory / "cwd") != str(guard_root(pins)):
+            raise ValueError("Running guard working directory differs from selected package root")
+        # Read /proc only to select the allowlisted keys; no raw values in errors.
+        environment = {}
+        for item in (directory / "environ").read_bytes().split(b"\0"):
+            key, sep, value = item.partition(b"=")
+            name = os.fsdecode(key)
+            if sep and name in GUARD_ENV_KEYS:
+                environment[name] = os.fsdecode(value)
+        if guard_environment(environment) != expected_environment:
+            raise ValueError("Running guard environment differs from preflight")
+        if process_stat(proc, pid)[0] in {"T", "t", "Z", "X", "x"}:
+            raise ValueError("Command guard process is stopped or dead")
+        if start_ticks(proc, pid) != started:
+            raise ValueError("Command guard process changed during verification")
+    except OSError as error:
+        raise ValueError("Cannot establish command guard process identity") from error
+    return {"pid": pid, "start_ticks": started, "python_path": image,
+            "python_device": st.st_dev, "python_inode": st.st_ino,
+            "script_path": pins["guard_script"]["path"], "argv": argv}
 
 
 def check_dependencies(pins):
@@ -160,7 +284,8 @@ def check_dependencies(pins):
             raise ValueError(f"{role} is incompatible with this machine: {output.strip()}")
 
 
-def preflight(manifest_path, expected_sha, *, proc=Path("/proc"), dependency_checker=check_dependencies):
+def preflight(manifest_path, expected_sha, *, proc=Path("/proc"), dependency_checker=check_dependencies,
+              python_checker=probe_guard_environment):
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha) or sha(manifest_path) != expected_sha:
         raise ValueError("Release manifest identity mismatch")
     manifest = read_json(manifest_path)
@@ -171,15 +296,20 @@ def preflight(manifest_path, expected_sha, *, proc=Path("/proc"), dependency_che
         if executable_pids(proc, role, pins[role]):
             raise ValueError("A " + role + " executable is running; do not prepare over another session")
     dependency_checker(pins)
+    guarded = "guard_script" in pins
+    if guarded and guard_pids(proc, pins):
+        raise ValueError("A command guard is running; do not prepare over another session")
+    guard_report = python_checker(pins) if guarded else None
     # Linux uptime and process start ticks share time since boot, including suspend.
     ticks = float((proc / "uptime").read_text().split()[0]) * os.sysconf("SC_CLK_TCK")
     return {"schema": "pupper_native_preflight_v1", "boot_id": boot_id(proc),
             "preflight_ticks": ticks, "created_unix": time.time(),
             "manifest_path": str(Path(manifest_path).resolve()), "manifest_sha256": expected_sha,
-            "files": pins, "motion_started": False}
+            "files": pins, "motion_started": False,
+            **({"guard_environment": guard_report} if guarded else {})}
 
 
-def verify_prepared(receipt, *, proc=Path("/proc")):
+def verify_prepared(receipt, *, proc=Path("/proc"), python_checker=None):
     if receipt.get("schema") != "pupper_native_preflight_v1" or receipt["boot_id"] != boot_id(proc):
         raise ValueError("Preflight is missing or belongs to a different boot")
     if sha(receipt["manifest_path"]) != receipt["manifest_sha256"]:
@@ -187,6 +317,10 @@ def verify_prepared(receipt, *, proc=Path("/proc")):
     current = verify_files(read_json(receipt["manifest_path"]))
     if current != receipt["files"]:
         raise ValueError("Selected files changed after preflight; prepare again with motors stopped")
+    if "guard_script" in current:
+        probe = probe_guard_environment if python_checker is None else python_checker
+        if probe(current) != receipt.get("guard_environment"):
+            raise ValueError("Selected guard Python environment/import origins changed after preflight")
     return current
 
 
@@ -229,15 +363,24 @@ def verify_loaded(receipt, *, proc=Path("/proc")):
             raise ValueError(role + " executable predates preflight")
     evidence = {"verified": True, "manager_pid": pid, "manager_start_ticks": started,
                 "boot_id": receipt["boot_id"], "files": current, "executables": executables,
+                "command_topology": "guarded" if "guard_script" in current else "stock",
                 "scope": ("Selected files, supplied config, actual mapped libraries and selected "
                           "executable processes; not physical acceptance")}
+    if "guard_script" in current:
+        evidence["guard_environment"] = receipt["guard_environment"]
+        evidence["guard_process"] = guard_identity(proc, current, receipt["guard_environment"]["environment"])
+        if evidence["guard_process"]["start_ticks"] <= receipt["preflight_ticks"]:
+            raise ValueError("Command guard process predates preflight")
+        evidence["scope"] += "; guard interpreter/argv/process continuity, not loaded-Python-bytecode proof"
     if not same_manager(evidence, proc=proc):
         raise ValueError("Controller identity changed during verification")
+    if not same_command_path(evidence, proc=proc):
+        raise ValueError("Command path identity changed during verification")
     return evidence
 
 
 def same_manager(evidence, *, proc=Path("/proc")):
-    """In-trial manager/executable check; full file/mapping check precedes the pulse."""
+    """Native authority only; command-guard loss never implies manager loss."""
     try:
         if (boot_id(proc) != evidence["boot_id"] or
                 managers(proc) != [evidence["manager_pid"]] or
@@ -248,6 +391,19 @@ def same_manager(evidence, *, proc=Path("/proc")):
             if executable_identity(proc, role, evidence["files"][role]) != evidence["executables"][role]:
                 return False
         return True
+    except (OSError, KeyError, ValueError):
+        return False
+
+
+def same_command_path(evidence, *, proc=Path("/proc")):
+    """Separate guard continuity check; stock topology adds no guard dependency."""
+    if evidence.get("command_topology", "stock") == "stock":
+        return "guard_script" not in evidence.get("files", {})
+    try:
+        return (evidence["command_topology"] == "guarded" and
+                boot_id(proc) == evidence["boot_id"] and
+                guard_identity(proc, evidence["files"], evidence["guard_environment"]["environment"]) ==
+                evidence["guard_process"])
     except (OSError, KeyError, ValueError):
         return False
 

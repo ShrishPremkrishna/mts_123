@@ -20,6 +20,42 @@ pinned launch does not start the Lab 6 API, voice or camera. The application
 packaging/session commands below remain the Lab 6 path; they do not select or
 build the new stock movement release.
 
+## Guarded walk candidate
+
+`hardware/assemble_guarded_release.py` copies a verified stock walk baseline into
+a **new** release directory and overlays seven frozen Python sources. It keeps
+the native controller, driver, gateway, mux, policy and gains unchanged. It adds
+the optional camera command path, preserves the old release for rollback, and
+removes copied sprint selection. This is file assembly only; it starts nothing.
+
+Use the frozen source kit linked by the current checkpoint. On the target
+filesystem, select the baseline manifest and its independently recorded digest,
+the kit's `guard-sources.json` and digest, and the existing ROS-capable Python:
+
+```sh
+python3 foundation/hardware/assemble_guarded_release.py \
+  --baseline-manifest "$BASELINE/walk-manifest.json" --baseline-sha256 "$BASELINE_SHA256" \
+  --source-root "$KIT" --source-index "$KIT/guard-sources.json" --source-sha256 "$SOURCE_SHA256" \
+  --destination "$NEW_RELEASE" --guard-python "$ROS_PYTHON"
+```
+
+No paths or hashes above are defaults. A failed assembly retains any partial
+destination; do not reuse it. The resulting `STAGING.json` identifies the new
+manifest. Source the new `environment.sh`, then use that release's existing
+`runtime_identity.py preflight` before any supervised launch. Preflight probes
+imports with the selected Python without initializing ROS or motors. It does not
+prove camera throughput or runtime behavior. The newer native software-Start
+service needs a separate Pi-compatible gateway build; this assembly does not add
+it, and the existing Options path remains available.
+
+Before motion, check capture age **and spacing**, detector scene coverage, selected
+publisher routing, and clear/blocked/stale stopping with supported legs. Camera
+producer source selection is separate from this native release and must use the
+reviewed capture-stamped producer. A guard-only exit retains native standing;
+restart only as an explicit new selection. Existing required-native-process
+shutdown behavior remains unchanged. Physical stopping distance and heading
+accuracy still require a supervised floor trial.
+
 ## Maintained deployment commands
 
 Use `hardware/package_app.py` to package the final reviewed source/build,

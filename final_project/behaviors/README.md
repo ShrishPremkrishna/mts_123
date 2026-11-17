@@ -97,19 +97,24 @@ stamp on receipt. The bounded 256-sample history covers these defaults at the
 configured 260 Hz IMU rate. Restart the detector after a ROS clock-epoch reset;
 ordering high-water marks intentionally do not automatically recover across it.
 
-Color detection was tuned for a red/blue beach ball. The user's temporary
-seven-inch soft mini basketball needs new detection/range calibration. Use manual
-measured coordinates for the first stock-gait contact trials so detector errors
-do not confound the result. Camera mounting, ball radius and empirical range
-scale remain calibration inputs, not established accuracy guarantees.
+Color detection was tuned for a red/blue beach ball. Further contact trials await
+the intended pink size-5 ball with flower patterns; the temporary mini basketball
+is not the demo target. The existing detector has not been validated for that
+ball. Camera mounting, ball radius and empirical range scale remain calibration
+inputs, not established accuracy guarantees. Ryan's overhead geometry is the
+primary planned source of shot targets.
 
 ## Offline checks
 
-The body-command guard candidate expects the existing mux output remapped to
-`/fc/requested_cmd_vel`, then publishes the admitted command on `/cmd_vel`.
-It does not select this wiring itself. The currently deployed stock launch is
-unchanged; a pinned guarded launch and process-identity check remain integration
-work. Starting a second normal `/cmd_vel` publisher would bypass this design.
+The optional guarded stock launch remaps the existing mux output to
+`/fc/requested_cmd_vel`; the guard publishes admitted commands on `/cmd_vel`.
+Four manifest roles select the guard interpreter, script, obstacle logic and
+package initializer together. Stock manifests retain their original routing.
+Runtime selection verifies the guard process separately from native authority;
+the movement client also checks the named ROS publishers. Guard loss cancels
+requests without shutting down native standing or automatically restarting.
+Competing publishers or lost native authority retain the emergency response.
+These sources are not yet deployed; see the [assembly procedure](../../foundation/HARDWARE_CHECKLIST.md#guarded-walk-candidate).
 
 The viewer publishes `/fc/obstacle_detections` with original image capture
 nanoseconds, a per-process instance ID, increasing sequence, explicit validity,
@@ -134,6 +139,14 @@ commands cannot restart an interrupted action. A detector restart or clock fault
 requires an explicit guard restart. These are candidate contracts, not physical
 stopping-distance or detector-coverage acceptance.
 
+An ordinary camera hold interrupts a finite movement and invalidates its prepare
+token. A confirmed zero and intact native/guard authority leave the resident
+client available for a **new** prepare/run after clearance. The receipt labels
+this `interrupted`, not completed. Pending or uncertain Start, explicit Stop during guarded cancellation,
+unconfirmed cancellation, or a native fault still takes the emergency path.
+The legacy idle Stop/quit behavior is unchanged: it can end an already stationary
+Options-started client without deactivating the native controller.
+
 From the repository root:
 
 ```sh
@@ -157,3 +170,9 @@ container invocation, failed attempts and final results are linked in the
 [overnight evidence](../../foundation/results/overnight-execution-20261117.json).
 Guard death establishes publication silence only in this test; the fake consumer
 does not implement or validate the native watchdog.
+The separate `pupper_gait_deploy/test/test_guard_ros_watchdog.cpp` experiment
+connects the real mux/guard to the production controller's DDS callback and update
+using memory joints and a synthetic policy. Guard death produced zero on the
+first update beyond the 250 ms receipt deadline (254.75 ms observed), while
+normal gains remained enabled. Its frozen orchestration and full trace are in
+the same evidence report; this is not physical braking or a hard scheduling bound.

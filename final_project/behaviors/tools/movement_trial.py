@@ -2,8 +2,8 @@
 """Bounded movement trials on an already homed stock session, with a JSON receipt.
 
 Purpose: tell a command-path failure from a gait failure quickly. The tool
-publishes one axis pulse on ``/kick_cmd_vel`` (the kick trial mux's only input,
-which zeroes ``/cmd_vel`` 150 ms after this process goes quiet) and records, per
+publishes one axis pulse on ``/kick_cmd_vel`` (the trial mux's only input,
+which expires after 150 ms without input) and records, per
 tick, the requested command next to the command the native controller reports in
 its observation (``/neural_controller_default/observation``, newest frame first,
 command at indices 6:9 of the 48-float frame). If applied never follows
@@ -30,10 +30,20 @@ What the receipt does NOT claim: the command integral is not achieved distance,
 IMU yaw is sensor output rather than external truth, and operator observation is
 left pending for the person watching the robot.
 
-``--execute`` moves the robot. It requires the selected stock session (mux only; shot adapter stopped) on top of the plain course stack with teleop off, the pinned stock
+``--execute`` moves the robot. It requires the selected session (shot adapter
+stopped) on top of the plain course stack with teleop off, the pinned stock
 controller active with verified caps (``StockWalkerEvidence`` from the shot
-adapter, reused unchanged), a released e-stop gateway, exactly the mux on
-``/cmd_vel`` and no competing traffic on ``/kick_cmd_vel``. Movement commands never
+adapter, reused unchanged), a released e-stop gateway, and no competing traffic
+on ``/kick_cmd_vel``. The default stock topology has the mux on ``/cmd_vel``.
+An explicitly selected guarded walk topology routes the mux through
+``/fc/requested_cmd_vel`` and the camera guard to ``/cmd_vel``; only that guard
+and this client's cleanup-zero publisher may publish on the final topic.
+Guarded movement requires fresh camera clearance and current guard evidence.
+A camera hold cancels the finite action and revokes its prepare token. After
+verified zero and continuing authority, the client remains resident but requires
+a fresh prepare/run after clearance. Guard process/status loss ends the client
+without automatically restarting or rearming; native authority faults and
+explicit Stop retain their emergency-stop behavior. Movement commands never
 arm, home or switch controllers. The optional explicit session ``start`` delegates
 one activation request to the existing gateway; it never homes. R3/face buttons, ``/emergency_stop`` and a latched
 gateway stop the pulse at once; loss of stock authority requests
@@ -83,6 +93,10 @@ HEADING_MAX_SPEED = 0.35  # initial feedback-turn candidate; native limits still
 HEADING_MAX_TIMEOUT_S = 20.0
 HEADING_TOLERANCE_RAD = 0.05
 HEADING_DWELL_S = 0.3
+GUARD_STATUS_TOPIC = "/fc/body_command_guard/status"
+GUARD_INPUT_TOPIC = "/fc/requested_cmd_vel"
+GUARD_STATUS_MAX_AGE_S = 0.3
+GUARD_FRAME_MAX_AGE_S = 0.35
 ZERO = (0.0, 0.0, 0.0)
 CLIENT_IDENTITY = {"path": str(Path(__file__).resolve()),
                    "sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
@@ -420,7 +434,7 @@ def finalize_verification(record, runtime_identity_held):
 def result_exit_code(record):
   if record["outcome"] == "completed":
     return 0 if record.get("command_verification", {}).get("passed") is True else 5
-  return 4 if record["outcome"] == "stopped" else 3
+  return 4 if record["outcome"] in ("stopped", "interrupted") else 3
 
 
 def receipt_line(record) -> str:
@@ -474,12 +488,24 @@ def _node_class():
     def __init__(self, request: PulseRequest, out_dir, *, kick_topic="/kick_cmd_vel",
                  robot_topic="/cmd_vel", obs_topic="/neural_controller_default/observation",
                  imu_topic="/imu_sensor_broadcaster/imu", shot_state_topic="/run_through_kick/state",
-                 rate_hz=20.0, require_gateway=True, quiet_s=1.0, clock=time.monotonic):
+                 rate_hz=20.0, require_gateway=True, quiet_s=1.0, clock=time.monotonic,
+                 command_topology="stock", command_path_check=None):
       super().__init__("movement_trial")
       self.clock = clock
       self.request, self.out_dir = request, Path(out_dir)
       self.kick_topic, self.robot_topic = kick_topic, robot_topic
       self.require_gateway, self.quiet_s = require_gateway, quiet_s
+      if command_topology not in ("stock", "guarded"):
+        raise ValueError("unsupported command topology")
+      if command_topology == "guarded" and request.profile != "walk":
+        raise ValueError("guarded topology requires the walk profile")
+      self.command_topology, self.command_path_check = command_topology, command_path_check
+      self.guard_status = self.guard_status_at = None
+      self.guard_error = "no guard status received"
+      self.guard_source = self.guard_frame_deadline = None
+      self.guard_fault = None
+      self.guard_ready_once = False
+      self.command_path_valid, self.command_path_checked_at = None, None
       self.lock = threading.Lock()
       self.phase = "waiting"
       self.record = None
@@ -519,10 +545,122 @@ def _node_class():
       self.create_subscription(Twist, kick_topic, self.on_kick_cmd, 10)
       self.create_subscription(Float32MultiArray, obs_topic, self.on_observation, 1)
       self.create_subscription(Imu, imu_topic, self.on_imu, qos_profile_sensor_data)
+      if self.command_topology == "guarded":
+        self.create_subscription(String, GUARD_STATUS_TOPIC, self.on_guard_status, 1)
       self.create_timer(1.0 / rate_hz, self.on_tick)
 
     def now(self) -> float:
       return self.clock()
+
+    def check_command_path(self):
+      if self.command_topology == "stock":
+        return True
+      try:
+        valid = self.command_path_check is not None and self.command_path_check() is True
+      except (OSError, ValueError, KeyError, TypeError):
+        valid = False
+      self.command_path_valid, self.command_path_checked_at = valid, self.now()
+      if not valid:
+        with self.lock:
+          self.interrupt_guard("selected guard process identity lost", fatal=True)
+      return valid
+
+    def guard_publishers_problem(self):
+      expected = {self.robot_topic: ["/fc_body_command_guard", "/movement_trial"],
+                  GUARD_INPUT_TOPIC: ["/cmd_vel_mux"], self.kick_topic: ["/movement_trial"],
+                  GUARD_STATUS_TOPIC: ["/fc_body_command_guard"]}
+      try:
+        for topic, wanted in expected.items():
+          infos = self.get_publishers_info_by_topic(topic)
+          actual = [info.node_namespace.rstrip("/") + "/" + info.node_name for info in infos]
+          if sorted(actual) != sorted(wanted) or self.count_publishers(topic) != len(wanted):
+            competing = any(name not in wanted or actual.count(name) > wanted.count(name) for name in actual)
+            return ("authority" if competing else "path", "unexpected publishers on " + topic)
+      except (AttributeError, RuntimeError):
+        return "path", "guard publisher identities unavailable"
+      return None
+
+    def guard_problem(self, *, camera=True):
+      if self.command_topology == "stock":
+        return None
+      if self.guard_fault:
+        return "path", self.guard_fault
+      if (self.command_path_valid is not True or self.command_path_checked_at is None or
+          not 0 <= self.now() - self.command_path_checked_at <= GUARD_STATUS_MAX_AGE_S):
+        return "path", "no fresh selected guard process identity"
+      problem = self.guard_publishers_problem()
+      if problem:
+        return problem
+      if (self.guard_status_at is None or
+          not 0 <= self.now() - self.guard_status_at <= GUARD_STATUS_MAX_AGE_S):
+        return "path", "guard status unavailable or stale"
+      if self.guard_error:
+        return "path", self.guard_error
+      status = self.guard_status
+      if status["state"] == "fault":
+        return "path", "guard fault: " + status["reason"]
+      if camera and (not status["camera_permitted"] or status["camera_state"] != "clear" or
+                     self.guard_frame_deadline is None or self.now() >= self.guard_frame_deadline or
+                     status["clear_frames"] < 3 or status["requires_post_hold_zero"] or
+                     status["input_state"] == "invalid"):
+        return "camera", "camera guard holds: " + status["reason"]
+      return None
+
+    def on_guard_status(self, msg):
+      with self.lock:
+        now = self.now()
+        try:
+          if not isinstance(msg.data, str) or len(msg.data) > 8192:
+            raise ValueError("oversized guard status")
+          status = json.loads(msg.data)
+          if not isinstance(status, dict):
+            raise ValueError("invalid guard status")
+          if (status.get("state") not in ("ready", "passing", "hold", "fault") or
+              status.get("camera_state") not in ("clear", "blocked", "stale", "invalid") or
+              status.get("input_state") not in ("missing", "expired", "invalid", "valid") or
+              type(status.get("camera_permitted")) is not bool or
+              type(status.get("requires_post_hold_zero")) is not bool or
+              type(status.get("clear_frames")) is not int or status["clear_frames"] < 0 or
+              not isinstance(status.get("reason"), str)):
+            raise ValueError("invalid guard status fields")
+          age, limit = status.get("frame_age_s"), status.get("max_frame_age_s")
+          if (isinstance(limit, bool) or not isinstance(limit, (int, float)) or
+              not math.isfinite(limit) or not 0 < limit <= GUARD_FRAME_MAX_AGE_S):
+            raise ValueError("invalid guard capture age limit")
+          if age is not None:
+            if (isinstance(age, bool) or not isinstance(age, (int, float)) or
+                not math.isfinite(age) or age < 0 or type(status.get("sequence")) is not int or
+                status["sequence"] < 0 or not isinstance(status.get("producer_instance"), str) or
+                not status["producer_instance"]):
+              raise ValueError("invalid guard source capture evidence")
+            source = (status["producer_instance"], status["sequence"])
+            deadline = now + limit - age
+            if self.guard_source is not None:
+              if source[0] != self.guard_source[0] or source[1] < self.guard_source[1]:
+                raise ValueError("guard source identity changed or regressed")
+              if source == self.guard_source:
+                deadline = min(deadline, self.guard_frame_deadline)
+            self.guard_source, self.guard_frame_deadline = source, deadline
+          elif status["camera_permitted"]:
+            raise ValueError("clear guard status lacks source capture evidence")
+          self.guard_status, self.guard_status_at, self.guard_error = status, now, None
+        except (ValueError, TypeError, KeyError, OverflowError) as exc:
+          self.guard_error = "invalid guard status: " + str(exc)
+          self.guard_status_at = now
+        if self.phase == "pulsing":
+          problem = self.guard_problem()
+          if problem:
+            if problem[0] == "authority":
+              self.stop(problem[1], fault=True)
+            else:
+              self.interrupt_guard(problem[1], fatal=problem[0] != "camera")
+
+    def interrupt_guard(self, reason, *, fatal):
+      if fatal:
+        self.guard_fault = reason
+      self.last_problem = reason
+      if self.phase == "pulsing":
+        self.complete("interrupted", reason)
 
     # -------------------------------------------------------- inputs
     def on_emergency(self, msg) -> None:
@@ -664,7 +802,11 @@ def _node_class():
         return "no fresh stock policy observation; check schema/topic/active controller"
       if isinstance(self.request, HeadingRequest) and self.heading_problem():
         return self.heading_problem()
-      return self.stock.problem(command=Command(*self.request.twist))
+      problem = self.stock.problem(command=Command(*self.request.twist))
+      if problem:
+        return problem
+      problem = self.guard_problem()
+      return problem[1] if problem else None
 
     def heading_problem(self):
       if not self.imu_latest or not 0 <= self.now() - self.imu_latest[1] <= OBS_MAX_AGE_S:
@@ -675,6 +817,8 @@ def _node_class():
       return None
 
     def try_start(self) -> str | None:
+      if not self.check_command_path():
+        return self.last_problem
       with self.lock:
         problem = self.start_problem()
         if problem:
@@ -685,6 +829,7 @@ def _node_class():
         self.started_wall = datetime.now(timezone.utc).isoformat()
         self.imu_start = self.imu_latest[0] if self.imu_latest else None
         self.last_owner_check = self.started
+        self.guard_ready_once = self.command_topology == "guarded"
         if isinstance(self.request, HeadingRequest):
           self.heading = HeadingControl.start(self.request, self.imu_start,
                                               self.get_clock().now().nanoseconds)
@@ -735,11 +880,19 @@ def _node_class():
           return
         if now - self.last_owner_check >= OWNER_CHECK_S:
           self.last_owner_check = now
-          if self.count_publishers(self.robot_topic) != 2:  # the mux and our shutdown publisher
+          if self.command_topology == "stock" and self.count_publishers(self.robot_topic) != 2:
             self.stop(f"another node publishes {self.robot_topic}", fault=True)
             return
           if self.count_publishers(self.kick_topic) != 1:
             self.stop(f"another node publishes {self.kick_topic}", fault=True)
+            return
+        if self.command_topology == "guarded":
+          problem = self.guard_problem()
+          if problem:
+            if problem[0] == "authority":
+              self.stop(problem[1], fault=True)
+            else:
+              self.interrupt_guard(problem[1], fatal=problem[0] != "camera")
             return
         elapsed = now - self.started
         if not 0 <= elapsed < min(self.request.duration_s, self.request.max_duration_s):
@@ -803,6 +956,16 @@ def _node_class():
                           samples=self.samples, imu=imu, summary=summary, stock=stock,
                           started_wall=self.started_wall, published_commands=self.published,
                           obs_error=self.obs_error)
+      record["command_topology"] = self.command_topology
+      if self.command_topology == "guarded":
+        record["camera_guard"] = {
+          "status": self.guard_status, "status_error": self.guard_error,
+          "status_receipt_age_s": None if self.guard_status_at is None else self.now() - self.guard_status_at,
+          "capture_valid_until_monotonic": self.guard_frame_deadline,
+          "process_identity_valid": self.command_path_valid, "fault": self.guard_fault,
+          "hard_stop_reason": self.stop_requested,
+          "scope": "selected process and named ROS publishers are operational evidence, not authentication",
+        }
       if self.heading:
         record["heading_feedback"] = {
           "reference": "IMU yaw; not field localization or externally verified heading",
@@ -862,6 +1025,23 @@ def finish_trial(node, runtime, same_manager, *, session=False):
   node.record["runtime_identity"] = runtime
   node.record["runtime_identity_held"] = same_manager(runtime)
   finalize_verification(node.record, node.record["runtime_identity_held"])
+  if node.command_topology == "guarded":
+    node.record["command_path_identity_held"] = node.check_command_path()
+    node.record["camera_guard"]["process_identity_valid"] = node.record["command_path_identity_held"]
+    node.record["camera_guard"]["fault"] = node.guard_fault
+    if node.record["outcome"] == "interrupted":
+      zero = node.record["summary"].get("zero_confirmed_in_observation_s") is not None
+      native = node.record["runtime_identity_held"] and node.stock.problem() is None and not node.stop_requested
+      guard = node.record["command_path_identity_held"] and node.guard_problem(camera=False) is None
+      node.record["interruption_verification"] = {
+        "passed": bool(zero and native and guard), "zero_confirmed": zero,
+        "native_authority_held": native, "guard_path_held": guard,
+        "scope": "finite trial cancelled; only zero and continuing authority verified, requested action not completed",
+      }
+      if not node.stop_requested and (not zero or not native):
+        node.cancel_start("guard cancellation zero unconfirmed" if not zero else
+                          "native authority lost during guard cancellation")
+        node.record["camera_guard"]["hard_stop_reason"] = node.stop_requested
   path.write_text(json.dumps(node.record, indent=1, allow_nan=False) + "\n")
   return path
 
@@ -903,9 +1083,9 @@ class SessionInbox:
     finally:
       self.put({"command": "quit", "reason": "session stdin closed"})
 
-  def get(self):
+  def get(self, *, urgent_only=False):
     from queue import Empty
-    for queue in (self.urgent, self.normal):
+    for queue in ((self.urgent,) if urgent_only else (self.urgent, self.normal)):
       try:
         return queue.get_nowait()
       except Empty:
@@ -966,6 +1146,24 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
   token, last_receipt = None, None
   accept_after, next_identity_check = -math.inf, 0.0
   exiting, code, has_run, submitted_start = False, 0, False, False
+  guard_only_exit = False
+
+  def request_exit(message):
+    nonlocal token, exiting, guard_only_exit
+    command = message["command"]
+    reason = message.get("reason", "session " + command)
+    token, exiting = None, True
+    guard_stop = command == "stop" and node.command_topology == "guarded" and (
+      guard_only_exit or (node.record and node.record["outcome"] == "interrupted"))
+    if command == "stop":
+      guard_only_exit = False  # explicit Stop overrides a guard-only shutdown, even during cleanup
+    if submitted_start or guard_stop:
+      node.cancel_start(reason)
+    if node.phase == "pulsing":
+      with node.lock:
+        node.stop(reason, fault=True)
+    emit({"event": "stopping", "reason": message.get("reason", command)})
+
   emit({"event": "session_ready", "profile": node.request.profile,
         "client_identity": dict(CLIENT_IDENTITY), "commands": ["list", "prepare", "start", "run", "stop", "status", "quit"],
         "software_start_supported": start_client is not None})
@@ -977,20 +1175,38 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
           node.cancel_start(node.stop_requested)
         exiting, token, code = True, None, 3
         emit({"event": "fault", "reason": node.stop_requested})
-      item = None if exiting else inbox.get()  # urgent stop/EOF bypass ordinary backlog
+      item = inbox.get(urgent_only=exiting)  # Stop remains live throughout finalization
+      urgent = item is not None and item[1].get("command") in ("stop", "quit")
+      if node.command_topology == "guarded" and not exiting and not urgent:
+        if (node.command_path_checked_at is None or
+            node.now() - node.command_path_checked_at >= OWNER_CHECK_S):
+          node.check_command_path()
+        problem = node.guard_problem()
+        if problem is None:
+          node.guard_ready_once = True
+        elif problem[0] == "camera":
+          token = None  # an interrupted/prepared action never revives after clearance
+        elif node.guard_ready_once or node.guard_fault:
+          token = None
+          native_held = same_manager(runtime) and node.stock.problem() is None
+          if (problem[0] == "authority" or not native_held or
+              (start_client is not None and (start_client.pending is not None or start_client.uncertain))):
+            node.cancel_start("command authority lost: " + problem[1])
+          else:
+            with node.lock:
+              node.interrupt_guard(problem[1], fatal=True)
+            guard_only_exit = True
+          exiting, code = True, 3
+          emit({"event": "fault", "reason": problem[1], "guard_only_exit": guard_only_exit,
+                "native_deactivation_requested": not guard_only_exit})
+      if exiting and not urgent:
+        item = inbox.get(urgent_only=True)  # a guard-fault notice may itself prompt Stop
       if item:
         received_at, message = item
         command = message.get("command")
         try:
           if command in ("stop", "quit"):
-            token = None
-            exiting = True  # a stop is latched until a new session
-            if submitted_start:
-              node.cancel_start(message.get("reason", "session " + command))
-            if node.phase == "pulsing":
-              with node.lock:
-                node.stop(message.get("reason", "session " + command), fault=True)
-            emit({"event": "stopping", "reason": message.get("reason", command)})
+            request_exit(message)
           elif command == "status":
             emit({"event": "status", "phase": node.phase, "prepared": token is not None,
                   "problem": node.start_problem() if node.phase == "waiting" else None,
@@ -1015,6 +1231,8 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
               raise ValueError("Start predates the last completed trial; send a fresh command")
             if not same_manager(runtime):
               raise ValueError("native manager changed before Start")
+            if not node.check_command_path():
+              raise ValueError("selected command path is unavailable before Start")
             ticket = message["_start_ticket"]
             if (ticket.instance_id, ticket.epoch) != node.gateway_authority:
               raise ValueError("Start ticket differs from this session's gateway authority")
@@ -1030,6 +1248,10 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
             if received_at < accept_after:
               raise ValueError("command predates the last completed trial; send a fresh command")
             if command == "prepare":
+              if node.command_topology == "guarded":
+                problem = node.guard_problem()
+                if problem:
+                  raise ValueError(problem[1])
               if message.get("profile", node.request.profile) != node.request.profile:
                 raise ValueError("session profile cannot change")
               request = session_request(message, node.request.profile)
@@ -1089,7 +1311,12 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
           if node.phase == "pulsing":
             with node.lock:
               node.stop("native manager changed during session", fault=True)
+          elif node.command_topology == "guarded" and node.record and node.record["outcome"] == "interrupted":
+            node.cancel_start("native manager changed during guard cancellation")
           emit({"event": "fault", "reason": "native manager changed during session"})
+      if guard_only_exit and not same_manager(runtime):
+        guard_only_exit = False
+        node.cancel_start("native manager changed during guard cancellation")
       if node.phase == "pulsing" and node.now() - node.started >= node.request.duration_s:
         with node.lock:
           node.expire()
@@ -1100,14 +1327,24 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
           trial_code = result_exit_code(node.record)
           emit({"event": "trial_complete", "file": last_receipt, "outcome": node.record["outcome"],
                 "reason": node.record["reason"], "summary": node.record["summary"],
-                "command_verification": node.record["command_verification"]})
+                "command_verification": node.record["command_verification"],
+                "interruption_verification": node.record.get("interruption_verification")})
+          if (node.record["outcome"] == "interrupted" and
+              node.record.get("interruption_verification", {}).get("passed") and not node.guard_fault):
+            trial_code = 0  # keep resident after verified cancellation; require fresh prepare/run
           if trial_code:
             exiting, code = True, trial_code  # fault/unconfirmed zero cannot be rearmed
       if exiting and (node.phase == "waiting" or node.record.get("file")):
+        # Receipt/fault emission can enqueue Stop after the loop's first read.
+        # Drain only shutdown requests; queued Start/prepare/run remain disabled.
+        item = inbox.get(urgent_only=True)
+        while item is not None:
+          request_exit(item[1])
+          item = inbox.get(urgent_only=True)
         return code
   finally:
     if (start_client is not None and not node.stop_requested and
-        (submitted_start or start_client.pending is not None or start_client.uncertain)):
+        (start_client.pending is not None or start_client.uncertain or (submitted_start and not guard_only_exit))):
       node.cancel_start("session exit after Start request")
 
 
@@ -1139,12 +1376,17 @@ def run_execute(request, args) -> int:
   root = HERE.parents[2]
   if str(root) not in sys.path:
     sys.path.insert(0, str(root))
-  from foundation.hardware.runtime_identity import read_json, verify_loaded, same_manager
+  from foundation.hardware import runtime_identity
+  read_json, verify_loaded, same_manager = runtime_identity.read_json, runtime_identity.verify_loaded, runtime_identity.same_manager
+  same_command_path = getattr(runtime_identity, "same_command_path",
+                              lambda evidence: evidence.get("command_topology", "stock") == "stock")
   try:
     if args.runtime_receipt is None:
       raise ValueError("--runtime-receipt is required before motion")
     preflight = read_json(args.runtime_receipt)
     runtime = verify_loaded(preflight)
+    if runtime.get("command_topology", "stock") == "guarded" and request.profile != "walk":
+      raise ValueError("guarded topology requires the walk profile")
     if read_json(preflight["manifest_path"]).get("trial_profile") != request.profile:
       raise ValueError("trial profile differs from the selected release")
     Path(args.out).mkdir(parents=True, exist_ok=True)
@@ -1172,7 +1414,9 @@ def run_execute(request, args) -> int:
     raise KeyboardInterrupt
 
   previous = {s: signal.signal(s, interrupt) for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
-  node = _node_class()(request, args.out, require_gateway=not args.no_gateway)
+  node = _node_class()(request, args.out, require_gateway=not args.no_gateway,
+                      command_topology=runtime.get("command_topology", "stock"),
+                      command_path_check=lambda: same_command_path(runtime))
   code = 3
   try:
     if args.session:
@@ -1207,6 +1451,8 @@ def run_execute(request, args) -> int:
           if not same_manager(runtime):
             with node.lock:
               node.stop("native manager changed during pulse", fault=True)
+          elif not node.check_command_path():
+            break
         if node.phase == "pulsing" and time.monotonic() - node.started >= request.duration_s:
           with node.lock:
             node.expire()

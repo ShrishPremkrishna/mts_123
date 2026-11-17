@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T10:34:17.904810+00:00",
+  "updated_utc": "2026-11-17T10:57:55.451179+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -27,7 +27,11 @@
     "fable_execution_review": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/final-review.json",
     "overnight_execution": "foundation/results/overnight-execution-20261117.json",
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
-    "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json"
+    "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
+    "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T105800Z/summary.json",
+    "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
+    "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -65,7 +69,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Core d4f6d92 and guard4996df2 committed.976 tests+106 subtests passed before cadence delta;78 affected cadence/capture/follower checks passed after integration. Real ROS Start3/guard7 passed. All cloud/Docker jobs closed; delegation completed. Next: selected guarded launch and source/client packaging.",
+    "compute": "Guarded launch/identity/client integrated;1050 tests+106subtests passed. Actual ROS launch routing and actual native DDS/watchdog chain passed with fake hardware. Source kit19files hashed; no target assembly/deployment. ExactFable attempt timedout; local independent lateStop correction verified. All owned containers/review process exited.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -73,12 +77,13 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Current Codex chat 01a1e800-1b8f-74e0-9e1e-3723fff803de; Shrish is owner/physical interface. Previous chat is idle after clean closure.",
+      "project_lead": "Root integrates guarded-path commit/sourcekit and scopes next actual gameplay transport. No robot connection or deployment tonight.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Completed cadence helper; root integrated viewer. Recorded scheduling replay299/490 ->490/490 frames,78 affected checks passed. No inference/mask changes; idle.",
-      "overnight_compute": "Completed read-only guarded launch design; no source ownership/jobs. Recommendation delivered: optional manifest mode, script/interpreter identity, explicit guarded topology and guard-only failure path preserving native manager.",
-      "body_guard": "Completed/frozen and integrated: guard f8448cb7, source-age/zero-barrier corrections independently reproduced, final real ROS7 groups passed. No hardware acceptance."
+      "overnight_harness": "Completed/frozen guarded movement client and lateStop fix;285 focusedtests+58subtests and1050 integration passed. Idle, no ownership.",
+      "overnight_compute": "Completed actual native watchdog chain;91file archive verified, allcontainersclosed. Idle, no ownership.",
+      "body_guard": "Launch/identity complete and realROS substitution checkpassed; now bounded read-only design for continuous FCExecutor-to-guarded-ROS bridge. No production ownership or hardware.",
+      "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
   },
@@ -130,16 +135,16 @@
   },
   "next": [
     {
-      "id": "guarded_launch_design_decision",
-      "action": "Implement minimal optional guarded launch/process selection without a new framework. Coordinate one author for launch/identity, one for movement-client topology/guard failure, root packaging. Current native same_manager failures cause emergency Stop: do not conflate a dead guard with changed native authority or trigger unsupported motor release. Existing native required-process teardown stays legacy-scoped."
+      "id": "continuous_fc_transport",
+      "action": "Integrate bounded design from body_guard for smallest actual FCExecutor-to-selected-ROS bridge. Finite movement_trial remains qualification tool. Preserve lease/epoch/captureclock semantics, native and guard authority, Stop and finite strike cancellation. Prove path in isolated ROS before any hardware. No Ryan dependency for synthetic/recorded frames."
     },
     {
-      "id": "selected_guard_release",
-      "action": "Wire actual mux -> guard -> cmd_vel with pinned process/source identity. Prepare client/source package and concise supervised acceptance procedure. Guard exit should rely on bounded native stopping, not silently release an unsupported robot by killing its manager. No overnight deployment/homing."
+      "id": "guarded_target_acceptance",
+      "action": "Next authorized Pi session: file-only assembly from verified logfix walk baseline and frozen source kit, targetPython/import/preflight, separate reviewed camera source selection. Measure capture age+spacing and detector coverage before supported legs motion. No overnight robot connection, deployment or homing. Software Start requires separate Pi-compatible gateway build."
     },
     {
-      "id": "continue_outcomes",
-      "action": "Continue valuable offline work toward native obstacle stopping, reliable motion and tactical integration. Keep Ryan adapter/demo deliverables moving. New perception experiments need a concrete route to the live setup; do not spend merely to exhaust compute."
+      "id": "continue_project_value",
+      "action": "After bridge, prioritize recording-driven perception improvements and Ryan adapter validation plus demo deliverable preparation. Larger offline vision model missed live deadline; do not promote or spend for compute volume. Live physical acceptance remains separate."
     }
   ],
   "recorded_open_items": {

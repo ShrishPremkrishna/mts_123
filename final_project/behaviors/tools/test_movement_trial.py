@@ -281,7 +281,7 @@ class FloatArray(_fake_ros._Msg):
 
 
 def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True, overrides=None,
-               lateral_calibration=False):
+               lateral_calibration=False, command_topology="stock", command_path_check=None):
   ros = _fake_ros.install(overrides)
   qos = types.ModuleType("rclpy.qos")
   qos.qos_profile_sensor_data = object()
@@ -300,7 +300,8 @@ def make_trial(tmp_path, axis="forward", speed=0.2, duration=1.0, kick_mux=True,
   if kick_mux:
     ros.publishers["/cmd_vel"] += 1  # the kick trial mux
   node = mt.MovementTrialNode(mt.PulseRequest.build(axis, speed, duration,
-                              lateral_calibration=lateral_calibration), out_dir=tmp_path, clock=lambda: ros.t)
+                              lateral_calibration=lateral_calibration), out_dir=tmp_path, clock=lambda: ros.t,
+                              command_topology=command_topology, command_path_check=command_path_check)
   node.stock.clock = lambda: ros.t
   node._test_emit_obs = True
   def emit():
@@ -1702,3 +1703,293 @@ def test_initial_gateway_latch_exception_never_hides_unsafe_state(tmp_path, flag
   ros, node, mt = make_trial(tmp_path)
   node.on_stop_status(_fake_ros.String(json.dumps({"latched": True, flag: True})))
   assert node.stop_requested and node.gateway_blocked
+
+
+def install_guard_evidence(ros, node, mt):
+  node.command_topology = "guarded"
+  node._guard_alive = True
+  node.command_path_check = lambda: node._guard_alive
+  node._guard_names = {"/cmd_vel": ["fc_body_command_guard", "movement_trial"],
+                       mt.GUARD_INPUT_TOPIC: ["cmd_vel_mux"], "/kick_cmd_vel": ["movement_trial"],
+                       mt.GUARD_STATUS_TOPIC: ["fc_body_command_guard"]}
+  for topic, names in node._guard_names.items():
+    ros.publishers[topic] = len(names)
+  node.get_publishers_info_by_topic = lambda topic: [types.SimpleNamespace(node_namespace="/", node_name=name)
+                                                     for name in node._guard_names.get(topic, [])]
+  node._guard_sequence, node._test_emit_guard, node._guard_overrides = 0, True, {}
+  def emit_guard():
+    node.check_command_path()
+    if node._test_emit_guard:
+      node._guard_sequence += 1
+      status = dict(state="hold", reason="no body command received", input_state="missing",
+                    camera_state="clear", camera_permitted=True, max_frame_age_s=0.35,
+                    frame_age_s=0.05, producer_instance="camera-one", sequence=node._guard_sequence,
+                    clear_frames=3, requires_post_hold_zero=False, command=[0, 0, 0])
+      status.update(node._guard_overrides)
+      node.on_guard_status(_fake_ros.String(json.dumps(status)))
+  emit_guard()
+  return emit_guard
+
+
+def guarded_trial(tmp_path, duration=1):
+  ros, node, mt = make_trial(tmp_path, duration=duration, command_topology="guarded", command_path_check=lambda: True)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  node.create_timer(0.05, emit_guard)
+  ready(ros, node)
+  emit_guard()
+  return ros, node, mt, emit_guard
+
+
+def test_guarded_camera_clear_missing_idle_input_can_start_without_idle_publication(tmp_path):
+  ros, node, mt, emit_guard = guarded_trial(tmp_path)
+  assert node.guard_status["state"] == "hold" and node.guard_status["input_state"] == "missing"
+  assert not twists(ros)
+  assert node.try_start() is None
+  assert twists(ros)[0] == (0.2, 0, 0)
+
+
+@pytest.mark.parametrize("cause", ["missing_status", "stale_status", "stale_camera", "blocked_camera",
+                                   "unhealthy_camera", "invalid_input", "zero_barrier", "wrong_publisher"])
+def test_guarded_start_refuses_without_camera_status_and_named_command_path(tmp_path, cause):
+  ros, node, mt, emit_guard = guarded_trial(tmp_path)
+  if cause == "missing_status":
+    node.guard_status_at = None
+  elif cause == "stale_status":
+    node.guard_status_at = ros.t - 0.31
+  elif cause == "wrong_publisher":
+    node._guard_names["/cmd_vel"][0] = "some_other_node"  # count still exactly two
+  else:
+    node._guard_overrides = {
+      "stale_camera": dict(frame_age_s=0.36),
+      "blocked_camera": dict(camera_state="blocked", camera_permitted=False),
+      "unhealthy_camera": dict(camera_state="invalid", camera_permitted=False),
+      "invalid_input": dict(input_state="invalid"),
+      "zero_barrier": dict(requires_post_hold_zero=True),
+    }[cause]
+    emit_guard()
+  assert node.try_start() is not None
+  assert not twists(ros) and not ros.published["/emergency_stop"]
+
+
+def test_guard_status_heartbeat_cannot_rejuvenate_same_source_frame(tmp_path):
+  ros, node, mt, emit_guard = guarded_trial(tmp_path)
+  node._test_emit_guard = False
+  original = dict(node.guard_status)
+  deadline = node.guard_frame_deadline
+  ros.t += 0.2
+  original["frame_age_s"] = 0  # repeated packet falsely attempts to renew source age
+  node.on_guard_status(_fake_ros.String(json.dumps(original)))
+  assert node.guard_frame_deadline == deadline
+  ros.t = deadline + 0.01
+  node.check_command_path()
+  assert node.guard_problem()[0] == "camera"
+
+
+@pytest.mark.parametrize("cause", ["camera_hold", "camera_stale", "guard_dead", "status_stale", "guard_missing", "unexpected_publisher"])
+def test_guarded_active_cancellation_preserves_only_appropriate_native_authority(tmp_path, cause):
+  ros, node, mt, emit_guard = guarded_trial(tmp_path)
+  assert node.try_start() is None
+  if cause == "camera_hold":
+    node._guard_overrides.update(camera_state="blocked", camera_permitted=False, requires_post_hold_zero=True)
+    emit_guard()
+  elif cause == "camera_stale":
+    node._guard_overrides.update(frame_age_s=0.36)
+    emit_guard()
+  elif cause == "guard_dead":
+    node._guard_alive = False
+    node.check_command_path()
+  elif cause == "guard_missing":
+    node._guard_names["/cmd_vel"] = ["movement_trial"]
+    ros.publishers["/cmd_vel"] = 1
+    node.on_tick()
+  elif cause == "unexpected_publisher":
+    node._guard_names["/cmd_vel"][0] = "rogue"
+    node.on_tick()
+  else:
+    node._test_emit_guard = False
+    ros.tick(8)
+  assert twists(ros)[-1] == ZERO
+  assert node.phase == "finished"
+  assert node.record["outcome"] == ("stopped" if cause == "unexpected_publisher" else "interrupted")
+  assert len(ros.published["/emergency_stop"]) == (1 if cause == "unexpected_publisher" else 0)
+  count = len(twists(ros))
+  node._guard_overrides = {}
+  emit_guard()
+  node.on_tick()
+  assert len(twists(ros)) == count  # clearance never revives a cancelled finite trial
+
+
+def test_guarded_session_keeps_resident_after_verified_hold_and_requires_new_prepare(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin = session_fixture(tmp_path, monkeypatch)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  events, tokens, completed = [], [], []
+  def guarded_spin(actual, timeout_sec):
+    emit_guard()
+    spin(actual, timeout_sec)
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+    elif event["event"] == "prepared":
+      tokens.append(event["token"])
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "started" and len(tokens) == 1:
+      node._guard_overrides.update(camera_state="blocked", camera_permitted=False, requires_post_hold_zero=True)
+      emit_guard()
+    elif event["event"] == "trial_complete":
+      completed.append(event)
+      if len(completed) == 1:
+        assert event["outcome"] == "interrupted" and not event["command_verification"]["passed"]
+        assert event["interruption_verification"]["passed"]
+        node._guard_overrides = {}
+        emit_guard()
+        inbox.put({"command": "run", "token": tokens[0]})
+      else:
+        inbox.put({"command": "quit"})
+    elif event["event"] == "refused":
+      assert event["command"] == "run" and "token" in event["reason"]
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=guarded_spin) == 0
+  assert [e["outcome"] for e in completed] == ["interrupted", "completed"]
+  assert not ros.published["/emergency_stop"]
+
+
+@pytest.mark.parametrize("cause", ["guard_dead", "status_lost", "native_dead"])
+def test_guarded_session_revokes_prepared_token_on_path_loss_without_softening_native_loss(tmp_path, monkeypatch, cause):
+  ros, node, mt, inbox, spin = session_fixture(tmp_path, monkeypatch)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  native = [True]
+  events = []
+  def guarded_spin(actual, timeout_sec):
+    emit_guard()
+    spin(actual, timeout_sec)
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "prepare", "axis": "forward"})
+    elif event["event"] == "prepared":
+      if cause == "status_lost":
+        node._test_emit_guard = False
+      else:
+        node._guard_alive = False
+        native[0] = cause != "native_dead"
+  assert mt.run_session(node, {}, lambda _: native[0], inbox=inbox, emit=emit, spin_once=guarded_spin) == 3
+  assert not any(e["event"] == "started" for e in events)
+  assert not ros.published["/emergency_stop"]  # no motion or Start ever occurred
+  if cause == "native_dead":
+    assert any(e["event"] == "fault" and "native manager" in e["reason"] for e in events)
+
+
+@pytest.mark.parametrize("pending", [False, True])
+def test_guard_only_exit_does_not_stop_successful_start_but_pending_start_has_precedence(tmp_path, pending):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+    tmp_path, acknowledge=not pending)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  def guarded_spin(actual, timeout_sec):
+    emit_guard()
+    spin(actual, timeout_sec)
+  def emit(event):
+    if event["event"] == "session_ready":
+      inbox.put({"command": "start"})
+    elif event["event"] == ("start_submitted" if pending else "start_result"):
+      node._guard_alive = False
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit,
+                        spin_once=guarded_spin, start_client=caller) == 3
+  assert len(submissions) == 1
+  assert len(ros.published["/emergency_stop"]) == (1 if pending else 0)
+
+
+@pytest.mark.parametrize("cause", ["native", "stock", "emergency", "unconfirmed_zero"])
+def test_guard_camera_hold_cannot_soften_hard_faults_or_unconfirmed_zero(tmp_path, monkeypatch, cause):
+  ros, node, mt, inbox, spin = session_fixture(tmp_path, monkeypatch)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  native, active = [True], [False]
+  def guarded_spin(actual, timeout_sec):
+    emit_guard()
+    spin(actual, timeout_sec)
+    if active[0] and cause == "unconfirmed_zero":
+      node.zero_confirmed_at = None
+  def emit(event):
+    if event["event"] == "session_ready":
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 1})
+    elif event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "started":
+      active[0] = True
+      node._guard_overrides.update(camera_state="blocked", camera_permitted=False)
+      emit_guard()
+      if cause == "native":
+        native[0] = False
+      elif cause == "stock":
+        ros.controllers["neural_controller_default"] = "inactive"
+        node.stock.bounds, node.stock.error = None, "stock controller inactive"
+      elif cause == "emergency":
+        node.on_emergency(None)
+  code = mt.run_session(node, {}, lambda _: native[0], inbox=inbox, emit=emit, spin_once=guarded_spin)
+  assert code in (3, 4)
+  assert node.stop_requested
+  if cause != "emergency":
+    assert len(ros.published["/emergency_stop"]) == 1
+  assert not node.record["command_verification"]["passed"]
+
+
+def test_explicit_stop_outranks_simultaneous_guard_process_loss(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin = session_fixture(tmp_path, monkeypatch)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  def guarded_spin(actual, timeout_sec):
+    emit_guard()
+    spin(actual, timeout_sec)
+  def emit(event):
+    if event["event"] == "session_ready":
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 1})
+    elif event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "started":
+      node._guard_alive = False
+      inbox.put({"command": "stop"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=guarded_spin) == 4
+  assert node.stop_requested == "session stop"
+  assert len(ros.published["/emergency_stop"]) == 1
+
+
+@pytest.mark.parametrize("stop_at", ["fault", "trial_complete", "cleanup_spin"])
+def test_explicit_stop_remains_live_through_guard_only_finalization(tmp_path, monkeypatch, stop_at):
+  ros, node, mt, inbox, spin = session_fixture(tmp_path, monkeypatch)
+  emit_guard = install_guard_evidence(ros, node, mt)
+  fault_seen, queued = [False], [False]
+  events = []
+
+  def enqueue_stop():
+    inbox.put({"command": "stop", "reason": "operator Stop during guard cleanup"})
+    # Shutdown never executes ordinary input, including a queued new activation.
+    inbox.put({"command": "prepare", "axis": "forward", "duration": 1})
+    queued[0] = True
+
+  def guarded_spin(actual, timeout_sec):
+    emit_guard()
+    spin(actual, timeout_sec)
+    if stop_at == "cleanup_spin" and fault_seen[0] and not queued[0]:
+      enqueue_stop()
+
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 1})
+    elif event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "started":
+      node._guard_alive = False
+    elif event["event"] == "fault":
+      fault_seen[0] = True
+      assert event["guard_only_exit"]
+      if stop_at == "cleanup_spin":
+        node.zero_confirmed_at = None  # keep the cleanup loop live for the next receipt
+    if event["event"] == stop_at and not queued[0]:
+      enqueue_stop()
+
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=guarded_spin) == 4
+  assert queued[0] and inbox.urgent.empty()
+  assert node.stop_requested == "operator Stop during guard cleanup"
+  assert len(ros.published["/emergency_stop"]) == 1
+  assert len([event for event in events if event["event"] == "prepared"]) == 1
+  assert inbox.normal.qsize() == 1

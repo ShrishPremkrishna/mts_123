@@ -113,6 +113,7 @@ class BodyCommandGuard:
         self._command = ZERO
         self._last_valid_command = ZERO  # Receipt timeout is not an upstream cancellation.
         self._input_error = "no body command received"
+        self._input_state = "missing"
         self._camera_clear = False
         self._clear_since_ns = None
         self._hold_since_ns = None
@@ -161,9 +162,11 @@ class BodyCommandGuard:
                 int(self.gate.config.max_frame_age_s * 1e9)):
             decision = self.gate.invalidate("source detection frame expired", mono_ns / 1e9)
             self._observe(decision, mono_ns)
-        if self._input_ns is not None and mono_ns - self._input_ns >= INPUT_TIMEOUT_NS:
+        if (self._input_state == "valid" and self._input_ns is not None and
+                mono_ns - self._input_ns >= INPUT_TIMEOUT_NS):
             self._command = ZERO
             self._input_error = "body command receipt expired"
+            self._input_state = "expired"
         return True
 
     def receive_command(self, command, *, ros_ns, mono_ns):
@@ -182,6 +185,7 @@ class BodyCommandGuard:
                 command = BodyCommand(*values)
                 self._last_valid_command = command
                 self._input_error = ""
+                self._input_state = "valid"
                 if command == ZERO:
                     if mono_ns > self._hold_since_ns:
                         self._needs_zero = False
@@ -196,6 +200,7 @@ class BodyCommandGuard:
             except (TypeError, ValueError, AttributeError) as exc:
                 self._command = ZERO
                 self._input_error = str(exc)[:160]
+                self._input_state = "invalid"
                 if not self._camera_clear:
                     self._needs_zero = True  # Invalid/uncertain input cannot count as a stop.
         return self._result(mono_ns)
@@ -300,6 +305,9 @@ class BodyCommandGuard:
         ) / 1e9, 6)
         return GuardResult(command, {
             "state": state, "reason": reason[:200], "input_age_s": age(self._input_ns),
+            "input_state": self._input_state, "camera_state": decision.state,
+            "camera_permitted": decision.permitted and not self._fault,
+            "max_frame_age_s": self.gate.config.max_frame_age_s,
             "frame_age_s": frame_age, "producer_instance": self._producer,
             "sequence": None if self._sequence < 0 else self._sequence,
             "clear_frames": decision.clear_frames, "requires_post_hold_zero": self._needs_zero,

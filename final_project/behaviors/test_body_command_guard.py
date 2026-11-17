@@ -71,6 +71,25 @@ class GuardTests(unittest.TestCase):
         self.time.advance(0.001)
         self.assertEqual(self.command().command, BodyCommand(0.2))
 
+    def test_camera_ready_status_distinguishes_idle_input_from_invalid_input(self):
+        result = self.clear()
+        self.assertEqual(result.status["state"], "hold")
+        self.assertEqual(result.status["input_state"], "missing")
+        self.assertEqual(result.status["camera_state"], "clear")
+        self.assertTrue(result.status["camera_permitted"])
+        self.assertEqual(result.status["max_frame_age_s"], 0.35)
+        self.time.advance(0.001)
+        self.assertEqual(self.command(ZERO).status["input_state"], "valid")
+        self.time.advance(0.15)
+        result = self.guard.evaluate(**self.time.clocks())
+        self.assertEqual(result.status["input_state"], "expired")
+        self.assertTrue(result.status["camera_permitted"])
+        result = self.command(BodyCommand(float("nan")))
+        self.assertEqual(result.status["input_state"], "invalid")
+        self.assertTrue(result.status["camera_permitted"])
+        self.time.ros += CLOCK_JUMP_NS + 1
+        self.assertFalse(self.guard.evaluate(**self.time.clocks()).status["camera_permitted"])
+
     def test_startup_vetoed_motion_requires_zero_then_fresh_command(self):
         self.assertEqual(self.command().command, ZERO)
         self.clear()
