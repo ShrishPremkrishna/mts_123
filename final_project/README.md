@@ -5,8 +5,8 @@ Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 
 ## Current agreement — November 16, 2026
 
 - Shrish currently owns movement/sprinting, locomotion-based headbutts, gameplay and integration. Tej iterates on the foot-kick policy. Ryan owns overhead perception, localization and proposed actions/shot targets; our harness translates those into responsive robot execution. Marcus’s existing gait exports remain available for comparison; the active ownership checkpoint governs robot access. Shrish builds the 8 × 12-foot arena with approximately 2-foot goals; no bumper is fitted yet.
-- The owner reopened the human ball-reset/resume and physical self-righting requirements during the November 16 takeover discussion. Their earlier acceptance/P0 labels are pending reconfirmation, not current completion gates. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.
-- Two-robot soccer remains the target, with penalty shootout as fallback. The next major result is a complete live play after a short measured gait-readiness gate. Goal reset/resume behavior will be settled with the owner.
+- The owner accepted manual ball replacement and one deliberate resume cue after goals for the first working game; robots reposition themselves with software still running. Physical self-righting gets a bounded feasibility investigation before a demo commitment. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.
+- Two-robot soccer remains the target, with penalty shootout as fallback. The next major result is a complete live play after a short measured gait-readiness gate. The owner authorized execution of this progression after the takeover investigation.
 - Power-on should prepare the selected stack automatically with minimal setup. A supported startup pose and one deliberate start/arm action are accepted; their implementation needs verification. Other game-rule decisions can wait.
 - Keep a working prototype and improve it through measured experiments. Policy count, training methods, module boundaries and transport remain implementation choices.
 
@@ -18,14 +18,14 @@ Active development is in the `main` checkout, currently `/Users/shrish/workspace
 
 | Capability | What the evidence establishes | Remaining acceptance |
 | --- | --- | --- |
-| Movement | Pi-native v3 was activated and homed. The user observed forward travel, low-rate turning and clean stopping; higher commanded speed produced wobble. [Physical results](../foundation/results/movement-live-20261116.json). | Actual speed/distance and braking envelope, turn-to-heading, lateral motion and repeatability. Commanded speed is not measured speed. |
+| Movement | Two 0.45 m/s, two-second requests each traveled roughly 30 inches, straight and stable. Low-rate turns worked. A three-second leftward test fell after a 1.32-second feedback interruption. [Trials and diagnosis](../foundation/results/gait-gate-20261116.json). | Resolve the control interruption before more floor testing. Lateral stability, braking distance and exact-angle turns remain unaccepted. |
 | Shooting | [Recovered behaviors](behaviors/README.md) include stock-gait run-through, onboard detection and an experimental foot-kick candidate. Guards and coordinate/timestamp fixes pass offline checks. | Earlier shots grazed or were unstable; reliable contact and shot direction remain unproved. No contact trial on v3. [Earlier trial evidence](../foundation/results/stock-shot-session-20261116.json). |
-| Gameplay | [One-robot sandbox](pupper_fc/README.md) implements approach/alignment/strike, goal restart, disturbances, Stop and replay. | Live robot transport, overhead producer, opponent/defense and two-robot commissioning. |
+| Gameplay | [Sandbox](pupper_fc/README.md) implements approach/alignment/strike, goal restart, disturbances, Stop and replay. The transport-free integration executor accepts fresh shared state and expiring per-robot intents; 191 tests plus 48 subtests pass. | Live robot transport, Ryan's actual overhead producer, opponent/defense and two-robot commissioning. |
 | Recovery/startup | Existing fall stopping, session tools and controller checks are reusable. | Physical self-righting and FC power-on-to-ready are unimplemented. |
 
 Run `.venv-api/bin/python -m final_project.pupper_fc` from the active repository for the sandbox. Its contact/motion model is not physical validation. The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) distinguishes the Ubuntu test container from Pi-compatible deployment binaries; source synchronization does not select the running release. [Policy comparison](../foundation/results/movement-readiness-20261116.json) and [Pi reconciliation](PI_RECONCILIATION.md) retain candidate/provenance details without assigning new work.
 
-Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and proposed acceptance targets for owner alignment.
+Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets.
 
 Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
 

@@ -96,6 +96,8 @@ def main():
       self.latest = trial.ZERO
       self.commands, self.robot_commands = [], []
       self.observations = self.imu_samples = self.emergency_stops = 0
+      self.observations_at_stop = None
+      self.latched_feedback_ticks = 0
       self.latched = False
       self.create_service(ListControllers, "/controller_manager/list_controllers", self.controllers)
       self.create_service(GetParameters, "/neural_controller_default/get_parameters", self.parameters)
@@ -115,15 +117,22 @@ def main():
       self.mux_pub.publish(msg)
 
     def stop(self, msg):
+      if not self.latched:
+        self.observations_at_stop = self.observations
       self.latched = True
       self.emergency_stops += 1
 
     def feedback(self):
       self.stop_pub.publish(String(data=json.dumps({"latched": self.latched, "fault": False})))
-      values = [0.0] * 960
-      values[6:9] = trial.ZERO if self.latched else self.latest
-      self.obs_pub.publish(Float32MultiArray(data=values))
-      self.observations += 1
+      if self.latched:
+        # Native update() returns before observation publication on e-stop.
+        # A zero command sent during shutdown is not a controller acknowledgement.
+        self.latched_feedback_ticks += 1
+      else:
+        values = [0.0] * 960
+        values[6:9] = self.latest
+        self.obs_pub.publish(Float32MultiArray(data=values))
+        self.observations += 1
       imu = Imu()
       imu.orientation.w = 1.0
       self.imu_pub.publish(imu)
@@ -224,9 +233,9 @@ def main():
       record = json.loads(Path(completed["file"]).read_text())
       receipts.append(record)
       assert record["client_identity"]["sha256"] == digest(HERE / "movement_trial.py")
-      assert record["summary"]["zero_confirmed_in_observation_s"] is not None
       assert record["imu"]["status"] == "sampled" and record["imu"]["samples"] > 5
       if args.case == "two_pulses_eof":
+        assert record["summary"]["zero_confirmed_in_observation_s"] is not None
         assert record["outcome"] == "completed" and record["command_verification"]["passed"], record
         assert 0.45 <= record["summary"]["elapsed_s"] <= 0.8
         before = len(fake.commands)
@@ -234,6 +243,9 @@ def main():
         assert len(fake.commands) == before, "Finished trial automatically published another command"
       else:
         assert record["outcome"] == "stopped", record
+        assert record["command_verification"]["passed"] is False, record
+        if record["summary"]["zero_confirmed_in_observation_s"] is None:
+          assert "zero was not confirmed in controller feedback" in record["command_verification"]["problems"]
         assert record["summary"]["elapsed_s"] < 0.6
     if args.case == "two_pulses_eof":
       child.stdin.close()
@@ -245,6 +257,9 @@ def main():
     assert len(list(args.out.glob("movement-*.json"))) == len(axes)
     assert fake.commands[-1][1] == trial.ZERO and fake.robot_commands[-1][1] == trial.ZERO
     assert fake.emergency_stops == (0 if args.case == "two_pulses_eof" else 1)
+    if fake.emergency_stops:
+      assert fake.latched_feedback_ticks > 0, "No feedback tick exercised the stopped controller"
+      assert fake.observations == fake.observations_at_stop, "E-stopped controller published an observation"
     stop_latency = None
     if stop_requested_at is not None:
       stop_latency = next(t - stop_requested_at for t, command in fake.commands
@@ -265,6 +280,8 @@ def main():
               "trial_count": len(receipts), "emergency_stop_receipts": fake.emergency_stops,
               "stop_input_to_zero_s": stop_latency, "max_nonzero_command_gap_s": gaps,
               "synthetic_observations": fake.observations, "synthetic_imu_samples": fake.imu_samples,
+              "observations_at_stop": fake.observations_at_stop,
+              "latched_feedback_ticks": fake.latched_feedback_ticks,
               "feedback_hz": 50, "identity_check_delay_s": 0.02,
               "receipts": [{"file": record["file"], "outcome": record["outcome"],
                             "reason": record["reason"], "summary": record["summary"],

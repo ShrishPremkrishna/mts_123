@@ -109,6 +109,12 @@ held. Use a newer complete receipt if the owner supersedes this version.
 | `walk-manifest.json` | `d21913f0f6addf332c7bac2ebebd89ea85637dda40d7a1c33d687e47c58c9bb2` |
 | `sprint-manifest.json` | `54afc5e568b8bbf54a0068c269565fbe53937c40c6ac862fcdeb9901e103a7b0` |
 
+When testing a new controller build, explicitly put its library directory first
+in `LD_LIBRARY_PATH` and check `ldd` on the test executable. An installed overlay
+can otherwise make a newly compiled test load an older controller and crash.
+Use the focused native test groups; the frozen package also contains unrelated
+legacy lint failures and an unavailable cppcheck dependency.
+
 The stock launch needs pinned **driver, controller, config, policy, launch, URDF,
 gateway and mux** entries. Use the release's copied checker/trial tools. Fully
 expand the configuration before preflight. Populate the following variables from
@@ -161,8 +167,10 @@ the newest frame.
 
 The [offline continuation receipt](../foundation/results/movement-offline-followthrough-20261116.json)
 identifies the v3 package and its new Python sources. Its native binaries and
-stock actor are byte-identical to v2; no rebuild is needed. v3 is **local only**
-until staged into its own new directory and checked on the target. Do not mix
+stock actor are byte-identical to v2; no rebuild was needed. v3 subsequently ran
+on the Pi; the [gait gate](../foundation/results/gait-gate-20261116.json) records
+its fall and the controller logging correction under investigation. Consult the
+current checkpoint for the selected candidate. Do not mix
 its helper files with a v2 manifest or reuse the closed preflight after reboot.
 
 ## Shutdown, rollback and next improvements

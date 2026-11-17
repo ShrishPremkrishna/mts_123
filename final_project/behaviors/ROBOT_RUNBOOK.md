@@ -83,6 +83,15 @@ controller, or cancel target-conditioned learned policies. R3/power remain the
 supervisor's stop controls. Sender and mux timeouts are additional layers, not
 proof that the robot stopped.
 
+After the November 16 lateral fall, include the selected controller's
+`observation`, `policy_output`, `position_command`, `imu_latency_seconds` and
+`policy_inference_latency_seconds` topics, plus `/rosout`, in the existing
+joint/IMU/command/Stop recording. Observation precedes inference and the final
+position-command publication; recording both helps locate a control stall.
+Compare message source stamps with recorder receipt times: a recorder delay
+alone does not establish a stalled controller. Validate the logging correction
+while supported before another floor trial; the failed session is closed.
+
 ### Keeping the trial client ready
 
 The reviewed client also supports `--session --execute`: one ROS process stays

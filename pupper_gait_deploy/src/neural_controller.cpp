@@ -1314,9 +1314,9 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   auto end_time = std::chrono::high_resolution_clock::now();
   auto inference_duration_us =
       std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-  RCLCPP_INFO(get_node()->get_logger(),
-              "Policy inference took %.2f ms\tIMU measurement age: %.3f ms",
-              inference_duration_us / 1000.0, time_since_measurement_seconds * 1000.0);
+  // Keep synchronous logging out of the control loop: a slow console, rosout
+  // subscriber or log file can block actuator updates. The realtime publishers
+  // below report inference duration and IMU age without waiting for a consumer.
 
   // Shift the observation history to the right by one frame for the next control
   // step https://en.cppreference.com/w/cpp/algorithm/rotate

@@ -1,11 +1,11 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Lead Pupper FC to an agreed reliable two-robot demo and complete deliverables; finish owner alignment before scope execution.",
+  "objective": "Deliver reliable two-robot Pupper FC demo and final deliverables; execute measured gait gate, live play integration, simple defense and two-robot commissioning.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "takeover_alignment",
-  "updated_utc": "2026-11-17T05:46:07.346270+00:00",
-  "current_report": "foundation/results/movement-live-20261116.json",
+  "mode": "offline_lateral_fall_diagnosis",
+  "updated_utc": "2026-11-17T06:44:35.187969+00:00",
+  "current_report": "foundation/results/gait-gate-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -21,7 +21,8 @@
     "offline_followthrough": "foundation/results/movement-offline-followthrough-20261116.json",
     "v2_release": "foundation/results/movement-release-20261116.json",
     "movement_live": "foundation/results/movement-live-20261116.json",
-    "takeover_audit": "foundation/results/takeover-audit-20261116.json"
+    "takeover_audit": "foundation/results/takeover-audit-20261116.json",
+    "gait_gate": "foundation/results/gait-gate-20261116.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -30,16 +31,17 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Current user authorized project takeover, offline investigation, bounded improvements and delegation. Goal resets/resume and self-righting reopened for discussion. No renewed physical readiness or motion authorization in this chat; prior session closed.",
+  "authorization": "Project execution authorized. After leftward fall, user confirmedR3/body supported; owned driver and recorder closed. Pi remains available for read-only collection. No further motion until diagnosis and renewed physical readiness.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
-    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
+    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
+    "claude_source_review": "User explicitly permits sharing any project code with Fable5.2; credentials remain external/not shared. Use exact claude-fable-5-2, not fable alias."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "Takeover audit complete:12 regression groups passed; Fable5.2 review completed; delegates finished. No training, robot session or scheduled background worker started.",
+    "compute": "Root prepared corrected native release; native6groups (28safetytests), host2724checks and FC191tests+48subtests passed. Archive collection finishing. Fable5.2 review complete. No training.",
     "owners": {
-      "physical_robot": "No active owned session. User confirmed R3 and supported stand; root verified clean native shutdown and recording closure. User told power-off is safe.",
+      "physical_robot": "No active motor session. Root closed after fall; no agent mayoperate robot.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and current project lead: gait readiness, responsive execution, headbutt and defense; no bumper fitted.",
       "shooting": "Tej",
@@ -47,35 +49,35 @@
       "arena": "Shrish",
       "project_lead": "Current Codex chat 01a1e800-1b8f-74e0-9e1e-3723fff803de; Shrish is owner/physical interface. Previous chat is idle after clean closure."
     },
-    "goal_status": "This chat has an active project goal. Investigation complete; owner alignment on resets/resume/self-righting remains open."
+    "goal_status": "Aligned; execution active."
   },
   "hardware_session": {
-    "status": "Closed at user request. Native and recorder exited 0; driver deactivation logged; no owned runtime PIDs remain. User told power-off is safe.",
+    "status": "Closed after leftward fall: native and recorder exit0, driver deactivated, manager absent. Full recording locally hash-verified. No active motor session or queued motion.",
     "ssh": "mts",
-    "observed_utc": "2026-11-17T05:36:00.810250+00:00",
+    "observed_utc": "2026-11-17T06:21:14.719822+00:00",
     "current_boot_id": "dfa2435c-75c7-488f-9db4-940a82507576",
     "active_run": null,
     "motor_api_recorders_last_observed_active": false,
-    "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+    "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "manifest_profiles": {
-      "walk": "5bc67c174e1d9b8cf00f18d6c566cfc418a6572ef8ce7bd22be033d145c72d32",
-      "sprint": "d1b8c405e1e05e4ab9fbce84e18d2dbd9bc200329bfecbf4a5e7e577342df20e"
+      "walk": "78b2c308422fcaae39160fd4f5205fb50fb2e8156bba5a9956284b6147b9a223",
+      "sprint": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1"
     },
     "selected_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
-    "selected_controller_sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc",
-    "last_physical_run": "/home/pi/pupper-fc-runs/movement-20261117T052404Z",
+    "selected_controller_sha256": "e76b9d581c7cf72d6ffe82a2077bf52d2dfdcdb932524631055b13b1ee29b9c8",
+    "last_physical_run": "/home/pi/pupper-fc-runs/movement-20261117T055317Z",
     "source_checkout": "/home/pi/mts_123; source sync alone does not choose binaries",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
-    "prepared_run": null,
-    "prepared_state": "No prepared or active motion. Turn was never executed.",
-    "local_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
-    "candidate_state": "v3 passed homing and loaded identity checks; physical results are partial and documented in the current report.",
-    "client_update": "/home/pi/pupper-fc-client-updates/client-session-20261116-r1",
+    "prepared_run": "/home/pi/pupper-fc-runs/logfix-stand-20261117",
+    "prepared_state": "Preflight passed only; requires current stand readiness before startup/homing.",
+    "local_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "candidate_state": "Prepared and target preflight passed; no motors started. Same stock policy/driver, hot-path logging removed; physical validation pending.",
+    "client_update": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "client_update_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
     "persistent_tool_session_id": null,
     "persistent_prepared_token": null,
     "persistent_prepared_action": null,
-    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/closeout-052404-verification.json"
+    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/remote-closed/closure.json"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -84,28 +86,26 @@
     "prior_physical_capture": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/stock-shot-20261117T004242Z/remote-closed",
     "prior_capture_verification": "44 files, 479767987 bytes; all remote/local hashes match",
     "v3_package": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/offline-readiness/movement-20261116-v3.tar.gz",
-    "v3_sha256": "96eb5e80156413f693a7b1b74dd480297212e68a8e0f98971c4b9a4abb0e1f4f"
+    "v3_sha256": "96eb5e80156413f693a7b1b74dd480297212e68a8e0f98971c4b9a4abb0e1f4f",
+    "gait_gate_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z",
+    "gait_gate_verified": "35 files, 554631841 bytes; all hashes match. Forensics and Fable review preservation pending final build output."
   },
   "next": [
     {
-      "id": "owner_alignment",
-      "action": "Discuss owner concerns, goal reset/resume options and physical self-righting before treating them as commitments. Use current PLAN.md takeover proposal; do not restart old Lab6 work."
+      "id": "supported_verification",
+      "action": "After current stand readiness, start prepared logfix release and capture final-command/latency topics. Inspect supported-loop timing before floor motion. Fall attribution remains provisional."
     },
     {
-      "id": "offline_client_diagnosis",
-      "action": "Correlate client fault/Stop timestamps with saved controller logs; reproduce real observation silence and token invalidation in tests. Do not remove/relax idle guard based solely on reviewer speculation."
+      "id": "fall_preservation",
+      "action": "Finish durable copy of release and forensics; no further native build needed. Integration committed82ba2c4."
     },
     {
-      "id": "live_play_integration",
-      "action": "After alignment, obtain smallest Ryan field-state/action sample and connect via replay/shadow to execution with fresh replaceable targets, bounded expiration and explicit Stop. Develop simple goal-side defense through same path."
+      "id": "next_live_play",
+      "action": "After control timing and minimal gait pass, proceed to centered ball contact and full live play. Lateral gait remains unaccepted; do not start policy training on this incident evidence."
     },
     {
-      "id": "next_physical_gate",
-      "action": "When physically ready and exclusively owned, use one verified homed session for measured forward/brake, turn-to-heading, lateral and centered contact trials. Existing command speeds are not measured performance."
-    },
-    {
-      "id": "preserve_full_telemetry",
-      "action": "Both successful Nov16 blocks retain full closed MCAP on Pi. Copy and hash-verify next time Pi is available; no restart needed. Local metadata/closeout paths remain in movement report."
+      "id": "goalposts_later",
+      "action": "Owner requests next goalpost discussion after considerably more working progress. Preserve exact-angle and onboard-avoidance requests; do not reopen scope now."
     }
   ],
   "recorded_open_items": {
@@ -119,9 +119,9 @@
   ],
   "context_review_date": "2026-11-16 America/Los_Angeles",
   "alignment": {
-    "confirmed": "Two-robot soccer; live play before further gait optimization conditional on measured adequate gait. Nov16 course checkpoint complete. 8x12ft field, approximately2ft goals. Tej foot kick; Ryan perception/actions; Shrish everything else/integration. Use explicit Fable5.2 for second opinions.",
-    "open": "Human ball replacement, goal resume cue and physical self-righting scope/priority; owner has additional concerns to discuss. Second robot availability and actual Ryan source/sample remain unknown.",
-    "proposal": "Brief measured gait gate; synchronize perception/action boundary; one robot executes complete play; simple goal-side ball-following defense; then two-robot integration. Numerical targets in PLAN.md await agreement."
+    "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
+    "open": "Actual Ryan source/sample, second robot availability, physical bumper design and recovery feasibility outcome.",
+    "next_discussion": "Owner wants specific-angle turns and onboard object detection/avoidance during motion. Discuss reusable capabilities, gaps and ball-vs-hazard semantics with subagent findings; do not implement obstacle work now."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",
