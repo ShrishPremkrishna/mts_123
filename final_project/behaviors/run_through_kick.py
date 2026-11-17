@@ -18,7 +18,8 @@ States:
           to the ball equals the aim. A ball inside ``keep_out`` of the straight
           path is passed on the side the robot is already on.
   CHARGE  ramp to ``charge_speed`` along the aim, nudging sideways to keep the
-          ball on the body axis.
+          ball on the body axis. With no explicit aim, keep facing its current
+          bearing (camera-corrected, or dead-reckoned in manual mode).
   COAST   the ball is in the camera blind zone: hold the command, dead-reckon
           the ball from the commanded motion, and keep going ``overrun`` past
           contact.
@@ -217,7 +218,7 @@ class RunThroughKick:
       self._t_fresh = now
     if aim is not None:
       self._aim = wrap(aim)
-    elif self._ball is not None and self.state == State.ALIGN:
+    elif self._ball is not None and self.state in (State.ALIGN, State.CHARGE):
       self._aim = math.atan2(self._ball[1], self._ball[0])  # straight through
 
     if self.state == State.ALIGN:

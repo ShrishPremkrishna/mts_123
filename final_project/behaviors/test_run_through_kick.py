@@ -110,6 +110,48 @@ def test_straight_kick_runs_through_the_ball():
   assert abs(w.contact["lateral"]) < 0.03
 
 
+@pytest.mark.parametrize("side", [-1.0, 1.0])
+def test_charge_heading_follows_recentered_camera_ball(side):
+  ctrl = RunThroughKick()
+  ctrl.start(0.0)
+  first = ctrl.step(0.0, BallObs(0.8, side * 0.03, 0.0))
+  assert ctrl.state == State.CHARGE
+  assert side * first.wz > 0.0
+
+  centered = ctrl.step(0.05, BallObs(0.65, 0.0, 0.05))
+  assert ctrl.state == State.CHARGE
+  assert centered.vy == 0.0 and centered.wz == 0.0
+  crossed = ctrl.step(0.1, BallObs(0.60, -side * 0.02, 0.1))
+  assert side * crossed.vy < 0.0 and side * crossed.wz < 0.0
+
+  # The blind-zone transition still drops lateral and heading correction.
+  coast = ctrl.step(0.15, BallObs(0.35, side * 0.02, 0.15))
+  assert ctrl.state == State.COAST
+  assert coast.vx > 0.0 and coast.vy == 0.0 and coast.wz == 0.0
+
+
+def test_charge_explicit_aim_overrides_camera_ball_bearing():
+  ctrl = RunThroughKick()
+  ctrl.start(0.0)
+  ctrl.step(0.0, BallObs(0.8, 0.0, 0.0), aim=0.02)
+  assert ctrl.state == State.CHARGE
+  cmd = ctrl.step(0.05, BallObs(0.65, -0.02, 0.05), aim=0.02)
+  assert cmd.vy < 0.0  # center the ball while preserving the separate goal aim
+  assert cmd.wz == pytest.approx(ctrl.params.yaw_kp * 0.02)
+  # If the goal expires, None again means straight through the current ball.
+  fallback = ctrl.step(0.1, BallObs(0.60, -0.02, 0.1))
+  assert fallback.wz < 0.0
+
+
+def test_manual_charge_without_explicit_aim_reduces_heading_correction():
+  ctrl = RunThroughKick()
+  ctrl.start(0.0, static_ball=(0.8, 0.03))
+  first = ctrl.step(0.0, None)
+  assert ctrl.state == State.CHARGE
+  later = ctrl.step(0.1, None)
+  assert 0.0 < later.wz < first.wz  # commanded motion recenters its ball estimate
+
+
 @pytest.mark.parametrize("seed", range(5))
 def test_aimed_kick_lines_up_on_the_goal(seed):
   ball, goal = (1.0, 0.3), (4.0, -0.5)
