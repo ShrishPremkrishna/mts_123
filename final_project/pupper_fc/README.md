@@ -81,6 +81,39 @@ Field coordinates are metres, origin at centre, +x right and +y up in the viewer
 
 ## Shared-state executor and deliberate game resume
 
+Role, action and motion permission are separate. During a live `auto` intent,
+each robot's tactics selects offense or defense relative to its own goal. A hold
+can preserve that role while issuing zero motion. With Stop or no live automatic
+intent, the viewer shows **Unassigned**; that is not a third soccer strategy.
+Explicit `move`/`shoot`/`defend` intents use their supplied owner/target instead.
+
+```mermaid
+flowchart TD
+    I[Fresh field state and live auto intent] --> T{Own-goal threat}
+    T -->|Near own goal| D[Defense: seek ball-clear guard pose]
+    T -->|Farther from own goal| O[Offense: approach shot line]
+    D --> G[Face ball and update guard pose]
+    G --> T
+    O --> A[Align with ball and goal]
+    A --> S[Bounded strike]
+    S --> R[Brake and reassess]
+    R --> T
+    Q[Admitted goal event] --> H[Return home]
+    H --> W[Wait for ball replacement and one resume cue]
+    W -->|Fresh home pose, heading and authority| T
+    V[Stop, lost authority, stale tracking, camera hold or fall] --> Z[Zero motion; report reason]
+```
+
+This summarizes the gameplay branches, not a single flat enum: the interruption
+gate applies to every moving branch, including return home. Stop needs a new
+explicit arm; clearing a camera hold needs fresh evidence and cannot replay an
+interrupted finite shot. Fall handling requests recovery; it does not get up.
+Role thresholds in `TacticsConfig` are provisional: enter defense within 30% of
+field length from the own goal, leave beyond 45%, and bypass the one-second
+ordinary role dwell within 14%. No predicted interception is implemented.
+The executor's `tick()` and controller's `tick()` remain the exact precedence
+definitions. A goal is retained across holds and does not itself grant motion.
+
 `integration.py` provides a transport-free two-robot executor and JSONL replay. It starts stopped; an explicit operator `arm` selects a never-used session epoch and named monotonic clock. Each robot has one expiring intent, capped at 0.5 seconds. `attack`, `shoot`, `move` and `defend` use explicit ownership; an optional `auto` intent lets the existing `Tactics` choose offense/defense from fresh shared field state. Role appears separately from execution phase in each decision. Explicit replacement cancels the previous action, and expired intents never fall back to autonomous play. Defense preserves the guard target's heading during repositioning; ordinary movement faces travel on long moves.
 
 Goal pulses latch only after an entire valid field frame is admitted, even during a lease or camera hold. Motion still requires current authority and fresh evidence. Every action yields to the goal return before using its action target or opponent-goal geometry. Stop, tracking loss, expired intent and a configured camera hold continue to stop motion. Camera configuration remains optional for camera-free replay; configured gates start closed.

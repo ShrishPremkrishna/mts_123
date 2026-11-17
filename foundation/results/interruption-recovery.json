@@ -3,8 +3,8 @@
   "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T17:28:10.451773+00:00",
+  "mode": "owner_return_natural_stop",
+  "updated_utc": "2026-11-17T17:43:47.704901+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -50,7 +50,8 @@
     "recovery_inventory": "artifacts/pupper-fc/2026-11-17/recovery-feasibility-inventory/inventory.json",
     "course_requirements": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
     "executor_viewer": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/summary.json",
-    "recovery_side_feasibility": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json"
+    "recovery_side_feasibility": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json",
+    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/editorial-validation.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -88,7 +89,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Offline viewer integration complete: actual Executor, 591 tests +48 subtests, five Fable findings independently corrected, 399-frame replay verified in Chrome. Recovery experiment closed after five physics runs without side recovery. Complete 127-file evidence archive readback verified. No active training/cloud jobs; no hardware work.",
+    "compute": "Owner returned and requested natural stopping point. Delivery script/diagram and faithful replay asset complete; 409 frame attributions independently checked, 29-file archive verified. All delegate tasks and experiments complete. No robot operations/new paid jobs. Keep offline viewer available for inspection.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -96,9 +97,9 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrates and selects next evidence-backed offline deliverable. Viewer/runtime/docs sources frozen; selected hardware kit unchanged."
+      "project_lead": "Root closes current deliverables commit, reports overnight outcomes and waits for owner discussion/physical-session steering."
     },
-    "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment.",
+    "goal_status": "Owner requested a natural stopping point and review before physical testing; pause autonomous goal after saving current work. No new feature work or hardware action initiated.",
     "pending_archives": [],
     "processes": {
       "local_practice": {
@@ -165,12 +166,13 @@
     "opponent_reassessment": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/complete.tar.gz",
     "strict_finite_gateway_stop": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/archive-verification.json",
     "guard_shutdown_followup": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json",
-    "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json"
+    "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json",
+    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json"
   },
   "next": [
     {
-      "id": "offline_deliverables",
-      "action": "Prepare an evidence-backed under-three-minute video shot plan and five-minute presentation structure using the verified course rubric and actual project artifacts. Identify footage still needed and avoid presenting simulated/ROS results as physical capability. Before further software edits, name a concrete defect or untested integration path; do not repeat completed viewer/recovery audits or restart side-roll sweeps."
+      "id": "owner_alignment",
+      "action": "Discuss overnight outcomes and next robot sprint. User has returned; readiness/access must be established for that session. No automatic SSH, homing or deployment from this checkpoint."
     },
     {
       "id": "target_native_preparation",
@@ -183,6 +185,10 @@
     {
       "id": "real_perception_and_demo",
       "action": "When Ryan supplies an actual producer sample and clock semantics, implement its concrete adapter and prove one pose-controlled play before optional optimization. Keep two-robot availability, Tej kick interface and final video/presentation/code/blog deliverables visible. Do not invent pose accuracy, retrain a gait without a measured deficit, or tune opponent reserve on the same unsupported stopping assumption."
+    },
+    {
+      "id": "deferred_offline",
+      "action": "After current stack qualification, revisit correlated per-robot operator results and one human resume cue reaching both bridges (design in deliverable-prep/group-resume-design.json). Defer new gait/recovery/detector sweeps and slide polish until measured need/footage. See PLAN sprint boundary and DEMO.md."
     }
   ],
   "recorded_open_items": {

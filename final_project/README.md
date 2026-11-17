@@ -47,7 +47,7 @@ not recover. No side-to-stand capability or native recovery policy is available.
 
 The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) distinguishes the Ubuntu test container from Pi-compatible deployment binaries; source synchronization does not select the running release. [Policy comparison](../foundation/results/movement-readiness-20261116.json) and [Pi reconciliation](PI_RECONCILIATION.md) retain candidate/provenance details without assigning new work.
 
-Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets.
+Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets. The [demo and recording script](DEMO.md) contains the 2:50 video cut, five-minute presentation, footage priorities and live fallback procedure. These are production drafts; filming and submission remain open.
 
 Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
 

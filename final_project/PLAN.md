@@ -38,6 +38,21 @@ Do not invent observations, personal contributions or checkoffs.
 
 ## Execution agreement — November 16, 2026
 
+For the owner's next physical session after the overnight block, freeze new
+features and qualify the existing candidate: target-compatible build and source
+selection, fixed-camera evidence, supported routing/Stop, then measured short
+motion and heading trials. Keep the last floor-tested release as rollback.
+Preparation must finish before requesting motor supervision. The first complete
+real-perception play follows when the producer is available.
+
+Deferred beyond this immediate sprint: the one-cue/two-bridge match operator
+(correlation and goal-cycle binding need work), final two-robot commissioning,
+new gait training or speed sweeps without a measured deficit, additional
+self-righting trajectories, replacement detector/crop sweeps, and presentation
+polish before missing physical footage exists. These remain next-step candidates,
+not cancelled outcomes. Camera stopping and exact-angle qualification remain in
+the immediate robot work; the two-robot match remains the project target.
+
 The owner confirmed two-robot soccer as the target and a complete live play before further gait optimization, conditional on proving the existing gait is adequate. Penalty shootout remains fallback. For the first working game, a person replaces the ball and gives one deliberate resume cue while robots reposition themselves. Physical self-righting gets a bounded feasibility investigation before a demo commitment; fall stopping remains required. A complete camera-to-robot play is the next major result. More speed, new policies and temporary onboard perception are valuable only when they remove a measured obstacle to that result.
 
 Owner accepted the recommendations and progression during the takeover discussion. The targets below guide acceptance; they are not achieved results:
@@ -56,7 +71,7 @@ Use the existing checkpoint for active owners, exact next action, verified comma
 
 ## Game behavior and proposed rules
 
-Offense selects a target, approaches the useful side of the ball, aligns the bumper, strikes, brakes and reassesses. Defense predicts a threatened goal crossing and seeks a position the robot can actually reach. Selection considers threat, opportunity and reachability, with enough persistence to prevent oscillation. Proximity alone is an initial heuristic, not a complete strategy.
+Offense selects a target, approaches the useful side of the ball, aligns the bumper, strikes, brakes and reassesses. The current defensive baseline takes a goal-side position facing the ball and updates that position as the ball moves. Role selection uses ball position relative to the own goal, distinct entry/exit thresholds and a minimum dwell to limit oscillation. Predictive interception is optional work only if measured play shows this heuristic is insufficient.
 
 Manual ball replacement and one deliberate resume cue are accepted for the first working game; detailed game rules remain adjustable. A missed shot, moving ball or blocked route causes reassessment rather than stale timed actions. Geometry and heuristics can establish a baseline; learned decision-making remains an option. Proposed placement: local gameplay handles time-sensitive control, while voice sets intent and explains state.
 

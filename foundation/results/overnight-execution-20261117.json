@@ -860,7 +860,7 @@
     "bounded_proposal": "Historical proposal subsequently executed in recovery_side_feasibility; consult that closed experiment, not this inventory, for actual results.",
     "decision": "No new training, production recovery integration or normal fall-gate weakening. Keep self-righting open; physical gameplay baseline and camera qualification have higher immediate value."
   },
-  "last_integrated_utc": "2026-11-17T17:28:10.451773+00:00",
+  "last_integrated_utc": "2026-11-17T17:43:47.704901+00:00",
   "course_deliverable_verification": {
     "path": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
     "result": "Current linked rubric recovered through signed-in browser; four25-point categories confirmed. Public deadlines unchanged. Exact wrap-up format still unspecified."
@@ -906,5 +906,24 @@
     "sealed_files": 78,
     "all_processes_exited": true,
     "archive_verification": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json"
+  },
+  "delivery_preparation": {
+    "script": "final_project/DEMO.md",
+    "video_plan_seconds": 170,
+    "presentation_seconds": 300,
+    "narration_words": 271,
+    "implemented_state_diagram": "final_project/pupper_fc/README.md#shared-state-executor-and-deliberate-game-resume",
+    "evidence_inventory": "artifacts/pupper-fc/2026-11-17/deliverable-prep/evidence-inventory.json",
+    "review": "artifacts/pupper-fc/2026-11-17/deliverable-prep/demo-review.json",
+    "group_resume_design": "artifacts/pupper-fc/2026-11-17/deliverable-prep/group-resume-design.json",
+    "replay_video": "artifacts/pupper-fc/2026-11-17/deliverable-prep/replay-video/pupper-fc-offline-executor-replay.mp4",
+    "video_sha256": "0fca314a83e98009bcc0f9194743840f2d551077ea06d6b1e2095d6ccd445c08",
+    "video_seconds": 20.45,
+    "frame_attributions_verified_by_root": 409,
+    "video_scope": "19.45 seconds of recorded software simulation plus labeled 1 second end hold; no physical footage or new physics.",
+    "archive_verification": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json",
+    "archive_sha256": "36fed53d2e466fd125efbb7ec65f99a29bf8abda091891e79920db19a11d960b",
+    "status": "Preparation complete; final narrated video, slide deck, physical footage and submissions remain open.",
+    "new_physical_evidence": false
   }
 }
