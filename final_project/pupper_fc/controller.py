@@ -1,7 +1,8 @@
 """Offline approach-and-shot gameplay for one robot; observation in, command out.
 
 Each ``tick`` reads one ``Observation`` and returns a ``Decision`` whose command
-holds body-frame velocities inside ``Limits`` and expires 0.15 s after ``now``.
+holds body-frame velocities inside ``Limits`` and expires at most 0.15 s after
+``now``. Strike commands also expire with their supporting capture.
 The controller never reads simulator truth and never performs I/O. Stop and
 emergency handling belong to the runtime, not here.
 
@@ -21,10 +22,12 @@ Plan, recomputed from the observed ball every tick:
    the clearance circle. The waypoint persists until reached, until the path
    clears or until the ball moves.
 3. align: near the staging point, hold position and face the shot heading until
-   the ball has sat centred on the bumper for ``ALIGN_DWELL`` seconds.
+   distinct capture timestamps confirm alignment over ``ALIGN_DWELL`` seconds.
 4. strike: forward only (vy = wz = 0), ended by distance, time, heading drift,
    the ball no longer being ahead, or the ball leaving the frontal corridor
-   (a sideways jump; a struck ball rolling away ahead stays valid).
+   (a sideways jump; a struck ball rolling away ahead stays valid). Commands
+   expire with their evidence, and the projected run plus a configurable
+   stopping allowance must fit the robot body inside the field.
 5. reassess: zero command for ``REASSESS_TIME``, then plan again. A miss is
    retried simply because the ball is still there.
 
@@ -47,6 +50,7 @@ from .model import Ball, Command, Decision, Field, Limits, Observation, Pose, ze
 # Freshness: a packet older than this (now - captured_at) yields a zero command.
 # A frozen camera repeats its timestamp, so it trips the same check.
 MAX_OBSERVATION_AGE = 0.35
+MAX_STRIKE_OBSERVATION_AGE = MAX_OBSERVATION_AGE  # same evidence contract for every phase
 FUTURE_TOLERANCE = 0.05     # s a capture time may lead the controller clock
 FIELD_MARGIN = 0.5          # m outside the field lines still accepted as plausible
 MAX_BALL_SPEED = 10.0       # m/s; faster reports are treated as corrupt
@@ -78,6 +82,7 @@ STRIKE_TIMEOUT = 1.5        # s
 STRIKE_ABORT_HEADING = 0.35  # rad of drift that ends a strike
 STRIKE_CORRIDOR = 0.15      # m half-width ahead of the bumper the ball must stay in
 REASSESS_TIME = 0.4         # s of zero command after a strike
+STRIKE_STOPPING_ALLOWANCE = 0.10  # m; sandbox allowance, not measured braking
 
 HOME_FRACTION = 0.3         # home x = -attack_sign * HOME_FRACTION * length
 HOME_TOLERANCE = 0.06       # m
@@ -111,8 +116,12 @@ def _segment_distance(ax, ay, bx, by, px, py):
 class Controller:
     """Approach behind the ball, align the bumper, strike toward the opponent goal."""
 
-    def __init__(self, field: Field = Field(), limits: Limits = Limits()):
+    def __init__(self, field: Field = Field(), limits: Limits = Limits(), *,
+                 strike_stopping_allowance: float = STRIKE_STOPPING_ALLOWANCE):
+        if not _finite(strike_stopping_allowance) or strike_stopping_allowance < 0:
+            raise ValueError("strike stopping allowance must be finite and nonnegative")
         self.field, self.limits = field, limits
+        self.strike_stopping_allowance = strike_stopping_allowance
         self._goal_latched = False
         self._home_reached = False
         self._reset_requested = False
@@ -136,6 +145,7 @@ class Controller:
         self._ball_anchor = None    # ball position the waypoint and dwell refer to
         self._waypoint = None       # ((x, y), description) while getting around the ball
         self._aligned_since = None
+        self._aligned_through = None
         self._strike = None         # (start x, start y, heading, start time)
         self._reassess_until = None
 
@@ -215,7 +225,7 @@ class Controller:
             return self._halt("tracking_lost", "ball is not in view", now, robot_id)
         if shot_target is not None and math.hypot(shot_target[0] - ball.x, shot_target[1] - ball.y) <= 1e-6:
             return self._halt("invalid_intent", "shot destination coincides with the ball", now, robot_id)
-        return self._play(robot, ball, now, robot_id, shot_target)
+        return self._play(robot, ball, now, robot_id, observation.captured_at, shot_target)
 
     def _pose_problem(self, robot):
         if robot is None:
@@ -299,9 +309,9 @@ class Controller:
         return self._drive("return_home", "goal recorded; returning to home position", robot, home,
                            self._travel_heading(robot, home, facing), self.limits.vx, now, robot_id)
 
-    def _play(self, robot, ball, now, robot_id, shot_target=None):
+    def _play(self, robot, ball, now, robot_id, captured_at, shot_target=None):
         if self._strike is not None:
-            return self._continue_strike(robot, ball, now, robot_id)
+            return self._continue_strike(robot, ball, now, robot_id, captured_at)
         if self._reassess_until is not None:
             if now < self._reassess_until:
                 return Decision("reassess", "braking after strike", zero(now, robot_id))
@@ -360,14 +370,17 @@ class Controller:
             self._aligned_since = None
             return self._drive("align", f"{note}lining the bumper up behind the ball", robot, stage,
                                heading, ALIGN_SPEED, now, robot_id)
-        if self._aligned_since is None:
-            self._aligned_since = now
-        if now - self._aligned_since < ALIGN_DWELL:
+        if not captured_at <= now < captured_at + MAX_STRIKE_OBSERVATION_AGE:
+            return self._halt("tracking_lost", "alignment needs fresh strike evidence", now, robot_id)
+        if self._aligned_since is None or captured_at < self._aligned_through:
+            self._aligned_since = captured_at
+        self._aligned_through = captured_at
+        if captured_at - self._aligned_since < ALIGN_DWELL:
             return self._drive("align", f"{note}aligned; confirming the ball is steady", robot, stage,
                                heading, ALIGN_SPEED, now, robot_id)
         self._aligned_since = None
         self._strike = (robot.x, robot.y, heading, now)
-        return self._continue_strike(robot, ball, now, robot_id)
+        return self._continue_strike(robot, ball, now, robot_id, captured_at)
 
     def _staging_point(self, ball, shot_target=None):
         """Point on the shot line behind the ball, or None when a wall leaves none.
@@ -412,7 +425,26 @@ class Controller:
             side = -side
         return self._reachable(*abeam(side)), f"circling to the {'left' if side > 0 else 'right'} of the shot line"
 
-    def _continue_strike(self, robot, ball, now, robot_id):
+    def _strike_path_fits(self, robot, remaining, heading_error, evidence_age):
+        """Bound a straight run of the disc footprint inside the rectangular field.
+
+        Include travel during observation age and one whole command lifetime,
+        then the explicit stopping allowance. This assumes bounded commanded
+        speed and the observed heading; it is not a physical braking model.
+        """
+        if self._reachable(robot.x, robot.y) != (robot.x, robot.y):
+            return False
+        travel = (remaining / math.cos(heading_error)
+                  + self.limits.vx * (evidence_age + 0.15)
+                  + self.strike_stopping_allowance)
+        end = (robot.x + math.cos(robot.yaw) * travel,
+               robot.y + math.sin(robot.yaw) * travel)
+        return self._reachable(*end) == end
+
+    def _continue_strike(self, robot, ball, now, robot_id, captured_at):
+        evidence_age = now - captured_at
+        if not captured_at <= now < captured_at + MAX_STRIKE_OBSERVATION_AGE:
+            return self._halt("tracking_lost", "strike evidence expired", now, robot_id)
         start_x, start_y, heading, started_at = self._strike
         ux, uy = math.cos(heading), math.sin(heading)
         progress = (robot.x - start_x) * ux + (robot.y - start_y) * uy
@@ -430,10 +462,14 @@ class Controller:
             ended = "ball is no longer ahead"
         elif abs(ball_left) > STRIKE_CORRIDOR:
             ended = "ball left the strike corridor"
+        elif not self._strike_path_fits(robot, STRIKE_DISTANCE - progress,
+                                       heading_error, evidence_age):
+            ended = "strike and stopping allowance leave the field"
         else:
             target = (start_x + ux * STRIKE_DISTANCE, start_y + uy * STRIKE_DISTANCE)
+            expiry = min(now + 0.15, captured_at + MAX_STRIKE_OBSERVATION_AGE)
             return Decision("strike", "running through the ball toward goal",
-                            Command(self.limits.vx, 0.0, 0.0, now + 0.15, robot_id),
+                            Command(self.limits.vx, 0.0, 0.0, expiry, robot_id),
                             target, heading, STRIKE_DISTANCE - progress, heading_error)
         self._clear_play()
         self._reassess_until = now + REASSESS_TIME

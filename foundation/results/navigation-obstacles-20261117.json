@@ -1,0 +1,84 @@
+{
+  "schema": "pupper_fc_navigation_obstacles_v1",
+  "updated_utc": "2026-11-17T09:15:08.419979+00:00",
+  "scope": "Offline engineering plus camera-only recording; no new motor execution or policy deployment.",
+  "software": {
+    "checks": {
+      "command": ".venv-api/bin/python -m pytest -q final_project/pupper_fc/tests foundation/tests/test_follow_runtime.py foundation/tests/test_detection_capture_stamp.py",
+      "passed": 419,
+      "subtests_passed": 48,
+      "warnings": "Existing Starlette/httpx deprecation"
+    },
+    "implemented": [
+      "Distinct capture evidence for strike alignment; command lifetime clipped to the shared 350 ms observation deadline",
+      "Strike footprint/remaining-travel envelope with configurable uncalibrated stopping allowance",
+      "Independent per-robot tactical role/guard generator; not yet automatic live scheduling",
+      "Camera gate with overlap/freshness/hysteresis and per-robot executor cancellation; scheduler gap cannot revive strike",
+      "Original camera timestamps survive queued inference; future frames cannot poison the source highwater; detection uses a fixed 220-degree projection"
+    ],
+    "limitations": [
+      "All new runtime changes remain undeployed",
+      "No live field localization",
+      "Guard pose heading can still be replaced with travel heading during distant pose navigation",
+      "Camera health needs source-image quality metadata; empty detections alone are insufficient",
+      "Live movement profile and stopping distance remain uncalibrated"
+    ]
+  },
+  "reviews": {
+    "model": "claude-fable-5-2",
+    "artifact": "/Users/shrish/workspace/cs123-foundation/artifacts/pupper-fc/2026-11-17/fable-plan-review/review.json",
+    "independent_source_reviews": true
+  },
+  "camera": {
+    "run": "/Users/shrish/workspace/cs123-foundation/artifacts/pupper-fc/2026-11-17/front-camera-20261117-a",
+    "remote_run": "/home/pi/pupper-fc-runs/front-camera-20261117-a",
+    "closure": {
+      "status": "stopped",
+      "states": {
+        "camera": "exited",
+        "child_4274_20492": "exited",
+        "detector": "exited",
+        "detector_ready": "exited",
+        "recorder": "exited"
+      },
+      "utc_epoch": 1794905869.7260036,
+      "motors_started": false
+    },
+    "collection": {
+      "files": 19,
+      "bytes": 1413999311,
+      "all_hashes_matched": true
+    },
+    "raw_video": "/Users/shrish/workspace/cs123-foundation/artifacts/pupper-fc/2026-11-17/front-camera-20261117-a/visual-analysis-local/raw-action-64s-113s.mp4",
+    "operator_sequence": "On ground: person approximately 1 m, then 1.5 m, then 0.5 m; crossing at approximately 1 m; tall object moved forward/back. Camera cover not reported.",
+    "root_visual_review": "Root personally inspected raw contact sheets, enlarged frames and approximate same-time detector overlays. Person approach/crossing is visible. The tower-shaped object clearly occupies the forward path but is largely missed. Two bottle-class detections near +105.49/+105.80 seconds correspond spatially to it; coverage is intermittent.",
+    "spatial_replay": "/Users/shrish/workspace/cs123-foundation/artifacts/pupper-fc/2026-11-17/front-camera-20261117-a/visual-analysis/spatial-replay.json",
+    "replay_limit": "Historical detections use publication time instead of source capture time. Spatial-only replay cannot establish end-to-end latency. The 0.62/0.60 threshold candidate is fitted to one clip and not independently validated. The person behind the moved object can mask obstacle failure.",
+    "camera_thinking": [
+      {
+        "scene": "fresh clear forward floor",
+        "decision": "eligible for separately authorized bounded motion, provided camera health and other guards pass"
+      },
+      {
+        "scene": "person approaching or crossing forward path",
+        "decision": "hold; preserve role but cancel action progress; require sustained clear observations before fresh-plan resume"
+      },
+      {
+        "scene": "near towerobject without reliable semantic detection",
+        "decision": "should hold; current detector-only input cannot guarantee this"
+      },
+      {
+        "scene": "missing, stale, occluded or invalid camera view",
+        "decision": "unknown/hold; not equivalent to clear"
+      }
+    ]
+  },
+  "policy_evaluation": {
+    "short_screen": "/Users/shrish/workspace/cs123-foundation/artifacts/pupper-fc/2026-11-17/fc-direction-screen-20261117T084730Z",
+    "endurance_screen": "/Users/shrish/workspace/cs123-foundation/artifacts/pupper-fc/2026-11-17/fc-endurance-screen-20261117T085634Z",
+    "conclusion": "Keep the stock baseline. Alternatives improve lateral tracking but worsen braking, yaw or clipping. The fourth Markus replica rotates approximately 42 degrees after combined motion changes to zero in nominal simulation. Six-foot lateral paths show cross-axis drift.",
+    "scope": "Nominal CPU simulation includes production HeadingHold; not full ROS, actual sensors/actuators or field XY feedback.",
+    "training_started": false,
+    "paid_compute_started": false
+  }
+}

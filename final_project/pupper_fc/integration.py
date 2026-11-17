@@ -55,6 +55,7 @@ import sys
 
 from .controller import Controller, MAX_OBSERVATION_AGE
 from .model import Ball, Command, Decision, Field, Limits, Observation, Pose, zero
+from .obstacles import Detection, DetectionFrame, ForwardObstacleGate
 
 MAX_INTENT_LEASE = 0.5
 LEASE_ROUNDING_TOLERANCE_S = 1e-12  # subtraction roundoff only, never extra lease time
@@ -107,9 +108,12 @@ class Executor:
     receipt; a future robot adapter must enforce expiry again before publishing.
     """
 
-    def __init__(self, fields=None, limits=Limits()):
+    def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None):
         fields = fields or {"pupper-1": Field(), "pupper-2": Field(attack_sign=-1)}
         self.controllers = {token(r, "robot_id"): Controller(f, limits) for r, f in fields.items()}
+        # None preserves the camera-free sandbox. A live front-camera adapter
+        # must supply a calibrated config; configured gates start closed.
+        self.obstacle_config = obstacle_config
         self.used_epochs = set()
         self.epoch = self.clock = None
         self.armed = False
@@ -122,6 +126,9 @@ class Executor:
         self.capture_highwater = -math.inf
         self.intents = {r: None for r in self.controllers}
         self.intent_seq = {r: -1 for r in self.controllers}
+        self.obstacle_gates = ({r: ForwardObstacleGate(self.obstacle_config) for r in self.controllers}
+                               if self.obstacle_config is not None else {})
+        self.obstacle_resume_after = {r: -math.inf for r in self.controllers}
         for controller in self.controllers.values():
             controller.cancel()
 
@@ -228,6 +235,43 @@ class Executor:
             self.controllers[robot_id].cancel()
         self.intents[robot_id] = intent
 
+    def _obstacles(self, event, now):
+        """One robot's normalized camera input, independently timed from field state."""
+        self._session(event)
+        robot_id = event.get("robot_id")
+        if robot_id not in self.controllers:
+            raise ValueError("unknown robot_id")
+        gate = self.obstacle_gates.get(robot_id)
+        if gate is None:
+            raise ValueError("front-camera gate is not configured")
+        # Observe expiry before a new frame can clear it, even when the
+        # scheduler slept and a one-frame clearance policy is configured.
+        if not gate.evaluate(now).permitted:
+            self.controllers[robot_id].cancel()
+            self.obstacle_resume_after[robot_id] = now
+        try:
+            if type(event.get("valid")) is not bool or type(event.get("healthy")) is not bool:
+                raise ValueError("camera valid/healthy must be explicit booleans")
+            rows = event.get("detections")
+            if not isinstance(rows, list):
+                raise ValueError("detections must be a list; empty is distinct from missing")
+            detections = []
+            for row in rows:
+                if not isinstance(row, dict) or not isinstance(row.get("box"), (list, tuple)) or len(row["box"]) != 4:
+                    raise ValueError("detection requires normalized xyxy box")
+                detections.append(Detection(tuple(number(v, "box") for v in row["box"]),
+                                            number(row.get("confidence"), "confidence"),
+                                            row.get("class_id", "")))
+            frame = DetectionFrame(sequence(event.get("seq")), number(event.get("captured_at"), "captured_at"),
+                                   tuple(detections), event["valid"], event["healthy"], event.get("format"))
+            decision = gate.update(frame, now)
+            if decision.state in ("invalid", "stale"):
+                raise ValueError(decision.reason)
+        except (ValueError, TypeError) as exc:
+            gate.invalidate(str(exc), now)
+            self.controllers[robot_id].cancel()
+            raise ValueError(str(exc)) from None
+
     def tick(self, now):
         try:
             now = number(now, "now")
@@ -240,13 +284,19 @@ class Executor:
         decisions = {}
         for robot_id, controller in self.controllers.items():
             intent = self.intents[robot_id]
+            obstacle = self.obstacle_gates[robot_id].evaluate(now) if robot_id in self.obstacle_gates else None
             if not self.armed:
                 phase, reason = "stopped", "Stop latched; arm a new epoch"
+            elif obstacle is not None and not obstacle.permitted:
+                phase, reason = "obstacle_hold", f"front camera {obstacle.state}: {obstacle.reason}"
+                self.obstacle_resume_after[robot_id] = now
             elif intent is None or now >= intent.valid_until:
                 phase, reason = "intent_lost", "no current unexpired intent"
                 self.intents[robot_id] = None
             elif self.frame is None or not 0 <= now - self.frame[0] <= MAX_OBSERVATION_AGE:
                 phase, reason = "tracking_lost", "no current synchronized field frame"
+            elif self.frame[0] < self.obstacle_resume_after[robot_id]:
+                phase, reason = "tracking_lost", "new field observation required after obstacle hold"
             else:
                 stamp, observations, goals = self.frame
                 kwargs = {}
@@ -263,6 +313,8 @@ class Executor:
                     kwargs["shot_target"] = destination
                 decision = controller.tick(observations[robot_id], now, **kwargs)
                 deadline = min(decision.command.expires_at, intent.valid_until, stamp + MAX_OBSERVATION_AGE)
+                if obstacle is not None:
+                    deadline = min(deadline, obstacle.valid_until)
                 if deadline <= now:
                     controller.cancel()
                     decisions[robot_id] = Decision("tracking_lost", "evidence expired at this tick", zero(now, robot_id))
@@ -288,7 +340,7 @@ class Executor:
                 # cannot rewind/advance an otherwise valid active session.
                 return dict(accepted=False, reason=str(exc), now=self.last_now,
                             armed=self.armed, epoch=self.epoch, decisions={})
-        if kind in ("frame", "intent"):
+        if kind in ("frame", "intent", "obstacles"):
             try:
                 self._session(event)
             except ValueError as exc:
@@ -312,6 +364,9 @@ class Executor:
                 elif kind == "intent":
                     self._intent(event, now)
                     reason = "intent replaced"
+                elif kind == "obstacles":
+                    self._obstacles(event, now)
+                    reason = "front-camera observation replaced"
                 elif kind == "stop":
                     reason = "Stop latched"
                 elif kind != "tick":

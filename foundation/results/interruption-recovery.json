@@ -3,9 +3,9 @@
   "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "owner_goalpost_discussion",
-  "updated_utc": "2026-11-17T08:22:26.330109+00:00",
-  "current_report": "foundation/results/gait-gate-20261116.json",
+  "mode": "offline_integration_and_video_review",
+  "updated_utc": "2026-11-17T09:15:08.419979+00:00",
+  "current_report": "foundation/results/navigation-obstacles-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -31,7 +31,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Project execution authorized within agreed scope. Hardware session and recordings closed; robot last supported with R3 pressed and motors released. Current task is owner alignment, not motion. Any future hardware block needs current physical readiness and one operator.",
+  "authorization": "User authorized offline implementation, context-blind Fable 5.2 audits and camera-only capture. Camera session closed; no motion in the offline block. Existing paid-compute agreement applies.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -39,7 +39,7 @@
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "No running robot processes, temperature monitors or builds owned by this session. November 17 source audit and Claude Code/Fable 5.2 architecture review completed; reviewers idle. Long-lateral client and software Start candidates remain undeployed.",
+    "compute": "No owned robot processes or paid compute. Both bounded local policy evaluations and camera extraction are complete. Source agents completed and idle; root integrating the reviewed changes.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -50,13 +50,13 @@
       "project_lead": "Current Codex chat 01a1e800-1b8f-74e0-9e1e-3723fff803de; Shrish is owner/physical interface. Previous chat is idle after clean closure.",
       "software_start": "Candidate committed c8e9213; follow-up review and resident caller integration pending."
     },
-    "goal_status": "Project goal incomplete and paused at owner request for alignment. November 17 priorities: native person avoidance, offense/defense roles, pose/heading targets, latency and measured gait improvement. Do not resume wrong-ball contact trials."
+    "goal_status": "Owner requests continued offline engineering now and plans overnight execution after physical session. Prior project goal tool remains paused; current work proceeds under this turn."
   },
   "hardware_session": {
-    "status": "CLOSED for owner goalpost discussion. Driver deactivated, manager3196 absent, native and recorder exit0, no queued motion. All3corrected captures collected and hash-verified. Pi may now be powered off.",
+    "status": "CLOSED camera-only session: all owned camera, detector and recorder processes exited; motors never started. 19 files (1,413,999,311 bytes) copied and hash-verified. Pi may be powered off.",
     "ssh": "mts",
     "observed_utc": "2026-11-17T06:21:14.719822+00:00",
-    "current_boot_id": "8e70f243-74ae-4d5f-9c46-9ef1cf3d7e2d",
+    "current_boot_id": "295272bd-ee14-4836-9867-64d497d5ead8",
     "active_run": null,
     "motor_api_recorders_last_observed_active": false,
     "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
@@ -78,7 +78,9 @@
     "persistent_tool_session_id": null,
     "persistent_prepared_token": null,
     "persistent_prepared_action": null,
-    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs/logfix-floor-20261117/closure.json"
+    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs/logfix-floor-20261117/closure.json",
+    "camera_only_session_id": "d25bba2299f24dd09e5f09a282003293",
+    "last_camera_run": "/home/pi/pupper-fc-runs/front-camera-20261117-a"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -95,16 +97,20 @@
   },
   "next": [
     {
-      "id": "alignment_conversation",
-      "action": "Discuss the November 17 architecture proposal in final_project/PLAN.md. Clarify hybrid versus onboard-only person avoidance and availability of an early Ryan pose/heading feed. Hardware remains closed."
+      "id": "camera_regressions",
+      "action": "Use saved raw clip and manually observed person/object cases. Evaluate a more conservative person threshold as a provisional candidate; evaluate the missed tower object independently of the person behind it. Add image-health metadata and connect the gate to the existing body-command path; no deployment yet."
     },
     {
-      "id": "next_integrated_result",
-      "action": "Proposed after alignment: timestamped world-state adapter and role/executor tests in parallel with onboard person detection and motion/latency qualification. Demonstrate go-to-pose/heading, person interruption and fresh-state resumption before contact with the intended ball. Physical coordinate trials require independent live localization."
+      "id": "offline_navigation",
+      "action": "Connect tactical selection to replay and preserve goalie heading during repositioning. Build pose-independent feedback turns. Retain Stop, fault and intent-expiry tests. Physical field-coordinate acceptance awaits independent localization."
     },
     {
-      "id": "software_start_release",
-      "action": "Follow-up Fable 5.2 review of c8e9213 fixes, resident caller freeze-at-click integration, then isolated Pi build/stage and supported acceptance. Existing startup still homes on stand."
+      "id": "startup_and_session",
+      "action": "Complete existing software Start follow-up review and resident caller integration. Package one coherent tested release after interfaces freeze. Avoid repeated homing or session restarts."
+    },
+    {
+      "id": "gait_followup",
+      "action": "Keep stock selected; comparison evidence is in the result report. Investigate yaw/braking tradeoffs before new training. No allocated GPU or validated resume path established. Both planned local screens finished; no further compute running."
     }
   ],
   "recorded_open_items": {
@@ -120,8 +126,8 @@
   "alignment": {
     "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
     "open": "Actual Ryan source/sample, second robot availability, physical bumper design and recovery feasibility outcome.",
-    "next_discussion": "Discuss role/action/override separation, one shot-geometry owner, hybrid person coverage, early pose-only feed and measurable navigation/gait acceptance. Proposal is in final_project/PLAN.md; native person avoidance is newly requested, not implemented.",
-    "owner_steering_2026_11_17": "Two-robot soccer target retained. Native object/person detection is important to demo: entering person should be avoided by both robots. Prioritize explicit offense/defense, coordinate/angle control, latency and rigorous directional/combined gait tests; defer temporary-ball contact. Intended ball pink size 5 with flowers. Ryan provides field state/shot targets; ball-specific onboard vision supplements overhead. Revised architecture proposal awaits discussion."
+    "next_discussion": "Front-camera stop/hold/resume scope accepted; Ryan pose feed unavailable for several sessions. User requests raw-video-based decisions and useful overnight offline work. Prioritize the observed missed-object case; the lab detector does not establish general collision avoidance.",
+    "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",

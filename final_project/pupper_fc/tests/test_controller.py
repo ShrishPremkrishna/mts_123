@@ -316,7 +316,7 @@ def test_ball_moved_while_circling_picks_a_new_side_waypoint():
 
 @pytest.mark.parametrize("limits", [Limits(), Limits(vx=0.1, vy=0.05, wz=0.3)])
 @pytest.mark.parametrize("sign", [1, -1])
-def test_every_command_is_bounded_and_expires_after_150_ms(limits, sign):
+def test_every_command_is_bounded_and_expires_within_150_ms(limits, sign):
     field = Field(attack_sign=sign)
     controller = Controller(field, limits)
     rng = random.Random(123)
@@ -340,9 +340,13 @@ def test_every_command_is_bounded_and_expires_after_150_ms(limits, sign):
         assert abs(command.vx) <= limits.vx + 1e-12
         assert abs(command.vy) <= limits.vy + 1e-12
         assert abs(command.wz) <= limits.wz + 1e-12
-        assert command.expires_at == pytest.approx(now + 0.15)
+        expected_expiry = (min(now + 0.15, observation.captured_at + ctl.MAX_STRIKE_OBSERVATION_AGE)
+                           if decision.phase == "strike" else now + 0.15)
+        assert command.expires_at == pytest.approx(expected_expiry)
         assert command.robot_id == observation.robot_id
-    assert {"approach", "align", "strike", "reassess", "blocked", "return_home",
+    # Fresh strike completion/reassessment has a dedicated deterministic test;
+    # these deliberately delayed random samples may abort on freshness first.
+    assert {"approach", "align", "strike", "blocked", "return_home",
             "tracking_lost", "recovery_required"} <= phases
 
 
