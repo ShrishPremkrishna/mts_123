@@ -26,3 +26,21 @@ Give gameplay reproducible sample state, clips, calibration data, and measuremen
 Agree on field/body frames and units, robot IDs, goal identity, angle signs, capture-time/age, validity, and uncertainty semantics. Coordinate how state loss affects command interruption and recovery. Overhead fall-posture observations may help gameplay; they do not establish a sufficient fall detector or prove physical get-up.
 
 iPhone capture method, computation placement, estimator/filter, update rate, state schema, and transport remain open. Use the [hardware procedure](../../foundation/HARDWARE_CHECKLIST.md) when coordinating trials involving moving robots.
+
+## Internal adapter candidate — November 17
+
+The [executor contract](../pupper_fc/README.md#shared-state-executor-and-deliberate-game-resume)
+and [ROS bridge](../behaviors/README.md#continuous-gameplay-bridge) can now be
+exercised with synthetic same-host inputs while the real feed is unavailable.
+This does not prescribe Ryan's wire format. The adapter will map an actual sample
+into metres, counterclockwise heading, fixed calibrated goals, explicit missing
+tracks, and capture times with a known clock/age relationship. It must preserve
+capture times rather than label a delayed image as newly captured.
+
+The first executable bridge accepts a named local Linux monotonic clock only;
+cross-device camera clock conversion is still unimplemented. Frames never renew
+motion authority: action intents have a separate maximum 0.5-second lease.
+After a camera hold, fresh field capture and freshly issued intent are required;
+an interrupted finite shot gets a new action ID. Operator arm and goal resume
+remain outside perception ingress. One real sample plus its capture-clock
+convention is the next integration input; recorded replay can precede hardware.

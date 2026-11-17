@@ -23,7 +23,8 @@ build the new stock movement release.
 ## Guarded walk candidate
 
 `hardware/assemble_guarded_release.py` copies a verified stock walk baseline into
-a **new** release directory and overlays seven frozen Python sources. It keeps
+a **new** release directory and overlays the indexed guarded-command and gameplay
+bridge Python sources. It keeps
 the native controller, driver, gateway, mux, policy and gains unchanged. It adds
 the optional camera command path, preserves the old release for rollback, and
 removes copied sprint selection. This is file assembly only; it starts nothing.

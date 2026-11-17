@@ -75,4 +75,16 @@ The second command runs the bounded [two-robot fault experiment](../../artifacts
 
 Centered, offset, wrong-side and moving-ball baseline scenarios are covered by score-and-return tests in both attack directions. The [saved validation](validation.json) records 143 passing tests plus 48 subtests, 16 score-and-return trials (including bounded delay/noise trials), two explicitly blocked near-wall trials, source hashes and browser checks. A wall can make the required shot pose unreachable; the controller reports **blocked** instead of attempting extraction. Larger noise/delay can also prevent a useful shot. Treat these as experiments, not guaranteed successes.
 
-The simulator uses assumed footprint, bumper, speed, acceleration, friction and restitution. It omits legs, balance, motor dynamics, real contact variability, opponents and obstacles. Offline defense and camera-gate logic do not establish physical acceptance; physical recovery, robot adapters, real perception and boot-to-ready remain separate work. The existing Lab 6 timed action queue is not used for this continuously replaced motion intent.
+The simulator uses assumed footprint, bumper, speed, acceleration, friction and restitution. It omits legs, balance, motor dynamics, real contact variability, opponents and obstacles. Offline defense and camera-gate logic do not establish physical acceptance; physical recovery, real perception and boot-to-ready remain separate work. The existing Lab 6 timed action queue is not used for this continuously replaced motion intent.
+
+The [continuous ROS bridge](../behaviors/README.md#continuous-gameplay-bridge) is
+now a separate adapter candidate. It shares one local monotonic clock with this
+executor, supplies explicit guard-compatible limits and geometry, and publishes
+only its selected robot. Trusted local `set_external_hold()` cancels internal
+strike/alignment and requires both field capture and intent issue after release.
+Interrupted finite shoot IDs are retired for the epoch; shoots offered while
+held are refused without retiring an unused ID. A new arm after prior hold
+history sets a new freshness floor. The local physical veto survives Stop and
+new epochs until the adapter clears it. This API is not an upstream perception
+event. ROS transport checks with synthetic inputs are not physical navigation
+or collision-avoidance acceptance.

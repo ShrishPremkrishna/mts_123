@@ -121,6 +121,7 @@ class Intent:
     identity: tuple
     kind: str
     target: Pose | tuple | None
+    issued_at: float
     valid_until: float
 
 
@@ -142,6 +143,10 @@ class Executor:
         self.epoch = self.clock = None
         self.armed = False
         self.last_now = None
+        self.external_holds = {r: False for r in self.controllers}
+        self.external_hold_reasons = {r: "external command guard hold" for r in self.controllers}
+        self.external_resume_after = {r: -math.inf for r in self.controllers}
+        self.external_retired_ids = {r: set() for r in self.controllers}
         self._clear()
 
     def _clear(self):
@@ -172,7 +177,62 @@ class Executor:
         self.used_epochs.add(epoch)
         # A deliberate new session gets fresh referee/controller state too.
         self.controllers = {r: Controller(c.field, c.limits) for r, c in self.controllers.items()}
+        # A new gameplay epoch cannot release an ongoing local physical veto.
+        self.external_resume_after = {r: now if (self.external_holds[r] or
+                                               self.external_resume_after[r] != -math.inf) else -math.inf
+                                      for r in self.controllers}
+        self.external_retired_ids = {r: set() for r in self.controllers}
         self.armed = True
+
+    def _hold_external(self, robot_id, now):
+        self.controllers[robot_id].cancel()
+        self.external_resume_after[robot_id] = now
+
+    def set_external_hold(self, robot_id, held, now, reason="external command guard hold"):
+        """Trusted local adapter veto, never an upstream JSON event or an arm.
+
+        Calls are atomic on malformed arguments. Hold cancels execution without
+        releasing referee state or a live auto owner's role. Release requires
+        both capture and intent issue times strictly after the release watermark;
+        queued inputs cannot resume motion. A live shoot owned when hold begins
+        is retired for this epoch; shoots offered while held are refused without
+        retiring their IDs. Active vetoes survive Stop/new epoch until this
+        adapter clears them. After any hold history, new arm requires capture and
+        issue times after that arm. The caller serializes this with ticks.
+        """
+        robot_id = token(robot_id, "robot_id")
+        if robot_id not in self.controllers:
+            raise ValueError("unknown robot_id")
+        if type(held) is not bool:
+            raise ValueError("held must be a boolean")
+        now, reason = number(now, "now"), token(reason, "reason")
+        if now < 0 or (self.last_now is not None and now < self.last_now):
+            raise ValueError("external hold clock is negative or moved backwards")
+        was_held = self.external_holds[robot_id]
+        intent = self.intents[robot_id]
+        if (held and not was_held and intent is not None and intent.kind == "shoot"
+                and now < intent.valid_until):
+            self.external_retired_ids[robot_id].add(intent.identity[0])
+        if held or was_held:
+            self._hold_external(robot_id, now)
+        self.external_holds[robot_id] = held
+        self.external_hold_reasons[robot_id] = reason
+        self.last_now = now
+
+    def _external_problem(self, robot_id):
+        if self.external_holds[robot_id]:
+            return self.external_hold_reasons[robot_id]
+        watermark = self.external_resume_after[robot_id]
+        if watermark == -math.inf:
+            return None
+        intent = self.intents[robot_id]
+        if intent is not None and intent.identity[0] in self.external_retired_ids[robot_id]:
+            return "interrupted shoot requires a new intent_id"
+        if self.frame is None or self.frame[0] <= watermark:
+            return "new field capture required after external hold release"
+        if intent is None or intent.issued_at <= watermark:
+            return "freshly issued intent required after external hold release"
+        return None
 
     def _cancel_intent(self, robot_id):
         """Revoke one action owner, including its tactical session memory."""
@@ -260,13 +320,17 @@ class Executor:
             if now >= expiry:
                 raise ValueError("intent is expired")
             identity = token(event.get("intent_id"), "intent_id")
+            if identity in self.external_retired_ids[robot_id]:
+                raise ValueError("interrupted shoot requires a new intent_id")
             kind = event.get("kind")
             if kind not in ("attack", "move", "defend", "shoot", "auto"):
                 raise ValueError("kind must be attack, move, defend, shoot or auto")
+            if kind == "shoot" and self.external_holds[robot_id]:
+                raise ValueError("shoot refused during external hold; issue after release")
             target = None if kind in ("attack", "auto") else point(event.get("target"), heading=kind in ("move", "defend"))
             if kind in ("attack", "auto") and event.get("target") is not None:
                 raise ValueError("attack/auto derive their targets; use shoot or move for an explicit target")
-            intent = Intent((identity, kind, target), kind, target, expiry)
+            intent = Intent((identity, kind, target), kind, target, issued, expiry)
         except (ValueError, TypeError):
             self._cancel_intent(robot_id)
             raise
@@ -317,6 +381,9 @@ class Executor:
         robot_id = event.get("robot_id")
         if robot_id not in self.controllers:
             raise ValueError("unknown robot_id")
+        problem = self._external_problem(robot_id)
+        if problem:
+            raise ValueError("resume refused: " + problem)
         frame_seq = sequence(event.get("frame_seq"))
         if self.frame is None or frame_seq != self.frame_seq:
             raise ValueError("resume must reference the current admitted frame_seq")
@@ -351,6 +418,11 @@ class Executor:
             obstacle = self.obstacle_gates[robot_id].evaluate(now) if robot_id in self.obstacle_gates else None
             if not self.armed:
                 phase, reason = "stopped", "Stop latched; arm a new epoch"
+            elif self.external_holds[robot_id]:
+                self._hold_external(robot_id, now)
+                if intent is not None and now >= intent.valid_until:
+                    self._cancel_intent(robot_id)
+                phase, reason = "external_hold", self.external_hold_reasons[robot_id]
             elif obstacle is not None and not obstacle.permitted:
                 phase, reason = "obstacle_hold", f"front camera {obstacle.state}: {obstacle.reason}"
                 self.obstacle_resume_after[robot_id] = now
@@ -360,6 +432,8 @@ class Executor:
                     self._cancel_intent(robot_id)
             elif self.frame is None or not 0 <= now - self.frame[0] <= MAX_OBSERVATION_AGE:
                 phase, reason = "tracking_lost", "no current synchronized field frame"
+            elif problem := self._external_problem(robot_id):
+                phase, reason = "external_hold", problem
             elif self.frame[0] < self.obstacle_resume_after[robot_id]:
                 phase, reason = "tracking_lost", "new field observation required after obstacle hold"
             else:

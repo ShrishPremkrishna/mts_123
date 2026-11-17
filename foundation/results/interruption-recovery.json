@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T11:02:11.352523+00:00",
+  "updated_utc": "2026-11-17T11:33:02.715856+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,9 +29,11 @@
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
     "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
     "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
-    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T110200Z/summary.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-bridge-source-kit-20261117T112908Z/summary.json",
     "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
-    "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json"
+    "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json",
+    "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-executor-20261117T110500Z/summary-final.json",
+    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/fc-bridge-integration-20261117T112200Z/tests.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -69,7 +71,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Guarded launch/identity/client integrated;1050 tests+106subtests passed. Actual ROS launch routing and actual native DDS/watchdog chain passed with fake hardware. Source kit19files hashed; no target assembly/deployment. ExactFable attempt timedout; local independent lateStop correction verified. All owned containers/review process exited. Assembly preservation followup9tests passed; revised19file source kit verified and priorarchive retained.",
+    "compute": "Resident FC bridge completed:1173tests+106subtests passed;3actualROS cases passed on final hashes. Guard/sourceage/Stop corrections independently verified; focused exactFable5.2 review succeeded.28file source kit verified,13selected Python sources. All owned jobs/containers exited. No robot/deployment.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -77,13 +79,14 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Guarded integration committed754da44; assembly drift followup tested. Root resumes continuous gameplay bridge implementation next. No robot connection/deployment tonight.",
+      "project_lead": "Root integrating continuous bridge/sourcekit commit. Goal active; next two-robot isolation rehearsal and bounded recorded-camera improvement.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Completed/frozen guarded movement client and lateStop fix;285 focusedtests+58subtests and1050 integration passed. Idle, no ownership.",
-      "overnight_compute": "Completed actual native watchdog chain;91file archive verified, allcontainersclosed. Idle, no ownership.",
-      "body_guard": "Completed bounded bridge design, recorded in PLAN and checkpoint. All tasks idle; no production ownership or processes.",
-      "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle."
+      "overnight_harness": "Completed/frozen bridge/shared source parser/movement extraction;67bridge cases,281bridge+movement pass,1173combined pass. Idle.",
+      "overnight_compute": "Completed3actualROS bridgecases and52file final archive. Source hashes match; all test processes/containersclosed. Idle.",
+      "body_guard": "Completed/frozen externalhold and Fable corrections;167focusedFCtests pass. Idle, no file ownership.",
+      "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle.",
+      "bridge_adversary": "Completed exact correction verification for5guard/bridge issues; evidence retained. Idle, no ownership."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
   },
@@ -135,16 +138,16 @@
   },
   "next": [
     {
-      "id": "continuous_fc_transport",
-      "action": "Implement minimal fc_executor_bridge.py: one local Executor+ROS process per pinned robot_id, independent20ms monotonic tick, local-clock normalized ingress only, explicit FCarm, finite commands withinLimits(.3,.3,1), expiry checked immediately before /kick_cmd_vel publication. Reuse StockWalkerEvidence/ResidentStart/native+guardidentity; extract only shared guardstatus/graph checks. Add per-robot external-hold seam to cancel internalstrike; require postholdfield+intent, newidentity forfinite shot. Prove isolatedROS routing/expiry/hold/role/Stop behavior with syntheticframes and memorycontroller. Finite movement_trial remains qualification tool."
+      "id": "two_robot_transport_rehearsal",
+      "action": "Extend existing isolatedROS smoke for two concurrent robot domains/opposite field directions. Verify each own-ID command route, and one robot Stop/lease loss/guard failure cannot affect or feed the other. Reuse existing image/fake native feedback; no new native build. Keep single-domain source snapshot/archive intact."
+    },
+    {
+      "id": "recorded_camera_next_screen",
+      "action": "After transport checkpoint, test one decision-changing perception hypothesis on frozen raw footage, targeting close-person misses and tower/partial-obstacle coverage. Investigate projection/crop suitability and available exact lab model before introducing another large model. Prior OWLv2 exceeded every350msdeadline; no deployment or threshold fitted only to this clip."
     },
     {
       "id": "guarded_target_acceptance",
-      "action": "Next authorized Pi session: file-only assembly from verified logfix walk baseline and frozen source kit, targetPython/import/preflight, separate reviewed camera source selection. Measure capture age+spacing and detector coverage before supported legs motion. No overnight robot connection, deployment or homing. Software Start requires separate Pi-compatible gateway build."
-    },
-    {
-      "id": "continue_project_value",
-      "action": "After bridge, prioritize recording-driven perception improvements and Ryan adapter validation plus demo deliverable preparation. Larger offline vision model missed live deadline; do not promote or spend for compute volume. Live physical acceptance remains separate."
+      "action": "Next authorized Pi block: file-only assembly from verified logfix walk baseline and latest28file source kit, targetPython/import/preflight, reviewed camera source selection, capture age+spacing/scene coverage. Bridge needs explicit calibratedgeometry and realpose/clockadapter before floor navigation; same-host synthetic inputs are offlineonly. Software Start still needs separate Pi-compatible gatewaybuild. No overnight robot access/deploy/homing."
     }
   ],
   "recorded_open_items": {

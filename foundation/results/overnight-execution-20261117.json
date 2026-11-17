@@ -1,22 +1,30 @@
 {
   "schema": "pupper_overnight_execution_v1",
-  "recorded_utc": "2026-11-17T10:57:16.254634+00:00",
+  "recorded_utc": "2026-11-17T11:33:02.714217+00:00",
   "scope": "Offline engineering and recorded-video comparison. No robot motion, SSH deployment, hardware initialization or policy promotion.",
   "base_commit": "e91196e",
   "source_sha256": {
-    "final_project/behaviors/tools/movement_trial.py": "935ee7e00ed2e5c05c015f2406c14a393daf952336905441254696127ca2ecfc",
+    "final_project/behaviors/tools/movement_trial.py": "bb26e135a05b5bc27c879963a1ca56b5a85a9207433151c8974860d1b7e662ad",
     "foundation/hardware/software_start.py": "5ee198fbbe58a1d6e210e04d451453c66cbbe3ead2b65eb5136cf020d7d28dd4",
     "final_project/pupper_fc/controller.py": "2dccb57a06937209d9d92a8ae960a77c2c3391f5e0771007d2f2aac5d34f2cfb",
-    "final_project/pupper_fc/integration.py": "329b5af01113d1a6a3d69bf2524d59ad9d5e4a48b59b28f81be11259956550c9",
+    "final_project/pupper_fc/integration.py": "ba2108a1f83664fffd0518d5037db23daf4e02f664298f639cc9585d07b98f78",
     "final_project/pupper_fc/model.py": "5c9f4ffc68378526b4707e7d2284c4f87469fac2759c19db9e15bfe0ee52212a",
-    "final_project/behaviors/body_command_guard.py": "136d2c4f4e2eb5f106df2966117a22009d8c59d9293ffe79fc564b879e9d1194",
+    "final_project/behaviors/body_command_guard.py": "c90cea800995016c92ebef7cb67ed87b8bbfd6928b6a158dd15239f2affc38f4",
     "follow_me_pupper/robot/viser_camera.py": "b364fb1eb8c329d40690484bbb0107c13dbda3fbc1c2e9cbfc6acf41d05e74d0",
     "final_project/behaviors/tools/ros_fc_guard_smoke.py": "b59355e839faa0b7a05da9fdb67fec019727e0f004ccae112ad08846345b8bfd",
     "follow_me_pupper/robot/perception_safety.py": "e330d585aa75cf416f11cd592a97ba0ff7c97bd645fe3334e8b7790e7beabc0f",
     "foundation/hardware/runtime_identity.py": "36da224a071e940209b0980fc901c8dda92d5c8382e63bcf4428b045ae7775b4",
     "foundation/hardware/stock_session.launch.py": "46ca98d724a7268da383110f9f79e6841a71e76c44d3e9791a25744c4fb67eca",
-    "foundation/hardware/assemble_guarded_release.py": "1d7be279e7092f06ba0e7a375367ca1aeb5e69cb3f7f8fb66d58688003a6017b",
-    "pupper_gait_deploy/test/test_guard_ros_watchdog.cpp": "43d8d807d9375fb3b85d010ec169e3b19d35812c44e9f3b6beb22897239dc203"
+    "foundation/hardware/assemble_guarded_release.py": "417f84fb6b56144f45f5bc3d5871fd975f8b11a37b28e8a734fa19ec3a16bd1b",
+    "pupper_gait_deploy/test/test_guard_ros_watchdog.cpp": "43d8d807d9375fb3b85d010ec169e3b19d35812c44e9f3b6beb22897239dc203",
+    "final_project/behaviors/tools/ros_fc_executor_smoke.py": "01d4764667da36cb15c055287ade3ecb7bef0bc003c51939077d7e5dc701e048",
+    "final_project/behaviors/fc_executor_bridge.py": "d755d81876611cc31497cb63f171d3e84c6da242d6bbdce997c9d6e81787d5c0",
+    "final_project/behaviors/command_path_evidence.py": "04c7d1a269ad97bee72f5c85d78611d7b4f8e3956a698d56114a51e9bc459f5d",
+    "final_project/behaviors/run_through_kick.py": "df0f71d423c8f89f73ddf2a1aaa3258048038ce90d728288fc8bc1bbb71a4a4d",
+    "final_project/behaviors/run_through_kick_node.py": "e18073af0330cb06776d8de915f193324093d841d7c79c2e5835d63254a6413f",
+    "final_project/pupper_fc/__init__.py": "20b920427e220c624d978321431a716bd74d25e8c9af46ea07b843e221d1353c",
+    "final_project/pupper_fc/tactics.py": "d65eccc787461b3f43317929ee40679ace36a66b6fd33d6d04753a90fe69c78d",
+    "final_project/pupper_fc/obstacles.py": "5d8ac189d378dd2771231b6888e58ce9987bd05238445068f803d813bad86c27"
   },
   "implemented": {
     "heading": "Persistent movement client accepts relative orientation or absolute IMU heading. Execution-time anchor, shortest route, exact antipode left, <=0.35rad/s,0.05rad tolerance,0.3s distinct capture-time dwell, hard timeout. Physical angle accuracy unaccepted.",
@@ -28,7 +36,10 @@
     "camera_body_guard": "Actual-command guard candidate reuses ForwardObstacleGate after the existing mux. Rejects invalid/stale evidence, all axes held on obstacle, requires post-hold upstream zero before fresh motion, fences producer restart. Fixed-anchor source-clock mapping reserves50ms within350ms deadline (~300ms stable-clock capture age). Optional manifest roles now select guarded routing; stock defaults unchanged. Candidate not deployed.",
     "camera_producer": "Same inference publishes original capture stamp, per-process UUID, sequence, fixed geometry and explicit validity. Fixed0.4 detector confidence; display confidence/rotation/color do not modify detector input or published evidence. Startup --swap-rb configures detector color.",
     "camera_cadence": "Viewer now uses phase-preserving monotonic admission. On490 recorded timestamps, scheduling replay without inference admitted299 frames before versus490 after. This is scheduling evidence only; actual Hailo inference/capture age still unmeasured. Stalls discard missed slots without backlog.",
-    "guarded_session": "Guard process continuity and named publisher graph are separate from native manager authority. Ordinary camera hold cancels finite action, revokes prepare token and keeps client resident after verified zero. Fresh prepare/run required after clearance. Guard-only loss exits client without deactivating healthy native standing. Native fault, pending/uncertain Start or explicit Stop during cancellation retains emergency precedence."
+    "guarded_session": "Guard process continuity and named publisher graph are separate from native manager authority. Ordinary camera hold cancels finite action, revokes prepare token and keeps client resident after verified zero. Fresh prepare/run required after clearance. Guard-only loss exits client without deactivating healthy native standing. Native fault, pending/uncertain Start or explicit Stop during cancellation retains emergency precedence.",
+    "continuous_bridge": "Resident per-robot Executor and ROS sink share one local Linux monotonic clock, explicit geometry, Limits(.3,.3,1), operator arm, source binding and selected source hashes. Independent20ms steady timer publishes only own robot through mux/guard. Same-host normalized input only; capture/issue/expiry retained, local receipt replaces event now. Native command feedback and zero confirmation, guard-only vs native failure, bounded async notifications.",
+    "external_hold": "Trusted local hold immediately cancels strike/alignment. Release needs newer capture and intent issue. An interrupted live finite shoot ID retires; a shoot offered while held is explicitly refused without retiring its unused ID. New arm after hold history sets new freshness floor; ongoing hold survives Stop/epochs. Goal resume remains held until fresh evidence.",
+    "camera_status_age": "Guard status carries sampled_at_monotonic_ns. Both clients account for first-delivery delay and repeated source frames. Shared graph checker scans every topic; foreign/duplicate or positive excess publisher counts outrank missing guard path/process."
   },
   "reviews": {
     "fable_model": "claude-fable-5-2 (verified modelUsage), existing authorized Claude account",
@@ -97,7 +108,7 @@
     "colab": "L4 stopped after approximately80s after upload review rejection. User later explicitly approved transfer; local fallback already worked. Final0 sessions/0CU/hour. Rounded balance326.94CU does not establish zero credit consumption; exact incremental dollar cost unreported.",
     "claude": "Existing subscription/account use; CLI list-price usage metadata is not a billing receipt."
   },
-  "remaining": "Selected guarded launch/process identity and Pi-compatible release preparation; real camera capture-age/inter-frame timing; supervised heading, native-watchdog and camera-stopping acceptance; Ryan live pose integration and soccer/deliverables. Current owners/next actions live only in interruption-recovery.json.",
+  "remaining": "Pi assembly/import/preflight and physical acceptance; actual camera capture age/spacing and scene coverage; two-robot ROS-domain rehearsal and commissioning; Ryan producer/clock adapter; physical heading/braking/defense/shot tests; demo/video/presentation/code/blog deliverables. Current owners/next actions only in interruption-recovery.json.",
   "core_commit": "d4f6d92",
   "ros_integration": {
     "receipt": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
@@ -131,5 +142,54 @@
     "remaining": "Actual capture age/spacing+coverage, target imports, real client/guard transport rehearsal and supervised braking/heading tests. Continuous FC gameplay-to-ROS bridge still absent; finite trial tool is qualification only.",
     "assembly_followup": "After1050combined checks, root tightened assembly to reject concurrent drift of all preserved baseline roles (including imported shot core/node and URDF).9focused assembly checks pass; guarded runtime/client source unchanged. Earlier source archive retained as superseded.",
     "assembly_validation": "artifacts/pupper-fc/2026-11-17/guarded-source-kit-20261117T110200Z/assembly-tests.json"
+  },
+  "fc_bridge": {
+    "combined_validation": "artifacts/pupper-fc/2026-11-17/fc-bridge-integration-20261117T112200Z/tests.json",
+    "combined_summary": "1173 passed,106 subtests passed in2.95s; one existing Starlette/httpx warning. No source changed during run; all tested hashes still match final current sources.",
+    "actual_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-executor-20261117T110500Z/summary-final.json",
+    "actual_ros_scope": "One real ROS domain: production bridge CLI and normalized ingress -> existing C++ mux -> reviewed body guard -> fake stock-observation consumer. Native loaded identity and stock services are explicit fixtures.",
+    "actual_ros_cases": 3,
+    "group_checks": 16,
+    "group_count_limit": "Repeated startup/routing assertions; not16 independent scenarios.",
+    "timing_ms": {
+      "lease_deadline_to_zero_publication": 3.094833,
+      "field_deadline_to_zero_publication": 19.746542,
+      "lifecycle_tick_p95": 25.233209,
+      "lifecycle_tick_max": 26.477458,
+      "lifecycle_callback_max": 6.912083,
+      "blocked_stdout_write": 471.803792,
+      "blocked_stdout_lease_deadline_to_zero": 4.692417
+    },
+    "timing_limit": "Short local Docker run with test-only in-process instrumentation, nominal20ms timer. Not Pi, physical motor latency, atomic Stop guarantee or a real-time bound. DDS observer receipts stored separately.",
+    "verified_behaviors": [
+      "explicit arm; other robot intent refused; actual mux/guard nonzero path",
+      "independent field and intent expiry with other inputs fresh",
+      "128-character detector label holds safely; interrupted shoot ID cannot revive, fresh ID replans",
+      "unread4KiB stdout does not block lease expiry",
+      "guard death closes bridge without emergency request and fake native authority continues",
+      "explicit Stop and deterministic Stop injection inside final stock check prevent later nonzero output"
+    ],
+    "archive_sha256": "834e0cd2ae3062a96fdc964719d3cdb617e9217bd2ad495451bef41219aa2dfd",
+    "archive_verified_files": 52,
+    "independent_review": "artifacts/pupper-fc/2026-11-17/fc-bridge-adversarial-review/verification.json",
+    "review_fixes": "Original delayed first status, missing guard masking competing publishers, long valid camera reason crash, Stop during final stock check, and inconsistent excess publisher count all reproduced and correction-verified. No claim beyond bounded review scope.",
+    "fable_review": "artifacts/pupper-fc/2026-11-17/external-hold-review-20261117T111100Z/review.json",
+    "fable_exact_model": "claude-fable-5-2",
+    "fable_outcome": "Successful187.9s focused16.9k-character excerpt review, exact canonicalModel in modelUsage. Prompt/old source preserved. Found release/rearm freshness contract ambiguity and accepted-but-retired shoot liveness defect; author reproduced and corrected both.",
+    "fable_correction_evidence": "artifacts/pupper-fc/2026-11-17/external-hold-review-20261117T111100Z/correction-evidence.json",
+    "fable_list_price_equivalent_usd": 0.7712184,
+    "fable_billing_limit": "CLI usage metadata under existing account; not an actual incremental billing receipt. Earlier full-source timeout remains separately recorded.",
+    "source_kit": "artifacts/pupper-fc/2026-11-17/fc-bridge-source-kit-20261117T112908Z/summary.json",
+    "source_kit_sha256": "9b4f5175a6fa308c30d48db4ec1486254a4a6bb0e7a4f9216ca34f25808cbc2d",
+    "source_kit_files": 28,
+    "remaining": [
+      "No Pi, motors, controller_manager, real loaded stock weights, physical braking, Ryan producer integration or calibrated field acceptance.",
+      "Same-container Linux boot monotonic fixture; incoming now deliberately -999 and replaced by real local receipt time, while capture/issue/deadline retain original timestamps.",
+      "Synthetic camera20Hz and5ms declared capture age; real detector/Pi freshness not established.",
+      "Single robot output with explicit other-robot intent refusal; two-domain/two-robot transport not tested.",
+      "Timing from test-only in-process on_tick/publication instrumentation on local Docker; not an atomic-instant, real-time or physical bound. Observer DDS receipt arrays are preserved separately.",
+      "Final-check Stop is an explicitly labeled deterministic test injection, not a naturally observed scheduler race."
+    ],
+    "processes": "All test children and owned containers exited; no robot/SSH/deployment or new cloud spend in this bridge work."
   }
 }

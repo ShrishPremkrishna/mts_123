@@ -24,6 +24,12 @@ SOURCE_ROLES = {
     "guard_script": "final_project/behaviors/body_command_guard.py",
     "guard_obstacles": "final_project/pupper_fc/obstacles.py",
     "guard_package_init": "final_project/pupper_fc/__init__.py",
+    "command_path_evidence": "final_project/behaviors/command_path_evidence.py",
+    "bridge_script": "final_project/behaviors/fc_executor_bridge.py",
+    "fc_integration": "final_project/pupper_fc/integration.py",
+    "fc_controller": "final_project/pupper_fc/controller.py",
+    "fc_model": "final_project/pupper_fc/model.py",
+    "fc_tactics": "final_project/pupper_fc/tactics.py",
 }
 NATIVE_ROLES = {"driver", "controller", "policy", "gateway", "mux"}
 
@@ -82,7 +88,7 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
         raise ValueError("Baseline contains symlinks; resolve its release closure before assembly")
     index = pinned_json(source_index, source_sha256)
     if index.get("schema") != "pupper_guard_sources_v1" or set(index["files"]) != set(SOURCE_ROLES.values()):
-        raise ValueError("Source index must contain the seven selected guarded source files")
+        raise ValueError("Source index must contain exactly the selected guarded/bridge source files")
     for relative, digest in index["files"].items():
         if sha(within(sources, relative)) != digest:
             raise ValueError("Source file mismatch: " + relative)

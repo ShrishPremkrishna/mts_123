@@ -93,10 +93,9 @@ HEADING_MAX_SPEED = 0.35  # initial feedback-turn candidate; native limits still
 HEADING_MAX_TIMEOUT_S = 20.0
 HEADING_TOLERANCE_RAD = 0.05
 HEADING_DWELL_S = 0.3
-GUARD_STATUS_TOPIC = "/fc/body_command_guard/status"
-GUARD_INPUT_TOPIC = "/fc/requested_cmd_vel"
-GUARD_STATUS_MAX_AGE_S = 0.3
-GUARD_FRAME_MAX_AGE_S = 0.35
+from command_path_evidence import (GUARD_STATUS_TOPIC, GUARD_INPUT_TOPIC,
+    GUARD_STATUS_MAX_AGE_S, GUARD_FRAME_MAX_AGE_S, decode_guard_status,
+    guard_publishers_problem, guard_status_problem)
 ZERO = (0.0, 0.0, 0.0)
 CLIENT_IDENTITY = {"path": str(Path(__file__).resolve()),
                    "sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
@@ -566,83 +565,31 @@ def _node_class():
       return valid
 
     def guard_publishers_problem(self):
-      expected = {self.robot_topic: ["/fc_body_command_guard", "/movement_trial"],
-                  GUARD_INPUT_TOPIC: ["/cmd_vel_mux"], self.kick_topic: ["/movement_trial"],
-                  GUARD_STATUS_TOPIC: ["/fc_body_command_guard"]}
-      try:
-        for topic, wanted in expected.items():
-          infos = self.get_publishers_info_by_topic(topic)
-          actual = [info.node_namespace.rstrip("/") + "/" + info.node_name for info in infos]
-          if sorted(actual) != sorted(wanted) or self.count_publishers(topic) != len(wanted):
-            competing = any(name not in wanted or actual.count(name) > wanted.count(name) for name in actual)
-            return ("authority" if competing else "path", "unexpected publishers on " + topic)
-      except (AttributeError, RuntimeError):
-        return "path", "guard publisher identities unavailable"
-      return None
+      return guard_publishers_problem(self, "/movement_trial", robot_topic=self.robot_topic,
+                                      kick_topic=self.kick_topic)
 
     def guard_problem(self, *, camera=True):
       if self.command_topology == "stock":
         return None
+      problem = self.guard_publishers_problem()
+      if problem and problem[0] == "authority":
+        return problem
       if self.guard_fault:
         return "path", self.guard_fault
       if (self.command_path_valid is not True or self.command_path_checked_at is None or
           not 0 <= self.now() - self.command_path_checked_at <= GUARD_STATUS_MAX_AGE_S):
         return "path", "no fresh selected guard process identity"
-      problem = self.guard_publishers_problem()
       if problem:
         return problem
-      if (self.guard_status_at is None or
-          not 0 <= self.now() - self.guard_status_at <= GUARD_STATUS_MAX_AGE_S):
-        return "path", "guard status unavailable or stale"
-      if self.guard_error:
-        return "path", self.guard_error
-      status = self.guard_status
-      if status["state"] == "fault":
-        return "path", "guard fault: " + status["reason"]
-      if camera and (not status["camera_permitted"] or status["camera_state"] != "clear" or
-                     self.guard_frame_deadline is None or self.now() >= self.guard_frame_deadline or
-                     status["clear_frames"] < 3 or status["requires_post_hold_zero"] or
-                     status["input_state"] == "invalid"):
-        return "camera", "camera guard holds: " + status["reason"]
-      return None
+      return guard_status_problem(self.guard_status, self.guard_status_at, self.guard_error,
+                                  self.guard_frame_deadline, self.now(), camera=camera)
 
     def on_guard_status(self, msg):
       with self.lock:
         now = self.now()
         try:
-          if not isinstance(msg.data, str) or len(msg.data) > 8192:
-            raise ValueError("oversized guard status")
-          status = json.loads(msg.data)
-          if not isinstance(status, dict):
-            raise ValueError("invalid guard status")
-          if (status.get("state") not in ("ready", "passing", "hold", "fault") or
-              status.get("camera_state") not in ("clear", "blocked", "stale", "invalid") or
-              status.get("input_state") not in ("missing", "expired", "invalid", "valid") or
-              type(status.get("camera_permitted")) is not bool or
-              type(status.get("requires_post_hold_zero")) is not bool or
-              type(status.get("clear_frames")) is not int or status["clear_frames"] < 0 or
-              not isinstance(status.get("reason"), str)):
-            raise ValueError("invalid guard status fields")
-          age, limit = status.get("frame_age_s"), status.get("max_frame_age_s")
-          if (isinstance(limit, bool) or not isinstance(limit, (int, float)) or
-              not math.isfinite(limit) or not 0 < limit <= GUARD_FRAME_MAX_AGE_S):
-            raise ValueError("invalid guard capture age limit")
-          if age is not None:
-            if (isinstance(age, bool) or not isinstance(age, (int, float)) or
-                not math.isfinite(age) or age < 0 or type(status.get("sequence")) is not int or
-                status["sequence"] < 0 or not isinstance(status.get("producer_instance"), str) or
-                not status["producer_instance"]):
-              raise ValueError("invalid guard source capture evidence")
-            source = (status["producer_instance"], status["sequence"])
-            deadline = now + limit - age
-            if self.guard_source is not None:
-              if source[0] != self.guard_source[0] or source[1] < self.guard_source[1]:
-                raise ValueError("guard source identity changed or regressed")
-              if source == self.guard_source:
-                deadline = min(deadline, self.guard_frame_deadline)
-            self.guard_source, self.guard_frame_deadline = source, deadline
-          elif status["camera_permitted"]:
-            raise ValueError("clear guard status lacks source capture evidence")
+          status, self.guard_source, self.guard_frame_deadline = decode_guard_status(
+            msg.data, now, self.guard_source, self.guard_frame_deadline)
           self.guard_status, self.guard_status_at, self.guard_error = status, now, None
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
           self.guard_error = "invalid guard status: " + str(exc)

@@ -304,6 +304,7 @@ class BodyCommandGuard:
             (self._last_clocks[0] if self._last_clocks else 0) - self._capture_ros_ns,
         ) / 1e9, 6)
         return GuardResult(command, {
+            "sampled_at_monotonic_ns": safe_now,
             "state": state, "reason": reason[:200], "input_age_s": age(self._input_ns),
             "input_state": self._input_state, "camera_state": decision.state,
             "camera_permitted": decision.permitted and not self._fault,

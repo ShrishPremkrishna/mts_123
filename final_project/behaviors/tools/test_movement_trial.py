@@ -1723,7 +1723,8 @@ def install_guard_evidence(ros, node, mt):
       node._guard_sequence += 1
       status = dict(state="hold", reason="no body command received", input_state="missing",
                     camera_state="clear", camera_permitted=True, max_frame_age_s=0.35,
-                    frame_age_s=0.05, producer_instance="camera-one", sequence=node._guard_sequence,
+                    frame_age_s=0.05, sampled_at_monotonic_ns=round(ros.t * 1e9),
+                    producer_instance="camera-one", sequence=node._guard_sequence,
                     clear_frames=3, requires_post_hold_zero=False, command=[0, 0, 0])
       status.update(node._guard_overrides)
       node.on_guard_status(_fake_ros.String(json.dumps(status)))
@@ -1778,6 +1779,7 @@ def test_guard_status_heartbeat_cannot_rejuvenate_same_source_frame(tmp_path):
   deadline = node.guard_frame_deadline
   ros.t += 0.2
   original["frame_age_s"] = 0  # repeated packet falsely attempts to renew source age
+  original["sampled_at_monotonic_ns"] = round(ros.t * 1e9)
   node.on_guard_status(_fake_ros.String(json.dumps(original)))
   assert node.guard_frame_deadline == deadline
   ros.t = deadline + 0.01

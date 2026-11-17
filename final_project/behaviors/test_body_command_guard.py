@@ -90,6 +90,19 @@ class GuardTests(unittest.TestCase):
         self.time.ros += CLOCK_JUMP_NS + 1
         self.assertFalse(self.guard.evaluate(**self.time.clocks()).status["camera_permitted"])
 
+    def test_status_carries_its_sampling_time_without_refreshing_capture(self):
+        result = self.clear()
+        sampled = self.time.mono
+        age = result.status["frame_age_s"]
+        self.assertEqual(result.status["sampled_at_monotonic_ns"], sampled)
+        self.time.advance(0.2)
+        # Retaining/transmitting an old result must retain its original time.
+        self.assertEqual(result.status["sampled_at_monotonic_ns"], sampled)
+        later = self.guard.evaluate(**self.time.clocks()).status
+        self.assertEqual(later["sampled_at_monotonic_ns"], self.time.mono)
+        self.assertAlmostEqual(later["frame_age_s"], age + .2)
+        self.assertEqual(later["sequence"], result.status["sequence"])
+
     def test_startup_vetoed_motion_requires_zero_then_fresh_command(self):
         self.assertEqual(self.command().command, ZERO)
         self.clear()

@@ -116,6 +116,73 @@ requests without shutting down native standing or automatically restarting.
 Competing publishers or lost native authority retain the emergency response.
 These sources are not yet deployed; see the [assembly procedure](../../foundation/HARDWARE_CHECKLIST.md#guarded-walk-candidate).
 
+## Continuous gameplay bridge
+
+`fc_executor_bridge.py` runs one gameplay executor and ROS publisher per robot.
+It publishes only its selected robot to `/kick_cmd_vel`; the existing mux,
+camera guard and native controller remain downstream. A 20 ms steady-clock tick
+checks command expiry independently of input traffic. The initial command
+envelope is ±0.3 m/s forward/lateral and ±1 rad/s yaw. Two robot instances need
+separate ROS domains with the existing absolute-topic stack.
+
+The CLI defaults to configuration validation with no ROS imports or processes:
+
+```sh
+python3 final_project/behaviors/fc_executor_bridge.py --robot-id pupper-1 --producer-id local-fixture
+```
+
+`--execute` requires an explicit six-value field configuration, opposite robot
+attack signs, and `--runtime-receipt` selecting the guarded walk release and
+executing source files. Geometry values are `length`, `width`, `goal_width`,
+`robot_radius`, `ball_radius`, and `bumper_offset`, all in metres, under `field`;
+`attack_signs` maps `pupper-1` and `pupper-2` to +1/−1. The old sandbox ball/goal
+defaults are not silently used. This is a candidate, not a commissioned robot
+procedure or an automatic startup service.
+
+Operator stdin accepts JSON `command` values `arm`, `resume`, `start`, `status`,
+`stop`, and `quit`. Arm needs a new `epoch` and fresh native, zero-command and
+camera evidence. Start is the optional native gateway activation; it never homes
+or arms gameplay. Resume names the current `frame_seq`. Stop wins during Start,
+camera interruption and cleanup. Ordinary camera holds keep the session running;
+a failed command path closes it while preserving healthy native standing.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> AwaitingInputs: explicit arm and readiness
+    Playing --> AwaitingInputs: field or intent expires
+    AwaitingInputs --> Playing: fresh field and intent
+    AwaitingInputs --> CameraHold: camera veto
+    Playing --> CameraHold: camera veto
+    CameraHold --> Playing: zero confirmed, clear, newer field and intent
+    Playing --> Closed: Stop or runtime fault
+    CameraHold --> Closed: Stop or runtime fault
+    AwaitingInputs --> Closed: Stop or runtime fault
+```
+
+Playing includes offense/defense selection and approach, alignment, strike,
+return-home and await-reset phases. A camera hold cancels the internal strike.
+An interrupted finite shoot needs a new ID; a shoot offered while held is refused
+and may be freshly issued after clearance. Continuous auto can replan with the
+same live owner. A new arm after a prior hold still needs newer evidence.
+
+ROS String `/fc/normalized_events` accepts only `frame` and `intent` events from
+the configured `producer_id`. They use the executor's normalized contract and
+`clock="linux-monotonic:<local Linux boot UUID>"`. Receipt replaces only event
+`now`, never capture, issue or expiry. This first bridge supports a same-host
+fixture; Ryan's actual camera clock still needs an adapter. These names identify
+the intended source operationally and do not authenticate DDS traffic. Perception
+cannot arm or send goal resume through this topic. Intents for the other robot
+are refused; field snapshots can include both robots.
+
+`/fc/executor_bridge/status` exposes the selected robot, epoch, role/action,
+decision, hold/fault reasons and applied-command receipt age at 5 Hz with a
+latest-only best-effort publisher. Operator notifications use a bounded queue;
+an unread stdout pipe cannot block the control tick. Applied feedback has no
+source stamp, so receipt age is not exact controller latency. Twist also strips
+the original command lease: bridge expiry plus downstream watchdogs provide
+bounded stopping, not exact end-to-end enforcement of `expires_at`.
+
 The viewer publishes `/fc/obstacle_detections` with original image capture
 nanoseconds, a per-process instance ID, increasing sequence, explicit validity,
 normalized boxes and fixed 700 × 572 / 220-degree projection. Detector confidence
@@ -138,6 +205,8 @@ upstream must send zero and then fresh motion after clearance; repeated old mux
 commands cannot restart an interrupted action. A detector restart or clock fault
 requires an explicit guard restart. These are candidate contracts, not physical
 stopping-distance or detector-coverage acceptance.
+Guard status includes its original `sampled_at_monotonic_ns`; both local clients
+account for status transport delay, including the first received sample.
 
 An ordinary camera hold interrupts a finite movement and invalidates its prepare
 token. A confirmed zero and intact native/guard authority leave the resident
