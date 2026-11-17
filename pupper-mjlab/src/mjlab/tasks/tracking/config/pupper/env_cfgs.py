@@ -215,3 +215,32 @@ def pupper_tracking_env_cfg(
     motion_cmd.velocity_range = {}
     motion_cmd.sampling_mode = "start"
   return cfg
+
+
+def pupper_leg_kick_env_cfg(
+  motion_file: str = "", play: bool = False
+) -> ManagerBasedRlEnvCfg:
+  """Pupper tracking for kicks (tricks/leg_kick.py): two more terms score the four
+  lower legs alone.
+
+  The shared body terms average nine bodies over the whole motion, and the lower
+  leg's origin is the knee, so a paw that swings low and early through a 0.2 s
+  kick costs almost nothing. Tight lower-leg position (knee) and orientation
+  terms make the paw path count: 0.2 rad of lower-leg tilt is about 2 cm at the paw.
+  """
+  from mjlab.managers.reward_manager import RewardTermCfg
+  from mjlab.tasks.tracking import mdp
+
+  cfg = pupper_tracking_env_cfg(motion_file=motion_file, play=play)
+  common = {"command_name": "motion", "body_names": FOOT_BODIES}
+  cfg.rewards["motion_lower_leg_pos"] = RewardTermCfg(
+    func=mdp.motion_relative_body_position_error_exp,
+    weight=1.0,
+    params={**common, "std": 0.03},
+  )
+  cfg.rewards["motion_lower_leg_ori"] = RewardTermCfg(
+    func=mdp.motion_relative_body_orientation_error_exp,
+    weight=1.0,
+    params={**common, "std": 0.2},
+  )
+  return cfg

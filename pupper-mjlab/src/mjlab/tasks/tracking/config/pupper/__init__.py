@@ -13,16 +13,27 @@ from pathlib import Path
 
 from mjlab.tasks.registry import register_mjlab_task
 
-from .env_cfgs import pupper_tracking_env_cfg
+from .env_cfgs import pupper_leg_kick_env_cfg, pupper_tracking_env_cfg
 from .rl_cfg import pupper_tracking_ppo_runner_cfg
 from .runner import PupperTrickRunner
 
 DEFAULT_MOTION = str(Path(__file__).resolve().parent / "tricks" / "sit.npz")
+LEG_KICK_MOTION = str(Path(__file__).resolve().parent / "tricks" / "leg_kick.npz")
 
 register_mjlab_task(
   task_id="Mjlab-Tracking-Flat-Pupper-v3",
   env_cfg=pupper_tracking_env_cfg(motion_file=DEFAULT_MOTION),
   play_env_cfg=pupper_tracking_env_cfg(motion_file=DEFAULT_MOTION, play=True),
+  rl_cfg=pupper_tracking_ppo_runner_cfg(),
+  runner_cls=PupperTrickRunner,
+)
+
+# Kicks (tricks/leg_kick.py): the same observations and actions, so play_motion.py
+# and export_trick.py treat its checkpoints like any trick policy.
+register_mjlab_task(
+  task_id="Mjlab-Tracking-LegKick-Flat-Pupper-v3",
+  env_cfg=pupper_leg_kick_env_cfg(motion_file=LEG_KICK_MOTION),
+  play_env_cfg=pupper_leg_kick_env_cfg(motion_file=LEG_KICK_MOTION, play=True),
   rl_cfg=pupper_tracking_ppo_runner_cfg(),
   runner_cls=PupperTrickRunner,
 )
