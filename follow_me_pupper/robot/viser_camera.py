@@ -62,7 +62,7 @@ import yaml
 
 from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
 from yolo_seg import Detection, HailoYoloSeg, draw_detections
-from perception_safety import MAX_FRAME_AGE_S, image_stamp_ns, fresh_frame
+from perception_safety import MAX_FRAME_AGE_S, image_stamp_ns, fresh_frame, DetectionCadence
 
 # follow_me.py measures against this reference frame, so publish in it no matter
 # what resolution the viewer happens to be showing. The height is pinned too --
@@ -939,7 +939,7 @@ def main():
     fisheye_model = None
     model_shape = None
     last_report = time.time()
-    last_submit = 0.0
+    detection_cadence = DetectionCadence()
     frames = 0
 
     print_access_banner(args.port)
@@ -978,9 +978,8 @@ def main():
             showing_equirect = gui_view.value == "equirectangular"
             display_fov = float(gui_fov.value)
             detecting = worker is not None and gui_detect.value
-            submit_due = detecting and (
-                time.time() - last_submit >= 1.0 / gui_detect_fps_target.value
-            )
+            submit_due = detection_cadence.due(
+                time.monotonic(), float(gui_detect_fps_target.value), enabled=detecting)
 
             equirect = detect_frame = None
             if showing_equirect or submit_due:
@@ -1017,7 +1016,6 @@ def main():
                 if submit_due:
                     worker.submit(detect_frame, received_at=received_at,
                                   capture_stamp_ns=capture_stamp_ns)
-                    last_submit = time.time()
 
                 # Boxes and masks live in equirectangular pixels, so they can
                 # only be drawn on a matching projection. A different display

@@ -10,8 +10,9 @@
     "final_project/pupper_fc/integration.py": "329b5af01113d1a6a3d69bf2524d59ad9d5e4a48b59b28f81be11259956550c9",
     "final_project/pupper_fc/model.py": "5c9f4ffc68378526b4707e7d2284c4f87469fac2759c19db9e15bfe0ee52212a",
     "final_project/behaviors/body_command_guard.py": "f8448cb7e4016b5383974fb4ca838876ed9169a398223bbefe1e51c1abb9aa4b",
-    "follow_me_pupper/robot/viser_camera.py": "5664cfb87f17f39e688448510721832a28d6c00f1b2df232e0073814b8d8b8ce",
-    "final_project/behaviors/tools/ros_fc_guard_smoke.py": "b59355e839faa0b7a05da9fdb67fec019727e0f004ccae112ad08846345b8bfd"
+    "follow_me_pupper/robot/viser_camera.py": "b364fb1eb8c329d40690484bbb0107c13dbda3fbc1c2e9cbfc6acf41d05e74d0",
+    "final_project/behaviors/tools/ros_fc_guard_smoke.py": "b59355e839faa0b7a05da9fdb67fec019727e0f004ccae112ad08846345b8bfd",
+    "follow_me_pupper/robot/perception_safety.py": "e330d585aa75cf416f11cd592a97ba0ff7c97bd645fe3334e8b7790e7beabc0f"
   },
   "implemented": {
     "heading": "Persistent movement client accepts relative orientation or absolute IMU heading. Execution-time anchor, shortest route, exact antipode left, <=0.35rad/s,0.05rad tolerance,0.3s distinct capture-time dwell, hard timeout. Physical angle accuracy unaccepted.",
@@ -21,7 +22,8 @@
     "resume": "Explicit session-checked per-robot resume references exact current field frame, completed return, correct home position/heading, cleared goal, current lease and clear configured camera. No queued reset or renewed authority.",
     "software_start": "Resident helper and session Start freeze a challenge at actual input receipt. No discovery wait, newer-status repair, automatic retry or homing. Initial ordinary Stop may release; subsequent Stop epoch/gateway instance changes end session. Pending/uncertain exit requests emergency Stop. Real ROS integration passed three groups against the actual gateway and a fake controller backend.",
     "camera_body_guard": "Actual-command guard candidate reuses ForwardObstacleGate after the existing mux. Rejects invalid/stale evidence, all axes held on obstacle, requires post-hold upstream zero before fresh motion, fences producer restart. Fixed-anchor source-clock mapping reserves50ms within350ms deadline (~300ms stable-clock capture age). Selected stock launch remains unchanged.",
-    "camera_producer": "Same inference publishes original capture stamp, per-process UUID, sequence, fixed geometry and explicit validity. Fixed0.4 detector confidence; display confidence/rotation/color do not modify detector input or published evidence. Startup --swap-rb configures detector color."
+    "camera_producer": "Same inference publishes original capture stamp, per-process UUID, sequence, fixed geometry and explicit validity. Fixed0.4 detector confidence; display confidence/rotation/color do not modify detector input or published evidence. Startup --swap-rb configures detector color.",
+    "camera_cadence": "Viewer now uses phase-preserving monotonic admission. On490 recorded timestamps, scheduling replay without inference admitted299 frames before versus490 after. This is scheduling evidence only; actual Hailo inference/capture age still unmeasured. Stalls discard missed slots without backlog."
   },
   "reviews": {
     "fable_model": "claude-fable-5-2 (verified modelUsage), existing authorized Claude account",
@@ -41,7 +43,7 @@
     "log": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests-final.log",
     "prior_snapshot": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests.json",
     "not_evidence_of": "Physical stability, heading accuracy, Pi performance or collision avoidance",
-    "source_note": "All exercised Python sources unchanged after suite; ROS smoke runner later gained explicit synthetic timing-limit metadata and has its own exact final ROS receipt."
+    "source_note": "976-test combined suite applies to guard integration before the isolated cadence change. That subsequent viewer/helper change passed78 affected checks; exact snapshots retained in both receipts."
   },
   "two_robot_replay": {
     "summary": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/two-robot-summary.json",
@@ -100,5 +102,11 @@
     "scope": "Real gateway and mux, production resident Start attachment/queue and body guard; fake controller backend/consumer, no hardware. Guard uses synthetic20Hz camera with5ms declared capture age. Does not prove Pi5Hz clearance, braking or native watchdog response.",
     "supplement_sha256": "34b416d0f9068b1753981d0da5977d410bfffdad3e0f90698d587226760e7b8e",
     "supplement_verified_files": 18
+  },
+  "guard_commit": "4996df2",
+  "camera_cadence": {
+    "evidence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/",
+    "integrated_tests": "78 passed after viewer integration; capture and follower runtime regressions included.",
+    "constraints": "No masks/model behavior changes; no hardware or deployment."
   }
 }

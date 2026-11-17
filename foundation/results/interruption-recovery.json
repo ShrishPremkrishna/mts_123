@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T10:31:08.403127+00:00",
+  "updated_utc": "2026-11-17T10:34:17.904810+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -26,7 +26,8 @@
     "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/result.json",
     "fable_execution_review": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/final-review.json",
     "overnight_execution": "foundation/results/overnight-execution-20261117.json",
-    "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json"
+    "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
+    "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -64,7 +65,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Final combined software suite:976 tests and106 subtests passed. Real ROS Start3 and final guard7 groups passed; all owned containers/processes exited. Two-robot replay deterministic. Local vision comparison/replay archives complete. No active cloud allocation.",
+    "compute": "Core d4f6d92 and guard4996df2 committed.976 tests+106 subtests passed before cadence delta;78 affected cadence/capture/follower checks passed after integration. Real ROS Start3/guard7 passed. All cloud/Docker jobs closed; delegation completed. Next: selected guarded launch and source/client packaging.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -75,8 +76,8 @@
       "project_lead": "Current Codex chat 01a1e800-1b8f-74e0-9e1e-3723fff803de; Shrish is owner/physical interface. Previous chat is idle after clean closure.",
       "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
       "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Owns cadence helper in perception_safety.py and new test_detection_cadence.py. Recorded 490 timestamps reproduce ~6Hz scheduling without inference; phase-preserving scheduling reaches ~10Hz in replay. Root alone owns viewer integration. Evidence is scheduling simulation, not Pi speed.",
-      "overnight_compute": "ROS/vision evidence completed and closed. New read-only bounded design task: optional guarded launch and pinned Python/process identity; no implementation ownership yet.",
+      "overnight_harness": "Completed cadence helper; root integrated viewer. Recorded scheduling replay299/490 ->490/490 frames,78 affected checks passed. No inference/mask changes; idle.",
+      "overnight_compute": "Completed read-only guarded launch design; no source ownership/jobs. Recommendation delivered: optional manifest mode, script/interpreter identity, explicit guarded topology and guard-only failure path preserving native manager.",
       "body_guard": "Completed/frozen and integrated: guard f8448cb7, source-age/zero-barrier corrections independently reproduced, final real ROS7 groups passed. No hardware acceptance."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
@@ -129,8 +130,8 @@
   },
   "next": [
     {
-      "id": "camera_cadence",
-      "action": "Review bounded scheduling investigation. Fix a reproduced avoidable frame-scheduling delay, if present, without guessing at Hailo inference timing. Record source capture age and frame spacing as first next-session camera measurements."
+      "id": "guarded_launch_design_decision",
+      "action": "Implement minimal optional guarded launch/process selection without a new framework. Coordinate one author for launch/identity, one for movement-client topology/guard failure, root packaging. Current native same_manager failures cause emergency Stop: do not conflate a dead guard with changed native authority or trigger unsupported motor release. Existing native required-process teardown stays legacy-scoped."
     },
     {
       "id": "selected_guard_release",

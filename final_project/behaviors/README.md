@@ -117,6 +117,12 @@ normalized boxes and fixed 700 × 572 / 220-degree projection. Detector confiden
 is fixed at 0.4; viewer confidence, rotation and color edits affect display only.
 Use `--swap-rb` at startup for detector color correction. A healthy empty result
 means inference found nothing; it does not prove unobscured or obstacle-free space.
+Frame submission now preserves a monotonic cadence instead of restarting the
+interval after processing each frame. On 490 recorded camera timestamps, a
+zero-inference scheduling replay admitted 299 frames before the fix and 490
+after it. This removes an avoidable scheduling loss; actual Hailo throughput and
+capture-to-guard age still require measurement. Stalls admit one latest frame
+without a backlog or catch-up burst.
 
 The guard requires three fresh clear frames. It reserves 50 ms for the supported
 ROS/monotonic clock-offset window, leaving approximately 300 ms usable capture
