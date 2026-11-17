@@ -41,14 +41,19 @@ target build receipt separately. Cached Ubuntu test binaries are not Pi builds.
 
 Use the frozen source kit linked by the current checkpoint. On the target
 filesystem, select the baseline manifest and its independently recorded digest,
-the kit's `guard-sources.json` and digest, and the existing ROS-capable Python:
+the kit's `guard-sources.json` and digest, and the existing ROS-capable Python.
+For the current strict 15-role kit, include the explicitly rebuilt controller:
 
 ```sh
 python3 foundation/hardware/assemble_guarded_release.py \
   --baseline-manifest "$BASELINE/walk-manifest.json" --baseline-sha256 "$BASELINE_SHA256" \
   --source-root "$KIT" --source-index "$KIT/guard-sources.json" --source-sha256 "$SOURCE_SHA256" \
-  --destination "$NEW_RELEASE" --guard-python "$ROS_PYTHON"
+  --destination "$NEW_RELEASE" --guard-python "$ROS_PYTHON" \
+  --deadline-controller "$TARGET_CONTROLLER" --deadline-controller-sha256 "$TARGET_CONTROLLER_SHA256"
 ```
+
+For legacy guarded assembly, select its matching 13-role source index and omit
+both deadline-controller options. The indexes are not interchangeable.
 
 Default assembly pins the all-obstacle policy. `--arena-ball-contact` is an
 explicit candidate selection for soccer: only class `"32"` from the expected
