@@ -10,14 +10,33 @@ and zero-command exit. Not a ROS run.
 from __future__ import annotations
 
 import importlib
+import hashlib
 import json
 import math
+import sys
 
 import pytest
 
 import _fake_ros
 
 ZERO = (0.0, 0.0, 0.0)
+POLICY_FIXTURE = None
+
+
+@pytest.fixture(autouse=True)
+def isolate_ros_modules(tmp_path):
+  """A tiny explicit stock fixture; restore modules after every fake-ROS test."""
+  global POLICY_FIXTURE
+  POLICY_FIXTURE = tmp_path / "stock.json"
+  POLICY_FIXTURE.write_bytes(b"test-only stock policy fixture")
+  roots = {"rclpy", "rcl_interfaces", "geometry_msgs", "std_msgs", "std_srvs", "sensor_msgs",
+           "controller_manager_msgs", "run_through_kick_node", "learned_kick_node"}
+  saved = {n: m for n, m in sys.modules.items() if n.split(".")[0] in roots}
+  yield
+  for name in list(sys.modules):
+    if name.split(".")[0] in roots:
+      del sys.modules[name]
+  sys.modules.update(saved)
 
 
 def make_node(module_name, overrides=None, other_cmd_vel_publishers=None):
@@ -28,7 +47,13 @@ def make_node(module_name, overrides=None, other_cmd_vel_publishers=None):
   ros.publishers["/cmd_vel"] += other_cmd_vel_publishers
   cls = module.RunThroughKickNode if module_name == "run_through_kick_node" else module.LearnedKickNode
   node = cls()
+  if module_name == "run_through_kick_node":
+    module.STOCK_POLICY_SHA256 = hashlib.sha256(POLICY_FIXTURE.read_bytes()).hexdigest()
+    ros.controller_params["model_path"] = str(POLICY_FIXTURE)
+    node.stock.clock = lambda: ros.t
   gateway(ros, latched=False)  # the operator pressed Options: the walker stands
+  if module_name == "run_through_kick_node":
+    ros.tick(3)  # asynchronous inventory/parameters, without any activation
   return ros, node
 
 
@@ -57,7 +82,7 @@ def test_manual_kick_runs_to_done_and_consumes_the_measurement():
   assert ros.call("activate_run_through_kick").success
   ros.tick(200)  # 10 s at 20 Hz
   cmds = twists(ros, "/kick_cmd_vel")
-  assert max(c[0] for c in cmds) > 0.9 and cmds[-1] == ZERO
+  assert max(c[0] for c in cmds) == pytest.approx(0.45) and cmds[-1] == ZERO
   assert last_state(ros, "/run_through_kick/state")["state"] == "done"
   assert math.isnan(node.get_parameter("manual_ball_x").value)
   assert math.isnan(node.get_parameter("manual_aim_deg").value)
@@ -95,7 +120,7 @@ def test_run_through_rereads_parameters_at_activation():
 def test_restamped_stale_ball_hits_the_travel_budget():
   # Perception republishes an old detection with fresh stamps: it looks fresh but
   # never comes closer. The travel budget ends the walk before the lane runs out.
-  ros, node = make_node("run_through_kick_node", {"input_mode": "robot"})
+  ros, node = make_node("run_through_kick_node", {"input_mode": "robot", "align_timeout": 12.0})
   ros.publish("/soccer/ball", _fake_ros.PointStamped(2.0, 0.0, ros.t))
   assert ros.call("activate_run_through_kick").success
   for _ in range(220):  # 11 s
@@ -155,7 +180,171 @@ def test_field_mode_converts_to_the_robot_frame():
   ros.call("activate_run_through_kick")
   ros.tick(1)
   vx, vy, wz = twists(ros, "/kick_cmd_vel")[-1]
-  assert vx > 0.3 and abs(vy) < 1e-6 and abs(wz) < 1e-6
+  assert vx == pytest.approx(0.3) and abs(vy) < 1e-6 and abs(wz) < 1e-6
+
+
+# ---------------------------------------------------------------- stock authority/caps
+
+STATUS_SERVICE = "/controller_manager/list_controllers"
+PARAM_SERVICE = "/neural_controller_default/get_parameters"
+
+
+def manual_ready(ros, node):
+  node.set_parameters([_fake_ros.Parameter("manual_ball_x", value=1.0)])
+  return ros.call("activate_run_through_kick")
+
+
+@pytest.mark.parametrize("owner", ["neural_controller_student", "neural_controller_default_alt", "gemini_walk", "custom"])
+def test_stock_guard_refuses_wrong_active_owner_without_motion(owner):
+  ros, node = make_node("run_through_kick_node")
+  ros.controllers["neural_controller_default"] = "inactive"
+  ros.controllers[owner] = "active"
+  ros.tick(7)
+  assert not manual_ready(ros, node).success
+  assert not ros.published["/kick_cmd_vel"]
+  assert not ros.published["/emergency_stop"]
+
+
+def test_stock_guard_refuses_competing_controller_but_allows_read_only_broadcaster():
+  ros, node = make_node("run_through_kick_node")
+  ros.controllers["joint_states"] = "active"
+  ros.controller_types["joint_states"] = "joint_state_broadcaster/JointStateBroadcaster"
+  ros.tick(7)
+  assert node.stock.problem() is None
+  ros.controllers["gemini_walk"] = "active"
+  ros.tick(7)
+  assert not manual_ready(ros, node).success
+
+
+@pytest.mark.parametrize("name,value", [("charge_speed", 0.7), ("charge_speed", 1.0),
+                                       ("align_speed", 0.35), ("max_vy", 0.5), ("max_wz", 2.1)])
+def test_stock_guard_refuses_requests_that_native_would_clip(name, value):
+  ros, node = make_node("run_through_kick_node", {name: value})
+  res = manual_ready(ros, node)
+  assert not res.success and name in res.message
+  assert not ros.published["/kick_cmd_vel"]
+
+
+@pytest.mark.parametrize("name,value", [("max_vx_forward", None), ("max_vx_backward", None),
+                                       ("speed_cap", None), ("game_buttons", None),
+                                       ("max_vx_forward", -1.0), ("speed_cap", float("nan")),
+                                       ("max_vx_backward", float("inf")), ("game_buttons", True),
+                                       ("speed_cap", 0.2), ("max_vx_forward", 0.2)])
+def test_stock_guard_requires_valid_caps_and_respects_tighter_caps(name, value):
+  ros, node = make_node("run_through_kick_node")
+  ros.controller_params[name] = value
+  ros.tick(7)
+  assert not manual_ready(ros, node).success
+
+
+@pytest.mark.parametrize("service", [STATUS_SERVICE, PARAM_SERVICE])
+def test_stock_guard_missing_or_hung_service_refuses_and_bounds_requests(service):
+  ros, node = make_node("run_through_kick_node")
+  ros.unavailable.add(service)
+  ros.tick(7)
+  assert not manual_ready(ros, node).success
+  ros.unavailable.clear()
+  ros.held_services.add(service)
+  ros.tick(50)
+  assert not manual_ready(ros, node).success
+  assert sum(not f.cancelled for f in ros.held) <= 1
+  assert not ros.published["/kick_cmd_vel"]
+
+
+@pytest.mark.parametrize("change", ["missing", "mismatch", "empty", "directory"])
+def test_stock_guard_requires_matching_regular_model_file(change, tmp_path):
+  ros, node = make_node("run_through_kick_node")
+  if change == "missing":
+    POLICY_FIXTURE.unlink()
+  elif change == "mismatch":
+    POLICY_FIXTURE.write_bytes(b"same slot, different actor")
+  elif change == "empty":
+    ros.controller_params["model_path"] = ""
+  else:
+    ros.controller_params["model_path"] = str(tmp_path)
+  ros.tick(7)
+  assert not manual_ready(ros, node).success
+
+
+@pytest.mark.parametrize("fault", ["student", "lost", "caps", "model", "status_timeout", "params_timeout"])
+def test_active_shot_authority_loss_requests_emergency_stop_and_latches_abort(fault):
+  ros, node = make_node("run_through_kick_node")
+  assert manual_ready(ros, node).success
+  ros.tick(3)
+  assert any(c[0] > 0 for c in twists(ros, "/kick_cmd_vel"))
+  if fault in ("student", "lost"):
+    ros.controllers["neural_controller_default"] = "inactive"
+    if fault == "student":
+      ros.controllers["neural_controller_student"] = "active"
+  elif fault == "caps":
+    ros.controller_params["max_vx_forward"] = 0.2
+  elif fault == "model":
+    POLICY_FIXTURE.write_bytes(b"policy replaced")
+  else:
+    ros.held_services.add(STATUS_SERVICE if fault == "status_timeout" else PARAM_SERVICE)
+  ros.tick(15)
+  assert last_state(ros, "/run_through_kick/state")["state"] == "aborted"
+  assert len(ros.published["/emergency_stop"]) == 1
+  assert twists(ros, "/kick_cmd_vel")[-1] == ZERO
+  count = len(twists(ros, "/kick_cmd_vel"))
+  ros.tick(20)
+  assert len(twists(ros, "/kick_cmd_vel")) == count  # never auto-resume
+
+
+def test_late_evidence_after_stop_cannot_start_or_authorize():
+  ros, node = make_node("run_through_kick_node")
+  ros.held_services.update([STATUS_SERVICE, PARAM_SERVICE])
+  ros.tick(5)
+  old = list(ros.held)
+  ros.call("deactivate_run_through_kick")
+  for future in old:
+    future.resolve()
+  assert not manual_ready(ros, node).success
+  ros.tick(15)
+  for future in old:
+    future.resolve()
+  assert not manual_ready(ros, node).success
+  assert not ros.published["/kick_cmd_vel"]
+  ros.held_services.clear()
+  ros.tick(10)
+  assert node.stock.problem() is None
+  assert not node.kick.active  # fresh data is readiness, never a motion request
+
+
+def test_failed_and_stale_reads_do_not_refresh_evidence():
+  ros, node = make_node("run_through_kick_node")
+  node.stock.invalidate("new read required")
+  ros.tick(5)
+  # Force an old, otherwise successful result; age is measured from request start.
+  if node.stock.pending is None:
+    ros.t += 0.21
+    node.stock.poll()
+  started, futures = node.stock.pending
+  for future in futures:
+    future.resolve()
+  ros.t = started + 0.41
+  node.stock.poll()
+  assert node.stock.problem() is not None
+  # A service future raising is also an explicit refusal, not stale success.
+  if node.stock.pending is None:
+    ros.t += 0.21
+    node.stock.poll()
+  for future in node.stock.pending[1]:
+    future.resolve()
+  node.stock.pending[1][0]._error = RuntimeError("read failed")
+  node.stock.poll()
+  assert "read failed" in node.stock.problem()
+
+
+def test_per_command_guard_rejects_reverse_clipping_even_if_controller_changes_output(monkeypatch):
+  ros, node = make_node("run_through_kick_node")
+  assert manual_ready(ros, node).success
+  module = importlib.import_module("run_through_kick")
+  monkeypatch.setattr(node.kick, "step", lambda *args: module.Command(-0.31, 0, 0))
+  ros.tick(1)
+  assert twists(ros, "/kick_cmd_vel")[-1] == ZERO
+  assert ros.published["/emergency_stop"]
+  assert "bounds" in last_state(ros, "/run_through_kick/state")["reason"]
 
 
 # ---------------------------------------------------------------- learned kick

@@ -13,9 +13,13 @@ YOLO misses) or from Hailo YOLOv8n-seg's COCO "sports ball" (mode yolo or both).
                /soccer/ball_debug  std_msgs/String JSON per processed frame
     subscribes /camera/image_raw/compressed, /imu_sensor_broadcaster/imu
 
-No detection, no message: the kick bridge measures loss by message age. The
-Hailo is opened at start and released on exit, so the Lab 5 follower cannot run
-at the same time.
+No detection or compatible fresh IMU orientation, no ball message: the kick
+bridge measures loss by capture age. Image and IMU source stamps must share
+the robot ROS clock; the IMU orientation must describe base_link. A bounded
+history selects a preceding IMU sample, without claiming exact synchronization.
+The IMU-to-image gap (imu_max_age) and image age at publication (max_image_age)
+have separate limits; an accepted packet keeps its capture age for consumers.
+YOLO modes hold the Hailo exclusively; the default color mode does not open it.
 """
 
 from __future__ import annotations
@@ -38,7 +42,10 @@ from sensor_msgs.msg import CompressedImage, Imu
 from std_msgs.msg import String
 
 from ball_color import ColorParams, find_ball
-from ball_geometry import CameraMount, ball_in_optical, level_from_quaternion, optical_to_yaw_frame
+from ball_geometry import (
+  BODY_FRAME, YAW_FRAME, CameraMount, ball_in_optical, capture_seconds,
+  level_for_capture, level_from_quaternion, optical_to_yaw_frame,
+)
 
 EQ_WIDTH = 700  # the follower's IMAGE_WIDTH; height from equirect_height()
 H_FOV_DEG = 220.0
@@ -56,9 +63,10 @@ class BallDetector(Node):
     for name, value in vars(CameraMount()).items():
       p(f"cam_{name}" if not name.startswith("range") else name, value)
     p("use_imu", True)
-    p("imu_max_age", 0.2)  # s; older IMU -> no levelling
+    p("imu_max_age", 0.2)  # s maximum preceding IMU-to-image capture gap
+    p("max_image_age", 0.5)  # s image source age at publication; consumers may be stricter
     p("ball_topic", "/soccer/ball")
-    p("frame_id", "base_link_yaw")
+    p("frame_id", YAW_FRAME)  # no transform to arbitrary named frames is implemented
     p("snapshot_every_s", 0.0)  # > 0: save the annotated detector input to snapshot_path
     p("snapshot_path", os.path.expanduser("~/kick/logs/ball_snapshot.jpg"))
     # color: ball_color (the red/blue beach ball, no Hailo); yolo: COCO "sports ball";
@@ -108,7 +116,9 @@ class BallDetector(Node):
     self.ball_pub = self.create_publisher(PointStamped, self.get_parameter("ball_topic").value, 10)
     self.debug_pub = self.create_publisher(String, "/soccer/ball_debug", 10)
     self.latest = None
-    self.imu = None  # (receive time, quaternion w, x, y, z)
+    self.imu_history = ()  # immutable snapshot of (source stamp, leveling rotation)
+    self.last_imu_stamp = 0.0  # retain ordering even when invalid orientation clears history
+    self.last_image_stamp = 0.0
     self.ready = threading.Event()
     self.running = True
     self.create_subscription(CompressedImage, "/camera/image_raw/compressed", self.on_image, 1)
@@ -123,8 +133,27 @@ class BallDetector(Node):
     self.ready.set()
 
   def on_imu(self, msg) -> None:
-    q = msg.orientation
-    self.imu = (time.monotonic(), q.w, q.x, q.y, q.z)
+    stamp = capture_seconds(msg.header.stamp.sec, msg.header.stamp.nanosec)
+    now = self.get_clock().now().nanoseconds * 1e-9
+    # Ignore reordered/duplicate samples; receipt must not renew their source age.
+    if stamp is not None and stamp <= self.last_imu_stamp:
+      return
+    if stamp is not None and math.isfinite(now) and stamp <= now:
+      self.last_imu_stamp = stamp
+    try:
+      if (stamp is None or not math.isfinite(now) or stamp > now
+          or msg.header.frame_id != BODY_FRAME
+          or len(msg.orientation_covariance) != 9
+          or not all(math.isfinite(v) for v in msg.orientation_covariance)
+          or msg.orientation_covariance[0] < 0):
+        raise ValueError("IMU source time, frame or orientation availability is invalid")
+      q = msg.orientation
+      level = level_from_quaternion(q.w, q.x, q.y, q.z)
+    except (TypeError, ValueError, OverflowError):
+      self.imu_history = ()  # an invalid current orientation cannot sustain a valid track
+      return
+    # Covers the 0.5 s image budget plus alignment margin at the configured 260 Hz.
+    self.imu_history = (*self.imu_history, (stamp, level))[-256:]
 
   def run(self) -> None:
     next_t = 0.0
@@ -147,6 +176,14 @@ class BallDetector(Node):
 
   def process(self, msg) -> None:
     t0 = time.monotonic()
+    stamp = capture_seconds(msg.header.stamp.sec, msg.header.stamp.nanosec)
+    now = self.get_clock().now().nanoseconds * 1e-9
+    if (stamp is None or not math.isfinite(now) or stamp > now
+        or stamp <= self.last_image_stamp):
+      self.debug_pub.publish(String(data=json.dumps({"published": False,
+                                                    "reason": "invalid or reordered image capture time"})))
+      return
+    self.last_image_stamp = stamp
     flag = cv2.IMREAD_REDUCED_COLOR_2 if self.decode_half else cv2.IMREAD_COLOR
     bgr = cv2.imdecode(np.frombuffer(msg.data, np.uint8), flag)
     if bgr is None:
@@ -155,7 +192,7 @@ class BallDetector(Node):
     if self.camera_model is None or (self.camera_model.width, self.camera_model.height) != (w, h):
       self.camera_model = self.load_model(w, h)
     eq = cv2.cvtColor(self.equirect(bgr), cv2.COLOR_BGR2RGB)
-    detections, box, score, debug = [], None, 0.0, {}
+    detections, box, score, debug = [], None, 0.0, {"published": False}
     if self.detector is not None:
       detections = self.detector.infer(eq)
       balls = [d for d in detections if d.class_id == self.ball_class]
@@ -172,24 +209,31 @@ class BallDetector(Node):
     self.maybe_snapshot(eq, detections, box)
     if box is not None:
       p_opt, rho = ball_in_optical(box, EQ_WIDTH, self.eq_height, H_FOV_DEG, self.radius)
-      level = None
-      if self.imu is not None and time.monotonic() - self.imu[0] < self.get_parameter("imu_max_age").value:
-        level = level_from_quaternion(*self.imu[1:])
+      now = self.get_clock().now().nanoseconds * 1e-9
+      level, reason = level_for_capture(
+        self.imu_history, stamp, now, float(self.get_parameter("imu_max_age").value),
+        float(self.get_parameter("max_image_age").value))
+      if not self.get_parameter("use_imu").value:
+        level, reason = None, "IMU leveling is disabled"
+      if self.get_parameter("frame_id").value != YAW_FRAME:
+        level, reason = None, "unsupported output frame"
       debug.update(score=round(score, 2), box=[round(float(v), 1) for v in box],
                    rho_deg=round(math.degrees(rho), 2), levelled=level is not None)
-      if p_opt is not None:
+      if reason is not None:
+        debug["reason"] = reason
+      if p_opt is not None and level is not None:
         x, y, z = optical_to_yaw_frame(p_opt, self.mount, level)
         rng = math.hypot(x, y)
         debug.update(x=round(float(x), 3), y=round(float(y), 3), z=round(float(z), 3),
                      cam_dist=round(float(np.linalg.norm(p_opt)), 3))
-        if self.get_parameter("min_range").value <= rng <= self.get_parameter("max_range").value:
+        if (all(math.isfinite(v) for v in (x, y, z))
+            and self.get_parameter("min_range").value <= rng <= self.get_parameter("max_range").value):
           out = PointStamped()
           out.header.stamp = msg.header.stamp  # capture time, robot clock
-          out.header.frame_id = self.get_parameter("frame_id").value
+          out.header.frame_id = YAW_FRAME
           out.point.x, out.point.y, out.point.z = float(x), float(y), float(z)
           self.ball_pub.publish(out)
           debug["published"] = True
-    stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
     debug.update(age_ms=round((self.get_clock().now().nanoseconds * 1e-9 - stamp) * 1000.0, 1),
                  proc_ms=round((time.monotonic() - t0) * 1000.0, 1), img=[w, h])
     self.debug_pub.publish(String(data=json.dumps(debug)))

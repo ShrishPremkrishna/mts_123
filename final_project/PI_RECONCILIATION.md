@@ -8,7 +8,7 @@ The provisioned `/home/pi/pupperv3-monorepo` is a separate, modified native inst
 
 ## Recovered contribution
 
-[behaviors/](behaviors/README.md) preserves the recovered Python source, tests, launch/tools, learned policy and manifest. Code/model files are byte-identical to the snapshot; dated notices were added to the stale README/runbook. [RECOVERY.json](behaviors/RECOVERY.json) records original file hashes. Logs/images remain in the external archive, not Git. The installed native workspace and the original `~/kick` directory are preserved separately and are not replaced by this source import.
+[behaviors/](behaviors/README.md) contains the recovered Python source, tests, launch/tools, learned policy and manifest. The initial import preserved code/model bytes; subsequent stock-shot and detector corrections are described below. [RECOVERY.json](behaviors/RECOVERY.json) records original snapshot hashes, not hashes of those later edits. Logs/images remain in the external archive, not Git. The installed native workspace and the original `~/kick` directory are preserved separately and are not replaced by this source import.
 
 | Component | Evidence and limits |
 | --- | --- |
@@ -25,7 +25,7 @@ Offline checks on the recovered source passed 44 tests using fake ROS/kinematics
 - **Learned targets are not velocity:** the learned node writes ball x/y and aim into `/cmd_vel`; zero means a ball at the feet, not a stopped policy. It cannot share an ordinary velocity route without explicit controller ownership.
 - **Fall/activation lifecycle:** the learned bridge can return to the walker after a native tilt stop while labeling the attempt done. A timed-out activation can also complete late while its response is ignored. Unknown activation and fall state must not lead to automatic reactivation.
 - **Command expiry:** the installed native controller retains the last command. The trial mux timeout does not cover the mux itself dying.
-- **Perception frame:** stale/missing IMU silently produces unlevelled coordinates labeled `base_link_yaw`. Consumers do not check frame IDs; goal receivers discard original capture timestamps. Resolve these before feeding overhead data.
+- **Perception consumers:** the detector's stale/missing-IMU frame error is fixed below. Consumers still do not check frame IDs, and goal receivers discard original capture timestamps. Resolve those before feeding overhead data.
 - **Calibration:** the trial detector used ball radius 0.097 m and empirical range scale 0.616, differing from defaults. No measured calibration error is retained. Blind-zone dead reckoning is a temporary approximation.
 - **Ownership:** some trials disabled gateway checks. Publisher counts do not establish publisher identity. The standalone course/mux launch must not run beside the Gemini motion owner as-is.
 
@@ -44,5 +44,14 @@ Fresh deployment/saved-policy inventory contains **nine distinct locomotion acto
 The normal default slot caps forward commands at **0.49 m/s**, while run-through estimates travel from the requested command. Requests above the active cap can therefore brake before contact. This is a verified mechanism, not a demonstrated explanation of every recorded miss. The installed launch has no `config_file` argument; the historical runbook's override must not be assumed effective. Historical trials sometimes explicitly selected the alternate slot and sometimes used whichever slot was active.
 
 Next supervised baseline: select and verify stock default, command below its cap (initial target 0.45 m/s), measure one short no-ball advance and braking, then repeat with the ball and record actual contact/direction. Keep one homed session. User's temporary ball is approximately seven inches, soft/partly deflated, with no bumper fitted. Contact geometry remains to be observed. Do not enable the learned actor or test every archived gait before establishing this baseline.
+
+### Offline corrections — November 16
+
+- The stock-shot ROS adapter now requires fresh stock-controller/configuration evidence and the pinned actor file. It defaults to 0.45 m/s forward and 0.3 m/s alignment; requests exceeding known forward/reverse/lateral/yaw bounds are refused rather than silently clipped. An active controller change or evidence loss aborts and requests emergency stop. A zero target is not treated as a stop for the learned policy.
+- An isolated real-ROS test reproduced the old node continuing after its controller changed to the learned slot. The corrected node aborts that sequence and refuses wrong-slot and over-cap activation. The test uses fake services and no hardware/network access; it does not prove physical stopping.
+- Ball detections now require valid capture-aligned IMU orientation. Image publication age and IMU-to-image alignment age have independent limits; original image stamps are retained. Invalid, missing or stale orientation cannot silently change coordinate meaning. The current ball still needs detection/range calibration; use measured manual coordinates first.
+- Native parameters are cached at initialization. Queries establish the parameter store and configured file, not loaded weights/settings. Physical trials require a verified fresh, unchanged native session. Publisher identity, native command expiry and live consumer frame/time validation remain integration work.
+
+[The offline receipt](../foundation/results/shot-baseline-guards-20261116.json) pins the source, test outcomes and container identity. [The runbook](behaviors/ROBOT_RUNBOOK.md) now describes this stock baseline; obsolete speed-ladder/install instructions remain in the preserved original archive. No new physical acceptance is implied.
 
 External recovery store: `/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/pi-reconciliation/`. `pupper-kick-recovery-20261116.tar.gz` SHA-256: `1e067b43a97c933f0fae2c3aa4752a15efe1adcf32281ed05ac7b219101df8f0`. Native source/config/policy archive SHA-256: `e6e0349c836616fb7c0d82f44b0a8a74134d17a2923c43bb25a251f33f38175c`. The session checkpoint records the final synchronized source and runtime distinction.

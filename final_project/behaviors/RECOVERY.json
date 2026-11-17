@@ -3,7 +3,7 @@
   "recovered_utc": "2026-11-16",
   "archive_sha256": "1e067b43a97c933f0fae2c3aa4752a15efe1adcf32281ed05ac7b219101df8f0",
   "archive_local": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/pi-reconciliation/pupper-kick-recovery-20261116.tar.gz",
-  "status": "Recovered experimental source; not activated by reconciliation. README and ROBOT_RUNBOOK receive dated notices; original bytes remain in archive. Code/policy/manifest imported byte-identically.",
+  "status": "Initial import at 16dd850 preserved experimental code/policy bytes. Later guarded-baseline fixes are intentional source changes; no activation by source reconciliation.",
   "files": [
     {
       "path": "README.md",
@@ -105,5 +105,6 @@
       "sha256": "5b9e777ff800ac59a6624cdfa51f0a08c27ca63436d84aa109688ef4a25ced39",
       "bytes": 197
     }
-  ]
+  ],
+  "hash_scope": "files[] records the original /home/pi/kick snapshot, not the current edited source. Original bytes remain in the archive and initial import history."
 }

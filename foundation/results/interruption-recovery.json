@@ -1,11 +1,11 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Establish a repeatable real run-through shot using the existing stock gait, following the TA progression before training a specialized kick. Physical readiness is pending; offline policy/config inspection completed.",
+  "objective": "Establish a measured stock-gait run-through shot before specialized kick training. Offline guard and perception corrections passed; user supervision readiness is pending.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "stock_shot_baseline_prepared_readiness_pending",
-  "updated_utc": "2026-11-17T00:10:26.147767+00:00",
-  "current_report": "foundation/results/pi-source-reconciliation-20261116.json",
+  "mode": "stock_shot_offline_guards_verified_readiness_pending",
+  "updated_utc": "2026-11-17T00:32:29.508129+00:00",
+  "current_report": "foundation/results/shot-baseline-guards-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261110-before-context-cleanup.json",
     "sha256": "4e605f7f51c44980519786833970e831fef5475b61c1eb521f41288f18e7c7b6",
@@ -15,7 +15,8 @@
     "current_sprint": "foundation/results/harness-sprint-20261103.json",
     "previous_overnight": "foundation/results/workstream1-overnight-release-20261102.json",
     "offline_gameplay": "final_project/pupper_fc/validation.json",
-    "pi_reconciliation": "foundation/results/pi-source-reconciliation-20261116.json"
+    "pi_reconciliation": "foundation/results/pi-source-reconciliation-20261116.json",
+    "stock_shot_guards": "foundation/results/shot-baseline-guards-20261116.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -39,14 +40,14 @@
       "commands": "README.md#choose-the-check-for-the-task"
     }
   },
-  "authorization": "November 16: user authorized Pi inspection, reconciliation and source synchronization; shared main publication authorized. Completed source-only update. Motion/service activation was not requested or performed. Check operator readiness and ownership before any physical operation.",
+  "authorization": "November 16: source reconciliation/publication authorized. Latest readiness answer: Not yet\u2014continue offline. No homing, motor activation or physical tests in this block; source sync does not activate anything.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
   },
   "activity": {
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "November 16 source reconciliation completed using focused subagents and authenticated Claude Code review. Local combined tests and Pi headless sandbox smoke passed. No training, API experiment or motor activation.",
+    "compute": "Offline fixes completed using focused implementation/review agents and authenticated Claude review; 263 tests plus 48 subtests pass. Actual isolated ROS smoke reproduced old controller-takeover failure and passes with corrected source. No training or robot activation.",
     "owners": {
       "physical_robot": "November 16 source-only block: no ROS controller/follower observed in process inventory; OS Pupper GUI and platform services left running. No physical supervision/readiness established.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -183,7 +184,7 @@
     },
     {
       "id": "live_soccer_boundary",
-      "action": "Connect FC external observations and stock-gait shot through exclusive continuously replaced motion ownership, explicit frames/units and native command expiry. Correct stale-IMU/frame and capture-time defects before wiring recovered detector."
+      "action": "Connect FC observations and stock-gait shot through exclusive motion ownership, explicit frames/units and native command expiry. Detector producer IMU/frame/capture validity is now fixed; consumer frame validation and goal capture-time handling remain before live integration."
     },
     {
       "id": "physical_shot_evidence",
@@ -209,7 +210,7 @@
   ],
   "legacy_worktree": "/Users/shrish/workspace/cs123-foundation",
   "context_review_date": "2026-11-12 America/Los_Angeles",
-  "current_report_scope": "Verified source sync and offline tests only; no new hardware motion acceptance.",
+  "current_report_scope": "Offline software checks and isolated real ROS fake-robot test; no physical shot acceptance.",
   "recorded_open_items": {
     "as_of": "2026-11-04",
     "lab6": "Q7 unfinished; Q12 interrupted and awaiting rerecord; Q16 reported captured; Q19 awaiting newcomer. Shrish owned footage, fourth teammate owned written submission. See foundation/submission/lab6/README.md. Completion since that checkpoint is unknown.",
@@ -221,7 +222,7 @@
     "brief": "final_project/README.md",
     "plan": "final_project/PLAN.md",
     "requirements_date": "2026-11-12",
-    "implementation_status": "Offline FC prototype plus recovered onboard ball detector, run-through shot ROS adapters and experimental learned kick under final_project/behaviors. Source synced to Pi. Overhead perception, live FC transport, defense and self-righting missing; recovered learned kick has failed-trial evidence and unresolved lifecycle defects.",
+    "implementation_status": "Offline FC prototype plus recovered stock-shot/onboard detector/learned-candidate source. Stock authority/caps and detector capture/frame fixes pass offline; no live FC transport, overhead localization, defense or self-righting. Learned candidate remains held.",
     "review": "Controller implementation/fixes delegated to authenticated Claude Code; focused simulator/viewer work and independent adversarial review completed. Four review findings and delayed-goal restart handling corrected. Source identities and bounded trial results saved in final_project/pupper_fc/validation.json.",
     "open_risks": [
       "Physical self-righting remains missing and is separate P0 work; ordinary stand tests assume an upright robot.",
@@ -252,7 +253,8 @@
     "first_speed_proposal_m_s": 0.45,
     "native_default_forward_cap_m_s": 0.49,
     "runtime_not_started": true,
-    "operator_readiness": "Async readiness question pending; user said physical testing unavailable until ready.",
-    "audit": "Focused policy inventory and Claude Code config review; no physical experiments."
+    "operator_readiness": "User answered Not yet\u2014continue offline; wait for readiness before any motor block.",
+    "audit": "Stock authority/caps guard and capture-aligned detector reviewed and verified offline. Fresh unchanged runtime configuration remains a separate physical-session prerequisite.",
+    "offline_guards": "foundation/results/shot-baseline-guards-20261116.json"
   }
 }

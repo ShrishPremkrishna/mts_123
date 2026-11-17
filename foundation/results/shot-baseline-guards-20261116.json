@@ -1,0 +1,58 @@
+{
+  "schema": "pupper_offline_shot_guard_v1",
+  "updated_utc": "2026-11-17T00:32:29.508129+00:00",
+  "base_commit": "780bbd35fddf26452ee4a90690aa78a8d78c021c",
+  "scope": "Offline correction of recovered stock-shot authority/speed checks and ball frame/capture-time validity. No hardware motion, native installation, camera recording or learned-policy acceptance.",
+  "source_sha256": {
+    "final_project/behaviors/run_through_kick.py": "ec1999c8942ef3b1ac89a5bdc037ca297ecb31a7f0297f255c4efd2a7f4efeb3",
+    "final_project/behaviors/run_through_kick_node.py": "10e23184367ec9bf0b954771bdef5c25909809e9b7cb4b2748a4fbf9b0eed1ce",
+    "final_project/behaviors/ball_detector_node.py": "9d420067653f7f3b4eb15a0d0cc559b14931d4059629cba0c6d2b2d089e00f42",
+    "final_project/behaviors/ball_geometry.py": "cb82f9e9a5d8472aa897e6bd45dab6887cdc897d4bec9ab8e681e485d77ca5ce",
+    "final_project/behaviors/_fake_ros.py": "2c75cf3232625ff2d91607915d96cdb3025d0820bd3c724fca61ac83d585faf7",
+    "final_project/behaviors/test_kick_nodes_offline.py": "bab762558282cfe456787b8510bd8123d9137f72fdab34af3f1acc5f7c43615b",
+    "final_project/behaviors/test_ball_perception.py": "3746c1f6e3283d180200c2b642df269e28767ccf72ab1456183006d3d2939b2d",
+    "final_project/behaviors/ros_stock_guard_smoke.py": "8ffb7b5583ee45dd70f036ec7679f9a20b604bc6451f4d0174fa8a941ad0681f",
+    "final_project/behaviors/launch/kick_trial.launch.py": "9ba25d8c95b6bfee619153e2af20d298cc7c4298bba233e4d6ecb63bd409d043"
+  },
+  "stock_policy_sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+  "checks": {
+    "combined": {
+      "command": ".venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests",
+      "exit_code": 0,
+      "passed": 263,
+      "subtests_passed": 48,
+      "warning": "Existing FastAPI/Starlette httpx deprecation; no dependency change required for this task."
+    },
+    "real_ros": {
+      "image": "cs123-ros-jazzy-slew-check:latest",
+      "image_id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+      "isolation": "network=none, no hardware mounts, dropped capabilities; real rclpy with fake controller/status/parameter services",
+      "before": {
+        "stage": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/shot-guards/before",
+        "exit_code": 1,
+        "result": "Expected reproduction: old node did not abort after fake controller takeover."
+      },
+      "after": {
+        "stage": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/shot-guards/after-final",
+        "exit_code": 0,
+        "result": "Default 0.45 accepted; controller takeover aborted and requested emergency stop; student and over-cap activation refused."
+      }
+    },
+    "independent_review": "Two focused agents reviewed guard and perception semantics; root verified real ROS wiring. History retention enlarged to 256 samples and image/IMU age budgets separated after review. Native cached-parameter limitation documented.",
+    "claude": "Authenticated Claude Code config audit informed this work. A separate implementation attempt stalled after small edits and was stopped; focused implementation completed by subagent."
+  },
+  "remaining": [
+    "User answered Not yet\u2014continue offline. Supervised motion readiness remains pending.",
+    "Fresh unchanged native session required: GetParameters/file hash do not prove loaded configuration or weights.",
+    "Native receiver command expiry and exclusive command ownership remain absent; emergency-stop request is not physical stop proof.",
+    "Measured stock travel, braking, ball contact/direction and temporary-ball detector calibration remain untested.",
+    "Consumer frame validation and goal capture-time handling must be fixed before live perception integration.",
+    "Learned kick remains held; late-switch/native-fall/target-vs-velocity handling unresolved."
+  ],
+  "source_only_sync": {
+    "status": "pending",
+    "target": "mts:/home/pi/mts_123",
+    "original_experiment_preserved": "/home/pi/kick",
+    "native_runtime_change": false
+  }
+}

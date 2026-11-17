@@ -84,6 +84,26 @@ class ListControllers:
     pass
 
 
+class GetParameters:
+  class Request(_Msg):
+    pass
+
+
+class ParameterType:
+  PARAMETER_NOT_SET = 0
+  PARAMETER_BOOL = 1
+  PARAMETER_INTEGER = 2
+  PARAMETER_DOUBLE = 3
+  PARAMETER_STRING = 4
+
+
+def parameter_value(value):
+  kind = {bool: 1, int: 2, float: 3, str: 4}.get(type(value), 0)
+  return _Msg(type=kind, bool_value=value if kind == 1 else False,
+              double_value=value if kind == 3 else 0.0,
+              string_value=value if kind == 4 else "")
+
+
 class SwitchController:
   class Request(_Msg):
     BEST_EFFORT = 1
@@ -98,16 +118,32 @@ class Future:
   """Resolved by FakeRos.tick(), like a real executor running done callbacks later."""
 
   def __init__(self, compute):
-    self._compute, self._callbacks, self._result, self.done = compute, [], None, False
+    self._compute, self._callbacks, self._result, self._done = compute, [], None, False
+    self.cancelled = False
+    self._error = None
+
+  def done(self):
+    return self._done
+
+  def cancel(self):
+    self.cancelled = self._done = True
 
   def add_done_callback(self, cb):
     self._callbacks.append(cb)
 
   def result(self):
+    if self._error:
+      raise self._error
     return self._result
 
   def resolve(self):
-    self._result, self.done = self._compute(), True
+    if self.cancelled:
+      return
+    try:
+      self._result = self._compute()
+    except Exception as exc:
+      self._error = exc
+    self._done = True
     for cb in self._callbacks:
       cb(self)
 
@@ -127,9 +163,21 @@ class FakeRos:
     "neural_controller_default": "active", "neural_controller_student": "inactive"})
   switch_ok: bool = True
   switch_answers: bool = True  # False: switch requests are never answered
+  unavailable: set = field(default_factory=set)
+  held_services: set = field(default_factory=set)
+  held: list = field(default_factory=list)
+  controller_types: dict = field(default_factory=dict)
+  controller_params: dict = field(default_factory=lambda: {
+    "max_vx_forward": 0.49, "max_vx_backward": 0.3, "speed_cap": 0.0,
+    "game_buttons": False, "model_path": ""})
 
   def list_response(self):
-    return _Msg(controller=[_Msg(name=n, state=st) for n, st in self.controllers.items()])
+    return _Msg(controller=[_Msg(name=n, state=st,
+                  type=self.controller_types.get(n, "neural_controller/NeuralController"),
+                  claimed_interfaces=[]) for n, st in self.controllers.items()])
+
+  def params_response(self, req):
+    return _Msg(values=[parameter_value(self.controller_params.get(n)) for n in req.names])
 
   def switch_response(self, req):
     self.switch_calls.append(req)
@@ -205,14 +253,23 @@ class Node:
     def call_async(req, srv_type=srv_type):
       if srv_type is ListControllers:
         future = Future(ROS.list_response)
+      elif srv_type is GetParameters:
+        future = Future(lambda: ROS.params_response(req))
       else:
         future = Future(lambda req=req: ROS.switch_response(req))
         if not ROS.switch_answers:
           return future  # lost: never resolved
-      ROS.pending.append(future)
+      if name in ROS.held_services:
+        ROS.held.append(future)
+      else:
+        ROS.pending.append(future)
       return future
 
-    return _Msg(service_is_ready=lambda: True, call_async=call_async)
+    def remove(future):
+      if future in ROS.pending:
+        ROS.pending.remove(future)
+    return _Msg(service_is_ready=lambda: name not in ROS.unavailable,
+                call_async=call_async, remove_pending_request=remove)
 
   def create_timer(self, period, cb):
     ROS.timers.append((period, cb))
@@ -244,11 +301,13 @@ def install(overrides: dict | None = None) -> FakeRos:
     "std_srvs.srv": dict(Trigger=Trigger),
     "sensor_msgs.msg": dict(Imu=Imu, Joy=Joy),
     "controller_manager_msgs.srv": dict(SwitchController=SwitchController, ListControllers=ListControllers),
+    "rcl_interfaces.srv": dict(GetParameters=GetParameters),
+    "rcl_interfaces.msg": dict(ParameterType=ParameterType),
   }
-  for name in ("rclpy", "geometry_msgs", "std_msgs", "std_srvs", "sensor_msgs", "controller_manager_msgs"):
+  for name in ("rclpy", "geometry_msgs", "std_msgs", "std_srvs", "sensor_msgs", "controller_manager_msgs", "rcl_interfaces"):
     sys.modules[name] = types.ModuleType(name)
   for name, attrs in mods.items():
-    module = sys.modules.get(name) or types.ModuleType(name)
+    module = types.ModuleType(name)
     module.__dict__.update(attrs)
     sys.modules[name] = module
   sys.modules["rclpy"].node = sys.modules["rclpy.node"]

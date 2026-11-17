@@ -26,6 +26,46 @@ from dataclasses import dataclass
 
 import numpy as np
 
+BODY_FRAME = "base_link"
+YAW_FRAME = "base_link_yaw"
+
+
+def capture_seconds(sec: int, nanosec: int) -> float | None:
+  """Read a source timestamp without substituting its arrival time."""
+  if (type(sec) is not int or type(nanosec) is not int or sec < 0
+      or not 0 <= nanosec < 1_000_000_000):
+    return None
+  try:
+    stamp = sec + nanosec * 1e-9
+  except OverflowError:
+    return None
+  return stamp if math.isfinite(stamp) and stamp > 0 else None
+
+
+def level_for_capture(samples, captured_at: float, now: float,
+                      max_imu_gap: float, max_image_age: float):
+  """Use the newest preceding IMU orientation, or refuse the coordinate transform.
+
+  Samples are ordered (source timestamp, leveling rotation) pairs. Both sensors
+  must share the ROS clock and the IMU must describe base_link. No arrival-time
+  substitution, interpolation or extrapolation is performed. max_imu_gap bounds
+  IMU-to-image capture separation; max_image_age independently bounds the image's
+  source age at publication. Consumers still enforce their own freshness limits.
+  These gates do not establish synchronization or geometric accuracy.
+  """
+  if (captured_at is None
+      or not all(math.isfinite(v) for v in (captured_at, now, max_imu_gap, max_image_age))
+      or captured_at <= 0 or captured_at > now or max_imu_gap <= 0 or max_image_age <= 0):
+    return None, "invalid capture time or age budgets"
+  if now - captured_at > max_image_age:
+    return None, "image capture is stale"
+  for stamp, level in reversed(samples):
+    if stamp <= captured_at:
+      if captured_at - stamp > max_imu_gap:
+        return None, "IMU source sample is stale for image capture"
+      return level, None
+  return None, "no IMU orientation at or before image capture"
+
 
 @dataclass(frozen=True)
 class CameraMount:
@@ -84,18 +124,27 @@ def rot_z(a: float) -> np.ndarray:
 
 def level_from_quaternion(w: float, x: float, y: float, z: float) -> np.ndarray:
   """Rotation from the body frame to its yaw-only frame (roll and pitch removed)."""
+  q = np.array([w, x, y, z], dtype=float)
+  norm = float(np.linalg.norm(q))
+  if not np.all(np.isfinite(q)) or not math.isfinite(norm) or abs(norm - 1.0) > 0.01:
+    raise ValueError("IMU orientation must be a finite unit quaternion")
+  w, x, y, z = q / norm  # tolerate small sensor roundoff, not missing/invalid orientation
   r = np.array([
     [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
     [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
     [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
   ])
+  if math.hypot(r[0, 0], r[1, 0]) < 1e-6:
+    raise ValueError("body heading is undefined at vertical pitch")
   return rot_z(-math.atan2(r[1, 0], r[0, 0])) @ r
 
 
 def optical_to_yaw_frame(p_optical: np.ndarray, mount: CameraMount,
-                         level: np.ndarray | None = None) -> np.ndarray:
-  """Point from the optical frame to the base_link yaw-only frame."""
+                         level: np.ndarray) -> np.ndarray:
+  """Point in base_link_yaw; an unavailable leveling transform is an error."""
+  if level is None or np.shape(level) != (3, 3) or not np.all(np.isfinite(level)):
+    raise ValueError("a valid IMU leveling transform is required")
   p = np.array([p_optical[2], -p_optical[0], -p_optical[1]]) * mount.range_scale
   p = rot_z(math.radians(mount.yaw_deg)) @ rot_y(-math.radians(mount.tilt_up_deg)) @ p
   p = p + np.array([mount.x, mount.y, mount.z])
-  return p if level is None else level @ p
+  return level @ p

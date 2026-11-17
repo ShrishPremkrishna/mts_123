@@ -1,54 +1,92 @@
-> **Recovered Pi experiments — November 16, 2026.** This document predates the latest Pi trials and is not current acceptance evidence. See [the reconciliation findings](../PI_RECONCILIATION.md). The learned-kick candidate remains unaccepted: recorded tilt-stop and late-switch failure handling need resolution before activation. Source synchronization does not install policies or start these nodes. Original source identities are in [RECOVERY.json](RECOVERY.json).
+# Shooting behaviors
 
-# Run-through kick (walker-based)
+Recovered November 16, 2026 from `/home/pi/kick`, then corrected in this checkout.
+[RECOVERY.json](RECOVERY.json) preserves the original hashes; the untouched
+experiment and its archive remain available. [Reconciliation findings](../PI_RECONCILIATION.md)
+separate source, simulated results and actual recorded robot outcomes.
 
-A local controller that kicks with the deployed walking policy: it walks Pupper to a point behind the ball on the aim line, turns to the aim, then drives the walker through the ball and brakes. No new policy is trained; the controller only sends `/cmd_vel`-style velocity commands. This is the TA's suggested approach and the proposal's version-1 striker. The learned joint-level kick (`pupper-mjlab/src/mjlab/tasks/pupper_kick/`) is the version-2 candidate.
+The first candidate uses the existing walking policy to align behind a ball and
+run through it. This follows the TA progression: establish measured contact with
+locomotion before training a specialized shot. The learned header policy is
+preserved as an **unaccepted experiment**: its recorded tilt-stop and late
+activation handling remain unresolved. Nothing here starts with a source sync.
 
-## Files
+## Components
 
 | File | Purpose |
 | --- | --- |
-| `run_through_kick.py` | Pure-Python controller (no ROS, no numpy): states, limits, latency compensation, manual mode, field-to-robot conversion |
-| `run_through_kick_node.py` | ROS 2 service around it (`input_mode` manual, robot or field), same shape as `follow_me_pupper/robot/follow_service.py` |
-| `learned_kick.py`, `learned_kick_node.py` | Command bridge for the learned header-kick policy: entry window, command slot, controller switches, zero exit |
-| `policies/header_kick_cpu_run2.json` | Learned policy (CPU run 2) with its manifest (hashes, validator, simulation results) |
-| `launch/kick_trial.launch.py`, `tools/` | Trial launch, walker speed-cap config, policy installer, scripted ball for stand tests |
-| `ROBOT_RUNBOOK.md`, `trial_log.csv` | Robot procedure and the trial record |
-| `test_run_through_kick.py`, `test_kick_nodes_offline.py`, `_fake_ros.py` | Kinematic-model tests and offline node replay with stand-in rclpy |
+| `run_through_kick.py` | Pure controller: align, charge, blind-zone coast, brake; manual, robot and field inputs |
+| `run_through_kick_node.py` | ROS adapter with stock-controller/configuration checks and bounded fault handling |
+| `ball_detector_node.py`, `ball_geometry.py`, `ball_color.py` | Onboard ball detection and capture-stamped, IMU-levelled robot-relative coordinates |
+| `learned_kick.py`, `learned_kick_node.py`, `policies/` | Recovered target-conditioned learned candidate, held from activation |
+| `launch/kick_trial.launch.py` | Shot adapter and private mux on top of an already running plain course stack |
+| `tools/` | Recovered experimental helpers; the installer changes native source/config/policies and rebuilds, so it is not a baseline setup step |
+| [ROBOT_RUNBOOK.md](ROBOT_RUNBOOK.md) | Current supervised stock-shot baseline and evidence to collect |
 
-## How it works
+## Stock shot
 
-| State | Command |
-| --- | --- |
-| ALIGN | Walk at up to 0.35 m/s to the point `run_up` (0.8 m) behind the ball on the aim line, facing the ball. If the ball is in the way, orbit it at 0.6 m. Go to CHARGE when within 6 cm and 0.08 rad of the aim and the ball is within 4 cm of the body axis. |
-| CHARGE | Ramp to `charge_speed` (1.0 m/s) at 1.5 m/s², hold the aim heading, correct sideways to keep the ball on the axis. |
-| COAST | Inside the 0.40 m camera blind zone: hold the command and dead-reckon the ball until 0.25 m past contact. |
-| BRAKE | Zero for 0.6 s, then DONE. |
-| ABORTED | Zero. Causes: no fresh ball for 1.5 s while aligning (zero travel while stale), ball lost before the blind zone, a timeout or travel budget, or a stop (service, R3, face button, latched gateway). |
+The ROS node defaults to **0.45 m/s charge** and **0.3 m/s alignment**. It polls
+controller ownership and default-controller parameters asynchronously, admitting
+only `neural_controller_default` with stock model SHA-256
+`ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712`.
+Requests beyond the configured envelope (at most 0.49 m/s forward) are rejected.
+The generic pure controller retains its experimental defaults; use the ROS node's
+explicit baseline when evaluating hardware.
 
-Each ball observation is moved from its capture time to now with the commands sent since then, scaled by `speed_efficiency`. Without a goal, the kick goes straight through the ball.
+This prevents a concrete error in the recovered setup: dead reckoning integrated
+requested speed even when the native walker clipped it. The fix rejects that
+mismatch; it does not measure achieved speed. `speed_efficiency`, braking,
+contact geometry and ball travel still need physical measurements.
 
-## Interface
+Activation also requires a released e-stop gateway and expected `/cmd_vel`
+publisher count. Missing/stale evidence, another active controller or a changed
+model refuses a start. Loss of authority during a shot requests emergency stop
+and aborts. Zero alone is not a stop for the learned target-conditioned slot.
 
-- Ball: `/soccer/ball`, `geometry_msgs/PointStamped`, ball centre relative to `base_link` in the yaw-only frame (x forward, y left, m), `header.stamp` = image capture time on the robot clock.
-- Goal (optional): `/soccer/goal`, same frame. Aim = direction from the ball to the goal.
-- Output: `/kick_cmd_vel` `Twist` at 20 Hz while active, one zero `Twist` at the end; state on `/run_through_kick/state` (JSON).
-- Services: `/activate_run_through_kick`, `/deactivate_run_through_kick` (`std_srvs/Trigger`). Every `KickParams` field is a ROS parameter.
+The guard reads configured values, **not the native controller's loaded snapshot**.
+The native controller caches model/configuration at initialization. Begin with a
+verified fresh session and keep its configuration fixed. Sampled evidence and
+publisher counts are not exclusive ownership; receiver-side command expiry is
+still needed if the mux itself dies. Normal completion means commands finished,
+not that the ball was hit.
 
-## Robot setup
+## Interfaces and perception limits
 
-Follow `ROBOT_RUNBOOK.md`. For trials on the plain course stack (`teleop:=False`), `launch/kick_trial.launch.py` starts a private `cmd_vel_mux` with `/kick_cmd_vel` as its only input. Inside the Gemini stack, the harness owner adds `/kick_cmd_vel` to that stack's mux inputs instead. Speeds above 0.49 m/s need the walker cap raised (`tools/make_course_config.py --speed`).
+- Output: `/kick_cmd_vel` (`Twist`), state: `/run_through_kick/state` (JSON).
+- Services: `/activate_run_through_kick`, `/deactivate_run_through_kick` (`Trigger`).
+- Ball: `/soccer/ball` (`PointStamped`), metres, x forward/y left in
+  `base_link_yaw`; stamp is original image capture time on the robot ROS clock.
+- Optional goal and robot pose support field mode, but no overhead field-state
+  producer was recovered. Consumer frame checks and goal capture-time handling
+  remain open before connecting this mode to live gameplay.
 
-Safety limits in the controller: zero travel on a stale ball while aligning, a 2.5 m align travel budget and a run-up + overrun + 0.3 m charge budget (they end a kick whose ball estimate is wrong but looks fresh), 10 s align and 4 s charge timeouts. The node refuses to start unless the e-stop gateway is released and exactly the mux publishes `/cmd_vel`, and stops on R3, a face button, a latched gateway or a second `/cmd_vel` publisher.
+The onboard detector selects a valid preceding `base_link` IMU orientation for
+an image. `imu_max_age=0.2` limits the IMU-to-image capture gap;
+`max_image_age=0.5` limits image age at publication. It withholds coordinates for
+missing/invalid/stale IMU, unsupported frames, or invalid/reordered capture times.
+It never relabels unlevelled coordinates as `base_link_yaw` or refreshes a capture
+stamp on receipt. The bounded 256-sample history covers these defaults at the
+configured 260 Hz IMU rate. Restart the detector after a ROS clock-epoch reset;
+ordering high-water marks intentionally do not automatically recover across it.
 
-## Ball and body geometry
+Color detection was tuned for a red/blue beach ball. The user's temporary
+seven-inch soft mini basketball needs new detection/range calibration. Use manual
+measured coordinates for the first stock-gait contact trials so detector errors
+do not confound the result. Camera mounting, ball radius and empirical range
+scale remain calibration inputs, not established accuracy guarantees.
 
-Without a bumper, the chassis front spans approximately 0.11 to 0.19 m above the floor at the 0.145 m standing height, and the front legs are approximately 0.16 m apart. A 15 cm ball is hit about 30° above its centre and still goes forward. A ball smaller than about 11 cm can pass under the chassis into the legs. Use a ball of 15 cm or more, or the foam bumper described in `pupper-mjlab/src/mjlab/tasks/pupper_kick/README.md`.
+## Offline checks
 
-## Checks
+From the repository root:
 
 ```sh
-python3 -m pytest -q final_project/behaviors
+.venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests
 ```
 
-The tests use a kinematic stand-in (first-order velocity lag, 80% efficiency, 10 Hz camera with 0.1 s latency, noise and a 0.40 m blind zone). In a 200-setup sweep (ball 0.6 to 2.0 m away, bearing ±0.8 rad, goal direction ±1.2 rad) every run reached the ball, with 90th-percentile lateral error 1.5 cm and heading error 0.4° at contact. This checks the logic only: the shipped walker's physics and the ball impact are not simulated. `test_kick_nodes_offline.py` replays both ROS nodes against stand-in rclpy (`_fake_ros.py`); they have not run under real ROS (no ROS on the Mac).
+`test_run_through_kick.py` uses a kinematic walker; node tests use fake ROS.
+`test_ball_perception.py` checks geometry, source-time/frame handling and image
+publication without a camera. `ros_stock_guard_smoke.py` checks actual ROS service
+and topic wiring with synthetic services in an isolated, network-disabled
+container. It must not run on the robot's ROS graph. The dated receipt in
+`foundation/results/shot-baseline-guards-20261116.json` records exact source and
+container identities. These checks do not simulate motor dynamics or ball impact.

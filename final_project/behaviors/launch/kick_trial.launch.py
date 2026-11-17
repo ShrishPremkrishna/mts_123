@@ -58,7 +58,7 @@ def generate_launch_description():
     DeclareLaunchArgument("kick", default_value="run_through", description="run_through or learned"),
     DeclareLaunchArgument("input_mode", default_value="manual", description="manual, robot or field"),
     DeclareLaunchArgument("charge_speed", default_value="0.45",
-                          description="run-through speed [m/s]; above 0.49 needs tools/make_course_config.py"),
+                          description="stock run-through speed [m/s]; must fit verified caps, at most 0.49"),
     DeclareLaunchArgument("speed_efficiency", default_value="0.8",
                           description="run-through: achieved / commanded speed (stage B measures it)"),
     DeclareLaunchArgument("gateway", default_value="true",
