@@ -141,6 +141,55 @@ class Controller:
         self._clear_play()
         self._target_key = None
 
+    def referee_active(self, goal):
+        """Whether this goal flag requires return/reset instead of a new action.
+
+        A requested reset with a cleared flag permits ordinary action selection;
+        tick still validates the observation before actually releasing the latch.
+        """
+        return bool(goal or (self._goal_latched and not self._reset_requested))
+
+    def record_goal(self, goal):
+        """Remember an admitted referee pulse without issuing motion or reset.
+
+        Packet admission owns observation validation. Cleared flags do not
+        release the latch here: reset still requires a valid controller tick.
+        """
+        if type(goal) is not int or goal not in (-1, 0, 1):
+            raise ValueError("goal flag must be the integer -1, 0 or 1")
+        if goal:
+            self._update_goal_latch(goal)
+
+    def resume_after_goal(self, observation, now):
+        """Consume one deliberate resume cue at home without producing motion.
+
+        The runtime must separately validate session and command authority.
+        Unlike reset(), this operation cannot leave a pending reset request.
+        """
+        if not self._goal_latched or not self._home_reached:
+            raise ValueError("goal return is not complete")
+        if (not isinstance(observation, Observation) or not _finite(now, observation.captured_at)
+                or not 0 <= now - observation.captured_at < MAX_OBSERVATION_AGE):
+            raise ValueError("resume requires a fresh observation")
+        if type(observation.goal) is not int or observation.goal != 0:
+            raise ValueError("resume requires a cleared goal flag")
+        if type(observation.fallen) is not bool or observation.fallen:
+            raise ValueError("resume requires an unfallen robot")
+        if observation.robot is None or self.observation_problem(observation):
+            raise ValueError("resume requires a valid robot pose and state")
+        robot = observation.robot
+        home_x = -self.field.attack_sign * HOME_FRACTION * self.field.length
+        heading = math.atan2(0.0, self.field.attack_sign)
+        if (math.hypot(robot.x - home_x, robot.y) > HOME_TOLERANCE
+                or abs(_wrap(robot.yaw - heading)) > HOME_HEADING_TOLERANCE):
+            raise ValueError("resume requires the observed home position and heading")
+        self.reset()
+        self._update_goal_latch(0)
+
+    def observation_problem(self, observation):
+        """Shared state plausibility check for admission and controller ticks."""
+        return self._pose_problem(observation.robot) or self._ball_problem(observation.ball)
+
     def _clear_play(self):
         self._ball_anchor = None    # ball position the waypoint and dwell refer to
         self._waypoint = None       # ((x, y), description) while getting around the ball
@@ -154,11 +203,14 @@ class Controller:
         return Decision(phase, reason, zero(now, robot_id), recovery_requested=recovery)
 
     def tick(self, observation: Observation, now: float, *, target_pose: Pose | None = None,
-             shot_target: tuple[float, float] | None = None) -> Decision:
+             shot_target: tuple[float, float] | None = None,
+             preserve_target_heading: bool = False) -> Decision:
         """Choose a command; optional field targets replace the ordinary attack.
 
         ``target_pose`` navigates without requiring a visible ball. ``shot_target``
         changes the shot destination, retaining the existing approach/strike.
+        ``preserve_target_heading`` keeps a pose target's yaw even on long moves
+        (e.g. facing the ball while guarding); ordinary moves face their travel.
         Changing either target cancels an old strike. Stop/arming remain runtime
         responsibilities; these arguments do not provide transport or authority.
         """
@@ -169,6 +221,10 @@ class Controller:
         if not isinstance(observation, Observation) or not isinstance(observation.robot_id, str):
             return self._halt("invalid_observation", "observation is missing or malformed", now, "pupper-1")
         robot_id = observation.robot_id
+        if (type(preserve_target_heading) is not bool
+                or (preserve_target_heading and target_pose is None)):
+            return self._halt("invalid_intent", "heading preservation requires a pose target and boolean option",
+                              now, robot_id)
         if target_pose is not None and shot_target is not None:
             return self._halt("invalid_intent", "choose a pose or a shot target", now, robot_id)
         if target_pose is not None:
@@ -177,7 +233,7 @@ class Controller:
                 return self._halt("invalid_intent", "target pose is not finite", now, robot_id)
             if self._reachable(target_pose.x, target_pose.y) != (target_pose.x, target_pose.y):
                 return self._halt("blocked", "target pose leaves the robot outside the field", now, robot_id)
-            target_key = ("pose", target_pose)
+            target_key = ("pose", target_pose, preserve_target_heading)
         elif shot_target is not None:
             if (not isinstance(shot_target, (tuple, list)) or len(shot_target) != 2
                     or not _finite(*shot_target) or not self._plausible(*shot_target)):
@@ -201,7 +257,7 @@ class Controller:
             return self._halt("invalid_observation", "fallen flag is not a boolean", now, robot_id)
 
         robot, ball = observation.robot, observation.ball
-        problem = self._pose_problem(robot) or self._ball_problem(ball)
+        problem = self.observation_problem(observation)
         if not problem:
             self._update_goal_latch(observation.goal)
         if observation.fallen:
@@ -219,6 +275,7 @@ class Controller:
                 return Decision("target_reached", "at the requested field pose", zero(now, robot_id),
                                 target, target_pose.yaw)
             return self._drive("move", "moving to the requested field pose", robot, target,
+                               target_pose.yaw if preserve_target_heading else
                                self._travel_heading(robot, target, target_pose.yaw),
                                self.limits.vx, now, robot_id)
         if ball is None:

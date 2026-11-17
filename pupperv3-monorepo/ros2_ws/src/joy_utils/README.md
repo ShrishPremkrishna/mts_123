@@ -29,69 +29,31 @@ before any switch; actual failed/ambiguous backend operations still fault. Gener
 SwitchController STRICT requests remain unchanged. Do not send a second STRICT
 activation after Options or a successful Start.
 
-Use one resident ROS caller, not separate `ros2 topic echo` and `ros2 service call`
-processes. After sourcing the workspace that contains this service, this explicit
-one-shot invocation observes status and sends at most one Start. It never homes or
-restarts a service, and exits on refusal or uncertainty:
+The maintained resident caller is
+[`foundation/hardware/software_start.py`](../../../../foundation/hardware/software_start.py),
+used by the [persistent movement client](../../../../final_project/behaviors/ROBOT_RUNBOOK.md#keeping-the-trial-client-ready).
+The gateway publishes a new status challenge every 50 ms, including while
+stopped. The caller needs a status observed within 200 ms; the gateway still
+owns its stricter authoritative challenge checks at dispatch.
 
-The example's authorization snapshot is captured after discovery, not at shell
-launch. Stop events before that snapshot are outside its fence. A resident Start
-button must complete discovery first, freeze its already-observed token at the
-button press, and submit once or refuse; it must not wait for reconnect and sample
-a newer epoch on behalf of an earlier press.
+After native initialization and current operator readiness, an explicit
+`{"command":"start"}` freezes the already-observed challenge at input receipt.
+It submits once or refuses, without waiting for reconnect or acquiring a newer
+epoch on behalf of an earlier press. A successful reply acknowledges the
+selected controller; it does not issue a trial or prove present physical
+readiness. The ordinary stock/zero-feedback checks still gate movement.
 
-```bash
-python3 - <<'PY'
-import json, time
-import rclpy
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-from std_msgs.msg import String
-from joy_utils.srv import StartMotion
+The first ordinary Stop latch is startable. A later Stop epoch or gateway
+instance change ends that client session. An uncertain acknowledgement requests
+Stop and exits; inspect the resulting gateway state before deliberately opening
+a new client. No automatic retry or second STRICT activation follows Start.
+The caller can also deliberately ensure the selected controller is active when
+already released; the gateway uses fresh inventory to avoid redundant activation.
 
-rclpy.init()
-node = rclpy.create_node('deliberate_start_once')
-client = node.create_client(StartMotion, '/estop_controller/start_motion')
-attempted, future, error = False, None, None
-
-def status(message):
-    global attempted, future, error
-    if attempted:
-        return
-    attempted = True
-    try:
-        state = json.loads(message.data)
-        blocked = ('fault', 'stop_required', 'in_flight',
-                   'unknown_remote_submission', 'shutting_down')
-        if state['protocol'] != 'pupper_stop_v1' or any(state[k] for k in blocked):
-            raise ValueError('gateway is not ready for a deliberate Start')
-        request = StartMotion.Request()
-        for key in ('instance_id', 'epoch', 'sequence', 'selected_controller'):
-            setattr(request, key, state[key])
-        future = client.call_async(request)
-    except Exception as exc:
-        error = str(exc)
-
-try:
-    if not client.wait_for_service(timeout_sec=2.0):
-        raise RuntimeError('Start service unavailable; no action submitted')
-    qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
-                     durability=DurabilityPolicy.TRANSIENT_LOCAL)
-    subscription = node.create_subscription(String, '/estop_controller/stop_status', status, qos)
-    deadline = time.monotonic() + 3.0
-    while not error and (future is None or not future.done()) and time.monotonic() < deadline:
-        rclpy.spin_once(node, timeout_sec=0.05)
-    if error:
-        raise RuntimeError(error)
-    if future is None or not future.done():
-        raise RuntimeError('No confirmed result; inspect Stop status, do not retry automatically')
-    result = future.result()
-    print(result.message)
-    raise SystemExit(0 if result.success else 1)
-finally:
-    node.destroy_node()
-    rclpy.shutdown()
-PY
-```
+Source, generated `StartMotion` interface, gateway binary and caller must be
+selected together. Older releases without this interface retain Options and
+ordinary movement; they report software Start unavailable. This remains an
+offline candidate until staged and physically accepted.
 
 Offline test (no hardware): after configuring/building this package with
 `BUILD_TESTING=ON`, run `ctest --test-dir <joy-build> --output-on-failure -R

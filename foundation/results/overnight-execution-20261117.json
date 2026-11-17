@@ -1,0 +1,85 @@
+{
+  "schema": "pupper_overnight_execution_v1",
+  "recorded_utc": "2026-11-17T10:11:36.876930+00:00",
+  "scope": "Offline engineering and recorded-video comparison. No robot motion, SSH deployment, hardware initialization or policy promotion.",
+  "base_commit": "e91196e",
+  "source_sha256": {
+    "final_project/behaviors/tools/movement_trial.py": "99f1e92d2b4dcb9a957dd6bdfc913ea2d4ee147d272a3e29c8331b8680106ff4",
+    "foundation/hardware/software_start.py": "5ee198fbbe58a1d6e210e04d451453c66cbbe3ead2b65eb5136cf020d7d28dd4",
+    "final_project/pupper_fc/controller.py": "2dccb57a06937209d9d92a8ae960a77c2c3391f5e0771007d2f2aac5d34f2cfb",
+    "final_project/pupper_fc/integration.py": "329b5af01113d1a6a3d69bf2524d59ad9d5e4a48b59b28f81be11259956550c9",
+    "final_project/pupper_fc/model.py": "5c9f4ffc68378526b4707e7d2284c4f87469fac2759c19db9e15bfe0ee52212a"
+  },
+  "implemented": {
+    "heading": "Persistent movement client accepts relative orientation or absolute IMU heading. Execution-time anchor, shortest route, exact antipode left, <=0.35rad/s,0.05rad tolerance,0.3s distinct capture-time dwell, hard timeout. Physical angle accuracy unaccepted.",
+    "heading_verification": "Distinct fresh applied observations must match a causally earlier requested command within0.2s and existing0.02 component tolerance. This is bounded compatibility, not measured transport latency. Zero confirmation remains separate.",
+    "tactics": "Explicit expiring auto intent selects offense/defense per robot. External intents replace ownership; no auto fallback on lease loss. Defender preserves facing toward ball while repositioning.",
+    "referee": "Nonzero goal pulses latch only after whole valid frame admission, including holds without motion authority. Every action yields to goal return before target lookup.",
+    "resume": "Explicit session-checked per-robot resume references exact current field frame, completed return, correct home position/heading, cleared goal, current lease and clear configured camera. No queued reset or renewed authority.",
+    "software_start": "Resident helper and session Start freeze a challenge at actual input receipt. No discovery wait, newer-status repair, automatic retry or homing. Initial ordinary Stop may release; subsequent Stop epoch/gateway instance changes end session. Pending/uncertain exit requests emergency Stop. Real ROS integration result recorded separately when complete."
+  },
+  "reviews": {
+    "fable_model": "claude-fable-5-2 (verified modelUsage), existing authorized Claude account",
+    "execution_review": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/final-review.json",
+    "execution_disposition": "Corrected goal-pulse loss, exact antipode roundoff, delayed-feedback false failure, idle IMU session fault, and missing public resume. A disturbed relative turn remains a fixed-orientation shortest-route request; direction reversal is intentional.",
+    "resident_start_review": "artifacts/pupper-fc/2026-11-17/resident-start-review/review.json",
+    "resident_start_disposition": "Corrected non-object JSON exception and completed ACK incorrectly treated as unknown after late polling. Gateway cadence concern disproved by50ms timer and incremented sequence. Uncertainty requires inspected new client; no auto recovery. Start while already released deliberately ensures selected controller active, using native fresh inventory.",
+    "independent_corrections": "Context-blind reviewer reproduced input-lock delay borrowing newer challenge and missed transient Stop bypassing initial-latch exemption. Both original repros now produce zero submissions;492 focused tests passed. Review found no additional concrete leased-role/resume/heading defect in bounded scope."
+  },
+  "combined_validation": {
+    "exit_code": 0,
+    "summary": "968 passed,101 subtests passed; one existing Starlette/httpx deprecation warning.2.40s pytest time. Includes guard/producer candidates still awaiting real-ROS wiring review.",
+    "receipt": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests.json",
+    "log": "artifacts/pupper-fc/2026-11-17/overnight-integration/combined-tests.log",
+    "not_evidence_of": "Physical stability, heading accuracy, Pi performance or collision avoidance",
+    "qualification": "This passing snapshot preceded a later independent guard finding: backward ROS offset can extend apparent source freshness. Guard author is correcting it; prior test pass is not acceptance of that defect. Core motion/tactics/Start corrections were included and independently reproduced."
+  },
+  "two_robot_replay": {
+    "summary": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/two-robot-summary.json",
+    "events": 2699,
+    "simulated_seconds": 30,
+    "software_execution_latency": {
+      "count": 2699,
+      "mean_ms": 0.03356442237865877,
+      "p50_ms": 0.032875,
+      "p95_ms": 0.046291,
+      "p99_ms": 0.05625,
+      "max_ms": 0.3475
+    },
+    "exact_replay": {
+      "exact_outputs_equal": true,
+      "output_sha256": "1db275c655bc09c7bd17c16b98699e6bbbcaa759b4e3837ba08ea4440a6b9ca4",
+      "replayed_output_sha256": "1db275c655bc09c7bd17c16b98699e6bbbcaa759b4e3837ba08ea4440a6b9ca4",
+      "events_sha256": "4295d38f6c946f3c62c9c5b21a9014ba6a77be75e4df669e21831670cc457b3c"
+    },
+    "limits": [
+      "No contact/collision model or physical actuator/camera/transport latency.",
+      "Goal flags are deliberately injected; goals scored are not an experiment outcome.",
+      "Software latency is host perf_counter time around Executor.handle, separately measured from simulated event now.",
+      "One deterministic scenario and one exact replay, not a statistical reliability claim."
+    ]
+  },
+  "perception": {
+    "result": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/result.json",
+    "gate_replay": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/gate-replay-20261117T095000Z/interpretation-and-next-experiment.json",
+    "frames": 245,
+    "independent_labels": 25,
+    "recognition": "person23/23; fully visible tower14/15; partially occluded tower0/9 at frozen scoring threshold. Historical Hailo comparison is approximate because old publications lack capture timestamps.",
+    "timing": "Mac MPS complete processing median453ms,p951.123s,min430ms.245/245 exceed350ms age limit before camera/network time. Not Pi timing.",
+    "actual_gate": "All245 stale when measured processing age applied. Spatial-only replay:7 robot-edge false-person boxes cause zero holds; exploratory0.10 confidence catches3/3 close-person labels but broad carpet boxes produce false holds at74/102/104s. Production0.40 misses those person labels.",
+    "decision": "Do not deploy OWLv2 or tune production thresholds from this clip. Candidate offline reference only. Floor/nonfloor segmentation is a bounded next hypothesis; no new model experiment started in this block.",
+    "complete_archive_sha256": "bff1df29874ee2efc72144763066caf79b838327b22f707c16a78e9b01866268",
+    "complete_archive_files_verified": 804,
+    "gate_archive_sha256": "de3317ffe71ad07ea2bb9783883c12b184244ead55e7decae15a7a37d215",
+    "gate_archive_files_verified": 9
+  },
+  "compute": {
+    "additional_cloud_budget_usd": 50,
+    "new_purchases_usd": 0,
+    "active_cloud_jobs": 0,
+    "local": "245-frame model run129.5s on existing Mac MPS; no frames uploaded.",
+    "colab": "L4 stopped after approximately80s after upload review rejection. User later explicitly approved transfer; local fallback already worked. Final0 sessions/0CU/hour. Rounded balance326.94CU does not establish zero credit consumption; exact incremental dollar cost unreported.",
+    "claude": "Existing subscription/account use; CLI list-price usage metadata is not a billing receipt."
+  },
+  "remaining": "Actual ROS Start/guard chain checks, selected release wiring/identity and Pi-compatible build; supervised heading/guard/latency acceptance; Ryan live pose integration and real soccer/deliverables. Current owners and next actions live only in interruption-recovery.json."
+}

@@ -80,6 +80,7 @@ class Decision:
     position_error: float | None = None
     heading_error: float | None = None
     recovery_requested: bool = False
+    role: str | None = None  # current autonomous role; explicit actions leave it unset
 
 
 def zero(now: float, robot_id: str = "pupper-1") -> Command:

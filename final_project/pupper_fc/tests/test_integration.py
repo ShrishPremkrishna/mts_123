@@ -337,3 +337,109 @@ def test_jsonl_cli_is_deterministic_shadow_replay(tmp_path, capsys):
     assert outputs == json.loads(json.dumps(list(replay(events))))
     assert not outputs[-1]["armed"]
     assert is_zero(command(outputs[-1]))
+
+
+@pytest.mark.parametrize("kind", ["attack", "auto"])
+@pytest.mark.parametrize("goal", [-1, 1])
+def test_goal_pulse_during_expired_lease_survives_clear_before_renewal(kind, goal):
+    executor = Executor()
+    arm(executor)
+    executor.handle(frame())
+    executor.handle(intent(kind=kind))
+    result = executor.handle(frame(.51, 2, robots={"pupper-1": dict(x=-1, y=0, yaw=0, goal=goal)}))
+    assert result["decisions"]["pupper-1"]["phase"] == "intent_lost"
+    assert is_zero(command(result))
+    assert executor.controllers["pupper-1"]._goal_latched
+    result = executor.handle(frame(.52, 3))  # referee pulse ends before authority returns
+    assert is_zero(command(result))
+    result = executor.handle(intent(.53, 2, kind=kind))
+    assert result["decisions"]["pupper-1"]["phase"] == "return_home"
+    assert executor.controllers["pupper-1"]._goal_latched
+
+
+@pytest.mark.parametrize("goal", [-1, 1])
+def test_goal_pulse_during_camera_hold_survives_clear_and_waits_for_fresh_pose(goal):
+    from final_project.pupper_fc.obstacles import ObstacleConfig
+    from final_project.pupper_fc.tests.test_obstacle_integration import camera
+
+    executor = Executor(obstacle_config=ObstacleConfig(clear_frames=1))
+    arm(executor)
+    executor.handle(camera(0, 1))
+    executor.handle(frame())
+    executor.handle(intent())
+    executor.handle(camera(.1, 2, blocked=True))
+    pulse = frame(.11, 2, robots={"pupper-1": dict(x=-1, y=0, yaw=0, goal=goal)})
+    for event in (pulse, frame(.12, 3)):
+        result = executor.handle(event)
+        assert result["decisions"]["pupper-1"]["phase"] == "obstacle_hold"
+        assert is_zero(command(result))
+        assert executor.controllers["pupper-1"]._goal_latched
+    result = executor.handle(camera(.13, 3))
+    assert result["decisions"]["pupper-1"]["phase"] == "tracking_lost"
+    assert is_zero(command(result))
+    result = executor.handle(frame(.14, 4))
+    assert result["decisions"]["pupper-1"]["phase"] == "return_home"
+
+
+@pytest.mark.parametrize("kind", ["attack", "auto", "move", "defend", "shoot"])
+def test_referee_preempts_every_action_before_target_or_goal_geometry(kind):
+    executor = Executor()
+    arm(executor)
+    result = executor.handle(frame(robots={"pupper-1": dict(x=-1, y=0, yaw=0, goal=1)},
+                                   ball=None, goals={}))
+    assert is_zero(command(result))  # bookkeeping does not grant motion authority
+    executor.handle(frame(.1, 2, ball=None, goals={}))  # clear flag cannot erase latch
+    kwargs = (dict(target=dict(x=100, y=100, yaw=0)) if kind in ("move", "defend")
+              else dict(target=dict(x=100, y=100)) if kind == "shoot" else {})
+    result = executor.handle(intent(.1, kind=kind, **kwargs))
+    assert result["accepted"]
+    assert result["decisions"]["pupper-1"]["phase"] == "return_home"
+
+
+@pytest.mark.parametrize("second_changes", [dict(x=float("nan")), dict(fallen="yes"),
+                                             dict(goal=True), dict(x=100)])
+def test_later_invalid_robot_row_cannot_partially_latch_first_robot_goal(second_changes):
+    executor = Executor()
+    arm(executor)
+    executor.handle(frame())
+    event = frame(.1, 2)
+    event["robots"]["pupper-1"]["goal"] = 1
+    event["robots"]["pupper-2"].update(second_changes)
+    result = executor.handle(event)
+    assert not result["accepted"] and is_zero(command(result))
+    assert not executor.controllers["pupper-1"]._goal_latched
+    executor.handle(frame(.2, 3))
+    result = executor.handle(intent(.2))
+    assert result["decisions"]["pupper-1"]["phase"] == "approach"
+
+
+@pytest.mark.parametrize("changes", [dict(epoch="old"), dict(clock="unmapped"), dict(seq=1),
+                                      dict(captured_at=0), dict(captured_at=-.4), dict(captured_at=.2),
+                                      dict(ball=dict(x=0, y=0, vx=11))])
+def test_unadmitted_goal_pulse_cannot_change_referee_state(changes):
+    executor = active()
+    event = frame(.1, 2, robots={"pupper-1": dict(x=-1, y=0, yaw=0, goal=1)})
+    event.update(changes)
+    result = executor.handle(event)
+    assert not result["accepted"]
+    assert not executor.controllers["pupper-1"]._goal_latched
+
+
+def test_stop_rejects_goal_bookkeeping_and_rearm_starts_fresh_referee_state():
+    executor = active()
+    executor.handle(dict(event="stop", now=.1))
+    pulse = frame(.2, 2, robots={"pupper-1": dict(x=-1, y=0, yaw=0, goal=1)})
+    assert not executor.handle(pulse)["accepted"]
+    assert not executor.controllers["pupper-1"]._goal_latched
+    arm(executor, .3, "new")
+    executor.handle(frame(.31, epoch="new"))
+    result = executor.handle(intent(.31, epoch="new"))
+    assert result["decisions"]["pupper-1"]["phase"] == "approach"
+
+
+def test_active_explicit_attack_handles_goal_without_ball_or_goal_points():
+    executor = active()
+    result = executor.handle(frame(.1, 2, robots={"pupper-1": dict(x=-1, y=0, yaw=0, goal=1)},
+                                   ball=None, goals={}))
+    assert result["accepted"]
+    assert result["decisions"]["pupper-1"]["phase"] == "return_home"

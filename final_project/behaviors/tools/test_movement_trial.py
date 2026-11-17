@@ -909,3 +909,796 @@ def test_native_heading_correction_is_reported_without_falsely_failing_translati
   assert report["applied_matched_requested"] is True
   assert report["max_abs_requested_minus_applied"]["wz"] == 0.1
   assert report["comparison_axes"] == ["vx", "vy"]
+
+
+# ---------------------------------------------------------------- feedback turns
+
+@pytest.mark.parametrize("fields", [
+  {"turn_angle_rad": 4 * math.pi}, {"heading_rad": float("nan")},
+  {"heading_rad": 0, "turn_angle_rad": 1}, {"heading_rad": 0, "axis": "turn_left"},
+  {"heading_rad": 0, "lateral_calibration": False}, {"heading_rad": 0, "duration": 1},
+  {"turn_angle_rad": 1, "speed": 0.351}, {"turn_angle_rad": 1, "speed": 0},
+  {"turn_angle_rad": 1, "timeout_s": 20.01}, {"turn_angle_rad": 1, "timeout_s": float("inf")},
+])
+def test_heading_request_rejects_ambiguous_or_unbounded_inputs(fields):
+  mt = pure()
+  with pytest.raises(ValueError):
+    mt.session_request(fields, "walk")
+
+
+def test_heading_shortest_turn_wrap_and_exact_antipodes_are_deterministic():
+  mt = pure()
+  assert mt.wrap_heading(-math.pi) == mt.wrap_heading(math.pi) == math.pi
+  req = mt.HeadingRequest.build(-3.1, relative=False)
+  control = mt.HeadingControl.start(req, 3.1)
+  assert 0 < control.update(3.1, 0)[2] < 0.35
+  assert control.update(-2.8, 100_000_000)[2] < 0  # shortest correction after overshoot
+  for angle in (-math.pi, math.pi):
+    control = mt.HeadingControl.start(mt.HeadingRequest.build(angle, relative=True), 0)
+    assert control.update(0, 0) == (0, 0, 0.35)
+
+
+def test_heading_antipodes_choose_left_at_nonzero_yaw_without_widening_nearby_ties():
+  import random
+  mt = pure()
+  rng = random.Random(1)
+  for _ in range(10_000):
+    yaw = rng.uniform(-math.pi, math.pi)
+    for angle in (-math.pi, math.pi):
+      control = mt.HeadingControl.start(mt.HeadingRequest.build(angle, relative=True), yaw)
+      assert control.update(yaw, 0)[2] == 0.35
+    for angle, sign in ((math.pi - 1e-12, 1), (-math.pi + 1e-12, -1)):
+      control = mt.HeadingControl.start(mt.HeadingRequest.build(angle, relative=True), yaw)
+      assert control.update(yaw, 0)[2] * sign > 0
+
+
+def test_relative_heading_keeps_target_but_uses_new_shortest_route_after_disturbance():
+  mt = pure()
+  control = mt.HeadingControl.start(mt.HeadingRequest.build(3.1, relative=True), 0)
+  assert control.update(0, 0)[2] > 0
+  assert control.update(-0.1, 50_000_000)[2] < 0
+  assert control.target_rad == pytest.approx(3.1)
+  assert abs(control.error_rad) < math.pi
+  # Continuing left would now travel 3.2 rad, so reversing is the shorter route.
+  assert abs(control.error_rad) < 3.1 - (-0.1)
+
+
+@pytest.mark.parametrize("delay", [0.02, 0.05, 0.10])
+@pytest.mark.parametrize("disturbance", [False, True])
+def test_heading_verification_aligns_healthy_delayed_varying_commands(delay, disturbance):
+  mt = pure()
+  request = mt.HeadingRequest.build(1, relative=True)
+  control = mt.HeadingControl.start(request, 0)
+  yaw, disturbed = 0.0, False
+  command = control.update(yaw, 0)
+  samples = [mt.Sample(0, command, ZERO, -0.01)]
+  for tick in range(1, 1500):
+    t = tick / 100
+    yaw += command[2] * 0.01
+    if tick % 5:
+      continue
+    if disturbance and not disturbed and control.within_since_ros_ns is not None:
+      yaw += 0.12
+      disturbed = True
+    command = control.update(yaw, tick * 10_000_000)
+    receipt_at = t - 0.005
+    prior = [s for s in samples if s.t <= receipt_at - delay]
+    applied = prior[-1].requested if prior else ZERO
+    samples.append(mt.Sample(t, command, applied, receipt_at))
+    if control.completed:
+      break
+  assert control.completed and (disturbed or not disturbance)
+  result = mt.summarize(samples, 0, t, t + delay, heading_feedback=True)
+  assert result["applied_matched_requested"] is True
+  alignment = result["feedback_alignment"]
+  assert alignment["matched_observations"] > 10
+  assert alignment["unmatched_observations"] == 0
+  assert alignment["feedback_window_s"] == 0.2 and alignment["component_tolerance"] == 0.02
+  assert 0 <= alignment["accepted_command_age_s"]["min"] <= alignment["accepted_command_age_s"]["max"] <= 0.2
+  if disturbance or delay == 0.1:
+    assert result["max_abs_requested_minus_applied"]["wz"] > mt.MATCH_TOL
+    assert mt.summarize(samples, 0, t, t + delay)["applied_matched_requested"] is False
+
+
+@pytest.mark.parametrize("wrong", [(0.1, 0, 0.3), (0, 0.1, 0.3), (0, 0, -0.3),
+                                   (0, 0, 0.1), ZERO])
+def test_heading_verification_rejects_wrong_axis_magnitude_reverse_and_persistent_zero(wrong):
+  mt = pure()
+  samples = [mt.Sample(i / 20, (0, 0, 0.3), wrong, i / 20 - 0.01) for i in range(11)]
+  result = mt.summarize(samples, 0, 0.5, 0.55, heading_feedback=True)
+  assert result["applied_matched_requested"] is False
+  assert result["feedback_alignment"]["unmatched_observations"] > 0
+
+
+@pytest.mark.parametrize("cause", ["stale_receipt", "missing_receipt", "missing_observation", "old_command"])
+def test_heading_verification_rejects_stale_missing_or_overage_command_evidence(cause):
+  mt = pure()
+  samples = [mt.Sample(i / 20, (0, 0, 0.3), (0, 0, 0.3), i / 20 - 0.01) for i in range(11)]
+  if cause == "stale_receipt":
+    samples[-1] = mt.Sample(0.5, (0, 0, 0.3), (0, 0, 0.3), 0.29)
+  elif cause == "missing_receipt":
+    samples[-1] = mt.Sample(0.5, (0, 0, 0.3), (0, 0, 0.3))
+  elif cause == "missing_observation":
+    samples[-1] = mt.Sample(0.5, (0, 0, 0.3), None)
+  else:
+    samples[0] = mt.Sample(0, (0, 0, -0.3), ZERO, -0.01)
+    samples[-1] = mt.Sample(0.5, (0, 0, 0.3), (0, 0, -0.3), 0.49)
+  result = mt.summarize(samples, 0, 0.5, 0.55, heading_feedback=True)
+  assert result["applied_matched_requested"] is False
+  alignment = result["feedback_alignment"]
+  key = ("stale_observation_ticks" if cause == "stale_receipt" else
+         "unmatched_observations" if cause == "old_command" else "missing_observation_ticks")
+  assert alignment[key] == 1
+
+
+def test_heading_verification_cannot_use_future_stop_zero_or_reused_feedback_as_new_evidence():
+  mt = pure()
+  samples = [mt.Sample(i / 20, (0, 0, 0.3), (0, 0, 0.3), i / 20 - 0.01) for i in range(10)]
+  samples.append(mt.Sample(0.5, ZERO, ZERO, 0.49))  # zero observed before the first zero request
+  result = mt.summarize(samples, 0, 0.5, 0.55, heading_feedback=True)
+  assert result["feedback_alignment"]["unmatched_observations"] == 1
+  assert result["applied_matched_requested"] is False
+  samples = samples[:-1]
+  samples.append(mt.Sample(0.5, ZERO, (0, 0, 0.3), samples[-1].applied_t))
+  result = mt.summarize(samples, 0, 0.5, None, heading_feedback=True)
+  assert result["applied_matched_requested"] is True
+  assert result["feedback_alignment"]["matched_observations"] == 5
+  record = {"outcome": "completed", "summary": result}
+  mt.finalize_verification(record, True)
+  assert record["command_verification"]["passed"] is False  # stop zero still unconfirmed
+  result["zero_confirmed_in_observation_s"] = 0.05
+  mt.finalize_verification(record, True)
+  assert record["command_verification"]["passed"] is True
+  record["outcome"] = "stopped"
+  mt.finalize_verification(record, True)
+  assert record["command_verification"]["passed"] is False
+
+
+def test_heading_verification_persistent_zero_cannot_hide_brief_motion_inside_hold():
+  mt = pure()
+  samples = [mt.Sample(i / 20, ZERO, ZERO, i / 20 - 0.01) for i in range(15)]
+  samples[8] = mt.Sample(0.4, (0, 0, 0.1), ZERO, 0.39)
+  result = mt.summarize(samples, 0, 0.7, 0.75, heading_feedback=True)
+  alignment = result["feedback_alignment"]
+  assert alignment["unmatched_observations"] == 0  # zeros match nearby hold commands
+  assert alignment["nonzero_command_requested"] is True
+  assert alignment["nonzero_feedback_observations"] == 0
+  assert result["applied_matched_requested"] is False
+
+
+def test_heading_verification_accepts_short_confirmed_motion_before_settle_then_zero_hold():
+  mt = pure()
+  samples = [mt.Sample(0, (0, 0, 0.05), ZERO, -0.01),
+             mt.Sample(0.05, (0, 0, 0.05), (0, 0, 0.05), 0.04),
+             mt.Sample(0.1, ZERO, (0, 0, 0.05), 0.09)]
+  samples.extend(mt.Sample(i / 20, ZERO, ZERO, i / 20 - 0.01) for i in range(3, 10))
+  result = mt.summarize(samples, 0, 0.45, 0.5, heading_feedback=True)
+  assert result["applied_matched_requested"] is True
+  assert result["feedback_alignment"]["nonzero_feedback_observations"] == 2
+
+
+def test_heading_dwell_requires_new_feedback_and_restarts_after_leaving_tolerance():
+  mt = pure()
+  control = mt.HeadingControl.start(mt.HeadingRequest.build(0, relative=False), 0)
+  assert control.update(0.04, 1_000_000_000) == ZERO
+  for _ in range(100):
+    control.update(0.04, 1_000_000_000)
+  assert not control.completed and control.feedback_samples == 1
+  control.update(0.06, 1_290_000_000)
+  assert control.within_since_ros_ns is None
+  control.update(0.02, 1_300_000_000)
+  control.update(-0.02, 1_590_000_000)
+  assert not control.completed
+  control.update(0.01, 1_610_000_000)
+  assert control.completed
+
+
+def test_heading_dwell_never_counts_time_before_execution():
+  mt = pure()
+  control = mt.HeadingControl.start(mt.HeadingRequest.build(0, relative=False), 0,
+                                   started_ros_ns=1_000_000_000)
+  control.update(0, 810_000_000)
+  control.update(0, 1_150_000_000)
+  assert not control.completed
+  assert control.within_since_ros_ns == 1_000_000_000
+  control.update(0, 1_310_000_000)
+  assert control.completed
+
+
+def heading_imu(ros, yaw, *, capture=None):
+  msg = _fake_ros.Imu(yaw=yaw)
+  captured_ns = round((ros.t if capture is None else capture) * 1e9)
+  msg.header = _fake_ros.Header()
+  msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(captured_ns, 1_000_000_000)
+  ros.publish("/imu_sensor_broadcaster/imu", msg)
+  return msg
+
+
+def heading_trial(tmp_path, **fields):
+  ros, node, mt = make_trial(tmp_path)
+  ready(ros, node)
+  node.prepare(mt.session_request(fields or {"turn_angle_rad": 1}, "walk"))
+  node._test_emit_obs = False
+  observe(ros)
+  return ros, node, mt
+
+
+def test_heading_anchors_relative_target_at_execution_not_prepare(tmp_path):
+  ros, node, mt = heading_trial(tmp_path, turn_angle_rad=0.5)
+  heading_imu(ros, 0.2)
+  heading_imu(ros, 0.7, capture=ros.t + 0.01)  # future captures cannot supply start yaw
+  assert node.try_start() is not None
+  ros.t += 0.02
+  heading_imu(ros, 0.9)
+  observe(ros)
+  assert node.try_start() is None
+  assert node.heading.target_rad == pytest.approx(1.4)
+  assert twists(ros)[0] == (0, 0, 0.35)
+
+
+@pytest.mark.parametrize("phase", ["waiting", "finished"])
+@pytest.mark.parametrize("bad_sample", ["invalid", "reordered"])
+def test_bad_idle_imu_refuses_readiness_without_latching_session_stop(tmp_path, phase, bad_sample):
+  ros, node, mt = heading_trial(tmp_path, heading_rad=0)
+  heading_imu(ros, 0)
+  if phase == "finished":
+    assert node.try_start() is None
+    for _ in range(8):
+      ros.t += 0.05
+      pending, ros.pending = ros.pending, []
+      for future in pending:
+        future.resolve()
+      heading_imu(ros, 0)
+      observe(ros)
+      node.on_tick()
+    assert node.record["outcome"] == "completed"
+    mt.finish_trial(node, {}, lambda _: True, session=True)
+  commands_before = len(twists(ros))
+  if bad_sample == "reordered":
+    heading_imu(ros, 0, capture=ros.t - 0.01)
+  else:
+    msg = _fake_ros.Imu()
+    msg.orientation.w = 0
+    node.on_imu(msg)
+  assert node.imu_latest is None and node.stop_requested is None
+  assert not ros.published["/emergency_stop"]
+  assert len(twists(ros)) == commands_before
+  if phase == "finished":
+    node.prepare(mt.HeadingRequest.build(0.2, relative=True))
+  assert "IMU" in node.try_start()
+  ros.t += 0.02
+  heading_imu(ros, 0)
+  observe(ros)
+  assert node.try_start() is None
+
+
+def test_imu_snapshot_is_consistent_whenever_the_callback_releases_its_lock(tmp_path):
+  ros, node, mt = heading_trial(tmp_path)
+  heading_imu(ros, 0)
+  snapshots, original = [], node.lock
+  class ObservedLock:
+    def __enter__(self):
+      original.acquire()
+    def __exit__(self, *args):
+      snapshots.append((node.imu_source_stamp_ns, node.imu_latest))
+      original.release()
+  node.lock = ObservedLock()
+  ros.t += 0.05
+  heading_imu(ros, 0.5)
+  assert snapshots
+  assert all(stamp == round(ros.t * 1e9) and latest[0] == pytest.approx(0.5)
+             for stamp, latest in snapshots)
+
+
+@pytest.mark.parametrize("cause", ["absent", "old_arrival", "old_capture", "invalid_quaternion"])
+def test_heading_requires_fresh_valid_captured_yaw_before_any_publication(tmp_path, cause):
+  ros, node, mt = heading_trial(tmp_path)
+  if cause == "old_arrival":
+    heading_imu(ros, 0)
+    ros.t += 0.21
+  elif cause == "old_capture":
+    heading_imu(ros, 0, capture=ros.t - 0.3)
+  elif cause == "invalid_quaternion":
+    msg = heading_imu(ros, 0)
+    msg.orientation.w = 0
+    node.on_imu(msg)
+  observe(ros)
+  assert "IMU" in node.try_start()
+  assert not twists(ros)
+
+
+@pytest.mark.parametrize("cause", ["stale", "old_capture", "invalid", "stop", "owner", "stock", "timeout"])
+def test_heading_stop_paths_zero_and_never_report_timeout_as_success(tmp_path, cause):
+  ros, node, mt = heading_trial(tmp_path, turn_angle_rad=1, timeout_s=0.4)
+  heading_imu(ros, 0)
+  assert node.try_start() is None
+  if cause == "old_capture":
+    heading_imu(ros, 0, capture=ros.t - 0.3)
+  elif cause == "invalid":
+    msg = _fake_ros.Imu()
+    msg.orientation.z = float("nan")
+    node.on_imu(msg)
+  elif cause == "stop":
+    node.on_emergency(None)
+  elif cause == "owner":
+    ros.publishers["/kick_cmd_vel"] += 1
+  elif cause == "stock":
+    node.stock.bounds = (0.49, 0.3, 0.3, 0.2)
+  for _ in range(10):
+    ros.t += 0.05
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    if cause != "stale":
+      heading_imu(ros, 0)
+    observe(ros, wz=twists(ros)[-1][2])
+    node.on_tick()
+  assert node.phase == "finished" and node.record["outcome"] == "stopped"
+  assert twists(ros)[-1] == ZERO
+  assert not node.record["heading_feedback"]["stable_completion"]
+  if cause == "timeout":
+    assert "timeout" in node.record["reason"]
+  assert max(abs(command[2]) for command in twists(ros)) <= 0.35
+
+
+def test_heading_complete_requires_dwell_and_records_sensor_evidence(tmp_path):
+  ros, node, mt = heading_trial(tmp_path, heading_rad=0.2)
+  heading_imu(ros, 0)
+  assert node.try_start() is None
+  for i in range(15):
+    ros.t += 0.05
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    heading_imu(ros, min(0.2, i * 0.04))
+    observe(ros, wz=twists(ros)[-1][2])
+    node.on_tick()
+  assert node.record["outcome"] == "completed"
+  feedback = node.record["heading_feedback"]
+  assert feedback["initial_yaw_rad"] == 0
+  assert feedback["target_yaw_rad"] == pytest.approx(0.2)
+  assert abs(feedback["final_error_rad"]) <= mt.HEADING_TOLERANCE_RAD
+  assert feedback["stable_completion"] and feedback["feedback_samples"] > 5
+  assert node.zero_sent_at - node.started >= 0.5
+  assert twists(ros)[-1] == ZERO
+  assert node.zero_confirmed_at is not None
+
+
+def test_repeated_imu_captures_cannot_extend_freshness_or_complete_dwell(tmp_path):
+  ros, node, mt = heading_trial(tmp_path, heading_rad=0)
+  capture = ros.t
+  heading_imu(ros, 0, capture=capture)
+  assert node.try_start() is None
+  for _ in range(6):
+    ros.t += 0.05
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    heading_imu(ros, 0, capture=capture)
+    observe(ros)
+    node.on_tick()
+  assert node.record["outcome"] == "stopped"
+  assert not node.record["heading_feedback"]["stable_completion"]
+  assert node.heading.feedback_samples == 1
+  assert twists(ros)[-1] == ZERO
+
+
+def test_heading_delayed_captures_cannot_stretch_dwell_then_fresh_captures_complete(tmp_path):
+  ros, node, mt = heading_trial(tmp_path, heading_rad=0)
+  started = ros.t
+  heading_imu(ros, 0)
+  assert node.try_start() is None
+  # Arrival spans .31 s, but the four distinct captures span only .12 s.
+  # Each capture is still within the .2 s freshness window at delivery.
+  for arrival, captured in ((0.10, 0.05), (0.20, 0.10), (0.31, 0.12)):
+    ros.t = started + arrival
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    heading_imu(ros, 0, capture=started + captured)
+    observe(ros)
+    node.on_tick()
+    assert node.phase == "pulsing" and not node.heading.completed
+  assert node.heading.feedback_samples == 4
+  assert node.heading.last_capture_ros_ns - node.heading.within_since_ros_ns == 120_000_000
+  for arrival, captured in ((0.36, 0.20), (0.41, 0.30)):
+    ros.t = started + arrival
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    heading_imu(ros, 0, capture=started + captured)
+    observe(ros)
+    node.on_tick()
+  assert node.phase == "finished" and node.record["outcome"] == "completed"
+  assert node.record["heading_feedback"]["capture_dwell_s"] == pytest.approx(0.3)
+  assert node.record["heading_feedback"]["dwell_feedback_samples"] == 6
+
+
+def test_heading_dwell_uses_ros_capture_clock_while_timeout_uses_monotonic_clock(tmp_path):
+  ros, node, mt = heading_trial(tmp_path, heading_rad=1, timeout_s=0.4)
+  started = ros.t
+  ros_stamp_ns = 1_800_000_000_000_000_000  # unrelated ROS and monotonic origins
+  node.get_clock = lambda: types.SimpleNamespace(now=lambda: types.SimpleNamespace(nanoseconds=ros_stamp_ns))
+  def captured_yaw():
+    msg = _fake_ros.Imu(yaw=0)
+    msg.header = _fake_ros.Header()
+    msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(ros_stamp_ns, 1_000_000_000)
+    node.on_imu(msg)
+  captured_yaw()
+  assert node.try_start() is None
+  assert node.heading.started_ros_ns == ros_stamp_ns
+  for _ in range(9):
+    ros.t += 0.05
+    ros_stamp_ns += 10_000_000  # .01 s of captured time per .05 s of monotonic runtime
+    pending, ros.pending = ros.pending, []
+    for future in pending:
+      future.resolve()
+    captured_yaw()
+    observe(ros, wz=twists(ros)[-1][2])
+    node.on_tick()
+  assert node.record["outcome"] == "stopped" and "timeout" in node.record["reason"]
+  assert 0.4 <= node.zero_sent_at - started <= 0.451
+  assert node.heading.last_capture_ros_ns - node.heading.started_ros_ns < 100_000_000
+  assert twists(ros)[-1] == ZERO
+
+
+def test_session_heading_timeout_fallback_cannot_mark_timer_completion_success(tmp_path, monkeypatch):
+  ros, node, mt, inbox, spin_once = session_fixture(tmp_path, monkeypatch)
+  events = []
+  def spin(actual_node, timeout_sec):
+    spin_once(actual_node, timeout_sec)
+    heading_imu(ros, 0)
+  def emit(event):
+    events.append(event)
+    if event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+  inbox.put({"command": "prepare", "turn_angle_rad": 1, "timeout_s": 0.2})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin) == 4
+  assert node.record["outcome"] == "stopped"
+  assert "timeout" in node.record["reason"]
+  assert sum(event["event"] == "started" for event in events) == 1
+
+
+def start_session_fixture(tmp_path, *, initial_latch=True, service_ready=True, acknowledge=True):
+  from foundation.hardware.software_start import ResidentStart
+  ros, node, mt = make_trial(tmp_path)
+  ros.tick(25)  # stock evidence, but no gateway release has been observed
+  inbox = mt.SessionInbox(node.clock)
+  submissions = []
+  state = {"protocol": "pupper_stop_v1", "instance_id": "test-gateway", "epoch": 1,
+           "sequence": 0, "selected_controller": "neural_controller_default", "latched": initial_latch,
+           "fault": False, "stop_required": False, "in_flight": False,
+           "unknown_remote_submission": False, "shutting_down": False}
+  future = types.SimpleNamespace(complete=False, done=lambda: future.complete,
+                                result=lambda: types.SimpleNamespace(success=True, message="activated"))
+  availability = [service_ready]
+  def submit(payload):
+    submissions.append(dict(payload))
+    return future
+  caller = ResidentStart(submit, lambda: availability[0], clock=node.clock)
+  def status():
+    state["sequence"] += 1
+    caller.observe(state)
+    node.on_stop_status(_fake_ros.String(json.dumps(state)))
+  status()
+  def spin(actual, timeout_sec):
+    assert actual is node
+    ros.t += 0.01
+    pending, ros.pending = ros.pending, []
+    for f in pending:
+      f.resolve()
+    if caller.pending is not None and acknowledge:
+      future.complete, state["latched"] = True, False
+    status()
+    observe(ros, *(node.request.twist if node.phase == "pulsing" else ZERO))
+    node.on_tick()
+  return ros, node, mt, inbox, caller, submissions, state, availability, spin
+
+
+def test_session_initial_latch_explicit_start_consumes_token_and_subsequent_stop_ends_session(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  events, captured, prepared = [], [], []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      assert node.stop_requested is None and node.gateway_blocked
+      inbox.put({"command": "prepare", "axis": "forward"})
+    elif event["event"] == "prepared":
+      prepared.append(event["token"])
+      captured.append(state["sequence"])
+      inbox.put({"command": "start", "_start_ticket": "forged", "ticket": "ignored"})
+    elif event["event"] == "start_result":
+      assert event["success"]
+      inbox.put({"command": "run", "token": prepared[0]})
+    elif event["event"] == "refused":
+      assert event["command"] == "run" and "token" in event["reason"]
+      state["latched"] = True
+      inbox.put({"command": "start"})  # cannot rearm the subsequent Stop
+  code = mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin, start_client=caller)
+  assert code == 3 and len(submissions) == 1
+  assert submissions[0]["sequence"] == captured[0] < state["sequence"]
+  assert not twists(ros)
+  assert node.stop_requested == "e-stop gateway latched"
+
+
+@pytest.mark.parametrize("changed", [{"epoch": 2}, {"instance_id": "restarted"}])
+def test_initial_latch_cannot_hide_later_cleaned_stop_or_gateway_restart(tmp_path, changed):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      assert node.gateway_authority == ("test-gateway", 1)
+      state.update(changed)  # transient Stop/cleanup was missed; ordinary latch remains
+      state["sequence"] += 1
+      caller.observe(state)
+      node.on_stop_status(_fake_ros.String(json.dumps(state)))
+      inbox.put({"command": "start"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 3
+  assert node.stop_requested == "gateway authority epoch or instance changed"
+  assert node.gateway_authority == ("test-gateway", 1)
+  assert not submissions and not twists(ros)
+
+
+def test_start_status_arriving_before_node_authority_cannot_bypass_epoch_fence(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      state["epoch"], state["sequence"] = 2, state["sequence"] + 1
+      caller.observe(state)  # helper subscription ran before the node's status callback
+      inbox.put({"command": "start"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 3
+  assert not submissions
+
+
+def test_start_press_time_is_frozen_before_node_lock_contention(tmp_path):
+  import threading
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  captured, tickets, events = threading.Event(), [], []
+  original_capture = caller.capture
+  def capture(*, pressed_at):
+    ticket = original_capture(pressed_at=pressed_at)
+    tickets.append(ticket)
+    captured.set()
+    return ticket
+  caller.capture = capture
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      ingress = ros.t
+      node.lock.acquire()
+      thread = threading.Thread(target=lambda: inbox.put({"command": "start"}))
+      thread.start()
+      try:
+        frozen_before_unlock = captured.wait(timeout=1)
+        ros.t += 0.30
+        state["sequence"] += 1
+        caller.observe(state)  # later status must not repair the blocked original press
+      finally:
+        node.lock.release()
+        thread.join(timeout=1)
+      assert frozen_before_unlock and not thread.is_alive()
+      assert tickets[0].pressed_at == ingress
+    elif event["event"] == "refused":
+      assert "expired" in event["reason"]
+      inbox.put({"command": "quit"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 0
+  assert not submissions and not twists(ros)
+
+
+def test_start_capture_cannot_use_status_that_arrived_after_ingress_during_helper_lock_wait(tmp_path):
+  import threading
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  entered = threading.Event()
+  original_capture = caller.capture
+  def capture(*, pressed_at):
+    entered.set()
+    return original_capture(pressed_at=pressed_at)
+  caller.capture = capture
+  def emit(event):
+    if event["event"] == "session_ready":
+      caller.lock.acquire()
+      thread = threading.Thread(target=lambda: inbox.put({"command": "start"}))
+      thread.start()
+      try:
+        waiting = entered.wait(timeout=1)
+        ros.t += 0.05
+        state["sequence"] += 1
+        caller.observe(state)
+      finally:
+        caller.lock.release()
+        thread.join(timeout=1)
+      assert waiting and not thread.is_alive()
+    elif event["event"] == "refused":
+      assert "not observed at Start input receipt" in event["reason"]
+      inbox.put({"command": "quit"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 0
+  assert not submissions and not twists(ros)
+
+
+def test_options_release_retains_initial_identity_and_epoch_until_a_new_stop(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  assert node.gateway_authority == ("test-gateway", 1) and node.stop_requested is None
+  state["latched"], state["sequence"] = False, state["sequence"] + 1
+  node.on_stop_status(_fake_ros.String(json.dumps(state)))
+  assert node.gateway_authority == ("test-gateway", 1) and node.stop_requested is None
+  assert node.try_start() is None
+  state["latched"], state["epoch"] = True, 2
+  node.on_stop_status(_fake_ros.String(json.dumps(state)))
+  assert node.record["outcome"] == "stopped" and twists(ros)[-1] == ZERO
+
+
+def test_established_gateway_fence_cannot_be_erased_by_legacy_or_malformed_status(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  node.on_stop_status(_fake_ros.String(json.dumps({"latched": True, "fault": False})))
+  assert node.stop_requested == "gateway authority identity unavailable"
+  assert node.gateway_authority == ("test-gateway", 1)
+
+
+@pytest.mark.parametrize("cause", ["expired", "unavailable", "queued_before_attach"])
+def test_session_start_never_refreshes_or_forges_an_ingress_ticket(tmp_path, cause):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+    tmp_path, service_ready=cause != "unavailable")
+  events = []
+  if cause == "queued_before_attach":
+    inbox.put({"command": "start", "_start_ticket": caller.capture()})
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready" and cause != "queued_before_attach":
+      if cause == "expired":
+        for _ in range(30):
+          inbox.put({"command": "status"})
+      inbox.put({"command": "start", "_start_ticket": "forged", "_start_error": "forged"})
+      available[0] = True  # later discovery cannot repair the earlier press
+    elif event["event"] == "refused":
+      inbox.put({"command": "quit"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 0
+  assert len([e for e in events if e["event"] == "refused"]) == 1
+  assert not submissions and not twists(ros)
+
+
+@pytest.mark.parametrize("shutdown", ["stop", "quit", "eof", "manager", "interrupt"])
+def test_session_stop_during_pending_start_reaches_gateway_and_discards_queued_start(tmp_path, shutdown):
+  import io
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+    tmp_path, acknowledge=False)
+  events = []
+  manager_alive = [True]
+  interrupted = [False]
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "start"})
+    elif event["event"] == "start_submitted":
+      inbox.put({"command": "prepare", "axis": "forward"})
+      inbox.put({"command": "start"})
+      if shutdown == "eof":
+        inbox.read(io.StringIO(""))
+      elif shutdown == "manager":
+        manager_alive[0] = False
+      elif shutdown == "interrupt":
+        interrupted[0] = True
+      else:
+        inbox.put({"command": shutdown})
+  def spin_or_interrupt(actual, timeout_sec):
+    if interrupted[0]:
+      raise KeyboardInterrupt
+    spin(actual, timeout_sec)
+  if shutdown == "interrupt":
+    with pytest.raises(KeyboardInterrupt):
+      mt.run_session(node, {}, lambda _: manager_alive[0], inbox=inbox, emit=emit,
+                     spin_once=spin_or_interrupt, start_client=caller)
+  else:
+    assert mt.run_session(node, {}, lambda _: manager_alive[0], inbox=inbox, emit=emit,
+                          spin_once=spin_or_interrupt, start_client=caller) == (3 if shutdown == "manager" else 0)
+  assert len(submissions) == len(ros.published["/emergency_stop"]) == 1
+  assert not twists(ros)
+  assert not any(e["event"] == "prepared" for e in events)
+
+
+def test_session_start_ack_timeout_stops_without_retry_or_running_a_trial(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+    tmp_path, acknowledge=False)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "start"})
+    elif event["event"] == "start_submitted":
+      inbox.put({"command": "prepare", "axis": "forward"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 3
+  assert len(submissions) == len(ros.published["/emergency_stop"]) == 1
+  assert any(e["event"] == "refused" and "pending" in e["reason"] for e in events)
+  assert any(e["event"] == "start_result" and e["uncertain"] for e in events)
+  assert not twists(ros)
+
+
+def test_session_refuses_start_during_motion_without_submitting_service_call(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(
+    tmp_path, initial_latch=False)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 1})
+    elif event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "started":
+      inbox.put({"command": "start"})
+    elif event["event"] == "refused":
+      assert event["command"] == "start" and "running" in event["reason"]
+      inbox.put({"command": "stop"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 4
+  assert not submissions and twists(ros)[-1] == ZERO
+
+
+def test_missing_start_interface_is_optional_and_explicit_start_is_refused(tmp_path, monkeypatch):
+  from foundation.hardware import software_start
+  def missing(*args, **kwargs):
+    raise ImportError("legacy release has no StartMotion")
+  monkeypatch.setattr(software_start, "attach", missing)
+  ros, node, mt, inbox, spin = session_fixture(tmp_path, monkeypatch)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      assert not event["software_start_supported"]
+      inbox.put({"command": "start"})
+    elif event["event"] == "refused":
+      inbox.put({"command": "prepare", "axis": "forward", "duration": 0.3})
+    elif event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "trial_complete":
+      inbox.put({"command": "quit"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin) == 0
+  assert sum(e["event"] == "trial_complete" for e in events) == 1
+  assert not ros.published["/emergency_stop"]
+
+
+def test_start_acknowledgement_does_not_replace_stock_authority_checks(tmp_path):
+  ros, node, mt, inbox, caller, submissions, state, available, spin = start_session_fixture(tmp_path)
+  events = []
+  def emit(event):
+    events.append(event)
+    if event["event"] == "session_ready":
+      inbox.put({"command": "start"})
+    elif event["event"] == "start_result":
+      ros.controllers["neural_controller_default"] = "inactive"
+      node.stock.bounds, node.stock.error = None, "stock controller inactive"
+      inbox.put({"command": "prepare", "axis": "forward"})
+    elif event["event"] == "prepared":
+      inbox.put({"command": "run", "token": event["token"]})
+    elif event["event"] == "refused":
+      assert event["command"] == "run" and "stock" in event["reason"]
+      inbox.put({"command": "quit"})
+  assert mt.run_session(node, {}, lambda _: True, inbox=inbox, emit=emit, spin_once=spin,
+                        start_client=caller) == 0
+  assert len(submissions) == 1 and not twists(ros)
+
+
+def test_legacy_initial_latch_can_release_via_options_but_never_rearms_after_stop(tmp_path):
+  ros, node, mt = make_trial(tmp_path)
+  ros.tick(25)
+  node.on_stop_status(_fake_ros.String(json.dumps({"latched": True, "fault": False})))
+  assert node.stop_requested is None and "latched" in node.try_start()
+  node.on_stop_status(_fake_ros.String(json.dumps({"latched": False, "fault": False})))
+  assert node.try_start() is None
+  node.on_stop_status(_fake_ros.String(json.dumps({"latched": True, "fault": False})))
+  assert node.record["outcome"] == "stopped" and node.stop_requested
+  assert twists(ros)[-1] == ZERO
+
+
+@pytest.mark.parametrize("flag", ["fault", "stop_required", "unknown_remote_submission", "shutting_down"])
+def test_initial_gateway_latch_exception_never_hides_unsafe_state(tmp_path, flag):
+  ros, node, mt = make_trial(tmp_path)
+  node.on_stop_status(_fake_ros.String(json.dumps({"latched": True, flag: True})))
+  assert node.stop_requested and node.gateway_blocked

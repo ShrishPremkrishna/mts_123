@@ -3,9 +3,9 @@
   "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "offline_integration_and_video_review",
-  "updated_utc": "2026-11-17T09:15:08.419979+00:00",
-  "current_report": "foundation/results/navigation-obstacles-20261117.json",
+  "mode": "overnight_offline_execution",
+  "updated_utc": "2026-11-17T10:14:10.710461+00:00",
+  "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -22,7 +22,10 @@
     "v2_release": "foundation/results/movement-release-20261116.json",
     "movement_live": "foundation/results/movement-live-20261116.json",
     "takeover_audit": "foundation/results/takeover-audit-20261116.json",
-    "gait_gate": "foundation/results/gait-gate-20261116.json"
+    "gait_gate": "foundation/results/gait-gate-20261116.json",
+    "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/result.json",
+    "fable_execution_review": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/final-review.json (pre-fix snapshot, not acceptance of corrected sources)",
+    "overnight_execution": "foundation/results/overnight-execution-20261117.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -31,15 +34,36 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User authorized offline implementation, context-blind Fable 5.2 audits and camera-only capture. Camera session closed; no motion in the offline block. Existing paid-compute agreement applies.",
+  "authorization": "Owner authorizes overnight offline engineering, exact Fable 5.2 code reviews, up to $50 aggregate additional cloud compute, and explicitly approved uploading the selected 245 camera frames to own Colab for the obstacle experiment (reply: yes u can do anything). This does not widen the budget or authorize robot motion. Current experiment instead uses local MPS; cloud is closed.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
-    "claude_source_review": "User explicitly permits sharing any project code with Fable5.2; credentials remain external/not shared. Use exact claude-fable-5-2, not fable alias."
+    "claude_source_review": "User explicitly permits sharing any project code with Fable5.2; credentials remain external/not shared. Use exact claude-fable-5-2, not fable alias.",
+    "overnight_2026_11_17": {
+      "authorized_total_additional_usd": 50,
+      "source": "User reply: Allow up to $50 additional cloud compute",
+      "scope": "Aggregate additional cloud-compute budget for this overnight session; not per experiment. Include setup, storage and teardown. Existing subscriptions/local compute remain authorized.",
+      "spent_confirmed_usd": 0,
+      "active_paid_jobs": [],
+      "rule": "Start with a bounded smoke test and verified collection. Keep a teardown reserve; do not spend merely to exhaust the cap.",
+      "colab_allocation": {
+        "maximum_compute_units": 20,
+        "maximum_wall_hours": 2,
+        "purchases_authorized_by_root": false,
+        "resource_owner": "overnight_compute",
+        "status": "STOPPED after upload review rejection; no frames uploaded. Teardown verified no active sessions,0CU/hour. User subsequently explicitly approved selected frame transfer. Prefer verified local MPS and no cloud spending.",
+        "session_id": "fc-perception-0933",
+        "observed_cu_per_hour": 1.94,
+        "initial_balance_cu": 326.94,
+        "teardown_guard_minutes": 115,
+        "final_balance_cu": 326.94,
+        "billing_limit": "Approximately80sec existing-creditL4. Rounded balance does not establish zerocharge; no purchases, exactdollarincrement unreported. Local comparison incurred no cloud job charge."
+      }
+    }
   },
   "activity": {
-    "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "No owned robot processes or paid compute. Both bounded local policy evaluations and camera extraction are complete. Source agents completed and idle; root integrating the reviewed changes.",
+    "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
+    "compute": "Frozen core integration passed 968 tests and 101 subtests before a separately reviewed camera-guard clock fix. Two-robot replay is deterministic; OWLv2 comparison and replay archives complete. Isolated Docker Start/guard checks underway. No active cloud allocation.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -48,9 +72,13 @@
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
       "project_lead": "Current Codex chat 01a1e800-1b8f-74e0-9e1e-3723fff803de; Shrish is owner/physical interface. Previous chat is idle after clean closure.",
-      "software_start": "Candidate committed c8e9213; follow-up review and resident caller integration pending."
+      "software_start": "Root helper + overnight_harness movement integration frozen and independently reviewed; both original Start race repros now refuse with zero submissions. Real ROS smoke owned by overnight_compute.",
+      "overnight_navigation": "Tactics/referee/resume completed/frozen, 443 tests plus 48 subtests. Now independently reviewing body-command guard/vision envelope; found backward-clock age extension.",
+      "overnight_harness": "Completed/frozen: feedback heading and resident Start; 222 movement/helper tests passed. No hardware ownership.",
+      "overnight_compute": "Perception run/replay complete and archived. Now owns ros_fc_guard_smoke.py and isolated Docker integration: prior guard snapshot passed 7 groups; Start smoke rerunning after test expectation correction. No cloud resources running.",
+      "body_guard": "Owns new body_command_guard.py and tests. Fixing reproduced source-age extension after backward ROS offset; coordinate with reviewer. Earlier pure/ROS results apply only to prior source snapshot."
     },
-    "goal_status": "Owner requests continued offline engineering now and plans overnight execution after physical session. Prior project goal tool remains paused; current work proceeds under this turn."
+    "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
   },
   "hardware_session": {
     "status": "CLOSED camera-only session: all owned camera, detector and recorder processes exited; motors never started. 19 files (1,413,999,311 bytes) copied and hash-verified. Pi may be powered off.",
@@ -93,24 +121,26 @@
     "gait_gate_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z",
     "gait_gate_verified": "35 captured files (554631841 bytes), all remote hashes matched;106 analysis/build files archived with SHA256 index. Corrected release archive SHA256 01fea93ff65d20382138b52c8444a5e50e2cebb603451cbe0fbded32dc5ca280.",
     "corrected_runs": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs",
-    "corrected_runs_verification": "62indexedfiles/785107222bytes; all hashes match. No pending archive from these3runs. Older unrelated closed-session backlog remains historical."
+    "corrected_runs_verification": "62indexedfiles/785107222bytes; all hashes match. No pending archive from these3runs. Older unrelated closed-session backlog remains historical.",
+    "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/perception-complete.tar.gz",
+    "overnight_perception_verified": "804 files hash-verified; archive SHA256 bff1df29874ee2efc72144763066caf79b838327b22f707c16a78e9b01866268"
   },
   "next": [
     {
-      "id": "camera_regressions",
-      "action": "Use saved raw clip and manually observed person/object cases. Evaluate a more conservative person threshold as a provisional candidate; evaluate the missed tower object independently of the person behind it. Add image-health metadata and connect the gate to the existing body-command path; no deployment yet."
+      "id": "guard_clock_and_ros_integration",
+      "action": "Finish conservative source-clock mapping correction, independent repro confirmation and affected pure/real-ROS guard checks. Finish real resident Start checks. Preserve old failures and exact source hashes."
     },
     {
-      "id": "offline_navigation",
-      "action": "Connect tactical selection to replay and preserve goalie heading during repositioning. Build pose-independent feedback turns. Retain Stop, fault and intent-expiry tests. Physical field-coordinate acceptance awaits independent localization."
+      "id": "selected_guard_release",
+      "action": "Integrate reviewed camera producer envelope and actual mux-to-guard wiring with pinned launch/process identity, then prepare a coherent source/client candidate and concise supervised acceptance block. No overnight deployment/homing."
     },
     {
-      "id": "startup_and_session",
-      "action": "Complete existing software Start follow-up review and resident caller integration. Package one coherent tested release after interfaces freeze. Avoid repeated homing or session restarts."
+      "id": "perception_next_experiment",
+      "action": "OWLv2 is too slow and broad carpet detections cause false holds. Keep production thresholds unchanged. Next bounded hypothesis: floor/nonfloor segmentation with labels frozen first, one model/30-minute limit; only run if it changes the live detector decision."
     },
     {
-      "id": "gait_followup",
-      "action": "Keep stock selected; comparison evidence is in the result report. Investigate yaw/braking tradeoffs before new training. No allocated GPU or validated resume path established. Both planned local screens finished; no further compute running."
+      "id": "continue_project_outcomes",
+      "action": "Goal remains active: improve physical-session readiness, live pose adapter preparation, fault/latency evidence and demo deliverables. Keep code and evidence recoverable, pursue valuable work rather than compute burn."
     }
   ],
   "recorded_open_items": {

@@ -28,6 +28,29 @@ The example output is abbreviated; the CLI emits full dataclass fields.
 substitutes a fixed goal when that observation is missing. Referee events are
 optional integer ``goal`` (-1/0/+1) on each robot; the baseline goal latch stays
 in force. ``fallen`` is an optional boolean. This slice has no physical get-up.
+Nonzero referee pulses latch after complete valid frame admission even during
+camera/lease holds. This bookkeeping grants no motion authority; an authorized
+return still needs a current lease, clear camera gate and fresh pose. A cleared
+flag alone does not reset the latch. Every action yields to a latched referee
+before looking up its action target or opponent-goal geometry.
+After manual ball replacement, an operator may send ``resume`` with robot_id,
+epoch, clock, now and ``frame_seq`` naming the exact current admitted frame.
+It requires a completed goal return, a fresh unfallen pose at home with goal=0,
+a live intent and a clear configured camera gate. The frame reference is usable
+once per robot; delayed/repeated cues cannot reset a later goal. Resume consumes
+the reset immediately, never arms, and does not renew or replace the intent.
+
+Optional ``auto`` intents have no target: the existing per-robot Tactics selects
+attack or reactive defense from each fresh frame. They require the SAME explicit
+arm and expiring intent lease as every other action; frames never renew authority.
+An auto intent is the sole action owner until replaced. Explicit intents take
+over immediately, with no automatic fallback on expiry. Same-ID auto renewals
+preserve role hysteresis; replacement/expiry resets it. Tracking/camera holds
+cancel motion but preserve the role. A new epoch resets all tactical state.
+Decisions expose ``role`` separately from execution ``phase`` while auto owns
+an unexpired lease; explicit intents leave role null.
+Defense preserves the guard target's facing heading while repositioning; move
+retains its ordinary travel-facing behavior. No background planner is created.
 
 Intent seq increases independently per robot. Renew the same intent_id/kind/
 target to extend its lease (at most 0.5 s from issued_at); renewal does not reset
@@ -56,6 +79,7 @@ import sys
 from .controller import Controller, MAX_OBSERVATION_AGE
 from .model import Ball, Command, Decision, Field, Limits, Observation, Pose, zero
 from .obstacles import Detection, DetectionFrame, ForwardObstacleGate
+from .tactics import Tactics
 
 MAX_INTENT_LEASE = 0.5
 LEASE_ROUNDING_TOLERANCE_S = 1e-12  # subtraction roundoff only, never extra lease time
@@ -126,6 +150,8 @@ class Executor:
         self.capture_highwater = -math.inf
         self.intents = {r: None for r in self.controllers}
         self.intent_seq = {r: -1 for r in self.controllers}
+        self.resume_frame_seq = {r: -1 for r in self.controllers}
+        self.tactics = {r: Tactics(c.field, r) for r, c in self.controllers.items()}
         self.obstacle_gates = ({r: ForwardObstacleGate(self.obstacle_config) for r in self.controllers}
                                if self.obstacle_config is not None else {})
         self.obstacle_resume_after = {r: -math.inf for r in self.controllers}
@@ -147,6 +173,12 @@ class Executor:
         # A deliberate new session gets fresh referee/controller state too.
         self.controllers = {r: Controller(c.field, c.limits) for r, c in self.controllers.items()}
         self.armed = True
+
+    def _cancel_intent(self, robot_id):
+        """Revoke one action owner, including its tactical session memory."""
+        self.intents[robot_id] = None
+        self.controllers[robot_id].cancel()
+        self.tactics[robot_id] = Tactics(self.controllers[robot_id].field, robot_id)
 
     def _session(self, event):
         if not self.armed:
@@ -193,7 +225,15 @@ class Executor:
                 if type(fallen) is not bool or type(goal) is not int or goal not in (-1, 0, 1):
                     raise ValueError("fallen/goal must be boolean and integer -1/0/+1")
             observations[robot_id] = Observation(stamp, pose, ball, robot_id, fallen, goal)
+            problem = self.controllers[robot_id].observation_problem(observations[robot_id])
+            if problem:
+                raise ValueError(problem)
         self.frame = (stamp, observations, goals)
+        # The entire shared packet is valid before any referee state changes.
+        # A pulse must survive absent authority, without issuing motion or
+        # releasing a prior latch when later frames clear the flag.
+        for robot_id, observation in observations.items():
+            self.controllers[robot_id].record_goal(observation.goal)
 
     def _intent(self, event, now):
         self._session(event)
@@ -203,8 +243,7 @@ class Executor:
         try:
             seq = sequence(event.get("seq"))
         except ValueError:
-            self.intents[robot_id] = None
-            self.controllers[robot_id].cancel()
+            self._cancel_intent(robot_id)
             raise
         if seq <= self.intent_seq[robot_id]:
             raise ValueError("duplicate/reordered intent")
@@ -222,17 +261,17 @@ class Executor:
                 raise ValueError("intent is expired")
             identity = token(event.get("intent_id"), "intent_id")
             kind = event.get("kind")
-            if kind not in ("attack", "move", "defend", "shoot"):
-                raise ValueError("kind must be attack, move, defend or shoot")
-            target = None if kind == "attack" else point(event.get("target"), heading=kind in ("move", "defend"))
-            if kind == "attack" and event.get("target") is not None:
-                raise ValueError("attack uses the observed opponent goal; use shoot for an explicit target")
+            if kind not in ("attack", "move", "defend", "shoot", "auto"):
+                raise ValueError("kind must be attack, move, defend, shoot or auto")
+            target = None if kind in ("attack", "auto") else point(event.get("target"), heading=kind in ("move", "defend"))
+            if kind in ("attack", "auto") and event.get("target") is not None:
+                raise ValueError("attack/auto derive their targets; use shoot or move for an explicit target")
             intent = Intent((identity, kind, target), kind, target, expiry)
         except (ValueError, TypeError):
-            self.controllers[robot_id].cancel()
+            self._cancel_intent(robot_id)
             raise
         if previous is None or previous.valid_until <= now or previous.identity != intent.identity:
-            self.controllers[robot_id].cancel()
+            self._cancel_intent(robot_id)
         self.intents[robot_id] = intent
 
     def _obstacles(self, event, now):
@@ -272,6 +311,31 @@ class Executor:
             self.controllers[robot_id].cancel()
             raise ValueError(str(exc)) from None
 
+    def _resume(self, event, now):
+        """One operator cue bound to current evidence, never queued authority."""
+        self._session(event)
+        robot_id = event.get("robot_id")
+        if robot_id not in self.controllers:
+            raise ValueError("unknown robot_id")
+        frame_seq = sequence(event.get("frame_seq"))
+        if self.frame is None or frame_seq != self.frame_seq:
+            raise ValueError("resume must reference the current admitted frame_seq")
+        if frame_seq <= self.resume_frame_seq[robot_id]:
+            raise ValueError("resume frame was already consumed")
+        stamp, observations, _ = self.frame
+        if not 0 <= now - stamp < MAX_OBSERVATION_AGE:
+            raise ValueError("resume requires a fresh field frame")
+        intent = self.intents[robot_id]
+        if intent is None or now >= intent.valid_until:
+            raise ValueError("resume requires a current unexpired intent")
+        gate = self.obstacle_gates.get(robot_id)
+        if gate is not None and not gate.evaluate(now).permitted:
+            raise ValueError("resume requires a clear front-camera gate")
+        if stamp < self.obstacle_resume_after[robot_id]:
+            raise ValueError("resume requires a new field observation after obstacle hold")
+        self.controllers[robot_id].resume_after_goal(observations[robot_id], now)
+        self.resume_frame_seq[robot_id] = frame_seq
+
     def tick(self, now):
         try:
             now = number(now, "now")
@@ -292,26 +356,42 @@ class Executor:
                 self.obstacle_resume_after[robot_id] = now
             elif intent is None or now >= intent.valid_until:
                 phase, reason = "intent_lost", "no current unexpired intent"
-                self.intents[robot_id] = None
+                if intent is not None:
+                    self._cancel_intent(robot_id)
             elif self.frame is None or not 0 <= now - self.frame[0] <= MAX_OBSERVATION_AGE:
                 phase, reason = "tracking_lost", "no current synchronized field frame"
             elif self.frame[0] < self.obstacle_resume_after[robot_id]:
                 phase, reason = "tracking_lost", "new field observation required after obstacle hold"
             else:
                 stamp, observations, goals = self.frame
+                observation = observations[robot_id]
                 kwargs = {}
-                if intent.kind in ("move", "defend"):
-                    kwargs["target_pose"] = intent.target
-                elif intent.kind == "shoot":
+                action, target = intent.kind, intent.target
+                # Referee return/reset needs only pose, for every action owner.
+                # Missing goals or an irrelevant target cannot bypass its latch.
+                if controller.referee_active(observation.goal):
+                    action = "referee"
+                elif action == "auto":
+                    tactical = self.tactics[robot_id].tick(observation, now)
+                    action, target = tactical.action, tactical.target
+                    if action == "hold":
+                        controller.cancel()
+                        decisions[robot_id] = Decision("tactical_hold", tactical.reason, zero(now, robot_id),
+                                                       recovery_requested=observation.fallen)
+                        continue
+                if action in ("move", "defend"):
+                    kwargs["target_pose"] = target
+                    kwargs["preserve_target_heading"] = action == "defend"
+                elif action == "shoot":
                     kwargs["shot_target"] = intent.target
-                else:
+                elif action == "attack":
                     destination = goals.get("right" if controller.field.attack_sign == 1 else "left")
                     if destination is None:
                         controller.cancel()
                         decisions[robot_id] = Decision("tracking_lost", "opponent goal is missing", zero(now, robot_id))
                         continue
                     kwargs["shot_target"] = destination
-                decision = controller.tick(observations[robot_id], now, **kwargs)
+                decision = controller.tick(observation, now, **kwargs)
                 deadline = min(decision.command.expires_at, intent.valid_until, stamp + MAX_OBSERVATION_AGE)
                 if obstacle is not None:
                     deadline = min(deadline, obstacle.valid_until)
@@ -320,11 +400,15 @@ class Executor:
                     decisions[robot_id] = Decision("tracking_lost", "evidence expired at this tick", zero(now, robot_id))
                     continue
                 decisions[robot_id] = replace(decision,
-                    phase="defend" if intent.kind == "defend" and decision.phase == "move" else decision.phase,
+                    phase="defend" if action == "defend" and decision.phase == "move" else decision.phase,
                     command=replace(decision.command, expires_at=deadline))
                 continue
             controller.cancel()
             decisions[robot_id] = Decision(phase, reason, zero(now, robot_id))
+        for robot_id, decision in decisions.items():
+            intent = self.intents[robot_id]
+            if self.armed and intent is not None and intent.kind == "auto" and now < intent.valid_until:
+                decisions[robot_id] = replace(decision, role=self.tactics[robot_id].role)
         return decisions
 
     def handle(self, event):
@@ -340,7 +424,7 @@ class Executor:
                 # cannot rewind/advance an otherwise valid active session.
                 return dict(accepted=False, reason=str(exc), now=self.last_now,
                             armed=self.armed, epoch=self.epoch, decisions={})
-        if kind in ("frame", "intent", "obstacles"):
+        if kind in ("frame", "intent", "obstacles", "resume"):
             try:
                 self._session(event)
             except ValueError as exc:
@@ -367,6 +451,9 @@ class Executor:
                 elif kind == "obstacles":
                     self._obstacles(event, now)
                     reason = "front-camera observation replaced"
+                elif kind == "resume":
+                    self._resume(event, now)
+                    reason = "goal resume accepted; existing intent retained"
                 elif kind == "stop":
                     reason = "Stop latched"
                 elif kind != "tick":

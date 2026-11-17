@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One bounded velocity pulse on an already homed stock session, with a JSON receipt.
+"""Bounded movement trials on an already homed stock session, with a JSON receipt.
 
 Purpose: tell a command-path failure from a gait failure quickly. The tool
 publishes one axis pulse on ``/kick_cmd_vel`` (the kick trial mux's only input,
@@ -18,6 +18,14 @@ Supervised lateral calibration may explicitly opt into a continuous pulse up to
 does not measure distance or establish gait stability; use a clear marked lane
 and an operator ready to Stop. All ordinary pulses remain limited to 3 s.
 
+Persistent-session prepare also accepts ``turn_angle_rad`` (relative to yaw at
+execution) or ``heading_rad`` (absolute IMU reference), each within [-pi, pi].
+Feedback turns require fresh timestamped IMU orientation, use the shortest turn
+with exact antipodes choosing left, and stop after stable tolerance or timeout.
+Relative angles select a fixed target orientation, not a signed travel path;
+feedback may reverse the turn if a disturbance changes the shortest route.
+These are software-tested candidates; IMU completion is not physical acceptance.
+
 What the receipt does NOT claim: the command integral is not achieved distance,
 IMU yaw is sensor output rather than external truth, and operator observation is
 left pending for the person watching the robot.
@@ -25,8 +33,9 @@ left pending for the person watching the robot.
 ``--execute`` moves the robot. It requires the selected stock session (mux only; shot adapter stopped) on top of the plain course stack with teleop off, the pinned stock
 controller active with verified caps (``StockWalkerEvidence`` from the shot
 adapter, reused unchanged), a released e-stop gateway, exactly the mux on
-``/cmd_vel`` and no competing traffic on ``/kick_cmd_vel``. It never arms, homes
-or switches controllers. R3/face buttons, ``/emergency_stop`` and a latched
+``/cmd_vel`` and no competing traffic on ``/kick_cmd_vel``. Movement commands never
+arm, home or switch controllers. The optional explicit session ``start`` delegates
+one activation request to the existing gateway; it never homes. R3/face buttons, ``/emergency_stop`` and a latched
 gateway stop the pulse at once; loss of stock authority requests
 ``/emergency_stop``. Cleanup sends zeros only after a pulse started. If this
 process dies, the mux times out. The selected movement release also expires
@@ -70,6 +79,10 @@ SETTLE_S = 0.2  # ignore the first ticks after onset when judging agreement
 OBS_MAX_AGE_S = 0.2
 OWNER_CHECK_S = 0.2
 RUN_TRIGGER_MAX_AGE_S = 0.2
+HEADING_MAX_SPEED = 0.35  # initial feedback-turn candidate; native limits still apply
+HEADING_MAX_TIMEOUT_S = 20.0
+HEADING_TOLERANCE_RAD = 0.05
+HEADING_DWELL_S = 0.3
 ZERO = (0.0, 0.0, 0.0)
 CLIENT_IDENTITY = {"path": str(Path(__file__).resolve()),
                    "sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
@@ -116,11 +129,101 @@ class PulseRequest:
     return cls(axis, kind, speed, duration_s, tuple(s * speed for s in sign), profile, lateral_calibration)
 
 
+def wrap_heading(angle):
+  """Shortest signed angle in (-pi, pi]; the exact antipode turns left."""
+  value = (angle + math.pi) % (2 * math.pi) - math.pi
+  # Adding/subtracting a nonzero initial yaw can round an exact antipode to
+  # either side of the boundary. This tie band is only floating-point noise.
+  return math.pi if math.pi - abs(value) <= 4 * math.ulp(math.pi) else value
+
+
+@dataclass(frozen=True)
+class HeadingRequest:
+  axis: str
+  kind: str
+  speed: float
+  duration_s: float  # hard timeout, never a successful completion criterion
+  twist: tuple  # maximum requested turn, used by the unchanged stock guard
+  profile: str
+  target_rad: float
+  relative: bool
+
+  @property
+  def max_duration_s(self):
+    return HEADING_MAX_TIMEOUT_S
+
+  @classmethod
+  def build(cls, target_rad, *, relative, speed=None, timeout_s=15.0, profile="walk"):
+    if profile not in SPEED_PROFILES or type(relative) is not bool:
+      raise ValueError("invalid heading profile or mode")
+    target_rad, speed, timeout_s = (float(target_rad),
+      HEADING_MAX_SPEED if speed is None else float(speed), float(timeout_s))
+    if not math.isfinite(target_rad) or not -math.pi <= target_rad <= math.pi:
+      raise ValueError("heading/turn angle must be finite and within [-pi, pi] radians")
+    if not math.isfinite(speed) or not 0 < speed <= min(HEADING_MAX_SPEED, SPEED_PROFILES[profile]["turn"]):
+      raise ValueError(f"heading speed outside the tool envelope (0, {HEADING_MAX_SPEED}] rad/s")
+    if not math.isfinite(timeout_s) or not 0 < timeout_s <= HEADING_MAX_TIMEOUT_S:
+      raise ValueError(f"heading timeout outside (0, {HEADING_MAX_TIMEOUT_S}] seconds")
+    return cls("turn_angle" if relative else "heading", "turn", speed, timeout_s,
+               (0.0, 0.0, speed), profile, target_rad, relative)
+
+
+@dataclass
+class HeadingControl:
+  request: HeadingRequest
+  target_rad: float
+  started_ros_ns: int = 0
+  within_since_ros_ns: int | None = None
+  error_rad: float | None = None
+  completed: bool = False
+  feedback_samples: int = 0
+  dwell_feedback_samples: int = 0
+  last_capture_ros_ns: int | None = None
+
+  @classmethod
+  def start(cls, request, yaw, started_ros_ns=0):
+    return cls(request, wrap_heading(yaw + request.target_rad if request.relative else request.target_rad),
+               started_ros_ns)
+
+  def update(self, yaw, capture_ros_ns):
+    """Dwell measures distinct capture times, never message delivery times."""
+    fresh = self.last_capture_ros_ns != capture_ros_ns
+    if fresh:
+      self.feedback_samples += 1
+      self.last_capture_ros_ns = capture_ros_ns
+    self.error_rad = wrap_heading(self.target_rad - yaw)
+    if abs(self.error_rad) <= HEADING_TOLERANCE_RAD:
+      if fresh:
+        self.dwell_feedback_samples += 1
+      if self.within_since_ros_ns is None:
+        self.within_since_ros_ns = max(capture_ros_ns, self.started_ros_ns)
+      self.completed = capture_ros_ns - self.within_since_ros_ns >= round(HEADING_DWELL_S * 1e9)
+      return ZERO
+    self.within_since_ros_ns, self.completed, self.dwell_feedback_samples = None, False, 0
+    # No integral term, rate floor, gains or native limits are changed.
+    return (0.0, 0.0, max(-self.request.speed, min(self.request.speed, 0.8 * self.error_rad)))
+
+
+def session_request(message, profile):
+  targets = [key for key in ("turn_angle_rad", "heading_rad") if key in message]
+  if targets:
+    if len(targets) != 1 or any(key in message for key in ("axis", "duration", "lateral_calibration")):
+      raise ValueError("use exactly one heading_rad/turn_angle_rad, without pulse/calibration fields")
+    return HeadingRequest.build(message[targets[0]], relative=targets[0] == "turn_angle_rad",
+                                speed=message.get("speed"), timeout_s=message.get("timeout_s", 15),
+                                profile=profile)
+  if "timeout_s" in message:
+    raise ValueError("timeout_s requires a heading request")
+  return PulseRequest.build(message["axis"], message.get("speed"), message.get("duration", 1.0),
+                            profile, lateral_calibration=message.get("lateral_calibration", False))
+
+
 @dataclass(frozen=True)
 class Sample:
   t: float  # seconds since the first published command
   requested: tuple
   applied: tuple | None  # native observation command, or None if no fresh observation
+  applied_t: float | None = None  # observation receipt, monotonic seconds since first publication
 
 
 def applied_command(data, frame_size: int = OBS_FRAME_SIZE, offset: int = OBS_COMMAND_OFFSET) -> tuple:
@@ -146,7 +249,68 @@ def _integral(samples, key):
   return total
 
 
-def summarize(samples, started, zero_sent_at, zero_confirmed_at, compare_indices=(0, 1, 2)):
+def heading_command_verification(samples):
+  """Match fresh feedback to a previous publication within the bounded window.
+
+  A matching command's age bounds compatibility; repeated command values cannot
+  identify actual transport latency. Observation messages have no capture stamp.
+  """
+  matched, unmatched, missing, stale, skipped = [], 0, 0, 0, 0
+  nonzero_requested = any(any(abs(v) > MATCH_TOL for v in s.requested) for s in samples)
+  nonzero_feedback, startup_matched = 0, 0
+  seen = set()
+  for index, sample in enumerate(samples):
+    startup = sample.t < SETTLE_S or (sample.applied_t is not None and sample.applied_t < SETTLE_S)
+    if startup:
+      skipped += 1
+    if sample.applied_t is not None and not 0 <= sample.t - sample.applied_t <= OBS_MAX_AGE_S:
+      if sample.t >= SETTLE_S:
+        stale += 1
+      continue
+    if sample.applied is None or sample.applied_t is None:
+      if sample.t >= SETTLE_S:
+        missing += 1
+      continue
+    if sample.applied_t in seen:
+      continue  # one observation reused by several command ticks is one witness
+    seen.add(sample.applied_t)
+    candidates = []
+    for command in samples[:index]:  # current publication occurs after this observation
+      age = sample.applied_t - command.t
+      if command.t >= 0 and 0 <= age <= OBS_MAX_AGE_S:
+        error = max(abs(a - b) for a, b in zip(sample.applied, command.requested))
+        if error <= MATCH_TOL:
+          candidates.append((error, age))
+    if candidates:
+      if startup:
+        startup_matched += 1
+      else:
+        matched.append(min(candidates))
+      if any(abs(v) > MATCH_TOL for v in sample.applied):
+        nonzero_feedback += 1
+    elif not startup:
+      unmatched += 1
+  return {
+    "passed": bool(matched) and not (unmatched or missing or stale) and
+              (not nonzero_requested or nonzero_feedback > 0),
+    "method": "fresh observation matched to an earlier published command",
+    "feedback_window_s": OBS_MAX_AGE_S, "component_tolerance": MATCH_TOL,
+    "startup_settle_s": SETTLE_S,
+    "matched_observations": len(matched), "unmatched_observations": unmatched,
+    "startup_matched_observations": startup_matched,
+    "nonzero_command_requested": nonzero_requested, "nonzero_feedback_observations": nonzero_feedback,
+    "missing_observation_ticks": missing, "stale_observation_ticks": stale,
+    "excluded_startup_ticks": skipped,
+    "accepted_command_age_s": None if not matched else {
+      "min": min(age for _, age in matched), "max": max(age for _, age in matched)},
+    "max_matched_component_error": None if not matched else max(error for error, _ in matched),
+    "note": ("bounded compatibility, not measured latency; observation receipt time is not capture time; "
+             "nonzero evidence may include matching startup observations"),
+  }
+
+
+def summarize(samples, started, zero_sent_at, zero_confirmed_at, compare_indices=(0, 1, 2),
+              *, heading_feedback=False):
   requested = _integral(samples, "requested")
   observed = [s for s in samples if s.applied is not None]
   compare = [s for s in observed if s.requested != ZERO and s.t >= SETTLE_S]
@@ -156,7 +320,7 @@ def summarize(samples, started, zero_sent_at, zero_confirmed_at, compare_indices
              for i, k in enumerate(("vx", "vy", "wz"))}
   onset = next((s.t for s in observed if s.requested != ZERO and
                 all(abs(s.requested[i] - s.applied[i]) <= MATCH_TOL for i in compare_indices)), None)
-  return {
+  summary = {
     "elapsed_s": None if zero_sent_at is None else zero_sent_at - started,
     "ticks": len(samples),
     "observation_samples": len(observed),
@@ -170,6 +334,12 @@ def summarize(samples, started, zero_sent_at, zero_confirmed_at, compare_indices
     "zero_confirmed_in_observation_s": (None if zero_confirmed_at is None or zero_sent_at is None
                                         else zero_confirmed_at - zero_sent_at),
   }
+  if heading_feedback:
+    alignment = heading_command_verification(samples)
+    summary["feedback_alignment"] = alignment
+    summary["applied_matched_requested"] = alignment["passed"]
+    summary["max_abs_requested_minus_applied_meaning"] = "instantaneous snapshot difference; not the heading verification criterion"
+  return summary
 
 
 IMU_NOTE = ("sensor output, not external truth; yaw from the IMU quaternion on the robot, "
@@ -322,6 +492,8 @@ def _node_class():
       self.recent_own = []  # our own recent twists, to discount loopback on the kick topic
       self.gateway_blocked = None
       self.gateway_seen_at = None
+      self.gateway_released_once = False
+      self.gateway_authority = None  # immutable (instance, Stop epoch) once observed
       self.shot_state = None
       self.foreign_cmd_at = None
       self.created_at = self.now()
@@ -332,6 +504,8 @@ def _node_class():
       self.imu_count = 0
       self.imu_start = None
       self.imu_end = None
+      self.imu_source_stamp_ns = None
+      self.heading = None
       self.cmd_pub = self.create_publisher(Twist, kick_topic, 10)
       self.robot_pub = self.create_publisher(Twist, robot_topic, 10)  # shutdown zeros only
       self.estop_pub = self.create_publisher(Empty, "/emergency_stop", 10)
@@ -366,11 +540,32 @@ def _node_class():
         status = json.loads(msg.data)
       except ValueError:
         return
-      blocked = bool(status.get("latched")) or bool(status.get("fault"))
+      if not isinstance(status, dict):
+        return
+      unsafe = any(bool(status.get(key)) for key in
+                   ("fault", "stop_required", "unknown_remote_submission", "shutting_down"))
+      blocked = bool(status.get("latched")) or unsafe
       with self.lock:
+        has_identity = "instance_id" in status or "epoch" in status
+        if has_identity or self.gateway_authority is not None:
+          if (status.get("protocol") != "pupper_stop_v1" or
+              not isinstance(status.get("instance_id"), str) or not status["instance_id"] or
+              type(status.get("epoch")) is not int or not 0 <= status["epoch"] < 2**64):
+            self.gateway_blocked = True
+            self.stop("gateway authority identity unavailable", fault=False)
+            return
+          identity = (status["instance_id"], status["epoch"])
+          if self.gateway_authority is None:
+            self.gateway_authority = identity
+          elif identity != self.gateway_authority:
+            self.gateway_blocked = True
+            self.stop("gateway authority epoch or instance changed", fault=False)
+            return
         self.gateway_blocked = blocked
         self.gateway_seen_at = self.now()
-        if blocked:
+        if not blocked:
+          self.gateway_released_once = True
+        if blocked and (unsafe or self.gateway_released_once or self.phase == "pulsing"):
           self.stop("e-stop gateway latched", fault=False)
 
     def on_shot_state(self, msg) -> None:
@@ -409,9 +604,39 @@ def _node_class():
           self.zero_confirmed_at = now
 
     def on_imu(self, msg) -> None:
-      yaw = yaw_from_quaternion(msg.orientation)
-      if math.isfinite(yaw):
-        with self.lock:
+      with self.lock:
+        yaw = yaw_from_quaternion(msg.orientation)
+        if isinstance(self.request, HeadingRequest):
+          q = msg.orientation
+          values = (q.x, q.y, q.z, q.w)
+          problem = None
+          stamp = None
+          if (not all(math.isfinite(v) for v in values) or
+              not 0.95 <= sum(v * v for v in values) <= 1.05 or
+              getattr(msg, "orientation_covariance", [0])[0] == -1):
+            problem = "invalid IMU orientation"
+          else:
+            try:
+              sec, nanosec = msg.header.stamp.sec, msg.header.stamp.nanosec
+              if type(sec) is not int or type(nanosec) is not int or not 0 <= nanosec < 1_000_000_000:
+                raise ValueError("invalid IMU capture timestamp")
+              stamp = sec * 1_000_000_000 + nanosec
+              age = self.get_clock().now().nanoseconds - stamp
+              if not 0 <= age <= round(OBS_MAX_AGE_S * 1e9):
+                problem = "IMU capture timestamp stale or in the future"
+              elif self.imu_source_stamp_ns is not None and stamp < self.imu_source_stamp_ns:
+                problem = "IMU capture timestamp moved backwards"
+            except (AttributeError, TypeError, ValueError):
+              problem = "IMU capture timestamp unavailable"
+          if problem:
+            self.imu_latest = None
+            if self.phase == "pulsing":
+              self.stop(problem, fault=True)
+            return
+          if stamp == self.imu_source_stamp_ns:
+            return  # repeated capture cannot refresh freshness or complete dwell
+          self.imu_source_stamp_ns = stamp
+        if math.isfinite(yaw):
           self.imu_latest = (yaw, self.now())
           self.imu_count += 1
 
@@ -437,7 +662,17 @@ def _node_class():
         return f"another producer published on {self.kick_topic} within {self.quiet_s:g} s"
       if not self.latest_obs or not 0 <= now - self.latest_obs[1] <= OBS_MAX_AGE_S:
         return "no fresh stock policy observation; check schema/topic/active controller"
+      if isinstance(self.request, HeadingRequest) and self.heading_problem():
+        return self.heading_problem()
       return self.stock.problem(command=Command(*self.request.twist))
+
+    def heading_problem(self):
+      if not self.imu_latest or not 0 <= self.now() - self.imu_latest[1] <= OBS_MAX_AGE_S:
+        return "no fresh IMU yaw for feedback turn"
+      if (self.imu_source_stamp_ns is None or not 0 <=
+          self.get_clock().now().nanoseconds - self.imu_source_stamp_ns <= round(OBS_MAX_AGE_S * 1e9)):
+        return "IMU capture timestamp stale or in the future"
+      return None
 
     def try_start(self) -> str | None:
       with self.lock:
@@ -450,7 +685,11 @@ def _node_class():
         self.started_wall = datetime.now(timezone.utc).isoformat()
         self.imu_start = self.imu_latest[0] if self.imu_latest else None
         self.last_owner_check = self.started
-        self.publish(self.request.twist)
+        if isinstance(self.request, HeadingRequest):
+          self.heading = HeadingControl.start(self.request, self.imu_start,
+                                              self.get_clock().now().nanoseconds)
+        self.publish(self.heading.update(self.imu_latest[0], self.imu_source_stamp_ns)
+                     if self.heading else self.request.twist)
         return None
 
     def prepare(self, request) -> None:
@@ -464,6 +703,7 @@ def _node_class():
       self.started = self.started_wall = self.zero_sent_at = self.zero_confirmed_at = None
       self.imu_start = self.imu_end = self.imu_latest = None
       self.imu_count = 0
+      self.imu_source_stamp_ns = self.heading = None
 
     def publish(self, twist, *, record=True) -> None:
       msg = Twist()
@@ -475,9 +715,10 @@ def _node_class():
         return
       self.published += 1
       now = self.now()
-      fresh = self.latest_obs if self.latest_obs and now - self.latest_obs[1] <= OBS_MAX_AGE_S else None
+      fresh = self.latest_obs if self.latest_obs and 0 <= now - self.latest_obs[1] <= OBS_MAX_AGE_S else None
       self.samples.append(Sample(t=now - self.started, requested=tuple(twist),
-                                 applied=fresh[0] if fresh else None))
+                                 applied=fresh[0] if fresh else None,
+                                 applied_t=self.latest_obs[1] - self.started if self.latest_obs else None))
 
     def on_tick(self) -> None:
       with self.lock:
@@ -502,9 +743,26 @@ def _node_class():
             return
         elapsed = now - self.started
         if not 0 <= elapsed < min(self.request.duration_s, self.request.max_duration_s):
-          self.complete("completed", "")
+          self.expire()
+          return
+        if self.heading:
+          problem = self.heading_problem()
+          if problem:
+            self.stop(problem, fault=True)
+            return
+          twist = self.heading.update(self.imu_latest[0], self.imu_source_stamp_ns)
+          if self.heading.completed:
+            self.complete("completed", "IMU heading held within tolerance")
+          else:
+            self.publish(twist)
           return
         self.publish(self.request.twist)
+
+    def expire(self):
+      if self.heading:
+        self.stop("heading timeout before stable completion", fault=True)
+      else:
+        self.complete("completed", "wall-clock duration reached")
 
     def stop(self, reason: str, *, fault: bool) -> None:
       self.stop_requested = reason
@@ -513,6 +771,12 @@ def _node_class():
       if fault:
         self.estop_pub.publish(Empty())  # zero alone is not a stop for a target-conditioned owner
       self.complete("stopped", reason)
+
+    def cancel_start(self, reason):
+      """A Stop during pending/uncertain activation must reach the gateway too."""
+      with self.lock:
+        self.estop_pub.publish(Empty())
+        self.stop(reason, fault=False)
 
     def complete(self, outcome: str, reason: str) -> None:
       self.publish(ZERO)
@@ -530,14 +794,35 @@ def _node_class():
         imu = {"yaw_start_rad": self.imu_start, "yaw_end_rad": self.imu_end, "yaw_change_rad": change,
                "samples": self.imu_count}
       summary = (summarize(self.samples, self.started, self.zero_sent_at, self.zero_confirmed_at,
-                           (0, 1, 2) if self.request.kind == "turn" else (0, 1))
+                           (0, 1, 2) if self.request.kind == "turn" else (0, 1),
+                           heading_feedback=self.heading is not None)
                  if self.started is not None else None)
       stock = {"bounds_forward_backward_lateral_yaw": self.stock.bounds, "error": self.stock.error,
                "note": "configured values and file hash sampled by the shared guard; not a loaded-model proof"}
-      return build_record(request=self.request, mode="execute", outcome=outcome, reason=reason,
+      record = build_record(request=self.request, mode="execute", outcome=outcome, reason=reason,
                           samples=self.samples, imu=imu, summary=summary, stock=stock,
                           started_wall=self.started_wall, published_commands=self.published,
                           obs_error=self.obs_error)
+      if self.heading:
+        record["heading_feedback"] = {
+          "reference": "IMU yaw; not field localization or externally verified heading",
+          "shortest_turn_range": "(-pi, pi]; exact antipode turns left",
+          "relative_semantics": "fixed target orientation at execution; shortest route may reverse after disturbance",
+          "initial_yaw_rad": self.imu_start, "target_yaw_rad": self.heading.target_rad,
+          "final_yaw_rad": self.imu_end, "final_error_rad": (
+            None if self.imu_end is None else wrap_heading(self.heading.target_rad - self.imu_end)),
+          "tolerance_rad": HEADING_TOLERANCE_RAD, "required_dwell_s": HEADING_DWELL_S,
+          "dwell_clock": "distinct IMU capture timestamps in ROS time; starts no earlier than execution",
+          "execution_ros_ns": self.heading.started_ros_ns,
+          "within_since_ros_ns": self.heading.within_since_ros_ns,
+          "last_capture_ros_ns": self.heading.last_capture_ros_ns,
+          "capture_dwell_s": (None if self.heading.within_since_ros_ns is None else max(
+            0, self.heading.last_capture_ros_ns - self.heading.within_since_ros_ns) * 1e-9),
+          "feedback_samples": self.heading.feedback_samples,
+          "dwell_feedback_samples": self.heading.dwell_feedback_samples,
+          "stable_completion": self.heading.completed,
+        }
+      return record
 
     def finish(self, sleep=time.sleep) -> Path:
       """Zero-on-finally. Safe to call once from the shutdown path."""
@@ -584,14 +869,26 @@ def finish_trial(node, runtime, same_manager, *, session=False):
 class SessionInbox:
   """The input thread only parses messages; the ROS loop owns every action."""
 
-  def __init__(self, clock=time.monotonic):
+  def __init__(self, clock=time.monotonic, *, capture_start=None):
     from queue import SimpleQueue
     self.clock = clock
+    self.capture_start = capture_start
     self.urgent, self.normal = SimpleQueue(), SimpleQueue()
 
   def put(self, message):
+    received_at = self.clock()
+    message = dict(message)
+    message.pop("_start_ticket", None)
+    message.pop("_start_error", None)
+    if message.get("command") == "start":
+      try:
+        if self.capture_start is None:
+          raise ValueError("Start capability unavailable at input receipt; no action queued")
+        message["_start_ticket"] = self.capture_start(pressed_at=received_at)
+      except ValueError as exc:
+        message["_start_error"] = str(exc)
     queue = self.urgent if message.get("command") in ("stop", "quit") else self.normal
-    queue.put((self.clock(), message))
+    queue.put((received_at, message))
 
   def read(self, stream):
     try:
@@ -616,7 +913,7 @@ class SessionInbox:
     return None
 
 
-def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once=None):
+def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once=None, start_client=None):
   """One-use prepare tokens; no deferred start or automatic trial sequence.
 
   JSON lines: {"command":"list"}, {"command":"status"},
@@ -625,6 +922,12 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
   {"command":"stop"}, {"command":"quit"}. EOF also stops and exits.
   Each extended left/right prepare must explicitly include
   "lateral_calibration":true (at most 20 s and 0.15 m/s); it is never inherited.
+  Feedback turns use {"command":"prepare","turn_angle_rad":1.57,"timeout_s":15}
+  or heading_rad for an absolute IMU heading. Both accept [-pi,pi], take the
+  shortest turn (exact +/-pi chooses left), and default to <=0.35 rad/s.
+  Relative targets are anchored to fresh measured yaw at run, never at prepare.
+  {"command":"start"} makes one explicit gateway Start request using status
+  already observed at input receipt. It never homes, retries, or runs a trial.
   """
   import threading
   import uuid
@@ -633,115 +936,179 @@ def run_session(node, runtime, same_manager, *, inbox=None, emit=None, spin_once
   if spin_once is None:
     import rclpy
     spin_once = rclpy.spin_once
+  if start_client is None:
+    try:
+      from foundation.hardware.software_start import attach
+      start_client = attach(node, clock=node.clock)
+    except ImportError:
+      pass  # legacy releases lack StartMotion; existing Options/movement still work
+
+  def capture_start(*, pressed_at):
+    if start_client is None:
+      raise ValueError("Start service interface unavailable; no action queued")
+    # Freeze already-observed gateway state before waiting for the ROS node's
+    # lock. Queueing/lock contention must not refresh the operator's press.
+    ticket = start_client.capture(pressed_at=pressed_at)
+    with node.lock:
+      if node.stop_requested:
+        raise ValueError("session Stop is latched")
+      if node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
+        raise ValueError("trial is running or finalizing; Start was not queued")
+      if (ticket.instance_id, ticket.epoch) != node.gateway_authority:
+        raise ValueError("Start status does not match this session's gateway authority")
+      return ticket
+
   if inbox is None:
-    inbox = SessionInbox(node.clock)
+    inbox = SessionInbox(node.clock, capture_start=capture_start)
     threading.Thread(target=inbox.read, args=(sys.stdin,), daemon=True).start()
+  else:
+    inbox.capture_start = capture_start
   token, last_receipt = None, None
   accept_after, next_identity_check = -math.inf, 0.0
-  exiting, code, has_run = False, 0, False
+  exiting, code, has_run, submitted_start = False, 0, False, False
   emit({"event": "session_ready", "profile": node.request.profile,
-        "client_identity": dict(CLIENT_IDENTITY), "commands": ["list", "prepare", "run", "stop", "status", "quit"]})
-  while True:
-    spin_once(node, timeout_sec=0.02)
-    if node.stop_requested and not exiting:
-      exiting, token, code = True, None, 3
-      emit({"event": "fault", "reason": node.stop_requested})
-    item = None if exiting else inbox.get()  # urgent stop/EOF bypass ordinary backlog
-    if item:
-      received_at, message = item
-      command = message.get("command")
-      try:
-        if command in ("stop", "quit"):
-          token = None
-          exiting = True  # a stop is latched until a new session
+        "client_identity": dict(CLIENT_IDENTITY), "commands": ["list", "prepare", "start", "run", "stop", "status", "quit"],
+        "software_start_supported": start_client is not None})
+  try:
+    while True:
+      spin_once(node, timeout_sec=0.02)
+      if node.stop_requested and not exiting:
+        if start_client is not None and start_client.pending is not None:
+          node.cancel_start(node.stop_requested)
+        exiting, token, code = True, None, 3
+        emit({"event": "fault", "reason": node.stop_requested})
+      item = None if exiting else inbox.get()  # urgent stop/EOF bypass ordinary backlog
+      if item:
+        received_at, message = item
+        command = message.get("command")
+        try:
+          if command in ("stop", "quit"):
+            token = None
+            exiting = True  # a stop is latched until a new session
+            if submitted_start:
+              node.cancel_start(message.get("reason", "session " + command))
+            if node.phase == "pulsing":
+              with node.lock:
+                node.stop(message.get("reason", "session " + command), fault=True)
+            emit({"event": "stopping", "reason": message.get("reason", command)})
+          elif command == "status":
+            emit({"event": "status", "phase": node.phase, "prepared": token is not None,
+                  "problem": node.start_problem() if node.phase == "waiting" else None,
+                  "last_receipt": last_receipt})
+          elif command == "list":
+            emit({"event": "trials", "axes": sorted(AXES), "defaults": DEFAULT_SPEED,
+                  "ceilings": SPEED_PROFILES[node.request.profile], "max_duration_s": MAX_PULSE_S,
+                  "lateral_calibration": {"axes": ["left", "right"],
+                    "max_duration_s": MAX_LATERAL_CALIBRATION_S,
+                    "max_speed": MAX_LATERAL_CALIBRATION_SPEED, "requires_per_prepare_opt_in": True},
+                  "heading": {"fields": ["turn_angle_rad", "heading_rad"],
+                    "range_rad": [-math.pi, math.pi], "max_speed_rad_s": HEADING_MAX_SPEED,
+                    "max_timeout_s": HEADING_MAX_TIMEOUT_S, "reference": "IMU yaw"}})
+          elif command == "start":
+            if message.get("_start_error"):
+              raise ValueError(message["_start_error"])
+            if start_client is None or "_start_ticket" not in message:
+              raise ValueError("Start requires status captured at input receipt")
+            if node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
+              raise ValueError("trial is running or finalizing; Start was not queued")
+            if received_at < accept_after:
+              raise ValueError("Start predates the last completed trial; send a fresh command")
+            if not same_manager(runtime):
+              raise ValueError("native manager changed before Start")
+            ticket = message["_start_ticket"]
+            if (ticket.instance_id, ticket.epoch) != node.gateway_authority:
+              raise ValueError("Start ticket differs from this session's gateway authority")
+            token = None
+            request = start_client.send(ticket)
+            submitted_start = True
+            emit({"event": "start_submitted", "request": request})
+          elif command in ("prepare", "run"):
+            if start_client is not None and (start_client.pending is not None or start_client.uncertain):
+              raise ValueError("Start acknowledgement pending or uncertain; no trial queued")
+            if exiting or node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
+              raise ValueError("trial is running or finalizing; command was not queued")
+            if received_at < accept_after:
+              raise ValueError("command predates the last completed trial; send a fresh command")
+            if command == "prepare":
+              if message.get("profile", node.request.profile) != node.request.profile:
+                raise ValueError("session profile cannot change")
+              request = session_request(message, node.request.profile)
+              node.prepare(request)
+              token = uuid.uuid4().hex
+              emit({"event": "prepared", "token": token, "request": asdict(request),
+                    "problem": node.start_problem()})
+            else:
+              if token is None or message.get("token") != token:
+                raise ValueError("run requires the current unused prepare token")
+              if not 0 <= node.now() - received_at <= RUN_TRIGGER_MAX_AGE_S:
+                raise ValueError("run trigger expired; send a fresh run command")
+              next_identity_check = node.now() + OWNER_CHECK_S
+              if not same_manager(runtime):
+                emit({"event": "fault", "reason": "native manager changed before session trial"})
+                return 3
+              if (node.require_gateway and (node.gateway_seen_at is None or
+                  node.now() - node.gateway_seen_at > 0.6)):
+                raise ValueError("no fresh e-stop gateway status")
+              if (not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S or
+                  any(abs(v) > MATCH_TOL for v in node.latest_obs[0])):
+                raise ValueError("start requires a fresh zero command in controller feedback")
+              problem = node.try_start()
+              if problem:
+                raise ValueError(problem)  # never retry a trigger later
+              token = None
+              has_run = True
+              emit({"event": "started", "request": asdict(node.request)})
+          else:
+            raise ValueError(message.get("error", "unknown command"))
+        except (ValueError, KeyError, TypeError) as exc:
+          emit({"event": "refused", "command": command, "reason": str(exc)})
+      if start_client is not None:
+        result = start_client.poll()
+        if result is not None:
+          emit(result)
+        if start_client.uncertain and not exiting:
+          node.cancel_start("Start result uncertain")
+          exiting, token, code = True, None, 3
+      if (has_run and not exiting and (node.phase == "waiting" or
+          (node.phase == "finished" and node.record.get("file")))):
+        problem = node.stock.problem()
+        if not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S:
+          problem = "stock policy observation stale"
+        if node.require_gateway and (node.gateway_blocked is not False or
+            node.gateway_seen_at is None or node.now() - node.gateway_seen_at > 0.6):
+          problem = "e-stop gateway status unavailable or blocked"
+        if problem:
+          emit({"event": "fault", "reason": "session authority interrupted: " + problem})
+          return 3
+      if not exiting and node.now() >= next_identity_check:
+        next_identity_check = node.now() + OWNER_CHECK_S
+        if not same_manager(runtime):
+          exiting, token, code = True, None, 3
+          if start_client is not None and start_client.pending is not None:
+            node.cancel_start("native manager changed during Start")
           if node.phase == "pulsing":
             with node.lock:
-              node.stop(message.get("reason", "session " + command), fault=True)
-          emit({"event": "stopping", "reason": message.get("reason", command)})
-        elif command == "status":
-          emit({"event": "status", "phase": node.phase, "prepared": token is not None,
-                "problem": node.start_problem() if node.phase == "waiting" else None,
-                "last_receipt": last_receipt})
-        elif command == "list":
-          emit({"event": "trials", "axes": sorted(AXES), "defaults": DEFAULT_SPEED,
-                "ceilings": SPEED_PROFILES[node.request.profile], "max_duration_s": MAX_PULSE_S,
-                "lateral_calibration": {"axes": ["left", "right"],
-                  "max_duration_s": MAX_LATERAL_CALIBRATION_S,
-                  "max_speed": MAX_LATERAL_CALIBRATION_SPEED, "requires_per_prepare_opt_in": True}})
-        elif command in ("prepare", "run"):
-          if exiting or node.phase == "pulsing" or (node.phase == "finished" and not node.record.get("file")):
-            raise ValueError("trial is running or finalizing; command was not queued")
-          if received_at < accept_after:
-            raise ValueError("command predates the last completed trial; send a fresh command")
-          if command == "prepare":
-            if message.get("profile", node.request.profile) != node.request.profile:
-              raise ValueError("session profile cannot change")
-            request = PulseRequest.build(message["axis"], message.get("speed"),
-                                         message.get("duration", 1.0), node.request.profile,
-                                         lateral_calibration=message.get("lateral_calibration", False))
-            node.prepare(request)
-            token = uuid.uuid4().hex
-            emit({"event": "prepared", "token": token, "request": asdict(request),
-                  "problem": node.start_problem()})
-          else:
-            if token is None or message.get("token") != token:
-              raise ValueError("run requires the current unused prepare token")
-            if not 0 <= node.now() - received_at <= RUN_TRIGGER_MAX_AGE_S:
-              raise ValueError("run trigger expired; send a fresh run command")
-            next_identity_check = node.now() + OWNER_CHECK_S
-            if not same_manager(runtime):
-              emit({"event": "fault", "reason": "native manager changed before session trial"})
-              return 3
-            if (node.require_gateway and (node.gateway_seen_at is None or
-                node.now() - node.gateway_seen_at > 0.6)):
-              raise ValueError("no fresh e-stop gateway status")
-            if (not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S or
-                any(abs(v) > MATCH_TOL for v in node.latest_obs[0])):
-              raise ValueError("start requires a fresh zero command in controller feedback")
-            problem = node.try_start()
-            if problem:
-              raise ValueError(problem)  # never retry a trigger later
-            token = None
-            has_run = True
-            emit({"event": "started", "request": asdict(node.request)})
-        else:
-          raise ValueError(message.get("error", "unknown command"))
-      except (ValueError, KeyError, TypeError) as exc:
-        emit({"event": "refused", "command": command, "reason": str(exc)})
-    if (has_run and not exiting and (node.phase == "waiting" or
-        (node.phase == "finished" and node.record.get("file")))):
-      problem = node.stock.problem()
-      if not node.latest_obs or node.now() - node.latest_obs[1] > OBS_MAX_AGE_S:
-        problem = "stock policy observation stale"
-      if node.require_gateway and (node.gateway_blocked is not False or
-          node.gateway_seen_at is None or node.now() - node.gateway_seen_at > 0.6):
-        problem = "e-stop gateway status unavailable or blocked"
-      if problem:
-        emit({"event": "fault", "reason": "session authority interrupted: " + problem})
-        return 3
-    if not exiting and node.now() >= next_identity_check:
-      next_identity_check = node.now() + OWNER_CHECK_S
-      if not same_manager(runtime):
-        exiting, token, code = True, None, 3
-        if node.phase == "pulsing":
-          with node.lock:
-            node.stop("native manager changed during session", fault=True)
-        emit({"event": "fault", "reason": "native manager changed during session"})
-    if node.phase == "pulsing" and node.now() - node.started >= node.request.duration_s:
-      with node.lock:
-        node.complete("completed", "wall-clock duration reached")
-    if node.phase == "finished" and not node.record.get("file"):
-      if node.zero_confirmed_at is not None or node.now() - node.zero_sent_at >= 0.5:
-        last_receipt = str(finish_trial(node, runtime, same_manager, session=True))
-        accept_after = node.now()
-        trial_code = result_exit_code(node.record)
-        emit({"event": "trial_complete", "file": last_receipt, "outcome": node.record["outcome"],
-              "reason": node.record["reason"], "summary": node.record["summary"],
-              "command_verification": node.record["command_verification"]})
-        if trial_code:
-          exiting, code = True, trial_code  # fault/unconfirmed zero cannot be rearmed
-    if exiting and (node.phase == "waiting" or node.record.get("file")):
-      return code
+              node.stop("native manager changed during session", fault=True)
+          emit({"event": "fault", "reason": "native manager changed during session"})
+      if node.phase == "pulsing" and node.now() - node.started >= node.request.duration_s:
+        with node.lock:
+          node.expire()
+      if node.phase == "finished" and not node.record.get("file"):
+        if node.zero_confirmed_at is not None or node.now() - node.zero_sent_at >= 0.5:
+          last_receipt = str(finish_trial(node, runtime, same_manager, session=True))
+          accept_after = node.now()
+          trial_code = result_exit_code(node.record)
+          emit({"event": "trial_complete", "file": last_receipt, "outcome": node.record["outcome"],
+                "reason": node.record["reason"], "summary": node.record["summary"],
+                "command_verification": node.record["command_verification"]})
+          if trial_code:
+            exiting, code = True, trial_code  # fault/unconfirmed zero cannot be rearmed
+      if exiting and (node.phase == "waiting" or node.record.get("file")):
+        return code
+  finally:
+    if (start_client is not None and not node.stop_requested and
+        (submitted_start or start_client.pending is not None or start_client.uncertain)):
+      node.cancel_start("session exit after Start request")
 
 
 def parse_args(argv=None):
@@ -749,7 +1116,7 @@ def parse_args(argv=None):
                                    epilog="Without --execute nothing is imported from ROS and nothing is published.")
   parser.add_argument("axis", nargs="?", choices=sorted(AXES))
   parser.add_argument("--session", action="store_true",
-                      help="keep one verified ROS session; accept list/prepare/run/stop/status/quit JSON lines on stdin")
+                      help="keep one verified ROS session; accept list/prepare/start/run/stop/status/quit JSON lines on stdin")
   parser.add_argument("--profile", choices=sorted(SPEED_PROFILES), default="walk",
                       help="must match selected release; sprint is a physically unaccepted candidate")
   parser.add_argument("--speed", type=float, default=None,
@@ -842,7 +1209,7 @@ def run_execute(request, args) -> int:
               node.stop("native manager changed during pulse", fault=True)
         if node.phase == "pulsing" and time.monotonic() - node.started >= request.duration_s:
           with node.lock:
-            node.complete("completed", "wall-clock duration reached")
+            node.expire()
       settle = time.monotonic() + 0.5  # give the observation a chance to confirm the zero
       while node.phase == "finished" and node.zero_confirmed_at is None and time.monotonic() < settle:
         rclpy.spin_once(node, timeout_sec=0.05)

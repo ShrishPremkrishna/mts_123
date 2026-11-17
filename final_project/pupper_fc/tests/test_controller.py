@@ -45,6 +45,18 @@ def is_zero(command):
     return command.vx == 0 and command.vy == 0 and command.wz == 0
 
 
+@pytest.mark.parametrize("goal", [-1, 1])
+def test_recorded_referee_pulse_does_not_execute_motion_or_release_reset(goal):
+    controller = Controller()
+    assert controller.record_goal(goal) is None
+    assert controller._goal_latched
+    controller.reset()
+    assert controller.record_goal(0) is None
+    assert controller._goal_latched  # only a valid tick may release requested reset
+    result = controller.tick(Observation(0, Pose(-1, 0, 0), Ball(0, 0)), 0)
+    assert not controller._goal_latched and result.phase == "approach"
+
+
 def staged(field=Field(), ball=Ball(0.0, 0.0), yaw_offset=0.0, back=0.0):
     """Robot pose at the staging point for a ball on the field's x axis."""
     sign = field.attack_sign

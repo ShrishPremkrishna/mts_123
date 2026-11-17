@@ -1,6 +1,6 @@
 # Movement and stock-shot trials
 
-Updated November 16, 2026. The [shared build handoff](../ROBOT_BUILD_AND_TEST_HANDOFF.md)
+Updated November 17, 2026. The [shared build handoff](../ROBOT_BUILD_AND_TEST_HANDOFF.md)
 explains release selection and ownership. The [checkpoint](../../foundation/results/interruption-recovery.json)
 records current access. Commands below are for the selected, supervised session;
 a directory existing or tests passing does not authorize motion.
@@ -47,7 +47,7 @@ Use `forward`, `backward`, `left`, `right`, `turn_left` or `turn_right`. Default
 are 0.2 m/s forward/backward, 0.15 m/s lateral, 0.35 rad/s turning and one second.
 Each pulse is at most three seconds. It refuses missing/stale stock evidence,
 wrong policy, incompatible runtime, missing 960-value observation, competing
-publishers and a latched gateway. It never homes, arms or switches controllers.
+publishers and a latched gateway. One-shot pulses never home, arm or switch controllers.
 A refused trial publishes no cleanup zeros into someone else's stream.
 
 | Profile | Tool ceiling, further restricted by loaded native configuration |
@@ -107,7 +107,7 @@ python3 "$PUPPER_CLIENT/final_project/behaviors/tools/movement_trial.py" \
 ```
 
 Send JSON lines on its input: `{"command":"status"}` or
-`{"command":"prepare","axis":"forward","speed":0.7,"duration":3}`.
+`{"command":"prepare","axis":"forward","speed":0.2,"duration":3}`.
 Preparation returns a token; send `{"command":"run","token":"RETURNED_TOKEN"}`
 only when the operator is watching and the lane is clear. It runs once, with no
 queued follow-up. `stop`, `quit`, input disconnect, or an authority fault closes
@@ -122,12 +122,32 @@ has software-test evidence only until selected and physically qualified; the
 logging-correction release still contains the earlier three-second client.
 A duration or command integral is not a measured six-foot traverse.
 
+The candidate client accepts `{"command":"prepare","turn_angle_rad":1.57}`
+for a relative orientation, or `heading_rad` for an absolute IMU heading. The
+relative target anchors at execution. Both use the shortest route, at most
+0.35 rad/s, a 0.05-radian tolerance and 0.3 seconds of distinct capture-time
+evidence; `timeout_s` is a failure limit (default 15, maximum 20 seconds), not
+successful completion. IMU heading is not field localization. A disturbance can
+change which route is shortest. Exact antipodes choose left. These feedback
+turns await supervised physical acceptance.
+
+With the reviewed gateway/service and helper selected together, the resident
+client also accepts one explicit `{"command":"start"}` while idle. It freezes
+already-observed gateway identity at input receipt, submits once and reports the
+correlated result; it never homes or starts a movement trial. An initial ordinary
+Stop can be released, but a later Stop/epoch change ends this client session.
+Missing capability refuses Start and leaves the legacy Options path available.
+After acknowledgement, prepare and run a new trial only after the ordinary
+stock/zero-feedback checks pass. Do not retry an uncertain Start automatically;
+the client requests Stop and exits. Source tests do not select this feature on
+the currently deployed logging-correction release.
+
 Options releases an ordinary gateway latch **and activates the remembered
 controller**. Confirm the resulting active state; do not issue a redundant
 STRICT activation. A gateway fault is different from an ordinary Stop and
 cannot be cleared by Options. Preserve the same healthy native session across
-trials to avoid repeated homing. Software Start remains a separate offline
-change until its reviewed release is selected.
+trials to avoid repeated homing. Software Start remains offline until a complete
+reviewed release is selected.
 
 Timed turning is not a commanded angle: the November 16 three-second turn at
 0.8 rad/s produced about 123 degrees of reported yaw. Do not call that a complete
@@ -135,11 +155,11 @@ Timed turning is not a commanded angle: the November 16 three-second turn at
 
 ## Headbutt after movement is controlled
 
-First measure a no-ball advance and braking distance on the actual surface. Then
-use the temporary seven-inch soft ball/no bumper and measure real contact and
-ball travel. Start centered before offsets. The onboard multicolor detector is
-not calibrated and did not drive the previous manual shots; do not let detector
-errors obscure gait or contact geometry.
+First measure a no-ball advance and braking distance on the actual surface.
+Further contact trials await the intended pink size-5 ball and calibrated shot
+geometry; the owner explicitly deferred additional tests with the temporary
+ball. No bumper is fitted. The recovered multicolor detector is not calibrated
+for the intended ball and did not drive the previous manual shots.
 
 The selected stock session already owns its mux. After closing the pulse tool,
 start only the shot node, not a second `kick_trial.launch.py` mux:
