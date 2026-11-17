@@ -132,7 +132,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("case", choices=("lifecycle", "guard_death", "publication_stop",
                                         "domain_lease", "domain_stop", "domain_peer",
-                                        "arena_ball", "strict_ball", "closed_loop", "_child"))
+                                        "arena_ball", "strict_ball", "closed_loop", "defense_loop", "_child"))
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--mux", default="/mux")
     parser.add_argument("--robot-id", choices=("pupper-1", "pupper-2"), default="pupper-1")
@@ -147,7 +147,7 @@ def main():
     from rclpy.executors import SingleThreadedExecutor
     from rclpy.node import Node
     from rclpy.parameter import Parameter
-    from rclpy.qos import QoSProfile, ReliabilityPolicy
+    from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
     from controller_manager_msgs.msg import ControllerState
     from controller_manager_msgs.srv import ListControllers
     from rcl_interfaces.srv import GetParameters
@@ -179,13 +179,20 @@ def main():
             self.simulation_receipt_index = 0
             self.simulation_active_input = (0., 0., 0.); self.simulation_active_receipt = None
             self.simulation_steps = 0; self.simulation_max_lag = 0.
-            if args.case == "closed_loop":
+            self.simulation_ball_origin = None; self.simulation_ball_max_displacement = 0.
+            self.simulation_min_ball_distance = math.inf
+            if args.case in ("closed_loop", "defense_loop"):
                 from final_project.behaviors.fc_executor_bridge import LIMITS, load_fields
                 from final_project.pupper_fc.simulation import Simulator
                 fields = load_fields({"field": {"length": 3.66, "width": 2.44, "goal_width": .6096,
                     "robot_radius": .16, "ball_radius": .11, "bumper_offset": .19},
                     "attack_signs": {"pupper-1": 1, "pupper-2": -1}})
                 self.simulator = Simulator(field=fields[args.robot_id], limits=LIMITS, scenario="center")
+                if args.case == "defense_loop":
+                    sign = self.simulator.field.attack_sign
+                    self.simulator.move_robot(-sign*.5, 0., 0. if sign == 1 else math.pi)
+                    self.simulator.move_ball(-sign*.9, 0.)
+                    self.simulation_ball_origin = (self.simulator.ball.x, self.simulator.ball.y)
                 self.simulation_origin = time.monotonic()
                 self.kind = "auto"; self.intent_id = "auto-1"
                 self.simulation_events.append({"event": "initial", "at": self.simulation_origin,
@@ -209,7 +216,9 @@ def main():
             self.latched = False; self.last_capture = self.last_lease_deadline = None
             self.ingress = self.create_publisher(String, "/fc/normalized_events", 1)
             self.camera = self.create_publisher(String, "/fc/obstacle_detections", 1)
-            self.gateway = self.create_publisher(String, "/estop_controller/stop_status", 10)
+            self.gateway = self.create_publisher(String, "/estop_controller/stop_status",
+                QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                           durability=DurabilityPolicy.TRANSIENT_LOCAL))
             self.feedback = self.create_publisher(Float32MultiArray, "/neural_controller_default/observation", 1)
             self.joy = self.create_publisher(Joy, "/joy", 1)
             self.create_service(ListControllers, "/controller_manager/list_controllers", self.inventory)
@@ -259,6 +268,12 @@ def main():
                 previous_goal = self.simulator.goal
                 before_ball = asdict(self.simulator.ball)
                 self.simulator.step(command, .01); self.simulation_steps += 1
+                if self.simulation_ball_origin is not None:
+                    b, r = self.simulator.ball, self.simulator.robot
+                    self.simulation_ball_max_displacement = max(self.simulation_ball_max_displacement,
+                        math.hypot(b.x-self.simulation_ball_origin[0], b.y-self.simulation_ball_origin[1]))
+                    self.simulation_min_ball_distance = min(self.simulation_min_ball_distance,
+                        math.hypot(b.x-r.x, b.y-r.y))
                 if self.simulator.goal != previous_goal:
                     self.simulation_events.append({"event": "natural_goal_crossing", "at": now,
                         "simulation_time": self.simulator.time, "goal": self.simulator.goal,
@@ -351,7 +366,7 @@ def main():
     def pump(seconds):
         until = time.monotonic() + seconds
         while time.monotonic() < until:
-            if args.case == "closed_loop" and time.monotonic()-began >= 60.:
+            if args.case in ("closed_loop", "defense_loop") and time.monotonic()-began >= 60.:
                 raise TimeoutError("closed-loop case exceeded60seconds")
             executor.spin_once(timeout_sec=min(.003, max(0., until-time.monotonic())))
             for _ in range(12): executor.spin_once(timeout_sec=0.)
@@ -430,7 +445,39 @@ def main():
                 "field_target": node.target, "attack_sign": 1 if args.robot_id == "pupper-1" else -1}
             if args.case != "domain_peer":
                 (args.coord_dir / "fault-start.json").write_text(json.dumps({"at": time.monotonic(), "case": args.case}) + "\n")
-        if args.case == "closed_loop":
+        if args.case == "defense_loop":
+            wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "target_reached"),
+                 "defender reaches guard around stationary ball", 20.)
+            reached_at = time.monotonic(); pump(.15)
+            zero_start = time.monotonic(); pump(.5); zero_end = time.monotonic()
+            samples = [value for at, value in node.final if zero_start <= at <= zero_end]
+            assert len(samples) >= 10 and all(all(abs(x) < 1e-6 for x in v) for v in samples)
+            assert node.simulation_ball_max_displacement <= 1e-9, "defensive transit moved the ball"
+            assert node.simulator.goal == 0
+            field = node.simulator.field
+            guard = (-field.attack_sign*(field.length/2-.35), 0.)
+            assert math.hypot(node.simulator.robot.x-guard[0], node.simulator.robot.y-guard[1]) <= .06
+            decisions = [s.get("decision") or {} for _, s in node.statuses]
+            assert any(d.get("phase") == "defend" and d.get("role") == "defense" for d in decisions)
+            assert any(d.get("phase") == "target_reached" and d.get("role") == "defense" for d in decisions)
+            report["defense_loop"] = {"attack_sign": field.attack_sign, "field": asdict(field),
+                "limits": asdict(node.simulator.limits), "physics_step_s": .01,
+                "simulation_clock_origin_monotonic": node.simulation_origin,
+                "physics_steps": node.simulation_steps, "simulated_time": node.simulator.time,
+                "real_elapsed_since_simulation_origin": time.monotonic()-node.simulation_origin,
+                "max_physics_catchup_lag_s": node.simulation_max_lag,
+                "command_source": "Only actual final /cmd_vel DDS callback receipts, applied no earlier than next10ms substep",
+                "simulator_receipt_expiry_s": .25, "simulated_receipt_expiry_is_native_evidence": False,
+                "ball_max_displacement_m": node.simulation_ball_max_displacement,
+                "minimum_center_to_ball_distance_m": node.simulation_min_ball_distance,
+                "guard": list(guard), "final_snapshot": node.simulator.snapshot(),
+                "reached_at": reached_at, "sustained_zero": {"from": zero_start, "through": zero_end, "samples": len(samples)},
+                "physical_or_opponent_collision_acceptance": False}
+            report["groups"].append("actual_final_cmd_vel_reaches_guard_without_ball_contact_then_sustained_zero")
+            bridge.stdin.write('{"command":"stop","reason":"defense-loop smoke cleanup"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "defense-loop cleanup")
+            assert bridge.returncode == 3
+        elif args.case == "closed_loop":
             wait(lambda: node.simulator.goal != 0, "simulator generates a natural goal", 40.)
             assert node.simulator.goal == 1, "simulator scored an own goal"
             natural_goal = next(e for e in node.simulation_events if e["event"] == "natural_goal_crossing")

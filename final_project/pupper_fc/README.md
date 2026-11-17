@@ -48,6 +48,14 @@ Field coordinates are metres, origin at centre, +x right and +y up in the viewer
 
 Goal pulses latch only after an entire valid field frame is admitted, even during a lease or camera hold. Motion still requires current authority and fresh evidence. Every action yields to the goal return before using its action target or opponent-goal geometry. Stop, tracking loss, expired intent and a configured camera hold continue to stop motion. Camera configuration remains optional for camera-free replay; configured gates start closed.
 
+Defense requires a visible ball. It preserves a clear guard target or shifts an
+occupied nominal target toward its own goal while staying within the field and
+goal span. Transit uses ball-clear segments; close retreats preserve heading so
+the front does not rotate into the ball. If the target or departure cannot fit,
+the decision reports a hold or blocked reason. Ordinary `move` still accepts a
+pose without a ball. This is a bounded ball-avoidance heuristic, not an opponent
+planner or a guarantee that every geometrically reachable guard will converge.
+
 After the robot has completed its goal return and the operator has replaced the ball, send one deliberate cue per robot:
 
 ```json

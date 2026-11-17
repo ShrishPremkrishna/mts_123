@@ -120,7 +120,7 @@ def test_explicit_owner_preempts_auto_and_never_falls_back_after_expiry():
 def test_emergency_role_change_preempts_strike_and_returns_to_fresh_alignment():
     executor = auto(staged=True)
     strike(executor)
-    result = executor.handle(frame(.26, 4, ball=dict(x=-1.5, y=.2)))
+    result = executor.handle(frame(.26, 4, ball=dict(x=-1.4, y=.8)))
     assert row(result)["role"] == "defense" and row(result)["phase"] == "defend"
     assert executor.controllers["pupper-1"]._strike is None
     for seq in range(5, 17):
@@ -239,7 +239,7 @@ def test_auto_requires_goal_for_attack_but_can_guard_without_it_and_fall_holds()
     executor = auto()
     result = executor.handle(frame(.1, 2, goals={}))
     assert row(result)["phase"] == "tracking_lost" and is_zero(command(result))
-    result = executor.handle(frame(.2, 3, ball=dict(x=-1.5, y=0), goals={}))
+    result = executor.handle(frame(.2, 3, ball=dict(x=-1.4, y=.8), goals={}))
     assert row(result)["role"] == "defense" and row(result)["phase"] == "defend"
     result = executor.handle(frame(.3, 4, robots={"pupper-1": dict(x=-1, y=0, yaw=0, fallen=True)}))
     assert row(result)["recovery_requested"] and is_zero(command(result))

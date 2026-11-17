@@ -113,6 +113,11 @@ def _segment_distance(ax, ay, bx, by, px, py):
     return math.hypot(px - ax - t * dx, py - ay - t * dy)
 
 
+def defensive_clearance(field):
+    """Ball exclusion radius enclosing the body and frontal bumper, plus margin."""
+    return max(field.robot_radius, field.bumper_offset) + field.ball_radius + CLEARANCE_MARGIN
+
+
 class Controller:
     """Approach behind the ball, align the bumper, strike toward the opponent goal."""
 
@@ -201,6 +206,8 @@ class Controller:
         self._aligned_through = None
         self._strike = None         # (start x, start y, heading, start time)
         self._reassess_until = None
+        self._guard_waypoint = None
+        self._guard_side = None
 
     def _halt(self, phase, reason, now, robot_id, recovery=False):
         self._clear_play()
@@ -208,13 +215,15 @@ class Controller:
 
     def tick(self, observation: Observation, now: float, *, target_pose: Pose | None = None,
              shot_target: tuple[float, float] | None = None,
-             preserve_target_heading: bool = False) -> Decision:
+             preserve_target_heading: bool = False, avoid_ball: bool = False) -> Decision:
         """Choose a command; optional field targets replace the ordinary attack.
 
         ``target_pose`` navigates without requiring a visible ball. ``shot_target``
         changes the shot destination, retaining the existing approach/strike.
         ``preserve_target_heading`` keeps a pose target's yaw even on long moves
         (e.g. facing the ball while guarding); ordinary moves face their travel.
+        ``avoid_ball`` explicitly selects ball-clear defensive transit and requires
+        a visible ball. Ordinary pose movement remains independent of the ball.
         Changing either target cancels an old strike. Stop/arming remain runtime
         responsibilities; these arguments do not provide transport or authority.
         """
@@ -229,6 +238,9 @@ class Controller:
                 or (preserve_target_heading and target_pose is None)):
             return self._halt("invalid_intent", "heading preservation requires a pose target and boolean option",
                               now, robot_id)
+        if type(avoid_ball) is not bool or (avoid_ball and target_pose is None):
+            return self._halt("invalid_intent", "ball avoidance requires a pose target and boolean option",
+                              now, robot_id)
         if target_pose is not None and shot_target is not None:
             return self._halt("invalid_intent", "choose a pose or a shot target", now, robot_id)
         if target_pose is not None:
@@ -237,7 +249,11 @@ class Controller:
                 return self._halt("invalid_intent", "target pose is not finite", now, robot_id)
             if self._reachable(target_pose.x, target_pose.y) != (target_pose.x, target_pose.y):
                 return self._halt("blocked", "target pose leaves the robot outside the field", now, robot_id)
-            target_key = ("pose", target_pose, preserve_target_heading)
+            # A reactive guard keeps its route while its facing yaw changes.
+            # Ball movement and segment validation govern defensive replanning;
+            # explicit intent replacement still cancels through the Executor.
+            target_key = (("guard", preserve_target_heading) if avoid_ball else
+                          ("pose", target_pose, preserve_target_heading))
         elif shot_target is not None:
             if (not isinstance(shot_target, (tuple, list)) or len(shot_target) != 2
                     or not _finite(*shot_target) or not self._plausible(*shot_target)):
@@ -273,6 +289,10 @@ class Controller:
         if self._goal_latched:
             return self._return_home(robot, now, robot_id)
         if target_pose is not None:
+            if avoid_ball:
+                if ball is None:
+                    return self._halt("tracking_lost", "defense requires a visible ball", now, robot_id)
+                return self._guard_transit(robot, ball, target_pose, now, robot_id)
             target = (target_pose.x, target_pose.y)
             if (math.hypot(target_pose.x - robot.x, target_pose.y - robot.y) <= HOME_TOLERANCE
                     and abs(_wrap(target_pose.yaw - robot.yaw)) <= HOME_HEADING_TOLERANCE):
@@ -287,6 +307,97 @@ class Controller:
         if shot_target is not None and math.hypot(shot_target[0] - ball.x, shot_target[1] - ball.y) <= 1e-6:
             return self._halt("invalid_intent", "shot destination coincides with the ball", now, robot_id)
         return self._play(robot, ball, now, robot_id, observation.captured_at, shot_target)
+
+    def _guard_transit(self, robot, ball, target_pose, now, robot_id):
+        """Reach a clear guard pose using validated radial/circular segments.
+
+        This is deliberately separate from attack's fixed abeam waypoint: its
+        chord guarantee does not enclose the larger defensive bumper clearance.
+        There is no obstacle map or deep-ball extraction policy here.
+        """
+        clearance = defensive_clearance(self.field)
+        target = (target_pose.x, target_pose.y)
+        distance = math.hypot(robot.x - ball.x, robot.y - ball.y)
+        if math.hypot(target[0] - ball.x, target[1] - ball.y) < clearance - 1e-9:
+            return self._halt("blocked", "guard target is occupied by the ball clearance", now, robot_id)
+        if (self._ball_anchor is None or
+                math.hypot(ball.x - self._ball_anchor[0], ball.y - self._ball_anchor[1]) > REPLAN_DISTANCE):
+            self._ball_anchor = (ball.x, ball.y)
+            self._guard_waypoint = self._guard_side = None
+
+        def segment_clear(point):
+            return (_segment_distance(robot.x, robot.y, point[0], point[1], ball.x, ball.y)
+                    >= clearance - 1e-9)
+
+        if segment_clear(target):
+            self._guard_waypoint = None
+            if (math.hypot(target[0] - robot.x, target[1] - robot.y) <= HOME_TOLERANCE
+                    and abs(_wrap(target_pose.yaw - robot.yaw)) <= HOME_HEADING_TOLERANCE):
+                return Decision("target_reached", "at the ball-clear guard pose", zero(now, robot_id),
+                                target, target_pose.yaw)
+            return self._drive("move", "moving to the ball-clear guard pose", robot, target,
+                               target_pose.yaw, self.limits.vx, now, robot_id)
+
+        # A radial back-off may begin inside the margin, but must never get
+        # closer to the ball. All circular segments require full clearance.
+        # A small circumscribed route fits behind reachable deep guard poses.
+        # Attack's .50 m waypoint and .10 m arrival tolerance do not provide
+        # this clearance; validate every actual segment even on this ring.
+        waypoint_tolerance = 0.01
+        angular_step = math.pi / 6
+        ring = (clearance + 2 * waypoint_tolerance) / math.cos(angular_step / 2)
+        if self._guard_waypoint is not None:
+            point, backing = self._guard_waypoint
+            reached = math.hypot(point[0] - robot.x, point[1] - robot.y) <= waypoint_tolerance
+            safe = segment_clear(point)
+            if backing:
+                safe = (_segment_distance(robot.x, robot.y, *point, ball.x, ball.y)
+                        >= distance - 1e-9 and math.hypot(point[0] - ball.x, point[1] - ball.y) > distance)
+            if reached or not safe or self._reachable(*point) != point:
+                self._guard_waypoint = None
+        if self._guard_waypoint is None:
+            if distance < ring - waypoint_tolerance:
+                if distance <= 1e-9:
+                    return self._halt("blocked", "ball and robot coincide; no clear defense departure", now, robot_id)
+                dx, dy = robot.x - ball.x, robot.y - ball.y
+                candidates = [(ball.x + dx * ring / distance, ball.y + dy * ring / distance)]
+                # Near a boundary the radial endpoint may not fit. A bounded
+                # field-axis departure can still increase clearance; never
+                # clip an unchecked segment toward the ball.
+                xoff = math.sqrt(max(0.0, ring * ring - dy * dy))
+                yoff = math.sqrt(max(0.0, ring * ring - dx * dx))
+                candidates.extend((ball.x + side * xoff, robot.y)
+                                  for side in (self.field.attack_sign, -self.field.attack_sign))
+                candidates.extend((robot.x, ball.y + side * yoff) for side in (1, -1))
+                point = next((candidate for candidate in candidates
+                              if self._reachable(*candidate) == candidate
+                              and math.hypot(candidate[0] - ball.x, candidate[1] - ball.y) >= ring - 1e-9
+                              and _segment_distance(robot.x, robot.y, *candidate, ball.x, ball.y)
+                              >= distance - 1e-9), None)
+                if point is None:
+                    return self._halt("blocked", "no ball-clear defensive back-off fits inside the field", now, robot_id)
+                self._guard_waypoint = (point, True)
+            else:
+                angle = math.atan2(robot.y - ball.y, robot.x - ball.x)
+                destination = math.atan2(target[1] - ball.y, target[0] - ball.x)
+                delta = _wrap(destination - angle)
+                preferred = (1 if delta > 0 else -1) if abs(abs(delta) - math.pi) > 1e-9 else self.field.attack_sign
+                sides = (self._guard_side,) if self._guard_side is not None else (preferred, -preferred)
+                for side in sides:
+                    next_angle = angle + side * min(angular_step, abs(delta))
+                    point = (ball.x + ring * math.cos(next_angle), ball.y + ring * math.sin(next_angle))
+                    if self._reachable(*point) == point and segment_clear(point):
+                        self._guard_waypoint, self._guard_side = (point, False), side
+                        break
+                if self._guard_waypoint is None:
+                    return self._halt("blocked", "no ball-clear defensive waypoint fits inside the field", now, robot_id)
+        point, backing = self._guard_waypoint
+        # A safe initial side/back contact gap can be smaller than the bumper's
+        # swept radius. Retreat without turning until that whole radius clears.
+        heading = robot.yaw if backing and distance < clearance else target_pose.yaw
+        return self._drive("move", "backing away from the ball for defense" if backing else
+                           "circling the ball to the guard pose", robot, point, heading,
+                           self.limits.vx, now, robot_id)
 
     def _pose_problem(self, robot):
         if robot is None:

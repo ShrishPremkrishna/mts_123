@@ -101,7 +101,7 @@ These are integration outcomes, not a serial allocation of teammate time. Every 
 1. **See the field.** Live overlay and recorded replay show identities/headings, ball, goals and observation age. Check known positions, motion, occlusion and reacquisition.
 2. **Reach a pose.** Existing gait reaches marked positions with chosen heading and stops. Measure position/heading error, response delay and stopping distance.
 3. **Complete a play.** Find, approach, shoot, reacquire and repeat from varied arrangements. Record attempts, useful shots/goals, elapsed time and interventions. Compare specialized shooting against this baseline before adding training complexity.
-4. **Defend and recover.** Intercept rolled balls with measured lateral reach; demonstrate get-up/resume and temporary perception loss. Recovery development begins earlier; this increment integrates it.
+4. **Defend and recover.** Intercept rolled balls with measured lateral reach; demonstrate fall stopping, supervised restart and temporary perception loss. Add physical get-up only if its bounded feasibility work supports that commitment.
 5. **Play against an opponent.** Use replay, simplified simulation and physical surrogates before robot two is available. Then commission its own profile/calibration and run real matches. Robot one's acceptance does not validate robot two.
 6. **Sustain the demo.** Repeat match-length trials with shots, defense, misses, goal restart and representative recovery. Separately exercise camera/command loss, Stop and restart. Set numerical thresholds before acceptance and retain failures.
 
@@ -157,6 +157,14 @@ real camera timing/coverage, target runtime acceptance and an actual overhead
 sample with calibrated geometry and clock mapping. The soccer-ball exception
 must be explicit and model-bound; a guard that always blocks the ball prevents
 approach, while a blanket obstacle bypass defeats person interruption.
+
+The shared-state audit also exposed opposing routes that overlap before ball
+contact. Distinct passing sides work in clear synthetic starts but fail against
+a held or missing opponent; one-sided priority holding also fails. Neither
+shortcut is selected. Before a shared-ball match, qualify opponent clearance
+across navigation, striking and return-home, including stopped and lost tracks,
+command lifetime and braking allowance. Keep route progress separate from
+collision prevention; stopping both robots indefinitely is not a match pass.
 
 Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
 

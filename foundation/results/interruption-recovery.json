@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T12:30:40.591679+00:00",
+  "updated_utc": "2026-11-17T13:08:53.955056+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,12 +29,15 @@
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
     "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
     "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
-    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-ready-source-kit-20261117T122628Z/summary.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-defense-source-kit-20261117T130408Z/summary.json",
     "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
     "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json",
     "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/summary-final.json",
-    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/resume-integration-20261117T122439Z/tests.json",
-    "native_start_target_build": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt"
+    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/tests.json",
+    "native_start_target_build": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt",
+    "defense_navigation": "artifacts/pupper-fc/2026-11-17/defense-navigation-boundary-correction/summary.json",
+    "defense_independent": "artifacts/pupper-fc/2026-11-17/defense-independent/final/verification.json",
+    "defense_ros": "artifacts/pupper-fc/2026-11-17/ros-defense-20261117T125012Z/summary.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -72,7 +75,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Completed corrected fullROSplay cycle bothdirections + lifecycle;1232tests+134subtests passed. Independentcorrectionverification andexactFable review archived. New37file sourcekit includes nativeStartsource/buildrecipe; no deployment. All owned jobs closed; root integrating checkpoint.",
+    "compute": "All owned ROS containers, child processes, tests, plots and three bounded Fable attempts exited. Fable produced no review this batch. The 385-file evidence archive and 39-file source kit are hash-verified. No active cloud job or pending archive.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -80,14 +83,7 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrates verified arena/one-cue resume/fullROSplay evidence and37file preparedsourcekit; activegoal, offlineonly. Nextvaluablegap is shared-ball two-robot liveness, plus targetacceptance whenavailable.",
-      "software_start": "Completed and committed in d4f6d92; Python regressions, independent correction repros and real ROS service integration passed. Pi release/physical acceptance pending.",
-      "overnight_navigation": "Completed correction verification: original clock-age and GUI-threshold repros now hold/zero. 72 tests plus58 subtests passed; idle, no file ownership.",
-      "overnight_harness": "Completed perceptiondiagnosis, PiABI/buildprep, exactFableadjudication andindependent3correctionchecks; alljobsclosed, idle.",
-      "overnight_compute": "Completed/frozen finalmirroredfullROSplay+lifecycle, independentlyreconstructedphysics traces; allcontainersclosed, idle.",
-      "body_guard": "Completed/frozen resume implementation and corrections; idle, no fileownership.",
-      "fable_plan_adversary": "Completed independent lateStop repro/correction verification;10focusedtests pass. ExactFable5.2 attempt240stimeout, no reviewresult; evidence retained. Idle.",
-      "bridge_adversary": "Completed exact correction verification for5guard/bridge issues; evidence retained. Idle, no ownership."
+      "project_lead": "Root integrated defense after a01c414: 1,264 tests + 134 subtests, independent 38-case review, mirrored ROS defense and a 39-file source kit. All delegates idle; next offline work is opponent clearance."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
   },
@@ -111,7 +107,7 @@
     "prepared_run": null,
     "prepared_state": "No prepared motion. Fresh readiness/preflight required for later session. Options itself activates walker; never duplicate activation.",
     "local_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
-    "candidate_state": "Prepared and target preflight passed; no motors started. Same stock policy/driver, hot-path logging removed; physical validation pending.",
+    "candidate_state": "Last floor evidence on the selected logfix controller: corrected three-second left/right commands at 0.15 were stable and stopped cleanly; forward 0.45 for two seconds traveled approximately 30 inches. That block used the sprint manifest. The guarded walk-only source candidate and native software Start update are not deployed or physically accepted.",
     "client_update": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "client_update_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
     "persistent_tool_session_id": null,
@@ -135,20 +131,21 @@
     "corrected_runs_verification": "62indexedfiles/785107222bytes; all hashes match. No pending archive from these3runs. Older unrelated closed-session backlog remains historical.",
     "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/perception-complete.tar.gz",
     "overnight_perception_verified": "804 files hash-verified; archive SHA256 bff1df29874ee2efc72144763066caf79b838327b22f707c16a78e9b01866268",
-    "final_ros_guard_supplement": "18 files verified; SHA25634b416d0f9068b1753981d0da5977d410bfffdad3e0f90698d587226760e7b8e; prior78-file archive remains unchanged."
+    "final_ros_guard_supplement": "18 files verified; SHA25634b416d0f9068b1753981d0da5977d410bfffdad3e0f90698d587226760e7b8e; prior78-file archive remains unchanged.",
+    "defense_evidence": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/archive-verification.json"
   },
   "next": [
     {
-      "id": "shared_match_liveness",
-      "action": "Boundedread-only audit/proposal for shared-ball two-robot offlineplay: solo ROScycles and domainisolation are verified, but not simultaneousopponents/collision/roleliveness. Prefer smallest existingSimulator/Executor extension that exposes deadlock; no broadnewframework or physicalclaim. Assign ownership beforeimplementation."
+      "id": "opponent_clearance",
+      "action": "Address reproduced pre-contact opponent path conflicts at shared-state Executor boundary. Both distinct passage alone and one-sided hold alone are disproved. Include held/missing peer, all phases, command lifetime/stopping allowance and a progress criterion. Preserve verified defense/soloROS baseline; assign one source owner and independent outcome review. No robot access tonight."
     },
     {
       "id": "camera_and_native_target_preparation",
-      "action": "Next authorized Pi boot/preparation: use37file kit, capture actualROS/Pythonunderlay; build onlyjoy_utils nativeStartpackage into freshprefix and verify ABI/typesupport/fakebackend before physicalreadiness. Assembleguardedstockwalk separately; preserve acceptedcontroller/driver/mux/policy. No overnightSSH/deployment/homing."
+      "action": "At the next authorized Pi preparation, use the 39-file source kit and capture the actual ROS/Python underlay. Build only joy_utils in a fresh prefix; verify ABI, type support and fake backend before physical readiness. Assemble guarded stock walk separately; preserve accepted controller, driver, mux and policy. No overnight SSH, deployment or homing."
     },
     {
       "id": "next_physical_acceptance",
-      "action": "Stationary fixedcamera recording at measured normalwalkingheight/pitch with exactframecapture/model/settings and measuredperson/actualpinkball ranges/offsets; separateholdout. Measurecaptureage+spacing. Then supportedcommand routing/StartStop, followed by boundedfloorheading/velocity/stopqualification andonepose-controlledplay when actualfieldadapterexists. No wrong-ball contactprobes."
+      "action": "Record the fixed camera at measured normal walking height/pitch, with exact capture/model/settings and measured person/actual pink-ball ranges and offsets; preserve a separate holdout. Measure capture age and spacing. Then qualify supported command routing and Start/Stop, followed by bounded floor heading/velocity/stopping and one pose-controlled play when a real field adapter exists. No wrong-ball contact probes."
     }
   ],
   "recorded_open_items": {

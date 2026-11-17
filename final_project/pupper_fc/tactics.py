@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import math
 
 from .model import Ball, Field, Observation, Pose
+from .controller import defensive_clearance
 
 
 @dataclass(frozen=True)
@@ -57,8 +58,8 @@ class Tactics:
             raise ValueError("robot_id must be nonempty")
         if (type(field.attack_sign) is not int or field.attack_sign not in (-1, 1)
                 or not _finite(field.length, field.width, field.goal_width,
-                               field.robot_radius, field.ball_radius)
-                or min(field.length, field.width, field.goal_width, field.robot_radius) <= 0
+                               field.robot_radius, field.ball_radius, field.bumper_offset)
+                or min(field.length, field.width, field.goal_width, field.robot_radius, field.bumper_offset) <= 0
                 or not 0 <= field.ball_radius < min(field.length, field.width) / 2
                 or field.goal_width > field.width):
             raise ValueError("field geometry must be finite and physically bounded")
@@ -126,7 +127,10 @@ class Tactics:
             self._changed_at = now
         if self.role == "offense":
             return TacticalDecision(self.role, "attack", None, reason)
-        return TacticalDecision(self.role, "defend", self._guard_pose(ball), reason)
+        target = self._guard_pose(ball)
+        if target is None:
+            return self._hold(reason + "; no ball-clear goalward guard pose fits inside the field and goal span")
+        return TacticalDecision(self.role, "defend", target, reason)
 
     def _guard_pose(self, ball):
         f, c = self.field, self.config
@@ -135,6 +139,15 @@ class Tactics:
         x = f.attack_sign * (-f.length / 2 + depth)
         lateral_limit = min(f.width / 2 - margin, max(0.0, f.goal_width / 2 - f.robot_radius))
         y = min(max(ball.y, -lateral_limit), lateral_limit)
+        clearance = defensive_clearance(f)
+        if math.hypot(ball.x - x, ball.y - y) < clearance:
+            # Preserve the nominal goal-mouth lane; only move goalward until
+            # the bumper-inclusive exclusion circle clears that lane.
+            goalward = math.sqrt(max(0.0, clearance ** 2 - (ball.y - y) ** 2))
+            x = ball.x - f.attack_sign * goalward
+            if (abs(x) > f.length / 2 - margin or abs(y) > lateral_limit
+                    or abs(y) > f.width / 2 - margin):
+                return None
         dx, dy = ball.x - x, ball.y - y
         yaw = math.atan2(dy, dx) if math.hypot(dx, dy) > 1e-9 else math.atan2(0.0, f.attack_sign)
         return Pose(x, y, yaw)

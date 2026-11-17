@@ -469,6 +469,7 @@ class Executor:
                 if action in ("move", "defend"):
                     kwargs["target_pose"] = target
                     kwargs["preserve_target_heading"] = action == "defend"
+                    kwargs["avoid_ball"] = action == "defend"
                 elif action == "shoot":
                     kwargs["shot_target"] = intent.target
                 elif action == "attack":

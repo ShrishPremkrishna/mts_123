@@ -73,14 +73,13 @@ def test_hold_does_not_restart_dwell_deadline():
 
 
 @pytest.mark.parametrize("sign", [1, -1])
-def test_ball_at_guard_target_keeps_finite_attack_heading(sign):
+def test_ball_at_unreachable_guard_target_holds_instead_of_occupying_ball(sign):
     field = Field(attack_sign=sign)
     config = TacticsConfig()
     x = sign * (-field.length / 2 + config.guard_depth)
-    target = Tactics(field, "one", config).tick(observe(x), 0).target
-    assert (target.x, target.y) == (x, 0)
-    assert math.cos(target.yaw) == pytest.approx(sign)
-    assert math.sin(target.yaw) == pytest.approx(0)
+    result = Tactics(field, "one", config).tick(observe(x), 0)
+    assert result.action == "hold" and result.target is None
+    assert "no ball-clear goalward guard pose" in result.reason
 
 
 @pytest.mark.parametrize("sign", [1, -1])
@@ -92,6 +91,9 @@ def test_guard_pose_stays_inside_field_and_goal_span_and_faces_ball(sign, y, dep
     ball_x = at_fraction(.1, field)
     result = Tactics(field, "one", config).tick(observe(ball_x, y), 0)
     target = result.target
+    if y == 0 and depth in (0, .35):
+        assert result.action == "hold" and target is None
+        return
     assert result.action == "defend"
     assert abs(target.x) <= field.length / 2 - field.robot_radius - config.boundary_clearance + 1e-9
     assert abs(target.y) <= field.width / 2 - field.robot_radius - config.boundary_clearance
@@ -132,7 +134,7 @@ def test_missing_stale_or_invalid_state_holds_without_target_and_preserves_role(
 
 def test_frozen_image_becomes_stale_and_recovery_uses_fresh_state():
     tactics = Tactics(Field(), "one")
-    frame = observe(-1.5)
+    frame = observe(-1.1)
     assert tactics.tick(frame, 0).role == "defense"
     assert tactics.tick(frame, .2).action == "defend"
     assert tactics.tick(frame, .36).action == "hold"

@@ -1,6 +1,6 @@
 {
   "schema": "pupper_overnight_execution_v1",
-  "recorded_utc": "2026-11-17T11:33:02.714217+00:00",
+  "recorded_utc": "2026-11-17T13:08:53.953728+00:00",
   "scope": "Offline engineering and recorded-video comparison. No robot motion, SSH deployment, hardware initialization or policy promotion.",
   "base_commit": "e91196e",
   "source_sha256": {
@@ -153,7 +153,7 @@
     "colab": "L4 stopped after approximately80s after upload review rejection. User later explicitly approved transfer; local fallback already worked. Final0 sessions/0CU/hour. Rounded balance326.94CU does not establish zero credit consumption; exact incremental dollar cost unreported.",
     "claude": "Existing subscription/account use; CLI list-price usage metadata is not a billing receipt."
   },
-  "remaining": "Pi assembly/import/preflight and physical acceptance; actual camera capture age/spacing and scene coverage; two-robot ROS-domain rehearsal and commissioning; Ryan producer/clock adapter; physical heading/braking/defense/shot tests; demo/video/presentation/code/blog deliverables. Current owners/next actions only in interruption-recovery.json.",
+  "remaining": "Pi-compatible assembly/import/preflight and physical acceptance; actual camera timing/coverage; shared-ball opponent-aware navigation and two-robot commissioning; Ryan producer/clock adapter; physical heading/braking/defense/shot tests; demo/video/presentation/code/blog deliverables. Independent ROS domains and solo ROS play cycles already verified with fixtures. Current owners/next actions only in interruption-recovery.json.",
   "core_commit": "d4f6d92",
   "ros_integration": {
     "receipt": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
@@ -381,5 +381,118 @@
       "NativeStart targetbuild and physicalStart/Stop acceptance pending."
     ],
     "processes": "All owned review/test/container/plot processes exited; no robot access or new cloud compute."
+  },
+  "defense_navigation": {
+    "base_commit": "a01c414",
+    "implemented": [
+      "Explicit defend-only ball avoidance; missing ball holds, ordinary move remains ball-independent.",
+      "Bumper-inclusive clearance and goalward occupied-target adjustment within existing field/goal span.",
+      "Segment-validated persistent route; heading-preserving close retreat; bounded in-field backoff alternatives.",
+      "Referee/Stop/lease priorities retained; unsupported geometry reports hold/blocked."
+    ],
+    "source_sha256": {
+      "final_project/pupper_fc/controller.py": "9caf197dd26b0a6e7d70a8644edaea7ccd37d8abd14fc10c10c08e6268d850b8",
+      "final_project/pupper_fc/tactics.py": "118c4866f93b796b6c8f6405082001251596fdaaaea5fc38495071f0ad86f1eb",
+      "final_project/pupper_fc/integration.py": "6ddbcf4f4a6cf4c47ab4995573d337953781fb598f877d49025db7d5d8cadbc5",
+      "final_project/behaviors/tools/ros_fc_executor_smoke.py": "93cb946c0b40263e9fdc53450504fbb9d140c51f35c595bc4c7d013d4d7fcb3b"
+    },
+    "before": {
+      "evidence": "artifacts/pupper-fc/2026-11-17/shared-match-role-audit-candidate/summary.json",
+      "selected_configuration": "All six mirrored old-defense cases touched/pushed ball toward own end; none scored an own goal within10s. Earlier own-goal evidence used non-selected faster defaults."
+    },
+    "authored_replay": {
+      "evidence": "artifacts/pupper-fc/2026-11-17/defense-navigation-boundary-correction/summary.json",
+      "reachable": 22,
+      "explicit_deep_holds": 6,
+      "ball_contacts": 0
+    },
+    "independent_review": {
+      "evidence": "artifacts/pupper-fc/2026-11-17/defense-independent/final/verification.json",
+      "total_cases": 38,
+      "reachable_contact_free": 28,
+      "arrival_range_s": [
+        0.75,
+        13.65
+      ],
+      "ordinary_controls_exactly_unchanged": 6,
+      "fixed_counterexamples": [
+        "Rotating front into ball during retreat",
+        "False blocked off-axis guard target",
+        "Sideline radial backoff blocked despite safe in-field departure"
+      ]
+    },
+    "ros": {
+      "evidence": "artifacts/pupper-fc/2026-11-17/ros-defense-20261117T125012Z/summary.json",
+      "reconstruction": "artifacts/pupper-fc/2026-11-17/ros-defense-20261117T125012Z/trace-reconstruction.json",
+      "two_mirrored_cases": true,
+      "scope": "Real bridge/mux/guard DDS; fake native services and synthetic camera/poses; one-body approximate motion, not hardware/opponent acceptance.",
+      "source_kit": "artifacts/pupper-fc/2026-11-17/fc-defense-source-kit-20261117T130408Z/summary.json"
+    },
+    "regression": {
+      "evidence": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/tests.json",
+      "passed": 1264,
+      "subtests": 134,
+      "warning": "Existing Starlette/httpx deprecation warning.",
+      "source_note": "Core frozen hashes match. Smoke fixture publisher QoS later corrected to native transient_local and both ROS defense cases rerun; full Python suite not needlessly repeated."
+    },
+    "fable_review": {
+      "path": "artifacts/pupper-fc/2026-11-17/defense-review-20261117T125212Z/adjudication.json",
+      "review_obtained": false,
+      "attempts": 3,
+      "timeouts_s": [
+        240,
+        150,
+        120
+      ],
+      "last_setting": "Exact requested claude-fable-5-2 with supported --effort low; no returned-model identity/output.",
+      "status": "All review processes exited; no external approval claimed. Root+independent review and outcome evidence support integration."
+    },
+    "limitations": [
+      "Physical defense and moving-ball interception unaccepted.",
+      "Robot(.6,0),ball(-1.2,0) exceeded15s on tested earlier candidate; no universal route/time guarantee.",
+      "Opponent clearance remains absent; all two-opponent strategies below are experiments, not shipped."
+    ],
+    "archive": {
+      "archive": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/defense-evidence.tar.gz",
+      "sha256": "06efeff7c02749f565d628ce6669bed5d831478a9a0d85453fcbf3797ef7e3ed",
+      "files_verified": 385,
+      "bytes": 5484728,
+      "verified_utc": "2026-11-17T13:08:17.417785+00:00",
+      "includes": "Both initial/finalROSinputs and completeoutputs; originalcounterexamples; authored+independentdefensetraces; opponentroutehypotheses; all3Fableattemptreceipts; fullPythonregression; traceplotandrendercode."
+    },
+    "source_kit": {
+      "schema": "pupper_guarded_source_kit_v1",
+      "created_utc": "2026-11-17T13:04:08.220404+00:00",
+      "archive": "artifacts/pupper-fc/2026-11-17/fc-defense-source-kit-20261117T130408Z/fc-ready-sources.tar.gz",
+      "archive_sha256": "d89ce4d02f658b1e3d0ed98a00a1797af9f27d0cc576a04908a7d0c0879aed1b",
+      "archive_bytes": 202873,
+      "verified_files": 39,
+      "source_index_sha256": "c6126108e26b15efcc68792aea37f25c0c3d4b9a86481c43137547f20daa4854",
+      "selected_source_count": 13,
+      "target_assembled": false,
+      "deployed": false,
+      "physical_acceptance": false,
+      "baseline_release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+      "baseline_manifest_sha256": "78b2c308422fcaae39160fd4f5205fb50fb2e8156bba5a9956284b6147b9a223",
+      "native_start_service_included": false,
+      "native_start_source_companion_included": true,
+      "camera_environment_included": false,
+      "field_calibration_included": false,
+      "same_host_normalized_ingress_only": true,
+      "supersedes": "artifacts/pupper-fc/2026-11-17/fc-ready-source-kit-20261117T122628Z/summary.json",
+      "defense_source_candidate": true
+    }
+  },
+  "opponent_routes": {
+    "evidence": "artifacts/pupper-fc/2026-11-17/opponent-route-probe/findings.json",
+    "trace_verification": "artifacts/pupper-fc/2026-11-17/opponent-route-probe/verification.json",
+    "cases": 34,
+    "implemented": false,
+    "findings": [
+      "Selected-limit original attackers overlap before ball contact at2.35\u20132.40s.",
+      "Distinct passage reaches firststrike contact in clear starts, but collides with a held or missing opponent.",
+      "One-sided priority hold delays collision; winner can drive into held peer."
+    ],
+    "next_boundary": "Executor sees both poses; evaluate opponent command admission for every phase, missing/held tracks, command lifetime and stopping allowance, then route liveness. No new contact model needed for pre-contact proof."
   }
 }
