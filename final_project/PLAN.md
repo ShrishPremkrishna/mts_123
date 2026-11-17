@@ -1,6 +1,6 @@
 # Pupper FC delivery plan
 
-Updated November 17, 2026. Confirmed outcomes guide this plan. Rules and implementation proposals below remain open to discussion. The November 17 owner steering below supersedes the immediate contact-first progression from November 16. Use this as project context when choosing work with the current user, not as an automatic task assignment. Current activity and robot access are in the [checkpoint](../foundation/results/interruption-recovery.json). This plan does not claim soccer implementation or hardware acceptance.
+Updated November 17, 2026. Confirmed outcomes guide this plan. Rules and implementation proposals below remain open to discussion. The November 17 owner steering below supersedes the immediate contact-first progression from November 16. Use this as project context when choosing work with the current user, not as an automatic task assignment. Current activity and robot access are in the [checkpoint](../foundation/results/interruption-recovery.json). Implemented software and simulated play do not establish hardware acceptance.
 
 ## Outcome and ownership
 
@@ -28,12 +28,13 @@ Checked against the [live fall-26 directions](https://cs123-stanford.readthedocs
 | December 3, 6:30 p.m., CoDA B90 | Five-minute presentation including live demo (30%); documented GitHub repository/install instructions | Open. Reserve rehearsal and two-robot access; retain a runnable, filmed fallback. |
 | December 9, 11:59 p.m. | Code/blog/other wrap-up (10%) | Open; exact linked wrap-up/rubric details still need verification. |
 
-No late days. The saved October 27 rubric assigns 25 points each to innovation,
-execution, presentation and overall impression (including collaboration and
-contribution to Pupper). The linked rubric still requires sign-in; its current
-revision was not verified on November 17. The public directions do not specify
-the wrap-up format beyond code/blog/etc. Do not invent observations, personal
-contributions or checkoffs.
+No late days. The [current linked rubric](https://docs.google.com/document/d/1JdIppC1S4bj4yeZbd9zm9Q1xBVgj7ydUSrw18KlayaI/edit)
+was read through the signed-in course account on November 17. It confirms 25
+points each for innovation, execution, presentation and overall impression.
+Reliable operation, a clear explanation, coherent teamwork and added Pupper
+capabilities all matter; software test counts alone do not satisfy them. The
+public directions still do not specify the wrap-up format beyond code/blog/etc.
+Do not invent observations, personal contributions or checkoffs.
 
 ## Execution agreement — November 16, 2026
 
@@ -47,7 +48,7 @@ Owner accepted the recommendations and progression during the takeover discussio
 - Recovery, if retained: demonstrate self-righting and fresh-play resumption from agreed representative postures, retaining failed attempts and duration. Set the success threshold after a bounded feasibility trial, before acceptance.
 - Delivery: reproducible startup, a tested fallback release, recorded evidence, narrated video, concise presentation, installation instructions and honest contributions/results write-up.
 
-Work advances by evidence: resolve the observed persistent-client idle freshness failure offline; connect a synchronized perception sample to gameplay and replay; measure the smallest physical envelope needed for a complete play; then extend defense and second-robot integration. Recovery feasibility can run independently after its scope is agreed. Start defense with goal-side ball tracking and bounded lateral positioning; add prediction only if measured shots expose a need. Ryan supplies field state and candidate actions/targets; our harness owns execution, interruption and low latency, while Tej develops foot kicking. An unavailable camera or robot routes work to recorded/synthetic inputs, interface integration, recovery simulation or deliverables rather than idle waiting.
+Work advances by evidence. The resident-client freshness defects and command-routing gaps now have offline fixes and rehearsals. Next, qualify the target build, measure the smallest physical motion/camera envelope needed for a complete play, and connect Ryan's actual synchronized perception sample. Defense and second-robot acceptance then build on that baseline. Recovery feasibility can proceed independently within its bounded scope. Start defense with goal-side ball tracking and bounded positioning; add prediction only if measured shots expose a need. Ryan supplies field state and candidate actions/targets; our harness owns execution, interruption and low latency, while Tej develops foot kicking. An unavailable camera or robot routes useful work to recorded inputs, concrete integration gaps, recovery feasibility or deliverables.
 
 Each experiment states its question, comparison, observable result and stopping limit before it runs. Prepare dependencies, builds and rehearsals before requesting physical time. Aim for less than a minute between prepared trials in one homed session; measure the interval and fix a recurring delay once. Stop a failing path after it no longer separates plausible causes. Keep one owner per file/robot; use bounded independent reviews for uncertain faults and verify the integrated checkout after edits freeze.
 
@@ -71,6 +72,16 @@ Manual ball replacement and one deliberate resume cue are accepted for the first
 If the feasibility study supports committing physical get-up, the required chain is: detect a fall, cancel the old action, acquire exclusive recovery control, physically self-right, verify stable standing and localization, then select a fresh play. Ordinary stand, controller reactivation or clearing a tilt latch does not satisfy it. Stop must interrupt recovery; reconnect must not replay old attacks. Distinguish a recoverable fall from operator Stop, stale sensors, low power and hardware faults.
 
 The owner accepted a bounded feasibility investigation before committing physical get-up to the demo. Assign a physical-motion owner and compare a small set of representative postures; do not promise broad coverage from an upright restart. Catalogue expected postures on the arena surface with the bumper, including both sides and any reachable back/belly configurations. Compare suitable motion sequences or learned policies in simulation, then supervised physical trials. Record successes, duration, retries and failure postures. Unsolved expected falls keep the recovery deliverable open; do not redefine them away after failure. Entrapment or damaged hardware may require exceptional assistance. Unbounded retries do not establish recovery.
+
+The November 17 source inventory found no side/back-to-standing reference among
+17 current trick exports. The existing `stand_up` API waits for an already-upright
+body; ordinary native gait also damps before inference at side/back tilt. Neither
+is physical get-up. Existing motion-design and contact/clamp replay tools can
+support a bounded side-roll feasibility experiment, but that experiment has not
+run. It would establish a simulation result only; recovery authority and Stop
+handling need their own design before any native use. Do not weaken the normal
+fall gate to make a recovery demonstration work. The current report links the
+inventory, proposed six cases and stopping limit.
 
 ## Minimum integration agreement
 
@@ -121,7 +132,7 @@ The owner requests native object detection, explicit offense/defense roles, coor
 
 Independent checks included source audits and a context-blind Claude Code review using exact model `claude-fable-5-2`. They produced fixes for cached-frame strike authorization, strike boundary allowance, camera-gap resumption, capture timestamp propagation, timestamp poisoning and mutable detector projection. The controller, role selector and camera gate have offline evidence; they are not live robot acceptance. See the [November 17 result](../foundation/results/navigation-obstacles-20261117.json).
 
-Independent next outcomes: replay real front-camera footage through stop/hold decisions; expose missed hazards and invalid-camera cases; connect the gate to the existing body-command path; add measured turn-to-heading and qualify motion under camera load. Role/guard logic and delayed-state tests advance offline. Physical field-coordinate navigation and reactive goalie acceptance wait for an independent live pose source. A direct raw-video review found the intended tall obstacle was largely missed, while a provisional pixel threshold also missed much of the person approach. A threshold fitted to this one clip is only a candidate; person recognition must not conceal failure to recognize the obstacle behind/in front of them.
+Offline outcomes now include raw-video inspection, stop/hold replay, camera gating in the body-command path, and an IMU-turn client. The next independent evidence is a fixed-height camera holdout and physical motion under camera load. Field-coordinate navigation and reactive goalie acceptance need a live pose source. The raw-video review found the intended tall obstacle was largely missed, while a provisional pixel threshold also missed much of the person approach. A threshold fitted to this one clip is only a candidate; person recognition must not conceal failure to recognize the obstacle behind/in front of them.
 
 Two bounded local policy comparisons are complete, including 30-second directional/combined segments and production heading hold. They favor keeping stock for braking, reveal lateral drift, and expose a large post-turn yaw transient in Markus's candidate. These are nominal CPU simulation results, not deployment evidence. No GPU allocation or verified training-resume path is established; new training needs a demonstrated deficit, verified evaluation/resume and the existing spending agreement. Use useful bounded experiments rather than an open-ended research loop.
 
@@ -138,8 +149,8 @@ The owner authorized offline work for the rest of the night and up to **$50 tota
 7. **Demo readiness:** expose role, action, target, input age and hold reason in existing replay/operator tools; prepare Ryan's minimal adapter example and a scripted mock-input play. Keep actual hardware footage separate from simulated evidence. Update only authoritative setup/state documents and remove demonstrated stale instructions.
 
 The resident gameplay executor and ROS publisher now run per robot, sharing a
-local monotonic clock and publishing only that robot's commands through the
-selected mux/guard. Isolated ROS checks passed expiry, hold recovery and Stop
+local monotonic clock and publishing only that robot's commands through its
+selected path: legacy mux/guard or direct deadline guard/native. Isolated ROS checks passed expiry, hold recovery and Stop
 ordering; concurrent domains also separated lease loss, Stop and guard death
 while the other robot continued. Native feedback and field inputs were fixtures,
 so these results do not establish physical play. Two additional mirrored

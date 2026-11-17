@@ -347,8 +347,11 @@ def test_cli_strict_selection_keeps_ros_arguments(monkeypatch):
     ros.try_shutdown = lambda: None
     executors = ModuleType("rclpy.executors")
     executors.ExternalShutdownException = type("ExternalShutdownException", (Exception,), {})
+    implementation = ModuleType("rclpy.impl.implementation_singleton")
+    implementation.rclpy_implementation = SimpleNamespace(RCLError=RuntimeError)
     monkeypatch.setitem(sys.modules, "rclpy", ros)
     monkeypatch.setitem(sys.modules, "rclpy.executors", executors)
+    monkeypatch.setitem(sys.modules, "rclpy.impl.implementation_singleton", implementation)
 
     def factory(**kwargs):
         calls["factory"] = kwargs
@@ -359,3 +362,134 @@ def test_cli_strict_selection_keeps_ros_arguments(monkeypatch):
                        "--ros-args", "-r", "__ns:=/strict"])
     assert calls["factory"] == dict(arena_ball_contact=True, command_contract=CONTRACT)
     assert calls["init"] == dict(args=["--ros-args", "-r", "__ns:=/strict"])
+
+
+@pytest.fixture(params=[guard_module.LEGACY_CONTRACT, CONTRACT])
+def shutdown_main(monkeypatch, request):
+    """Exercise the CLI exception boundary for either unchanged command path."""
+    class RCLError(RuntimeError):
+        pass
+
+    class ExternalShutdownException(Exception):
+        pass
+
+    state = SimpleNamespace(live=True, spin_error=None, spin_shutdown=False,
+                            publish_error=None, publish_shutdown=False, calls=[],
+                            RCLError=RCLError, ExternalShutdownException=ExternalShutdownException)
+
+    def spin(node):
+        state.calls.append("spin")
+        if state.spin_shutdown:
+            state.live = False
+        if state.spin_error is not None:
+            raise state.spin_error
+
+    def publish_zero():
+        state.calls.append("publish_zero")
+        if state.publish_shutdown:
+            state.live = False
+        if state.publish_error is not None:
+            raise state.publish_error
+
+    for name, attrs in {
+        "rclpy": {"init": lambda **kw: None, "spin": spin, "ok": lambda: state.live,
+                  "try_shutdown": lambda: state.calls.append("shutdown")},
+        "rclpy.executors": {"ExternalShutdownException": ExternalShutdownException},
+        "rclpy.impl.implementation_singleton": {
+            "rclpy_implementation": SimpleNamespace(RCLError=RCLError)},
+    }.items():
+        module = ModuleType(name)
+        vars(module).update(attrs)
+        monkeypatch.setitem(sys.modules, name, module)
+    node = SimpleNamespace(publish_zero=publish_zero,
+                           destroy_node=lambda: state.calls.append("destroy"))
+    monkeypatch.setattr(guard_module, "create_ros_node", lambda **kw: node)
+    state.run = lambda: guard_module.main(["--command-contract", request.param])
+    return state
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_live_normal_shutdown_attempts_final_zero(shutdown_main, interrupted):
+    seam = shutdown_main
+    if interrupted:
+        seam.spin_error = KeyboardInterrupt()
+    seam.run()
+    assert seam.calls == ["spin", "publish_zero", "destroy", "shutdown"]
+
+
+def test_external_shutdown_skips_final_publication(shutdown_main):
+    seam = shutdown_main
+    seam.spin_shutdown = True
+    seam.spin_error = seam.ExternalShutdownException()
+    seam.run()
+    assert seam.calls == ["spin", "destroy", "shutdown"]
+
+
+def test_context_shutdown_during_callback_publication_exits_cleanly(shutdown_main):
+    seam = shutdown_main
+    seam.spin_shutdown = True
+    seam.spin_error = seam.RCLError("publisher's context is invalid")
+    seam.run()
+    assert seam.calls == ["spin", "destroy", "shutdown"]
+
+
+def test_context_shutdown_between_cleanup_check_and_publication_exits_cleanly(shutdown_main):
+    seam = shutdown_main
+    seam.publish_shutdown = True
+    seam.publish_error = seam.RCLError("publisher's context is invalid")
+    seam.run()
+    # The attempt failed; the test does not treat it as a delivered zero.
+    assert seam.calls == ["spin", "publish_zero", "destroy", "shutdown"]
+
+
+def test_live_callback_rcl_error_propagates(shutdown_main):
+    seam = shutdown_main
+    seam.spin_error = seam.RCLError("unexpected live publication failure")
+    with pytest.raises(seam.RCLError) as caught:
+        seam.run()
+    assert caught.value is seam.spin_error
+    assert seam.calls == ["spin", "publish_zero", "destroy", "shutdown"]
+
+
+@pytest.mark.parametrize("shutdown", [False, True])
+def test_unrelated_callback_error_always_propagates(shutdown_main, shutdown):
+    seam = shutdown_main
+    seam.spin_shutdown = shutdown
+    seam.spin_error = ValueError("unexpected callback failure")
+    with pytest.raises(ValueError) as caught:
+        seam.run()
+    assert caught.value is seam.spin_error
+    assert seam.calls[-2:] == ["destroy", "shutdown"]
+
+
+def test_live_cleanup_rcl_error_propagates_after_resource_cleanup(shutdown_main):
+    seam = shutdown_main
+    seam.publish_error = seam.RCLError("unexpected live cleanup failure")
+    with pytest.raises(seam.RCLError) as caught:
+        seam.run()
+    assert caught.value is seam.publish_error
+    assert seam.calls == ["spin", "publish_zero", "destroy", "shutdown"]
+
+
+def test_unrelated_cleanup_error_propagates_even_after_context_shutdown(shutdown_main):
+    seam = shutdown_main
+    seam.publish_shutdown = True
+    seam.publish_error = ValueError("unexpected cleanup failure")
+    with pytest.raises(ValueError) as caught:
+        seam.run()
+    assert caught.value is seam.publish_error
+    assert seam.calls[-2:] == ["destroy", "shutdown"]
+
+
+@pytest.mark.parametrize("shutdown", [False, True])
+def test_original_live_error_survives_second_cleanup_error(shutdown_main, shutdown):
+    seam = shutdown_main
+    seam.spin_error = seam.RCLError("original live callback failure")
+    seam.publish_shutdown = shutdown
+    seam.publish_error = seam.RCLError("second cleanup failure")
+    with pytest.raises(seam.RCLError) as caught:
+        seam.run()
+    assert caught.value is seam.spin_error
+    if not shutdown:
+        assert caught.value.__cause__ is seam.publish_error
+    assert seam.calls[-2:] == ["destroy", "shutdown"]

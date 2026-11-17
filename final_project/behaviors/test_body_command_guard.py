@@ -661,7 +661,10 @@ class AdapterTests(unittest.TestCase):
             ros.init, ros.spin, ros.ok, ros.try_shutdown = (unittest.mock.Mock() for _ in range(4))
             exceptions = types.ModuleType("rclpy.executors")
             exceptions.ExternalShutdownException = type("ExternalShutdownException", (Exception,), {})
-            with patch.dict(sys.modules, {"rclpy.executors": exceptions}):
+            implementation = types.ModuleType("rclpy.impl.implementation_singleton")
+            implementation.rclpy_implementation = types.SimpleNamespace(RCLError=RuntimeError)
+            with patch.dict(sys.modules, {"rclpy.executors": exceptions,
+                                         "rclpy.impl.implementation_singleton": implementation}):
                 main(["--arena-ball-contact", "--ros-args", "-r", "__ns:=/candidate"])
             factory.assert_called_once_with(arena_ball_contact=True)
             ros.init.assert_called_once_with(args=["--ros-args", "-r", "__ns:=/candidate"])

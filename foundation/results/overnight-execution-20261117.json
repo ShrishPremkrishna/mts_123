@@ -812,5 +812,57 @@
     "archive_sha256": "1888c4bbebdedda94bfb354559907a632cafb44f89231332df2f42d084a50c3d",
     "archive_files": 840,
     "all_agents_completed": true
+  },
+  "guard_shutdown_followup": {
+    "base_commit": "99da63e",
+    "change": "Only guard main exception/cleanup boundary changes: tolerate exact RCL error after inactive context, preserve live errors through cleanup, always attempt resource closure. Admission and command policies unchanged.",
+    "source_sha256": "f7f5665cc7747cf4967b919795a2dd81be3e2d1aa11cb4a12d12ae3dc6b7258b",
+    "author_validation": "91 focused tests +86 subtests passed.",
+    "independent_actual_ROS": "artifacts/pupper-fc/2026-11-17/guard-shutdown-ros/summary.json",
+    "independent_summary_sha256": "303d2e1abf60d1fc29981c3fa16e37f87412fff896613b55bccbcef56c0e6390",
+    "cases": "Old exact signal race reproduced exit1. Corrected deterministic signal race, plain production SIGTERM and ordinary context-live return exit0. Injected exact live RCLError remains exit1 and primary even when actual SIGTERM breaks cleanup.",
+    "combined_validation": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/tests.json",
+    "passed": 1610,
+    "subtests_passed": 134,
+    "pytest_seconds": 5.02,
+    "source_hashes_unchanged": true,
+    "limits": "Clean shutdown is not final zero delivery, physical stopping or target compatibility. Actual ROS exercised strict mode; focused tests cover both modes. Prior native/gateway command evidence retains its own frozen source scope.",
+    "all_containers_removed": true,
+    "all_experimental_processes_exited": true,
+    "hardware_access": false,
+    "source_kit": {
+      "summary": "artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json",
+      "summary_sha256": "eaeb3f62ab8102430bbf8225fdd5e3402e3f88e80372f7e470fc0f4de54d102c",
+      "archive_sha256": "f4bb4be123033bac0314abb31bdf23db5c4ca92b89c052c2334dfed3e99cfa61",
+      "files": 53,
+      "repository_sources": 43,
+      "runtime_roles": 15,
+      "extracted_affected_tests": 91,
+      "extracted_subtests": 86,
+      "unchanged_repository_sources": 40,
+      "native_companions_and_build_receipts_preserved": true,
+      "target_assembled": false,
+      "deployed": false
+    },
+    "all_agents_completed": true,
+    "archive_verification": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json",
+    "archive_sha256": "2038fd8567926f3129c23e0ea76b861e9e04f729a39c0cf0d9a9d9dab48f6f5b",
+    "archive_files": 423
+  },
+  "recovery_feasibility_inventory": {
+    "path": "artifacts/pupper-fc/2026-11-17/recovery-feasibility-inventory/inventory.json",
+    "sha256": "09b9680e50d691b0229cd7dcbda0b9bf52ed73ce234bc509ac0ed5b77aa30cfb",
+    "inspected_trick_exports": 17,
+    "source_hashes_verified": 14,
+    "finding": "No identified side/back-to-stand reference in inspected current assets. Existing API stand_up needs already-upright IMU; native tilt gate damps before gait inference from side/back.",
+    "meaning": "Reference coverage and source inventory only; neither proof of physical infeasibility nor a completed recovery experiment.",
+    "reusable": "Existing motion design, actual physics replay, ground hulls and controller/driver clamps; ordinary low-pose/stand segments.",
+    "bounded_proposal": "One side-to-belly reference and mirror plus compatible stand segment; 6 cases including controls, at most one revision/12 runs/2h, unchanged limits/gains and no resets. Not run. Back remains unresolved.",
+    "decision": "No new training, production recovery integration or normal fall-gate weakening. Keep self-righting open; physical gameplay baseline and camera qualification have higher immediate value."
+  },
+  "last_integrated_utc": "2026-11-17T16:07:54.834663+00:00",
+  "course_deliverable_verification": {
+    "path": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
+    "result": "Current linked rubric recovered through signed-in browser; four25-point categories confirmed. Public deadlines unchanged. Exact wrap-up format still unspecified."
   }
 }

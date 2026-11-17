@@ -588,6 +588,7 @@ def main(argv=None):
     options, ros_args = parser.parse_known_args(argv)
     import rclpy
     from rclpy.executors import ExternalShutdownException
+    from rclpy.impl.implementation_singleton import rclpy_implementation
 
     rclpy.init(args=ros_args)
     selection = {"arena_ball_contact": options.arena_ball_contact}
@@ -598,11 +599,32 @@ def main(argv=None):
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
-    finally:
+    except rclpy_implementation.RCLError:
+        # SIGTERM can invalidate the context during a callback's publication.
+        # An RCL failure while the context is live remains an application error.
         if rclpy.ok():
-            node.publish_zero()
-        node.destroy_node()
-        rclpy.try_shutdown()
+            raise
+    finally:
+        primary_error = sys.exc_info()[1]
+        try:
+            try:
+                if rclpy.ok():
+                    node.publish_zero()
+            except rclpy_implementation.RCLError:
+                # The context may shut down after the check above. No delivery
+                # is claimed when this final publication cannot complete.
+                if rclpy.ok():
+                    raise
+            finally:
+                try:
+                    node.destroy_node()
+                finally:
+                    rclpy.try_shutdown()
+        except BaseException as cleanup_error:
+            if primary_error is not None:
+                # Keep the original failure visible if cleanup also fails.
+                raise primary_error from cleanup_error
+            raise
 
 
 if __name__ == "__main__":
