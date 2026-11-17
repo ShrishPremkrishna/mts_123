@@ -1,6 +1,6 @@
 {
   "schema": "pupper_overnight_execution_v1",
-  "recorded_utc": "2026-11-17T13:08:53.953728+00:00",
+  "recorded_utc": "2026-11-17T13:53:06.944268+00:00",
   "scope": "Offline engineering and recorded-video comparison. No robot motion, SSH deployment, hardware initialization or policy promotion.",
   "base_commit": "e91196e",
   "source_sha256": {
@@ -153,7 +153,7 @@
     "colab": "L4 stopped after approximately80s after upload review rejection. User later explicitly approved transfer; local fallback already worked. Final0 sessions/0CU/hour. Rounded balance326.94CU does not establish zero credit consumption; exact incremental dollar cost unreported.",
     "claude": "Existing subscription/account use; CLI list-price usage metadata is not a billing receipt."
   },
-  "remaining": "Pi-compatible assembly/import/preflight and physical acceptance; actual camera timing/coverage; shared-ball opponent-aware navigation and two-robot commissioning; Ryan producer/clock adapter; physical heading/braking/defense/shot tests; demo/video/presentation/code/blog deliverables. Independent ROS domains and solo ROS play cycles already verified with fixtures. Current owners/next actions only in interruption-recovery.json.",
+  "remaining": "Pi-compatible assembly/import/preflight and physical acceptance; original-source command expiry through actuation; actual camera timing/coverage; shared-ball opponent-aware navigation and two-robot commissioning; Ryan producer/clock adapter; physical heading/braking/defense/shot tests; demo/video/presentation/code/blog deliverables. Independent ROS domains, participant freshness and solo ROS play cycles verified with fixtures. Current owners/next actions only in interruption-recovery.json.",
   "core_commit": "d4f6d92",
   "ros_integration": {
     "receipt": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
@@ -494,5 +494,83 @@
       "One-sided priority hold delays collision; winner can drive into held peer."
     ],
     "next_boundary": "Executor sees both poses; evaluate opponent command admission for every phase, missing/held tracks, command lifetime and stopping allowance, then route liveness. No new contact model needed for pre-contact proof."
+  },
+  "participant_freshness": {
+    "base_commit": "9a1cfb6",
+    "implemented": [
+      "Original per-robot captured_at with atomic monotone identity validation. New envelopes cannot refresh cached poses or alignment evidence.",
+      "Explicit required participants hold on missing/stale tracks; final-publication evidence deadline. Holds preserve role, referee and fall-recovery reporting without renewing intent.",
+      "Post-hold resume and new-frame silent-gap checks use oldest required original capture. Default synchronous solo contract retained."
+    ],
+    "source_sha256": {
+      "final_project/pupper_fc/integration.py": "9b3d44fe27c0562d5769ec79a7ab5ecd8fdd59b77f693d6350baa238db1906f0",
+      "final_project/behaviors/fc_executor_bridge.py": "7ac07d0eb219bb30ba7bd4d2a1ff255ec978ed9db897832906b199981d0816cd",
+      "final_project/pupper_fc/tests/test_participant_freshness.py": "778520757acd8958eecb17b19653ef249e694a566750dfae54a5494ded937631",
+      "final_project/behaviors/tools/ros_fc_executor_smoke.py": "b9eed15b5e9f2832021b48e4c8effd7b9e5127b707ae3109b68f1777642e63eb"
+    },
+    "independent_review": "artifacts/pupper-fc/2026-11-17/track-freshness-review/review-summary.json",
+    "corrected_review_findings": [
+      "Reject per-track capture newer than enclosing frame; never substitute envelope time into cached-pose dwell.",
+      "Preserve own fall-recovery reporting in participant hold."
+    ],
+    "independent_checks": 13,
+    "correction_cases": 4,
+    "combined_validation": "artifacts/pupper-fc/2026-11-17/participant-integration-20261117T133702Z/tests.json",
+    "combined_summary": "1327 passed,134 subtests in4.12s; one existing Starlette/httpx warning. Tested source unchanged.",
+    "ros": "artifacts/pupper-fc/2026-11-17/ros-participant-20261117T133631Z/summary.json",
+    "ros_summary": "Four realROS cases /21groupchecks pass. Frozen own/peer capture holds in both IDs; missing peer/recovery; full solo goal-return-onecue-nextstrike with required tracks; default lifecycle retained.",
+    "limit": "Offline freshness contract only. No geometric avoidance, Ryan wire contract, target deployment or physical acceptance.",
+    "ros_final_zero_delay_ms": {
+      "pupper-1_peer": 36.818709,
+      "pupper-1_own": 32.410458,
+      "pupper-2_peer": 32.229501,
+      "pupper-2_own": 30.433626
+    },
+    "trace_reconstruction": "2330 final DDS receipts reproduce all527state snapshots plus initial/manualreset; maxnumericerror1.4036e-15. One natural goal,45sustainedzeroreceipts and exactlyone deliberate resume before nextstrike.",
+    "source_kit": "artifacts/pupper-fc/2026-11-17/fc-participant-source-kit-20261117T134935Z/summary.json",
+    "source_kit_files": 45,
+    "source_kit_sha256": "c0af55bfa1572403b09e2c8e5e81d9e1087736d3beb7e6b66f2f7ce0d198d9ba",
+    "archive": "artifacts/pupper-fc/2026-11-17/participant-integration-20261117T133702Z/participant-evidence.tar.gz",
+    "archive_sha256": "ce2c8631ca69bca0aa6e4be7ca97ef43885dd3a61056e49821ae52dc0258611b",
+    "archive_files": 290,
+    "all_test_processes_exited": true
+  },
+  "opponent_clearance_candidate": {
+    "selected": false,
+    "evidence": "artifacts/pupper-fc/2026-11-17/opponent-geometry/verification.json",
+    "traces": 38,
+    "result": "Guard prevents original overlap; guard plus distinct pass and peer-aware existing waypoint choice reaches first strike in six original cases. Held-peer250ms-survival cases retain liveness failures near.590m clearance. Assumed250ms original command horizon disproved by real-chain experiment.",
+    "fable_review": "artifacts/pupper-fc/2026-11-17/opponent-envelope-fable/adjudication.json",
+    "next": "Implement original-expiry enforcement, then re-evaluate geometry and yaw/held-peer liveness against actual command lifetime and physical braking evidence."
+  },
+  "command_survival": {
+    "evidence": "artifacts/pupper-fc/2026-11-17/command-survival/findings.json",
+    "cases": 4,
+    "actual_chain": "SourceTwist -> actual selected150ms mux -> production guard -> actual native controller callbacks/update on memory joints with synthetic gait policy.",
+    "native_zero_ms": {
+      "source_silence": 184.234,
+      "mux_death": 169.986,
+      "guard_death": 250.286,
+      "cascade_from_final_source": 491.331
+    },
+    "conclusion": "Native250ms latest-receipt watchdog works, but cached relay publication refreshes age; original-source250ms assumption is false.",
+    "limit": "One trial per injection, software input zero only. No worst-case transport/scheduling or physical braking bound. Archived exact source/library identity and actual callback traces.",
+    "archive_sha256": "0b89a3792751c476ebf940d7b78b6a3401e680be59140cb10ec6936e64f76cda",
+    "files": 55,
+    "all_processes_exited": true
+  },
+  "fable_environment": {
+    "diagnostic": "artifacts/pupper-fc/2026-11-17/fable-latency/summary.json",
+    "completed_review": "artifacts/pupper-fc/2026-11-17/opponent-envelope-fable/adjudication.json",
+    "exact_model": "claude-fable-5-2",
+    "cli_version": "2.1.308",
+    "improvement": "Safe-mode retains sign-in, disables hooks, and reduces startup/context overhead. Bounded streaming records distinguish initialization, response and completion. Do not use bare mode for this sign-in path.",
+    "measured_ack_startup_s": [
+      1.502,
+      0.448
+    ],
+    "focused_review_s": 95.559,
+    "review_list_price_equivalent_usd": 0.37044,
+    "limit": "Tiny probes do not explain earlier120/150/240s review timeouts. List-price equivalent is not additional billing; no new paid cloud job."
   }
 }

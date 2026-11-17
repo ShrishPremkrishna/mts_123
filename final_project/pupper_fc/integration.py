@@ -9,7 +9,14 @@ the existing metric field frame. Goal points are FIXED calibrated field geometry
 not per-frame estimates: keep their values identical across frames. Any change,
 even small measurement jitter, deliberately replaces the attack target and
 cancels its current alignment/strike. This slice does not smooth goal geometry.
-Each frame supplies synchronous robot/ball state; absent tracks stay absent.
+By default each frame supplies synchronous robot/ball state; absent tracks stay
+absent. Optional per-robot ``captured_at`` preserves an older track's source age.
+Configured ``required_participants`` require that stamp on every present member
+and hold all actions when a required pose is absent or stale. This is a freshness
+contract, not collision avoidance. A newer envelope cannot refresh an old track.
+Track captures cannot be newer than their enclosing frame or receipt time;
+observations retain the original track capture. Goal/fallen flags belong to the
+newer shared frame and may change while its pose sample is repeated unchanged.
 The default dimensions/limits are sandbox assumptions, not hardware approval.
 
 Example input (one JSON object per line; times share the explicit replay clock):
@@ -134,9 +141,16 @@ class Executor:
     receipt; a future robot adapter must enforce expiry again before publishing.
     """
 
-    def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None):
+    def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None,
+                 required_participants=()):
         fields = fields or {"pupper-1": Field(), "pupper-2": Field(attack_sign=-1)}
         self.controllers = {token(r, "robot_id"): Controller(f, limits) for r, f in fields.items()}
+        if not isinstance(required_participants, (list, tuple)):
+            raise ValueError("required_participants must be a list or tuple of distinct configured robot IDs")
+        participants = tuple(token(r, "required participant") for r in required_participants)
+        if len(set(participants)) != len(participants) or set(participants) - set(self.controllers):
+            raise ValueError("required_participants must contain distinct configured robot IDs")
+        self.required_participants = participants
         # None preserves the camera-free sandbox. A live front-camera adapter
         # must supply a calibrated config; configured gates start closed.
         self.obstacle_config = obstacle_config
@@ -154,6 +168,8 @@ class Executor:
         self.frame = None
         self.frame_seq = -1
         self.capture_highwater = -math.inf
+        self.track_capture_highwater = {r: -math.inf for r in self.controllers}
+        self.track_identity = {r: None for r in self.controllers}
         self.intents = {r: None for r in self.controllers}
         self.intent_seq = {r: -1 for r in self.controllers}
         self.resume_frame_seq = {r: -1 for r in self.controllers}
@@ -229,10 +245,45 @@ class Executor:
         intent = self.intents[robot_id]
         if intent is not None and intent.identity[0] in self.external_retired_ids[robot_id]:
             return "interrupted shoot requires a new intent_id"
-        if self.frame is None or self.frame[0] <= watermark:
+        capture = self._evidence_capture(robot_id)
+        if capture is None or capture <= watermark:
             return "new field capture required after external hold release"
         if intent is None or intent.issued_at <= watermark:
             return "freshly issued intent required after external hold release"
+        return None
+
+    def _evidence_capture(self, robot_id):
+        if self.frame is None:
+            return None
+        stamp, observations, _ = self.frame
+        captures = [stamp]
+        for participant in (robot_id, *self.required_participants):
+            observation = observations[participant]
+            if observation.robot is None:
+                return None
+            captures.append(observation.captured_at)
+        return min(captures)
+
+    def frame_evidence_deadline(self, robot_id):
+        """Read-only expiry of the own pose and every required participant pose.
+
+        None means a required pose or the shared frame is absent. Adapters must
+        recheck this immediately before publishing; it never renews authority.
+        """
+        if robot_id not in self.controllers:
+            raise ValueError("unknown robot_id")
+        capture = self._evidence_capture(robot_id)
+        return None if capture is None else capture + MAX_OBSERVATION_AGE
+
+    def _participant_problem(self, now):
+        if self.frame is None:
+            return "no required participant observations" if self.required_participants else None
+        for participant in self.required_participants:
+            observation = self.frame[1][participant]
+            if observation.robot is None:
+                return f"required participant {participant} pose is missing"
+            if not 0 <= now - observation.captured_at < MAX_OBSERVATION_AGE:
+                return f"required participant {participant} capture is stale"
         return None
 
     def _cancel_intent(self, robot_id):
@@ -256,8 +307,11 @@ class Executor:
             raise
         if seq <= self.frame_seq:
             raise ValueError("duplicate/reordered frame")
-        if self.frame is None or now - self.frame[0] >= MAX_OBSERVATION_AGE:
-            for controller in self.controllers.values():
+        # Observe every track's expiry before a new envelope can hide a silent
+        # scheduler gap and resume old alignment/strike state.
+        for robot_id, controller in self.controllers.items():
+            deadline = self.frame_evidence_deadline(robot_id)
+            if deadline is None or now >= deadline:
                 controller.cancel()
         self.frame_seq = seq
         self.frame = None  # a new invalid observation cannot leave old motion alive
@@ -277,18 +331,38 @@ class Executor:
             raise ValueError("goals must map left/right to field points or null")
         goals = {key: point(value) for key, value in goals.items() if value is not None}
         observations = {}
+        capture_updates, identity_updates = {}, {}
         for robot_id in self.controllers:
             row = robots.get(robot_id)
             pose, fallen, goal = None, False, 0
+            track_stamp = stamp
             if row is not None:
                 pose = point(row, heading=True)
                 fallen, goal = row.get("fallen", False), row.get("goal", 0)
                 if type(fallen) is not bool or type(goal) is not int or goal not in (-1, 0, 1):
                     raise ValueError("fallen/goal must be boolean and integer -1/0/+1")
-            observations[robot_id] = Observation(stamp, pose, ball, robot_id, fallen, goal)
+                if robot_id in self.required_participants and "captured_at" not in row:
+                    raise ValueError(f"required participant {robot_id} requires captured_at")
+                track_stamp = number(row.get("captured_at", stamp), f"{robot_id}.captured_at")
+                if track_stamp > now:
+                    raise ValueError(f"{robot_id} capture is future")
+                if track_stamp > stamp:
+                    raise ValueError(f"{robot_id} capture is newer than its enclosing frame")
+                identity = pose
+                previous_stamp = self.track_capture_highwater[robot_id]
+                if track_stamp < previous_stamp:
+                    raise ValueError(f"{robot_id} capture moved backwards")
+                if track_stamp == previous_stamp and identity != self.track_identity[robot_id]:
+                    raise ValueError(f"{robot_id} pose changed at the same capture")
+                capture_updates[robot_id], identity_updates[robot_id] = track_stamp, identity
+            observations[robot_id] = Observation(track_stamp, pose, ball, robot_id, fallen, goal)
             problem = self.controllers[robot_id].observation_problem(observations[robot_id])
             if problem:
                 raise ValueError(problem)
+        # Invalid later rows cannot partially advance track identities or latch
+        # a referee pulse from an earlier row in the rejected packet.
+        self.track_capture_highwater.update(capture_updates)
+        self.track_identity.update(identity_updates)
         self.frame = (stamp, observations, goals)
         # The entire shared packet is valid before any referee state changes.
         # A pulse must survive absent authority, without issuing motion or
@@ -407,12 +481,15 @@ class Executor:
         intent = self.intents[robot_id]
         if intent is None or now >= intent.valid_until:
             raise ValueError("resume requires a current unexpired intent")
+        if problem := self._participant_problem(now):
+            raise ValueError("resume refused: " + problem)
         gate = self.obstacle_gates.get(robot_id)
         # Gate state is scalars plus immutable config/decision dataclasses. Its
         # clock/expiry evaluation must not mutate the live gate during a query.
         if gate is not None and not copy(gate).evaluate(now).permitted:
             raise ValueError("resume requires a clear front-camera gate")
-        if stamp < self.obstacle_resume_after[robot_id]:
+        capture = self._evidence_capture(robot_id)
+        if capture is None or capture < self.obstacle_resume_after[robot_id]:
             raise ValueError("resume requires a new field observation after obstacle hold")
         self.controllers[robot_id].check_resume_after_goal(observations[robot_id], now)
 
@@ -429,6 +506,7 @@ class Executor:
         for robot_id, controller in self.controllers.items():
             intent = self.intents[robot_id]
             obstacle = self.obstacle_gates[robot_id].evaluate(now) if robot_id in self.obstacle_gates else None
+            capture = self._evidence_capture(robot_id)
             if not self.armed:
                 phase, reason = "stopped", "Stop latched; arm a new epoch"
             elif self.external_holds[robot_id]:
@@ -445,9 +523,11 @@ class Executor:
                     self._cancel_intent(robot_id)
             elif self.frame is None or not 0 <= now - self.frame[0] <= MAX_OBSERVATION_AGE:
                 phase, reason = "tracking_lost", "no current synchronized field frame"
+            elif problem := self._participant_problem(now):
+                phase, reason = "participant_hold", problem
             elif problem := self._external_problem(robot_id):
                 phase, reason = "external_hold", problem
-            elif self.frame[0] < self.obstacle_resume_after[robot_id]:
+            elif capture is not None and capture < self.obstacle_resume_after[robot_id]:
                 phase, reason = "tracking_lost", "new field observation required after obstacle hold"
             else:
                 stamp, observations, goals = self.frame
@@ -480,7 +560,9 @@ class Executor:
                         continue
                     kwargs["shot_target"] = destination
                 decision = controller.tick(observation, now, **kwargs)
-                deadline = min(decision.command.expires_at, intent.valid_until, stamp + MAX_OBSERVATION_AGE)
+                evidence_deadline = self.frame_evidence_deadline(robot_id)
+                deadline = min(decision.command.expires_at, intent.valid_until,
+                               evidence_deadline if evidence_deadline is not None else now)
                 if obstacle is not None:
                     deadline = min(deadline, obstacle.valid_until)
                 if deadline <= now:
@@ -492,7 +574,10 @@ class Executor:
                     command=replace(decision.command, expires_at=deadline))
                 continue
             controller.cancel()
-            decisions[robot_id] = Decision(phase, reason, zero(now, robot_id))
+            recovery_requested = (phase == "participant_hold" and self.frame is not None
+                                  and self.frame[1][robot_id].fallen)
+            decisions[robot_id] = Decision(phase, reason, zero(now, robot_id),
+                                           recovery_requested=recovery_requested)
         for robot_id, decision in decisions.items():
             intent = self.intents[robot_id]
             if self.armed and intent is not None and intent.kind == "auto" and now < intent.valid_until:

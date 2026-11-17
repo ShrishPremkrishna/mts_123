@@ -117,7 +117,8 @@ def child(args, policy):
     try:
         return bridge.main(["--execute", "--runtime-receipt", str(receipt),
                             "--robot-id", args.robot_id, "--producer-id", "fixture-" + args.robot_id,
-                            "--field-config", str(args.out / "field-config.json")])
+                            "--field-config", str(args.out / "field-config.json"),
+                            *(["--require-participants", "pupper-1", "pupper-2"] if args.participant_tracks else [])])
     finally:
         (args.out / "bridge-timing.json").write_text(json.dumps({
             "ticks": ticks, "publications": publications, "stdout_writes": writes,
@@ -132,12 +133,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("case", choices=("lifecycle", "guard_death", "publication_stop",
                                         "domain_lease", "domain_stop", "domain_peer",
-                                        "arena_ball", "strict_ball", "closed_loop", "defense_loop", "_child"))
+                                        "arena_ball", "strict_ball", "closed_loop", "defense_loop", "participant_freshness", "_child"))
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--mux", default="/mux")
     parser.add_argument("--robot-id", choices=("pupper-1", "pupper-2"), default="pupper-1")
     parser.add_argument("--coord-dir", type=Path)
+    parser.add_argument("--participant-tracks", action="store_true")
     args = parser.parse_args()
+    shared_tracks = args.participant_tracks or args.case == "participant_freshness"
     args.out.mkdir(parents=True, exist_ok=True)
     policy = Path(os.environ["PUPPER_TEST_STOCK_POLICY"]).resolve(strict=True)
     if args.case == "_child":
@@ -160,6 +163,7 @@ def main():
     reader_enabled = threading.Event(); reader_enabled.set()
     report = {"case": args.case, "robot_id": args.robot_id,
               "ros_domain_id": os.environ.get("ROS_DOMAIN_ID"),
+              "required_participants": ["pupper-1", "pupper-2"] if shared_tracks else [],
               "passed": False, "groups": [], "hardware": False,
               "native_identity_stubbed": True, "native_watchdog_retested": False}
     began = time.monotonic()
@@ -173,6 +177,7 @@ def main():
             self.camera_enabled = True; self.near = False; self.camera_label = "tower"
             self.camera_identity = None; self.camera_detections = None; self.camera_packets = []
             self.kind = "move"; self.intent_id = "move-1"; self.pose_x = 0.
+            self.frozen_track_captures = {}; self.missing_tracks = set(); self.last_track_captures = {}
             self.pose_y = 0.; self.pose_yaw = 0.; self.target = {"x": 1., "y": 0., "yaw": 0.}
             self.simulator = None; self.simulation_trace = []; self.simulation_events = []
             self.simulation_input = (0., 0., 0.); self.simulation_received_at = None
@@ -333,6 +338,11 @@ def main():
                         "received_final_at": self.simulation_received_at,
                         "applied_final_command": list(self.simulation_active_input),
                         "applied_final_at": self.simulation_active_receipt})
+                if shared_tracks:
+                    for robot in robots:
+                        robots[robot]["captured_at"] = self.frozen_track_captures.get(robot, self.last_capture)
+                        self.last_track_captures[robot] = robots[robot]["captured_at"]
+                    robots = {r: row for r, row in robots.items() if r not in self.missing_tracks}
                 self.send({"event": "frame", "seq": self.frame_seq, "captured_at": self.last_capture,
                            "robots": robots,
                            "ball": ball,
@@ -411,7 +421,8 @@ def main():
         guard = launch("guard", [sys.executable, "-m", "final_project.behaviors.body_command_guard",
                                  *(["--arena-ball-contact"] if args.case == "arena_ball" else [])])
         env = dict(os.environ, PUPPER_TEST_GUARD_PID=str(guard.pid))
-        bridge = launch("bridge", [sys.executable, str(Path(__file__).resolve()), "_child", "--out", str(args.out), "--robot-id", args.robot_id], interactive=True, env=env)
+        bridge = launch("bridge", [sys.executable, str(Path(__file__).resolve()), "_child", "--out", str(args.out), "--robot-id", args.robot_id,
+                                  *(["--participant-tracks"] if shared_tracks else [])], interactive=True, env=env)
         def reader():
             with (args.out / "bridge-stdout.jsonl").open("w") as transcript:
                 while True:
@@ -424,6 +435,7 @@ def main():
         thread = threading.Thread(target=reader, daemon=True); thread.start()
         wait(lambda: any(e.get("event") == "bridge_ready" for e in events), "bridge startup")
         node.clock_name = next(e["clock"] for e in events if e.get("event") == "bridge_ready")
+        assert next(e["required_participants"] for e in events if e.get("event") == "bridge_ready") == report["required_participants"]
         wait(lambda: status_matches(lambda s: s.get("native_problem") is None and s.get("guard_problem") is None), "bridge authority and camera readiness")
         pump(.12); assert not nonzero(node.commands, began)
         report["groups"].append("explicit_arm_required")
@@ -445,7 +457,43 @@ def main():
                 "field_target": node.target, "attack_sign": 1 if args.robot_id == "pupper-1" else -1}
             if args.case != "domain_peer":
                 (args.coord_dir / "fault-start.json").write_text(json.dumps({"at": time.monotonic(), "case": args.case}) + "\n")
-        if args.case == "defense_loop":
+        if args.case == "participant_freshness":
+            peer = "pupper-2" if args.robot_id == "pupper-1" else "pupper-1"
+            report["participant_freshness"] = {}
+            for label, robot in (("peer_stale", peer), ("own_stale", args.robot_id)):
+                frozen = node.last_track_captures[robot]
+                node.frozen_track_captures[robot] = frozen
+                deadline = frozen + .35
+                wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "participant_hold"
+                                            and s.get("participant_capture_age_s", {}).get(robot, 0.) >= .35,
+                                            frozen), "individual track expiry: " + label)
+                wait(lambda: zero_after(node.final, deadline), "track expiry reaches final output")
+                pump(.12)
+                assert not nonzero(node.final, time.monotonic()-.08)
+                stale_status = next(s for at, s in reversed(node.statuses)
+                                    if (s.get("decision") or {}).get("phase") == "participant_hold")
+                assert stale_status["field_capture_age_s"] < .12
+                if robot == peer:
+                    assert stale_status["capture_age_s"] < .12
+                first_zero = next(at for at, v in node.final if at >= deadline and all(abs(x) < 1e-6 for x in v))
+                assert first_zero - deadline < .15, "fresh envelopes prolonged expired track motion"
+                report["participant_freshness"][label] = {"robot": robot,
+                    "original_capture": frozen, "deadline": deadline, "first_final_zero": first_zero,
+                    "zero_delay_s": first_zero-deadline, "status": stale_status}
+                node.frozen_track_captures.pop(robot)
+                recovered = time.monotonic()
+                wait(lambda: nonzero(node.final, recovered), "fresh original track permits current leased target")
+            at = time.monotonic(); node.missing_tracks.add(peer)
+            wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "participant_hold"
+                                         and "missing" in s["decision"]["reason"], at), "missing participant hold")
+            wait(lambda: zero_after(node.final, at), "missing participant zeros final command")
+            pump(.1); assert not nonzero(node.final, time.monotonic()-.07)
+            report["participant_freshness"]["missing_peer"] = {"robot": peer, "held": True}
+            report["groups"].append("own_and_peer_original_capture_expiry_and_missing_peer_hold_despite_fresh_envelopes")
+            bridge.stdin.write('{"command":"stop","reason":"participant freshness cleanup"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "participant cleanup")
+            assert bridge.returncode == 3
+        elif args.case == "defense_loop":
             wait(lambda: status_matches(lambda s: (s.get("decision") or {}).get("phase") == "target_reached"),
                  "defender reaches guard around stationary ball", 20.)
             reached_at = time.monotonic(); pump(.15)

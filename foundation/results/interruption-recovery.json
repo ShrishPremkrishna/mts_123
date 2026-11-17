@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
   "mode": "overnight_offline_execution",
-  "updated_utc": "2026-11-17T13:08:53.955056+00:00",
+  "updated_utc": "2026-11-17T13:53:06.945091+00:00",
   "current_report": "foundation/results/overnight-execution-20261117.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -29,11 +29,11 @@
     "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
     "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
     "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
-    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-defense-source-kit-20261117T130408Z/summary.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-participant-source-kit-20261117T134935Z/summary.json",
     "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
     "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json",
     "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/summary-final.json",
-    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/tests.json",
+    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/participant-integration-20261117T133702Z/tests.json",
     "native_start_target_build": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt",
     "defense_navigation": "artifacts/pupper-fc/2026-11-17/defense-navigation-boundary-correction/summary.json",
     "defense_independent": "artifacts/pupper-fc/2026-11-17/defense-independent/final/verification.json",
@@ -75,7 +75,7 @@
   },
   "activity": {
     "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "All owned ROS containers, child processes, tests, plots and three bounded Fable attempts exited. Fable produced no review this batch. The 385-file evidence archive and 39-file source kit are hash-verified. No active cloud job or pending archive.",
+    "compute": "Participant integration complete: 1327 tests + 134 subtests; four real ROS cases and independent trace verification passed; 290-file evidence archive verified. All test, Fable and container processes exited. Two artifact-only deadline-design agents active; no paid cloud job or robot access.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -83,7 +83,9 @@
       "shooting": "Tej",
       "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
       "arena": "Shrish",
-      "project_lead": "Root integrated defense after a01c414: 1,264 tests + 134 subtests, independent 38-case review, mirrored ROS defense and a 39-file source kit. All delegates idle; next offline work is opponent clearance."
+      "project_lead": "Root integrating verified participant-freshness changes and evidence. Next owns original-command deadline path selection and implementation; preserve last physical logfix release.",
+      "opponent_geometry": "Active bounded design of original command expiry at native boundary; artifacts only until contract frozen. No hardware access.",
+      "opponent_adversary": "Active independent audit of proposed direct FC deadline path and zero/replay/restart contract; artifacts only."
     },
     "goal_status": "User explicitly resumed the project goal and authorized the overnight offline workstream. Continue toward measurable capability, reduced next-session friction, and decision-changing experiments; no robot motion or deployment."
   },
@@ -132,16 +134,17 @@
     "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/perception-complete.tar.gz",
     "overnight_perception_verified": "804 files hash-verified; archive SHA256 bff1df29874ee2efc72144763066caf79b838327b22f707c16a78e9b01866268",
     "final_ros_guard_supplement": "18 files verified; SHA25634b416d0f9068b1753981d0da5977d410bfffdad3e0f90698d587226760e7b8e; prior78-file archive remains unchanged.",
-    "defense_evidence": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/archive-verification.json"
+    "defense_evidence": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/archive-verification.json",
+    "participant_evidence": "artifacts/pupper-fc/2026-11-17/participant-integration-20261117T133702Z/archive-verification.json"
   },
   "next": [
     {
-      "id": "opponent_clearance",
-      "action": "Address reproduced pre-contact opponent path conflicts at shared-state Executor boundary. Both distinct passage alone and one-sided hold alone are disproved. Include held/missing peer, all phases, command lifetime/stopping allowance and a progress criterion. Preserve verified defense/soloROS baseline; assign one source owner and independent outcome review. No robot access tonight."
+      "id": "original_command_expiry",
+      "action": "Correct the observed 491 ms original-command tail. Proposed explicit FC mode routes bridge \u2192 camera guard \u2192 native controller, bypassing the single-input mux. Preserve original same-host monotonic expiry; reject bare Twist bypass and veto/replay/restart races. Review the contract, implement, then verify with the actual native failure fixture. Preserve legacy movement modes and the accepted physical release; defer geometric avoidance promotion."
     },
     {
       "id": "camera_and_native_target_preparation",
-      "action": "At the next authorized Pi preparation, use the 39-file source kit and capture the actual ROS/Python underlay. Build only joy_utils in a fresh prefix; verify ABI, type support and fake backend before physical readiness. Assemble guarded stock walk separately; preserve accepted controller, driver, mux and policy. No overnight SSH, deployment or homing."
+      "action": "At the next authorized Pi preparation, use the verified 45-file participant source kit and capture actual ROS/Python dependencies. This kit builds only joy_utils in a fresh prefix and preserves controller, driver, mux and policy. The upcoming native-expiry candidate needs separate target build and manifest qualification; it is not in this kit. No overnight SSH, deployment or homing."
     },
     {
       "id": "next_physical_acceptance",

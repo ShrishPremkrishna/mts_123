@@ -13,6 +13,9 @@ Resume requires a goal return completed before receipt; a bare cue resolves the
 latest fresh admitted frame when processed. Current native/camera/field/intent
 readiness is rechecked then. Queued cues expire after 0.2 seconds.
 Neither camera clearance nor reconnect arms or renews an action. No homing.
+Optional --require-participants pins the robot tracks needed for motion. Each
+present required track needs its own original captured_at; stale/missing peers
+hold motion. This checks tracking evidence, not geometric collision clearance.
 """
 from __future__ import annotations
 
@@ -110,13 +113,16 @@ def load_fields(config):
 class BridgeCore:
     """Transport-free admission and output fence; callbacks never publish."""
 
-    def __init__(self, robot_id, producer_id, boot_id, fields, *, clock=time.monotonic):
+    def __init__(self, robot_id, producer_id, boot_id, fields, *, clock=time.monotonic,
+                 required_participants=()):
         if robot_id not in ROBOT_IDS or set(fields) != set(ROBOT_IDS):
             raise ValueError("configure both robots and pin one output robot")
         self.robot_id, self.producer_id = robot_id, token(producer_id, "producer_id")
         self.clock_name = "linux-monotonic:" + token(boot_id, "boot_id")
         self.clock = clock
-        self.executor = Executor(fields, LIMITS)
+        self.executor = Executor(fields, LIMITS, required_participants=required_participants)
+        if self.executor.required_participants and robot_id not in self.executor.required_participants:
+            raise ValueError("required participants must include this bridge's robot")
         self.stopped = False
         self.last_decision = None
         self.completed_goal_cycle = None  # Immutable (epoch, prior resume seq, first completion time).
@@ -191,8 +197,8 @@ class BridgeCore:
                 self.executor.last_now is None or now < self.executor.last_now or
                 intent is None or now >= intent.valid_until or frame is None):
             return zero(now, self.robot_id)
-        from final_project.pupper_fc.controller import MAX_OBSERVATION_AGE
-        if not 0 <= now - frame[0] < MAX_OBSERVATION_AGE:
+        deadline = self.executor.frame_evidence_deadline(self.robot_id)
+        if now < frame[0] or deadline is None or now >= deadline:
             return zero(now, self.robot_id)
         return cmd
 
@@ -626,13 +632,20 @@ def _node_class():
         def _status(self):
             now = self.clock()
             frame = self.core.executor.frame
+            own = frame[1][self.core.robot_id] if frame else None
+            participants = self.core.executor.required_participants
             intent = self.core.executor.intents[self.core.robot_id]
             resume_problem = self.resume_problem()
             return {"event": "bridge_status", "robot_id": self.core.robot_id,
                     "sampled_at_monotonic": now,
                     "clock": self.core.clock_name, "epoch": self.core.executor.epoch,
                     "frame_seq": self.core.executor.frame_seq if frame else None,
-                    "capture_age_s": now - frame[0] if frame else None,
+                    "capture_age_s": now - own.captured_at if own and own.robot is not None else None,
+                    "field_capture_age_s": now - frame[0] if frame else None,
+                    "required_participants": list(participants),
+                    "participant_capture_age_s": {r: now - frame[1][r].captured_at
+                        if frame and frame[1][r].robot is not None else None for r in participants},
+                    "field_evidence_deadline": self.core.executor.frame_evidence_deadline(self.core.robot_id),
                     "intent": {"id": intent.identity[0], "kind": intent.kind,
                                "age_s": now - intent.issued_at,
                                "time_left_s": intent.valid_until - now} if intent else None,
@@ -662,13 +675,19 @@ def main(argv=None):
     parser.add_argument("--field-config", type=Path)
     parser.add_argument("--robot-id", choices=ROBOT_IDS, required=True)
     parser.add_argument("--producer-id", required=True)
+    parser.add_argument("--require-participants", nargs="+", choices=ROBOT_IDS, default=(),
+                        help="Tracks required for motion, including this robot; requires original per-row captured_at")
     args = parser.parse_args(argv)
     try:
         token(args.producer_id, "producer_id")
+        if (len(set(args.require_participants)) != len(args.require_participants) or
+                (args.require_participants and args.robot_id not in args.require_participants)):
+            raise ValueError("required participants must be distinct and include this robot")
         fields = load_fields(json.loads(args.field_config.read_text())) if args.field_config else None
         if not args.execute:
             print(json.dumps({"event": "bridge_dry_run", "robot_id": args.robot_id,
                               "producer_id": args.producer_id, "limits": asdict(LIMITS),
+                              "required_participants": list(args.require_participants),
                               "fields": {r: asdict(f) for r, f in fields.items()} if fields else None,
                               "execute_requires": ["explicit field-config", "guarded runtime receipt", "operator arm"],
                               "ros_started": False}))
@@ -687,7 +706,8 @@ def main(argv=None):
         if runtime["files"]["policy"]["sha256"] != STOCK_POLICY_SHA256:
             raise ValueError("selected policy differs from the stock evidence guard")
         boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-        core = BridgeCore(args.robot_id, args.producer_id, boot, fields)
+        core = BridgeCore(args.robot_id, args.producer_id, boot, fields,
+                          required_participants=args.require_participants)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print("bridge refused: " + str(exc), file=sys.stderr)
         return 2
@@ -703,6 +723,7 @@ def main(argv=None):
     threading.Thread(target=node.inbox.read, args=(sys.stdin,), daemon=True).start()
     node.emit({"event": "bridge_ready", "robot_id": core.robot_id, "producer_id": core.producer_id,
                "clock": core.clock_name, "fields": {r: asdict(f) for r, f in fields.items()},
+               "required_participants": list(core.executor.required_participants),
                "limits": asdict(LIMITS), "armed": False, "software_start_supported": node.start_client is not None,
                "identity_scope": "operational evidence; not authentication"})
     try:

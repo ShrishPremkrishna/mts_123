@@ -936,3 +936,69 @@ def test_resume_final_consumption_fence_after_slow_readiness_query(ros_node, lat
     if late == "stop":
         e.node.on_tick()
         assert e.node.hard_stopped and len(e.ros.published["/emergency_stop"]) == 1
+
+
+def participant_core_fixture():
+    now = [10.]
+    core = bridge.BridgeCore("pupper-1", "fixture", "boot", bridge.load_fields(CONFIG),
+                            clock=lambda: now[0], required_participants=bridge.ROBOT_IDS)
+    assert core.operator({"command": "arm", "epoch": "participants"})["accepted"]
+    return core, now
+
+
+def participant_frame(core, now, seq=1, peer_capture=None):
+    row = frame(core, now, seq=seq)
+    for robot in bridge.ROBOT_IDS:
+        row["robots"][robot]["captured_at"] = now
+    if peer_capture is not None:
+        row["robots"]["pupper-2"]["captured_at"] = peer_capture
+    return row
+
+
+def test_required_peer_expiry_caps_decision_and_publication_without_new_tick():
+    core, now = participant_core_fixture()
+    assert core.ingest(participant_frame(core, now[0], peer_capture=9.75))["accepted"]
+    assert core.ingest(intent(core, now[0], valid_until=10.5))["accepted"]
+    decision = core.tick()
+    assert any(xyz(decision.command))
+    assert decision.command.expires_at == pytest.approx(10.10)
+    now[0] = 10.05
+    assert core.ingest(participant_frame(core, now[0], seq=2, peer_capture=9.75))["accepted"]
+    assert any(xyz(core.output(decision)))
+    now[0] = 10.10
+    assert xyz(core.output(decision)) == ZERO
+
+
+def test_required_peer_disappearance_fences_previously_computed_command():
+    core, now = participant_core_fixture()
+    assert core.ingest(participant_frame(core, now[0]))["accepted"]
+    assert core.ingest(intent(core, now[0]))["accepted"]
+    decision = core.tick()
+    assert any(xyz(decision.command))
+    now[0] += .02
+    packet = participant_frame(core, now[0], seq=2)
+    packet["robots"].pop("pupper-2")
+    assert core.ingest(packet)["accepted"]
+    assert now[0] < decision.command.expires_at
+    assert xyz(core.output(decision)) == ZERO
+    assert core.tick().phase == "participant_hold"
+
+
+def test_required_participant_stamps_are_not_filled_by_bridge_receipt():
+    core, now = participant_core_fixture()
+    assert not core.ingest(frame(core, now[0]))["accepted"]
+    assert core.executor.frame is None
+    assert xyz(core.output(core.tick())) == ZERO
+
+
+def test_required_participant_configuration_includes_local_robot_and_is_explicit(capsys):
+    with pytest.raises(ValueError, match="include"):
+        bridge.BridgeCore("pupper-1", "fixture", "boot", bridge.load_fields(CONFIG),
+                          required_participants=("pupper-2",))
+    assert bridge.main(["--robot-id", "pupper-1", "--producer-id", "fixture",
+                        "--require-participants", "pupper-1", "pupper-2"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["required_participants"] == list(bridge.ROBOT_IDS)
+    assert result["ros_started"] is False
+    assert bridge.main(["--robot-id", "pupper-1", "--producer-id", "fixture",
+                        "--require-participants", "pupper-2"]) == 2

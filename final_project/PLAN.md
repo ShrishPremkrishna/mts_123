@@ -166,10 +166,20 @@ across navigation, striking and return-home, including stopped and lost tracks,
 command lifetime and braking allowance. Keep route progress separate from
 collision prevention; stopping both robots indefinitely is not a match pass.
 
+Original per-robot capture times now survive normalization; explicit required
+participants hold motion on stale/missing tracks, including return-home. The
+remaining opponent-clearance candidate is unselected: it prevents the original
+simulated overlaps but stalls in some held-peer cases. More critically, an
+actual mux/guard/native cascade retained a command for 491 ms after its source
+stopped. The native 250 ms watchdog measures its latest receipt, which relays
+can refresh. Preserve original command expiry through the actuation boundary
+and verify failure cases before refining the clearance envelope. That observed
+491 ms is a counterexample, not a worst-case or physical stopping bound.
+
 Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
 
 ## Existing gaps and decisions to settle
 
-The local source audit found tilt stopping and supervised restart, not self-righting: [recovery logic](../gemini_pupper/robot/robot_api.py), [upright-injected tests](../gemini_pupper/tests/test_fall_recovery.py). The maintained [native velocity path](../pupper_gait_deploy/src/neural_controller.cpp) now expires silent gait-velocity input after 250 ms. [Movement evidence](../foundation/results/movement-live-20261116.json) records partial physical acceptance of the Pi-native release; the brief separates observed capabilities from remaining tests. This expiry does not implement target-policy cancellation, hardware-watchdog protection or measured braking. [Session helpers](../foundation/hardware/persistent_session.py) and the [velocity mux](../pupperv3-monorepo/ros2_ws/src/cmd_vel_mux/src/cmd_vel_mux_node.cpp) remain reusable but do not establish FC boot-to-ready or gameplay.
+The local source audit found tilt stopping and supervised restart, not self-righting: [recovery logic](../gemini_pupper/robot/robot_api.py), [upright-injected tests](../gemini_pupper/tests/test_fall_recovery.py). The maintained [native velocity path](../pupper_gait_deploy/src/neural_controller.cpp) expires silent gait-velocity input after 250 ms from its latest callback receipt, not the original source timestamp. [Movement evidence](../foundation/results/movement-live-20261116.json) records partial physical acceptance of the Pi-native release; the brief separates observed capabilities from remaining tests. This expiry does not implement target-policy cancellation, hardware-watchdog protection or measured braking. [Session helpers](../foundation/hardware/persistent_session.py) and the [velocity mux](../pupperv3-monorepo/ros2_ws/src/cmd_vel_mux/src/cmd_vel_mux_node.cpp) remain reusable but do not establish FC boot-to-ready or gameplay.
 
 Settle when the relevant work begins: surface/ball/bumper/goal dimensions; mount and whole-field coverage; out-of-bounds/trapped-ball rules; recovery ownership/postures/clearance; match duration/success thresholds; second robot access and identity. Supported startup, manual ball replacement and one deliberate resume cue are accepted; self-righting commitment follows its feasibility investigation. Implementation can progress with explicit reversible assumptions. The adversarial review identified recovery, limited arena braking space, late robot-two access, occlusion, and boot/restart behavior as the principal risks; the plan includes evidence for each.

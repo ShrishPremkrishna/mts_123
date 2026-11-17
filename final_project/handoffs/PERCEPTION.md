@@ -37,6 +37,14 @@ into metres, counterclockwise heading, fixed calibrated goals, explicit missing
 tracks, and capture times with a known clock/age relationship. It must preserve
 capture times rather than label a delayed image as newly captured.
 
+For a shared match, the internal adapter now supports required participant IDs
+and original `captured_at` on each robot row. A missing or stale peer holds
+motion even while other tracks and the enclosing frame remain fresh. Rows may
+repeat the same pose/capture, but cannot change pose at that capture; the frame
+capture must be at least as recent as every included row. Do not carry a cached
+ball or robot forward with a new image's timestamp. Missing observations stay
+missing. This is an internal normalization contract, not a required Ryan schema.
+
 The first executable bridge accepts a named local Linux monotonic clock only;
 cross-device camera clock conversion is still unimplemented. Frames never renew
 motion authority: action intents have a separate maximum 0.5-second lease.

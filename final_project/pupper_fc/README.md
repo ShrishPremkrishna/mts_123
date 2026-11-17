@@ -56,6 +56,15 @@ the decision reports a hold or blocked reason. Ordinary `move` still accepts a
 pose without a ball. This is a bounded ball-avoidance heuristic, not an opponent
 planner or a guarantee that every geometrically reachable guard will converge.
 
+`Executor(required_participants=("pupper-1", "pupper-2"))` requires both original
+pose captures for every action. Present participant rows supply `captured_at`
+no later than the enclosing frame. Missing/stale participants produce
+`participant_hold`, cancel transient play state and preserve referee events,
+role and remaining intent authority. Optional row captures are also honored in
+solo mode. Repeated captures cannot change pose or advance alignment evidence;
+new-frame goal/fallen flags remain independent. `frame_evidence_deadline()` is a
+read-only final-publication fence. This adds freshness, not collision geometry.
+
 After the robot has completed its goal return and the operator has replaced the ball, send one deliberate cue per robot:
 
 ```json

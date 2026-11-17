@@ -205,13 +205,28 @@ the intended source operationally and do not authenticate DDS traffic. Perceptio
 cannot arm or send goal resume through this topic. Intents for the other robot
 are refused; field snapshots can include both robots.
 
+Use `--require-participants pupper-1 pupper-2` when both tracks are required for
+motion. Each present row must carry its original `captured_at`, no later than
+the enclosing frame's capture. Missing or stale required tracks hold every
+action, including return-home, without renewing an intent. A newer envelope
+cannot refresh an old row; changing pose at the same capture is rejected.
+Goal/fallen flags may update with the enclosing frame while a pose repeats.
+The default keeps the original synchronous solo fixture contract. This option
+enforces track freshness; geometric opponent avoidance is still experimental.
+
 `/fc/executor_bridge/status` exposes the selected robot, epoch, role/action,
 decision, hold/fault reasons and applied-command receipt age at 5 Hz with a
 latest-only best-effort publisher. Operator notifications use a bounded queue;
 an unread stdout pipe cannot block the control tick. Applied feedback has no
-source stamp, so receipt age is not exact controller latency. Twist also strips
-the original command lease: bridge expiry plus downstream watchdogs provide
-bounded stopping, not exact end-to-end enforcement of `expires_at`.
+source stamp, so receipt age is not exact controller latency. Status also names
+required participants and their original capture ages and shared deadline.
+Twist strips the original command lease. Each downstream watchdog expires its
+own latest receipt; cached republication can extend the original source command.
+A [device-free cascade](../../artifacts/pupper-fc/2026-11-17/command-survival/findings.json)
+kept native nonzero input for 491 ms after source publication even though the
+native 250 ms receipt watchdog worked. This is neither a measured worst-case
+bound nor physical braking evidence. Original `expires_at` is not yet enforced
+through the full chain and must not be used as a collision-clearance guarantee.
 
 The viewer publishes `/fc/obstacle_detections` with original image capture
 nanoseconds, a per-process instance ID, increasing sequence, explicit validity,
