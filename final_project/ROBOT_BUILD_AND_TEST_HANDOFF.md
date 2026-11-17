@@ -127,6 +127,7 @@ Only after current supervisor readiness is established:
 
 ```sh
 export PUPPER_RUNTIME_RECEIPT="$PUPPER_RUN/preflight.json"
+export PUPPER_IMU_STARTUP_TRACE="$PUPPER_RUN/imu-startup.csv"
 ros2 launch "$PUPPER_RELEASE/foundation/hardware/stock_session.launch.py"
 ```
 

@@ -3,9 +3,9 @@
   "objective": "Reliable movement and headbutt baseline; finish build/runtime mismatch prevention and rapid supervised axis trials before shots.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "user_returning_v3_target_checks_pending",
-  "updated_utc": "2026-11-17T04:23:49.979042+00:00",
-  "current_report": "foundation/results/movement-offline-followthrough-20261116.json",
+  "mode": "waiting_for_firm_body_support",
+  "updated_utc": "2026-11-17T04:42:23.270089+00:00",
+  "current_report": "foundation/results/movement-live-20261116.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -19,7 +19,8 @@
     "offline_gameplay": "final_project/pupper_fc/validation.json",
     "historical_harness_sprint": "foundation/results/harness-sprint-20261103.json",
     "offline_followthrough": "foundation/results/movement-offline-followthrough-20261116.json",
-    "v2_release": "foundation/results/movement-release-20261116.json"
+    "v2_release": "foundation/results/movement-release-20261116.json",
+    "movement_live": "foundation/results/movement-live-20261116.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -28,7 +29,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User returning with robot/ball/charged batteries. Read-only inventory and staging authorized. New readiness question pending for supported homing; no movement until supervision confirmed.",
+  "authorization": "User/controller/exclusive access confirmed. No stand available; handheld arrangement tried and failed stationary gate. Awaiting firm body support; no startup until placement confirmed.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
@@ -37,7 +38,7 @@
     "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
     "compute": "All offline checks complete:467 tests+48subtests,5ROS transport cases,15Linux process probes. No training; source-only Claude reviews unavailableDNS/timeout, independent subagents used.",
     "owners": {
-      "physical_robot": "User preparing robot again; awaiting new stand/controller/exclusive-access confirmation. No agent-owned native session started.",
+      "physical_robot": "Exclusive block, motors inactive. User arranging stable support; no active jobs.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish taking over movement and headbutt; teammate continues foot-kick policy.",
       "shooting": "Tej",
@@ -47,27 +48,27 @@
     "goal_status": "Offline baseline complete; final recovery/context closeout being committed. Target verification and physical acceptance pending."
   },
   "hardware_session": {
-    "status": "Last physical closure: no startup at02:27UTC. User now powering robot back up; fresh reachability/boot/readiness check pending.",
+    "status": "v3 verified; four startups failed before enable. All launches/recorders closed. No homing or physical motion. User arranging firm support after handheld attempt failed.",
     "ssh": "mts",
-    "observed_utc": "2026-11-17T02:27:19.546335+00:00",
-    "current_boot_id": "e0ec5244-f04d-43f3-978a-eef050844135",
+    "observed_utc": "2026-11-17T04:42:23.270089+00:00",
+    "current_boot_id": "0bbcf4ca-9398-4ffb-819b-c742735ffd3e",
     "active_run": null,
     "motor_api_recorders_last_observed_active": false,
-    "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v2",
+    "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
     "manifest_profiles": {
-      "walk": "d21913f0f6addf332c7bac2ebebd89ea85637dda40d7a1c33d687e47c58c9bb2",
-      "sprint": "54afc5e568b8bbf54a0068c269565fbe53937c40c6ac862fcdeb9901e103a7b0"
+      "walk": "5bc67c174e1d9b8cf00f18d6c566cfc418a6572ef8ce7bd22be033d145c72d32",
+      "sprint": "d1b8c405e1e05e4ab9fbce84e18d2dbd9bc200329bfecbf4a5e7e577342df20e"
     },
     "selected_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "selected_controller_sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc",
-    "last_physical_run": "/home/pi/pupper-fc-runs/stock-shot-20261117T004242Z",
+    "last_physical_run": "/home/pi/pupper-fc-runs/movement-20261117T044050Z",
     "source_checkout": "/home/pi/mts_123; source sync alone does not choose binaries",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
-    "prepared_run": "/home/pi/pupper-fc-runs/movement-20261117T022613Z",
-    "prepared_state": "CLOSED_WITHOUT_STARTUP; old preflight is invalid after reboot. Current-run pointer is historical, not an active session.",
+    "prepared_run": null,
+    "prepared_state": "No open prepared/active session; previous two native starts failed before enable.",
     "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-closure-20261117T022613Z.json",
     "local_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
-    "candidate_state": "v2 remains staged onPi; v3 archived locally, not yet transferred."
+    "candidate_state": "v3 staged onPi; target verified; physical startup failed before homing."
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -81,7 +82,7 @@
   "next": [
     {
       "id": "supervised_movement",
-      "action": "On user readiness/reboot: stage v3 into new directory, verify all role hashes and dependencies/package resolution, prepare fresh sprint-candidate receipt, then one supervised homing and low axis/braking trials before speed increase/ball contact."
+      "action": "User arranging firm support with legs clear. Once ready, fresh receipt and one homing, loaded runtime verification, then same-session low turn/forward/braking trials before speed increase and ball contact."
     },
     {
       "id": "perception_upstream",

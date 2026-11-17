@@ -1,0 +1,41 @@
+{
+  "updated_utc": "2026-11-17T04:42:23.270089+00:00",
+  "release": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+  "boot_id": "0bbcf4ca-9398-4ffb-819b-c742735ffd3e",
+  "status": "Waiting for firm body support; no homing or motion accepted",
+  "target_verification": "128 indexed files, selected profiles, target dependencies and four package prefixes verified before startup. Existing platform and teammate kick checkout untouched.",
+  "attempts": [
+    {
+      "run": "movement-20261117T042934Z",
+      "outcome": "Startup screen failed before motor enable; initial trace not enabled."
+    },
+    {
+      "run": "movement-20261117T043340Z",
+      "outcome": "Gyro peak0.217rad/s, longest eligible1.261s. User confirmed handling. Quaternion/gyro coherent; no parser defect evidenced."
+    },
+    {
+      "run": "movement-20261117T043631Z",
+      "outcome": "Gyro peak0.115rad/s, longest eligible1.200s. User confirmed moved again."
+    },
+    {
+      "run": "movement-20261117T044050Z",
+      "outcome": "Handheld with separate power-stop person; peak1.576rad/s, longest eligible0.393s. Failed before enable."
+    }
+  ],
+  "interpretation": "Handling-confounded startup data does not diagnose IMU drift or faulty hardware. Local gravity_arc resets with window; it is not whole-session tilt. R5 already contains maintained drift-tolerant startup rule; no threshold or driver change made.",
+  "closure": "All four native launches and recorders exited. Native child failure is recorded even though launch wrappers exit0. No homing occurred.",
+  "archives": [
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/startup-failures-20261117T043340Z.tar.gz",
+      "sha256": "067077b53712ba3898348a897e57a7e0186a5fe5a09ab7c3584c65519d897a5a",
+      "member_hashes_verified": true
+    },
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/startup-supported-attempts-20261117T044050Z.tar.gz",
+      "sha256": "c7ee44537f65abb5cc42ddcc773a4cf7e2338feb994e74bff3d0d928e1dfd62f",
+      "member_hashes_verified": true
+    }
+  ],
+  "workflow_fix": "Shared startup command now always requests built-in IMU trace, avoiding a repeat solely for diagnosis. Handheld suggestion was not an effective shortcut; firm body support required for next attempt.",
+  "next": "User arranging firm support with legs clear. Once ready, fresh receipt and one homing, loaded runtime verification, then same-session low turn/forward/braking trials before speed increase and ball contact."
+}
