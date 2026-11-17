@@ -225,8 +225,22 @@ own latest receipt; cached republication can extend the original source command.
 A [device-free cascade](../../artifacts/pupper-fc/2026-11-17/command-survival/findings.json)
 kept native nonzero input for 491 ms after source publication even though the
 native 250 ms receipt watchdog worked. This is neither a measured worst-case
-bound nor physical braking evidence. Original `expires_at` is not yet enforced
-through the full chain and must not be used as a collision-clearance guarantee.
+bound nor physical braking evidence. Legacy Twist does not enforce original
+`expires_at` through the chain.
+
+The explicit `--command-contract fc_deadline_v1` candidate uses
+`/fc/body_command/request` → camera guard → `/fc/body_command/admitted` → native
+controller, with no mux. It requires the matching selected runtime, rebuilt
+native capability, source clock and unique topic graph. Bounded String envelopes
+preserve original issue/deadline and source sequence; guard veto is irreversible
+for that sequence. Disarmed zero messages complete readiness without arming or
+renewing gameplay. Fresh native `command_authority` status must confirm the
+current bridge instance; an old binding reports the need for native Stop/Start.
+Once armed, missing or changed authority stops execution. The default legacy
+mode remains available for existing movement qualification. Exact controller
+expiry and actual guard/native failure traces are recorded in the
+[integration evidence](../../foundation/results/overnight-execution-20261117.json);
+they establish software-request expiry, not physical braking or Pi acceptance.
 
 The viewer publishes `/fc/obstacle_detections` with original image capture
 nanoseconds, a per-process instance ID, increasing sequence, explicit validity,

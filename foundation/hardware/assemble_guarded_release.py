@@ -3,8 +3,10 @@
 
 Run on the target filesystem after selecting the baseline and ROS Python. This
 copies files only: no ROS init, deployment, builds, homing or process startup.
-The native binaries, policy and gains stay unchanged. Target preflight is still
-required; this does not add the newer native software-Start service.
+By default native binaries, policy and gains stay unchanged. Explicit deadline
+selection replaces only the pinned controller and selects the direct FC path.
+Target compatibility/preflight is still required; this does not add the newer
+native software-Start service or prove physical acceptance.
 """
 from __future__ import annotations
 
@@ -14,6 +16,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+
+import yaml
 
 
 SOURCE_ROLES = {
@@ -32,6 +36,9 @@ SOURCE_ROLES = {
     "fc_tactics": "final_project/pupper_fc/tactics.py",
 }
 NATIVE_ROLES = {"driver", "controller", "policy", "gateway", "mux"}
+DEADLINE_SOURCE_ROLES = {**SOURCE_ROLES,
+    "command_deadline": "final_project/behaviors/command_deadline.py",
+    "shot_node": "final_project/behaviors/run_through_kick_node.py"}
 
 
 def sha(path):
@@ -53,9 +60,19 @@ def within(root, relative):
 
 
 def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
-             source_sha256, destination, guard_python, arena_ball_contact=False):
+             source_sha256, destination, guard_python, arena_ball_contact=False,
+             deadline_controller=None, deadline_controller_sha256=None):
     if not isinstance(arena_ball_contact, bool):
         raise ValueError("Arena ball contact selection must be boolean")
+    if (deadline_controller is None) != (deadline_controller_sha256 is None):
+        raise ValueError("Deadline controller path and digest must be selected together")
+    deadline = deadline_controller is not None
+    sources_by_role = DEADLINE_SOURCE_ROLES if deadline else SOURCE_ROLES
+    if deadline:
+        deadline_controller = Path(deadline_controller).resolve(strict=True)
+        if (deadline_controller.name != "libneural_controller.so" or
+                sha(deadline_controller) != deadline_controller_sha256):
+            raise ValueError("Selected deadline controller identity mismatch")
     baseline_manifest = Path(baseline_manifest).resolve(strict=True)
     base = baseline_manifest.parent
     sources = Path(source_root).resolve(strict=True)
@@ -75,6 +92,8 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
         raise ValueError("Baseline omits required stock files")
     if any(role.startswith("guard_") for role in files):
         raise ValueError("Select the native stock baseline, not a prior guarded candidate")
+    if deadline and deadline_controller_sha256 == files["controller"]["sha256"]:
+        raise ValueError("Deadline mode requires an explicitly rebuilt controller")
     relative_files = {}
     for role, item in files.items():
         path = Path(item["path"])
@@ -89,7 +108,7 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
     if any(path.is_symlink() for path in base.rglob("*")):
         raise ValueError("Baseline contains symlinks; resolve its release closure before assembly")
     index = pinned_json(source_index, source_sha256)
-    if index.get("schema") != "pupper_guard_sources_v1" or set(index["files"]) != set(SOURCE_ROLES.values()):
+    if index.get("schema") != "pupper_guard_sources_v1" or set(index["files"]) != set(sources_by_role.values()):
         raise ValueError("Source index must contain exactly the selected guarded/bridge source files")
     for relative, digest in index["files"].items():
         if sha(within(sources, relative)) != digest:
@@ -107,7 +126,7 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
     # the candidate; the immutable baseline remains available for rollback.
     for name in ("STAGING.json", "FILE_SHA256.json", "sprint-manifest.json", "sprint.yaml"):
         (destination / name).unlink(missing_ok=True)
-    for role, relative in SOURCE_ROLES.items():
+    for role, relative in sources_by_role.items():
         path = destination / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(sources / relative, path)
@@ -116,29 +135,55 @@ def assemble(baseline_manifest, baseline_sha256, source_root, source_index,
     policy_path = Path("foundation/hardware/guard-policy.json")
     (destination / policy_path).write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": mode}, indent=2) + "\n")
     relative_files["guard_policy"] = policy_path
-    (destination / "walk.yaml").write_text(config.replace(str(base), str(destination)))
+    selected_config = config.replace(str(base), str(destination))
+    if deadline:
+        parsed_config = yaml.safe_load(selected_config)
+        parameters = parsed_config["neural_controller_default"]["ros__parameters"]
+        parameters.update(cmd_vel_contract="fc_deadline_v1", game_buttons=False,
+                          reference_tricks=False, chord_partner="")
+        selected_config = yaml.safe_dump(parsed_config, sort_keys=False)
+        shutil.copyfile(deadline_controller, destination / relative_files["controller"])
+        if sha(destination / relative_files["controller"]) != deadline_controller_sha256:
+            raise ValueError("Deadline controller changed during assembly")
+    (destination / "walk.yaml").write_text(selected_config)
     (destination / "environment.sh").write_text(environment.replace(str(base), str(destination)))
     selected = {role: {"path": str(destination / relative), "sha256": sha(destination / relative)}
                 for role, relative in relative_files.items()}
     selected["guard_python"] = {"path": str(guard_python), "sha256": sha(guard_python)}
-    for role in files.keys() - SOURCE_ROLES.keys() - {"config"}:
+    changed_roles = {"config", "controller"} if deadline else {"config"}
+    for role in files.keys() - sources_by_role.keys() - changed_roles:
         if selected[role]["sha256"] != files[role]["sha256"]:
             raise ValueError("Preserved baseline changed while assembling: " + role)
     # Detect a concurrent source edit or failed copy before calling it assembled.
-    for role, relative in SOURCE_ROLES.items():
+    for role, relative in sources_by_role.items():
         if selected[role]["sha256"] != index["files"][relative]:
             raise ValueError("Selected source changed while assembling: " + relative)
     manifest = {**baseline, "files": selected, "physical_acceptance": False,
-                "build_target": "Unchanged selected Pi native binaries; guarded Python source candidate. Target preflight required.",
+                "build_target": ("Explicitly replaced native controller; direct FC deadline candidate. Target compatibility and preflight required."
+                                 if deadline else "Unchanged selected Pi native binaries; guarded Python source candidate. Target preflight required."),
                 "source_freeze_sha256": {**baseline.get("source_freeze_sha256", {}), **index["files"]}}
+    if deadline:
+        manifest["baseline_provenance"] = {
+            "manifest_sha256": baseline_sha256,
+            "source_commit": baseline.get("source_commit"),
+            "source_freeze_sha256": baseline.get("source_freeze_sha256", {})}
+        manifest.pop("source_commit", None)
+        manifest["source_freeze_sha256"] = dict(index["files"])
+        # Binary selection alone is not a verified build/source relationship.
+        # The target build receipt must establish that relationship separately.
+        manifest["controller_build_source_verified"] = False
     (destination / "walk-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     record = {"schema": "pupper_guarded_assembly_v1", "created_utc": datetime.now(timezone.utc).isoformat(),
               "base_release": str(base), "base_manifest_sha256": baseline_sha256,
               "source_index_sha256": source_sha256, "release": str(destination),
               "manifest_sha256": sha(destination / "walk-manifest.json"),
-              "native_unchanged": True, "hardware_started": False, "physical_acceptance": False,
+              "native_unchanged": not deadline, "hardware_started": False, "physical_acceptance": False,
               "target_preflight_required": True, "software_start_service_added": False}
     record["guard_mode"] = mode
+    record["command_topology"] = "fc_deadline_v1" if deadline else "guarded"
+    if deadline:
+        record["replaced_controller_sha256"] = deadline_controller_sha256
+        record["preserved_native_roles"] = sorted(NATIVE_ROLES - {"controller"})
     (destination / "STAGING.json").write_text(json.dumps(record, indent=2) + "\n")
     payload = {str(path.relative_to(destination)): sha(path)
                for path in sorted(destination.rglob("*")) if path.is_file() and path.name != "FILE_SHA256.json"}
@@ -152,6 +197,8 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--arena-ball-contact", action="store_true",
                         help="Explicit candidate: allow verified lab-model sports-ball detections; all other obstacles still gate motion")
+    parser.add_argument("--deadline-controller", help="Explicit rebuilt controller for the direct FC deadline mode")
+    parser.add_argument("--deadline-controller-sha256", help="Required digest of the selected rebuilt controller")
     args = parser.parse_args()
     try:
         print(json.dumps(assemble(**vars(args)), indent=2))

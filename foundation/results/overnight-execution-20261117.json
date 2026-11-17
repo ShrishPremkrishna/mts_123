@@ -1,6 +1,6 @@
 {
   "schema": "pupper_overnight_execution_v1",
-  "recorded_utc": "2026-11-17T13:53:06.944268+00:00",
+  "recorded_utc": "2026-11-17T14:56:54.504759+00:00",
   "scope": "Offline engineering and recorded-video comparison. No robot motion, SSH deployment, hardware initialization or policy promotion.",
   "base_commit": "e91196e",
   "source_sha256": {
@@ -572,5 +572,104 @@
     "focused_review_s": 95.559,
     "review_list_price_equivalent_usd": 0.37044,
     "limit": "Tiny probes do not explain earlier120/150/240s review timeouts. List-price equivalent is not additional billing; no new paid cloud job."
+  },
+  "direct_command_deadline": {
+    "base_commit": "5135fcb",
+    "implemented": [
+      "Explicit fc_deadline_v1 direct bridge \u2192 camera guard \u2192 native String path; legacy default preserved.",
+      "Original same-host monotonic issue/expiry survives relays; native checks it on every update, including held inference. Maximum source lifetime150ms, with independent receipt expiry retained.",
+      "Sequence ordering, irreversible same-sequence veto, genuine-zero session binding, alternate native inputs disabled in strict mode; policy/gains unchanged.",
+      "Fresh native authority status proves this bridge source is bound before arm and while armed. Disarmed zeros finish readiness without arming or renewing gameplay; old binding requires deliberate native Stop/Start.",
+      "Explicit changed-controller assembly and strict source pins; no active mux launch, dependency or continuity requirement. Baseline source metadata remains separate from new binary source provenance."
+    ],
+    "native": "artifacts/pupper-fc/2026-11-17/command-survival/native-authority/native-freeze.json",
+    "native_tests": {
+      "passed": 37,
+      "scope": "Actual production controller callback/update with memory interfaces and synthetic gait; includes actual DDS subscription/status and legacy tests."
+    },
+    "native_chain": "artifacts/pupper-fc/2026-11-17/command-survival/authority-chain/summary.json",
+    "native_chain_summary": {
+      "cases": 3,
+      "source_silence_deadline_to_zero_ms": 3.0505,
+      "guard_death_deadline_to_zero_ms": 1.349875,
+      "veto_zero_before_deadline_ms": 132.089959,
+      "all_updates_beginning_after_deadline_zero": 146
+    },
+    "ros_bridge": "artifacts/pupper-fc/2026-11-17/command-survival/bridge-start-smoke/summary.json",
+    "ros_bridge_summary": {
+      "cases": 5,
+      "source_envelopes": 378,
+      "immutable_admitted_envelopes": 803,
+      "software_start_requests": 1,
+      "arm_requests": 1,
+      "emergency_stops_before_cleanup": 0,
+      "delayed_native_endpoint_ms": 121.329,
+      "nonzero_after_injected_stop": 0,
+      "scope": "Actual bridge/guard ROS routing with synthetic native services, binding and feedback. Separate real native tests above."
+    },
+    "independent_reviews": [
+      "artifacts/pupper-fc/2026-11-17/deadline-integration-review/review-summary.json",
+      "artifacts/pupper-fc/2026-11-17/deadline-integration-review/bridge-review-summary.json"
+    ],
+    "corrected_findings": [
+      "Older future-issued sequence cannot revoke a newer native command.",
+      "Inactive mux dependency cannot block direct preflight.",
+      "Old native source hashes cannot describe the rebuilt controller.",
+      "Bridge restart cannot falsely arm against a previous native source binding.",
+      "Pending explicit Start tolerates absent native endpoints only during bounded activation/discovery; full arm checks remain.",
+      "Local encoder enforces encoded UTF8 byte bound."
+    ],
+    "fable_review": "artifacts/pupper-fc/2026-11-17/deadline-design-fable/adjudication.json",
+    "combined_validation": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/tests.json",
+    "combined_summary": "1536 passed +134 subtests in4.45s; source hashes unchanged. One existing Starlette/httpx warning.",
+    "archive_records": [
+      "artifacts/pupper-fc/2026-11-17/command-survival/authority-integration-archive-verification.json",
+      "artifacts/pupper-fc/2026-11-17/command-survival/bridge-start-smoke-archive-verification.json"
+    ],
+    "source_sha256": {
+      "final_project/behaviors/body_command_guard.py": "d5d976cdfa33cadc7fd379f3ee623275aa522e70d0fce1d66201774f389154b6",
+      "final_project/behaviors/command_deadline.py": "865441a30dd9c3019c2cac597e683d21cc92765e8770d86d809f9a16d53412fa",
+      "final_project/behaviors/command_path_evidence.py": "931a50baf28119712710f2311d7e974c5a6391312af6f81f3c2108cbcfcc71b9",
+      "final_project/behaviors/fc_executor_bridge.py": "d765191655b0b09495b3d26610581cc9d08b4efc3758f1251eeb9cb8519203f6",
+      "final_project/behaviors/run_through_kick_node.py": "65cf0c67cb4dc2c60cb51eacc2df1ba9a49cb0725a7443108cba78a48a00188c",
+      "final_project/behaviors/test_body_command_deadline_guard.py": "75d9045a31214884d40e915360eeee21df5b2e58e260ab11e8f4e52a36f3af92",
+      "final_project/behaviors/test_command_deadline.py": "5f8e969e78f25f82ef7cd4e64d3e8da8a8fe787b6155a23e0344903a1173c3c8",
+      "final_project/behaviors/test_command_path_evidence.py": "0254a5721106118787cff7c9749a0efb2296a26b1783aa62d6c648a3cf116352",
+      "final_project/behaviors/test_fc_executor_bridge.py": "05b28c93e2c69a7169da3e460b5fff807f72d4efa7366cc849e903f18be0cd60",
+      "final_project/behaviors/tools/ros_fc_executor_smoke.py": "1c7c730cf16c1e410348154c39e8482f1c2be0eaf7494889b6806be865e7a1d1",
+      "foundation/hardware/assemble_guarded_release.py": "8f4511191a9f6e0a6c6065f6900805406b6f483e91c7514faf0a5fad96f62790",
+      "foundation/hardware/runtime_identity.py": "951cbc332e253439d5976eca5a0dc9b3a31c69689976b5e56e3f7e08749d08b5",
+      "foundation/hardware/stock_session.launch.py": "1c793041afc72b1e1356f641ba339b15157cfa674ca47eb15671d74f2cf0403e",
+      "foundation/hardware/test_assemble_guarded_release.py": "8602bf5480b4d4cd4967e936baa48c9b8b625b49937f48a10e777edfff67e5be",
+      "foundation/hardware/test_runtime_identity.py": "3717bd75bbdc116e2ac3e3fec5f128251a9f214aabe15a0900bcc7239f43b6ce",
+      "foundation/hardware/test_stock_session_launch.py": "e4c563466a9be57e0ca2ec7b1224b550ab3e60de982baece99d16874a02f3b2b",
+      "pupper_gait_deploy/install.py": "b374b96c63bca3288fe8ea49d43a3287f8cf5913a30c13a00b378c223f1a46f0",
+      "pupper_gait_deploy/src/command_deadline.hpp": "ed760811d7d98323197c84a16dd32bcfcf85788246061f4d160e0c1b09dffe14",
+      "pupper_gait_deploy/src/neural_controller.cpp": "745b6c46dd9f4311a938f48ef1d289d326483b86c45c7a56ddc5f58585e618cf",
+      "pupper_gait_deploy/src/neural_controller.hpp": "dd5970d02a75409e2084f3e1b45f4c7dae72cc26f3f499147ed1f710ecc4dab8",
+      "pupper_gait_deploy/src/neural_controller_parameters.yaml": "c5bfaf02e4cb8529024ff29862d8c874406fa19a377301f68d71df19a22ae3aa",
+      "pupper_gait_deploy/test/test_neural_controller_safety.cpp": "395113ac263df3b34fcc862af886155f764e728b77a1dbe309886232ee9f1f37"
+    },
+    "limits": [
+      "No Pi access, deployment, motor initialization or physical trial.",
+      "One run per fault; update scheduling delay and physical braking are not bounded by these observations.",
+      "Same-host Linux boot/time namespace only; no Ryan wire adapter or cross-device clock conversion.",
+      "New native binary requires target-compatible build; cached Ubuntu binaries remain test-only.",
+      "Geometry candidate remains unselected; complete shared-ball match, detector coverage and course deliverables remain open."
+    ],
+    "source_kit": "artifacts/pupper-fc/2026-11-17/fc-deadline-source-kit-20261117T144254Z/summary.json",
+    "source_kit_sha256": "a7238f7d8199b7f85ba8fa0e2a7fd1039c70ec1a435fb3da88dc394f9b7c883e",
+    "source_kit_files": 52,
+    "source_kit_runtime_roles": 15,
+    "source_kit_native_files": 779,
+    "source_kit_extracted_validation": "394 passed +86 subtests;11 imported module origins verified inside extracted kit.",
+    "fresh_build_validation": "Fresh CMake configure/build/install/ldd and six behavioral CTests passed using extracted package and ROS underlay only; native safety 37/37. Six linter tests not run. Ubuntu test build used no cached native build inputs; Pi compatibility is unqualified.",
+    "source_kit_target_build_recipe": "artifacts/pupper-fc/2026-11-17/fc-deadline-source-kit-20261117T144254Z/NATIVE_BUILD_RECIPE.txt",
+    "archive_verification": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/archive-verification.json",
+    "archive_sha256": "47706f12a51c00a7356ec5df4dec56d6ed66b09b3012cd3f1fcecff2a8b4059b",
+    "archive_files": 314,
+    "all_owned_jobs_exited": true,
+    "all_agents_completed": true,
+    "hardware_access": false
   }
 }

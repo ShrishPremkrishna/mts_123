@@ -16,6 +16,9 @@ Neither camera clearance nor reconnect arms or renews an action. No homing.
 Optional --require-participants pins the robot tracks needed for motion. Each
 present required track needs its own original captured_at; stale/missing peers
 hold motion. This checks tracking evidence, not geometric collision clearance.
+Explicit --command-contract fc_deadline_v1 requires the matching native/guard
+topology and carries the original source deadline to native. It emits genuine
+zero envelopes while waiting for arm so receiver startup never grants motion.
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ from queue import Empty, Full, Queue, SimpleQueue
 import sys
 import threading
 import time
+import uuid
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -39,17 +43,21 @@ for path in (ROOT, HERE):
 from final_project.pupper_fc.integration import Executor, number, token
 from final_project.pupper_fc.model import Command, Field, Limits, zero
 from command_path_evidence import (GUARD_STATUS_TOPIC, GUARD_STATUS_MAX_AGE_S,
-    decode_guard_status, guard_publishers_problem, guard_status_problem)
+    NATIVE_AUTHORITY_TOPIC, decode_guard_status, decode_native_authority,
+    guard_publishers_problem, guard_status_problem, native_authority_problem)
 
 TICK_S = 0.02
 IDENTITY_S = 0.2
 OBS_MAX_AGE_S = 0.2
+NATIVE_DISCOVERY_S = 0.3
 ROBOT_IDS = ("pupper-1", "pupper-2")
 LIMITS = Limits(vx=0.3, vy=0.3, wz=1.0)
 EVENT_TOPIC = "/fc/normalized_events"
 STATUS_TOPIC = "/fc/executor_bridge/status"
 NODE_NAME = "fc_executor_bridge"
 FIELD_KEYS = {"length", "width", "goal_width", "robot_radius", "ball_radius", "bumper_offset"}
+LEGACY_CONTRACT = "legacy_twist"
+DEADLINE_CONTRACT = "fc_deadline_v1"
 
 
 class EventSink:
@@ -82,6 +90,9 @@ def verify_bridge_sources(runtime):
                "fc_integration": integration.__file__, "fc_controller": controller.__file__,
                "fc_model": model.__file__, "fc_tactics": tactics.__file__,
                "guard_obstacles": obstacles.__file__}
+    if runtime.get("command_topology") == DEADLINE_CONTRACT:
+        from final_project.behaviors import command_deadline
+        modules["command_deadline"] = command_deadline.__file__
     for role, origin in modules.items():
         selected = runtime.get("files", {}).get(role)
         path = Path(origin).resolve(strict=True)
@@ -110,13 +121,59 @@ def load_fields(config):
     return {robot: Field(**values, attack_sign=signs[robot]) for robot in ROBOT_IDS}
 
 
+class DeadlineEncoder:
+    """One process-owned source identity and sequence across every FC arm epoch."""
+
+    def __init__(self, *, monotonic_ns=time.monotonic_ns, clock_id=None, source_instance=None):
+        from final_project.behaviors import command_deadline
+        self.protocol = command_deadline
+        self.clock_id = command_deadline.local_clock_id() if clock_id is None else clock_id
+        self.source_instance = uuid.uuid4().hex if source_instance is None else source_instance
+        self.monotonic_ns = monotonic_ns
+        self.sequence = self.last_issued_ns = 0
+        # Fail startup on invalid local identity rather than discovering that
+        # even a fallback zero cannot be encoded at the publication boundary.
+        command_deadline.DeadlineCommand(self.clock_id, self.source_instance, 1, 1, 2,
+                                        0., 0., 0.).encode()
+
+    def encode(self, command):
+        issued = self.monotonic_ns()  # Exactly one original issue timestamp per publication.
+        if (type(issued) is not int or not self.last_issued_ns < issued < self.protocol.MAX_INT or
+                self.sequence >= self.protocol.MAX_INT):
+            return None, False, "source monotonic clock did not advance or sequence exhausted"
+        self.last_issued_ns = issued
+        self.sequence += 1
+        diagnostic = None
+        latest = min(issued + self.protocol.MAX_LIFETIME_NS, self.protocol.MAX_INT)
+        try:
+            expiry = min(math.floor(number(command.expires_at, "command expiry") * 1e9), latest)
+            if expiry <= issued:
+                raise ValueError("original command expired before publication")
+            envelope = self.protocol.DeadlineCommand(self.clock_id, self.source_instance,
+                self.sequence, issued, expiry, command.vx, command.vy, command.wz)
+            payload = envelope.encode()
+        except (ValueError, TypeError, AttributeError, OverflowError) as exc:
+            diagnostic = str(exc)[:160]
+            envelope = self.protocol.DeadlineCommand(self.clock_id, self.source_instance,
+                self.sequence, issued, latest, 0., 0., 0.)
+            payload = envelope.encode()  # Only the genuine zero receives a fresh bounded deadline.
+        return payload, not envelope.is_zero, diagnostic
+
+
 class BridgeCore:
     """Transport-free admission and output fence; callbacks never publish."""
 
     def __init__(self, robot_id, producer_id, boot_id, fields, *, clock=time.monotonic,
-                 required_participants=()):
+                 required_participants=(), command_contract=LEGACY_CONTRACT,
+                 monotonic_ns=time.monotonic_ns, command_clock_id=None, source_instance=None):
         if robot_id not in ROBOT_IDS or set(fields) != set(ROBOT_IDS):
             raise ValueError("configure both robots and pin one output robot")
+        if command_contract not in (LEGACY_CONTRACT, DEADLINE_CONTRACT):
+            raise ValueError("unknown bridge command contract")
+        self.command_contract = command_contract
+        self.deadline = (DeadlineEncoder(monotonic_ns=monotonic_ns, clock_id=command_clock_id,
+                                        source_instance=source_instance)
+                         if command_contract == DEADLINE_CONTRACT else None)
         self.robot_id, self.producer_id = robot_id, token(producer_id, "producer_id")
         self.clock_name = "linux-monotonic:" + token(boot_id, "boot_id")
         self.clock = clock
@@ -276,24 +333,32 @@ def _node_class():
             self.identity_at = None
             self.guard_status = self.guard_at = self.guard_source = self.guard_deadline = None
             self.guard_error = "no guard status received"
+            self.authority_status = self.authority_at = None
+            self.authority_error = "no native command authority received"
             self.gateway_at = self.gateway_authority = None
             self.gateway_released = False
             self.gateway_blocked = True
             self.observation = None
             self.closing = self.closed = False
             self.hard_stopped = self.ever_armed = self.submitted_start = False
+            self.native_discovery_until = None
             self.guard_only_exit = False
             self.close_at = self.zero_seen_at = None
             self.reason = "waiting for explicit arm"
             self.last_hold = None
             self.hold_zero_at = self.hold_zero_seen_at = None
             self.ingress_result = None
-            self.command_pub = self.create_publisher(Twist, "/kick_cmd_vel", 1)
-            self.zero_pub = self.create_publisher(Twist, "/cmd_vel", 1)
+            self.command_error = None
+            strict = core.deadline is not None
+            self.command_pub = self.create_publisher(String if strict else Twist,
+                core.deadline.protocol.REQUEST_TOPIC if strict else "/kick_cmd_vel", 1)
+            self.zero_pub = None if strict else self.create_publisher(Twist, "/cmd_vel", 1)
             self.stop_pub = self.create_publisher(EmptyMessage, "/emergency_stop", 10)
             self.status_pub = self.create_publisher(String, STATUS_TOPIC,
                 QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
-            self.stock = StockWalkerEvidence(self, forward_ceiling=.3, lateral_ceiling=.3)
+            self.stock = StockWalkerEvidence(self, forward_ceiling=.3, lateral_ceiling=.3,
+                **({"command_contract": DEADLINE_CONTRACT, "command_clock_id": core.deadline.clock_id}
+                   if strict else {}))
             self.stock.clock = self.clock
             self.start_client = None
             try:
@@ -304,6 +369,9 @@ def _node_class():
             self.inbox = OperatorInbox(self.clock, self.capture_start, self.capture_resume)
             self.create_subscription(String, EVENT_TOPIC, self.on_event, 1)
             self.create_subscription(String, GUARD_STATUS_TOPIC, self.on_guard, 1)
+            if strict:
+                self.create_subscription(String, NATIVE_AUTHORITY_TOPIC, self.on_native_authority,
+                    QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
             self.create_subscription(String, "/estop_controller/stop_status", self.on_gateway, 10)
             self.create_subscription(Float32MultiArray, "/neural_controller_default/observation", self.on_observation, 1)
             self.create_subscription(EmptyMessage, "/emergency_stop", self.on_emergency, 10)
@@ -372,24 +440,44 @@ def _node_class():
                 return "gateway authority blocked or stale"
             if self.observation is None or not 0 <= now - self.observation[1] <= OBS_MAX_AGE_S:
                 return "stock policy observation unavailable or stale"
-            return self.stock.problem()
+            problem = self.stock.problem()
+            if problem or self.core.deadline is None:
+                return problem
+            return native_authority_problem(self.authority_status, self.authority_at,
+                self.authority_error, now, self.core.deadline.source_instance)
 
-        def guard_problem(self, *, camera=True):
-            graph = guard_publishers_problem(self, "/" + NODE_NAME)
+        def on_native_authority(self, message):
+            with self.lock:
+                now = self.clock()
+                try:
+                    self.authority_status = decode_native_authority(message.data, now,
+                        self.core.deadline.clock_id, self.authority_status)
+                    self.authority_error = None
+                except (ValueError, TypeError, KeyError, OverflowError) as exc:
+                    self.authority_error = "invalid native command authority: " + str(exc)
+                self.authority_at = now
+
+        def guard_problem(self, *, camera=True, allow_absent_native=False):
+            graph = guard_publishers_problem(self, "/" + NODE_NAME,
+                command_contract=self.core.command_contract, allow_absent_native=allow_absent_native)
             if graph and graph[0] == "authority":
                 return graph
             if not self.path_valid or self.identity_at is None or not 0 <= self.clock() - self.identity_at <= .3:
                 return "path", "selected guard process identity unavailable"
             return (graph or
                     guard_status_problem(self.guard_status, self.guard_at, self.guard_error,
-                                         self.guard_deadline, self.clock(), camera=camera))
+                                         self.guard_deadline, self.clock(), camera=camera,
+                                         command_contract=self.core.command_contract))
 
         def on_guard(self, message):
             with self.lock:
                 now = self.clock()
                 try:
                     self.guard_status, self.guard_source, self.guard_deadline = decode_guard_status(
-                        message.data, now, self.guard_source, self.guard_deadline)
+                        message.data, now, self.guard_source, self.guard_deadline,
+                        command_contract=self.core.command_contract,
+                        clock_id=self.core.deadline.clock_id if self.core.deadline else None,
+                        source_instance=self.core.deadline.source_instance if self.core.deadline else None)
                     self.guard_error = None
                 except (ValueError, TypeError, KeyError, OverflowError) as exc:
                     self.guard_error = "invalid guard status: " + str(exc)
@@ -467,6 +555,24 @@ def _node_class():
                     self.shutdown("competing shot adapter active", hard=True)
 
         def publish_command(self, command):
+            if self.core.deadline is not None:
+                if any((command.vx, command.vy, command.wz)):
+                    if self.inbox.stop_seen.is_set() or self.closing:
+                        self.drain_operator(urgent_only=True)
+                        return
+                    if self.core.stopped or not self.core.executor.armed:
+                        command = zero(self.clock(), self.core.robot_id)
+                payload, nonzero, self.command_error = self.core.deadline.encode(command)
+                if self.command_error:
+                    self.emit({"event": "command_zero", "reason": self.command_error})
+                if payload is None:
+                    return  # Never invent a future issue timestamp; native expiry still applies.
+                message = String(data=payload)
+                if nonzero and (self.inbox.stop_seen.is_set() or self.closing):
+                    self.drain_operator(urgent_only=True)
+                    return
+                self.command_pub.publish(message)
+                return
             message = Twist()
             message.linear.x, message.linear.y, message.angular.z = command.vx, command.vy, command.wz
             if any((command.vx, command.vy, command.wz)):
@@ -492,7 +598,8 @@ def _node_class():
                 self.close_at = self.clock()
             self.closing, self.reason = True, reason
             self.publish_command(zero(self.clock(), self.core.robot_id))
-            self.zero_pub.publish(Twist())
+            if self.zero_pub is not None:
+                self.zero_pub.publish(Twist())
 
         def operator(self, at, message):
             command = message.get("command")
@@ -515,6 +622,7 @@ def _node_class():
                         raise ValueError("selected runtime is unavailable")
                     self.start_client.send(message["_ticket"])
                     self.submitted_start = True
+                    self.native_discovery_until = None
                     result = {"accepted": True, "reason": "one Start submitted; FC remains unarmed"}
                 elif command in ("arm", "resume"):
                     if not 0 <= self.clock() - at <= .2:
@@ -570,6 +678,8 @@ def _node_class():
                     result = self.start_client.poll()
                     if result:
                         self.emit(result)
+                        if self.core.deadline is not None and result.get("success") is True:
+                            self.native_discovery_until = self.clock() + NATIVE_DISCOVERY_S
                     if self.start_client.uncertain:
                         self.shutdown("Start result uncertain", hard=True)
                 if self.submitted_start and not self.closing:
@@ -577,7 +687,13 @@ def _node_class():
                             not 0 <= self.clock() - self.identity_at <= .3):
                         self.shutdown("native runtime lost after Start", hard=True)
                     else:
-                        path_problem = self.guard_problem(camera=False)
+                        # Native endpoints are activation-scoped. Permit their
+                        # absence only while the explicit Start is pending and
+                        # during bounded DDS discovery after its acknowledgement.
+                        native_pending = (self.core.deadline is not None and not self.ever_armed and
+                            self.start_client is not None and (self.start_client.pending is not None or
+                            (self.native_discovery_until is not None and self.clock() < self.native_discovery_until)))
+                        path_problem = self.guard_problem(camera=False, allow_absent_native=native_pending)
                         if path_problem:
                             self.shutdown(path_problem[1], hard=path_problem[0] == "authority")
                 if self.ever_armed and not self.closing:
@@ -615,6 +731,10 @@ def _node_class():
                                     self.publish_command(self.core.output(decision))
                             except ValueError as exc:
                                 self.shutdown(str(exc), hard=True)
+                elif self.core.deadline is not None and not self.closing:
+                    # Native/guard source binding requires harmless genuine
+                    # zeros before arm; it must not depend on guard readiness.
+                    self.publish_command(zero(self.clock(), self.core.robot_id))
                 if self.closing:
                     self.drain_operator(urgent_only=True)
                     if self.guard_only_exit and self.native_problem():
@@ -637,6 +757,12 @@ def _node_class():
             intent = self.core.executor.intents[self.core.robot_id]
             resume_problem = self.resume_problem()
             return {"event": "bridge_status", "robot_id": self.core.robot_id,
+                    "command_contract": self.core.command_contract,
+                    "command_clock_id": self.core.deadline.clock_id if self.core.deadline else None,
+                    "source_instance": self.core.deadline.source_instance if self.core.deadline else None,
+                    "source_sequence": self.core.deadline.sequence if self.core.deadline else None,
+                    "command_error": self.command_error,
+                    "native_command_authority": self.authority_status if self.core.deadline else None,
                     "sampled_at_monotonic": now,
                     "clock": self.core.clock_name, "epoch": self.core.executor.epoch,
                     "frame_seq": self.core.executor.frame_seq if frame else None,
@@ -675,6 +801,8 @@ def main(argv=None):
     parser.add_argument("--field-config", type=Path)
     parser.add_argument("--robot-id", choices=ROBOT_IDS, required=True)
     parser.add_argument("--producer-id", required=True)
+    parser.add_argument("--command-contract", choices=(LEGACY_CONTRACT, DEADLINE_CONTRACT),
+                        default=LEGACY_CONTRACT)
     parser.add_argument("--require-participants", nargs="+", choices=ROBOT_IDS, default=(),
                         help="Tracks required for motion, including this robot; requires original per-row captured_at")
     args = parser.parse_args(argv)
@@ -688,6 +816,7 @@ def main(argv=None):
             print(json.dumps({"event": "bridge_dry_run", "robot_id": args.robot_id,
                               "producer_id": args.producer_id, "limits": asdict(LIMITS),
                               "required_participants": list(args.require_participants),
+                              "command_contract": args.command_contract,
                               "fields": {r: asdict(f) for r, f in fields.items()} if fields else None,
                               "execute_requires": ["explicit field-config", "guarded runtime receipt", "operator arm"],
                               "ros_started": False}))
@@ -697,8 +826,9 @@ def main(argv=None):
         from foundation.hardware import runtime_identity
         preflight = runtime_identity.read_json(args.runtime_receipt)
         runtime = runtime_identity.verify_loaded(preflight)
-        if runtime.get("command_topology") != "guarded":
-            raise ValueError("FC bridge requires the explicitly selected guarded topology")
+        topology = DEADLINE_CONTRACT if args.command_contract == DEADLINE_CONTRACT else "guarded"
+        if runtime.get("command_topology") != topology:
+            raise ValueError("FC bridge command contract differs from selected runtime topology")
         if runtime_identity.read_json(preflight["manifest_path"]).get("trial_profile") != "walk":
             raise ValueError("FC bridge requires the walk profile")
         verify_bridge_sources(runtime)
@@ -707,7 +837,7 @@ def main(argv=None):
             raise ValueError("selected policy differs from the stock evidence guard")
         boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
         core = BridgeCore(args.robot_id, args.producer_id, boot, fields,
-                          required_participants=args.require_participants)
+                          required_participants=args.require_participants, command_contract=args.command_contract)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print("bridge refused: " + str(exc), file=sys.stderr)
         return 2
@@ -724,6 +854,8 @@ def main(argv=None):
     node.emit({"event": "bridge_ready", "robot_id": core.robot_id, "producer_id": core.producer_id,
                "clock": core.clock_name, "fields": {r: asdict(f) for r, f in fields.items()},
                "required_participants": list(core.executor.required_participants),
+               "command_contract": core.command_contract,
+               "source_instance": core.deadline.source_instance if core.deadline else None,
                "limits": asdict(LIMITS), "armed": False, "software_start_supported": node.start_client is not None,
                "identity_scope": "operational evidence; not authentication"})
     try:

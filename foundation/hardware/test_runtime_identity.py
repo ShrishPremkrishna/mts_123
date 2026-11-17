@@ -629,3 +629,76 @@ def test_import_probe_uses_pinned_interpreter_flags_cwd_timeout_and_allowlisted_
     assert kwargs["timeout"] == 10 and kwargs["cwd"] == fresh.guard_root(pins)
     assert "rclpy.init(" not in args[4]
     assert "PRIVATE_TOKEN" not in json.dumps(output)
+
+
+def select_deadline(guarded_setup):
+    proc, manifest, files, receipt, _, _, _ = guarded_setup
+    config_path = Path(files["config"]["path"])
+    config = runtime.yaml.safe_load(config_path.read_text())
+    config["neural_controller_default"]["ros__parameters"].update(
+        cmd_vel_contract="fc_deadline_v1", game_buttons=False,
+        reference_tricks=False, chord_partner="")
+    config_path.write_text(runtime.yaml.safe_dump(config))
+    files["config"]["sha256"] = runtime.sha(config_path)
+    helper = runtime.guard_root(receipt["files"]) / "final_project/behaviors/command_deadline.py"
+    helper.write_text("# pinned deadline helper\n")
+    files["command_deadline"] = {"path": str(helper), "sha256": runtime.sha(helper)}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    updated = runtime.preflight(manifest, runtime.sha(manifest), proc=proc,
+                                dependency_checker=lambda _: None,
+                                python_checker=runtime.probe_guard_environment)
+    receipt.clear()
+    receipt.update(updated)  # Existing fake process closures use this receipt.
+    return config_path
+
+
+def test_direct_deadline_identity_does_not_depend_on_legacy_mux(guarded_setup):
+    import shutil
+    select_deadline(guarded_setup)
+    proc, _, _, receipt, _, running, _ = guarded_setup
+    running()
+    shutil.rmtree(proc / "202")  # No mux exists in the selected direct path.
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    assert evidence["command_topology"] == "fc_deadline_v1"
+    assert set(evidence["executables"]) == {"gateway"}
+    assert evidence["guard_process"]["argv"][-2:] == ["--command-contract", "fc_deadline_v1"]
+    assert runtime.same_manager(evidence, proc=proc)
+    assert runtime.same_command_path(evidence, proc=proc)
+    shutil.rmtree(proc / "301")
+    assert runtime.same_manager(evidence, proc=proc)
+    assert not runtime.same_command_path(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("fault", ["missing_helper", "helper_drift", "game_buttons", "reference_tricks", "chord_partner", "unknown"])
+def test_deadline_selection_rejects_partial_or_alternate_authority(guarded_setup, fault):
+    config_path = select_deadline(guarded_setup)
+    _, _, files, _, _, _, _ = guarded_setup
+    if fault == "missing_helper":
+        del files["command_deadline"]
+    elif fault == "helper_drift":
+        Path(files["command_deadline"]["path"]).write_text("changed")
+    else:
+        config = runtime.yaml.safe_load(config_path.read_text())
+        params = config["neural_controller_default"]["ros__parameters"]
+        if fault == "unknown":
+            params["cmd_vel_contract"] = "future_mode"
+        else:
+            params[fault] = "alternate_controller" if fault == "chord_partner" else True
+        config_path.write_text(runtime.yaml.safe_dump(config))
+        files["config"]["sha256"] = runtime.sha(config_path)
+    with pytest.raises(ValueError):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": files})
+
+
+def test_deadline_dependency_check_excludes_unused_mux(guarded_setup, monkeypatch):
+    select_deadline(guarded_setup)
+    pins = guarded_setup[3]["files"]
+    checked = []
+    def ldd(args, **kwargs):
+        checked.append(args[1])
+        return SimpleNamespace(returncode=1 if args[1] == pins["mux"]["path"] else 0,
+                               stdout="", stderr="unused mux dependency unavailable")
+    monkeypatch.setattr(runtime.subprocess, "run", ldd)
+    runtime.check_dependencies(pins)
+    assert pins["mux"]["path"] not in checked
+    assert set(checked) == {pins[r]["path"] for r in ("driver", "controller", "gateway")}

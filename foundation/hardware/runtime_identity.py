@@ -167,9 +167,26 @@ def verify_files(manifest):
             raise ValueError("Unexpected initializer in the selected final_project namespace")
         guard_mode(result)
     config = yaml.safe_load(Path(result["config"]["path"]).read_text())
-    model = config["neural_controller_default"]["ros__parameters"]["model_path"]
+    parameters = config["neural_controller_default"]["ros__parameters"]
+    model = parameters["model_path"]
     if not Path(model).is_absolute() or str(Path(model).resolve(strict=True)) != result["policy"]["path"]:
         raise ValueError("Expanded stock config does not select the pinned policy")
+    contract = parameters.get("cmd_vel_contract", "legacy_twist")
+    if contract not in ("legacy_twist", "fc_deadline_v1"):
+        raise ValueError("Unknown selected command contract")
+    if contract == "fc_deadline_v1":
+        if guard_roles != GUARD_ROLES or "command_deadline" not in result:
+            raise ValueError("FC deadline mode requires the guard and pinned command_deadline source")
+        if result["command_deadline"]["path"] != str(guard_root(result) / "final_project/behaviors/command_deadline.py"):
+            raise ValueError("Deadline source does not preserve the selected package layout")
+        if (parameters.get("game_buttons") is not False or
+                parameters.get("reference_tricks", False) is not False or
+                parameters.get("chord_partner", "") != ""):
+            raise ValueError("FC deadline mode requires walk-only configuration without alternate authority")
+    # Derived only after hashing/parsing the selected file. Continuity checks
+    # need not re-read YAML at 10 Hz; verify_prepared reconstructs this metadata
+    # and compares the entire receipt before a newly loaded runtime is admitted.
+    result["config"]["command_contract"] = contract
     return result
 
 
@@ -178,6 +195,28 @@ def guard_root(pins):
     if len(path.parents) < 3:
         raise ValueError("Guard source files do not preserve the selected package layout")
     return path.parents[2]
+
+
+def command_contract(pins):
+    """Selection from the pinned config, not proof of the loaded capability."""
+    item = pins["config"]
+    if "command_contract" in item:
+        if item["command_contract"] not in ("legacy_twist", "fc_deadline_v1"):
+            raise ValueError("Unknown selected command contract")
+        return item["command_contract"]
+    data = Path(item["path"]).read_bytes()
+    if hashlib.sha256(data).hexdigest() != item["sha256"]:
+        raise ValueError("Selected command configuration changed")
+    config = yaml.safe_load(data)
+    contract = config["neural_controller_default"]["ros__parameters"].get("cmd_vel_contract", "legacy_twist")
+    if contract not in ("legacy_twist", "fc_deadline_v1"):
+        raise ValueError("Unknown selected command contract")
+    return contract
+
+
+def active_executable_roles(pins):
+    roles = EXECUTABLES.keys() & pins.keys()
+    return roles - {"mux"} if "mux" in roles and command_contract(pins) == "fc_deadline_v1" else roles
 
 
 def guard_mode(pins):
@@ -200,6 +239,8 @@ def guard_command(pins):
     command = [pins["guard_python"]["invocation_path"], "-B", "-s", pins["guard_script"]["path"]]
     if guard_mode(pins) == "arena_ball_contact":
         command.append("--arena-ball-contact")
+    if command_contract(pins) == "fc_deadline_v1":
+        command.extend(("--command-contract", "fc_deadline_v1"))
     return command
 
 
@@ -218,16 +259,24 @@ def probe_guard_environment(pins):
     program = '''import hashlib, importlib, json, pathlib, runpy, sys
 runpy.run_path(sys.argv[1], run_name="guard_import_probe")
 origins = {}
-for name in ("rclpy", "geometry_msgs.msg", "std_msgs.msg", "final_project.pupper_fc", "final_project.pupper_fc.obstacles"):
+names = ["rclpy", "geometry_msgs.msg", "std_msgs.msg", "final_project.pupper_fc", "final_project.pupper_fc.obstacles"]
+if sys.argv[2] == "fc_deadline_v1":
+    names.append("final_project.behaviors.command_deadline")
+for name in names:
     module = importlib.import_module(name)
     path = pathlib.Path(module.__file__).resolve(strict=True)
     origins[name] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
-print(json.dumps({"python_executable": str(pathlib.Path(sys.executable).resolve()), "prefix": sys.prefix, "base_prefix": sys.base_prefix, "origins": origins}))
+clock = {}
+if sys.argv[2] == "fc_deadline_v1":
+    from final_project.behaviors.command_deadline import local_clock_id
+    clock["command_clock_id"] = local_clock_id()
+print(json.dumps({"python_executable": str(pathlib.Path(sys.executable).resolve()), "prefix": sys.prefix, "base_prefix": sys.base_prefix, "origins": origins, **clock}))
 '''
     try:
-        result = subprocess.run([*guard_command(pins)[:3], "-c", program, pins["guard_script"]["path"]],
+        contract = command_contract(pins)
+        result = subprocess.run([*guard_command(pins)[:3], "-c", program, pins["guard_script"]["path"], contract],
                                 cwd=guard_root(pins), capture_output=True, text=True, timeout=10, check=False)
         if result.returncode or len(result.stdout) > 65536:
             raise ValueError("Selected guard Python failed the import-readiness probe")
@@ -238,6 +287,9 @@ print(json.dumps({"python_executable": str(pathlib.Path(sys.executable).resolve(
                            ("final_project.pupper_fc.obstacles", "guard_obstacles")):
             if report["origins"][name] != {key: pins[role][key] for key in ("path", "sha256")}:
                 raise ValueError("Guard probe imported a different selected package")
+        if contract == "fc_deadline_v1" and report["origins"].get("final_project.behaviors.command_deadline") != {
+                key: pins["command_deadline"][key] for key in ("path", "sha256")}:
+            raise ValueError("Guard probe imported a different deadline source")
     except (OSError, subprocess.TimeoutExpired, KeyError, TypeError, json.JSONDecodeError) as error:
         raise ValueError("Cannot establish selected guard import readiness") from error
     return {**report, "environment": guard_environment()}
@@ -296,7 +348,7 @@ def guard_identity(proc, pins, expected_environment):
 
 
 def check_dependencies(pins):
-    for role in ("driver", "controller", "gateway", "mux"):
+    for role in (*LIBRARIES, *active_executable_roles(pins)):
         if role not in pins:
             continue
         result = subprocess.run(["ldd", pins[role]["path"]], capture_output=True,
@@ -314,7 +366,7 @@ def preflight(manifest_path, expected_sha, *, proc=Path("/proc"), dependency_che
     pins = verify_files(manifest)
     if managers(proc):
         raise ValueError("A controller manager is running; do not prepare over another session")
-    for role in EXECUTABLES.keys() & pins.keys():
+    for role in active_executable_roles(pins):
         if executable_pids(proc, role, pins[role]):
             raise ValueError("A " + role + " executable is running; do not prepare over another session")
     dependency_checker(pins)
@@ -379,13 +431,14 @@ def verify_loaded(receipt, *, proc=Path("/proc")):
                     os.makedev(major, minor) != selected["device"]):
                 raise ValueError("Loaded library differs from selected file: " + role)
     executables = {}
-    for role in EXECUTABLES.keys() & current.keys():
+    for role in active_executable_roles(current):
         executables[role] = executable_identity(proc, role, current[role])
         if executables[role]["start_ticks"] <= receipt["preflight_ticks"]:
             raise ValueError(role + " executable predates preflight")
     evidence = {"verified": True, "manager_pid": pid, "manager_start_ticks": started,
                 "boot_id": receipt["boot_id"], "files": current, "executables": executables,
-                "command_topology": "guarded" if "guard_script" in current else "stock",
+                "command_topology": ("fc_deadline_v1" if command_contract(current) == "fc_deadline_v1"
+                                     else "guarded" if "guard_script" in current else "stock"),
                 "scope": ("Selected files, supplied config, actual mapped libraries and selected "
                           "executable processes; not physical acceptance")}
     if "guard_script" in current:
@@ -409,7 +462,7 @@ def same_manager(evidence, *, proc=Path("/proc")):
                 start_ticks(proc, evidence["manager_pid"]) != evidence["manager_start_ticks"] or
                 process_stat(proc, evidence["manager_pid"])[0] in {"T", "t", "Z", "X", "x"}):
             return False
-        for role in EXECUTABLES.keys() & evidence.get("files", {}).keys():
+        for role in active_executable_roles(evidence.get("files", {})):
             if executable_identity(proc, role, evidence["files"][role]) != evidence["executables"][role]:
                 return False
         return True
@@ -422,7 +475,8 @@ def same_command_path(evidence, *, proc=Path("/proc")):
     if evidence.get("command_topology", "stock") == "stock":
         return "guard_script" not in evidence.get("files", {})
     try:
-        return (evidence["command_topology"] == "guarded" and
+        expected = "fc_deadline_v1" if command_contract(evidence["files"]) == "fc_deadline_v1" else "guarded"
+        return (evidence["command_topology"] == expected and
                 boot_id(proc) == evidence["boot_id"] and
                 guard_identity(proc, evidence["files"], evidence["guard_environment"]["environment"]) ==
                 evidence["guard_process"])

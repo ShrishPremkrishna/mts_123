@@ -171,10 +171,14 @@ participants hold motion on stale/missing tracks, including return-home. The
 remaining opponent-clearance candidate is unselected: it prevents the original
 simulated overlaps but stalls in some held-peer cases. More critically, an
 actual mux/guard/native cascade retained a command for 491 ms after its source
-stopped. The native 250 ms watchdog measures its latest receipt, which relays
-can refresh. Preserve original command expiry through the actuation boundary
-and verify failure cases before refining the clearance envelope. That observed
-491 ms is a counterexample, not a worst-case or physical stopping bound.
+stopped. The legacy native 250 ms watchdog measures its latest receipt, which
+relays can refresh. The opt-in direct FC mode now preserves original expiry
+through the actuation boundary, with device-free native failure tests and ROS
+startup/hold/Stop checks. It also requires native acknowledgement of the current
+bridge instance before arm. Target build and physical acceptance remain open.
+Refine the clearance envelope against this explicit command contract, keeping
+controller scheduling and physical braking distinct. The observed 491 ms legacy
+tail is a counterexample, not a worst-case or physical stopping bound.
 
 Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
 

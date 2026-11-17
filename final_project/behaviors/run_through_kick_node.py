@@ -122,10 +122,20 @@ PARAM_NAMES = ("model_path", "max_vx_forward", "max_vx_backward", "speed_cap", "
 class StockWalkerEvidence:
   """Bounded read-only polling; no callback can start motion or rearm a stop."""
 
-  def __init__(self, node, *, forward_ceiling=0.49, lateral_ceiling=0.49):
+  def __init__(self, node, *, forward_ceiling=0.49, lateral_ceiling=0.49,
+               command_contract=None, command_clock_id=None):
     if not (math.isfinite(forward_ceiling) and 0 < forward_ceiling <= 1.5 and
             math.isfinite(lateral_ceiling) and 0 < lateral_ceiling <= 0.5):
       raise ValueError("stock trial ceiling exceeds the exported policy envelope")
+    if command_contract not in (None, "fc_deadline_v1"):
+      raise ValueError("unknown required stock command contract")
+    if command_contract and (not isinstance(command_clock_id, str) or not command_clock_id):
+      raise ValueError("strict stock evidence needs the command clock identity")
+    self.command_contract = command_contract
+    self.command_clock_id = command_clock_id
+    self.param_names = PARAM_NAMES + (("cmd_vel_loaded_contract", "cmd_vel_original_deadline_supported",
+                                      "cmd_vel_source_clock_id")
+                                     if command_contract else ())
     self.forward_ceiling, self.lateral_ceiling = forward_ceiling, lateral_ceiling
     self.clock = time.monotonic
     self.clients = (node.create_client(ListControllers, "/controller_manager/list_controllers"),
@@ -190,7 +200,7 @@ class StockWalkerEvidence:
     if active != [(STOCK_CONTROLLER, "neural_controller/NeuralController")]:
       raise ValueError("expected only the stock walker active; controller ownership changed or missing")
     values = parameters.values
-    if len(values) != len(PARAM_NAMES):
+    if len(values) != len(self.param_names):
       raise ValueError("stock cap/model parameters missing")
     if values[0].type != ParameterType.PARAMETER_STRING or not values[0].string_value:
       raise ValueError("stock model_path missing")
@@ -201,6 +211,13 @@ class StockWalkerEvidence:
       caps.append(value.double_value or math.inf)  # native zero disables the extra cap
     if values[4].type != ParameterType.PARAMETER_BOOL or values[4].bool_value:
       raise ValueError("stock baseline requires game_buttons=false")
+    if self.command_contract and (values[5].type != ParameterType.PARAMETER_STRING or
+        values[5].string_value != self.command_contract or
+        values[6].type != ParameterType.PARAMETER_BOOL or not values[6].bool_value):
+      raise ValueError("native loaded command contract lacks original-deadline support")
+    if self.command_contract and (values[7].type != ParameterType.PARAMETER_STRING or
+                                  values[7].string_value != self.command_clock_id):
+      raise ValueError("native command clock differs from the bridge clock")
     self._model_matches(values[0].string_value)
     forward, backward, speed = caps
     return (min(self.forward_ceiling, forward, speed), min(0.49, backward, speed),
@@ -229,7 +246,7 @@ class StockWalkerEvidence:
       futures = []
       try:
         request = GetParameters.Request()
-        request.names = list(PARAM_NAMES)
+        request.names = list(self.param_names)
         for client, req in zip(self.clients, (ListControllers.Request(), request)):
           futures.append(client.call_async(req))
         self.pending = (now, futures)

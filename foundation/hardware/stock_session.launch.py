@@ -15,7 +15,7 @@ from launch.events import Shutdown
 from launch_ros.actions import Node
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from runtime_identity import guard_command, guard_root, managers, read_json, verify_prepared
+from runtime_identity import command_contract, guard_command, guard_root, managers, read_json, verify_prepared
 
 
 def selected_inputs():
@@ -33,6 +33,8 @@ def selected_inputs():
         "gateway": ("joy_utils", "lib/joy_utils/estop_controller"),
         "mux": ("cmd_vel_mux", "lib/cmd_vel_mux/cmd_vel_mux_node"),
     }
+    if command_contract(files) == "fc_deadline_v1":
+        expected.pop("mux")
     for role, (package, relative) in expected.items():
         actual = (Path(get_package_prefix(package)) / relative).resolve(strict=True)
         if str(actual) != files[role]["path"]:
@@ -53,10 +55,11 @@ def generate_launch_description():
                                 "/controller_manager/switch_controller_backend")])
     gateway = Node(package="joy_utils", executable="estop_controller", parameters=[config], output="both")
     guarded = "guard_script" in files
-    mux = Node(package="cmd_vel_mux", executable="cmd_vel_mux_node", parameters=[config], output="both",
+    deadline = command_contract(files) == "fc_deadline_v1"
+    mux = None if deadline else Node(package="cmd_vel_mux", executable="cmd_vel_mux_node", parameters=[config], output="both",
                **({"remappings": [("/cmd_vel", "/fc/requested_cmd_vel")]} if guarded else {}))
     joy = Node(package="joy", executable="joy_node", parameters=[config], output="both")
-    required = (state, manager, gateway, mux, joy)
+    required = (state, manager, gateway, joy) if deadline else (state, manager, gateway, mux, joy)
     exits = [RegisterEventHandler(OnProcessExit(target_action=n,
               on_exit=[EmitEvent(event=Shutdown(reason="required stock-session process exited"))])) for n in required]
     common = ["--controller-manager", "/controller_manager", "--controller-manager-timeout", "60"]

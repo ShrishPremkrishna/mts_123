@@ -5,8 +5,9 @@ import sys
 
 import pytest
 
-from assemble_guarded_release import assemble, sha, SOURCE_ROLES, NATIVE_ROLES
-from runtime_identity import verify_files, guard_command, guard_mode
+from assemble_guarded_release import assemble, sha, SOURCE_ROLES, NATIVE_ROLES, DEADLINE_SOURCE_ROLES
+from runtime_identity import verify_files, guard_command, guard_mode, command_contract
+import yaml
 
 
 @pytest.fixture
@@ -131,4 +132,80 @@ def test_does_not_repin_concurrent_change_to_preserved_source(selected, monkeypa
     with pytest.raises(ValueError, match="Preserved baseline changed.*shot_core"):
         assemble(**selected)
     assert selected["destination"].exists()  # retained partial output, never selected
+    assert not (selected["destination"] / "STAGING.json").exists()
+
+
+def select_deadline_controller(selected):
+    root = selected["source_root"]
+    for role in ("command_deadline", "shot_node"):
+        path = root / DEADLINE_SOURCE_ROLES[role]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# reviewed " + role + "\n")
+    selected["source_index"].write_text(json.dumps({"schema": "pupper_guard_sources_v1",
+        "files": {relative: sha(root / relative) for relative in DEADLINE_SOURCE_ROLES.values()}}))
+    selected["source_sha256"] = sha(selected["source_index"])
+    candidate = root.parent / "rebuilt/libneural_controller.so"
+    candidate.parent.mkdir()
+    candidate.write_bytes(b"explicit deadline controller candidate")
+    selected.update(deadline_controller=candidate, deadline_controller_sha256=sha(candidate))
+
+
+def test_deadline_assembly_selects_changed_controller_without_changing_policy_or_gains(selected):
+    base = selected["baseline_manifest"].parent
+    config = yaml.safe_load((base / "walk.yaml").read_text())
+    params = config["neural_controller_default"]["ros__parameters"]
+    params.update(game_buttons=False, chord_partner="neural_controller_default_alt",
+                  init_kps=[20.] * 12, max_vx_forward=.49, max_vx_backward=.3)
+    (base / "walk.yaml").write_text(yaml.safe_dump(config))
+    original = json.loads(selected["baseline_manifest"].read_text())
+    original["files"]["config"]["sha256"] = sha(base / "walk.yaml")
+    original["source_commit"] = "old-controller-build"
+    original["source_freeze_sha256"] = {"pupper_gait_deploy/src/neural_controller.cpp": "1" * 64}
+    selected["baseline_manifest"].write_text(json.dumps(original))
+    selected["baseline_sha256"] = sha(selected["baseline_manifest"])
+    before = {p: sha(p) for p in base.rglob("*") if p.is_file()}
+    select_deadline_controller(selected)
+    receipt = assemble(**selected)
+    manifest = json.loads((selected["destination"] / "walk-manifest.json").read_text())
+    pins = verify_files(manifest)
+    assert "source_commit" not in manifest
+    assert manifest["baseline_provenance"]["source_commit"] == "old-controller-build"
+    assert manifest["baseline_provenance"]["source_freeze_sha256"] == original["source_freeze_sha256"]
+    assert "pupper_gait_deploy/src/neural_controller.cpp" not in manifest["source_freeze_sha256"]
+    assert manifest["controller_build_source_verified"] is False
+    assert command_contract(pins) == receipt["command_topology"] == "fc_deadline_v1"
+    assert not receipt["native_unchanged"] and not receipt["physical_acceptance"]
+    assert pins["controller"]["sha256"] == selected["deadline_controller_sha256"]
+    assert all(pins[r]["sha256"] == original["files"][r]["sha256"] for r in NATIVE_ROLES - {"controller"})
+    assert all(sha(p) == digest for p, digest in before.items())
+    configured = yaml.safe_load(Path(pins["config"]["path"]).read_text())["neural_controller_default"]["ros__parameters"]
+    assert configured["cmd_vel_contract"] == "fc_deadline_v1"
+    assert configured["chord_partner"] == "" and configured["reference_tricks"] is False
+    assert configured["game_buttons"] is False
+    for key in ("init_kps", "max_vx_forward", "max_vx_backward"):
+        assert configured[key] == params[key]
+    assert guard_command(pins)[-2:] == ["--command-contract", "fc_deadline_v1"]
+
+
+@pytest.mark.parametrize("fault", ["missing_digest", "wrong_digest", "legacy_source_index", "changed_during_copy"])
+def test_deadline_assembly_refuses_incomplete_or_changed_selection(selected, monkeypatch, fault):
+    import assemble_guarded_release as module
+    legacy_index = selected["source_index"].read_bytes()
+    select_deadline_controller(selected)
+    if fault == "missing_digest":
+        selected.pop("deadline_controller_sha256")
+    elif fault == "wrong_digest":
+        selected["deadline_controller_sha256"] = "0" * 64
+    elif fault == "legacy_source_index":
+        selected["source_index"].write_bytes(legacy_index)
+        selected["source_sha256"] = sha(selected["source_index"])
+    else:
+        real = module.shutil.copyfile
+        def changed(src, dst, **kwargs):
+            if Path(src) == selected["deadline_controller"]:
+                Path(src).write_bytes(b"changed after selection")
+            return real(src, dst, **kwargs)
+        monkeypatch.setattr(module.shutil, "copyfile", changed)
+    with pytest.raises(ValueError):
+        assemble(**selected)
     assert not (selected["destination"] / "STAGING.json").exists()

@@ -203,7 +203,7 @@ def test_blocked_notification_writer_is_bounded_and_does_not_delay_expiry():
 
 
 @pytest.fixture
-def ros_node(tmp_path, monkeypatch):
+def ros_node(tmp_path, monkeypatch, request):
     import _fake_ros
     roots = {"rclpy", "rcl_interfaces", "geometry_msgs", "std_msgs", "std_srvs", "sensor_msgs",
              "controller_manager_msgs", "run_through_kick_node", "joy_utils"}
@@ -227,7 +227,15 @@ def ros_node(tmp_path, monkeypatch):
     policy.write_bytes(b"offline policy fixture only")
     stock_module.STOCK_POLICY_SHA256 = hashlib.sha256(policy.read_bytes()).hexdigest()
     ros.controller_params["model_path"] = str(policy)
-    core = bridge.BridgeCore("pupper-1", "fixture", "boot", bridge.load_fields(CONFIG), clock=lambda: ros.t)
+    strict = getattr(request, "param", None) == "strict"
+    options = dict(command_contract=bridge.DEADLINE_CONTRACT, command_clock_id="linux-monotonic:test:1",
+                   source_instance="a" * 32, monotonic_ns=lambda: round(ros.t * 1e9)) if strict else {}
+    core = bridge.BridgeCore("pupper-1", "fixture", "boot", bridge.load_fields(CONFIG),
+                            clock=lambda: ros.t, **options)
+    if strict:
+        ros.controller_params.update(cmd_vel_loaded_contract=bridge.DEADLINE_CONTRACT,
+                                     cmd_vel_original_deadline_supported=True,
+                                     cmd_vel_source_clock_id=core.deadline.clock_id)
     identities = {"native": True, "path": True}
     events = []
     node = bridge._node_class()(core, same_manager=lambda: identities["native"],
@@ -235,8 +243,20 @@ def ros_node(tmp_path, monkeypatch):
     names = {"/cmd_vel": ["fc_body_command_guard", bridge.NODE_NAME],
              "/kick_cmd_vel": [bridge.NODE_NAME], "/fc/requested_cmd_vel": ["cmd_vel_mux"],
              bridge.GUARD_STATUS_TOPIC: ["fc_body_command_guard"]}
+    subscribers = {}
+    if strict:
+        names = {core.deadline.protocol.REQUEST_TOPIC: [bridge.NODE_NAME],
+                 core.deadline.protocol.ADMITTED_TOPIC: ["fc_body_command_guard"],
+                 bridge.GUARD_STATUS_TOPIC: ["fc_body_command_guard"],
+                 bridge.NATIVE_AUTHORITY_TOPIC: ["neural_controller_default"]}
+        subscribers = {core.deadline.protocol.REQUEST_TOPIC: ["fc_body_command_guard"],
+                       core.deadline.protocol.ADMITTED_TOPIC: ["neural_controller_default"]}
     node.get_publishers_info_by_topic = lambda topic: [SimpleNamespace(node_name=name, node_namespace="/")
                                                       for name in names.get(topic, [])]
+    if strict:
+        info = lambda name: SimpleNamespace(node_name=name, node_namespace="/", topic_type="std_msgs/msg/String")
+        node.get_publishers_info_by_topic = lambda topic: [info(name) for name in names.get(topic, [])]
+        node.get_subscriptions_info_by_topic = lambda topic: [info(name) for name in subscribers.get(topic, [])]
     ros.publishers.update({topic: len(rows) for topic, rows in names.items()})
     state = {"protocol": "pupper_stop_v1", "instance_id": "gateway", "epoch": 1,
              "latched": False, "fault": False, "stop_required": False,
@@ -245,14 +265,29 @@ def ros_node(tmp_path, monkeypatch):
              "input_state": "missing", "requires_post_hold_zero": False, "clear_frames": 3,
              "reason": "clear", "frame_age_s": .05, "max_frame_age_s": .35,
              "producer_instance": "camera", "sequence": 1}
+    authority = dict(schema="pupper_command_authority_v1", generation=1,
+        activation_mono_ns=round(ros.t * 1e9) - 10_000_000,
+        clock_id=core.deadline.clock_id if strict else None,
+        bound_source_instance=core.deadline.source_instance if strict else "")
     def update(*, applied=ZERO, camera=True):
         node.on_gateway(_fake_ros.String(json.dumps(state)))
         data = [0.] * 960
         data[6:9] = applied
         node.on_observation(SimpleNamespace(data=data))
+        if strict:
+            authority["sampled_mono_ns"] = round(ros.t * 1e9)
+            node.on_native_authority(_fake_ros.String(json.dumps(authority)))
         if camera:
             guard["sequence"] += 1
             guard["sampled_at_monotonic_ns"] = round(ros.t * 1e9)
+            if strict:
+                stamp = round(ros.t * 1e9)
+                guard.update(command_contract=bridge.DEADLINE_CONTRACT, clock_id=core.deadline.clock_id,
+                             source_bound=True, source_instance=core.deadline.source_instance,
+                             source_seq=1, source_issued_mono_ns=stamp - 1_000_000,
+                             source_expires_mono_ns=stamp + 149_000_000,
+                             source_vetoed=False, clearance_mono_ns=stamp - 2_000_000,
+                             post_clear_zero_seq=1, input_state="valid")
             node.on_guard(_fake_ros.String(json.dumps(guard)))
         node.check_identity()
         for future in list(ros.pending):
@@ -265,7 +300,8 @@ def ros_node(tmp_path, monkeypatch):
     assert node.native_problem() is None and node.guard_problem() is None
     assert timer_clocks == ["steady"] * 3
     yield SimpleNamespace(ros=ros, node=node, core=core, events=events, names=names,
-                          identities=identities, guard=guard, state=state, update=update)
+                          identities=identities, guard=guard, state=state, update=update,
+                          subscribers=subscribers, authority=authority)
     for name in list(sys.modules):
         if name.split(".")[0] in roots:
             del sys.modules[name]
@@ -502,6 +538,7 @@ def test_start_capture_precedes_node_lock_and_delay_cannot_refresh_press(ros_nod
 
 
 @pytest.mark.parametrize("shutdown", ["stop", "quit", "native", "guard", "uncertain"])
+@pytest.mark.parametrize("ros_node", ["legacy", "strict"], indirect=True)
 def test_pending_start_cleanup_strong_stop_has_precedence(ros_node, shutdown):
     e = ros_node
     caller, calls, _, _ = attach_start(e)
@@ -519,6 +556,45 @@ def test_pending_start_cleanup_strong_stop_has_precedence(ros_node, shutdown):
     e.node.on_tick()
     assert e.node.hard_stopped and len(e.ros.published["/emergency_stop"]) == 1
     assert not e.core.executor.armed
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+@pytest.mark.parametrize("native_appears", [False, True])
+def test_strict_explicit_start_allows_only_bounded_native_endpoint_discovery(ros_node, native_appears):
+    e = ros_node
+    caller, calls, future, _ = attach_start(e)
+    topic = e.core.deadline.protocol.ADMITTED_TOPIC
+    e.names[bridge.NATIVE_AUTHORITY_TOPIC] = []
+    e.ros.publishers[bridge.NATIVE_AUTHORITY_TOPIC] = 0
+    e.subscribers[topic] = []
+    e.node.authority_status = e.node.authority_at = None
+    e.node.inbox.put({"command": "start"})
+    e.node.on_tick()
+    assert len(calls) == 1 and caller.pending is not None
+    assert not e.node.closing and not e.core.executor.armed
+    assert deadline_messages(e)[-1].is_zero
+    # A successful activation acknowledgement may precede DDS discovery.
+    e.ros.t += .02
+    e.update()
+    future.done = lambda: True
+    future.result = lambda: SimpleNamespace(success=True, message="activated")
+    e.node.on_tick()
+    assert not e.node.closing and not e.core.executor.armed
+    e.ros.t += .02
+    e.update()
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert not e.core.executor.armed  # Arm always requires the complete graph.
+    if native_appears:
+        e.names[bridge.NATIVE_AUTHORITY_TOPIC] = ["neural_controller_default"]
+        e.ros.publishers[bridge.NATIVE_AUTHORITY_TOPIC] = 1
+        e.subscribers[topic] = ["neural_controller_default"]
+    e.ros.t += .29
+    e.update()
+    e.node.on_tick()
+    assert e.node.closing is not native_appears
+    assert not e.core.executor.armed and len(calls) == 1
+    assert all(packet.is_zero for packet in deadline_messages(e))
 
 
 def test_start_ack_does_not_replace_stock_readiness(ros_node):
@@ -1002,3 +1078,226 @@ def test_required_participant_configuration_includes_local_robot_and_is_explicit
     assert result["ros_started"] is False
     assert bridge.main(["--robot-id", "pupper-1", "--producer-id", "fixture",
                         "--require-participants", "pupper-2"]) == 2
+
+
+def test_deadline_encoder_preserves_original_expiry_and_reads_issue_clock_once():
+    from final_project.behaviors.command_deadline import decode
+    now, calls = [10_000_000_000], []
+    def clock():
+        calls.append(now[0])
+        return now[0]
+    encoder = bridge.DeadlineEncoder(monotonic_ns=clock, clock_id="linux-monotonic:test:1",
+                                     source_instance="a" * 32)
+    payload, nonzero, error = encoder.encode(Command(.2, 0., 0., 10.1))
+    first = decode(payload)
+    assert nonzero and error is None and len(calls) == 1
+    assert first.issued_mono_ns == now[0] and first.expires_mono_ns == 10_100_000_000
+    now[0] += 20_000_000
+    payload, _, _ = encoder.encode(Command(.2, 0., 0., 20.))
+    second = decode(payload)
+    assert len(calls) == 2 and second.seq == first.seq + 1
+    assert second.expires_mono_ns == now[0] + 150_000_000
+    assert second.source_instance == first.source_instance
+
+
+@pytest.mark.parametrize("command", [Command(.2, 0., 0., 9.9), Command(float("nan"), 0., 0., 11.),
+                                      Command(.3, .3, 0., 11.), Command(.2, 0., 0., float("inf"))])
+def test_expired_or_unencodable_command_becomes_only_a_fresh_genuine_zero(command):
+    from final_project.behaviors.command_deadline import decode
+    encoder = bridge.DeadlineEncoder(monotonic_ns=lambda: 10_000_000_000,
+                                     clock_id="linux-monotonic:test:1", source_instance="a" * 32)
+    payload, nonzero, error = encoder.encode(command)
+    packet = decode(payload)
+    assert packet.is_zero and not nonzero and error
+    assert packet.issued_mono_ns == 10_000_000_000 and packet.expires_mono_ns == 10_150_000_000
+
+
+def test_deadline_encoder_never_invents_future_issue_time_on_stalled_clock():
+    encoder = bridge.DeadlineEncoder(monotonic_ns=lambda: 10_000_000_000,
+                                     clock_id="linux-monotonic:test:1", source_instance="a" * 32)
+    assert encoder.encode(Command(.2, 0., 0., 10.1))[0]
+    payload, nonzero, error = encoder.encode(Command(.2, 0., 0., 10.1))
+    assert payload is None and not nonzero and "clock" in error
+    assert encoder.sequence == 1
+
+
+def test_source_identity_and_sequence_survive_gameplay_arm_epochs():
+    from final_project.behaviors.command_deadline import decode
+    now = [10.]
+    core = bridge.BridgeCore("pupper-1", "fixture", "boot", bridge.load_fields(CONFIG),
+        clock=lambda: now[0], command_contract=bridge.DEADLINE_CONTRACT,
+        monotonic_ns=lambda: round(now[0] * 1e9), command_clock_id="linux-monotonic:test:1")
+    first = decode(core.deadline.encode(Command(expires_at=10.15))[0])
+    core.operator({"command": "arm", "epoch": "one"})
+    now[0] += .01
+    core.operator({"command": "arm", "epoch": "two"})
+    second = decode(core.deadline.encode(Command(expires_at=10.16))[0])
+    assert second.seq == first.seq + 1 and second.source_instance == first.source_instance
+
+
+def deadline_messages(env):
+    from final_project.behaviors.command_deadline import decode
+    return [decode(msg.data) for msg in env.ros.published[env.core.deadline.protocol.REQUEST_TOPIC]]
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+def test_strict_idle_zero_handshake_precedes_arm_and_never_creates_twist_outputs(ros_node):
+    e = ros_node
+    unbound = {**e.guard, "state": "hold", "input_state": "missing", "source_bound": False,
+               "source_instance": None, "source_seq": None, "source_issued_mono_ns": None,
+               "source_expires_mono_ns": None, "source_vetoed": True,
+               "post_clear_zero_seq": None, "requires_post_hold_zero": True}
+    e.node.on_guard(SimpleNamespace(data=json.dumps(unbound)))
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert not e.core.executor.armed and deadline_messages(e)[-1].is_zero
+    assert not e.ros.published["/kick_cmd_vel"] and not e.ros.published["/cmd_vel"]
+    assert e.node.zero_pub is None
+    e.ros.t += .02
+    e.update()  # Fixture observes the genuine zero at the selected guard/native.
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert e.core.executor.armed and deadline_messages(e)[-1].is_zero
+    assert e.core.executor.intents[e.core.robot_id] is None
+    e.core.ingest(frame(e.core, e.ros.t))
+    e.core.ingest(intent(e.core, e.ros.t))
+    e.ros.t += .02
+    e.update()
+    e.node.on_tick()
+    assert not deadline_messages(e)[-1].is_zero
+    assert e.node.status()["command_contract"] == bridge.DEADLINE_CONTRACT
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+def test_strict_disarmed_publish_boundary_cannot_emit_nonzero(ros_node):
+    e = ros_node
+    e.node.publish_command(Command(.2, 0., 0., e.ros.t + .15))
+    assert deadline_messages(e)[-1].is_zero and not e.core.executor.armed
+    assert not e.core.executor.intents[e.core.robot_id]
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+@pytest.mark.parametrize("old_source", ["", "b" * 32])
+def test_strict_native_binding_blocks_restart_false_readiness_without_stopping_zero_stream(ros_node, old_source):
+    e = ros_node
+    # A restarted bridge/guard cannot infer the surviving native receiver's
+    # source binding from zero observation and the new guard's own handshake.
+    e.node.authority_status = None
+    e.authority["bound_source_instance"] = old_source
+    e.update()
+    assert e.node.guard_problem() is None
+    assert e.node.native_problem()
+    if old_source:
+        assert "Stop/Start" in e.node.native_problem()
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert not e.core.executor.armed and deadline_messages(e)[-1].is_zero
+    assert not e.core.executor.intents[e.core.robot_id] and not e.node.closing
+    e.ros.t += .02
+    e.authority.update(generation=2, activation_mono_ns=round(e.ros.t * 1e9),
+                       bound_source_instance=e.core.deadline.source_instance)
+    e.update()  # Explicit native activation and subsequent genuine source zero.
+    assert e.node.native_problem() is None
+    e.node.on_tick()
+    assert not e.core.executor.armed and deadline_messages(e)[-1].is_zero
+    e.ros.t += .02
+    e.update()
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert e.core.executor.armed and not e.core.executor.intents[e.core.robot_id]
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+def test_strict_native_authority_loss_after_arm_stops_and_never_rearms(ros_node):
+    e = ros_node
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert e.core.executor.armed
+    e.ros.t += .02
+    e.update()
+    row = {**e.authority, "sampled_mono_ns": round((e.ros.t - .31) * 1e9)}
+    e.node.on_native_authority(SimpleNamespace(data=json.dumps(row)))
+    e.node.on_tick()
+    assert e.node.hard_stopped and not e.core.executor.armed
+    e.ros.t += .02
+    e.update()
+    e.node.on_tick()
+    assert e.node.closing and all(packet.is_zero for packet in deadline_messages(e))
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+def test_strict_final_stop_fence_wins_after_envelope_encoding(ros_node):
+    e = ros_node
+    e.core.operator({"command": "arm", "epoch": "game-1"})
+    original = e.core.deadline.encode
+    def race(command):
+        result = original(command)
+        if any(xyz(command)):
+            e.ros.t += .000001
+            e.node.inbox.put({"command": "stop"})
+        return result
+    e.core.deadline.encode = race
+    e.node.publish_command(Command(.2, 0., 0., e.ros.t + .15))
+    assert e.node.hard_stopped and not e.core.executor.armed
+    assert deadline_messages(e) and all(packet.is_zero for packet in deadline_messages(e))
+    assert len(e.ros.published["/emergency_stop"]) == 1
+    assert not e.ros.published["/cmd_vel"]
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+@pytest.mark.parametrize("name,value", [("cmd_vel_loaded_contract", None),
+    ("cmd_vel_loaded_contract", "legacy_twist"), ("cmd_vel_original_deadline_supported", None),
+    ("cmd_vel_original_deadline_supported", False), ("cmd_vel_original_deadline_supported", "true"),
+    ("cmd_vel_source_clock_id", None), ("cmd_vel_source_clock_id", "linux-monotonic:other:2")])
+def test_strict_arm_requires_native_loaded_deadline_evidence(ros_node, name, value):
+    e = ros_node
+    e.ros.controller_params[name] = value
+    e.node.stock.invalidate("refresh strict native evidence")
+    e.ros.t += .21
+    e.update()
+    e.node.stock.poll()
+    e.update()
+    e.node.stock.poll()
+    assert e.node.native_problem()
+    assert ("clock" if name == "cmd_vel_source_clock_id" else "contract") in e.node.native_problem()
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert not e.core.executor.armed and all(packet.is_zero for packet in deadline_messages(e))
+
+
+@pytest.mark.parametrize("ros_node", ["strict"], indirect=True)
+@pytest.mark.parametrize("fault", ["native_twist", "wrong_guard_source", "legacy_guard", "missing_native_sub"])
+def test_strict_arm_refuses_wrong_graph_or_guard_binding(ros_node, fault):
+    e = ros_node
+    if fault == "native_twist":
+        e.subscribers["/cmd_vel"] = ["neural_controller_default"]
+    elif fault == "missing_native_sub":
+        e.subscribers[e.core.deadline.protocol.ADMITTED_TOPIC] = []
+    else:
+        row = dict(e.guard)
+        row["source_instance" if fault == "wrong_guard_source" else "command_contract"] = (
+            "b" * 32 if fault == "wrong_guard_source" else "legacy_twist")
+        e.node.on_guard(SimpleNamespace(data=json.dumps(row)))
+    assert e.node.guard_problem() is not None
+    e.node.inbox.put({"command": "arm", "epoch": "game-1"})
+    e.node.on_tick()
+    assert not e.core.executor.armed and all(packet.is_zero for packet in deadline_messages(e))
+
+
+@pytest.mark.parametrize("selected,requested", [("guarded", "fc_deadline_v1"), ("fc_deadline_v1", "legacy_twist")])
+def test_bridge_refuses_runtime_mode_mismatch_without_fallback(tmp_path, monkeypatch, capsys, selected, requested):
+    from foundation.hardware import runtime_identity
+    config, receipt = tmp_path / "field.json", tmp_path / "receipt.json"
+    config.write_text(json.dumps(CONFIG))
+    monkeypatch.setattr(runtime_identity, "read_json", lambda path: {"manifest_path": "unused"})
+    monkeypatch.setattr(runtime_identity, "verify_loaded", lambda preflight: {"command_topology": selected})
+    assert bridge.main(["--execute", "--field-config", str(config), "--runtime-receipt", str(receipt),
+        "--robot-id", "pupper-1", "--producer-id", "fixture", "--command-contract", requested]) == 2
+    assert "differs from selected" in capsys.readouterr().err
+
+
+def test_strict_dry_run_names_contract_without_linux_or_ros(capsys):
+    assert bridge.main(["--robot-id", "pupper-1", "--producer-id", "fixture",
+                        "--command-contract", "fc_deadline_v1"]) == 0
+    row = json.loads(capsys.readouterr().out)
+    assert row["command_contract"] == "fc_deadline_v1" and row["ros_started"] is False

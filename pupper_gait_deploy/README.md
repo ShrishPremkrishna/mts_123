@@ -86,6 +86,25 @@ It cannot detect an old command repeatedly republished upstream, establish the
 publisher's sample age, or stop a stalled controller or motor board. Normal Stop
 and emergency-stop procedures remain separate.
 
+Opt-in `cmd_vel_contract: fc_deadline_v1` instead accepts bounded String envelopes
+on `/fc/body_command/admitted`. The original issue/deadline, source instance and
+sequence survive the camera guard; a relay may veto but cannot extend them.
+The controller checks the original Linux monotonic deadline on every update,
+including held-inference cycles. A fresh source zero after activation binds one
+bridge instance. A veto cannot be undone by replaying its earlier allowed copy;
+genuine zeros and vetoes bypass clipping and heading hold. This mode requires
+the same Linux boot/time namespace, a gait velocity policy, `game_buttons: false`,
+`reference_tricks: false` and an empty `chord_partner`. It does not subscribe to
+legacy Twist, pose, joystick or reference-trick inputs. Emergency Stop remains.
+
+Read-only loaded-contract parameters and callback-driven
+`~/command_authority` status distinguish capability from current source binding.
+The bridge waits for fresh matching binding before arm, so restarting it against
+an old native binding requires deliberate native Stop/Start. The
+[FC integration](../final_project/behaviors/README.md) selects this as a separate
+candidate; it requires a target-compatible controller rebuild and physical
+acceptance. The software deadline is not a hardware watchdog or braking bound.
+
 The policy JSON is self-describing: the controller reads the network weights,
 kp/kd gains, action scale, default pose, joint limits, observation history,
 and the observation frame layout (an ordered list of named components —

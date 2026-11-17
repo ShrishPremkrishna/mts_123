@@ -66,6 +66,10 @@ controller_interface::CallbackReturn NeuralController::on_init() {
     }
     cmd_vel_timeout_ = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::duration<double>(params_.cmd_vel_timeout_s));
+    if (params_.cmd_vel_contract != "legacy_twist" && params_.cmd_vel_contract != kCommandDeadlineContract)
+      throw std::runtime_error("unknown cmd_vel_contract");
+    command_deadline_mode_ = params_.cmd_vel_contract == kCommandDeadlineContract;
+    if (command_deadline_mode_) command_clock_id_ = command_clock_id();
 
     // Per-joint kp trim, for hardware variation between individual robots -- a
     // motor that is weak relative to the rest needs a stiffer loop to track the
@@ -291,12 +295,18 @@ controller_interface::CallbackReturn NeuralController::on_init() {
     // policies give it other meanings, where zero is not a cancel; legacy
     // walkers without a gait reference are left unsupported by this change.
     cmd_vel_expiry_supported_ = use_gait_reference_ && obs_layout_.command >= 0 && !use_trick_;
+    if (command_deadline_mode_ && (!cmd_vel_expiry_supported_ || params_.game_buttons ||
+                                  params_.reference_tricks || !params_.chord_partner.empty()))
+      throw std::runtime_error("fc_deadline_v1 requires walk-only gait velocity and no alternate input authority");
     rcl_interfaces::msg::ParameterDescriptor cmd_vel_descriptor;
     cmd_vel_descriptor.read_only=true;
     cmd_vel_descriptor.description="Loaded /cmd_vel receipt-expiry contract (zero requested locomotion after steady-clock receipt timeout; not a physical stop or hardware watchdog); ignores launch overrides";
     get_node()->declare_parameter("cmd_vel_expiry_supported",cmd_vel_expiry_supported_,cmd_vel_descriptor,true);
     get_node()->declare_parameter("cmd_vel_expiry_timeout_s",
         std::chrono::duration<double>(cmd_vel_timeout_).count(),cmd_vel_descriptor,true);
+    get_node()->declare_parameter("cmd_vel_loaded_contract",params_.cmd_vel_contract,cmd_vel_descriptor,true);
+    get_node()->declare_parameter("cmd_vel_original_deadline_supported",command_deadline_mode_,cmd_vel_descriptor,true);
+    get_node()->declare_parameter("cmd_vel_source_clock_id",command_clock_id_,cmd_vel_descriptor,true);
     if (cmd_vel_expiry_supported_) {
       RCLCPP_INFO(get_node()->get_logger(), "/cmd_vel expires %.3f s after receipt (gait velocity path)",
                   std::chrono::duration<double>(cmd_vel_timeout_).count());
@@ -406,6 +416,21 @@ controller_interface::CallbackReturn NeuralController::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   // Clear command buffers to ignore pre-activation commands
   revoke_cmd_vel();
+  if (command_deadline_mode_) {
+    const auto current = param_listener_->get_params();
+    if (!cmd_vel_expiry_supported_ || current.game_buttons || current.reference_tricks ||
+        !current.chord_partner.empty())
+      return controller_interface::CallbackReturn::ERROR;
+    std::lock_guard<std::mutex> publish_lock(command_authority_publish_mutex_);
+    std::lock_guard<std::mutex> lock(command_deadline_mutex_);
+    const auto now = command_deadline_now_ns();
+    if (now <= 0) return controller_interface::CallbackReturn::ERROR;
+    command_deadline_state_.reset(command_clock_id_, now);
+    command_authority_publisher_ = get_node()->create_publisher<std_msgs::msg::String>(
+        "/neural_controller_default/command_authority",
+        rclcpp::QoS(rclcpp::KeepLast(1)).best_effort().durability_volatile());
+    desired_world_z_in_body_frame_ = tf2::Vector3(0, 0, 1);
+  }
   rt_cmd_pose_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Pose>>(nullptr);
 
@@ -540,19 +565,27 @@ controller_interface::CallbackReturn NeuralController::on_activate(
   // activation cannot replay its command. KeepLast(1) volatile limits queued
   // old commands; it cannot bound how old a publisher's sample was.
   cmd_vel_was_live_ = false;
-  {
+  if (command_deadline_mode_) {
+    const std::uint64_t generation = cmd_vel_generation_.load();
+    command_deadline_callback_ = [this, generation](const std_msgs::msg::String::SharedPtr msg) {
+      receive_command_deadline(msg, generation);
+    };
+    command_deadline_subscriber_ = get_node()->create_subscription<std_msgs::msg::String>(
+        kCommandDeadlineTopic, rclcpp::QoS(rclcpp::KeepLast(1)).reliable().durability_volatile(),
+        [callback = command_deadline_callback_](const std_msgs::msg::String::SharedPtr msg) { callback(msg); });
+  } else {
     const std::uint64_t generation = cmd_vel_generation_.load();
     cmd_vel_callback_ = [this, generation](const geometry_msgs::msg::Twist::SharedPtr msg) {
       receive_cmd_vel(msg, generation);
     };
-  }
-  cmd_vel_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Twist>(
+    cmd_vel_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Twist>(
       "/cmd_vel", rclcpp::QoS(rclcpp::KeepLast(1)).reliable().durability_volatile(),
       [callback = cmd_vel_callback_](const geometry_msgs::msg::Twist::SharedPtr msg) {
         callback(msg);
       });
+  }
 
-  cmd_pose_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Pose>(
+  if (!command_deadline_mode_) cmd_pose_subscriber_ = get_node()->create_subscription<geometry_msgs::msg::Pose>(
       "/cmd_pose", rclcpp::SystemDefaultsQoS(),
       [this](const geometry_msgs::msg::Pose::SharedPtr msg) {
         rt_cmd_pose_ptr_.writeFromNonRT(msg);
@@ -596,7 +629,7 @@ controller_interface::CallbackReturn NeuralController::on_activate(
             });
     RCLCPP_INFO(get_node()->get_logger(), "Accepting reference tricks on ~/reference_trick");
   }
-  if (use_jump_slot_ || chord_client_) {
+  if (!command_deadline_mode_ && (use_jump_slot_ || chord_client_)) {
     joy_subscriber_ = get_node()->create_subscription<sensor_msgs::msg::Joy>(
         "/joy", rclcpp::SystemDefaultsQoS(),
         [this](const sensor_msgs::msg::Joy::SharedPtr msg) {
@@ -737,16 +770,94 @@ void NeuralController::receive_cmd_vel(const geometry_msgs::msg::Twist::SharedPt
 }
 
 void NeuralController::revoke_cmd_vel() {
+  std::lock_guard<std::mutex> publish_lock(command_authority_publish_mutex_);
+  std::lock_guard<std::mutex> lock(command_deadline_mutex_);
   ++cmd_vel_generation_;
   cmd_vel_subscriber_.reset();
   cmd_vel_callback_ = nullptr;
+  command_deadline_subscriber_.reset();
+  command_deadline_callback_ = nullptr;
+  command_deadline_state_.reset(command_clock_id_, 0);
+  command_authority_publisher_.reset();
+  command_authority_last_sample_ = 0;
+  command_authority_last_published_sample_ = 0;
+  command_authority_published_source_.clear();
   rt_cmd_vel_ptr_.writeFromNonRT(std::shared_ptr<const CmdVelSample>{});
 }
 
 bool NeuralController::cmd_vel_live(const CmdVelSample *sample) const {
   const auto now = cmd_vel_now();
+  if (command_deadline_mode_) {
+    const auto source_now = command_deadline_now_ns();
+    if (!sample || !sample->source_deadline || !sample->allowed || source_now <= 0 ||
+        sample->issued_mono_ns > source_now || source_now >= sample->expires_mono_ns ||
+        (sample->twist.linear.x == 0. && sample->twist.linear.y == 0. && sample->twist.angular.z == 0.))
+      return false;
+  }
   return sample && sample->generation == cmd_vel_generation_.load() && sample->finite &&
          sample->receipt <= now && now - sample->receipt < cmd_vel_timeout_;
+}
+
+void NeuralController::receive_command_deadline(const std_msgs::msg::String::SharedPtr &msg,
+                                                 std::uint64_t generation) {
+  if (generation != cmd_vel_generation_.load()) return;
+  CommandDeadline parsed;
+  const bool valid = msg && decode_command_deadline(msg->data, parsed);
+  commit_command_deadline(valid ? &parsed : nullptr, generation);
+}
+
+void NeuralController::commit_command_deadline(const CommandDeadline *parsed, std::uint64_t generation) {
+  CommandAuthoritySnapshot authority;
+  bool emit = false;
+  {
+    std::lock_guard<std::mutex> lock(command_deadline_mutex_);
+    if (!command_deadline_mode_ || generation != cmd_vel_generation_.load()) return;
+    const auto now = command_deadline_now_ns();
+    const bool was_bound = command_deadline_state_.bound;
+    const auto result = parsed ? command_deadline_state_.admit(*parsed, now)
+                               : command_deadline_state_.invalidate();
+    if (result != CommandDeadlineState::Result::ignore) {
+      auto sample = std::make_shared<CmdVelSample>();
+      sample->receipt = cmd_vel_now(); sample->generation = generation; sample->source_deadline = true;
+      if (result == CommandDeadlineState::Result::store) {
+        const auto &origin = command_deadline_state_.latest;
+        sample->twist.linear.x = origin.vx; sample->twist.linear.y = origin.vy;
+        sample->twist.angular.z = origin.wz;
+        sample->issued_mono_ns = origin.issued; sample->expires_mono_ns = origin.expires;
+        sample->finite = true; sample->allowed = origin.allowed && !command_deadline_state_.veto;
+      }
+      rt_cmd_vel_ptr_.writeFromNonRT(sample);
+    }
+    // Ignored foreign-source requests still receive truthful old-binding
+    // evidence. A restarted bridge must not infer binding from zero feedback.
+    emit = now > 0 && (was_bound != command_deadline_state_.bound ||
+        command_authority_last_sample_ == 0 || now < command_authority_last_sample_ ||
+        now - command_authority_last_sample_ >= 100000000);
+    if (emit) {
+      authority = {command_clock_id_, command_deadline_state_.bound ?
+          command_deadline_state_.latest.source_instance : std::string{}, generation,
+          command_deadline_state_.activation, now};
+      command_authority_last_sample_ = now;
+    }
+  }
+  if (emit) publish_command_authority(authority);
+}
+
+void NeuralController::publish_command_authority(const CommandAuthoritySnapshot &snapshot) {
+  std::lock_guard<std::mutex> lock(command_authority_publish_mutex_);
+  if (!command_authority_publisher_ || snapshot.generation != cmd_vel_generation_.load()) return;
+  if (snapshot.sampled_mono_ns < command_authority_last_published_sample_ ||
+      (!command_authority_published_source_.empty() &&
+       snapshot.bound_source_instance != command_authority_published_source_)) return;
+  std_msgs::msg::String message;
+  message.data = nlohmann::json({{"schema", "pupper_command_authority_v1"},
+      {"clock_id", snapshot.clock_id}, {"generation", snapshot.generation},
+      {"activation_mono_ns", snapshot.activation_mono_ns},
+      {"bound_source_instance", snapshot.bound_source_instance},
+      {"sampled_mono_ns", snapshot.sampled_mono_ns}}).dump();
+  command_authority_publisher_->publish(message);
+  command_authority_last_published_sample_ = snapshot.sampled_mono_ns;
+  command_authority_published_source_ = snapshot.bound_source_instance;
 }
 
 void NeuralController::publish_reference_status() {

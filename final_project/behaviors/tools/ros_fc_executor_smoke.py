@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Isolated real-ROS FC bridge/mux/guard test; no devices or robot access.
+"""Isolated real-ROS FC bridge/guard test; no devices or robot access.
 
 The native release identity, stock services and observation feedback are fake.
 The production bridge CLI, executor, ROS transports, C++ mux and camera guard
 are real. Test-only timer/publication tracing is collected inside the bridge
 process; observer receipt timing is kept separate. Native receipt expiry has a
 separate memory-interface test and is not inferred from this fake consumer.
+Explicit fc_deadline_v1 uses the direct String path without a mux. Its native
+services and deadline-aware feedback remain synthetic; the independent real
+native chain test establishes the native implementation's expiry behavior.
 """
 from __future__ import annotations
 
@@ -34,7 +37,8 @@ def child(args, policy):
     from final_project.behaviors import fc_executor_bridge as bridge
     from run_through_kick_node import STOCK_POLICY_SHA256
     assert digest(policy) == STOCK_POLICY_SHA256
-    runtime = {"command_topology": "guarded", "manager_pid": -1,
+    strict = args.command_contract == "fc_deadline_v1"
+    runtime = {"command_topology": "fc_deadline_v1" if strict else "guarded", "manager_pid": -1,
                "manager_start_ticks": -1,
                "files": {"policy": {"path": str(policy), "sha256": digest(policy)}}}
     roles = {"bridge_script": "final_project/behaviors/fc_executor_bridge.py",
@@ -44,6 +48,8 @@ def child(args, policy):
              "fc_model": "final_project/pupper_fc/model.py",
              "fc_tactics": "final_project/pupper_fc/tactics.py",
              "guard_obstacles": "final_project/pupper_fc/obstacles.py"}
+    if strict:
+        roles["command_deadline"] = "final_project/behaviors/command_deadline.py"
     for role, relative in roles.items():
         path = ROOT / relative
         runtime["files"][role] = {"path": str(path), "sha256": digest(path)}
@@ -61,7 +67,7 @@ def child(args, policy):
     manifest.write_text(json.dumps({"trial_profile": "walk"}) + "\n")
     receipt = args.out / "synthetic-preflight.json"
     receipt.write_text(json.dumps({"manifest_path": str(manifest)}) + "\n")
-    ticks, publications, writes, injections = [], [], [], []
+    ticks, publications, writes, injections, envelope_publications = [], [], [], [], []
     original_sink = bridge.EventSink
     class TracedSink(original_sink):
         def __init__(self, writer=None, capacity=64):
@@ -81,6 +87,14 @@ def child(args, policy):
         original_tick, original_publish, original_init = cls.on_tick, cls.publish_command, cls.__init__
         def initialize(node, *a, **kw):
             original_init(node, *a, **kw)
+            if strict:
+                publisher = node.command_pub
+                class RecordingPublisher:
+                    def publish(self, message):
+                        envelope_publications.append({"at_ns": time.monotonic_ns(),
+                                                       "envelope": json.loads(message.data)})
+                        return publisher.publish(message)
+                node.command_pub = RecordingPublisher()
             original_problem = node.stock.problem
             def problem(*a, **kw):
                 result = original_problem(*a, **kw)
@@ -118,10 +132,12 @@ def child(args, policy):
         return bridge.main(["--execute", "--runtime-receipt", str(receipt),
                             "--robot-id", args.robot_id, "--producer-id", "fixture-" + args.robot_id,
                             "--field-config", str(args.out / "field-config.json"),
+                            "--command-contract", args.command_contract,
                             *(["--require-participants", "pupper-1", "pupper-2"] if args.participant_tracks else [])])
     finally:
         (args.out / "bridge-timing.json").write_text(json.dumps({
             "ticks": ticks, "publications": publications, "stdout_writes": writes,
+            "original_envelope_publications": envelope_publications,
             "fault_injections": injections,
             "native_identity_stubbed": True, "guard_pid_observed": guard_pid,
             "scope": "Test-only in-process monotonic entry/exit and command publication tracing"}, indent=2) + "\n")
@@ -131,7 +147,7 @@ def main():
     if os.environ.get("PUPPER_ISOLATED_ROS_TEST") != "1":
         raise SystemExit("Only run in the isolated device-free ROS container.")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("case", choices=("lifecycle", "guard_death", "publication_stop",
+    parser.add_argument("case", choices=("lifecycle", "software_start", "guard_death", "publication_stop",
                                         "domain_lease", "domain_stop", "domain_peer",
                                         "arena_ball", "strict_ball", "closed_loop", "defense_loop", "participant_freshness", "_child"))
     parser.add_argument("--out", type=Path, required=True)
@@ -139,7 +155,14 @@ def main():
     parser.add_argument("--robot-id", choices=("pupper-1", "pupper-2"), default="pupper-1")
     parser.add_argument("--coord-dir", type=Path)
     parser.add_argument("--participant-tracks", action="store_true")
+    parser.add_argument("--command-contract", choices=("legacy_twist", "fc_deadline_v1"),
+                        default="legacy_twist")
     args = parser.parse_args()
+    strict = args.command_contract == "fc_deadline_v1"
+    if strict and args.case not in ("lifecycle", "software_start", "participant_freshness", "publication_stop", "_child"):
+        parser.error("strict fixture covers lifecycle, software_start, participant_freshness and publication_stop only")
+    if args.case == "software_start" and not strict:
+        parser.error("software_start fixture requires fc_deadline_v1")
     shared_tracks = args.participant_tracks or args.case == "participant_freshness"
     args.out.mkdir(parents=True, exist_ok=True)
     policy = Path(os.environ["PUPPER_TEST_STOCK_POLICY"]).resolve(strict=True)
@@ -154,9 +177,12 @@ def main():
     from controller_manager_msgs.msg import ControllerState
     from controller_manager_msgs.srv import ListControllers
     from rcl_interfaces.srv import GetParameters
+    from rcl_interfaces.msg import ParameterDescriptor
     from geometry_msgs.msg import Twist
     from std_msgs.msg import Empty, Float32MultiArray, String
     from sensor_msgs.msg import Joy
+    if strict:
+        from final_project.behaviors import command_deadline as deadline_protocol
     rclpy.init()
     executor = SingleThreadedExecutor()
     processes, streams, events = [], [], []
@@ -164,13 +190,18 @@ def main():
     report = {"case": args.case, "robot_id": args.robot_id,
               "ros_domain_id": os.environ.get("ROS_DOMAIN_ID"),
               "required_participants": ["pupper-1", "pupper-2"] if shared_tracks else [],
+              "command_contract": args.command_contract,
               "passed": False, "groups": [], "hardware": False,
               "native_identity_stubbed": True, "native_watchdog_retested": False}
     began = time.monotonic()
 
     class Fixture(Node):
         def __init__(self):
-            super().__init__("fc_executor_smoke_fixture")
+            # The strict graph requires the selected native receiver's name.
+            # Disable builtin parameter services before creating our explicit
+            # synthetic GetParameters endpoint at that same name.
+            super().__init__("neural_controller_default" if strict else "fc_executor_smoke_fixture",
+                             start_parameter_services=not strict)
             self.clock_name = None; self.epoch = "executor-smoke-1"
             self.frame_seq = self.intent_seq = self.camera_seq = self.gateway_seq = 0
             self.fields_enabled = self.intents_enabled = False
@@ -216,9 +247,18 @@ def main():
                     self.pose_x, self.pose_y, self.pose_yaw = .7, .2, math.pi
                     self.target = {"x": -.6, "y": .6, "yaw": math.pi}
             self.latest = (0., 0., 0.); self.commands = []; self.raw = []; self.final = []
+            self.source_envelopes = []; self.admitted_envelopes = []; self.feedback_commands = []
+            self.native_envelope = None; self.native_veto = False
+            self.native_activation_ns = time.monotonic_ns(); self.native_generation = 1
+            self.native_bound_source = ""; self.native_authority_last_ns = None
+            self.native_authority_samples = []
+            self.native_active = args.case != "software_start"
+            self.native_authority_pub = self.native_subscription = None
+            self.start_requests = []; self.activation_timer = None
+            self.activation_observed_at = None
             self.statuses = []; self.guard_statuses = []; self.sent = []
             self.estops = self.inventory_reads = self.feedback_count = 0
-            self.latched = False; self.last_capture = self.last_lease_deadline = None
+            self.latched = not self.native_active; self.last_capture = self.last_lease_deadline = None
             self.ingress = self.create_publisher(String, "/fc/normalized_events", 1)
             self.camera = self.create_publisher(String, "/fc/obstacle_detections", 1)
             self.gateway = self.create_publisher(String, "/estop_controller/stop_status",
@@ -228,9 +268,21 @@ def main():
             self.joy = self.create_publisher(Joy, "/joy", 1)
             self.create_service(ListControllers, "/controller_manager/list_controllers", self.inventory)
             self.create_service(GetParameters, "/neural_controller_default/get_parameters", self.parameters)
-            self.create_subscription(Twist, "/kick_cmd_vel", lambda m: self.record(self.commands, m), 1)
-            self.create_subscription(Twist, "/fc/requested_cmd_vel", lambda m: self.record(self.raw, m), 1)
-            self.create_subscription(Twist, "/cmd_vel", self.consume, 1)
+            if strict:
+                for name, value in (("cmd_vel_loaded_contract", "fc_deadline_v1"),
+                                    ("cmd_vel_original_deadline_supported", True),
+                                    ("cmd_vel_source_clock_id", deadline_protocol.local_clock_id())):
+                    self.declare_parameter(name, value, ParameterDescriptor(read_only=True))
+                self.create_subscription(String, deadline_protocol.REQUEST_TOPIC, self.record_source_envelope, 1)
+                if self.native_active:
+                    self.activate_native()
+                else:
+                    from joy_utils.srv import StartMotion
+                    self.create_service(StartMotion, "/estop_controller/start_motion", self.start_motion)
+            else:
+                self.create_subscription(Twist, "/kick_cmd_vel", lambda m: self.record(self.commands, m), 1)
+                self.create_subscription(Twist, "/fc/requested_cmd_vel", lambda m: self.record(self.raw, m), 1)
+                self.create_subscription(Twist, "/cmd_vel", self.consume, 1)
             self.create_subscription(String, "/fc/executor_bridge/status", lambda m: self.statuses.append((time.monotonic(), json.loads(m.data))), QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
             self.create_subscription(String, "/fc/body_command_guard/status", lambda m: self.guard_statuses.append((time.monotonic(), json.loads(m.data))), 1)
             self.create_subscription(Empty, "/emergency_stop", self.emergency, 10)
@@ -240,6 +292,34 @@ def main():
             self.create_timer(.05, self.camera_frame)
             if self.simulator is not None:
                 self.create_timer(.01, self.physics)
+        def activate_native(self):
+            if self.activation_timer is not None:
+                self.activation_timer.cancel()
+            assert self.native_subscription is None and self.native_authority_pub is None
+            self.native_activation_ns = time.monotonic_ns()
+            self.activation_observed_at = self.native_activation_ns / 1e9
+            self.native_authority_pub = self.create_publisher(String,
+                "/neural_controller_default/command_authority",
+                QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+            self.native_subscription = self.create_subscription(String,
+                deadline_protocol.ADMITTED_TOPIC, self.consume_envelope, 1)
+            self.native_active = True
+            self.latched = False
+        def start_motion(self, request, response):
+            # Real StartMotion DDS transport; this backend only schedules fake
+            # native endpoints, and neither initializes hardware nor runs motors.
+            received = time.monotonic()
+            self.start_requests.append({"received_at": received, **{
+                k: getattr(request, k) for k in ("instance_id", "epoch", "sequence", "selected_controller")}})
+            assert len(self.start_requests) == 1 and not self.native_active
+            assert request.instance_id == "fake-stock-gateway" and request.epoch == 1
+            assert request.selected_controller == "neural_controller_default"
+            assert 0 < request.sequence <= self.gateway_seq
+            # Endpoint discovery deliberately follows the acknowledgement.
+            self.activation_timer = self.create_timer(.12, self.activate_native)
+            response.success = True
+            response.message = "Synthetic backend accepted one Start; activation endpoints follow"
+            return response
         def record(self, rows, message):
             value = (message.linear.x, message.linear.y, message.angular.z)
             rows.append((time.monotonic(), value))
@@ -251,6 +331,61 @@ def main():
             if self.simulator is not None:
                 self.simulation_input = self.latest
                 self.simulation_received_at = self.final[-1][0]
+        def record_source_envelope(self, message):
+            command = deadline_protocol.decode(message.data)
+            now = time.monotonic()
+            self.source_envelopes.append({"received_at": now, "envelope": json.loads(message.data)})
+            self.commands.append((now, (command.vx, command.vy, command.wz)))
+        def consume_envelope(self, message):
+            command = deadline_protocol.decode(message.data)
+            now_ns = time.monotonic_ns()
+            self.admitted_envelopes.append({"received_at": time.monotonic(),
+                                            "envelope": json.loads(message.data)})
+            binding_changed = False
+            if (command.clock_id != deadline_protocol.local_clock_id() or
+                    command.issued_mono_ns < self.native_activation_ns):
+                self.publish_synthetic_authority()
+                return
+            if not self.native_bound_source:
+                if not command.is_zero or not command.fresh(now_ns):
+                    self.publish_synthetic_authority()
+                    return
+                self.native_bound_source = command.source_instance
+                binding_changed = True
+            if command.source_instance != self.native_bound_source:
+                self.publish_synthetic_authority()
+                return
+            previous = self.native_envelope
+            if previous is not None and command.seq < previous.seq:
+                return
+            if previous is not None and command.seq == previous.seq:
+                self.native_veto = self.native_veto or not command.allowed or command.origin != previous.origin
+            else:
+                self.native_veto = not command.allowed
+            self.native_envelope = command
+            self.apply_synthetic_deadline()
+            self.publish_synthetic_authority(force=binding_changed)
+        def publish_synthetic_authority(self, *, force=False):
+            now_ns = time.monotonic_ns()
+            if not force and self.native_authority_last_ns is not None and now_ns-self.native_authority_last_ns < 100_000_000:
+                return
+            payload = {"schema": "pupper_command_authority_v1",
+                "clock_id": deadline_protocol.local_clock_id(), "generation": self.native_generation,
+                "activation_mono_ns": self.native_activation_ns,
+                "bound_source_instance": self.native_bound_source, "sampled_mono_ns": now_ns}
+            self.native_authority_pub.publish(String(data=json.dumps(payload)))
+            self.native_authority_samples.append(payload)
+            self.native_authority_last_ns = now_ns
+        def apply_synthetic_deadline(self):
+            now_ns = time.monotonic_ns()
+            command = self.native_envelope
+            self.latest = ((command.vx, command.vy, command.wz)
+                if command is not None and command.allowed and not self.native_veto and
+                command.fresh(now_ns) else (0., 0., 0.))
+            # These are explicitly synthetic native input/feedback samples;
+            # raw admitted DDS envelopes are retained separately above.
+            self.final.append((now_ns / 1e9, self.latest))
+            return now_ns
         def physics(self):
             if self.simulator is None: return
             from final_project.pupper_fc.model import Command
@@ -290,18 +425,27 @@ def main():
         def inventory(self, _, response):
             self.inventory_reads += 1
             row = ControllerState(); row.name = "neural_controller_default"
-            row.type = "neural_controller/NeuralController"; row.state = "active"
-            row.claimed_interfaces = ["leg_front_l_1/position"]
+            row.type = "neural_controller/NeuralController"
+            row.state = "active" if self.native_active else "inactive"
+            row.claimed_interfaces = ["leg_front_l_1/position"] if self.native_active else []
             response.controller.append(row)
             return response
         def parameters(self, request, response):
             values = {"model_path": str(policy), "max_vx_forward": .49,
                       "max_vx_backward": .3, "speed_cap": .49, "game_buttons": False}
+            if strict:
+                values.update(cmd_vel_loaded_contract="fc_deadline_v1",
+                              cmd_vel_original_deadline_supported=True,
+                              cmd_vel_source_clock_id=deadline_protocol.local_clock_id())
             for name in request.names:
                 response.values.append(Parameter(name, value=values[name]).get_parameter_value()
                                        if name in values else Parameter(name).get_parameter_value())
             return response
         def authority(self):
+            if strict and self.native_active:
+                sampled_ns = self.apply_synthetic_deadline()  # Original expiry applies even with silent input.
+                self.feedback_commands.append({"at_ns": sampled_ns, "command": self.latest,
+                    "original_expires_mono_ns": self.native_envelope.expires_mono_ns if self.native_envelope else None})
             self.gateway_seq += 1
             payload = {"protocol": "pupper_stop_v1", "instance_id": "fake-stock-gateway",
                        "epoch": 1, "sequence": self.gateway_seq,
@@ -309,7 +453,8 @@ def main():
                        **{key: False for key in ("fault", "stop_required", "in_flight", "unknown_remote_submission", "shutting_down")}}
             self.gateway.publish(String(data=json.dumps(payload)))
             values = [0.] * 960; values[6:9] = self.latest
-            self.feedback.publish(Float32MultiArray(data=values)); self.feedback_count += 1
+            if self.native_active:
+                self.feedback.publish(Float32MultiArray(data=values)); self.feedback_count += 1
             joy = Joy(); joy.buttons = [0] * 13; self.joy.publish(joy)
         def send(self, payload):
             payload = {"producer_id": "fixture-" + args.robot_id, "clock": self.clock_name,
@@ -410,18 +555,21 @@ def main():
     def flowing():
         node.fields_enabled = node.intents_enabled = True
         at = time.monotonic(); node.frame(); pump(.015); node.intent(force=True)
-        wait(lambda: nonzero(node.commands, at) and nonzero(node.final, at), "nonzero through bridge/mux/guard")
+        wait(lambda: nonzero(node.commands, at) and nonzero(node.final, at), "nonzero through selected bridge/guard path")
     try:
         (args.out / "field-config.json").write_text(json.dumps({"field": {
             "length": 3.66, "width": 2.44, "goal_width": .6096,
             "robot_radius": .16, "ball_radius": .11, "bumper_offset": .19},
             "attack_signs": {"pupper-1": 1, "pupper-2": -1}}) + "\n")
-        launch("mux", [args.mux, "--ros-args", "-p", "inputs:=[/kick_cmd_vel]", "-p",
-                       "timeout_ms:=150", "-r", "/cmd_vel:=/fc/requested_cmd_vel"])
+        if not strict:
+            launch("mux", [args.mux, "--ros-args", "-p", "inputs:=[/kick_cmd_vel]", "-p",
+                           "timeout_ms:=150", "-r", "/cmd_vel:=/fc/requested_cmd_vel"])
         guard = launch("guard", [sys.executable, "-m", "final_project.behaviors.body_command_guard",
+                                 "--command-contract", args.command_contract,
                                  *(["--arena-ball-contact"] if args.case == "arena_ball" else [])])
         env = dict(os.environ, PUPPER_TEST_GUARD_PID=str(guard.pid))
         bridge = launch("bridge", [sys.executable, str(Path(__file__).resolve()), "_child", "--out", str(args.out), "--robot-id", args.robot_id,
+                                  "--command-contract", args.command_contract,
                                   *(["--participant-tracks"] if shared_tracks else [])], interactive=True, env=env)
         def reader():
             with (args.out / "bridge-stdout.jsonl").open("w") as transcript:
@@ -436,10 +584,39 @@ def main():
         wait(lambda: any(e.get("event") == "bridge_ready" for e in events), "bridge startup")
         node.clock_name = next(e["clock"] for e in events if e.get("event") == "bridge_ready")
         assert next(e["required_participants"] for e in events if e.get("event") == "bridge_ready") == report["required_participants"]
+        if args.case == "software_start":
+            wait(lambda: node.statuses and node.guard_statuses and node.inventory_reads >= 1,
+                 "inactive native inventory and current guard status")
+            pump(.12)
+            assert not node.native_active and node.native_subscription is None and node.native_authority_pub is None
+            assert not nonzero(node.commands, began) and not nonzero(node.final, began)
+            assert bridge.poll() is None and node.estops == 0
+            assert node.statuses[-1][1]["native_problem"] is not None
+            start_at = time.monotonic()
+            operator({"command": "start"})
+            wait(lambda: any(e.get("event") == "start_result" and e.get("success") for e in events),
+                 "correlated software Start acknowledgement")
+            assert len(node.start_requests) == 1
+            wait(lambda: node.native_active and bool(node.native_bound_source),
+                 "activation endpoints and original source-zero binding")
+            report["software_start"] = {"requested_at": start_at,
+                "activation_at": node.activation_observed_at,
+                "endpoint_delay_after_service_receipt_s": node.activation_observed_at-node.start_requests[0]["received_at"],
+                "bound_source_instance": node.native_bound_source,
+                "start_requests": list(node.start_requests), "emergency_stops_before_arm": node.estops,
+                "scope": "Real software Start client/service transport; fake gateway backend and native activation"}
+            assert bridge.poll() is None and node.estops == 0
+            assert not nonzero(node.commands, began) and not nonzero(node.final, began)
+            report["groups"].append("one_software_Start_from_inactive_native_binds_without_emergency_Stop")
         wait(lambda: status_matches(lambda s: s.get("native_problem") is None and s.get("guard_problem") is None), "bridge authority and camera readiness")
         pump(.12); assert not nonzero(node.commands, began)
+        if strict:
+            assert node.source_envelopes and not nonzero(node.final, began)
         report["groups"].append("explicit_arm_required")
         operator({"command": "arm", "epoch": node.epoch})
+        if args.case == "software_start":
+            report["software_start"]["arm_accepted_at"] = time.monotonic()
+            assert len(node.start_requests) == 1 and node.estops == 0
         # Pause periodic input so the refusal remains visible in the latest
         # ingress result reported on the production ROS status topic.
         at = time.monotonic(); node.intent(force=True, robot_id="pupper-2" if args.robot_id == "pupper-1" else "pupper-1")
@@ -447,7 +624,7 @@ def main():
                                     "pinned robot" in s["ingress_result"].get("reason", ""), at), "other robot refusal")
         assert not nonzero(node.commands, at)
         report["groups"].append("other_robot_intent_refused")
-        flowing(); report["groups"].append("actual_bridge_mux_guard_nonzero")
+        flowing(); report["groups"].append("actual_bridge_guard_deadline_nonzero" if strict else "actual_bridge_mux_guard_nonzero")
         if args.coord_dir:
             args.coord_dir.mkdir(parents=True, exist_ok=True)
             (args.coord_dir / ("ready-" + args.robot_id)).write_text(str(time.monotonic()) + "\n")
@@ -699,6 +876,19 @@ def main():
             bridge.stdin.write('{"command":"stop","reason":"peer own explicit cleanup"}\n'); bridge.stdin.flush()
             wait(lambda: bridge.poll() is not None, "peer own cleanup")
             assert bridge.returncode == 3
+        elif args.case == "software_start":
+            pump(.2)
+            assert len(node.start_requests) == 1 and node.estops == 0
+            assert sum(e.get("event") == "operator_result" and e.get("command") == "arm" and
+                       e.get("accepted") is True for e in events) == 1
+            report["software_start"].update(start_request_count_before_cleanup=1,
+                accepted_arm_count=1, emergency_stops_before_cleanup=node.estops,
+                matching_native_binding_before_arm=True)
+            at = time.monotonic()
+            bridge.stdin.write('{"command":"stop","reason":"software Start fixture own cleanup"}\n'); bridge.stdin.flush()
+            wait(lambda: bridge.poll() is not None, "software Start own cleanup")
+            assert bridge.returncode == 3 and node.estops == 1 and zero_after(node.commands, at)
+            report["groups"].append("one_explicit_arm_then_motion_then_one_deliberate_cleanup_Stop")
         elif args.case == "publication_stop":
             at = time.monotonic()
             (args.out / "inject-publication-stop").write_text(str(at) + "\n")
@@ -781,6 +971,24 @@ def main():
             "source": "in-process on_tick tracing, not observer callback intervals"}
         assert all(row["command"]["robot_id"] == args.robot_id for row in publications)
         report["all_publications_address_pinned_robot"] = True
+        if strict:
+            original = timing["original_envelope_publications"]
+            assert original
+            by_seq = {row["envelope"]["seq"]: row["envelope"] for row in original}
+            assert len(by_seq) == len(original), "source sequence repeated"
+            for row in node.admitted_envelopes:
+                accepted = row["envelope"]
+                source = by_seq[accepted["seq"]]
+                assert {k:v for k,v in accepted.items() if k != "allowed"} == {
+                    k:v for k,v in source.items() if k != "allowed"}, "guard changed original command"
+            for row in node.feedback_commands:
+                deadline = row["original_expires_mono_ns"]
+                if deadline is not None and row["at_ns"] >= deadline:
+                    assert all(value == 0. for value in row["command"]), "synthetic feedback extended source expiry"
+            report["deadline_transport"] = {"original_publications": len(original),
+                "observed_admitted_envelopes": len(node.admitted_envelopes),
+                "immutable_origins_verified": True, "synthetic_feedback_respects_original_expiry": True,
+                "scope": "Real bridge/guard String transport; deadline feedback and native services are synthetic"}
         if args.case == "publication_stop":
             assert len(timing["fault_injections"]) == 1
             injected = timing["fault_injections"][0]["at"]
@@ -822,6 +1030,12 @@ def main():
                       feedback_samples=node.feedback_count, events=events,
                       bridge_output_samples=node.commands, mux_output_samples=node.raw,
                       final_output_samples=node.final, bridge_status=node.statuses, guard_status=node.guard_statuses,
+                      source_envelopes=node.source_envelopes, admitted_envelopes=node.admitted_envelopes,
+                      synthetic_deadline_feedback=node.feedback_commands,
+                      synthetic_native_authority=node.native_authority_samples,
+                      synthetic_start_requests=node.start_requests,
+                      final_output_semantics=("synthetic native applied feedback; raw admitted DDS envelopes recorded separately"
+                                              if strict else "final Twist DDS observer receipts"),
                       normalized_packets=node.sent,
                       camera_packets=node.camera_packets,
                       simulation_trace=node.simulation_trace, simulation_events=node.simulation_events,

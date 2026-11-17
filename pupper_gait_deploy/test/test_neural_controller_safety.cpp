@@ -112,6 +112,32 @@ class MemoryController : public neural_controller::NeuralController {
   // steady clock, so expiry is exact without sleeping.
   std::chrono::steady_clock::time_point fake_now{std::chrono::seconds(100)};
   std::chrono::steady_clock::time_point cmd_vel_now() const override { return fake_now; }
+  std::int64_t command_deadline_now_ns() const override {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(fake_now.time_since_epoch()).count();
+  }
+  auto deadline_callback() const { return command_deadline_callback_; }
+  auto deadline_generation() const { return cmd_vel_generation_.load(); }
+  void delayed_authority(std::uint64_t generation, std::int64_t activation,
+                         std::int64_t sampled, const std::string &source) {
+    publish_command_authority({command_clock_id_,source,generation,activation,sampled});
+  }
+  void commit_parsed(const neural_controller::CommandDeadline &value, std::uint64_t generation) {
+    commit_command_deadline(&value, generation);
+  }
+  bool strict_subscriptions() const {
+    return command_deadline_subscriber_ && !cmd_vel_subscriber_ && !cmd_pose_subscriber_ &&
+      !joy_subscriber_ && !reference_trick_subscriber_;
+  }
+  nlohmann::json envelope(std::int64_t seq, double vx=0., double vy=0., double wz=0.) const {
+    const auto now = command_deadline_now_ns();
+    return {{"schema",neural_controller::kCommandDeadlineSchema},{"clock_id",command_clock_id_},
+      {"source_instance",std::string(32,'a')},{"seq",seq},{"issued_mono_ns",now},
+      {"expires_mono_ns",now+150000000},{"vx",vx},{"vy",vy},{"wz",wz},{"allowed",true}};
+  }
+  void send_deadline(const nlohmann::json &value) {
+    auto message=std::make_shared<std_msgs::msg::String>(); message->data=value.dump();
+    command_deadline_callback_(message);
+  }
   void advance(std::chrono::nanoseconds d) {
     fake_now += std::chrono::duration_cast<std::chrono::steady_clock::duration>(d);
   }
@@ -279,6 +305,14 @@ class ProductionRuntime : public ::testing::Test {
     ASSERT_EQ(initialize(controller,make_gait_policy(),false),controller_interface::return_type::OK);
     controller.add_flat_feedback();
     ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  }
+  void activate_deadline(MemoryController &controller, nlohmann::json policy = nullptr) {
+    ASSERT_EQ(initialize(controller,policy.is_null()?make_gait_policy():policy,false,
+      {rclcpp::Parameter("cmd_vel_contract",std::string("fc_deadline_v1")),
+       rclcpp::Parameter("game_buttons",false)}),controller_interface::return_type::OK);
+    controller.add_flat_feedback();
+    ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+    ASSERT_TRUE(controller.strict_subscriptions());
   }
   controller_interface::return_type initialize(MemoryController &controller,const nlohmann::json &policy,bool spoof,
                                                std::vector<rclcpp::Parameter> extra={}) {
@@ -547,6 +581,9 @@ void expect_command(MemoryController &controller,float vx,float vy) {
   const auto command=controller.observed_command();
   EXPECT_FLOAT_EQ(command[0],vx);EXPECT_FLOAT_EQ(command[1],vy);
 }
+void expect_command(MemoryController &controller,float vx,float vy,float wz) {
+  expect_command(controller,vx,vy);EXPECT_FLOAT_EQ(controller.observed_command()[2],wz);
+}
 void expect_zero_command(MemoryController &controller) {
   for(float value:controller.observed_command())EXPECT_FLOAT_EQ(value,0.f);
 }
@@ -736,3 +773,223 @@ TEST_F(ProductionRuntime, TargetAndTrickPoliciesAreNotTreatedAsExpiringVelocity)
 }
 
 } // namespace
+
+TEST(CommandDeadlineParsing, BoundedExactSchemaAndNumericTypes) {
+  using neural_controller::CommandDeadline;
+  using neural_controller::decode_command_deadline;
+  CommandDeadline parsed;
+  nlohmann::json value={{"schema",neural_controller::kCommandDeadlineSchema},{"clock_id","clock"},
+    {"source_instance",std::string(32,'a')},{"seq",1},{"issued_mono_ns",100},
+    {"expires_mono_ns",150000100},{"vx",.2},{"vy",0.},{"wz",0.},{"allowed",true}};
+  ASSERT_TRUE(decode_command_deadline(value.dump(),parsed));
+  EXPECT_FALSE(decode_command_deadline(std::string(1025,' '),parsed));
+  auto duplicate=value.dump();duplicate.insert(1,"\"seq\":1,");
+  EXPECT_FALSE(decode_command_deadline(duplicate,parsed));
+  for(const char *key:{"seq","issued_mono_ns","expires_mono_ns"}) {
+    for(auto bad:std::vector<nlohmann::json>{true,0,-1,1.,"1",UINT64_MAX}) {
+      auto mutated=value;mutated[key]=bad;EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed))<<key<<bad;
+    }
+  }
+  for(const char *key:{"vx","vy","wz"}) {
+    for(auto bad:std::vector<nlohmann::json>{true,"0",nullptr,nlohmann::json::array({0})}) {
+      auto mutated=value;mutated[key]=bad;EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+    }
+  }
+  auto mutated=value;mutated["unknown"]=0;EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+  mutated=value;mutated["allowed"]=1;EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+  mutated=value;mutated["expires_mono_ns"]=150000101;EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+  mutated=value;mutated["issued_mono_ns"]=INT64_MAX;mutated["expires_mono_ns"]=INT64_MAX;
+  EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+  mutated=value;mutated["vx"]="NaN";EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+  mutated=value;mutated["vx"] = .3/std::sqrt(2.); mutated["vy"] = .3/std::sqrt(2.);
+  EXPECT_TRUE(decode_command_deadline(mutated.dump(),parsed));
+  mutated["vx"] = .3/std::sqrt(2.)+1e-9;EXPECT_FALSE(decode_command_deadline(mutated.dump(),parsed));
+}
+
+TEST_F(ProductionRuntime, DeadlineModeRequiresGaitAndNoAlternateAuthority) {
+  for(auto bad:std::vector<rclcpp::Parameter>{rclcpp::Parameter("game_buttons",true),
+      rclcpp::Parameter("reference_tricks",true),rclcpp::Parameter("chord_partner",std::string("other"))}) {
+    MemoryController controller(false);
+    EXPECT_EQ(initialize(controller,make_gait_policy(),false,
+      {rclcpp::Parameter("cmd_vel_contract",std::string("fc_deadline_v1")),
+       rclcpp::Parameter("game_buttons",false),bad}),controller_interface::return_type::ERROR);
+  }
+  MemoryController target(false);
+  EXPECT_EQ(initialize(target,make_target_policy(),false,
+    {rclcpp::Parameter("cmd_vel_contract",std::string("fc_deadline_v1")),
+     rclcpp::Parameter("game_buttons",false)}),controller_interface::return_type::ERROR);
+}
+
+TEST_F(ProductionRuntime, DeadlineRequiresFreshSourceZeroAndOriginalExpiryDuringHeldInference) {
+  MemoryController controller(false);activate_deadline(controller);
+  EXPECT_EQ(controller.get_node()->get_parameter("cmd_vel_loaded_contract").as_string(),"fc_deadline_v1");
+  controller.send_deadline(controller.envelope(1,.2));
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.send_deadline(controller.envelope(1));controller.advance(1ns);
+  const auto moving=controller.envelope(2,.2);controller.send_deadline(moving);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+  controller.advance(149999999ns);controller.send_deadline(moving);  // Fresh receipt cannot extend origin.
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+  controller.advance(1ns);
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  EXPECT_EQ(controller.repeat_counter(),0);
+  controller.send_deadline(moving);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, DeadlineVetoAndSourceZeroBypassClipAndHeadingHold) {
+  MemoryController controller(false);auto policy=make_gait_policy();
+  policy["command_clip"]={{"vx",{.1,.5}},{"vy",{.1,.5}},{"wz",{.1,1.}}};
+  policy["heading_hold"]={{"kp",1.5},{"clip",1.},{"yaw_threshold",.1},{"walk_threshold",.05}};
+  activate_deadline(controller,policy);
+  controller.send_deadline(controller.envelope(1));
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.advance(1ns);auto moving=controller.envelope(2,.2);controller.send_deadline(moving);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  controller.imu_values[5]=std::sin(.3);controller.imu_values[6]=std::cos(.3);  // yaw only; no fall
+  auto veto=moving;veto["allowed"]=false;controller.send_deadline(veto);
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  EXPECT_FLOAT_EQ(controller.observed_gait(),0.f);EXPECT_EQ(controller.repeat_counter(),0);
+  controller.send_deadline(moving);  // Delayed pre-veto duplicate cannot revive.
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.advance(1ns);controller.send_deadline(controller.envelope(3,.2));
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);EXPECT_GT(controller.observed_command()[0],0.f);
+  controller.advance(1ns);controller.send_deadline(controller.envelope(4));
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, DeadlineMalformedConflictingAndOldCommandsCannotRevive) {
+  MemoryController controller(false);activate_deadline(controller);
+  controller.send_deadline(controller.envelope(1));controller.advance(1ns);
+  auto moving=controller.envelope(2,.2);controller.send_deadline(moving);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);
+  auto malformed=std::make_shared<std_msgs::msg::String>();malformed->data="{\"seq\":true}";
+  controller.deadline_callback()(malformed);
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.send_deadline(moving);ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.advance(1ns);auto newer=controller.envelope(3,.2);controller.send_deadline(newer);
+  auto conflict=newer;conflict["expires_mono_ns"]=conflict["expires_mono_ns"].get<int64_t>()-1;
+  controller.send_deadline(conflict);controller.send_deadline(newer);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.advance(1ns);auto zero=controller.envelope(4);controller.send_deadline(zero);
+  controller.send_deadline(moving);ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, DeadlineClockSourceAndActivationGenerationStayBound) {
+  MemoryController controller(false);activate_deadline(controller);
+  controller.send_deadline(controller.envelope(1));controller.advance(1ns);
+  auto moving=controller.envelope(2,.2);controller.send_deadline(moving);
+  auto old_callback=controller.deadline_callback();auto generation=controller.deadline_generation();
+  neural_controller::CommandDeadline parsed;ASSERT_TRUE(neural_controller::decode_command_deadline(moving.dump(),parsed));
+  ASSERT_EQ(controller.deactivate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  controller.advance(1ns);ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  // Model the callback paused after parsing while lifecycle resets receiver state.
+  controller.commit_parsed(parsed,generation);
+  auto message=std::make_shared<std_msgs::msg::String>();message->data=moving.dump();old_callback(message);
+  controller.send_deadline(moving); // Pre-activation even through current callback.
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  auto wrong=controller.envelope(3);wrong["clock_id"]="other-boot";controller.send_deadline(wrong);
+  controller.send_deadline(controller.envelope(3,.2)); // Wrong-clock zero cannot bind.
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.send_deadline(controller.envelope(3));controller.advance(1ns);
+  auto takeover=controller.envelope(4,.2);takeover["source_instance"]=std::string(32,'b');controller.send_deadline(takeover);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.send_deadline(controller.envelope(4,.2));
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+  auto older_future=controller.envelope(3,.1);
+  older_future["issued_mono_ns"]=controller.command_deadline_now_ns()+1;
+  older_future["expires_mono_ns"]=controller.command_deadline_now_ns()+150000001;
+  controller.send_deadline(older_future);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+}
+
+TEST_F(ProductionRuntime, DeadlineRetiresExpiredOrNonIncreasingIssueSequences) {
+  MemoryController controller(false);activate_deadline(controller);
+  auto initial=controller.envelope(1);initial["allowed"]=false;controller.send_deadline(initial);
+  controller.advance(1ns);auto moving=controller.envelope(2,.2);controller.send_deadline(moving);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+  auto bad=moving;bad["seq"]=3;controller.send_deadline(bad);controller.send_deadline(moving);
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  controller.advance(1ns);auto retired=controller.envelope(3,.2);controller.send_deadline(retired);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  auto newest=controller.envelope(4,.2);controller.send_deadline(newest);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+  controller.advance(1ns);auto expired=controller.envelope(5,.2);controller.advance(150ms);
+  controller.send_deadline(expired);controller.send_deadline(newest);
+  ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+}
+
+TEST_F(ProductionRuntime, DeadlineActualDdsSubscriptionRejectsBareTwistAuthority) {
+  MemoryController controller(false);activate_deadline(controller);
+  auto publisher_node=std::make_shared<rclcpp::Node>("deadline_runtime_source");
+  auto input=publisher_node->create_publisher<std_msgs::msg::String>(neural_controller::kCommandDeadlineTopic,1);
+  auto bare=publisher_node->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",1);
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(controller.get_node()->get_node_base_interface());executor.add_node(publisher_node);
+  const auto wait_until=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+  while(input->get_subscription_count()!=1 && std::chrono::steady_clock::now()<wait_until) {
+    executor.spin_some();std::this_thread::sleep_for(1ms);
+  }
+  ASSERT_EQ(input->get_subscription_count(),1u);EXPECT_EQ(bare->get_subscription_count(),0u);
+  auto publish=[&](const nlohmann::json &value) {
+    std_msgs::msg::String message;message.data=value.dump();input->publish(message);
+    const auto until=std::chrono::steady_clock::now()+30ms;
+    while(std::chrono::steady_clock::now()<until) {executor.spin_some();std::this_thread::sleep_for(1ms);}
+  };
+  publish(controller.envelope(1));controller.advance(1ns);auto moving=controller.envelope(2,.2);publish(moving);
+  ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_command(controller,.2f,0.f,0.f);
+  geometry_msgs::msg::Twist raw;raw.linear.x=.3;bare->publish(raw);executor.spin_some();
+  controller.advance(150ms);ASSERT_EQ(controller.tick(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  publish(moving);ASSERT_EQ(controller.tick_actor(2.1),controller_interface::return_type::OK);expect_zero_command(controller);
+  executor.remove_node(publisher_node);executor.remove_node(controller.get_node()->get_node_base_interface());
+}
+
+TEST_F(ProductionRuntime, DeadlineAuthorityReportsBindingAndRejectsOldSnapshots) {
+  MemoryController controller(false);activate_deadline(controller);
+  auto observer=std::make_shared<rclcpp::Node>("deadline_authority_observer");
+  std::vector<nlohmann::json> statuses;
+  auto subscription=observer->create_subscription<std_msgs::msg::String>(
+    "/neural_controller_default/command_authority",rclcpp::QoS(10).best_effort(),
+    [&](std_msgs::msg::String::SharedPtr msg){statuses.push_back(nlohmann::json::parse(msg->data));});
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(controller.get_node()->get_node_base_interface());executor.add_node(observer);
+  auto pump=[&](){const auto until=std::chrono::steady_clock::now()+30ms;
+    while(std::chrono::steady_clock::now()<until){executor.spin_some();std::this_thread::sleep_for(1ms);}};
+  const auto discovery_until=std::chrono::steady_clock::now()+2s;
+  while(observer->count_publishers("/neural_controller_default/command_authority")!=1 &&
+        std::chrono::steady_clock::now()<discovery_until) pump();
+  ASSERT_EQ(observer->count_publishers("/neural_controller_default/command_authority"),1u);
+  pump();
+  controller.send_deadline(controller.envelope(1,.2));pump();
+  ASSERT_FALSE(statuses.empty());EXPECT_EQ(statuses.back().at("bound_source_instance"),"");
+  const auto activation=statuses.back().at("activation_mono_ns").get<int64_t>();
+  const auto old_generation=controller.deadline_generation();
+  EXPECT_GT(activation,0);EXPECT_GE(old_generation,1u);
+  const auto unbound_time=statuses.back().at("sampled_mono_ns").get<int64_t>();
+  auto zero=controller.envelope(1);zero["allowed"]=false;controller.send_deadline(zero);pump();
+  ASSERT_EQ(statuses.back().at("bound_source_instance"),std::string(32,'a'));
+  const auto bound_count=statuses.size();
+  // An older unbound snapshot cannot follow a newer binding, even if a test
+  // clock has equal sample times. Real snapshots preserve their original time.
+  controller.delayed_authority(old_generation,activation,unbound_time,"");pump();
+  EXPECT_EQ(statuses.size(),bound_count);
+  controller.advance(100ms);auto foreign=controller.envelope(2);foreign["source_instance"]=std::string(32,'b');
+  controller.send_deadline(foreign);pump();
+  ASSERT_GT(statuses.size(),bound_count);EXPECT_EQ(statuses.back().at("bound_source_instance"),std::string(32,'a'));
+  EXPECT_EQ(statuses.back().at("generation"),old_generation);
+  const auto rate_count=statuses.size();controller.send_deadline(foreign);pump();
+  EXPECT_EQ(statuses.size(),rate_count); // Callback traffic is bounded to10Hz without changes.
+  ASSERT_EQ(controller.deactivate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  controller.advance(1ns);ASSERT_EQ(controller.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  pump();statuses.clear();
+  controller.delayed_authority(old_generation,activation,controller.command_deadline_now_ns(),std::string(32,'a'));pump();
+  EXPECT_TRUE(statuses.empty());
+  controller.send_deadline(foreign);pump(); // Pre-activation origin cannot bind, but reports current state.
+  ASSERT_FALSE(statuses.empty());EXPECT_EQ(statuses.back().at("bound_source_instance"),"");
+  EXPECT_GT(statuses.back().at("generation").get<uint64_t>(),old_generation);
+  EXPECT_GT(statuses.back().at("activation_mono_ns").get<int64_t>(),activation);
+  auto replacement=controller.envelope(3);replacement["source_instance"]=std::string(32,'b');
+  controller.send_deadline(replacement);pump();
+  EXPECT_EQ(statuses.back().at("bound_source_instance"),std::string(32,'b'));
+  executor.remove_node(observer);executor.remove_node(controller.get_node()->get_node_base_interface());
+}

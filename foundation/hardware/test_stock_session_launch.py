@@ -1,5 +1,6 @@
 """Inspect launch actions without importing ROS or starting any process."""
 import importlib.util
+import hashlib
 from pathlib import Path
 import sys
 import types
@@ -48,7 +49,10 @@ def launch_module(monkeypatch, tmp_path):
     spec.loader.exec_module(module)
     urdf = tmp_path / "robot.urdf"
     urdf.write_text("<robot name='offline-test'/>")
-    files = {"config": {"path": str(tmp_path / "selected.yaml")}, "urdf": {"path": str(urdf)}}
+    config = tmp_path / "selected.yaml"
+    config.write_text("neural_controller_default:\n  ros__parameters: {}\n")
+    files = {"config": {"path": str(config), "sha256": hashlib.sha256(config.read_bytes()).hexdigest()},
+             "urdf": {"path": str(urdf)}}
     monkeypatch.setattr(module, "selected_inputs", lambda: files)
     return module, files, Node, ExecuteProcess, RegisterEventHandler, LogInfo
 
@@ -98,3 +102,21 @@ def test_selected_input_failure_precedes_creation_of_any_launch_actions(launch_m
     monkeypatch.setattr(module, "selected_inputs", refused)
     with pytest.raises(ValueError, match="selected files changed"):
         module.generate_launch_description()
+
+
+def test_direct_deadline_launch_has_no_mux_or_mux_exit_dependency(launch_module, tmp_path):
+    module, files, Node, ExecuteProcess, Register, LogInfo = launch_module
+    config = Path(files["config"]["path"])
+    config.write_text("neural_controller_default:\n  ros__parameters:\n    cmd_vel_contract: fc_deadline_v1\n")
+    files["config"]["sha256"] = hashlib.sha256(config.read_bytes()).hexdigest()
+    files.update({"guard_python": {"invocation_path": "/selected/python", "path": "/selected/python"},
+                  "guard_script": {"path": str(tmp_path / "final_project/behaviors/body_command_guard.py")}})
+    actions = module.generate_launch_description().entities
+    nodes = [item for item in actions if isinstance(item, Node)]
+    assert not any(item.kwargs["package"] == "cmd_vel_mux" for item in nodes)
+    guard = next(item for item in actions if isinstance(item, ExecuteProcess))
+    assert guard.kwargs["cmd"][-2:] == ["--command-contract", "fc_deadline_v1"]
+    exits = [item.handler.kwargs for item in actions if isinstance(item, Register)]
+    shutdowns = [item for item in exits if isinstance(item["on_exit"], list)
+                 and item["on_exit"] and not isinstance(item["on_exit"][0], LogInfo)]
+    assert len(shutdowns) == 4

@@ -24,10 +24,20 @@ build the new stock movement release.
 
 `hardware/assemble_guarded_release.py` copies a verified stock walk baseline into
 a **new** release directory and overlays the indexed guarded-command and gameplay
-bridge Python sources. It keeps
+bridge Python sources. By default it keeps
 the native controller, driver, gateway, mux, policy and gains unchanged. It adds
 the optional camera command path, preserves the old release for rollback, and
 removes copied sprint selection. This is file assembly only; it starts nothing.
+
+The separate direct FC deadline candidate additionally needs a target-built
+controller. Select it explicitly with `--deadline-controller` and
+`--deadline-controller-sha256`, together with the strict source index (including
+the deadline helper and updated stock-evidence module). Assembly pins the new
+controller, selects `fc_deadline_v1`, disables alternate command inputs and
+omits mux launch/continuity dependencies. Policy, gains, driver and gateway stay
+unchanged. Its record reports `native_unchanged=false`; inherited native source
+hashes remain baseline provenance, not proof of the new build. Retain the new
+target build receipt separately. Cached Ubuntu test binaries are not Pi builds.
 
 Use the frozen source kit linked by the current checkpoint. On the target
 filesystem, select the baseline manifest and its independently recorded digest,

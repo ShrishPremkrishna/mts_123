@@ -31,6 +31,12 @@ The steady timer expires evidence even when no messages arrive or ROS time stops
 Defaults are provisional camera thresholds, not hardware stopping acceptance.
 Guard death relies on the selected native 250 ms receipt watchdog; this process
 does not authenticate other publishers or establish native controller authority.
+
+Explicit --command-contract fc_deadline_v1 selects a separate String-only path
+from /fc/body_command/request to /fc/body_command/admitted. It preserves the
+source's same-host monotonic deadline and can only veto its immutable origin.
+This mode starts closed and requires a genuine source zero after camera
+clearance before a newer motion command; receipt of old input cannot release it.
 """
 from __future__ import annotations
 
@@ -60,6 +66,8 @@ INPUT_TIMEOUT_NS = 150_000_000
 CLOCK_JUMP_NS = 50_000_000
 MAX_PAYLOAD_BYTES = 65536
 MAX_DETECTIONS = 256
+LEGACY_CONTRACT = "legacy_twist"
+DEADLINE_CONTRACT = "fc_deadline_v1"  # Its parser is imported only in explicit strict mode.
 ARENA_DETECTOR_IDENTITY = {
     "model_sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
     "labels_sha256": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a",
@@ -83,6 +91,7 @@ ZERO = BodyCommand()
 class GuardResult:
     command: BodyCommand
     status: dict
+    envelope: object = None  # Strict mode's immutable DeadlineCommand; absent in legacy mode.
 
 
 def _finite_number(value):
@@ -345,9 +354,169 @@ class BodyCommandGuard:
         })
 
 
-def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False):
+class DeadlineBodyCommandGuard:
+    """Original-source ordering around the existing camera/clock gate.
+
+    The caller serializes callbacks. Camera parsing and projection remain owned
+    by BodyCommandGuard; no receipt-based Twist admission is used in this mode.
+    """
+
+    def __init__(self, obstacle_config=ObstacleConfig(), *, arena_ball_contact=False,
+                 clock_id=None, started_mono_ns):
+        # Keep legacy source subsets independent of the strict-mode helper.
+        from final_project.behaviors import command_deadline
+        self.protocol = command_deadline
+        self.clock_id = command_deadline.local_clock_id() if clock_id is None else clock_id
+        if (type(self.clock_id) is not str or not self.clock_id or
+                len(self.clock_id) > 128 or not self.clock_id.isascii()):
+            raise ValueError("invalid local command clock identity")
+        if type(started_mono_ns) is not int or not 0 <= started_mono_ns < 2**63:
+            raise ValueError("invalid command guard startup timestamp")
+        self.started_mono_ns = started_mono_ns
+        self.camera = BodyCommandGuard(obstacle_config, arena_ball_contact=arena_ball_contact)
+        self.source_instance = None
+        self._seq = self._issued_ns = -1
+        self._origin = None
+        self._vetoed = True
+        self._receipt_ns = None
+        self._camera_clear = False
+        self._clearance_ns = None
+        self._zero_seq = self._zero_issued_ns = None
+        self._input_state = "missing"
+        self._input_error = "fresh source zero required after camera clearance"
+        self._last_rejection = None
+
+    def _observe_camera(self, result, mono_ns):
+        clear = result.status["camera_permitted"]
+        if not clear or not self._camera_clear:
+            self._zero_seq = self._zero_issued_ns = None
+            self._vetoed = True
+            self._clearance_ns = mono_ns if clear else None
+        self._camera_clear = clear
+
+    def _invalidate(self, reason, state="invalid"):
+        self._vetoed = True
+        self._input_state, self._input_error = state, reason[:160]
+
+    def _finish(self, camera_result, mono_ns):
+        status = dict(camera_result.status)
+        now = status["sampled_at_monotonic_ns"]
+        origin = self._origin
+        if origin is not None and (not origin.fresh(now) or
+                self._receipt_ns is None or now - self._receipt_ns >= INPUT_TIMEOUT_NS):
+            self._invalidate("original source command expired", "expired")
+        envelope = origin.veto() if origin is not None else None
+        command = ZERO
+        if status["state"] == "fault":
+            state, reason = "fault", status["reason"]
+        elif not self._camera_clear:
+            state, reason = "hold", status["reason"]
+        elif self._input_error:
+            state, reason = "hold", self._input_error
+        elif self._zero_seq is None:
+            state, reason = "hold", "fresh source zero required after camera clearance"
+        elif origin is None or self._vetoed:
+            state, reason = "hold", "source command vetoed; require a newer source sequence"
+        else:
+            envelope = origin
+            command = BodyCommand(origin.vx, origin.vy, origin.wz)
+            state = "ready" if origin.is_zero else "passing"
+            reason = "fresh source zero and camera clearance" if origin.is_zero else "original deadline and camera clearance"
+        status.update(
+            state=state, reason=reason, command=[command.vx, command.vy, command.wz],
+            command_contract=DEADLINE_CONTRACT, clock_id=self.clock_id,
+            input_state=self._input_state,
+            input_age_s=None if self._receipt_ns is None else round(max(0, now - self._receipt_ns) / 1e9, 6),
+            requires_post_hold_zero=self._zero_seq is None,
+            source_bound=self.source_instance is not None, source_instance=self.source_instance,
+            source_seq=None if self._seq < 0 else self._seq,
+            source_issued_mono_ns=None if origin is None else origin.issued_mono_ns,
+            source_expires_mono_ns=None if origin is None else origin.expires_mono_ns,
+            source_vetoed=envelope is None or not envelope.allowed,
+            source_age_s=None if origin is None else round(max(0, now - origin.issued_mono_ns) / 1e9, 6),
+            clearance_mono_ns=self._clearance_ns, post_clear_zero_seq=self._zero_seq,
+            last_rejection=self._last_rejection,
+        )
+        return GuardResult(command, status, envelope)
+
+    def receive_command(self, payload, *, ros_ns, mono_ns):
+        camera_result = self.camera.evaluate(ros_ns=ros_ns, mono_ns=mono_ns)
+        self._observe_camera(camera_result, mono_ns)
+        if camera_result.status["state"] == "fault":
+            return self._finish(camera_result, mono_ns)
+        try:
+            candidate = self.protocol.decode(payload)
+        except (ValueError, TypeError) as exc:
+            self._invalidate(str(exc))
+            return self._finish(camera_result, mono_ns)
+        if candidate.clock_id != self.clock_id:
+            self._last_rejection = "unrecognized command clock"
+        elif self.source_instance is not None and candidate.source_instance != self.source_instance:
+            self._last_rejection = "unrecognized source instance; restart guard"
+        elif candidate.issued_mono_ns <= self.started_mono_ns:
+            self._last_rejection = "source command predates guard startup"
+        elif self.source_instance is not None and candidate.seq < self._seq:
+            self._last_rejection = "older source sequence"
+        elif candidate.issued_mono_ns > mono_ns:
+            self._invalidate("source command issue time is future")
+        elif self.source_instance is not None and candidate.seq == self._seq:
+            if candidate.origin != self._origin.origin or not candidate.allowed:
+                self._invalidate("conflicting or vetoed source request at the same sequence")
+            # Identical duplicates cannot refresh receipt, undo a veto, or
+            # repeat a consumed source-zero/clearance handshake.
+        elif not candidate.allowed:
+            self._invalidate("source request must have allowed=true")
+        elif self.source_instance is None and (not candidate.is_zero or not candidate.fresh(mono_ns)):
+            self._last_rejection = "first source command must be a fresh genuine zero"
+        elif candidate.issued_mono_ns <= self._issued_ns:
+            # Retire the newer sequence without lowering the issue highwater.
+            # Forward its veto so downstream ordering cannot retain an older
+            # positive or accept an edited retry of this retired identity.
+            self._seq = candidate.seq
+            self._origin, self._receipt_ns = candidate, mono_ns
+            self._invalidate("source issue time did not increase")
+        else:
+            self.source_instance = candidate.source_instance
+            self._seq, self._issued_ns = candidate.seq, candidate.issued_mono_ns
+            self._origin, self._receipt_ns = candidate, mono_ns
+            self._vetoed = True
+            self._input_state, self._input_error = "valid", ""
+            self._last_rejection = None
+            if not candidate.fresh(mono_ns):
+                self._invalidate("original source command expired", "expired")
+            elif self._camera_clear and candidate.issued_mono_ns > self._clearance_ns:
+                if candidate.is_zero:
+                    self._zero_seq, self._zero_issued_ns = candidate.seq, candidate.issued_mono_ns
+                    self._vetoed = False
+                elif self._zero_seq is not None and candidate.issued_mono_ns > self._zero_issued_ns:
+                    self._vetoed = False
+        return self._finish(camera_result, mono_ns)
+
+    def receive_frame(self, payload, *, ros_ns, mono_ns):
+        result = self.camera.receive_frame(payload, ros_ns=ros_ns, mono_ns=mono_ns)
+        self._observe_camera(result, mono_ns)
+        return self._finish(result, mono_ns)
+
+    def evaluate(self, *, ros_ns, mono_ns):
+        result = self.camera.evaluate(ros_ns=ros_ns, mono_ns=mono_ns)
+        self._observe_camera(result, mono_ns)
+        return self._finish(result, mono_ns)
+
+    def veto(self, *, ros_ns, mono_ns):
+        result = self.camera.evaluate(ros_ns=ros_ns, mono_ns=mono_ns)
+        self._observe_camera(result, mono_ns)
+        self._invalidate("guard shutdown")
+        return self._finish(result, mono_ns)
+
+
+def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False,
+                    command_contract=LEGACY_CONTRACT, clock_id=None):
     """Import ROS only here; default executor serializes all guard callbacks."""
-    from geometry_msgs.msg import Twist
+    if command_contract not in (LEGACY_CONTRACT, DEADLINE_CONTRACT):
+        raise ValueError("unknown command contract")
+    strict = command_contract == DEADLINE_CONTRACT
+    if not strict:
+        from geometry_msgs.msg import Twist
     from rclpy.clock import Clock
     from rclpy.clock_type import ClockType
     from rclpy.node import Node
@@ -356,12 +525,17 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False)
     class BodyCommandGuardNode(Node):
         def __init__(self):
             super().__init__("fc_body_command_guard")
-            self.guard = BodyCommandGuard(arena_ball_contact=arena_ball_contact)
-            self.command_pub = self.create_publisher(Twist, OUTPUT_TOPIC, 1)
+            self.guard = (DeadlineBodyCommandGuard(arena_ball_contact=arena_ball_contact,
+                          clock_id=clock_id, started_mono_ns=monotonic_ns()) if strict else
+                          BodyCommandGuard(arena_ball_contact=arena_ball_contact))
+            self.command_pub = self.create_publisher(
+                String if strict else Twist,
+                self.guard.protocol.ADMITTED_TOPIC if strict else OUTPUT_TOPIC, 1)
             self.status_pub = self.create_publisher(String, STATUS_TOPIC, 1)
             self._last_status_ns = None
             self.guard.evaluate(**self.clocks())  # Establish this process's clock-history boundary.
-            self.create_subscription(Twist, INPUT_TOPIC, self.on_command, 1)
+            self.create_subscription(String if strict else Twist,
+                self.guard.protocol.REQUEST_TOPIC if strict else INPUT_TOPIC, self.on_command, 1)
             self.create_subscription(String, FRAME_TOPIC, self.on_frame, 1)
             self._steady_clock = Clock(clock_type=ClockType.STEADY_TIME)
             self.create_timer(TIMER_S, self.on_tick, clock=self._steady_clock)
@@ -370,17 +544,21 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False)
             return {"ros_ns": self.get_clock().now().nanoseconds, "mono_ns": monotonic_ns()}
 
         def publish_result(self, result, mono_ns):
-            msg = Twist()
-            msg.linear.x, msg.linear.y, msg.angular.z = result.command.vx, result.command.vy, result.command.wz
-            self.command_pub.publish(msg)
+            if strict:
+                if result.envelope is not None:
+                    self.command_pub.publish(String(data=result.envelope.encode()))
+            else:
+                msg = Twist()
+                msg.linear.x, msg.linear.y, msg.angular.z = result.command.vx, result.command.vy, result.command.wz
+                self.command_pub.publish(msg)
             if self._last_status_ns is None or mono_ns - self._last_status_ns >= 200_000_000:
                 self.status_pub.publish(String(data=json.dumps(result.status, separators=(",", ":"), allow_nan=False)))
                 self._last_status_ns = mono_ns
 
         def on_command(self, msg):
             clocks = self.clocks()
-            cmd = BodyCommand(msg.linear.x, msg.linear.y, msg.angular.z,
-                              msg.linear.z, msg.angular.x, msg.angular.y)
+            cmd = msg.data if strict else BodyCommand(msg.linear.x, msg.linear.y, msg.angular.z,
+                                                    msg.linear.z, msg.angular.x, msg.angular.y)
             self.publish_result(self.guard.receive_command(cmd, **clocks), clocks["mono_ns"])
 
         def on_frame(self, msg):
@@ -392,7 +570,11 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False)
             self.publish_result(self.guard.evaluate(**clocks), clocks["mono_ns"])
 
         def publish_zero(self):
-            self.command_pub.publish(Twist())
+            if strict:
+                clocks = self.clocks()
+                self.publish_result(self.guard.veto(**clocks), clocks["mono_ns"])
+            else:
+                self.command_pub.publish(Twist())
 
     return BodyCommandGuardNode()
 
@@ -401,12 +583,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arena-ball-contact", action="store_true",
                         help="allow selected COCO sports-ball contact; every other class still gates")
+    parser.add_argument("--command-contract", choices=(LEGACY_CONTRACT, DEADLINE_CONTRACT),
+                        default=LEGACY_CONTRACT, help="explicit source-deadline transport; default preserves Twist")
     options, ros_args = parser.parse_known_args(argv)
     import rclpy
     from rclpy.executors import ExternalShutdownException
 
     rclpy.init(args=ros_args)
-    node = create_ros_node(arena_ball_contact=options.arena_ball_contact)
+    selection = {"arena_ball_contact": options.arena_ball_contact}
+    if options.command_contract != LEGACY_CONTRACT:
+        selection["command_contract"] = options.command_contract
+    node = create_ros_node(**selection)
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
