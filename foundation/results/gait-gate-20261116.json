@@ -190,5 +190,99 @@
     },
     "prepared_run": "/home/pi/pupper-fc-runs/logfix-stand-20261117",
     "motor_free_preflight": "Passed: selected hashes/dependencies and no active manager; motion_started=false."
+  },
+  "post_correction_supported_validation": {
+    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "controller_sha256": "e76b9d581c7cf72d6ffe82a2077bf52d2dfdcdb932524631055b13b1ee29b9c8",
+    "run": "/home/pi/pupper-fc-runs/logfix-stand-20261117b",
+    "supported_active_s": 30,
+    "joint_source_gap_max_ms": 8.573,
+    "imu_source_gap_max_ms": 8.16,
+    "observation_receive_gap_max_ms": 26.461,
+    "position_command_receive_gap_max_ms": 27.098,
+    "policy_output_receive_gap_max_ms": 39.076,
+    "inference_max_ms": 2.635,
+    "imu_age_max_ms": 27.876,
+    "gateway_clear": true,
+    "trial": {
+      "axis": "left",
+      "speed_m_s": 0.15,
+      "duration_s": 3,
+      "receipt": "movement-20261117T070122802657Z-left.json",
+      "sampled_commands": 63,
+      "applied_match": true,
+      "zero_ack_s": 0.03,
+      "operator_observation": "Battery replaced; on stand; test looked controlled",
+      "physical_scope": "Leg motion while supported only; no floor stability acceptance"
+    },
+    "closure": "2026-11-17T07:02:51.906137Z; manager absent, driver deactivated, native/recorder exits0",
+    "earlier_attempt": "logfix-stand-20261117 closed after root duplicate STRICT activation; Options already activated walker. Both requested timing windows actually observed inactive controller and are not acceptance. Raw capture includes brief active interval before root error.",
+    "capture_preservation": "All three corrected runs collected and hash-verified:62indexedfiles,785107222bytes. See /Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs/verification.json"
+  },
+  "thermal_monitor": {
+    "started_utc": "2026-11-17T06:55:50.986647+00:00",
+    "samples": 31,
+    "cpu_c_min": 70.3,
+    "cpu_c_max": 74.7,
+    "throttle_masks": [
+      "0x0"
+    ],
+    "scope": "CPU/SoC only. No decoded motor temperature in current SPI/ROS contract. Zero masks do not establish motor thermal condition.",
+    "local_csv": "/tmp/pupper-thermal-battery-20261117.csv",
+    "status": "Both boot monitors stopped.103validsamples total; firstboot70.3\u201374.7C, freshboot64.2\u201371.9C, all raw throttle masks0x0. Motor temperatures unavailable.",
+    "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/analysis"
+  },
+  "post_correction_floor_validation": {
+    "run": "/home/pi/pupper-fc-runs/logfix-floor-20261117",
+    "boot_id": "8e70f243-74ae-4d5f-9c46-9ef1cf3d7e2d",
+    "left": {
+      "speed_m_s": 0.15,
+      "duration_s": 3,
+      "matched_samples": 63,
+      "zero_feedback_s": 0.06,
+      "peak_imu_tilt_deg": 4.74,
+      "operator": "Stable and stopped cleanly"
+    },
+    "right": {
+      "speed_m_s": 0.15,
+      "duration_s": 3,
+      "matched_samples": 63,
+      "zero_feedback_s": 0.03,
+      "peak_imu_tilt_deg": 3.26,
+      "operator": "Stable and stopped cleanly"
+    },
+    "ball_contact_attempt": {
+      "speed_m_s": 0.45,
+      "duration_s": 2,
+      "matched_samples": 43,
+      "zero_feedback_s": 0.04,
+      "peak_imu_tilt_deg": 6.01,
+      "operator": "Did not reach ball; initially reported few inches of travel, then said ball may have been too far away. Placement unmeasured.",
+      "acceptance": "No successful contact established"
+    },
+    "marked_forward_repeat": {
+      "speed_m_s": 0.45,
+      "duration_s": 2,
+      "matched_samples": 43,
+      "zero_feedback_s": 0.04,
+      "travel_inches_approx": 30,
+      "travel_m_approx": 0.762,
+      "peak_imu_tilt_deg": 5.34,
+      "operator": "30 inches"
+    },
+    "recorded_trial_windows": "IMU receive gaps at most8.74ms, observation receive gaps at most40.27ms across these four trial windows. No recurrence of the original1.32s gap in these windows; this is not long-term reliability proof.",
+    "closure": "2026-11-17T07:28:10.259814Z; native/recorder exit0, manager absent, driver deactivation logged; user on stand/R3/handsclear.",
+    "remaining": "Original stall root cause remains provisional; prolonged lateral travel, exact turns, braking distance, reliable ball contact and full play unaccepted."
+  },
+  "software_followthrough": {
+    "commits": {
+      "integration": "82ba2c4",
+      "logging_correction": "2977ef3",
+      "lateral_calibration": "c32457a",
+      "software_start": "c8e9213"
+    },
+    "checks": "295APItests+48subtests; nativehost2724checks; loggingfix6PiCTestgroups including28safetytests; softwareStart12ROSgroups+21deterministiccases. Counts are software evidence only.",
+    "software_start": "Fable5.2 initialreview found2highstatebugs; fixed with reproductions and other bounded corrections. Follow-up independent review, residentcaller integration and deployment remain pending.",
+    "extended_lateral": "Opt-in <=20s, <=.15m/s left/right; source tested only, not deployed or physically qualified."
   }
 }
