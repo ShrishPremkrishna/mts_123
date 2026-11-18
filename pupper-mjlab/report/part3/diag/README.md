@@ -26,3 +26,21 @@ Finding:
   - median learning rate 1.7e-4 in both legs; identical realized gains.
 - The one shift is in leg 1: action std goes 0.37 → 0.43 in the Bumpy arm while the control goes 0.36 → 0.34.
 - Each leg restarts the adaptive learning rate at 1e-5. It recovers within ~10 iterations.
+
+## Checkpoint-to-checkpoint variance (eval seed 1234; `neighbours.sh`, outputs in `neighbours/`)
+
+Bumpy (WIDEN) arm, flat_dr suite falls / nominal-PD falls. Neighbours are the 50-iteration saves; leg boundaries
+restart the learning rate and episode buffers.
+
+| around | −100 | −50 | point | +50 | +100 |
+|---|---|---|---|---|---|
+| +1000 (model_5494) | 5400: 48 / 60 | 5450: 34 / 41 | **34 / 42** | 5550: 31 / 27 | 5600: 32 / 53 |
+| +1500 (model_5993) | 5900: 21 / 28 | 5950: 15 / 34 | **11 / 14** | 6050: 16 / 17 | 6100: 13 / 17 |
+
+model_6000 (+7 iterations after +1500, inside leg 4's restart) gives 4 / 9.
+
+Reading:
+- The +1000 dip is a real stretch of training, not one bad checkpoint: flat_dr 31–48 across the neighbourhood.
+- The +1500 neighbourhood is genuinely better, with flat_dr 4–21 (median 15) and nominal-PD 9–34 (median 17).
+- +1500's own 11 / 14 sits at the good end of its neighbourhood, so read its single-checkpoint numbers with about
+  ±7–10 falls of checkpoint variance on top of eval noise.
