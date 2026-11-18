@@ -1,0 +1,1333 @@
+{
+  "segments": [
+    {
+      "segment": 0,
+      "command": [
+        0.3,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 16000,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.10047534693252362,
+      "rms_xy_error_m_s": 0.1094612166421454,
+      "mean_abs_yaw_error_rad_s": 0.19428848933512563,
+      "mean_achieved_vx_m_s": 0.21391169726848602,
+      "mean_torque_squared_nm2": 0.7253727316856384,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.19519774615764618,
+      "max_abs_heading_drift_rad": 0.13423293828964233,
+      "peak_base_height_world_m": 0.16106735169887543,
+      "minimum_base_height_world_m": 0.14127430319786072,
+      "peak_downward_speed_m_s": 0.2552005648612976,
+      "peak_sampled_foot_contact_force_n": 86.02253723144531,
+      "target_clipped_fraction": 0.25929166666666664,
+      "any_target_clipped_sample_fraction": 0.9885625,
+      "target_clipped_fraction_by_joint": [
+        0.0,
+        0.7991875,
+        0.173125,
+        0.0,
+        0.8545,
+        0.1993125,
+        0.0229375,
+        0.2863125,
+        0.1829375,
+        0.0043125,
+        0.433125,
+        0.15575
+      ],
+      "maximum_target_range_excess_rad": 1.7197977304458618,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 1,
+      "command": [
+        0.75,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 16000,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.08329798172141235,
+      "rms_xy_error_m_s": 0.0964214534621271,
+      "mean_abs_yaw_error_rad_s": 0.2508505029118751,
+      "mean_achieved_vx_m_s": 0.7790077924728394,
+      "mean_torque_squared_nm2": 1.8017573356628418,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.37588948011398315,
+      "max_abs_heading_drift_rad": 0.1606311798095703,
+      "peak_base_height_world_m": 0.15635643899440765,
+      "minimum_base_height_world_m": 0.12355277687311172,
+      "peak_downward_speed_m_s": 0.30599528551101685,
+      "peak_sampled_foot_contact_force_n": 133.9522247314453,
+      "target_clipped_fraction": 0.19358854166666667,
+      "any_target_clipped_sample_fraction": 0.96525,
+      "target_clipped_fraction_by_joint": [
+        0.0,
+        0.505625,
+        0.2359375,
+        0.0,
+        0.44125,
+        0.2293125,
+        0.0,
+        0.1544375,
+        0.2394375,
+        0.0005,
+        0.2658125,
+        0.25075
+      ],
+      "maximum_target_range_excess_rad": 1.8493809700012207,
+      "airborne_sample_fraction": 0.0004375
+    },
+    {
+      "segment": 2,
+      "command": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 16000,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.08790974290602875,
+      "rms_xy_error_m_s": 0.09816609260355816,
+      "mean_abs_yaw_error_rad_s": 0.274638979444353,
+      "mean_achieved_vx_m_s": 1.0105770826339722,
+      "mean_torque_squared_nm2": 2.0373599529266357,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.4788634777069092,
+      "max_abs_heading_drift_rad": 0.10976994037628174,
+      "peak_base_height_world_m": 0.1571970283985138,
+      "minimum_base_height_world_m": 0.12272149324417114,
+      "peak_downward_speed_m_s": 0.34560132026672363,
+      "peak_sampled_foot_contact_force_n": 112.11661529541016,
+      "target_clipped_fraction": 0.2010625,
+      "any_target_clipped_sample_fraction": 0.963875,
+      "target_clipped_fraction_by_joint": [
+        0.002,
+        0.465375,
+        0.274375,
+        0.0,
+        0.458375,
+        0.2371875,
+        6.25e-05,
+        0.1675,
+        0.2441875,
+        0.0009375,
+        0.279625,
+        0.283125
+      ],
+      "maximum_target_range_excess_rad": 1.9905498027801514,
+      "airborne_sample_fraction": 0.00475
+    },
+    {
+      "segment": 3,
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 15733,
+      "failures": 6,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.12226435418376655,
+      "rms_xy_error_m_s": 0.13825660614818477,
+      "mean_abs_yaw_error_rad_s": 0.3856776989552023,
+      "mean_achieved_vx_m_s": 1.5340218544006348,
+      "mean_torque_squared_nm2": 2.535606622695923,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.6735023856163025,
+      "max_abs_heading_drift_rad": 0.42254090309143066,
+      "peak_base_height_world_m": 0.17618724703788757,
+      "minimum_base_height_world_m": 0.11944439262151718,
+      "peak_downward_speed_m_s": 0.6048799753189087,
+      "peak_sampled_foot_contact_force_n": 159.0170135498047,
+      "target_clipped_fraction": 0.21692726540816543,
+      "any_target_clipped_sample_fraction": 0.9561431386258183,
+      "target_clipped_fraction_by_joint": [
+        0.04760694082501748,
+        0.341829276043984,
+        0.367062861501303,
+        0.00756371957032988,
+        0.4529333248585775,
+        0.283226339541092,
+        0.021610627343799656,
+        0.15839318629631985,
+        0.24426364965359434,
+        0.00177969872243056,
+        0.33369351045573,
+        0.3431640500858069
+      ],
+      "maximum_target_range_excess_rad": 2.2302236557006836,
+      "airborne_sample_fraction": 0.059365664526790825
+    },
+    {
+      "segment": 4,
+      "command": [
+        -0.3,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 16000,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.08096909240776563,
+      "rms_xy_error_m_s": 0.09167201990982339,
+      "mean_abs_yaw_error_rad_s": 0.2272651852375775,
+      "mean_achieved_vx_m_s": -0.2481611967086792,
+      "mean_torque_squared_nm2": 0.7022560238838196,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.188180610537529,
+      "max_abs_heading_drift_rad": 0.15071868896484375,
+      "peak_base_height_world_m": 0.15570348501205444,
+      "minimum_base_height_world_m": 0.1390777826309204,
+      "peak_downward_speed_m_s": 0.24484027922153473,
+      "peak_sampled_foot_contact_force_n": 77.7332534790039,
+      "target_clipped_fraction": 0.247265625,
+      "any_target_clipped_sample_fraction": 0.987625,
+      "target_clipped_fraction_by_joint": [
+        0.001625,
+        0.739625,
+        0.17975,
+        0.009,
+        0.8023125,
+        0.1761875,
+        0.0765625,
+        0.3031875,
+        0.148,
+        0.065625,
+        0.31875,
+        0.1465625
+      ],
+      "maximum_target_range_excess_rad": 1.8136132955551147,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 5,
+      "command": [
+        -0.75,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 16000,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.08564765502530287,
+      "rms_xy_error_m_s": 0.09627425067219578,
+      "mean_abs_yaw_error_rad_s": 0.2819532151792532,
+      "mean_achieved_vx_m_s": -0.7650478482246399,
+      "mean_torque_squared_nm2": 2.0859687328338623,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.33960142731666565,
+      "max_abs_heading_drift_rad": 0.11578130722045898,
+      "peak_base_height_world_m": 0.16001634299755096,
+      "minimum_base_height_world_m": 0.12407582998275757,
+      "peak_downward_speed_m_s": 0.29726043343544006,
+      "peak_sampled_foot_contact_force_n": 123.3082046508789,
+      "target_clipped_fraction": 0.18750520833333334,
+      "any_target_clipped_sample_fraction": 0.9998125,
+      "target_clipped_fraction_by_joint": [
+        0.0104375,
+        0.4563125,
+        0.159375,
+        0.0210625,
+        0.6360625,
+        0.1815,
+        0.0279375,
+        0.1880625,
+        0.1085,
+        0.0075625,
+        0.329,
+        0.12425
+      ],
+      "maximum_target_range_excess_rad": 1.7791575193405151,
+      "airborne_sample_fraction": 0.000375
+    },
+    {
+      "segment": 6,
+      "command": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 16000,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.0930329203717811,
+      "rms_xy_error_m_s": 0.1054002793396917,
+      "mean_abs_yaw_error_rad_s": 0.29488795264522194,
+      "mean_achieved_vx_m_s": -0.9946044087409973,
+      "mean_torque_squared_nm2": 2.4093852043151855,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.43733739852905273,
+      "max_abs_heading_drift_rad": 0.1245875358581543,
+      "peak_base_height_world_m": 0.1585317999124527,
+      "minimum_base_height_world_m": 0.12339325994253159,
+      "peak_downward_speed_m_s": 0.29888206720352173,
+      "peak_sampled_foot_contact_force_n": 208.42413330078125,
+      "target_clipped_fraction": 0.187328125,
+      "any_target_clipped_sample_fraction": 0.9999375,
+      "target_clipped_fraction_by_joint": [
+        0.0226875,
+        0.453625,
+        0.169375,
+        0.0200625,
+        0.5813125,
+        0.1815625,
+        0.0346875,
+        0.1665625,
+        0.1080625,
+        0.0134375,
+        0.366375,
+        0.1301875
+      ],
+      "maximum_target_range_excess_rad": 1.6536446809768677,
+      "airborne_sample_fraction": 0.0006875
+    },
+    {
+      "segment": 7,
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 15958,
+      "failures": 1,
+      "timeouts": 0,
+      "simulated_robot_seconds": 512.0,
+      "mean_xy_error_m_s": 0.12333329122408174,
+      "rms_xy_error_m_s": 0.1393361553712557,
+      "mean_abs_yaw_error_rad_s": 0.3246862789980992,
+      "mean_achieved_vx_m_s": -1.466690182685852,
+      "mean_torque_squared_nm2": 3.0349020957946777,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.6013538241386414,
+      "max_abs_heading_drift_rad": 0.2279508113861084,
+      "peak_base_height_world_m": 0.1656809151172638,
+      "minimum_base_height_world_m": 0.12289803475141525,
+      "peak_downward_speed_m_s": 0.4727988839149475,
+      "peak_sampled_foot_contact_force_n": 186.42361450195312,
+      "target_clipped_fraction": 0.2039154864853574,
+      "any_target_clipped_sample_fraction": 1.0,
+      "target_clipped_fraction_by_joint": [
+        0.05370347161298408,
+        0.45788945983205914,
+        0.20804612106780299,
+        0.028575009399674143,
+        0.5312069181601704,
+        0.21625516982077955,
+        0.03553076826670009,
+        0.15183606968291766,
+        0.15384133350043866,
+        0.039666624890337135,
+        0.3689685424238626,
+        0.20146634916656223
+      ],
+      "maximum_target_range_excess_rad": 1.5970207452774048,
+      "airborne_sample_fraction": 0.01604211054016794
+    }
+  ],
+  "dt": 0.02,
+  "warmup_s": 3.0,
+  "scope": "simulation only; measured velocities are simulator observations, not hardware speed",
+  "provenance": {
+    "command": "evaluate",
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "out": "/home/ubuntu/runs/opt-lab-2/p1-evals/p1-gallop_c-s43/sweep",
+    "seed": 1234,
+    "device": "cuda:0",
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "num_envs": 64,
+    "seconds": 8.0,
+    "warmup": 3.0,
+    "commands": [
+      [
+        0.3,
+        0,
+        0
+      ],
+      [
+        0.75,
+        0,
+        0
+      ],
+      [
+        1.0,
+        0,
+        0
+      ],
+      [
+        1.5,
+        0,
+        0
+      ],
+      [
+        -0.3,
+        0,
+        0
+      ],
+      [
+        -0.75,
+        0,
+        0
+      ],
+      [
+        -1.0,
+        0,
+        0
+      ],
+      [
+        -1.5,
+        0,
+        0
+      ]
+    ],
+    "randomized": false,
+    "reset_each_command": true,
+    "torso_contact_audit": false,
+    "nominal_mechanics": false,
+    "no_heading_hold": false,
+    "allow_out_of_range": false,
+    "zero_policy": false,
+    "geometry_audit": false,
+    "geometry_audit_stride": 1,
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "ef7ff92b1eca28429c4d9b0014fbb1458680c9a41bbf8d6ca1f79d7d157da62a",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "512eb0c4cf811abd62a5a603085ad5f6fa46cb8d",
+    "source_sha256": "29994f9174a22c908f4789b7cbcd36b6377b51c31dd3109af0bcedd93c61b514",
+    "source_files_hashed": 265,
+    "checkpoint_sha256": "ef7ff92b1eca28429c4d9b0014fbb1458680c9a41bbf8d6ca1f79d7d157da62a",
+    "references": {
+      "captured_reach_gaits.npz": "855c59eb10e5398080c201dd596e913dbe03a18a456249f118699755eaeb3e46",
+      "reference_manifest.json": "3a32496335293f683fee2f20d70e85cf9d97628d75af3f27ea6143cce1d150a4"
+    },
+    "domain_randomization": {
+      "worlds": 64,
+      "event_order": [
+        {
+          "name": "reset_base",
+          "mode": "reset",
+          "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+        },
+        {
+          "name": "reset_robot_joints",
+          "mode": "reset",
+          "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+        },
+        {
+          "name": "foot_friction",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+        },
+        {
+          "name": "encoder_bias",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+        },
+        {
+          "name": "base_com",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+        },
+        {
+          "name": "pd_gains",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+        },
+        {
+          "name": "inertial",
+          "mode": "startup",
+          "function": "mjlab.tasks.pupper.deployment_contract.density_randomization_preserving_com"
+        },
+        {
+          "name": "reset_imu_latency",
+          "mode": "reset",
+          "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+        }
+      ],
+      "realized_fields": {
+        "body_mass_kg": {
+          "shape": [
+            64,
+            13
+          ],
+          "minimum": [
+            1.359121561050415,
+            0.16225393116474152,
+            0.16924910247325897,
+            0.04507507011294365,
+            0.16277116537094116,
+            0.16809828579425812,
+            0.04543323442339897,
+            0.16210758686065674,
+            0.1677163541316986,
+            0.04525766894221306,
+            0.16332875192165375,
+            0.1680249273777008,
+            0.04519946500658989
+          ],
+          "maximum": [
+            1.9308911561965942,
+            0.23219598829746246,
+            0.23950020968914032,
+            0.06424997001886368,
+            0.23304957151412964,
+            0.24037864804267883,
+            0.0646796002984047,
+            0.23294976353645325,
+            0.2405090183019638,
+            0.06402759253978729,
+            0.23358087241649628,
+            0.2391519844532013,
+            0.06498584151268005
+          ],
+          "mean": [
+            1.650946855545044,
+            0.19117160141468048,
+            0.20250585675239563,
+            0.05459016188979149,
+            0.19206586480140686,
+            0.20587635040283203,
+            0.054881948977708817,
+            0.1998615562915802,
+            0.20860223472118378,
+            0.05357285961508751,
+            0.19664165377616882,
+            0.19862276315689087,
+            0.05466543138027191
+          ],
+          "std": [
+            0.16069447994232178,
+            0.019595343619585037,
+            0.02004888840019703,
+            0.006005945615470409,
+            0.02056305669248104,
+            0.020954735577106476,
+            0.006315857637673616,
+            0.01943035051226616,
+            0.020922474563121796,
+            0.005339205730706453,
+            0.021572396159172058,
+            0.021955406293272972,
+            0.00617092614993453
+          ]
+        },
+        "body_mass_ratio": {
+          "shape": [
+            64,
+            13
+          ],
+          "minimum": [
+            0.902471125125885,
+            0.901410698890686,
+            0.9099413752555847,
+            0.9015014171600342,
+            0.9042842388153076,
+            0.9037541747093201,
+            0.9086647033691406,
+            0.9005976915359497,
+            0.9017007946968079,
+            0.9051533937454224,
+            0.9073818922042847,
+            0.9033598303794861,
+            0.903989315032959
+          ],
+          "maximum": [
+            1.2821321487426758,
+            1.2899776697158813,
+            1.2876355648040771,
+            1.2849993705749512,
+            1.2947198152542114,
+            1.2923582792282104,
+            1.2935919761657715,
+            1.2941652536392212,
+            1.293059229850769,
+            1.280551791191101,
+            1.2976714372634888,
+            1.2857633829116821,
+            1.299716830253601
+          ],
+          "mean": [
+            1.0962458848953247,
+            1.062064528465271,
+            1.0887410640716553,
+            1.0918031930923462,
+            1.0670325756072998,
+            1.10686194896698,
+            1.0976389646530151,
+            1.110342025756836,
+            1.121517539024353,
+            1.0714575052261353,
+            1.0924533605575562,
+            1.0678644180297852,
+            1.0933085680007935
+          ],
+          "std": [
+            0.10670284926891327,
+            0.10886302590370178,
+            0.10778971761465073,
+            0.12011892348527908,
+            0.11423920840024948,
+            0.11265987157821655,
+            0.12631717324256897,
+            0.10794640332460403,
+            0.11248643696308136,
+            0.10678410530090332,
+            0.1198466345667839,
+            0.1180398166179657,
+            0.12341852486133575
+          ]
+        },
+        "base_com_offset_m": {
+          "shape": [
+            64,
+            3
+          ],
+          "minimum": [
+            -0.019890712574124336,
+            -0.004991797264665365,
+            -0.004952755756676197
+          ],
+          "maximum": [
+            0.019717631861567497,
+            0.004946763627231121,
+            0.004839238710701466
+          ],
+          "mean": [
+            0.0024128020741045475,
+            -0.000320163817377761,
+            -0.00021674517483916134
+          ],
+          "std": [
+            0.011425914242863655,
+            0.002758326241746545,
+            0.002722974866628647
+          ]
+        },
+        "encoder_bias_rad": {
+          "shape": [
+            64,
+            12
+          ],
+          "minimum": [
+            -0.014879725873470306,
+            -0.01493019238114357,
+            -0.014118864201009274,
+            -0.01486130803823471,
+            -0.014329600147902966,
+            -0.014618583023548126,
+            -0.014668057672679424,
+            -0.014428490772843361,
+            -0.01493642944842577,
+            -0.014501793310046196,
+            -0.014216656796634197,
+            -0.014909964054822922
+          ],
+          "maximum": [
+            0.014654220081865788,
+            0.014956372790038586,
+            0.014938884414732456,
+            0.01417770329862833,
+            0.013182270340621471,
+            0.014689822681248188,
+            0.01438539382070303,
+            0.01460906770080328,
+            0.013095633126795292,
+            0.014546207152307034,
+            0.014534381218254566,
+            0.014580384828150272
+          ],
+          "mean": [
+            -0.00017103985010180622,
+            -0.0013932004803791642,
+            -0.0014161588624119759,
+            0.0011165640316903591,
+            0.00035545125138014555,
+            0.0015346371801570058,
+            0.0013925442472100258,
+            -0.00011309115507174283,
+            -0.0008216741262003779,
+            -0.0015431457431986928,
+            0.0003535847645252943,
+            -0.000812237267382443
+          ],
+          "std": [
+            0.00924112368375063,
+            0.008680248633027077,
+            0.009072496555745602,
+            0.008862546645104885,
+            0.008044509217143059,
+            0.007786688860505819,
+            0.008370482362806797,
+            0.008690576069056988,
+            0.008687475696206093,
+            0.008901819586753845,
+            0.008269540965557098,
+            0.008966703899204731
+          ]
+        },
+        "foot_tangential_friction": {
+          "shape": [
+            64,
+            4
+          ],
+          "minimum": [
+            0.6015651226043701,
+            0.6015651226043701,
+            0.6015651226043701,
+            0.6015651226043701
+          ],
+          "maximum": [
+            1.382157325744629,
+            1.382157325744629,
+            1.382157325744629,
+            1.382157325744629
+          ],
+          "mean": [
+            1.0106562376022339,
+            1.0106562376022339,
+            1.0106562376022339,
+            1.0106562376022339
+          ],
+          "std": [
+            0.2422667294740677,
+            0.2422667294740677,
+            0.2422667294740677,
+            0.2422667294740677
+          ]
+        },
+        "pd_stiffness": {
+          "shape": [
+            64,
+            12
+          ],
+          "minimum": [
+            3.30588960647583,
+            3.376152753829956,
+            3.3164355754852295,
+            3.319550037384033,
+            3.402830123901367,
+            3.431288957595825,
+            3.3152453899383545,
+            3.3067245483398438,
+            3.3316524028778076,
+            3.3678905963897705,
+            3.31150484085083,
+            3.3336031436920166
+          ],
+          "maximum": [
+            6.022782802581787,
+            5.890598773956299,
+            5.988534927368164,
+            6.042129039764404,
+            6.023433208465576,
+            6.002812385559082,
+            5.9512104988098145,
+            5.964781761169434,
+            6.010928630828857,
+            6.041816234588623,
+            6.001946926116943,
+            6.0380024909973145
+          ],
+          "mean": [
+            4.548789024353027,
+            4.665274143218994,
+            4.602866172790527,
+            4.586144924163818,
+            4.795832633972168,
+            4.724088191986084,
+            4.5442657470703125,
+            4.771270751953125,
+            4.832441329956055,
+            4.868127346038818,
+            4.626686096191406,
+            4.636853218078613
+          ],
+          "std": [
+            0.8078926205635071,
+            0.6903522610664368,
+            0.7517685294151306,
+            0.7497302889823914,
+            0.8382887244224548,
+            0.7319259643554688,
+            0.7583880424499512,
+            0.8369046449661255,
+            0.801866352558136,
+            0.7382977604866028,
+            0.7938215136528015,
+            0.8216831684112549
+          ]
+        },
+        "pd_damping": {
+          "shape": [
+            64,
+            12
+          ],
+          "minimum": [
+            0.2052890509366989,
+            0.20182090997695923,
+            0.20372694730758667,
+            0.20212313532829285,
+            0.20077228546142578,
+            0.2046724259853363,
+            0.20529285073280334,
+            0.20167133212089539,
+            0.2000008374452591,
+            0.20285840332508087,
+            0.20081180334091187,
+            0.209495410323143
+          ],
+          "maximum": [
+            0.37108373641967773,
+            0.3729700446128845,
+            0.3658486008644104,
+            0.37393277883529663,
+            0.37439584732055664,
+            0.3691740930080414,
+            0.37147223949432373,
+            0.3716980814933777,
+            0.37179505825042725,
+            0.3717689514160156,
+            0.3726833164691925,
+            0.37333789467811584
+          ],
+          "mean": [
+            0.2896668612957001,
+            0.2809304893016815,
+            0.28596800565719604,
+            0.2897225618362427,
+            0.2850801944732666,
+            0.28122609853744507,
+            0.28947240114212036,
+            0.28418898582458496,
+            0.27801311016082764,
+            0.2957233488559723,
+            0.28506410121917725,
+            0.29151207208633423
+          ],
+          "std": [
+            0.047473061829805374,
+            0.0542089082300663,
+            0.047577183693647385,
+            0.05100255087018013,
+            0.05165764316916466,
+            0.05119000002741814,
+            0.04673796147108078,
+            0.050665367394685745,
+            0.04798267409205437,
+            0.053742799907922745,
+            0.0519714318215847,
+            0.051262278109788895
+          ]
+        }
+      },
+      "warnings": [],
+      "physics_randomization_events_configured": true,
+      "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+      "observation_noise": {
+        "actor": {
+          "policy": true
+        },
+        "critic": {}
+      },
+      "imu_latency_distributions": {
+        "actor": {
+          "policy": [
+            0.5,
+            0.5
+          ]
+        },
+        "critic": {}
+      },
+      "geom_priorities": {
+        "foot_geom_priority": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "external_geom_priority": [
+          0
+        ]
+      },
+      "actuator_delays": [
+        {
+          "type": "BuiltinPositionActuator",
+          "physics_steps_min": 4,
+          "physics_steps_max": 4
+        }
+      ],
+      "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+      "snapshot": "randomization_snapshot.npz",
+      "snapshot_sha256": "bc60ccf6129264433980d3904e7e5a4be91df970c10bd17f74b52d5e897c1e5e"
+    },
+    "collision_model": {
+      "robot_geometries": [
+        {
+          "id": 1,
+          "name": "",
+          "body": "robot/base_link",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": true
+        },
+        {
+          "id": 2,
+          "name": "robot/base_link_hull",
+          "body": "robot/base_link",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 1,
+          "torso": true
+        },
+        {
+          "id": 3,
+          "name": "",
+          "body": "robot/leg_front_r_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 4,
+          "name": "robot/leg_front_r_2_collision",
+          "body": "robot/leg_front_r_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 5,
+          "name": "",
+          "body": "robot/leg_front_r_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 6,
+          "name": "robot/leg_front_r_3_collision",
+          "body": "robot/leg_front_r_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 7,
+          "name": "",
+          "body": "robot/leg_front_r_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 8,
+          "name": "",
+          "body": "robot/leg_front_l_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 9,
+          "name": "robot/leg_front_l_2_collision",
+          "body": "robot/leg_front_l_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 10,
+          "name": "",
+          "body": "robot/leg_front_l_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 11,
+          "name": "robot/leg_front_l_3_collision",
+          "body": "robot/leg_front_l_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 12,
+          "name": "",
+          "body": "robot/leg_front_l_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 13,
+          "name": "",
+          "body": "robot/leg_back_r_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 14,
+          "name": "robot/leg_back_r_2_collision",
+          "body": "robot/leg_back_r_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 15,
+          "name": "",
+          "body": "robot/leg_back_r_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 16,
+          "name": "robot/leg_back_r_3_collision",
+          "body": "robot/leg_back_r_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 17,
+          "name": "",
+          "body": "robot/leg_back_r_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 18,
+          "name": "",
+          "body": "robot/leg_back_l_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 19,
+          "name": "robot/leg_back_l_2_collision",
+          "body": "robot/leg_back_l_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 20,
+          "name": "",
+          "body": "robot/leg_back_l_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 21,
+          "name": "robot/leg_back_l_3_collision",
+          "body": "robot/leg_back_l_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 22,
+          "name": "",
+          "body": "robot/leg_back_l_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        }
+      ],
+      "active_robot_geometry_count": 9,
+      "active_torso_geometry_count": 1,
+      "terrain_heightfield_count": 0,
+      "geometry_contract_sha256": "53573505887fe135e48ee3cb32d6010bcc927ccc6a871d1c2f132f3630eaea45",
+      "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+    },
+    "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+    "action_target_audit": {
+      "wrapper_clip_actions": null,
+      "action_term_clip": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos is DESIRED target after configured clip BEFORE optional slew/latency/bias; physical_target_joint_pos is that desired request minus bias, not filtered actuator input; applied_target_joint_pos is the last physics-step encoder-coordinate target AFTER optional slew/action-term latency; actuator_input_target_joint_pos subtracts encoder bias before internal actuator delay. Post-step reset rows are excluded. Samples at policy frequency do not demonstrate every physics-step rate bound; those are checked separately. Deployment counterfactual clamps the affine request to model joint ranges; clipping fractions use unclipped request"
+    }
+  }
+}

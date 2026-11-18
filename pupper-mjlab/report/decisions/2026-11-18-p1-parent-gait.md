@@ -41,3 +41,9 @@ exists, so the only new run is `fast_trot` s43. It was launched by W1 at 16:24 U
   while a fast_trot capture folds cleanly.
 - Part 2 round 1 on c raises sat@1.5 or falls beyond the control by more than the noise band, or collapses despite the abduction pin.
 - Saturation is promoted to a ranked metric, or Part 3 DR / torque-limit tests show c degrading where fast_trot does not.
+
+## Follow-up (W1, 2026-11-18 17:20, does not change the conclusion)
+fast_trot s43 (`pgsoywpz`) landed, and its W2 suite shows 58 falls (s42: 53), push_stand@0.65 0.315, sat@1.5 12.4 %, F_runmax_med 3.18 BW.
+Two-seed means, fast_trot vs gallop_c: falls 55.5 vs 42.5, push_stand@0.65 0.50 vs 0.23, F_runmax_med 3.18 vs 3.06 BW, err ±1.5
+0.173 vs 0.132, sat@1.5 12.5 % vs 17.8 %. The first flip condition (fast_trot 10–15 or more falls below c) is not met. The gap now favours c by about 13 falls.
+Data: `report/part1/eval/w2/compare_all.md`, `report/part1/eval/stock_table.json`.

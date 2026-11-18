@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | R:push_stand@0.65 | R:push_move@0.5 | vx_walk_+0.5 | push@0.5_walk_+0.5 | vx_run_+1.5 | push@0.5_run_+1.5 | vx_run_-1.5 | push@0.5_run_-1.5 | stand@0.5(i) | stand@0.65(i) | stand@0.8(i) | push(i) | push_stand(i) | push_move(i) | push0.5(i) | push0.65(i) | push0.8(i) | n_push |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p1-fast_trot-s43 | 4096 | 43 | 2999 | - | 3000 | fast_trot@087de067 | ok | 0.315 | 0.00989 | 0.532 | 0 | 1.37 | 0.00932 | -1.46 | 0.0198 | 0.024 | 0.315 | 0.853 | 0.145 | 0.406 | 0.0575 | 0.0134 | 0.104 | 0.315 | 4084 |

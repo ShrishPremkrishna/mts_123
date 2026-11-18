@@ -1,0 +1,500 @@
+{
+  "name": "p1-fast_trot-s43",
+  "kind": "push",
+  "metrics": {
+    "overall": {
+      "pushes": 4084,
+      "falls": 591,
+      "rate": 0.14471106758080313
+    },
+    "standing": {
+      "pushes": 1021,
+      "falls": 415,
+      "rate": 0.40646425073457393
+    },
+    "moving": {
+      "pushes": 3063,
+      "falls": 176,
+      "rate": 0.0574600065295462
+    },
+    "by_magnitude": {
+      "0.5": {
+        "pushes": 1345,
+        "falls": 18,
+        "rate": 0.013382899628252789
+      },
+      "0.65": {
+        "pushes": 1374,
+        "falls": 143,
+        "rate": 0.10407569141193596
+      },
+      "0.8": {
+        "pushes": 1365,
+        "falls": 430,
+        "rate": 0.315018315018315
+      }
+    },
+    "by_condition": {
+      "stand": {
+        "all": {
+          "pushes": 1021,
+          "falls": 415,
+          "rate": 0.40646425073457393
+        },
+        "achieved_vx_m_s": -0.0003579501712226029,
+        "0.5": {
+          "pushes": 334,
+          "falls": 8,
+          "rate": 0.023952095808383235
+        },
+        "0.65": {
+          "pushes": 333,
+          "falls": 105,
+          "rate": 0.3153153153153153
+        },
+        "0.8": {
+          "pushes": 354,
+          "falls": 302,
+          "rate": 0.8531073446327684
+        }
+      },
+      "walk_+0.5": {
+        "all": {
+          "pushes": 1025,
+          "falls": 42,
+          "rate": 0.04097560975609756
+        },
+        "achieved_vx_m_s": 0.5323279305808014,
+        "0.5": {
+          "pushes": 335,
+          "falls": 0,
+          "rate": 0.0
+        },
+        "0.65": {
+          "pushes": 360,
+          "falls": 1,
+          "rate": 0.002777777777777778
+        },
+        "0.8": {
+          "pushes": 330,
+          "falls": 41,
+          "rate": 0.12424242424242424
+        }
+      },
+      "run_+1.5": {
+        "all": {
+          "pushes": 1020,
+          "falls": 32,
+          "rate": 0.03137254901960784
+        },
+        "achieved_vx_m_s": 1.3666598419487332,
+        "0.5": {
+          "pushes": 322,
+          "falls": 3,
+          "rate": 0.009316770186335404
+        },
+        "0.65": {
+          "pushes": 343,
+          "falls": 8,
+          "rate": 0.023323615160349854
+        },
+        "0.8": {
+          "pushes": 355,
+          "falls": 21,
+          "rate": 0.059154929577464786
+        }
+      },
+      "run_-1.5": {
+        "all": {
+          "pushes": 1018,
+          "falls": 102,
+          "rate": 0.10019646365422397
+        },
+        "achieved_vx_m_s": -1.4561140948744413,
+        "0.5": {
+          "pushes": 354,
+          "falls": 7,
+          "rate": 0.01977401129943503
+        },
+        "0.65": {
+          "pushes": 338,
+          "falls": 29,
+          "rate": 0.08579881656804733
+        },
+        "0.8": {
+          "pushes": 326,
+          "falls": 66,
+          "rate": 0.20245398773006135
+        }
+      }
+    },
+    "falls_total": 592,
+    "falls_outside_push_windows": 0,
+    "timeouts_total": 0,
+    "robot_seconds": 15360.0,
+    "ranked": {
+      "standing_rung": 0.65,
+      "standing_at_rung": {
+        "pushes": 333,
+        "falls": 105,
+        "rate": 0.3153153153153153
+      },
+      "moving_rung": 0.5,
+      "moving_at_rung": {
+        "pushes": 1011,
+        "falls": 10,
+        "rate": 0.009891196834817012
+      },
+      "moving_at_rung_by_condition": {
+        "walk_+0.5": {
+          "pushes": 335,
+          "falls": 0,
+          "rate": 0.0
+        },
+        "run_+1.5": {
+          "pushes": 322,
+          "falls": 3,
+          "rate": 0.009316770186335404
+        },
+        "run_-1.5": {
+          "pushes": 354,
+          "falls": 7,
+          "rate": 0.01977401129943503
+        }
+      }
+    }
+  },
+  "wall_clock_s": 24.592508792877197,
+  "design": {
+    "conditions": [
+      {
+        "name": "stand",
+        "vx": 0.0
+      },
+      {
+        "name": "walk_+0.5",
+        "vx": 0.5
+      },
+      {
+        "name": "run_+1.5",
+        "vx": 1.5
+      },
+      {
+        "name": "run_-1.5",
+        "vx": -1.5
+      }
+    ],
+    "envs_per_condition": 128,
+    "magnitudes_m_s": [
+      0.5,
+      0.65,
+      0.8
+    ],
+    "seconds": 30.0,
+    "first_push_s": 4.0,
+    "period_s": 3.0,
+    "jitter_s": 0.25,
+    "window_s": 2.0,
+    "mechanism": "root_link_vel_w += sign*mag*(-sin h, cos h, 0) via Entity.write_root_link_velocity_to_sim, applied after the policy acts and before the step (same mechanism as mjlab.envs.mdp.events.push_by_setting_velocity)",
+    "scheduled_pushes": 4095,
+    "applied_impulse_check": {
+      "0.5": {
+        "mean_lateral_dv_after_one_step_m_s": 0.4616888288269251,
+        "pushes": 1350
+      },
+      "0.65": {
+        "mean_lateral_dv_after_one_step_m_s": 0.6001814278692823,
+        "pushes": 1377
+      },
+      "0.8": {
+        "mean_lateral_dv_after_one_step_m_s": 0.7393600901253551,
+        "pushes": 1368
+      }
+    }
+  },
+  "provenance": {
+    "mode": "batch",
+    "out_dir": "report/part1/eval/w2",
+    "raw_dir": null,
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "entries": [
+      "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt:configs/opt-lab-2/fast_trot=p1-fast_trot-s43"
+    ],
+    "envs_per_schedule": 24,
+    "envs": 512,
+    "modes": [
+      "suite",
+      "push"
+    ],
+    "skip_existing": false,
+    "worker": true,
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt",
+    "reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/fast_trot",
+    "name": "p1-fast_trot-s43",
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt",
+      "iter": 2999,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 43,
+      "train_seed_source": "provenance.json",
+      "parent": null,
+      "parent_source": "provenance.json",
+      "parent_iter": null,
+      "parent_iter_source": null,
+      "iters_past_parent": 3000,
+      "iters_past_parent_source": "from scratch: iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/fast_trot",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 3000,
+      "train_git_revision": "512eb0c4cf811abd62a5a603085ad5f6fa46cb8d",
+      "reference_check": "ok"
+    },
+    "num_envs": 512,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "93b169d9a6d8123c0b49e173dcb43cc49affa4c7e1e8d3b7b2af62ddb655858d",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "06a60d1e79476e5e2fd3523fc4e87d15b2c2d8e8",
+    "source_sha256": "29994f9174a22c908f4789b7cbcd36b6377b51c31dd3109af0bcedd93c61b514",
+    "source_files_hashed": 265,
+    "checkpoint_sha256": "93b169d9a6d8123c0b49e173dcb43cc49affa4c7e1e8d3b7b2af62ddb655858d",
+    "references": {
+      "captured_reach_gaits.npz": "087de067ef1e50d7d33172241bdbada1905d7c39141041ca902526a225105dcb",
+      "reference_manifest.json": "b0c82812a004265c414d93d62328c20c7d3900ff231f8c490d910913c821d6f3"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/fast_trot",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "087de067ef1e50d7d33172241bdbada1905d7c39141041ca902526a225105dcb",
+      "reference_manifest.json": "b0c82812a004265c414d93d62328c20c7d3900ff231f8c490d910913c821d6f3"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": null,
+    "parent_source": "provenance.json",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/fast_trot",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "512eb0c4cf811abd62a5a603085ad5f6fa46cb8d",
+    "reference_check": "ok"
+  }
+}
