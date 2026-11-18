@@ -1,0 +1,1074 @@
+{
+  "name": "p3-final-flatctrl-kpwide-leg3-it5993-bumpy_nodr",
+  "kind": "suite",
+  "metrics": {
+    "robot_runs": 384,
+    "falls_total": 54,
+    "timeouts_total": 0,
+    "falls_by_category": {
+      "steady": 9,
+      "turn": 0,
+      "stop": 43,
+      "reversal": 2
+    },
+    "falls_by_schedule": {
+      "stand": 0,
+      "ramp_fwd": 2,
+      "ramp_back": 0,
+      "steady_fwd": 1,
+      "steady_back": 1,
+      "reversal_fwd_first": 3,
+      "reversal_back_first": 2,
+      "stops_fwd": 23,
+      "stops_back": 3,
+      "turn_in_place": 0,
+      "walk_and_turn": 0,
+      "sidestep": 0,
+      "slow_walk": 0,
+      "gait_seam": 0,
+      "reversal_moderate": 0,
+      "mixed": 19
+    },
+    "falls_soon_after_reset": 0,
+    "falls_soon_after_reset_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 0,
+      "reversal": 0
+    },
+    "falls_detail": [
+      {
+        "schedule": "stops_back",
+        "env": 202,
+        "time_s": 5.28,
+        "episode_age_s": 5.28,
+        "since_command_change_s": 0.28,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 198,
+        "time_s": 5.32,
+        "episode_age_s": 5.32,
+        "since_command_change_s": 0.32,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 171,
+        "time_s": 5.52,
+        "episode_age_s": 5.52,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 183,
+        "time_s": 5.6,
+        "episode_age_s": 5.6,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 188,
+        "time_s": 5.72,
+        "episode_age_s": 5.72,
+        "since_command_change_s": 0.72,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 370,
+        "time_s": 5.82,
+        "episode_age_s": 5.82,
+        "since_command_change_s": 0.32,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 369,
+        "time_s": 5.84,
+        "episode_age_s": 5.84,
+        "since_command_change_s": 0.34,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 364,
+        "time_s": 5.88,
+        "episode_age_s": 5.88,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 367,
+        "time_s": 5.88,
+        "episode_age_s": 5.88,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 380,
+        "time_s": 5.92,
+        "episode_age_s": 5.92,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 377,
+        "time_s": 5.94,
+        "episode_age_s": 5.94,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 381,
+        "time_s": 6.0,
+        "episode_age_s": 6.0,
+        "since_command_change_s": 0.5,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 365,
+        "time_s": 6.02,
+        "episode_age_s": 6.02,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 368,
+        "time_s": 6.04,
+        "episode_age_s": 6.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 383,
+        "time_s": 6.06,
+        "episode_age_s": 6.06,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 361,
+        "time_s": 6.08,
+        "episode_age_s": 6.08,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 362,
+        "time_s": 6.08,
+        "episode_age_s": 6.08,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 379,
+        "time_s": 6.16,
+        "episode_age_s": 6.16,
+        "since_command_change_s": 0.66,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 371,
+        "time_s": 6.18,
+        "episode_age_s": 6.18,
+        "since_command_change_s": 0.68,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 372,
+        "time_s": 6.2,
+        "episode_age_s": 6.2,
+        "since_command_change_s": 0.7,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 374,
+        "time_s": 6.22,
+        "episode_age_s": 6.22,
+        "since_command_change_s": 0.72,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 378,
+        "time_s": 6.22,
+        "episode_age_s": 6.22,
+        "since_command_change_s": 0.72,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 382,
+        "time_s": 6.28,
+        "episode_age_s": 6.28,
+        "since_command_change_s": 0.78,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 366,
+        "time_s": 6.5,
+        "episode_age_s": 6.5,
+        "since_command_change_s": 1.0,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 123,
+        "time_s": 7.5,
+        "episode_age_s": 7.5,
+        "since_command_change_s": 0.5,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 144,
+        "time_s": 8.24,
+        "episode_age_s": 8.24,
+        "since_command_change_s": 1.24,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 141,
+        "time_s": 9.44,
+        "episode_age_s": 9.44,
+        "since_command_change_s": 2.44,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 184,
+        "time_s": 10.86,
+        "episode_age_s": 10.86,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 185,
+        "time_s": 10.86,
+        "episode_age_s": 10.86,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 190,
+        "time_s": 10.86,
+        "episode_age_s": 10.86,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 202,
+        "time_s": 10.86,
+        "episode_age_s": 5.56,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 191,
+        "time_s": 10.94,
+        "episode_age_s": 10.94,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 172,
+        "time_s": 10.96,
+        "episode_age_s": 10.96,
+        "since_command_change_s": 0.46,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 186,
+        "time_s": 10.98,
+        "episode_age_s": 10.98,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 187,
+        "time_s": 10.98,
+        "episode_age_s": 10.98,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 173,
+        "time_s": 11.02,
+        "episode_age_s": 11.02,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 169,
+        "time_s": 11.04,
+        "episode_age_s": 11.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 178,
+        "time_s": 11.04,
+        "episode_age_s": 11.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 170,
+        "time_s": 11.06,
+        "episode_age_s": 11.06,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 11.1,
+        "episode_age_s": 11.1,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 174,
+        "time_s": 11.32,
+        "episode_age_s": 11.32,
+        "since_command_change_s": 0.82,
+        "category": "stop"
+      },
+      {
+        "schedule": "ramp_fwd",
+        "env": 43,
+        "time_s": 14.02,
+        "episode_age_s": 14.02,
+        "since_command_change_s": 0.0,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 181,
+        "time_s": 14.38,
+        "episode_age_s": 14.38,
+        "since_command_change_s": 0.4,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 179,
+        "time_s": 14.68,
+        "episode_age_s": 14.68,
+        "since_command_change_s": 0.7,
+        "category": "steady"
+      },
+      {
+        "schedule": "ramp_fwd",
+        "env": 36,
+        "time_s": 15.02,
+        "episode_age_s": 15.02,
+        "since_command_change_s": 0.0,
+        "category": "steady"
+      },
+      {
+        "schedule": "steady_back",
+        "env": 96,
+        "time_s": 15.3,
+        "episode_age_s": 15.3,
+        "since_command_change_s": 11.32,
+        "category": "steady"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 160,
+        "time_s": 15.94,
+        "episode_age_s": 15.94,
+        "since_command_change_s": 0.0,
+        "category": "steady"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 137,
+        "time_s": 16.4,
+        "episode_age_s": 16.4,
+        "since_command_change_s": 0.0,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 190,
+        "time_s": 16.44,
+        "episode_age_s": 5.56,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 184,
+        "time_s": 16.46,
+        "episode_age_s": 5.58,
+        "since_command_change_s": 0.46,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 171,
+        "time_s": 16.48,
+        "episode_age_s": 10.94,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "steady_fwd",
+        "env": 84,
+        "time_s": 16.54,
+        "episode_age_s": 16.54,
+        "since_command_change_s": 12.56,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 16.78,
+        "episode_age_s": 5.66,
+        "since_command_change_s": 0.78,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 191,
+        "time_s": 16.82,
+        "episode_age_s": 5.86,
+        "since_command_change_s": 0.82,
+        "category": "stop"
+      }
+    ],
+    "category_robot_runs": {
+      "steady": 384,
+      "turn": 96,
+      "stop": 72,
+      "reversal": 96
+    },
+    "category_robot_seconds": {
+      "steady": 5892.0,
+      "turn": 1068.0,
+      "stop": 336.0,
+      "reversal": 384.0
+    },
+    "category_robot_events": {
+      "reversal": 192,
+      "stop": 168
+    },
+    "steady_samples": {
+      "fwd": 24030,
+      "back": 23939,
+      "stand": 33736,
+      "moving": 103241
+    },
+    "track_err_fwd": 0.12623311072240762,
+    "track_err_back": 0.1279707232212389,
+    "mean_vx_fwd": 1.5737816095352173,
+    "mean_vx_back": -1.5724012851715088,
+    "stand_jitter_rad_s": 0.1180320605635643,
+    "torque_sat_frac": 0.06731784330782628,
+    "torque_sat_frac_fast": 0.1726774931031847,
+    "torque_abs_max_nm": 3.0,
+    "torque_sq_mean": 1.4640724658966064,
+    "foot_force_peak_bw": 8.264683838652767,
+    "foot_force_runmax_median_bw": 3.3065361642469497,
+    "foot_force_runmax_robot_runs": 384,
+    "foot_force_p999_bw": 2.812206907552094,
+    "foot_force_p99_bw": 1.9869917387475566,
+    "foot_force_peak_where": {
+      "schedule": "reversal_back_first",
+      "env": 157,
+      "time_s": 11.28,
+      "episode_age_s": 11.279999999999848,
+      "foot": 1,
+      "context": "reversal",
+      "cmd": [
+        -1.5,
+        0.0,
+        0.0
+      ]
+    },
+    "foot_force_peak_bw_incl_reset_drop": 8.264683838652767,
+    "foot_force_p99_bw_incl_reset_drop": 1.9670636361788447,
+    "foot_force_stand_mean_bw_per_foot": 0.2645350155994353,
+    "foot_force_stand_total_bw": 1.0581400623977413,
+    "heading_drift_deg_per_10s_fwd": {
+      "mean": 33.24233409357609,
+      "signed_mean": 30.5698089422613,
+      "max": 104.17170588124375,
+      "windows": 118,
+      "windows_ending_in_fall": 1
+    },
+    "heading_drift_deg_per_10s_back": {
+      "mean": 22.026467664629344,
+      "signed_mean": -13.447108676036482,
+      "max": 91.8294786774785,
+      "windows": 118,
+      "windows_ending_in_fall": 1
+    },
+    "hind_splay_rad_fwd": 0.028897361023074632,
+    "hind_splay_rad_back": 0.08368534193452801,
+    "hind_splay_rad_stand": -0.050455967692789025,
+    "slip_m_s": 0.39398560384602904,
+    "slip_m_s_fwd": 0.6157888341878931,
+    "slip_m_s_back": 0.658263813895844,
+    "top_speed_fwd": 1.6812054443359374,
+    "top_speed_back": -1.697171630859375,
+    "top_speed_fwd_median_env": 0.6379078674316406,
+    "top_speed_back_median_env": -0.4603188705444336,
+    "mass_kg": {
+      "min": 3.1700000762939453,
+      "mean": 3.1700000762939453,
+      "max": 3.1700000762939453
+    },
+    "mass_source": "env.sim.model.body_mass[world, robot.indexing.body_ids] (per-world)",
+    "mass_nominal_kg": 3.1699999999999995,
+    "gravity_m_s2": 9.81,
+    "torque_model": {
+      "effort_limit_nm": 3.0,
+      "saturation_threshold_nm": 2.9699999999999998,
+      "actuator_forcelimited": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "actuator_forcerange": [
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ]
+      ],
+      "jnt_actfrclimited": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "wall_clock_s": 24.391550302505493,
+  "rollout_loop_s": 15.085065841674805,
+  "schedule": {
+    "names": [
+      "stand",
+      "ramp_fwd",
+      "ramp_back",
+      "steady_fwd",
+      "steady_back",
+      "reversal_fwd_first",
+      "reversal_back_first",
+      "stops_fwd",
+      "stops_back",
+      "turn_in_place",
+      "walk_and_turn",
+      "sidestep",
+      "slow_walk",
+      "gait_seam",
+      "reversal_moderate",
+      "mixed"
+    ],
+    "sha256": "ff8df7951f572c5f4eeefd63341fd72ed8f37eaea70f78065ec8b0ffc2710bc2",
+    "steps": 1000,
+    "dt": 0.02,
+    "envs_per_schedule": 24,
+    "context_window_s": 2.0,
+    "steady_after_s": 2.0
+  },
+  "provenance": {
+    "mode": "run",
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg3/model_5993.pt",
+    "reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+    "name": "p3-final-flatctrl-kpwide-leg3-it5993-bumpy_nodr",
+    "out_dir": "/home/ubuntu/wt/w4/pupper-mjlab/report/part3/eval/p3-final-flatctrl-kpwide-leg3-it5993",
+    "raw_dir": null,
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Bumpy-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w4/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "out_root": "/home/ubuntu/wt/w4/pupper-mjlab/report/part3/eval",
+    "conditions": [
+      "flat_dr",
+      "flat_nodr",
+      "bumpy_dr",
+      "bumpy_nodr"
+    ],
+    "modes": [
+      "suite",
+      "seam"
+    ],
+    "envs_per_schedule": 24,
+    "seam_envs_per_schedule": 64,
+    "push_envs": 512,
+    "skip_existing": true,
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg3/model_5993.pt",
+      "iter": 5993,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 42,
+      "train_seed_source": "provenance.json",
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg2/model_5494.pt",
+      "parent_source": "provenance.json",
+      "parent_iter": 5494,
+      "parent_iter_source": "parent checkpoint['iter']",
+      "iters_past_parent": 500,
+      "iters_past_parent_source": "iter - parent_iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 500,
+      "train_git_revision": "ad7ea5ed8f01d2851dc27f036b5420af75493e3f",
+      "reference_check": "ok"
+    },
+    "dr": false,
+    "condition": "bumpy_nodr",
+    "part3_condition": {
+      "task": "Mjlab-MixedGaits-Bumpy-Pupper-v3",
+      "dr": false,
+      "lab4_dr": {
+        "contract": "part3_lab4_dr_v1",
+        "source": "lab4_runs/shrish_stablegait/training-settings.json",
+        "ranges": {
+          "kp_range": [
+            0.6,
+            1.1
+          ],
+          "kd_range": [
+            0.8,
+            1.5
+          ],
+          "foot_friction": [
+            0.6,
+            1.4
+          ]
+        },
+        "other_dr_events": [
+          "base_com",
+          "encoder_bias",
+          "inertial"
+        ]
+      },
+      "nominal_mechanics": {
+        "contract": "nominal_mechanics_diagnostic_v1",
+        "removed_events": [
+          "foot_friction",
+          "encoder_bias",
+          "base_com",
+          "pd_gains",
+          "inertial"
+        ],
+        "retained": "Observation noise, IMU and actuator latency, and reset randomness remain. Startup RNG draw consumption differs from the randomized case.",
+        "scope": "Diagnostic comparison, not deployment/training robustness evidence."
+      },
+      "terrain": "bumpy",
+      "heightfield": {
+        "contract": "explicit_perlin_sampling_resolution_v1",
+        "prior_resolution_m": {
+          "bumpy": 0.05
+        },
+        "resolution_m": 0.1,
+        "height_range_and_feature_parameters_unchanged": true,
+        "scope": "Sampling changes the discretized terrain surface. Compare policies on identically generated terrain under this same contract; do not mix with original-grid measurements."
+      },
+      "overflow_audit": {
+        "contract": "accumulated_physics_overflow_v1",
+        "physics_steps_observed": 5000,
+        "zero_overflow": true,
+        "affected_worlds": 0
+      }
+    },
+    "num_envs": 384,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "e000baf2abccc33b80566644d4d1363970c736844fab7f7dbabfc87866c07f07",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w4/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "5d4e906f61aee56f27df6a1ae623de4f33747b2e",
+    "source_sha256": "fdef2280580c9748de200f4d3920d44ef084154bb3b0aa661793c12af79ad371",
+    "source_files_hashed": 269,
+    "checkpoint_sha256": "e000baf2abccc33b80566644d4d1363970c736844fab7f7dbabfc87866c07f07",
+    "references": {
+      "fold_summary.json": "70d36af23b648445a63a7aa8df8ed933a7c37dd6ffd69fae16cffb9522526a62",
+      "captured_reach_gaits.npz": "794b0615b13032ee956fdf0de1e41bda722707df6b723e234d59395ea01f355a",
+      "reference_manifest.json": "ec845895a23627f21526a49045cabb8cd6aea29afb63fd9cca6494d0f2f80f34",
+      "capture.json": "135885b6c38e0840c44a306d833a5927b34e8fd891ce20bb2c676b58c85be722",
+      "foldcheck.json": "4a68863be62e2700323d1c27d9ee50db8b0e7354bf9f80282e5b9154e49a0448"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "794b0615b13032ee956fdf0de1e41bda722707df6b723e234d59395ea01f355a",
+      "reference_manifest.json": "ec845895a23627f21526a49045cabb8cd6aea29afb63fd9cca6494d0f2f80f34"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg3/model_5993.pt",
+    "iter": 5993,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg2/model_5494.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 5494,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "ad7ea5ed8f01d2851dc27f036b5420af75493e3f",
+    "reference_check": "ok"
+  },
+  "part3_condition": {
+    "task": "Mjlab-MixedGaits-Bumpy-Pupper-v3",
+    "dr": false,
+    "lab4_dr": {
+      "contract": "part3_lab4_dr_v1",
+      "source": "lab4_runs/shrish_stablegait/training-settings.json",
+      "ranges": {
+        "kp_range": [
+          0.6,
+          1.1
+        ],
+        "kd_range": [
+          0.8,
+          1.5
+        ],
+        "foot_friction": [
+          0.6,
+          1.4
+        ]
+      },
+      "other_dr_events": [
+        "base_com",
+        "encoder_bias",
+        "inertial"
+      ]
+    },
+    "nominal_mechanics": {
+      "contract": "nominal_mechanics_diagnostic_v1",
+      "removed_events": [
+        "foot_friction",
+        "encoder_bias",
+        "base_com",
+        "pd_gains",
+        "inertial"
+      ],
+      "retained": "Observation noise, IMU and actuator latency, and reset randomness remain. Startup RNG draw consumption differs from the randomized case.",
+      "scope": "Diagnostic comparison, not deployment/training robustness evidence."
+    },
+    "terrain": "bumpy",
+    "heightfield": {
+      "contract": "explicit_perlin_sampling_resolution_v1",
+      "prior_resolution_m": {
+        "bumpy": 0.05
+      },
+      "resolution_m": 0.1,
+      "height_range_and_feature_parameters_unchanged": true,
+      "scope": "Sampling changes the discretized terrain surface. Compare policies on identically generated terrain under this same contract; do not mix with original-grid measurements."
+    },
+    "overflow_audit": {
+      "contract": "accumulated_physics_overflow_v1",
+      "physics_steps_observed": 5000,
+      "zero_overflow": true,
+      "affected_worlds": 0
+    }
+  }
+}

@@ -44,3 +44,22 @@ Reading:
 - The +1500 neighbourhood is genuinely better, with flat_dr 4–21 (median 15) and nominal-PD 9–34 (median 17).
 - +1500's own 11 / 14 sits at the good end of its neighbourhood, so read its single-checkpoint numbers with about
   ±7–10 falls of checkpoint variance on top of eval noise.
+
+## Push recovery (part2_eval protocol; ranked `R:push_stand@0.65` and `R:push_move@0.5`; `push.sh` → `push/`)
+
+Standing falls per push at 0.65 m/s, flat_dr (Bumpy-condition values in parentheses where measured). Moving falls
+per push at 0.5 m/s are 0–0.023 everywhere.
+
+| checkpoint | seed 1234 | seed 4321 | neighbours (flat_dr, seed 1234) |
+|---|---|---|---|
+| P (W3 final) | 0.096 (Bumpy 0.159) | 0.122 | – |
+| Bumpy +500 (4995) | 0.798 (Bumpy 0.727) | – | – |
+| Bumpy +1000 (5494) | 0.754 (Bumpy 0.662) | – | – |
+| Bumpy +1500 (5993) | 0.533 (Bumpy 0.509) | – | 5950: 0.856, 6050: 0.710 |
+| Bumpy +2000 (6492) | 0.489 (Bumpy 0.486) | 0.497 | 6400: 0.563, 6450: 0.721 |
+| flat control +1500 | 0.024 (Bumpy 0.129) | – | – |
+| flat control +2000 | 0.091 (Bumpy 0.163) | – | – |
+
+The Bumpy (WIDEN) arm loses standing push recovery from +500 on, at every measured checkpoint and on both eval seeds
+(0.49–0.86 vs P's 0.10–0.12). The matched flat control (same PD ranges) keeps it, so terrain, not the PD range, is
+the likely cause. Standing push is a ranked W2 metric that neither the Part 3 selection guards nor the HOLD rule include.

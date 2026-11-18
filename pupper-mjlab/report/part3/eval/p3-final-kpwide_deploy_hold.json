@@ -1,0 +1,13 @@
+{
+  "verdict": "CLEAR",
+  "branch": "wide",
+  "flat_dr_mean": 10.5,
+  "nompd_mean": 9.5,
+  "nompd_P_mean": 38.0,
+  "lines": [
+    "(a) nompd - flat_dr = 9.5 - 10.5 = -1.0 (hold if > 15)",
+    "(b) nompd(selected) - nompd(P) = 9.5 - 38.0 = -28.5 (hold if > 10)",
+    "(WIDEN) matched control flat_dr - P flat_dr = 12 - 14 = -2 (hold if > 10)",
+    "branch wide: clear"
+  ]
+}

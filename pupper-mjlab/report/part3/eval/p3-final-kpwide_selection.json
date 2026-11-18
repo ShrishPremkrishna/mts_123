@@ -1,0 +1,91 @@
+{
+  "selected": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt",
+  "notes": [
+    "ship +2000 (no regression vs +1500 on seed 1234)"
+  ],
+  "selected_key": "+2000",
+  "selected_eval": "p3-final-bumpyft-kpwide-leg4-it6492",
+  "matched_control": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg4/model_6492.pt",
+  "matched_control_eval": "p3-final-flatctrl-kpwide-leg4-it6492",
+  "base": "p3-final",
+  "base_metrics": {
+    "flat_dr": 14,
+    "bumpy_dr": 35,
+    "nompd": 39,
+    "seam_flat": "PASS"
+  },
+  "points": {
+    "+500": {
+      "p3-final-bumpyft-kpwide": {
+        "eval": "p3-final-bumpyft-kpwide-leg1-it4995",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg1/model_4995.pt",
+        "flat_dr": 14,
+        "bumpy_dr": 31,
+        "nompd": 25,
+        "seam_flat": "PASS"
+      },
+      "p3-final-flatctrl-kpwide": {
+        "eval": "p3-final-flatctrl-kpwide-leg1-it4995",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg1/model_4995.pt",
+        "flat_dr": 16,
+        "bumpy_dr": 38,
+        "nompd": 28,
+        "seam_flat": "PASS"
+      }
+    },
+    "+1000": {
+      "p3-final-bumpyft-kpwide": {
+        "eval": "p3-final-bumpyft-kpwide-leg2-it5494",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg2/model_5494.pt",
+        "flat_dr": 34,
+        "bumpy_dr": 46,
+        "nompd": 42,
+        "seam_flat": "PASS"
+      },
+      "p3-final-flatctrl-kpwide": {
+        "eval": "p3-final-flatctrl-kpwide-leg2-it5494",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg2/model_5494.pt",
+        "flat_dr": 18,
+        "bumpy_dr": 47,
+        "nompd": 34,
+        "seam_flat": "PASS"
+      }
+    },
+    "+1500": {
+      "p3-final-bumpyft-kpwide": {
+        "eval": "p3-final-bumpyft-kpwide-leg3-it5993",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg3/model_5993.pt",
+        "flat_dr": 11,
+        "bumpy_dr": 23,
+        "nompd": 14,
+        "seam_flat": "PASS"
+      },
+      "p3-final-flatctrl-kpwide": {
+        "eval": "p3-final-flatctrl-kpwide-leg3-it5993",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg3/model_5993.pt",
+        "flat_dr": 23,
+        "bumpy_dr": 52,
+        "nompd": 51,
+        "seam_flat": "PASS"
+      }
+    },
+    "+2000": {
+      "p3-final-bumpyft-kpwide": {
+        "eval": "p3-final-bumpyft-kpwide-leg4-it6492",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt",
+        "flat_dr": 10,
+        "bumpy_dr": 18,
+        "nompd": 7,
+        "seam_flat": "PASS"
+      },
+      "p3-final-flatctrl-kpwide": {
+        "eval": "p3-final-flatctrl-kpwide-leg4-it6492",
+        "ckpt": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg4/model_6492.pt",
+        "flat_dr": 12,
+        "bumpy_dr": 29,
+        "nompd": 20,
+        "seam_flat": "PASS"
+      }
+    }
+  }
+}

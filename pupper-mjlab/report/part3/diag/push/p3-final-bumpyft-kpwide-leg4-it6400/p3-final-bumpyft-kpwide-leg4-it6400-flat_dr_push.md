@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | R:push_stand@0.65 | R:push_move@0.5 | vx_walk_+0.5 | push@0.5_walk_+0.5 | vx_run_+1.5 | push@0.5_run_+1.5 | vx_run_-1.5 | push@0.5_run_-1.5 | stand@0.5(i) | stand@0.65(i) | stand@0.8(i) | push(i) | push_stand(i) | push_move(i) | push0.5(i) | push0.65(i) | push0.8(i) | n_push |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p3-final-bumpyft-kpwide-leg4-it6400-flat_dr | 4096 | 42 | 6400 | rp-p3-final-bumpyft-kpwide-leg3/model_5993 | 408 | r2-lag@794b0615 | ok | 0.563 | 0 | 0.549 | 0 | 1.49 | 0 | -1.51 | 0 | 0.217 | 0.563 | 0.943 | 0.145 | 0.58 | 0.000652 | 0.0541 | 0.137 | 0.245 | 4092 |

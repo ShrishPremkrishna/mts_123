@@ -1,0 +1,3 @@
+| run | condition | falls | rev/stop/steady/turn | err+1.5 | err-1.5 | vx+1.5 | vx-1.5 | sat@1.5 | F_runmax_med_BW | drift+/- | slip | jitter | R:push_stand | R:push_move | seam fall (sweep) | seam incident (sweep) | dither fall/incident | control incident | worst cell (excess, p) | step-sweep fall | seam sat | seam F max med | seam verdict | overflow |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p3-final-bumpyft-kpwide-leg4-it6450 | flat_dr | 4 | 2/2/0/0 | 0.095 | 0.106 | 1.52 | -1.49 | 0.162 | 2.64 | 36.5/48.9 | 0.388 | 0.0868 | - | - | - | - | - | - | - | - | - | - | - | n/a (flat) |
