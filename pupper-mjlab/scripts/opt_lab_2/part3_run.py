@@ -643,7 +643,9 @@ def main() -> int:
           cmd += ["--upload-wandb"] if args.upload_wandb else []
           status["escalation"] = run(cmd, logs / "escalation-wide.log", gpu=False)
         elif res["verdict"] == "HOLD":
-          say("HOLD in the WIDEN branch: stop; re-decision with the human")
+          say("HOLD in the WIDEN branch: stopping the runbook here; re-decision with the human")
+          say(f"stage {stage}: {status[stage]} ({time.time() - t0:.0f}s)")
+          break
       else:
         status[stage] = export(m, n1, m.parent, wandb_run_path(m.parent))
     elif stage == "table":
