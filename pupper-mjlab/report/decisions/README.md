@@ -61,4 +61,5 @@ Reversible?: yes/no, and what it costs to reverse (GPU-hours, rework)
 
 | Date | Workstream | Decision | Conclusion | Human review |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-18 | W0 | Max concurrent training jobs ([doc](2026-11-18-w0-concurrency.md)) | 4 across all agents (throughput is flat; no MPS) | |
+| 2026-11-18 | infra | num_envs / iteration budget ([doc](2026-11-18-infra-num-envs.md)) | Keep 4096 envs and the recovered budgets; cut arms, not iterations (3/3 graders) | |
