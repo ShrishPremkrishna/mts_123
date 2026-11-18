@@ -1,0 +1,23 @@
+{
+  "refdir": "/tmp/claude-1000/-home-ubuntu/1e6973a7-fdc0-4a4d-af73-a538d53a1bf0/scratchpad/baseline_trot",
+  "gravity": true,
+  "seconds": 4.0,
+  "frequency_mult": 1.0,
+  "open_loop": {
+    "fwd": {
+      "mean_vx_m_s": 0.10467308734854062,
+      "mean_pitch_deg": 7.1671425365979715,
+      "max_tilt_deg": 20.905535653062376,
+      "fell_45deg": false,
+      "mean_height_m": 0.13988833487033844
+    },
+    "back": {
+      "mean_vx_m_s": 0.1302300595693911,
+      "mean_pitch_deg": 11.980680562246278,
+      "max_tilt_deg": 30.37487918251679,
+      "fell_45deg": false,
+      "mean_height_m": 0.14137504840890566
+    }
+  },
+  "note": "open-loop joint playback, not a policy; gifs play at half speed"
+}

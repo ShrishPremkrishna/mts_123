@@ -1,0 +1,23 @@
+{
+  "refdir": "configs/opt-lab-2/gallop_a",
+  "gravity": true,
+  "seconds": 4.0,
+  "frequency_mult": 2.0,
+  "open_loop": {
+    "fwd": {
+      "mean_vx_m_s": 0.07977218600610891,
+      "mean_pitch_deg": 13.286597430193591,
+      "max_tilt_deg": 28.7146855915293,
+      "fell_45deg": false,
+      "mean_height_m": 0.1303132129708926
+    },
+    "back": {
+      "mean_vx_m_s": -0.05536762076740464,
+      "mean_pitch_deg": 5.661909146272065,
+      "max_tilt_deg": 30.464006320996287,
+      "fell_45deg": false,
+      "mean_height_m": 0.1196925963461399
+    }
+  },
+  "note": "open-loop joint playback, not a policy; gifs play at half speed"
+}

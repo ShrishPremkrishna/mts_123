@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "frequency_mult": 2.25,
+  "reference_sha256": "855c59eb10e5398080c201dd596e913dbe03a18a456249f118699755eaeb3e46",
+  "joint_order": [
+    "leg_front_r_1",
+    "leg_front_r_2",
+    "leg_front_r_3",
+    "leg_front_l_1",
+    "leg_front_l_2",
+    "leg_front_l_3",
+    "leg_back_r_1",
+    "leg_back_r_2",
+    "leg_back_r_3",
+    "leg_back_l_1",
+    "leg_back_l_2",
+    "leg_back_l_3"
+  ],
+  "checks": {
+    "reach_fwd": {
+      "samples": 100,
+      "duration_s": 0.3333333333333333,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 44.75919743400031,
+      "wrap_step_rad": 0.06070588753895828,
+      "joint_min": [
+        -0.517813221414304,
+        0.025297767498757184,
+        -0.7743964328943947,
+        -0.7723461243518666,
+        -0.04063417291417559,
+        -0.36545600306440296,
+        -0.583967915156919,
+        0.10613975290328312,
+        -1.225151232260459,
+        -0.5814843046849021,
+        -0.16471843396011132,
+        -0.31090381233871617
+      ],
+      "joint_max": [
+        0.7723479372748074,
+        0.04064748190499273,
+        0.3654546140410868,
+        0.5178133359068308,
+        -0.025287664974569794,
+        0.7743949750454815,
+        0.5815459101785222,
+        0.16562193928394295,
+        0.3071416980577587,
+        0.583968381238165,
+        -0.10612948762082058,
+        1.225149237142565
+      ]
+    },
+    "reach_back": {
+      "samples": 100,
+      "duration_s": 0.3333333333333333,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 44.75919743400031,
+      "wrap_step_rad": 0.04166926126035017,
+      "joint_min": [
+        -0.517813221414304,
+        0.025297767498757184,
+        -0.7743964328943947,
+        -0.7723461243518666,
+        -0.04063417291417559,
+        -0.36545600306440296,
+        -0.583967915156919,
+        0.10613975290328312,
+        -1.225151232260459,
+        -0.5814843046849021,
+        -0.16471843396011132,
+        -0.31090381233871617
+      ],
+      "joint_max": [
+        0.7723479372748074,
+        0.04064748190499273,
+        0.3654546140410868,
+        0.5178133359068308,
+        -0.025287664974569794,
+        0.7743949750454815,
+        0.5815459101785222,
+        0.16562193928394295,
+        0.3071416980577587,
+        0.583968381238165,
+        -0.10612948762082058,
+        1.225149237142565
+      ]
+    }
+  },
+  "provenance": {
+    "method": "W1 gallop_c: conservative rotary gallop LH>RH>RF>LF, duty 4/7 (>=2 feet down), wide stance, 2.25x clock; authored candidate",
+    "parameters": {
+      "command": "design",
+      "out": "configs/opt-lab-2/gallop_c",
+      "half_stride": 0.08,
+      "stance_z": -0.12,
+      "swing_lift": 0.04,
+      "swing_keyframes": 2,
+      "frequency_mult": 2.25,
+      "touchdown": [
+        0.5,
+        0.65,
+        0.15,
+        0.0
+      ],
+      "half_stride_back": null,
+      "x_shift": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "y_shift": [
+        -0.015,
+        0.015,
+        -0.015,
+        0.015
+      ],
+      "method": "W1 gallop_c: conservative rotary gallop LH>RH>RF>LF, duty 4/7 (>=2 feet down), wide stance, 2.25x clock; authored candidate"
+    }
+  },
+  "status": "candidate reference; not proof of successful trained or hardware behavior"
+}

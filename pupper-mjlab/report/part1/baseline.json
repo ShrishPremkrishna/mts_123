@@ -1,0 +1,63 @@
+{
+  "refdir": "/tmp/claude-1000/-home-ubuntu/1e6973a7-fdc0-4a4d-af73-a538d53a1bf0/scratchpad/baseline_trot",
+  "frequency_mult": 1.0,
+  "cycle_s": 0.75,
+  "stride_hz": 1.3333333333333333,
+  "duty_factor": {
+    "FR": 0.67,
+    "FL": 0.67,
+    "BR": 0.66,
+    "LB": 0.67
+  },
+  "touchdown_phase": {
+    "FR": 0.0,
+    "FL": 0.5,
+    "BR": 0.01,
+    "LB": 0.0
+  },
+  "footfall_order": [
+    "FR",
+    "LB",
+    "BR",
+    "FL"
+  ],
+  "feet_down_min": 2,
+  "feet_down_mean": 2.67,
+  "flight_fraction": 0.0,
+  "feet_down_histogram": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.66,
+    "3": 0.01,
+    "4": 0.33
+  },
+  "stance_stride_m": {
+    "FR": 0.0987,
+    "FL": 0.0988,
+    "BR": 0.0988,
+    "LB": 0.0988
+  },
+  "implied_speed_m_s": 0.19994610748530126,
+  "peak_joint_speed_rad_s": 22.7450755715309,
+  "peak_joint_speed_by_joint": {
+    "leg_front_r_1": 13.65,
+    "leg_front_r_2": 3.58,
+    "leg_front_r_3": 18.76,
+    "leg_front_l_1": 13.65,
+    "leg_front_l_2": 3.58,
+    "leg_front_l_3": 18.76,
+    "leg_back_r_1": 14.03,
+    "leg_back_r_2": 0.24,
+    "leg_back_r_3": 22.75,
+    "leg_back_l_1": 14.03,
+    "leg_back_l_2": 0.24,
+    "leg_back_l_3": 22.75
+  },
+  "max_dq_per_control_step_rad": 0.4364578262347265,
+  "kp_dq_torque_proxy_nm": 2.4005180442909957,
+  "kd_peak_speed_torque_nm": 5.686268892882725,
+  "effort_limit_nm": 3.0,
+  "driver_limit_min_margin_rad": -0.09999999999999998,
+  "driver_limit_worst_joint": "leg_front_r_3",
+  "stance_height_m": 0.14025968826558685
+}

@@ -354,6 +354,14 @@ def main():
     design.add_argument("--half-stride",type=float,default=.08); design.add_argument("--stance-z",type=float,default=-.12)
     design.add_argument("--swing-lift",type=float,default=.05); design.add_argument("--swing-keyframes",type=int,default=5)
     design.add_argument("--frequency-mult",type=float,default=2.)
+    # Footfall and stance geometry (defaults reproduce the shipped extended trot).
+    # Touchdown phases are in robot leg order FR FL BR LB; a rotary gallop with
+    # footfall LH->RH->RF->LF is e.g. --touchdown .5 .65 .15 0.
+    design.add_argument("--touchdown",type=float,nargs=4,default=(0.,.5,.5,0.),metavar=("FR","FL","BR","LB"))
+    design.add_argument("--half-stride-back",type=float,default=None,help="rear half-stride [m]; default = --half-stride")
+    design.add_argument("--x-shift",type=float,nargs=4,default=(0.,0.,0.,0.),metavar=("FR","FL","BR","LB"))
+    design.add_argument("--y-shift",type=float,nargs=4,default=(0.,0.,0.,0.),metavar=("FR","FL","BR","LB"))
+    design.add_argument("--method",default="authored extended-reach trot; candidate, not measured improvement")
     jump=sub.add_parser("jump"); jump.add_argument("trace",type=Path); jump.add_argument("out",type=Path)
     jump.add_argument("--env",type=int,default=0); jump.add_argument("--start",type=int); jump.add_argument("--end",type=int); jump.add_argument("--auto",action="store_true")
     compare=sub.add_parser("compare"); compare.add_argument("baseline",type=Path); compare.add_argument("candidate",type=Path); compare.add_argument("out",type=Path)
@@ -366,14 +374,18 @@ def main():
         print(json.dumps(save_references(args.out,forward,backward,meta,limits=robot_limits(),frequency_mult=args.frequency_mult),indent=2))
     elif args.command=="design":
         from mjlab.tasks.pupper_gait.mdp import gait_reference as ref
-        ref._GAIT_TOUCHDOWN["foundation_candidate"]=(0.,.5,.5,0.)
-        ref._GAIT_STRIDE["foundation_candidate"]=args.half_stride
+        touchdown=tuple(float(t)%1. for t in args.touchdown)
+        ref._GAIT_TOUCHDOWN["foundation_candidate"]=touchdown
+        ref._GAIT_STRIDE["foundation_candidate"]=(args.half_stride if args.half_stride_back is None
+                                                  else (args.half_stride,args.half_stride_back))
+        ref._GAIT_X_SHIFT["foundation_candidate"]=tuple(args.x_shift)
+        ref._GAIT_Y_SHIFT["foundation_candidate"]=tuple(args.y_shift)
         ref._GAIT_STANCE_Z["foundation_candidate"]=args.stance_z
         ref._GAIT_SWING_LIFT["foundation_candidate"]=args.swing_lift
         ref._GAIT_SWING_KF["foundation_candidate"]=args.swing_keyframes
         table=ref.build_joint_reference_table(100,"foundation_candidate")
         backward=np.roll(table[::-1],1,axis=0)
-        meta=dict(method="authored extended-reach trot; candidate, not measured improvement",parameters={k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()})
+        meta=dict(method=args.method,parameters={k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()})
         print(json.dumps(save_references(args.out,table,backward,meta,limits=robot_limits(),frequency_mult=args.frequency_mult),indent=2))
     elif args.command=="compare":
         result=compare_evaluations(json.loads(args.baseline.read_text()),json.loads(args.candidate.read_text()))

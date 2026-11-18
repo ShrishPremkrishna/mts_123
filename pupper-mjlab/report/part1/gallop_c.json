@@ -1,0 +1,63 @@
+{
+  "refdir": "configs/opt-lab-2/gallop_c",
+  "frequency_mult": 2.25,
+  "cycle_s": 0.3333333333333333,
+  "stride_hz": 3.0,
+  "duty_factor": {
+    "FR": 0.58,
+    "FL": 0.58,
+    "BR": 0.57,
+    "LB": 0.57
+  },
+  "touchdown_phase": {
+    "FR": 0.5,
+    "FL": 0.65,
+    "BR": 0.15,
+    "LB": 0.0
+  },
+  "footfall_order": [
+    "LB",
+    "BR",
+    "FR",
+    "FL"
+  ],
+  "feet_down_min": 2,
+  "feet_down_mean": 2.3,
+  "flight_fraction": 0.0,
+  "feet_down_histogram": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.7,
+    "3": 0.3,
+    "4": 0.0
+  },
+  "stance_stride_m": {
+    "FR": 0.1594,
+    "FL": 0.1594,
+    "BR": 0.1562,
+    "LB": 0.1562
+  },
+  "implied_speed_m_s": 0.839635675619571,
+  "peak_joint_speed_rad_s": 44.75919743400031,
+  "peak_joint_speed_by_joint": {
+    "leg_front_r_1": 17.74,
+    "leg_front_r_2": 0.45,
+    "leg_front_r_3": 28.44,
+    "leg_front_l_1": 17.74,
+    "leg_front_l_2": 0.45,
+    "leg_front_l_3": 28.44,
+    "leg_back_r_1": 21.21,
+    "leg_back_r_2": 1.38,
+    "leg_back_r_3": 44.76,
+    "leg_back_l_1": 21.21,
+    "leg_back_l_2": 1.38,
+    "leg_back_l_3": 44.76
+  },
+  "max_dq_per_control_step_rad": 0.6947033768714825,
+  "kp_dq_torque_proxy_nm": 3.820868572793154,
+  "kd_peak_speed_torque_nm": 11.189799358500078,
+  "effort_limit_nm": 3.0,
+  "driver_limit_min_margin_rad": 0.24454399693559703,
+  "driver_limit_worst_joint": "leg_front_l_3",
+  "stance_height_m": 0.12022910069625492
+}
