@@ -1,37 +1,44 @@
 #!/usr/bin/env python3
 """Opt Lab 2 Part 3 runbook: one command from a final MixedGaits checkpoint to Part 3 sim evidence.
 
-Stages (run in order, each skipped when its output already exists; simulation only):
+Stages (run in order; finished work is skipped on re-runs; simulation only):
 
-  export    part3_export on the checkpoint: policy.json + golden fixture, round trip
-            (torch / JSON / run auto-export / ONNX / W&B copy), limit audit, deploy validator,
-            host C++ gait-reference test           -> report/part3/export/<name>.{json,md}
-  eval      part3_eval: suite + seam on flat/Bumpy x Lab 4 DR on/off, push on DR-on
-                                                    -> report/part3/eval/<name>/
-  video     seam-sweep transition videos (flat_dr, bumpy_dr)  -> ~/runs/opt-lab-2/p3-videos/<name>/
-  kpcheck   decision 2026-11-18-w4-kp-coverage step 0: flat_dr vs nominal-PD ("nompd") falls on eval
-            seeds 1234 + 4321; mean delta > 15 -> WIDEN (train kp x[0.6,1.3], kd x[0.7,1.5]), else KEEP Lab 4
-                                                    -> report/part3/eval/<name>_kp_coverage.{md,json}
-  smoke-wide  WIDEN branch only: <= 50-iteration smoke of both arms + the decision's smoke checks;
-            a failed check stops the runbook   -> report/part3/eval/<name>_kpwide_smoke.{md,json}
-  finetune  part3_finetune: Bumpy warm start, 1500 iterations, PD-gain DR per the kp branch
-            (decision 2026-11-18-w4-finetune-budget; --smoke-finetune = 50 iterations)
-  control   the matched control arm: the same warm start/weights/seed/budget on Flat
-  eval-ft   fine-tune at +500 and +1000 (flat_dr, bumpy_dr: suite + seam) and at the end (full);
-            the control at the end (full)       -> report/part3/eval/<name>-bumpyft-it<N>/, <name>-flatctrl-it<N>/
-  select    apply the decision's pre-registered guards -> report/part3/eval/<name>_selection.{md,json}
-  confirm   the selected checkpoint on a second eval seed (4321; flat_dr, bumpy_dr, nompd), then the seam
-            verdict on both seeds' pooled windows (the seam decision's close-call rule)
-  hold      the kp decision's deployment HOLD rule -> report/part3/eval/<name><branch>_deploy_hold.{md,json};
-            a HOLD in the KEEP branch launches the pre-authorized WIDEN pair (unless --no-escalate)
-  export-ft part3_export on the selected checkpoint (+ W&B check; --upload-wandb to publish it)
-  table     summary table over all of the above    -> report/part3/eval/<name>_summary.md
+  export      part3_export on the checkpoint: policy.json + golden fixture, round trip, limit audit,
+              deploy validator, host C++ gait-reference test     -> report/part3/export/<name>.{json,md}
+  eval        part3_eval: suite + seam on flat/Bumpy x Lab 4 DR on/off, push on DR on -> report/part3/eval/<name>/
+  video       seam-sweep transition videos (flat_dr, bumpy_dr) -> ~/runs/opt-lab-2/p3-videos/<name>/
+  kpcheck     kp-coverage decision step 0: flat_dr vs nominal-PD ("nompd") falls on eval seeds 1234 + 4321;
+              mean delta > 15 -> WIDEN (train kp x[0.6,1.3], kd x[0.7,1.5]), else KEEP Lab 4
+                                                               -> report/part3/eval/<name>_kp_coverage.{md,json}
+  smoke-wide  WIDEN only: <= 50-iteration smoke of both arms (concurrently) + the decision's smoke checks;
+              a failed check stops the runbook                -> report/part3/eval/<name>_kpwide_smoke.{md,json}
+  train       the Bumpy fine-tune and its matched flat control, trained TOGETHER in 500-iteration legs
+              (budget 1500 = 3 legs). After every leg, both arms' leg checkpoints are evaluated identically
+              (flat_dr + bumpy_dr suite + seam and nompd; the full matrix + push from the third leg on), and a
+              gate decides: overflow/NaN or the +500 G2 rule -> STOP before the next leg; after the planned
+              legs, the extension rule extends BOTH arms by one leg (cap +3000) or neither
+                                                               -> report/part3/eval/<name><branch>_gates.md
+  select      matched selection: ship the last leg unless it regresses vs the previous leg by > 10 falls
+              (flat_dr, bumpy_dr or nompd) or flips the flat_dr seam verdict on seed 1234 AND the same
+              regression replicates on seed 4321 (evaluated here); the matched control is the control at the
+              same leg                                         -> report/part3/eval/<name><branch>_selection.{md,json}
+  confirm     the selected checkpoint on eval seed 4321 (flat_dr, bumpy_dr, nompd) + pooled seam verdict
+  hold        the kp-coverage deployment HOLD rule (matched control) -> <name><branch>_deploy_hold.{md,json};
+              a HOLD in the KEEP branch launches the pre-authorized WIDEN pair (unless --no-escalate)
+  export-ft   part3_export on the selected checkpoint (+ W&B check; --upload-wandb publishes it)
+  table       summary table over everything                     -> report/part3/eval/<name><branch>_summary.md
 
-Every GPU stage waits until fewer than ``--max-gpu-procs`` (default 4) compute processes
-are on the GPU, and this driver runs one GPU process at a time.
+Decisions: 2026-11-18-w4-finetune-budget (amended by its devil's-advocate review), -seam-thresholds,
+-kp-coverage. GPU: every launch goes through scripts/opt_lab_2/gpu_slot.py, which takes the same flock
+as W3's part2_queue.py and reads the cap from ~/recovery/CONCURRENCY, so check + launch are one step.
+W4 runs at most 2 GPU processes at once (the two training arms); evaluations run one at a time.
 
-  uv run --no-sync python scripts/opt_lab_2/part3_run.py --checkpoint CKPT --reference-dir REF \
-      --name p3-final [--run-dir RUN_DIR] [--wandb-run mjlab/<id>] [--stages ...] [--smoke-finetune]
+Wall clock (measured, 4-way shared A100): ~50 min pre-stages, ~3 h training (2 arms x 1500 iterations),
+~45-75 min of gate/selection evals: about 4.5-5 h end to end (~2.5 h if the GPU is otherwise idle).
+A KEEP-branch HOLD that escalates to WIDEN adds ~4 h.
+
+  uv run --no-sync python scripts/opt_lab_2/part3_run.py --checkpoint CKPT --reference-dir REF --name p3-final \
+      [--run-dir RUN_DIR] [--wandb-run ENTITY/mjlab/ID] [--stages ...] [--smoke-finetune] [--dry-run]
 """
 
 from __future__ import annotations
@@ -45,40 +52,64 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import gpu_slot  # noqa: E402
+
 MJLAB_ROOT = Path(__file__).resolve().parents[2]
+EVAL_ROOT = MJLAB_ROOT / "report/part3/eval"
 RUNS = Path.home() / "runs" / "opt-lab-2"
-STAGES = ("export", "eval", "video", "kpcheck", "smoke-wide", "finetune", "control", "eval-ft", "select", "confirm",
-          "hold", "export-ft", "table")
+STAGES = ("export", "eval", "video", "kpcheck", "smoke-wide", "train", "select", "confirm", "hold", "export-ft", "table")
 NOISE = 10  # falls; budget-decision guard band
 KP_DELTA = 15  # falls; kp-coverage decision threshold
+LEG = 500  # iterations per training leg (the gate granularity)
+FULL_ITERATIONS = 1500  # decision 2026-11-18-w4-finetune-budget
+MAX_ITERATIONS = 3000  # extension cap
+SMOKE_LEG = 50
+SEED2 = 4321
 WIDE = dict(kp_range=(0.6, 1.3), kd_range=(0.7, 1.5))
 NOMINAL_KP, NOMINAL_KD = 5.5, 0.25
 PY = [sys.executable]
+DRY = False
 
 
-def gpu_procs() -> int:
-  r = subprocess.run(["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"],
-                     capture_output=True, text=True)
-  return len([ln for ln in r.stdout.splitlines() if ln.strip()])
+def say(msg):
+  print(f"[part3_run] {msg}", flush=True)
 
 
-def wait_gpu(limit: int, poll: float = 5.0):
-  t0 = time.time()
-  while (n := gpu_procs()) >= limit:
-    if int(time.time() - t0) % 600 < poll:
-      print(f"[part3_run] GPU has {n} compute processes (limit {limit}); waiting...", flush=True)
-    time.sleep(poll)
-
-
-def run(cmd, limit, log: Path, gpu=True) -> int:
-  if gpu:
-    wait_gpu(limit)
-  print(f"[part3_run] $ {' '.join(map(str, cmd))}\n[part3_run]   log: {log}", flush=True)
+def run(cmd, log: Path, gpu=True) -> int:
+  """Run a subprocess; GPU ones acquire a slot under the shared lock first."""
+  cmd = list(map(str, cmd))
+  say(f"$ {' '.join(cmd)}\n[part3_run]   log: {log}")
+  if DRY:
+    return 0
   log.parent.mkdir(parents=True, exist_ok=True)
   env = dict(os.environ, MUJOCO_GL="egl", PYOPENGL_PLATFORM="egl", PYTHONUNBUFFERED="1")
   with open(log, "a") as f:
-    rc = subprocess.call(list(map(str, cmd)), cwd=MJLAB_ROOT, stdout=f, stderr=subprocess.STDOUT, env=env)
-  print(f"[part3_run]   exit {rc}", flush=True)
+    if gpu:
+      rc = gpu_slot.run(cmd, cwd=MJLAB_ROOT, env=env, stdout=f, stderr=subprocess.STDOUT, log=say)
+    else:
+      rc = subprocess.call(cmd, cwd=MJLAB_ROOT, stdout=f, stderr=subprocess.STDOUT, env=env)
+  say(f"  exit {rc}")
+  return rc
+
+
+def run_parallel(cmds: list[tuple[list, Path]]) -> int:
+  """Start several part3_finetune launches together (each takes its own GPU slot); wait for all."""
+  procs = []
+  for cmd, log in cmds:
+    cmd = list(map(str, cmd))
+    say(f"$ {' '.join(cmd)}  &\n[part3_run]   log: {log}")
+    if DRY:
+      continue
+    log.parent.mkdir(parents=True, exist_ok=True)
+    f = open(log, "a")  # noqa: SIM115 - closed below
+    env = dict(os.environ, MUJOCO_GL="egl", PYOPENGL_PLATFORM="egl", PYTHONUNBUFFERED="1")
+    procs.append((subprocess.Popen(cmd, cwd=MJLAB_ROOT, stdout=f, stderr=subprocess.STDOUT, env=env), f))
+  rc = 0
+  for p, f in procs:
+    rc |= p.wait()
+    f.close()
+  say(f"  parallel exit {rc}")
   return rc
 
 
@@ -100,89 +131,114 @@ def model_iter(p: Path) -> int:
   return int(re.search(r"model_(\d+)", p.name).group(1))
 
 
-def milestone(run_dir: Path, target: int) -> Path | None:
-  models = list(run_dir.glob("model_*.pt"))
-  if not models:
-    return None
-  best = min(models, key=lambda m: abs(model_iter(m) - target))
-  return best if abs(model_iter(best) - target) <= 25 else None
-
-
 def eval_name(prefix: str, ckpt: Path) -> str:
   return f"{prefix}-it{model_iter(ckpt)}"
 
 
-def load_eval(n: str) -> dict:
-  d = MJLAB_ROOT / "report/part3/eval" / n
-  out = {}
-  for cond in ("flat_dr", "bumpy_dr", "flat_nodr", "bumpy_nodr"):
-    suite, seam = d / f"{n}-{cond}.json", d / f"{n}-{cond}_seam.json"
-    row = {}
-    if suite.exists():
-      m = json.loads(suite.read_text())
-      row["falls"] = m["metrics"]["falls_total"]
-      ov = (m.get("part3_condition") or {}).get("overflow_audit")
-      row["overflow_ok"] = True if ov is None else ov["zero_overflow"]
-    if seam.exists():
-      row["seam"] = json.loads(seam.read_text())["metrics"]["verdict"]["verdict"]
-    if row:
-      out[cond] = row
-  nom = load_nompd(n, 1234)
-  if nom is not None:
-    out["nompd"] = dict(falls=nom)
-  return out
+def run_ok(run_dir: Path) -> bool:
+  log = run_dir.with_name(run_dir.name + ".log")
+  return latest_model(run_dir) is not None and log.exists() and "[launch] exit code 0" in log.read_text(errors="ignore")
+
+
+##
+# Readers of evaluation outputs.
+##
 
 
 def load_nompd(n: str, seed: int) -> int | None:
   tag = "" if seed == 1234 else f"-seed{seed}"
-  f = MJLAB_ROOT / "report/part3/eval" / n / "ablate" / f"{n}-flat-nominal_pd_gains{tag}.json"
+  f = EVAL_ROOT / n / "ablate" / f"{n}-flat-nominal_pd_gains{tag}.json"
   return json.loads(f.read_text())["metrics"]["falls_total"] if f.exists() else None
 
 
 def load_falls(n: str, cond: str) -> int | None:
-  f = MJLAB_ROOT / "report/part3/eval" / n / f"{n}-{cond}.json"
+  f = EVAL_ROOT / n / f"{n}-{cond}.json"
   return json.loads(f.read_text())["metrics"]["falls_total"] if f.exists() else None
 
 
-def select(base_name: str, ft_points: dict, ft_dir: Path, noise: int = 10) -> dict:
-  """Guards of decision 2026-11-18-w4-finetune-budget (fixed before launch)."""
-  base = load_eval(base_name)
-  ev = {k: load_eval(n) for k, (n, _) in ft_points.items()}
-  final_key = max(ft_points, key=lambda k: model_iter(ft_points[k][1]))
-  notes, flags = [], []
-  audit = ft_dir / "physics_overflow_audit.json"
-  train_ok = (not audit.exists()) or json.loads(audit.read_text()).get("zero_overflow", False)
-  evals_ok = all(r.get("overflow_ok", True) for e in ev.values() for r in e.values())
-  if not (train_ok and evals_ok):
-    return dict(selected=None, verdict="INVALID", notes=["nonzero physics overflow (training or eval)"], evals=ev)
+def load_seam(n: str, cond: str) -> str | None:
+  f = EVAL_ROOT / n / f"{n}-{cond}_seam.json"
+  return json.loads(f.read_text())["metrics"]["verdict"]["verdict"] if f.exists() else None
 
-  def f(key, cond):
-    return ev.get(key, {}).get(cond, {}).get("falls")
 
-  b = {c: base.get(c, {}).get("falls") for c in ("flat_dr", "bumpy_dr")}
-  if "+500" in ev and None not in (f("+500", "flat_dr"), b["flat_dr"], f("+500", "bumpy_dr"), b["bumpy_dr"]):
-    if f("+500", "flat_dr") >= 2 * max(b["flat_dr"], 1) and f("+500", "bumpy_dr") >= b["bumpy_dr"]:
-      flags.append("G2 stop-early condition met at +500 (flat_dr falls >= 2x +0 and bumpy_dr no better): re-decide")
-  selected = final_key
-  if "+1000" in ev and final_key != "+1000":
-    worse = [c for c in ("flat_dr", "bumpy_dr")
-             if None not in (f(final_key, c), f("+1000", c)) and f(final_key, c) - f("+1000", c) > noise]
-    seam_flip = ev["+1000"].get("flat_dr", {}).get("seam") == "PASS" and ev[final_key].get("flat_dr", {}).get("seam") == "FAIL"
-    nom_worse = None not in (f(final_key, "nompd"), f("+1000", "nompd")) and f(final_key, "nompd") - f("+1000", "nompd") > noise
-    if nom_worse:
-      worse.append("nompd (kp-coverage decision)")
-    if worse or seam_flip:
-      selected = "+1000"
-      notes.append(f"fallback to +1000: {final_key} worse by > {noise} falls on {worse}" + (" ; flat_dr seam PASS->FAIL" if seam_flip else "")
-                   + " (report as a SELECTION; confirm on a second eval seed)")
-    if None not in (f("+1000", "bumpy_dr"), f(final_key, "bumpy_dr"), f(final_key, "flat_dr"), b["flat_dr"]):
-      if f("+1000", "bumpy_dr") - f(final_key, "bumpy_dr") > noise and abs(f(final_key, "flat_dr") - b["flat_dr"]) <= noise:
-        flags.append("extension rule met: bumpy_dr still dropping > 10 falls from +1000 to the end with flat_dr within 10 of +0 "
-                     "-> continue +500 (cap +3000) from the final checkpoint")
-  if selected == final_key:
-    notes.append(f"ship {final_key} (no guard fired)")
-  return dict(selected=str(ft_points[selected][1]), selected_key=selected, verdict="OK", notes=notes, flags=flags,
-              base=base_name, base_evals=base, evals=ev)
+def overflow_ok(n: str) -> bool:
+  for f in (EVAL_ROOT / n).glob(f"{n}-*.json"):
+    if f.name.endswith("_overflow.json"):
+      continue
+    ov = (json.loads(f.read_text()).get("part3_condition") or {}).get("overflow_audit")
+    if ov is not None and not ov.get("zero_overflow", False):
+      return False
+  return True
+
+
+def point_metrics(n: str, seed: int = 1234) -> dict:
+  """{flat_dr, bumpy_dr, nompd: falls, seam_flat: verdict} of one evaluated checkpoint (eval name n)."""
+  m = n if seed == 1234 else f"{n}-seed{seed}"
+  return dict(flat_dr=load_falls(m, "flat_dr"), bumpy_dr=load_falls(m, "bumpy_dr"), nompd=load_nompd(n, seed),
+              seam_flat=load_seam(m, "flat_dr"))
+
+
+##
+# Pure decision logic (unit tested in tests/test_part3_run.py).
+##
+
+
+def gate_after_leg(k: int, base: dict, bumpy: dict, invalid: list[str]) -> dict:
+  """Between-leg gate. k = completed leg index (1-based); base/bumpy = point_metrics of +0 / the bumpy arm."""
+  if invalid:
+    return dict(action="stop", reasons=invalid)
+  if k == 1 and None not in (bumpy["flat_dr"], base["flat_dr"], bumpy["bumpy_dr"], base["bumpy_dr"]):
+    if bumpy["flat_dr"] >= 2 * max(base["flat_dr"], 1) and bumpy["bumpy_dr"] >= base["bumpy_dr"]:
+      return dict(action="stop", reasons=[
+        f"G2 at +{LEG}: flat_dr {bumpy['flat_dr']} >= 2 x +0's {base['flat_dr']} and bumpy_dr {bumpy['bumpy_dr']} "
+        f"no better than +0's {base['bumpy_dr']} -> stop training, re-decide"])
+  return dict(action="continue", reasons=[])
+
+
+def extension_due(base: dict, prev: dict, last: dict, total_iters: int) -> tuple[bool, str]:
+  """Lockstep extension rule: bumpy_dr still dropping > NOISE over the last leg and flat_dr within NOISE of +0."""
+  if total_iters + LEG > MAX_ITERATIONS:
+    return False, f"cap +{MAX_ITERATIONS} reached"
+  if None in (prev["bumpy_dr"], last["bumpy_dr"], last["flat_dr"], base["flat_dr"]):
+    return False, "missing evaluations"
+  drop, drift = prev["bumpy_dr"] - last["bumpy_dr"], last["flat_dr"] - base["flat_dr"]
+  ok = drop > NOISE and abs(drift) <= NOISE
+  return ok, f"bumpy_dr drop {drop:+d} (> {NOISE}?) with flat_dr drift {drift:+d} vs +0 (|.| <= {NOISE}?)"
+
+
+def regressions(final: dict, prev: dict) -> list[str]:
+  """Metrics on which `final` is worse than `prev` by > NOISE falls, plus a flat_dr seam PASS -> FAIL flip."""
+  out = [m for m in ("flat_dr", "bumpy_dr", "nompd")
+         if None not in (final[m], prev[m]) and final[m] - prev[m] > NOISE]
+  if prev.get("seam_flat") == "PASS" and final.get("seam_flat") == "FAIL":
+    out.append("seam_flat")
+  return out
+
+
+def matched_selection(keys: list[str], ev1: dict, ev2_lookup) -> dict:
+  """Ship the last point unless a seed-1234 regression vs the previous point replicates on seed 4321.
+
+  keys: ordered point keys ("+500", ...); ev1[key] = point_metrics(seed 1234) of the bumpy arm;
+  ev2_lookup(key) -> point_metrics(seed 4321) (evaluated on demand by the caller).
+  """
+  final = keys[-1]
+  if len(keys) < 2:
+    return dict(selected=final, notes=[f"ship {final} (only point)"])
+  prev = keys[-2]
+  r1 = regressions(ev1[final], ev1[prev])
+  if not r1:
+    return dict(selected=final, notes=[f"ship {final} (no regression vs {prev} on seed 1234)"])
+  r2 = regressions(ev2_lookup(final), ev2_lookup(prev))
+  both = [m for m in r1 if m in r2]
+  if both:
+    return dict(selected=prev, notes=[f"fallback to {prev}: {final} regresses on {both} on BOTH eval seeds "
+                                      f"(seed 1234: {r1}; seed {SEED2}: {r2}); report as a SELECTION"])
+  return dict(selected=final, notes=[f"ship {final}: seed-1234 regression {r1} did not replicate on seed {SEED2} ({r2})"])
+
+
+##
+# Checks reused from the kp-coverage decision.
+##
 
 
 def _check(name, ok, detail):
@@ -246,24 +302,23 @@ def smoke_checks(bumpy_dir: Path, ctrl_dir: Path, bumpy_eval: str | None, it_b: 
   return dict(verdict="PASS" if all(c["ok"] for c in checks) else "FAIL", checks=checks)
 
 
-def deploy_hold(base: str, n1: str, n2: str, seed2: int, branch: str, ctrl_eval: str | None) -> dict:
-  """kp-coverage decision HOLD rule on two-seed means (seeds 1234 + seed2)."""
+def deploy_hold(base: str, n1: str, seed2: int, branch: str, ctrl_eval: str | None) -> dict:
+  """kp-coverage decision HOLD rule on two-seed means; the WIDEN control check uses the MATCHED control."""
   def mean2(a, b):
     return None if None in (a, b) else (a + b) / 2
 
-  fd = mean2(load_falls(n1, "flat_dr"), load_falls(n2, "flat_dr"))
+  fd = mean2(load_falls(n1, "flat_dr"), load_falls(f"{n1}-seed{seed2}", "flat_dr"))
   nm = mean2(load_nompd(n1, 1234), load_nompd(n1, seed2))
   nm0 = mean2(load_nompd(base, 1234), load_nompd(base, seed2))
-  lines, hold = [], False
   if None in (fd, nm, nm0):
     return dict(verdict="INCOMPLETE", lines=[f"missing inputs: flat_dr {fd}, nompd {nm}, nompd(P) {nm0}"])
-  lines.append(f"(a) nompd - flat_dr = {nm:.1f} - {fd:.1f} = {nm - fd:+.1f} (hold if > {KP_DELTA})")
-  lines.append(f"(b) nompd(selected) - nompd(P) = {nm:.1f} - {nm0:.1f} = {nm - nm0:+.1f} (hold if > {NOISE})")
+  lines = [f"(a) nompd - flat_dr = {nm:.1f} - {fd:.1f} = {nm - fd:+.1f} (hold if > {KP_DELTA})",
+           f"(b) nompd(selected) - nompd(P) = {nm:.1f} - {nm0:.1f} = {nm - nm0:+.1f} (hold if > {NOISE})"]
   hold = (nm - fd > KP_DELTA) or (nm - nm0 > NOISE)
   if branch == "wide" and ctrl_eval:
     c, p0 = load_falls(ctrl_eval, "flat_dr"), load_falls(base, "flat_dr")
     if None not in (c, p0):
-      lines.append(f"(WIDEN) control flat_dr - P flat_dr = {c} - {p0} = {c - p0:+d} (hold if > {NOISE})")
+      lines.append(f"(WIDEN) matched control flat_dr - P flat_dr = {c} - {p0} = {c - p0:+d} (hold if > {NOISE})")
       hold = hold or (c - p0 > NOISE)
   lines.append(f"branch {branch}: " + ("HOLD -> " + ("launch the pre-authorized WIDEN pair" if branch == "lab4"
                                                       else "no more training; re-decision with the human") if hold else "clear"))
@@ -271,6 +326,7 @@ def deploy_hold(base: str, n1: str, n2: str, seed2: int, branch: str, ctrl_eval:
 
 
 def main() -> int:
+  global DRY
   p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
   p.add_argument("--checkpoint", type=Path, required=True)
   p.add_argument("--reference-dir", type=Path, required=True)
@@ -278,19 +334,20 @@ def main() -> int:
   p.add_argument("--run-dir", type=Path, help="Training run dir of the checkpoint (default: its parent)")
   p.add_argument("--wandb-run", help="entity/project/id of the checkpoint's run (default: parsed from its launch log)")
   p.add_argument("--stages", nargs="+", choices=STAGES, default=list(STAGES))
-  p.add_argument("--smoke-finetune", action="store_true", help="50-iteration smoke fine-tune instead of the full budget")
-  p.add_argument("--finetune-iterations", type=int)
-  p.add_argument("--no-control", action="store_true", help="Skip the flat control arm (state the confound in the report)")
+  p.add_argument("--smoke-finetune", action="store_true", help=f"One {SMOKE_LEG}-iteration leg per arm instead of the budget")
+  p.add_argument("--finetune-iterations", type=int, default=FULL_ITERATIONS, help="Planned budget (multiple of 500)")
   p.add_argument("--upload-wandb", action="store_true",
                  help="Upload each export that PASSES to its W&B run (deploy.sh fetches it) and verify the read-back")
-  p.add_argument("--confirm-seed", type=int, default=4321)
   p.add_argument("--pd-ranges", choices=("auto", "lab4", "wide"), default="auto",
                  help="Training PD-gain DR branch; auto = from the kpcheck stage (decision 2026-11-18-w4-kp-coverage)")
   p.add_argument("--smoke-iterations", default="50,50", help="WIDEN smoke iterations: BUMPY,CONTROL (each <= 50)")
   p.add_argument("--no-escalate", action="store_true", help="Do not launch the WIDEN pair after a KEEP-branch HOLD")
-  p.add_argument("--max-gpu-procs", type=int, default=4)
+  p.add_argument("--dry-run", action="store_true", help="Print every command and decision step; launch nothing")
   p.add_argument("--logs", type=Path, default=RUNS / "p3-logs")
   args = p.parse_args()
+  DRY = args.dry_run
+  if args.finetune_iterations % LEG or not LEG <= args.finetune_iterations <= MAX_ITERATIONS:
+    p.error(f"--finetune-iterations must be a multiple of {LEG} in [{LEG}, {MAX_ITERATIONS}]")
   ckpt, ref, name = args.checkpoint.resolve(), args.reference_dir, args.name
   run_dir = (args.run_dir or ckpt.parent).resolve()
   wandb_parent = args.wandb_run or wandb_run_path(run_dir)
@@ -298,6 +355,41 @@ def main() -> int:
   status: dict[str, object] = {}
   common = ["--reference-dir", ref]
   P = model_iter(ckpt)
+  leg_iters = SMOKE_LEG if args.smoke_finetune else LEG
+  planned_legs = 1 if args.smoke_finetune else args.finetune_iterations // LEG
+  suffix = "-smoke" if args.smoke_finetune else ""
+  kp_path = EVAL_ROOT / f"{name}_kp_coverage.json"
+  say(f"GPU cap {gpu_slot.cap()} (from {gpu_slot.CONCURRENCY_FILE}); shared lock {gpu_slot.LAUNCH_LOCK}"
+      + ("; DRY RUN" if DRY else ""))
+
+  def branch() -> str | None:
+    if args.pd_ranges != "auto":
+      return args.pd_ranges
+    return json.loads(kp_path.read_text())["branch"] if kp_path.exists() else None
+
+  def arms():
+    b = branch() or "lab4"
+    tag = "-kpwide" if b == "wide" else ""
+    return f"{name}-bumpyft{tag}{suffix}", f"{name}-flatctrl{tag}{suffix}", tag
+
+  def leg_dir(arm: str, k: int) -> Path:
+    return RUNS / f"rp-{arm}-leg{k}"
+
+  def leg_final(arm: str, k: int) -> Path | None:
+    d = leg_dir(arm, k)
+    if DRY and latest_model(d) is None:
+      return d / f"model_{P + k * leg_iters - 1}.pt"  # where the leg's last checkpoint will be
+    return latest_model(d) if run_ok(d) else None
+
+  def legs_done(arm: str) -> int:
+    k = 0
+    while leg_final(arm, k + 1) is not None and (not DRY or (leg_dir(arm, k + 1)).exists()):
+      k += 1
+    return k
+
+  def point(arm: str, k: int) -> tuple[str, Path] | None:
+    f = leg_final(arm, k)
+    return (eval_name(f"{arm}-leg{k}", f), f) if f is not None else None
 
   def export(c, n, rd, wb):
     if (MJLAB_ROOT / f"report/part3/export/{n}.json").exists():
@@ -305,164 +397,42 @@ def main() -> int:
     cmd = [*PY, "-m", "mjlab.scripts.part3_export", "--checkpoint", c, *common, "--name", n, "--run-dir", rd]
     if wb:
       cmd += ["--wandb-run", wb] + (["--upload-wandb"] if args.upload_wandb else [])
-    return run(cmd, args.max_gpu_procs, logs / f"export-{n}.log")
+    return run(cmd, logs / f"export-{n}.log")
 
   def evaluate(c, n, light=False, seed=None):
     base = [*PY, "-m", "mjlab.scripts.part3_eval", "run", "--checkpoint", c, *common, "--name", n, "--skip-existing"]
     if seed is not None:
       base += ["--seed", str(seed)]
     if light:
-      return run(base + ["--modes", "suite", "seam", "--conditions", "flat_dr", "bumpy_dr"],
-                 args.max_gpu_procs, logs / f"eval-{n}.log")
-    rc = run(base + ["--modes", "suite", "seam"], args.max_gpu_procs, logs / f"eval-{n}.log")
-    rc |= run(base + ["--modes", "push", "--conditions", "flat_dr", "bumpy_dr"], args.max_gpu_procs, logs / f"eval-{n}.log")
+      return run(base + ["--modes", "suite", "seam", "--conditions", "flat_dr", "bumpy_dr"], logs / f"eval-{n}.log")
+    rc = run(base + ["--modes", "suite", "seam"], logs / f"eval-{n}.log")
+    rc |= run(base + ["--modes", "push", "--conditions", "flat_dr", "bumpy_dr"], logs / f"eval-{n}.log")
     return rc
-
-  def train(run_name, flat_control, smoke_iters=None):
-    d = RUNS / f"rp-{run_name}"
-    log = d.with_name(d.name + ".log")
-    if latest_model(d) is not None and log.exists() and "exit code 0" in log.read_text(errors="ignore"):
-      return "skip"
-    cmd = [*PY, "scripts/opt_lab_2/part3_finetune.py", "--checkpoint", ckpt, *common, "--name", run_name, "--quiet"]
-    cmd += ["--smoke"] if (args.smoke_finetune or smoke_iters) else []
-    cmd += ["--flat-control"] if flat_control else []
-    if smoke_iters:
-      cmd += ["--iterations", str(smoke_iters)]
-    elif args.finetune_iterations:
-      cmd += ["--iterations", str(args.finetune_iterations)]
-    cmd += ["--pd-ranges", branch() or "lab4"]
-    return run(cmd, args.max_gpu_procs, logs / f"train-{run_name}.log")
-
-  suffix = "-smoke" if args.smoke_finetune else ""
-  kp_path = MJLAB_ROOT / f"report/part3/eval/{name}_kp_coverage.json"
-
-  def branch() -> str | None:
-    if args.pd_ranges != "auto":
-      return args.pd_ranges
-    return json.loads(kp_path.read_text())["branch"] if kp_path.exists() else None
-
-  def names():
-    b = branch() or "lab4"
-    tag = "-kpwide" if b == "wide" else ""
-    ft_n, ctrl_n = f"{name}-bumpyft{tag}{suffix}", f"{name}-flatctrl{tag}{suffix}"
-    return ft_n, ctrl_n, RUNS / f"rp-{ft_n}", RUNS / f"rp-{ctrl_n}", tag
-
-  ft_name, ctrl_name, ft_dir, ctrl_dir, btag = names()
-  sel_path = MJLAB_ROOT / f"report/part3/eval/{name}{btag}_selection.json"
 
   def nompd(c, n, seed=1234):
     if load_nompd(n, seed) is not None:
       return 0
     return run([*PY, "-m", "mjlab.scripts.part3_eval", "ablate", "--checkpoint", c, *common, "--name", n,
-                "--events", "pd_gains", "--seed", str(seed)], args.max_gpu_procs, logs / f"nompd-{n}.log")
+                "--events", "pd_gains", "--seed", str(seed)], logs / f"nompd-{n}.log")
 
-  def ft_points():
-    pts = {}
-    final = latest_model(ft_dir)
-    for k in (500, 1000):
-      m = milestone(ft_dir, P + k)
-      if m is not None and (final is None or model_iter(m) < model_iter(final)):
-        pts[f"+{k}"] = (eval_name(ft_name, m), m)
-    if final is not None:
-      pts[f"+{model_iter(final) - P}"] = (eval_name(ft_name, final), final)
-    return pts
+  def finetune_cmd(arm: str, start: Path, flat: bool, iters: int, smoke: bool, run_name: str | None = None):
+    cmd = [*PY, "scripts/opt_lab_2/part3_finetune.py", "--checkpoint", start, *common, "--name", run_name or arm,
+           "--quiet", "--iterations", str(iters), "--pd-ranges", branch() or "lab4"]
+    cmd += ["--smoke"] if smoke else []
+    cmd += ["--flat-control"] if flat else []
+    return cmd
+
+  def eval_seed2(n, c):
+    """Seed-4321 light eval + nompd of one point, on demand; returns its point_metrics."""
+    evaluate(c, f"{n}-seed{SEED2}", light=True, seed=SEED2)
+    nompd(c, n, SEED2)
+    return point_metrics(n, SEED2)
 
   for stage in args.stages:
     t0 = time.time()
-    ft_name, ctrl_name, ft_dir, ctrl_dir, btag = names()  # the kp branch may have just been decided
-    sel_path = MJLAB_ROOT / f"report/part3/eval/{name}{btag}_selection.json"
-    if stage == "kpcheck":
-      if args.pd_ranges != "auto":
-        status[stage] = f"skipped (--pd-ranges {args.pd_ranges})"
-        continue
-      rc = 0
-      if load_falls(name, "flat_dr") is None:
-        rc |= run([*PY, "-m", "mjlab.scripts.part3_eval", "run", "--checkpoint", ckpt, *common, "--name", name,
-                   "--conditions", "flat_dr", "--modes", "suite", "--skip-existing"], args.max_gpu_procs, logs / "kpcheck.log")
-      n2 = f"{name}-seed{args.confirm_seed}"
-      rc |= run([*PY, "-m", "mjlab.scripts.part3_eval", "run", "--checkpoint", ckpt, *common, "--name", n2,
-                 "--conditions", "flat_dr", "--modes", "suite", "--seed", str(args.confirm_seed), "--skip-existing"],
-                args.max_gpu_procs, logs / "kpcheck.log")
-      rc |= nompd(ckpt, name, 1234)
-      rc |= nompd(ckpt, name, args.confirm_seed)
-      fd = [load_falls(name, "flat_dr"), load_falls(n2, "flat_dr")]
-      nm = [load_nompd(name, 1234), load_nompd(name, args.confirm_seed)]
-      if rc or None in fd + nm:
-        status[stage] = f"incomplete (rc {rc}, flat_dr {fd}, nompd {nm})"
-        break
-      deltas = [a - b for a, b in zip(nm, fd, strict=True)]
-      mean = sum(deltas) / 2
-      res = dict(decision="report/decisions/2026-11-18-w4-kp-coverage.md", checkpoint=str(ckpt),
-                 flat_dr_falls=dict(zip(("1234", str(args.confirm_seed)), fd, strict=True)),
-                 nompd_falls=dict(zip(("1234", str(args.confirm_seed)), nm, strict=True)),
-                 delta_per_seed=deltas, mean_delta=mean, threshold=KP_DELTA,
-                 branch="wide" if mean > KP_DELTA else "lab4",
-                 training_pd_ranges=WIDE if mean > KP_DELTA else "Lab 4 (kp x[0.6, 1.1], kd x[0.8, 1.5])")
-      kp_path.write_text(json.dumps(res, indent=2, default=str) + "\n")
-      md = (f"# kp-coverage step 0: {name}\n\nflat_dr falls {fd}, nominal-PD falls {nm} (seeds 1234, {args.confirm_seed}); "
-            f"delta {deltas}, mean {mean:.1f} vs threshold {KP_DELTA} -> **{res['branch'].upper()}** "
-            f"(training PD ranges: {res['training_pd_ranges']}). Evaluation stays on the Lab 4 ranges.\n")
-      kp_path.with_suffix(".md").write_text(md)
-      print(md, flush=True)
-      status[stage] = 0
-    elif stage == "smoke-wide":
-      if branch() != "wide":
-        status[stage] = "skipped (KEEP branch)"
-        continue
-      it_b, it_c = (int(x) for x in args.smoke_iterations.split(","))
-      if not (0 < it_b <= 50 and 0 < it_c <= 50):
-        status[stage] = "bad --smoke-iterations"
-        break
-      sb, sc = f"{name}-bumpyft-kpwide-smoke", f"{name}-flatctrl-kpwide-smoke"
-      rc = train(sb, False, it_b)
-      rc = (0 if rc == "skip" else rc) | (0 if (r2 := train(sc, True, it_c)) == "skip" else r2)
-      fb = latest_model(RUNS / f"rp-{sb}")
-      if fb is not None:
-        rc |= nompd(fb, eval_name(sb, fb))
-        e = export(fb, eval_name(sb, fb), RUNS / f"rp-{sb}", None)
-        rc |= 0 if e == "skip" else e
-      res = smoke_checks(RUNS / f"rp-{sb}", RUNS / f"rp-{sc}", eval_name(sb, fb) if fb else None, it_b, it_c)
-      out = MJLAB_ROOT / f"report/part3/eval/{name}_kpwide_smoke.json"
-      out.write_text(json.dumps(res, indent=2, default=str) + "\n")
-      lines = [f"# WIDEN smoke checks: {name} -- **{res['verdict']}**", "",
-               "Decision [2026-11-18-w4-kp-coverage](../../decisions/2026-11-18-w4-kp-coverage.md), smoke items 1-5.", "",
-               "| check | ok | detail |", "|---|---|---|"]
-      lines += [f"| {c['name']} | {'yes' if c['ok'] else '**NO**'} | {c['detail']} |" for c in res["checks"]]
-      out.with_suffix(".md").write_text("\n".join(lines) + "\n")
-      print("\n".join(lines), flush=True)
-      status[stage] = 0 if (rc == 0 and res["verdict"] == "PASS") else f"FAIL (rc {rc})"
-      if status[stage] != 0:
-        print(f"[part3_run] stage {stage}: {status[stage]} -- stopping before the full WIDEN run", flush=True)
-        break
-    elif stage == "hold":
-      if not sel_path.exists():
-        status[stage] = "no selection"
-        continue
-      sel = json.loads(sel_path.read_text())
-      if not sel.get("selected"):
-        status[stage] = f"selection {sel.get('verdict')}"
-        continue
-      m = Path(sel["selected"])
-      n1, n2 = eval_name(ft_name, m), eval_name(ft_name, m) + f"-seed{args.confirm_seed}"
-      res = deploy_hold(name, n1, n2, args.confirm_seed, branch() or "lab4",
-                        eval_name(ctrl_name, latest_model(ctrl_dir)) if latest_model(ctrl_dir) else None)
-      hp = MJLAB_ROOT / f"report/part3/eval/{name}{btag}_deploy_hold.json"
-      hp.write_text(json.dumps(res, indent=2, default=str) + "\n")
-      md = (f"# Deployment hold check: {name}{btag}\n\nDecision [2026-11-18-w4-kp-coverage](../../decisions/2026-11-18-w4-kp-coverage.md). "
-            f"Selected `{m}`. Verdict: **{res['verdict']}**.\n\n" + "\n".join(f"- {r}" for r in res["lines"]) + "\n")
-      hp.with_suffix(".md").write_text(md)
-      print(md, flush=True)
-      status[stage] = 0 if res["verdict"] in ("CLEAR", "INCOMPLETE") else res["verdict"]
-      if res["verdict"] == "HOLD" and (branch() or "lab4") == "lab4" and not args.no_escalate:
-        print("[part3_run] HOLD in the KEEP branch: launching the pre-authorized WIDEN pair", flush=True)
-        cmd = [*PY, str(Path(__file__).resolve()), "--checkpoint", str(ckpt), "--reference-dir", str(ref), "--name", name,
-               "--pd-ranges", "wide", "--smoke-iterations", args.smoke_iterations, "--max-gpu-procs", str(args.max_gpu_procs),
-               "--stages", "smoke-wide", "finetune", "control", "eval-ft", "select", "confirm", "hold", "export-ft", "table"]
-        cmd += ["--upload-wandb"] if args.upload_wandb else []
-        status["escalation"] = run(cmd, 99, logs / "escalation-wide.log", gpu=False)
-      elif res["verdict"] == "HOLD":
-        print("[part3_run] HOLD in the WIDEN branch: stop; re-decision with the human", flush=True)
-    elif stage == "export":
+    ft, ctrl, btag = arms()  # the kp branch may have just been decided
+    sel_path = EVAL_ROOT / f"{name}{btag}_selection.json"
+    if stage == "export":
       status[stage] = export(ckpt, name, run_dir, wandb_parent)
     elif stage == "eval":
       status[stage] = evaluate(ckpt, name)
@@ -473,87 +443,223 @@ def main() -> int:
         if (out / f"{name}-{cond}_seam_sweep.mp4").exists():
           continue
         rc |= run([*PY, "-m", "mjlab.scripts.part3_seam", "video", "--checkpoint", ckpt, *common,
-                   "--name", f"{name}-{cond}", "--condition", cond, "--out-dir", out],
-                  args.max_gpu_procs, logs / "video.log")
+                   "--name", f"{name}-{cond}", "--condition", cond, "--out-dir", out], logs / "video.log")
       status[stage] = rc
-    elif stage == "finetune":
-      status[stage] = train(ft_name, False)
-    elif stage == "control":
-      status[stage] = "skipped (--no-control)" if args.no_control else train(ctrl_name, True)
-    elif stage == "eval-ft":
-      pts = ft_points()
-      if not pts:
-        status[stage] = f"no checkpoint in {ft_dir}"
+    elif stage == "kpcheck":
+      if args.pd_ranges != "auto":
+        status[stage] = f"skipped (--pd-ranges {args.pd_ranges})"
         continue
-      final_key = max(pts, key=lambda k: model_iter(pts[k][1]))
       rc = 0
-      for k, (n, m) in pts.items():
-        rc |= evaluate(m, n, light=(k != final_key))
-        rc |= nompd(m, n)  # kp-coverage decision: nominal-PD flat suite at every point, seed 1234
-      cfinal = latest_model(ctrl_dir)
-      if cfinal is not None and not args.no_control:
-        rc |= evaluate(cfinal, eval_name(ctrl_name, cfinal))
-        rc |= nompd(cfinal, eval_name(ctrl_name, cfinal))
-      status[stage] = rc
-    elif stage == "select":
-      pts = ft_points()
-      if not pts:
-        status[stage] = "no fine-tune checkpoints"
+      if load_falls(name, "flat_dr") is None:
+        rc |= run([*PY, "-m", "mjlab.scripts.part3_eval", "run", "--checkpoint", ckpt, *common, "--name", name,
+                   "--conditions", "flat_dr", "--modes", "suite", "--skip-existing"], logs / "kpcheck.log")
+      n2 = f"{name}-seed{SEED2}"
+      rc |= run([*PY, "-m", "mjlab.scripts.part3_eval", "run", "--checkpoint", ckpt, *common, "--name", n2,
+                 "--conditions", "flat_dr", "--modes", "suite", "--seed", str(SEED2), "--skip-existing"], logs / "kpcheck.log")
+      rc |= nompd(ckpt, name, 1234)
+      rc |= nompd(ckpt, name, SEED2)
+      fd = [load_falls(name, "flat_dr"), load_falls(n2, "flat_dr")]
+      nm = [load_nompd(name, 1234), load_nompd(name, SEED2)]
+      if DRY:
+        status[stage] = "dry run (branch decided from these four suites)"
         continue
-      res = select(name, pts, ft_dir)
-      sel_path.write_text(json.dumps(res, indent=2, default=str) + "\n")
-      lines = [f"# Part 3 checkpoint selection: {name}", "",
-               "Guards from [the budget decision](../../decisions/2026-11-18-w4-finetune-budget.md), applied mechanically.", "",
-               f"Verdict: **{res['verdict']}**. Selected: `{res.get('selected')}` ({res.get('selected_key')}).", ""]
-      lines += [f"- {x}" for x in res.get("notes", []) + res.get("flags", [])]
-      lines += ["", "| point | " + " | ".join(f"{c} falls / seam" for c in ("flat_dr", "bumpy_dr", "flat_nodr", "bumpy_nodr")) + " |",
-                "|---|---|---|---|---|"]
-      rows = [("+0 (warm-start parent)", res.get("base_evals", {}))] + list(res["evals"].items())
-      cfinal = latest_model(ctrl_dir)
-      if cfinal is not None:
-        rows.append((f"flat control +{model_iter(cfinal) - P} (matched)", load_eval(eval_name(ctrl_name, cfinal))))
-      for k, e in rows:
-        lines.append(f"| {k} | " + " | ".join(f"{e.get(c, {}).get('falls', '-')} / {e.get(c, {}).get('seam', '-')}"
-                                              for c in ("flat_dr", "bumpy_dr", "flat_nodr", "bumpy_nodr")) + " |")
-      sel_path.with_suffix(".md").write_text("\n".join(lines) + "\n")
-      print("\n".join(lines), flush=True)
-      status[stage] = 0 if res["verdict"] == "OK" else res["verdict"]
-    elif stage in ("confirm", "export-ft"):
+      if rc or None in fd + nm:
+        status[stage] = f"incomplete (rc {rc}, flat_dr {fd}, nompd {nm})"
+        break
+      deltas = [a - b for a, b in zip(nm, fd, strict=True)]
+      mean = sum(deltas) / 2
+      res = dict(decision="report/decisions/2026-11-18-w4-kp-coverage.md", checkpoint=str(ckpt),
+                 flat_dr_falls=dict(zip(("1234", str(SEED2)), fd, strict=True)),
+                 nompd_falls=dict(zip(("1234", str(SEED2)), nm, strict=True)),
+                 delta_per_seed=deltas, mean_delta=mean, threshold=KP_DELTA,
+                 branch="wide" if mean > KP_DELTA else "lab4",
+                 training_pd_ranges=WIDE if mean > KP_DELTA else "Lab 4 (kp x[0.6, 1.1], kd x[0.8, 1.5])")
+      kp_path.write_text(json.dumps(res, indent=2, default=str) + "\n")
+      md = (f"# kp-coverage step 0: {name}\n\nflat_dr falls {fd}, nominal-PD falls {nm} (seeds 1234, {SEED2}); "
+            f"delta {deltas}, mean {mean:.1f} vs threshold {KP_DELTA} -> **{res['branch'].upper()}** "
+            f"(training PD ranges: {res['training_pd_ranges']}). Evaluation stays on the Lab 4 ranges.\n")
+      kp_path.with_suffix(".md").write_text(md)
+      say(md)
+      status[stage] = 0
+    elif stage == "smoke-wide":
+      if branch() != "wide" and not DRY:
+        status[stage] = "skipped (KEEP branch)"
+        continue
+      it_b, it_c = (int(x) for x in args.smoke_iterations.split(","))
+      if not (0 < it_b <= SMOKE_LEG and 0 < it_c <= SMOKE_LEG):
+        status[stage] = "bad --smoke-iterations"
+        break
+      sb, sc = f"{name}-bumpyft-kpwide-smoke", f"{name}-flatctrl-kpwide-smoke"
+      jobs = [(finetune_cmd(sb, ckpt, False, it_b, True), logs / f"train-{sb}.log"),
+              (finetune_cmd(sc, ckpt, True, it_c, True), logs / f"train-{sc}.log")]
+      jobs = [j for j, d in zip(jobs, (RUNS / f"rp-{sb}", RUNS / f"rp-{sc}"), strict=True) if not run_ok(d)]
+      rc = run_parallel(jobs) if jobs else 0
+      fb = latest_model(RUNS / f"rp-{sb}")
+      if fb is not None:
+        rc |= nompd(fb, eval_name(sb, fb))
+        e = export(fb, eval_name(sb, fb), RUNS / f"rp-{sb}", None)
+        rc |= 0 if e == "skip" else e
+      if DRY:
+        status[stage] = "dry run"
+        continue
+      res = smoke_checks(RUNS / f"rp-{sb}", RUNS / f"rp-{sc}", eval_name(sb, fb) if fb else None, it_b, it_c)
+      out = EVAL_ROOT / f"{name}_kpwide_smoke.json"
+      out.write_text(json.dumps(res, indent=2, default=str) + "\n")
+      lines = [f"# WIDEN smoke checks: {name} -- **{res['verdict']}**", "",
+               "Decision [2026-11-18-w4-kp-coverage](../../decisions/2026-11-18-w4-kp-coverage.md), smoke items 1-5.", "",
+               "| check | ok | detail |", "|---|---|---|"]
+      lines += [f"| {c['name']} | {'yes' if c['ok'] else '**NO**'} | {c['detail']} |" for c in res["checks"]]
+      out.with_suffix(".md").write_text("\n".join(lines) + "\n")
+      say("\n".join(lines))
+      status[stage] = 0 if (rc == 0 and res["verdict"] == "PASS") else f"FAIL (rc {rc})"
+      if status[stage] != 0:
+        say(f"stage {stage}: {status[stage]} -- stopping before the full WIDEN run")
+        break
+    elif stage == "train":
+      base = point_metrics(name)
+      gates_md = EVAL_ROOT / f"{name}{btag}_gates.md"
+      glines = [f"# Training gates: {name}{btag} (legs of {leg_iters} iterations, both arms together)", "",
+                f"+0 = `{ckpt}`: flat_dr {base['flat_dr']}, bumpy_dr {base['bumpy_dr']}, nompd {base['nompd']}", ""]
+      k, target_legs, rc, stopped = 0, planned_legs, 0, None
+      while k < target_legs:
+        k += 1
+        jobs = []
+        for arm, flat in ((ft, False), (ctrl, True)):
+          if leg_final(arm, k) is not None and not DRY:
+            continue  # leg already trained
+          start = ckpt if k == 1 else leg_final(arm, k - 1)
+          jobs.append((finetune_cmd(arm, start, flat, leg_iters, args.smoke_finetune, f"{arm}-leg{k}"),
+                       logs / f"train-{arm}-leg{k}.log"))
+        rc |= run_parallel(jobs) if jobs else 0
+        pts = {arm: point(arm, k) for arm in (ft, ctrl)}
+        if None in pts.values():
+          stopped = f"leg {k} produced no checkpoint for {[a for a, v in pts.items() if v is None]}"
+          break
+        last_leg = k >= planned_legs
+        for arm in (ft, ctrl):  # identical evaluation of both arms: matched at every leg
+          n, c = pts[arm]
+          rc |= evaluate(c, n, light=not last_leg)
+          rc |= nompd(c, n)
+        nb = pts[ft][0]
+        invalid = []
+        audit = leg_dir(ft, k) / "physics_overflow_audit.json"
+        if audit.exists() and not json.loads(audit.read_text()).get("zero_overflow", False):
+          invalid.append(f"training physics overflow in {audit}")
+        for arm in (ft, ctrl):
+          log = leg_dir(arm, k).with_name(leg_dir(arm, k).name + ".log")
+          if log.exists() and re.search(r":\s*nan\b", log.read_text(errors="ignore"), re.I):
+            invalid.append(f"NaN in {log}")
+          if not DRY and not overflow_ok(pts[arm][0]):
+            invalid.append(f"eval physics overflow in {pts[arm][0]}")
+        mb = point_metrics(nb)
+        mc = point_metrics(pts[ctrl][0])
+        g = gate_after_leg(k, base, mb, invalid)
+        glines.append(f"- leg {k} (+{k * LEG if not args.smoke_finetune else leg_iters}): bumpy arm {mb}, "
+                      f"control {mc} -> **{g['action']}** {g['reasons']}")
+        if g["action"] == "stop" and not DRY:
+          stopped = "; ".join(g["reasons"])
+          break
+        if last_leg and k == target_legs and k >= 2 and not args.smoke_finetune:
+          due, why = extension_due(base, point_metrics(point(ft, k - 1)[0]), mb, k * LEG)
+          glines.append(f"  - extension rule (both arms or neither): {why} -> {'EXTEND +500' if due else 'no'}")
+          if due:
+            target_legs += 1
+      glines.append("")
+      glines.append(f"Stopped: {stopped}" if stopped else f"Finished {k} legs ({k * leg_iters} iterations per arm).")
+      if not DRY:
+        gates_md.write_text("\n".join(glines) + "\n")
+      say("\n".join(glines))
+      status[stage] = f"STOPPED: {stopped}" if stopped else rc
+      if stopped:
+        break
+    elif stage == "select":
+      n_legs = legs_done(ft)
+      keys = [f"+{k * leg_iters}" for k in range(1, n_legs + 1)]
+      if not keys:
+        status[stage] = "no fine-tune legs"
+        continue
+      pts = {f"+{k * leg_iters}": {arm: point(arm, k) for arm in (ft, ctrl)} for k in range(1, n_legs + 1)}
+      ev1 = {key: point_metrics(pts[key][ft][0]) for key in keys}
+      res = matched_selection(keys, ev1, lambda key, pts=pts, ft=ft: eval_seed2(*pts[key][ft]))
+      key = res["selected"]
+      sel, mctrl = pts[key][ft], pts[key][ctrl]
+      out = dict(res, selected_key=key, selected=str(sel[1]), selected_eval=sel[0],
+                 matched_control=str(mctrl[1]) if mctrl else None, matched_control_eval=mctrl[0] if mctrl else None,
+                 base=name, base_metrics=point_metrics(name),
+                 points={k2: {arm: dict(eval=v[0], ckpt=str(v[1]), **point_metrics(v[0])) for arm, v in pv.items() if v}
+                         for k2, pv in pts.items()})
+      if not DRY:
+        sel_path.write_text(json.dumps(out, indent=2, default=str) + "\n")
+      lines = [f"# Part 3 checkpoint selection: {name}{btag}", "",
+               "Matched selection per the [budget decision](../../decisions/2026-11-18-w4-finetune-budget.md) as amended by "
+               "its [devil's-advocate review](../../decisions/2026-11-18-w4-finetune-budget/devils-advocate.md): a fallback "
+               f"must replicate on eval seeds 1234 and {SEED2}; the control is compared at the same iteration.", "",
+               f"Selected: **{key}** `{sel[1]}`; matched control `{mctrl[1] if mctrl else None}`.", ""]
+      lines += [f"- {x}" for x in res["notes"]]
+      lines += ["", "| point | arm | flat_dr | bumpy_dr | nompd | flat_dr seam |", "|---|---|---|---|---|---|"]
+      b0 = point_metrics(name)
+      lines.append(f"| +0 | parent | {b0['flat_dr']} | {b0['bumpy_dr']} | {b0['nompd']} | {b0['seam_flat']} |")
+      for k2, pv in pts.items():
+        for arm, v in pv.items():
+          if v:
+            mm = point_metrics(v[0])
+            lines.append(f"| {k2} | {'bumpy' if arm == ft else 'flat control'} | {mm['flat_dr']} | {mm['bumpy_dr']} | "
+                         f"{mm['nompd']} | {mm['seam_flat']} |")
+      if not DRY:
+        sel_path.with_suffix(".md").write_text("\n".join(lines) + "\n")
+      say("\n".join(lines))
+      status[stage] = 0
+    elif stage in ("confirm", "hold", "export-ft"):
       if not sel_path.exists():
-        status[stage] = "no selection (run the select stage)"
+        status[stage] = "no selection (run the select stage)" + (" [dry run]" if DRY else "")
         continue
       sel = json.loads(sel_path.read_text())
-      if not sel.get("selected"):
-        status[stage] = f"selection {sel.get('verdict')}"
-        continue
-      m = Path(sel["selected"])
+      m, n1 = Path(sel["selected"]), sel["selected_eval"]
       if stage == "confirm":
-        n1, n2 = eval_name(ft_name, m), eval_name(ft_name, m) + f"-seed{args.confirm_seed}"
-        rc = evaluate(m, n2, light=True, seed=args.confirm_seed)
-        rc |= nompd(m, n1, args.confirm_seed)  # kp-coverage decision: nompd on the selected checkpoint, seed 4321
-        # Seam close-call rule: judge flat_dr / bumpy_dr on the pooled windows of both eval seeds.
-        raw = RUNS / "p3-raw"
-        for cond in ("flat_dr", "bumpy_dr"):
-          metas = [raw / f"{x}-{cond}_seam_meta.json" for x in (n1, n2)]
+        rc = evaluate(m, f"{n1}-seed{SEED2}", light=True, seed=SEED2)
+        rc |= nompd(m, n1, SEED2)
+        for cond in ("flat_dr", "bumpy_dr"):  # seam close-call rule: pooled windows of both eval seeds
+          metas = [RUNS / "p3-raw" / f"{x}-{cond}_seam_meta.json" for x in (n1, f"{n1}-seed{SEED2}")]
           if all(mm.exists() for mm in metas):
             rc |= run([*PY, "-m", "mjlab.scripts.part3_seam", "pool", *metas, "--name", f"{n1}-{cond}-pooled",
-                       "--out-dir", MJLAB_ROOT / "report/part3/eval" / n1], 99, logs / "pool.log", gpu=False)
+                       "--out-dir", EVAL_ROOT / n1], logs / "pool.log", gpu=False)
         status[stage] = rc
+      elif stage == "hold":
+        res = deploy_hold(name, n1, SEED2, branch() or "lab4", sel.get("matched_control_eval"))
+        hp = EVAL_ROOT / f"{name}{btag}_deploy_hold.json"
+        hp.write_text(json.dumps(res, indent=2, default=str) + "\n")
+        md = (f"# Deployment hold check: {name}{btag}\n\nDecision [2026-11-18-w4-kp-coverage](../../decisions/2026-11-18-w4-kp-coverage.md). "
+              f"Selected `{m}`; matched control `{sel.get('matched_control')}`. Verdict: **{res['verdict']}**.\n\n"
+              + "\n".join(f"- {r}" for r in res["lines"]) + "\n")
+        hp.with_suffix(".md").write_text(md)
+        say(md)
+        status[stage] = 0 if res["verdict"] in ("CLEAR", "INCOMPLETE") else res["verdict"]
+        if res["verdict"] == "HOLD" and (branch() or "lab4") == "lab4" and not args.no_escalate:
+          say("HOLD in the KEEP branch: launching the pre-authorized WIDEN pair")
+          cmd = [*PY, str(Path(__file__).resolve()), "--checkpoint", str(ckpt), "--reference-dir", str(ref), "--name", name,
+                 "--pd-ranges", "wide", "--smoke-iterations", args.smoke_iterations,
+                 "--finetune-iterations", str(args.finetune_iterations),
+                 "--stages", "smoke-wide", "train", "select", "confirm", "hold", "export-ft", "table"]
+          cmd += ["--upload-wandb"] if args.upload_wandb else []
+          status["escalation"] = run(cmd, logs / "escalation-wide.log", gpu=False)
+        elif res["verdict"] == "HOLD":
+          say("HOLD in the WIDEN branch: stop; re-decision with the human")
       else:
-        status[stage] = export(m, eval_name(ft_name, m), ft_dir, wandb_run_path(ft_dir))
+        status[stage] = export(m, n1, m.parent, wandb_run_path(m.parent))
     elif stage == "table":
-      root = MJLAB_ROOT / "report/part3/eval"
-      dirs = [root / name] + [root / n for n, _ in ft_points().values()]
-      cfinal = latest_model(ctrl_dir)
-      if cfinal is not None:
-        dirs.append(root / eval_name(ctrl_name, cfinal))
-      dirs += sorted(root.glob(f"{ft_name}-it*-seed*"))
+      dirs = [EVAL_ROOT / name]
+      for k in range(1, legs_done(ft) + 1):
+        for arm in (ft, ctrl):
+          pt = point(arm, k)
+          if pt:
+            dirs.append(EVAL_ROOT / pt[0])
+      dirs += sorted(EVAL_ROOT.glob(f"{ft}-leg*-it*-seed*"))
       dirs = [d for d in dirs if d.exists()]
       status[stage] = run([*PY, "-m", "mjlab.scripts.part3_eval", "table", *dirs, "--out",
-                           root / f"{name}{btag}_summary.md"], 99, logs / "table.log", gpu=False)
-    print(f"[part3_run] stage {stage}: {status[stage]} ({time.time() - t0:.0f}s)", flush=True)
+                           EVAL_ROOT / f"{name}{btag}_summary.md"], logs / "table.log", gpu=False) if dirs else "no evals"
+    say(f"stage {stage}: {status[stage]} ({time.time() - t0:.0f}s)")
   print(json.dumps(status, indent=1, default=str))
-  return 0 if all(v in (0, "skip") or str(v).startswith("skipped") for v in status.values()) else 1
+  return 0 if all(v in (0, "skip") or str(v).startswith(("skipped", "dry run")) for v in status.values()) else 1
 
 
 if __name__ == "__main__":

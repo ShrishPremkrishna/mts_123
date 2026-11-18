@@ -111,7 +111,13 @@ def main() -> int:
     "--num-envs", str(args.num_envs), "--seed", str(args.seed), *extra,
   ]
   print("[part3_finetune] " + " ".join(cmd), flush=True)
-  return subprocess.call(cmd, cwd=MJLAB_ROOT)
+  if args.dry_run:
+    return subprocess.call(cmd, cwd=MJLAB_ROOT)
+  # Check + launch as one step under the lock W3's part2_queue.py uses (cap from ~/recovery/CONCURRENCY).
+  sys.path.insert(0, str(Path(__file__).resolve().parent))
+  import gpu_slot
+
+  return gpu_slot.run(cmd, cwd=MJLAB_ROOT, log=lambda m: print(m, flush=True))
 
 
 if __name__ == "__main__":

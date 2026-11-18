@@ -49,7 +49,8 @@ All under `pupper-mjlab/`, run with `uv run --no-sync python ...`, `MUJOCO_GL=eg
 | `scripts/opt_lab_2/part3_finetune.py` | Launches the Bumpy + Lab 4 DR fine-tune, or the matched flat control (`--flat-control`), through `launch.py`. | Config checks + 50-iteration smoke (section 3). |
 | `scripts/opt_lab_2/launch.py --checked-bumpy` | New launcher option: trains through `foundation/scripts/bumpy_checked_cli.py`. | Smoke run: `physics_overflow_audit.json` zero. |
 | `src/mjlab/scripts/part3_export.py` | Exports `policy.json` + the C++ golden fixture. Round-trips actions on recorded observations (torch / JSON / run auto-export / ONNX / W&B copy) and audits limits. Runs the deploy repo's validator and C++ gait-reference test. `--upload-wandb` uploads only on PASS and verifies the read-back. | 8 unit tests (`tests/test_part3_export.py`). Parent and smoke checkpoints PASS (section 5). |
-| `scripts/opt_lab_2/part3_run.py` | The runbook. Runs every stage in order, one GPU process at a time, waits while the GPU has ≥ 4 processes, and skips finished stages. | The parent dry run *is* this script (two passes). |
+| `scripts/opt_lab_2/part3_run.py` | The runbook. It runs every stage in order and skips finished work. The two training arms run together in gated 500-iteration legs; evaluations run one at a time. `--dry-run` prints the plan. | The parent dry run *is* this script. The amended leg/gate/selection logic has 6 unit tests (`tests/test_part3_run.py`) and a `--dry-run`. |
+| `scripts/opt_lab_2/gpu_slot.py` | Atomic GPU slot: W3's `launch.lock` flock + the cap from `~/recovery/CONCURRENCY`, held until the process registers. | Unit tests for the cap and for lock blocking. |
 
 ### 2.1 The seam test (`part3_seam`)
 
@@ -99,17 +100,36 @@ must be stated but don't gate. The step sweep is reported, not judged: it is a 0
 `configs/opt-lab-2/weights/splay_stand_still.json` (the Part 2 weights), `--num-envs 4096`, seed 42, standard physics
 flags, pushed-input checks, and the reference/weights logged to W&B by `launch.py`.
 
-**Budget** [D]: **1500 iterations** ([decision](decisions/2026-11-18-w4-finetune-budget.md), 2/2 graders).
-- Evaluate at +500, +1000 and the end. Ship the end unless a pre-registered guard fires:
-  - overflow or NaN invalidates the run;
-  - fall back to +1000 if the end is worse than +1000 by more than 10 falls on flat_dr or bumpy_dr, or the flat_dr
-    seam verdict flips to FAIL;
-  - extend by +500 (cap +3000) only if bumpy_dr is still improving by more than 10 falls while flat_dr holds.
-- Both graders flagged the missing **control arm** (REPRO_PLAN §3). The runbook therefore also trains the matched
-  **flat continuation** (same warm start, weights, seed and 1500 iterations; `--flat-control`), so a robustness gain
-  can be credited to Bumpy + DR rather than to training longer.
-- Cost: about 2 × 1500 iterations at the shared ~1.25 it/s, i.e. ~40 GPU-minutes of the pie (1.5–2 h wall clock while
-  W3 trains), plus ~1 h of evals.
+**Budget** [D]: **1500 iterations per arm** ([decision](decisions/2026-11-18-w4-finetune-budget.md), 2/2 graders).
+Its [devil's-advocate review](decisions/2026-11-18-w4-finetune-budget/devils-advocate.md) found it "stands with caveat":
+the 1500 holds, but the guards broke iteration matching and the stop-early guard could not fire early. The runbook was
+**amended (2026-11-18)** as follows:
+- **Both arms train together, in 500-iteration legs.** The Bumpy fine-tune and its matched **flat-continuation control**
+  (same warm start, weights, seed and PD ranges; `--flat-control`) run as two concurrent processes. Each leg warm-starts
+  from the arm's previous leg. 3 legs = 1500.
+  - Caveat: each leg boundary re-initializes the episode buffers, a transient of ~20 iterations. The Part 2 legs
+    have the same caveat.
+- **Gate between legs.** After every leg, both arms' checkpoints get the *same* evaluation: flat_dr + bumpy_dr suite +
+  seam plus the nominal-PD suite, and the full matrix + push from leg 3 on.
+  - Overflow or NaN stops training.
+  - The **+500 G2 rule** (flat_dr ≥ 2× the +0 value and bumpy_dr no better) now **stops before leg 2** instead of
+    being a flag after the fact.
+- **Matched selection.** Ship the last leg unless it regresses vs the previous leg (> 10 falls on flat_dr, bumpy_dr or
+  nompd, or the flat_dr seam flipping PASS → FAIL) on seed 1234 **and the same regression replicates on seed 4321**.
+  The seed-4321 evals are run on demand. The control is always compared at the **same** leg.
+- **Extension in lockstep:**
+  - both arms get one more leg (cap +3000) if bumpy_dr is still dropping by more than 10 falls over the last leg and
+    flat_dr stays within 10 of +0;
+  - otherwise neither arm extends;
+  - the old Bumpy-only "+500 as a new run" is removed.
+- Not implemented: G1's "ship the Part 2 parent if no gain at +500 and +1000" stop rule (the review notes only G2's
+  flag was implemented). The +0 row in the gates/selection tables makes it visible to a human.
+- **Cost (corrected, measured):**
+  - ~3 h of training (2 arms × 1500 iterations at 4-way sharing, ~3.4–3.9 s/iter);
+  - ~50 min of pre-stages;
+  - ~45–75 min of gate/selection evals.
+
+  That is **about 4.5–5 h end to end** (~2.5 h on an otherwise idle GPU). A KEEP → HOLD → WIDEN escalation adds ~4 h.
 
 **Smoke** [M] (`rp-p3-parent-bumpyft-smoke`, W&B `c3rfre1p`, 50 iterations from the Part 1 parent, model_2999 → model_3048):
 - Ran end to end through `launch.py --checked-bumpy`, with physics overflow 0.
@@ -134,10 +154,11 @@ flags, pushed-input checks, and the reference/weights logged to W&B by `launch.p
 
 ```bash
 cd pupper-mjlab && export MUJOCO_GL=egl PYOPENGL_PLATFORM=egl
-uv run --no-sync python scripts/opt_lab_2/part3_finetune.py --checkpoint <FINAL.pt> \
-    --reference-dir <FINAL_REF_DIR> --name p3-final-bumpyft            # 1500 it, Bumpy, Lab 4 DR, 4096 envs, s42
-uv run --no-sync python scripts/opt_lab_2/part3_finetune.py --checkpoint <FINAL.pt> \
-    --reference-dir <FINAL_REF_DIR> --name p3-final-flatctrl --flat-control   # matched control arm
+# one leg of each arm (the runbook runs 3 such pairs, gating between them; legs 2-3 start from the previous leg's last model)
+uv run --no-sync python scripts/opt_lab_2/part3_finetune.py --checkpoint <FINAL.pt> --reference-dir <FINAL_REF_DIR> \
+    --name p3-final-bumpyft-leg1 --iterations 500 [--pd-ranges wide] &          # Bumpy, 4096 envs, s42
+uv run --no-sync python scripts/opt_lab_2/part3_finetune.py --checkpoint <FINAL.pt> --reference-dir <FINAL_REF_DIR> \
+    --name p3-final-flatctrl-leg1 --iterations 500 [--pd-ranges wide] --flat-control &   # matched control arm
 ```
 
 ## 4. Dry run on the Part 1 parent: **Part 1 parent, NOT the final policy**
@@ -357,23 +378,31 @@ Stages:
    nominal-PD falls on seeds 1234 and 4321. A mean Δ > 15 selects **WIDEN** (both arms train kp ×[0.6, 1.3],
    kd ×[0.7, 1.5]); otherwise **KEEP** the Lab 4 ranges. Output: `p3-final_kp_coverage.md`.
 5. `smoke-wide` (WIDEN only): a ≤ 50-iteration smoke per arm plus the decision's checks. A failure stops the runbook.
-6. `finetune`: 1500 iterations on Bumpy, PD-gain DR per the branch.
-7. `control`: the matched 1500-iteration flat continuation, with the same PD ranges.
-8. `eval-ft`: +500/+1000 light, end full, control full, plus nompd (seed 1234) at every point.
-9. `select`: the guards, including the nompd fallback → `report/part3/eval/p3-final[-kpwide]_selection.md`.
-10. `confirm`: second eval seed (with nompd) and the pooled seam verdict.
-11. `hold`: the kp decision's deployment HOLD → `p3-final[-kpwide]_deploy_hold.md`.
-    - A HOLD in KEEP launches the pre-authorized WIDEN pair by itself (`--no-escalate` to stop).
-    - A HOLD in WIDEN stops for a human.
-12. `export-ft`: the selected checkpoint.
-13. `table` → `report/part3/eval/p3-final[-kpwide]_summary.md`.
+6. `train`: the Bumpy arm and the matched flat control **together**, in 500-iteration legs (3 = 1500), PD ranges per
+   the branch. Between legs:
+   - both arms are evaluated identically (light + nompd; full + push from leg 3);
+   - the gate stops on overflow/NaN or G2 at +500;
+   - after leg 3 the lockstep extension rule may add a leg to **both** arms (cap +3000).
 
-It waits whenever the GPU has ≥ 4 processes and runs one GPU process at a time. Expect ~1 h of evals plus ~40 GPU-minutes
-of training, i.e. 2.5–3.5 h of wall clock while sharing. Re-running skips finished stages.
+   Output: `p3-final[-kpwide]_gates.md`.
+7. `select`: matched selection. A fallback must replicate on eval seeds 1234 **and** 4321. Output:
+   `report/part3/eval/p3-final[-kpwide]_selection.md`.
+8. `confirm`: second eval seed (with nompd) and the pooled seam verdict.
+9. `hold`: the kp decision's deployment HOLD, using the matched control → `p3-final[-kpwide]_deploy_hold.md`.
+   - A HOLD in KEEP launches the pre-authorized WIDEN pair by itself (`--no-escalate` to stop).
+   - A HOLD in WIDEN stops for a human.
+10. `export-ft`: the selected checkpoint.
+11. `table` → `report/part3/eval/p3-final[-kpwide]_summary.md`.
+
+**GPU discipline.** Every launch goes through `scripts/opt_lab_2/gpu_slot.py`. It takes the **same `flock` as W3's
+`part2_queue.py`** (`~/runs/opt-lab-2/w3/launch.lock`) and reads the cap from `~/recovery/CONCURRENCY`. It counts the
+processes and launches only below the cap, then keeps the lock until the new process appears in `nvidia-smi` (≤ 150 s),
+so check + launch are one step. `part3_finetune.py` uses it too when run standalone. W4 runs at most two GPU processes
+(the two arms) and evaluations one at a time.
+
+**Expect about 4.5–5 h end to end** while sharing the GPU (~2.5 h if it is idle). Re-running skips finished legs and
+stages, and `--dry-run` prints the whole plan without launching anything.
 - Add `--upload-wandb` only once a human wants the verified `policy.json` on W&B for `deploy.sh`.
-- Add `--no-control` only if GPU time forces it, and then state the confound.
-- If `select` flags "extension rule met", continue +500 from the final fine-tune checkpoint with `part3_finetune.py
-  --checkpoint <ft final> --iterations 500`. That is a new run; record it.
 
 Afterwards: commit `report/part3/` and update sections 4–5 with the final numbers, labelled final. Keep this parent
 section as the dry run.
