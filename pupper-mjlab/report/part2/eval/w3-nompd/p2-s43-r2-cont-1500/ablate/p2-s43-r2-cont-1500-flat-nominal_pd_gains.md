@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | falls | rev | stop | steady | turn | falls<2s_reset | err+1.5 | err-1.5 | vx+1.5 | vx-1.5 | jitter | sat | sat@1.5 | F_runmax_med_BW | F_p999_BW | F_p99_BW | F_peak_BW(flag) | drift+ | drift- | splay+ | splay- | slip | top+ | top- | tau2 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p2-s43-r2-cont-1500-flat-nominal_pd_gains | 4096 | 43 | 4496 | rp-p2-s43-r2/model_3997 | 500 | r2-lag@f25be1e4 | ok | 44 | 9 | 34 | 1 | 0 | 0 | 0.117 | 0.191 | 1.59 | -1.67 | 0.18 | 0.0815 | 0.205 | 3.46 | 2.99 | 2.01 | 9.2 | 21.5 | 51.3 | 0.0382 | 0.0852 | 0.437 | 1.71 | -1.84 | 1.65 |

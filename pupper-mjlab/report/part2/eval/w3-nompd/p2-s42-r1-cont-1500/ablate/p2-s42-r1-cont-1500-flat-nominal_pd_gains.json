@@ -1,0 +1,975 @@
+{
+  "name": "p2-s42-r1-cont-1500-flat-nominal_pd_gains",
+  "kind": "suite",
+  "metrics": {
+    "robot_runs": 384,
+    "falls_total": 49,
+    "timeouts_total": 0,
+    "falls_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 44,
+      "reversal": 5
+    },
+    "falls_by_schedule": {
+      "stand": 0,
+      "ramp_fwd": 0,
+      "ramp_back": 0,
+      "steady_fwd": 0,
+      "steady_back": 0,
+      "reversal_fwd_first": 2,
+      "reversal_back_first": 3,
+      "stops_fwd": 23,
+      "stops_back": 8,
+      "turn_in_place": 0,
+      "walk_and_turn": 0,
+      "sidestep": 0,
+      "slow_walk": 0,
+      "gait_seam": 0,
+      "reversal_moderate": 0,
+      "mixed": 13
+    },
+    "falls_soon_after_reset": 0,
+    "falls_soon_after_reset_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 0,
+      "reversal": 0
+    },
+    "falls_detail": [
+      {
+        "schedule": "stops_back",
+        "env": 202,
+        "time_s": 5.26,
+        "episode_age_s": 5.26,
+        "since_command_change_s": 0.26,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 197,
+        "time_s": 5.42,
+        "episode_age_s": 5.42,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 194,
+        "time_s": 5.44,
+        "episode_age_s": 5.44,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 184,
+        "time_s": 5.5,
+        "episode_age_s": 5.5,
+        "since_command_change_s": 0.5,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 174,
+        "time_s": 5.54,
+        "episode_age_s": 5.54,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 178,
+        "time_s": 5.58,
+        "episode_age_s": 5.58,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 176,
+        "time_s": 5.6,
+        "episode_age_s": 5.6,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 190,
+        "time_s": 5.6,
+        "episode_age_s": 5.6,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 183,
+        "time_s": 5.64,
+        "episode_age_s": 5.64,
+        "since_command_change_s": 0.64,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 172,
+        "time_s": 5.8,
+        "episode_age_s": 5.8,
+        "since_command_change_s": 0.8,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 371,
+        "time_s": 5.84,
+        "episode_age_s": 5.84,
+        "since_command_change_s": 0.34,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 367,
+        "time_s": 5.94,
+        "episode_age_s": 5.94,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 372,
+        "time_s": 5.98,
+        "episode_age_s": 5.98,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 375,
+        "time_s": 5.98,
+        "episode_age_s": 5.98,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 373,
+        "time_s": 6.02,
+        "episode_age_s": 6.02,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 378,
+        "time_s": 6.02,
+        "episode_age_s": 6.02,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 379,
+        "time_s": 6.04,
+        "episode_age_s": 6.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 186,
+        "time_s": 6.06,
+        "episode_age_s": 6.06,
+        "since_command_change_s": 1.06,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 381,
+        "time_s": 6.06,
+        "episode_age_s": 6.06,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 370,
+        "time_s": 6.1,
+        "episode_age_s": 6.1,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 383,
+        "time_s": 6.1,
+        "episode_age_s": 6.1,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 368,
+        "time_s": 6.14,
+        "episode_age_s": 6.14,
+        "since_command_change_s": 0.64,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 365,
+        "time_s": 6.22,
+        "episode_age_s": 6.22,
+        "since_command_change_s": 0.72,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 360,
+        "time_s": 6.32,
+        "episode_age_s": 6.32,
+        "since_command_change_s": 0.82,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 155,
+        "time_s": 7.26,
+        "episode_age_s": 7.26,
+        "since_command_change_s": 0.26,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 159,
+        "time_s": 7.3,
+        "episode_age_s": 7.3,
+        "since_command_change_s": 0.3,
+        "category": "reversal"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 202,
+        "time_s": 10.7,
+        "episode_age_s": 5.42,
+        "since_command_change_s": 0.2,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 173,
+        "time_s": 10.84,
+        "episode_age_s": 10.84,
+        "since_command_change_s": 0.34,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 168,
+        "time_s": 10.96,
+        "episode_age_s": 10.96,
+        "since_command_change_s": 0.46,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 181,
+        "time_s": 10.96,
+        "episode_age_s": 10.96,
+        "since_command_change_s": 0.46,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 170,
+        "time_s": 11.02,
+        "episode_age_s": 11.02,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 191,
+        "time_s": 11.04,
+        "episode_age_s": 11.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 184,
+        "time_s": 11.08,
+        "episode_age_s": 5.56,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 189,
+        "time_s": 11.1,
+        "episode_age_s": 11.1,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 169,
+        "time_s": 11.12,
+        "episode_age_s": 11.12,
+        "since_command_change_s": 0.62,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 11.18,
+        "episode_age_s": 11.18,
+        "since_command_change_s": 0.68,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 172,
+        "time_s": 11.22,
+        "episode_age_s": 5.4,
+        "since_command_change_s": 0.72,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 179,
+        "time_s": 11.24,
+        "episode_age_s": 11.24,
+        "since_command_change_s": 0.74,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 128,
+        "time_s": 11.3,
+        "episode_age_s": 11.3,
+        "since_command_change_s": 0.3,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 145,
+        "time_s": 11.46,
+        "episode_age_s": 11.46,
+        "since_command_change_s": 0.46,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 123,
+        "time_s": 12.1,
+        "episode_age_s": 12.1,
+        "since_command_change_s": 1.1,
+        "category": "reversal"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 195,
+        "time_s": 16.26,
+        "episode_age_s": 16.26,
+        "since_command_change_s": 0.26,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 194,
+        "time_s": 16.28,
+        "episode_age_s": 10.82,
+        "since_command_change_s": 0.28,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 197,
+        "time_s": 16.4,
+        "episode_age_s": 10.96,
+        "since_command_change_s": 0.4,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 198,
+        "time_s": 16.42,
+        "episode_age_s": 16.42,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 178,
+        "time_s": 16.48,
+        "episode_age_s": 10.88,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 190,
+        "time_s": 16.5,
+        "episode_age_s": 10.88,
+        "since_command_change_s": 0.5,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 176,
+        "time_s": 16.54,
+        "episode_age_s": 10.92,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 183,
+        "time_s": 16.82,
+        "episode_age_s": 11.16,
+        "since_command_change_s": 0.82,
+        "category": "stop"
+      }
+    ],
+    "category_robot_runs": {
+      "steady": 384,
+      "turn": 96,
+      "stop": 72,
+      "reversal": 96
+    },
+    "category_robot_seconds": {
+      "steady": 5892.0,
+      "turn": 1068.0,
+      "stop": 336.0,
+      "reversal": 384.0
+    },
+    "category_robot_events": {
+      "reversal": 192,
+      "stop": 168
+    },
+    "steady_samples": {
+      "fwd": 24066,
+      "back": 24120,
+      "stand": 33591,
+      "moving": 103458
+    },
+    "track_err_fwd": 0.13327386966461904,
+    "track_err_back": 0.16323418173330737,
+    "mean_vx_fwd": 1.5994305610656738,
+    "mean_vx_back": -1.6171464920043945,
+    "stand_jitter_rad_s": 0.16126814484596252,
+    "torque_sat_frac": 0.0888876445171389,
+    "torque_sat_frac_fast": 0.22206657535383723,
+    "torque_abs_max_nm": 3.0,
+    "torque_sq_mean": 1.6819062232971191,
+    "foot_force_peak_bw": 12.499435917718346,
+    "foot_force_runmax_median_bw": 3.41069563019936,
+    "foot_force_runmax_robot_runs": 384,
+    "foot_force_p999_bw": 3.0209377831765605,
+    "foot_force_p99_bw": 2.0639078653729035,
+    "foot_force_peak_where": {
+      "schedule": "reversal_fwd_first",
+      "env": 126,
+      "time_s": 8.0,
+      "episode_age_s": 7.999999999999917,
+      "foot": 3,
+      "context": "reversal",
+      "cmd": [
+        -1.5,
+        0.0,
+        0.0
+      ]
+    },
+    "foot_force_peak_bw_incl_reset_drop": 12.499435917718346,
+    "foot_force_p99_bw_incl_reset_drop": 2.038266214875684,
+    "foot_force_stand_mean_bw_per_foot": 0.26291628538014145,
+    "foot_force_stand_total_bw": 1.0516651415205656,
+    "heading_drift_deg_per_10s_fwd": {
+      "mean": 44.92486084837556,
+      "signed_mean": 43.895350633713846,
+      "max": 130.81215864448856,
+      "windows": 119,
+      "windows_ending_in_fall": 0
+    },
+    "heading_drift_deg_per_10s_back": {
+      "mean": 26.25731943950869,
+      "signed_mean": -10.471768524891946,
+      "max": 77.75659830667011,
+      "windows": 120,
+      "windows_ending_in_fall": 0
+    },
+    "hind_splay_rad_fwd": 0.03286996899755923,
+    "hind_splay_rad_back": 0.08901196201956704,
+    "hind_splay_rad_stand": -0.13419802496646496,
+    "slip_m_s": 0.43737203250862555,
+    "slip_m_s_fwd": 0.6706212211086805,
+    "slip_m_s_back": 0.7717435435935504,
+    "top_speed_fwd": 1.717962646484375,
+    "top_speed_back": -1.79402587890625,
+    "top_speed_fwd_median_env": 0.6468480300903321,
+    "top_speed_back_median_env": -0.481259651184082,
+    "mass_kg": {
+      "min": 3.059239149093628,
+      "mean": 3.4517517760396004,
+      "max": 3.8424880504608154
+    },
+    "mass_source": "env.sim.model.body_mass[world, robot.indexing.body_ids] (per-world)",
+    "mass_nominal_kg": 3.1699999999999995,
+    "gravity_m_s2": 9.81,
+    "torque_model": {
+      "effort_limit_nm": 3.0,
+      "saturation_threshold_nm": 2.9699999999999998,
+      "actuator_forcelimited": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "actuator_forcerange": [
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ]
+      ],
+      "jnt_actfrclimited": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "wall_clock_s": 55.424299240112305,
+  "rollout_loop_s": 34.87399506568909,
+  "schedule": {
+    "names": [
+      "stand",
+      "ramp_fwd",
+      "ramp_back",
+      "steady_fwd",
+      "steady_back",
+      "reversal_fwd_first",
+      "reversal_back_first",
+      "stops_fwd",
+      "stops_back",
+      "turn_in_place",
+      "walk_and_turn",
+      "sidestep",
+      "slow_walk",
+      "gait_seam",
+      "reversal_moderate",
+      "mixed"
+    ],
+    "sha256": "ff8df7951f572c5f4eeefd63341fd72ed8f37eaea70f78065ec8b0ffc2710bc2",
+    "steps": 1000,
+    "dt": 0.02,
+    "envs_per_schedule": 24,
+    "context_window_s": 2.0,
+    "steady_after_s": 2.0
+  },
+  "provenance": {
+    "mode": "ablate",
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1500/model_4496.pt",
+    "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+    "name": "p2-s42-r1-cont-1500-flat-nominal_pd_gains",
+    "out_dir": "report/part2/eval/w3-nompd/p2-s42-r1-cont-1500/ablate",
+    "raw_dir": null,
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w3/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "out_root": "report/part2/eval/w3-nompd",
+    "events": [
+      "pd_gains"
+    ],
+    "envs_per_schedule": 24,
+    "skip_existing": true,
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1500/model_4496.pt",
+      "iter": 4496,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 42,
+      "train_seed_source": "provenance.json",
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+      "parent_source": "provenance.json",
+      "parent_iter": 3997,
+      "parent_iter_source": "parent checkpoint['iter']",
+      "iters_past_parent": 500,
+      "iters_past_parent_source": "iter - parent_iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 500,
+      "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+      "reference_check": "ok"
+    },
+    "part3_condition": {
+      "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+      "dr": true,
+      "lab4_dr": {
+        "contract": "part3_lab4_dr_v1",
+        "source": "lab4_runs/shrish_stablegait/training-settings.json",
+        "ranges": {
+          "kp_range": [
+            0.6,
+            1.1
+          ],
+          "kd_range": [
+            0.8,
+            1.5
+          ],
+          "foot_friction": [
+            0.6,
+            1.4
+          ]
+        },
+        "other_dr_events": [
+          "base_com",
+          "encoder_bias",
+          "inertial"
+        ]
+      },
+      "removed_dr_events": [
+        "pd_gains"
+      ],
+      "terrain": "flat"
+    },
+    "num_envs": 384,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "0b78018bf8927f5b76bc7e9cc222f38dcdaf2c05b9ec8058348c031d5e1ea731",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w3/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "c489cc04f3c1da8177ba0ddb7a8cf4a30a4cd781",
+    "source_sha256": "fdef2280580c9748de200f4d3920d44ef084154bb3b0aa661793c12af79ad371",
+    "source_files_hashed": 269,
+    "checkpoint_sha256": "0b78018bf8927f5b76bc7e9cc222f38dcdaf2c05b9ec8058348c031d5e1ea731",
+    "references": {
+      "fold_summary.json": "13c801ff4138bb8c11a009b5b2ee14cf6cf5c4a0767576a4668819e6d28fa377",
+      "captured_reach_gaits.npz": "153acbcd0112cc1172d7eb703f274b9d483a995533bd756b29c1f39d51521437",
+      "reference_manifest.json": "dd6aea36d92f1b69b4fa33fe904104c30010a7d3925039679c2d22960073511a",
+      "capture.json": "32640dea3d866def27569fbc4331db8d937576f547e59597e2d9e426ede3b182",
+      "foldcheck.json": "6d47f62b53d8c1881beec6c32f1da3ca4791fc22ee84624f24d2e5bcf7e2116f"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "153acbcd0112cc1172d7eb703f274b9d483a995533bd756b29c1f39d51521437",
+      "reference_manifest.json": "dd6aea36d92f1b69b4fa33fe904104c30010a7d3925039679c2d22960073511a"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+  },
+  "part3_condition": {
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "dr": true,
+    "lab4_dr": {
+      "contract": "part3_lab4_dr_v1",
+      "source": "lab4_runs/shrish_stablegait/training-settings.json",
+      "ranges": {
+        "kp_range": [
+          0.6,
+          1.1
+        ],
+        "kd_range": [
+          0.8,
+          1.5
+        ],
+        "foot_friction": [
+          0.6,
+          1.4
+        ]
+      },
+      "other_dr_events": [
+        "base_com",
+        "encoder_bias",
+        "inertial"
+      ]
+    },
+    "removed_dr_events": [
+      "pd_gains"
+    ],
+    "terrain": "flat"
+  }
+}
