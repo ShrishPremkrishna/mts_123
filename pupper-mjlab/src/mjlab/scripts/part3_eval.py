@@ -110,6 +110,33 @@ def run(args):
   print(json.dumps(dict(name=args.name, seconds=done), indent=1))
 
 
+ABLATE_EVENTS = ("pd_gains", "inertial", "foot_friction", "encoder_bias", "base_com")
+
+
+def ablate(args):
+  """Flat suite with one DR event at a time set to nominal (diagnostic for DR on vs off)."""
+  from mjlab.scripts import part2_eval
+  from mjlab.scripts.part3_common import FLAT_TASK, rollout_conditions
+
+  out = Path(args.out_root) / args.name / "ablate"
+  out.mkdir(parents=True, exist_ok=True)
+  rows = []
+  for ev in args.events:
+    a = copy.copy(args)
+    a.task, a.name, a.out_dir = FLAT_TASK, f"{args.name}-flat-nominal_{ev}", out
+    if not (args.skip_existing and (out / f"{a.name}.json").exists()):
+      with rollout_conditions(a, dr=True, remove_events=(ev,)) as rec:
+        part2_eval.run_suite(a)
+      _stamp(out / f"{a.name}.json", rec)
+    m = json.loads((out / f"{a.name}.json").read_text())["metrics"]
+    rows.append([ev] + [_f(fn(m)) for _, fn in SUMMARY_SUITE])
+  head = ["nominal event (others randomized)"] + [h for h, _ in SUMMARY_SUITE]
+  text = "\n".join(["| " + " | ".join(head) + " |", "|" + "---|" * len(head)] +
+                   ["| " + " | ".join(r) + " |" for r in rows]) + "\n"
+  (out / "ablate.md").write_text(text)
+  print(text)
+
+
 def _stamp(path, rec):
   """Record the Part 3 condition (terrain contract, DR, overflow) in the output JSON."""
   payload = json.loads(path.read_text())
@@ -183,6 +210,12 @@ def main():
   r.add_argument("--seam-envs-per-schedule", type=int, default=64, help="seam (16 schedules; 64 -> 1024 envs)")
   r.add_argument("--push-envs", type=int, default=part2_eval.PUSH_ENVS_DEFAULT)
   r.add_argument("--skip-existing", action="store_true")
+  ab = sub.add_parser("ablate", help="Flat suite with one DR event at a time at nominal")
+  part2_eval._add_rollout_args(ab)
+  ab.add_argument("--out-root", type=Path, default=DEFAULT_OUT_ROOT)
+  ab.add_argument("--events", nargs="+", default=list(ABLATE_EVENTS))
+  ab.add_argument("--envs-per-schedule", type=int, default=24)
+  ab.add_argument("--skip-existing", action="store_true")
   t = sub.add_parser("table")
   t.add_argument("dirs", nargs="+", type=Path)
   t.add_argument("--out", type=Path)
@@ -191,6 +224,9 @@ def main():
     table(args.dirs, args.out)
     return
   part2_eval._prepare(args, p.error)
+  if args.mode == "ablate":
+    ablate(args)
+    return
   run(args)
 
 

@@ -707,7 +707,7 @@ def run_video(args):
   viewer = dict(width=args.width, height=args.height, max_extra_envs=0, env_idx=0, distance=1.2, elevation=-15.0,
                 azimuth=135.0)
   with rollout_conditions(args, dr=args.dr, checked_bumpy=True, audit_path=out_dir / f"{args.name}_video_overflow.json",
-                          render=True, viewer=viewer) as cond:
+                          render=True, viewer=viewer, terrain_patches=(2, 2)) as cond:
     roll = part2_eval._Rollout(args, 1, T)
     falls = []
     try:

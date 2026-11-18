@@ -132,6 +132,8 @@ def rollout_conditions(
   torso_sensor: bool = False,
   render: bool = False,
   viewer: dict | None = None,
+  remove_events: tuple[str, ...] = (),
+  terrain_patches: tuple[int, int] | None = None,
 ):
   """Patch the Part 2 rollout's config/env construction for one Part 3 condition.
 
@@ -154,6 +156,13 @@ def rollout_conditions(
       from mjlab.tasks.pupper.torso_support import nominal_mechanics
 
       record["nominal_mechanics"] = nominal_mechanics(cfg)
+    if remove_events:  # diagnostic ablation: nominal value for these DR events only
+      missing = [e for e in remove_events if e not in cfg.events]
+      if missing:
+        raise ValueError(f"cannot remove absent events {missing}")
+      for e in remove_events:
+        cfg.events.pop(e)
+      record["removed_dr_events"] = list(remove_events)
     terrain = cfg.scene.terrain
     bumpy = terrain is not None and terrain.terrain_type == "generator"
     record["terrain"] = "bumpy" if bumpy else "flat"
@@ -163,6 +172,13 @@ def rollout_conditions(
       record["heightfield"] = apply_perlin_resolution(cfg, CHECKED_BUMPY_RESOLUTION_M)
     elif bumpy:
       record["heightfield"] = "UNCHECKED stock 0.05 m grid (diagnostic only)"
+    if bumpy and terrain_patches:  # videos: fewer patches render much faster, same bump distribution
+      import copy as _copy
+
+      gen = _copy.deepcopy(terrain.terrain_generator)
+      gen.num_rows, gen.num_cols = terrain_patches
+      terrain.terrain_generator = gen
+      record["terrain_patches"] = list(terrain_patches)
     if torso_sensor:
       record["torso_sensor"] = add_torso_contact_sensor(cfg)
     if viewer:
