@@ -1,5 +1,5 @@
 # Are the Part 2 extended-eval metric definitions (fall categories, push test, foot force) fit to rank Part 2 policies?
-Status: DECIDED by arbitrator (pending human review) · 2026-11-18 · Requested by: W2
+Status: DECIDED by arbitrator (pending human review) · 2026-11-18 · Requested by: W2 · 2026-11-18 pilot (W2 eval agent): standing rung **frozen at 0.65 m/s** (`PUSH_STANDING_RUNG`); standing falls/push at 0.65 = 0.060/0.069 (wandb-2999, 2 repeats) and 0.491/0.515 (cont4500), mean 0.284; at 0.8 = 0.576/0.581 and 0.969/0.975, mean 0.775 (outside 5–60 %); 128 envs/condition kept (push run 114–143 s); max per-cell repeat spread 0.061, ranked cells ≤ 0.024.
 Criticality: Medium. It shapes how Part 2 arms are ranked; re-scoring every Part 2 checkpoint costs about 1–2 GPU-hours.
 Reversible?: yes. Changes are in `part2_eval.py` only; any checkpoint can be re-scored (suite about 70 s, push about 2–4 min).
 Grader docs: [grader-1](2026-11-18-w2-eval-metrics/grader-1.md), [grader-2](2026-11-18-w2-eval-metrics/grader-2.md). They agree on (a) and (c) and disagree on (b).
