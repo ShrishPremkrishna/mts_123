@@ -15,7 +15,8 @@ Stages (run in order, each skipped when its output already exists; simulation on
   eval-ft   fine-tune at +500 and +1000 (flat_dr, bumpy_dr: suite + seam) and at the end (full);
             the control at the end (full)       -> report/part3/eval/<name>-bumpyft-it<N>/, <name>-flatctrl-it<N>/
   select    apply the decision's pre-registered guards -> report/part3/eval/<name>_selection.{md,json}
-  confirm   the selected checkpoint on a second eval seed (4321; flat_dr, bumpy_dr)
+  confirm   the selected checkpoint on a second eval seed (4321; flat_dr, bumpy_dr), then the seam
+            verdict on both seeds' pooled windows (the seam decision's close-call rule)
   export-ft part3_export on the selected checkpoint (+ W&B check; --upload-wandb to publish it)
   table     summary table over all of the above    -> report/part3/eval/<name>_summary.md
 
@@ -273,6 +274,9 @@ def main() -> int:
       lines += ["", "| point | " + " | ".join(f"{c} falls / seam" for c in ("flat_dr", "bumpy_dr", "flat_nodr", "bumpy_nodr")) + " |",
                 "|---|---|---|---|---|"]
       rows = [("+0 (warm-start parent)", res.get("base_evals", {}))] + list(res["evals"].items())
+      cfinal = latest_model(ctrl_dir)
+      if cfinal is not None:
+        rows.append((f"flat control +{model_iter(cfinal) - P} (matched)", load_eval(eval_name(ctrl_name, cfinal))))
       for k, e in rows:
         lines.append(f"| {k} | " + " | ".join(f"{e.get(c, {}).get('falls', '-')} / {e.get(c, {}).get('seam', '-')}"
                                               for c in ("flat_dr", "bumpy_dr", "flat_nodr", "bumpy_nodr")) + " |")
@@ -289,7 +293,16 @@ def main() -> int:
         continue
       m = Path(sel["selected"])
       if stage == "confirm":
-        status[stage] = evaluate(m, eval_name(ft_name, m) + f"-seed{args.confirm_seed}", light=True, seed=args.confirm_seed)
+        n1, n2 = eval_name(ft_name, m), eval_name(ft_name, m) + f"-seed{args.confirm_seed}"
+        rc = evaluate(m, n2, light=True, seed=args.confirm_seed)
+        # Seam close-call rule: judge flat_dr / bumpy_dr on the pooled windows of both eval seeds.
+        raw = RUNS / "p3-raw"
+        for cond in ("flat_dr", "bumpy_dr"):
+          metas = [raw / f"{x}-{cond}_seam_meta.json" for x in (n1, n2)]
+          if all(mm.exists() for mm in metas):
+            rc |= run([*PY, "-m", "mjlab.scripts.part3_seam", "pool", *metas, "--name", f"{n1}-{cond}-pooled",
+                       "--out-dir", MJLAB_ROOT / "report/part3/eval" / n1], 99, logs / "pool.log", gpu=False)
+        status[stage] = rc
       else:
         status[stage] = export(m, eval_name(ft_name, m), ft_dir, wandb_run_path(ft_dir))
     elif stage == "table":

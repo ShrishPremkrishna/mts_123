@@ -33,6 +33,12 @@ Warm start (Part 2 legs): add `--checkpoint ~/runs/opt-lab-2/rp-parent/model_299
 | WandB | Hooks `rsl_rl.utils.wandb_log_writer.WandbLogWriter.__init__` in the training process, without changing repo code. After `wandb.init` it adds the full launch record to `config.opt_lab_2`: HEAD SHA, origin SHA, `head_on_origin`, `src_dirty`, the reference dir and weights paths, per-file commit, git blob and sha256, the checkpoint and its sha256, and the train argv. It also writes a one-line summary to the run notes, adds the tag `rp` (plus `--tags`), and logs `reference-<dirname>` (all files in the dir) and `weights-<file>` as input artifacts (`use_artifact`). WandB deduplicates identical content into the same artifact version. |
 | Logs | Tees stdout and stderr to `<out>.log` and writes `<out>.launch.json` next to the run dir. `launch.json` is also copied into the run dir. Pass `--quiet` to log to the file only. |
 
+`--checked-bumpy` (Part 3) trains through `foundation/scripts/bumpy_checked_cli.py`: the reviewed 0.10 m Perlin grid plus an
+accumulated physics-overflow audit (`<out>/physics_overflow_audit.json`). The stock 0.05 m grid overflows with the torso hull.
+It requires `--task Mjlab-MixedGaits-Bumpy-Pupper-v3`, and its wrapper path and sha256 are recorded in the launch record.
+Part 3 tooling (seam test, flat/Bumpy × DR eval, Bumpy fine-tune, export round trip, runbook `part3_run.py`) is described
+in `report/part3_notebook.md` section 2.
+
 With `--logger tensorboard`, every check and the log or launch record still happen, but nothing goes to WandB.
 `--dry-run` runs the checks and prints the command and the launch record.
 

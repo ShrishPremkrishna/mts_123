@@ -356,25 +356,38 @@ def _wandb_check(run_path, out, policy, robot_obs, torch_act):
 
 
 def _wandb_upload(run_path, policy_path, out):
-  """Upload the verified policy.json as the run's ``policy.json`` and read it back.
+  """Attach the verified policy.json to the finished run as ``policy.json`` and read it back.
 
-  The runner's per-save upload did not persist on finished runs here (the parent
-  run 1c5r0n8c has no policy.json on W&B although its log reports uploads), so
-  ``deploy.sh <run>`` would fail. Uploading after the run finished and
-  re-downloading proves the file the robot will fetch is byte-identical.
+  Finding (2026-11-18, wandb 0.22.3): ``wandb.Api().run(...).upload_file`` -- what
+  ``PupperOnPolicyRunner`` uses at every save -- returns a size-0 handle and persists
+  nothing (parent run 1c5r0n8c and smoke run c3rfre1p have no policy.json although
+  their logs report uploads), so ``deploy.sh <run>`` would 404. Resuming the finished
+  run and ``wandb.save``-ing the file does persist. The read-back must be byte-identical.
   """
+  import os
+  import shutil
+
   import wandb
 
+  entity, project, run_id = run_path.split("/")
   try:
-    run = wandb.Api().run(run_path)
-    if run.state != "finished":
-      return dict(run=run_path, error=f"run state {run.state!r}; upload only after the run finished")
-    run.upload_file(str(policy_path), root=str(policy_path.parent))
+    api_run = wandb.Api().run(run_path)
+    if api_run.state != "finished":
+      return dict(run=run_path, error=f"run state {api_run.state!r}; upload only after the run finished", verified=False)
+    run = wandb.init(entity=entity, project=project, id=run_id, resume="must", dir=str(out),
+                     settings=wandb.Settings(silent=True))
+    try:
+      dst = os.path.join(run.dir, "policy.json")
+      shutil.copy(policy_path, dst)
+      wandb.save(dst, base_path=run.dir, policy="now")
+    finally:
+      run.finish()
     back = out / "wandb_readback"
     back.mkdir(exist_ok=True)
     wandb.Api().run(run_path).file("policy.json").download(root=str(back), replace=True)
     same = sha256(back / "policy.json") == sha256(policy_path)
-    return dict(run=run_path, uploaded=str(policy_path), sha256=sha256(policy_path), verified=same)
+    return dict(run=run_path, method="resume + wandb.save", uploaded=str(policy_path), sha256=sha256(policy_path),
+                verified=same)
   except Exception as exc:  # noqa: BLE001
     return dict(run=run_path, error=repr(exc), verified=False)
 

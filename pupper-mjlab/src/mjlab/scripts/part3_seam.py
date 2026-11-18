@@ -651,7 +651,9 @@ def analyze(raw, meta, schedules, args, out_dir, criteria=None):
 
 
 def _ctrl_max_tilt(m):
-  v = [w["max_tilt_deg"] for w in m["windows"] if w["anchor"] != "seam"]
+  """Max (and p99) over no-seam control windows of each window's max tilt, excluding windows
+  that end in a fall (a fall reaches 45 deg by definition and would dominate the max)."""
+  v = [w["max_tilt_deg"] for w in m["windows"] if w["anchor"] != "seam" and not w["fall"]]
   return float(max(v)) if v else None
 
 
@@ -659,15 +661,57 @@ def _frac(x, mask):
   return float(x[mask].mean()) if mask.any() else None
 
 
+def _schedules_for(meta):
+  rates = tuple("inf" if r == "inf" else float(r) for r in meta["rates"])
+  full = schedule_set(rates, meta["control_rate"])
+  names = meta.get("schedule_names") or [s[0] for s in full if not s[0].startswith("control_dither_")]
+  by_name = {s[0]: s for s in full}
+  return [by_name[n] for n in names]
+
+
+def pool(args):
+  """Close-call rule of the seam decision: judge on the pooled windows of several runs
+  (e.g. eval seeds 1234 and 4321) of the same checkpoint and condition."""
+  metas = [json.loads(Path(m).read_text()) for m in args.metas]
+  if len({(m["condition"], m["provenance"].get("checkpoint_sha256")) for m in metas}) != 1:
+    raise ValueError("pool only runs of the same checkpoint and condition")
+  windows, invalid = [], dict(edge=0, reset=0)
+  for m in metas:
+    raw = dict(np.load(m["raw"]))
+    f = lambda k, raw=raw: np.asarray(raw[k], np.float32)  # noqa: E731
+    mm = seam_metrics(
+      cmd=np.asarray(raw["cmd"], float), env_schedule=np.asarray(raw["env_schedule"]), schedules=_schedules_for(m),
+      terminated=np.asarray(raw["terminated"], bool), velocity=f("velocity"), tilt=body_tilt_deg(f("gravity")),
+      knee=np.asarray(raw["knee"], bool), torso=np.asarray(raw["torso"], bool), torque=f("torque"),
+      foot_force=f("foot_force"), mass_kg=np.asarray(raw["mass_kg"], float), ref=f("ref"),
+      gravity=float(raw["gravity_m_s2"]), pre_s=args.pre, post_s=args.post, settle_s=args.settle,
+      tilt_deg=args.tilt_deg, effort_limit=EFFORT_LIMIT_NM)
+    windows += [dict(w, run=m["name"]) for w in mm["windows"]]
+    invalid = {k: invalid[k] + mm["invalid_windows"][k] for k in invalid}
+  metrics = dict(params=mm["params"], n_windows=len(windows), invalid_windows=invalid, groups=_group(windows),
+                 summary=_summary(windows))
+  metrics["verdict"] = verdict(metrics, SEAM_CRITERIA)
+  metrics["verdict"]["role"] = CONDITION_ROLE.get(metas[0]["condition"], "?")
+  metrics["verdict"]["pooled_runs"] = [m["name"] for m in metas]
+  out = Path(args.out_dir)
+  out.mkdir(parents=True, exist_ok=True)
+  name = args.name
+  (out / f"{name}_seam.json").write_text(json.dumps(dict(name=name, kind="seam_pooled", condition=metas[0]["condition"],
+                                                          runs=[m["name"] for m in metas], metrics=metrics),
+                                                     indent=2, default=_jsonable) + "\n")
+  v = metrics["verdict"]
+  (out / f"{name}_seam.md").write_text(
+    markdown(metrics, f"Pooled seam verdict: {name} ({metas[0]['condition']})")
+    + f"\nPooled runs: {v['pooled_runs']}  \nVerdict ({v['role']}): **{v['verdict']}** {v['reasons']}  \nCells: "
+    + ", ".join(f"{k[5:]} {c['incidents']}/{c['n']} {c['excess']:+.3f} p={c['p']:.2g}" for k, c in v["cells"].items()) + "\n")
+  print(json.dumps(dict(name=name, verdict=v["verdict"], reasons=v["reasons"]), indent=1))
+  return metrics
+
+
 def recompute(args):
   meta = json.loads(Path(args.meta).read_text())
   raw = dict(np.load(meta["raw"]))
-  rates = tuple("inf" if r == "inf" else float(r) for r in meta["rates"])
-  full = schedule_set(rates, meta["control_rate"])
-  # Rebuild exactly the schedules that were recorded, in their recorded order.
-  names = meta.get("schedule_names") or [s[0] for s in full if not s[0].startswith("control_dither_")]
-  by_name = {s[0]: s for s in full}
-  schedules = [by_name[n] for n in names]
+  schedules = _schedules_for(meta)  # exactly the recorded schedules, in recorded order
   if int(np.max(raw["env_schedule"])) >= len(schedules):
     raise ValueError("raw env_schedule indexes beyond the reconstructed schedule set")
   return analyze(raw, meta, schedules, args, args.out_dir)
@@ -795,7 +839,15 @@ def main():
   m.add_argument("meta", type=Path)
   m.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
   _add_window_args(m)
+  pl = sub.add_parser("pool", help="Judge the pooled windows of several runs (close-call rule)")
+  pl.add_argument("metas", nargs="+", type=Path)
+  pl.add_argument("--name", required=True)
+  pl.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+  _add_window_args(pl)
   args = p.parse_args()
+  if args.mode == "pool":
+    pool(args)
+    return
   if args.mode == "metrics":
     recompute(args)
     return
