@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 import time
+import zlib
 from pathlib import Path
 
 MJ = Path(__file__).resolve().parents[2]
@@ -32,6 +33,26 @@ def gpu_procs() -> int:
     return len([l for l in out.splitlines() if l.strip()])
   except Exception:
     return 99
+
+
+CLAIMS = W3 / "eval-claims"
+
+
+def claim(name):
+  """Atomically claim an eval so parallel workers never run the same one."""
+  try:
+    fd = os.open(CLAIMS / name, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    os.write(fd, str(os.getpid()).encode()); os.close(fd)
+    return True
+  except FileExistsError:
+    return name_owned(name)
+
+
+def name_owned(name):
+  try:
+    return (CLAIMS / name).read_text().strip() == str(os.getpid())
+  except OSError:
+    return False
 
 
 def log(m):
@@ -70,24 +91,31 @@ def main():
   p.add_argument("--out-dir", type=Path, default=MJ / "report/part2/eval/w3")
   p.add_argument("--max-gpu", type=int, default=4)
   p.add_argument("--once", action="store_true", help="exit when nothing is left to evaluate now")
+  p.add_argument("--shard", default="0/1", help="k/n: only names with crc32(name) %% n == k (parallel workers)")
   a = p.parse_args()
   a.out_dir.mkdir(parents=True, exist_ok=True)
   failed: dict[str, int] = {}
+  shard_k, shard_n = map(int, a.shard.split("/"))
   while True:
     todo, pending_any = entries(a.status, a.extra)
     left = [(n, ck, ref) for n, (ck, ref) in todo.items()
             if not ((a.out_dir / f"{n}.json").exists() and (a.out_dir / f"{n}_push.json").exists())
-            and failed.get(n, 0) < 2]
+            and failed.get(n, 0) < 2 and zlib.crc32(n.encode()) % shard_n == shard_k]
     if not left:
       if a.once or not pending_any:
         break
+      time.sleep(60)
+      continue
+    CLAIMS.mkdir(exist_ok=True)
+    left = [x for x in left if not (CLAIMS / x[0]).exists() or name_owned(x[0])]
+    if not left:
       time.sleep(60)
       continue
     name, ck, ref = left[0]
     LAUNCH_LOCK.touch()
     with open(LAUNCH_LOCK) as lk:
       fcntl.flock(lk, fcntl.LOCK_EX)
-      if gpu_procs() >= a.max_gpu:
+      if gpu_procs() >= a.max_gpu or not claim(name):
         busy = True
       else:
         busy = False
@@ -107,6 +135,7 @@ def main():
     log(f"eval {name} rc={rc} ok={ok}")
     if not ok:
       failed[name] = failed.get(name, 0) + 1
+      (CLAIMS / name).unlink(missing_ok=True)
   log("eval queue finished; failed: " + json.dumps(failed))
 
 
