@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | falls | rev | stop | steady | turn | falls<2s_reset | err+1.5 | err-1.5 | vx+1.5 | vx-1.5 | jitter | sat | sat@1.5 | F_runmax_med_BW | F_p999_BW | F_p99_BW | F_peak_BW(flag) | drift+ | drift- | splay+ | splay- | slip | top+ | top- | tau2 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p1check-fast_trot-s43-flat-nominal_pd_gains-seed4321 | 4096 | 43 | 2999 | - | 3000 | fast_trot@087de067 | ok | 88 | 27 | 56 | 5 | 0 | 0 | 0.111 | 0.256 | 1.46 | -1.65 | 0.185 | 0.06 | 0.162 | 3.83 | 3.37 | 2.06 | 12.8 | 37.8 | 41.4 | -0.128 | -0.0403 | 0.392 | 1.57 | -2 | 1.27 |

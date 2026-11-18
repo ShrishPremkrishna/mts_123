@@ -1,0 +1,76 @@
+{
+  "rule": "reopen iff excess(fast_trot) <= 15 AND nompd(fast_trot) <= nompd(gallop_c) - 20",
+  "rows": [
+    {
+      "arm": "fast_trot",
+      "train_seed": "s42",
+      "eval_seed": 1234,
+      "lab4_falls": 50,
+      "nompd_falls": 91
+    },
+    {
+      "arm": "fast_trot",
+      "train_seed": "s42",
+      "eval_seed": 4321,
+      "lab4_falls": 41,
+      "nompd_falls": 83
+    },
+    {
+      "arm": "fast_trot",
+      "train_seed": "s43",
+      "eval_seed": 1234,
+      "lab4_falls": 69,
+      "nompd_falls": 93
+    },
+    {
+      "arm": "fast_trot",
+      "train_seed": "s43",
+      "eval_seed": 4321,
+      "lab4_falls": 52,
+      "nompd_falls": 88
+    },
+    {
+      "arm": "gallop_c",
+      "train_seed": "s42",
+      "eval_seed": 1234,
+      "lab4_falls": 40,
+      "nompd_falls": 99
+    },
+    {
+      "arm": "gallop_c",
+      "train_seed": "s42",
+      "eval_seed": 4321,
+      "lab4_falls": 41,
+      "nompd_falls": 79
+    },
+    {
+      "arm": "gallop_c",
+      "train_seed": "s43",
+      "eval_seed": 1234,
+      "lab4_falls": 38,
+      "nompd_falls": 67
+    },
+    {
+      "arm": "gallop_c",
+      "train_seed": "s43",
+      "eval_seed": 4321,
+      "lab4_falls": 38,
+      "nompd_falls": 61
+    }
+  ],
+  "aggregate": {
+    "fast_trot": {
+      "lab4": 53.0,
+      "nompd": 88.75,
+      "excess": 35.75
+    },
+    "gallop_c": {
+      "lab4": 39.25,
+      "nompd": 76.5,
+      "excess": 37.25
+    }
+  },
+  "condition_a": false,
+  "condition_b": false,
+  "verdict": "STANDS"
+}

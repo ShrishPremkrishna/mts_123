@@ -1,0 +1,1284 @@
+{
+  "name": "p1check-fast_trot-s43-flat-nominal_pd_gains-seed4321",
+  "kind": "suite",
+  "metrics": {
+    "robot_runs": 384,
+    "falls_total": 88,
+    "timeouts_total": 0,
+    "falls_by_category": {
+      "steady": 5,
+      "turn": 0,
+      "stop": 56,
+      "reversal": 27
+    },
+    "falls_by_schedule": {
+      "stand": 0,
+      "ramp_fwd": 0,
+      "ramp_back": 0,
+      "steady_fwd": 0,
+      "steady_back": 3,
+      "reversal_fwd_first": 15,
+      "reversal_back_first": 12,
+      "stops_fwd": 22,
+      "stops_back": 29,
+      "turn_in_place": 0,
+      "walk_and_turn": 0,
+      "sidestep": 0,
+      "slow_walk": 0,
+      "gait_seam": 0,
+      "reversal_moderate": 0,
+      "mixed": 7
+    },
+    "falls_soon_after_reset": 0,
+    "falls_soon_after_reset_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 0,
+      "reversal": 0
+    },
+    "falls_detail": [
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 5.36,
+        "episode_age_s": 5.36,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 171,
+        "time_s": 5.38,
+        "episode_age_s": 5.38,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 190,
+        "time_s": 5.38,
+        "episode_age_s": 5.38,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 182,
+        "time_s": 5.42,
+        "episode_age_s": 5.42,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 170,
+        "time_s": 5.44,
+        "episode_age_s": 5.44,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 206,
+        "time_s": 5.46,
+        "episode_age_s": 5.46,
+        "since_command_change_s": 0.46,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 186,
+        "time_s": 5.48,
+        "episode_age_s": 5.48,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 174,
+        "time_s": 5.5,
+        "episode_age_s": 5.5,
+        "since_command_change_s": 0.5,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 185,
+        "time_s": 5.56,
+        "episode_age_s": 5.56,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 176,
+        "time_s": 5.58,
+        "episode_age_s": 5.58,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 168,
+        "time_s": 5.6,
+        "episode_age_s": 5.6,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 179,
+        "time_s": 5.62,
+        "episode_age_s": 5.62,
+        "since_command_change_s": 0.62,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 178,
+        "time_s": 5.64,
+        "episode_age_s": 5.64,
+        "since_command_change_s": 0.64,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 181,
+        "time_s": 5.86,
+        "episode_age_s": 5.86,
+        "since_command_change_s": 0.86,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 365,
+        "time_s": 5.86,
+        "episode_age_s": 5.86,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 362,
+        "time_s": 5.92,
+        "episode_age_s": 5.92,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 377,
+        "time_s": 5.92,
+        "episode_age_s": 5.92,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 173,
+        "time_s": 5.98,
+        "episode_age_s": 5.98,
+        "since_command_change_s": 0.98,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 374,
+        "time_s": 6.04,
+        "episode_age_s": 6.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 380,
+        "time_s": 6.06,
+        "episode_age_s": 6.06,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 368,
+        "time_s": 6.1,
+        "episode_age_s": 6.1,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "mixed",
+        "env": 360,
+        "time_s": 6.12,
+        "episode_age_s": 6.12,
+        "since_command_change_s": 0.62,
+        "category": "stop"
+      },
+      {
+        "schedule": "steady_back",
+        "env": 117,
+        "time_s": 7.02,
+        "episode_age_s": 7.02,
+        "since_command_change_s": 3.04,
+        "category": "steady"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 144,
+        "time_s": 7.34,
+        "episode_age_s": 7.34,
+        "since_command_change_s": 0.34,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 153,
+        "time_s": 7.52,
+        "episode_age_s": 7.52,
+        "since_command_change_s": 0.52,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 165,
+        "time_s": 7.58,
+        "episode_age_s": 7.58,
+        "since_command_change_s": 0.58,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 149,
+        "time_s": 7.6,
+        "episode_age_s": 7.6,
+        "since_command_change_s": 0.6,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 164,
+        "time_s": 7.64,
+        "episode_age_s": 7.64,
+        "since_command_change_s": 0.64,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 163,
+        "time_s": 7.68,
+        "episode_age_s": 7.68,
+        "since_command_change_s": 0.68,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 126,
+        "time_s": 7.86,
+        "episode_age_s": 7.86,
+        "since_command_change_s": 0.86,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 154,
+        "time_s": 7.88,
+        "episode_age_s": 7.88,
+        "since_command_change_s": 0.88,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 152,
+        "time_s": 8.12,
+        "episode_age_s": 8.12,
+        "since_command_change_s": 1.12,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 162,
+        "time_s": 8.56,
+        "episode_age_s": 8.56,
+        "since_command_change_s": 1.56,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 141,
+        "time_s": 8.72,
+        "episode_age_s": 8.72,
+        "since_command_change_s": 1.72,
+        "category": "reversal"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 205,
+        "time_s": 10.82,
+        "episode_age_s": 10.82,
+        "since_command_change_s": 0.32,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 196,
+        "time_s": 10.86,
+        "episode_age_s": 10.86,
+        "since_command_change_s": 0.36,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 197,
+        "time_s": 10.88,
+        "episode_age_s": 10.88,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 203,
+        "time_s": 10.88,
+        "episode_age_s": 10.88,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 201,
+        "time_s": 10.9,
+        "episode_age_s": 10.9,
+        "since_command_change_s": 0.4,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 204,
+        "time_s": 10.9,
+        "episode_age_s": 10.9,
+        "since_command_change_s": 0.4,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 214,
+        "time_s": 10.9,
+        "episode_age_s": 10.9,
+        "since_command_change_s": 0.4,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 200,
+        "time_s": 10.92,
+        "episode_age_s": 10.92,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 210,
+        "time_s": 10.92,
+        "episode_age_s": 10.92,
+        "since_command_change_s": 0.42,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 170,
+        "time_s": 10.94,
+        "episode_age_s": 5.48,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 193,
+        "time_s": 10.94,
+        "episode_age_s": 10.94,
+        "since_command_change_s": 0.44,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 213,
+        "time_s": 10.98,
+        "episode_age_s": 10.98,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 211,
+        "time_s": 11.0,
+        "episode_age_s": 11.0,
+        "since_command_change_s": 0.5,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 209,
+        "time_s": 11.02,
+        "episode_age_s": 11.02,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 186,
+        "time_s": 11.04,
+        "episode_age_s": 5.54,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 198,
+        "time_s": 11.04,
+        "episode_age_s": 11.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 202,
+        "time_s": 11.04,
+        "episode_age_s": 11.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 194,
+        "time_s": 11.06,
+        "episode_age_s": 11.06,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 207,
+        "time_s": 11.08,
+        "episode_age_s": 11.08,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 199,
+        "time_s": 11.1,
+        "episode_age_s": 11.1,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 141,
+        "time_s": 11.26,
+        "episode_age_s": 2.52,
+        "since_command_change_s": 0.26,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 138,
+        "time_s": 11.34,
+        "episode_age_s": 11.34,
+        "since_command_change_s": 0.34,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 140,
+        "time_s": 11.36,
+        "episode_age_s": 11.36,
+        "since_command_change_s": 0.36,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 120,
+        "time_s": 11.44,
+        "episode_age_s": 11.44,
+        "since_command_change_s": 0.44,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 143,
+        "time_s": 11.46,
+        "episode_age_s": 11.46,
+        "since_command_change_s": 0.46,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 131,
+        "time_s": 11.48,
+        "episode_age_s": 11.48,
+        "since_command_change_s": 0.48,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 123,
+        "time_s": 11.5,
+        "episode_age_s": 11.5,
+        "since_command_change_s": 0.5,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 135,
+        "time_s": 11.5,
+        "episode_age_s": 11.5,
+        "since_command_change_s": 0.5,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 132,
+        "time_s": 11.52,
+        "episode_age_s": 11.52,
+        "since_command_change_s": 0.52,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 137,
+        "time_s": 11.52,
+        "episode_age_s": 11.52,
+        "since_command_change_s": 0.52,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 130,
+        "time_s": 11.54,
+        "episode_age_s": 11.54,
+        "since_command_change_s": 0.54,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 149,
+        "time_s": 11.56,
+        "episode_age_s": 3.94,
+        "since_command_change_s": 0.56,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 142,
+        "time_s": 11.68,
+        "episode_age_s": 11.68,
+        "since_command_change_s": 0.68,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 164,
+        "time_s": 11.72,
+        "episode_age_s": 4.06,
+        "since_command_change_s": 0.72,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 147,
+        "time_s": 11.8,
+        "episode_age_s": 11.8,
+        "since_command_change_s": 0.8,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 126,
+        "time_s": 11.92,
+        "episode_age_s": 4.04,
+        "since_command_change_s": 0.92,
+        "category": "reversal"
+      },
+      {
+        "schedule": "steady_back",
+        "env": 109,
+        "time_s": 14.02,
+        "episode_age_s": 14.02,
+        "since_command_change_s": 10.04,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 201,
+        "time_s": 14.76,
+        "episode_age_s": 3.84,
+        "since_command_change_s": 0.78,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 206,
+        "time_s": 15.6,
+        "episode_age_s": 10.12,
+        "since_command_change_s": 1.62,
+        "category": "steady"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 205,
+        "time_s": 16.22,
+        "episode_age_s": 5.38,
+        "since_command_change_s": 0.22,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 215,
+        "time_s": 16.26,
+        "episode_age_s": 16.26,
+        "since_command_change_s": 0.26,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 197,
+        "time_s": 16.28,
+        "episode_age_s": 5.38,
+        "since_command_change_s": 0.28,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 176,
+        "time_s": 16.3,
+        "episode_age_s": 10.7,
+        "since_command_change_s": 0.3,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 214,
+        "time_s": 16.32,
+        "episode_age_s": 5.4,
+        "since_command_change_s": 0.32,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 194,
+        "time_s": 16.38,
+        "episode_age_s": 5.3,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 190,
+        "time_s": 16.46,
+        "episode_age_s": 11.06,
+        "since_command_change_s": 0.46,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 204,
+        "time_s": 16.48,
+        "episode_age_s": 5.56,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 210,
+        "time_s": 16.48,
+        "episode_age_s": 5.54,
+        "since_command_change_s": 0.48,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_back",
+        "env": 199,
+        "time_s": 16.5,
+        "episode_age_s": 5.38,
+        "since_command_change_s": 0.5,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 168,
+        "time_s": 16.58,
+        "episode_age_s": 10.96,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 180,
+        "time_s": 16.6,
+        "episode_age_s": 16.6,
+        "since_command_change_s": 0.6,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 16.64,
+        "episode_age_s": 11.26,
+        "since_command_change_s": 0.64,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 174,
+        "time_s": 16.74,
+        "episode_age_s": 11.22,
+        "since_command_change_s": 0.74,
+        "category": "stop"
+      },
+      {
+        "schedule": "steady_back",
+        "env": 107,
+        "time_s": 17.44,
+        "episode_age_s": 17.44,
+        "since_command_change_s": 13.46,
+        "category": "steady"
+      }
+    ],
+    "category_robot_runs": {
+      "steady": 384,
+      "turn": 96,
+      "stop": 72,
+      "reversal": 96
+    },
+    "category_robot_seconds": {
+      "steady": 5892.0,
+      "turn": 1068.0,
+      "stop": 336.0,
+      "reversal": 384.0
+    },
+    "category_robot_events": {
+      "reversal": 192,
+      "stop": 168
+    },
+    "steady_samples": {
+      "fwd": 23474,
+      "back": 23674,
+      "stand": 33187,
+      "moving": 102420
+    },
+    "track_err_fwd": 0.11094460089062129,
+    "track_err_back": 0.25622021920391014,
+    "mean_vx_fwd": 1.4561878442764282,
+    "mean_vx_back": -1.6450676918029785,
+    "stand_jitter_rad_s": 0.1852007508277893,
+    "torque_sat_frac": 0.06003024998784444,
+    "torque_sat_frac_fast": 0.16244061253923814,
+    "torque_abs_max_nm": 3.0,
+    "torque_sq_mean": 1.2743316888809204,
+    "foot_force_peak_bw": 12.841494822982058,
+    "foot_force_runmax_median_bw": 3.8332310617826524,
+    "foot_force_runmax_robot_runs": 384,
+    "foot_force_p999_bw": 3.367460742482793,
+    "foot_force_p99_bw": 2.0634302711290293,
+    "foot_force_peak_where": {
+      "schedule": "stops_fwd",
+      "env": 182,
+      "time_s": 10.540000000000001,
+      "episode_age_s": 5.099999999999979,
+      "foot": 1,
+      "context": "stop",
+      "cmd": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "foot_force_peak_bw_incl_reset_drop": 12.841494822982058,
+    "foot_force_p99_bw_incl_reset_drop": 2.0378454445750664,
+    "foot_force_stand_mean_bw_per_foot": 0.2648361390593983,
+    "foot_force_stand_total_bw": 1.0593445562375934,
+    "heading_drift_deg_per_10s_fwd": {
+      "mean": 37.75689075491681,
+      "signed_mean": 12.217254172738405,
+      "max": 135.2844575106789,
+      "windows": 118,
+      "windows_ending_in_fall": 0
+    },
+    "heading_drift_deg_per_10s_back": {
+      "mean": 41.382193248518746,
+      "signed_mean": -2.7925193822084853,
+      "max": 159.06761459437826,
+      "windows": 118,
+      "windows_ending_in_fall": 3
+    },
+    "hind_splay_rad_fwd": -0.12845911444439523,
+    "hind_splay_rad_back": -0.04034750883779428,
+    "hind_splay_rad_stand": -0.11348127534922726,
+    "slip_m_s": 0.39187218135509827,
+    "slip_m_s_fwd": 0.5978637475132326,
+    "slip_m_s_back": 0.8298851160204795,
+    "top_speed_fwd": 1.5727511596679689,
+    "top_speed_back": -1.9983843994140624,
+    "top_speed_fwd_median_env": 0.6258189010620117,
+    "top_speed_back_median_env": -0.47584770202636717,
+    "mass_kg": {
+      "min": 3.0317392349243164,
+      "mean": 3.4487999491393566,
+      "max": 3.906644821166992
+    },
+    "mass_source": "env.sim.model.body_mass[world, robot.indexing.body_ids] (per-world)",
+    "mass_nominal_kg": 3.1699999999999995,
+    "gravity_m_s2": 9.81,
+    "torque_model": {
+      "effort_limit_nm": 3.0,
+      "saturation_threshold_nm": 2.9699999999999998,
+      "actuator_forcelimited": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "actuator_forcerange": [
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ]
+      ],
+      "jnt_actfrclimited": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "wall_clock_s": 68.67855715751648,
+  "rollout_loop_s": 48.05433392524719,
+  "schedule": {
+    "names": [
+      "stand",
+      "ramp_fwd",
+      "ramp_back",
+      "steady_fwd",
+      "steady_back",
+      "reversal_fwd_first",
+      "reversal_back_first",
+      "stops_fwd",
+      "stops_back",
+      "turn_in_place",
+      "walk_and_turn",
+      "sidestep",
+      "slow_walk",
+      "gait_seam",
+      "reversal_moderate",
+      "mixed"
+    ],
+    "sha256": "ff8df7951f572c5f4eeefd63341fd72ed8f37eaea70f78065ec8b0ffc2710bc2",
+    "steps": 1000,
+    "dt": 0.02,
+    "envs_per_schedule": 24,
+    "context_window_s": 2.0,
+    "steady_after_s": 2.0
+  },
+  "provenance": {
+    "mode": "ablate",
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt",
+    "reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/fast_trot",
+    "name": "p1check-fast_trot-s43-flat-nominal_pd_gains-seed4321",
+    "out_dir": "/home/ubuntu/wt/w4/pupper-mjlab/report/part3/parent_check/p1check-fast_trot-s43/ablate",
+    "raw_dir": null,
+    "seed": 4321,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w4/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "out_root": "/home/ubuntu/wt/w4/pupper-mjlab/report/part3/parent_check",
+    "events": [
+      "pd_gains"
+    ],
+    "envs_per_schedule": 24,
+    "skip_existing": false,
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt",
+      "iter": 2999,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 43,
+      "train_seed_source": "provenance.json",
+      "parent": null,
+      "parent_source": "provenance.json",
+      "parent_iter": null,
+      "parent_iter_source": null,
+      "iters_past_parent": 3000,
+      "iters_past_parent_source": "from scratch: iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/fast_trot",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 3000,
+      "train_git_revision": "512eb0c4cf811abd62a5a603085ad5f6fa46cb8d",
+      "reference_check": "ok"
+    },
+    "part3_condition": {
+      "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+      "dr": true,
+      "lab4_dr": {
+        "contract": "part3_lab4_dr_v1",
+        "source": "lab4_runs/shrish_stablegait/training-settings.json",
+        "ranges": {
+          "kp_range": [
+            0.6,
+            1.1
+          ],
+          "kd_range": [
+            0.8,
+            1.5
+          ],
+          "foot_friction": [
+            0.6,
+            1.4
+          ]
+        },
+        "other_dr_events": [
+          "base_com",
+          "encoder_bias",
+          "inertial"
+        ]
+      },
+      "removed_dr_events": [
+        "pd_gains"
+      ],
+      "terrain": "flat"
+    },
+    "num_envs": 384,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "93b169d9a6d8123c0b49e173dcb43cc49affa4c7e1e8d3b7b2af62ddb655858d",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w4/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "05f068a18ed38318ad82fe3d5be38fb10fd4d084",
+    "source_sha256": "fdef2280580c9748de200f4d3920d44ef084154bb3b0aa661793c12af79ad371",
+    "source_files_hashed": 269,
+    "checkpoint_sha256": "93b169d9a6d8123c0b49e173dcb43cc49affa4c7e1e8d3b7b2af62ddb655858d",
+    "references": {
+      "captured_reach_gaits.npz": "087de067ef1e50d7d33172241bdbada1905d7c39141041ca902526a225105dcb",
+      "reference_manifest.json": "b0c82812a004265c414d93d62328c20c7d3900ff231f8c490d910913c821d6f3"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/fast_trot",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "087de067ef1e50d7d33172241bdbada1905d7c39141041ca902526a225105dcb",
+      "reference_manifest.json": "b0c82812a004265c414d93d62328c20c7d3900ff231f8c490d910913c821d6f3"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-fast_trot-s43/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": null,
+    "parent_source": "provenance.json",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/fast_trot",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "512eb0c4cf811abd62a5a603085ad5f6fa46cb8d",
+    "reference_check": "ok"
+  },
+  "part3_condition": {
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "dr": true,
+    "lab4_dr": {
+      "contract": "part3_lab4_dr_v1",
+      "source": "lab4_runs/shrish_stablegait/training-settings.json",
+      "ranges": {
+        "kp_range": [
+          0.6,
+          1.1
+        ],
+        "kd_range": [
+          0.8,
+          1.5
+        ],
+        "foot_friction": [
+          0.6,
+          1.4
+        ]
+      },
+      "other_dr_events": [
+        "base_com",
+        "encoder_bias",
+        "inertial"
+      ]
+    },
+    "removed_dr_events": [
+      "pd_gains"
+    ],
+    "terrain": "flat"
+  }
+}
