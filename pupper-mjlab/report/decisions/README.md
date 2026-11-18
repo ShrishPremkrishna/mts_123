@@ -5,18 +5,34 @@ Every decision that would normally wait for a human (tagged **[H]** in `../REPRO
 
 1. **Rate criticality.** The agent that hits the decision rates it with the table below, which sets how many
    independent graders run.
-2. **Independent graders.** Spawn N **fresh grader agents** in parallel. Each gets no prior conversation, only
-   the question, pointers to the evidence (files, run IDs, eval tables) and the template. They get **neither the
-   requester's preferred answer nor each other's output.** Each writes `<slug>/grader-<k>.md`.
-3. **Agreement check.** Graders agree when their Conclusions pick the same option. Wording and minor caveats
-   don't count as disagreement.
-   - **N = 1, or all agree:** the requester writes `<slug>.md`, a short consolidation: the shared conclusion, links to the
-     grader docs, and the **union** of their severe flagged issues. It must not alter the conclusion.
-   - **Any disagreement:** spawn a **fresh arbitrator agent**. It gets the evidence pointers and all grader docs,
-     mediates the differences (which disagreements are factual, which are about criteria), checks the disputed evidence
-     itself, and writes the final `<slug>.md` with an extra **Disagreement & resolution** section.
+2. **Independent graders, each with a different view (added 2026-11-18 20:45 UTC).** Spawn N **fresh grader agents** in parallel.
+   Each gets no prior conversation, only the question, the template, and its own **lens**: a different primary slice and
+   framing of the evidence, assigned in this order:
+
+   | # | Lens | Primary view | Instruction |
+   |---|---|---|---|
+   | 1 | **Devil's advocate** | Everything, plus the name of the current front-runner (the requester's default, or the top option on the ranked metric) | Build the strongest case *against* the front-runner, then conclude honestly. It may still pick the front-runner. |
+   | 2 | **Raw data only** | Tables, metric CSVs and eval JSONs, but **not** the requester's notebook prose or hypotheses | Decide from the numbers without the requester's framing. |
+   | 3 | **Sim-to-real / safety skeptic** | Hardware-relevant readouts: saturation, foot force, nominal-parameter evals, push, falls | Weigh deployment risk first and discount reward and tracking. |
+   | 4 | **Noise skeptic** | Seed spread, eval repeats, matched-iteration checks | Ask, for each gap, whether it is real. Prefer "tie → cheaper, safer, or more reversible option". |
+
+   **Lenses change emphasis, never facts.** Every pointer is true, and every grader may open any evidence it asks for. Each is
+   told its view is deliberately partial and must list what it would need to see to change its mind.
+   - **N = 1 (Low):** a neutral grader, with a required "Strongest case for the runner-up" section.
+   - Graders never see the requester's preference (except the front-runner name given to lens 1) or each other's output.
+     Each writes `<slug>/grader-<k>-<lens>.md`.
+3. **Synthesis (always for N ≥ 2).** A **fresh synthesizer agent** gets all grader docs plus the evidence pointers. It:
+   - separates factual disputes from disputes about criteria;
+   - checks disputed or decisive evidence itself;
+   - writes the final `<slug>.md` with a **Perspectives & synthesis** section saying which lenses agreed and which objections survive.
+
+   Unanimity across different lenses counts as strong evidence. Unanimity alone is not a reason to skip synthesis.
+   If the lenses split, the synthesizer is the arbitrator, and a **Disagreement & resolution** section is required.
 4. Commit and push only the decision files to `markus/opt-lab-2`. Work continues with the final decision.
    The human reviews afterwards and steers or overrides. An override is recorded as an edit to the **Status** line.
+
+_Before 20:45 UTC on 2026-11-18, graders were symmetric (same view, no lens), and unanimous decisions were consolidated
+without a synthesizer. Those decisions get a retroactive devil's-advocate review in `<slug>/devils-advocate.md`._
 
 | Criticality | When | Graders |
 |---|---|---|
