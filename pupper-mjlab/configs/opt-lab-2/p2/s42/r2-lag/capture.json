@@ -1,0 +1,59 @@
+{
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+  "checkpoint_sha256": "b6e32c32d490cd5d906ee1a742c47dd76620301e2c6cb3f4f41a998ea8e50cf9",
+  "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+  "reference_files": {
+    "fold_summary.json": "13c801ff4138bb8c11a009b5b2ee14cf6cf5c4a0767576a4668819e6d28fa377",
+    "captured_reach_gaits.npz": "153acbcd0112cc1172d7eb703f274b9d483a995533bd756b29c1f39d51521437",
+    "reference_manifest.json": "dd6aea36d92f1b69b4fa33fe904104c30010a7d3925039679c2d22960073511a",
+    "capture.json": "32640dea3d866def27569fbc4331db8d937576f547e59597e2d9e426ede3b182",
+    "foldcheck.json": "6d47f62b53d8c1881beec6c32f1da3ca4791fc22ee84624f24d2e5bcf7e2116f"
+  },
+  "git_revision": "27c48ffa2bcefee0d3e19de9505105bb50bf9e69",
+  "commands": [
+    [
+      1.5,
+      0.0,
+      0.0
+    ],
+    [
+      -1.5,
+      0.0,
+      0.0
+    ]
+  ],
+  "num_envs": 64,
+  "seconds_per_command": 15.0,
+  "warmup_s": 3.0,
+  "seed": 42,
+  "heading_hold": false,
+  "standard_physics": true,
+  "dt": 0.02,
+  "per_command": [
+    {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "steady_samples": 38326,
+      "steady_robot_seconds": 766.52,
+      "clean_cycles": 2174,
+      "falls": 4,
+      "achieved_vx_mean_m_s": 1.559446096420288
+    },
+    {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "steady_samples": 38335,
+      "steady_robot_seconds": 766.7,
+      "clean_cycles": 2176,
+      "falls": 3,
+      "achieved_vx_mean_m_s": -1.5441659688949585
+    }
+  ],
+  "wall_clock_s": 78.6
+}

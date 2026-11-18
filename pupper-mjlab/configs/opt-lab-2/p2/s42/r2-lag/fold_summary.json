@@ -1,0 +1,49 @@
+{
+  "out": "configs/opt-lab-2/p2/s42/r2-lag",
+  "variant": "lag",
+  "frequency_mult": 2.25,
+  "cycles": {
+    "reach_fwd": 2236,
+    "reach_back": 2236
+  },
+  "lag_steps": {
+    "reach_fwd": 2.0,
+    "reach_back": 2.0
+  },
+  "measured_lag_steps": {
+    "reach_fwd": 1.9972749309162225,
+    "reach_back": 1.9056805453834684
+  },
+  "warnings": {},
+  "dispersion_rad": {
+    "reach_fwd": 0.05544428455315694,
+    "reach_back": 0.0571310379535662
+  },
+  "wrap_before_rad": {
+    "reach_fwd": 0.001766900221494172,
+    "reach_back": 0.001809840401003543
+  },
+  "peak_joint_velocity_rad_s": {
+    "reach_fwd": 21.402277168342366,
+    "reach_back": 23.069661800024843
+  },
+  "rms_diff_vs_parent_rad": {
+    "reach_fwd": 0.031204902651546393,
+    "reach_back": 0.04394344053408636
+  },
+  "flagged_channels": {
+    "reach_fwd": [],
+    "reach_back": []
+  },
+  "reference_sha256": "794b0615b13032ee956fdf0de1e41bda722707df6b723e234d59395ea01f355a",
+  "seconds": 27.0,
+  "verify": {
+    "ok": true,
+    "frequency_mult": 2.25,
+    "sha256": "794b0615b13032ee956fdf0de1e41bda722707df6b723e234d59395ea01f355a",
+    "peak_joint_velocity_rad_s": {
+      "reach_fwd": 21.402277168342366,
+      "reach_back": 23.069661800024843
+    }
+  }
+}
