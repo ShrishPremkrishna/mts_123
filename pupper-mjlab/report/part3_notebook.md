@@ -217,6 +217,39 @@ Prediction to check on the robot: if it runs faster than commanded and pitches o
 why. The `robot_trims` per-joint kp multipliers in `pupper_gait_deploy` are the existing knob. Changing kp on the
 robot changes a reviewed value, though, so it needs a human decision.
 
+**Decision [D, High, arbitrated]: [kp coverage](decisions/2026-11-18-w4-kp-coverage.md).** The three graders split
+2 KEEP-and-measure vs 1 WIDEN. The arbitrator made the training range a pre-registered branch of one measurement
+on the final, taken before launch:
+- **WIDEN** if mean (nominal-PD falls − flat_dr falls) over seeds 1234 and 4321 is > 15.
+  - Both the Bumpy arm and its matched flat control then train with kp ×[0.6, 1.3] and kd ×[0.7, 1.5].
+  - This is a superset of Lab 4. It applies to this fine-tune only, is reported as a deviation from the spec's
+    "your lab 4 DR ranges", and leaves the team record untouched.
+- **KEEP** the Lab 4 ranges otherwise.
+- **In both branches:**
+  - evaluation stays on the exact Lab 4 ranges;
+  - nominal-PD falls enter checkpoint selection;
+  - a deployment **HOLD** applies if, on two-seed means, nompd − flat_dr > 15 or nompd(selected) > nompd(+0) + 10.
+
+The reviewed robot values do not change: `policy.json` kp 5.5, kd 0.25, 3 Nm, ±1.5 clip.
+
+Why the parent is out of distribution: kp is drawn per joint, so under Lab 4 the robot-average kp is 0.85 ± 0.04.
+Only ~6 of 4096 training robots are near the all-1.0× gain the robot commands (arbitrator's Monte Carlo). On the
+parent, step 0 (`report/part3/eval/p3-parent_kp_coverage.md`) gives:
+- flat_dr falls 40 / 41 and nominal-PD falls 99 / 79 on the two seeds;
+- a mean Δ of **48.5**, so the parent would take the **WIDEN** branch.
+
+**The WIDEN smoke PASSES every decision check** (`report/part3/eval/p3-parent_kpwide_smoke.md`):
+- Lab 4 record byte-unchanged;
+- override and `p3dr-widekp` tag recorded;
+- realized kp/5.5 spans [0.600, 1.300] and kd/0.25 spans [0.700, 1.500];
+- 19.1 % / 20.1 % of envs have a mean kp ≥ 1.0;
+- Bumpy arm at the end: ep length 461, err_xy 0.25, zero overflow;
+- export PASS with kp 5.5 / kd 0.25;
+- nompd ran.
+
+Smoke sizes: the coordinator capped validation at one ≤ 50-iteration smoke, so this was 45 iterations (Bumpy arm)
++ 5 (control arm; gain-range and config checks only). The final runs 50 + 50 per the decision.
+
 **Transition videos (sim)**: `~/runs/opt-lab-2/p3-videos/p3-parent/p3-parent-{flat_dr,bumpy_dr}_seam_sweep.mp4` (not
 committed: run outputs). Each is 31.6 s, real time, 640×480. It shows 0 → +1.5 → 0 → −1.5 → 0 at 0.5 m/s², then a
 0.4/0.6 dither, with an overlay of the command and the active reference slot. No falls in either.
@@ -288,7 +321,9 @@ Checklist for the operator (each item names the evidence it produces):
    it is fragile (section 4): a stop from full speed (step 1.5 → 0) is the riskiest command, not the
    slow-to-fast switch itself. Ramp the stick down rather than snapping it to zero. Watch for **speed overshoot and
    pitching on backward speed-ups**: in sim this is what happens when the PD gains are at their nominal
-   (deployed) value rather than the Lab 4 DR mean (section 4, ablation).
+   (deployed) value rather than the Lab 4 DR mean (section 4, ablation). Do not deploy a checkpoint whose
+   `report/part3/eval/<name>[-kpwide]_deploy_hold.md` says HOLD. Record which kp branch (KEEP or WIDEN) the
+   deployed policy came from.
 6. **Measure** (spec): tape-measured straight hallway, stopwatch or a fixed camera with floor marks, actual
    m/s at several commanded speeds (0.3, 0.5, 0.75, 1.0, 1.5), forward and backward, ≥ 3 trials each. Report
    achieved vs commanded and where the gap is largest. Keep the MCAP/joint/IMU logs per
@@ -311,13 +346,20 @@ Stages:
 1. `export`: export + round trip + limit audit of the final.
 2. `eval`: flat/Bumpy × DR on/off suite + seam, push on DR on.
 3. `video`: transition videos.
-4. `finetune`: 1500 iterations on Bumpy + Lab 4 DR.
-5. `control`: the 1500-iteration flat continuation.
-6. `eval-ft`: +500/+1000 light, end full, control full.
-7. `select`: the decision's guards → `report/part3/eval/p3-final_selection.md`.
-8. `confirm`: second eval seed.
-9. `export-ft`: the selected checkpoint.
-10. `table` → `report/part3/eval/p3-final_summary.md`.
+4. `kpcheck`: [kp-coverage](decisions/2026-11-18-w4-kp-coverage.md) step 0 on the final. It compares flat_dr with
+   nominal-PD falls on seeds 1234 and 4321. A mean Δ > 15 selects **WIDEN** (both arms train kp ×[0.6, 1.3],
+   kd ×[0.7, 1.5]); otherwise **KEEP** the Lab 4 ranges. Output: `p3-final_kp_coverage.md`.
+5. `smoke-wide` (WIDEN only): a ≤ 50-iteration smoke per arm plus the decision's checks. A failure stops the runbook.
+6. `finetune`: 1500 iterations on Bumpy, PD-gain DR per the branch.
+7. `control`: the matched 1500-iteration flat continuation, with the same PD ranges.
+8. `eval-ft`: +500/+1000 light, end full, control full, plus nompd (seed 1234) at every point.
+9. `select`: the guards, including the nompd fallback → `report/part3/eval/p3-final[-kpwide]_selection.md`.
+10. `confirm`: second eval seed (with nompd) and the pooled seam verdict.
+11. `hold`: the kp decision's deployment HOLD → `p3-final[-kpwide]_deploy_hold.md`.
+    - A HOLD in KEEP launches the pre-authorized WIDEN pair by itself (`--no-escalate` to stop).
+    - A HOLD in WIDEN stops for a human.
+12. `export-ft`: the selected checkpoint.
+13. `table` → `report/part3/eval/p3-final[-kpwide]_summary.md`.
 
 It waits whenever the GPU has ≥ 4 processes and runs one GPU process at a time. Expect ~1 h of evals plus ~40 GPU-minutes
 of training, i.e. 2.5–3.5 h of wall clock while sharing. Re-running skips finished stages.
@@ -334,6 +376,8 @@ section as the dry run.
 - [D] [Seam thresholds and verdict rule](decisions/2026-11-18-w4-seam-thresholds.md): arbitrated (graders split on
   pooling vs per-cell). Frozen before any final-policy numbers.
 - [D] [Fine-tune budget: 1500 iterations + guards + control arm](decisions/2026-11-18-w4-finetune-budget.md): 2/2 graders.
+- [D] [kp coverage: measure on the final, then WIDEN (kp ×[0.6, 1.3], kd ×[0.7, 1.5]) or KEEP; nompd selection guard and
+  deployment HOLD](decisions/2026-11-18-w4-kp-coverage.md): High, 3 graders split 2–1, arbitrated.
 - Lab 4 DR ranges: **not** a decision. The record, the notebook and the task defaults agree.
 - Open:
   - Single training seed for the fine-tune.
@@ -343,5 +387,7 @@ section as the dry run.
   - The seam decision's flip check "control max tilt > 25°" reads the max over control windows. With the new
     step-matched dither controls there are ~2,500 control windows per condition, and that max is set by rare falls
     (45°). `part3_seam` now excludes windows that end in a fall from that statistic. A human may prefer p99.
-  - Nominal-PD sensitivity (section 4) is a hardware question. Any kp trim on the robot needs a human decision.
+  - Nominal-PD sensitivity (section 4) is ultimately a hardware question: no measurement of the real motors'
+    effective gain exists. The kp decision hedges in sim. Any kp trim on the robot needs a human decision.
+  - The ablation sets kp and kd to nominal together, so blaming kp alone is unproven (kp-coverage grader-3).
   - Hardware (section 6) is human-only.

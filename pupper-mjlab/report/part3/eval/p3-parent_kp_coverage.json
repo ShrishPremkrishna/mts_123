@@ -1,0 +1,29 @@
+{
+  "decision": "report/decisions/2026-11-18-w4-kp-coverage.md",
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+  "flat_dr_falls": {
+    "1234": 40,
+    "4321": 41
+  },
+  "nompd_falls": {
+    "1234": 99,
+    "4321": 79
+  },
+  "delta_per_seed": [
+    59,
+    38
+  ],
+  "mean_delta": 48.5,
+  "threshold": 15,
+  "branch": "wide",
+  "training_pd_ranges": {
+    "kp_range": [
+      0.6,
+      1.3
+    ],
+    "kd_range": [
+      0.7,
+      1.5
+    ]
+  }
+}
