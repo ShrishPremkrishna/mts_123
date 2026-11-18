@@ -91,7 +91,7 @@ Reversible?: yes/no, and what it costs to reverse (GPU-hours, rework)
 These cover the decisions made before lenses existed. All five come back **STANDS WITH NEW CAVEAT**, and none is reopened. Caveats and follow-ups:
 - [p1-parent-gait](2026-11-18-p1-parent-gait/devils-advocate.md):
   - gallop_c's lead (42.5 vs 55.5 falls under DR) is about ¼ of its nominal-gain excess (+48.5), and fast_trot was never evaluated at nominal gains.
-  - **Follow-up (W4, running):** a fast_trot nominal-PD eval. The pre-registered reopen rule: fast_trot's nominal-gain excess ≤ 15 **and** its nominal-gain falls ≥ 20 below gallop_c's.
+  - **Follow-up (done, `6345cf0`, [result](../part3/parent_check/result.md)):** a fast_trot nominal-PD eval, with the reopen rule (excess ≤ 15 **and** ≥ 20 fewer nominal falls than gallop_c) committed before the data (`05f068a`). Result: fast_trot excess +35.8 vs gallop_c +37.2, nominal falls 88.8 vs 76.5. **Rule not met; the parent stands.** Both gaits degrade equally at nominal gains.
   - Errata: the "4.2–4.5 Hz irregular cycle" flag was a step-counter artefact. fast_trot s43 beats gallop_c on push_stand. Repeat evals span 33–43 falls.
 - [infra-num-envs](2026-11-18-infra-num-envs/devils-advocate.md): budget at the measured 1.0–1.1 it/s, not 1.27 (fixed in REPRO_PLAN §4.3 and `infra/a100_throughput.md`).
 - [w3-s43-lineage](2026-11-18-w3-s43-lineage/devils-advocate.md):
