@@ -1,0 +1,56 @@
+{
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+  "checkpoint_sha256": "ef7ff92b1eca28429c4d9b0014fbb1458680c9a41bbf8d6ca1f79d7d157da62a",
+  "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+  "reference_files": {
+    "captured_reach_gaits.npz": "855c59eb10e5398080c201dd596e913dbe03a18a456249f118699755eaeb3e46",
+    "reference_manifest.json": "3a32496335293f683fee2f20d70e85cf9d97628d75af3f27ea6143cce1d150a4"
+  },
+  "git_revision": "c129e15951069dfdfde43462ba6425df5ad39d15",
+  "commands": [
+    [
+      1.5,
+      0.0,
+      0.0
+    ],
+    [
+      -1.5,
+      0.0,
+      0.0
+    ]
+  ],
+  "num_envs": 64,
+  "seconds_per_command": 15.0,
+  "warmup_s": 3.0,
+  "seed": 42,
+  "heading_hold": false,
+  "standard_physics": true,
+  "dt": 0.02,
+  "per_command": [
+    {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "steady_samples": 38310,
+      "steady_robot_seconds": 766.2,
+      "clean_cycles": 2172,
+      "falls": 5,
+      "achieved_vx_mean_m_s": 1.5484908819198608
+    },
+    {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "steady_samples": 38319,
+      "steady_robot_seconds": 766.38,
+      "clean_cycles": 2176,
+      "falls": 3,
+      "achieved_vx_mean_m_s": -1.5086524486541748
+    }
+  ],
+  "wall_clock_s": 77.9
+}
