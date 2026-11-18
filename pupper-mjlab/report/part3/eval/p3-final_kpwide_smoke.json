@@ -1,0 +1,65 @@
+{
+  "verdict": "PASS",
+  "checks": [
+    {
+      "name": "1. Lab 4 record byte-unchanged vs origin/main",
+      "ok": true,
+      "detail": "lab4_runs/shrish_stablegait/training-settings.json"
+    },
+    {
+      "name": "1. bumpy arm: run config records the WIDEN override and tag",
+      "ok": true,
+      "detail": "override {'kp_range': [0.6, 1.3], 'kd_range': [0.7, 1.5]}, tags ['p3', 'bumpy', 'p3dr-widekp', 'smoke']"
+    },
+    {
+      "name": "2. bumpy arm: realized kp/5.5 spans ~0.6-1.3, kd/0.25 ~0.7-1.5, 17-23 % envs mean kp >= 1.0",
+      "ok": true,
+      "detail": "kp [0.600, 1.300], kd [0.700, 1.500], frac(mean kp >= 1.0) 0.191"
+    },
+    {
+      "name": "3. bumpy arm: training exited 0, no NaN",
+      "ok": true,
+      "detail": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-smoke.log"
+    },
+    {
+      "name": "3. bumpy arm: final episode length >= 450 and err_xy <= 0.30",
+      "ok": true,
+      "detail": "ep length 464.08, err_xy 0.2218"
+    },
+    {
+      "name": "1. control arm: run config records the WIDEN override and tag",
+      "ok": true,
+      "detail": "override {'kp_range': [0.6, 1.3], 'kd_range': [0.7, 1.5]}, tags ['p3', 'flat-control', 'p3dr-widekp', 'smoke']"
+    },
+    {
+      "name": "2. control arm: realized kp/5.5 spans ~0.6-1.3, kd/0.25 ~0.7-1.5, 17-23 % envs mean kp >= 1.0",
+      "ok": true,
+      "detail": "kp [0.600, 1.300], kd [0.700, 1.500], frac(mean kp >= 1.0) 0.201"
+    },
+    {
+      "name": "3. control arm: training exited 0, no NaN",
+      "ok": true,
+      "detail": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-smoke.log"
+    },
+    {
+      "name": "3. control arm: final episode length >= 450 and err_xy <= 0.30",
+      "ok": true,
+      "detail": "ep length 492.06, err_xy 0.203"
+    },
+    {
+      "name": "3. bumpy arm: physics overflow 0",
+      "ok": true,
+      "detail": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-smoke/physics_overflow_audit.json"
+    },
+    {
+      "name": "4. export PASS with policy.json kp 5.5 / kd 0.25",
+      "ok": true,
+      "detail": "PASS, kp 5.5, kd 0.25"
+    },
+    {
+      "name": "5. nompd ran on the smoke checkpoint (pipeline check, not a result)",
+      "ok": true,
+      "detail": "falls 45"
+    }
+  ]
+}

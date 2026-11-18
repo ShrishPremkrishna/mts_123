@@ -1,0 +1,222 @@
+{
+  "name": "p3-final",
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/model_4496.pt",
+  "checkpoint_sha256": "ce97712166fb149e0ec16fc10c521a8b36f1945c145b4a83753733d6fa8def81",
+  "reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+  "condition": {
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "dr": true,
+    "lab4_dr": {
+      "contract": "part3_lab4_dr_v1",
+      "source": "lab4_runs/shrish_stablegait/training-settings.json",
+      "ranges": {
+        "kp_range": [
+          0.6,
+          1.1
+        ],
+        "kd_range": [
+          0.8,
+          1.5
+        ],
+        "foot_friction": [
+          0.6,
+          1.4
+        ]
+      },
+      "other_dr_events": [
+        "base_com",
+        "encoder_bias",
+        "inertial"
+      ]
+    },
+    "terrain": "flat"
+  },
+  "roundtrip": {
+    "observations": 9600,
+    "every_steps": 4,
+    "seconds": 16.0,
+    "command_coverage": {
+      "vx_min": -1.5,
+      "vx_max": 1.5,
+      "wz_absmax": 1.5,
+      "vy_absmax": 0.4000000059604645,
+      "frac_fast_slot": 0.22750000655651093
+    },
+    "torch_inference_vs_mlp": {
+      "max": 4.0531158447265625e-06,
+      "p99": 2.384185791015625e-06,
+      "median": 9.5367431640625e-07,
+      "n": 9600
+    },
+    "exported_json_vs_torch": {
+      "max": 5.537026687818525e-06,
+      "p99": 4.279844235540731e-06,
+      "median": 2.2626319684526663e-06,
+      "n": 9600
+    },
+    "tolerance": 0.001,
+    "golden_reference_residual_vs_training": 1.0907650004887692e-05,
+    "run_dir_policy_json": {
+      "path": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/policy.json",
+      "sha256": "83dafaaaf8ac38b55635e6ad051c431dd18472ea915096df01d96f4ff118f2e4",
+      "vs_torch": {
+        "max": 5.537026687818525e-06,
+        "p99": 4.279844235540731e-06,
+        "median": 2.2626319684526663e-06,
+        "n": 9600
+      },
+      "field_diffs_vs_fresh_export": {}
+    },
+    "onnx": {
+      "path": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/rp-p2-s42-r2-cont-1500.onnx",
+      "sha256": "2427262037ce9d030e7660dc16b8288de84ab08de0a76edd1faa3af65710d713",
+      "samples": 2000,
+      "vs_torch": {
+        "max": 3.4570693969726562e-06,
+        "p99": 2.384185791015625e-06,
+        "median": 9.5367431640625e-07,
+        "n": 2000
+      },
+      "tolerance": 0.0001
+    },
+    "wandb_policy_json": {
+      "run": "photon_mz-stanford-university/mjlab/wmhcp24q",
+      "error": "CommError('HTTP 404: file wmhcp24q/policy.json not found while downloading file')"
+    }
+  },
+  "limits": {
+    "ok": true,
+    "checks": [
+      {
+        "name": "joint_lower_limits == shipped default_policy.json",
+        "ok": true,
+        "detail": "max |diff| 0.00e+00 rad"
+      },
+      {
+        "name": "joint_upper_limits == shipped default_policy.json",
+        "ok": true,
+        "detail": "max |diff| 0.00e+00 rad"
+      },
+      {
+        "name": "kp == shipped default_policy.json",
+        "ok": true,
+        "detail": "5.5 vs 5.5"
+      },
+      {
+        "name": "kd == shipped default_policy.json",
+        "ok": true,
+        "detail": "0.25 vs 0.25"
+      },
+      {
+        "name": "action_scale == shipped default_policy.json",
+        "ok": true,
+        "detail": "0.75 vs 0.75"
+      },
+      {
+        "name": "default_joint_pos == shipped default_policy.json",
+        "ok": true,
+        "detail": "max |diff| 0.00e+00 rad"
+      },
+      {
+        "name": "kp <= driver kp_max (robot description)",
+        "ok": true,
+        "detail": "kp 5.5 vs kp_max [10.0]"
+      },
+      {
+        "name": "kd <= driver kd_max (robot description)",
+        "ok": true,
+        "detail": "kd 0.25 vs kd_max [1.0]"
+      },
+      {
+        "name": "effort_max (current/torque limit) == 3.0 Nm == sim PUPPER_EFFORT_LIMIT",
+        "ok": true,
+        "detail": "xacro [3.0], sim 3.0"
+      },
+      {
+        "name": "class driver limits JSON == robot description position_min/max",
+        "ok": true,
+        "detail": "mismatched: []"
+      },
+      {
+        "name": "exported joint limits contain the driver limits (driver clamps tighter on hardware)",
+        "ok": true,
+        "detail": "model-minus-driver margin min 0.100 rad"
+      },
+      {
+        "name": "robot description sha256 == the one the driver limits were reviewed against",
+        "ok": true,
+        "detail": "dd3768478610 vs ['dd3768478610']"
+      },
+      {
+        "name": "command_clip vx == +-1.5 m/s (spec: the trained clip ships in the export)",
+        "ok": true,
+        "detail": "{'vx': [-1.5, 1.5], 'vy': [-0.5, 0.5], 'wz': [-2.0, 2.0]}"
+      },
+      {
+        "name": "gait_reference present with fast-forward, fast-backward and lift tables",
+        "ok": true,
+        "detail": "keys ['gallop_back_table', 'gallop_table', 'lift_table', 'trot_table']"
+      },
+      {
+        "name": "gait_reference switch constants: gallop_speed 0.5, dir_threshold 0.05",
+        "ok": true,
+        "detail": "gallop_speed 0.5, gallop_freq_mult 2.25"
+      },
+      {
+        "name": "gait_reference clamp == exported joint limits",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "heading_hold contract stamped",
+        "ok": true,
+        "detail": "{'kp': 1.0, 'clip': 0.3, 'yaw_threshold': 0.1, 'walk_threshold': 0.05}"
+      }
+    ],
+    "reviewed_files_vs_origin_main": {
+      "ok": true,
+      "files": [
+        {
+          "path": "pupper_gait_deploy/policies/default_policy.json",
+          "unchanged": true,
+          "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+        },
+        {
+          "path": "pupperv3-monorepo/ros2_ws/src/pupper_v3_description/description/components.xacro",
+          "unchanged": true,
+          "sha256": "dd37684786102fd8e4cf5135f0985e7321ae3005dccb8608e932cb0cd8001919"
+        },
+        {
+          "path": "foundation/configs/class-driver-joint-limits.json",
+          "unchanged": true,
+          "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3"
+        },
+        {
+          "path": "pupper-mjlab/src/mjlab/asset_zoo/robots/pupper_v3/pupper_constants.py",
+          "unchanged": true,
+          "sha256": "496dbc852027582e8b8659cb14a8168d393ff85a47843619db3e6a4f69f2fa4b"
+        }
+      ]
+    }
+  },
+  "deploy_validator": {
+    "cmd": "/home/ubuntu/wt/w4/pupper-mjlab/.venv/bin/python /home/ubuntu/wt/w4/pupper_gait_deploy/download_policy.py --validate-only /home/ubuntu/runs/opt-lab-2/p3-export/p3-final/policy.json",
+    "rc": 0,
+    "tail": "\n  frame size:          48 (motion reference)\n  observation history: 20  -> input 960\n  kp / kd:             5.5 / 0.25\n  action scale:        0.75\n  obs layout (v2):     base_ang_vel + projected_gravity + command + desired_world_z + joint_pos_rel + last_action + gait_reference\n  gait tables:         100 phase samples, 1.333 Hz\n  mixed gaits:         trot -> fast above |vx| = 0.5, lift-in-place when turning, direction-split fast tables\n  blend speed:         0.1\n  command clip:        vx [-1.5, 1.5], vy [-0.5, 0.5], wz [-2.0, 2.0]\n  heading hold:        kp=1.0 clip=0.3 (yaw quiet < 0.1, walking > 0.05)\n\nPolicy looks consistent with the controller config.\n"
+  },
+  "deploy_cpp_gait_reference_test": {
+    "stage": "run",
+    "cmd": "/tmp/tmp2ozejznw/test_gait_reference /home/ubuntu/runs/opt-lab-2/p3-export/p3-final/gait_golden.json /home/ubuntu/runs/opt-lab-2/p3-export/p3-final/policy.json",
+    "rc": 0,
+    "tail": "Deploy policy /home/ubuntu/runs/opt-lab-2/p3-export/p3-final/policy.json: gait_reference parsed, tables match the golden data\nOK: 48 golden cases matched (worst max_abs_err = 5.960e-08) + 5 property checks\n"
+  },
+  "artifacts": {
+    "policy_json": "/home/ubuntu/runs/opt-lab-2/p3-export/p3-final/policy.json",
+    "policy_json_sha256": "83dafaaaf8ac38b55635e6ad051c431dd18472ea915096df01d96f4ff118f2e4",
+    "gait_golden": "/home/ubuntu/runs/opt-lab-2/p3-export/p3-final/gait_golden.json",
+    "obs": "/home/ubuntu/runs/opt-lab-2/p3-export/p3-final/roundtrip_obs.npz"
+  },
+  "verdict": "PASS",
+  "hardware": "NOT deployed. Deployment needs a human operator and TA approval; see report/part3_notebook.md.",
+  "wall_clock_s": 44.10917544364929
+}

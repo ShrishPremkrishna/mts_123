@@ -1,0 +1,3 @@
+| run | condition | falls | rev/stop/steady/turn | err+1.5 | err-1.5 | vx+1.5 | vx-1.5 | sat@1.5 | F_runmax_med_BW | drift+/- | slip | jitter | R:push_stand | R:push_move | seam fall (sweep) | seam incident (sweep) | dither fall/incident | control incident | worst cell (excess, p) | step-sweep fall | seam sat | seam F max med | seam verdict | overflow |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p3-final-seed4321 | flat_dr | 16 | 5/11/0/0 | 0.0936 | 0.113 | 1.53 | -1.54 | 0.162 | 3.08 | 36.2/51.9 | 0.405 | 0.14 | - | - | - | - | - | - | - | - | - | - | - | n/a (flat) |
