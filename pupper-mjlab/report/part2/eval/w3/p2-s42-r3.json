@@ -1,0 +1,710 @@
+{
+  "name": "p2-s42-r3",
+  "kind": "suite",
+  "metrics": {
+    "robot_runs": 384,
+    "falls_total": 23,
+    "timeouts_total": 0,
+    "falls_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 15,
+      "reversal": 8
+    },
+    "falls_by_schedule": {
+      "stand": 0,
+      "ramp_fwd": 0,
+      "ramp_back": 0,
+      "steady_fwd": 0,
+      "steady_back": 0,
+      "reversal_fwd_first": 5,
+      "reversal_back_first": 3,
+      "stops_fwd": 15,
+      "stops_back": 0,
+      "turn_in_place": 0,
+      "walk_and_turn": 0,
+      "sidestep": 0,
+      "slow_walk": 0,
+      "gait_seam": 0,
+      "reversal_moderate": 0,
+      "mixed": 0
+    },
+    "falls_soon_after_reset": 0,
+    "falls_soon_after_reset_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 0,
+      "reversal": 0
+    },
+    "falls_detail": [
+      {
+        "schedule": "stops_fwd",
+        "env": 172,
+        "time_s": 5.52,
+        "episode_age_s": 5.52,
+        "since_command_change_s": 0.52,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 176,
+        "time_s": 5.56,
+        "episode_age_s": 5.56,
+        "since_command_change_s": 0.56,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 183,
+        "time_s": 5.58,
+        "episode_age_s": 5.58,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 170,
+        "time_s": 5.62,
+        "episode_age_s": 5.62,
+        "since_command_change_s": 0.62,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 154,
+        "time_s": 7.26,
+        "episode_age_s": 7.26,
+        "since_command_change_s": 0.26,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 151,
+        "time_s": 7.28,
+        "episode_age_s": 7.28,
+        "since_command_change_s": 0.28,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 120,
+        "time_s": 7.5,
+        "episode_age_s": 7.5,
+        "since_command_change_s": 0.5,
+        "category": "reversal"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 11.04,
+        "episode_age_s": 11.04,
+        "since_command_change_s": 0.54,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 173,
+        "time_s": 11.08,
+        "episode_age_s": 11.08,
+        "since_command_change_s": 0.58,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 140,
+        "time_s": 11.26,
+        "episode_age_s": 11.26,
+        "since_command_change_s": 0.26,
+        "category": "reversal"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 183,
+        "time_s": 11.26,
+        "episode_age_s": 5.66,
+        "since_command_change_s": 0.76,
+        "category": "stop"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 135,
+        "time_s": 11.28,
+        "episode_age_s": 11.28,
+        "since_command_change_s": 0.28,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 124,
+        "time_s": 11.3,
+        "episode_age_s": 11.3,
+        "since_command_change_s": 0.3,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_fwd_first",
+        "env": 128,
+        "time_s": 11.32,
+        "episode_age_s": 11.32,
+        "since_command_change_s": 0.32,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_back_first",
+        "env": 152,
+        "time_s": 11.38,
+        "episode_age_s": 11.38,
+        "since_command_change_s": 0.38,
+        "category": "reversal"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 172,
+        "time_s": 16.38,
+        "episode_age_s": 10.84,
+        "since_command_change_s": 0.38,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 176,
+        "time_s": 16.4,
+        "episode_age_s": 10.82,
+        "since_command_change_s": 0.4,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 180,
+        "time_s": 16.62,
+        "episode_age_s": 16.62,
+        "since_command_change_s": 0.62,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 188,
+        "time_s": 16.66,
+        "episode_age_s": 16.66,
+        "since_command_change_s": 0.66,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 184,
+        "time_s": 16.76,
+        "episode_age_s": 16.76,
+        "since_command_change_s": 0.76,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 177,
+        "time_s": 16.8,
+        "episode_age_s": 5.74,
+        "since_command_change_s": 0.8,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 179,
+        "time_s": 16.82,
+        "episode_age_s": 16.82,
+        "since_command_change_s": 0.82,
+        "category": "stop"
+      },
+      {
+        "schedule": "stops_fwd",
+        "env": 191,
+        "time_s": 16.96,
+        "episode_age_s": 16.96,
+        "since_command_change_s": 0.96,
+        "category": "stop"
+      }
+    ],
+    "category_robot_runs": {
+      "steady": 384,
+      "turn": 96,
+      "stop": 72,
+      "reversal": 96
+    },
+    "category_robot_seconds": {
+      "steady": 5892.0,
+      "turn": 1068.0,
+      "stop": 336.0,
+      "reversal": 384.0
+    },
+    "category_robot_events": {
+      "reversal": 192,
+      "stop": 168
+    },
+    "steady_samples": {
+      "fwd": 24077,
+      "back": 24098,
+      "stand": 33867,
+      "moving": 103447
+    },
+    "track_err_fwd": 0.0948601936024537,
+    "track_err_back": 0.10738119023591465,
+    "mean_vx_fwd": 1.523776888847351,
+    "mean_vx_back": -1.511392593383789,
+    "stand_jitter_rad_s": 0.09998096525669098,
+    "torque_sat_frac": 0.05959992395377848,
+    "torque_sat_frac_fast": 0.15910742086144267,
+    "torque_abs_max_nm": 3.0,
+    "torque_sq_mean": 1.3250938653945923,
+    "foot_force_peak_bw": 6.402642904995413,
+    "foot_force_runmax_median_bw": 2.889229525116612,
+    "foot_force_runmax_robot_runs": 384,
+    "foot_force_p999_bw": 2.6045714000786178,
+    "foot_force_p99_bw": 1.7735372674002914,
+    "foot_force_peak_where": {
+      "schedule": "reversal_fwd_first",
+      "env": 131,
+      "time_s": 7.18,
+      "episode_age_s": 7.179999999999935,
+      "foot": 0,
+      "context": "reversal",
+      "cmd": [
+        -1.5,
+        0.0,
+        0.0
+      ]
+    },
+    "foot_force_peak_bw_incl_reset_drop": 6.402642904995413,
+    "foot_force_p99_bw_incl_reset_drop": 1.7595726735104025,
+    "foot_force_stand_mean_bw_per_foot": 0.25609955721834543,
+    "foot_force_stand_total_bw": 1.0243982288733817,
+    "heading_drift_deg_per_10s_fwd": {
+      "mean": 46.021951443511824,
+      "signed_mean": 25.720720117876446,
+      "max": 134.39685821023497,
+      "windows": 120,
+      "windows_ending_in_fall": 0
+    },
+    "heading_drift_deg_per_10s_back": {
+      "mean": 43.75696945734032,
+      "signed_mean": -2.607383184999095,
+      "max": 135.23559405666393,
+      "windows": 120,
+      "windows_ending_in_fall": 0
+    },
+    "hind_splay_rad_fwd": 0.026145223485852916,
+    "hind_splay_rad_back": 0.08620123537555086,
+    "hind_splay_rad_stand": -0.11243165024669785,
+    "slip_m_s": 0.40215868134766397,
+    "slip_m_s_fwd": 0.6683038056916886,
+    "slip_m_s_back": 0.6812450563076777,
+    "top_speed_fwd": 1.700667724609375,
+    "top_speed_back": -1.6953515625,
+    "top_speed_fwd_median_env": 0.5927396392822266,
+    "top_speed_back_median_env": -0.4360124969482422,
+    "mass_kg": {
+      "min": 3.0556979179382324,
+      "mean": 3.455386141935984,
+      "max": 3.835693836212158
+    },
+    "mass_source": "env.sim.model.body_mass[world, robot.indexing.body_ids] (per-world)",
+    "mass_nominal_kg": 3.1699999999999995,
+    "gravity_m_s2": 9.81,
+    "torque_model": {
+      "effort_limit_nm": 3.0,
+      "saturation_threshold_nm": 2.9699999999999998,
+      "actuator_forcelimited": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "actuator_forcerange": [
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ]
+      ],
+      "jnt_actfrclimited": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "wall_clock_s": 59.58126091957092,
+  "rollout_loop_s": 35.639365434646606,
+  "schedule": {
+    "names": [
+      "stand",
+      "ramp_fwd",
+      "ramp_back",
+      "steady_fwd",
+      "steady_back",
+      "reversal_fwd_first",
+      "reversal_back_first",
+      "stops_fwd",
+      "stops_back",
+      "turn_in_place",
+      "walk_and_turn",
+      "sidestep",
+      "slow_walk",
+      "gait_seam",
+      "reversal_moderate",
+      "mixed"
+    ],
+    "sha256": "ff8df7951f572c5f4eeefd63341fd72ed8f37eaea70f78065ec8b0ffc2710bc2",
+    "steps": 1000,
+    "dt": 0.02,
+    "envs_per_schedule": 24,
+    "context_window_s": 2.0,
+    "steady_after_s": 2.0
+  },
+  "provenance": {
+    "mode": "batch",
+    "out_dir": "/home/ubuntu/wt/w3/pupper-mjlab/report/part2/eval/w3",
+    "raw_dir": null,
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w3/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "entries": [
+      "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3/model_4496.pt:/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag=p2-s42-r3"
+    ],
+    "envs_per_schedule": 24,
+    "envs": 512,
+    "modes": [
+      "suite",
+      "push"
+    ],
+    "skip_existing": true,
+    "worker": true,
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3/model_4496.pt",
+    "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag",
+    "name": "p2-s42-r3",
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3/model_4496.pt",
+      "iter": 4496,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 42,
+      "train_seed_source": "provenance.json",
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+      "parent_source": "provenance.json",
+      "parent_iter": 3997,
+      "parent_iter_source": "parent checkpoint['iter']",
+      "iters_past_parent": 500,
+      "iters_past_parent_source": "iter - parent_iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 500,
+      "train_git_revision": "90b3e59266a6a0eb4f0dfef66421b3a6ffa0f6b5",
+      "reference_check": "ok"
+    },
+    "num_envs": 384,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "f2bb23e2aaed30e29231034cd52846fc024f4314f97d07d2cbaa74e21fb1cebf",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w3/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "source_sha256": "b3b94232681319dc0aad689439807b678f5f6930174f54cd33fe07258dce0b93",
+    "source_files_hashed": 269,
+    "checkpoint_sha256": "f2bb23e2aaed30e29231034cd52846fc024f4314f97d07d2cbaa74e21fb1cebf",
+    "references": {
+      "fold_summary.json": "1819176c99d28e8e599082b70334c7b475e33a76db5e202377a10cac509adf80",
+      "captured_reach_gaits.npz": "5dbeaf8f3ffcee4285d210f4dec0e26cfa1337942e66fc51e077ef9fafe48285",
+      "reference_manifest.json": "0af56ba6496cd4efc1cf5fa7167182472aea17dc92646f294e433bfe3e179e18",
+      "capture.json": "8e0ad1bd3c67241cb78f0a69ae4c2089e9178db1bece4d61f5837b2c08399d16",
+      "foldcheck.json": "3a781cb03078745fb67587a7c42c2e1d92ab4db444f583a74f6d268a24568843"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "5dbeaf8f3ffcee4285d210f4dec0e26cfa1337942e66fc51e077ef9fafe48285",
+      "reference_manifest.json": "0af56ba6496cd4efc1cf5fa7167182472aea17dc92646f294e433bfe3e179e18"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "90b3e59266a6a0eb4f0dfef66421b3a6ffa0f6b5",
+    "reference_check": "ok"
+  }
+}

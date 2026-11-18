@@ -1,0 +1,2074 @@
+{
+ "assertions": {
+  "num_envs": 4096,
+  "root": "rp-p1-gallop_c-s{s}/model_2999.pt",
+  "cumulative": "= level",
+  "seeds": [
+   42,
+   43
+  ]
+ },
+ "violations": [],
+ "rows": {
+  "s42+0": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "0"
+   ],
+   "seed": [
+    "42"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt"
+   ]
+  },
+  "s43+0": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "0"
+   ],
+   "seed": [
+    "43"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt"
+   ]
+  },
+  "s42+500": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "500"
+   ],
+   "seed": [
+    "42"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt"
+   ]
+  },
+  "s43+500": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "500"
+   ],
+   "seed": [
+    "43"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt"
+   ]
+  },
+  "s42+1000": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "1000"
+   ],
+   "seed": [
+    "42"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt"
+   ]
+  },
+  "s43+1000": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "1000"
+   ],
+   "seed": [
+    "43"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt"
+   ]
+  },
+  "s42+1500": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "1500"
+   ],
+   "seed": [
+    "42"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt"
+   ]
+  },
+  "s43+1500": {
+   "num_envs": [
+    "4096"
+   ],
+   "cumulative": [
+    "1500"
+   ],
+   "seed": [
+    "43"
+   ],
+   "root": [
+    "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt"
+   ]
+  }
+ },
+ "skipped": [
+  "p2-s43-r1-backpin: no eval JSON in /home/ubuntu/wt/w3/pupper-mjlab/report/part2/eval/w3 (no run dir yet)"
+ ],
+ "arms": {
+  "p1-gallop_c-s42": {
+   "seed": 42,
+   "level": 0,
+   "base": "p1-gallop_c",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "final_iter": 2999,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [],
+    "cumulative_iters": 0,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": null,
+    "parent_source": "provenance.json",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "2e7f5b9cdd4ff2094ff73de99c094190abcfd702",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r1-naive": {
+   "seed": 42,
+   "level": 500,
+   "base": "r1-naive",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-naive/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-naive",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-naive",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-naive"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-naive/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-naive",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "1611a7584dd0935efcce6f8b9be4f76f43b3bb57",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r1-lag": {
+   "seed": 42,
+   "level": 500,
+   "base": "r1-lag",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "1611a7584dd0935efcce6f8b9be4f76f43b3bb57",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r1-backpin": {
+   "seed": 42,
+   "level": 500,
+   "base": "r1-backpin",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-backpin/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-backpin",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-backpin",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-backpin"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-backpin/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-backpin",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "1611a7584dd0935efcce6f8b9be4f76f43b3bb57",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-ctrl-500": {
+   "seed": 42,
+   "level": 500,
+   "base": "ctrl-500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-ctrl-500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "1611a7584dd0935efcce6f8b9be4f76f43b3bb57",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r2": {
+   "seed": 42,
+   "level": 1000,
+   "base": "r2",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+    "final_iter": 3997,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r2",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1000,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+    "iter": 3997,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3498,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "2015e16cc697a191f666e4da556f57b26aa8ea8c",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r1-cont-1000": {
+   "seed": 42,
+   "level": 1000,
+   "base": "r1-cont-1000",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+    "final_iter": 3997,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r1-cont-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1000,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+    "iter": 3997,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3498,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "27c48ffa2bcefee0d3e19de9505105bb50bf9e69",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-ctrl-1000": {
+   "seed": 42,
+   "level": 1000,
+   "base": "ctrl-1000",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000/model_3997.pt",
+    "final_iter": 3997,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-ctrl-500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-ctrl-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1000,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000/model_3997.pt",
+    "iter": 3997,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3498,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "e926ff8879506323f4297a374dd464efba3461b9",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r3": {
+   "seed": 42,
+   "level": 1500,
+   "base": "r3",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r2",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r3",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r3/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r3-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "90b3e59266a6a0eb4f0dfef66421b3a6ffa0f6b5",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r2-cont-1500": {
+   "seed": 42,
+   "level": 1500,
+   "base": "r2-cont-1500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r2",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r2-cont-1500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-r1-cont-1500": {
+   "seed": 42,
+   "level": 1500,
+   "base": "r1-cont-1500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1500/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r1-cont-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-r1-cont-1500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r1-cont-1000/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s42/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s42-ctrl-1500": {
+   "seed": 42,
+   "level": 1500,
+   "base": "ctrl-1500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1500/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 42,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s42-ctrl-500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-ctrl-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-500/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s42-ctrl-1500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 42,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-ctrl-1000/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  },
+  "p1-gallop_c-s43": {
+   "seed": 43,
+   "level": 0,
+   "base": "p1-gallop_c",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "final_iter": 2999,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [],
+    "cumulative_iters": 0,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": null,
+    "parent_source": "provenance.json",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "a042c722819ef445ffe13107f6b6e1e67a99dfc7",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r1-naive": {
+   "seed": 43,
+   "level": 500,
+   "base": "r1-naive",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-naive/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-naive",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-naive",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-naive"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-naive/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-naive",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "e926ff8879506323f4297a374dd464efba3461b9",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r1-lag": {
+   "seed": 43,
+   "level": 500,
+   "base": "r1-lag",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "27c48ffa2bcefee0d3e19de9505105bb50bf9e69",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r1-backpin": {
+   "seed": 43,
+   "level": 500,
+   "base": "r1-backpin",
+   "final_source": null,
+   "eval": false,
+   "push_eval": false,
+   "chain": null,
+   "violations": null
+  },
+  "p2-s43-ctrl-500": {
+   "seed": 43,
+   "level": 500,
+   "base": "ctrl-500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+    "final_iter": 3498,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-ctrl-500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+    "iter": 3498,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "637f16e59fa27288ab4e0c18f3b6ca9fbb7a084b",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r2": {
+   "seed": 43,
+   "level": 1000,
+   "base": "r2",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+    "final_iter": 3997,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r2",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1000,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+    "iter": 3997,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3498,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "05b33713b36d1548ed4a39766fdf5b5fb332612d",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r1-cont-1000": {
+   "seed": 43,
+   "level": 1000,
+   "base": "r1-cont-1000",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000/model_3997.pt",
+    "final_iter": 3997,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r1-cont-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1000,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000/model_3997.pt",
+    "iter": 3997,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3498,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "90b3e59266a6a0eb4f0dfef66421b3a6ffa0f6b5",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-ctrl-1000": {
+   "seed": 43,
+   "level": 1000,
+   "base": "ctrl-1000",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000/model_3997.pt",
+    "final_iter": 3997,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-ctrl-500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-ctrl-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1000,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000/model_3997.pt",
+    "iter": 3997,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3498,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "90b3e59266a6a0eb4f0dfef66421b3a6ffa0f6b5",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r3": {
+   "seed": 43,
+   "level": 1500,
+   "base": "r3",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r3/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r2",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r3",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r3",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r3-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r3/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r3-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r2-cont-1500": {
+   "seed": 43,
+   "level": 1500,
+   "base": "r2-cont-1500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2-cont-1500/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r2",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r2-cont-1500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2-cont-1500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2-cont-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-r1-cont-1500": {
+   "seed": 43,
+   "level": 1500,
+   "base": "r1-cont-1500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1500/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-r1-lag",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r1-cont-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-lag/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-r1-cont-1500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r1-cont-1000/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r1-lag",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  },
+  "p2-s43-ctrl-1500": {
+   "seed": 43,
+   "level": 1500,
+   "base": "ctrl-1500",
+   "final_source": "eval training.checkpoint",
+   "eval": true,
+   "push_eval": true,
+   "chain": {
+    "final": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1500/model_4496.pt",
+    "final_iter": 4496,
+    "final_exists": true,
+    "root": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+    "root_num_envs": 4096,
+    "root_seed": 43,
+    "root_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "legs": [
+     {
+      "job": "p2-s43-ctrl-500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+        "start": 2999,
+        "end": 3498,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s43/model_2999.pt",
+      "start": 2999,
+      "end": 3498,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-ctrl-1000",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+        "start": 3498,
+        "end": 3997,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-500/model_3498.pt",
+      "start": 3498,
+      "end": 3997,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     },
+     {
+      "job": "p2-s43-ctrl-1500",
+      "segments": [
+       {
+        "dir": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1500",
+        "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000/model_3997.pt",
+        "start": 3997,
+        "end": 4496,
+        "num_envs": 4096,
+        "seed": 43,
+        "iterations_arg": 500,
+        "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c"
+       }
+      ],
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000/model_3997.pt",
+      "start": 3997,
+      "end": 4496,
+      "iters": 500,
+      "planned_iters": 500,
+      "resumed": false,
+      "lineage_updates": 500
+     }
+    ],
+    "cumulative_iters": 1500,
+    "problems": []
+   },
+   "violations": [],
+   "eval_training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1500/model_4496.pt",
+    "iter": 4496,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 43,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-ctrl-1000/model_3997.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 3997,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 500,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 500,
+    "train_git_revision": "a898f59ff332bab61632631414e05a927444b6e3",
+    "reference_check": "ok"
+   }
+  }
+ }
+}
