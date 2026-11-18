@@ -41,6 +41,9 @@ FLAT_TASK = "Mjlab-MixedGaits-Flat-Pupper-v3"
 WEIGHTS = "configs/opt-lab-2/weights/splay_stand_still.json"
 FULL_ITERATIONS = 1500  # decision report/decisions/2026-11-18-w4-finetune-budget.md (2/2 graders)
 SMOKE_MAX = 50
+# Decision report/decisions/2026-11-18-w4-kp-coverage.md (arbitrated): the WIDEN branch trains both
+# arms with these PD-gain DR ranges (a superset of Lab 4); evaluation stays on the Lab 4 ranges.
+PD_RANGES = {"lab4": None, "wide": dict(kp_range=(0.6, 1.3), kd_range=(0.7, 1.5))}
 
 
 def check_dr(reference_dir: Path | None, task: str = BUMPY_TASK) -> dict:
@@ -76,6 +79,8 @@ def main() -> int:
   p.add_argument("--weights", default=WEIGHTS)
   p.add_argument("--flat-control", action="store_true",
                  help="Matched control arm: same warm start/weights/seed/budget on the Flat task")
+  p.add_argument("--pd-ranges", choices=sorted(PD_RANGES), default="lab4",
+                 help="Training PD-gain DR: lab4 (task default) or wide (kp x[0.6,1.3], kd x[0.7,1.5])")
   p.add_argument("--dry-run", action="store_true")
   p.add_argument("--quiet", action="store_true")
   args, extra = p.parse_known_args()
@@ -89,13 +94,18 @@ def main() -> int:
   task = FLAT_TASK if args.flat_control else BUMPY_TASK
   cfg = check_dr(args.reference_dir, task)
   print(f"[part3_finetune] config check: {json.dumps(cfg)}", flush=True)
-  tags = ("p3,flat-control,lab4dr" if args.flat_control else "p3,bumpy,lab4dr") + (",smoke" if args.smoke else "")
+  dr_tag = "lab4dr" if args.pd_ranges == "lab4" else "p3dr-widekp"
+  tags = (f"p3,flat-control,{dr_tag}" if args.flat_control else f"p3,bumpy,{dr_tag}") + (",smoke" if args.smoke else "")
+  pd = PD_RANGES[args.pd_ranges]
+  pd_flag = ["--pd-gain-override", ",".join(str(x) for x in (*pd["kp_range"], *pd["kd_range"]))] if pd else []
   kind = "flat-continuation CONTROL" if args.flat_control else "Bumpy + Lab 4 DR fine-tune"
   cmd = [
     sys.executable, str(LAUNCH), "--name", args.name, *([] if args.flat_control else ["--checked-bumpy"]),
     "--reference-dir", str(args.reference_dir), "--weights", args.weights, "--tags", tags,
     "--notes", f"Part 3 {kind} ({'SMOKE' if args.smoke else 'full'}); "
-               f"warm start {args.checkpoint}; DR {cfg['dr']['ranges']}",
+               f"warm start {args.checkpoint}; DR {cfg['dr']['ranges']}"
+               + (f"; TRAINING PD-gain override {pd}" if pd else ""),
+    *pd_flag,
     *(["--dry-run"] if args.dry_run else []), *(["--quiet"] if args.quiet else []),
     "--task", task, "--checkpoint", str(args.checkpoint.resolve()), "--iterations", str(iters),
     "--num-envs", str(args.num_envs), "--seed", str(args.seed), *extra,

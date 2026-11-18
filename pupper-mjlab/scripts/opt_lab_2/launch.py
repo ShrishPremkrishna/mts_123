@@ -152,6 +152,22 @@ def child_main(train_argv: list[str]) -> None:
   from mjlab.scripts import pupper_locomotion
 
   sys.argv = ["pupper_locomotion", "train", *train_argv]
+  override = meta.get("pd_gain_override")
+  if override:
+    # Training-only PD-gain DR range (Part 3 decision 2026-11-18-w4-kp-coverage). It
+    # wraps settings() before any other wrapper captures it; play configs are untouched.
+    original_settings = pupper_locomotion.settings
+
+    def settings(args, play):
+      cfg, agent = original_settings(args, play)
+      if not play:
+        params = cfg.events["pd_gains"].params
+        params["kp_range"] = tuple(override["kp_range"])
+        params["kd_range"] = tuple(override["kd_range"])
+        print(f"[launch] PD-gain DR override (training only): {override}", flush=True)
+      return cfg, agent
+
+    pupper_locomotion.settings = settings
   if meta.get("checked_bumpy"):
     # Reviewed Bumpy contract (0.10 m Perlin grid + accumulated physics-overflow
     # audit; the stock 0.05 m grid overflows with the torso hull). See
@@ -188,6 +204,8 @@ def main() -> int:
   p.add_argument("--checked-bumpy", action="store_true",
                  help="Train through foundation/scripts/bumpy_checked_cli.py (0.10 m Perlin grid + overflow "
                       "audit); requires --task Mjlab-MixedGaits-Bumpy-Pupper-v3")
+  p.add_argument("--pd-gain-override", metavar="KP_LO,KP_HI,KD_LO,KD_HI",
+                 help="Training-only PD-gain DR multiplier ranges (default: the task's Lab 4 ranges)")
   p.add_argument("--dry-run", action="store_true", help="Run checks, print the command, do not train")
   p.add_argument("--quiet", action="store_true", help="Log to file only (no terminal echo)")
   args, passthrough = p.parse_known_args()
@@ -269,6 +287,11 @@ def main() -> int:
       p.error("--checked-bumpy requires --task Mjlab-MixedGaits-Bumpy-Pupper-v3")
     meta["checked_bumpy"] = dict(wrapper=str(BUMPY_CHECKED_CLI.relative_to(toplevel)),
                                  sha256=sha256(BUMPY_CHECKED_CLI))
+  if args.pd_gain_override:
+    v = [float(x) for x in args.pd_gain_override.split(",")]
+    if len(v) != 4 or not (0 < v[0] < v[1] and 0 < v[2] < v[3]):
+      p.error("--pd-gain-override needs KP_LO,KP_HI,KD_LO,KD_HI with 0 < lo < hi")
+    meta["pd_gain_override"] = dict(kp_range=v[:2], kd_range=v[2:])
   meta["run_name"] = out.name
   meta["train_argv"] = train_argv
   meta["tags"] = [t for t in args.tags.split(",") if t]

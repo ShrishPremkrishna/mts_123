@@ -123,17 +123,18 @@ def ablate(args):
   rows = []
   for ev in args.events:
     a = copy.copy(args)
-    a.task, a.name, a.out_dir = FLAT_TASK, f"{args.name}-flat-nominal_{ev}", out
+    seed_tag = "" if args.seed == 1234 else f"-seed{args.seed}"
+    a.task, a.name, a.out_dir = FLAT_TASK, f"{args.name}-flat-nominal_{ev}{seed_tag}", out
     if not (args.skip_existing and (out / f"{a.name}.json").exists()):
       with rollout_conditions(a, dr=True, remove_events=(ev,)) as rec:
         part2_eval.run_suite(a)
       _stamp(out / f"{a.name}.json", rec)
     m = json.loads((out / f"{a.name}.json").read_text())["metrics"]
-    rows.append([ev] + [_f(fn(m)) for _, fn in SUMMARY_SUITE])
+    rows.append([ev + seed_tag] + [_f(fn(m)) for _, fn in SUMMARY_SUITE])
   head = ["nominal event (others randomized)"] + [h for h, _ in SUMMARY_SUITE]
   text = "\n".join(["| " + " | ".join(head) + " |", "|" + "---|" * len(head)] +
                    ["| " + " | ".join(r) + " |" for r in rows]) + "\n"
-  (out / "ablate.md").write_text(text)
+  (out / f"ablate{'' if args.seed == 1234 else f'-seed{args.seed}'}.md").write_text(text)
   print(text)
 
 
