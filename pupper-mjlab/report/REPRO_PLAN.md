@@ -73,9 +73,13 @@ observes the reference and that reference is gone. Baseline checkpoints (`baseli
    artifact, and log the git SHA in the run config. Last time, references existed only in local worktrees.
 2. **No NVIDIA MPS.** [R lesson] Twice, a GPU fault in one run killed every co-scheduled run. Run
    concurrent jobs as plain separate processes, and resume from the `save_interval=50` checkpoints.
-3. **The A100 is fast**: 0.76 s/iter at 4096 envs solo (the old A10 ran 0.8–1.3 s/iter solo and 1.8–6 s/iter shared).
-   A 3000-iteration run takes about 40 min. We can afford **two seeds (42, 43) for every Part 2 arm from the start**, which removes
-   the one-seed caveat that blocked the final pick last time.
+3. **The A100 is fast, but it is one fixed pie** (measured 2026-11-18, `report/infra/a100_throughput.md`): 0.78 s/iter at 4096 envs solo
+   (the old A10 ran 0.8–1.3 s/iter solo). Without MPS, **aggregate throughput is flat at ≈ 1.25–1.3 it/s for 1–6 concurrent
+   processes**, so concurrency does not add throughput. Budget = total iterations / 1.25 s: one 3000-iteration run solo ≈ 40 min,
+   Part 1 (~24 k iterations) ≈ 5 h, Part 2 (14 legs × 500 × 2 seeds) ≈ 3 h, plus evals. This supersedes the §5 estimate.
+   Max concurrency **4** (`~/recovery/CONCURRENCY`, `report/decisions/2026-11-18-w0-concurrency.md`). Evals take a disproportionate
+   share of the GPU, so batch them. Two seeds for every Part 2 arm is still affordable (≈ 3 h) and removes the one-seed caveat that blocked the final pick
+   last time. (8192 envs gives 1.7× env-steps/s but changes PPO numerics: [H], not adopted.)
 4. **Keep `--num-envs 4096`** so results stay comparable with the recovered numbers (PPO batch size). Use concurrency for throughput.
    Moving to 8192+ envs is a [H] decision.
 5. **Build the extended eval harness and push test before Part 1 finishes**, against the valid baseline
