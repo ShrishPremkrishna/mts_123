@@ -1,0 +1,35 @@
+# Reference diff: `r1-backpin` vs parent
+
+## reach_fwd
+
+| channel | rms diff | max abs diff | mean offset | parent range | new range | note |
+|---|---|---|---|---|---|---|
+| leg_front_r_1 | 0.068 | 0.143 | -0.001 | 1.290 | 1.184 |  |
+| leg_front_r_2 | 0.160 | 0.235 | -0.145 | 0.015 | 0.256 | **near-constant channel shifted** |
+| leg_front_r_3 | 0.132 | 0.246 | -0.010 | 1.140 | 1.085 |  |
+| leg_front_l_1 | 0.077 | 0.150 | +0.007 | 1.290 | 1.212 |  |
+| leg_front_l_2 | 0.183 | 0.282 | +0.164 | 0.015 | 0.255 | **near-constant channel shifted** |
+| leg_front_l_3 | 0.163 | 0.278 | +0.074 | 1.140 | 0.972 |  |
+| leg_back_r_1 | 0.120 | 0.241 | +0.026 | 1.166 | 0.882 |  |
+| leg_back_r_2 | 0.000 | 0.000 | +0.000 | 0.059 | 0.059 | pinned |
+| leg_back_r_3 | 0.156 | 0.325 | -0.039 | 1.532 | 1.105 |  |
+| leg_back_l_1 | 0.064 | 0.175 | +0.012 | 1.165 | 1.050 |  |
+| leg_back_l_2 | 0.000 | 0.000 | +0.000 | 0.059 | 0.059 | pinned |
+| leg_back_l_3 | 0.139 | 0.261 | +0.005 | 1.536 | 1.310 |  |
+
+## reach_back
+
+| channel | rms diff | max abs diff | mean offset | parent range | new range | note |
+|---|---|---|---|---|---|---|
+| leg_front_r_1 | 0.080 | 0.191 | +0.020 | 1.290 | 1.231 |  |
+| leg_front_r_2 | 0.163 | 0.259 | -0.134 | 0.015 | 0.329 | **near-constant channel shifted** |
+| leg_front_r_3 | 0.180 | 0.354 | +0.008 | 1.140 | 0.843 |  |
+| leg_front_l_1 | 0.102 | 0.222 | -0.005 | 1.290 | 1.259 |  |
+| leg_front_l_2 | 0.120 | 0.199 | +0.103 | 0.015 | 0.233 | **near-constant channel shifted** |
+| leg_front_l_3 | 0.182 | 0.402 | +0.009 | 1.140 | 0.732 |  |
+| leg_back_r_1 | 0.094 | 0.204 | -0.023 | 1.166 | 1.252 |  |
+| leg_back_r_2 | 0.000 | 0.000 | +0.000 | 0.059 | 0.059 | pinned |
+| leg_back_r_3 | 0.168 | 0.387 | +0.073 | 1.532 | 1.126 |  |
+| leg_back_l_1 | 0.074 | 0.184 | +0.015 | 1.165 | 1.118 |  |
+| leg_back_l_2 | 0.000 | 0.000 | +0.000 | 0.059 | 0.059 | pinned |
+| leg_back_l_3 | 0.134 | 0.287 | -0.041 | 1.536 | 1.191 |  |

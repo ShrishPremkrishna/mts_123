@@ -1,0 +1,166 @@
+{
+  "capture": "/home/ubuntu/runs/opt-lab-2/w3/capture-p0-gallop_c-s42",
+  "parent_ref": "configs/opt-lab-2/gallop_c",
+  "clock_hz": 3.0,
+  "lag_steps": 2.0,
+  "directions": {
+    "reach_fwd": {
+      "joint_dominant_hz": 2.9296875,
+      "spectral_power_ratio_clock_over_dominant": 1.0,
+      "fft_windows": 64,
+      "fft_resolution_hz": 0.1953125,
+      "touchdown_hz_per_foot_median": [
+        5.593,
+        6.01,
+        6.177,
+        6.002
+      ],
+      "captured_samples": 38366,
+      "captured_range_5_95": {
+        "leg_front_r_1": 1.1770000457763672,
+        "leg_front_r_2": 0.28999999165534973,
+        "leg_front_r_3": 1.1100000143051147,
+        "leg_front_l_1": 1.2020000219345093,
+        "leg_front_l_2": 0.3179999887943268,
+        "leg_front_l_3": 0.9739999771118164,
+        "leg_back_r_1": 0.8840000033378601,
+        "leg_back_r_2": 0.3400000035762787,
+        "leg_back_r_3": 1.1230000257492065,
+        "leg_back_l_1": 1.0390000343322754,
+        "leg_back_l_2": 0.34200000762939453,
+        "leg_back_l_3": 1.3359999656677246
+      },
+      "parent": {
+        "rms_resid_rad_mean": 0.14138557134586896,
+        "rms_resid_rad_moving": 0.14138557134586896,
+        "r2_mean_moving": 0.5876523263015673,
+        "r2_min_moving": 0.051862617611726614,
+        "amplitude_retention_moving": 0.81413685428516,
+        "kp_dq_nm": 3.820868572793154,
+        "kp_dq_worst": "leg_back_r_3",
+        "peak_speed_rad_s": 44.75919743400031,
+        "limit_margin_min_rad": 0.24454399693559703,
+        "limit_worst": "leg_front_l_3",
+        "wrap_step_rad": 0.06070588753895828
+      },
+      "s42-default": {
+        "rms_resid_rad_mean": 0.09657622372822934,
+        "rms_resid_rad_moving": 0.09657622372822934,
+        "r2_mean_moving": 0.6775188630609797,
+        "r2_min_moving": 0.051862617611726614,
+        "amplitude_retention_moving": 0.7009844430674428,
+        "kp_dq_nm": 2.170243334800795,
+        "kp_dq_worst": "leg_back_l_3",
+        "peak_speed_rad_s": 20.459361044244773,
+        "limit_margin_min_rad": 0.31464446428463066,
+        "limit_worst": "leg_front_r_3",
+        "wrap_step_rad": 0.03631118684692927
+      },
+      "s42-naive": {
+        "rms_resid_rad_mean": 0.28752517418743867,
+        "rms_resid_rad_moving": 0.28752517418743867,
+        "r2_mean_moving": -0.07490895946257942,
+        "r2_min_moving": -0.6709764940789145,
+        "amplitude_retention_moving": 0.7011382047989819,
+        "kp_dq_nm": 2.1728841063137057,
+        "kp_dq_worst": "leg_back_l_3",
+        "peak_speed_rad_s": 20.468299260581915,
+        "limit_margin_min_rad": 0.3123132629647433,
+        "limit_worst": "leg_front_r_3",
+        "wrap_step_rad": 0.05190265579969014
+      },
+      "s42-nopin": {
+        "rms_resid_rad_mean": 0.062197553847684196,
+        "rms_resid_rad_moving": 0.062197553847684196,
+        "r2_mean_moving": 0.8855315643098102,
+        "r2_min_moving": 0.7111391889558778,
+        "amplitude_retention_moving": 0.9556002983863814,
+        "kp_dq_nm": 2.170243334800795,
+        "kp_dq_worst": "leg_back_l_3",
+        "peak_speed_rad_s": 20.459361044244773,
+        "limit_margin_min_rad": 0.06375751194005913,
+        "limit_worst": "leg_front_l_2",
+        "wrap_step_rad": 0.03631118684692927
+      }
+    },
+    "reach_back": {
+      "joint_dominant_hz": 2.9296875,
+      "spectral_power_ratio_clock_over_dominant": 1.0,
+      "fft_windows": 64,
+      "fft_resolution_hz": 0.1953125,
+      "touchdown_hz_per_foot_median": [
+        7.429,
+        6.01,
+        5.593,
+        6.01
+      ],
+      "captured_samples": 38310,
+      "captured_range_5_95": {
+        "leg_front_r_1": 1.2280000448226929,
+        "leg_front_r_2": 0.3580000102519989,
+        "leg_front_r_3": 0.8500000238418579,
+        "leg_front_l_1": 1.246000051498413,
+        "leg_front_l_2": 0.31700000166893005,
+        "leg_front_l_3": 0.7639999985694885,
+        "leg_back_r_1": 1.2599999904632568,
+        "leg_back_r_2": 0.3050000071525574,
+        "leg_back_r_3": 1.121000051498413,
+        "leg_back_l_1": 1.1169999837875366,
+        "leg_back_l_2": 0.3619999885559082,
+        "leg_back_l_3": 1.2039999961853027
+      },
+      "parent": {
+        "rms_resid_rad_mean": 0.14400668222188928,
+        "rms_resid_rad_moving": 0.14400668222188928,
+        "r2_mean_moving": 0.49699215297032057,
+        "r2_min_moving": 0.004803811036203753,
+        "amplitude_retention_moving": 0.8315943850850293,
+        "kp_dq_nm": 3.820868572793154,
+        "kp_dq_worst": "leg_back_r_3",
+        "peak_speed_rad_s": 44.75919743400031,
+        "limit_margin_min_rad": 0.24454399693559703,
+        "limit_worst": "leg_front_l_3",
+        "wrap_step_rad": 0.04166926126035017
+      },
+      "s42-default": {
+        "rms_resid_rad_mean": 0.09406820573099535,
+        "rms_resid_rad_moving": 0.09406820573099535,
+        "r2_mean_moving": 0.6352608953733541,
+        "r2_min_moving": 0.004803811036203753,
+        "amplitude_retention_moving": 0.7000106231094171,
+        "kp_dq_nm": 2.524804432610743,
+        "kp_dq_worst": "leg_front_r_3",
+        "peak_speed_rad_s": 24.409512170522756,
+        "limit_margin_min_rad": 0.3324610189635019,
+        "limit_worst": "leg_back_r_3",
+        "wrap_step_rad": 0.04790236869852821
+      },
+      "s42-naive": {
+        "rms_resid_rad_mean": 0.2870904714290249,
+        "rms_resid_rad_moving": 0.2870904714290249,
+        "r2_mean_moving": -0.191460193652065,
+        "r2_min_moving": -0.8218397718691091,
+        "amplitude_retention_moving": 0.6993316815919459,
+        "kp_dq_nm": 2.5186333423315084,
+        "kp_dq_worst": "leg_front_r_3",
+        "peak_speed_rad_s": 24.34154697858994,
+        "limit_margin_min_rad": 0.33243430234470783,
+        "limit_worst": "leg_back_r_3",
+        "wrap_step_rad": 0.07250324680335302
+      },
+      "s42-nopin": {
+        "rms_resid_rad_mean": 0.07122571989973442,
+        "rms_resid_rad_moving": 0.07122571989973442,
+        "r2_mean_moving": 0.8451925614037122,
+        "r2_min_moving": 0.48811511664059914,
+        "amplitude_retention_moving": 0.9496869875404093,
+        "kp_dq_nm": 2.524804432610743,
+        "kp_dq_worst": "leg_front_r_3",
+        "peak_speed_rad_s": 24.409512170522756,
+        "limit_margin_min_rad": 0.0901065170152218,
+        "limit_worst": "leg_front_r_2",
+        "wrap_step_rad": 0.04790236869852821
+      }
+    }
+  }
+}

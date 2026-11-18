@@ -1,0 +1,114 @@
+{
+  "capture": "/home/ubuntu/runs/opt-lab-2/w3/capture-p0-gallop_c-s42",
+  "parent_ref": "configs/opt-lab-2/gallop_c",
+  "clock_hz": 3.0,
+  "lag_steps": 0.0,
+  "directions": {
+    "reach_fwd": {
+      "joint_dominant_hz": 2.9296875,
+      "spectral_power_ratio_clock_over_dominant": 1.0,
+      "fft_windows": 64,
+      "fft_resolution_hz": 0.1953125,
+      "touchdown_hz_per_foot_median": [
+        5.593,
+        6.01,
+        6.177,
+        6.002
+      ],
+      "captured_samples": 38366,
+      "captured_range_5_95": {
+        "leg_front_r_1": 1.1770000457763672,
+        "leg_front_r_2": 0.28999999165534973,
+        "leg_front_r_3": 1.1100000143051147,
+        "leg_front_l_1": 1.2020000219345093,
+        "leg_front_l_2": 0.3179999887943268,
+        "leg_front_l_3": 0.9739999771118164,
+        "leg_back_r_1": 0.8840000033378601,
+        "leg_back_r_2": 0.3400000035762787,
+        "leg_back_r_3": 1.1230000257492065,
+        "leg_back_l_1": 1.0390000343322754,
+        "leg_back_l_2": 0.34200000762939453,
+        "leg_back_l_3": 1.3359999656677246
+      },
+      "parent": {
+        "rms_resid_rad_mean": 0.3026481246112716,
+        "rms_resid_rad_moving": 0.3026481246112716,
+        "r2_mean_moving": -0.23811779115827955,
+        "r2_min_moving": -1.1869549027331159,
+        "amplitude_retention_moving": 0.81413685428516,
+        "kp_dq_nm": 3.820868572793154,
+        "kp_dq_worst": "leg_back_r_3",
+        "peak_speed_rad_s": 44.75919743400031,
+        "limit_margin_min_rad": 0.24454399693559703,
+        "limit_worst": "leg_front_l_3",
+        "wrap_step_rad": 0.06070588753895828
+      },
+      "s42-naive": {
+        "rms_resid_rad_mean": 0.09814407964283517,
+        "rms_resid_rad_moving": 0.09814407964283517,
+        "r2_mean_moving": 0.6374121619523249,
+        "r2_min_moving": -0.05150211124285353,
+        "amplitude_retention_moving": 0.7011382047989819,
+        "kp_dq_nm": 2.1728841063137057,
+        "kp_dq_worst": "leg_back_l_3",
+        "peak_speed_rad_s": 20.468299260581915,
+        "limit_margin_min_rad": 0.3123132629647433,
+        "limit_worst": "leg_front_r_3",
+        "wrap_step_rad": 0.05190265579969014
+      }
+    },
+    "reach_back": {
+      "joint_dominant_hz": 2.9296875,
+      "spectral_power_ratio_clock_over_dominant": 1.0,
+      "fft_windows": 64,
+      "fft_resolution_hz": 0.1953125,
+      "touchdown_hz_per_foot_median": [
+        7.429,
+        6.01,
+        5.593,
+        6.01
+      ],
+      "captured_samples": 38310,
+      "captured_range_5_95": {
+        "leg_front_r_1": 1.2280000448226929,
+        "leg_front_r_2": 0.3580000102519989,
+        "leg_front_r_3": 0.8500000238418579,
+        "leg_front_l_1": 1.246000051498413,
+        "leg_front_l_2": 0.31700000166893005,
+        "leg_front_l_3": 0.7639999985694885,
+        "leg_back_r_1": 1.2599999904632568,
+        "leg_back_r_2": 0.3050000071525574,
+        "leg_back_r_3": 1.121000051498413,
+        "leg_back_l_1": 1.1169999837875366,
+        "leg_back_l_2": 0.3619999885559082,
+        "leg_back_l_3": 1.2039999961853027
+      },
+      "parent": {
+        "rms_resid_rad_mean": 0.2807348676020865,
+        "rms_resid_rad_moving": 0.2807348676020865,
+        "r2_mean_moving": -0.18860600171406725,
+        "r2_min_moving": -1.2774411120555884,
+        "amplitude_retention_moving": 0.8315943850850293,
+        "kp_dq_nm": 3.820868572793154,
+        "kp_dq_worst": "leg_back_r_3",
+        "peak_speed_rad_s": 44.75919743400031,
+        "limit_margin_min_rad": 0.24454399693559703,
+        "limit_worst": "leg_front_l_3",
+        "wrap_step_rad": 0.04166926126035017
+      },
+      "s42-naive": {
+        "rms_resid_rad_mean": 0.0942383776897321,
+        "rms_resid_rad_moving": 0.0942383776897321,
+        "r2_mean_moving": 0.6292984127384409,
+        "r2_min_moving": -0.03027470859441328,
+        "amplitude_retention_moving": 0.6993316815919459,
+        "kp_dq_nm": 2.5186333423315084,
+        "kp_dq_worst": "leg_front_r_3",
+        "peak_speed_rad_s": 24.34154697858994,
+        "limit_margin_min_rad": 0.33243430234470783,
+        "limit_worst": "leg_back_r_3",
+        "wrap_step_rad": 0.07250324680335302
+      }
+    }
+  }
+}
