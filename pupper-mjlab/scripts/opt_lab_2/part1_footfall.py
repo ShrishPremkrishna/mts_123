@@ -52,10 +52,17 @@ def classify(lag):
   hind_pair = _close(br, 0, .3)
   fore_pair = _close(fr, fl, .3)
   if hind_pair and fore_pair and not _close(fr, 0, .2):
-    # Lead fore = the fore foot that lands last. Rotary: second hind (BR, right)
-    # then right fore first (FR before FL). Transverse: LB, BR, FL, FR.
-    first_fore = "FR" if ((fr - br) % 1) < ((fl - br) % 1) else "FL"
-    return "rotary gallop" if first_fore == "FR" else "transverse gallop"
+    # Hind pair order: LB then BR if BR follows LB within half a cycle, else BR then LB.
+    second_hind_side = "R" if (br % 1.0) < 0.5 else "L"
+    hind_end = max(0.0, br % 1.0) if second_hind_side == "R" else 0.0
+    first_fore_side = "R" if ((fr - hind_end) % 1) < ((fl - hind_end) % 1) else "L"
+    # Rotary: the fore sequence starts on the side the hind sequence ended on
+    # (LH>RH>RF>LF, or its time reversal RH>LH>LF>RF). Transverse: opposite side.
+    kind = "rotary gallop" if first_fore_side == second_hind_side else "transverse gallop"
+    lead = "LH>RH>RF>LF" if (second_hind_side, first_fore_side) == ("R", "R") else \
+           "RH>LH>LF>RF" if (second_hind_side, first_fore_side) == ("L", "L") else \
+           "LH>RH>LF>RF" if second_hind_side == "R" else "RH>LH>RF>LF"
+    return f"{kind} {lead}"
   if all(_close(l, q, .08) for l, q in zip(sorted([fr, fl, br]), (.25, .5, .75))):
     return "walk (4-beat, even)"
   return "other"
