@@ -1,0 +1,14 @@
+{
+  "track_linear_velocity": 10.0,
+  "track_yaw_velocity": 7.0,
+  "gait_tracking": 10.0,
+  "upright": 1.0,
+  "lin_vel_z_l2": -0.5,
+  "ang_vel_xy_l2": -0.05,
+  "action_rate_l2": -0.02,
+  "knee_ground_contact": -1.0,
+  "abduction_angle": -0.1,
+  "roll_asymmetry": -1.0,
+  "stand_still_joint_velocity": -0.1,
+  "stand_still_pose": -0.5
+}
