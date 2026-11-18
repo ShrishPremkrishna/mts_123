@@ -251,7 +251,21 @@ gallop_c gives 0.453 at s42 and 0.009 at s43.)
 
 ## 7. Part 2 parent (provisional)
 
-<!-- PARENT-PENDING: decided by independent graders; see report/decisions/ -->
+**Provisional parent: `gallop_c` seed 42** (`1c5r0n8c`, `~/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt`, reference
+`configs/opt-lab-2/gallop_c` @ `e01364f`). **Top 2 for seed 43: gallop_c and fast_trot.** This is a human decision point made
+lazily: three independent graders agreed 3/3, and it is pending human review. See
+[decisions/2026-11-18-p1-parent-gait.md](decisions/2026-11-18-p1-parent-gait.md) for the reasoning, flagged risks and flip conditions.
+
+In short: only fast_trot and gallop_c can run at both +1.5 and −1.5 m/s, which the Part 2 capture needs. On the ranked W2 metrics, c
+leads fast_trot on every one, consistently over two seeds, but each gap is within noise. The tie-breaks are better ±1.5 tracking and fewer
+reversal falls, and c is the same parent the old run chose (REPRO_PLAN §2). Main risks: 3 Nm saturation (17.9 % vs 12.6 % at ±1.5),
+and an irregular 4.2 Hz cycle against a 3.0 Hz clock, which may smear the fold. Check the capture before Part 2 round 1.
+
+Seed 43: gallop_c s43 (`y38xkkvh`) was launched early (13:52) because a GPU slot was free and c led a/b clearly on the stock
+sequence. That was a scheduling call, not a pick. It reproduces s42 within 1.5 % on training metrics and on W2 tracking and foot force
+(err ±1.5 0.123/0.129, F_runmax_med 3.09 BW, 41 falls). fast_trot s43 (`pgsoywpz`) was launched at 16:24 after the decision.
+Its result is listed under "what would flip this decision".
+
 
 ## Appendix: surviving fragment of the lost notebook (b916f17, recovered from W&B diffs) [R]
 
