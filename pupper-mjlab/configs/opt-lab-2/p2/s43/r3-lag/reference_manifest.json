@@ -1,0 +1,310 @@
+{
+  "version": 1,
+  "frequency_mult": 2.25,
+  "reference_sha256": "aa3da0b5e81033e47c1493c52c22e1391e5f2e844901e7bac99470451b8b9fc8",
+  "joint_order": [
+    "leg_front_r_1",
+    "leg_front_r_2",
+    "leg_front_r_3",
+    "leg_front_l_1",
+    "leg_front_l_2",
+    "leg_front_l_3",
+    "leg_back_r_1",
+    "leg_back_r_2",
+    "leg_back_r_3",
+    "leg_back_l_1",
+    "leg_back_l_2",
+    "leg_back_l_3"
+  ],
+  "checks": {
+    "reach_fwd": {
+      "samples": 100,
+      "duration_s": 0.3333333333333333,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 21.871421949397618,
+      "wrap_step_rad": 0.04465324442264074,
+      "joint_min": [
+        -0.4472800472676561,
+        0.025297767498757184,
+        -0.8169586195948472,
+        -0.605313396585935,
+        -0.04063417291417559,
+        -0.17080548465063142,
+        -0.32014463145763566,
+        0.10613975290328312,
+        -0.9241046976987963,
+        -0.4522346968583861,
+        -0.16471843396011132,
+        -0.1458742087133496
+      ],
+      "joint_max": [
+        0.5712207529413577,
+        0.04064748190499273,
+        0.24862439194261915,
+        0.5257325687165616,
+        -0.025287664974569794,
+        0.7431258837624161,
+        0.4512145760299404,
+        0.16562193928394295,
+        0.07543833273720388,
+        0.47593767972569995,
+        -0.10612948762082058,
+        1.2570731781341393
+      ]
+    },
+    "reach_back": {
+      "samples": 100,
+      "duration_s": 0.3333333333333333,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 19.82440578508834,
+      "wrap_step_rad": 0.0422262115899934,
+      "joint_min": [
+        -0.4852318676568206,
+        0.025297767498757184,
+        -0.4073867969868965,
+        -0.7976647349360826,
+        -0.04063417291417559,
+        -0.20157287332923118,
+        -0.64315603562535,
+        0.10613975290328312,
+        -0.4933493666011142,
+        -0.3793035891870815,
+        -0.16471843396011132,
+        -0.2949820345838792
+      ],
+      "joint_max": [
+        0.6554802082183604,
+        0.04064748190499273,
+        0.21485031751236863,
+        0.4030882305192322,
+        -0.025287664974569794,
+        0.43903474088346645,
+        0.5872570309114394,
+        0.16562193928394295,
+        0.2562046731005944,
+        0.6199705095195879,
+        -0.10612948762082058,
+        0.7263941005723126
+      ]
+    }
+  },
+  "provenance": {
+    "method": "part2_reference fold",
+    "variant": "lag",
+    "align": "clock",
+    "lag": "2",
+    "symmetrize": false,
+    "reduce": "median",
+    "harmonics": 6,
+    "pin": [
+      "leg_back_r_2",
+      "leg_back_l_2",
+      "leg_front_r_2",
+      "leg_front_l_2"
+    ],
+    "limit_policy": "error",
+    "clipped": {},
+    "speed": 1.5,
+    "trace_sha256": "583d25490678d2360d48caeb5dff61efd7fee7b1eb4c38f89eb9d6bd307a2440",
+    "capture": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s43-r2/model_3997.pt",
+      "checkpoint_sha256": "e30c6c77af14210d694262de877fd5aa3a298d636813138aa76e5615cce7e655",
+      "reference_dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag",
+      "reference_files": {
+        "fold_summary.json": "eb80c81be3e7877cbd4fd20a3bb0ec142c117e9704070720b370f2e854fbde9f",
+        "captured_reach_gaits.npz": "f25be1e428781f78dfb553f8a0fe6ac78fefc84b23adb8495be6ff7c2ab95a77",
+        "reference_manifest.json": "c2c9bfc523fbb3972fd638c1e3f2d37d8826cb1a8b602fdb3707541666bb817e",
+        "capture.json": "30cc143f36d15ed4999e07651a2b72ca243db02954bba74dc118b77576755d4f",
+        "foldcheck.json": "9460810e110ec1e24737937c928838627f8f16c597abd3f7dfe72836adc57302"
+      },
+      "git_revision": "11f29066e792a8aa25be5c5903ebd4376b80a837",
+      "commands": [
+        [
+          1.5,
+          0.0,
+          0.0
+        ],
+        [
+          -1.5,
+          0.0,
+          0.0
+        ]
+      ],
+      "num_envs": 64,
+      "seconds_per_command": 15.0,
+      "warmup_s": 3.0,
+      "seed": 42,
+      "heading_hold": false,
+      "standard_physics": true,
+      "dt": 0.02,
+      "per_command": [
+        {
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 38356,
+          "steady_robot_seconds": 767.12,
+          "clean_cycles": 2174,
+          "falls": 2,
+          "achieved_vx_mean_m_s": 1.5289932489395142
+        },
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 38400,
+          "steady_robot_seconds": 768.0,
+          "clean_cycles": 2178,
+          "falls": 0,
+          "achieved_vx_mean_m_s": -1.5689882040023804
+        }
+      ],
+      "wall_clock_s": 141.8
+    },
+    "parent": {
+      "dir": "/home/ubuntu/wt/w3/pupper-mjlab/configs/opt-lab-2/p2/s43/r2-lag",
+      "description": "captured reference dir",
+      "files": {
+        "capture.json": "30cc143f36d15ed4999e07651a2b72ca243db02954bba74dc118b77576755d4f",
+        "captured_reach_gaits.npz": "f25be1e428781f78dfb553f8a0fe6ac78fefc84b23adb8495be6ff7c2ab95a77",
+        "fold_summary.json": "eb80c81be3e7877cbd4fd20a3bb0ec142c117e9704070720b370f2e854fbde9f",
+        "foldcheck.json": "9460810e110ec1e24737937c928838627f8f16c597abd3f7dfe72836adc57302",
+        "reference_manifest.json": "c2c9bfc523fbb3972fd638c1e3f2d37d8826cb1a8b602fdb3707541666bb817e"
+      },
+      "frequency_mult": 2.25
+    },
+    "forward": {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 38356,
+      "lag_measurement": {
+        "lag_cycles": 0.12307932163138018,
+        "residual_rms_rad": 0.04969146680529077,
+        "zero_shift_rms_rad": 0.28321426847181225,
+        "signal_rms_rad": 0.24723518576239004,
+        "at_search_edge": false,
+        "lag_steps": 2.05132202718967
+      },
+      "lag_cycles": 0.12,
+      "lag_steps": 2.0,
+      "lag_ms": 40.0,
+      "cycles": 2238,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.0004432027538658623,
+          0.0005950704216998726,
+          0.002573932210651053,
+          0.00015487056225761686,
+          0.00035853063066323965,
+          0.001507141316973666,
+          0.00011573483544691232,
+          0.0002431000272770656,
+          0.0010931417346119222,
+          0.0011616448561276305,
+          0.00022582360547492714,
+          0.0001463020840903606
+        ],
+        "max_wrap_mismatch_before_rad": 0.002573932210651053,
+        "max_wrap_extrapolation_miss_after_rad": 0.008086907189512216,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.05347213499754752,
+      "per_channel_dispersion_rad": [
+        0.03917187947771248,
+        0.04253395082141294,
+        0.07862475367033266,
+        0.040119739111585534,
+        0.04128753864064035,
+        0.070235223363933,
+        0.03975555788807088,
+        0.03613716201229353,
+        0.06173917893375342,
+        0.040161097625519934,
+        0.03720641982443419,
+        0.08272368597096988
+      ],
+      "achieved_vx_mean_m_s": 1.5289932489395142,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2",
+        "leg_front_r_2",
+        "leg_front_l_2"
+      ]
+    },
+    "backward": {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 38400,
+      "lag_measurement": {
+        "lag_cycles": 0.11493375475843892,
+        "residual_rms_rad": 0.05104179168989525,
+        "zero_shift_rms_rad": 0.2656265913098359,
+        "signal_rms_rad": 0.2344562230894114,
+        "at_search_edge": false,
+        "lag_steps": 1.9155625793073154
+      },
+      "lag_cycles": 0.12,
+      "lag_steps": 2.0,
+      "lag_ms": 40.0,
+      "cycles": 2240,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.002071048443510623,
+          0.00015641252200006284,
+          2.7984380716591928e-05,
+          7.276485363405527e-05,
+          0.0006541867429935358,
+          0.0016895954807899516,
+          0.00019144018497885273,
+          0.0003465476135299794,
+          0.0005057478944448524,
+          0.0005544026692808623,
+          0.00040322511147619644,
+          6.459839645238385e-05
+        ],
+        "max_wrap_mismatch_before_rad": 0.002071048443510623,
+        "max_wrap_extrapolation_miss_after_rad": 0.007521946320533712,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.05255044927975875,
+      "per_channel_dispersion_rad": [
+        0.053821061979646534,
+        0.04265684235376156,
+        0.04933903025883274,
+        0.051537646667061794,
+        0.05010606851864627,
+        0.05817297189189393,
+        0.06234687585466988,
+        0.03691395929199584,
+        0.059943406933782736,
+        0.052159686835221326,
+        0.04070193592878913,
+        0.06493717083824037
+      ],
+      "achieved_vx_mean_m_s": -1.5689882040023804,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2",
+        "leg_front_r_2",
+        "leg_front_l_2"
+      ]
+    }
+  },
+  "status": "candidate reference; not proof of successful trained or hardware behavior"
+}

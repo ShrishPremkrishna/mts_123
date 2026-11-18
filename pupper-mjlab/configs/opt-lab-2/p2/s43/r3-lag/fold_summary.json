@@ -1,0 +1,49 @@
+{
+  "out": "configs/opt-lab-2/p2/s43/r3-lag",
+  "variant": "lag",
+  "frequency_mult": 2.25,
+  "cycles": {
+    "reach_fwd": 2238,
+    "reach_back": 2240
+  },
+  "lag_steps": {
+    "reach_fwd": 2.0,
+    "reach_back": 2.0
+  },
+  "measured_lag_steps": {
+    "reach_fwd": 2.05132202718967,
+    "reach_back": 1.9155625793073154
+  },
+  "warnings": {},
+  "dispersion_rad": {
+    "reach_fwd": 0.05347213499754752,
+    "reach_back": 0.05255044927975875
+  },
+  "wrap_before_rad": {
+    "reach_fwd": 0.002573932210651053,
+    "reach_back": 0.002071048443510623
+  },
+  "peak_joint_velocity_rad_s": {
+    "reach_fwd": 21.871421949397618,
+    "reach_back": 19.82440578508834
+  },
+  "rms_diff_vs_parent_rad": {
+    "reach_fwd": 0.03216041488035948,
+    "reach_back": 0.041748825529708315
+  },
+  "flagged_channels": {
+    "reach_fwd": [],
+    "reach_back": []
+  },
+  "reference_sha256": "aa3da0b5e81033e47c1493c52c22e1391e5f2e844901e7bac99470451b8b9fc8",
+  "seconds": 27.0,
+  "verify": {
+    "ok": true,
+    "frequency_mult": 2.25,
+    "sha256": "aa3da0b5e81033e47c1493c52c22e1391e5f2e844901e7bac99470451b8b9fc8",
+    "peak_joint_velocity_rad_s": {
+      "reach_fwd": 21.871421949397618,
+      "reach_back": 19.82440578508834
+    }
+  }
+}
