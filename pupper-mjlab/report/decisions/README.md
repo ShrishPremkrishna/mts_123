@@ -63,3 +63,5 @@ Reversible?: yes/no, and what it costs to reverse (GPU-hours, rework)
 |---|---|---|---|---|
 | 2026-11-18 | W0 | Max concurrent training jobs ([doc](2026-11-18-w0-concurrency.md)) | 4 across all agents (throughput is flat; no MPS) | |
 | 2026-11-18 | infra | num_envs / iteration budget ([doc](2026-11-18-infra-num-envs.md)) | Keep 4096 envs and the recovered budgets; cut arms, not iterations (3/3 graders) | |
+| 2026-11-18 | W2 | Part 2 eval metric definitions ([doc](2026-11-18-w2-eval-metrics.md)) | Keep fall categories (+ per-fall log); push 0.5/0.65/0.8 m/s, ranked on standing@0.65 (pilot-frozen) and moving@0.5; foot force ranked on the median of per-run max (arbitrated) | |
+| 2026-11-18 | W2 | Default fold for Part 2 rounds ([doc](2026-11-18-w2-fold-default.md)) | `lag` with a fixed 2-step shift, median, 6 harmonics, no symmetrize; pin all 4 abduction channels to the parent (arbitrated) | |
