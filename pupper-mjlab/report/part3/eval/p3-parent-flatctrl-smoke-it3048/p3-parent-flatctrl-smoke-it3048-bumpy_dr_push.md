@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | R:push_stand@0.65 | R:push_move@0.5 | vx_walk_+0.5 | push@0.5_walk_+0.5 | vx_run_+1.5 | push@0.5_run_+1.5 | vx_run_-1.5 | push@0.5_run_-1.5 | stand@0.5(i) | stand@0.65(i) | stand@0.8(i) | push(i) | push_stand(i) | push_move(i) | push0.5(i) | push0.65(i) | push0.8(i) | n_push |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p3-parent-flatctrl-smoke-it3048-bumpy_dr | 4096 | 42 | 3048 | rp-p1-gallop_c-s42/model_2999 | 50 | gallop_c@855c59eb | ok | 0.704 | 0.0344 | 0.567 | 0 | 1.48 | 0.0579 | -1.43 | 0.0464 | 0.0599 | 0.704 | 0.98 | 0.188 | 0.589 | 0.05 | 0.0408 | 0.204 | 0.317 | 4003 |

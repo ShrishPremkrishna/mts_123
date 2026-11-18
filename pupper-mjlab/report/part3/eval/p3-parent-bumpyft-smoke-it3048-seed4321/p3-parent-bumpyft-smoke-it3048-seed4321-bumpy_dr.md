@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | falls | rev | stop | steady | turn | falls<2s_reset | err+1.5 | err-1.5 | vx+1.5 | vx-1.5 | jitter | sat | sat@1.5 | F_runmax_med_BW | F_p999_BW | F_p99_BW | F_peak_BW(flag) | drift+ | drift- | splay+ | splay- | slip | top+ | top- | tau2 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p3-parent-bumpyft-smoke-it3048-seed4321-bumpy_dr | 4096 | 42 | 3048 | rp-p1-gallop_c-s42/model_2999 | 50 | gallop_c@855c59eb | ok | 101 | 12 | 58 | 30 | 1 | 7 | 0.184 | 0.159 | 1.52 | -1.42 | 0.15 | 0.0693 | 0.186 | 3.2 | 2.83 | 1.89 | 15.7 | 60.4 | 89.2 | 0.0345 | 0.104 | 0.36 | 1.77 | -1.67 | 1.39 |

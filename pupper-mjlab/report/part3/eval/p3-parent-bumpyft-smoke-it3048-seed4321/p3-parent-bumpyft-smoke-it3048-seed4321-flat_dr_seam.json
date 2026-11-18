@@ -1,0 +1,2843 @@
+{
+  "name": "p3-parent-bumpyft-smoke-it3048-seed4321-flat_dr",
+  "kind": "seam",
+  "condition": "flat_dr",
+  "rates": [
+    "0.25",
+    "0.5",
+    "1",
+    "inf"
+  ],
+  "control_rate": 0.5,
+  "schedule_names": [
+    "sweep_fwd_r0.25",
+    "sweep_fwd_r0.5",
+    "sweep_fwd_r1",
+    "sweep_fwd_rinf",
+    "dither_fwd",
+    "control_fwd",
+    "control_dither_trot_fwd",
+    "control_dither_fast_fwd",
+    "sweep_back_r0.25",
+    "sweep_back_r0.5",
+    "sweep_back_r1",
+    "sweep_back_rinf",
+    "dither_back",
+    "control_back",
+    "control_dither_trot_back",
+    "control_dither_fast_back"
+  ],
+  "envs_per_schedule": 64,
+  "delay_max_s": 0.75,
+  "steps": 969,
+  "dt": 0.02,
+  "seed": 4321,
+  "mass_source": "env.sim.model.body_mass[world, robot.indexing.body_ids] (per-world)",
+  "mass_nominal_kg": 3.1699999999999995,
+  "wall_clock_s": 37.56043839454651,
+  "rollout_loop_s": 32.79374146461487,
+  "raw": "/home/ubuntu/runs/opt-lab-2/p3-raw/p3-parent-bumpyft-smoke-it3048-seed4321-flat_dr_seam_raw.npz",
+  "provenance": {
+    "mode": "run",
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-parent-bumpyft-smoke/model_3048.pt",
+    "reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "name": "p3-parent-bumpyft-smoke-it3048-seed4321-flat_dr",
+    "out_dir": "/home/ubuntu/wt/w4/pupper-mjlab/report/part3/eval/p3-parent-bumpyft-smoke-it3048-seed4321",
+    "raw_dir": null,
+    "seed": 4321,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w4/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "out_root": "/home/ubuntu/wt/w4/pupper-mjlab/report/part3/eval",
+    "conditions": [
+      "flat_dr",
+      "bumpy_dr"
+    ],
+    "modes": [
+      "suite",
+      "seam"
+    ],
+    "envs_per_schedule": 64,
+    "seam_envs_per_schedule": 64,
+    "push_envs": 512,
+    "skip_existing": true,
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-parent-bumpyft-smoke/model_3048.pt",
+      "iter": 3048,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 42,
+      "train_seed_source": "provenance.json",
+      "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+      "parent_source": "provenance.json",
+      "parent_iter": 2999,
+      "parent_iter_source": "parent checkpoint['iter']",
+      "iters_past_parent": 50,
+      "iters_past_parent_source": "iter - parent_iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/gallop_c",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 50,
+      "train_git_revision": "342219507d178a966ce21cd00c094b298065956d",
+      "reference_check": "ok"
+    },
+    "dr": true,
+    "condition": "flat_dr",
+    "part3_condition": {
+      "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+      "dr": true,
+      "lab4_dr": {
+        "contract": "part3_lab4_dr_v1",
+        "source": "lab4_runs/shrish_stablegait/training-settings.json",
+        "ranges": {
+          "kp_range": [
+            0.6,
+            1.1
+          ],
+          "kd_range": [
+            0.8,
+            1.5
+          ],
+          "foot_friction": [
+            0.6,
+            1.4
+          ]
+        },
+        "other_dr_events": [
+          "base_com",
+          "encoder_bias",
+          "inertial"
+        ]
+      },
+      "terrain": "flat",
+      "torso_sensor": true
+    },
+    "rates": [
+      "0.25",
+      "0.5",
+      "1.0",
+      "inf"
+    ],
+    "control_rate": 0.5,
+    "delay_max": 0.75,
+    "pre": 0.2,
+    "post": 1.0,
+    "settle": 1.0,
+    "tilt_deg": 30.0,
+    "keep_windows": false,
+    "unchecked_bumpy": false,
+    "num_envs": 1024,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "c07c848d58d932f86c4fb4aa3557fab1de66a19a9e72d19361cbdba2f92d2bdb",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w4/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "4e788c542ecec1d8489fd2abc4506a25dee51d9d",
+    "source_sha256": "86ac1b4767bd40736d849dfcb39909703706e78d32c1682f7f7c5aeca7ceb975",
+    "source_files_hashed": 269,
+    "checkpoint_sha256": "c07c848d58d932f86c4fb4aa3557fab1de66a19a9e72d19361cbdba2f92d2bdb",
+    "references": {
+      "captured_reach_gaits.npz": "855c59eb10e5398080c201dd596e913dbe03a18a456249f118699755eaeb3e46",
+      "reference_manifest.json": "3a32496335293f683fee2f20d70e85cf9d97628d75af3f27ea6143cce1d150a4"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "855c59eb10e5398080c201dd596e913dbe03a18a456249f118699755eaeb3e46",
+      "reference_manifest.json": "3a32496335293f683fee2f20d70e85cf9d97628d75af3f27ea6143cce1d150a4"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-parent-bumpyft-smoke/model_3048.pt",
+    "iter": 3048,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+    "parent_source": "provenance.json",
+    "parent_iter": 2999,
+    "parent_iter_source": "parent checkpoint['iter']",
+    "iters_past_parent": 50,
+    "iters_past_parent_source": "iter - parent_iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/gallop_c",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 50,
+    "train_git_revision": "342219507d178a966ce21cd00c094b298065956d",
+    "reference_check": "ok"
+  },
+  "part3_condition": {
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "dr": true,
+    "lab4_dr": {
+      "contract": "part3_lab4_dr_v1",
+      "source": "lab4_runs/shrish_stablegait/training-settings.json",
+      "ranges": {
+        "kp_range": [
+          0.6,
+          1.1
+        ],
+        "kd_range": [
+          0.8,
+          1.5
+        ],
+        "foot_friction": [
+          0.6,
+          1.4
+        ]
+      },
+      "other_dr_events": [
+        "base_com",
+        "encoder_bias",
+        "inertial"
+      ]
+    },
+    "terrain": "flat",
+    "torso_sensor": true
+  },
+  "metrics": {
+    "params": {
+      "pre_s": 0.2,
+      "post_s": 1.0,
+      "settle_s": 1.0,
+      "tilt_deg": 30.0,
+      "seam_speed": 0.5,
+      "effort_limit_nm": 3.0,
+      "sat_threshold_nm": 2.9699999999999998
+    },
+    "n_windows": 4580,
+    "invalid_windows": {
+      "edge": 0,
+      "reset": 28
+    },
+    "groups": [
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "back",
+        "anchor": "sham0.3",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.007065403005464481,
+        "foot_force_max_bw_median": 1.189958694741379,
+        "foot_force_max_bw_p90": 1.5564040076902614,
+        "max_tilt_deg_median": 9.511858886305292,
+        "max_tilt_deg_p90": 14.106332271873923,
+        "track_err_median": 0.0902483256743245,
+        "track_err_pre_median": 0.11704462570510929,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.354883074760437
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "back",
+        "anchor": "sham0.3",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0072361680327868855,
+        "foot_force_max_bw_median": 1.2888440019552094,
+        "foot_force_max_bw_p90": 1.5555744832931462,
+        "max_tilt_deg_median": 9.921606783974335,
+        "max_tilt_deg_p90": 14.223681545770713,
+        "track_err_median": 0.129582240067096,
+        "track_err_pre_median": 0.06423380634913878,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.36523738503456116
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "back",
+        "anchor": "sham1",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.13131830601092895,
+        "foot_force_max_bw_median": 2.178042594157975,
+        "foot_force_max_bw_p90": 2.817326033929753,
+        "max_tilt_deg_median": 8.230682099076912,
+        "max_tilt_deg_p90": 11.564701280149814,
+        "track_err_median": 0.15894619011298247,
+        "track_err_pre_median": 0.20254153634932523,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5297393202781677
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "back",
+        "anchor": "sham1",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.14830942622950818,
+        "foot_force_max_bw_median": 2.3710968668262686,
+        "foot_force_max_bw_p90": 2.976419862867213,
+        "max_tilt_deg_median": 9.040118653133048,
+        "max_tilt_deg_p90": 11.575966545762958,
+        "track_err_median": 0.16388762548300365,
+        "track_err_pre_median": 0.09741809159960058,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5178056359291077
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "fwd",
+        "anchor": "sham0.3",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.009690915300546448,
+        "foot_force_max_bw_median": 1.2544293472255665,
+        "foot_force_max_bw_p90": 1.6449434741430733,
+        "max_tilt_deg_median": 7.95354742942054,
+        "max_tilt_deg_p90": 12.954424694124382,
+        "track_err_median": 0.0788913170943813,
+        "track_err_pre_median": 0.11472872988572722,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.37268778681755066
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "fwd",
+        "anchor": "sham0.3",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.013575819672131149,
+        "foot_force_max_bw_median": 1.3606148932769724,
+        "foot_force_max_bw_p90": 1.7509425004483339,
+        "max_tilt_deg_median": 8.399989604711855,
+        "max_tilt_deg_p90": 12.362077956136416,
+        "track_err_median": 0.13321939615382244,
+        "track_err_pre_median": 0.04927939607029963,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.3350365459918976
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "fwd",
+        "anchor": "sham1",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0979337431693989,
+        "foot_force_max_bw_median": 1.6950503814901858,
+        "foot_force_max_bw_p90": 2.3894901540562112,
+        "max_tilt_deg_median": 9.69870410367131,
+        "max_tilt_deg_p90": 12.909335714050068,
+        "track_err_median": 0.15658749897873833,
+        "track_err_pre_median": 0.23036650997493713,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5301729440689087
+      },
+      {
+        "kind": "control",
+        "rate": "0.5",
+        "direction": "fwd",
+        "anchor": "sham1",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.11537312158469945,
+        "foot_force_max_bw_median": 1.8508942050465182,
+        "foot_force_max_bw_p90": 2.6408055068097713,
+        "max_tilt_deg_median": 9.194475214110927,
+        "max_tilt_deg_p90": 11.560758580081803,
+        "track_err_median": 0.15348816165990495,
+        "track_err_pre_median": 0.09462566874068878,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5178368091583252
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "back",
+        "anchor": "sham0.3",
+        "crossing": "down",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0058807206284153014,
+        "foot_force_max_bw_median": 1.1710597954928539,
+        "foot_force_max_bw_p90": 1.4180415358532015,
+        "max_tilt_deg_median": 9.080351578270452,
+        "max_tilt_deg_p90": 13.899770940156984,
+        "track_err_median": 0.07644042168114698,
+        "track_err_pre_median": 0.11309440825767395,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.36523714661598206
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "back",
+        "anchor": "sham0.3",
+        "crossing": "up",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.006344988046448088,
+        "foot_force_max_bw_median": 1.219316570342821,
+        "foot_force_max_bw_p90": 1.4688663582826134,
+        "max_tilt_deg_median": 9.180582511246932,
+        "max_tilt_deg_p90": 13.018731279266166,
+        "track_err_median": 0.12316271226767372,
+        "track_err_pre_median": 0.05610228799971778,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.36523714661598206
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "back",
+        "anchor": "sham0.9",
+        "crossing": "down",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.11503692793715847,
+        "foot_force_max_bw_median": 2.0331896594383223,
+        "foot_force_max_bw_p90": 2.652469474038667,
+        "max_tilt_deg_median": 8.296641559021914,
+        "max_tilt_deg_p90": 10.70405120174909,
+        "track_err_median": 0.12840521093194712,
+        "track_err_pre_median": 0.09809563638250389,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5178056359291077
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "back",
+        "anchor": "sham0.9",
+        "crossing": "up",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.12138191598360656,
+        "foot_force_max_bw_median": 2.1340078627636716,
+        "foot_force_max_bw_p90": 2.807863763658304,
+        "max_tilt_deg_median": 8.465852960992208,
+        "max_tilt_deg_p90": 11.363560837837076,
+        "track_err_median": 0.11268673524807526,
+        "track_err_pre_median": 0.09161385903524782,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5297573804855347
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "fwd",
+        "anchor": "sham0.3",
+        "crossing": "down",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.012956796448087431,
+        "foot_force_max_bw_median": 1.250567106399659,
+        "foot_force_max_bw_p90": 1.7658993456224137,
+        "max_tilt_deg_median": 7.53913121145524,
+        "max_tilt_deg_p90": 11.574737622898615,
+        "track_err_median": 0.07277173509796805,
+        "track_err_pre_median": 0.09830697866396931,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.3733736574649811
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "fwd",
+        "anchor": "sham0.3",
+        "crossing": "up",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.013992059426229508,
+        "foot_force_max_bw_median": 1.2816959829250483,
+        "foot_force_max_bw_p90": 1.7193830545488362,
+        "max_tilt_deg_median": 7.827328247048767,
+        "max_tilt_deg_p90": 11.72382641690645,
+        "track_err_median": 0.10867880051312383,
+        "track_err_pre_median": 0.053217395727649164,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.3733736574649811
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "fwd",
+        "anchor": "sham0.9",
+        "crossing": "down",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.09272540983606557,
+        "foot_force_max_bw_median": 1.6453319164980669,
+        "foot_force_max_bw_p90": 2.1409939402797535,
+        "max_tilt_deg_median": 9.430395682734463,
+        "max_tilt_deg_p90": 12.056240504132534,
+        "track_err_median": 0.12250245004659882,
+        "track_err_pre_median": 0.10579446928292759,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5178368091583252
+      },
+      {
+        "kind": "control",
+        "rate": "step",
+        "direction": "fwd",
+        "anchor": "sham0.9",
+        "crossing": "up",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0988676144125683,
+        "foot_force_max_bw_median": 1.6764840776336092,
+        "foot_force_max_bw_p90": 2.1814902301739716,
+        "max_tilt_deg_median": 9.20955957297754,
+        "max_tilt_deg_p90": 11.468797823287627,
+        "track_err_median": 0.11043323267311947,
+        "track_err_pre_median": 0.09733708083481298,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.5297483503818512
+      },
+      {
+        "kind": "dither",
+        "rate": "step",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 1,
+        "stumble_rate": 0.00390625,
+        "stumble_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "incident": 1,
+        "incident_rate": 0.00390625,
+        "incident_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "knee": 1,
+        "knee_rate": 0.00390625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.028555114412568305,
+        "foot_force_max_bw_median": 1.6366212862965417,
+        "foot_force_max_bw_p90": 2.184057876059505,
+        "max_tilt_deg_median": 11.212546121507668,
+        "max_tilt_deg_p90": 16.237924165611282,
+        "track_err_median": 0.1472417054700314,
+        "track_err_pre_median": 0.11096849526835699,
+        "ref_jump_median": 1.3003016114234924,
+        "ref_step_typical_median": 0.5178056359291077
+      },
+      {
+        "kind": "dither",
+        "rate": "step",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.07673219774590165,
+        "foot_force_max_bw_median": 2.0901945763525767,
+        "foot_force_max_bw_p90": 2.8577001422513035,
+        "max_tilt_deg_median": 10.601307644944349,
+        "max_tilt_deg_p90": 14.566787608183112,
+        "track_err_median": 0.14947579645707834,
+        "track_err_pre_median": 0.1181756759967302,
+        "ref_jump_median": 1.4835121631622314,
+        "ref_step_typical_median": 0.36523714661598206
+      },
+      {
+        "kind": "dither",
+        "rate": "step",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 2,
+        "stumble_rate": 0.0078125,
+        "stumble_ci95": [
+          0.0021450454442769468,
+          0.02803334015679694
+        ],
+        "incident": 2,
+        "incident_rate": 0.0078125,
+        "incident_ci95": [
+          0.0021450454442769468,
+          0.02803334015679694
+        ],
+        "knee": 2,
+        "knee_rate": 0.0078125,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0344785262978142,
+        "foot_force_max_bw_median": 1.8635605418274632,
+        "foot_force_max_bw_p90": 2.6553957589281096,
+        "max_tilt_deg_median": 11.447357935912354,
+        "max_tilt_deg_p90": 16.22824874845533,
+        "track_err_median": 0.131976529944899,
+        "track_err_pre_median": 0.11670846145590827,
+        "ref_jump_median": 1.5031967759132385,
+        "ref_step_typical_median": 0.5154353976249695
+      },
+      {
+        "kind": "dither",
+        "rate": "step",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 1,
+        "stumble_rate": 0.00390625,
+        "stumble_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "incident": 1,
+        "incident_rate": 0.00390625,
+        "incident_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "knee": 1,
+        "knee_rate": 0.00390625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.06848211236338797,
+        "foot_force_max_bw_median": 2.1631956552583747,
+        "foot_force_max_bw_p90": 2.9495758593106505,
+        "max_tilt_deg_median": 10.896832199787848,
+        "max_tilt_deg_p90": 15.874084879091146,
+        "track_err_median": 0.15717127112285467,
+        "track_err_pre_median": 0.1016797031201864,
+        "ref_jump_median": 1.3503823280334473,
+        "ref_step_typical_median": 0.37337350845336914
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.25",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.028603142076502733,
+        "foot_force_max_bw_median": 1.6668878759264034,
+        "foot_force_max_bw_p90": 2.095065918276498,
+        "max_tilt_deg_median": 13.260418505462603,
+        "max_tilt_deg_p90": 21.065442452516777,
+        "track_err_median": 0.1293809900354855,
+        "track_err_pre_median": 0.144098365278366,
+        "ref_jump_median": 1.4389613270759583,
+        "ref_step_typical_median": 0.5166374146938324
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.25",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0778901980874317,
+        "foot_force_max_bw_median": 2.2158475945244014,
+        "foot_force_max_bw_p90": 2.922912958742347,
+        "max_tilt_deg_median": 10.817871799275316,
+        "max_tilt_deg_p90": 14.324568483957746,
+        "track_err_median": 0.13698869156342514,
+        "track_err_pre_median": 0.12517115161530043,
+        "ref_jump_median": 1.4856488108634949,
+        "ref_step_typical_median": 0.36523714661598206
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.25",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 2,
+        "fall_rate": 0.03125,
+        "fall_ci95": [
+          0.00861195771251659,
+          0.10697493882294247
+        ],
+        "stumble": 4,
+        "stumble_rate": 0.0625,
+        "stumble_ci95": [
+          0.024570803674792932,
+          0.14997696642496888
+        ],
+        "incident": 6,
+        "incident_rate": 0.09375,
+        "incident_ci95": [
+          0.04367765783128784,
+          0.1898309858327767
+        ],
+        "knee": 1,
+        "knee_rate": 0.015625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 5,
+        "tilt_rate": 0.078125,
+        "sat_frac_mean": 0.03381878126951107,
+        "foot_force_max_bw_median": 2.0494175023636405,
+        "foot_force_max_bw_p90": 2.958913631161274,
+        "max_tilt_deg_median": 15.878457964655677,
+        "max_tilt_deg_p90": 24.93738543219593,
+        "track_err_median": 0.12323272517690984,
+        "track_err_pre_median": 0.1514336669777735,
+        "ref_jump_median": 1.3788280487060547,
+        "ref_step_typical_median": 0.5178368091583252
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.25",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0703125,
+        "foot_force_max_bw_median": 2.09122386547161,
+        "foot_force_max_bw_p90": 2.6526798031046277,
+        "max_tilt_deg_median": 10.849158818144568,
+        "max_tilt_deg_p90": 16.00684663686719,
+        "track_err_median": 0.13892550462540654,
+        "track_err_pre_median": 0.1251424079494096,
+        "ref_jump_median": 1.4404358863830566,
+        "ref_step_typical_median": 0.37643811106681824
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.5",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.03082308743169399,
+        "foot_force_max_bw_median": 1.6697009398325091,
+        "foot_force_max_bw_p90": 2.119574283986091,
+        "max_tilt_deg_median": 10.030165881642624,
+        "max_tilt_deg_p90": 15.241415289221317,
+        "track_err_median": 0.1390062665758676,
+        "track_err_pre_median": 0.1991998800022151,
+        "ref_jump_median": 1.2667601108551025,
+        "ref_step_typical_median": 0.5178056359291077
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.5",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.08337602459016394,
+        "foot_force_max_bw_median": 2.3343240435851538,
+        "foot_force_max_bw_p90": 2.9942728051510996,
+        "max_tilt_deg_median": 11.269876692463875,
+        "max_tilt_deg_p90": 14.611043997075784,
+        "track_err_median": 0.1517572950479884,
+        "track_err_pre_median": 0.1004507219763858,
+        "ref_jump_median": 1.461430311203003,
+        "ref_step_typical_median": 0.36523738503456116
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.5",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 1,
+        "stumble_rate": 0.015625,
+        "stumble_ci95": [
+          0.0027634707504014047,
+          0.08334298900290629
+        ],
+        "incident": 1,
+        "incident_rate": 0.015625,
+        "incident_ci95": [
+          0.0027634707504014047,
+          0.08334298900290629
+        ],
+        "knee": 1,
+        "knee_rate": 0.015625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.03404627732240437,
+        "foot_force_max_bw_median": 1.9005921943289619,
+        "foot_force_max_bw_p90": 2.909715105395297,
+        "max_tilt_deg_median": 11.744386026297066,
+        "max_tilt_deg_p90": 16.49503042844532,
+        "track_err_median": 0.1324644545585638,
+        "track_err_pre_median": 0.2005419772865505,
+        "ref_jump_median": 1.4893873929977417,
+        "ref_step_typical_median": 0.5297573804855347
+      },
+      {
+        "kind": "sweep",
+        "rate": "0.5",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 2,
+        "stumble_rate": 0.03125,
+        "stumble_ci95": [
+          0.00861195771251659,
+          0.10697493882294247
+        ],
+        "incident": 2,
+        "incident_rate": 0.03125,
+        "incident_ci95": [
+          0.00861195771251659,
+          0.10697493882294247
+        ],
+        "knee": 2,
+        "knee_rate": 0.03125,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.07872267759562843,
+        "foot_force_max_bw_median": 2.080835638204167,
+        "foot_force_max_bw_p90": 3.0578728191069464,
+        "max_tilt_deg_median": 10.196158213459308,
+        "max_tilt_deg_p90": 13.769013463530966,
+        "track_err_median": 0.14670329870658,
+        "track_err_pre_median": 0.10527215315258542,
+        "ref_jump_median": 1.573621153831482,
+        "ref_step_typical_median": 0.37268736958503723
+      },
+      {
+        "kind": "sweep",
+        "rate": "1",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.037525614754098366,
+        "foot_force_max_bw_median": 1.7085930557079685,
+        "foot_force_max_bw_p90": 2.3990945705744435,
+        "max_tilt_deg_median": 9.858070517968475,
+        "max_tilt_deg_p90": 15.2291177130911,
+        "track_err_median": 0.17671478173147803,
+        "track_err_pre_median": 0.3475658944115263,
+        "ref_jump_median": 1.519327998161316,
+        "ref_step_typical_median": 0.5306065678596497
+      },
+      {
+        "kind": "sweep",
+        "rate": "1",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.10388917349726776,
+        "foot_force_max_bw_median": 2.3943091516375237,
+        "foot_force_max_bw_p90": 3.2154399331892467,
+        "max_tilt_deg_median": 12.164934460289702,
+        "max_tilt_deg_p90": 16.640549459179454,
+        "track_err_median": 0.23342057545118142,
+        "track_err_pre_median": 0.08989887227941658,
+        "ref_jump_median": 1.4320456981658936,
+        "ref_step_typical_median": 0.35225802659988403
+      },
+      {
+        "kind": "sweep",
+        "rate": "1",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.033491290983606564,
+        "foot_force_max_bw_median": 2.012603039897652,
+        "foot_force_max_bw_p90": 2.921095819668805,
+        "max_tilt_deg_median": 13.003578394641378,
+        "max_tilt_deg_p90": 20.383529879923273,
+        "track_err_median": 0.17757798943784842,
+        "track_err_pre_median": 0.35426265543049296,
+        "ref_jump_median": 1.3953655362129211,
+        "ref_step_typical_median": 0.5297573804855347
+      },
+      {
+        "kind": "sweep",
+        "rate": "1",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 64,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.056626022971156334
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.08706881830601093,
+        "foot_force_max_bw_median": 2.031398414993214,
+        "foot_force_max_bw_p90": 3.116921346078852,
+        "max_tilt_deg_median": 9.835294754606874,
+        "max_tilt_deg_p90": 12.68089019428487,
+        "track_err_median": 0.20415024216501515,
+        "track_err_pre_median": 0.06131189977032169,
+        "ref_jump_median": 1.36761474609375,
+        "ref_step_typical_median": 0.3350365459918976
+      },
+      {
+        "kind": "sweep",
+        "rate": "inf",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 64,
+        "fall": 11,
+        "fall_rate": 0.171875,
+        "fall_ci95": [
+          0.0987764126731623,
+          0.2821344149016591
+        ],
+        "stumble": 6,
+        "stumble_rate": 0.09375,
+        "stumble_ci95": [
+          0.04367765783128784,
+          0.1898309858327767
+        ],
+        "incident": 17,
+        "incident_rate": 0.265625,
+        "incident_ci95": [
+          0.17296238569537764,
+          0.38483106257235195
+        ],
+        "knee": 16,
+        "knee_rate": 0.25,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 15,
+        "tilt_rate": 0.234375,
+        "sat_frac_mean": 0.07527281420416743,
+        "foot_force_max_bw_median": 2.240626491116828,
+        "foot_force_max_bw_p90": 2.8797246939878547,
+        "max_tilt_deg_median": 10.497513666160273,
+        "max_tilt_deg_p90": 43.68297417509087,
+        "track_err_median": 0.361272224390094,
+        "track_err_pre_median": 0.12254242247491486,
+        "ref_jump_median": 1.3405110836029053,
+        "ref_step_typical_median": 0.5154522061347961
+      },
+      {
+        "kind": "sweep",
+        "rate": "inf",
+        "direction": "back",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 49,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.07270029673590504
+        ],
+        "stumble": 3,
+        "stumble_rate": 0.061224489795918366,
+        "stumble_ci95": [
+          0.021039764955529186,
+          0.16520743422087725
+        ],
+        "incident": 3,
+        "incident_rate": 0.061224489795918366,
+        "incident_ci95": [
+          0.021039764955529186,
+          0.16520743422087725
+        ],
+        "knee": 3,
+        "knee_rate": 0.061224489795918366,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.14614698338351736,
+        "foot_force_max_bw_median": 2.7091411176536506,
+        "foot_force_max_bw_p90": 3.819492286507711,
+        "max_tilt_deg_median": 12.351040043085781,
+        "max_tilt_deg_p90": 16.1865482769873,
+        "track_err_median": 0.43391552585865834,
+        "track_err_pre_median": 0.014224651950498714,
+        "ref_jump_median": 1.3494102954864502,
+        "ref_step_typical_median": 0.0
+      },
+      {
+        "kind": "sweep",
+        "rate": "inf",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "down",
+        "n": 63,
+        "fall": 26,
+        "fall_rate": 0.4126984126984127,
+        "fall_ci95": [
+          0.2995827804043614,
+          0.5358490464818889
+        ],
+        "stumble": 1,
+        "stumble_rate": 0.015873015873015872,
+        "stumble_ci95": [
+          0.0028074219075510873,
+          0.0845872544616561
+        ],
+        "incident": 27,
+        "incident_rate": 0.42857142857142855,
+        "incident_ci95": [
+          0.3139672637328724,
+          0.5513860491740598
+        ],
+        "knee": 2,
+        "knee_rate": 0.031746031746031744,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 26,
+        "tilt_rate": 0.4126984126984127,
+        "sat_frac_mean": 0.06707217272890463,
+        "foot_force_max_bw_median": 2.4032650043030324,
+        "foot_force_max_bw_p90": 3.271107174174473,
+        "max_tilt_deg_median": 17.158810456772752,
+        "max_tilt_deg_p90": 44.16003089740833,
+        "track_err_median": 0.42332075726879886,
+        "track_err_pre_median": 0.14139782941154433,
+        "ref_jump_median": 1.284267544746399,
+        "ref_step_typical_median": 0.5178213119506836
+      },
+      {
+        "kind": "sweep",
+        "rate": "inf",
+        "direction": "fwd",
+        "anchor": "seam",
+        "crossing": "up",
+        "n": 52,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.06879459041288215
+        ],
+        "stumble": 4,
+        "stumble_rate": 0.07692307692307693,
+        "stumble_ci95": [
+          0.03031885429734589,
+          0.1817381068212467
+        ],
+        "incident": 4,
+        "incident_rate": 0.07692307692307693,
+        "incident_ci95": [
+          0.03031885429734589,
+          0.1817381068212467
+        ],
+        "knee": 4,
+        "knee_rate": 0.07692307692307693,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.12444829760403532,
+        "foot_force_max_bw_median": 2.289680604489315,
+        "foot_force_max_bw_p90": 3.0865738673803724,
+        "max_tilt_deg_median": 12.117679962358945,
+        "max_tilt_deg_p90": 16.061469746704415,
+        "track_err_median": 0.40772373904899806,
+        "track_err_pre_median": 0.01453257683282803,
+        "ref_jump_median": 1.3023464679718018,
+        "ref_step_typical_median": 0.0
+      }
+    ],
+    "summary": {
+      "seam_sweep": {
+        "n": 768,
+        "fall": 2,
+        "fall_rate": 0.0026041666666666665,
+        "fall_ci95": [
+          0.0007144322096068571,
+          0.009445165303665296
+        ],
+        "stumble": 7,
+        "stumble_rate": 0.009114583333333334,
+        "stumble_ci95": [
+          0.004421925887494302,
+          0.01869369783633712
+        ],
+        "incident": 9,
+        "incident_rate": 0.01171875,
+        "incident_ci95": [
+          0.006177248412540569,
+          0.022120785795514554
+        ],
+        "knee": 4,
+        "knee_rate": 0.005208333333333333,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 5,
+        "tilt_rate": 0.006510416666666667,
+        "sat_frac_mean": 0.05829729882619331,
+        "foot_force_max_bw_median": 2.0249110530473082,
+        "foot_force_max_bw_p90": 2.893349304010437,
+        "max_tilt_deg_median": 11.206219707416825,
+        "max_tilt_deg_p90": 17.56504406252517,
+        "track_err_median": 0.14938102520759988,
+        "track_err_pre_median": 0.1394764817269048,
+        "ref_jump_median": 1.4374276399612427,
+        "ref_step_typical_median": 0.44635146856307983
+      },
+      "seam_sweep_r05": {
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 3,
+        "stumble_rate": 0.01171875,
+        "stumble_ci95": [
+          0.003993214821806392,
+          0.03388216771894151
+        ],
+        "incident": 3,
+        "incident_rate": 0.01171875,
+        "incident_ci95": [
+          0.003993214821806392,
+          0.03388216771894151
+        ],
+        "knee": 3,
+        "knee_rate": 0.01171875,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.05674201673497267,
+        "foot_force_max_bw_median": 2.0092103090838176,
+        "foot_force_max_bw_p90": 2.849891912120337,
+        "max_tilt_deg_median": 10.837931855366683,
+        "max_tilt_deg_p90": 15.277534785507585,
+        "track_err_median": 0.14230392387869387,
+        "track_err_pre_median": 0.14498883970928533,
+        "ref_jump_median": 1.4515571594238281,
+        "ref_step_typical_median": 0.4463497996330261
+      },
+      "seam_sweep_step": {
+        "n": 228,
+        "fall": 37,
+        "fall_rate": 0.16228070175438597,
+        "fall_ci95": [
+          0.12008625057385604,
+          0.21566712586937076
+        ],
+        "stumble": 14,
+        "stumble_rate": 0.06140350877192982,
+        "stumble_ci95": [
+          0.03692525655069131,
+          0.10041679077817461
+        ],
+        "incident": 51,
+        "incident_rate": 0.2236842105263158,
+        "incident_ci95": [
+          0.17442664992255938,
+          0.28209883989462614
+        ],
+        "knee": 25,
+        "knee_rate": 0.10964912280701754,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 41,
+        "tilt_rate": 0.17982456140350878,
+        "sat_frac_mean": 0.09945403794820129,
+        "foot_force_max_bw_median": 2.4420140995182003,
+        "foot_force_max_bw_p90": 3.339943943969383,
+        "max_tilt_deg_median": 12.258639628544088,
+        "max_tilt_deg_p90": 43.01486663816232,
+        "track_err_median": 0.412099755419838,
+        "track_err_pre_median": 0.09494240607685714,
+        "ref_jump_median": 1.3272318840026855,
+        "ref_step_typical_median": 0.5017359256744385
+      },
+      "seam_dither": {
+        "n": 1024,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.003737540881785676
+        ],
+        "stumble": 4,
+        "stumble_rate": 0.00390625,
+        "stumble_ci95": [
+          0.0015200565834699161,
+          0.010000784760176809
+        ],
+        "incident": 4,
+        "incident_rate": 0.00390625,
+        "incident_ci95": [
+          0.0015200565834699161,
+          0.010000784760176809
+        ],
+        "knee": 4,
+        "knee_rate": 0.00390625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.05206198770491803,
+        "foot_force_max_bw_median": 1.9487190657736226,
+        "foot_force_max_bw_p90": 2.7608813754011217,
+        "max_tilt_deg_median": 10.947794515442611,
+        "max_tilt_deg_p90": 15.73122045740512,
+        "track_err_median": 0.14678604461528177,
+        "track_err_pre_median": 0.11081308509652962,
+        "ref_jump_median": 1.4102436304092407,
+        "ref_step_typical_median": 0.4463497996330261
+      },
+      "control_all": {
+        "n": 2560,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.001498376498766538
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.001498376498766538
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.001498376498766538
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.05998121584699454,
+        "foot_force_max_bw_median": 1.5466955403589249,
+        "foot_force_max_bw_p90": 2.359504874615417,
+        "max_tilt_deg_median": 8.810402770126169,
+        "max_tilt_deg_p90": 12.25882650977237,
+        "track_err_median": 0.11131939669194278,
+        "track_err_pre_median": 0.09234354486248497,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.4463568329811096
+      },
+      "control_ramp": {
+        "n": 512,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.007447247372061501
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.007447247372061501
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.007447247372061501
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.06631286287568307,
+        "foot_force_max_bw_median": 1.577508163133773,
+        "foot_force_max_bw_p90": 2.5307012846649894,
+        "max_tilt_deg_median": 9.137547431254859,
+        "max_tilt_deg_p90": 12.81730473392027,
+        "track_err_median": 0.13217349868899603,
+        "track_err_pre_median": 0.10406621456527029,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.4463497996330261
+      },
+      "control_dither": {
+        "n": 2048,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.0018722692823851506
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.0018722692823851506
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.0018722692823851506
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.058398304089822405,
+        "foot_force_max_bw_median": 1.531582442907442,
+        "foot_force_max_bw_p90": 2.3078840307104964,
+        "max_tilt_deg_median": 8.748787017573072,
+        "max_tilt_deg_p90": 12.156874865401495,
+        "track_err_median": 0.10866531777313226,
+        "track_err_pre_median": 0.09057701425324638,
+        "ref_jump_median": null,
+        "ref_step_typical_median": 0.4463568329811096
+      },
+      "cell_sweep_fwd_up": {
+        "n": 192,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "stumble": 2,
+        "stumble_rate": 0.010416666666666666,
+        "stumble_ci95": [
+          0.0028612294459291893,
+          0.03717929309882126
+        ],
+        "incident": 2,
+        "incident_rate": 0.010416666666666666,
+        "incident_ci95": [
+          0.0028612294459291893,
+          0.03717929309882126
+        ],
+        "knee": 2,
+        "knee_rate": 0.010416666666666666,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.07870133196721311,
+        "foot_force_max_bw_median": 2.074716025181162,
+        "foot_force_max_bw_p90": 2.9876243889762604,
+        "max_tilt_deg_median": 10.342838131905868,
+        "max_tilt_deg_p90": 13.630035678944397,
+        "track_err_median": 0.15566778529008848,
+        "track_err_pre_median": 0.09518242140584582,
+        "ref_jump_median": 1.5011946558952332,
+        "ref_step_typical_median": 0.37268736958503723
+      },
+      "cell_sweep_fwd_down": {
+        "n": 192,
+        "fall": 2,
+        "fall_rate": 0.010416666666666666,
+        "fall_ci95": [
+          0.0028612294459291893,
+          0.03717929309882126
+        ],
+        "stumble": 5,
+        "stumble_rate": 0.026041666666666668,
+        "stumble_ci95": [
+          0.01117344421564433,
+          0.059504082928741736
+        ],
+        "incident": 7,
+        "incident_rate": 0.036458333333333336,
+        "incident_ci95": [
+          0.0177704201063221,
+          0.07333177677115439
+        ],
+        "knee": 2,
+        "knee_rate": 0.010416666666666666,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 5,
+        "tilt_rate": 0.026041666666666668,
+        "sat_frac_mean": 0.03378544985850733,
+        "foot_force_max_bw_median": 1.9988580366297484,
+        "foot_force_max_bw_p90": 2.9619674859104954,
+        "max_tilt_deg_median": 12.630001081373129,
+        "max_tilt_deg_p90": 21.81380912223344,
+        "track_err_median": 0.13957507029663377,
+        "track_err_pre_median": 0.20404462840639995,
+        "ref_jump_median": 1.4048539400100708,
+        "ref_step_typical_median": 0.5297573804855347
+      },
+      "cell_sweep_back_up": {
+        "n": 192,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0883851320582878,
+        "foot_force_max_bw_median": 2.2996640981393317,
+        "foot_force_max_bw_p90": 3.0235156860636874,
+        "max_tilt_deg_median": 11.538934861976148,
+        "max_tilt_deg_p90": 15.208184290812355,
+        "track_err_median": 0.16201424887850457,
+        "track_err_pre_median": 0.09877791842671849,
+        "ref_jump_median": 1.461430311203003,
+        "ref_step_typical_median": 0.3598366975784302
+      },
+      "cell_sweep_back_down": {
+        "n": 192,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.019615852811660034
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.03231728142076502,
+        "foot_force_max_bw_median": 1.6798734805649127,
+        "foot_force_max_bw_p90": 2.1995599096764016,
+        "max_tilt_deg_median": 10.746487436927456,
+        "max_tilt_deg_p90": 18.37508331576277,
+        "track_err_median": 0.14574438207282323,
+        "track_err_pre_median": 0.2048435174986737,
+        "ref_jump_median": 1.3839346170425415,
+        "ref_step_typical_median": 0.5178231596946716
+      },
+      "cell_dither_fwd_up": {
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 1,
+        "stumble_rate": 0.00390625,
+        "stumble_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "incident": 1,
+        "incident_rate": 0.00390625,
+        "incident_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "knee": 1,
+        "knee_rate": 0.00390625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.06848211236338797,
+        "foot_force_max_bw_median": 2.1631956552583747,
+        "foot_force_max_bw_p90": 2.9495758593106505,
+        "max_tilt_deg_median": 10.896832199787848,
+        "max_tilt_deg_p90": 15.874084879091146,
+        "track_err_median": 0.15717127112285467,
+        "track_err_pre_median": 0.1016797031201864,
+        "ref_jump_median": 1.3503823280334473,
+        "ref_step_typical_median": 0.37337350845336914
+      },
+      "cell_dither_fwd_down": {
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 2,
+        "stumble_rate": 0.0078125,
+        "stumble_ci95": [
+          0.0021450454442769468,
+          0.02803334015679694
+        ],
+        "incident": 2,
+        "incident_rate": 0.0078125,
+        "incident_ci95": [
+          0.0021450454442769468,
+          0.02803334015679694
+        ],
+        "knee": 2,
+        "knee_rate": 0.0078125,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.0344785262978142,
+        "foot_force_max_bw_median": 1.8635605418274632,
+        "foot_force_max_bw_p90": 2.6553957589281096,
+        "max_tilt_deg_median": 11.447357935912354,
+        "max_tilt_deg_p90": 16.22824874845533,
+        "track_err_median": 0.131976529944899,
+        "track_err_pre_median": 0.11670846145590827,
+        "ref_jump_median": 1.5031967759132385,
+        "ref_step_typical_median": 0.5154353976249695
+      },
+      "cell_dither_back_up": {
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.07673219774590165,
+        "foot_force_max_bw_median": 2.0901945763525767,
+        "foot_force_max_bw_p90": 2.8577001422513035,
+        "max_tilt_deg_median": 10.601307644944349,
+        "max_tilt_deg_p90": 14.566787608183112,
+        "track_err_median": 0.14947579645707834,
+        "track_err_pre_median": 0.1181756759967302,
+        "ref_jump_median": 1.4835121631622314,
+        "ref_step_typical_median": 0.36523714661598206
+      },
+      "cell_dither_back_down": {
+        "n": 256,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.014784391721725852
+        ],
+        "stumble": 1,
+        "stumble_rate": 0.00390625,
+        "stumble_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "incident": 1,
+        "incident_rate": 0.00390625,
+        "incident_ci95": [
+          0.0006898644160236098,
+          0.02179152424537626
+        ],
+        "knee": 1,
+        "knee_rate": 0.00390625,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.028555114412568305,
+        "foot_force_max_bw_median": 1.6366212862965417,
+        "foot_force_max_bw_p90": 2.184057876059505,
+        "max_tilt_deg_median": 11.212546121507668,
+        "max_tilt_deg_p90": 16.237924165611282,
+        "track_err_median": 0.1472417054700314,
+        "track_err_pre_median": 0.11096849526835699,
+        "ref_jump_median": 1.3003016114234924,
+        "ref_step_typical_median": 0.5178056359291077
+      },
+      "seam_sweep_up": {
+        "n": 384,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.009905074649031977
+        ],
+        "stumble": 2,
+        "stumble_rate": 0.005208333333333333,
+        "stumble_ci95": [
+          0.0014294468626714994,
+          0.018789116592099725
+        ],
+        "incident": 2,
+        "incident_rate": 0.005208333333333333,
+        "incident_ci95": [
+          0.0014294468626714994,
+          0.018789116592099725
+        ],
+        "knee": 2,
+        "knee_rate": 0.005208333333333333,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.08354323201275045,
+        "foot_force_max_bw_median": 2.210002370527775,
+        "foot_force_max_bw_p90": 3.0117194060448003,
+        "max_tilt_deg_median": 10.819978063256642,
+        "max_tilt_deg_p90": 14.641953331016186,
+        "track_err_median": 0.15878264648401302,
+        "track_err_pre_median": 0.09800545019448083,
+        "ref_jump_median": 1.4738227128982544,
+        "ref_step_typical_median": 0.36207446455955505
+      },
+      "seam_sweep_down": {
+        "n": 384,
+        "fall": 2,
+        "fall_rate": 0.005208333333333333,
+        "fall_ci95": [
+          0.0014294468626714994,
+          0.018789116592099725
+        ],
+        "stumble": 5,
+        "stumble_rate": 0.013020833333333334,
+        "stumble_ci95": [
+          0.005574118046011553,
+          0.03011467861736855
+        ],
+        "incident": 7,
+        "incident_rate": 0.018229166666666668,
+        "incident_ci95": [
+          0.008857538845345327,
+          0.03714474662377403
+        ],
+        "knee": 2,
+        "knee_rate": 0.005208333333333333,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 5,
+        "tilt_rate": 0.013020833333333334,
+        "sat_frac_mean": 0.03305136563963618,
+        "foot_force_max_bw_median": 1.7771429548044102,
+        "foot_force_max_bw_p90": 2.6265573791665897,
+        "max_tilt_deg_median": 11.739615254181807,
+        "max_tilt_deg_p90": 20.174718744600497,
+        "track_err_median": 0.14223908724766032,
+        "track_err_pre_median": 0.20451490626260738,
+        "ref_jump_median": 1.3982372283935547,
+        "ref_step_typical_median": 0.5297393202781677
+      },
+      "seam_sweep_fwd": {
+        "n": 384,
+        "fall": 2,
+        "fall_rate": 0.005208333333333333,
+        "fall_ci95": [
+          0.0014294468626714994,
+          0.018789116592099725
+        ],
+        "stumble": 7,
+        "stumble_rate": 0.018229166666666668,
+        "stumble_ci95": [
+          0.008857538845345327,
+          0.03714474662377403
+        ],
+        "incident": 9,
+        "incident_rate": 0.0234375,
+        "incident_ci95": [
+          0.012378431449603735,
+          0.04393734282525487
+        ],
+        "knee": 4,
+        "knee_rate": 0.010416666666666666,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 5,
+        "tilt_rate": 0.013020833333333334,
+        "sat_frac_mean": 0.056243390912860215,
+        "foot_force_max_bw_median": 2.044903536303682,
+        "foot_force_max_bw_p90": 2.983505138900873,
+        "max_tilt_deg_median": 11.220767974018019,
+        "max_tilt_deg_p90": 18.670190425565877,
+        "track_err_median": 0.14684888168215016,
+        "track_err_pre_median": 0.14063912989456104,
+        "ref_jump_median": 1.432046890258789,
+        "ref_step_typical_median": 0.4463497996330261
+      },
+      "seam_sweep_back": {
+        "n": 384,
+        "fall": 0,
+        "fall_rate": 0.0,
+        "fall_ci95": [
+          0.0,
+          0.009905074649031977
+        ],
+        "stumble": 0,
+        "stumble_rate": 0.0,
+        "stumble_ci95": [
+          0.0,
+          0.009905074649031977
+        ],
+        "incident": 0,
+        "incident_rate": 0.0,
+        "incident_ci95": [
+          0.0,
+          0.009905074649031977
+        ],
+        "knee": 0,
+        "knee_rate": 0.0,
+        "torso": 0,
+        "torso_rate": 0.0,
+        "tilt": 0,
+        "tilt_rate": 0.0,
+        "sat_frac_mean": 0.06035120673952641,
+        "foot_force_max_bw_median": 2.0135999822534774,
+        "foot_force_max_bw_p90": 2.7644831264873684,
+        "max_tilt_deg_median": 11.193093760857558,
+        "max_tilt_deg_p90": 16.736891109922844,
+        "track_err_median": 0.15258928685348241,
+        "track_err_pre_median": 0.1393563411386584,
+        "ref_jump_median": 1.4374276399612427,
+        "ref_step_typical_median": 0.4463573545217514
+      }
+    },
+    "baseline": {
+      "tilt_deg_p50_p99_p999": {
+        "stand": [
+          1.3991393321650039,
+          4.709755279155498,
+          23.959306184151274
+        ],
+        "trot": [
+          2.9121576229564328,
+          13.000469037835392,
+          20.831316230257308
+        ],
+        "steady_fast": [
+          5.143243048879828,
+          13.723500601847471,
+          21.864297709822264
+        ]
+      },
+      "knee_contact_frac": {
+        "stand": 0.0003243585485344183,
+        "trot": 4.390490198230632e-05,
+        "steady_fast": 0.0006354171758150447
+      },
+      "torso_contact_frac": {
+        "stand": 0.0,
+        "trot": 0.0,
+        "steady_fast": 0.0
+      },
+      "total_terminations": 43,
+      "torso_sensor": true
+    },
+    "verdict": {
+      "verdict": "PASS",
+      "reasons": [],
+      "no_data": [],
+      "close_calls_rerun_second_seed": [
+        "cell_sweep_fwd_down"
+      ],
+      "cells": {
+        "cell_sweep_fwd_up": {
+          "n": 192,
+          "incidents": 2,
+          "excess": 0.010416666666666666,
+          "p": 0.004843904542111536
+        },
+        "cell_sweep_fwd_down": {
+          "n": 192,
+          "incidents": 7,
+          "excess": 0.036458333333333336,
+          "p": 7.258385441089056e-09
+        },
+        "cell_sweep_back_up": {
+          "n": 192,
+          "incidents": 0,
+          "excess": 0.0,
+          "p": 1.0
+        },
+        "cell_sweep_back_down": {
+          "n": 192,
+          "incidents": 0,
+          "excess": 0.0,
+          "p": 1.0
+        },
+        "cell_dither_fwd_up": {
+          "n": 256,
+          "incidents": 1,
+          "excess": 0.00390625,
+          "p": 0.09090909090909091
+        },
+        "cell_dither_fwd_down": {
+          "n": 256,
+          "incidents": 2,
+          "excess": 0.0078125,
+          "p": 0.0082351041498466
+        },
+        "cell_dither_back_up": {
+          "n": 256,
+          "incidents": 0,
+          "excess": 0.0,
+          "p": 1.0
+        },
+        "cell_dither_back_down": {
+          "n": 256,
+          "incidents": 1,
+          "excess": 0.00390625,
+          "p": 0.09090909090909091
+        }
+      },
+      "control_incident_rate": 0.0,
+      "criteria": {
+        "max_fall_rate": 0.02,
+        "max_incident_excess": 0.05,
+        "fisher_alpha": 0.01,
+        "min_cell_n": 60,
+        "close_call": [
+          0.03,
+          0.07
+        ]
+      },
+      "role": "headline"
+    },
+    "sensitivity": {
+      "tilt_25": {
+        "verdict": "FAIL",
+        "reasons": [
+          "cell_sweep_fwd_down: incidents 12/192 vs control 0/2560 (excess 0.062, p=9.6e-15)"
+        ],
+        "max_cell_excess": 0.0625,
+        "control_max_tilt_deg": 17.831373413739346
+      },
+      "tilt_35": {
+        "verdict": "PASS",
+        "reasons": [],
+        "max_cell_excess": 0.026041666666666668,
+        "control_max_tilt_deg": 17.831373413739346
+      }
+    },
+    "control_max_tilt_deg": 17.831373413739346
+  },
+  "schedules": [
+    {
+      "name": "sweep_fwd_r0.25",
+      "kind": "sweep",
+      "direction": "fwd",
+      "rate": "0.25",
+      "steps": 850,
+      "sham": []
+    },
+    {
+      "name": "sweep_fwd_r0.5",
+      "kind": "sweep",
+      "direction": "fwd",
+      "rate": "0.5",
+      "steps": 550,
+      "sham": []
+    },
+    {
+      "name": "sweep_fwd_r1",
+      "kind": "sweep",
+      "direction": "fwd",
+      "rate": "1",
+      "steps": 400,
+      "sham": []
+    },
+    {
+      "name": "sweep_fwd_rinf",
+      "kind": "sweep",
+      "direction": "fwd",
+      "rate": "inf",
+      "steps": 252,
+      "sham": []
+    },
+    {
+      "name": "dither_fwd",
+      "kind": "dither",
+      "direction": "fwd",
+      "rate": "step",
+      "steps": 855,
+      "sham": []
+    },
+    {
+      "name": "control_fwd",
+      "kind": "control",
+      "direction": "fwd",
+      "rate": "0.5",
+      "steps": 706,
+      "sham": [
+        0.3,
+        1.0
+      ]
+    },
+    {
+      "name": "control_dither_trot_fwd",
+      "kind": "control",
+      "direction": "fwd",
+      "rate": "step",
+      "steps": 815,
+      "sham": [
+        0.3
+      ]
+    },
+    {
+      "name": "control_dither_fast_fwd",
+      "kind": "control",
+      "direction": "fwd",
+      "rate": "step",
+      "steps": 906,
+      "sham": [
+        0.9
+      ]
+    },
+    {
+      "name": "sweep_back_r0.25",
+      "kind": "sweep",
+      "direction": "back",
+      "rate": "0.25",
+      "steps": 850,
+      "sham": []
+    },
+    {
+      "name": "sweep_back_r0.5",
+      "kind": "sweep",
+      "direction": "back",
+      "rate": "0.5",
+      "steps": 550,
+      "sham": []
+    },
+    {
+      "name": "sweep_back_r1",
+      "kind": "sweep",
+      "direction": "back",
+      "rate": "1",
+      "steps": 400,
+      "sham": []
+    },
+    {
+      "name": "sweep_back_rinf",
+      "kind": "sweep",
+      "direction": "back",
+      "rate": "inf",
+      "steps": 252,
+      "sham": []
+    },
+    {
+      "name": "dither_back",
+      "kind": "dither",
+      "direction": "back",
+      "rate": "step",
+      "steps": 855,
+      "sham": []
+    },
+    {
+      "name": "control_back",
+      "kind": "control",
+      "direction": "back",
+      "rate": "0.5",
+      "steps": 706,
+      "sham": [
+        0.3,
+        1.0
+      ]
+    },
+    {
+      "name": "control_dither_trot_back",
+      "kind": "control",
+      "direction": "back",
+      "rate": "step",
+      "steps": 815,
+      "sham": [
+        0.3
+      ]
+    },
+    {
+      "name": "control_dither_fast_back",
+      "kind": "control",
+      "direction": "back",
+      "rate": "step",
+      "steps": 906,
+      "sham": [
+        0.9
+      ]
+    }
+  ]
+}

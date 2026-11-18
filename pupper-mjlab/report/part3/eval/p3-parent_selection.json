@@ -1,0 +1,56 @@
+{
+  "selected": "/home/ubuntu/runs/opt-lab-2/rp-p3-parent-bumpyft-smoke/model_3048.pt",
+  "selected_key": "+49",
+  "verdict": "OK",
+  "notes": [
+    "ship +49 (no guard fired)"
+  ],
+  "flags": [],
+  "base": "p3-parent",
+  "base_evals": {
+    "flat_dr": {
+      "falls": 40,
+      "overflow_ok": true,
+      "seam": "PASS"
+    },
+    "bumpy_dr": {
+      "falls": 81,
+      "overflow_ok": true,
+      "seam": "PASS"
+    },
+    "flat_nodr": {
+      "falls": 100,
+      "overflow_ok": true,
+      "seam": "FAIL"
+    },
+    "bumpy_nodr": {
+      "falls": 107,
+      "overflow_ok": true,
+      "seam": "FAIL"
+    }
+  },
+  "evals": {
+    "+49": {
+      "flat_dr": {
+        "falls": 63,
+        "overflow_ok": true,
+        "seam": "PASS"
+      },
+      "bumpy_dr": {
+        "falls": 91,
+        "overflow_ok": true,
+        "seam": "FAIL"
+      },
+      "flat_nodr": {
+        "falls": 114,
+        "overflow_ok": true,
+        "seam": "FAIL"
+      },
+      "bumpy_nodr": {
+        "falls": 128,
+        "overflow_ok": true,
+        "seam": "FAIL"
+      }
+    }
+  }
+}
