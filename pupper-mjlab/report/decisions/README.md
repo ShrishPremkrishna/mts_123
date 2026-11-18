@@ -86,3 +86,20 @@ Reversible?: yes/no, and what it costs to reverse (GPU-hours, rework)
 | 2026-11-18 | W4 | Part 3 seam stumble definition + verdict rule ([doc](2026-11-18-w4-seam-thresholds.md)) | Incident = fall or knee/torso contact or tilt > 30° in [−0.2, +1.0] s; per-cell excess vs no-seam control > 0.05 with Fisher p < 0.01, or pooled falls > 2 % → FAIL (arbitrated) | |
 | 2026-11-18 | W4 | Part 3 Bumpy + DR fine-tune budget ([doc](2026-11-18-w4-finetune-budget.md)) | 1500 iterations from the Part 2 final, evals at +500/+1000/+1500, ship +1500 unless a pre-registered guard fires; matched flat-continuation control (2/2 graders) | |
 | 2026-11-18 | W4 | Part 3 PD-gain DR coverage ([doc](2026-11-18-w4-kp-coverage.md)) | Measure the final's nominal-gain vs flat_dr falls; gap > 15 → fine-tune + control train with kp ×[0.6, 1.3], kd ×[0.7, 1.5], else Lab 4. Eval always on Lab 4; nominal-gain falls gate selection and hardware HOLD (arbitrated, 2–1) | |
+
+### Retroactive devil's-advocate reviews (commit `b78c405`, 2026-11-18)
+These cover the decisions made before lenses existed. All five come back **STANDS WITH NEW CAVEAT**, and none is reopened. Caveats and follow-ups:
+- [p1-parent-gait](2026-11-18-p1-parent-gait/devils-advocate.md):
+  - gallop_c's lead (42.5 vs 55.5 falls under DR) is about ¼ of its nominal-gain excess (+48.5), and fast_trot was never evaluated at nominal gains.
+  - **Follow-up (W4, running):** a fast_trot nominal-PD eval. The pre-registered reopen rule: fast_trot's nominal-gain excess ≤ 15 **and** its nominal-gain falls ≥ 20 below gallop_c's.
+  - Errata: the "4.2–4.5 Hz irregular cycle" flag was a step-counter artefact. fast_trot s43 beats gallop_c on push_stand. Repeat evals span 33–43 falls.
+- [infra-num-envs](2026-11-18-infra-num-envs/devils-advocate.md): budget at the measured 1.0–1.1 it/s, not 1.27 (fixed in REPRO_PLAN §4.3 and `infra/a100_throughput.md`).
+- [w3-s43-lineage](2026-11-18-w3-s43-lineage/devils-advocate.md):
+  - A final policy from the s43 lineage needs its own nominal-PD and Part 3 evidence.
+  - Every Part 2 eval used eval seed 1234, so the noise band understates the real noise.
+- [w4-finetune-budget](2026-11-18-w4-finetune-budget/devils-advocate.md): 1500 iterations is fine, but the runbook broke iteration matching (control evaluated only at its final checkpoint; Bumpy-only extension; an "early stop" that couldn't stop). **Being fixed by W4 before launch.**
+- [w0-concurrency](2026-11-18-w0-concurrency/devils-advocate.md):
+  - The cap is check-then-launch without a shared lock. Two launches 11 s apart gave 5 trainers.
+  - Nothing reads `~/recovery/CONCURRENCY`.
+  - **W4 is moving Part 3 onto W3's lock.**
+

@@ -74,8 +74,8 @@ observes the reference and that reference is gone. Baseline checkpoints (`baseli
 2. **No NVIDIA MPS.** [R lesson] Twice, a GPU fault in one run killed every co-scheduled run. Run
    concurrent jobs as plain separate processes, and resume from the `save_interval=50` checkpoints.
 3. **The A100 is fast, but it is one fixed pie** (measured 2026-11-18, `report/infra/a100_throughput.md`): 0.78 s/iter at 4096 envs solo
-   (the old A10 ran 0.8–1.3 s/iter solo). Without MPS, **aggregate throughput is flat at ≈ 1.25–1.3 it/s for 1–6 concurrent
-   processes**, so concurrency does not add throughput. Budget = total iterations / 1.25 s: one 3000-iteration run solo ≈ 40 min,
+   (the old A10 ran 0.8–1.3 s/iter solo). Without MPS, **aggregate throughput is flat for 1–6 concurrent
+   processes**, so concurrency does not add throughput. The 40-iteration benchmark said ≈ 1.27 it/s. **Full runs measured ≈ 1.0–1.1 it/s** (red-team review 2026-11-18, from run logs), so budget = total iterations / **1.1** s, and older estimates here are ~20–30 % low. One 3000-iteration run solo ≈ 45–50 min,
    Part 1 (~24 k iterations) ≈ 5 h, Part 2 (14 legs × 500 × 2 seeds) ≈ 3 h, plus evals. This supersedes the §5 estimate.
    Max concurrency **4** (`~/recovery/CONCURRENCY`, `report/decisions/2026-11-18-w0-concurrency.md`). Evals take a disproportionate
    share of the GPU, so batch them. Two seeds for every Part 2 arm is still affordable (≈ 3 h) and removes the one-seed caveat that blocked the final pick

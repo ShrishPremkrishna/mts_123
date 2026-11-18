@@ -60,7 +60,9 @@ recovered baseline at 3000, at matched env-steps.
 
 ## Recommendation
 
-- Throughput is about **1.27 it/s for the whole GPU** at 4096 envs. Budget compute as `total iterations / 1.27 s`.
+- Throughput is about **1.27 it/s for the whole GPU** at 4096 envs in this 40-iteration benchmark, which covers only the cheaper early training phase.
+  - **Correction, 2026-11-18:** full runs measured **1.0–1.1 it/s** (solo 1.03, 3 concurrent 1.01–1.06, 4 concurrent ~1.09), per the run logs and `decisions/2026-11-18-infra-num-envs/devils-advocate.md`.
+  - Budget compute as `total iterations / 1.1 s`.
   For example, 6 × 3000-iteration runs ≈ 3.9 h whether they run one at a time or all at once.
 - Concurrency does not buy throughput. It trades time-to-first-result against arms finishing together and against
   fault/startup isolation. Recommended maximum concurrency: see `~/recovery/CONCURRENCY` and the decision doc
