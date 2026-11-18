@@ -43,6 +43,7 @@ MJLAB_ROOT = Path(__file__).resolve().parents[2]  # pupper-mjlab/
 DRIVER_LIMITS = (MJLAB_ROOT.parent / "foundation/configs/class-driver-joint-limits.json").resolve()
 PHYSICS_FLAGS = ["--deployment-target-clamp", "--compose-com-randomization", "--locomotion-torso-contact"]
 META_ENV = "OPT_LAB_2_LAUNCH_META"
+BUMPY_CHECKED_CLI = (MJLAB_ROOT.parent / "foundation/scripts/bumpy_checked_cli.py").resolve()
 
 
 TOPLEVEL = Path(subprocess.run(["git", "-C", str(MJLAB_ROOT), "rev-parse", "--show-toplevel"], capture_output=True,
@@ -151,6 +152,17 @@ def child_main(train_argv: list[str]) -> None:
   from mjlab.scripts import pupper_locomotion
 
   sys.argv = ["pupper_locomotion", "train", *train_argv]
+  if meta.get("checked_bumpy"):
+    # Reviewed Bumpy contract (0.10 m Perlin grid + accumulated physics-overflow
+    # audit; the stock 0.05 m grid overflows with the torso hull). See
+    # foundation/scripts/bumpy_checked_cli.py and configs/optional2/README.md.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("bumpy_checked_cli", BUMPY_CHECKED_CLI)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.main()
+    return
   pupper_locomotion.main()
 
 
@@ -173,6 +185,9 @@ def main() -> int:
   p.add_argument("--tags", default="", help="Comma-separated extra WandB tags")
   p.add_argument("--group", default=None, help="WandB run group (via WANDB_RUN_GROUP)")
   p.add_argument("--notes", default="", help="Free text prepended to the WandB notes")
+  p.add_argument("--checked-bumpy", action="store_true",
+                 help="Train through foundation/scripts/bumpy_checked_cli.py (0.10 m Perlin grid + overflow "
+                      "audit); requires --task Mjlab-MixedGaits-Bumpy-Pupper-v3")
   p.add_argument("--dry-run", action="store_true", help="Run checks, print the command, do not train")
   p.add_argument("--quiet", action="store_true", help="Log to file only (no terminal echo)")
   args, passthrough = p.parse_known_args()
@@ -249,6 +264,11 @@ def main() -> int:
   if ckpt:
     meta["checkpoint"] = ckpt
     meta["checkpoint_sha256"] = sha256(Path(ckpt))
+  if args.checked_bumpy:
+    if flag_value(train_argv, "--task") != "Mjlab-MixedGaits-Bumpy-Pupper-v3":
+      p.error("--checked-bumpy requires --task Mjlab-MixedGaits-Bumpy-Pupper-v3")
+    meta["checked_bumpy"] = dict(wrapper=str(BUMPY_CHECKED_CLI.relative_to(toplevel)),
+                                 sha256=sha256(BUMPY_CHECKED_CLI))
   meta["run_name"] = out.name
   meta["train_argv"] = train_argv
   meta["tags"] = [t for t in args.tags.split(",") if t]
