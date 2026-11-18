@@ -1,0 +1,3 @@
+| name | train_num_envs | train_seed | iter | parent | iters_past_parent | reference | ref_check | R:push_stand@0.65 | R:push_move@0.5 | vx_walk_+0.5 | push@0.5_walk_+0.5 | vx_run_+1.5 | push@0.5_run_+1.5 | vx_run_-1.5 | push@0.5_run_-1.5 | stand@0.5(i) | stand@0.65(i) | stand@0.8(i) | push(i) | push_stand(i) | push_move(i) | push0.5(i) | push0.65(i) | push0.8(i) | n_push |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| baseline-s42-wandb | 4096 | 42 | 2999 | - | 3000 | default(trot fallback) | ok (default references) | 0.0723 | 0.0949 | 0.414 | 0.0478 | 0.253 | 0.0898 | -0.212 | 0.144 | 0.00297 | 0.0723 | 0.564 | 0.277 | 0.219 | 0.297 | 0.0719 | 0.244 | 0.514 | 4072 |

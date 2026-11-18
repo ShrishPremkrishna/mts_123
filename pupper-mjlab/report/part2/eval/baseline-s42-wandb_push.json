@@ -1,0 +1,496 @@
+{
+  "name": "baseline-s42-wandb",
+  "kind": "push",
+  "metrics": {
+    "overall": {
+      "pushes": 4072,
+      "falls": 1128,
+      "rate": 0.2770137524557957
+    },
+    "standing": {
+      "pushes": 1020,
+      "falls": 223,
+      "rate": 0.21862745098039216
+    },
+    "moving": {
+      "pushes": 3052,
+      "falls": 905,
+      "rate": 0.2965268676277851
+    },
+    "by_magnitude": {
+      "0.5": {
+        "pushes": 1349,
+        "falls": 97,
+        "rate": 0.07190511489992588
+      },
+      "0.65": {
+        "pushes": 1367,
+        "falls": 334,
+        "rate": 0.24433065106071689
+      },
+      "0.8": {
+        "pushes": 1356,
+        "falls": 697,
+        "rate": 0.5140117994100295
+      }
+    },
+    "by_condition": {
+      "stand": {
+        "all": {
+          "pushes": 1020,
+          "falls": 223,
+          "rate": 0.21862745098039216
+        },
+        "achieved_vx_m_s": 0.0004781186351459341,
+        "0.5": {
+          "pushes": 337,
+          "falls": 1,
+          "rate": 0.002967359050445104
+        },
+        "0.65": {
+          "pushes": 332,
+          "falls": 24,
+          "rate": 0.07228915662650602
+        },
+        "0.8": {
+          "pushes": 351,
+          "falls": 198,
+          "rate": 0.5641025641025641
+        }
+      },
+      "walk_+0.5": {
+        "all": {
+          "pushes": 1021,
+          "falls": 265,
+          "rate": 0.2595494613124388
+        },
+        "achieved_vx_m_s": 0.41443079939519845,
+        "0.5": {
+          "pushes": 335,
+          "falls": 16,
+          "rate": 0.04776119402985075
+        },
+        "0.65": {
+          "pushes": 359,
+          "falls": 97,
+          "rate": 0.27019498607242337
+        },
+        "0.8": {
+          "pushes": 327,
+          "falls": 152,
+          "rate": 0.4648318042813456
+        }
+      },
+      "run_+1.5": {
+        "all": {
+          "pushes": 1018,
+          "falls": 265,
+          "rate": 0.26031434184675833
+        },
+        "achieved_vx_m_s": 0.253193278853765,
+        "0.5": {
+          "pushes": 323,
+          "falls": 29,
+          "rate": 0.08978328173374613
+        },
+        "0.65": {
+          "pushes": 341,
+          "falls": 85,
+          "rate": 0.24926686217008798
+        },
+        "0.8": {
+          "pushes": 354,
+          "falls": 151,
+          "rate": 0.4265536723163842
+        }
+      },
+      "run_-1.5": {
+        "all": {
+          "pushes": 1013,
+          "falls": 375,
+          "rate": 0.37018756169792694
+        },
+        "achieved_vx_m_s": -0.21246280236786752,
+        "0.5": {
+          "pushes": 354,
+          "falls": 51,
+          "rate": 0.1440677966101695
+        },
+        "0.65": {
+          "pushes": 335,
+          "falls": 128,
+          "rate": 0.382089552238806
+        },
+        "0.8": {
+          "pushes": 324,
+          "falls": 196,
+          "rate": 0.6049382716049383
+        }
+      }
+    },
+    "falls_total": 1142,
+    "falls_outside_push_windows": 1,
+    "timeouts_total": 0,
+    "robot_seconds": 15360.0,
+    "ranked": {
+      "standing_rung": 0.65,
+      "standing_at_rung": {
+        "pushes": 332,
+        "falls": 24,
+        "rate": 0.07228915662650602
+      },
+      "moving_rung": 0.5,
+      "moving_at_rung": {
+        "pushes": 1012,
+        "falls": 96,
+        "rate": 0.09486166007905138
+      },
+      "moving_at_rung_by_condition": {
+        "walk_+0.5": {
+          "pushes": 335,
+          "falls": 16,
+          "rate": 0.04776119402985075
+        },
+        "run_+1.5": {
+          "pushes": 323,
+          "falls": 29,
+          "rate": 0.08978328173374613
+        },
+        "run_-1.5": {
+          "pushes": 354,
+          "falls": 51,
+          "rate": 0.1440677966101695
+        }
+      }
+    }
+  },
+  "wall_clock_s": 118.37009930610657,
+  "design": {
+    "conditions": [
+      {
+        "name": "stand",
+        "vx": 0.0
+      },
+      {
+        "name": "walk_+0.5",
+        "vx": 0.5
+      },
+      {
+        "name": "run_+1.5",
+        "vx": 1.5
+      },
+      {
+        "name": "run_-1.5",
+        "vx": -1.5
+      }
+    ],
+    "envs_per_condition": 128,
+    "magnitudes_m_s": [
+      0.5,
+      0.65,
+      0.8
+    ],
+    "seconds": 30.0,
+    "first_push_s": 4.0,
+    "period_s": 3.0,
+    "jitter_s": 0.25,
+    "window_s": 2.0,
+    "mechanism": "root_link_vel_w += sign*mag*(-sin h, cos h, 0) via Entity.write_root_link_velocity_to_sim, applied after the policy acts and before the step (same mechanism as mjlab.envs.mdp.events.push_by_setting_velocity)",
+    "scheduled_pushes": 4095,
+    "applied_impulse_check": {
+      "0.5": {
+        "mean_lateral_dv_after_one_step_m_s": 0.4591875291762322,
+        "pushes": 1350
+      },
+      "0.65": {
+        "mean_lateral_dv_after_one_step_m_s": 0.6001929166220695,
+        "pushes": 1377
+      },
+      "0.8": {
+        "mean_lateral_dv_after_one_step_m_s": 0.7408816665321961,
+        "pushes": 1368
+      }
+    }
+  },
+  "provenance": {
+    "mode": "batch",
+    "out_dir": "/home/ubuntu/wt/w2/pupper-mjlab/report/part2/eval",
+    "raw_dir": "/tmp/claude-1000/-home-ubuntu/1e6973a7-fdc0-4a4d-af73-a538d53a1bf0/scratchpad/eval/raw",
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w2/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "entries": [
+      "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+      "/home/ubuntu/recovery/checkpoints/baseline-s42-cont4500/model_4498.pt"
+    ],
+    "envs_per_schedule": 24,
+    "envs": 512,
+    "modes": [
+      "suite",
+      "push"
+    ],
+    "skip_existing": false,
+    "worker": true,
+    "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+    "reference_dir": null,
+    "name": "baseline-s42-wandb",
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+      "iter": 2999,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "config.yaml (wandb CLI args)",
+      "train_seed": 42,
+      "train_seed_source": "config.yaml (wandb CLI args)",
+      "parent": null,
+      "parent_source": "config.yaml (wandb CLI args)",
+      "parent_iter": null,
+      "parent_iter_source": null,
+      "iters_past_parent": 3000,
+      "iters_past_parent_source": "from scratch: iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": null,
+      "train_reference_dir_source": "config.yaml (wandb CLI args)",
+      "train_iterations_arg": 3000,
+      "train_git_revision": "59db01658ac9fe83e86ccc0b52574e5a28f43de3",
+      "reference_check": "ok (default references)"
+    },
+    "num_envs": 512,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "61916237d9540dac26b9bcff09458b42204bf39c7f8c0b97e1d6fbc93c6e7119",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w2/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "3792fe4d4f418897db60a7964802530f51eedf44",
+    "source_sha256": "364e366e5846200dfeaf7cf4284640abd9fb425d8f29cd7a01974fac24d40c51",
+    "source_files_hashed": 265,
+    "checkpoint_sha256": "61916237d9540dac26b9bcff09458b42204bf39c7f8c0b97e1d6fbc93c6e7119",
+    "git_src_dirty": true,
+    "effective_reference_dir": "/home/ubuntu/wt/w2/pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": null
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "config.yaml (wandb CLI args)",
+    "train_seed": 42,
+    "train_seed_source": "config.yaml (wandb CLI args)",
+    "parent": null,
+    "parent_source": "config.yaml (wandb CLI args)",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": null,
+    "train_reference_dir_source": "config.yaml (wandb CLI args)",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "59db01658ac9fe83e86ccc0b52574e5a28f43de3",
+    "reference_check": "ok (default references)"
+  }
+}

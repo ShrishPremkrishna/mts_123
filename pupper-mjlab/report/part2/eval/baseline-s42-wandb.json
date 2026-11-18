@@ -1,0 +1,551 @@
+{
+  "name": "baseline-s42-wandb",
+  "kind": "suite",
+  "metrics": {
+    "robot_runs": 384,
+    "falls_total": 4,
+    "timeouts_total": 0,
+    "falls_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 0,
+      "reversal": 4
+    },
+    "falls_by_schedule": {
+      "stand": 0,
+      "ramp_fwd": 0,
+      "ramp_back": 0,
+      "steady_fwd": 0,
+      "steady_back": 0,
+      "reversal_fwd_first": 0,
+      "reversal_back_first": 0,
+      "stops_fwd": 0,
+      "stops_back": 0,
+      "turn_in_place": 0,
+      "walk_and_turn": 0,
+      "sidestep": 0,
+      "slow_walk": 0,
+      "gait_seam": 0,
+      "reversal_moderate": 4,
+      "mixed": 0
+    },
+    "falls_soon_after_reset": 0,
+    "falls_soon_after_reset_by_category": {
+      "steady": 0,
+      "turn": 0,
+      "stop": 0,
+      "reversal": 0
+    },
+    "falls_detail": [
+      {
+        "schedule": "reversal_moderate",
+        "env": 355,
+        "time_s": 6.58,
+        "episode_age_s": 6.58,
+        "since_command_change_s": 0.58,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_moderate",
+        "env": 345,
+        "time_s": 6.72,
+        "episode_age_s": 6.72,
+        "since_command_change_s": 0.72,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_moderate",
+        "env": 342,
+        "time_s": 12.56,
+        "episode_age_s": 12.56,
+        "since_command_change_s": 0.56,
+        "category": "reversal"
+      },
+      {
+        "schedule": "reversal_moderate",
+        "env": 348,
+        "time_s": 12.7,
+        "episode_age_s": 12.7,
+        "since_command_change_s": 0.7,
+        "category": "reversal"
+      }
+    ],
+    "category_robot_runs": {
+      "steady": 384,
+      "turn": 96,
+      "stop": 72,
+      "reversal": 96
+    },
+    "category_robot_seconds": {
+      "steady": 5892.0,
+      "turn": 1068.0,
+      "stop": 336.0,
+      "reversal": 384.0
+    },
+    "category_robot_events": {
+      "reversal": 192,
+      "stop": 168
+    },
+    "steady_samples": {
+      "fwd": 24168,
+      "back": 24144,
+      "stand": 34320,
+      "moving": 103452
+    },
+    "track_err_fwd": 1.2567892817058444,
+    "track_err_back": 1.2896899010460494,
+    "mean_vx_fwd": 0.2466336041688919,
+    "mean_vx_back": -0.21651096642017365,
+    "stand_jitter_rad_s": 0.1371329128742218,
+    "torque_sat_frac": 0.013213245276860523,
+    "torque_sat_frac_fast": 0.016302022961859026,
+    "torque_abs_max_nm": 3.0,
+    "torque_sq_mean": 0.6494114398956299,
+    "foot_force_peak_bw": 4.930982073497969,
+    "foot_force_runmax_median_bw": 1.9193448072991832,
+    "foot_force_runmax_robot_runs": 384,
+    "foot_force_p999_bw": 1.7038560096788153,
+    "foot_force_p99_bw": 1.3003155053139122,
+    "foot_force_peak_where": {
+      "schedule": "ramp_fwd",
+      "env": 35,
+      "time_s": 14.66,
+      "episode_age_s": 14.659999999999776,
+      "foot": 1,
+      "context": "steady",
+      "cmd": [
+        0.8300000000000001,
+        0.0,
+        0.0
+      ]
+    },
+    "foot_force_peak_bw_incl_reset_drop": 4.930982073497969,
+    "foot_force_p99_bw_incl_reset_drop": 1.302681552590342,
+    "foot_force_stand_mean_bw_per_foot": 0.2605737658445275,
+    "foot_force_stand_total_bw": 1.04229506337811,
+    "heading_drift_deg_per_10s_fwd": {
+      "mean": 28.17455200760766,
+      "signed_mean": 14.64711874721534,
+      "max": 103.79010321231513,
+      "windows": 120,
+      "windows_ending_in_fall": 0
+    },
+    "heading_drift_deg_per_10s_back": {
+      "mean": 21.92208713335094,
+      "signed_mean": -9.244334111344898,
+      "max": 87.5766855379035,
+      "windows": 120,
+      "windows_ending_in_fall": 0
+    },
+    "hind_splay_rad_fwd": -0.027933538583382104,
+    "hind_splay_rad_back": -0.11838978606339784,
+    "hind_splay_rad_stand": -0.041249172219174436,
+    "slip_m_s": 0.19428733524713732,
+    "slip_m_s_fwd": 0.18876294968430982,
+    "slip_m_s_back": 0.15067486389464016,
+    "top_speed_fwd": 0.7908349609375,
+    "top_speed_back": -0.5840921783447266,
+    "top_speed_fwd_median_env": 0.36992190837860106,
+    "top_speed_back_median_env": -0.26531951904296874,
+    "mass_kg": {
+      "min": 3.0556979179382324,
+      "mean": 3.455386141935984,
+      "max": 3.835693836212158
+    },
+    "mass_source": "env.sim.model.body_mass[world, robot.indexing.body_ids] (per-world)",
+    "mass_nominal_kg": 3.1699999999999995,
+    "gravity_m_s2": 9.81,
+    "torque_model": {
+      "effort_limit_nm": 3.0,
+      "saturation_threshold_nm": 2.9699999999999998,
+      "actuator_forcelimited": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "actuator_forcerange": [
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ],
+        [
+          -3.0,
+          3.0
+        ]
+      ],
+      "jnt_actfrclimited": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "wall_clock_s": 58.34943389892578,
+  "rollout_loop_s": 34.43319296836853,
+  "schedule": {
+    "names": [
+      "stand",
+      "ramp_fwd",
+      "ramp_back",
+      "steady_fwd",
+      "steady_back",
+      "reversal_fwd_first",
+      "reversal_back_first",
+      "stops_fwd",
+      "stops_back",
+      "turn_in_place",
+      "walk_and_turn",
+      "sidestep",
+      "slow_walk",
+      "gait_seam",
+      "reversal_moderate",
+      "mixed"
+    ],
+    "sha256": "ff8df7951f572c5f4eeefd63341fd72ed8f37eaea70f78065ec8b0ffc2710bc2",
+    "steps": 1000,
+    "dt": 0.02,
+    "envs_per_schedule": 24,
+    "context_window_s": 2.0,
+    "steady_after_s": 2.0
+  },
+  "provenance": {
+    "mode": "batch",
+    "out_dir": "/home/ubuntu/wt/w2/pupper-mjlab/report/part2/eval",
+    "raw_dir": "/tmp/claude-1000/-home-ubuntu/1e6973a7-fdc0-4a4d-af73-a538d53a1bf0/scratchpad/eval/raw",
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w2/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "entries": [
+      "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+      "/home/ubuntu/recovery/checkpoints/baseline-s42-cont4500/model_4498.pt"
+    ],
+    "envs_per_schedule": 24,
+    "envs": 512,
+    "modes": [
+      "suite",
+      "push"
+    ],
+    "skip_existing": false,
+    "worker": true,
+    "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+    "reference_dir": null,
+    "name": "baseline-s42-wandb",
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+      "iter": 2999,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "config.yaml (wandb CLI args)",
+      "train_seed": 42,
+      "train_seed_source": "config.yaml (wandb CLI args)",
+      "parent": null,
+      "parent_source": "config.yaml (wandb CLI args)",
+      "parent_iter": null,
+      "parent_iter_source": null,
+      "iters_past_parent": 3000,
+      "iters_past_parent_source": "from scratch: iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": null,
+      "train_reference_dir_source": "config.yaml (wandb CLI args)",
+      "train_iterations_arg": 3000,
+      "train_git_revision": "59db01658ac9fe83e86ccc0b52574e5a28f43de3",
+      "reference_check": "ok (default references)"
+    },
+    "num_envs": 384,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "61916237d9540dac26b9bcff09458b42204bf39c7f8c0b97e1d6fbc93c6e7119",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w2/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "f62369d21bebbbb80b42c48faba016c61657861a",
+    "source_sha256": "364e366e5846200dfeaf7cf4284640abd9fb425d8f29cd7a01974fac24d40c51",
+    "source_files_hashed": 265,
+    "checkpoint_sha256": "61916237d9540dac26b9bcff09458b42204bf39c7f8c0b97e1d6fbc93c6e7119",
+    "git_src_dirty": true,
+    "effective_reference_dir": "/home/ubuntu/wt/w2/pupper-mjlab/src/mjlab/tasks/pupper_gait/mdp",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": null
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-wandb/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "config.yaml (wandb CLI args)",
+    "train_seed": 42,
+    "train_seed_source": "config.yaml (wandb CLI args)",
+    "parent": null,
+    "parent_source": "config.yaml (wandb CLI args)",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": null,
+    "train_reference_dir_source": "config.yaml (wandb CLI args)",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "59db01658ac9fe83e86ccc0b52574e5a28f43de3",
+    "reference_check": "ok (default references)"
+  }
+}
