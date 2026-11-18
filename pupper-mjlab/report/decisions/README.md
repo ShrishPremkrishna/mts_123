@@ -3,22 +3,37 @@
 Every decision that would normally wait for a human (tagged **[H]** in `../REPRO_PLAN.md`) is made
 **lazily**. The work does not block. Instead:
 
-1. The agent that hits the decision spawns a **fresh grader agent**. It gets no prior conversation, only
-   pointers to the evidence (files, run IDs, eval tables) and the question. **The requesting agent does not
-   pass its own preferred answer**, so the grader isn't anchored on it.
-2. The grader reads the evidence, decides, and writes one doc here using the template below. It then commits
-   and pushes that doc (only that file) to `markus/opt-lab-2`.
-3. Work continues with the grader's decision. The human reviews these docs afterwards and steers or overrides.
-   An override is recorded as an edit to the doc's **Status** line.
+1. **Rate criticality.** The agent that hits the decision rates it with the table below, which sets how many
+   independent graders run.
+2. **Independent graders.** Spawn N **fresh grader agents** in parallel. Each gets no prior conversation, only
+   the question, pointers to the evidence (files, run IDs, eval tables) and the template. They get **neither the
+   requester's preferred answer nor each other's output.** Each writes `<slug>/grader-<k>.md`.
+3. **Agreement check.** Graders agree when their Conclusions pick the same option. Wording and minor caveats
+   don't count as disagreement.
+   - **N = 1, or all agree:** the requester writes `<slug>.md`, a short consolidation: the shared conclusion, links to the
+     grader docs, and the **union** of their severe flagged issues. It must not alter the conclusion.
+   - **Any disagreement:** spawn a **fresh arbitrator agent**. It gets the evidence pointers and all grader docs,
+     mediates the differences (which disagreements are factual, which are about criteria), checks the disputed evidence
+     itself, and writes the final `<slug>.md` with an extra **Disagreement & resolution** section.
+4. Commit and push only the decision files to `markus/opt-lab-2`. Work continues with the final decision.
+   The human reviews afterwards and steers or overrides. An override is recorded as an edit to the **Status** line.
 
-File name: `YYYY-MM-DD-<workstream>-<slug>.md`, e.g. `2026-11-18-p1-parent-gait.md`.
-The manager keeps the index below up to date.
+| Criticality | When | Graders |
+|---|---|---|
+| Low | Cheap to reverse (< ~1 GPU-hour), nothing downstream depends on it | 1 |
+| Medium | Shapes one workstream's results or costs ~1–3 GPU-hours to redo | 2 |
+| High | Gates downstream work (e.g. Part 1 parent gait, Part 2 final policy), or costs > 3 GPU-hours to redo | 3 |
+| Critical | Hard to reverse, feeds the submitted report's headline claims, or prepares anything physical or safety-related | 4 |
+
+Names: `YYYY-MM-DD-<workstream>-<slug>.md` for the final doc, plus a folder `YYYY-MM-DD-<workstream>-<slug>/`
+for the grader and arbitrator docs. The manager keeps the index below up to date.
 
 ## Template (keep it under ~1 page)
 
 ```markdown
 # <Decision question, one line>
-Status: DECIDED by grader (pending human review) · Date · Requested by: <workstream>
+Status: DECIDED by grader | graders (k/N agree) | arbitrator (pending human review) · Date · Requested by: <workstream>
+Criticality: Low | Medium | High | Critical, with a one-line reason
 Reversible?: yes/no, and what it costs to reverse (GPU-hours, rework)
 
 ## Conclusion
