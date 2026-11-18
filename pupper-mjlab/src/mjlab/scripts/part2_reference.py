@@ -17,17 +17,21 @@ Subcommands (run from ``pupper-mjlab/``)::
 Fold variants (``--variant``):
 
   naive  fold on the commanded phase clock the policy observed.
-  lag    shift the clock by the measured policy/actuator lag (cross-correlation
-         of the naive fold against the parent reference; ``--lag-steps`` sets it
-         explicitly, e.g. 1.8 = gait_tracking's phase_lead_steps).
+  lag    shift the clock by the policy's lead (default 2.0 control steps: the
+         gait_tracking reward rewinds by phase_lead_steps 1.8, truncated to an
+         integer step); ``--lag-steps auto`` uses the lag measured by
+         cross-correlating the naive fold against the parent instead. The
+         measured lag is always reported and checked (warning if > 0.5 steps
+         from the fixed value). This is the default variant.
   phase  re-time every cycle between consecutive touchdowns of one foot, anchored
          at that foot's mean touchdown phase (removes cycle-to-cycle jitter).
   sym    lag + left/right mirror averaging (the pair phase offset is measured).
 
-The pin (default: back-leg abduction ``leg_back_r_2,leg_back_l_2``) holds chosen
-channels at the parent reference's values. Without it the first recovered round
-collapsed into a crouch: the captured near-constant channel had moved outside
-the policy's input distribution. ``--pin none`` disables it.
+The pin (default: all four abduction channels ``leg_*_2``) holds chosen channels
+at the parent reference's values. Without the back pin the first recovered round
+collapsed into a crouch: the captured near-constant channel had moved outside the
+policy's input distribution; the front channels trip the same flag. ``--pin none``
+disables it. Defaults follow report/decisions/2026-11-18-w2-fold-default.md.
 
 Conventions: tables are (100, 12) in ``JOINT_NAMES`` order. ``reach_back`` is
 stored in forward chronological order (indexed by the forward-running clock); the
@@ -63,14 +67,20 @@ STANDARD_PHYSICS = [
   "--driver-limits",
   str(DRIVER_LIMITS),
 ]
-DEFAULT_PIN = ("leg_back_r_2", "leg_back_l_2")
+# Decision report/decisions/2026-11-18-w2-fold-default.md: pin all four abduction
+# channels (back = recovered crouch fix; front trips the same near-constant flag).
+DEFAULT_PIN = ("leg_back_r_2", "leg_back_l_2", "leg_front_r_2", "leg_front_l_2")
+# mixed_gait_tracking rewinds the clock by (buf.float() - 1.8).to(long): an
+# effective 2-step lead, so a 2-step shift makes perfect tracking a fixed point.
+DEFAULT_LAG_STEPS = 2.0
+LAG_CHECK_TOLERANCE_STEPS = 0.5
 GAIT_FREQUENCY = 1.0 / 0.75  # pupper_gait_env_cfg.GAIT_FREQUENCY
 VARIANTS = {
   # name: (alignment, lag, symmetrize)
   "naive": ("clock", None, False),
-  "lag": ("clock", "auto", False),
+  "lag": ("clock", DEFAULT_LAG_STEPS, False),
   "phase": ("touchdown", None, False),
-  "sym": ("clock", "auto", True),
+  "sym": ("clock", DEFAULT_LAG_STEPS, True),
 }
 FOOT_NAMES = ("front_r", "front_l", "back_r", "back_l")
 
@@ -443,24 +453,38 @@ def fold_direction(
   else:
     raise ValueError(f"Unknown alignment {align}")
   shift = 0.0
+  # Auto lag is always measured on the clock fold as a diagnostic; it sets the
+  # shift only with --lag-steps auto.
+  naive, _ = extract_cycles(q, runs, samples)
+  if len(naive) >= min_cycles:
+    rep0, _ = reduce_cycles(naive, reduce)
+    table0, _ = enforce_periodic(rep0, harmonics)
+    info = measure_lag(table0, parent)
+    info["lag_steps"] = info["lag_cycles"] * cycle_steps
+    report["lag_measurement"] = info
   if lag is not None:
     if lag == "auto":
-      naive, _ = extract_cycles(q, runs, samples)
-      if len(naive) < min_cycles:
+      info = report.get("lag_measurement")
+      if info is None:
         raise ValueError(
           f"Only {len(naive)} clean cycles at {command}; need {min_cycles}"
         )
-      rep, _ = reduce_cycles(naive, reduce)
-      table0, _ = enforce_periodic(rep, harmonics)
-      info = measure_lag(table0, parent)
-      shift = info["lag_cycles"]
-      report["lag_measurement"] = info
       if info["at_search_edge"]:
         raise ValueError(
           f"Lag search hit its bound at {command}: captured gait does not match the parent; pass --lag-steps"
         )
+      shift = info["lag_cycles"]
     else:
       shift = float(lag) / cycle_steps
+      info = report.get("lag_measurement")
+      if (
+        info is not None
+        and abs(info["lag_steps"] - float(lag)) > LAG_CHECK_TOLERANCE_STEPS
+      ):
+        report["lag_check_warning"] = (
+          f"measured lag {info['lag_steps']:.2f} steps differs from the fixed {float(lag)} by more than "
+          f"{LAG_CHECK_TOLERANCE_STEPS}; inspect before training on this reference"
+        )
     report.update(
       lag_cycles=shift,
       lag_steps=shift * cycle_steps,
@@ -716,6 +740,12 @@ def fold_main(args) -> dict:
     frequency_mult=mult,
     cycles={k: r["cycles"] for k, r in reports.items()},
     lag_steps={k: r.get("lag_steps") for k, r in reports.items()},
+    measured_lag_steps={
+      k: r.get("lag_measurement", {}).get("lag_steps") for k, r in reports.items()
+    },
+    warnings={
+      k: r["lag_check_warning"] for k, r in reports.items() if "lag_check_warning" in r
+    },
     dispersion_rad={k: r["cycle_rms_dispersion_rad"] for k, r in reports.items()},
     wrap_before_rad={
       k: r["periodicity"]["max_wrap_mismatch_before_rad"] for k, r in reports.items()

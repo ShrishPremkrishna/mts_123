@@ -118,6 +118,26 @@ def test_naive_fold_reproduces_the_lagged_trajectory_and_lag_variant_undoes_it()
   assert rms(explicit, parent) < 3e-3
 
 
+def test_fixed_lag_is_checked_against_the_measured_lag():
+  parent = smooth_table()
+  ok, rep = fold(
+    parent=parent, trace=synthetic_trace(parent, parent, lag_steps=2.2), lag=2.0
+  )
+  assert "lag_check_warning" not in rep
+  assert rep["lag_measurement"]["lag_steps"] == pytest.approx(2.2, abs=0.1)
+  _, rep = fold(
+    parent=parent, trace=synthetic_trace(parent, parent, lag_steps=3.5), lag=2.0
+  )
+  assert "differs from the fixed" in rep["lag_check_warning"]
+
+
+def test_default_fold_matches_the_decision():
+  assert pr.VARIANTS["lag"] == ("clock", 2.0, False)
+  assert set(pr.DEFAULT_PIN) == {
+    f"leg_{s}_2" for s in ("front_r", "front_l", "back_r", "back_l")
+  }
+
+
 def test_fold_excludes_fall_and_reset():
   parent = smooth_table()
   trace = synthetic_trace(parent, parent)
@@ -255,5 +275,7 @@ def test_fold_main_writes_loader_compatible_reference(tmp_path):
           f["reach_back"][:, j], back[:, j]
         )
     assert (out / "diff_report.md").exists()
+    assert summary["measured_lag_steps"]["reach_fwd"] == pytest.approx(1.8, abs=0.15)
     if variant in ("lag", "sym"):
-      assert summary["lag_steps"]["reach_fwd"] == pytest.approx(1.8, abs=0.15)
+      assert summary["lag_steps"]["reach_fwd"] == pytest.approx(pr.DEFAULT_LAG_STEPS)
+      assert not summary["warnings"]

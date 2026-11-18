@@ -1,0 +1,298 @@
+{
+  "version": 1,
+  "frequency_mult": 1.0,
+  "reference_sha256": "26e03781a8a5ade420658c53ae50f8d19127a8aa81c6c0010d92e1ada7a6e8a5",
+  "joint_order": [
+    "leg_front_r_1",
+    "leg_front_r_2",
+    "leg_front_r_3",
+    "leg_front_l_1",
+    "leg_front_l_2",
+    "leg_front_l_3",
+    "leg_back_r_1",
+    "leg_back_r_2",
+    "leg_back_r_3",
+    "leg_back_l_1",
+    "leg_back_l_2",
+    "leg_back_l_3"
+  ],
+  "checks": {
+    "reach_fwd": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 18.80594950973499,
+      "wrap_step_rad": 0.11292783664853645,
+      "joint_min": [
+        -0.5667077024320589,
+        -0.2298551924407478,
+        -0.954721116747101,
+        -0.5736011209731932,
+        0.08332014373483124,
+        -0.4850135312341417,
+        -0.7241827928857767,
+        -0.008882843793682975,
+        -0.9958813681517293,
+        -0.4021953555380081,
+        0.0026603160289127817,
+        -0.38245622692482906
+      ],
+      "joint_max": [
+        0.6337158433686959,
+        -0.08330914975335971,
+        0.4660910030134861,
+        0.5527948990489105,
+        0.22987301943742355,
+        0.9797465855941095,
+        0.39208740466612596,
+        -0.0026494638102087364,
+        0.44421384230982314,
+        0.7035869765410235,
+        0.008897611684556635,
+        1.0054090731769463
+      ]
+    },
+    "reach_back": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 17.347321361922333,
+      "wrap_step_rad": 0.06530983552945929,
+      "joint_min": [
+        -0.5955525776690185,
+        -0.2298551924407478,
+        -0.6841154269200506,
+        -0.45179332056443516,
+        0.08332014373483124,
+        -0.4530868264452078,
+        -0.782830630925968,
+        -0.008882843793682975,
+        -0.9176441409339289,
+        -0.31689204386781905,
+        0.0026603160289127817,
+        -0.4349199963767136
+      ],
+      "joint_max": [
+        0.39323786132980054,
+        -0.08330914975335971,
+        0.4546742600992241,
+        0.5988176815155187,
+        0.22987301943742355,
+        0.733878898447959,
+        0.3291103599275078,
+        -0.0026494638102087364,
+        0.44614345281163054,
+        0.7697974175436962,
+        0.008897611684556635,
+        0.9178485476081152
+      ]
+    }
+  },
+  "provenance": {
+    "method": "part2_reference fold",
+    "variant": "lag",
+    "align": "clock",
+    "lag": 2.0,
+    "symmetrize": false,
+    "reduce": "median",
+    "harmonics": 6,
+    "pin": [
+      "leg_back_r_2",
+      "leg_back_l_2",
+      "leg_front_r_2",
+      "leg_front_l_2"
+    ],
+    "limit_policy": "error",
+    "clipped": {},
+    "speed": 1.5,
+    "trace_sha256": "5cfd46436f47dce53e391fafd441ff38e3531139f9eca3dd70bf02c3ef9f647e",
+    "capture": {
+      "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-cont4500/model_4498.pt",
+      "checkpoint_sha256": "b3e66e2edd6d7bbf0e9aa68cd9a9390e29a2b23df2eab22a87e63425499d58dc",
+      "reference_dir": null,
+      "reference_files": null,
+      "git_revision": "d275190444da058360aa700b51e901aef0f56c2b",
+      "commands": [
+        [
+          1.5,
+          0.0,
+          0.0
+        ],
+        [
+          -1.5,
+          0.0,
+          0.0
+        ]
+      ],
+      "num_envs": 64,
+      "seconds_per_command": 15.0,
+      "warmup_s": 3.0,
+      "seed": 42,
+      "heading_hold": false,
+      "standard_physics": true,
+      "dt": 0.02,
+      "per_command": [
+        {
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 38249,
+          "steady_robot_seconds": 764.98,
+          "clean_cycles": 891,
+          "falls": 1,
+          "achieved_vx_mean_m_s": 1.4979439973831177
+        },
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 37735,
+          "steady_robot_seconds": 754.7,
+          "clean_cycles": 886,
+          "falls": 17,
+          "achieved_vx_mean_m_s": -0.14936687052249908
+        }
+      ],
+      "wall_clock_s": 116.8
+    },
+    "parent": {
+      "dir": null,
+      "description": "shipped default (fast slot falls back to trot)",
+      "files": {},
+      "frequency_mult": 1.0
+    },
+    "forward": {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 38249,
+      "lag_measurement": {
+        "lag_cycles": 0.05819782342981444,
+        "residual_rms_rad": 0.133789490956465,
+        "zero_shift_rms_rad": 0.2325189116595641,
+        "signal_rms_rad": 0.29811837264413366,
+        "at_search_edge": false,
+        "lag_steps": 2.1824183786180416
+      },
+      "lag_cycles": 0.05333333333333334,
+      "lag_steps": 2.0,
+      "lag_ms": 40.0,
+      "cycles": 956,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.004573673009872881,
+          4.6588480474840654e-05,
+          0.0027162283658894726,
+          0.0008692769333731448,
+          0.001194782555105689,
+          0.0013718008995076136,
+          0.0007051283027979098,
+          0.00014591030776475722,
+          0.004075855016707486,
+          0.003060586750508687,
+          0.0,
+          0.004163123667256741
+        ],
+        "max_wrap_mismatch_before_rad": 0.004573673009872881,
+        "max_wrap_extrapolation_miss_after_rad": 0.025709070193452477,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.0678120683187285,
+      "per_channel_dispersion_rad": [
+        0.06420218511613174,
+        0.04190278074456102,
+        0.09909443621642791,
+        0.06869968358436557,
+        0.04737158498478838,
+        0.09732444051778329,
+        0.055982683836398574,
+        0.04360759964966881,
+        0.07748048043275171,
+        0.05471636264873466,
+        0.04431402244488761,
+        0.08397598881147934
+      ],
+      "achieved_vx_mean_m_s": 1.4979439973831177,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2",
+        "leg_front_r_2",
+        "leg_front_l_2"
+      ]
+    },
+    "backward": {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 37735,
+      "lag_measurement": {
+        "lag_cycles": 0.05164359638842157,
+        "residual_rms_rad": 0.06351696674114098,
+        "zero_shift_rms_rad": 0.17575900105411715,
+        "signal_rms_rad": 0.2720424349618196,
+        "at_search_edge": false,
+        "lag_steps": 1.936634864565809
+      },
+      "lag_cycles": 0.05333333333333334,
+      "lag_steps": 2.0,
+      "lag_ms": 40.0,
+      "cycles": 949,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.0013094693422288084,
+          0.0005703270435332697,
+          0.00678281486032184,
+          0.0,
+          0.00010973215103066147,
+          0.00017933547496756796,
+          0.0004171514883662339,
+          4.550069570513626e-05,
+          0.00023233890533636004,
+          0.0023516416549760333,
+          0.00029251724481763053,
+          0.003228813409790088
+        ],
+        "max_wrap_mismatch_before_rad": 0.00678281486032184,
+        "max_wrap_extrapolation_miss_after_rad": 0.013878854430803444,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.045294286953151776,
+      "per_channel_dispersion_rad": [
+        0.04711631347103576,
+        0.03288112787004677,
+        0.057432391867690315,
+        0.04350389137916062,
+        0.03375144809808441,
+        0.055388838674738504,
+        0.04997272844243106,
+        0.025253011455042117,
+        0.052171480045851065,
+        0.043678780123777655,
+        0.025299317427909005,
+        0.05928624546786752
+      ],
+      "achieved_vx_mean_m_s": -0.14936687052249908,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2",
+        "leg_front_r_2",
+        "leg_front_l_2"
+      ]
+    }
+  },
+  "status": "candidate reference; not proof of successful trained or hardware behavior"
+}
