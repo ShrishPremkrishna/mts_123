@@ -250,6 +250,13 @@ parent, step 0 (`report/part3/eval/p3-parent_kp_coverage.md`) gives:
 Smoke sizes: the coordinator capped validation at one ≤ 50-iteration smoke, so this was 45 iterations (Bumpy arm)
 + 5 (control arm; gain-range and config checks only). The final runs 50 + 50 per the decision.
 
+The selection guard and HOLD path were also exercised on the Lab 4 smoke checkpoint (`p3-parent_deploy_hold.md`).
+- (a) nompd − flat_dr = 106.0 − 62.5 = +43.5;
+- (b) nompd(selected) − nompd(+0) = 106.0 − 89.0 = +17.0.
+
+That gives **HOLD**, which in the KEEP branch launches the WIDEN pair. Escalation was suppressed here with
+`--no-escalate`, since this was a pipeline check.
+
 **Transition videos (sim)**: `~/runs/opt-lab-2/p3-videos/p3-parent/p3-parent-{flat_dr,bumpy_dr}_seam_sweep.mp4` (not
 committed: run outputs). Each is 31.6 s, real time, 640×480. It shows 0 → +1.5 → 0 → −1.5 → 0 at 0.5 m/s², then a
 0.4/0.6 dither, with an overlay of the command and the active reference slot. No falls in either.

@@ -1,0 +1,12 @@
+{
+  "verdict": "HOLD",
+  "branch": "lab4",
+  "flat_dr_mean": 62.5,
+  "nompd_mean": 106.0,
+  "nompd_P_mean": 89.0,
+  "lines": [
+    "(a) nompd - flat_dr = 106.0 - 62.5 = +43.5 (hold if > 15)",
+    "(b) nompd(selected) - nompd(P) = 106.0 - 89.0 = +17.0 (hold if > 10)",
+    "branch lab4: HOLD -> launch the pre-authorized WIDEN pair"
+  ]
+}

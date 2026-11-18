@@ -27,6 +27,9 @@
       "falls": 107,
       "overflow_ok": true,
       "seam": "FAIL"
+    },
+    "nompd": {
+      "falls": 99
     }
   },
   "evals": {
@@ -50,6 +53,9 @@
         "falls": 128,
         "overflow_ok": true,
         "seam": "FAIL"
+      },
+      "nompd": {
+        "falls": 106
       }
     }
   }
