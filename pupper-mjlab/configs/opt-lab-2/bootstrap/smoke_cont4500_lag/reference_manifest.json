@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "frequency_mult": 1.0,
+  "reference_sha256": "4d22fe5086fe4b96b845c77d36976d285ca668e607809feb80278290ed9a99a4",
+  "joint_order": [
+    "leg_front_r_1",
+    "leg_front_r_2",
+    "leg_front_r_3",
+    "leg_front_l_1",
+    "leg_front_l_2",
+    "leg_front_l_3",
+    "leg_back_r_1",
+    "leg_back_r_2",
+    "leg_back_r_3",
+    "leg_back_l_1",
+    "leg_back_l_2",
+    "leg_back_l_3"
+  ],
+  "checks": {
+    "reach_fwd": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 18.660218969121313,
+      "wrap_step_rad": 0.11678242716685461,
+      "joint_min": [
+        -0.5697225721790716,
+        -0.3083913390732272,
+        -0.9571650514927152,
+        -0.570341370939637,
+        0.18196883364271876,
+        -0.4845135328643759,
+        -0.7250175933941917,
+        -0.008882843793682975,
+        -0.9979582228024402,
+        -0.40110902206329335,
+        0.0026603160289127817,
+        -0.38411303883557424
+      ],
+      "joint_max": [
+        0.6318582670418776,
+        -0.19892190604268223,
+        0.46620471309637346,
+        0.553611188293292,
+        0.30292476447365,
+        0.9838029408985421,
+        0.39006672027292233,
+        -0.0026494638102087364,
+        0.44643549718286535,
+        0.7042273205186207,
+        0.008897611684556635,
+        1.0022910151987814
+      ]
+    },
+    "reach_back": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 17.386025729788155,
+      "wrap_step_rad": 0.06287479241414251,
+      "joint_min": [
+        -0.5944607926443229,
+        -0.3939945709493034,
+        -0.6819740107357046,
+        -0.4520747470470177,
+        0.19986827601418145,
+        -0.45266962684834305,
+        -0.7822392480525712,
+        -0.008882843793682975,
+        -0.9183128650230272,
+        -0.3164480855956517,
+        0.0026603160289127817,
+        -0.43551848326159914
+      ],
+      "joint_max": [
+        0.3925231060735965,
+        -0.19524472954578373,
+        0.45543117960703755,
+        0.5980826680888762,
+        0.32927425641048047,
+        0.7341485194806944,
+        0.32907793148856535,
+        -0.0026494638102087364,
+        0.4457429557891831,
+        0.7690589018571123,
+        0.008897611684556635,
+        0.9176472014679192
+      ]
+    }
+  },
+  "provenance": {
+    "method": "part2_reference fold",
+    "variant": "lag",
+    "align": "clock",
+    "lag": "auto",
+    "symmetrize": false,
+    "reduce": "median",
+    "harmonics": 6,
+    "pin": [
+      "leg_back_r_2",
+      "leg_back_l_2"
+    ],
+    "limit_policy": "error",
+    "clipped": {},
+    "speed": 1.5,
+    "trace_sha256": "5cfd46436f47dce53e391fafd441ff38e3531139f9eca3dd70bf02c3ef9f647e",
+    "capture": {
+      "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-cont4500/model_4498.pt",
+      "checkpoint_sha256": "b3e66e2edd6d7bbf0e9aa68cd9a9390e29a2b23df2eab22a87e63425499d58dc",
+      "reference_dir": null,
+      "reference_files": null,
+      "git_revision": "d275190444da058360aa700b51e901aef0f56c2b",
+      "commands": [
+        [
+          1.5,
+          0.0,
+          0.0
+        ],
+        [
+          -1.5,
+          0.0,
+          0.0
+        ]
+      ],
+      "num_envs": 64,
+      "seconds_per_command": 15.0,
+      "warmup_s": 3.0,
+      "seed": 42,
+      "heading_hold": false,
+      "standard_physics": true,
+      "dt": 0.02,
+      "per_command": [
+        {
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 38249,
+          "steady_robot_seconds": 764.98,
+          "clean_cycles": 891,
+          "falls": 1,
+          "achieved_vx_mean_m_s": 1.4979439973831177
+        },
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 37735,
+          "steady_robot_seconds": 754.7,
+          "clean_cycles": 886,
+          "falls": 17,
+          "achieved_vx_mean_m_s": -0.14936687052249908
+        }
+      ],
+      "wall_clock_s": 116.8
+    },
+    "parent": {
+      "dir": null,
+      "description": "shipped default (fast slot falls back to trot)",
+      "files": {},
+      "frequency_mult": 1.0
+    },
+    "forward": {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 38249,
+      "lag_measurement": {
+        "lag_cycles": 0.05819782342981444,
+        "residual_rms_rad": 0.133789490956465,
+        "zero_shift_rms_rad": 0.2325189116595641,
+        "signal_rms_rad": 0.29811837264413366,
+        "at_search_edge": false
+      },
+      "lag_cycles": 0.05819782342981444,
+      "lag_steps": 2.1824183786180416,
+      "lag_ms": 43.64836757236083,
+      "cycles": 956,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.0018552699379079662,
+          0.0001597456039642564,
+          0.002333585606642874,
+          0.0012340532298340604,
+          0.0019031224088041088,
+          0.001119060335984634,
+          0.0008782471870744405,
+          0.001222959789636116,
+          0.0018913375791322906,
+          0.0031321869680499548,
+          0.0002765082564133159,
+          0.0035088311240097925
+        ],
+        "max_wrap_mismatch_before_rad": 0.0035088311240097925,
+        "max_wrap_extrapolation_miss_after_rad": 0.024086694306677647,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.06771089335310607,
+      "per_channel_dispersion_rad": [
+        0.06405817831377437,
+        0.04187403924827909,
+        0.0989148156308066,
+        0.06863131728426937,
+        0.047215861617924584,
+        0.09739877352693195,
+        0.05589953274445719,
+        0.0435372095024767,
+        0.07727107850086402,
+        0.05459179035927185,
+        0.0442538011993698,
+        0.0837872901800554
+      ],
+      "achieved_vx_mean_m_s": 1.4979439973831177,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2"
+      ]
+    },
+    "backward": {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 37735,
+      "lag_measurement": {
+        "lag_cycles": 0.05164359638842157,
+        "residual_rms_rad": 0.06351696674114098,
+        "zero_shift_rms_rad": 0.17575900105411715,
+        "signal_rms_rad": 0.2720424349618196,
+        "at_search_edge": false
+      },
+      "lag_cycles": 0.05164359638842157,
+      "lag_steps": 1.936634864565809,
+      "lag_ms": 38.73269729131618,
+      "cycles": 949,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.001210472835731058,
+          0.0005004207484139989,
+          0.00326882868803946,
+          0.0,
+          3.548513051310209e-05,
+          6.369567363789796e-05,
+          0.000550717902023521,
+          7.41521313746274e-05,
+          0.00013878779495357652,
+          0.001504896610825479,
+          0.00020342969834585833,
+          0.0018323783464397891
+        ],
+        "max_wrap_mismatch_before_rad": 0.00326882868803946,
+        "max_wrap_extrapolation_miss_after_rad": 0.014109625128115255,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.04526289830611517,
+      "per_channel_dispersion_rad": [
+        0.04708700961324604,
+        0.03288172440448818,
+        0.05734740776278329,
+        0.043473348798963925,
+        0.033748650411020154,
+        0.05536460192057349,
+        0.04995151120120974,
+        0.025241781446159208,
+        0.05213951121758634,
+        0.043653009700871936,
+        0.025286216023811828,
+        0.059225753611022315
+      ],
+      "achieved_vx_mean_m_s": -0.14936687052249908,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2"
+      ]
+    }
+  },
+  "status": "candidate reference; not proof of successful trained or hardware behavior"
+}

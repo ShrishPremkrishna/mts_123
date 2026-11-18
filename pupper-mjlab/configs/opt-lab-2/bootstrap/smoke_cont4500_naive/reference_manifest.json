@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "frequency_mult": 1.0,
+  "reference_sha256": "eebd1f21fc0c1fc7a54193cd2f4a0d3440a52479fe4a989f0301341f74fec430",
+  "joint_order": [
+    "leg_front_r_1",
+    "leg_front_r_2",
+    "leg_front_r_3",
+    "leg_front_l_1",
+    "leg_front_l_2",
+    "leg_front_l_3",
+    "leg_back_r_1",
+    "leg_back_r_2",
+    "leg_back_r_3",
+    "leg_back_l_1",
+    "leg_back_l_2",
+    "leg_back_l_3"
+  ],
+  "checks": {
+    "reach_fwd": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 18.72722456605236,
+      "wrap_step_rad": 0.11173779308027737,
+      "joint_min": [
+        -0.5715418941068093,
+        -0.30799092522529503,
+        -0.9540173248038949,
+        -0.571170065815842,
+        0.18237776123560626,
+        -0.48455521921003697,
+        -0.7242694660632942,
+        -0.008882843793682975,
+        -0.9957374392496963,
+        -0.398509268746989,
+        0.0026603160289127817,
+        -0.3875107787481656
+      ],
+      "joint_max": [
+        0.6329735545030877,
+        -0.19874649471565342,
+        0.4671036283187558,
+        0.5551312983861071,
+        0.3046344666949257,
+        0.9849862472473704,
+        0.39299190729169503,
+        -0.0026494638102087364,
+        0.4477699006958123,
+        0.7070272178011675,
+        0.008897611684556635,
+        0.999637869684647
+      ]
+    },
+    "reach_back": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 17.436728144890296,
+      "wrap_step_rad": 0.018801515785832,
+      "joint_min": [
+        -0.5952195451330291,
+        -0.39391211900436796,
+        -0.681583009412803,
+        -0.45217647009506695,
+        0.2000998920543225,
+        -0.45250275390087935,
+        -0.7823218540048194,
+        -0.008882843793682975,
+        -0.9192133747615708,
+        -0.31498265090456573,
+        0.0026603160289127817,
+        -0.43628637484763566
+      ],
+      "joint_max": [
+        0.3912529130299993,
+        -0.19541667279978892,
+        0.4565158061634793,
+        0.5973789860574032,
+        0.3292486305213521,
+        0.7334906321151223,
+        0.32930820592262355,
+        -0.0026494638102087364,
+        0.4458893410993936,
+        0.7698973932287576,
+        0.008897611684556635,
+        0.9178080766240337
+      ]
+    }
+  },
+  "provenance": {
+    "method": "part2_reference fold",
+    "variant": "naive",
+    "align": "clock",
+    "lag": null,
+    "symmetrize": false,
+    "reduce": "median",
+    "harmonics": 6,
+    "pin": [
+      "leg_back_r_2",
+      "leg_back_l_2"
+    ],
+    "limit_policy": "error",
+    "clipped": {},
+    "speed": 1.5,
+    "trace_sha256": "5cfd46436f47dce53e391fafd441ff38e3531139f9eca3dd70bf02c3ef9f647e",
+    "capture": {
+      "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-cont4500/model_4498.pt",
+      "checkpoint_sha256": "b3e66e2edd6d7bbf0e9aa68cd9a9390e29a2b23df2eab22a87e63425499d58dc",
+      "reference_dir": null,
+      "reference_files": null,
+      "git_revision": "d275190444da058360aa700b51e901aef0f56c2b",
+      "commands": [
+        [
+          1.5,
+          0.0,
+          0.0
+        ],
+        [
+          -1.5,
+          0.0,
+          0.0
+        ]
+      ],
+      "num_envs": 64,
+      "seconds_per_command": 15.0,
+      "warmup_s": 3.0,
+      "seed": 42,
+      "heading_hold": false,
+      "standard_physics": true,
+      "dt": 0.02,
+      "per_command": [
+        {
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 38249,
+          "steady_robot_seconds": 764.98,
+          "clean_cycles": 891,
+          "falls": 1,
+          "achieved_vx_mean_m_s": 1.4979439973831177
+        },
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 37735,
+          "steady_robot_seconds": 754.7,
+          "clean_cycles": 886,
+          "falls": 17,
+          "achieved_vx_mean_m_s": -0.14936687052249908
+        }
+      ],
+      "wall_clock_s": 116.8
+    },
+    "parent": {
+      "dir": null,
+      "description": "shipped default (fast slot falls back to trot)",
+      "files": {},
+      "frequency_mult": 1.0
+    },
+    "forward": {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 38249,
+      "cycles": 891,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.0005919337272576874,
+          4.6975910664048826e-05,
+          8.651800453185476e-05,
+          0.00030654668807617025,
+          0.00010021775960836199,
+          0.0018789172172527513,
+          0.0005389228463172913,
+          0.00029389187693616703,
+          0.0007406175136469573,
+          2.2463500499725342e-05,
+          0.0002220701426267624,
+          0.0005238503217697144
+        ],
+        "max_wrap_mismatch_before_rad": 0.0018789172172527513,
+        "max_wrap_extrapolation_miss_after_rad": 0.028846632501089986,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.06775979434428034,
+      "per_channel_dispersion_rad": [
+        0.06420704815841936,
+        0.04185023458528092,
+        0.09855551792438928,
+        0.06892952743565857,
+        0.04726462537441165,
+        0.09785203383350274,
+        0.0561547034546845,
+        0.04344331720226974,
+        0.07700961332804178,
+        0.05466599764321996,
+        0.0447087181636937,
+        0.08361136604064594
+      ],
+      "achieved_vx_mean_m_s": 1.4979439973831177,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2"
+      ]
+    },
+    "backward": {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "align": "clock",
+      "reduce": "median",
+      "steady_samples": 37735,
+      "cycles": 886,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.00030278414487838745,
+          0.0002506077289581299,
+          0.000362664461134532,
+          6.0326419770745376e-05,
+          0.00032474845647784134,
+          0.0,
+          0.00010748766362729534,
+          0.0,
+          0.0007969141006493041,
+          0.0004232078790674665,
+          0.00014898553490513833,
+          0.0003950148820870414
+        ],
+        "max_wrap_mismatch_before_rad": 0.0007969141006493041,
+        "max_wrap_extrapolation_miss_after_rad": 0.008701520861659429,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.04526314731541396,
+      "per_channel_dispersion_rad": [
+        0.04703673501516324,
+        0.0328203628275817,
+        0.057475663534749324,
+        0.043322986652537844,
+        0.033681267160920354,
+        0.055329717996376024,
+        0.049985755357851575,
+        0.02516238377289489,
+        0.052152534149270645,
+        0.04366233889420248,
+        0.025308723701082152,
+        0.059335667454346944
+      ],
+      "achieved_vx_mean_m_s": -0.14936687052249908,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2"
+      ]
+    }
+  },
+  "status": "candidate reference; not proof of successful trained or hardware behavior"
+}

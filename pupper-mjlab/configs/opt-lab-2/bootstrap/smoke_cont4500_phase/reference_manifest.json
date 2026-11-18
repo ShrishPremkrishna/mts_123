@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "frequency_mult": 1.0,
+  "reference_sha256": "d8a511ac7ebc587a249560310bb58efaabe376df439ceb17fec4064df7e6da12",
+  "joint_order": [
+    "leg_front_r_1",
+    "leg_front_r_2",
+    "leg_front_r_3",
+    "leg_front_l_1",
+    "leg_front_l_2",
+    "leg_front_l_3",
+    "leg_back_r_1",
+    "leg_back_r_2",
+    "leg_back_r_3",
+    "leg_back_l_1",
+    "leg_back_l_2",
+    "leg_back_l_3"
+  ],
+  "checks": {
+    "reach_fwd": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 18.72722456605236,
+      "wrap_step_rad": 0.11173779308027737,
+      "joint_min": [
+        -0.5715418941068093,
+        -0.30799092522529503,
+        -0.9540173248038949,
+        -0.571170065815842,
+        0.18237776123560626,
+        -0.48455521921003697,
+        -0.7242694660632942,
+        -0.008882843793682975,
+        -0.9957374392496963,
+        -0.398509268746989,
+        0.0026603160289127817,
+        -0.3875107787481656
+      ],
+      "joint_max": [
+        0.6329735545030877,
+        -0.19874649471565342,
+        0.4671036283187558,
+        0.5551312983861071,
+        0.3046344666949257,
+        0.9849862472473704,
+        0.39299190729169503,
+        -0.0026494638102087364,
+        0.4477699006958123,
+        0.7070272178011675,
+        0.008897611684556635,
+        0.999637869684647
+      ]
+    },
+    "reach_back": {
+      "samples": 100,
+      "duration_s": 0.75,
+      "periodic": true,
+      "peak_joint_velocity_rad_s": 16.427485709579283,
+      "wrap_step_rad": 0.017772368538525818,
+      "joint_min": [
+        -0.5793092315765748,
+        -0.39169176998007693,
+        -0.6782391918643186,
+        -0.4462009018970637,
+        0.20071627226859157,
+        -0.43622816938618486,
+        -0.7566006926310805,
+        -0.008882843793682975,
+        -0.8927127224489568,
+        -0.3088684108224706,
+        0.0026603160289127817,
+        -0.42584350076434113
+      ],
+      "joint_max": [
+        0.3873853251933651,
+        -0.2004329099152481,
+        0.4512635925845026,
+        0.5763869479730983,
+        0.32539076184830307,
+        0.708997629130127,
+        0.32030926879366006,
+        -0.0026494638102087364,
+        0.4328631740431566,
+        0.746654957228526,
+        0.008897611684556635,
+        0.890157678519744
+      ]
+    }
+  },
+  "provenance": {
+    "method": "part2_reference fold",
+    "variant": "phase",
+    "align": "touchdown",
+    "lag": null,
+    "symmetrize": false,
+    "reduce": "median",
+    "harmonics": 6,
+    "pin": [
+      "leg_back_r_2",
+      "leg_back_l_2"
+    ],
+    "limit_policy": "error",
+    "clipped": {},
+    "speed": 1.5,
+    "trace_sha256": "5cfd46436f47dce53e391fafd441ff38e3531139f9eca3dd70bf02c3ef9f647e",
+    "capture": {
+      "checkpoint": "/home/ubuntu/recovery/checkpoints/baseline-s42-cont4500/model_4498.pt",
+      "checkpoint_sha256": "b3e66e2edd6d7bbf0e9aa68cd9a9390e29a2b23df2eab22a87e63425499d58dc",
+      "reference_dir": null,
+      "reference_files": null,
+      "git_revision": "d275190444da058360aa700b51e901aef0f56c2b",
+      "commands": [
+        [
+          1.5,
+          0.0,
+          0.0
+        ],
+        [
+          -1.5,
+          0.0,
+          0.0
+        ]
+      ],
+      "num_envs": 64,
+      "seconds_per_command": 15.0,
+      "warmup_s": 3.0,
+      "seed": 42,
+      "heading_hold": false,
+      "standard_physics": true,
+      "dt": 0.02,
+      "per_command": [
+        {
+          "command": [
+            1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 38249,
+          "steady_robot_seconds": 764.98,
+          "clean_cycles": 891,
+          "falls": 1,
+          "achieved_vx_mean_m_s": 1.4979439973831177
+        },
+        {
+          "command": [
+            -1.5,
+            0.0,
+            0.0
+          ],
+          "steady_samples": 37735,
+          "steady_robot_seconds": 754.7,
+          "clean_cycles": 886,
+          "falls": 17,
+          "achieved_vx_mean_m_s": -0.14936687052249908
+        }
+      ],
+      "wall_clock_s": 116.8
+    },
+    "parent": {
+      "dir": null,
+      "description": "shipped default (fast slot falls back to trot)",
+      "files": {},
+      "frequency_mult": 1.0
+    },
+    "forward": {
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "align": "touchdown",
+      "reduce": "median",
+      "steady_samples": 38249,
+      "touchdown_foot": "front_r",
+      "median_touchdown_interval_steps": 8.0,
+      "cycle_steps": 37.5,
+      "touchdown_fallback": "front_r lands every 8.0 steps at [1.5, 0.0, 0.0], not once per 37.5-step reference cycle: the policy does not step on the reference clock",
+      "cycles": 891,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.0005919337272576874,
+          4.6975910664048826e-05,
+          8.651800453185476e-05,
+          0.00030654668807617025,
+          0.00010021775960836199,
+          0.0018789172172527513,
+          0.0005389228463172913,
+          0.00029389187693616703,
+          0.0007406175136469573,
+          2.2463500499725342e-05,
+          0.0002220701426267624,
+          0.0005238503217697144
+        ],
+        "max_wrap_mismatch_before_rad": 0.0018789172172527513,
+        "max_wrap_extrapolation_miss_after_rad": 0.028846632501089986,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.06775979434428034,
+      "per_channel_dispersion_rad": [
+        0.06420704815841936,
+        0.04185023458528092,
+        0.09855551792438928,
+        0.06892952743565857,
+        0.04726462537441165,
+        0.09785203383350274,
+        0.0561547034546845,
+        0.04344331720226974,
+        0.07700961332804178,
+        0.05466599764321996,
+        0.0447087181636937,
+        0.08361136604064594
+      ],
+      "achieved_vx_mean_m_s": 1.4979439973831177,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2"
+      ]
+    },
+    "backward": {
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "align": "touchdown",
+      "reduce": "median",
+      "steady_samples": 37735,
+      "touchdown_foot": "front_r",
+      "median_touchdown_interval_steps": 38.0,
+      "cycle_steps": 37.5,
+      "touchdown_anchor_phase": 0.3609172157022007,
+      "cycles": 880,
+      "envs": 64,
+      "periodicity": {
+        "wrap_mismatch_before_rad": [
+          0.0,
+          0.0002648234905577862,
+          0.0002409404278864713,
+          0.0005912248819311683,
+          0.00061652420787639,
+          0.0006514581130978581,
+          0.0,
+          8.02043650889317e-05,
+          0.0007548030183930354,
+          0.0002301130084494396,
+          9.571622247669942e-05,
+          0.0005177958441782149
+        ],
+        "max_wrap_mismatch_before_rad": 0.0007548030183930354,
+        "max_wrap_extrapolation_miss_after_rad": 0.008068835581445444,
+        "harmonics": 6
+      },
+      "cycle_rms_dispersion_rad": 0.07140931047114353,
+      "per_channel_dispersion_rad": [
+        0.06080562117437921,
+        0.03484930639780286,
+        0.09262731316347343,
+        0.07058132830898632,
+        0.034084572963240425,
+        0.09394102031514216,
+        0.0782465985286946,
+        0.026694012317149688,
+        0.09276214899283994,
+        0.08060756397471092,
+        0.0256627918662332,
+        0.10067465551022785
+      ],
+      "achieved_vx_mean_m_s": -0.14936687052249908,
+      "pinned_channels": [
+        "leg_back_r_2",
+        "leg_back_l_2"
+      ]
+    }
+  },
+  "status": "candidate reference; not proof of successful trained or hardware behavior"
+}
