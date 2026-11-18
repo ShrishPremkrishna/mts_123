@@ -1,0 +1,500 @@
+{
+  "name": "p1-gallop_a-s42",
+  "kind": "push",
+  "metrics": {
+    "overall": {
+      "pushes": 4079,
+      "falls": 916,
+      "rate": 0.22456484432458937
+    },
+    "standing": {
+      "pushes": 1010,
+      "falls": 783,
+      "rate": 0.7752475247524753
+    },
+    "moving": {
+      "pushes": 3069,
+      "falls": 133,
+      "rate": 0.0433365917236885
+    },
+    "by_magnitude": {
+      "0.5": {
+        "pushes": 1345,
+        "falls": 160,
+        "rate": 0.11895910780669144
+      },
+      "0.65": {
+        "pushes": 1370,
+        "falls": 291,
+        "rate": 0.2124087591240876
+      },
+      "0.8": {
+        "pushes": 1364,
+        "falls": 465,
+        "rate": 0.3409090909090909
+      }
+    },
+    "by_condition": {
+      "stand": {
+        "all": {
+          "pushes": 1010,
+          "falls": 783,
+          "rate": 0.7752475247524753
+        },
+        "achieved_vx_m_s": -8.382109898152698e-05,
+        "0.5": {
+          "pushes": 332,
+          "falls": 155,
+          "rate": 0.46686746987951805
+        },
+        "0.65": {
+          "pushes": 327,
+          "falls": 278,
+          "rate": 0.8501529051987767
+        },
+        "0.8": {
+          "pushes": 351,
+          "falls": 350,
+          "rate": 0.9971509971509972
+        }
+      },
+      "walk_+0.5": {
+        "all": {
+          "pushes": 1025,
+          "falls": 52,
+          "rate": 0.050731707317073174
+        },
+        "achieved_vx_m_s": 0.5977801977965569,
+        "0.5": {
+          "pushes": 335,
+          "falls": 0,
+          "rate": 0.0
+        },
+        "0.65": {
+          "pushes": 360,
+          "falls": 1,
+          "rate": 0.002777777777777778
+        },
+        "0.8": {
+          "pushes": 330,
+          "falls": 51,
+          "rate": 0.15454545454545454
+        }
+      },
+      "run_+1.5": {
+        "all": {
+          "pushes": 1023,
+          "falls": 29,
+          "rate": 0.028347996089931573
+        },
+        "achieved_vx_m_s": 1.2717142190863395,
+        "0.5": {
+          "pushes": 323,
+          "falls": 1,
+          "rate": 0.0030959752321981426
+        },
+        "0.65": {
+          "pushes": 344,
+          "falls": 4,
+          "rate": 0.011627906976744186
+        },
+        "0.8": {
+          "pushes": 356,
+          "falls": 24,
+          "rate": 0.06741573033707865
+        }
+      },
+      "run_-1.5": {
+        "all": {
+          "pushes": 1021,
+          "falls": 52,
+          "rate": 0.050930460333006855
+        },
+        "achieved_vx_m_s": 0.28263548506269653,
+        "0.5": {
+          "pushes": 355,
+          "falls": 4,
+          "rate": 0.011267605633802818
+        },
+        "0.65": {
+          "pushes": 339,
+          "falls": 8,
+          "rate": 0.02359882005899705
+        },
+        "0.8": {
+          "pushes": 327,
+          "falls": 40,
+          "rate": 0.12232415902140673
+        }
+      }
+    },
+    "falls_total": 944,
+    "falls_outside_push_windows": 17,
+    "timeouts_total": 0,
+    "robot_seconds": 15360.0,
+    "ranked": {
+      "standing_rung": 0.65,
+      "standing_at_rung": {
+        "pushes": 327,
+        "falls": 278,
+        "rate": 0.8501529051987767
+      },
+      "moving_rung": 0.5,
+      "moving_at_rung": {
+        "pushes": 1013,
+        "falls": 5,
+        "rate": 0.004935834155972359
+      },
+      "moving_at_rung_by_condition": {
+        "walk_+0.5": {
+          "pushes": 335,
+          "falls": 0,
+          "rate": 0.0
+        },
+        "run_+1.5": {
+          "pushes": 323,
+          "falls": 1,
+          "rate": 0.0030959752321981426
+        },
+        "run_-1.5": {
+          "pushes": 355,
+          "falls": 4,
+          "rate": 0.011267605633802818
+        }
+      }
+    }
+  },
+  "wall_clock_s": 99.65789723396301,
+  "design": {
+    "conditions": [
+      {
+        "name": "stand",
+        "vx": 0.0
+      },
+      {
+        "name": "walk_+0.5",
+        "vx": 0.5
+      },
+      {
+        "name": "run_+1.5",
+        "vx": 1.5
+      },
+      {
+        "name": "run_-1.5",
+        "vx": -1.5
+      }
+    ],
+    "envs_per_condition": 128,
+    "magnitudes_m_s": [
+      0.5,
+      0.65,
+      0.8
+    ],
+    "seconds": 30.0,
+    "first_push_s": 4.0,
+    "period_s": 3.0,
+    "jitter_s": 0.25,
+    "window_s": 2.0,
+    "mechanism": "root_link_vel_w += sign*mag*(-sin h, cos h, 0) via Entity.write_root_link_velocity_to_sim, applied after the policy acts and before the step (same mechanism as mjlab.envs.mdp.events.push_by_setting_velocity)",
+    "scheduled_pushes": 4095,
+    "applied_impulse_check": {
+      "0.5": {
+        "mean_lateral_dv_after_one_step_m_s": 0.4564177599399301,
+        "pushes": 1350
+      },
+      "0.65": {
+        "mean_lateral_dv_after_one_step_m_s": 0.5961549392176017,
+        "pushes": 1377
+      },
+      "0.8": {
+        "mean_lateral_dv_after_one_step_m_s": 0.7315139431514353,
+        "pushes": 1368
+      }
+    }
+  },
+  "provenance": {
+    "mode": "batch",
+    "out_dir": "report/part1/eval/w2",
+    "raw_dir": null,
+    "seed": 1234,
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "device": "cuda:0",
+    "heading_hold": false,
+    "no_standard_physics": false,
+    "allow_reference_mismatch": false,
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "train_num_envs": null,
+    "train_seed": null,
+    "parent_iter": null,
+    "entries": [
+      "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_a-s42/model_2999.pt:configs/opt-lab-2/gallop_a=p1-gallop_a-s42"
+    ],
+    "envs_per_schedule": 24,
+    "envs": 512,
+    "modes": [
+      "suite",
+      "push"
+    ],
+    "skip_existing": false,
+    "worker": true,
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_a-s42/model_2999.pt",
+    "reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_a",
+    "name": "p1-gallop_a-s42",
+    "standard_physics": true,
+    "training": {
+      "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_a-s42/model_2999.pt",
+      "iter": 2999,
+      "iter_source": "checkpoint['iter']",
+      "train_num_envs": 4096,
+      "train_num_envs_source": "provenance.json",
+      "train_seed": 42,
+      "train_seed_source": "provenance.json",
+      "parent": null,
+      "parent_source": "provenance.json",
+      "parent_iter": null,
+      "parent_iter_source": null,
+      "iters_past_parent": 3000,
+      "iters_past_parent_source": "from scratch: iter + 1",
+      "iters_past_parent_matches_iterations_arg": true,
+      "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_a",
+      "train_reference_dir_source": "provenance.json",
+      "train_iterations_arg": 3000,
+      "train_git_revision": "2e7f5b9cdd4ff2094ff73de99c094190abcfd702",
+      "reference_check": "ok"
+    },
+    "num_envs": 512,
+    "command": "evaluate",
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "8a89a80dad99c9fe6dadf749818b020f837365c7e665c897e4b5a33dbfb988ff",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "e29dd2310701c22d2af1196472ace301636e4f8c",
+    "source_sha256": "29994f9174a22c908f4789b7cbcd36b6377b51c31dd3109af0bcedd93c61b514",
+    "source_files_hashed": 265,
+    "checkpoint_sha256": "8a89a80dad99c9fe6dadf749818b020f837365c7e665c897e4b5a33dbfb988ff",
+    "references": {
+      "captured_reach_gaits.npz": "5dff1e492fa32177cd5011e7362436cceb54406c6ad4e441e716d71f1f0a0bc8",
+      "reference_manifest.json": "c7c93fda687381e818b212fb38cccdd8ba4f75b5f11cbbafd52f0fafad23f9d7"
+    },
+    "git_src_dirty": false,
+    "effective_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_a",
+    "effective_reference_sha256": {
+      "captured_reach_gaits.npz": "5dff1e492fa32177cd5011e7362436cceb54406c6ad4e441e716d71f1f0a0bc8",
+      "reference_manifest.json": "c7c93fda687381e818b212fb38cccdd8ba4f75b5f11cbbafd52f0fafad23f9d7"
+    },
+    "episode_length_s": 1000000000
+  },
+  "training": {
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_a-s42/model_2999.pt",
+    "iter": 2999,
+    "iter_source": "checkpoint['iter']",
+    "train_num_envs": 4096,
+    "train_num_envs_source": "provenance.json",
+    "train_seed": 42,
+    "train_seed_source": "provenance.json",
+    "parent": null,
+    "parent_source": "provenance.json",
+    "parent_iter": null,
+    "parent_iter_source": null,
+    "iters_past_parent": 3000,
+    "iters_past_parent_source": "from scratch: iter + 1",
+    "iters_past_parent_matches_iterations_arg": true,
+    "train_reference_dir": "/home/ubuntu/wt/w1/pupper-mjlab/configs/opt-lab-2/gallop_a",
+    "train_reference_dir_source": "provenance.json",
+    "train_iterations_arg": 3000,
+    "train_git_revision": "2e7f5b9cdd4ff2094ff73de99c094190abcfd702",
+    "reference_check": "ok"
+  }
+}
