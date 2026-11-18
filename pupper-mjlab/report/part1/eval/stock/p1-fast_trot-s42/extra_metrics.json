@@ -1,0 +1,270 @@
+{
+ "seq": [
+  {
+   "command": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.0,
+   "foot_force_p99_n": 16.01679229736328,
+   "foot_force_max_n": 24.17230987548828,
+   "foot_force_median_env_max_n": 18.91178321838379
+  },
+  {
+   "command": [
+    0.3,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.011546223958333334,
+   "foot_force_p99_n": 33.60945129394531,
+   "foot_force_max_n": 90.6574478149414,
+   "foot_force_median_env_max_n": 45.86042022705078
+  },
+  {
+   "command": [
+    0.49,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.018948567708333332,
+   "foot_force_p99_n": 38.12457275390625,
+   "foot_force_max_n": 146.3188934326172,
+   "foot_force_median_env_max_n": 63.14292526245117
+  },
+  {
+   "command": [
+    0.51,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.019208984375,
+   "foot_force_p99_n": 58.132240295410156,
+   "foot_force_max_n": 233.65318298339844,
+   "foot_force_median_env_max_n": 110.83543395996094
+  },
+  {
+   "command": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.048564453125,
+   "foot_force_p99_n": 58.19212341308594,
+   "foot_force_max_n": 178.0987091064453,
+   "foot_force_median_env_max_n": 99.84439086914062
+  },
+  {
+   "command": [
+    1.5,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.10296875,
+   "foot_force_p99_n": 66.93226623535156,
+   "foot_force_max_n": 238.95228576660156,
+   "foot_force_median_env_max_n": 107.19537353515625
+  },
+  {
+   "command": [
+    0.51,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.019287109375,
+   "foot_force_p99_n": 58.3585090637207,
+   "foot_force_max_n": 287.7176818847656,
+   "foot_force_median_env_max_n": 105.74429321289062
+  },
+  {
+   "command": [
+    0.49,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.018668619791666667,
+   "foot_force_p99_n": 38.386138916015625,
+   "foot_force_max_n": 135.85662841796875,
+   "foot_force_median_env_max_n": 63.88532257080078
+  },
+  {
+   "command": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.0,
+   "foot_force_p99_n": 15.99829387664795,
+   "foot_force_max_n": 26.171419143676758,
+   "foot_force_median_env_max_n": 18.628131866455078
+  },
+  {
+   "command": [
+    -0.3,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.005738932291666667,
+   "foot_force_p99_n": 34.65034484863281,
+   "foot_force_max_n": 74.06198120117188,
+   "foot_force_median_env_max_n": 46.94896697998047
+  },
+  {
+   "command": [
+    -1.5,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.149853515625,
+   "foot_force_p99_n": 75.99982452392578,
+   "foot_force_max_n": 331.81268310546875,
+   "foot_force_median_env_max_n": 119.98925018310547
+  },
+  {
+   "command": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "torque_saturation_fraction": 0.004555764117002972,
+   "foot_force_p99_n": 32.64221954345703,
+   "foot_force_max_n": 61.238807678222656,
+   "foot_force_median_env_max_n": 43.19085693359375
+  },
+  {
+   "command": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "torque_saturation_fraction": 0.0045703125,
+   "foot_force_p99_n": 31.221155166625977,
+   "foot_force_max_n": 74.21497344970703,
+   "foot_force_median_env_max_n": 43.449913024902344
+  },
+  {
+   "command": [
+    0.0,
+    0.3,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.021647135416666668,
+   "foot_force_p99_n": 43.78448486328125,
+   "foot_force_max_n": 140.32781982421875,
+   "foot_force_median_env_max_n": 76.93984985351562
+  },
+  {
+   "command": [
+    0.0,
+    -0.3,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.020048828125,
+   "foot_force_p99_n": 45.76689147949219,
+   "foot_force_max_n": 192.60763549804688,
+   "foot_force_median_env_max_n": 81.08595275878906
+  },
+  {
+   "command": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.0,
+   "foot_force_p99_n": 15.950318336486816,
+   "foot_force_max_n": 26.255523681640625,
+   "foot_force_median_env_max_n": 18.660808563232422
+  }
+ ],
+ "sweep": [
+  {
+   "command": [
+    0.3,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.01190625,
+   "foot_force_p99_n": 33.6214599609375,
+   "foot_force_max_n": 94.59188842773438,
+   "foot_force_median_env_max_n": 44.298702239990234
+  },
+  {
+   "command": [
+    0.75,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.027989583333333335,
+   "foot_force_p99_n": 58.27421951293945,
+   "foot_force_max_n": 174.04115295410156,
+   "foot_force_median_env_max_n": 99.10211181640625
+  },
+  {
+   "command": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.048609375,
+   "foot_force_p99_n": 57.19478988647461,
+   "foot_force_max_n": 252.4882354736328,
+   "foot_force_median_env_max_n": 95.64706420898438
+  },
+  {
+   "command": [
+    1.5,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.10244295556538778,
+   "foot_force_p99_n": 66.994873046875,
+   "foot_force_max_n": 190.57627868652344,
+   "foot_force_median_env_max_n": 104.12130737304688
+  },
+  {
+   "command": [
+    -0.3,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.006005208333333334,
+   "foot_force_p99_n": 34.8895149230957,
+   "foot_force_max_n": 88.15333557128906,
+   "foot_force_median_env_max_n": 45.90272903442383
+  },
+  {
+   "command": [
+    -0.75,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.035479166666666666,
+   "foot_force_p99_n": 50.558998107910156,
+   "foot_force_max_n": 96.19180297851562,
+   "foot_force_median_env_max_n": 65.6192398071289
+  },
+  {
+   "command": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.07026041666666667,
+   "foot_force_p99_n": 58.03624725341797,
+   "foot_force_max_n": 185.9803466796875,
+   "foot_force_median_env_max_n": 80.52365112304688
+  },
+  {
+   "command": [
+    -1.5,
+    0.0,
+    0.0
+   ],
+   "torque_saturation_fraction": 0.14940104166666668,
+   "foot_force_p99_n": 76.2091064453125,
+   "foot_force_max_n": 507.05218505859375,
+   "foot_force_median_env_max_n": 112.03062438964844
+  }
+ ]
+}

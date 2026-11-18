@@ -1,0 +1,364 @@
+{
+ "/home/ubuntu/runs/opt-lab-2/p1-evals/p1-fast_trot-s42/sweep/trace.npz": [
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.714,
+    "FL": 0.686,
+    "BR": 0.706,
+    "LB": 0.741
+   },
+   "feet_down_hist": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.504,
+    "3": 0.144,
+    "4": 0.351
+   },
+   "flight_fraction": 0.0,
+   "min_feet_down_p01": 2,
+   "stride_period_s": 0.74,
+   "stride_hz": 1.351,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.034,
+    "FL": 0.556,
+    "BR": 0.504,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.92,
+    "FL": 0.75,
+    "BR": 0.58,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FR",
+    "BR",
+    "FL"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    0.3,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.498,
+    "FL": 0.492,
+    "BR": 0.53,
+    "LB": 0.54
+   },
+   "feet_down_hist": {
+    "0": 0.001,
+    "1": 0.02,
+    "2": 0.904,
+    "3": 0.066,
+    "4": 0.008
+   },
+   "flight_fraction": 0.001,
+   "min_feet_down_p01": 1,
+   "stride_period_s": 0.38,
+   "stride_hz": 2.632,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.041,
+    "FL": 0.533,
+    "BR": 0.494,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.98,
+    "FL": 0.98,
+    "BR": 0.98,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FR",
+    "BR",
+    "FL"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    0.75,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.473,
+    "FL": 0.451,
+    "BR": 0.498,
+    "LB": 0.499
+   },
+   "feet_down_hist": {
+    "0": 0.022,
+    "1": 0.066,
+    "2": 0.882,
+    "3": 0.029,
+    "4": 0.001
+   },
+   "flight_fraction": 0.022,
+   "min_feet_down_p01": 0,
+   "stride_period_s": 0.38,
+   "stride_hz": 2.632,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.029,
+    "FL": 0.526,
+    "BR": 0.493,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.98,
+    "FL": 0.97,
+    "BR": 0.98,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FR",
+    "BR",
+    "FL"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    1.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 15821,
+   "duty_factor": {
+    "FR": 0.389,
+    "FL": 0.33,
+    "BR": 0.522,
+    "LB": 0.531
+   },
+   "feet_down_hist": {
+    "0": 0.057,
+    "1": 0.227,
+    "2": 0.609,
+    "3": 0.102,
+    "4": 0.005
+   },
+   "flight_fraction": 0.057,
+   "min_feet_down_p01": 0,
+   "stride_period_s": 0.38,
+   "stride_hz": 2.632,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.036,
+    "FL": 0.548,
+    "BR": 0.505,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.97,
+    "FL": 0.82,
+    "BR": 0.84,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FR",
+    "BR",
+    "FL"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    1.5,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.702,
+    "FL": 0.729,
+    "BR": 0.744,
+    "LB": 0.678
+   },
+   "feet_down_hist": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.512,
+    "3": 0.122,
+    "4": 0.366
+   },
+   "flight_fraction": 0.0,
+   "min_feet_down_p01": 2,
+   "stride_period_s": 0.72,
+   "stride_hz": 1.389,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.015,
+    "FL": 0.499,
+    "BR": 0.482,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.82,
+    "FL": 0.78,
+    "BR": 0.79,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FR",
+    "BR",
+    "FL"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    -0.3,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.61,
+    "FL": 0.572,
+    "BR": 0.494,
+    "LB": 0.513
+   },
+   "feet_down_hist": {
+    "0": 0.0,
+    "1": 0.006,
+    "2": 0.832,
+    "3": 0.13,
+    "4": 0.033
+   },
+   "flight_fraction": 0.0,
+   "min_feet_down_p01": 2,
+   "stride_period_s": 0.38,
+   "stride_hz": 2.632,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.989,
+    "FL": 0.476,
+    "BR": 0.513,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.97,
+    "FL": 0.98,
+    "BR": 0.96,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FL",
+    "BR",
+    "FR"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    -0.75,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.603,
+    "FL": 0.554,
+    "BR": 0.469,
+    "LB": 0.501
+   },
+   "feet_down_hist": {
+    "0": 0.002,
+    "1": 0.039,
+    "2": 0.817,
+    "3": 0.116,
+    "4": 0.027
+   },
+   "flight_fraction": 0.002,
+   "min_feet_down_p01": 1,
+   "stride_period_s": 0.38,
+   "stride_hz": 2.632,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.994,
+    "FL": 0.485,
+    "BR": 0.506,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.96,
+    "FL": 0.96,
+    "BR": 0.94,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FL",
+    "BR",
+    "FR"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    -1.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "valid_samples": 16000,
+   "duty_factor": {
+    "FR": 0.484,
+    "FL": 0.48,
+    "BR": 0.343,
+    "LB": 0.367
+   },
+   "feet_down_hist": {
+    "0": 0.06,
+    "1": 0.289,
+    "2": 0.574,
+    "3": 0.073,
+    "4": 0.004
+   },
+   "flight_fraction": 0.06,
+   "min_feet_down_p01": 0,
+   "stride_period_s": 0.3,
+   "stride_hz": 3.333,
+   "touchdown_lag_rel_LB": {
+    "FR": 0.044,
+    "FL": 0.436,
+    "BR": 0.461,
+    "LB": 0.0
+   },
+   "lag_concentration": {
+    "FR": 0.61,
+    "FL": 0.82,
+    "BR": 0.66,
+    "LB": 1.0
+   },
+   "footfall_order": [
+    "LB",
+    "FR",
+    "FL",
+    "BR"
+   ],
+   "gait_guess": "trot",
+   "gait": "trot",
+   "command": [
+    -1.5,
+    0.0,
+    0.0
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1705 @@
+{
+  "segments": [
+    {
+      "segment": 0,
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.012279717618250356,
+      "rms_xy_error_m_s": 0.014076272639131665,
+      "mean_abs_yaw_error_rad_s": 0.05575473951934185,
+      "mean_achieved_vx_m_s": -0.00021382197155617177,
+      "mean_torque_squared_nm2": 0.1807488054037094,
+      "peak_abs_torque_nm": 2.3772335052490234,
+      "mean_contact_slip_m_s": 0.015892865136265755,
+      "max_abs_heading_drift_rad": 0.12255978584289551,
+      "peak_base_height_world_m": 0.15587127208709717,
+      "minimum_base_height_world_m": 0.14353802800178528,
+      "peak_downward_speed_m_s": 0.03648088499903679,
+      "peak_sampled_foot_contact_force_n": 27.197935104370117,
+      "target_clipped_fraction": 0.017037760416666665,
+      "any_target_clipped_sample_fraction": 0.2019140625,
+      "target_clipped_fraction_by_joint": [
+        0.0,
+        0.194296875,
+        0.0,
+        0.0,
+        0.01015625,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum_target_range_excess_rad": 0.3100331127643585,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 1,
+      "command": [
+        0.3,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.08691572668826072,
+      "rms_xy_error_m_s": 0.09851910997873038,
+      "mean_abs_yaw_error_rad_s": 0.18367990846587076,
+      "mean_achieved_vx_m_s": 0.24007345736026764,
+      "mean_torque_squared_nm2": 0.7938296794891357,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.1974230855703354,
+      "max_abs_heading_drift_rad": 0.0897601842880249,
+      "peak_base_height_world_m": 0.1682450920343399,
+      "minimum_base_height_world_m": 0.14189714193344116,
+      "peak_downward_speed_m_s": 0.2544797360897064,
+      "peak_sampled_foot_contact_force_n": 67.55378723144531,
+      "target_clipped_fraction": 0.24234700520833333,
+      "any_target_clipped_sample_fraction": 0.9515234375,
+      "target_clipped_fraction_by_joint": [
+        0.001328125,
+        0.8462890625,
+        0.190625,
+        3.90625e-05,
+        0.7472265625,
+        0.2028125,
+        0.060703125,
+        0.2965625,
+        0.186015625,
+        0.023828125,
+        0.1910546875,
+        0.1616796875
+      ],
+      "maximum_target_range_excess_rad": 1.616639256477356,
+      "airborne_sample_fraction": 0.0003125
+    },
+    {
+      "segment": 2,
+      "command": [
+        0.49,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.1447806570954121,
+      "rms_xy_error_m_s": 0.15800007044905545,
+      "mean_abs_yaw_error_rad_s": 0.17691210633190393,
+      "mean_achieved_vx_m_s": 0.3641606867313385,
+      "mean_torque_squared_nm2": 0.9378862380981445,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.24824844300746918,
+      "max_abs_heading_drift_rad": 0.10876059532165527,
+      "peak_base_height_world_m": 0.16847892105579376,
+      "minimum_base_height_world_m": 0.14119313657283783,
+      "peak_downward_speed_m_s": 0.2780855596065521,
+      "peak_sampled_foot_contact_force_n": 154.63137817382812,
+      "target_clipped_fraction": 0.24915690104166666,
+      "any_target_clipped_sample_fraction": 0.9362109375,
+      "target_clipped_fraction_by_joint": [
+        0.0021875,
+        0.840703125,
+        0.2190234375,
+        0.0,
+        0.7269921875,
+        0.198359375,
+        0.0510546875,
+        0.3360546875,
+        0.1804296875,
+        0.0282421875,
+        0.2244140625,
+        0.182421875
+      ],
+      "maximum_target_range_excess_rad": 1.764898419380188,
+      "airborne_sample_fraction": 0.0005078125
+    },
+    {
+      "segment": 3,
+      "command": [
+        0.51,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.15188622776569838,
+      "rms_xy_error_m_s": 0.16539898710448073,
+      "mean_abs_yaw_error_rad_s": 0.1792431849955807,
+      "mean_achieved_vx_m_s": 0.37721487879753113,
+      "mean_torque_squared_nm2": 0.965636670589447,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.25736069679260254,
+      "max_abs_heading_drift_rad": 0.0944664478302002,
+      "peak_base_height_world_m": 0.16744977235794067,
+      "minimum_base_height_world_m": 0.14148029685020447,
+      "peak_downward_speed_m_s": 0.27371111512184143,
+      "peak_sampled_foot_contact_force_n": 131.417236328125,
+      "target_clipped_fraction": 0.25158854166666667,
+      "any_target_clipped_sample_fraction": 0.9359375,
+      "target_clipped_fraction_by_joint": [
+        0.0021875,
+        0.842265625,
+        0.219609375,
+        7.8125e-05,
+        0.729765625,
+        0.2038671875,
+        0.055390625,
+        0.3392578125,
+        0.188359375,
+        0.027890625,
+        0.226015625,
+        0.184375
+      ],
+      "maximum_target_range_excess_rad": 1.774872899055481,
+      "airborne_sample_fraction": 0.0005859375
+    },
+    {
+      "segment": 4,
+      "command": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.5878168817961799,
+      "rms_xy_error_m_s": 0.5957919959139352,
+      "mean_abs_yaw_error_rad_s": 0.19276499497687893,
+      "mean_achieved_vx_m_s": 0.41697466373443604,
+      "mean_torque_squared_nm2": 1.0435810089111328,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.2889045774936676,
+      "max_abs_heading_drift_rad": 0.22767746448516846,
+      "peak_base_height_world_m": 0.16958555579185486,
+      "minimum_base_height_world_m": 0.13356995582580566,
+      "peak_downward_speed_m_s": 0.38131284713745117,
+      "peak_sampled_foot_contact_force_n": 142.5963592529297,
+      "target_clipped_fraction": 0.23600260416666666,
+      "any_target_clipped_sample_fraction": 0.9230859375,
+      "target_clipped_fraction_by_joint": [
+        0.00015625,
+        0.80765625,
+        0.1996484375,
+        0.0,
+        0.6813671875,
+        0.210546875,
+        0.04859375,
+        0.2844921875,
+        0.1960546875,
+        0.025,
+        0.2119921875,
+        0.1665234375
+      ],
+      "maximum_target_range_excess_rad": 1.865679144859314,
+      "airborne_sample_fraction": 0.00109375
+    },
+    {
+      "segment": 5,
+      "command": [
+        1.5,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 1.2884394198294762,
+      "rms_xy_error_m_s": 1.2905881742265861,
+      "mean_abs_yaw_error_rad_s": 0.21970962286928852,
+      "mean_achieved_vx_m_s": 0.21420051157474518,
+      "mean_torque_squared_nm2": 0.7441648840904236,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.18423409759998322,
+      "max_abs_heading_drift_rad": 0.11977167427539825,
+      "peak_base_height_world_m": 0.16836142539978027,
+      "minimum_base_height_world_m": 0.13513383269309998,
+      "peak_downward_speed_m_s": 0.2809135317802429,
+      "peak_sampled_foot_contact_force_n": 65.08055114746094,
+      "target_clipped_fraction": 0.20857421875,
+      "any_target_clipped_sample_fraction": 0.9294921875,
+      "target_clipped_fraction_by_joint": [
+        0.0,
+        0.788984375,
+        0.2125390625,
+        0.0,
+        0.6287109375,
+        0.1948828125,
+        0.0361328125,
+        0.1408203125,
+        0.16890625,
+        0.01203125,
+        0.144296875,
+        0.1755859375
+      ],
+      "maximum_target_range_excess_rad": 1.8757134675979614,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 6,
+      "command": [
+        0.51,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.1506696445706122,
+      "rms_xy_error_m_s": 0.16428667900223418,
+      "mean_abs_yaw_error_rad_s": 0.17840023774048802,
+      "mean_achieved_vx_m_s": 0.3786739408969879,
+      "mean_torque_squared_nm2": 0.9669567942619324,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.2579261362552643,
+      "max_abs_heading_drift_rad": 0.1152961254119873,
+      "peak_base_height_world_m": 0.169387549161911,
+      "minimum_base_height_world_m": 0.14033333957195282,
+      "peak_downward_speed_m_s": 0.27262797951698303,
+      "peak_sampled_foot_contact_force_n": 115.55440521240234,
+      "target_clipped_fraction": 0.251962890625,
+      "any_target_clipped_sample_fraction": 0.93453125,
+      "target_clipped_fraction_by_joint": [
+        0.001953125,
+        0.843046875,
+        0.219765625,
+        3.90625e-05,
+        0.7325390625,
+        0.2040234375,
+        0.055859375,
+        0.3410546875,
+        0.1873828125,
+        0.028515625,
+        0.224921875,
+        0.184453125
+      ],
+      "maximum_target_range_excess_rad": 1.7012728452682495,
+      "airborne_sample_fraction": 0.0005859375
+    },
+    {
+      "segment": 7,
+      "command": [
+        0.49,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.1444858507522617,
+      "rms_xy_error_m_s": 0.15751667501948324,
+      "mean_abs_yaw_error_rad_s": 0.1794076160701269,
+      "mean_achieved_vx_m_s": 0.36490151286125183,
+      "mean_torque_squared_nm2": 0.9450066089630127,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.25263869762420654,
+      "max_abs_heading_drift_rad": 0.11789047718048096,
+      "peak_base_height_world_m": 0.16710013151168823,
+      "minimum_base_height_world_m": 0.14144563674926758,
+      "peak_downward_speed_m_s": 0.26238536834716797,
+      "peak_sampled_foot_contact_force_n": 116.25174713134766,
+      "target_clipped_fraction": 0.24783203125,
+      "any_target_clipped_sample_fraction": 0.935390625,
+      "target_clipped_fraction_by_joint": [
+        0.002109375,
+        0.8434765625,
+        0.1991015625,
+        0.0001171875,
+        0.7244140625,
+        0.209765625,
+        0.0561328125,
+        0.3173046875,
+        0.1923828125,
+        0.026171875,
+        0.2363671875,
+        0.166640625
+      ],
+      "maximum_target_range_excess_rad": 1.7781764268875122,
+      "airborne_sample_fraction": 0.0005078125
+    },
+    {
+      "segment": 8,
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.012343956297451686,
+      "rms_xy_error_m_s": 0.01415065314491604,
+      "mean_abs_yaw_error_rad_s": 0.05705903716870225,
+      "mean_achieved_vx_m_s": -0.0002409617300145328,
+      "mean_torque_squared_nm2": 0.1814124584197998,
+      "peak_abs_torque_nm": 2.491140365600586,
+      "mean_contact_slip_m_s": 0.0160759799182415,
+      "max_abs_heading_drift_rad": 0.1499783992767334,
+      "peak_base_height_world_m": 0.15603193640708923,
+      "minimum_base_height_world_m": 0.14362557232379913,
+      "peak_downward_speed_m_s": 0.0345430001616478,
+      "peak_sampled_foot_contact_force_n": 25.222993850708008,
+      "target_clipped_fraction": 0.016324869791666665,
+      "any_target_clipped_sample_fraction": 0.193046875,
+      "target_clipped_fraction_by_joint": [
+        0.0,
+        0.185703125,
+        0.0,
+        0.0,
+        0.0101953125,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum_target_range_excess_rad": 0.2993184030056,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 9,
+      "command": [
+        -0.3,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.06628263622897522,
+      "rms_xy_error_m_s": 0.07662946137517314,
+      "mean_abs_yaw_error_rad_s": 0.20160224028699986,
+      "mean_achieved_vx_m_s": -0.28852593898773193,
+      "mean_torque_squared_nm2": 0.8970865607261658,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.19439131021499634,
+      "max_abs_heading_drift_rad": 0.10311603546142578,
+      "peak_base_height_world_m": 0.15967780351638794,
+      "minimum_base_height_world_m": 0.13988298177719116,
+      "peak_downward_speed_m_s": 0.2222076952457428,
+      "peak_sampled_foot_contact_force_n": 100.35188293457031,
+      "target_clipped_fraction": 0.23663736979166666,
+      "any_target_clipped_sample_fraction": 0.9494140625,
+      "target_clipped_fraction_by_joint": [
+        0.0455078125,
+        0.802890625,
+        0.193359375,
+        0.0546484375,
+        0.669296875,
+        0.1808984375,
+        0.079296875,
+        0.2266796875,
+        0.159765625,
+        0.0769921875,
+        0.1871875,
+        0.163125
+      ],
+      "maximum_target_range_excess_rad": 2.017426013946533,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 10,
+      "command": [
+        -1.5,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25377,
+      "failures": 3,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 1.3181403623107737,
+      "rms_xy_error_m_s": 1.3199285722245497,
+      "mean_abs_yaw_error_rad_s": 0.1618391072965611,
+      "mean_achieved_vx_m_s": -0.18734923005104065,
+      "mean_torque_squared_nm2": 0.718535840511322,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.1366499960422516,
+      "max_abs_heading_drift_rad": 0.2505122423171997,
+      "peak_base_height_world_m": 0.16520994901657104,
+      "minimum_base_height_world_m": 0.13283708691596985,
+      "peak_downward_speed_m_s": 0.4796960651874542,
+      "peak_sampled_foot_contact_force_n": 139.88970947265625,
+      "target_clipped_fraction": 0.21376640264806715,
+      "any_target_clipped_sample_fraction": 0.9773416873546913,
+      "target_clipped_fraction_by_joint": [
+        0.04330693147338141,
+        0.6155968002521969,
+        0.17882334397288885,
+        0.05516806557118651,
+        0.6828624344879222,
+        0.1803601686566576,
+        0.07451629428222406,
+        0.16727745596406193,
+        0.16566181975804864,
+        0.06557118650746739,
+        0.18611340978050991,
+        0.14993892107026047
+      ],
+      "maximum_target_range_excess_rad": 1.589544415473938,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 11,
+      "command": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.05215035565547997,
+      "rms_xy_error_m_s": 0.059899059628979984,
+      "mean_abs_yaw_error_rad_s": 0.20040612290613352,
+      "mean_achieved_vx_m_s": -0.02171517349779606,
+      "mean_torque_squared_nm2": 0.6460149884223938,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.1604766696691513,
+      "max_abs_heading_drift_rad": null,
+      "peak_base_height_world_m": 0.15469838678836823,
+      "minimum_base_height_world_m": 0.1405557245016098,
+      "peak_downward_speed_m_s": 0.22495506703853607,
+      "peak_sampled_foot_contact_force_n": 81.66873931884766,
+      "target_clipped_fraction": 0.23536783854166668,
+      "any_target_clipped_sample_fraction": 0.9566015625,
+      "target_clipped_fraction_by_joint": [
+        0.000546875,
+        0.8330859375,
+        0.2017578125,
+        0.008671875,
+        0.72734375,
+        0.1805078125,
+        0.06015625,
+        0.44078125,
+        0.1596484375,
+        0.0333203125,
+        0.0130078125,
+        0.1655859375
+      ],
+      "maximum_target_range_excess_rad": 1.6953786611557007,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 12,
+      "command": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.052742426506011485,
+      "rms_xy_error_m_s": 0.05984901130495499,
+      "mean_abs_yaw_error_rad_s": 0.2021005862902075,
+      "mean_achieved_vx_m_s": -0.022417321801185608,
+      "mean_torque_squared_nm2": 0.7005685567855835,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.16508083045482635,
+      "max_abs_heading_drift_rad": null,
+      "peak_base_height_world_m": 0.15556934475898743,
+      "minimum_base_height_world_m": 0.14117933809757233,
+      "peak_downward_speed_m_s": 0.2189359813928604,
+      "peak_sampled_foot_contact_force_n": 70.81590270996094,
+      "target_clipped_fraction": 0.23824869791666667,
+      "any_target_clipped_sample_fraction": 0.9237890625,
+      "target_clipped_fraction_by_joint": [
+        0.0016796875,
+        0.7812890625,
+        0.199140625,
+        0.0007421875,
+        0.7221484375,
+        0.185546875,
+        0.0684375,
+        0.153515625,
+        0.16671875,
+        0.0409375,
+        0.370234375,
+        0.16859375
+      ],
+      "maximum_target_range_excess_rad": 2.254491090774536,
+      "airborne_sample_fraction": 0.0
+    },
+    {
+      "segment": 13,
+      "command": [
+        0.0,
+        0.3,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.12328381329658619,
+      "rms_xy_error_m_s": 0.13803234248675617,
+      "mean_abs_yaw_error_rad_s": 0.22266414608676313,
+      "mean_achieved_vx_m_s": 0.0035736309364438057,
+      "mean_torque_squared_nm2": 0.823444128036499,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.22323402762413025,
+      "max_abs_heading_drift_rad": 0.15112972259521484,
+      "peak_base_height_world_m": 0.16322271525859833,
+      "minimum_base_height_world_m": 0.12392275780439377,
+      "peak_downward_speed_m_s": 0.46770185232162476,
+      "peak_sampled_foot_contact_force_n": 210.50140380859375,
+      "target_clipped_fraction": 0.23888346354166667,
+      "any_target_clipped_sample_fraction": 0.9762109375,
+      "target_clipped_fraction_by_joint": [
+        0.005,
+        0.723671875,
+        0.193203125,
+        0.005859375,
+        0.6925390625,
+        0.190625,
+        0.0716796875,
+        0.20671875,
+        0.1626953125,
+        0.0623046875,
+        0.393671875,
+        0.1586328125
+      ],
+      "maximum_target_range_excess_rad": 2.1678879261016846,
+      "airborne_sample_fraction": 0.000390625
+    },
+    {
+      "segment": 14,
+      "command": [
+        0.0,
+        -0.3,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.13217103104344272,
+      "rms_xy_error_m_s": 0.14622920087070046,
+      "mean_abs_yaw_error_rad_s": 0.25062095017970704,
+      "mean_achieved_vx_m_s": -0.018896564841270447,
+      "mean_torque_squared_nm2": 0.8499915599822998,
+      "peak_abs_torque_nm": 3.0,
+      "mean_contact_slip_m_s": 0.2186409831047058,
+      "max_abs_heading_drift_rad": 0.18309473991394043,
+      "peak_base_height_world_m": 0.1669873595237732,
+      "minimum_base_height_world_m": 0.1240658238530159,
+      "peak_downward_speed_m_s": 0.43517225980758667,
+      "peak_sampled_foot_contact_force_n": 193.5345001220703,
+      "target_clipped_fraction": 0.224482421875,
+      "any_target_clipped_sample_fraction": 0.98515625,
+      "target_clipped_fraction_by_joint": [
+        0.0062109375,
+        0.6975,
+        0.1962109375,
+        0.0047265625,
+        0.664609375,
+        0.174765625,
+        0.056484375,
+        0.41875,
+        0.1624609375,
+        0.0344140625,
+        0.112890625,
+        0.164765625
+      ],
+      "maximum_target_range_excess_rad": 2.41178822517395,
+      "airborne_sample_fraction": 0.000859375
+    },
+    {
+      "segment": 15,
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "valid_samples": 25600,
+      "failures": 0,
+      "timeouts": 0,
+      "simulated_robot_seconds": 640.0,
+      "mean_xy_error_m_s": 0.01236897556836163,
+      "rms_xy_error_m_s": 0.014192871867228497,
+      "mean_abs_yaw_error_rad_s": 0.05601545954554856,
+      "mean_achieved_vx_m_s": -0.00024606953957118094,
+      "mean_torque_squared_nm2": 0.1829575151205063,
+      "peak_abs_torque_nm": 2.6253576278686523,
+      "mean_contact_slip_m_s": 0.01607034169137478,
+      "max_abs_heading_drift_rad": 0.15062618255615234,
+      "peak_base_height_world_m": 0.1555049568414688,
+      "minimum_base_height_world_m": 0.1433221995830536,
+      "peak_downward_speed_m_s": 0.035955093801021576,
+      "peak_sampled_foot_contact_force_n": 25.979650497436523,
+      "target_clipped_fraction": 0.017252604166666668,
+      "any_target_clipped_sample_fraction": 0.204609375,
+      "target_clipped_fraction_by_joint": [
+        0.0,
+        0.196875,
+        0.0,
+        0.0,
+        0.01015625,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum_target_range_excess_rad": 0.28910359740257263,
+      "airborne_sample_fraction": 0.0
+    }
+  ],
+  "dt": 0.02,
+  "warmup_s": 2.0,
+  "scope": "simulation only; measured velocities are simulator observations, not hardware speed",
+  "provenance": {
+    "command": "evaluate",
+    "task": "Mjlab-MixedGaits-Flat-Pupper-v3",
+    "reference_dir": null,
+    "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-baseline-s42/model_2999.pt",
+    "out": "/home/ubuntu/runs/opt-lab-2/p1-evals/p1-baseline-s42/seq",
+    "seed": 1234,
+    "device": "cuda:0",
+    "deployment_target_clamp": true,
+    "driver_limits": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+    "target_slew_rad_s": null,
+    "encoder_observation_mode": null,
+    "allow_encoder_observation_mode_change": false,
+    "compose_com_randomization": true,
+    "locomotion_torso_contact": true,
+    "num_envs": 64,
+    "seconds": 10.0,
+    "warmup": 2.0,
+    "commands": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0.3,
+        0,
+        0
+      ],
+      [
+        0.49,
+        0,
+        0
+      ],
+      [
+        0.51,
+        0,
+        0
+      ],
+      [
+        1.0,
+        0,
+        0
+      ],
+      [
+        1.5,
+        0,
+        0
+      ],
+      [
+        0.51,
+        0,
+        0
+      ],
+      [
+        0.49,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        -0.3,
+        0,
+        0
+      ],
+      [
+        -1.5,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1.0
+      ],
+      [
+        0,
+        0,
+        -1.0
+      ],
+      [
+        0,
+        0.3,
+        0
+      ],
+      [
+        0,
+        -0.3,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "randomized": false,
+    "reset_each_command": false,
+    "torso_contact_audit": false,
+    "nominal_mechanics": false,
+    "no_heading_hold": false,
+    "allow_out_of_range": false,
+    "zero_policy": false,
+    "geometry_audit": false,
+    "geometry_audit_stride": 1,
+    "encoder_observation_context": {
+      "contract": {
+        "contract": "pupper_encoder_observation_v1",
+        "mode": "legacy_true",
+        "joint_position": "q-default",
+        "position_command_to_physical_target": "u-b",
+        "bias_definition": "measured_position_minus_true_position",
+        "fixed_reference_and_default_unchanged": true
+      },
+      "purpose": "evaluation",
+      "checkpoint_sha256": "4accf3d1fde6de0a64429fd16a8e3651b772e73e39e9b80d7cb21bd56e51d7c7",
+      "checkpoint_training_mode": "legacy_true",
+      "checkpoint_mode_tagged": true,
+      "active_observation_mode": "legacy_true",
+      "mode_changed_explicitly": false,
+      "mode_change_permission": null,
+      "checkpoint_load_verified": true
+    },
+    "driver_target_contract": {
+      "contract": "controller_then_driver_joint_target_clamp_v1",
+      "controller_limits": {
+        "leg_front_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_front_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_front_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_front_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_front_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_front_l_3": [
+          -0.71,
+          2.79
+        ],
+        "leg_back_r_1": [
+          -1.22,
+          2.51
+        ],
+        "leg_back_r_2": [
+          -0.42,
+          3.14
+        ],
+        "leg_back_r_3": [
+          -2.79,
+          0.71
+        ],
+        "leg_back_l_1": [
+          -2.51,
+          1.22
+        ],
+        "leg_back_l_2": [
+          -3.14,
+          0.42
+        ],
+        "leg_back_l_3": [
+          -0.71,
+          2.79
+        ]
+      },
+      "driver_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "effective_limits": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "source": {
+        "path": "/home/ubuntu/wt/w1/foundation/configs/class-driver-joint-limits.json",
+        "sha256": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+        "source_contract": "local_class_driver_position_limits_v1",
+        "installed_robot_verified": false
+      },
+      "raw_action_history_preserved": true,
+      "order": "raw action retained; affine target; controller clamp; driver clamp; encoder-bias correction; actuator latency",
+      "scope": "Position-command limits under active PD control; no claim about installed robot limits, measured torque or physical validation"
+    },
+    "locomotion_contact_contract": {
+      "contract": "locomotion_torso_contact_v1",
+      "hull_count": 1,
+      "hull_body": "base_link",
+      "maximum_hull_vertices": 32,
+      "contype": 0,
+      "conaffinity": 1,
+      "density": 0,
+      "scope": "Torso contacts terrain and nonadjacent active knee/foot spheres; no lower-leg hulls added. Original masses, sphere geometry and sphere collision properties retained."
+    },
+    "git_revision": "0536f1059054b6003a75bd8471b1210f2a50b817",
+    "source_sha256": "29994f9174a22c908f4789b7cbcd36b6377b51c31dd3109af0bcedd93c61b514",
+    "source_files_hashed": 265,
+    "checkpoint_sha256": "4accf3d1fde6de0a64429fd16a8e3651b772e73e39e9b80d7cb21bd56e51d7c7",
+    "domain_randomization": {
+      "worlds": 64,
+      "event_order": [
+        {
+          "name": "reset_base",
+          "mode": "reset",
+          "function": "mjlab.envs.mdp.events.reset_root_state_uniform"
+        },
+        {
+          "name": "reset_robot_joints",
+          "mode": "reset",
+          "function": "mjlab.envs.mdp.events.reset_joints_by_offset"
+        },
+        {
+          "name": "foot_friction",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.geom.geom_friction"
+        },
+        {
+          "name": "encoder_bias",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.joint.encoder_bias"
+        },
+        {
+          "name": "base_com",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.body.body_com_offset"
+        },
+        {
+          "name": "pd_gains",
+          "mode": "startup",
+          "function": "mjlab.envs.mdp.dr.actuator.pd_gains"
+        },
+        {
+          "name": "inertial",
+          "mode": "startup",
+          "function": "mjlab.tasks.pupper.deployment_contract.density_randomization_preserving_com"
+        },
+        {
+          "name": "reset_imu_latency",
+          "mode": "reset",
+          "function": "mjlab.tasks.pupper.mdp.observations.reset_imu_latency"
+        }
+      ],
+      "realized_fields": {
+        "body_mass_kg": {
+          "shape": [
+            64,
+            13
+          ],
+          "minimum": [
+            1.359121561050415,
+            0.16225393116474152,
+            0.16924910247325897,
+            0.04507507011294365,
+            0.16277116537094116,
+            0.16809828579425812,
+            0.04543323442339897,
+            0.16210758686065674,
+            0.1677163541316986,
+            0.04525766894221306,
+            0.16332875192165375,
+            0.1680249273777008,
+            0.04519946500658989
+          ],
+          "maximum": [
+            1.9308911561965942,
+            0.23219598829746246,
+            0.23950020968914032,
+            0.06424997001886368,
+            0.23304957151412964,
+            0.24037864804267883,
+            0.0646796002984047,
+            0.23294976353645325,
+            0.2405090183019638,
+            0.06402759253978729,
+            0.23358087241649628,
+            0.2391519844532013,
+            0.06498584151268005
+          ],
+          "mean": [
+            1.650946855545044,
+            0.19117160141468048,
+            0.20250585675239563,
+            0.05459016188979149,
+            0.19206586480140686,
+            0.20587635040283203,
+            0.054881948977708817,
+            0.1998615562915802,
+            0.20860223472118378,
+            0.05357285961508751,
+            0.19664165377616882,
+            0.19862276315689087,
+            0.05466543138027191
+          ],
+          "std": [
+            0.16069447994232178,
+            0.019595343619585037,
+            0.02004888840019703,
+            0.006005945615470409,
+            0.02056305669248104,
+            0.020954735577106476,
+            0.006315857637673616,
+            0.01943035051226616,
+            0.020922474563121796,
+            0.005339205730706453,
+            0.021572396159172058,
+            0.021955406293272972,
+            0.00617092614993453
+          ]
+        },
+        "body_mass_ratio": {
+          "shape": [
+            64,
+            13
+          ],
+          "minimum": [
+            0.902471125125885,
+            0.901410698890686,
+            0.9099413752555847,
+            0.9015014171600342,
+            0.9042842388153076,
+            0.9037541747093201,
+            0.9086647033691406,
+            0.9005976915359497,
+            0.9017007946968079,
+            0.9051533937454224,
+            0.9073818922042847,
+            0.9033598303794861,
+            0.903989315032959
+          ],
+          "maximum": [
+            1.2821321487426758,
+            1.2899776697158813,
+            1.2876355648040771,
+            1.2849993705749512,
+            1.2947198152542114,
+            1.2923582792282104,
+            1.2935919761657715,
+            1.2941652536392212,
+            1.293059229850769,
+            1.280551791191101,
+            1.2976714372634888,
+            1.2857633829116821,
+            1.299716830253601
+          ],
+          "mean": [
+            1.0962458848953247,
+            1.062064528465271,
+            1.0887410640716553,
+            1.0918031930923462,
+            1.0670325756072998,
+            1.10686194896698,
+            1.0976389646530151,
+            1.110342025756836,
+            1.121517539024353,
+            1.0714575052261353,
+            1.0924533605575562,
+            1.0678644180297852,
+            1.0933085680007935
+          ],
+          "std": [
+            0.10670284926891327,
+            0.10886302590370178,
+            0.10778971761465073,
+            0.12011892348527908,
+            0.11423920840024948,
+            0.11265987157821655,
+            0.12631717324256897,
+            0.10794640332460403,
+            0.11248643696308136,
+            0.10678410530090332,
+            0.1198466345667839,
+            0.1180398166179657,
+            0.12341852486133575
+          ]
+        },
+        "base_com_offset_m": {
+          "shape": [
+            64,
+            3
+          ],
+          "minimum": [
+            -0.019890712574124336,
+            -0.004991797264665365,
+            -0.004952755756676197
+          ],
+          "maximum": [
+            0.019717631861567497,
+            0.004946763627231121,
+            0.004839238710701466
+          ],
+          "mean": [
+            0.0024128020741045475,
+            -0.000320163817377761,
+            -0.00021674517483916134
+          ],
+          "std": [
+            0.011425914242863655,
+            0.002758326241746545,
+            0.002722974866628647
+          ]
+        },
+        "encoder_bias_rad": {
+          "shape": [
+            64,
+            12
+          ],
+          "minimum": [
+            -0.014879725873470306,
+            -0.01493019238114357,
+            -0.014118864201009274,
+            -0.01486130803823471,
+            -0.014329600147902966,
+            -0.014618583023548126,
+            -0.014668057672679424,
+            -0.014428490772843361,
+            -0.01493642944842577,
+            -0.014501793310046196,
+            -0.014216656796634197,
+            -0.014909964054822922
+          ],
+          "maximum": [
+            0.014654220081865788,
+            0.014956372790038586,
+            0.014938884414732456,
+            0.01417770329862833,
+            0.013182270340621471,
+            0.014689822681248188,
+            0.01438539382070303,
+            0.01460906770080328,
+            0.013095633126795292,
+            0.014546207152307034,
+            0.014534381218254566,
+            0.014580384828150272
+          ],
+          "mean": [
+            -0.00017103985010180622,
+            -0.0013932004803791642,
+            -0.0014161588624119759,
+            0.0011165640316903591,
+            0.00035545125138014555,
+            0.0015346371801570058,
+            0.0013925442472100258,
+            -0.00011309115507174283,
+            -0.0008216741262003779,
+            -0.0015431457431986928,
+            0.0003535847645252943,
+            -0.000812237267382443
+          ],
+          "std": [
+            0.00924112368375063,
+            0.008680248633027077,
+            0.009072496555745602,
+            0.008862546645104885,
+            0.008044509217143059,
+            0.007786688860505819,
+            0.008370482362806797,
+            0.008690576069056988,
+            0.008687475696206093,
+            0.008901819586753845,
+            0.008269540965557098,
+            0.008966703899204731
+          ]
+        },
+        "foot_tangential_friction": {
+          "shape": [
+            64,
+            4
+          ],
+          "minimum": [
+            0.6015651226043701,
+            0.6015651226043701,
+            0.6015651226043701,
+            0.6015651226043701
+          ],
+          "maximum": [
+            1.382157325744629,
+            1.382157325744629,
+            1.382157325744629,
+            1.382157325744629
+          ],
+          "mean": [
+            1.0106562376022339,
+            1.0106562376022339,
+            1.0106562376022339,
+            1.0106562376022339
+          ],
+          "std": [
+            0.2422667294740677,
+            0.2422667294740677,
+            0.2422667294740677,
+            0.2422667294740677
+          ]
+        },
+        "pd_stiffness": {
+          "shape": [
+            64,
+            12
+          ],
+          "minimum": [
+            3.30588960647583,
+            3.376152753829956,
+            3.3164355754852295,
+            3.319550037384033,
+            3.402830123901367,
+            3.431288957595825,
+            3.3152453899383545,
+            3.3067245483398438,
+            3.3316524028778076,
+            3.3678905963897705,
+            3.31150484085083,
+            3.3336031436920166
+          ],
+          "maximum": [
+            6.022782802581787,
+            5.890598773956299,
+            5.988534927368164,
+            6.042129039764404,
+            6.023433208465576,
+            6.002812385559082,
+            5.9512104988098145,
+            5.964781761169434,
+            6.010928630828857,
+            6.041816234588623,
+            6.001946926116943,
+            6.0380024909973145
+          ],
+          "mean": [
+            4.548789024353027,
+            4.665274143218994,
+            4.602866172790527,
+            4.586144924163818,
+            4.795832633972168,
+            4.724088191986084,
+            4.5442657470703125,
+            4.771270751953125,
+            4.832441329956055,
+            4.868127346038818,
+            4.626686096191406,
+            4.636853218078613
+          ],
+          "std": [
+            0.8078926205635071,
+            0.6903522610664368,
+            0.7517685294151306,
+            0.7497302889823914,
+            0.8382887244224548,
+            0.7319259643554688,
+            0.7583880424499512,
+            0.8369046449661255,
+            0.801866352558136,
+            0.7382977604866028,
+            0.7938215136528015,
+            0.8216831684112549
+          ]
+        },
+        "pd_damping": {
+          "shape": [
+            64,
+            12
+          ],
+          "minimum": [
+            0.2052890509366989,
+            0.20182090997695923,
+            0.20372694730758667,
+            0.20212313532829285,
+            0.20077228546142578,
+            0.2046724259853363,
+            0.20529285073280334,
+            0.20167133212089539,
+            0.2000008374452591,
+            0.20285840332508087,
+            0.20081180334091187,
+            0.209495410323143
+          ],
+          "maximum": [
+            0.37108373641967773,
+            0.3729700446128845,
+            0.3658486008644104,
+            0.37393277883529663,
+            0.37439584732055664,
+            0.3691740930080414,
+            0.37147223949432373,
+            0.3716980814933777,
+            0.37179505825042725,
+            0.3717689514160156,
+            0.3726833164691925,
+            0.37333789467811584
+          ],
+          "mean": [
+            0.2896668612957001,
+            0.2809304893016815,
+            0.28596800565719604,
+            0.2897225618362427,
+            0.2850801944732666,
+            0.28122609853744507,
+            0.28947240114212036,
+            0.28418898582458496,
+            0.27801311016082764,
+            0.2957233488559723,
+            0.28506410121917725,
+            0.29151207208633423
+          ],
+          "std": [
+            0.047473061829805374,
+            0.0542089082300663,
+            0.047577183693647385,
+            0.05100255087018013,
+            0.05165764316916466,
+            0.05119000002741814,
+            0.04673796147108078,
+            0.050665367394685745,
+            0.04798267409205437,
+            0.053742799907922745,
+            0.0519714318215847,
+            0.051262278109788895
+          ]
+        }
+      },
+      "warnings": [],
+      "physics_randomization_events_configured": true,
+      "sampling": "startup parameters are sampled once per world, not re-sampled each reset",
+      "observation_noise": {
+        "actor": {
+          "policy": true
+        },
+        "critic": {}
+      },
+      "imu_latency_distributions": {
+        "actor": {
+          "policy": [
+            0.5,
+            0.5
+          ]
+        },
+        "critic": {}
+      },
+      "geom_priorities": {
+        "foot_geom_priority": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "external_geom_priority": [
+          0
+        ]
+      },
+      "actuator_delays": [
+        {
+          "type": "BuiltinPositionActuator",
+          "physics_steps_min": 4,
+          "physics_steps_max": 4
+        }
+      ],
+      "scope": "initialized simulator fields; does not establish policy robustness or hardware transfer",
+      "snapshot": "randomization_snapshot.npz",
+      "snapshot_sha256": "bc60ccf6129264433980d3904e7e5a4be91df970c10bd17f74b52d5e897c1e5e"
+    },
+    "collision_model": {
+      "robot_geometries": [
+        {
+          "id": 1,
+          "name": "",
+          "body": "robot/base_link",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": true
+        },
+        {
+          "id": 2,
+          "name": "robot/base_link_hull",
+          "body": "robot/base_link",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 1,
+          "torso": true
+        },
+        {
+          "id": 3,
+          "name": "",
+          "body": "robot/leg_front_r_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 4,
+          "name": "robot/leg_front_r_2_collision",
+          "body": "robot/leg_front_r_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 5,
+          "name": "",
+          "body": "robot/leg_front_r_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 6,
+          "name": "robot/leg_front_r_3_collision",
+          "body": "robot/leg_front_r_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 7,
+          "name": "",
+          "body": "robot/leg_front_r_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 8,
+          "name": "",
+          "body": "robot/leg_front_l_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 9,
+          "name": "robot/leg_front_l_2_collision",
+          "body": "robot/leg_front_l_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 10,
+          "name": "",
+          "body": "robot/leg_front_l_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 11,
+          "name": "robot/leg_front_l_3_collision",
+          "body": "robot/leg_front_l_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 12,
+          "name": "",
+          "body": "robot/leg_front_l_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 13,
+          "name": "",
+          "body": "robot/leg_back_r_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 14,
+          "name": "robot/leg_back_r_2_collision",
+          "body": "robot/leg_back_r_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 15,
+          "name": "",
+          "body": "robot/leg_back_r_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 16,
+          "name": "robot/leg_back_r_3_collision",
+          "body": "robot/leg_back_r_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 17,
+          "name": "",
+          "body": "robot/leg_back_r_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 18,
+          "name": "",
+          "body": "robot/leg_back_l_1",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 19,
+          "name": "robot/leg_back_l_2_collision",
+          "body": "robot/leg_back_l_2",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 20,
+          "name": "",
+          "body": "robot/leg_back_l_2",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        },
+        {
+          "id": 21,
+          "name": "robot/leg_back_l_3_collision",
+          "body": "robot/leg_back_l_3",
+          "type": "mjGEOM_SPHERE",
+          "contype": 1,
+          "conaffinity": 1,
+          "torso": false
+        },
+        {
+          "id": 22,
+          "name": "",
+          "body": "robot/leg_back_l_3",
+          "type": "mjGEOM_MESH",
+          "contype": 0,
+          "conaffinity": 0,
+          "torso": false
+        }
+      ],
+      "active_robot_geometry_count": 9,
+      "active_torso_geometry_count": 1,
+      "terrain_heightfield_count": 0,
+      "geometry_contract_sha256": "53573505887fe135e48ee3cb32d6010bcc927ccc6a871d1c2f132f3630eaea45",
+      "scope": "actual compiled collision masks; disabled torso geometry can be measured diagnostically but contributes no contact response"
+    },
+    "randomized_flag_semantics": "selects training task configuration; play configuration already retains startup physics randomization and observation noise",
+    "action_target_audit": {
+      "wrapper_clip_actions": null,
+      "action_term_clip": {
+        "leg_front_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_front_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_front_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_front_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_front_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_front_l_3": [
+          -0.61,
+          2.69
+        ],
+        "leg_back_r_1": [
+          -1.12,
+          2.41
+        ],
+        "leg_back_r_2": [
+          -0.32,
+          3.04
+        ],
+        "leg_back_r_3": [
+          -2.69,
+          0.61
+        ],
+        "leg_back_l_1": [
+          -2.41,
+          1.12
+        ],
+        "leg_back_l_2": [
+          -3.04,
+          0.32
+        ],
+        "leg_back_l_3": [
+          -0.61,
+          2.69
+        ]
+      },
+      "meaning": "raw actor actions; unclipped post-wrapper affine request; target_joint_pos is DESIRED target after configured clip BEFORE optional slew/latency/bias; physical_target_joint_pos is that desired request minus bias, not filtered actuator input; applied_target_joint_pos is the last physics-step encoder-coordinate target AFTER optional slew/action-term latency; actuator_input_target_joint_pos subtracts encoder bias before internal actuator delay. Post-step reset rows are excluded. Samples at policy frequency do not demonstrate every physics-step rate bound; those are checked separately. Deployment counterfactual clamps the affine request to model joint ranges; clipping fractions use unclipped request"
+    }
+  }
+}
