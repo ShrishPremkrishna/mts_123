@@ -94,6 +94,19 @@ def commit_and_push(paths: list[str], msg: str) -> str:
     return git("log", "-1", "--format=%H", "--", paths[0])
 
 
+class Adopted:
+  """Stand-in for a Popen of a leg started by an earlier queue process."""
+
+  def __init__(self, seg):
+    self.seg = seg
+
+  def poll(self):
+    alive = subprocess.run(["pgrep", "-f", f"{self.seg}( |$)"], capture_output=True).returncode == 0
+    if alive:
+      return None
+    return 0  # exit code unknown; step() checks the final checkpoint against the target
+
+
 class Q:
   def __init__(self, plan, status_path, max_gpu, max_own):
     self.jobs = {j["name"]: dict(j, state="pending", segments=[]) for j in plan}
@@ -102,9 +115,9 @@ class Q:
     if status_path.exists():  # crash resume of the queue itself: keep finished jobs
       old = {j["name"]: j for j in json.loads(status_path.read_text())}
       for n, j in old.items():
-        if n in self.jobs and j["state"] in ("done", "blocked"):
+        if n in self.jobs and j["state"] in ("done", "blocked", "running"):
           self.jobs[n].update(j)
-    self.procs: dict[str, subprocess.Popen] = {}
+    self.procs: dict = {}
 
   def save(self):
     tmp = self.status_path.with_suffix(".tmp")
@@ -223,6 +236,8 @@ uv run --no-sync python scripts/opt_lab_2/part2_foldcheck.py {cap} {ref} {j['out
       ck = last_checkpoint(out)
       target = j["target_iter"]
       fin = ckpt_iter(ck) if ck else -1
+      if isinstance(proc, Adopted) and fin < target:
+        rc = 1  # an adopted leg that stopped short crashed
       if fin == target and rc == 0:
         j["state"] = "done"; j["final_checkpoint"] = str(ck); log(f"done {name} -> {ck.name}")
       elif rc != 0 and ck is not None and fin < target and j.get("resumes", 0) < 3:
@@ -264,9 +279,13 @@ uv run --no-sync python scripts/opt_lab_2/part2_foldcheck.py {cap} {ref} {j['out
 
   def run(self):
     # Jobs left "running" by a dead queue: mark pending again only if no output exists.
+    # Adopt train legs left running by a previous queue process (their launch.py keeps running).
     for j in self.jobs.values():
       if j["state"] == "running":
-        raise SystemExit(f"{j['name']} was running when the queue died; inspect and fix the status file")
+        if j["kind"] != "train":
+          raise SystemExit(f"ref job {j['name']} was running when the queue died; fix the status file")
+        self.procs[j["name"]] = Adopted(j["segments"][-1]["name"])
+        log(f"adopted running leg {j['segments'][-1]['name']}")
     while True:
       self.step()
       if not any(j["state"] in ("pending", "running") for j in self.jobs.values()):
