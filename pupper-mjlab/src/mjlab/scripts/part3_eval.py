@@ -48,14 +48,23 @@ SUMMARY_SUITE = (
   ("jitter", lambda m: m.get("stand_jitter_rad_s")),
 )
 SUMMARY_SEAM = (
-  ("seam fall (sweep)", lambda s: s["seam_sweep"]["fall_rate"]),
-  ("seam stumble (sweep)", lambda s: s["seam_sweep"]["stumble_rate"]),
-  ("dither fall/stumble", lambda s: f"{_f(s['seam_dither']['fall_rate'])}/{_f(s['seam_dither']['stumble_rate'])}"),
-  ("control stumble", lambda s: s["control_all"]["stumble_rate"]),
-  ("step-sweep fall", lambda s: s["seam_sweep_step"]["fall_rate"]),
-  ("seam sat", lambda s: s["seam_sweep"]["sat_frac_mean"]),
-  ("seam F max med", lambda s: s["seam_sweep"]["foot_force_max_bw_median"]),
+  ("seam fall (sweep)", lambda s, v: s["seam_sweep"]["fall_rate"]),
+  ("seam incident (sweep)", lambda s, v: s["seam_sweep"]["incident_rate"]),
+  ("dither fall/incident", lambda s, v: f"{_f(s['seam_dither']['fall_rate'])}/{_f(s['seam_dither']['incident_rate'])}"),
+  ("control incident", lambda s, v: s["control_all"]["incident_rate"]),
+  ("worst cell (excess, p)", lambda s, v: _worst(v)),
+  ("step-sweep fall", lambda s, v: s["seam_sweep_step"]["fall_rate"]),
+  ("seam sat", lambda s, v: s["seam_sweep"]["sat_frac_mean"]),
+  ("seam F max med", lambda s, v: s["seam_sweep"]["foot_force_max_bw_median"]),
 )
+
+
+def _worst(v):
+  cells = (v or {}).get("cells") or {}
+  if not cells:
+    return "-"
+  k, c = max(cells.items(), key=lambda kv: kv[1]["excess"])
+  return f"{k[5:]} {c['excess']:+.3f} (p={c['p']:.1g})"
 
 
 def _f(v):
@@ -140,8 +149,8 @@ def table(dirs, out_path=None):
       else:
         row += ["-", "-"]
       if seam:
-        s = seam["metrics"]["summary"]
-        row += [_f(fn(s)) for _, fn in SUMMARY_SEAM] + [seam["metrics"]["verdict"]["verdict"]]
+        s, v = seam["metrics"]["summary"], seam["metrics"]["verdict"]
+        row += [_f(fn(s, v)) for _, fn in SUMMARY_SEAM] + [f"{v['verdict']} ({v.get('role', '?')})"]
       else:
         row += ["-"] * (len(SUMMARY_SEAM) + 1)
       ov = [(x or {}).get("part3_condition", {}).get("overflow_audit") for x in (suite, push, seam)]
@@ -171,7 +180,7 @@ def main():
   r.add_argument("--conditions", nargs="+", choices=sorted(CONDITIONS), default=list(CONDITIONS))
   r.add_argument("--modes", nargs="+", choices=("suite", "push", "seam"), default=["suite", "seam"])
   r.add_argument("--envs-per-schedule", type=int, default=24, help="suite (16 schedules)")
-  r.add_argument("--seam-envs-per-schedule", type=int, default=40, help="seam (12 schedules)")
+  r.add_argument("--seam-envs-per-schedule", type=int, default=64, help="seam (16 schedules; 64 -> 1024 envs)")
   r.add_argument("--push-envs", type=int, default=part2_eval.PUSH_ENVS_DEFAULT)
   r.add_argument("--skip-existing", action="store_true")
   t = sub.add_parser("table")

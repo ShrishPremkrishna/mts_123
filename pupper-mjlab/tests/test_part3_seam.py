@@ -37,10 +37,15 @@ def test_schedules_cross_seam_expected_times():
   # crossing is the excluded 0 -> 0.8 jump-in; the sham anchors exist.
   assert len(ps.crossings(ctrl, 0.3)) == 3 and len(ps.crossings(ctrl, 1.0)) == 2
   assert len(ps.crossings(ctrl, 0.5)) == 1
+  # Step-matched dither controls never cross the seam except the fast one's jump-in.
+  assert ps.crossings(sch["control_dither_trot_fwd"][4], 0.5) == []
+  assert len(ps.crossings(sch["control_dither_fast_back"][4], 0.5)) == 2  # jump-in and final ramp-down
+  assert len(ps.crossings(sch["control_dither_fast_back"][4], 0.9)) == 8
+  assert len(ps.crossings(sch["control_dither_trot_fwd"][4], 0.3)) == 8
 
 
 def test_control_drops_sham_anchor_at_seam_jump_in():
-  sch = [s for s in ps.schedule_set(rates=(0.5,)) if s[0] == "control_fwd"]
+  sch = [s for s in ps.schedule_set(rates=(0.5,)) if s[0] == "control_fwd"]  # ramp control
   vx = sch[0][4]
   T = len(vx)
   cmd = np.zeros((T, 1, 3))
@@ -126,16 +131,37 @@ def test_seam_metrics_window_after_reset_is_invalid():
   assert m["invalid_windows"]["reset"] == 1
 
 
-def test_verdict():
-  m, _ = _synthetic()
-  ctrl = ps._rate_block([])
-  m["summary"]["control_all"] = dict(ctrl, n=10, stumble_rate=0.0)
-  v = ps.verdict(m, dict(max_fall_rate=0.02, max_stumble_excess=0.05))
-  assert v["verdict"] == "PASS"
-  _, cr = _synthetic()
-  m2, _ = _synthetic(fall_at=cr[0][0] + 5)
-  m2["summary"]["control_all"] = dict(ctrl, n=10, stumble_rate=0.0)
-  assert ps.verdict(m2, dict(max_fall_rate=0.02, max_stumble_excess=0.05))["verdict"] == "FAIL"
+def _block(n, k):
+  return dict(n=n, incident=k, incident_rate=k / n if n else None, fall_rate=0.0)
+
+
+def _summary_with(cell_incidents, n=120, ctrl=(0, 320)):
+  s = {key: _block(n, cell_incidents.get(key, 0)) for key in ps.CELLS}
+  s["seam_sweep"] = _block(4 * n, 0)
+  s["seam_dither"] = _block(4 * n, 0)
+  s["control_all"] = _block(ctrl[1], ctrl[0])
+  return dict(summary=s)
+
+
+def test_verdict_cells_fisher_and_no_data():
+  crit = ps.SEAM_CRITERIA
+  assert ps.verdict(_summary_with({}), crit)["verdict"] == "PASS"
+  # One direction x crossing cell failing is not diluted by the others (22/160 vs 0/320).
+  v = ps.verdict(_summary_with({"cell_dither_back_up": 22}, n=160), crit)
+  assert v["verdict"] == "FAIL" and "dither_back_up" in v["reasons"][0]
+  # Excess above 0.05 but not significant against a noisy control -> PASS (a tie).
+  v = ps.verdict(_summary_with({"cell_sweep_fwd_down": 4}, n=60, ctrl=(1, 40)), crit)
+  assert v["verdict"] == "PASS" and v["cells"]["cell_sweep_fwd_down"]["excess"] > 0.04
+  assert ps.verdict(_summary_with({}, n=30), crit)["verdict"] == "NO DATA"
+  m = _summary_with({})
+  m["summary"]["seam_sweep"]["fall_rate"] = 0.03
+  assert ps.verdict(m, crit)["verdict"] == "FAIL"
+
+
+def test_verdict_on_synthetic_rollout():
+  m, cr = _synthetic()
+  assert {"incident", "incident_rate"} <= set(m["summary"]["seam_sweep"])
+  assert set(ps.CELLS) <= set(m["summary"])
 
 
 def test_wilson_and_lab4_record():

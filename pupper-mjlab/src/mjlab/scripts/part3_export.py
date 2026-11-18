@@ -309,6 +309,11 @@ def export_and_roundtrip(args) -> dict[str, Any]:
                              gait_golden=str(golden_path), obs=str(out / "roundtrip_obs.npz"))
   report["verdict"] = "PASS" if ok else "FAIL"
   report["hardware"] = "NOT deployed. Deployment needs a human operator and TA approval; see report/part3_notebook.md."
+  if args.upload_wandb:
+    report["wandb_upload"] = (_wandb_upload(args.wandb_run, policy_path, out) if ok else
+                              dict(skipped="verdict FAIL: not uploading a policy that failed its checks"))
+    ok = ok and report["wandb_upload"].get("verified", False)
+    report["verdict"] = "PASS" if ok else "FAIL"
   report["wall_clock_s"] = time.time() - t0
   _write_report(report, Path(args.report_dir))
   print(json.dumps({k: report[k] for k in ("name", "verdict", "roundtrip")}, indent=1, default=str))
@@ -348,6 +353,30 @@ def _wandb_check(run_path, out, policy, robot_obs, torch_act):
                 field_diffs_vs_fresh_export=compare_json(policy, p))
   except Exception as exc:  # noqa: BLE001 - network/auth problems are reported, not fatal
     return dict(run=run_path, error=repr(exc))
+
+
+def _wandb_upload(run_path, policy_path, out):
+  """Upload the verified policy.json as the run's ``policy.json`` and read it back.
+
+  The runner's per-save upload did not persist on finished runs here (the parent
+  run 1c5r0n8c has no policy.json on W&B although its log reports uploads), so
+  ``deploy.sh <run>`` would fail. Uploading after the run finished and
+  re-downloading proves the file the robot will fetch is byte-identical.
+  """
+  import wandb
+
+  try:
+    run = wandb.Api().run(run_path)
+    if run.state != "finished":
+      return dict(run=run_path, error=f"run state {run.state!r}; upload only after the run finished")
+    run.upload_file(str(policy_path), root=str(policy_path.parent))
+    back = out / "wandb_readback"
+    back.mkdir(exist_ok=True)
+    wandb.Api().run(run_path).file("policy.json").download(root=str(back), replace=True)
+    same = sha256(back / "policy.json") == sha256(policy_path)
+    return dict(run=run_path, uploaded=str(policy_path), sha256=sha256(policy_path), verified=same)
+  except Exception as exc:  # noqa: BLE001
+    return dict(run=run_path, error=repr(exc), verified=False)
 
 
 def _git_unchanged(paths):
@@ -435,11 +464,15 @@ def main():
   p.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT)
   p.add_argument("--run-dir", type=Path, help="Training run dir (auto-exported policy.json, *.onnx)")
   p.add_argument("--wandb-run", help="entity/project/run_id: also check the W&B policy.json deploy.sh fetches")
+  p.add_argument("--upload-wandb", action="store_true",
+                 help="After all checks pass, upload policy.json to --wandb-run and verify the read-back")
   p.add_argument("--num-envs", type=int, default=48)
   p.add_argument("--seconds", type=float, default=16.0)
   p.add_argument("--every", type=int, default=4)
   p.add_argument("--onnx-samples", type=int, default=2000)
   args = p.parse_args()
+  if args.upload_wandb and not args.wandb_run:
+    p.error("--upload-wandb needs --wandb-run")
   part2_eval._prepare(args, p.error)
   rep = export_and_roundtrip(args)
   sys.exit(0 if rep["verdict"] == "PASS" else 1)

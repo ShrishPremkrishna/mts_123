@@ -121,6 +121,24 @@ def control(direction, rate=0.5, dt=DT):
   ])
 
 
+def control_dither(direction, regime, n_pairs=4, dt=DT):
+  """Step-matched control for the dither: the same 0.2 m/s steps, never crossing 0.5.
+
+  regime 'trot': 0.2 <-> 0.4 (sham anchor 0.3); 'fast': 0.8 <-> 1.0 (sham anchor 0.9;
+  its 0 -> 0.8 jump-in crosses the seam and nearby anchors are dropped).
+  """
+  d = float(direction)
+  lo, hi = (0.2, 0.4) if regime == "trot" else (0.8, 1.0)
+  if regime == "trot":
+    parts = [_hold(0.0, 1.0, dt), _ramp_steps(0.0, d * lo, 0.5, dt), _hold(d * lo, 1.5, dt)]
+  else:
+    parts = [_hold(0.0, 1.0, dt), _ramp_steps(0.0, d * lo, "inf", dt), _hold(d * lo, 2.5, dt)]
+  for _ in range(n_pairs):
+    parts += [_hold(d * hi, 1.5, dt), _hold(d * lo, 1.5, dt)]
+  parts += [_ramp_steps(d * lo, 0.0, 0.5, dt), _hold(0.0, 1.0, dt)]
+  return np.concatenate(parts)
+
+
 def rate_label(rate):
   return "inf" if rate == "inf" else f"{float(rate):g}"
 
@@ -133,6 +151,8 @@ def schedule_set(rates=DEFAULT_RATES, control_rate=0.5, dt=DT):
       out.append((f"sweep_{dn}_r{rate_label(r)}", "sweep", dn, rate_label(r), sweep(d, r, dt), ()))
     out.append((f"dither_{dn}", "dither", dn, "step", dither(d, dt=dt), ()))
     out.append((f"control_{dn}", "control", dn, rate_label(control_rate), control(d, control_rate, dt), (0.3, 1.0)))
+    out.append((f"control_dither_trot_{dn}", "control", dn, "step", control_dither(d, "trot", dt=dt), (0.3,)))
+    out.append((f"control_dither_fast_{dn}", "control", dn, "step", control_dither(d, "fast", dt=dt), (0.9,)))
   return out
 
 
@@ -192,7 +212,8 @@ def _window_events(sl, terminated, knee, torso, tilt, tilt_deg):
   k = bool(knee[sl].any())
   t = bool(torso[sl].any())
   tl = bool((tilt[sl] > tilt_deg).any())
-  return dict(fall=fell, knee=k, torso=t, tilt=tl, stumble=(not fell) and (k or t or tl))
+  return dict(fall=fell, knee=k, torso=t, tilt=tl, stumble=(not fell) and (k or t or tl),
+              incident=fell or k or t or tl)
 
 
 def seam_metrics(
@@ -285,12 +306,12 @@ def seam_metrics(
 def _rate_block(ws):
   n = len(ws)
   out = dict(n=n)
-  for key in ("fall", "stumble", "knee", "torso", "tilt"):
+  for key in ("fall", "stumble", "incident", "knee", "torso", "tilt"):
     k = sum(w[key] for w in ws)
     lo, hi = wilson(k, n)
     out[key] = k
     out[f"{key}_rate"] = k / n if n else None
-    if key in ("fall", "stumble"):
+    if key in ("fall", "stumble", "incident"):
       out[f"{key}_ci95"] = [lo, hi]
 
   def med(key):
@@ -338,7 +359,14 @@ def _summary(windows):
     seam_sweep_step=_rate_block([w for w in seam if w["kind"] == "sweep" and w["rate"] == "inf"]),
     seam_dither=_rate_block([w for w in seam if w["kind"] == "dither"]),
     control_all=_rate_block(ctrl),
+    control_ramp=_rate_block([w for w in ctrl if w["rate"] != "step"]),
+    control_dither=_rate_block([w for w in ctrl if w["rate"] == "step"]),
   )
+  # The 8 judged cells (decision 2026-11-18-w4-seam-thresholds): block x direction x crossing.
+  for block, ws in (("sweep", sweep), ("dither", [w for w in seam if w["kind"] == "dither"])):
+    for dn in ("fwd", "back"):
+      for c in ("up", "down"):
+        out[f"cell_{block}_{dn}_{c}"] = _rate_block([w for w in ws if w["direction"] == dn and w["crossing"] == c])
   for c in ("up", "down"):
     out[f"seam_sweep_{c}"] = _rate_block([w for w in sweep if w["crossing"] == c])
   for dn in ("fwd", "back"):
@@ -348,7 +376,7 @@ def _summary(windows):
 
 GROUP_COLUMNS = (
   ("kind", "kind"), ("rate", "rate"), ("direction", "dir"), ("anchor", "anchor"), ("crossing", "cross"),
-  ("n", "n"), ("fall_rate", "fall"), ("stumble_rate", "stumble"), ("knee_rate", "knee"),
+  ("n", "n"), ("fall_rate", "fall"), ("incident_rate", "incident"), ("stumble_rate", "stumble"), ("knee_rate", "knee"),
   ("torso_rate", "torso"), ("tilt_rate", "tilt>thr"), ("max_tilt_deg_median", "tilt med"),
   ("sat_frac_mean", "sat3Nm"), ("foot_force_max_bw_median", "F max med BW"),
   ("foot_force_max_bw_p90", "F max p90"), ("track_err_pre_median", "err pre"),
@@ -368,14 +396,15 @@ def _fmt(v):
 def markdown(metrics, title):
   lines = [f"## {title}", ""]
   s = metrics["summary"]
-  lines.append("| block | n | fall | stumble (95% CI) | sat 3 Nm | F max med BW | tilt med | err win / pre | ref jump / typical step |")
-  lines.append("|---|---|---|---|---|---|---|---|---|")
+  lines.append("| block | n | fall | incident | stumble (95% CI) | sat 3 Nm | F max med BW | tilt med | err win / pre | ref jump / typical step |")
+  lines.append("|---|---|---|---|---|---|---|---|---|---|")
   for key in ("seam_sweep", "seam_sweep_up", "seam_sweep_down", "seam_sweep_fwd", "seam_sweep_back",
-              "seam_sweep_r05", "seam_dither", "control_all", "seam_sweep_step"):
+              "seam_sweep_r05", "seam_dither", "control_all", "control_ramp", "control_dither",
+              "seam_sweep_step", *CELLS):
     b = s[key]
     ci = b.get("stumble_ci95", [None, None])
     lines.append(
-      f"| {key} | {b['n']} | {_fmt(b.get('fall_rate'))} | {_fmt(b.get('stumble_rate'))} "
+      f"| {key} | {b['n']} | {_fmt(b.get('fall_rate'))} | {_fmt(b.get('incident_rate'))} | {_fmt(b.get('stumble_rate'))} "
       f"({_fmt(ci[0])}-{_fmt(ci[1])}) | {_fmt(b.get('sat_frac_mean'))} | {_fmt(b.get('foot_force_max_bw_median'))} "
       f"| {_fmt(b.get('max_tilt_deg_median'))} | {_fmt(b.get('track_err_median'))} / {_fmt(b.get('track_err_pre_median'))} "
       f"| {_fmt(b.get('ref_jump_median'))} / {_fmt(b.get('ref_step_typical_median'))} |"
@@ -391,35 +420,60 @@ def markdown(metrics, title):
   return "\n".join(lines)
 
 
-def verdict(metrics, criteria):
-  """Pass/fail of the seam against decided criteria; returns the verdict and reasons.
+CELLS = tuple(f"cell_{b}_{d}_{c}" for b in ("sweep", "dither") for d in ("fwd", "back") for c in ("up", "down"))
 
-  criteria keys: max_fall_rate (finite-rate sweeps and dither, each),
-  max_stumble_excess (seam stumble rate minus the no-seam control's, for the
-  rate-matched r0.5 sweep and for the dither, each).
+
+def fisher_greater(k, n, c, n_c):
+  """One-sided Fisher exact p that the cell's incident rate exceeds the control's."""
+  from scipy.stats import fisher_exact
+
+  return float(fisher_exact([[k, n - k], [c, n_c - c]], alternative="greater")[1])
+
+
+def verdict(metrics, criteria):
+  """Seam verdict for one condition (decision report/decisions/2026-11-18-w4-seam-thresholds.md).
+
+  FAIL if the pooled ``seam_sweep`` (finite rates) or ``seam_dither`` fall rate exceeds
+  ``max_fall_rate``, or any of the 8 cells (sweep|dither x fwd|back x up|down) has an
+  incident rate exceeding the pooled no-seam control's by more than
+  ``max_incident_excess`` with one-sided Fisher p < ``fisher_alpha``. A cell with
+  n < ``min_cell_n`` (or an empty control) is NO DATA. Step sweep and r0.5 are
+  reported, not judged. Cells with an excess in ``close_call`` are flagged for a
+  second-seed rerun.
   """
   s = metrics["summary"]
   ctrl = s["control_all"]
-  reasons = []
-  if s["seam_sweep"]["n"] == 0 or ctrl["n"] == 0:
-    return dict(verdict="NO DATA", reasons=["no valid seam or control windows"], criteria=criteria)
-  excess = {}
+  reasons, cells, no_data, close = [], {}, [], []
+  if ctrl["n"] == 0:
+    return dict(verdict="NO DATA", reasons=["no control windows"], criteria=criteria)
   for key in ("seam_sweep", "seam_dither"):
     b = s[key]
     if b["n"] and b["fall_rate"] > criteria["max_fall_rate"]:
       reasons.append(f"{key} fall rate {b['fall_rate']:.3f} > {criteria['max_fall_rate']}")
-  for key in ("seam_sweep_r05", "seam_dither"):
+  cr = ctrl["incident"] / ctrl["n"]
+  for key in CELLS:
     b = s[key]
-    if b["n"]:
-      excess[key] = b["stumble_rate"] - ctrl["stumble_rate"]
-      if excess[key] > criteria["max_stumble_excess"]:
-        reasons.append(f"{key} stumble rate exceeds control by {excess[key]:.3f} > {criteria['max_stumble_excess']}")
-  return dict(verdict="FAIL" if reasons else "PASS", reasons=reasons, criteria=criteria,
-              stumble_excess_over_control=excess)
+    if b["n"] < criteria["min_cell_n"]:
+      no_data.append(f"{key} n={b['n']}")
+      continue
+    excess = b["incident_rate"] - cr
+    pval = fisher_greater(b["incident"], b["n"], ctrl["incident"], ctrl["n"])
+    cells[key] = dict(n=b["n"], incidents=b["incident"], excess=excess, p=pval)
+    if excess > criteria["max_incident_excess"] and pval < criteria["fisher_alpha"]:
+      reasons.append(f"{key}: incidents {b['incident']}/{b['n']} vs control {ctrl['incident']}/{ctrl['n']} "
+                     f"(excess {excess:.3f}, p={pval:.1e})")
+    lo, hi = criteria.get("close_call", (0.03, 0.07))
+    if lo <= excess <= hi:
+      close.append(key)
+  v = "FAIL" if reasons else ("NO DATA" if no_data else "PASS")
+  return dict(verdict=v, reasons=reasons, no_data=no_data, close_calls_rerun_second_seed=close,
+              cells=cells, control_incident_rate=cr, criteria=criteria)
 
 
-# Provisional, replaced by the decision doc's values.
-SEAM_CRITERIA = dict(max_fall_rate=0.02, max_stumble_excess=0.05)
+# Frozen before any final-policy numbers (decision 2026-11-18-w4-seam-thresholds).
+SEAM_CRITERIA = dict(max_fall_rate=0.02, max_incident_excess=0.05, fisher_alpha=0.01, min_cell_n=60,
+                     close_call=(0.03, 0.07))
+CONDITION_ROLE = dict(flat_dr="headline", bumpy_dr="robustness", flat_nodr="diagnostic", bumpy_nodr="diagnostic")
 
 ##
 # GPU rollout.
@@ -513,6 +567,7 @@ def run_seam(args) -> dict[str, Any]:
   meta = dict(
     name=args.name, kind="seam", condition=args.condition,
     rates=[rate_label(r) for r in rates], control_rate=args.control_rate,
+    schedule_names=[s[0] for s in schedules],
     envs_per_schedule=args.envs_per_schedule, delay_max_s=args.delay_max, steps=T, dt=DT, seed=args.seed,
     mass_source=mass_source, mass_nominal_kg=nominal, wall_clock_s=time.time() - t0, rollout_loop_s=loop_s,
     raw=str(raw_path), provenance=run_prov, training=args.training, part3_condition=cond,
@@ -553,6 +608,23 @@ def analyze(raw, meta, schedules, args, out_dir, criteria=None):
     torso_sensor=bool(meta.get("part3_condition", {}).get("torso_sensor")),
   )
   metrics["verdict"] = verdict(metrics, criteria)
+  metrics["verdict"]["role"] = CONDITION_ROLE.get(meta.get("condition"), "?")
+  sens = {}
+  for tdeg in (25.0, 35.0):
+    if abs(tdeg - args.tilt_deg) < 1e-9:
+      continue
+    m2 = seam_metrics(
+      cmd=cmd, env_schedule=np.asarray(raw["env_schedule"]), schedules=schedules, terminated=terminated,
+      velocity=f("velocity"), tilt=tilt, knee=knee, torso=torso, torque=f("torque"),
+      foot_force=f("foot_force"), mass_kg=np.asarray(raw["mass_kg"], float), ref=f("ref"),
+      gravity=float(raw["gravity_m_s2"]), pre_s=args.pre, post_s=args.post, settle_s=args.settle,
+      tilt_deg=tdeg, effort_limit=EFFORT_LIMIT_NM)
+    v2 = verdict(m2, criteria)
+    sens[f"tilt_{tdeg:g}"] = dict(verdict=v2["verdict"], reasons=v2["reasons"],
+                                  max_cell_excess=max((c["excess"] for c in v2["cells"].values()), default=None),
+                                  control_max_tilt_deg=_ctrl_max_tilt(m2))
+  metrics["sensitivity"] = sens
+  metrics["control_max_tilt_deg"] = _ctrl_max_tilt(metrics)
   payload = dict(meta, metrics=metrics, schedules=[
     dict(name=s[0], kind=s[1], direction=s[2], rate=s[3], steps=len(s[4]), sham=list(s[5])) for s in schedules])
   if not getattr(args, "keep_windows", False):
@@ -564,13 +636,23 @@ def analyze(raw, meta, schedules, args, out_dir, criteria=None):
   (out_dir / f"{name}_seam.md").write_text(
     markdown(metrics, f"Seam test: {name} ({meta['condition']})")
     + f"\nBaseline (settled, alive): {json.dumps(metrics['baseline'], default=_jsonable)}\n"
-    + f"\nVerdict (criteria {criteria}): **{metrics['verdict']['verdict']}** {metrics['verdict']['reasons']}\n")
+    + f"\nVerdict ({metrics['verdict']['role']}; criteria {criteria}): **{metrics['verdict']['verdict']}** "
+    f"{metrics['verdict']['reasons']}  \nCells (excess over control, Fisher p): "
+    + ", ".join(f"{k[5:]} {v['incidents']}/{v['n']} {v['excess']:+.3f} p={v['p']:.2g}" for k, v in metrics['verdict']['cells'].items())
+    + f"  \nClose calls (rerun with a second seed): {metrics['verdict']['close_calls_rerun_second_seed']}; "
+    f"no data: {metrics['verdict']['no_data']}  \nControl max tilt {metrics['control_max_tilt_deg']:.1f} deg "
+    f"(re-derive the threshold if > 25). Sensitivity: {json.dumps(metrics['sensitivity'], default=_jsonable)}\n")
   print(json.dumps(dict(name=name, condition=meta["condition"], wall_clock_s=meta.get("wall_clock_s"),
                         summary={k: {kk: vv for kk, vv in v.items() if kk in ("n", "fall_rate", "stumble_rate")}
                                  for k, v in metrics["summary"].items()},
                         baseline=metrics["baseline"], verdict=metrics["verdict"],
                         overflow=meta.get("part3_condition", {}).get("overflow_audit")), indent=1, default=_jsonable))
   return payload
+
+
+def _ctrl_max_tilt(m):
+  v = [w["max_tilt_deg"] for w in m["windows"] if w["anchor"] != "seam"]
+  return float(max(v)) if v else None
 
 
 def _frac(x, mask):
@@ -581,7 +663,13 @@ def recompute(args):
   meta = json.loads(Path(args.meta).read_text())
   raw = dict(np.load(meta["raw"]))
   rates = tuple("inf" if r == "inf" else float(r) for r in meta["rates"])
-  schedules = schedule_set(rates, meta["control_rate"])
+  full = schedule_set(rates, meta["control_rate"])
+  # Rebuild exactly the schedules that were recorded, in their recorded order.
+  names = meta.get("schedule_names") or [s[0] for s in full if not s[0].startswith("control_dither_")]
+  by_name = {s[0]: s for s in full}
+  schedules = [by_name[n] for n in names]
+  if int(np.max(raw["env_schedule"])) >= len(schedules):
+    raise ValueError("raw env_schedule indexes beyond the reconstructed schedule set")
   return analyze(raw, meta, schedules, args, args.out_dir)
 
 
@@ -681,7 +769,7 @@ def add_args(p, video=False):
     p.add_argument("--width", type=int, default=640)
     p.add_argument("--height", type=int, default=480)
   else:
-    p.add_argument("--envs-per-schedule", type=int, default=40)
+    p.add_argument("--envs-per-schedule", type=int, default=64, help="16 schedules x 64 = 1024 envs (shared-GPU cap)")
     p.add_argument("--rates", nargs="+", default=[str(r) for r in DEFAULT_RATES])
     p.add_argument("--control-rate", type=float, default=0.5)
     p.add_argument("--delay-max", type=float, default=0.75, help="Per-env random start delay (s); 0.75 = one trot cycle")
