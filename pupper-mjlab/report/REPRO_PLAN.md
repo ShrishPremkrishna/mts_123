@@ -101,8 +101,11 @@ Agents work in their own git worktrees (`~/wt/<name>`). Each commits only its ow
 | W4 | Part 3 (sim): full MixedGaits sweep 0 → threshold → back, seam stumbles, Bumpy + Lab 4 DR pass, export `policy.json`. Hardware is human-only | W3 final | [R] spec |
 | – | Part 4 (Mystery task): not started. Hardware needs TA approval | – | [H] |
 
-**Human decision points [H]:** the final gait pick for Part 1 (agents propose one using the recovered criteria),
-the final Part 2 round, any num_envs/budget changes, all hardware deployment and Part 4.
+**Human decision points [H] are made lazily** ([decisions/README.md](decisions/README.md)): a fresh grader agent
+decides from the evidence and writes a compact decision doc, work continues on that decision, and the human reviews
+afterwards. This covers the Part 1 parent gait, the final Part 2 round, any num_envs/budget changes, and the Part 4 sim scope.
+Physical actions (hardware deployment, Part 4 hardware) still need a human and TA approval. A grader can only
+decide how to *prepare* them.
 
 **Compute budget [N, estimate]:** Part 1 at ≈ 6 runs × 3000 iterations, run concurrently, takes about 1.5–2 h. Part 2 at ≈ 14 legs × 500 iterations × 2 seeds
 takes about 2–3 h. Evals add roughly 30 min.
