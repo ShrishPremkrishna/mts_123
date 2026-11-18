@@ -62,10 +62,15 @@ def extra_metrics(out):
       m = (tr["segment"] == s)[:, None] & tr["valid"].astype(bool)
       tq = np.abs(tr["torque"][m])
       ff = tr["foot_force_norm"][m]
+      # Per-robot max over the segment, then the median over robots (W2's ranked impact statistic).
+      ff_env = np.where(m[:, :, None], tr["foot_force_norm"], np.nan)
+      per_env_max = np.nanmax(ff_env.reshape(ff_env.shape[0], ff_env.shape[1], -1), axis=(0, 2))
+      per_env_max = per_env_max[np.isfinite(per_env_max)]
       rows.append(dict(command=tr["command"][tr["segment"] == s][0, 0].tolist(),
                        torque_saturation_fraction=float((tq >= 0.99 * EFFORT).mean()) if tq.size else None,
                        foot_force_p99_n=float(np.nanpercentile(ff, 99)) if ff.size else None,
-                       foot_force_max_n=float(np.nanmax(ff)) if ff.size else None))
+                       foot_force_max_n=float(np.nanmax(ff)) if ff.size else None,
+                       foot_force_median_env_max_n=float(np.median(per_env_max)) if per_env_max.size else None))
     res[name] = rows
   (out / "extra_metrics.json").write_text(json.dumps(res, indent=1) + "\n")
 
@@ -90,18 +95,19 @@ def table(out_prefix, arms, root):
     for seg, ex, foot in zip(sweep, extra["sweep"], ff):
       v = seg["command"][0]
       r[f"{v:+.2f}"] = dict(err_xy=seg.get("mean_xy_error_m_s"), err_yaw=seg.get("mean_abs_yaw_error_rad_s"),
-                            vx=seg.get("mean_achieved_vx_m_s"), torque2=seg.get("mean_torque_squared_nm2"),
+                            vx=seg.get("mean_achieved_vx_m_s"), vx_abs=abs(seg.get("mean_achieved_vx_m_s") or np.nan), torque2=seg.get("mean_torque_squared_nm2"),
                             slip=seg.get("mean_contact_slip_m_s"), failures=seg["failures"],
                             drift_rad=seg.get("max_abs_heading_drift_rad"),
                             sat3nm=ex["torque_saturation_fraction"],
                             foot_force_p99_bw=(ex["foot_force_p99_n"] or np.nan) / bw,
                             foot_force_max_bw=(ex["foot_force_max_n"] or np.nan) / bw,
+                            foot_force_med_env_max_bw=(ex.get("foot_force_median_env_max_n") or np.nan) / bw,
                             gait=foot.get("gait"), gait_guess=foot.get("gait_guess"), order=foot.get("footfall_order"),
                             duty=foot.get("duty_factor"), flight=foot.get("flight_fraction"), stride_hz=foot.get("stride_hz"),
                             feet_down=foot.get("feet_down_hist"), lags=foot.get("touchdown_lag_rel_LB"),
                             lag_concentration=foot.get("lag_concentration"))
     hs = [r["+1.50"], r["-1.50"]]
-    r["hs_mean"] = {k: float(np.mean([h[k] for h in hs])) for k in ("err_xy", "err_yaw", "torque2", "slip", "sat3nm", "foot_force_p99_bw")}
+    r["hs_mean"] = {k: float(np.mean([h[k] for h in hs])) for k in ("err_xy", "err_yaw", "torque2", "slip", "sat3nm", "foot_force_p99_bw", "foot_force_med_env_max_bw", "vx_abs")}
     r["hs_mean"]["foot_force_max_bw"] = float(max(h["foot_force_max_bw"] for h in hs))
     r["seq_failures"] = {f"{s['command']}": s["failures"] for s in seq}
     r["seq_failures_total"] = int(sum(s["failures"] for s in seq))
