@@ -87,7 +87,11 @@ ball:
   #   - {lo: [98, 110, 60],  hi: [125, 255, 255]}   # blue
 
 camera:
-  source: 1            # AVFoundation index (1 = the iPhone, 0 = the laptop camera), a video file path, or "sim"
+  # Which camera. "phone" = the phone plugged into (or wirelessly paired with) this Mac,
+  # whatever number macOS gives it today. Also accepted: part of a camera's name
+  # ("iPhone", "Pixel"), a number from scripts/find_camera.py, a video file, a stream
+  # URL, or "sim".
+  source: phone
   width: 1920
   height: 1080
   fps: 30

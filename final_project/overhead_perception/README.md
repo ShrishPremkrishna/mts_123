@@ -46,27 +46,40 @@ arena), so editing the real `config/field.yaml` never breaks them.
 
 ## Live camera
 
-The iPhone reaches the Mac through Continuity Camera and appears as an ordinary
-webcam, **wirelessly or over USB**. The first run from a terminal triggers the
-macOS camera prompt.
+Any phone that the Mac can see as a camera works, and a **USB cable is the
+dependable way** to connect it. The config's default `camera.source: phone`
+finds the phone by name every time, whatever number macOS gives it that day,
+and never falls back to the laptop's own camera.
 
-Wireless needs: the same Apple ID on both, Wi-Fi and Bluetooth on for both
-(no internet needed, Personal Hotspot off), and the phone **locked, still and
-near the Mac**. Picking the phone up or unlocking it pauses the feed. USB needs
-none of that and keeps the phone charged, so it is still the safer choice for a
-long session.
+| Phone | How it becomes a camera over a cable | Tested here |
+| --- | --- | --- |
+| iPhone (iOS 16+, macOS 13+) | Plug in, unlock once and tap Trust, then lock it and leave it still. It appears as "... iPhone Camera" (Continuity Camera; no app). | Wireless only: found by name, 1080p30. The cable path has not been run. |
+| Android with a built-in webcam mode (Android 14+ on recent Pixels and others) | Plug in, pull down the USB notification, choose Webcam. It appears as an ordinary USB camera. | No |
+| Any other phone | A webcam app that offers a USB mode and a Mac companion (Camo, Iriun, DroidCam and similar), which adds a camera to macOS. Check the app's free-tier resolution limit. | No |
+| A phone app that serves video over the network | `--source http://...` or `rtsp://...`; over USB tethering this is wired too. | No |
 
-What the code does about a wireless link:
+The first run from a terminal triggers the macOS camera prompt. The script
+prints which camera it chose and whether a phone is on a USB cable.
 
-- **Waits for the phone at start** instead of failing, and says which cameras macOS sees.
+Wireless (iPhone only) needs the same Apple ID on both, Wi-Fi and Bluetooth on
+for both (no internet needed, Personal Hotspot off), and the phone locked,
+still and near the Mac. Picking the phone up or unlocking it pauses the feed.
+A cable needs none of that and keeps the phone charged.
+
+What the code does about an unreliable link:
+
+- **Finds the phone by name**, again on every reconnect, because its number
+  changes as cameras come and go. `--source iphone` (part of a name) or
+  `--source 1` (a number) override the default.
+- **Waits for the phone at start** instead of failing, and lists the cameras macOS sees.
 - **Reports a lost feed.** No frame for 2 s shows CAMERA FEED LOST, stops publishing
   (consumers see their data go stale, the dashboard says STALE), and keeps trying to
   reopen the camera. When frames return it carries on with the same calibration.
 - **Always releases the camera on exit**, including Ctrl-C. Before this, stopping the
-  program left the phone unavailable to the next run.
+  program left a wireless phone unavailable to the next run.
 
-A network stream also works as a source (`--source http://...` or `rtsp://...`),
-for a phone app that serves video over Wi-Fi. That path is untested.
+This lists the cameras by name, says which one is the phone and whether it is
+on a cable, and saves a frame from each:
 
 ```bash
 .venv/bin/python scripts/find_camera.py
@@ -302,7 +315,7 @@ simulator loop. The gameplay controller in `pupper_fc` is the one to drive robot
 
 ## What is verified
 
-Simulation, 1080p, camera 2.6 m up (and a slanted view), 39 tests, plus 4 capture tests against a fake camera and 13 approach tests on the fake field:
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 39 tests, plus 7 capture tests against a fake camera and 13 approach tests on the fake field:
 
 | Check | Result |
 | --- | --- |
@@ -330,6 +343,8 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 - 1920 × 1080 at 30 fps through Continuity Camera into the pipeline.
 - November 18, wireless (no USB): four consecutive starts at 30 fps, including a
   restart straight after Ctrl-C, which previously lost the phone every time.
+- November 19, wireless: `source: phone` chose "…iPhone Camera" by name and ran. A phone
+  on a USB cable, an Android phone and a webcam app have not been tried.
   A mid-run dropout and automatic reconnection has only been exercised against
   a fake camera in `tests/test_capture.py`, not on the real link.
 - Printed tags were read; three tags gave distances steady to about 0.1 cm

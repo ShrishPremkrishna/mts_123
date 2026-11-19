@@ -46,7 +46,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fieldcam import clickcal, colorpick  # noqa: E402
-from fieldcam.capture import FrameGrabber, is_live  # noqa: E402
+from fieldcam.capture import FrameGrabber, is_camera_name, is_live, phone_on_cable  # noqa: E402
 from fieldcam.camera_model import default_intrinsics  # noqa: E402
 from fieldcam.config import SIM_CONFIG, load_config, resolve  # noqa: E402
 from fieldcam.filters import wrap  # noqa: E402
@@ -321,6 +321,9 @@ def main():
         src = FrameGrabber(source, cam_cfg["width"], cam_cfg["height"], cam_cfg["fps"], wait=None if live else 0)
         OPEN_CAMERAS.append(src)
     print(f"source {source!r}: {src.width}x{src.height}")
+    if live and is_camera_name(source):
+        cable = phone_on_cable()
+        print("phone link: " + {True: "USB cable", False: "WIRELESS (no phone on USB): a cable is steadier", None: "unknown"}[cable])
 
     perc = Perception(cfg, src.width, src.height)
     if not perc.has_calibrated_intrinsics and not sim:

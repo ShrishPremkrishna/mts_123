@@ -117,3 +117,65 @@ def test_a_brief_hiccup_is_not_a_dropout():
     time.sleep(0.2)
     assert grab.status == "ok" and grab.reconnects == 0 and world.opens == 1
     grab.close()
+
+
+# ---- choosing the camera by name --------------------------------------------------
+MAC = {"index": 0, "name": "MacBook Pro Camera", "model": "MacBook Pro Camera", "built_in": True}
+IPHONE = {"index": 1, "name": "Ryan’s iPhone Camera", "model": "iPhone14,8", "built_in": False}
+PIXEL = {"index": 1, "name": "Pixel 8", "model": "UVC Camera", "built_in": False}
+GENERIC = {"index": 1, "name": "USB Video Device", "model": "UVC Camera VendorID_1234", "built_in": False}
+
+
+def test_what_counts_as_a_camera_name():
+    from fieldcam.capture import is_camera_name
+
+    assert is_camera_name("phone") and is_camera_name("iPhone") and is_camera_name("Pixel 8")
+    assert not is_camera_name(1) and not is_camera_name("1") and not is_camera_name("sim")
+    assert not is_camera_name("clip.mov") and not is_camera_name("runs/match1.mp4")
+    assert not is_camera_name("http://192.168.1.20:8080/video")
+    assert is_live("phone") and not is_live("clip.mov")
+
+
+def test_find_camera_by_name():
+    from fieldcam.capture import find_camera
+
+    assert find_camera("phone", [MAC, IPHONE]) is IPHONE              # the phone, not the laptop's own camera
+    assert find_camera("phone", [MAC, PIXEL]) is PIXEL                # an Android phone in webcam mode
+    assert find_camera("phone", [MAC, GENERIC]) is GENERIC            # unknown name: any camera that is not built in
+    assert find_camera("phone", [MAC]) is None                        # only the laptop camera: no phone, do not use it
+    assert find_camera("iphone", [MAC, IPHONE]) is IPHONE             # part of a name, any case
+    assert find_camera("ryan's iphone", [MAC, IPHONE]) is IPHONE      # straight apostrophe matches the curly one
+    assert find_camera("iPhone14,8", [MAC, IPHONE]) is IPHONE         # or the model
+    assert find_camera("macbook", [MAC, IPHONE]) is MAC
+    assert find_camera("gopro", [MAC, IPHONE]) is None
+
+
+def test_named_camera_is_found_again_under_a_new_number():
+    """The phone is number 1. It drops out, and when it comes back another camera has taken
+    number 1, so the phone is now number 2. Asking for it by name must follow it."""
+    world, opened = FakeWorld(), []
+    cams = {"list": [MAC, IPHONE]}
+
+    def open_fn(index):
+        opened.append(index)
+        return world.open(index)
+
+    grab = FrameGrabber("phone", 64, 48, 30, stall_s=0.3, open_fn=open_fn, cameras_fn=lambda: cams["list"],
+                        say=lambda _m: None)
+    assert opened == [1] and grab.device["name"] == IPHONE["name"]
+    assert grab.read()[0] is not None
+
+    world.available = False                                   # unplugged
+    cams["list"] = [MAC]                                      # and gone from the list
+    assert wait_until(lambda: grab.status == "lost")
+    time.sleep(1.2)
+    assert opened == [1]                                      # it did NOT fall back to the laptop camera
+    webcam = dict(GENERIC, index=1, name="Desk Webcam", model="UVC")
+    cams["list"] = [MAC, webcam, dict(IPHONE, index=2)]       # plugged back in, now third in the list
+    world.available = True
+    assert wait_until(lambda: grab.status == "ok" and grab.reconnects == 1)
+    assert opened[-1] == 2 and grab.device["index"] == 2
+    grab.close()
+
+    with pytest.raises(RuntimeError, match="USB"):            # no phone at all, no patience: fail with advice
+        FrameGrabber("phone", 64, 48, 30, wait=0, open_fn=open_fn, cameras_fn=lambda: [MAC], say=lambda _m: None)

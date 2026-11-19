@@ -14,17 +14,22 @@ right now", never reuse the last frame as if it were current.
 from __future__ import annotations
 
 import atexit
+import json
 import os
 import subprocess
 import sys
 import threading
 import time
 from contextlib import contextmanager
+from pathlib import Path
 
 import cv2
 
-HELP = ("If the iPhone is not listed: lock it, leave it still and near the Mac, Wi-Fi and Bluetooth on for both, "
-        "same Apple ID. Plugging it in by USB also works.")
+HELP = ("If the phone is not listed: plug it in by USB and unlock it once to trust this computer "
+        "(iPhone: then lock it and leave it still; wireless also works with Wi-Fi and Bluetooth on, same Apple ID).")
+VIDEO_SUFFIXES = {".mov", ".mp4", ".m4v", ".avi", ".mkv", ".webm"}
+BUILT_IN = ("macbook", "facetime", "built-in", "imac", "studio display", "isight")
+PHONES = ("iphone", "ipad", "android", "pixel", "galaxy", "oneplus", "camo", "iriun", "droidcam", "epoccam")
 
 
 @contextmanager
@@ -45,31 +50,90 @@ def _quiet():
         os.close(saved)
 
 
-def camera_names() -> list[str]:
-    """Names of the cameras macOS currently offers (for messages only; empty elsewhere)."""
+def list_cameras() -> list[dict]:
+    """The cameras macOS offers right now, in the order OpenCV numbers them.
+
+    OpenCV's macOS backend sorts capture devices by their unique ID (see
+    orderedVideoCaptureDevices in cap_avfoundation_mac.mm), so sorting the system's
+    own list the same way gives the index OpenCV will use for each one. The numbers
+    shift whenever a camera is plugged in or goes away; the names do not.
+    Returns [{"index", "name", "model", "built_in"}]; empty off macOS.
+    """
     if sys.platform != "darwin":
         return []
     try:
-        out = subprocess.run(["system_profiler", "SPCameraDataType"], capture_output=True, text=True, timeout=8).stdout
-    except (OSError, subprocess.SubprocessError):
+        out = subprocess.run(["system_profiler", "SPCameraDataType", "-json"], capture_output=True, text=True, timeout=8).stdout
+        found = json.loads(out).get("SPCameraDataType", [])
+    except (OSError, subprocess.SubprocessError, ValueError):
         return []
-    return [ln.strip().rstrip(":") for ln in out.splitlines()
-            if ln.startswith("    ") and not ln.startswith("     ") and ln.strip().endswith(":")]
+    found.sort(key=lambda c: c.get("spcamera_unique-id", ""))
+    return [{"index": i, "name": c.get("_name", "?"), "model": c.get("spcamera_model-id", ""),
+             "built_in": any(w in (c.get("_name", "") + " " + c.get("spcamera_model-id", "")).lower() for w in BUILT_IN)}
+            for i, c in enumerate(found)]
+
+
+def phone_on_cable() -> bool | None:
+    """True if a phone is plugged into this Mac by USB, False if not, None if that cannot be told."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        out = subprocess.run(["system_profiler", "SPUSBDataType"], capture_output=True, text=True, timeout=8).stdout.lower()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return any(w in out for w in ("iphone", "ipad", "android", "pixel", "galaxy"))
+
+
+def camera_names() -> list[str]:
+    """Names of the cameras macOS currently offers (for messages)."""
+    return [c["name"] for c in list_cameras()]
+
+
+def is_camera_name(source) -> bool:
+    """True for a camera given by NAME ("phone", "iPhone", "Pixel 8"...), as opposed to an
+    index, the simulator, a stream URL or a recorded video file."""
+    if not isinstance(source, str) or source.isdigit() or source == "sim" or "://" in source:
+        return False
+    return Path(source).suffix.lower() not in VIDEO_SUFFIXES and not Path(source).exists()
+
+
+def find_camera(name: str, cameras: list[dict] | None = None) -> dict | None:
+    """The camera a name refers to, or None if it is not connected right now.
+
+    "phone" (or "external") = a phone-looking camera if there is one, otherwise any
+    camera that is not the computer's own. Anything else matches part of a camera's
+    name or model, ignoring case and the kind of apostrophe.
+    """
+    cameras = list_cameras() if cameras is None else cameras
+    plain = lambda t: t.lower().replace("\u2019", "'")  # noqa: E731
+    want = plain(name.strip())
+    if want in ("phone", "external"):
+        phones = [c for c in cameras if any(w in plain(c["name"] + " " + c["model"]) for w in PHONES)]
+        others = [c for c in cameras if not c["built_in"]]
+        return (phones or others or [None])[0]
+    for c in cameras:
+        if want in plain(c["name"]) or want in plain(c["model"]):
+            return c
+    return None
 
 
 def is_live(source) -> bool:
-    """A camera index or a network stream URL is live; any other string is a recorded file."""
-    return isinstance(source, int) or (isinstance(source, str) and "://" in source)
+    """A camera (index or name) or a network stream URL is live; a video file is not."""
+    return isinstance(source, int) or (isinstance(source, str) and "://" in source) or is_camera_name(source)
 
 
 class FrameGrabber:
     def __init__(self, source, width: int, height: int, fps: int, wait: float | None = 10.0,
-                 stall_s: float = 2.0, say=print, open_fn=None):
-        """wait: seconds to keep trying to open the camera (None = for ever).
+                 stall_s: float = 2.0, say=print, open_fn=None, cameras_fn=None):
+        """source: a camera index, a camera NAME ("phone", "iPhone"...), a stream URL or a video file.
+        A name is looked up again on every (re)connect, because the index of a phone changes
+        as cameras come and go.
+        wait: seconds to keep trying to open the camera (None = for ever).
         stall_s: no frame for this long counts as a lost feed.
-        say: where status messages go. open_fn: replaces cv2.VideoCapture in tests."""
+        say: where status messages go. open_fn / cameras_fn: stand-ins for tests."""
         self.source, self._want, self.stall_s, self._say = source, (width, height, fps), stall_s, say
-        self._open_fn = open_fn
+        self._open_fn, self._cameras_fn = open_fn, cameras_fn
+        self._by_name = is_camera_name(source)
+        self.device = None  # {"index", "name", ...} of the camera in use, when chosen by name
         self.is_file = not is_live(source)
         self._lock = threading.Lock()
         self._frame, self._t, self._n = None, 0.0, 0
@@ -100,13 +164,22 @@ class FrameGrabber:
 
     # ---- opening -----------------------------------------------------------
     def _open(self):
+        target = self.source
+        if self._by_name:  # find which number that camera has right now
+            found = find_camera(self.source, self._cameras_fn() if self._cameras_fn else None)
+            if found is None:
+                return None
+            target = found["index"]
+            if self.device is None or self.device["name"] != found["name"] or self.device["index"] != found["index"]:
+                self._say(f"camera {self.source!r} -> {found['name']} (number {found['index']} right now)")
+            self.device = found
         with _quiet():
             if self._open_fn is not None:
-                cap = self._open_fn(self.source)
-            elif isinstance(self.source, int) and sys.platform == "darwin":
-                cap = cv2.VideoCapture(self.source, cv2.CAP_AVFOUNDATION)
+                cap = self._open_fn(target)
+            elif isinstance(target, int) and sys.platform == "darwin":
+                cap = cv2.VideoCapture(target, cv2.CAP_AVFOUNDATION)
             else:
-                cap = cv2.VideoCapture(self.source)
+                cap = cv2.VideoCapture(target)
             if cap is None or not cap.isOpened():
                 if cap is not None:
                     cap.release()
