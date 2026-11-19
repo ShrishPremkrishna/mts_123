@@ -1,0 +1,905 @@
+[
+ {
+  "tag": "e1024",
+  "num_envs": 1024,
+  "mb": 4,
+  "iter": 0.6921234854999057,
+  "collect": 0.5067242635013827,
+  "learn": 0.18511224500252865,
+  "act": 0.023019877000479028,
+  "env_step": 0.45708381851000013,
+  "nan": 0.004140876495512202,
+  "process": 0.022487945989269065,
+  "update": 0.18148431749796146,
+  "cpu": 0.6915534860000001,
+  "sps": 35508.11454151031,
+  "mem_gb": 0.343932928,
+  "startup": 29.675015687942505,
+  "dmon": {
+   "n": 20,
+   "sm": 42.0,
+   "mem": 2.0,
+   "pwr": 70.0,
+   "pclk": 1410.0,
+   "rx": 94.0,
+   "tx": 17.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 100.0,
+   "top_threads": [
+    100.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 301752]"
+  ],
+  "physics": {
+   "sim_step_s": 0.0008135003150164266,
+   "decimation_loop_s": 0.004941605699968932,
+   "forward_sense_s": 0.002010488220003026,
+   "use_cuda_graph": true
+  },
+  "prof": {
+   "wall": 1.344767607999529,
+   "gpu_busy": 0.28471982449997074,
+   "kernels": 53049.5,
+   "launches": {
+    "cudaLaunchKernel": 32245.5,
+    "cuLaunchKernel": 1121.5,
+    "cudaGraphLaunch": 188.5
+   },
+   "launch_cpu_s": {
+    "cudaLaunchKernel": 0.23419858499999724,
+    "cuLaunchKernel": 0.010371130499999128,
+    "cudaGraphLaunch": 0.03108643000000105
+   },
+   "sync": {
+    "cudaMemcpyAsync": 3917.5,
+    "aten::item": 2088.5,
+    "aten::_local_scalar_dense": 2088.5,
+    "cudaStreamSynchronize": 2226.5,
+    "aten::nonzero": 290.0,
+    "cudaDeviceSynchronize": 2.0
+   },
+   "sync_cpu_s": {
+    "cudaMemcpyAsync": 0.03538113950000363,
+    "aten::item": 0.015426946500000207,
+    "aten::_local_scalar_dense": 0.011840258500001389,
+    "cudaStreamSynchronize": 0.021600972499999805,
+    "aten::nonzero": 0.02412740099999919,
+    "cudaDeviceSynchronize": 1.788449999981094e-05
+   },
+   "top": [
+    {
+     "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native:",
+     "n": 7919,
+     "s": 0.042997050000000266
+    },
+    {
+     "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+     "n": 8725,
+     "s": 0.03920598800000399
+    },
+    {
+     "name": "Optimizer.step#Adam.step",
+     "n": 40,
+     "s": 0.03862056099999836
+    },
+    {
+     "name": "ccd_kernel_builder__locals__ccd_kernel_611e98fa_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.033811877000000726
+    },
+    {
+     "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std:",
+     "n": 4273,
+     "s": 0.011617440999987055
+    },
+    {
+     "name": "void at::native::(anonymous namespace)::multi_tensor_apply_kernel<at::native::(anonymous n",
+     "n": 488,
+     "s": 0.011584096999998612
+    },
+    {
+     "name": "Memcpy DtoD (Device -> Device)",
+     "n": 3382,
+     "s": 0.010361487999998168
+    },
+    {
+     "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::WelfordOps<",
+     "n": 96,
+     "s": 0.009254667000000386
+    }
+   ]
+  }
+ },
+ {
+  "tag": "e2048",
+  "num_envs": 2048,
+  "mb": 4,
+  "iter": 0.7277100264982437,
+  "collect": 0.5420256774996233,
+  "learn": 0.1863407085002109,
+  "act": 0.02328522449170123,
+  "env_step": 0.4919129169975349,
+  "nan": 0.003961807513405802,
+  "process": 0.022896205016877502,
+  "update": 0.1827068659986253,
+  "cpu": 0.7268787395000018,
+  "sps": 67543.38707757056,
+  "mem_gb": 0.67108864,
+  "startup": 29.851159811019897,
+  "dmon": {
+   "n": 20,
+   "sm": 48.5,
+   "mem": 4.0,
+   "pwr": 78.0,
+   "pclk": 1410.0,
+   "rx": 90.5,
+   "tx": 16.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 100.0,
+   "top_threads": [
+    100.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 302412]"
+  ],
+  "physics": {
+   "sim_step_s": 0.000994577429992205,
+   "decimation_loop_s": 0.005899452350058709,
+   "forward_sense_s": 0.0022257242249906994,
+   "use_cuda_graph": true
+  },
+  "prof": {
+   "wall": 1.409157331498136,
+   "gpu_busy": 0.32091867749999187,
+   "kernels": 54889.5,
+   "launches": {
+    "cudaLaunchKernel": 33521.0,
+    "cuLaunchKernel": 1176.0,
+    "cudaGraphLaunch": 192.0
+   },
+   "launch_cpu_s": {
+    "cudaLaunchKernel": 0.2422130225000016,
+    "cuLaunchKernel": 0.01342188599999497,
+    "cudaGraphLaunch": 0.028184182999999606
+   },
+   "sync": {
+    "cudaMemcpyAsync": 4249.5,
+    "aten::item": 2108.5,
+    "aten::_local_scalar_dense": 2108.5,
+    "cudaStreamSynchronize": 2544.5,
+    "aten::nonzero": 312.0,
+    "cudaDeviceSynchronize": 2.0
+   },
+   "sync_cpu_s": {
+    "cudaMemcpyAsync": 0.03788881399999291,
+    "aten::item": 0.01585142049999698,
+    "aten::_local_scalar_dense": 0.011925819499996266,
+    "cudaStreamSynchronize": 0.02529716999999941,
+    "aten::nonzero": 0.028585818499996387,
+    "cudaDeviceSynchronize": 1.794999999983702e-05
+   },
+   "top": [
+    {
+     "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native:",
+     "n": 9078,
+     "s": 0.046635875999998945
+    },
+    {
+     "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+     "n": 8872,
+     "s": 0.046270719000001626
+    },
+    {
+     "name": "Optimizer.step#Adam.step",
+     "n": 40,
+     "s": 0.03774419900000002
+    },
+    {
+     "name": "ccd_kernel_builder__locals__ccd_kernel_611e98fa_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.033535323000000915
+    },
+    {
+     "name": "Memcpy DtoD (Device -> Device)",
+     "n": 3410,
+     "s": 0.013473044000003855
+    },
+    {
+     "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std:",
+     "n": 4288,
+     "s": 0.011865052000002037
+    },
+    {
+     "name": "void at::native::(anonymous namespace)::multi_tensor_apply_kernel<at::native::(anonymous n",
+     "n": 488,
+     "s": 0.01105509000000389
+    },
+    {
+     "name": "_contact_sort__locals__contact_sort_8b8847a2_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.011011477999998676
+    }
+   ]
+  }
+ },
+ {
+  "tag": "e4096",
+  "num_envs": 4096,
+  "mb": 4,
+  "iter": 0.7856266029994003,
+  "collect": 0.5931869030027883,
+  "learn": 0.19130407049669884,
+  "act": 0.023490157022024505,
+  "env_step": 0.542170544496912,
+  "nan": 0.004115362997254124,
+  "process": 0.02336368201940786,
+  "update": 0.18764194949835655,
+  "cpu": 0.7849737255000022,
+  "sps": 125128.1456415689,
+  "mem_gb": 1.241513984,
+  "startup": 30.704126358032227,
+  "dmon": {
+   "n": 23,
+   "sm": 55.0,
+   "mem": 7.0,
+   "pwr": 93.0,
+   "pclk": 1410.0,
+   "rx": 83.0,
+   "tx": 15.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 99.0,
+   "top_threads": [
+    99.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 300307]"
+  ],
+  "physics": {
+   "sim_step_s": 0.0013587098800053354,
+   "decimation_loop_s": 0.007681998199950612,
+   "forward_sense_s": 0.0027910083300230325,
+   "use_cuda_graph": true
+  },
+  "prof": {
+   "wall": 1.4302608104990213,
+   "gpu_busy": 0.38235626850001675,
+   "kernels": 55112.0,
+   "launches": {
+    "cudaLaunchKernel": 33713.0,
+    "cuLaunchKernel": 1156.0,
+    "cudaGraphLaunch": 192.0
+   },
+   "launch_cpu_s": {
+    "cudaLaunchKernel": 0.24715767150001466,
+    "cuLaunchKernel": 0.010657254500003018,
+    "cudaGraphLaunch": 0.02768660149999997
+   },
+   "sync": {
+    "cudaMemcpyAsync": 4284.0,
+    "aten::item": 2107.0,
+    "aten::_local_scalar_dense": 2107.0,
+    "cudaStreamSynchronize": 2579.0,
+    "aten::nonzero": 312.0,
+    "cudaDeviceSynchronize": 2.0
+   },
+   "sync_cpu_s": {
+    "cudaMemcpyAsync": 0.03879368150000195,
+    "aten::item": 0.01668265799999827,
+    "aten::_local_scalar_dense": 0.012513794500002557,
+    "cudaStreamSynchronize": 0.030386761500003284,
+    "aten::nonzero": 0.03465021549999908,
+    "cudaDeviceSynchronize": 1.8869999999646097e-05
+   },
+   "top": [
+    {
+     "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+     "n": 8911,
+     "s": 0.05915759700000454
+    },
+    {
+     "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native:",
+     "n": 9240,
+     "s": 0.044719294000001956
+    },
+    {
+     "name": "Optimizer.step#Adam.step",
+     "n": 40,
+     "s": 0.039059864999998826
+    },
+    {
+     "name": "ccd_kernel_builder__locals__ccd_kernel_611e98fa_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.030687201999998862
+    },
+    {
+     "name": "_contact_sort__locals__contact_sort_8b8847a2_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.019633402999998613
+    },
+    {
+     "name": "Memcpy DtoD (Device -> Device)",
+     "n": 3410,
+     "s": 0.018795014999998545
+    },
+    {
+     "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, ",
+     "n": 1544,
+     "s": 0.01702256099999427
+    },
+    {
+     "name": "_ray_bvh_fd22e8c2_cuda_kernel_forward",
+     "n": 48,
+     "s": 0.016658600000000304
+    }
+   ]
+  }
+ },
+ {
+  "tag": "e8192",
+  "num_envs": 8192,
+  "mb": 4,
+  "iter": 0.9015325764994486,
+  "collect": 0.6919664390006801,
+  "learn": 0.20909114499590942,
+  "act": 0.023351944491878385,
+  "env_step": 0.640450029499334,
+  "nan": 0.004557741998723941,
+  "process": 0.0233613750024233,
+  "update": 0.2054427749972092,
+  "cpu": 0.9007854670000022,
+  "sps": 218081.96966482027,
+  "mem_gb": 2.501902336,
+  "startup": 31.753410816192627,
+  "dmon": {
+   "n": 26,
+   "sm": 66.5,
+   "mem": 14.0,
+   "pwr": 124.0,
+   "pclk": 1410.0,
+   "rx": 67.0,
+   "tx": 13.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 99.01,
+   "top_threads": [
+    99.0,
+    2.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 301044]"
+  ],
+  "physics": {
+   "sim_step_s": 0.0022014564349956346,
+   "decimation_loop_s": 0.012017280125110118,
+   "forward_sense_s": 0.004346881695018965,
+   "use_cuda_graph": true
+  },
+  "prof": {
+   "wall": 1.4705611980025424,
+   "gpu_busy": 0.5342908309999822,
+   "kernels": 55400.0,
+   "launches": {
+    "cudaLaunchKernel": 33946.0,
+    "cuLaunchKernel": 1176.0,
+    "cudaGraphLaunch": 192.0
+   },
+   "launch_cpu_s": {
+    "cudaLaunchKernel": 0.24160580749997657,
+    "cuLaunchKernel": 0.010949835000006769,
+    "cudaGraphLaunch": 0.026964714000002256
+   },
+   "sync": {
+    "cudaMemcpyAsync": 4317.0,
+    "aten::item": 2108.0,
+    "aten::_local_scalar_dense": 2108.0,
+    "cudaStreamSynchronize": 2612.0,
+    "aten::nonzero": 312.0,
+    "cudaDeviceSynchronize": 2.0
+   },
+   "sync_cpu_s": {
+    "cudaMemcpyAsync": 0.03991532850000005,
+    "aten::item": 0.02651354300000495,
+    "aten::_local_scalar_dense": 0.022489035499997038,
+    "cudaStreamSynchronize": 0.07104506650000356,
+    "aten::nonzero": 0.06953614299999805,
+    "cudaDeviceSynchronize": 1.810500000009779e-05
+   },
+   "top": [
+    {
+     "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+     "n": 8942,
+     "s": 0.08742289900001193
+    },
+    {
+     "name": "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native:",
+     "n": 9400,
+     "s": 0.04295681100000057
+    },
+    {
+     "name": "Optimizer.step#Adam.step",
+     "n": 40,
+     "s": 0.03826689000000083
+    },
+    {
+     "name": "_contact_sort__locals__contact_sort_8b8847a2_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.03565842899999996
+    },
+    {
+     "name": "Memcpy DtoD (Device -> Device)",
+     "n": 3410,
+     "s": 0.03156298399999883
+    },
+    {
+     "name": "_ray_bvh_fd22e8c2_cuda_kernel_forward",
+     "n": 48,
+     "s": 0.031096353999999906
+    },
+    {
+     "name": "ccd_kernel_builder__locals__ccd_kernel_611e98fa_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.030353374000001734
+    },
+    {
+     "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, ",
+     "n": 1544,
+     "s": 0.029524890999999814
+    }
+   ]
+  }
+ },
+ {
+  "tag": "p4096",
+  "num_envs": 4096,
+  "mb": 4,
+  "iter": 0.7623005230052513,
+  "collect": 0.5722346300026402,
+  "learn": 0.18881439499818953,
+  "act": 0.02375933598523261,
+  "env_step": 0.5205449530112674,
+  "nan": 0.0041857399919535965,
+  "process": 0.023763326986227185,
+  "update": 0.18513713800348341,
+  "cpu": 0.7618826830000032,
+  "sps": 128957.01502663511,
+  "mem_gb": 1.233125376,
+  "startup": 30.583541870117188,
+  "dmon": {
+   "n": 4,
+   "sm": 48.0,
+   "mem": 11.0,
+   "pwr": 89.0,
+   "pclk": 1410.0,
+   "rx": 83.5,
+   "tx": 14.5
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 99.5,
+   "top_threads": [
+    99.5,
+    10.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 308618]"
+  ]
+ },
+ {
+  "tag": "e16384",
+  "num_envs": 16384,
+  "mb": 4,
+  "iter": 1.1687721684975259,
+  "collect": 0.908366476502124,
+  "learn": 0.26050169600057416,
+  "act": 0.026627125524100848,
+  "env_step": 0.8414873969850305,
+  "nan": 0.016823321995616425,
+  "process": 0.023459061503672274,
+  "update": 0.25687225500223576,
+  "cpu": 1.168451374,
+  "sps": 336435.11592638714,
+  "mem_gb": 4.685037568,
+  "startup": 33.94228267669678,
+  "dmon": {
+   "n": 33,
+   "sm": 80.0,
+   "mem": 24.0,
+   "pwr": 153.0,
+   "pclk": 1410.0,
+   "rx": 55.0,
+   "tx": 12.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 99.0,
+   "top_threads": [
+    99.0,
+    4.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 303204]"
+  ],
+  "physics": {
+   "sim_step_s": 0.0038539652449981077,
+   "decimation_loop_s": 0.02015285177512851,
+   "forward_sense_s": 0.007439338090007368,
+   "use_cuda_graph": true
+  },
+  "prof": {
+   "wall": 1.6999940975001664,
+   "gpu_busy": 0.8723533969999658,
+   "kernels": 55579.0,
+   "launches": {
+    "cudaLaunchKernel": 34056.5,
+    "cuLaunchKernel": 1176.0,
+    "cudaGraphLaunch": 192.0
+   },
+   "launch_cpu_s": {
+    "cudaLaunchKernel": 0.24299743149998831,
+    "cuLaunchKernel": 0.011008539499995695,
+    "cudaGraphLaunch": 0.02830733899999978
+   },
+   "sync": {
+    "cudaMemcpyAsync": 4337.5,
+    "aten::item": 2107.5,
+    "aten::_local_scalar_dense": 2107.5,
+    "cudaStreamSynchronize": 2632.5,
+    "aten::nonzero": 312.0,
+    "cudaDeviceSynchronize": 2.0
+   },
+   "sync_cpu_s": {
+    "cudaMemcpyAsync": 0.03887971599999779,
+    "aten::item": 0.06909148849999171,
+    "aten::_local_scalar_dense": 0.06551857749999979,
+    "cudaStreamSynchronize": 0.31927225550000726,
+    "aten::nonzero": 0.27428026399999805,
+    "cudaDeviceSynchronize": 1.7975000000325962e-05
+   },
+   "top": [
+    {
+     "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+     "n": 8973,
+     "s": 0.14787090699999123
+    },
+    {
+     "name": "_contact_sort__locals__contact_sort_8b8847a2_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.07057977100000236
+    },
+    {
+     "name": "_ray_bvh_fd22e8c2_cuda_kernel_forward",
+     "n": 48,
+     "s": 0.0627075779999999
+    },
+    {
+     "name": "Memcpy DtoD (Device -> Device)",
+     "n": 3410,
+     "s": 0.05725701100000443
+    },
+    {
+     "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, ",
+     "n": 1544,
+     "s": 0.0560853919999989
+    },
+    {
+     "name": "_contact_match_d7b38672_cuda_kernel_forward",
+     "n": 288,
+     "s": 0.05002999699999617
+    },
+    {
+     "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrappe",
+     "n": 400,
+     "s": 0.048903045999999624
+    },
+    {
+     "name": "void memtile_value_kernel<int>(int*, int, unsigned long)",
+     "n": 1440,
+     "s": 0.04772836300000155
+    }
+   ]
+  }
+ },
+ {
+  "tag": "e32768",
+  "num_envs": 32768,
+  "mb": 4,
+  "iter": 1.8552130255011434,
+  "collect": 1.4274307145024068,
+  "learn": 0.42821862249911646,
+  "act": 0.03815130799921462,
+  "env_step": 1.2402155664931342,
+  "nan": 0.11842080049609649,
+  "process": 0.030225765505747404,
+  "update": 0.42446337249930366,
+  "cpu": 1.8547082630000062,
+  "sps": 423903.88014204643,
+  "mem_gb": 9.349103616,
+  "startup": 38.69522285461426,
+  "dmon": {
+   "n": 35,
+   "sm": 88.0,
+   "mem": 32.0,
+   "pwr": 188.0,
+   "pclk": 1410.0,
+   "rx": 33.0,
+   "tx": 11.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 99.0,
+   "top_threads": [
+    99.0,
+    1.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 304281]"
+  ],
+  "physics": {
+   "sim_step_s": 0.007069785925014002,
+   "decimation_loop_s": 0.03643263180001668,
+   "forward_sense_s": 0.013578525259981688,
+   "use_cuda_graph": true
+  },
+  "prof": {
+   "wall": 2.2025571100020898,
+   "gpu_busy": 1.5058213999999808,
+   "kernels": 55766.0,
+   "launches": {
+    "cudaLaunchKernel": 34095.0,
+    "cuLaunchKernel": 1176.0,
+    "cudaGraphLaunch": 192.0
+   },
+   "launch_cpu_s": {
+    "cudaLaunchKernel": 0.2374693679999818,
+    "cuLaunchKernel": 0.010477646999998053,
+    "cudaGraphLaunch": 0.03146334100000041
+   },
+   "sync": {
+    "cudaMemcpyAsync": 4341.0,
+    "aten::item": 2108.0,
+    "aten::_local_scalar_dense": 2108.0,
+    "cudaStreamSynchronize": 2636.0,
+    "aten::nonzero": 312.0,
+    "cudaDeviceSynchronize": 3.0
+   },
+   "sync_cpu_s": {
+    "cudaMemcpyAsync": 0.040614684999993406,
+    "aten::item": 0.1941609040000009,
+    "aten::_local_scalar_dense": 0.19115581599999842,
+    "cudaStreamSynchronize": 0.8554343820000047,
+    "aten::nonzero": 0.6806676899999996,
+    "cudaDeviceSynchronize": 1.3129999999888242e-05
+   },
+   "top": [
+    {
+     "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native:",
+     "n": 4489,
+     "s": 0.13440667199999554
+    },
+    {
+     "name": "_contact_sort__locals__contact_sort_8b8847a2_cuda_kernel_forward",
+     "n": 144,
+     "s": 0.07027003200000027
+    },
+    {
+     "name": "_ray_bvh_fd22e8c2_cuda_kernel_forward",
+     "n": 24,
+     "s": 0.06262542200000015
+    },
+    {
+     "name": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, ",
+     "n": 772,
+     "s": 0.05449627100000073
+    },
+    {
+     "name": "Memcpy DtoD (Device -> Device)",
+     "n": 1705,
+     "s": 0.05445386999999962
+    },
+    {
+     "name": "_contact_match_d7b38672_cuda_kernel_forward",
+     "n": 144,
+     "s": 0.04926761300000069
+    },
+    {
+     "name": "void memtile_value_kernel<int>(int*, int, unsigned long)",
+     "n": 720,
+     "s": 0.04658768699999841
+    },
+    {
+     "name": "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::elu_b",
+     "n": 160,
+     "s": 0.042828297000000716
+    }
+   ]
+  }
+ },
+ {
+  "tag": "c2x4096-0",
+  "num_envs": 4096,
+  "mb": 4,
+  "iter": 1.7429431640011899,
+  "collect": 1.5091571804950945,
+  "learn": 0.23485936800352647,
+  "act": 0.040615396999783115,
+  "env_step": 1.3638843540138623,
+  "nan": 0.03786423450219445,
+  "process": 0.06137772399233654,
+  "update": 0.23118338699714513,
+  "cpu": 1.7435164950000015,
+  "sps": 56401.150668807975,
+  "mem_gb": 1.241513984,
+  "startup": 31.499220371246338,
+  "dmon": {
+   "n": 49,
+   "sm": 100.0,
+   "mem": 6.0,
+   "pwr": 96.0,
+   "pclk": 1410.0,
+   "rx": 71.0,
+   "tx": 20.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 97.5,
+   "top_threads": [
+    97.5,
+    7.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 306854, 306856]"
+  ]
+ },
+ {
+  "tag": "c2x4096-1",
+  "num_envs": 4096,
+  "mb": 4,
+  "iter": 1.7426234325030237,
+  "collect": 1.504757361501106,
+  "learn": 0.23512423549982486,
+  "act": 0.049108450999483466,
+  "env_step": 1.351151076501992,
+  "nan": 0.035967828011052916,
+  "process": 0.0607413049947354,
+  "update": 0.23137014950043522,
+  "cpu": 1.7424900950000008,
+  "sps": 56411.49898851106,
+  "mem_gb": 1.241513984,
+  "startup": 31.465348958969116,
+  "dmon": {
+   "n": 49,
+   "sm": 100.0,
+   "mem": 6.0,
+   "pwr": 96.0,
+   "pclk": 1410.0,
+   "rx": 71.0,
+   "tx": 20.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 99.0,
+   "top_threads": [
+    99.0,
+    6.9,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 306854, 306856]"
+  ]
+ },
+ {
+  "tag": "e4096_mb1",
+  "num_envs": 4096,
+  "mb": 1,
+  "iter": 0.6473825325047073,
+  "collect": 0.5790012844990997,
+  "learn": 0.0683505500019237,
+  "act": 0.022223721502086846,
+  "env_step": 0.5292854665058258,
+  "nan": 0.004078230482264189,
+  "process": 0.023025772512482945,
+  "update": 0.06473667349928292,
+  "cpu": 0.6473470890000037,
+  "sps": 151848.39729867934,
+  "mem_gb": 3.309305856,
+  "startup": 30.35336971282959,
+  "dmon": {
+   "n": 12,
+   "sm": 56.5,
+   "mem": 7.0,
+   "pwr": 96.5,
+   "pclk": 1410.0,
+   "rx": 85.0,
+   "tx": 15.5
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 98.0,
+   "top_threads": [
+    98.0,
+    4.0,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 306078]"
+  ]
+ },
+ {
+  "tag": "e4096_mb2",
+  "num_envs": 4096,
+  "mb": 2,
+  "iter": 0.6772267285014095,
+  "collect": 0.5770206050001434,
+  "learn": 0.10025851299724309,
+  "act": 0.02219741200315184,
+  "env_step": 0.5276876999996603,
+  "nan": 0.0040506895165890455,
+  "process": 0.023000390498054912,
+  "update": 0.09669435600517318,
+  "cpu": 0.6771841049999985,
+  "sps": 145156.70433966842,
+  "mem_gb": 1.805647872,
+  "startup": 30.78026056289673,
+  "dmon": {
+   "n": 13,
+   "sm": 56.0,
+   "mem": 7.0,
+   "pwr": 94.0,
+   "pclk": 1410.0,
+   "rx": 86.0,
+   "tx": 17.0
+  },
+  "pidstat": {
+   "proc_med": 100.0,
+   "busiest_thread_med": 95.0,
+   "top_threads": [
+    95.0,
+    6.5,
+    0.0,
+    0.0
+   ]
+  },
+  "apps_seen": [
+   "[298069, 298106, 305400]"
+  ]
+ }
+]
