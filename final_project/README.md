@@ -1,12 +1,22 @@
 # Pupper FC
 
-Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 × 12-foot arena. An overhead iPhone camera observes field/robot markers, a bright ground ball and two goals. Gameplay uses a 2D field model. The initial shot uses locomotion and a front bumper; foot kicking and a special goalie posture are stretch goals.
+Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 × 12-foot arena. Overhead perception estimates robot and ball positions in a calibrated field with known goal locations. The immediate demo needs one to two minutes of responsive play, useful goal-directed shots and automatic offense/defense. A bounded locomotion run-through is the first shot candidate; neither that nor a leg kick has accepted physical contact evidence, and no bumper is fitted.
 
-## Current agreement and owner steering — November 17, 2026
+## Current agreement and owner steering — November 19, 2026
+
+The goals have arrived; the intended ball and second Pupper are still outstanding.
+New overhead-perception code is on upstream `main` as of November 19 and has been
+fetched/reviewed locally. It has desk-camera and simulated evidence; its live
+robot adapter and mounted-arena qualification are still missing. The next sprint
+is **real tracked robot pose → scripted target pose → measured repeatable arrival**,
+without a ball, followed by strike qualification and the two-robot demo. The
+[current plan](PLAN.md#current-sprint--november-19) replaces the earlier wait-for-code
+assumption. The incoming perception and local overnight harness have not yet been
+merged together in this checkout.
 
 - Shrish currently owns movement/sprinting, locomotion-based headbutts, gameplay and integration. Tej iterates on the foot-kick policy. Ryan owns overhead perception, localization and proposed actions/shot targets; our harness translates those into responsive robot execution. Marcus’s existing gait exports remain available for comparison; the active ownership checkpoint governs robot access. Shrish builds the 8 × 12-foot arena with approximately 2-foot goals; no bumper is fitted yet.
 - The owner accepted manual ball replacement and one deliberate resume cue after goals for the first working game; robots reposition themselves with software still running. Physical self-righting gets a bounded feasibility investigation before a demo commitment. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.
-- Two-robot soccer remains the target, with penalty shootout as fallback. On November 17 the owner prioritized coordinate/heading navigation, explicit offense/defense selection, measured latency, broader gait qualification and onboard obstacle avoidance before further contact trials with the wrong ball. The intended ball is pink, size 5, with flower patterns. Front-camera stop/hold/resume is sufficient; hybrid/all-around coverage and detours are not required. Ryan's pose feed is unavailable for several sessions, so independent offline work is authorized. Current process/access state is in the checkpoint.
+- Two-robot soccer remains the target, with penalty shootout as fallback. The owner prioritized coordinate/heading navigation, explicit offense/defense selection, measured latency, gait qualification and onboard obstacle avoidance before further contact trials with the wrong ball. The intended ball is pink, size 5, with flower patterns. Front-camera stop/hold/resume is sufficient; hybrid/all-around coverage and detours are not required. Ryan's source is now available; its live feed still needs integration and mounted-field qualification. Current process/access state is in the checkpoint.
 - Power-on should prepare the selected stack automatically with minimal setup. A supported startup pose and one deliberate start/arm action are accepted; their implementation needs verification. Other game-rule decisions can wait.
 - Keep a working prototype and improve it through measured experiments. Policy count, training methods, module boundaries and transport remain implementation choices.
 

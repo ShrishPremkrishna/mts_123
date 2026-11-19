@@ -3,9 +3,9 @@
   "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "main",
-  "mode": "owner_return_natural_stop",
-  "updated_utc": "2026-11-17T17:43:47.704901+00:00",
-  "current_report": "foundation/results/overnight-execution-20261117.json",
+  "mode": "perception_integration_alignment",
+  "updated_utc": "2026-11-19T23:13:20.384488+00:00",
+  "current_report": "foundation/results/perception-integration-review-20261119.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -51,7 +51,8 @@
     "course_requirements": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
     "executor_viewer": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/summary.json",
     "recovery_side_feasibility": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json",
-    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/editorial-validation.json"
+    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/editorial-validation.json",
+    "perception_integration_nov19": "foundation/results/perception-integration-review-20261119.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -88,30 +89,30 @@
     }
   },
   "activity": {
-    "automation": "No automation created for this workstream. The active project goal provides continuation turns; inspect actual jobs/agents after resuming.",
-    "compute": "Owner returned and requested natural stopping point. Delivery script/diagram and faithful replay asset complete; 409 frame attributions independently checked, 29-file archive verified. All delegate tasks and experiments complete. No robot operations/new paid jobs. Keep offline viewer available for inspection.",
+    "automation": "No automation created for this workstream. The prior overnight goal was paused at the user-requested stopping point; this review does not establish autonomous continuation.",
+    "compute": "November 19: fetched perception source 39d9bbb; completed two independent audits and exact Fable 5.2 review. Incoming tests: 54 passed, 2 failed; focused failures repeat. No source merge, dependency installs, SSH or robot actions. Review complete; awaiting alignment on the field navigation sprint.",
     "owners": {
       "physical_robot": "No active session; root exclusively owns any future hardware block after current readiness.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and current project lead: gait readiness, responsive execution, headbutt and defense; no bumper fitted.",
       "shooting": "Tej",
-      "perception": "Ryan: overhead field tracking, geometry and candidate actions/targets; awaiting actual integration sample.",
+      "perception": "Ryan: overhead tracking, geometry and candidate actions/targets. New source reviewed; actual mounted feed and executor integration remain unqualified.",
       "arena": "Shrish",
-      "project_lead": "Root closes current deliverables commit, reports overnight outcomes and waits for owner discussion/physical-session steering."
+      "project_lead": "Root owns audit, next camera/executor adapter and repeatable target-pose experiments after alignment; teammate source remains upstream and frozen in review archive."
     },
-    "goal_status": "Owner requested a natural stopping point and review before physical testing; pause autonomous goal after saving current work. No new feature work or hardware action initiated.",
+    "goal_status": "User requests continued progress and a focused demo alignment; previous autonomous overnight block remains closed. Do not infer current robot readiness from Nov17 observations.",
     "pending_archives": [],
     "processes": {
       "local_practice": {
         "pid": 27855,
         "tool_session": 38486,
         "url": "http://127.0.0.1:8766/",
-        "status": "Running, user-facing offline viewer; live simulation stopped, browser showing completed recorded rehearsal. No robot transport.",
+        "status": "Historical November 17 observation: viewer was running with simulation stopped. Not rechecked November 19; do not assume this PID remains the same process.",
         "source_runtime_sha256": "49ccc6a0795ea5e23d84913f7125f4921c4f98125dd695259cf39e0276bbdabb",
         "verified_utc": "2026-11-17T17:28:10.451773+00:00"
       },
-      "unowned_port_8765": "PID 95237 is preexisting reelrelay serve, not Pupper practice. Left untouched.",
-      "completed": "Fable68870 rc0; pytest62532 rc0; five recovery subprocesses exit0; delegates complete. Initial server27050 bind denied; old server27094 explicitly stopped."
+      "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
+      "completed": "November 19: perception and kick audit delegates completed; exact Fable review exited 0; full incoming suite and focused recheck exited 1 (same two failures); manual probe exited 0. No running jobs created by this review."
     }
   },
   "hardware_session": {
@@ -171,24 +172,24 @@
   },
   "next": [
     {
-      "id": "owner_alignment",
-      "action": "Discuss overnight outcomes and next robot sprint. User has returned; readiness/access must be established for that session. No automatic SSH, homing or deployment from this checkpoint."
+      "id": "align_current_sprint",
+      "action": "Discuss Nov19 source review and field setup. Use PLAN current sprint: real pose feedback, scripted targets, independent marked arrival scoring. No hardware action before current ownership/readiness."
     },
     {
-      "id": "target_native_preparation",
-      "action": "Next authorized Pi preparation: capture actual ROS/Python/compiler dependencies, then build the current 53-file source kit native-controller and 11-source gateway companions into fresh prefixes. Select the complete target-built gateway package, generated service types and runtime closure explicitly; guarded assembly alone preserves the baseline gateway. Use explicit rebuilt-controller digest and strict 15-role source index. Preserve accepted logfix release. Cached Ubuntu binaries are test-only. No overnight SSH, deployment or homing."
+      "id": "join_perception_and_executor",
+      "action": "Merge upstream perception with local harness preserving both; fix calibration-health admission, exact track measurement age and normalized cross-machine clock/ID mapping. Keep one command owner; never use untested field_state_bridge --drive as shortcut. Prepare no-motor raw packet replay and target-source fixtures."
     },
     {
-      "id": "next_physical_acceptance",
-      "action": "Record the fixed camera at measured walking height/pitch with exact settings, person and actual pink-ball ranges/offsets and a separate holdout. Then supported command routing and Start/Stop, bounded floor translation/IMU heading/braking with the resident finite client. No wrong-ball contact tests. Gateway latch acknowledgement, backend completion, policy zero and physical stillness remain separate observations."
+      "id": "camera_and_target_build",
+      "action": "Camera-only actual13ft mount/tag coverage, floor corner IDs0\u20133 and robot10/11 FRONT alignment, measured dimensions/tag heights/offsets. In parallel qualify target build from current source kit in isolated prefixes; preserve floor-tested rollback. Do not assume prior Pi state."
     },
     {
-      "id": "real_perception_and_demo",
-      "action": "When Ryan supplies an actual producer sample and clock semantics, implement its concrete adapter and prove one pose-controlled play before optional optimization. Keep two-robot availability, Tej kick interface and final video/presentation/code/blog deliverables visible. Do not invent pose accuracy, retrain a gait without a measured deficit, or tune opponent reserve on the same unsupported stopping assumption."
+      "id": "empirical_pose_trials",
+      "action": "After supported routing/Stop, use one robot with real tracking and fixed x/y/yaw targets; retain repeated trials and independent position/heading measurements. No ball required. Use measured error and braking to choose next change."
     },
     {
-      "id": "deferred_offline",
-      "action": "After current stack qualification, revisit correlated per-robot operator results and one human resume cue reaching both bridges (design in deliverable-prep/group-resume-design.json). Defer new gait/recovery/detector sweeps and slide polish until measured need/footage. See PLAN sprint boundary and DEMO.md."
+      "id": "demo_after_baseline",
+      "action": "Source second Pupper and intended ball; qualify short bounded run-through/legkick then two opposing auto roles and short match. One-cue group resume and final footage follow. Deferred experiments in PLAN."
     }
   ],
   "recorded_open_items": {
@@ -203,9 +204,10 @@
   "context_review_date": "2026-11-16 America/Los_Angeles",
   "alignment": {
     "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
-    "open": "Actual Ryan source/sample, second robot availability, physical bumper design and recovery feasibility outcome.",
-    "next_discussion": "Front-camera stop/hold/resume scope accepted; Ryan pose feed unavailable for several sessions. User requests raw-video-based decisions and useful overnight offline work. Prioritize the observed missed-object case; the lab detector does not establish general collision avoidance.",
-    "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits."
+    "open": "Actual mounted camera accuracy/coverage, target-native release qualification, normalized live clock/ID adapter, intended ball, second robot, runnable leg-kick artifact.",
+    "next_discussion": "Agree on no-ball tracked target-pose sprint, then bounded strike and two-robot short demo. Do not restart old training or overnight review loops.",
+    "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
+    "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",

@@ -1,6 +1,49 @@
 # Pupper FC delivery plan
 
-Updated November 17, 2026. Confirmed outcomes guide this plan. Rules and implementation proposals below remain open to discussion. The November 17 owner steering below supersedes the immediate contact-first progression from November 16. Use this as project context when choosing work with the current user, not as an automatic task assignment. Current activity and robot access are in the [checkpoint](../foundation/results/interruption-recovery.json). Implemented software and simulated play do not establish hardware acceptance.
+Updated November 19, 2026. Confirmed outcomes guide this plan. The current owner steering below supersedes the earlier immediate sprint order. Use this as project context when choosing work with the current user, not as an automatic task assignment. Current activity and robot access are in the [checkpoint](../foundation/results/interruption-recovery.json). Implemented software and simulated play do not establish hardware acceptance.
+
+## Current sprint — November 19
+
+The owner has goals, is preparing the field and overhead camera at approximately
+13 feet, and does not yet have the intended ball. A second Pupper must be sourced.
+The immediate demo target is one to two minutes with two opposing robots: useful
+goal-directed shots, automatic offense/defense, smooth responsive execution and
+shared overhead tracking. First establish this sequence; earlier endurance targets
+remain qualification work after it is physically achievable.
+
+**Next observable result:** one tagged robot repeatedly reaches a scripted field
+pose `(x, y, yaw)` using its real overhead observations. Inject targets, not robot
+feedback. The exact same target interface will later accept a shot staging pose.
+No ball is needed for this navigation test. Stopping at a pose and making a moving
+run-up are separate tests; a timer or simulated position does not measure either.
+
+1. Integrate the incoming perception source with the existing executor, resolve
+   its demonstrated calibration-health defect, and normalize actual measurements,
+   IDs and capture ages into each robot's clock. Its UDP-to-ROS `--drive` sketch
+   is not the execution path; keep one motion owner.
+2. Establish camera-only field calibration and robot-tag coverage at the real mount.
+   Floor corner IDs are 0 west-south, 1 east-south, 2 east-north, 3 west-north.
+   IDs 10/11 identify robots; their names do not lock their soccer roles.
+   The current goals come from field geometry, not goal-mounted tag detection.
+   Measure the field, goal mouths, printed tag size, standing tag height and offset.
+3. Complete the target-native build/selection and motor-inactive admission checks,
+   then a supervised short motion check before arbitrary pose trials.
+4. Use a small fixed matrix of target positions/headings and different starts,
+   retain every attempt, and measure final position and heading against independent
+   tape marks as well as the camera. A proposed first precision target is 5 cm and
+   5 degrees sustained for 0.5 seconds, subject to measured tracking capability;
+   report distributions, settling time, overshoot and interruptions, not only hits.
+5. Qualify a short marked run-through separately, then actual contact once the ball
+   arrives. Choose run-up and follow-through from measured geometry and braking.
+   Do not default to an additional two-metre open-loop burst. Tej's leg kick can
+   replace the strike only when its executable policy, entry/exit and physical
+   evidence are available. Then commission robot two and rehearse the short match.
+
+This block excludes new gait training, self-righting attempts, another approach
+planner, broad detector searches and presentation polish. The existing calibrated
+camera stop/hold path and physical Stop remain part of execution qualification.
+The [November 19 review](../foundation/results/perception-integration-review-20261119.json)
+records incoming commits, tests, reproduced defects and deferred work.
 
 ## Outcome and ownership
 
