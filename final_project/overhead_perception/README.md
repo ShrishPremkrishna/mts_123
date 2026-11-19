@@ -47,8 +47,26 @@ arena), so editing the real `config/field.yaml` never breaks them.
 ## Live camera
 
 The iPhone reaches the Mac through Continuity Camera and appears as an ordinary
-webcam. Plug it in by USB and lock it; over wireless it dropped off after
-program restarts. The first run from a terminal triggers the macOS camera prompt.
+webcam, **wirelessly or over USB**. The first run from a terminal triggers the
+macOS camera prompt.
+
+Wireless needs: the same Apple ID on both, Wi-Fi and Bluetooth on for both
+(no internet needed, Personal Hotspot off), and the phone **locked, still and
+near the Mac**. Picking the phone up or unlocking it pauses the feed. USB needs
+none of that and keeps the phone charged, so it is still the safer choice for a
+long session.
+
+What the code does about a wireless link:
+
+- **Waits for the phone at start** instead of failing, and says which cameras macOS sees.
+- **Reports a lost feed.** No frame for 2 s shows CAMERA FEED LOST, stops publishing
+  (consumers see their data go stale, the dashboard says STALE), and keeps trying to
+  reopen the camera. When frames return it carries on with the same calibration.
+- **Always releases the camera on exit**, including Ctrl-C. Before this, stopping the
+  program left the phone unavailable to the next run.
+
+A network stream also works as a source (`--source http://...` or `rtsp://...`),
+for a phone app that serves video over Wi-Fi. That path is untested.
 
 ```bash
 .venv/bin/python scripts/find_camera.py
@@ -203,7 +221,7 @@ simulator loop. The gameplay controller in `pupper_fc` is the one to drive robot
 
 ## What is verified
 
-Simulation, 1080p, camera 2.6 m up (and a slanted view), 35 tests:
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 35 tests, plus 4 capture tests against a fake camera:
 
 | Check | Result |
 | --- | --- |
@@ -224,6 +242,10 @@ Simulation, 1080p, camera 2.6 m up (and a slanted view), 35 tests:
 Live iPhone at a desk, November 16 (no physical reference measurements taken):
 
 - 1920 × 1080 at 30 fps through Continuity Camera into the pipeline.
+- November 18, wireless (no USB): four consecutive starts at 30 fps, including a
+  restart straight after Ctrl-C, which previously lost the phone every time.
+  A mid-run dropout and automatic reconnection has only been exercised against
+  a fake camera in `tests/test_capture.py`, not on the real link.
 - Printed tags were read; three tags gave distances steady to about 0.1 cm
   (28.6, 30.1, 31.3 cm), not checked against a tape measure.
 - The ball detector's fitted outline matched the real ball in one saved frame.

@@ -32,6 +32,7 @@ Ball colour:
 import argparse
 import json
 import math
+import signal
 import sys
 import time
 from pathlib import Path
@@ -42,6 +43,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fieldcam import clickcal, colorpick  # noqa: E402
+from fieldcam.capture import FrameGrabber, is_live  # noqa: E402
 from fieldcam.camera_model import default_intrinsics  # noqa: E402
 from fieldcam.config import SIM_CONFIG, load_config, resolve  # noqa: E402
 from fieldcam.filters import wrap  # noqa: E402
@@ -88,6 +90,8 @@ class SimSource:
 
 WINDOW = "pupper fc perception"
 DASHBOARD = "pupper fc field view"
+OPEN_CAMERAS = []  # released on exit, however the program ends
+CAMERA_HELP = "Wireless phone: lock it, keep it still and near the Mac, Wi-Fi and Bluetooth on."
 CLICKS_FILE = "out/manual_calib.json"
 
 
@@ -257,14 +261,15 @@ def main():
     if isinstance(source, str) and source.isdigit():
         source = int(source)
     sim = source == "sim"
-    live = isinstance(source, int)
+    live = not sim and is_live(source)
 
     if sim:
         cfg["camera"]["intrinsics"] = "config/_none_.yaml"  # the simulated lens is an ideal pinhole
         src = SimSource(cfg, (cam_cfg["width"], cam_cfg["height"]))
     else:
-        from fieldcam.capture import FrameGrabber
-        src = FrameGrabber(source, cam_cfg["width"], cam_cfg["height"], cam_cfg["fps"])
+        # A live camera may be a wireless phone that is not there yet: wait for it, for as long as it takes.
+        src = FrameGrabber(source, cam_cfg["width"], cam_cfg["height"], cam_cfg["fps"], wait=None if live else 0)
+        OPEN_CAMERAS.append(src)
     print(f"source {source!r}: {src.width}x{src.height}")
 
     perc = Perception(cfg, src.width, src.height)
@@ -287,12 +292,35 @@ def main():
     probe, mouse_ready = Probe(scale), False
     dash_on, dash_zoom = args.dashboard, "field"
     announced_cam, asked, t_done, moved = None, False, 0.0, False  # what has been said about calibration so far
+    feed_lost = False
     while True:
         frame, t_rx, n = src.read(n)
         if frame is None:
-            if live:
-                continue
-            break
+            if not live:
+                break
+            # No new frame. If that lasts, the feed is lost: say so, publish nothing (consumers
+            # then see their data go stale, which is the truth), and wait for it to come back.
+            lost = src.lost_for
+            if lost and not feed_lost:
+                feed_lost = True
+                box("CAMERA FEED LOST", ["No frames are arriving. Nothing is being published while it is down.",
+                                         "Trying to reconnect by itself. " + CAMERA_HELP])
+            if lost and not args.no_gui:
+                dead = (vis * 0.35).astype(np.uint8) if vis is not None else np.zeros((src.height, src.width, 3), np.uint8)
+                draw_banner(dead, "CAMERA FEED LOST", [
+                    f"no frames for {lost:.0f} s: reconnecting by itself",
+                    "wireless phone: lock it, keep it still and near the Mac    q = quit"], (0, 0, 255))
+                cv2.imshow(WINDOW, cv2.resize(dead, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+                           if scale != 1.0 else dead)
+                if dash_on:
+                    cv2.imshow(DASHBOARD, render_topdown(state, zoom=dash_zoom, stale_s=lost))
+                if cv2.waitKey(30) & 0xFF == ord("q"):
+                    break
+            continue
+        if feed_lost:
+            feed_lost = False
+            box("CAMERA FEED BACK", ["Frames are arriving again. The earlier calibration is still in use;",
+                                     "if the phone was moved, the CAMERA OR TAGS MOVED warning will say so."])
         if perc.cam is None and args.survey:
             if count % 10 == 0:  # --survey: never fall back to the measured layout in the config
                 survey_calibrate(perc, frame, quiet=True)
@@ -404,8 +432,21 @@ def main():
     if state:
         s = state["shots"].get("striker", {})
         print(f"{count} frames, ~{fps:.0f} fps. striker ready={s.get('ready')} error={s.get('error')}")
-    src.close()
+
+
+def _stop(*_args):
+    raise KeyboardInterrupt
 
 
 if __name__ == "__main__":
-    main()
+    signal.signal(signal.SIGTERM, _stop)  # a plain kill also releases the camera
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nstopped")
+    finally:
+        # Always let go of the camera. A wireless phone left held by a dead program
+        # can stay unavailable to the next run.
+        for grabber in OPEN_CAMERAS:
+            grabber.close()
+        cv2.destroyAllWindows()
