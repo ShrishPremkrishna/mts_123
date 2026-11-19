@@ -171,6 +171,10 @@ class Perception:
             "calibrated": self.cam is not None, "calib_err_px": self.calib_err_px,
             "ball": {"visible": False}, "robots": {n: {"visible": False} for n in cfg["robots"]},
             "goals": cfg["goals"], "shots": {}, "relative": {},
+            # Enough for a viewer to draw the scene without the config file.
+            "field": {"length": cfg["field"]["length"], "width": cfg["field"]["width"],
+                      "ball_radius": cfg["ball"]["radius"]},
+            "calib_mode": self.calib_mode, "floor_tags": {},
         }
         self.debug = {"tags": {}, "ball_px": None}
         if self.cam is None:
@@ -187,6 +191,9 @@ class Perception:
         # Calibration health: has the camera been bumped since we froze the pose?
         field = self.floor_layout
         seen = [i for i in tags if i in field]
+        # Where each floor tag is on the field, and whether it is readable right now.
+        state["floor_tags"] = {str(i): {"x": float(xy[0]), "y": float(xy[1]), "visible": i in tags}
+                               for i, xy in field.items()}
         if seen:
             proj = cam.project([[*field[i], 0.0] for i in seen])
             obs = np.array([_quad_center(tags[i]) for i in seen])

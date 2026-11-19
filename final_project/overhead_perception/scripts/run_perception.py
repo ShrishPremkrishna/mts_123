@@ -20,6 +20,11 @@ Every pixel has a floor position once calibrated:
       g = show / hide a measuring grid drawn on the floor
       p = save the position of every pixel to out/pixel_map.npy
 
+Dashboard:
+      d = show / hide a top-down view of the field (goals, floor tags, ball, Puppers)
+      z = zoom the dashboard between the whole field and "fit to what is visible"
+      (--dashboard opens it at start; scripts/dashboard.py shows the same view from another terminal or machine)
+
 Ball colour:
       b = put the cursor on the ball and press b: the ball colour is set from the
           pixels under the cursor, and the lines to paste into the config are printed
@@ -44,6 +49,7 @@ from fieldcam.net import StatePublisher  # noqa: E402
 from fieldcam.detect import BallDetector  # noqa: E402
 from fieldcam.pipeline import Perception  # noqa: E402
 from fieldcam.probe import Probe, floor_map  # noqa: E402
+from fieldcam.topdown import render as render_topdown  # noqa: E402
 
 
 class SimSource:
@@ -81,6 +87,7 @@ class SimSource:
 
 
 WINDOW = "pupper fc perception"
+DASHBOARD = "pupper fc field view"
 CLICKS_FILE = "out/manual_calib.json"
 
 
@@ -240,6 +247,7 @@ def main():
                     help="start from the last click calibration (only valid if the camera has not moved)")
     ap.add_argument("--survey", action="store_true",
                     help="calibrate at start from the floor tags in view, nothing measured (same as key t)")
+    ap.add_argument("--dashboard", action="store_true", help="also open the top-down field view (same as key d)")
     ap.add_argument("--display-width", type=int, default=1280, help="debug window width in pixels")
     args = ap.parse_args()
 
@@ -277,6 +285,7 @@ def main():
     n, state, vis, t_fps, fps = -1, None, None, time.time(), 0.0
     count, t_status = 0, 0.0
     probe, mouse_ready = Probe(scale), False
+    dash_on, dash_zoom = args.dashboard, "field"
     announced_cam, asked, t_done, moved = None, False, 0.0, False  # what has been said about calibration so far
     while True:
         frame, t_rx, n = src.read(n)
@@ -351,6 +360,8 @@ def main():
         if not args.no_gui:
             cv2.imshow(WINDOW, cv2.resize(vis, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
                        if scale != 1.0 else vis)
+            if dash_on:
+                cv2.imshow(DASHBOARD, render_topdown(state, zoom=dash_zoom))
             if not mouse_ready:  # the window has to exist before it can take a mouse handler
                 cv2.setMouseCallback(WINDOW, probe.on_mouse)
                 mouse_ready = True
@@ -359,6 +370,12 @@ def main():
                 break
             if key == ord("g"):
                 probe.grid = not probe.grid
+            if key == ord("d"):
+                dash_on = not dash_on
+                if not dash_on:
+                    cv2.destroyWindow(DASHBOARD)
+            if key == ord("z"):
+                dash_zoom = "fit" if dash_zoom == "field" else "field"
             if key == ord("x"):
                 probe.pins.clear()
             if key == ord("b"):

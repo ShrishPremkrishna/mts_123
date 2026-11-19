@@ -500,3 +500,51 @@ def test_pick_ball_colour_and_size():
     assert len(suggest_ranges(red, 30, 30)) == 2
     with pytest.raises(ValueError):
         suggest_ranges(img, -50, -50)
+
+
+# ---- top-down dashboard ---------------------------------------------------------
+def test_dashboard_view():
+    """The top-down view is drawn from the published state alone, and never shows what is not seen."""
+    import json
+
+    from fieldcam.topdown import PANEL_W, PINK, _bounds, render
+
+    cfg, arena, perc = make(**CAMERAS["overhead"])
+    truth = {"striker": (-0.6, -0.3, 0.9), "keeper": (1.0, 0.2, 2.6)}
+    st = perc.process(arena.render(truth, (0.2, 0.3)), t_capture=0.0, t_now=0.1)
+    # The state carries what a viewer needs: field size and where the floor tags are.
+    assert st["field"]["length"] == cfg["field"]["length"] and st["calib_mode"] == "tags"
+    assert set(st["floor_tags"]) == {"0", "1", "2", "3", "4", "5"}
+    assert all(t["visible"] for t in st["floor_tags"].values())
+    assert abs(st["floor_tags"]["1"]["x"] - 1.4) < 1e-9 and abs(st["floor_tags"]["1"]["y"] + 0.9) < 1e-9
+
+    wire = json.loads(json.dumps(st))  # exactly what arrives over UDP
+    img = render(wire)
+    assert img.shape == (800, 1280, 3)
+
+    def count(picture, bgr):
+        return int(np.all(picture[:, : 1280 - PANEL_W] == bgr, axis=-1).sum())
+
+    assert count(img, PINK) > 30                       # the ball is on the field view
+    # World -> pixel for the whole-field view, to check things are drawn where they are.
+    x0, x1, y0, y1 = _bounds(wire, "field")
+    view_w = 1280 - PANEL_W
+    scale = min((view_w - 40) / (x1 - x0), (800 - 40) / (y1 - y0))
+    ox, oy = 20 + ((view_w - 40) - scale * (x1 - x0)) / 2, 20 + ((800 - 40) - scale * (y1 - y0)) / 2
+    bu, bv = int(round(ox + (0.2 - x0) * scale)), int(round(oy + (y1 - 0.3) * scale))
+    assert tuple(img[bv, bu]) == PINK                  # ball drawn at the ball's field position
+    tu, tv = int(round(ox + (1.4 - x0) * scale)), int(round(oy + (y1 + 0.9) * scale))
+    assert tuple(img[tv - 12, tu - 12]) == (245, 245, 245)   # a readable floor tag is a filled white square
+
+    # Ball gone and one robot gone: they disappear from the picture.
+    for k in range(1, 30):
+        st2 = perc.process(arena.render({"striker": truth["striker"]}, None), t_capture=k / 30)
+    gone = render(json.loads(json.dumps(st2)))
+    assert count(gone, PINK) == 0
+    assert not st2["robots"]["keeper"]["visible"]
+    # Zoom-to-fit, not calibrated, stale and no-data all draw without complaint.
+    assert render(wire, zoom="fit").shape == img.shape
+    blank = Perception(cfg, *SIZE).process(arena.render(truth, (0.2, 0.3)), 0.0)
+    assert blank["floor_tags"] == {} and count(render(json.loads(json.dumps(blank))), PINK) == 0
+    assert render(wire, stale_s=3.0).mean() < img.mean()   # an old picture is dimmed
+    assert render(None).shape == img.shape

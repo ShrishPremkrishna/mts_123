@@ -55,10 +55,11 @@ program restarts. The first run from a terminal triggers the macOS camera prompt
 ```
 
 ```bash
-.venv/bin/python scripts/run_perception.py --survey
+.venv/bin/python scripts/run_perception.py --survey --dashboard
 ```
 
-The script says where calibration stands, in the terminal and as a banner in
+That opens two windows: the camera view with overlays, and the top-down
+dashboard described below. The script says where calibration stands, in the terminal and as a banner in
 the window: **CALIBRATION NEEDED → CALIBRATING… (n of m tags) → CALIBRATION
 DONE**, and **CAMERA OR TAGS MOVED** if the floor tags drift more than 8 px
 from where calibration put them.
@@ -83,6 +84,28 @@ pins show the distance) · right click or `x` = clear pins · `g` = floor grid �
 `b` = set the ball colour from the pixels under the cursor (see below).
 A pixel's position is where its line of sight meets the floor, so it is only
 right for things lying on the floor.
+
+## Dashboard
+
+A top-down drawing of the field: goals, floor tags (filled when readable in the
+current frame, hollow when covered or out of view), the ball with its velocity,
+each Pupper with its heading, the line from each Pupper to the ball and the
+shot line from the ball to the goal. The side panel gives calibration state,
+positions, ages, each robot's view of the ball and whether it is in kick
+position. It shows only what perception currently reports: a ball or robot that
+is not seen disappears and is listed as "not seen", and the view dims and says
+STALE if updates stop.
+
+- In the live script: `--dashboard` at start, or `d` to show/hide, `z` to zoom
+  between the whole field and "fit to what is visible" (useful at a desk).
+- From another terminal, or another machine that receives the stream:
+
+```bash
+.venv/bin/python scripts/dashboard.py
+```
+
+It is drawn from the published state alone (`fieldcam/topdown.py`), with no
+camera and no config, so what it shows is exactly what consumers receive.
 
 ## Ball
 
@@ -129,7 +152,9 @@ same field size; change both together.
 **UDP JSON**, one datagram per frame (`net.host`, `net.port`; `scripts/listen.py` prints it):
 
 ```
-seq, stamp, frame_age_s, calibrated, calib_err_px
+seq, stamp, frame_age_s, calibrated, calib_mode, calib_err_px
+field:   {length, width, ball_radius}
+floor_tags: {<id>: {x, y, visible}}
 ball:    {visible, x, y, vx, vy, age_s}
 robots:  {<name>: {visible, x, y, yaw, vx, vy, wz, age_s}}
 goals:   {east|west: {x, y_min, y_max}}
@@ -178,7 +203,7 @@ simulator loop. The gameplay controller in `pupper_fc` is the one to drive robot
 
 ## What is verified
 
-Simulation, 1080p, camera 2.6 m up (and a slanted view), 34 tests:
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 35 tests:
 
 | Check | Result |
 | --- | --- |
@@ -193,6 +218,7 @@ Simulation, 1080p, camera 2.6 m up (and a slanted view), 34 tests:
 | Calibration from 4 clicks, each up to 4 px off | ≤ 0.8 cm |
 | Tag-to-tag distance from 3 tags, over 1.4–3.3 m | ≤ 2.2 cm |
 | 8 cm robot tag read rate / 5 cm on a soft image | 100% / 96% |
+| Dashboard | drawn from the UDP state; ball and tags land on their field positions; unseen objects are not drawn |
 | Gameplay bridge | real `Controller.tick` accepts the observation and commands motion |
 
 Live iPhone at a desk, November 16 (no physical reference measurements taken):
@@ -203,7 +229,7 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 - The ball detector's fitted outline matched the real ball in one saved frame.
 - Click calibration registered clicks in the real window.
 
-Not done: the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
+Not done: the dashboard on a live feed, the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
 latency measurement, a mounted overhead view, robot tags on robots, two robots,
 a recorded replay fixture, identity-swap or false-detection counts, clock
 alignment with a robot, and anything on the Pi.
@@ -220,6 +246,7 @@ alignment with a robot, and anything on the Pi.
 - `fieldcam/gameplay.py` state → gameplay `Observation`
 - `fieldcam/relative.py` ball and goal from each robot's point of view, shot-line angles
 - `fieldcam/colorpick.py` ball colour ranges from pixels under the cursor
+- `fieldcam/topdown.py`, `scripts/dashboard.py` top-down dashboard from the published state
 - `fieldcam/planner.py` simple shot geometry and approach (simulator loop)
 - `fieldcam/sim.py` synthetic arena for tests and `--source sim`
 - `fieldcam/net.py`, `fieldcam/capture.py` UDP and camera capture
