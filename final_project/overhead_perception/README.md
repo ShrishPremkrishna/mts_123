@@ -1,0 +1,185 @@
+# Overhead perception
+
+One overhead iPhone camera becomes a shared field state for Pupper FC: where
+each Pupper is and which way it faces, where the ball is and how fast it is
+moving, the goals, and the geometry of a shot. [Project brief](../README.md) ·
+[perception notes](../handoffs/PERCEPTION.md).
+
+## Status — November 18, 2026
+
+Works in simulation end to end and has been brought up on a live iPhone feed
+at a desk. It has **not** run over the arena, on a robot, or with a mounted
+camera. Details and measured numbers are under [What is verified](#what-is-verified).
+
+## How it works
+
+Everything tracked sits on a horizontal plane of known height, so one camera
+is enough and nothing is triangulated:
+
+1. Floor AprilTags (or clicked floor points) give the camera's position.
+2. Each pixel is a ray from the camera; intersect it with the right plane:
+   robot tag at `tag_height`, ball centre at `radius`, floor at 0.
+3. Kalman filters give velocities and bridge short dropouts.
+4. State goes out as JSON over UDP every frame, with an `age_s` on every object.
+
+## Setup (once)
+
+Run everything below from this folder (`final_project/overhead_perception`).
+It has its own small environment; it does not use the repository's `.venv-api`.
+
+```bash
+uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.txt
+```
+
+## Try it with no hardware
+
+```bash
+.venv/bin/python scripts/run_perception.py --source sim
+```
+
+```bash
+.venv/bin/python -m pytest tests -q -s
+```
+
+`--source sim` and the tests use the frozen `config/sim_field.yaml` (a 3.0 × 2.0 m
+arena), so editing the real `config/field.yaml` never breaks them.
+
+## Live camera
+
+The iPhone reaches the Mac through Continuity Camera and appears as an ordinary
+webcam. Plug it in by USB and lock it; over wireless it dropped off after
+program restarts. The first run from a terminal triggers the macOS camera prompt.
+
+```bash
+.venv/bin/python scripts/find_camera.py
+```
+
+```bash
+.venv/bin/python scripts/run_perception.py --survey
+```
+
+The script says where calibration stands, in the terminal and as a banner in
+the window: **CALIBRATION NEEDED → CALIBRATING… (n of m tags) → CALIBRATION
+DONE**, and **CAMERA OR TAGS MOVED** if the floor tags drift more than 8 px
+from where calibration put them.
+
+### Three ways to calibrate
+
+| Key | Needs | Field frame |
+| --- | --- | --- |
+| `c` (automatic at start) | 4+ floor tags at the measured positions in `config/field.yaml` | The real field |
+| `t` (automatic with `--survey`) | Any 2+ floor tags, nothing measured; 3+ spread apart is better | Lowest-numbered tag is the field centre; its right edge points at +x, top edge at +y |
+| `m` | Click the floor points listed under `manual_points` (default: the four field corners) | The real field |
+
+A tag counts only when its whole black square and white border are visible.
+After calibration the camera position is frozen, so tags may be covered.
+Robot tags (ids 10, 11) never count for calibration.
+
+### Other keys
+
+Mouse = floor position under the cursor · left click = pin a point (consecutive
+pins show the distance) · right click or `x` = clear pins · `g` = floor grid ·
+`p` = save every pixel's floor position to `out/pixel_map.npy` · `q` = quit.
+A pixel's position is where its line of sight meets the floor, so it is only
+right for things lying on the floor.
+
+## Tags
+
+`tags/pupper_fc_tags.pdf`: six floor tags (17 cm, ids 0–5) and two robot tags
+(8 cm, ids 10 striker, 11 keeper), one per US Letter page. Print at 100% on
+matte paper. Tape floor sheets down whole. Cut robot tags at the corner marks,
+mount flat on a stiff card with the FRONT edge toward the nose, then measure
+`tag_height` (and `tag_offset` if it is not over the body centre) into the config.
+`scripts/make_tags.py` regenerates the pages.
+
+## Remaining bring-up on the arena
+
+1. Measure floor tag centres into `config/field.yaml` (current values are placeholders).
+2. `scripts/calibrate_intrinsics.py` with the lens and resolution actually used. Until then the lens is a guess (`hfov_deg`).
+3. `scripts/measure_latency.py` → `camera.latency_s` (0.12 s is a guess).
+4. `scripts/tune_hsv.py` under the arena lights → `ball.colors`.
+5. Measure the ball (`ball.radius`, 0.08 m is an estimate from a photo) and each robot's standing tag height.
+
+**Camera coverage is an open problem.** At 1080p 16:9 the iPhone main lens sees
+about 69° × 42°. Fitting the 3.66 × 2.44 m arena straight down needs the phone
+roughly 3.8 m up, and at that height an 8 cm robot tag is under 4 pixels per
+cell, where detection starts to fail. Options to test: the 0.5× lens, a slanted
+view, a 4K mode, larger robot tags, or two cameras. None is tested yet.
+
+## Interfaces
+
+Field frame: metres, origin at the field centre, +x toward the east goal, +y
+left of it, yaw counter-clockwise from +x. This is the same frame as
+[the gameplay model](../pupper_fc/model.py), and `config/field.yaml` carries the
+same field size; change both together.
+
+**UDP JSON**, one datagram per frame (`net.host`, `net.port`; `scripts/listen.py` prints it):
+
+```
+seq, stamp, frame_age_s, calibrated, calib_err_px
+ball:    {visible, x, y, vx, vy, age_s}
+robots:  {<name>: {visible, x, y, yaw, vx, vy, wz, age_s}}
+goals:   {east|west: {x, y_min, y_max}}
+shots:   {<name>: {target, aim_yaw, staging:[x,y,yaw], ball_to_target,
+                   error:{along, lateral, dist, yaw}, ready, cmd:{vx, vy, wz}}}
+```
+
+Positions are extrapolated to `stamp`; `age_s` is how old the newest real
+measurement behind each one is. `visible` stays true while a track coasts
+(up to `tracking.lost_after_s`). `stamp` is `time.time()` on the perception Mac.
+
+**Gameplay controller.** `fieldcam/gameplay.py` `to_observation(state, robot, robot_id)`
+returns a `final_project.pupper_fc.model.Observation`: pose at capture time,
+the capture time itself, and `None` for anything not measured in that frame.
+`fallen` and `goal` are not observed from overhead. Clock alignment between
+machines is the caller's `clock_offset`; nothing measures it yet.
+
+**ROS 2.** `ros2/field_state_bridge.py` is an untested sketch (UDP → topics);
+topic names are placeholders and it has never run against ROS.
+
+`shots` and `cmd` are an earlier, simpler approach planner kept for the
+simulator loop. The gameplay controller in `pupper_fc` is the one to drive robots.
+
+## What is verified
+
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 26 tests:
+
+| Check | Result |
+| --- | --- |
+| Robot position / heading, measured floor tags | ≤ 0.5 cm / ≤ 2.3° |
+| Ball position (red/blue/grey ball, 8 cm radius) | ≤ 0.7 cm |
+| Calibration from 3 unmeasured tags | robot ≤ 1.2 cm, ball ≤ 1.1 cm |
+| Same, with the lens guessed badly (60° vs 69°) | robot ≤ 3.6 cm, ball ≤ 3.3 cm |
+| Calibration from 4 clicks, each up to 4 px off | ≤ 0.8 cm |
+| Tag-to-tag distance from 3 tags, over 1.4–3.3 m | ≤ 2.2 cm |
+| 8 cm robot tag read rate / 5 cm on a soft image | 100% / 96% |
+| Gameplay bridge | real `Controller.tick` accepts the observation and commands motion |
+
+Live iPhone at a desk, November 16 (no physical reference measurements taken):
+
+- 1920 × 1080 at 30 fps through Continuity Camera into the pipeline.
+- Printed tags were read; three tags gave distances steady to about 0.1 cm
+  (28.6, 30.1, 31.3 cm), not checked against a tape measure.
+- The ball detector's fitted outline matched the real ball in one saved frame.
+- Click calibration registered clicks in the real window.
+
+Not done: any measurement against physical references, lens calibration,
+latency measurement, a mounted overhead view, robot tags on robots, two robots,
+a recorded replay fixture, identity-swap or false-detection counts, clock
+alignment with a robot, and anything on the Pi.
+
+## Layout
+
+- `fieldcam/camera_model.py` pixel ↔ field geometry
+- `fieldcam/detect.py` AprilTag and ball detectors
+- `fieldcam/filters.py` Kalman / yaw filters
+- `fieldcam/pipeline.py` frame → state, three calibration modes
+- `fieldcam/tagmeasure.py` tag layout from the tags alone
+- `fieldcam/clickcal.py` calibration from clicked points
+- `fieldcam/probe.py` floor position of any pixel, grid, pins
+- `fieldcam/gameplay.py` state → gameplay `Observation`
+- `fieldcam/planner.py` simple shot geometry and approach (simulator loop)
+- `fieldcam/sim.py` synthetic arena for tests and `--source sim`
+- `fieldcam/net.py`, `fieldcam/capture.py` UDP and camera capture
+- `scripts/` run, camera finder, tag pages, calibration and tuning tools
+- `config/field.yaml` real arena · `config/sim_field.yaml` frozen simulator arena

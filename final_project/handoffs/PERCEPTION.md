@@ -8,6 +8,15 @@ Coordinate the mount, field/robot AprilTags, goals, and ball with Shrish, who ow
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
+## Status — November 18, 2026
+
+Code: [overhead_perception](../overhead_perception/README.md), branch `perception/overhead-fieldcam`. That README holds the commands, interfaces, measured results and the list of what is not done.
+
+- **Works (simulation, 26 tests):** camera calibration from measured floor tags, from 2+ unmeasured tags, or from clicked floor points; two tagged robots with heading; a red/blue/grey ball by colour plus outline fit; velocities; ages; a bridge to `pupper_fc` `Observation`.
+- **Observed live (desk, iPhone via Continuity Camera, November 16):** 1080p30 into the pipeline; printed tags read; ball outline fitted on one saved frame. No comparison against tape measurements.
+- **Decisions so far:** tag36h11, 17 cm floor tags and 8 cm robot tags (ids 0–5, 10, 11); JSON over UDP; field frame identical to `pupper_fc/model.py`. All remain easy to change.
+- **Open against the deliverables below:** physical-reference accuracy, lens and latency calibration, replay fixture and live sample, identity-swap / miss / false-detection counts, clock convention with the robot, and camera coverage of the full arena (straight-down 1080p needs about 3.8 m of height, where 8 cm robot tags become marginal).
+
 ## Immediate working baseline
 
 Establish a reproducible recorded-video baseline and live iPhone ingestion: field calibration, both tagged robots, ball, and goals visible in a shared coordinate frame. Reuse relevant [calibration/tracking code](../../follow_me_pupper/README.md) and inspect the [harness](../../gemini_pupper/README.md); the onboard person follower is a reference, not an existing overhead pipeline. Geometric tag and color detection are candidate approaches; algorithms remain open.

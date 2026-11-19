@@ -1,0 +1,111 @@
+# FROZEN config for the simulator and the tests (scripts --source sim, tests/).
+# Do not put real arena measurements here: edit config/field.yaml for that.
+# The simulated arena is 3.0 x 2.0 m with 15 cm floor tags, seen from 2.6 m up.
+#
+#
+# Field frame (everything published is in this frame):
+#   origin = centre of the field, on the floor
+#   +x     = toward the "east" goal (long axis)
+#   +y     = left when facing +x
+#   +z     = up
+#   yaw    = radians, CCW from +x
+# All lengths in metres. MEASURE these with a tape; errors here are errors everywhere.
+
+field:
+  length: 3.0        # x extent, goal line to goal line
+  width: 2.0         # y extent
+  goal_width: 0.6    # mouth width, centred on y = 0
+
+tags:
+  # Side of the printed BLACK square, metres. Check with a ruler after printing.
+  # Only the no-measuring modes use these (key t, and scripts/measure_tags.py).
+  floor_size: 0.15
+  robot_size: 0.08
+  # Floor tags used to locate the camera. Only the tag CENTRES matter, so their
+  # rotation and printed size don't need to be exact. Need >= 4, more is better,
+  # spread as widely as possible. Keep them where robots rarely stand.
+  field:
+    0: [-1.40, -0.90]
+    1: [ 1.40, -0.90]
+    2: [ 1.40,  0.90]
+    3: [-1.40,  0.90]
+    4: [ 0.00, -0.90]
+    5: [ 0.00,  0.90]
+
+# Calibrating WITHOUT floor tags: press m in the live window and click these
+# floor points in this order. Leave this out to use the four field corners.
+# Any >= 4 points whose positions you measured work (more is better), as long
+# as they are on the floor, spread wide, and not all in one line.
+# manual_points:
+#   - {name: "tape mark A", xy: [-0.50, -0.30]}
+#   - {name: "tape mark B", xy: [ 0.50, -0.30]}
+#   - {name: "tape mark C", xy: [ 0.50,  0.30]}
+#   - {name: "tape mark D", xy: [-0.50,  0.30]}
+
+robots:
+  # tag_height: floor -> tag surface while standing/walking. This one number
+  #   matters: a 2 cm error here is ~1 cm of position error near the field edge.
+  # tag_offset: tag centre expressed in the robot body frame [forward, left].
+  # yaw_offset_deg: add if the top edge of the printed tag does not point at the nose.
+  striker:
+    tag_id: 10
+    tag_height: 0.18
+    tag_offset: [0.0, 0.0]
+    yaw_offset_deg: 0.0
+    attacks: east
+  keeper:
+    tag_id: 11
+    tag_height: 0.18
+    tag_offset: [0.0, 0.0]
+    yaw_offset_deg: 0.0
+    attacks: west
+
+ball:
+  # Mini basketball (red / blue / grey panels). MEASURE: wrap a string around it,
+  # radius = circumference / 6.283. 0.08 is an estimate from a photo.
+  radius: 0.08
+  # Colours that belong to the ball, as OpenCV HSV ranges (H 0-179, S and V 0-255).
+  # A pixel in ANY range counts. Grey panels are left out on purpose: the ball's
+  # exact outline is found from its edge, the colours only say roughly where it is.
+  # Red needs two ranges because its hue wraps around 0/179.
+  # scripts/tune_hsv.py shows one range at a time: adjust under the arena lights.
+  colors:
+    - {lo: [0, 110, 70],   hi: [8, 255, 255]}     # red
+    - {lo: [172, 110, 70], hi: [179, 255, 255]}   # red (other side of the hue wrap)
+    - {lo: [98, 110, 60],  hi: [125, 255, 255]}   # blue
+
+camera:
+  source: sim
+  width: 1920
+  height: 1080
+  fps: 30
+  hfov_deg: 69.0       # only used when no intrinsics file exists
+  intrinsics: config/intrinsics.yaml
+  latency_s: 0.12      # glass-to-frame-in-Python delay; measure with scripts/measure_latency.py
+
+tracking:
+  ball_accel_sigma: 4.0     # m/s^2, how violently the ball may change velocity
+  robot_accel_sigma: 2.0
+  meas_sigma: 0.01          # m
+  lost_after_s: 0.5         # coast this long on prediction, then report not visible
+
+shot:
+  standoff: 0.30            # robot centre -> ball centre at the moment the strike policy starts
+  pos_tol: 0.04             # m, how close to the staging point counts as "there"
+  yaw_tol_deg: 8.0
+  ball_still_speed: 0.08    # m/s, ball must be slower than this to trigger
+  post_margin: 0.10         # aim at least this far inside each post
+  max_state_age_s: 0.25     # never trigger on data older than this
+
+approach:
+  max_vx: 0.40
+  max_vy: 0.25
+  max_wz: 1.2
+  kp_pos: 1.5
+  kp_yaw: 2.5
+  ball_clearance: 0.30      # keep the body this far from the ball while circling behind it
+  turn_first_dist: 0.45     # farther than this: face the waypoint and walk; closer: strafe in at the shot yaw
+
+net:
+  host: 127.0.0.1           # set to the Pupper's IP (or a broadcast address) on the arena network
+  port: 5005
