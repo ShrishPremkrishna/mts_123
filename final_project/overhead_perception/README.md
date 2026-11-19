@@ -80,8 +80,21 @@ Robot tags (ids 10, 11) never count for calibration.
 Mouse = floor position under the cursor · left click = pin a point (consecutive
 pins show the distance) · right click or `x` = clear pins · `g` = floor grid ·
 `p` = save every pixel's floor position to `out/pixel_map.npy` · `q` = quit.
+`b` = set the ball colour from the pixels under the cursor (see below).
 A pixel's position is where its line of sight meets the floor, so it is only
 right for things lying on the floor.
+
+## Ball
+
+The detector takes a list of colour ranges (`ball.colors`) to find roughly where
+the ball is, then fits a circle to its outline for the exact centre. The config
+is set for a **pink** ball with a generic pink range that has not been tuned on
+the real ball. To set it under the real lights: run the live view, put the
+cursor on the ball and press `b`. The colour takes effect at once, and the
+terminal prints the lines to paste into `config/field.yaml`, plus an estimate
+of the ball's radius once the camera is calibrated. Measure the radius properly
+and put it in `ball.radius`; a wrong value still finds the ball but costs
+accuracy (see the table below).
 
 ## Tags
 
@@ -97,8 +110,8 @@ mount flat on a stiff card with the FRONT edge toward the nose, then measure
 1. Measure floor tag centres into `config/field.yaml` (current values are placeholders).
 2. `scripts/calibrate_intrinsics.py` with the lens and resolution actually used. Until then the lens is a guess (`hfov_deg`).
 3. `scripts/measure_latency.py` → `camera.latency_s` (0.12 s is a guess).
-4. `scripts/tune_hsv.py` under the arena lights → `ball.colors`.
-5. Measure the ball (`ball.radius`, 0.08 m is an estimate from a photo) and each robot's standing tag height.
+4. Press `b` on the ball under the arena lights → `ball.colors` (`scripts/tune_hsv.py` for fine adjustment).
+5. Measure the pink ball (`ball.radius`, 0.08 m is a placeholder) and each robot's standing tag height.
 
 **Camera coverage is an open problem.** At 1080p 16:9 the iPhone main lens sees
 about 69° × 42°. Fitting the 3.66 × 2.44 m arena straight down needs the phone
@@ -120,9 +133,32 @@ seq, stamp, frame_age_s, calibrated, calib_err_px
 ball:    {visible, x, y, vx, vy, age_s}
 robots:  {<name>: {visible, x, y, yaw, vx, vy, wz, age_s}}
 goals:   {east|west: {x, y_min, y_max}}
+relative: {<name>: {ball:{x, y, distance, bearing}, goal:{x, y, distance, bearing},
+                    shot_line:{ball_to_goal_yaw, turn_to_shot_line, behind_ball, left_of_line},
+                    age_s}}
 shots:   {<name>: {target, aim_yaw, staging:[x,y,yaw], ball_to_target,
                    error:{along, lateral, dist, yaw}, ready, cmd:{vx, vy, wz}}}
 ```
+
+**`relative` is the scene from each robot's point of view** (`fieldcam/relative.py`):
+
+| Field | Meaning | Sign |
+| --- | --- | --- |
+| `ball.x`, `ball.y` | Ball in the robot's body frame, metres | x forward, y to the robot's left |
+| `ball.distance`, `ball.bearing` | Range to the ball, and the turn that faces it | bearing + = turn left |
+| `goal.*` | The same four numbers for the centre of the goal this robot attacks | |
+| `shot_line.ball_to_goal_yaw` | Field direction of the line ball → goal centre | counter-clockwise from +x |
+| `shot_line.turn_to_shot_line` | Turn that points the robot along that line | + = turn left |
+| `shot_line.behind_ball` | How far the robot is behind the ball along the line, metres | + = ball between robot and goal |
+| `shot_line.left_of_line` | How far the robot is off the line, metres | + = left of it, looking at the goal |
+
+All angles are radians in (−π, π]. A robot is lined up for a straight shot when
+`left_of_line` and `turn_to_shot_line` are near zero and `behind_ball` is the
+standoff the kick wants. `ball` and `shot_line` are absent when the ball is not
+seen; the whole entry is absent when the robot is not seen. The body frame is
+the yaw-only frame the shooting code calls `base_link_yaw`, so `ball.x, ball.y`
+are the numbers its robot-mode `/soccer/ball` input expects; nothing publishes
+them to ROS with a robot-clock stamp yet.
 
 Positions are extrapolated to `stamp`; `age_s` is how old the newest real
 measurement behind each one is. `visible` stays true while a track coasts
@@ -142,12 +178,16 @@ simulator loop. The gameplay controller in `pupper_fc` is the one to drive robot
 
 ## What is verified
 
-Simulation, 1080p, camera 2.6 m up (and a slanted view), 26 tests:
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 34 tests:
 
 | Check | Result |
 | --- | --- |
 | Robot position / heading, measured floor tags | ≤ 0.5 cm / ≤ 2.3° |
 | Ball position (red/blue/grey ball, 8 cm radius) | ≤ 0.7 cm |
+| Pink ball, 6 cm radius, default pink range | ≤ 0.5 cm |
+| Same pink ball with the config radius wrong (8 cm) | ≤ 1.4 cm overhead, ≤ 3.1 cm slanted |
+| Ball radius estimated from the image | 5.9 cm for a 6.0 cm ball |
+| Robot-relative ball position / bearing | within 3 cm / 4° of truth |
 | Calibration from 3 unmeasured tags | robot ≤ 1.2 cm, ball ≤ 1.1 cm |
 | Same, with the lens guessed badly (60° vs 69°) | robot ≤ 3.6 cm, ball ≤ 3.3 cm |
 | Calibration from 4 clicks, each up to 4 px off | ≤ 0.8 cm |
@@ -163,7 +203,7 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 - The ball detector's fitted outline matched the real ball in one saved frame.
 - Click calibration registered clicks in the real window.
 
-Not done: any measurement against physical references, lens calibration,
+Not done: the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
 latency measurement, a mounted overhead view, robot tags on robots, two robots,
 a recorded replay fixture, identity-swap or false-detection counts, clock
 alignment with a robot, and anything on the Pi.
@@ -178,6 +218,8 @@ alignment with a robot, and anything on the Pi.
 - `fieldcam/clickcal.py` calibration from clicked points
 - `fieldcam/probe.py` floor position of any pixel, grid, pins
 - `fieldcam/gameplay.py` state → gameplay `Observation`
+- `fieldcam/relative.py` ball and goal from each robot's point of view, shot-line angles
+- `fieldcam/colorpick.py` ball colour ranges from pixels under the cursor
 - `fieldcam/planner.py` simple shot geometry and approach (simulator loop)
 - `fieldcam/sim.py` synthetic arena for tests and `--source sim`
 - `fieldcam/net.py`, `fieldcam/capture.py` UDP and camera capture

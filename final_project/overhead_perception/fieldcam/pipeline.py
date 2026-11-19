@@ -11,6 +11,7 @@ from .camera_model import CameraModel, default_intrinsics, load_intrinsics, solv
 from .config import resolve
 from .detect import BallDetector, TagDetector
 from .filters import CVFilter2D, YawFilter, wrap
+from .relative import relative_geometry
 from .tagmeasure import survey_tags, tag_corners
 
 
@@ -127,9 +128,10 @@ class Perception:
         self.ball_radius_px = float(np.linalg.norm(px[1] - px[0]))
         return True
 
-    def _ball_radius_at(self, u: float, v: float) -> float | None:
-        """How many pixels the ball's radius should span if its centre shows at pixel (u, v)."""
-        r = self.cfg["ball"]["radius"]
+    def _ball_radius_at(self, u: float, v: float, r: float | None = None) -> float | None:
+        """How many pixels a ball of radius r (default: the configured one) should span
+        if its centre shows at pixel (u, v)."""
+        r = self.cfg["ball"]["radius"] if r is None else r
         xy = self.cam.pixel_to_plane([[u, v]], r)[0]
         if not np.isfinite(xy).all():
             return None
@@ -137,6 +139,22 @@ class Perception:
         px = self.cam.project([c, c + self.cam.R[0] * r])
         size = float(np.linalg.norm(px[1] - px[0]))
         return size if 2.0 < size < 2000.0 else None
+
+    def estimate_ball_radius(self, u: float, v: float, radius_px: float) -> float | None:
+        """Real radius (m) of a ball on the floor that shows at (u, v) with this pixel radius.
+
+        An ESTIMATE: it is only as good as the calibration and the lens model.
+        A tape measure beats it.
+        """
+        if self.cam is None:
+            return None
+        r = self.cfg["ball"]["radius"]
+        for _ in range(8):  # the centre height depends on r, so iterate to a fixed point
+            px = self._ball_radius_at(u, v, r)
+            if not px:
+                return None
+            r *= radius_px / px
+        return float(r) if 0.005 < r < 0.5 else None
 
     # ---- per frame -------------------------------------------------------
     def process(self, frame: np.ndarray, t_capture: float, t_now: float | None = None) -> dict:
@@ -152,7 +170,7 @@ class Perception:
             "seq": self.seq, "stamp": t_now, "frame_age_s": t_now - t_capture,
             "calibrated": self.cam is not None, "calib_err_px": self.calib_err_px,
             "ball": {"visible": False}, "robots": {n: {"visible": False} for n in cfg["robots"]},
-            "goals": cfg["goals"], "shots": {},
+            "goals": cfg["goals"], "shots": {}, "relative": {},
         }
         self.debug = {"tags": {}, "ball_px": None}
         if self.cam is None:
@@ -226,6 +244,13 @@ class Perception:
                     shot["ready"] = planner.shot_ready(robot, ball, shot, cfg["shot"])
                     shot["cmd"] = planner.approach_cmd(robot, ball, shot, cfg["approach"])
                 state["shots"][name] = shot
+
+        # The same scene from each robot's point of view (see relative.py for conventions).
+        for name, rc in cfg["robots"].items():
+            robot = state["robots"][name]
+            if robot["visible"]:
+                state["relative"][name] = relative_geometry(
+                    robot, ball if ball["visible"] else None, cfg["goals"][rc["attacks"]])
         return state
 
     # ---- debug drawing ---------------------------------------------------
@@ -269,9 +294,16 @@ class Perception:
             tip = (rb["x"] + 0.2 * math.cos(rb["yaw"]), rb["y"] + 0.2 * math.sin(rb["yaw"]))
             cv2.arrowedLine(out, P(rb["x"], rb["y"], h), P(*tip, h), (255, 0, 255), 3, tipLength=0.3)
             label = f"{name} ({rb['x'] * 100:+.0f}, {rb['y'] * 100:+.0f}) cm, {math.degrees(rb['yaw']):+.0f} deg"
-            if ball.get("visible"):
-                label += f", {math.hypot(ball['x'] - rb['x'], ball['y'] - rb['y']) * 100:.0f} cm to ball"
             cv2.putText(out, label, P(rb["x"], rb["y"], h), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 255), 2)
+            rel = state.get("relative", {}).get(name, {}).get("ball")
+            if rel and ball.get("visible"):
+                # The ball as this robot sees it: how far ahead, how far to its left, how much to turn.
+                a, b = P(rb["x"], rb["y"], h), P(ball["x"], ball["y"], self.cfg["ball"]["radius"])
+                cv2.line(out, a, b, (255, 255, 0), 2, cv2.LINE_AA)
+                side = "left" if rel["bearing"] >= 0 else "right"
+                text = (f"ball {rel['distance'] * 100:.0f} cm, turn {abs(math.degrees(rel['bearing'])):.0f} deg {side}"
+                        f"  ({rel['x'] * 100:+.0f} ahead, {rel['y'] * 100:+.0f} left)")
+                cv2.putText(out, text, (a[0], a[1] + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
             shot = state["shots"].get(name)
             if shot:
                 sx, sy, syaw = shot["staging"]

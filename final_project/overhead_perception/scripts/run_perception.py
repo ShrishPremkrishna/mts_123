@@ -19,6 +19,10 @@ Every pixel has a floor position once calibrated:
       right click or x = clear the pins
       g = show / hide a measuring grid drawn on the floor
       p = save the position of every pixel to out/pixel_map.npy
+
+Ball colour:
+      b = put the cursor on the ball and press b: the ball colour is set from the
+          pixels under the cursor, and the lines to paste into the config are printed
 """
 import argparse
 import json
@@ -32,11 +36,12 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fieldcam import clickcal  # noqa: E402
+from fieldcam import clickcal, colorpick  # noqa: E402
 from fieldcam.camera_model import default_intrinsics  # noqa: E402
 from fieldcam.config import SIM_CONFIG, load_config, resolve  # noqa: E402
 from fieldcam.filters import wrap  # noqa: E402
 from fieldcam.net import StatePublisher  # noqa: E402
+from fieldcam.detect import BallDetector  # noqa: E402
 from fieldcam.pipeline import Perception  # noqa: E402
 from fieldcam.probe import Probe, floor_map  # noqa: E402
 
@@ -171,10 +176,40 @@ def status_line(state) -> str:
             parts.append(f"{name} not seen")
             continue
         text = f"{name} ({r['x'] * 100:+.0f}, {r['y'] * 100:+.0f}) cm facing {math.degrees(r['yaw']):+.0f} deg"
-        if ball["visible"]:
-            text += f", {math.hypot(ball['x'] - r['x'], ball['y'] - r['y']) * 100:.0f} cm from ball"
+        rel = state.get("relative", {}).get(name, {}).get("ball")
+        if rel:
+            side = "left" if rel["bearing"] >= 0 else "right"
+            text += (f"; ball {rel['x'] * 100:+.0f} cm ahead, {rel['y'] * 100:+.0f} cm left "
+                     f"= {rel['distance'] * 100:.0f} cm away, turn {abs(math.degrees(rel['bearing'])):.0f} deg {side}")
         parts.append(text)
     return " | ".join(parts)
+
+
+def pick_ball_colour(perc, frame, cursor):
+    """Set the ball colour from the pixels under the cursor and say what to put in the config."""
+    if cursor is None:
+        box("BALL COLOUR NOT SET", ["Move the mouse onto the ball in the window first, then press b."])
+        return
+    try:
+        ranges = colorpick.suggest_ranges(frame, *cursor)
+    except ValueError as err:
+        box("BALL COLOUR NOT SET", [str(err)])
+        return
+    perc.ball_det = BallDetector(ranges)
+    perc.cfg["ball"]["colors"] = ranges
+    lines = ["In use now, until the program exits. To keep it, paste under `ball: colors:` in config/field.yaml:"]
+    lines += colorpick.as_yaml(ranges)
+    found = perc.ball_det.detect(frame, perc.roi_mask)  # no size expectation: see what is really there
+    if found is None:
+        lines.append("With this colour no ball is found in the current frame. Try pointing at a brighter part of it.")
+    else:
+        est = perc.estimate_ball_radius(*found)
+        if est is not None:
+            lines.append(f"The ball looks about {est * 100:.1f} cm in radius; the config says "
+                         f"{perc.cfg['ball']['radius'] * 100:.1f} cm. This is an estimate from the camera: measure it to be sure.")
+        else:
+            lines.append("Ball found in the picture. (No size estimate until the camera is calibrated.)")
+    box("BALL COLOUR SET", lines)
 
 
 def click_calibrate(perc, frame, points, scale) -> bool:
@@ -326,6 +361,8 @@ def main():
                 probe.grid = not probe.grid
             if key == ord("x"):
                 probe.pins.clear()
+            if key == ord("b"):
+                pick_ball_colour(perc, frame, probe.cursor)
             if key == ord("p") and perc.cam is not None:
                 path = resolve("out/pixel_map.npy")
                 path.parent.mkdir(parents=True, exist_ok=True)

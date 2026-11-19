@@ -12,7 +12,7 @@ These are optional workstream notes. An incoming agent's role follows its user's
 
 Code: [overhead_perception](../overhead_perception/README.md), branch `perception/overhead-fieldcam`. That README holds the commands, interfaces, measured results and the list of what is not done.
 
-- **Works (simulation, 26 tests):** camera calibration from measured floor tags, from 2+ unmeasured tags, or from clicked floor points; two tagged robots with heading; a red/blue/grey ball by colour plus outline fit; velocities; ages; a bridge to `pupper_fc` `Observation`.
+- **Works (simulation, 34 tests):** camera calibration from measured floor tags, from 2+ unmeasured tags, or from clicked floor points; two tagged robots with heading; a ball by configurable colour ranges plus outline fit (config now set for a pink ball, range untuned); velocities; ages; each robot's view of the ball and goal (body-frame x/y, distance, bearing, shot-line angles; conventions in the package README); a bridge to `pupper_fc` `Observation`.
 - **Observed live (desk, iPhone via Continuity Camera, November 16):** 1080p30 into the pipeline; printed tags read; ball outline fitted on one saved frame. No comparison against tape measurements.
 - **Decisions so far:** tag36h11, 17 cm floor tags and 8 cm robot tags (ids 0–5, 10, 11); JSON over UDP; field frame identical to `pupper_fc/model.py`. All remain easy to change.
 - **Open against the deliverables below:** physical-reference accuracy, lens and latency calibration, replay fixture and live sample, identity-swap / miss / false-detection counts, clock convention with the robot, and camera coverage of the full arena (straight-down 1080p needs about 3.8 m of height, where 8 cm robot tags become marginal).

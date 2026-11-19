@@ -373,3 +373,130 @@ def test_gameplay_observation_bridge():
     blank = Perception(cfg, *SIZE).process(arena.render(truth, ball), t_capture=1.0, t_now=1.1)
     obs3 = to_observation(blank)
     assert obs3.robot is None and obs3.ball is None
+
+
+# ---- the scene from the robot's point of view ---------------------------------
+def test_relative_geometry_conventions():
+    """Body frame is x forward / y left; bearing + means turn left; shot line runs ball -> goal."""
+    from fieldcam.relative import body_point, relative_geometry
+
+    east = {"x": 1.5, "y_min": -0.3, "y_max": 0.3}
+    facing_north = {"x": 0.0, "y": 0.0, "yaw": math.pi / 2, "age_s": 0.02}
+    ahead = body_point(facing_north, (0.0, 1.0))
+    assert abs(ahead["x"] - 1.0) < 1e-9 and abs(ahead["y"]) < 1e-9 and abs(ahead["bearing"]) < 1e-9
+    left = body_point(facing_north, (-1.0, 0.0))      # west of a north-facing robot = its left
+    assert abs(left["x"]) < 1e-9 and abs(left["y"] - 1.0) < 1e-9
+    assert abs(left["bearing"] - math.pi / 2) < 1e-9  # turn left a quarter turn
+    right = body_point(facing_north, (1.0, 0.0))
+    assert abs(right["y"] + 1.0) < 1e-9 and abs(right["bearing"] + math.pi / 2) < 1e-9
+
+    # Robot half a metre behind the ball and 10 cm to the left of the shot line, facing the goal.
+    robot = {"x": -0.5, "y": 0.1, "yaw": 0.0, "age_s": 0.03}
+    ball = {"x": 0.0, "y": 0.0, "age_s": 0.05}
+    g = relative_geometry(robot, ball, east)
+    line = g["shot_line"]
+    assert abs(line["ball_to_goal_yaw"]) < 1e-9 and abs(line["turn_to_shot_line"]) < 1e-9
+    assert abs(line["behind_ball"] - 0.5) < 1e-9 and abs(line["left_of_line"] - 0.1) < 1e-9
+    assert abs(g["ball"]["x"] - 0.5) < 1e-9 and abs(g["ball"]["y"] + 0.1) < 1e-9   # ball ahead, slightly right
+    assert g["ball"]["bearing"] < 0                                              # so: turn right
+    assert abs(g["goal"]["distance"] - math.hypot(2.0, 0.1)) < 1e-9
+    assert g["age_s"] == 0.05                                                     # the older of the two
+    # On the goal side of the ball, facing away from the goal.
+    wrong_side = relative_geometry({"x": 0.4, "y": 0.0, "yaw": math.pi, "age_s": 0.0}, ball, east)
+    assert wrong_side["shot_line"]["behind_ball"] < 0
+    assert abs(abs(wrong_side["shot_line"]["turn_to_shot_line"]) - math.pi) < 1e-9
+    # No ball: only the goal is reported, nothing is invented.
+    alone = relative_geometry(robot, None, east)
+    assert "ball" not in alone and "shot_line" not in alone and "goal" in alone
+
+
+@pytest.mark.parametrize("cam", CAMERAS)
+def test_relative_output_from_images(cam):
+    """The published state carries each robot's view of the ball and of the goal it attacks."""
+    cfg, arena, perc = make(**CAMERAS[cam])
+    truth = {"striker": (-0.6, -0.3, 0.9), "keeper": (1.0, 0.2, 2.6)}
+    ball = (0.2, 0.3)
+    st = perc.process(arena.render(truth, ball), t_capture=0.0)
+    for name, (x, y, yaw) in truth.items():
+        rel = st["relative"][name]
+        c, s = math.cos(yaw), math.sin(yaw)
+        bx, by = c * (ball[0] - x) + s * (ball[1] - y), -s * (ball[0] - x) + c * (ball[1] - y)
+        assert math.hypot(rel["ball"]["x"] - bx, rel["ball"]["y"] - by) < 0.03
+        assert abs(wrap(rel["ball"]["bearing"] - math.atan2(by, bx))) < math.radians(4)
+        goal_x = cfg["goals"][cfg["robots"][name]["attacks"]]["x"]
+        assert abs(rel["goal"]["distance"] - math.hypot(goal_x - x, -y)) < 0.03
+        assert abs(wrap(rel["shot_line"]["ball_to_goal_yaw"] - math.atan2(-ball[1], goal_x - ball[0]))) < math.radians(2)
+    # The striker attacks east and the keeper west, so their shot lines point opposite ways.
+    assert abs(st["relative"]["striker"]["shot_line"]["ball_to_goal_yaw"]) < math.pi / 2
+    assert abs(st["relative"]["keeper"]["shot_line"]["ball_to_goal_yaw"]) > math.pi / 2
+    # Ball out of sight for good: the relative view drops the ball but keeps the goal.
+    for k in range(1, 30):
+        st = perc.process(arena.render(truth, None), t_capture=k / 30)
+    assert "ball" not in st["relative"]["striker"] and "goal" in st["relative"]["striker"]
+    assert Perception(cfg, *SIZE).process(arena.render(truth, ball), 0.0)["relative"] == {}  # not calibrated
+
+
+# ---- a pink ball ---------------------------------------------------------------
+PINK_BGR = (170, 90, 245)
+PINK_RANGE = [{"lo": [140, 60, 90], "hi": [175, 255, 255]}]   # the default in config/field.yaml
+
+
+@pytest.mark.parametrize("cam", CAMERAS)
+@pytest.mark.parametrize("configured_radius", [0.06, 0.08])
+def test_pink_ball(cam, configured_radius):
+    """A plain pink ball is found with the default pink range, even when the configured
+    radius (0.08) is wrong for the real ball (0.06)."""
+    import copy
+
+    cfg, arena, base = make(**CAMERAS[cam])
+    arena.cfg = copy.deepcopy(cfg)
+    arena.cfg["ball"].update(radius=0.06, sim_bgr=PINK_BGR)        # what is really on the floor
+    cfg["ball"].update(radius=configured_radius, colors=PINK_RANGE)  # what perception is told
+    perc = Perception(cfg, *SIZE)
+    assert perc.calibrate(arena.render({}, None))
+    rng = np.random.default_rng(9)
+    errs = []
+    for _ in range(12):
+        truth = {"striker": (rng.uniform(-1.1, -0.3), rng.uniform(-0.6, 0.6), rng.uniform(-math.pi, math.pi))}
+        ball = (rng.uniform(0.0, 1.2), rng.uniform(-0.8, 0.8))
+        p = Perception(cfg, *SIZE)
+        p.cam, p.roi_mask, p.ball_radius_px, p.floor_layout = perc.cam, perc.roi_mask, perc.ball_radius_px, perc.floor_layout
+        st = p.process(arena.render(truth, ball), t_capture=0.0)
+        assert st["ball"]["visible"], "pink ball not found"
+        errs.append(math.hypot(st["ball"]["x"] - ball[0], st["ball"]["y"] - ball[1]))
+    print(f"\n[{cam}, pink ball r=6 cm, config says {configured_radius * 100:.0f} cm] ball err max {max(errs) * 100:.1f} cm")
+    assert max(errs) < (0.015 if configured_radius == 0.06 else 0.04)
+    # The basketball's red/blue ranges must not see a pink ball as theirs, and vice versa.
+    from fieldcam.detect import BallDetector
+    old = BallDetector(load_config(SIM_CONFIG)["ball"]["colors"])
+    assert old.detect(arena.render({}, (0.3, 0.2)), perc.roi_mask, perc.ball_radius_px) is None
+
+
+def test_pick_ball_colour_and_size():
+    """Pointing at the ball gives a colour range that finds it, and a size estimate close to the truth."""
+    import copy
+
+    from fieldcam.colorpick import as_yaml, suggest_ranges
+    from fieldcam.detect import BallDetector
+
+    cfg, arena, perc = make(**CAMERAS["overhead"])
+    arena.cfg = copy.deepcopy(cfg)
+    arena.cfg["ball"].update(radius=0.06, sim_bgr=PINK_BGR)
+    ball = (0.4, -0.3)
+    img = arena.render({"striker": (-0.6, 0.2, 0.3)}, ball)
+    u, v = arena.cam.project([[ball[0], ball[1], 0.06]])[0]
+    ranges = suggest_ranges(img, u, v)
+    assert len(ranges) == 1 and ranges[0]["lo"][0] < 165 < ranges[0]["hi"][0]   # pink hue, no wrap
+    assert as_yaml(ranges)[0].startswith("    - {lo: [")
+    found = BallDetector(ranges).detect(img, perc.roi_mask)                       # no size expectation
+    assert found is not None and math.hypot(found[0] - u, found[1] - v) < 3
+    est = perc.estimate_ball_radius(*found)
+    print(f"\nball radius estimated from the image: {est * 100:.1f} cm (truth 6.0 cm, config {cfg['ball']['radius'] * 100:.0f} cm)")
+    assert abs(est - 0.06) < 0.006
+    # Red straddles the hue wrap, so it needs two ranges.
+    red = np.zeros((60, 60, 3), np.uint8)
+    red[:] = (40, 30, 220)
+    red[::2] = (60, 30, 215)  # hue just on the other side of the wrap
+    assert len(suggest_ranges(red, 30, 30)) == 2
+    with pytest.raises(ValueError):
+        suggest_ranges(img, -50, -50)

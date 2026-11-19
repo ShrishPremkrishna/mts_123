@@ -62,18 +62,21 @@ robots:
     attacks: west
 
 ball:
-  # Mini basketball (red / blue / grey panels). MEASURE: wrap a string around it,
-  # radius = circumference / 6.283. 0.08 is an estimate from a photo.
+  # PINK ball. MEASURE its radius: wrap a string around it, radius = circumference / 6.283.
+  # 0.08 is a placeholder left over from the mini basketball; the detector tolerates a
+  # wrong value, but the position is off by roughly the error near the edge of the view.
   radius: 0.08
   # Colours that belong to the ball, as OpenCV HSV ranges (H 0-179, S and V 0-255).
-  # A pixel in ANY range counts. Grey panels are left out on purpose: the ball's
-  # exact outline is found from its edge, the colours only say roughly where it is.
-  # Red needs two ranges because its hue wraps around 0/179.
-  # scripts/tune_hsv.py shows one range at a time: adjust under the arena lights.
+  # A pixel in ANY range counts; the ball's exact outline is then found from its edge.
+  # EASIEST WAY TO SET THIS: run the live view, put the cursor on the ball, press b.
+  # It prints the lines to paste here. Do it under the arena lights.
+  # The range below is a generic pink / magenta guess, NOT tuned on the real ball.
   colors:
-    - {lo: [0, 110, 70],   hi: [8, 255, 255]}     # red
-    - {lo: [172, 110, 70], hi: [179, 255, 255]}   # red (other side of the hue wrap)
-    - {lo: [98, 110, 60],  hi: [125, 255, 255]}   # blue
+    - {lo: [140, 60, 90], hi: [175, 255, 255]}    # pink
+  # The earlier red / blue / grey mini basketball, for reference:
+  #   - {lo: [0, 110, 70],   hi: [8, 255, 255]}     # red
+  #   - {lo: [172, 110, 70], hi: [179, 255, 255]}   # red (other side of the hue wrap)
+  #   - {lo: [98, 110, 60],  hi: [125, 255, 255]}   # blue
 
 camera:
   source: 1            # AVFoundation index (1 = the iPhone, 0 = the laptop camera), a video file path, or "sim"

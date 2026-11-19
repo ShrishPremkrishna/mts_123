@@ -18,6 +18,9 @@ while True:
         line += f"ball ({b['x']:+.2f},{b['y']:+.2f}) v({b['vx']:+.2f},{b['vy']:+.2f})  " if b["visible"] else "ball LOST  "
         for name, r in st["robots"].items():
             line += f"{name} ({r['x']:+.2f},{r['y']:+.2f},{r['yaw']:+.2f})  " if r["visible"] else f"{name} LOST  "
+        rel = st.get("relative", {}).get("striker", {}).get("ball")
+        if rel:
+            line += f"ball from striker: {rel['x']:+.2f} ahead {rel['y']:+.2f} left, bearing {rel['bearing']:+.2f} rad  "
         s = st["shots"].get("striker", {})
         if "cmd" in s:
             line += f"cmd vx {s['cmd']['vx']:+.2f} vy {s['cmd']['vy']:+.2f} wz {s['cmd']['wz']:+.2f} ready {s['ready']}"

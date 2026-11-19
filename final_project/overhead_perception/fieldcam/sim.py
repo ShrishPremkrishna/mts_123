@@ -78,6 +78,15 @@ class SimArena:
         """A mini basketball seen from above: grey with a red side panel, a blue band and
         black seams, turned to a random angle each frame (the real one rolls)."""
         n = 2 * rad + 3
+        plain = self.cfg["ball"].get("sim_bgr")
+        if plain is not None:  # a single-colour ball (e.g. pink), slightly darker toward the rim
+            o = n // 2
+            yy, xx = np.mgrid[0:n, 0:n]
+            shade = 1.0 - 0.25 * np.clip(np.hypot(xx - o, yy - o) / max(rad, 1), 0, 1) ** 2
+            patch = np.clip(np.array(plain, np.float32) * shade[..., None], 0, 255).astype(np.uint8)
+            disc = np.zeros((n, n), np.uint8)
+            cv2.circle(disc, (o, o), rad, 255, -1, cv2.LINE_AA)
+            return self._blend(img, patch, disc, c, o, n)
         patch = np.full((n, n, 3), (190, 200, 195), np.uint8)
         o = n // 2
         cv2.rectangle(patch, (0, 0), (int(o - 0.55 * rad), n), (60, 50, 215), -1)                     # red
@@ -89,6 +98,10 @@ class SimArena:
         patch = cv2.warpAffine(patch, M, (n, n), borderMode=cv2.BORDER_REPLICATE)
         disc = np.zeros((n, n), np.uint8)
         cv2.circle(disc, (o, o), rad, 255, -1, cv2.LINE_AA)
+        self._blend(img, patch, disc, c, o, n)
+
+    @staticmethod
+    def _blend(img, patch, disc, c, o, n):
         x0, y0 = c[0] - o, c[1] - o
         xs, ys = slice(max(x0, 0), min(x0 + n, img.shape[1])), slice(max(y0, 0), min(y0 + n, img.shape[0]))
         if xs.start >= xs.stop or ys.start >= ys.stop:
