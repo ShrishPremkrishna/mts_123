@@ -1,0 +1,185 @@
+{
+ "bumpy_p2000": {
+  "0.55_left": {
+   "pushes": 512,
+   "falls": 304,
+   "rate": 0.59375
+  },
+  "0.55_right": {
+   "pushes": 512,
+   "falls": 0,
+   "rate": 0.0
+  },
+  "0.65_left": {
+   "pushes": 512,
+   "falls": 496,
+   "rate": 0.96875
+  },
+  "0.65_right": {
+   "pushes": 512,
+   "falls": 12,
+   "rate": 0.0234375
+  },
+  "pre_push_pair_sum_mean": {
+   "front": -0.1036437600851059,
+   "hind": 0.42964333295822144,
+   "hind_abs": 0.42964333295822144
+  },
+  "by_lean": {
+   "0.55_left_hindsum>0": [
+    512,
+    0.59375
+   ],
+   "0.55_left_hindsum<0": [
+    0,
+    null
+   ],
+   "0.55_right_hindsum>0": [
+    512,
+    0.0
+   ],
+   "0.55_right_hindsum<0": [
+    0,
+    null
+   ],
+   "0.65_left_hindsum>0": [
+    512,
+    0.96875
+   ],
+   "0.65_left_hindsum<0": [
+    0,
+    null
+   ],
+   "0.65_right_hindsum>0": [
+    512,
+    0.0234375
+   ],
+   "0.65_right_hindsum<0": [
+    0,
+    null
+   ]
+  }
+ },
+ "flatctrl_p2000": {
+  "0.55_left": {
+   "pushes": 512,
+   "falls": 0,
+   "rate": 0.0
+  },
+  "0.55_right": {
+   "pushes": 512,
+   "falls": 0,
+   "rate": 0.0
+  },
+  "0.65_left": {
+   "pushes": 512,
+   "falls": 67,
+   "rate": 0.130859375
+  },
+  "0.65_right": {
+   "pushes": 512,
+   "falls": 18,
+   "rate": 0.03515625
+  },
+  "pre_push_pair_sum_mean": {
+   "front": 0.05216614902019501,
+   "hind": 0.04401751607656479,
+   "hind_abs": 0.05273498594760895
+  },
+  "by_lean": {
+   "0.55_left_hindsum>0": [
+    424,
+    0.0
+   ],
+   "0.55_left_hindsum<0": [
+    88,
+    0.0
+   ],
+   "0.55_right_hindsum>0": [
+    428,
+    0.0
+   ],
+   "0.55_right_hindsum<0": [
+    84,
+    0.0
+   ],
+   "0.65_left_hindsum>0": [
+    425,
+    0.1223529411764706
+   ],
+   "0.65_left_hindsum<0": [
+    87,
+    0.1724137931034483
+   ],
+   "0.65_right_hindsum>0": [
+    416,
+    0.03125
+   ],
+   "0.65_right_hindsum<0": [
+    96,
+    0.052083333333333336
+   ]
+  }
+ },
+ "part2_final": {
+  "0.55_left": {
+   "pushes": 512,
+   "falls": 0,
+   "rate": 0.0
+  },
+  "0.55_right": {
+   "pushes": 512,
+   "falls": 0,
+   "rate": 0.0
+  },
+  "0.65_left": {
+   "pushes": 512,
+   "falls": 96,
+   "rate": 0.1875
+  },
+  "0.65_right": {
+   "pushes": 512,
+   "falls": 0,
+   "rate": 0.0
+  },
+  "pre_push_pair_sum_mean": {
+   "front": 0.04714168980717659,
+   "hind": 0.15727239847183228,
+   "hind_abs": 0.15740089118480682
+  },
+  "by_lean": {
+   "0.55_left_hindsum>0": [
+    508,
+    0.0
+   ],
+   "0.55_left_hindsum<0": [
+    4,
+    0.0
+   ],
+   "0.55_right_hindsum>0": [
+    511,
+    0.0
+   ],
+   "0.55_right_hindsum<0": [
+    1,
+    0.0
+   ],
+   "0.65_left_hindsum>0": [
+    510,
+    0.18823529411764706
+   ],
+   "0.65_left_hindsum<0": [
+    2,
+    0.0
+   ],
+   "0.65_right_hindsum>0": [
+    512,
+    0.0
+   ],
+   "0.65_right_hindsum<0": [
+    0,
+    null
+   ]
+  }
+ }
+}
