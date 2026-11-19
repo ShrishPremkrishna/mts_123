@@ -177,6 +177,12 @@ A frozen camera or stalled detector cannot keep refreshing the follower's motion
 watchdog. A target entering the stopping zone cancels a timed detour; these
 detours still are not collision-free navigation or person identity recognition.
 
+The follower never replaces a lost target with a guess: `ROBOT_TESTS.md` states
+the recovery policy and the robot test plan. `person_following_status` (a
+read-only Trigger service) reports the state as JSON, including `LOST`, and
+`-p record_path:=<file>` records detections. `robot/follow_replay.py` replays a
+recorded log, or runs scripted scenes through the real state machine with no ROS.
+
 Only the inference worker closes its Hailo device. If an inference cannot stop,
 service reactivation is refused until that worker exits; do not start another
 detector to work around the error. Viewer and service compete for the same Hailo,

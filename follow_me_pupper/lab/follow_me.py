@@ -52,6 +52,14 @@ KP = 5.0                 # rad/s of yaw per unit of box_offset
 MAX_YAW_VEL = 2.0       # trained |wz| bound in the supplied default policy (rad/s)
 # ===============================================================
 
+# --- Engineering: target loss ------------------------------------------------
+# With no fresh sighting, the last command is a guess about where the target
+# is. Keep it through a dropped frame or two, then stand still and wait.
+COAST_TIME = 0.3         # s
+# One full turn looks everywhere the camera can. Longer than that only heats
+# the motors, so the search ends and the robot stands still.
+SEARCH_MAX_TIME = 2 * math.pi / SEARCH_YAW_VEL  # s
+
 # --- Optional Step 6: obstacle avoidance ------------------------------------
 # Off unless you do Optional Step 6: with it off, the robot walks straight at
 # the target, ignoring anything in between.
@@ -75,6 +83,7 @@ class State(Enum):
     AVOID_TURN = 3    # Turn away from an object in the way
     AVOID_PASS = 4    # Walk forward past it
     AVOID_RETURN = 5  # Turn back onto the original heading
+    LOST = 6          # Stand still: the target is gone and the search is over
 
 
 AVOID_STATES = (State.AVOID_TURN, State.AVOID_PASS, State.AVOID_RETURN)
@@ -88,6 +97,9 @@ def load_class_names():
 
 
 class StateMachineNode(Node):
+    search_since = None      # when this search began; None while not searching
+    person_blocking = False  # someone other than the target stands inside the stop distance
+
     def __init__(self, auto_start=True):
         super().__init__('state_machine_node')
         self.declare_parameter('use_color', False)
@@ -165,6 +177,8 @@ class StateMachineNode(Node):
         self.target_pos, self.target_bottom = 0.0, 0.0
         self.obstacle_pos, self.crowding = None, (0.0, 0.0)
         self.avoid_done_time = None
+        self.search_since = None
+        self.person_blocking = False
         self.target_object = obj_name
         self.target_class_id = self.class_name_to_id[obj_name]
         self.get_logger().info(
@@ -255,14 +269,23 @@ class StateMachineNode(Node):
         #   return None if it is None (nobody near where the target was),
         #   else target_lock.remember(self.lock, target).
         # Step 4: in 3, also set self.target_bottom = box_bottom(target).
-        targets = [] 
+        people = []
         for detection in detections:
             if valid_detection(detection) and detection_class_id(detection) == self.target_class_id:
-                targets.append(detection)
-        if (len(targets) == 0):
+                people.append(detection)
+        self.person_blocking = False
+        if (len(people) == 0):
+            return None
+        targets = target_lock.plausible_size(people, self.lock)
+        if target_lock.ambiguous(targets, self.lock):
+            self.lock.give_up()
+            return None
+        if not target_lock.may_reacquire(self.lock):
+            self.person_blocking = target_lock.person_in_the_way(people, None)
             return None
 
         target = target_lock.pick_target(targets, self.lock)
+        self.person_blocking = target_lock.person_in_the_way(people, target)
         if (target is None):
             return None
         else:
@@ -295,6 +318,13 @@ class StateMachineNode(Node):
             self.state = State.SEARCH
             self.obstacle_pos = None
             self.lock.position = None
+            self.search_since = None
+            self.command_publisher.publish(Twist())
+            return
+
+        if self.lock.gave_up:
+            self.state = State.LOST
+            self.obstacle_pos = None
             self.command_publisher.publish(Twist())
             return
 
@@ -317,12 +347,20 @@ class StateMachineNode(Node):
                 # The robot is about to spin: where the target was means
                 # nothing now. What it looks like still does (Optional Step 5).
                 self.lock.position = None
+                if self.search_is_over(now):
+                    self.state = State.LOST
+            else:
+                self.search_since = None
             if self.state == State.TRACK and ENABLE_OBSTACLE_AVOIDANCE and self.ready_to_avoid(now):
                 self.start_avoiding(now)
                 yaw, forward = self.detour_command(now)
+            elif self.state == State.TRACK and seconds > COAST_TIME:
+                yaw, forward = 0.0, 0.0  # waiting for a sighting, not walking on an old one
             else:
                 yaw, forward = self.motion_command()
 
+        if self.person_blocking:
+            forward = min(forward, 0.0)
         cmd = Twist()
         cmd.angular.z = float(yaw)
         cmd.linear.x = float(forward)
@@ -330,6 +368,15 @@ class StateMachineNode(Node):
         self.get_logger().info(
             f'🤖 State: {self.state.name} | Yaw: {yaw:.2f} | Fwd: {forward:.2f} | Target: {self.target_pos:+.3f}'
         )
+
+    def search_is_over(self, now):
+        """Has this search run out? A search needs something to look for: if
+        nobody in view could be accepted, spinning cannot help."""
+        if not target_lock.may_reacquire(self.lock):
+            return True
+        if self.search_since is None:
+            self.search_since = now
+        return (now - self.search_since).nanoseconds / 1e9 >= SEARCH_MAX_TIME
 
     def choose_state(self, seconds_since_detection):
         """SEARCH or TRACK, from how long ago we last saw the target.
@@ -369,7 +416,7 @@ class StateMachineNode(Node):
         #   target_lock.approach_speed(self.target_bottom, TRACK_FORWARD_VEL)
         #   instead: full speed when far, slowing to a stop at STOP_BOTTOM,
         #   backing off when too close.
-        if self.state == State.IDLE:
+        if self.state in (State.IDLE, State.LOST):
             return (0.0, 0.0)
         if not math.isfinite(self.target_pos) or not math.isfinite(self.target_bottom):
             return (0.0, 0.0)

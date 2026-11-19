@@ -7,6 +7,7 @@ from lab/follow_me.py, with your target lock and stop distance, behind the same
 interface the monorepo follower has, so nothing else needs to change:
 
     services  activate_person_following, deactivate_person_following  (std_srvs/Trigger)
+              person_following_status  (std_srvs/Trigger: read-only, its message is JSON)
     publishes /person_following_cmd_vel  (geometry_msgs/Twist, into cmd_vel_mux)
 
 It is built to sit quietly on the robot all day:
@@ -19,6 +20,8 @@ It is built to sit quietly on the robot all day:
   * No viewer, no /detections topic, no per-frame logging. The viewer from
     follow_me.launch.py is how you tune; this runs what you tuned.
   * Obstacle avoidance is off unless asked for (-p avoid_obstacles:=true).
+  * -p record_path:=<file> writes every frame's detections and every state
+    change's tick as JSON lines, for robot/follow_replay.py --log.
   * While following it also publishes where people are on ZMQ port 5556, the
     format Gemini Pupper's on-screen eyes read, so the dog face keeps looking
     at the person it follows.
@@ -67,6 +70,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 H_FOV_DEG = 220.0
 assert equirect_height(IMAGE_WIDTH, H_FOV_DEG) == IMAGE_HEIGHT
 
+# Gemini Pupper's clients give each service call 3 s. Stopping must reply well
+# inside that, or the robot treats a follower that already stopped as unknown
+# and refuses all motion.
+PIPELINE_STOP_WAIT_S = 1.0
+
 
 def mean_color(mask, box, frame):
     """Mean RGB inside a mask (or else the box), as "r,g,b", or "" if empty."""
@@ -95,6 +103,7 @@ class FollowService(StateMachineNode):
         self.declare_parameter('score_threshold', 0.4)
         self.declare_parameter('eyes_port', 5556)  # 0 turns the eye feed off
         self.declare_parameter('verbose', False)
+        self.declare_parameter('record_path', '')  # JSON lines for robot/follow_replay.py --log
         for name in ('detect_hz', 'idle_detect_hz'):
             rate = float(self.get_parameter(name).value)
             if not math.isfinite(rate) or rate <= 0:
@@ -142,9 +151,17 @@ class FollowService(StateMachineNode):
                 self.eyes = None
                 self.get_logger().warning(f'No eye feed on port {port}: {exc}')
 
+        self.recording = None
+        self.record_lock = threading.Lock()
+        path = self.get_parameter('record_path').value
+        if path:
+            self.recording = open(path, 'a', buffering=1)  # one line, one flush
+            self.get_logger().warning(f'recording detections to {path}')
+
         self.always_detect = bool(self.get_parameter('always_detect').value)
         self.create_service(Trigger, 'activate_person_following', self.on_activate)
         self.create_service(Trigger, 'deactivate_person_following', self.on_deactivate)
+        self.create_service(Trigger, 'person_following_status', self.on_status)
         if self.always_detect:
             error = self.start_pipeline()  # if the Hailo is busy, activate tries again
             hailo = (f'detecting at {self.get_parameter("idle_detect_hz").value:g} Hz between follows'
@@ -161,9 +178,11 @@ class FollowService(StateMachineNode):
         if target not in self.class_name_to_id:
             response.success, response.message = False, f'unknown follow class: {target}'
             return response
-        if self.tracking_enabled:
+        lost = self.lock.gave_up or self.state == follow_me.State.LOST  # a new request is a new chase
+        if self.tracking_enabled and self.running and not lost:
             response.success, response.message = True, 'already following'
             return response
+        started = time.monotonic()  # a slow start here is what a caller's timeout sees
         error = self.start_pipeline()
         if error is not None:
             response.success, response.message = False, f'could not start the detector: {error}'
@@ -172,7 +191,9 @@ class FollowService(StateMachineNode):
         with self.state_lock:
             self.start_tracking(target)
         self.wake.set()  # switch to the following rate right away
-        response.success, response.message = True, f'following the nearest {target}'
+        response.success = True
+        response.message = (f'following the most centred {target} '
+                            f'(detector ready in {time.monotonic() - started:.1f} s)')
         self.get_logger().warning(response.message)
         return response
 
@@ -182,9 +203,36 @@ class FollowService(StateMachineNode):
                 self.stop_tracking()  # publishes a zero command
         if not self.always_detect:
             self.stop_pipeline()
-        response.success, response.message = True, 'stopped following'
+        # Motion stopped above; a detector that is slow to exit is not a reason
+        # to report otherwise, and start_pipeline refuses a second owner.
+        stopping = self.pipeline is not None and self.pipeline.is_alive() and not self.always_detect
+        response.success = True
+        response.message = 'stopped following' + ('; detector still stopping' if stopping else '')
         self.get_logger().warning(response.message)
         return response
+
+    def on_status(self, request, response):
+        """What the follower is really doing. Read-only: starts and stops nothing."""
+        response.success = bool(self.tracking_enabled)
+        response.message = json.dumps(self.status())
+        return response
+
+    def status(self):
+        now = self.get_clock().now()
+
+        def age(stamp):
+            return None if stamp is None else round((now - stamp).nanoseconds / 1e9, 2)
+        with self.state_lock:
+            return {
+                'following': bool(self.tracking_enabled),
+                'state': self.state.name,
+                'target_lost': self.state == follow_me.State.LOST,
+                'seconds_since_target': age(self.last_detection_time),
+                'seconds_since_frame': age(self.last_frame_time),
+                'detector_running': bool(self.running),
+                'person_blocking': bool(self.person_blocking),
+                'use_color': bool(follow_me.target_lock.USE_COLOR),
+            }
 
     def start_pipeline(self):
         """Open the Hailo and start detecting. None on success, else why not."""
@@ -226,7 +274,7 @@ class FollowService(StateMachineNode):
         self.image_ready.set()
         self.wake.set()
         if self.pipeline is not None:
-            self.pipeline.join(timeout=3.0)
+            self.pipeline.join(timeout=PIPELINE_STOP_WAIT_S)
         if self.pipeline is not None and self.pipeline.is_alive():
             self.get_logger().error('Detector inference has not stopped; restart is blocked until its worker exits')
         else:
@@ -308,6 +356,10 @@ class FollowService(StateMachineNode):
             hyp.hypothesis.score = float(det.score)
             d.results.append(hyp)
             msg.detections.append(d)
+        self.record({'t': time.monotonic(), 'frame': [
+            [d.bbox.center.position.x, d.bbox.center.position.y, d.bbox.size_x, d.bbox.size_y,
+             int(d.results[0].hypothesis.class_id), d.results[0].hypothesis.score, d.id]
+            for d in msg.detections]})
 
         with self.state_lock:
             if self.tracking_enabled and generation == getattr(self, 'tracking_generation', 0):
@@ -336,7 +388,18 @@ class FollowService(StateMachineNode):
     # ------------------------------------------------------------ ticks
     def timer_callback(self):
         with self.state_lock:
+            before = self.state
             super().timer_callback()
+            changed = self.state != before
+            state, offset, bottom = self.state.name, self.target_pos, self.target_bottom
+        if changed:
+            self.record({'t': time.monotonic(), 'tick': [state, offset, bottom]})
+
+    def record(self, entry):
+        """One JSON line for follow_replay.py. Off unless record_path is set."""
+        if self.recording is not None:
+            with self.record_lock:
+                self.recording.write(json.dumps(entry) + '\n')
 
 
 def main():

@@ -30,7 +30,7 @@ Optional Step 5. **Which person is mine, even after losing them?** Position
 
 import numpy as np
 
-from boxes import IMAGE_HEIGHT, box_offset, detection_color
+from boxes import IMAGE_HEIGHT, box_bottom, box_offset, detection_color
 
 # --- Step 3: keeping the lock -----------------------------------------------
 # How far (in the units of position_distance: fractions of the image) a
@@ -74,6 +74,21 @@ REID_MAX_DIST = 90.0
 # by it.
 REID_BLEND = 0.1
 
+# --- Engineering: when to stop instead of guessing ---------------------------
+# Two people we cannot tell apart, with boxes this much overlapped on the
+# target's spot, are about to swap: from here on, the lock cannot say which is
+# ours. 0.3 means 30% of the narrower box is covered.
+AMBIGUOUS_OVERLAP = 0.3
+# A box this many times wider than the target's recent box is somebody nearer,
+# however close to the target's spot it lands: a stranger walking in front.
+# Width, not height: a table that hides the legs changes a box's height only.
+MAX_WIDTH_RATIO = 1.5
+# Per-frame decay of the remembered width, so one wide pose is soon forgotten.
+WIDTH_MEMORY = 0.995
+# Nobody may be walked into: anyone inside the stop distance, within this much
+# of straight ahead (box_offset), blocks forward motion. They need not be the target.
+IN_THE_WAY_BAND = 0.15
+
 
 class Lock:
     """What we remember about the target between frames."""
@@ -81,11 +96,22 @@ class Lock:
     def __init__(self):
         self.position = None  # (box_offset, centre y / IMAGE_HEIGHT) last frame, or None
         self.color = None     # Optional Step 5: remembered mask color, a numpy array (r, g, b), or None
+        self.seen = False     # has this chase had a target yet?
+        self.gave_up = False  # the target is unknown until a new chase
+        self.width = None     # recent widest box width (px), or None
 
     def reset(self):
         """A new chase: forget everything."""
         self.position = None
         self.color = None
+        self.seen = False
+        self.gave_up = False
+        self.width = None
+
+    def give_up(self):
+        """Stop guessing: no target until a new chase."""
+        self.position = None
+        self.gave_up = True
 
 
 def box_position(detection):
@@ -170,8 +196,79 @@ def remember(lock, detection):
     # lock.position = where the detection is (box_position).
     lock.position = box_position(detection)
     # ======================================================
+    lock.seen = True
+    width = detection.bbox.size_x
+    lock.width = width if lock.width is None else max(width, WIDTH_MEMORY * lock.width)
     if USE_COLOR:
         remember_color(lock, detection)  # Optional Step 5
+
+
+# ======================================================== Engineering: recovery
+def may_reacquire(lock):
+    """May this frame's people be considered as the target at all?
+
+    A new chase, and a lock that still knows the target's spot, are fine. After
+    a loss the spot means nothing, so only identity evidence may bring the
+    target back. That needs a remembered color; pick_target_by_color then
+    accepts a color match and nobody else. Without color, "the most centred
+    person" is a guess, and following the wrong person is worse than stopping.
+    """
+    if lock.gave_up:
+        return False
+    if lock.position is not None or not lock.seen:
+        return True
+    return USE_COLOR and lock.color is not None
+
+
+def plausible_size(people, lock):
+    """The people whose box is not too wide to be the target.
+
+    Only while the lock knows the target's spot: after a search the robot may
+    have walked, and the target's size is no longer a guide.
+    """
+    if lock.position is None or lock.width is None:
+        return people
+    return [d for d in people if d.bbox.size_x <= lock.width * MAX_WIDTH_RATIO]
+
+
+def person_in_the_way(people, target):
+    """Is someone other than the target inside the stop distance, ahead of us?"""
+    return any(d is not target and box_bottom(d) >= STOP_BOTTOM and abs(box_offset(d)) <= IN_THE_WAY_BAND
+               for d in people)
+
+
+def box_overlap(a, b):
+    """Fraction of the narrower box's width that the other box covers, 0..1."""
+    a_left, a_right = box_edges(a)
+    b_left, b_right = box_edges(b)
+    shared = min(a_right, b_right) - max(a_left, b_left)
+    return max(shared, 0.0) / min(a_right - a_left, b_right - b_left)
+
+
+def box_edges(detection):
+    half = detection.bbox.size_x / 2
+    return detection.bbox.center.position.x - half, detection.bbox.center.position.x + half
+
+
+def ambiguous(targets, lock):
+    """Are two people we cannot tell apart overlapped on the target's spot?
+
+    A crossing hides one person behind the other, and the nearest box to the
+    lock can then be the wrong one. Different mask colors tell them apart, so
+    this fires only without that evidence.
+    """
+    if lock.position is None:
+        return False
+    close = [d for d in targets if position_distance(d, lock.position) <= LOCK_GATE
+             and not (USE_COLOR and is_stranger(d, lock))]
+    close.sort(key=lambda d: position_distance(d, lock.position))
+    return len(close) >= 2 and box_overlap(close[0], close[1]) >= AMBIGUOUS_OVERLAP
+
+
+def is_stranger(detection, lock):
+    """True when this person's mask color rules them out."""
+    distance = color_distance(detection, lock.color)
+    return distance is not None and distance > REID_MAX_DIST
 
 
 # ======================================================== Step 4: how close

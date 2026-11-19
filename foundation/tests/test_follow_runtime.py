@@ -1,6 +1,7 @@
 """Perception freshness and device ownership regressions; no ROS or Hailo required."""
 import ast
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import threading
@@ -182,6 +183,7 @@ def service_object(module):
     obj.get_clock = lambda: SimpleNamespace(now=lambda: SimpleNamespace(to_msg=lambda: None))
     obj.send_eyes = lambda *args: None
     obj.target_class_id = 0
+    obj.record = lambda entry: None
     return obj
 
 
@@ -222,3 +224,73 @@ def test_service_rejects_duplicate_camera_stamps(service):
     assert obj.latest_image is first
     obj.on_image(SimpleNamespace())
     assert obj.latest_image is first
+
+
+def test_stopping_replies_inside_the_callers_three_second_budget(service):
+    obj = service_object(service)
+    waits = []
+    obj.pipeline = SimpleNamespace(join=lambda timeout: waits.append(timeout), is_alive=lambda: True)
+    obj.image_sub = None
+    obj.always_detect, obj.tracking_enabled = False, False
+    response = obj.on_deactivate(None, SimpleNamespace())
+    assert waits and waits[0] < 3.0
+    assert response.success and 'still stopping' in response.message
+
+
+def test_activate_restarts_a_chase_that_gave_up_or_lost_its_detector(service):
+    obj = service_object(service)
+    obj.get_parameter = lambda name: SimpleNamespace(value='person')
+    obj.class_name_to_id = {'person': 0}
+    obj.lock = target_lock.Lock()
+    obj.pipeline = None
+    obj.state = fm.State.TRACK
+    calls = []
+    obj.start_pipeline = lambda: calls.append('pipeline')
+    obj.start_tracking = lambda target: calls.append('chase')
+    assert 'already' in obj.on_activate(None, SimpleNamespace()).message
+    assert calls == []
+    obj.lock.give_up()
+    response = obj.on_activate(None, SimpleNamespace())
+    assert response.success and calls == ['pipeline', 'chase']
+    assert 'nearest' not in response.message  # the lock picks the most centred person
+    calls.clear()
+    obj.lock.reset()
+    obj.state = fm.State.LOST  # color off: a lost target without gave_up
+    assert 'already' not in obj.on_activate(None, SimpleNamespace()).message
+    assert calls == ['pipeline', 'chase']
+
+
+def test_status_says_when_following_has_stopped_working(service):
+    obj = service_object(service)
+    now = FakeTime(10)
+    obj.get_clock = lambda: SimpleNamespace(now=lambda: now)
+    obj.state = fm.State.LOST
+    obj.last_detection_time, obj.last_frame_time = FakeTime(4), FakeTime(9.5)
+    obj.person_blocking = False
+    response = obj.on_status(None, SimpleNamespace())
+    status = json.loads(response.message)
+    assert response.success and status['target_lost'] and status['state'] == 'LOST'
+    assert status['seconds_since_target'] == 6 and status['seconds_since_frame'] == .5
+
+
+def test_service_startup_registers_status_and_records_detections(service, monkeypatch, tmp_path):
+    log = tmp_path / 'run.jsonl'
+    values = {'follow_class': 'person', 'cmd_vel_topic': '/person_following_cmd_vel', 'detect_hz': 10.,
+              'always_detect': False, 'idle_detect_hz': 3., 'score_threshold': .4, 'eyes_port': 0,
+              'verbose': True, 'record_path': str(log), 'use_color': False, 'avoid_obstacles': False}
+    created = []
+
+    def fake_base(self, auto_start=True):
+        self.declare_parameter = lambda name, default=None: None
+        self.get_parameter = lambda name: SimpleNamespace(value=values[name])
+        self.get_logger = lambda: SimpleNamespace(warning=lambda _: None, set_level=lambda _: None)
+        self.detection_subscription = self.tracking_control_subscription = object()
+        self.command_publisher = object()
+        self.destroy_subscription = self.destroy_publisher = lambda _: None
+        self.create_publisher = lambda *args: SimpleNamespace(publish=lambda _: None)
+        self.create_service = lambda kind, name, callback: created.append(name)
+    monkeypatch.setattr(fm.StateMachineNode, '__init__', fake_base)
+    obj = service.FollowService()
+    assert 'person_following_status' in created
+    obj.record({'t': 1., 'frame': []})
+    assert json.loads(log.read_text()) == {'t': 1., 'frame': []}
