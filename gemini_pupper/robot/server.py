@@ -253,7 +253,7 @@ def tool_list():
 @app.post("/tools/{name}")
 async def tool_call(name: str, args: dict = Body(default={})):
     res = await gemini_tools.call(T(), name, args)
-    log.info("tool %s(%s) -> %s: %s", name, "[redacted]" if name == "unlock" else args,
+    log.info("tool %s(%s) -> %s: %s", name, args,
              "ok" if res.ok else "FAILED", res.message)
     return {**res.as_dict(), **({"command_epoch": T().command_epoch, "command_epoch_required": True} if name == "stop" else {})}
 
@@ -327,10 +327,10 @@ def animations():
 
 
 def available_tricks() -> dict:
-    """The tricks in <repo>/tricks, every one played by a policy."""
+    """The tricks in <repo>/tricks that play_trick offers (tool_only ones belong to their tool)."""
     return {
         name: {"description": t.description, "duration_s": round(t.total_time, 1), "kind": t.kind}
-        for name, t in T().available_tricks().items()
+        for name, t in T().offered_tricks().items()
     }
 
 

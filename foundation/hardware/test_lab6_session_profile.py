@@ -54,7 +54,7 @@ def profile(monkeypatch, tmp_path):
     return module
 
 
-@pytest.mark.parametrize("selection", ["", "sit_stay_shake", "sit_stay_shake,secret_dance"])
+@pytest.mark.parametrize("selection", ["", "sit_stay_shake"])
 def test_selected_profile_preserves_baseline_and_binds_catalog(profile, monkeypatch, selection):
     monkeypatch.setenv("PUPPER_SESSION_SKILLS", selection)
     baseline = yaml.safe_load((profile.ROOT / "lab6-session.yaml").read_text())
@@ -85,8 +85,6 @@ def test_selected_profile_preserves_baseline_and_binds_catalog(profile, monkeypa
     assert all(entities.index(g) < entities.index(g.args[0].kwargs["target_action"]) for g in guards)
     assert not any(type(e).__name__ == "TimerAction" for e in entities)
     assert hashlib.sha256((profile.ROOT / "lab6-session.yaml").read_bytes()).hexdigest() == profile.CONFIG_SHA
-    if "secret_dance" in selection:
-        assert load_tricks()["secret_dance"].secret  # selection never unlocks it
 
 
 @pytest.mark.parametrize("selection", ["missing_skill", "sit", "sit_stay_shake,sit_stay_shake", "sit_stay_shake,", "../sit", "jump"])
@@ -194,12 +192,11 @@ def test_reviewed_supplied_roster_identity_and_inactive_stop_coverage(profile, m
     assert generated["estop_controller"]["ros__parameters"]["controller_names"] == (
         baseline["estop_controller"]["ros__parameters"]["controller_names"]
         + recipe["motion_controllers"][2:])
-    assert "trick_secret_dance" not in generated["controller_manager"]["ros__parameters"]
     assert runtime_config.session_motion_bounds(manifest) == runtime_config.session_motion_bounds()
     for name, trick in load_tricks().items():
         expected = recipe["skills"][name]
         params = generated[trick.controller]["ros__parameters"]
-        assert trick.kind == "policy" and not trick.walks and not trick.secret
+        assert trick.kind == "policy" and not trick.walks
         assert params["init_duration"] == expected["init_s"] == .5
         assert params["fade_in_duration"] == expected["fade_s"] == 1.
         assert params["repeat_action"] == 10 and params["gain_multiplier"] == 1.
@@ -227,7 +224,7 @@ def test_selected_supplied_trick_returns_before_a_following_walk(monkeypatch, na
         try:
             assert await rig.settle()
             assert set(rig.ts.tricks) == set(recipe["selection"])
-            rejected = await tool_registry.call(rig.ts, "play_trick", {"name": "secret_dance", "count": 1, "count_unit": "routine_playback"})
+            rejected = await tool_registry.call(rig.ts, "play_trick", {"name": "sneeze", "count": 1, "count_unit": "routine_playback"})
             assert not rejected.ok and rig.ts.commands.empty()
             accepted = await tool_registry.call(rig.ts, "play_trick", {"name": name, "count": 1, "count_unit": "routine_playback"})
             assert accepted.ok

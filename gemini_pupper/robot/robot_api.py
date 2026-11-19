@@ -58,7 +58,6 @@ import json
 import math
 import os
 import queue
-import re
 import threading
 import time
 import uuid
@@ -80,9 +79,8 @@ from std_msgs.msg import Empty, Float32MultiArray, MultiArrayDimension, MultiArr
 from std_srvs.srv import Trigger
 
 from spawn_controllers import LOADED, spawn
-from secret_gate import SecretGate
 from stop_status import StopStatus, TOPIC as STOP_STATUS_TOPIC
-from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
+from tricks import WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
 
 log = logging.getLogger("robot_api")
 
@@ -271,7 +269,6 @@ class Robot:
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(self.node)
 
-        self.secret_gate = SecretGate()
         self.action_lock = asyncio.Lock()  # serialize request acceptance; stop bypasses it
         self.last_outcome: dict | None = None
         self.leg_controllers = (LEG_CONTROLLERS | {t.controller for t in self.tricks.values() if t.kind == "policy"}
@@ -404,7 +401,6 @@ class Robot:
         async def cleanup():
             try:
                 self.stops += 1
-                self.secret_gate.lock()
                 self.send_speed(0, 0, 0)
                 await self.clear_queue(reason="shared_stop")
                 self._cancel_current_job("shared_stop")
@@ -740,7 +736,7 @@ class Robot:
                 # started at its exit clip, and let it play.
                 res = await self.switch_to(leaving.controller, start_clip=leaving.exit_clip)
                 if res.ok:
-                    await asyncio.sleep(TRICK_INIT_S + TRICK_FADE_S + leaving.clip_length(leaving.exit_clip) + 0.3)
+                    await asyncio.sleep(leaving.blend_time + leaving.clip_length(leaving.exit_clip) + 0.3)
                     res = await self.confirm_clip_endpoint(leaving, leaving.exit_clip)
                     if not res.ok:
                         return Result(False, f"cannot leave {leaving.name}: {res.message}")
@@ -855,7 +851,7 @@ class Robot:
             if state.walks:
                 # The planned Trick state does not distinguish its two controllers.
                 # Cover either its running loop or the walking-to-exit activation.
-                seconds = max(seconds, TRICK_INIT_S + TRICK_FADE_S
+                seconds = max(seconds, state.blend_time
                               + state.clip_length(state.exit_clip) + 0.3)
         if controller == LOCOMOTION_CONTROLLER and state != LOCOMOTION:
             seconds += WALK_READY_S
@@ -968,8 +964,6 @@ class Robot:
         """API job evidence only; never a measurement of physical motion.
 
         Rows contain server-owned action names, not incoming user/tool arguments.
-        Local diagnostic logs retain configured identities; public history is
-        redacted at read time so locking also hides older private-skill records.
         """
         self._job_event_sequence += 1
         row = {"schema": "pupper_job_event_v1", "server_instance": self.command_instance,
@@ -1016,7 +1010,7 @@ class Robot:
     def recent_outcomes(self) -> dict:
         """Bounded terminal history for HTTP polling; not model status context."""
         return {"capacity": self._terminal_outcomes.maxlen, "dropped": self._terminal_outcomes_dropped,
-                "outcomes": [self._public_outcome(row) for row in self._terminal_outcomes]}
+                "outcomes": [dict(row) for row in self._terminal_outcomes]}
 
     async def _run_queue(self) -> None:
         try:
@@ -1143,14 +1137,14 @@ class Robot:
         return {
             "queued": self.commands.qsize(),
             "running": self.current is not None,
-            "current_action": self.public_current_action(),
+            "current_action": self.current_action_status(),
             "physical_observation": {"pose": None, "speed": None, "stopped": None},
             "seconds_left": round(max(0.0, self.busy_until - time.monotonic()), 1),
             "following": self.following,
-            "controller_fault": self.public_diagnostic(self.controller_fault),
-            "state": self.public_state_name(self.state_now),
-            "state_after_queue": self.public_state_name(self.state_after_queue),
-            "last_outcome": self.public_outcome(),
+            "controller_fault": self.controller_fault,
+            "state": state_name(self.state_now),
+            "state_after_queue": state_name(self.state_after_queue),
+            "last_outcome": dict(self.last_outcome) if self.last_outcome is not None else None,
             "session_context": {"schema": "pupper_session_context_v1",
                                 "server_instance": self.command_instance,
                                 "scope": "this_server_session",
@@ -1191,60 +1185,22 @@ class Robot:
         return Result(True, f"cleared {n} queued commands", {"pending_queued_job_ids_cleared": cleared_ids})
 
     # ---------------------------------------------------------------- tricks
+    def offered_tricks(self) -> dict[str, Trick]:
+        """The tricks play_trick and interactive_action offer: all but tool_only ones."""
+        return {name: t for name, t in self.tricks.items() if not t.tool_only}
+
     def action_ids(self) -> dict[str, tuple[Trick, str]]:
         """Interactive action ids Gemini uses -> (trick, clip). A clip name, prefixed with the
         trick's name only when two tricks share it."""
-        pairs = [(t, clip) for t in self.available_tricks().values() for clip in t.actions]
-        names = [clip for t in self.tricks.values() for clip in t.actions]
+        pairs = [(t, clip) for t in self.offered_tricks().values() for clip in t.actions]
+        names = [clip for t in self.offered_tricks().values() for clip in t.actions]
         return {(clip if names.count(clip) == 1 else f"{t.name}.{clip}"): (t, clip) for t, clip in pairs}
 
-    def trick_available(self, trick: Trick) -> bool:
-        return not trick.secret or self.secret_gate.unlocked
-
-    def available_tricks(self) -> dict[str, Trick]:
-        return {name: t for name, t in self.tricks.items() if self.trick_available(t)}
-
-    def public_diagnostic(self, text: str | None) -> str | None:
-        """Hide exact configured locked-skill identities in public diagnostics.
-
-        Keep the original fault/fall records and safety enforcement unchanged.
-        Identifier boundaries avoid rewriting unrelated names containing a skill
-        name as a substring; this is not arbitrary free-text sanitization.
-        """
-        if not text or self.secret_gate.unlocked:
-            return text
-        identities = {identity for trick in self.tricks.values() if trick.secret
-                      for identity in (trick.name, trick.controller, trick.walk_controller) if identity}
-        if not identities:
-            return text
-        pattern = r"(?<![A-Za-z0-9_])(?:" + "|".join(
-            re.escape(identity) for identity in sorted(identities, key=len, reverse=True)
-        ) + r")(?![A-Za-z0-9_])"
-        return re.sub(pattern, "locked trick", text)
-
-    def public_state_name(self, state) -> str:
-        return "locked trick" if isinstance(state, Trick) and not self.trick_available(state) else state_name(state)
-
-    def public_current_action(self) -> dict | None:
+    def current_action_status(self) -> dict | None:
         if self.current is None or self.current_action_name is None:
             return None
-        name = self.current_action_name
-        if not self.secret_gate.unlocked and any(
-                t.secret and (t.name in name or any(clip in name for clip in t.actions))
-                for t in self.tricks.values()):
-            name = "locked trick"
-        return {"name": name, "state": "running", "job_id": self.current_job_id,
+        return {"name": self.current_action_name, "state": "running", "job_id": self.current_job_id,
                 "server_instance": self.command_instance, "execution_started": self.current_execution_started}
-
-    def public_outcome(self) -> dict | None:
-        return self._public_outcome(self.last_outcome)
-
-    def _public_outcome(self, outcome: dict | None) -> dict | None:
-        if outcome and not self.secret_gate.unlocked:
-            text = outcome["name"] + " " + outcome["message"]
-            if any(t.secret and (t.name in text or any(clip in text for clip in t.actions)) for t in self.tricks.values()):
-                return {**outcome, "name": "locked trick", "message": "details hidden while locked"}
-        return dict(outcome) if outcome is not None else None
 
     def _clip_endpoint(self, trick: Trick, start_clip: str) -> tuple[dict, float]:
         """Stable endpoint and minimum native playback time for an auto-next chain."""
@@ -1347,7 +1303,7 @@ class Robot:
             began = self.policy_activation_since.get(trick.controller)
             if receipt and began is not None:
                 name, holding, frame, received, request_id, clip_request, queued = receipt
-                earliest = began + TRICK_INIT_S + TRICK_FADE_S + (trick.frame_count - 1) / trick.fps
+                earliest = began + trick.blend_time + (trick.frame_count - 1) / trick.fps
                 if (request_id == self.policy_execution_requests.get(trick.controller)
                         and clip_request == "none" and queued == 0
                         and name == "all" and holding and frame == trick.frame_count - 1
@@ -1367,7 +1323,7 @@ class Robot:
         except (ValueError, StopIteration) as error:
             return Result(False, str(error))
         began = self.policy_activation_since.get(trick.controller)
-        earliest = (began + TRICK_INIT_S + TRICK_FADE_S + minimum_playback) if began is not None else float("inf")
+        earliest = (began + trick.blend_time + minimum_playback) if began is not None else float("inf")
         deadline = time.monotonic() + 1.0
         while True:
             if reason := self.motion_block_reason():
@@ -1388,6 +1344,40 @@ class Robot:
                                          "Inspect/restart the controller stack before restarting this tool server")
                 relaxed = await self._relax_controllers()
                 return Result(False, f"{self.controller_fault}. Cleanup: {relaxed.message}")
+            await asyncio.sleep(0.02)
+
+    async def wait_start_clip(self, trick: Trick, clip: str, seconds: float) -> Result:
+        """Wait until the clip this activation started at (switch_to's start_clip) has
+        played ``seconds``, from controller feedback. It does not wait for the clip's end,
+        so a clip with a still tail can hand the legs over early.
+
+        A timeout is a failed result, not a controller fault: the caller gives the legs
+        to another controller next, which is the same recovery.
+        """
+        try:
+            spec = trick.clip(clip)
+        except StopIteration:
+            return Result(False, f"{trick.name} has no clip {clip}")
+        last = spec["end"] - spec["start"] - 1
+        need = spec["start"] + min(max(int(round(seconds * trick.fps)), 0), last)
+        began = self.policy_activation_since.get(trick.controller)
+        if began is None:
+            return Result(False, f"{trick.name} was not activated by this server")
+        deadline = began + trick.blend_time + min(seconds, last / trick.fps) + 1.0
+        while True:
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
+            if self.fallen or self.stopped_during_call() or self.controller_fault:
+                return Result(False, self.controller_fault or "clip interrupted by a fall or stop")
+            receipt = self.clip_receipts.get(trick.controller)
+            if receipt:
+                name, _holding, frame, received, activation, request, _queued = receipt
+                if (activation == self.policy_execution_requests.get(trick.controller) and request == "none"
+                        and received >= began and 0 <= time.monotonic() - received <= 0.25
+                        and (frame >= need if name == clip else name == spec.get("next"))):
+                    return Result(True, f"controller played {clip} to frame {frame}")
+            if time.monotonic() >= deadline:
+                return Result(False, f"{trick.name} did not confirm {clip} for this activation")
             await asyncio.sleep(0.02)
 
     async def play_reference_trick(self, trick: Trick) -> Result:
@@ -1675,11 +1665,10 @@ class Robot:
         measured motor torque or posture. A finished pose keeps holding.
         """
         self.stops += 1  # requests still being handled won't queue anything now
-        self.secret_gate.lock()
         self.send_speed(0, 0, 0)  # request zero speed before anything that waits
         running_task = self.current if self.current is not None and not self.current.done() else None
         running = running_task is not None
-        public_action = self.public_current_action() if running else None
+        public_action = self.current_action_status() if running else None
         running_name = public_action["name"] if public_action else "unnamed job"
         running_job_id = self.current_job_id if running else None
         pending_count = self.commands.qsize()
@@ -1733,7 +1722,7 @@ class Robot:
         if not relaxed.ok:
             return receipt(False, relaxed.message)
         log.warning("stop: %s was still playing; deactivated leg controllers", playing[0].name)
-        return receipt(True, f"{self.public_state_name(playing[0])} was still playing, "
+        return receipt(True, f"{state_name(playing[0])} was still playing, "
                             "so its controller was deactivated. Physical stopping and posture have "
                             "not been measured. A later move/turn/arc request prepares its controller "
                             "automatically if readiness checks pass; a reported fall still requires supervised recovery.")
@@ -1781,7 +1770,7 @@ class Robot:
         facts = self.status()
         facts["observed_controller_mode"] = "unknown"
         if reason := self.motion_block_reason():
-            return Result(False, self.public_diagnostic(reason) + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, facts)
+            return Result(False, reason + "; software command state only. " + PHYSICAL_STATE_UNKNOWN, facts)
         inventory = await self._call(self.list_client, ListControllers.Request())
         states = {c.name: c.state for c in inventory.controller} if inventory else {}
         if not states:
@@ -1803,14 +1792,13 @@ class Robot:
                                        or (t.walks and t.walk_controller == selected)), None)
                 if selected_trick:
                     facts["observed_controller_mode"] = (
-                        "locked_skill" if not self.trick_available(selected_trick)
-                        else "walking_skill" if selected_trick.walks and selected_trick.walk_controller == selected
-                        else selected_trick.name if selected_trick.name in {"sit_stay_shake", "secret_dance"}
+                        "walking_skill" if selected_trick.walks and selected_trick.walk_controller == selected
+                        else selected_trick.name if selected_trick.name == "sit_stay_shake"
                         else "other_skill")
         trick = next((t for t in self.tricks.values() if t.kind == "policy" and states.get(t.controller) == "active"), None)
         walking = next((t for t in self.tricks.values() if t.walks and states.get(t.walk_controller) == "active"), None)
         if self.fallen:
-            return Result(True, f"controller mode: tilt/fall stop recorded in {self.public_diagnostic(self.fallen)}. {PHYSICAL_STATE_UNKNOWN} "
+            return Result(True, f"controller mode: tilt/fall stop recorded in {self.fallen}. {PHYSICAL_STATE_UNKNOWN} "
                                 "Have a person check and set the robot upright; call stand_up only when ready.", facts)
         described = {LOCOMOTION_CONTROLLER}
         described.update(t.controller for t in self.tricks.values() if t.kind == "policy")
@@ -1834,8 +1822,6 @@ class Robot:
             else f"trick {trick.name} controller active; configured target pose: {trick.end_pose}" if trick
             else fallback
         )
-        if (trick and not self.trick_available(trick)) or (walking and not self.trick_available(walking)):
-            mode = "locked trick controller active; stand_up leaves it, stop cancels commands and requests stopping"
         if mode != fallback:
             if other_legs:
                 mode += f". Also active leg controllers: {', '.join(other_legs)}; behavior is not identified by this tool"

@@ -5,7 +5,6 @@ Run with the repository's tested Python:
 """
 import asyncio
 from contextlib import asynccontextmanager
-import json
 from pathlib import Path
 import sys
 
@@ -15,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "robot"))
 import test_tools as harness
 import tool_registry
 from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER
-from secret_gate import SecretGate
 from tricks import load_tricks
 
 
@@ -116,7 +114,7 @@ def test_move_from_seated_idle_uses_exit_clip_before_walking():
 
 
 FINITE = [name for name, trick in load_tricks().items()
-          if trick.kind == "policy" and not trick.interactive and not trick.secret]
+          if trick.kind == "policy" and not trick.interactive]
 
 
 @pytest.mark.parametrize("name", FINITE)
@@ -136,36 +134,6 @@ def test_installed_finite_skill_holds_declared_endpoint_until_later_request(name
                 assert (await call_and_settle(rig, "stand_up")).ok
                 assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
             assert not rig.failures(), rig.outcomes()
-    asyncio.run(case())
-
-
-def test_installed_generated_secret_unlock_play_return_and_relock(tmp_path):
-    password = "offline-test-only"
-    secret = tmp_path / "password"
-    secret.write_text(password)
-
-    async def case():
-        async with installed_rig() as rig:
-            rig.ts.secret_gate = SecretGate(secret)
-            dance = rig.ts.tricks["secret_dance"]
-            assert dance.secret and dance.end_pose == "standing"
-            assert dance.name not in json.dumps(tool_registry.declarations(rig.ts))
-            denied = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": dance.name})
-            assert not denied.ok and not rig.robot.activations(dance.controller)
-            before = list(rig.robot.switches)
-            wrong = await tool_registry.call(rig.ts, "unlock", {"password": "wrong-test-value"})
-            assert not wrong.ok and "wrong-test-value" not in wrong.message
-            unlocked = await tool_registry.call(rig.ts, "unlock", {"password": password})
-            assert unlocked.ok and password not in unlocked.message
-            assert rig.robot.switches == before
-            assert (await call_and_settle(rig, "play_trick", count=1, count_unit="routine_playback", name=dance.name)).ok
-            assert rig.ts.last_outcome["success"] is True
-            assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
-            assert (await tool_registry.call(rig.ts, "stop", {})).ok
-            assert await rig.settle()
-            assert not rig.ts.secret_gate.unlocked
-            assert dance.name not in json.dumps(tool_registry.declarations(rig.ts))
-            assert password not in json.dumps(rig.outcomes())
     asyncio.run(case())
 
 

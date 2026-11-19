@@ -40,9 +40,12 @@ export function supportsPawClarification(tools: FunctionDeclaration[], tricks: a
       && actions[name]?.trick === 'sit_stay_shake');
 }
 
+/** Robot tools that start no motion. Their failure or Live cancellation does not fence or stop motion. */
+const NON_ACTION_ROBOT_TOOLS = ['stop', 'robot_status', 'locate_ball'];
+
 /** Known status/gate failures alone do not fence motion; Stop/status remain usable when paused. */
 function isModelAction(name: unknown): boolean {
-  return !['stop', 'robot_status', 'unlock', 'lock_tricks', 'speak', 'say', 'narrate'].includes(String(name));
+  return ![...NON_ACTION_ROBOT_TOOLS, 'speak', 'say', 'narrate'].includes(String(name));
 }
 
 /** Optional diagnostics: no PCM, transcript text, tool arguments or credentials. */
@@ -1188,7 +1191,7 @@ export class GeminiLiveService {
                   break;
                 }
                 dispatch = { id: fc.id || crypto.randomUUID(), name: fc.name || 'unknown', timestamp: Date.now() };
-                if (!['stop', 'robot_status', 'unlock', 'lock_tricks'].includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
+                if (!NON_ACTION_ROBOT_TOOLS.includes(dispatch.name)) this.dispatchedActionIds.add(dispatch.id);
                 this.onToolDispatch({ ...dispatch, status: 'sending', message: 'Sending request' });
                 // This lifecycle remains balanced even after disconnect suppresses
                 // UI receipts. A late Stop must not race new manual motion.

@@ -8,7 +8,6 @@ import test_tools as harness
 import tool_registry
 from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER, Result
 from operator_feedback import receipt_feedback
-from secret_gate import SecretGate
 
 
 def marker(result, paw):
@@ -80,13 +79,12 @@ def test_invalid_arguments_have_no_queue_follower_or_controller_effects(args):
     asyncio.run(case())
 
 
-@pytest.mark.parametrize('missing', ['absent', 'locked', 'one_paw', 'wrong_endpoint', 'walking'])
+@pytest.mark.parametrize('missing', ['absent', 'one_paw', 'wrong_endpoint', 'walking'])
 def test_catalog_and_runtime_both_require_real_available_capability(missing):
     async def case():
         async with installed_rig() as rig:
             sit = rig.ts.tricks['sit_stay_shake']
             if missing == 'absent': rig.ts.tricks.clear()
-            elif missing == 'locked': sit.secret = True
             elif missing == 'one_paw': sit.actions.pop('shake_right')
             elif missing == 'walking': sit.walk_path = __import__('pathlib').Path('synthetic-walker.json')
             else: sit.clip('shake_right')['next'] = 'stand_up'
@@ -166,23 +164,19 @@ def test_stop_cancels_atomic_job_and_never_runs_a_late_paw(phase, monkeypatch):
 
 
 @pytest.mark.parametrize('when', ['before_start', 'after_entry'])
-def test_secret_relock_prevents_paw_without_undoing_confirmed_entry(when, monkeypatch, tmp_path):
+def test_capability_change_prevents_paw_without_undoing_confirmed_entry(when, monkeypatch):
     import part5_interactive_action as behavior
     async def case():
         async with installed_rig() as rig:
-            sit = rig.ts.tricks['sit_stay_shake']; sit.secret = True
-            password_file = tmp_path / 'secret-password'
-            password_file.write_text('disposable-test-password')
-            rig.ts.secret_gate = SecretGate(password_file)
-            assert rig.ts.secret_gate.unlock('disposable-test-password')
+            sit = rig.ts.tricks['sit_stay_shake']
             original = behavior.play_policy_trick
             if when == 'after_entry':
-                async def relocked(*args):
-                    result = await original(*args); rig.ts.secret_gate.lock(); return result
-                monkeypatch.setattr(behavior, 'play_policy_trick', relocked)
+                async def changed(*args):
+                    result = await original(*args); sit.actions.pop('shake_right'); return result
+                monkeypatch.setattr(behavior, 'play_policy_trick', changed)
             accepted = await tool_registry.call(rig.ts, 'shake_hand', {'paw': 'right'})
             marker(accepted, 'right')
-            if when == 'before_start': rig.ts.secret_gate.lock()
+            if when == 'before_start': sit.actions.pop('shake_right')
             assert await rig.settle()
             assert not rig.ts.last_outcome['success'] and rig.robot.clips(sit.controller) == []
             assert context(rig)['completed_sit_entries'] == (1 if when == 'after_entry' else 0)

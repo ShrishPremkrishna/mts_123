@@ -139,7 +139,6 @@
     }
   },
   "excluded": {
-    "secret_dance": "Observed jitter; excluded entirely from this controller roster, not merely unlocked/locked.",
     "sneeze": "Nominal measured peak joint speed15.56rad/s; deferred.",
     "lying_ending_clips": "Different endpoint/return and nonzero terminal clamping; separate review.",
     "spider": "No accepted entry/walking/return pair delivered.",

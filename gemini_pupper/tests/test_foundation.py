@@ -13,7 +13,6 @@ import test_tools as harness
 import robot_api
 import tool_registry
 from robot_api import LOCOMOTION, LOCOMOTION_CONTROLLER, MOTORS_IDLE, Result
-from secret_gate import SecretGate
 from tricks import load_tricks
 
 
@@ -129,7 +128,7 @@ def test_new_evaluated_walk_limits_replace_old_limits_without_losing_actions(tmp
     import get_trick
     import yaml
     spec = tmp_path / 'trick.yaml'
-    spec.write_text(yaml.safe_dump({'description': 'existing spider', 'secret': True,
+    spec.write_text(yaml.safe_dump({'description': 'existing spider',
         'actions': {'spider_up': 'stand'}, 'walk': {'policy': 'walk_policy.json', 'speed': .1}}))
     limits = {'evaluation_source': 'new-run/evaluation.json', 'speed': .04,
               'max_forward': .08, 'max_sideways': .04, 'turn': 15.}
@@ -137,7 +136,7 @@ def test_new_evaluated_walk_limits_replace_old_limits_without_losing_actions(tmp
     result = yaml.safe_load(spec.read_text())
     assert result['walk']['speed'] == .04
     assert result['evaluation_source'] == 'new-run/evaluation.json'
-    assert result['secret'] and result['actions'] == {'spider_up': 'stand'}
+    assert result['actions'] == {'spider_up': 'stand'}
     before = spec.read_bytes()
     with pytest.raises(ValueError, match='finite positive'):
         get_trick.write_template(tmp_path, 'spider_walk', {}, walks=True,
@@ -545,23 +544,6 @@ def test_follow_refuses_a_walking_trick_and_fall():
     run_case(case)
 
 
-def test_lock_also_revokes_moving_with_a_hidden_walking_policy():
-    async def case(rig):
-        trick = rig.ts.tricks['hold_pose']
-        trick.secret = True
-        trick.walk_path = Path('walk.json')
-        rig.ts.state_now = rig.ts.state_after_queue = trick
-        for tool, args in [('move', {'direction': 'forward'}),
-                           ('move', {'direction': 'forward', 'run': True}),
-                           ('turn', {'direction': 'left'}),
-                           ('arc', {'direction': 'left', 'angle': 30., 'radius': 1.})]:
-            result = await tool_registry.call(rig.ts, tool, args)
-            assert not result.ok and 'locked' in result.message
-            assert 'hold_pose' not in result.message
-        assert rig.ts.commands.empty() and not harness.walk_twists(rig)
-    run_case(case)
-
-
 @pytest.mark.parametrize("refuses_stop", [False, True])
 def test_server_restart_establishes_follower_shutdown_before_motion(refuses_stop):
     async def run():
@@ -689,64 +671,6 @@ def test_late_follower_start_after_timeout_or_cancellation_is_stopped(cancelled)
         assert not rig.ts.activation_cleanup_tasks
         assert not rig.robot.follower_on and not rig.ts.following
         assert rig.ts.controller_fault
-    run_case(case)
-
-
-def test_password_gate_never_embeds_the_password(tmp_path):
-    password = "a test-only phrase 123"
-    path = tmp_path / "password"
-    path.write_text(password + "\n")
-    gate = SecretGate(path)
-    assert not gate.unlock("wrong")
-    assert not gate.unlocked
-    assert gate.unlock(password)
-    gate.lock()
-    assert not gate.unlocked
-    assert not gate.unlock("")
-    assert not gate.unlock("x" * 300)
-    assert not SecretGate(tmp_path / "missing").unlock(password)
-
-
-def test_hidden_tricks_are_enforced_at_acceptance_and_execution(tmp_path):
-    password = "a test-only phrase 123"
-    file = tmp_path / "password"
-    file.write_text(password)
-    async def case(rig):
-        rig.ts.secret_gate = SecretGate(file)
-        trick = rig.ts.tricks["hold_pose"]
-        trick.secret = True
-        decls = json.dumps(tool_registry.declarations(rig.ts))
-        assert "hold_pose" not in decls and "wave_left" not in decls
-        assert password not in decls
-        denied = await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})
-        assert not denied.ok and "unlock" in denied.message
-        assert rig.ts.commands.empty()
-        wrong = await tool_registry.call(rig.ts, "unlock", {"password": "wrong"})
-        assert not wrong.ok and "wrong" not in wrong.message
-        before = list(rig.robot.switches)
-        unlocked = await tool_registry.call(rig.ts, "unlock", {"password": password})
-        assert unlocked.ok and "hold_pose" in unlocked.message and password not in unlocked.message
-        assert rig.robot.switches == before  # unlocking never moves
-        assert "hold_pose" in json.dumps(tool_registry.declarations(rig.ts))
-        assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "hold_pose"})).ok
-        await tool_registry.call(rig.ts, "lock_tricks", {})
-        await rig.settle()
-        assert trick.controller not in rig.robot.active()  # queued before lock but not executed
-        assert rig.ts.last_outcome["success"] is False
-        assert "wave_left" not in rig.ts.action_ids()
-    run_case(case)
-
-
-@pytest.mark.parametrize("reset", ["stop", "lie_down"])
-def test_unlock_lifetime_resets_on_stop_or_lie_down(tmp_path, reset):
-    file = tmp_path / "password"
-    file.write_text("test-only")
-    async def case(rig):
-        rig.ts.secret_gate = SecretGate(file)
-        assert (await tool_registry.call(rig.ts, "unlock", {"password": "test-only"})).ok
-        assert (await tool_registry.call(rig.ts, reset, {})).ok
-        assert not rig.ts.secret_gate.unlocked
-        await rig.settle()
     run_case(case)
 
 

@@ -272,7 +272,7 @@ def test_definitive_action_failure_without_epoch_fences_dependent_motion(monkeyp
     asyncio.run(check())
 
 
-@pytest.mark.parametrize("name", ["robot_status", "unlock", "lock_tricks"])
+@pytest.mark.parametrize("name", ["robot_status"])
 def test_known_non_action_refusal_does_not_create_action_failure_fence(monkeypatch, name):
     async def check():
         calls = []

@@ -24,7 +24,7 @@ transitions and missing clip completion feedback are reported rather than treate
 as successful movement.
 
 `POST /tools/shake_hand` takes `{"paw":"left"}` or `{"paw":"right"}`. It is
-advertised only when the installed, unlocked Sit policy supports both paws and
+advertised only when the installed Sit policy supports both paws and
 returns each to its seated idle loop. A named handshake uses this one tool call;
 no preceding model status or Sit-entry call is needed. Existing queued work runs
 first. The single handshake job checks current controller ownership, enters Sit
@@ -239,7 +239,7 @@ For browser/API development without the Pi, use the explicit fake server with th
 tested interpreter from the current-state record:
 
 ```bash
-PUPPER_SESSION_SKILLS=sit_stay_shake,secret_dance python -B robot/fake_server.py --port 18091
+PUPPER_SESSION_SKILLS=sit_stay_shake python -B robot/fake_server.py --port 18091
 ```
 
 Open `http://127.0.0.1:18091` and verify **FAKE REHEARSAL** before using the
@@ -301,7 +301,7 @@ Stop operation fails. The token is a stale-request fence, not authentication.
 A missing token is refused with HTTP 428; a stale token with HTTP 409. Both return
 `success: false` before dispatch. Never retry that motion automatically with a
 new token. Inspect status, then make a new explicit request. Browser model motion
-pauses after a rejected action step, unknown outcome or epoch rejection until voice reconnect. This blocks a later turn after a refused forward move, even when the refusal has no epoch metadata. Known status or password-gate failures alone do not trigger this action fence. The Python diagnostic
+pauses after a rejected action step, unknown outcome or epoch rejection until voice reconnect. This blocks a later turn after a refused forward move, even when the refusal has no epoch metadata. Known status failures alone do not trigger this action fence. The Python diagnostic
 requires a new setup/reconnect, and a model-issued Stop cannot clear that stale
 plan. Failed or unknown Stop responses keep motion blocked until a confirmed Stop
 or the applicable explicit session recovery. Stop and status remain available.
@@ -586,33 +586,10 @@ The installed Sit policy passed the eight existing scenarios on both CPU and
 GPU with class driver limits after its torso x-COM training range was expanded
 to ±2 cm. The +2 cm case improved; +2.5 cm remains outside that range and shows
 a CPU/GPU disagreement. See the [review](../../foundation/results/lab6-sit-comx02-reviewed.json)
-for the exact policy and boundary. Spider refinements remain separate experiments. The generated `secret_dance` artifact has completed
-generation, repair, training and review; its actual movement is a gentle standing
-rise/sway/return. Its seven-scenario screen and native finite-clip activation/hold
-are documented in the [review](../../foundation/results/generated-motion-trained-review.json).
+for the exact policy and boundary. Spider refinements remain separate experiments.
 These policies still require TA review before a first supervised hardware run.
 Existing recorded policy tricks and the course jump are available in software;
 that is not evidence of validation on this particular robot.
-
-## Optional Lab 3: hidden tricks
-
-Set `secret: true` in a real trained trick's `trick.yaml`, or pass `--secret` when
-fetching it. The robot owner creates a UTF-8 password file outside the repo at
-`~/.config/gemini-pupper/secret_password`, or supplies its path with
-`PUPPER_SECRET_FILE`. There is no shipped password and no password in the prompt.
-
-The `unlock` tool compares the supplied phrase in code. It does not move the robot.
-Locked tricks and actions are absent from the lists the model sees. A successful
-unlock supplies their descriptions; calls are checked again when queued work
-executes. `lock_tricks`, `lie_down`, `stop`, a fall or a server restart revoke the
-unlock. Locking alone does not jerk the robot out of a pose: `stand_up` remains
-available to leave safely, and `stop` can halt movement.
-
-Unlock arguments are redacted from tool debug logs in the server, terminal chat,
-and browser interface. A spoken password still enters the Gemini conversation;
-this is a demonstration of deterministic gating, not identity authentication or
-a secret suitable for reuse elsewhere. Prompt instructions, reported identity,
-and camera appearance do not grant the unlock.
 
 ## Physical validation
 

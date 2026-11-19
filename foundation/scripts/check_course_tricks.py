@@ -32,7 +32,7 @@ def main():
     from tricks import load_tricks
     available = load_tricks()
     selected = {name: trick for name, trick in available.items()
-                if trick.kind == 'policy' and not trick.interactive and not trick.secret}
+                if trick.kind == 'policy' and not trick.interactive}
     if not selected or any(t.start_pose != 'standing' for t in selected.values()):
         raise ValueError('This screen requires finite standing-start policies')
     runner = ROOT/'foundation/scripts/check_spider_handoff.py'
@@ -40,7 +40,7 @@ def main():
     report = dict(created_utc=datetime.now(timezone.utc).isoformat(),
                   scope='One nominal native activation, finite clip and 2s terminal hold per active supplied finite policy. Full collision hulls, class-source driver bounds, exact policy and descriptor tilt limit. No randomized trials, ROS execution, walking handoff or hardware test.',
                   runner_sha256=sha(runner), driver_limits_sha256=sha(limits),
-                  excluded={name: 'Reference, interactive, or generated secret policy has separate evidence.'
+                  excluded={name: 'Reference or interactive policy has separate evidence.'
                             for name in available if name not in selected},
                   trials=[], hardware_validated=False)
     env = os.environ.copy()

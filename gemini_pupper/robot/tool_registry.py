@@ -60,7 +60,7 @@ TOOLS: dict[str, Tool] = {}
 
 # The lab's files, in the order of the lab. Gemini gets the tools in this order.
 LAB_DIR = Path(__file__).resolve().parent.parent / "lab"
-LAB_MODULES = ["basics", "part2_walk", "part3_follow", "part4_tricks", "part5_interactive_action", "part8_secrets"]
+LAB_MODULES = ["basics", "part2_walk", "part3_follow", "part4_tricks", "part5_interactive_action", "part9_ball_kick"]
 
 
 def tool(tool_name: str, description: str, /, *, _ends_following: bool = False, **params: Param):
@@ -103,8 +103,8 @@ def _in_lab_order(tools: list[Tool]) -> list[Tool]:
 
 
 def TRICK_NAMES(robot: Robot) -> list:
-    """enum: the installed tricks."""
-    return list(robot.available_tricks())
+    """enum: the installed tricks that play_trick offers (not tool_only ones)."""
+    return list(robot.offered_tricks())
 
 
 def ACTION_IDS(robot: Robot) -> list:
@@ -113,8 +113,8 @@ def ACTION_IDS(robot: Robot) -> list:
 
 
 def handshake_trick(robot: Robot):
-    """The installed, unlocked Sit policy must return both paws to its idle loop."""
-    trick = robot.available_tricks().get("sit_stay_shake")
+    """The installed Sit policy must return both paws to its idle loop."""
+    trick = robot.tricks.get("sit_stay_shake")
     if trick is None or trick.kind != "policy" or not trick.interactive or trick.walks:
         return None
     try:
@@ -132,8 +132,20 @@ def handshake_trick(robot: Robot):
     return trick
 
 
+# Tools for operator programs (robot/ball_seek.py): POST /tools/<name> works, but
+# declarations() leaves them out, so Gemini never sees or calls them.
+OPERATOR_ONLY_TOOLS = frozenset({"kick_in_place", "kick_at"})
+
+
+def kick_ball_available(robot: Robot) -> bool:
+    """kick_ball needs the leg kick trick with both kick clips (lab/part9_ball_kick.py)."""
+    trick = robot.tricks.get("leg_kick")
+    return (trick is not None and trick.interactive and trick.tool_only == "kick_ball"
+            and {"kick_right", "kick_left"} <= {c["name"] for c in trick.clips})
+
+
 def _trick_list(robot: Robot) -> str:
-    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.available_tricks().items()) or "(none available)"
+    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.offered_tricks().items()) or "(none available)"
 
 
 def _action_list(robot: Robot) -> str:
@@ -177,14 +189,15 @@ def declarations(robot: Robot) -> list[dict]:
             continue
         if t.name == "shake_hand" and handshake_trick(robot) is None:
             continue
+        if t.name in ("kick_ball", "locate_ball") and not kick_ball_available(robot):
+            continue
+        if t.name in OPERATOR_ONLY_TOOLS:  # callable over HTTP, never offered to Gemini
+            continue
         props, required = {}, []
         for name, p in t.params.items():
             prop: dict[str, Any] = {"type": p.type.upper(), "description": p.description}
             enum = _resolve(p.enum, robot)
-            # The live connection's schema cannot change after unlock. Keep hidden
-            # names out, and let the server validate their newly unlocked names.
-            dynamic_hidden = p.enum in (TRICK_NAMES, ACTION_IDS) and any(t.secret for t in robot.tricks.values())
-            if enum and not dynamic_hidden:
+            if enum:
                 prop["enum"] = [str(v) for v in enum]
             props[name] = prop
             if p.required:
@@ -237,15 +250,13 @@ async def call(robot: Robot, name: str, args: dict) -> Result:
                 finite = False
             if not finite:
                 return Result(False, f"{name}: {pname} must be finite")
-        if p.enum is TRICK_NAMES and v in robot.tricks and not robot.trick_available(robot.tricks[v]):
-            return Result(False, "This trick is locked. Ask for the password, then use unlock(password).")
         enum = _resolve(p.enum, robot)
         if enum is not None and not enum:
             return Result(False, f"{name}: nothing is installed for {pname} yet, so it can't be used")
         if enum is not None and v not in enum:
             return Result(False, f"{name}: {pname} must be one of {list(enum)}, not {v!r}")
     return await dispatch(robot, lambda: t.run(robot, **args), name=name,
-                          interrupt=name in ("stop", "robot_status", "lock_tricks"))
+                          interrupt=name in ("stop", "robot_status"))
 
 
 async def dispatch(robot: Robot, run: Callable[[], Awaitable[Result]], *, name: str, interrupt: bool = False) -> Result:

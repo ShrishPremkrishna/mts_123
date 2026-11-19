@@ -145,7 +145,7 @@ def test_first_endpoint_failure_aborts_second_playback_and_later_stand():
     run_case(case)
 
 
-@pytest.mark.parametrize('change', ['stopped', 'locked', 'fallen'])
+@pytest.mark.parametrize('change', ['stopped', 'fallen'])
 def test_between_playback_gate_is_rechecked_before_any_second_activation(change):
     async def case(rig, swim):
         confirm = rig.ts.confirm_finite_endpoint
@@ -153,7 +153,6 @@ def test_between_playback_gate_is_rechecked_before_any_second_activation(change)
             result = await confirm(trick)
             assert result.ok
             if change == 'stopped': rig.ts.stops += 1
-            elif change == 'locked': rig.ts.trick_available = lambda trick: False
             else: rig.ts.fallen = 'injected tilt stop'
             return result
         rig.ts.confirm_finite_endpoint = change_gate

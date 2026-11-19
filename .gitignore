@@ -20,3 +20,6 @@ gemini_pupper/tricks/.backups/
 
 # A linked checkout may share this machine-local evidence directory.
 /artifacts
+
+# Local session notes at the repository root (final_project/handoffs/ stays tracked).
+/handoffs/

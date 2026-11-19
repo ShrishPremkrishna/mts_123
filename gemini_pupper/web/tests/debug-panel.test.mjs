@@ -80,16 +80,16 @@ test('unavailable/malformed catalog never advertises built-in skills; empty prof
   }
   response = {}; await p.poll(); assert.match(text(p.render()), /No skills available in this profile/);
 });
-test('poll refreshes selected skills/actions after external unlock and relock', async t => {
-  let unlocked = false;
+test('poll refreshes selected skills/actions when the installed catalog changes', async t => {
+  let extra = false;
   const p = await panel(t, bridge({
-    getAnimations: async () => ({ sit_stay_shake: skill, ...(unlocked ? { secret_dance: skill } : {}) }),
+    getAnimations: async () => ({ sit_stay_shake: skill, ...(extra ? { swim: skill } : {}) }),
     getInteractiveActions: async () => ({ shake_left: action }),
   }));
   await flush(); assert.ok(button(p.render(), 'Play sit stay shake'));
-  assert.ok(button(p.render(), 'Action shake left')); assert.equal(button(p.render(), 'Play secret dance'), undefined);
-  unlocked = true; await p.poll(); assert.ok(button(p.render(), 'Play secret dance'));
-  unlocked = false; await p.poll(); assert.equal(button(p.render(), 'Play secret dance'), undefined);
+  assert.ok(button(p.render(), 'Action shake left')); assert.equal(button(p.render(), 'Play swim'), undefined);
+  extra = true; await p.poll(); assert.ok(button(p.render(), 'Play swim'));
+  extra = false; await p.poll(); assert.equal(button(p.render(), 'Play swim'), undefined);
 });
 test('skill/action receipts distinguish acceptance, rejection and unknown without claiming completion', async t => {
   const sent = []; let response = { success: true, message: 'trick queued' };
@@ -108,19 +108,19 @@ test('skill/action receipts distinguish acceptance, rejection and unknown withou
   assert.match(text(p.render()), /unknown.*response unavailable/);
   assert.deepEqual(sent, ['sit_stay_shake', 'shake_left', 'sit_stay_shake']);
 });
-test('Stop stays independent while a skill request is pending and hides unlocked entries', async t => {
-  const command = deferred(), stop = deferred(); let stops = 0, unlocked = true;
+test('Stop stays independent while a skill request is pending and hides listed entries', async t => {
+  const command = deferred(), stop = deferred(); let stops = 0, listed = true;
   const p = await panel(t, bridge({
-    getAnimations: async () => unlocked ? { secret_dance: skill } : {}, queueAnimation: () => command.promise,
+    getAnimations: async () => listed ? { swim: skill } : {}, queueAnimation: () => command.promise,
   }), () => { stops++; return stop.promise; });
-  await flush(); button(p.render(), 'Play secret dance').props.onClick(); await flush();
-  assert.equal(button(p.render(), 'Play secret dance').props.disabled, true);
+  await flush(); button(p.render(), 'Play swim').props.onClick(); await flush();
+  assert.equal(button(p.render(), 'Play swim').props.disabled, true);
   assert.notEqual(button(p.render(), 'STOP').props.disabled, true);
   button(p.render(), 'STOP').props.onClick(); assert.equal(stops, 1);
-  assert.equal(button(p.render(), 'Play secret dance'), undefined);
-  await p.poll(); assert.equal(button(p.render(), 'Play secret dance'), undefined, 'unlocked response cannot reappear during Stop');
-  unlocked = false; stop.resolve(); await flush(); p.render(); await flush();
-  assert.equal(button(p.render(), 'Play secret dance'), undefined);
+  assert.equal(button(p.render(), 'Play swim'), undefined);
+  await p.poll(); assert.equal(button(p.render(), 'Play swim'), undefined, 'a listed response cannot reappear during Stop');
+  listed = false; stop.resolve(); await flush(); p.render(); await flush();
+  assert.equal(button(p.render(), 'Play swim'), undefined);
   command.resolve({ success: true, message: 'accepted before Stop' }); await flush();
 });
 test('polls never overlap and old bridge responses are discarded after replacement/unmount', async t => {
@@ -133,16 +133,16 @@ test('polls never overlap and old bridge responses are discarded after replaceme
 });
 
 
-test('a pre-Stop catalog response cannot resurrect a secret after Stop completes', async t => {
+test('a pre-Stop catalog response cannot resurrect a skill after Stop completes', async t => {
   const old = deferred(); let requests = 0, stops = 0;
   const p = await panel(t, bridge({ getAnimations: () => ++requests === 1
-    ? Promise.resolve({ secret_dance: skill }) : old.promise }), async () => { stops++; });
-  await flush(); assert.ok(button(p.render(), 'Play secret dance'));
+    ? Promise.resolve({ swim: skill }) : old.promise }), async () => { stops++; });
+  await flush(); assert.ok(button(p.render(), 'Play swim'));
   const poll = p.poll(); // second request remains in flight
   button(p.render(), 'STOP').props.onClick(); await flush();
-  old.resolve({ secret_dance: skill }); await poll; await flush();
+  old.resolve({ swim: skill }); await poll; await flush();
   assert.equal(stops, 1);
-  assert.equal(button(p.render(), 'Play secret dance'), undefined);
+  assert.equal(button(p.render(), 'Play swim'), undefined);
 });
 
 

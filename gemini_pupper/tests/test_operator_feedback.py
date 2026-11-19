@@ -103,11 +103,11 @@ def test_conversation_retains_full_tool_dispatch(capsys):
         async def call(name,_args):calls.append(name);return {'success':True}
         async def send(**_kwargs):pass
         d=gc._ToolDispatcher(fake(call),SimpleNamespace(send_tool_response=send),SimpleNamespace,conversation=True)
-        d.submit(packet('move','unlock','robot_status').tool_call.function_calls)
+        d.submit(packet('move','wait','robot_status').tool_call.function_calls)
         await d.drain();await d.close()
-        assert calls==['move','unlock','robot_status','stop']
+        assert calls==['move','wait','robot_status','stop']
     asyncio.run(check());out=capsys.readouterr().out
-    assert 'Move request accepted.' in out and 'Unlock request accepted.' in out
+    assert 'Move request accepted.' in out and 'Wait request accepted.' in out
 
 
 def test_non_dispatch_marker_overrides_queued_even_with_success():
@@ -128,7 +128,7 @@ def test_actual_conversation_config_keeps_tools_but_discards_tool_turn_prose(mon
         return {"success": True}
     async def receive():
         yield model_message("I already queued a move.\nMy body is standing.")
-        yield packet("move", "unlock", "robot_status")
+        yield packet("move", "wait", "robot_status")
         await until(lambda: len(replies) == 3)
         yield end_turn()
     async def send_tool_response(**kwargs):replies.extend(kwargs["function_responses"])
@@ -140,11 +140,11 @@ def test_actual_conversation_config_keeps_tools_but_discards_tool_turn_prose(mon
                               send_tool_response=send_tool_response)
     monkeypatch.setattr(genai, "Client", lambda **_kwargs: SimpleNamespace(aio=SimpleNamespace(live=SimpleNamespace(connect=connect))))
     inputs=iter(("talk", "quit"));monkeypatch.setattr("builtins.input",lambda _p:next(inputs))
-    b=fake(call);b.setup=lambda:("Unchanged prompt",[{"name":n,"description":"test"} for n in ["move","unlock","robot_status","stop"]])
+    b=fake(call);b.setup=lambda:("Unchanged prompt",[{"name":n,"description":"test"} for n in ["move","wait","robot_status","stop"]])
     asyncio.run(gc.chat(b,gc.MODEL,False,conversation=True))
     declared=seen[0]["config"].tools[0].function_declarations
-    assert [t.name for t in declared]==["move","unlock","robot_status","stop"]
-    assert called==["move","unlock","robot_status","stop"]
+    assert [t.name for t in declared]==["move","wait","robot_status","stop"]
+    assert called==["move","wait","robot_status","stop"]
     output=capsys.readouterr().out
     assert "CONVERSATION + CONTROL" in output
     assert "I already queued" not in output and "My body is standing" not in output

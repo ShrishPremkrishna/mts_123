@@ -25,21 +25,3 @@ def test_manual_move_estimate_from_completed_interactive_pose(server):
             assert await rig.settle()
             assert rig.ts.last_outcome['success']
     asyncio.run(run())
-
-
-def test_http_status_does_not_publish_locked_fault_identity(server):
-    async def run():
-        async with client_with_rig(server) as (client, rig):
-            hidden = rig.ts.tricks['hold_pose']
-            hidden.secret = True
-            fault = f'{hidden.controller}: playback endpoint unknown; motion quarantined'
-            rig.ts.controller_fault = fault
-            for path in ['/queue/status', '/tools/robot_status']:
-                result = (await (client.get(path) if path == '/queue/status' else client.post(path, json={}))).json()
-                assert hidden.name not in json.dumps(result)
-                assert 'motion quarantined' in json.dumps(result)
-            assert rig.ts.controller_fault == fault
-            blocked = (await client.post('/tools/move', json={'direction': 'forward', 'speed': .2, 'duration': .5})).json()
-            assert blocked['success'] is False
-            assert rig.ts.commands.empty()
-    asyncio.run(run())

@@ -692,13 +692,13 @@ test('diagnostics omit transcript/arguments and a throwing observer cannot preve
   s.onTiming = event => timing.push(event);
   s.robotBridge.callTool = async name => { calls.push(name); return { success: true, message: 'accepted' }; };
   await s.handleMessage({ serverContent: { inputTranscription: { text: 'SYNTHETIC_PRIVATE_TEXT', finished: true } },
-    toolCall: { functionCalls: [{ id: 'unlock-probe', name: 'unlock', args: { password: 'SYNTHETIC_PASSWORD' } }] } });
-  assert.doesNotMatch(JSON.stringify(timing), /SYNTHETIC_PRIVATE_TEXT|SYNTHETIC_PASSWORD/);
+    toolCall: { functionCalls: [{ id: 'status-probe', name: 'robot_status', args: { private: 'SYNTHETIC_ARGUMENT' } }] } });
+  assert.doesNotMatch(JSON.stringify(timing), /SYNTHETIC_PRIVATE_TEXT|SYNTHETIC_ARGUMENT/);
   assert.equal(timing[0].metadata.input_transcription_finished, true);
   assert.equal(timing[0].metadata.input_transcription_chars, 22);
   s.onTiming = () => { throw new Error('observer failed'); };
   await s.handleMessage({ toolCall: { functionCalls: [{ id: 'observer-stop', name: 'stop', args: {} }] } });
-  assert.deepEqual(calls, ['unlock', 'stop']);
+  assert.deepEqual(calls, ['robot_status', 'stop']);
 });
 
 test('audio diagnostics identify captured frames and SDK send invocation without retaining PCM', async t => {
@@ -831,10 +831,10 @@ test('camera failure arriving after disconnect emits neither a frame nor availab
 test('conversation advertises all robot tools and freezes policy before connect', async t => {
   let setup;
   const env = mediaEnvironment(t, async request => { setup = request; request.callbacks.onopen(); return {close(){}}; }, undefined, 'conversation');
-  env.s.robotBridge.getTools = async()=>({tools:['stand_up','move','unlock','lock_tricks','play_trick','follow','stop','robot_status'].map(name=>({name}))});
+  env.s.robotBridge.getTools = async()=>({tools:['stand_up','move','play_trick','follow','stop','robot_status'].map(name=>({name}))});
   env.config.outputPolicy = 'receipts'; // Mutating settings cannot widen an existing session.
   await env.s.connect('test',env.config,{});
-  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['stand_up','move','unlock','lock_tricks','play_trick','follow','stop','robot_status']);
+  assert.deepEqual(setup.config.tools[0].functionDeclarations.map(t=>t.name),['stand_up','move','play_trick','follow','stop','robot_status']);
   assert.deepEqual(setup.config.outputAudioTranscription, {});
   assert.equal(env.s.outputPolicy,'conversation');
 });

@@ -81,7 +81,7 @@ def test_failed_queue_insertion_does_not_issue_submission_marker():
     run_case(case)
 
 
-@pytest.mark.parametrize("name,args", [("robot_status", {}), ("stop", {}), ("lock_tricks", {}), ("follow", {"enabled": False})])
+@pytest.mark.parametrize("name,args", [("robot_status", {}), ("stop", {}), ("follow", {"enabled": False})])
 def test_direct_success_is_not_mislabeled_as_queued(name, args):
     async def case(rig):
         result = await tool_registry.call(rig.ts, name, args)

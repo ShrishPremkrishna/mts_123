@@ -362,11 +362,17 @@ test('older status and Stop receipts cannot re-enter ordinary conversation after
 });
 
 test('all fixed receipt families are reserved for authorized output, not free-form narration',()=>{
- for(const name of ['move','turn','arc','wait','stand_up','lie_down','stop','robot_status','play_trick','interactive_action','follow','unlock','lock_tricks','unknown']) {
+ for(const name of ['move','turn','arc','wait','stand_up','lie_down','stop','robot_status','play_trick','interactive_action','follow','kick_ball','locate_ball','unknown']) {
   for(const value of [{success:true},{success:true,details:{submission:{schema:'pupper_submission_v1',state:'queued'}}},{success:false},{success:false,not_dispatched:true},{outcome_unknown:true},{superseded:true}]) {
    const text=operatorFeedback(name,value);assert.equal(isOperatorReceiptNarration(text),true,text);
   }
  }
+ const ball=(extra)=>({success:true,details:{ball:{schema:'pupper_ball_fix_v1',seen:true,distance:.35,bearing_deg:-12,...extra}}});
+ for(const value of [ball({}),ball({bearing_deg:2}),ball({seen:false})]) {
+  const text=operatorFeedback('locate_ball',value);assert.match(text,/^Ball (seen|not seen)/);assert.equal(isOperatorReceiptNarration(text),true,text);
+ }
+ for(const text of ['Ball seen 2 metres away, ahead.','Ball not seen!','ball seen']) assert.equal(isOperatorReceiptNarration(text),true,text);
+ for(const text of ['The ball is near the door.','Ball games are fun.','Balls seen in the park.']) assert.equal(isOperatorReceiptNarration(text),false,text);
  assert.equal(isOperatorReceiptNarration('Hello there!'),false);
  assert.equal(isOperatorReceiptNarration('The controller is a component of the robot.'),false);
  assert.equal(isOperatorReceiptNarration('Controller design is an interesting subject.'),false);
@@ -385,7 +391,7 @@ test('native status stays concise while visible details retain full scoped conte
 test('concise native status does not turn cache, malformed counts or faults into physical claims',()=>{
  const base={success:true,details:{running:false,queued:0,current_action:null,session_context:{schema:'pupper_session_context_v1',scope:'this_server_session',server_instance:'a'.repeat(32),completed_sit_entries:2}}};
  assert.match(nativeReceiptFeedback('robot_status',base),/^Controller state unverified/);
- for(const mode of ['locomotion','none','unknown','sit_stay_shake','secret_dance','other_skill','walking_skill','locked_skill','INJECTED']) {
+ for(const mode of ['locomotion','none','unknown','sit_stay_shake','other_skill','walking_skill','INJECTED']) {
   const text=nativeReceiptFeedback('robot_status',{...base,details:{...base.details,observed_controller_mode:mode}});
   assert.equal(isOperatorReceiptNarration(text),true,text);assert.doesNotMatch(text,/INJECTED|physically|ready|sitting|standing|today/);
  }

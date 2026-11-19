@@ -23,8 +23,7 @@ def epoch_headers(rig):
     ('/interactive_action', {'action': 'wave_left'}),
     ('/queue/wait', {'duration': 1}), ('/queue/reset', {}),
     ('/following/activate', {}), ('/following/deactivate', {}),
-    ('/tools/unlock', {'password': 'offline-placeholder'}),
-    ('/tools/lock_tricks', {}), ('/system/volume', {'volume': 50}),
+    ('/system/volume', {'volume': 50}),
 ])
 def test_every_existing_mutation_refuses_missing_epoch_without_dispatch(server, path, body):
     async def case():

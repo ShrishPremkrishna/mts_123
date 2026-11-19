@@ -86,8 +86,6 @@ async def interactive_action(robot: Robot, action: str) -> Result:
     async def job() -> Result:
         if robot.state_now is not trick:
             return Result(False, first)
-        if not robot.trick_available(trick):
-            return Result(False, "The trick is locked; unlock it before requesting an action, or stand up to leave it.")
         if clip == trick.exit_clip:
             res = await robot.switch_to(LOCOMOTION_CONTROLLER)
             return Result(res.ok, f"played {clip}; back in locomotion mode" if res.ok else res.message)
@@ -143,7 +141,7 @@ async def shake_hand_tool(robot: Robot, paw: str) -> Result:
         return Result(False, "paw must be left or right")
     trick = handshake_trick(robot)
     if trick is None:
-        return Result(False, "The installed, unlocked Sit-and-both-paws capability is unavailable.")
+        return Result(False, "The installed Sit-and-both-paws capability is unavailable.")
     if robot.fallen:
         return Result(False, FELL_MESSAGE)
     action = f"shake_{paw}"
@@ -157,12 +155,12 @@ async def shake_hand_tool(robot: Robot, paw: str) -> Result:
 
     async def job() -> Result:
         if handshake_trick(robot) is not trick:
-            return Result(False, "The handshake capability was locked or changed before playback.")
+            return Result(False, "The handshake capability changed before playback.")
         if robot.fallen or robot.stopped_during_call():
             return Result(False, "Handshake interrupted by a fall or stop.")
         observed = await robot.mode()
         mode = (observed.details or {}).get("observed_controller_mode")
-        if not observed.ok or mode in (None, "unknown", "locked_skill"):
+        if not observed.ok or mode in (None, "unknown"):
             return Result(False, "Handshake refused: current controller ownership is unavailable or unknown.")
         # Do not let play_policy_trick's idempotent early return mistake a stale
         # cached Sit selection for an active Sit controller (or replay an entry
@@ -173,7 +171,7 @@ async def shake_hand_tool(robot: Robot, paw: str) -> Result:
         if not entry.ok:
             return entry
         if handshake_trick(robot) is not trick:
-            return Result(False, "The handshake capability was locked or changed before the paw action.")
+            return Result(False, "The handshake capability changed before the paw action.")
         if robot.state_now is not trick or robot.fallen or robot.stopped_during_call():
             return Result(False, "Handshake interrupted before the paw action.")
         result = await robot.play_clip(trick, action)

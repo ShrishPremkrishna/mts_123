@@ -69,14 +69,12 @@ async def play_trick(robot: Robot, name: str, *, count: int = 1) -> Result:
     # QUEUE IT:
     # 4. Decide then: which state is Pupper in once the job is done? (Read the card above.)
     # 5. return with_note(note, await robot.queue(f"trick {name}", job, trick.total_time, then=...))
-    trick = robot.tricks.get(name)
+    trick = robot.offered_tricks().get(name)  # tool_only tricks (the leg kick) belong to their tool
     if trick is None:
-        return Result(False, f"unknown trick '{name}'; available: {list(robot.available_tricks())}")
+        return Result(False, f"unknown trick '{name}'; available: {list(robot.offered_tricks())}")
     refused = validate_trick_quantity(count, "routine_playback", trick=trick)
     if refused is not None:
         return refused
-    if not robot.trick_available(trick):
-        return Result(False, "This trick is locked. Ask for the password, then use unlock(password).")
     if robot.fallen:
         return Result(False, FELL_MESSAGE)
     note = await prepare_to_move(robot)
@@ -90,8 +88,6 @@ async def play_trick(robot: Robot, name: str, *, count: int = 1) -> Result:
         for index in range(count):
             if robot.stopped_during_call():
                 return Result(False, "trick playback cancelled by a stop")
-            if not robot.trick_available(trick):
-                return Result(False, "The trick was locked before playback; unlock it first.")
             if robot.fallen:
                 return Result(False, FELL_MESSAGE)
             result = (await robot.play_reference_trick(trick) if trick.kind == "reference"
@@ -150,8 +146,6 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
     """
     if robot.fallen:
         return Result(False, FELL_MESSAGE)
-    if not robot.trick_available(trick):
-        return Result(False, "This trick is locked; unlock it first.")
     if trick.interactive and robot.state_now is trick:  # 1. already in it
         return Result(True, f"{trick.name} controller already selected; no new entry playback")
     if not trick.interactive and robot.state_now is trick:

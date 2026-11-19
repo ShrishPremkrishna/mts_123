@@ -33,10 +33,10 @@ LABELS = {
     "turn": "turn", "arc": "arc", "wait": "wait", "stop": "Stop",
     "robot_status": "status", "play_trick": "trick",
     "interactive_action": "interactive action", "shake_hand": "handshake", "follow": "follow",
-    "unlock": "unlock", "lock_tricks": "lock",
+    "kick_ball": "ball kick", "locate_ball": "ball check",
 }
 QUEUE_TOOLS = frozenset({"stand_up", "lie_down", "move", "turn", "arc", "wait",
-                         "play_trick", "interactive_action", "shake_hand"})
+                         "play_trick", "interactive_action", "shake_hand", "kick_ball"})
 
 
 def tool_label(name):
@@ -107,9 +107,9 @@ def _status_feedback(details):
     if _number(queued) is None or queued != int(queued):
         return None
     state = details.get("state")
-    modes = {"locomotion": "locomotion", "motors idle": "motors idle", "fallen": "fall stop latched", "locked trick": "locked skill", "sit_stay_shake": "Sit controller selected", "secret_dance": "generated-motion controller selected"}
+    modes = {"locomotion": "locomotion", "motors idle": "motors idle", "fallen": "fall stop latched", "sit_stay_shake": "Sit controller selected"}
     mode = modes.get(state) if isinstance(state, str) else None
-    observed_modes = {"locomotion": "locomotion", "none": "no active command controller", "unknown": "unknown", "sit_stay_shake": "Sit", "secret_dance": "generated motion", "other_skill": "skill", "walking_skill": "walking skill", "locked_skill": "locked skill"}
+    observed_modes = {"locomotion": "locomotion", "none": "no active command controller", "unknown": "unknown", "sit_stay_shake": "Sit", "other_skill": "skill", "walking_skill": "walking skill"}
     observed = details.get("observed_controller_mode")
     observation = observed_modes.get(observed) if isinstance(observed, str) else None
     parts = ([f"Controller: {observation}."] if observation else
@@ -121,7 +121,7 @@ def _status_feedback(details):
         if isinstance(name, str):
             if name.startswith("move "): kind = "movement command"
             elif name.startswith("wait "): kind = "wait command"
-            elif name.startswith("trick ") or name == "locked trick": kind = "skill command"
+            elif name.startswith("trick "): kind = "skill command"
             elif name == "stand up": kind = "stand command"
             elif name == "lie down": kind = "leg-relaxation command"
         parts.append(f"Running a {kind}; {int(queued)} queued.")
@@ -200,4 +200,34 @@ def receipt_feedback(name, result, *, current=True, dispatched=True):
             return f"{handshake['paw'].capitalize()} paw command queued."
     if name == "stop":
         return "Stop requested."
+    if name == "locate_ball":
+        ball = _ball_feedback(details.get("ball") if isinstance(details, dict) else None)
+        if ball:
+            return ball
     return f"{spoken} {'queued' if queued else 'request accepted'}."
+
+
+_BALL_DISTANCE = re.compile(r"[0-9]+(\.[0-9]{1,2})?")
+
+
+def _ball_feedback(ball):
+    """A locate_ball camera estimate, not a physical measurement.
+
+    Keep these rules and this text the same as ballFeedback in web/services/operatorFeedback.ts.
+    """
+    if not isinstance(ball, dict) or ball.get("schema") != "pupper_ball_fix_v1":
+        return None
+    if ball.get("seen") is False:
+        return "Ball not seen."
+    distance, bearing = ball.get("distance"), ball.get("bearing_deg")
+    # Do the range checks first: they also remove NaN, infinity and very large integers.
+    if (ball.get("seen") is not True or type(distance) not in (int, float) or not 0 < distance <= 100
+            or type(bearing) not in (int, float) or not -180 <= bearing <= 180 or bearing != int(bearing)):
+        return None
+    # Write the server value as JavaScript String() does: 1.0 is "1". Refuse more than 2 decimals.
+    metres = str(int(distance)) if distance == int(distance) else repr(distance)
+    if not _BALL_DISTANCE.fullmatch(metres):
+        return None
+    bearing = int(bearing)
+    where = "ahead" if abs(bearing) < 5 else f"{abs(bearing)} degrees {'left' if bearing > 0 else 'right'}"
+    return f"Ball seen {metres} metres away, {where}."

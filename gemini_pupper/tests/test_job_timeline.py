@@ -183,22 +183,6 @@ def test_history_bounded_and_same_named_jobs_remain_distinct():
     run_case(case)
 
 
-def test_lock_redacts_prior_public_outcomes_without_losing_job_identity():
-    async def case(rig):
-        hidden = rig.ts.tricks['hold_pose']; hidden.secret = True
-        rig.ts.secret_gate.unlocked = True
-        reply = await rig.ts.queue(f'{hidden.name} wave_left', lambda: asyncio.sleep(0, result=robot_api.Result(True, f'{hidden.controller} completed')), 0., then=robot_api.UNCHANGED)
-        assert await rig.settle()
-        assert hidden.name in str(rig.ts.recent_outcomes())
-        rig.ts.secret_gate.lock()
-        public = rig.ts.recent_outcomes()['outcomes'][0]
-        assert hidden.name not in str(public) and 'wave_left' not in str(public)
-        assert public['job_id'] == job_id(reply) and public['terminal_state'] == 'succeeded'
-        assert public['name'] == 'locked trick'
-        assert any(hidden.name in row['name'] for row in events(rig))  # private diagnostic log
-    run_case(case)
-
-
 def test_structured_logger_failure_cannot_block_queue_or_stop():
     async def case(rig):
         old = robot_api.log.info

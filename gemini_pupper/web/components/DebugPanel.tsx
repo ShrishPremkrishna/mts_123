@@ -137,7 +137,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
   const lastUrlRef = useRef<string | null>(null);
 
   // Share the status poll with catalog refresh, including changes made by
-  // voice tools (unlock/Stop). Schedule after completion so requests cannot pile up.
+  // voice tools (Stop). Schedule after completion so requests cannot pile up.
   useEffect(() => {
     let active = true;
     catalogGeneration.current += 1;
@@ -323,7 +323,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ logs, videoElement, robotBridge
     }
   };
   const stopAndRefresh = async () => {
-    // Stop is never gated by manualBusy. Hide any unlocked entries immediately.
+    // Stop is never gated by manualBusy. Hide the listed entries immediately.
     pendingStops.current += 1;
     manualQueueGeneration.current += 1;
     manualQueueReady.current = false;

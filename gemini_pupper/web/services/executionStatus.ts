@@ -148,15 +148,15 @@ export function matchJobEvidence(
 export function queueSummary(status: QueueStatus): string {
   const modes: Record<string, string> = {
     locomotion: 'locomotion', none: 'no active command controller',
-    sit_stay_shake: 'Sit', secret_dance: 'generated motion', other_skill: 'skill',
-    walking_skill: 'walking skill', locked_skill: 'locked skill',
+    sit_stay_shake: 'Sit', other_skill: 'skill',
+    walking_skill: 'walking skill',
   };
   const observed = status.observed_controller_mode;
   const controller = observed && Object.prototype.hasOwnProperty.call(modes, observed) ? modes[observed] : 'unverified';
   // The cached planner remains in the structured response for diagnostics. It
   // must not compete with the observed controller when no command is pending.
   const destinations: Record<string, string> = {
-    ...modes, 'motors idle': modes.none, 'locked trick': modes.locked_skill,
+    ...modes, 'motors idle': modes.none,
   };
   const planned = status.state_after_queue;
   const next = planned && Object.prototype.hasOwnProperty.call(destinations, planned) ? destinations[planned] : null;

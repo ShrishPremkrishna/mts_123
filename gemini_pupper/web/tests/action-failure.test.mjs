@@ -26,8 +26,8 @@ test('actual HTTP failed move without epoch flags fences following turn and late
  assert.ok(e.logs.some(x=>/paused.*Reconnect/i.test(x.message)));assert.equal(e.stops.length,0,'no other pending action to fence');
 });
 test('all failed motion/action tools fence; known status and gate refusals do not',async()=>{
- for(const name of ['stand_up','lie_down','move','turn','arc','wait','play_trick','interactive_action','follow']){const e=service();e.s.robotBridge.callTool=async n=>{e.calls.push(n);return {success:false,message:'known refusal'};};await e.s.handleMessage(packet(call('bad',name),call('later','move')));assert.deepEqual(e.calls,[name],name);}
- for(const name of ['robot_status','unlock','lock_tricks']){const e=service();e.s.robotBridge.callTool=async n=>{e.calls.push(n);return n===name?{success:false}:queued;};await e.s.handleMessage(packet(call('benign',name),call('motion','move')));assert.deepEqual(e.calls,[name,'move'],name);assert.equal(e.s.robotToolsPaused,false);}
+ for(const name of ['stand_up','lie_down','move','turn','arc','wait','play_trick','interactive_action','follow','kick_ball']){const e=service();e.s.robotBridge.callTool=async n=>{e.calls.push(n);return {success:false,message:'known refusal'};};await e.s.handleMessage(packet(call('bad',name),call('later','move')));assert.deepEqual(e.calls,[name],name);}
+ for(const name of ['robot_status','locate_ball']){const e=service();e.s.robotBridge.callTool=async n=>{e.calls.push(n);return n===name?{success:false}:queued;};await e.s.handleMessage(packet(call('benign',name),call('motion','move')));assert.deepEqual(e.calls,[name,'move'],name);assert.equal(e.s.robotToolsPaused,false);}
 });
 test('current known failure retains exact fixed refusal audio, not a false success',async()=>{
  const e=service();await e.s.handleMessage(packet(call('m','move')));assert.equal(e.s.robotToolsPaused,true);
@@ -44,6 +44,16 @@ test('failure fences later waiting packets before HTTP without an unnecessary gl
 test('pending status alone does not trigger global Stop after action refusal',async()=>{
  const e=service(),m=deferred(),status=deferred();e.s.robotBridge.callTool=n=>n==='move'?m.promise:status.promise;
  const action=e.s.handleMessage(packet(call('m','move'))),read=e.s.handleMessage(packet(call('s','robot_status')));m.resolve(failed);await action;assert.deepEqual(e.stops,[]);status.resolve({success:true});await read;
+});
+// locate_ball only looks. It must not count as an action that a cancellation or a failure must stop.
+const ballFix={success:true,details:{ball:{schema:'pupper_ball_fix_v1',seen:true,x:.35,y:.01,z:-.05,distance:.35,bearing_deg:2,frames:30,fixes:24}}};
+test('Live cancellation of a dispatched locate_ball does not stop a queued kick; a cancelled kick does',async()=>{
+ const e=service();e.s.robotBridge.callTool=async n=>{e.calls.push(n);return n==='locate_ball'?ballFix:queued;};
+ await e.s.handleMessage(packet(call('kick','kick_ball',{side:'right'})));await e.s.handleMessage(packet(call('look','locate_ball')));
+ assert.equal(e.responses.at(-1).functionResponses.response.result.details.ball.seen,true);
+ await e.s.handleMessage({toolCallCancellation:{ids:['look']}});assert.deepEqual(e.stops,[]);assert.equal(e.s.robotToolsPaused,false);
+ await e.s.handleMessage(packet(call('look2','locate_ball')));assert.deepEqual(e.calls,['kick_ball','locate_ball','locate_ball']);
+ await e.s.handleMessage({toolCallCancellation:{ids:['kick']}});assert.deepEqual(e.stops,['stop']);assert.equal(e.s.robotToolsPaused,true);
 });
 test('real RobotBridge never POSTs a later ordinary packet after an earlier refusal',async t=>{
  const e=service(),moveReply=deferred(),moveReached=deferred();const http=[];

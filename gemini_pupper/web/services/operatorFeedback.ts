@@ -6,15 +6,30 @@ export function normalizeOutputPolicy(value: unknown): OutputPolicy {
 const LABELS: Record<string, string> = Object.freeze({
   stand_up: 'stand', lie_down: 'leg relaxation', move: 'move', turn: 'turn', arc: 'arc', wait: 'wait',
   stop: 'Stop', robot_status: 'status', play_trick: 'trick', interactive_action: 'interactive action', shake_hand: 'handshake',
-  follow: 'follow', unlock: 'unlock', lock_tricks: 'lock',
+  follow: 'follow', kick_ball: 'ball kick', locate_ball: 'ball check',
 });
-const QUEUED_TOOLS = new Set(['stand_up', 'lie_down', 'move', 'turn', 'arc', 'wait', 'play_trick', 'interactive_action']);
+const QUEUED_TOOLS = new Set(['stand_up', 'lie_down', 'move', 'turn', 'arc', 'wait', 'play_trick', 'interactive_action', 'kick_ball']);
 export function toolLabel(name: unknown): string {
   return typeof name === 'string' && Object.prototype.hasOwnProperty.call(LABELS, name) ? LABELS[name] : 'robot';
 }
 export function hasMalformedOutcomeFlags(value: any): boolean {
   return !!value && typeof value === 'object'
     && ['superseded', 'outcome_unknown', 'not_dispatched'].some(flag => flag in value && typeof value[flag] !== 'boolean');
+}
+
+/** A locate_ball camera estimate, not a physical measurement.
+ * Keep these rules and this text the same as _ball_feedback in robot/operator_feedback.py. */
+function ballFeedback(ball: any): string | null {
+  if (!ball || typeof ball !== 'object' || ball.schema !== 'pupper_ball_fix_v1') return null;
+  if (ball.seen === false) return 'Ball not seen.';
+  const distance = ball.distance, bearing = ball.bearing_deg;
+  if (ball.seen !== true || typeof distance !== 'number' || !(distance > 0 && distance <= 100)
+      || !Number.isInteger(bearing) || Math.abs(bearing) > 180) return null;
+  // Write the server value without rounding. Refuse more than 2 decimals.
+  const metres = String(distance);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(metres)) return null;
+  const where = Math.abs(bearing) < 5 ? 'ahead' : `${Math.abs(bearing)} degrees ${bearing > 0 ? 'left' : 'right'}`;
+  return `Ball seen ${metres} metres away, ${where}.`;
 }
 
 /** A combined handshake receipt describes queued work, not physical execution. */
@@ -77,9 +92,9 @@ function sessionSitCount(context: any): number | null {
 function statusFeedback(details: any): string | null {
   if (!details || typeof details !== 'object' || typeof details.running !== 'boolean'
       || numberText(details.queued) === null || !Number.isInteger(details.queued)) return null;
-  const modes: Record<string, string> = {locomotion: 'locomotion', 'motors idle': 'motors idle', fallen: 'fall stop latched', 'locked trick': 'locked skill', sit_stay_shake: 'Sit controller selected', secret_dance: 'generated-motion controller selected'};
+  const modes: Record<string, string> = {locomotion: 'locomotion', 'motors idle': 'motors idle', fallen: 'fall stop latched', sit_stay_shake: 'Sit controller selected'};
   const mode = typeof details.state === 'string' && Object.prototype.hasOwnProperty.call(modes, details.state) ? modes[details.state] : null;
-  const observedModes: Record<string, string> = {locomotion: 'locomotion', none: 'no active command controller', unknown: 'unknown', sit_stay_shake: 'Sit', secret_dance: 'generated motion', other_skill: 'skill', walking_skill: 'walking skill', locked_skill: 'locked skill'};
+  const observedModes: Record<string, string> = {locomotion: 'locomotion', none: 'no active command controller', unknown: 'unknown', sit_stay_shake: 'Sit', other_skill: 'skill', walking_skill: 'walking skill'};
   const observed = details.observed_controller_mode;
   const observation = typeof observed === 'string' && Object.prototype.hasOwnProperty.call(observedModes, observed) ? observedModes[observed] : null;
   const parts = observation ? [`Controller: ${observation}.`] : [mode ? `Cached mode: ${mode}.` : 'Cached status:', 'Controller unverified.'];
@@ -90,7 +105,7 @@ function statusFeedback(details: any): string | null {
     if (typeof name === 'string') {
       if (name.startsWith('move ')) kind = 'movement command';
       else if (name.startsWith('wait ')) kind = 'wait command';
-      else if (name.startsWith('trick ') || name === 'locked trick') kind = 'skill command';
+      else if (name.startsWith('trick ')) kind = 'skill command';
       else if (name === 'stand up') kind = 'stand command';
       else if (name === 'lie down') kind = 'leg-relaxation command';
     }
@@ -121,6 +136,7 @@ export function operatorFeedback(name: unknown, value: unknown): string {
   }
   if (name === 'robot_status') { const status = statusFeedback(result.details); if (status) return status; }
   if (name === 'shake_hand') { const paw = queuedHandshakePaw(result); if (paw) return `${paw === 'left' ? 'Left' : 'Right'} paw command queued.`; }
+  if (name === 'locate_ball') { const seen = ballFeedback(result.details?.ball); if (seen) return seen; }
   const submission = result.details?.submission;
   const queued = typeof name === 'string' && QUEUED_TOOLS.has(name)
     && submission?.schema === 'pupper_submission_v1' && submission.state === 'queued';
@@ -136,8 +152,8 @@ export function nativeReceiptFeedback(name: unknown, value: unknown): string {
   const details = result.details;
   if (!details || typeof details.running !== 'boolean' || numberText(details.queued) === null || !Number.isInteger(details.queued)) return fallback;
   const modes: Record<string, string> = { locomotion: 'Walking controller active.', none: 'No command controller active.',
-    unknown: 'Controller state unknown.', sit_stay_shake: 'Sit controller active.', secret_dance: 'Generated-motion controller active.',
-    other_skill: 'Skill controller active.', walking_skill: 'Walking skill controller active.', locked_skill: 'Locked skill controller active.' };
+    unknown: 'Controller state unknown.', sit_stay_shake: 'Sit controller active.',
+    other_skill: 'Skill controller active.', walking_skill: 'Walking skill controller active.' };
   const observed = details.observed_controller_mode;
   const parts = [typeof observed === 'string' && Object.prototype.hasOwnProperty.call(modes, observed) ? modes[observed] : 'Controller state unverified.'];
   parts.push(details.running ? `A command is running; ${details.queued} queued.`
@@ -155,9 +171,10 @@ export function nativeReceiptFeedback(name: unknown, value: unknown): string {
 export function isOperatorReceiptNarration(text: string): boolean {
   const normalized = text.normalize('NFKC').toLowerCase().replace(/[.,!?;:\-–—]/g, ' ').replace(/\s+/g, ' ').trim();
   const prefixes = ['exact physical repetition counts are not supported', 'only one routine playback is supported per request', 'requested routine playback count is unsupported', 'trick quantity must be an integer', 'left paw command queued', 'right paw command queued', 'walking controller active', 'no command controller active', 'controller state unknown', 'controller state unverified',
-    'sit controller active', 'generated motion controller active', 'skill controller active', 'walking skill controller active', 'locked skill controller active', 'controller locomotion', 'controller no active command controller', 'controller unknown', 'controller sit',
-    'controller generated motion', 'controller skill', 'controller walking skill', 'controller locked skill', 'cached mode', 'cached status', 'confirmed sit entry playbacks',
-    'that request was superseded', 'i could not confirm that request', 'that request failed', 'stop requested'];
+    'sit controller active', 'skill controller active', 'walking skill controller active', 'controller locomotion', 'controller no active command controller', 'controller unknown', 'controller sit',
+    'controller skill', 'controller walking skill', 'cached mode', 'cached status', 'confirmed sit entry playbacks',
+    'that request was superseded', 'i could not confirm that request', 'that request failed', 'stop requested',
+    'ball seen', 'ball not seen'];
   for (const label of [...Object.values(LABELS), 'robot']) for (const suffix of ['queued', 'request accepted', 'request not sent', 'rejected']) {
     prefixes.push(`${label.toLowerCase()} ${suffix}`);
   }

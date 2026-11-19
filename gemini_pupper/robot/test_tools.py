@@ -103,6 +103,9 @@ class FakeRobot:
         self.clock.on_advance.append(self.emit_finite_status)
         self.pending_reference = None
         self.clock.on_advance.append(self.emit_reference_status)
+        # Opt-in: start a requested clip at once from a looping clip, as the native
+        # controller's phase-free path does for a constant loop (leg_kick stand_idle).
+        self.static_loop_start = False
 
     def emit_stop_status(self) -> None:
         if not self.stop_status_enabled:
@@ -116,7 +119,7 @@ class FakeRobot:
             trick = self.tricks[controller]
             if self.controllers.get(controller) != "active":
                 continue
-            elapsed = max(0.0, self.clock.now - started - 1.5)  # 0.5 init + 1.0 fade
+            elapsed = max(0.0, self.clock.now - started - trick.blend_time)  # init + fade
             frames = trick.frame_count
             frame = min(int(elapsed * trick.fps + 1e-6), frames - 1)
             state = "holding" if elapsed >= (frames - 1) / trick.fps else "playing"
@@ -132,6 +135,9 @@ class FakeRobot:
             if state["holding"] and state["queue"]:
                 state["clip"], state["request"] = state["queue"].pop(0)
                 state["t0"], state["holding"] = self.clock.now, False
+            elif self.static_loop_start and state["queue"] and trick.clip(state["clip"]).get("loop"):
+                state["clip"], state["request"] = state["queue"].pop(0)
+                state["t0"] = self.clock.now
             for _ in range(1000):
                 spec = trick.clip(state["clip"])
                 length = trick.clip_length(state["clip"])
@@ -206,7 +212,7 @@ class FakeRobot:
                     self.active_execution_tokens[c] = self.execution_parameters.get(c, "none")
                     if trick.interactive:
                         clip = (self.start_clips.get(c, [""])[-1] or trick.clips[0]["name"])
-                        self.interactive_states[c] = {"clip": clip, "t0": self.clock.now + 1.5,
+                        self.interactive_states[c] = {"clip": clip, "t0": self.clock.now + trick.blend_time,
                                                       "holding": False, "request": "none", "queue": []}
                         self.emit_interactive_status()
                     else:

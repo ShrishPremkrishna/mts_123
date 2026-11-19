@@ -726,27 +726,6 @@
     "expected": "Cached mode: Sit controller selected. Controller unverified. No command running; 0 queued. Following off."
   },
   {
-    "title": "fixed state secret_dance",
-    "name": "robot_status",
-    "result": {
-      "success": true,
-      "details": {
-        "state": "secret_dance",
-        "running": false,
-        "current_action": null,
-        "queued": 0,
-        "following": false,
-        "controller_fault": null,
-        "physical_observation": {
-          "pose": null,
-          "speed": null,
-          "stopped": null
-        }
-      }
-    },
-    "expected": "Cached mode: generated-motion controller selected. Controller unverified. No command running; 0 queued. Following off."
-  },
-  {
     "title": "malformed array limits",
     "name": "move",
     "result": {
@@ -850,28 +829,6 @@
     "expected": "Controller: Sit. No command running; 0 queued. Following off."
   },
   {
-    "title": "observed secret_dance",
-    "name": "robot_status",
-    "result": {
-      "success": true,
-      "details": {
-        "state": "motors idle",
-        "running": false,
-        "current_action": null,
-        "queued": 0,
-        "following": false,
-        "controller_fault": null,
-        "physical_observation": {
-          "pose": null,
-          "speed": null,
-          "stopped": null
-        },
-        "observed_controller_mode": "secret_dance"
-      }
-    },
-    "expected": "Controller: generated motion. No command running; 0 queued. Following off."
-  },
-  {
     "title": "observed other_skill",
     "name": "robot_status",
     "result": {
@@ -914,28 +871,6 @@
       }
     },
     "expected": "Controller: walking skill. No command running; 0 queued. Following off."
-  },
-  {
-    "title": "observed locked_skill",
-    "name": "robot_status",
-    "result": {
-      "success": true,
-      "details": {
-        "state": "motors idle",
-        "running": false,
-        "current_action": null,
-        "queued": 0,
-        "following": false,
-        "controller_fault": null,
-        "physical_observation": {
-          "pose": null,
-          "speed": null,
-          "stopped": null
-        },
-        "observed_controller_mode": "locked_skill"
-      }
-    },
-    "expected": "Controller: locked skill. No command running; 0 queued. Following off."
   },
   {
     "title": "invalid observed 'INJECTED'",
@@ -1024,5 +959,735 @@
       }
     },
     "expected": "Cached mode: locomotion. Controller unverified. No command running; 0 queued. Following off."
+  },
+  {
+    "title": "locate_ball seen ahead",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 0.35 metres away, ahead."
+  },
+  {
+    "title": "locate_ball seen left",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 1.0,
+          "y": 0.3,
+          "z": -0.05,
+          "distance": 1.04,
+          "bearing_deg": 17,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 1.04 metres away, 17 degrees left."
+  },
+  {
+    "title": "locate_ball seen right",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.38,
+          "y": -0.08,
+          "z": -0.05,
+          "distance": 0.4,
+          "bearing_deg": -12,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 0.4 metres away, 12 degrees right."
+  },
+  {
+    "title": "locate_ball bearing 4 is ahead",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": -4,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 0.35 metres away, ahead."
+  },
+  {
+    "title": "locate_ball bearing 5 is not ahead",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 5,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 0.35 metres away, 5 degrees left."
+  },
+  {
+    "title": "locate_ball integral floats print like JavaScript",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 1.0,
+          "bearing_deg": 30.0,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 1 metres away, 30 degrees left."
+  },
+  {
+    "title": "locate_ball range limits",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 100,
+          "bearing_deg": -180,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 100 metres away, 180 degrees right."
+  },
+  {
+    "title": "locate_ball smallest distance",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.01,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball seen 0.01 metres away, ahead."
+  },
+  {
+    "title": "locate_ball extra field is not read",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24,
+          "label": "INJECTED"
+        }
+      }
+    },
+    "expected": "Ball seen 0.35 metres away, ahead."
+  },
+  {
+    "title": "locate_ball not seen",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": false,
+          "frames": 30,
+          "fixes": 1
+        }
+      }
+    },
+    "expected": "Ball not seen."
+  },
+  {
+    "title": "locate_ball not seen ignores stale fields",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": false,
+          "distance": "INJECTED",
+          "frames": 0,
+          "fixes": 0
+        }
+      }
+    },
+    "expected": "Ball not seen."
+  },
+  {
+    "title": "locate_ball wrong schema",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v0",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball seen missing",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball seen 'true'",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": "true",
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance 0",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance -0.35",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": -0.35,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance 100.01",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 100.01,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance 3 decimals",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.355,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance 0.00005",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 5e-05,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance '0.35'",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": "0.35",
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance True",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": true,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance None",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": null,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball distance missing",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "bearing_deg": 2,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball bearing 12.5",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 12.5,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball bearing 181",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 181,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball bearing 10**30",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": 1000000000000000000000000000000,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball bearing '12'",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": "12",
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball bearing True",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "bearing_deg": true,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball bearing missing",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": {
+          "schema": "pupper_ball_fix_v1",
+          "seen": true,
+          "x": 0.35,
+          "y": 0.01,
+          "z": -0.05,
+          "distance": 0.35,
+          "frames": 30,
+          "fixes": 24
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball ball array",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": [
+          {
+            "schema": "pupper_ball_fix_v1",
+            "seen": true,
+            "x": 0.35,
+            "y": 0.01,
+            "z": -0.05,
+            "distance": 0.35,
+            "bearing_deg": 2,
+            "frames": 30,
+            "fixes": 24
+          }
+        ]
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball ball 'INJECTED'",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": "INJECTED"
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball never claims a queue",
+    "name": "locate_ball",
+    "result": {
+      "success": true,
+      "message": "Ball seen INJECTED",
+      "details": {
+        "ball": "INJECTED",
+        "submission": {
+          "schema": "pupper_submission_v1",
+          "state": "queued"
+        }
+      }
+    },
+    "expected": "Ball check request accepted."
+  },
+  {
+    "title": "locate_ball refused",
+    "name": "locate_ball",
+    "result": {
+      "success": false,
+      "message": "The ball cannot be located: INJECTED."
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "kick_ball queued",
+    "name": "kick_ball",
+    "result": {
+      "success": true,
+      "message": "Queued INJECTED",
+      "details": {
+        "submission": {
+          "schema": "pupper_submission_v1",
+          "state": "queued",
+          "server_instance": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "job_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:7"
+        }
+      }
+    },
+    "expected": "Ball kick queued."
+  },
+  {
+    "title": "kick_ball refused",
+    "name": "kick_ball",
+    "result": {
+      "success": false,
+      "message": "kick_ball needs the camera: INJECTED"
+    },
+    "expected": "That request failed. Check the controls for details."
+  },
+  {
+    "title": "kick_ball no-kick prose is never read",
+    "name": "kick_ball",
+    "result": {
+      "success": true,
+      "message": "kick_ball ended without a kick: INJECTED",
+      "details": {
+        "kick_ball": {
+          "kicked": false,
+          "stage": "approach",
+          "reason": "INJECTED"
+        }
+      }
+    },
+    "expected": "Ball kick request accepted."
   }
 ]

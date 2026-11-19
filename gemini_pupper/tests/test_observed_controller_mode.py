@@ -48,7 +48,7 @@ def test_only_typed_feedback_broadcasters_are_ignored(stock_active):
         assert result.details['observed_controller_mode']==('locomotion' if stock_active else 'none')
     run_case(case)
 
-@pytest.mark.parametrize('name,expected',[('sit_stay_shake','sit_stay_shake'),('secret_dance','secret_dance'),('custom','other_skill')])
+@pytest.mark.parametrize('name,expected',[('sit_stay_shake','sit_stay_shake'),('custom','other_skill')])
 def test_known_skill_controller_observation(name,expected):
     async def case(rig):
         trick=rig.ts.tricks['hold_pose'];trick.name=name

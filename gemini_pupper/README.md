@@ -6,7 +6,7 @@ Gemini Pupper was created by [Peng Xu](https://scholar.google.com/citations?user
 
 ## Code map
 
-Tools are `@tool` functions in `lab/part*.py`, imported by `robot/tool_registry.py` through `LAB_MODULES` and served at `GET /tools` and `POST /tools/<name>`. See [System architecture](docs/architecture.md).
+Tools are `@tool` functions in `lab/part*.py`, imported by `robot/tool_registry.py` through `LAB_MODULES` and served at `GET /tools` and `POST /tools/<name>`. See [System architecture](docs/architecture.md). The soccer tools `kick_ball` and `locate_ball`, and the operator tools `kick_at` and `kick_in_place`, are in `lab/part9_ball_kick.py`; see [Kick the ball](docs/kick-ball.md).
 
 ## Course TODOs
 

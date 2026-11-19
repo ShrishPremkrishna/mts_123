@@ -399,7 +399,7 @@ class _ToolDispatcher:
                 if self.closed:
                     return
                 args = dict(fc.args or {})
-                shown_args = "[redacted]" if fc.name == "unlock" else json.dumps(args)
+                shown_args = json.dumps(args)
                 if self.diagnostics:
                     print(f"DIAGNOSTIC model tool request: {fc.name}({shown_args})")
                 dispatched = False
@@ -412,7 +412,7 @@ class _ToolDispatcher:
                 else:
                     dispatched = True
                     print(sending_feedback(fc.name))
-                    if fc.name != "robot_status":
+                    if fc.name not in ("robot_status", "locate_ball"):  # information only: no cleanup Stop
                         self.needs_stop = True
                     try:
                         result = await self.backend.call(fc.name, args)
@@ -433,7 +433,7 @@ class _ToolDispatcher:
                                   "original_result": result}
                     failed_action = (fc.name in {
                         "move", "turn", "arc", "stand_up", "lie_down", "wait",
-                        "play_trick", "interactive_action", "shake_hand", "follow",
+                        "play_trick", "interactive_action", "shake_hand", "follow", "kick_ball",
                     } and (result.get("success") is False or result.get("not_dispatched") is True))
                     # Normal batches share a lock. Fence every later action after
                     # a refused step, even when the ordinary Result has no epoch

@@ -127,8 +127,7 @@ def test_cleanup_failure_still_reports_requested_running_cancellation(failure):
     run_case(case)
 
 
-@pytest.mark.parametrize("hidden", [False, True])
-def test_interrupted_trick_receipt_keeps_cancellation_and_deactivation_separate(hidden):
+def test_interrupted_trick_receipt_keeps_cancellation_and_deactivation_separate():
     async def case(rig):
         bow = rig.ts.tricks["bow"]
         assert (await tool_registry.call(rig.ts, "play_trick", {"count": 1, "count_unit": "routine_playback", "name": "bow"})).ok
@@ -139,15 +138,9 @@ def test_interrupted_trick_receipt_keeps_cancellation_and_deactivation_separate(
             await asyncio.sleep(0)
         else:
             raise AssertionError("fixture did not reach running bow")
-        if hidden:
-            bow.secret = True
         result = await tool_registry.call(rig.ts, "stop", {})
         assert result.ok
-        if hidden:
-            assert result.details["running_job"]["name"] == "locked trick"
-            assert "bow" not in str(result.as_dict())
-        else:
-            assert "bow" in result.details["running_job"]["name"]
+        assert "bow" in result.details["running_job"]["name"]
         assert result.details["running_job"]["terminal_state"] == "cancelled"
         assert "deactivated" in result.message and "not been measured" in result.message
         assert not (rig.robot.active() & rig.ts.leg_controllers)

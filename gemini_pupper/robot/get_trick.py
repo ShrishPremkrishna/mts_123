@@ -222,7 +222,6 @@ def main() -> None:
   parser.add_argument("--walk", default=None, help="a walking policy's run (Mjlab-SpiderWalk), for a trick that walks")
   parser.add_argument("--walk-policy-file", type=Path, help="local exported walking policy, paired with --policy-file")
   parser.add_argument("--walk-limits", type=Path, help="JSON with evaluation_source, walk_policy_sha256, and measured speed, max_forward, max_sideways (m/s), turn (deg/s)")
-  parser.add_argument("--secret", action="store_true", help="hide the trick behind the local password gate")
   args = parser.parse_args()
   if bool(args.run) == bool(args.policy_file):
     parser.error("choose exactly one W&B run or --policy-file")
@@ -263,12 +262,6 @@ def main() -> None:
       # later move or be overwritten. The manifest hashes these preserved bytes.
       (staged / "walk_limits.json").write_bytes(limits_bytes)
     write_template(staged, args.name, policy, walks=has_walk, walk_limits=limits)
-    if args.secret:
-      import yaml
-      spec_path = staged / "trick.yaml"
-      spec = yaml.safe_load(spec_path.read_text())
-      spec["secret"] = True
-      spec_path.write_text(yaml.safe_dump(spec, sort_keys=False))
     load_tricks(Path(temp))  # validates clips, transitions and walking limits together
     manifest = {"policy_run": run_path, "walk_run": walk_run,
                 "policy_source": ({"type": "local", "path": str(args.policy_file.resolve())}

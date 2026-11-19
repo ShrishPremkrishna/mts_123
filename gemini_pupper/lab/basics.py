@@ -68,7 +68,6 @@ async def lie_down(robot: Robot) -> Result:
     This is not the driver shutdown that sends a fully neutral disable packet,
     and it does not control the descent or establish the physical posture.
     """
-    robot.secret_gate.lock()
     note = await prepare_to_move(robot)
     if isinstance(note, Result):
         return note

@@ -25,8 +25,7 @@ def inspect() -> dict:
         result["errors"].append(str(exc))
     try:
         tricks = load_tricks()
-        result["checks"]["installed_tricks"] = sorted(n for n, t in tricks.items() if not t.secret)
-        result["checks"]["hidden_trick_count"] = sum(t.secret for t in tricks.values())
+        result["checks"]["installed_tricks"] = sorted(tricks)
         result["checks"]["training_artifacts_pending"] = [n for n in ("sit_stay_shake", "spider_walk") if n not in tricks]
         if validator_path.is_file():
             spec = importlib.util.spec_from_file_location("pupper_deploy_validator", validator_path)

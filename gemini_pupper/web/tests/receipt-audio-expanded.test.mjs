@@ -29,7 +29,7 @@ test('only known current-result shapes select fixed accepted, queued or failure 
  assert.equal(serverReceiptAudioText('interactive_action',{action:'shake_right'},q),'Right paw command queued.');
  assert.equal(serverReceiptAudioText('stop',{}, {success:true}),'Stop requested.');
  for(const x of [{success:true},{success:true,details:{submission:{schema:'other',state:'queued'}}},{success:true,details:{submission:{schema:'pupper_submission_v1',state:'completed'}}}])assert.equal(serverReceiptAudioText('move',{},x),null);
- for(const name of ['robot_status','unlock','lie_down','__proto__','constructor'])assert.equal(serverReceiptAudioText(name,{},q),null);
+ for(const name of ['robot_status','lie_down','__proto__','constructor'])assert.equal(serverReceiptAudioText(name,{},q),null);
  assert.equal(serverReceiptAudioText('move',{}, {success:false,message:'arbitrary prose'}),'That request failed. Check the controls for details.');
  const refusal={success:false,details:{refusal:{schema:'pupper_trick_quantity_refusal_v1',code:'physical_count_unsupported'}}};
  assert.equal(serverReceiptAudioText('play_trick',{},refusal),'Exact physical repetition counts are not supported.');

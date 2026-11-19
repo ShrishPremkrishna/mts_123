@@ -22,6 +22,9 @@ max_body_angle_deg (the tilt e-stop while the trick plays; default 60).
 Optional replaced_by: another trick's name. While that trick is installed, this
 one is left out (no controller, not offered to Gemini): sit and
 stand_sit_shake_sit_stand step aside once your sit_stay_shake is in.
+Optional tool_only: a tool's name. The trick gets its controller, but only that
+tool plays it: play_trick, interactive_action and /animations do not offer it
+(the leg kick: kick_ball places the ball first and leaves the trick at once).
 
 Two kinds of policy trick. A playback trick plays one reference motion from
 start to finish; its tracking policy keeps Pupper balanced while it plays. An
@@ -73,6 +76,7 @@ import yaml
 TRICK_DIR = Path(__file__).resolve().parent.parent / "tricks"
 # Trick controllers hold the default pose briefly, then fade the policy in; the
 # trick's own clock starts after the fade (see pupper_gait_deploy trick_motion.hpp).
+# These are the defaults; a trick.yaml can set its own (Trick.init_s, Trick.fade_s).
 TRICK_INIT_S = 0.5
 TRICK_FADE_S = 1.0
 
@@ -129,8 +133,17 @@ class Trick:
     exit_clip: str | None = None
     walk_path: Path | None = None  # a walking interactive trick's walking policy
     walk: WalkConfig | None = None  # ... and its speeds (trick.yaml's walk block)
-    secret: bool = False  # hidden until the local password gate accepts an unlock
     frame_count: int = 0  # exact exported finite motion frames; references use zero
+    tool_only: str | None = None  # only this tool plays the trick (trick.yaml tool_only)
+    # The controller's blend-in for this trick (trick.yaml init_duration, fade_in_duration).
+    # A trick that starts in the walker's stance can use short values.
+    init_s: float = TRICK_INIT_S
+    fade_s: float = TRICK_FADE_S
+
+    @property
+    def blend_time(self) -> float:
+        """Seconds from activation until the trick's own clock starts (init, then fade-in)."""
+        return self.init_s + self.fade_s
 
     @property
     def interactive(self) -> bool:
@@ -184,8 +197,8 @@ class Trick:
         if self.kind == "reference":
             return self.duration + REFERENCE_SETTLE_S
         if self.clips:  # an interactive trick is "played" once its opening clips are done
-            return TRICK_INIT_S + TRICK_FADE_S + self.intro_duration()
-        return TRICK_INIT_S + TRICK_FADE_S + self.duration
+            return self.blend_time + self.intro_duration()
+        return self.blend_time + self.duration
 
     @property
     def total_time(self) -> float:
@@ -302,8 +315,6 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             raise ValueError(f"{spec_path}: expected a mapping")
         if selected is not None and spec.get("replaced_by") in present:
             raise ValueError(f"PUPPER_SESSION_SKILLS names unavailable/replaced tricks: {[spec_path.parent.name]}")
-        if not isinstance(spec.get("secret", False), bool):
-            raise ValueError(f"{spec_path}: secret must be true or false")
         name = spec_path.parent.name
         kind = spec.get("type")
         clips, fps, frame_count = [], 50.0, 0
@@ -373,9 +384,22 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
         description = str(spec.get("description", name)).strip()
         if walk:  # what Gemini reads about walking in it comes from the numbers
             description = f"{description} {walk.describe()}"
+        if "secret" in spec:  # the Optional Lab 3 gate was removed: never load a hidden trick as a public one
+            raise ValueError(f"{spec_path}: secret tricks are no longer supported; remove the key or the trick")
+        tool_only = spec.get("tool_only")
+        if tool_only is not None and (not isinstance(tool_only, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", tool_only)):
+            raise ValueError(f"{spec_path}: tool_only must be a tool name")
         angle = float(spec.get("max_body_angle_deg", 60.0))
         if not math.isfinite(angle) or not 0 < angle < 180:
             raise ValueError(f"{spec_path}: max_body_angle_deg must be finite and between 0 and 180")
+        blend = {}
+        for key, default in (("init_duration", TRICK_INIT_S), ("fade_in_duration", TRICK_FADE_S)):
+            value = spec.get(key, default)
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0.1 <= value <= 5.0:
+                raise ValueError(f"{spec_path}: {key} must be a number from 0.1 to 5 seconds")
+            if key in spec and kind != "policy":
+                raise ValueError(f"{spec_path}: {key} applies only to a policy trick")
+            blend[key] = float(value)
         tricks[name] = Trick(
             name=name,
             description=description,
@@ -392,11 +416,12 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             exit_clip=exit_clip,
             walk_path=walk_path,
             walk=walk,
-            secret=spec.get("secret", False),
+            tool_only=tool_only,
+            init_s=blend["init_duration"],
+            fade_s=blend["fade_in_duration"],
         )
     catalog = {name: t for name, t in tricks.items() if replaced_by.get(name) not in tricks}
-    # One explicit selector is shared by launch and server. Filtering never
-    # unlocks secret tricks; their code gate still applies at dispatch/execution.
+    # One explicit selector is shared by launch and server.
     if selected is None:
         return catalog
     missing = set(selected) - set(catalog)
@@ -412,8 +437,8 @@ def controller_params(trick: Trick, base: dict) -> dict:
     params.pop("chord_partner", None)
     params.update(
         model_path=str(trick.path),
-        init_duration=TRICK_INIT_S,
-        fade_in_duration=TRICK_FADE_S,
+        init_duration=trick.init_s,
+        fade_in_duration=trick.fade_s,
         max_body_angle=trick.max_body_angle,
         game_buttons=False,
         max_vx_forward=0.0,
