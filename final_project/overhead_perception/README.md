@@ -199,12 +199,32 @@ accuracy (see the table below).
 
 ## Tags
 
-`tags/pupper_fc_tags.pdf`: six floor tags (17 cm, ids 0–5) and two robot tags
-(8 cm, ids 10 striker, 11 keeper), one per US Letter page. Print at 100% on
-matte paper. Tape floor sheets down whole. Cut robot tags at the corner marks,
-mount flat on a stiff card with the FRONT edge toward the nose, then measure
-`tag_height` (and `tag_offset` if it is not over the body centre) into the config.
-`scripts/make_tags.py` regenerates the pages.
+`tags/pupper_fc_tags.pdf` has nine pages: a layout sheet showing where every
+tag goes ([tag_layout.png](tags/tag_layout.png) is the same picture), six floor
+tags (17 cm, ids 0–5) and two robot tags (8 cm, ids 10 striker, 11 keeper), one
+per US Letter page. Print at 100% on matte paper.
+
+| Tag | Where it goes |
+| --- | --- |
+| 0 | Corner: west goal end, south side |
+| 1 | Corner: east goal end, south side |
+| 2 | Corner: east goal end, north side |
+| 3 | Corner: west goal end, north side |
+| 4, 5 | Ends of the halfway line, south and north (optional: they sharpen the camera fit) |
+| 10, 11 | On the striker's and keeper's backs |
+
+Each floor page names its spot and carries a small map with that spot marked.
+Seen from above the corner tags read 0, 1, 2, 3 counter-clockwise, and the east
+goal (the one the striker attacks) is between tags 1 and 2. East, west, north
+and south are only names: choose which goal is east once and the rest follows.
+
+Tape floor sheets down whole, tag centre on its spot, any rotation. Cut robot
+tags at the corner marks, mount flat on a stiff card with the FRONT edge toward
+the nose, then measure `tag_height` (and `tag_offset` if it is not over the body
+centre) into the config. Keep the printed layout sheet out of the camera's view:
+its miniature tags are readable and carry the same ids as the real ones.
+
+`scripts/make_tags.py` regenerates everything from the config (`--pdf` for the PDF).
 
 ## Remaining bring-up on the arena
 
