@@ -413,9 +413,10 @@ class HttpClient:
         return self._run("kick_in_place", {"side": side}).get("message", "")
 
     def kick_at(self, x: float, y: float, side: str, dry_run: bool = False,
-                gain: float | None = None, delay: float | None = None) -> str:
-        """Turn, walk and kick as one job of the API (no wait between the walk and the kick)."""
-        args = {"x": x, "y": y, "side": side, "dry_run": dry_run}
+                gain: float | None = None, delay: float | None = None, **extra) -> str:
+        """Turn, walk and kick as one job of the API (no wait between the walk and the kick).
+        extra: the tool's optional angle, point, speed and settle."""
+        args = {"x": x, "y": y, "side": side, "dry_run": dry_run, **extra}
         args.update({k: v for k, v in (("gain", gain), ("delay", delay)) if v is not None})
         return self._run("kick_at", args).get("message", "")
 

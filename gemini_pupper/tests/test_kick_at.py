@@ -85,3 +85,53 @@ def test_walker_errors_still_land_in_the_kick_window():
         if not (0.258 - 0.03 <= bx <= 0.258 + 0.04 and abs(by - PAW_Y[side]) <= 0.025):
             bad.append((round(x, 2), round(y, 2), round(bx, 3), round(by - PAW_Y[side], 3)))
     assert len(bad) <= 40, bad[:10]  # 92 %
+
+
+def pose_after(path, turn_gain=1.0, walk_gain=1.0):
+    """Robot position and heading (degrees) after ("turn", deg) and ("walk", m) steps."""
+    X = Y = th = 0.0
+    for kind, value in path:
+        if kind == "turn":
+            th += math.radians(value) * turn_gain
+        else:
+            X += math.cos(th) * value * walk_gain
+            Y += math.sin(th) * value * walk_gain
+    return X, Y, math.degrees(th)
+
+
+@pytest.mark.parametrize("x,y,angle", [(2 * ka.FOOT_M, -1 * ka.FOOT_M, 0.0), (0.5, 0.5, 90.0), (1.0, 0.0, -45.0),
+                                        (-0.4, 0.3, 170.0), (0.0, 0.0, 30.0), (0.7, -0.2, None)])
+def test_pose_plan_puts_the_robot_at_the_point_on_the_kick_heading(x, y, angle):
+    path = ka.steps(x, y, "right", angle, "robot")
+    X, Y, heading = pose_after(path)
+    want = math.degrees(math.atan2(y, x)) if angle is None else angle
+    assert abs(X - x) < 1e-9 and abs(Y - y) < 1e-9 and abs(ka.wrap_deg(heading - want)) < 1e-9, (X, Y, heading)
+    assert all(abs(value) <= 180.0 for kind, value in path if kind == "turn")
+
+
+@pytest.mark.parametrize("side", ["right", "left"])
+@pytest.mark.parametrize("x,y,angle", [(0.8, 0.3, -20.0), (0.6, 0.0, 0.0), (0.5, -0.4, 60.0), (1.2, 0.5, 135.0)])
+def test_pose_plan_for_a_ball_stops_behind_it_on_the_kick_heading(x, y, angle, side):
+    X, Y, heading = pose_after(ka.steps(x, y, side, angle, "ball"))
+    th = math.radians(heading)
+    dx, dy = x - X, y - Y  # the ball in the robot frame at the kick
+    bx, by = math.cos(th) * dx + math.sin(th) * dy, -math.sin(th) * dx + math.cos(th) * dy
+    assert abs(ka.wrap_deg(heading - angle)) < 1e-9
+    assert abs(bx - ka.TARGET_X) < 1e-9 and abs(by - PAW_Y[side]) < 1e-9, (bx, by)
+
+
+def test_a_ball_with_no_angle_keeps_the_single_turn_plan():
+    assert ka.steps(0.6, 0.1, "left") == [("turn", ka.plan(0.6, 0.1, "left")[0]), ("walk", ka.plan(0.6, 0.1, "left")[1])]
+
+
+def test_pose_plan_refuses_bad_input():
+    for bad in ((5.0, 0.0, 0.0, "robot"), (0.5, 0.0, 270.0, "robot"), (0.5, 0.0, 0.0, "goal")):
+        with pytest.raises(ValueError):
+            ka.plan_pose(bad[0], bad[1], bad[2], "right", bad[3])
+
+
+def test_run_passes_the_pose_options_and_feet():
+    c = Client()
+    c.kick_at = lambda x, y, side, dry_run, gain, delay, **extra: c.calls.append((round(x, 4), round(y, 4), side, extra)) or "ok"
+    ka.run(c, 2 * ka.FOOT_M, -1 * ka.FOOT_M, "right", log=lambda text: None, angle=0.0, point="robot", settle=0.0)
+    assert c.calls == [(0.6096, -0.3048, "right", {"angle": 0.0, "settle": 0.0, "point": "robot"})]

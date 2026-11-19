@@ -73,7 +73,7 @@ From the repository root:
 ```
 
 - `test_ball_kick_approach.py` (57 tests) drives the approach against a simulated walker (dead band, dead time 0–0.2 s, lag, coast, unknown gain 0.55–1.25, sideways drift, yaw drift) and camera (12 Hz, 130 ms latency, noise, correlated bias, dropouts, blind zone, 220° view), including a ball moved during calibration and a flickering false positive. A 300-case Monte Carlo on 2026-11-16: 300/300 lined up; forward error p95 1.3 cm, maximum 2.0 cm, mean 8 mm short, never under the body; sideways ≤ 1 cm in 96 %, ≤ 2 cm in 100 %; approach time median 31 s, p95 43 s.
-- `test_kick_ball_tool.py` (40 tests) runs the tools through the real queue and the fake ROS robot: full sequences, no ball, Stop during the approach and during the clip, a fall during the clip, a latched and a stale shared stop during the clip, walker refusal, camera and detector failure, calibration and speed refusals, `locate_ball`; `kick_in_place` (the trick takes the legs within `KICK_SETTLE_S`, and the walker takes them back at the end of the motion); `kick_at` (one job, the ball at the chest on the paw line at the switch, dry run, refusals, Stop during the walk).
+- `test_kick_ball_tool.py` (45 tests) runs the tools through the real queue and the fake ROS robot: full sequences, no ball, Stop during the approach and during the clip, a fall during the clip, a latched and a stale shared stop during the clip, walker refusal, camera and detector failure, calibration and speed refusals, `locate_ball`; `kick_in_place` (the trick takes the legs within `KICK_SETTLE_S`, and the walker takes them back at the end of the motion); `kick_at` (one job, the ball at the chest on the paw line at the switch, dry run, refusals, Stop during the walk; the pose mode: position within 1 cm and heading within 1° on the simulated walker, `settle` 0, `speed`).
 - `test_ball_vision.py`: 37 NumPy tests (ray-traced 6-gore ball, false positives) run anywhere; 9 OpenCV tests (JPEG decode, remap, HSV, BGR/RGB order) run only where OpenCV is installed, for example on the robot.
 
 None of these checks simulate the leg kick's contact with the ball. `foundation/scripts/check_kick_handoff.py` does (see "Timing of the kick"); it needs the mjlab environment and a C++ compiler:
@@ -88,13 +88,22 @@ PYTHONPATH=pupper-mjlab/src python foundation/scripts/check_kick_handoff.py --ou
 
 ```bash
 python3 gemini_pupper/robot/kick_at.py X Y [--side right|left|auto] [--dry-run] [--fwd-gain 1.31] [--dead 0.14]
+                                           [--angle DEG] [--point ball|robot] [--ft] [--speed 0.2] [--settle 0.15]
 ```
 
 The command makes one call to the API's `kick_at` tool, and that tool does the turn, the walk and the kick as one job. Other programs (the field camera's planner) can make the same call: `POST /tools/kick_at` with `{"x": 0.60, "y": 0.10, "side": "auto"}` and the `X-Pupper-Command-Epoch` header from `GET /health`; optional `dry_run`, `gain`, `delay`. If the planner drives the robot to the ball itself, it calls `POST /tools/kick_in_place` with `{"side": "right"}` when the ball centre is 0.25–0.26 m ahead of base_link on the paw line; the kick then starts 0.15 s later. Neither tool is offered to Gemini (`OPERATOR_ONLY_TOOLS`).
 
+**Kick at a pose (2026-11-19, offline only).** With `--angle` or `--point robot` the same job goes to a pose first: turn to the point, walk straight to it, turn to the kick heading, kick. The angle is in degrees from the heading at the start, left positive.
+
+- `--point robot`: X Y is where the robot centre stands; no ball is necessary. Example, 2 ft ahead and 1 ft to the right, kick straight ahead with the right leg: `kick_at.py 2 -1 --ft --point robot --angle 0 --side right` (turn −26.6°, walk 0.68 m, turn +26.6°, kick).
+- `--point ball`: X Y is the ball centre; the robot stops behind the ball on the kick heading, with the ball at the chest on the paw line. This is the shot toward a goal: the angle is the direction from the ball to the goal.
+- `--speed` sets the walk speed command (the gain 1.31 was measured only at 0.2 m/s). `--settle` sets the zero-speed time before the kick (0 is permitted). Each turn and walk step starts 0.2 s after the step before it.
+- The same options are tool arguments: `angle`, `point`, `speed`, `settle`.
+- All steps are timed with no feedback. The turn rate gain is not measured (assumed 1.0), so a pose with two turns has a larger error than the single-turn ball plan.
+
 - Turn in place by θ = atan2(Y, X) − asin(paw_y / r), so that the ball lies on the paw line (right −0.046 m, left +0.040 m). Turns below 3° are skipped.
 - 0.2 s at zero speed after the turn, then walk straight until the ball centre is at the chest (0.248 m; kick contact is 0.258 m), timed with the walker model (gain 1.31, start delay 0.14 s, at 0.2 m/s). Then the kick, 0.15 s after the last walk command.
-- Offline (`tests/test_kick_at.py`, 24 tests): with turn and walk gains 0.9–1.1, 96 % of kicks land in the window at 0–15° bearing, 91 % at 15–30°, 69 % at 30–45° and 51 % at 45–60°. No camera is in the loop: a wide turn needs fresh coordinates after it.
+- Offline (`tests/test_kick_at.py`, 41 tests): with turn and walk gains 0.9–1.1, 96 % of kicks land in the window at 0–15° bearing, 91 % at 15–30°, 69 % at 30–45° and 51 % at 45–60°. No camera is in the loop: a wide turn needs fresh coordinates after it.
 - Robot, 2026-11-19, with the earlier three-call sequence (0.5 s wait before the trick): left leg, ball at (0.37, +0.017), walk 0.12 m: hit. Right leg, ball at (0.535, −0.039), straight walk 0.29 m: the paw passed beside the ball (side not recorded).
 - The walker model was measured with a full stop after each walk. With the 0.15 s wait the trick can take the legs before the walker stops fully, which can end the walk short by an amount that is not measured. Do a `--dry-run` with a ruler first; if the ball is short of 0.25 m, increase `KICK_SETTLE_S` in `lab/part9_ball_kick.py` or decrease `--fwd-gain`.
 

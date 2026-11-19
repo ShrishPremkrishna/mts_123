@@ -587,3 +587,67 @@ def test_stop_during_the_kick_at_walk_cancels_before_the_kick(monkeypatch):
             assert rig.ts.last_outcome["terminal_state"] in ("cancelled", "failed")
             assert rig.robot.activations(leg.controller) == [] and last_speed(rig) == (0.0, 0.0, 0.0)
     asyncio.run(case())
+
+
+# ----------------------------------------------------------------------------- kick_at with a pose (no ball)
+@pytest.mark.parametrize("x,y,angle,side", [
+    (2 * 0.3048, -1 * 0.3048, 0.0, "right"),  # 2 ft ahead, 1 ft to the right, kick straight ahead
+    (0.5, 0.4, 90.0, "left"),
+    (0.6, 0.0, -30.0, "right"),
+])
+def test_kick_at_goes_to_a_pose_and_kicks_on_the_heading(monkeypatch, x, y, angle, side):
+    async def case():
+        eff = 1.2
+        async with kick_rig(monkeypatch, ball=None, eff=eff) as (rig, world):
+            leg = rig.ts.tricks["leg_kick"]
+            jobs = rig.ts._job_sequence
+            monkeypatch.setattr(kick.kick_plan, "TURN_GAIN", eff)  # the fake walker turns with the same gain
+            result = await tool_registry.call(rig.ts, "kick_at", {"x": x, "y": y, "angle": angle, "point": "robot",
+                                                                  "side": side, "gain": eff, "delay": 0.0})
+            assert result.ok, result.message
+            assert await rig.settle()
+            outcome = rig.ts.last_outcome
+            assert outcome["terminal_state"] == "succeeded", outcome["message"]
+            assert rig.ts._job_sequence == jobs + 1 and kicks(rig, leg) == [f"kick_{side}"]
+            taken = rig.robot.activations(leg.controller)[0]
+            X, Y, heading = world.pose(taken)
+            assert abs(X - x) <= 0.01 and abs(Y - y) <= 0.01, (X, Y)
+            assert abs(math.degrees(heading) - angle) <= 1.0, math.degrees(heading)
+            moving = [t for t, m in rig.robot.twists() if m.linear.x or m.linear.y or m.angular.z]
+            assert taken - moving[-1] <= 1 / 20 + kick.KICK_SETTLE_S + 0.11 and not [t for t in moving if t > taken]
+            assert rig.robot.active() == {LOCOMOTION_CONTROLLER}
+    asyncio.run(case())
+
+
+def test_kick_at_settle_zero_switches_right_after_the_last_command(monkeypatch):
+    async def case():
+        async with kick_rig(monkeypatch, ball=None) as (rig, world):
+            leg = rig.ts.tricks["leg_kick"]
+            assert (await tool_registry.call(rig.ts, "kick_at", {"x": 0.5, "y": 0.0, "point": "robot", "angle": 0.0,
+                                                                 "side": "left", "settle": 0.0})).ok
+            assert await rig.settle()
+            assert rig.ts.last_outcome["terminal_state"] == "succeeded", rig.ts.last_outcome["message"]
+            taken = rig.robot.activations(leg.controller)[0]
+            moving = [t for t, m in rig.robot.twists() if m.linear.x or m.linear.y or m.angular.z]
+            assert taken - moving[-1] <= 1 / 20 + 0.11, taken - moving[-1]
+    asyncio.run(case())
+
+
+def test_kick_at_speed_shortens_the_walk_and_obeys_the_walker_limit(monkeypatch):
+    async def case():
+        async with kick_rig(monkeypatch, ball=None) as (rig, world):
+            limit = rig.ts.speeds(LOCOMOTION).limits
+            top = limit.vx_forward_max if limit.vx_forward_max is not None else limit.vx_max
+            for bad in (top + 0.5, 0.0, -0.2):
+                assert not (await tool_registry.call(rig.ts, "kick_at", {"x": 0.6, "y": 0.0, "point": "robot",
+                                                                         "speed": bad})).ok
+            for bad in ({"settle": 5.0}, {"point": "goal"}, {"angle": 400.0}):
+                assert not (await tool_registry.call(rig.ts, "kick_at", {"x": 0.6, "y": 0.0, **bad})).ok, bad
+            assert rig.ts.commands.empty()
+            fast = min(top, 0.4)
+            assert (await tool_registry.call(rig.ts, "kick_at", {"x": 0.6, "y": 0.0, "point": "robot", "angle": 0.0,
+                                                                 "dry_run": True, "speed": fast, "delay": 0.0})).ok
+            assert await rig.settle()
+            walk = [t for t, m in rig.robot.twists() if m.linear.x]
+            assert abs((walk[-1] - walk[0]) - 0.6 / (kick.kick_plan.FWD_GAIN * fast)) <= 0.11
+    asyncio.run(case())
