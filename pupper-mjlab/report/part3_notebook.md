@@ -4,12 +4,127 @@ Spec: [Opt Lab 2, Part 3](https://cs123-stanford.readthedocs.io/en/latest/schedu
 Started 2026-11-18. **Everything here is simulation evidence. No policy was deployed to hardware.**
 Hardware steps need a human operator and TA approval (section 6).
 
-Status (2026-11-18 evening): all tools built, unit-tested and validated end to end on the **Part 1 parent**
-(`gallop_c` s42, `1c5r0n8c`) as a dry run. That includes a 50-iteration Bumpy smoke fine-tune with its matched control
-arm and a verified W&B upload.
-The Part 2 final policy (W3) has not landed yet. When it does, Part 3 is the one command in section 7.
+Status (2026-11-19): **Part 3 sim run on the Part 2 final policy is DONE** (section 0, the final results).
+- **Sim candidate:** Bumpy (WIDEN) +2000.
+- **Hardware eligibility is on HOLD** pending a human (post-hoc push gate; [decision](decisions/2026-11-18-w4-p3-candidate.md)).
+
+Sections 1–8 describe the tools and the earlier **dry run on the Part 1 parent** (labelled NOT final).
 
 Tags: **[M]** measured here · **[R]** recovered from the old run / repo records · **[D]** lazy decision (doc linked).
+
+## 0. FINAL RESULTS: Part 3 on the Part 2 final policy (2026-11-18/19) [M]
+
+Everything in this section is the real run. The dry run on the Part 1 parent is section 4 and is **not** final.
+Simulation only; nothing was deployed.
+
+**Input.**
+- P = W3's Part 2 final, `~/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/model_4496.pt`: W&B `wmhcp24q`, sha256 `ce977121…`,
+  decision `ac5f63a`.
+- Reference `configs/opt-lab-2/p2/s42/r2-lag` @ `60ce5a4`.
+
+**Run.**
+- One command: `scripts/opt_lab_2/part3_run.py --checkpoint <P> --reference-dir <ref> --name p3-final`.
+- Log `~/runs/opt-lab-2/p3-final-runbook.log`. Every launch went through `gpu_slot.py`.
+- Wall clock ≈ 2.5 h, because the GPU was otherwise free: export 1 min, eval 6 min, video 8 min, kpcheck 2 min,
+  WIDEN smoke 5 min, training + gates 2.0 h (4 paired legs at ~2.0 s/iteration per arm), confirm 4 min, export 1 min.
+- Outputs:
+  - `report/part3/eval/p3-final*` (tables: `p3-final-kpwide_summary.md`, `_gates.md`, `_selection.md`, `_deploy_hold.md`);
+  - `report/part3/export/p3-final*.md`;
+  - diagnostics in `report/part3/diag/` (README).
+
+**0.1 P before Part 3** (seed 1234; `report/part3/eval/p3-final/summary.md`):
+
+| Condition | falls (rev/stop/steady/turn) | err +1.5 / −1.5 | push stand@0.65 / move@0.5 | seam |
+|---|---|---|---|---|
+| flat, Lab 4 DR | 14 (5/9/0/0) | 0.096 / 0.116 | 0.096 / 0 | PASS (headline) |
+| flat, DR off | 24 | 0.185 / 0.217 | – | PASS |
+| Bumpy, Lab 4 DR | 35 (2/18/15/0) | 0.124 / 0.131 | 0.159 / 0.022 | PASS (robustness) |
+| Bumpy, DR off | 30 | 0.163 / 0.168 | – | PASS |
+
+- **Export of P:** PASS. JSON vs torch 5.5e-6, ONNX 3.5e-6, limits unchanged.
+- **Seam:** P does not stumble at the seam, under any condition. Its videos are in `~/runs/opt-lab-2/p3-videos/p3-final/`.
+
+**0.2 kp coverage, step 0** [D]. flat_dr falls 14 / 16 vs nominal-PD falls 39 / 37 (seeds 1234 / 4321), a mean Δ of
+**+23.0**, which is > 15, so the branch is **WIDEN**. Both arms trained with kp ×[0.6, 1.3] and kd ×[0.7, 1.5]; evals
+stayed on Lab 4 ranges. This matches W3's independent +22.5. The WIDEN smoke (50 + 50 iterations) **PASSED** every check
+(`p3-final_kpwide_smoke.md`).
+
+**0.3 Training: paired 500-iteration legs, Bumpy arm vs matched flat control** (seed 1234; flat_dr / bumpy_dr /
+nominal-PD falls; `p3-final-kpwide_gates.md`):
+
+| point | Bumpy (WIDEN) | flat control (WIDEN) | gate |
+|---|---|---|---|
+| +0 (P) | 14 / 35 / 39 | – | |
+| +500 | 14 / 31 / 25 | 16 / 38 / 28 | continue |
+| +1000 | **34 / 46 / 42** | 18 / 47 / 34 | continue |
+| +1500 | 11 / 23 / 14 | 23 / 52 / 51 | continue. Extension rule: bumpy_dr −23 > 10, flat_dr within 10 → **extend both** |
+| +2000 | **10 / 18 / 7** | 12 / 29 / 20 | stop (bumpy_dr −5) |
+
+- **The +1000 dip is real, not eval noise:**
+  - Seed 4321 replicates it: Bumpy 19 → 39 flat_dr, 36 → 59 bumpy_dr.
+  - Its neighbouring checkpoints are bad too: flat_dr 31–48.
+  - The extra falls are all in stop/reversal transients.
+  - Training-log metrics (reward, episode length, std, learning rate, realized gains) show no drift.
+- **+1500 / +2000 are genuinely better.**
+  - Neighbours of +1500: flat_dr 4–21, nominal-PD 9–34.
+  - Neighbours of +2000: 6 / 14 and 4 / 6.
+  - Checkpoint-to-checkpoint variance is ~±7–10 falls on top of eval noise (`report/part3/diag/README.md`).
+
+**0.4 Selection and gates** [D].
+- **Selection:** the pre-registered matched selection shipped **+2000** (`rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt`,
+  sha256 `2632970b…`) with no regression vs +1500.
+- **Seed-4321 confirm:** flat_dr 11, bumpy_dr 23, nominal-PD 12.
+- **Seam:** PASS on flat_dr and bumpy_dr for both seeds and on the pooled windows. DR-off also PASS (flat 4 falls, Bumpy 18).
+- **Pre-registered HOLD:** **CLEAR**.
+  - (a) nominal-PD − flat_dr = −1.0 (limit 15);
+  - (b) nominal-PD vs P = −28.5 (limit 10);
+  - WIDEN control check −2 (limit 10).
+- **Export of +2000:** PASS. JSON 7.1e-6, ONNX 3.9e-6, golden 1.1e-5, limits unchanged (kp 5.5, kd 0.25, 3 Nm, ±1.5 clip),
+  deploy validator and C++ gait test pass. The W&B `policy.json` is absent (runner bug, section 5); no upload was made.
+
+**0.5 What Bumpy + DR bought, and what it cost** (Bumpy +2000 vs P, seeds 1234/4321, and vs the matched control +2000):
+- **Better on falls and nominal gains:**
+  - flat_dr 10/11 vs P 14/16;
+  - bumpy_dr 18/23 vs P 35;
+  - nominal-PD 7/12 vs P 39/37 (control 12 / 29 / 20).
+  - Against the matched control, the Bumpy-specific gain is within noise on one control seed.
+- **Worse on standing push recovery** (a ranked W2 metric). Falls per push at 0.65 m/s:
+  - Bumpy +2000: **0.489 / 0.497**;
+  - P: 0.096 / 0.122; control: 0.091;
+  - every Bumpy checkpoint from +500 on: 0.49–0.86; Bumpy neighbours: 0.56–0.86;
+  - moving push is unchanged (≈ 0–0.02).
+
+  The matched control (same PD ranges) keeps push, so the Bumpy terrain is the likely cause. Neither the Part 3
+  selection guards nor the HOLD rule included push. **That gap in the pre-registration is acknowledged here.**
+- **Critical decision** [D] (4 lenses agree, synthesizer; [`2026-11-18-w4-p3-candidate.md`](decisions/2026-11-18-w4-p3-candidate.md)):
+  - (a) The **sim candidate is Bumpy +2000**. Its push regression must be stated next to every claim about it.
+  - (b) It is CLEAR under the pre-registered HOLD.
+  - (c) A post-hoc push gate **HOLD(c)** was added, and it can only add conservatism: two-seed flat_dr push_stand@0.65 must be ≤ P + 0.10 = 0.209.
+    +2000 reads 0.493, so it is **HOLD**. Nothing is hardware-eligible, and it goes to a human. That human decides
+    whether to ratify HOLD(c), with hold-all as the default and the flat control +2000 as the alternative (section 0.6).
+
+**0.6 Option (ii) evidence: flat control +2000** (evals and export only, no training;
+[addendum](decisions/2026-11-18-w4-p3-candidate/addendum-flatctrl-2000.md)):
+- **Two seeds:**
+  - flat_dr 12 / 13;
+  - bumpy_dr 29 / 34;
+  - nominal-PD 20 / 18;
+  - push_stand@0.65 0.091 / 0.089 (Bumpy 0.163 / 0.151);
+  - seam PASS everywhere.
+- **Two-seed HOLD:** (a) +6.5, (b) −19.0, WIDEN check −2, HOLD(c) 0.090 ≤ 0.209. That is **CLEAR on all four**.
+- **Export:** PASS (JSON 1.07e-5, ONNX 3.4e-6, limits unchanged, deploy validator and C++ test pass).
+- **The 62 BW F_peak** is a single sample, the impact of a robot that fell 0.32 s later. p99.9 is 2.58 BW, the same as P.
+- **Caveats:** it is not the spec's Bumpy pass and was not pre-registered, and its bumpy_dr is not better than P's
+  beyond noise. Whether to prepare it for hardware is the human's call.
+
+**0.7 Spec deliverables (sim side).**
+- **Transition videos:**
+  - P: `~/runs/opt-lab-2/p3-videos/p3-final/`;
+  - selected +2000: `~/runs/opt-lab-2/p3-videos/p3-final-selected/`.
+  - Both are flat and Bumpy, 0 → ±1.5 → 0 at 0.5 m/s² plus a seam dither, with no falls.
+- **Bumpy + Lab 4 DR robustness pass:** done, with the documented WIDEN deviation on training PD ranges.
+- **Export:** ready and audited.
+- **Hardware deploy and the measured hallway top speed:** not done. Human-only, and on HOLD.
 
 ## 1. What the spec asks
 
@@ -161,7 +276,7 @@ uv run --no-sync python scripts/opt_lab_2/part3_finetune.py --checkpoint <FINAL.
     --name p3-final-flatctrl-leg1 --iterations 500 [--pd-ranges wide] --flat-control &   # matched control arm
 ```
 
-## 4. Dry run on the Part 1 parent: **Part 1 parent, NOT the final policy**
+## 4. Dry run on the Part 1 parent: **Part 1 parent, NOT the final policy** (final results: section 0)
 
 Checkpoint `~/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt` (W&B `1c5r0n8c`), reference `configs/opt-lab-2/gallop_c`
 @ `e01364f`. All numbers are simulation only, from one eval seed (1234). GPU rollouts are not bit-reproducible, so
