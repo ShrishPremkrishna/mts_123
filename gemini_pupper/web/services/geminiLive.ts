@@ -10,8 +10,13 @@ import { ReceiptAudioCache, serverReceiptAudioText, supportsPuckReceiptConsumer 
 import { preloadReceiptAudio, supportsQuickReceipts } from './receiptAudioPreload';
 import { FOLLOW_HANDOFF_CUE, followHandoffTools, confirmedFollowHandoff } from './followHandoff';
 import { AcceptedJobTracker, type StatusReport } from './acceptedJobs';
+import { createVaderVoice, type VaderVoice } from './vaderVoice';
 
 const LATE_FAILURE_CUE = 'That request failed. Check the controls for details.';
+/** Vader breathing: wait this long after the last speech ends, then allow one breath per cooldown. */
+const BREATH_DELAY_MS = 400;
+const BREATH_COOLDOWN_S = 8;
+const VADER_DELIVERY = 'Voice delivery: speak slowly, in a low, calm and commanding tone, like Darth Vader, with a short pause between sentences. This changes delivery only, never the words: every rule above still applies, and an exact acknowledgment text stays exact.';
 
 /** A background permission request may never be presented by the browser. */
 class MediaVisibilityError extends Error {
@@ -135,6 +140,10 @@ export class GeminiLiveService {
   private videoGeneration = 0;
   private volumeInterval: number | null = null;
   private queuedSources: AudioBufferSourceNode[] = [];
+  // Optional output effect (config.voiceEffect); null plays the dry voice.
+  private voiceEffect: VaderVoice | null = null;
+  private breathTimer: ReturnType<typeof setTimeout> | null = null;
+  private nextBreathAt = 0;
   private connected = false;
   private config: AppConfig;
   private robotToolsPaused = false;
@@ -417,7 +426,8 @@ export class GeminiLiveService {
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 512;
     this.analyser.smoothingTimeConstant = 0.1;
-    this.analyser.connect(this.audioContext.destination);
+    // The mouth follows the dry voice; the speaker gets the effect, if any.
+    this.analyser.connect(this.installVoiceEffect(this.audioContext, config) ?? this.audioContext.destination);
 
     this.startOutputVolumeMonitoring();
 
@@ -478,6 +488,7 @@ export class GeminiLiveService {
     if (!isAudioOutput && this.outputPolicy === 'conversation') {
       systemInstruction += '\n\nReturn conversation directly as text. The application screens completed text and speaks it with the selected voice. Do not call a speech tool. Robot actions still require their robot tools.';
     }
+    if (isAudioOutput && this.voiceEffect) systemInstruction += '\n' + VADER_DELIVERY;
 
     // Capability comes from the existing structured catalog, never model prose.
     this.pawClarificationAvailable = false;
@@ -791,6 +802,7 @@ export class GeminiLiveService {
     }
     this.queuedSources.push(source);
     this.nextStartTime += buffer.duration;
+    this.cancelBreath(); // Speech always wins over a breath.
 
     // Streaming callers must be able to enqueue the next chunk immediately;
     // waiting for playback to finish here would recreate full-response latency.
@@ -798,8 +810,48 @@ export class GeminiLiveService {
       const idx = this.queuedSources.indexOf(source);
       if (idx !== -1) {
         this.queuedSources.splice(idx, 1);
+        // Natural end of the last queued speech. stopPlayback empties the
+        // queue first, so a stopped or interrupted reply never breathes.
+        if (!this.queuedSources.length) this.breatheSoon();
       }
     };
+  }
+
+  /** The Vader effect between the mouth analyser and the speaker; null keeps the dry voice. */
+  private installVoiceEffect(ctx: AudioContext, config: AppConfig): AudioNode | null {
+    if (config.voiceEffect !== 'vader' || this.outputPolicy !== 'conversation') return null;
+    try {
+      const voice = createVaderVoice(ctx);
+      voice.output.connect(ctx.destination);
+      this.voiceEffect = voice;
+      this.nextBreathAt = 0;
+      this.log('info', 'Vader voice on.');
+      return voice.input;
+    } catch (error: any) {
+      this.log('error', `Vader voice unavailable (${error?.message || error}); using the normal voice.`);
+      return null;
+    }
+  }
+
+  /** One respirator breath shortly after a reply ends (Vader effect with breathing on). */
+  private breatheSoon() {
+    if (!this.voiceEffect || this.config.vaderBreathing === false) return;
+    if (this.breathTimer !== null) clearTimeout(this.breathTimer);
+    this.breathTimer = setTimeout(() => {
+      this.breathTimer = null;
+      const ctx = this.audioContext, voice = this.voiceEffect;
+      // Never while speech is queued, or while the person holds the talk button.
+      if (!voice || !ctx || ctx.state !== 'running' || this.disposed || !this.connected
+          || this.queuedSources.length || (this.audioInputActive && this.voiceInputMode === 'hold_to_talk')
+          || ctx.currentTime < this.nextBreathAt) return;
+      if (voice.breathe()) this.nextBreathAt = ctx.currentTime + BREATH_COOLDOWN_S;
+    }, BREATH_DELAY_MS);
+  }
+
+  private cancelBreath() {
+    if (this.breathTimer !== null) clearTimeout(this.breathTimer);
+    this.breathTimer = null;
+    try { this.voiceEffect?.stopBreath(); } catch { /* Optional audio cannot block playback or Stop. */ }
   }
 
   /** Only the short code-owned takeover cue waits for playback, never ordinary
@@ -836,6 +888,7 @@ export class GeminiLiveService {
         source.onended = () => finish(valid() && ctx.currentTime >= endsAt - .025);
         this.queuedSources.push(source);
         this.nextStartTime = endsAt;
+        this.cancelBreath(); // The handoff cue must be heard clearly.
         source.start(startAt);
         this.trace('follow_handoff_audio_started', { duration_ms: buffer.duration * 1000 });
       })().catch(() => finish(false));
@@ -1467,6 +1520,7 @@ export class GeminiLiveService {
     this.queuedSources.forEach(source => { try { source.stop(); } catch {} });
     this.queuedSources = [];
     this.nextStartTime = 0;
+    this.cancelBreath();
     try { if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); } catch { /* Audio cleanup cannot block Stop. */ }
     this.onAudioLevel(0);
   }
@@ -1516,6 +1570,8 @@ export class GeminiLiveService {
       this.mediaStream = null;
     }
     this.analyser = null;
+    try { this.voiceEffect?.dispose(); } catch { /* Closing the context below stops it anyway. */ }
+    this.voiceEffect = null;
     for (const ctx of [this.audioContext, this.inputAudioContext]) {
       if (ctx && ctx.state !== 'closed') void ctx.close().catch(() => {});
     }

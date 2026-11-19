@@ -34,6 +34,8 @@ export type VoiceInputMode = 'hold_to_talk' | 'hands_free';
 
 export type OutputPolicy = 'receipts' | 'conversation';
 
+export type VoiceEffect = 'none' | 'vader';
+
 export interface AppConfig {
   outputPolicy: OutputPolicy;
   voiceInputMode?: VoiceInputMode; // Reconnect to arm hands-free; unknown/absent means hold-to-talk.
@@ -41,6 +43,8 @@ export interface AppConfig {
   modelName: string;
   ttsModelName?: string;
   voiceName: string;
+  voiceEffect?: VoiceEffect; // Sound of every reply; the words do not change. Absent means none. Reconnect to change.
+  vaderBreathing?: boolean; // Vader only: one respirator breath after a reply. Absent means on.
   extraInstructions: string; // added after the robot's prompt (lab/prompt.md)
   enableVideo: boolean;
   enableAudio: boolean;

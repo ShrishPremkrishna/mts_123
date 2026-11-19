@@ -8,6 +8,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   modelName: 'gemini-3.1-flash-live-preview',
   ttsModelName: 'gemini-3.1-flash-tts-preview',
   voiceName: 'Puck',
+  // Darth Vader sound on Puck's voice (services/vaderVoice.ts). 'none' plays Puck unchanged.
+  voiceEffect: 'vader',
+  vaderBreathing: true,
   // Pupper's personality and rules live on the robot, in lab/prompt.md.
   extraInstructions: '',
   enableVideo: true,

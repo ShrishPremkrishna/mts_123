@@ -98,6 +98,28 @@ const Settings: React.FC<SettingsProps> = ({ apiKey, setApiKey, config, setConfi
 
           {config.outputPolicy === 'conversation' && (
             <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Voice effect</label>
+              <select aria-label="Voice effect" disabled={sessionActive}
+                value={config.voiceEffect === 'vader' ? 'vader' : 'none'}
+                onChange={e => setConfig({ ...config, voiceEffect: e.target.value === 'vader' ? 'vader' : 'none' })}
+                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white disabled:opacity-50">
+                <option value="vader">Darth Vader</option>
+                <option value="none">None</option>
+              </select>
+              {config.voiceEffect === 'vader' && (
+                <label className="flex items-center gap-2 text-sm text-gray-300 mt-2">
+                  <input type="checkbox" aria-label="Respirator breathing" disabled={sessionActive}
+                    checked={config.vaderBreathing !== false}
+                    onChange={e => setConfig({ ...config, vaderBreathing: e.target.checked })} />
+                  Respirator breath after replies
+                </label>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Deepens and masks every reply, including quick acknowledgments; the words do not change. Keep the Puck voice: the quick acknowledgments need it. Reconnect to change.</p>
+            </div>
+          )}
+
+          {config.outputPolicy === 'conversation' && (
+            <div>
               <label className="flex items-center gap-2 text-sm text-gray-300">
                 <input type="checkbox" aria-label="Quick Puck acknowledgments" disabled={sessionActive}
                   checked={config.quickReceipts === true}
