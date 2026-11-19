@@ -99,9 +99,15 @@ class Probe:
         self.cursor = None       # (u, v) in full-resolution image pixels
         self.pins: list = []     # pinned points, as FIELD (x, y) so they stay put if the camera is recalibrated
         self.grid = False
+        self.bounds = None       # (w, h) of the camera picture inside the window; None = the whole window
         self._click = None       # a click waiting to be turned into a pin
 
     def on_mouse(self, event, x, y, _flags, _param):
+        if self.bounds is not None and not (0 <= x < self.bounds[0] and 0 <= y < self.bounds[1]):
+            self.cursor = None   # over the field view or the readouts: there is no camera pixel there
+            if event == cv2.EVENT_RBUTTONDOWN:
+                self.pins.clear()
+            return
         self.cursor = (x / self.scale, y / self.scale)
         if event == cv2.EVENT_LBUTTONDOWN:
             self._click = self.cursor

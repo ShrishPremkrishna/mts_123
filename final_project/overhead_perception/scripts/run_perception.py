@@ -6,7 +6,10 @@
   python scripts/run_perception.py --source sim    # no hardware: simulated arena, striker walks to the shot
   python scripts/run_perception.py --source clip.mov
 
-Keys: c = (re)calibrate from floor tags at the measured positions in the config (needs 4+)
+Keys: f = FIELD FROM CORNER TAGS: tags 0, 1, 2, 3 on the four corners of the field define it,
+          position, direction and size, with nothing measured (--corners does it at start).
+          Seen from above they go counter-clockwise; the east goal (+x) is between tags 1 and 2
+      c = (re)calibrate from floor tags at the measured positions in the config (needs 4+)
       t = calibrate from whatever floor tags are in view, nothing measured (needs 2+):
           the lowest-numbered tag becomes the field centre, its right edge points at the east goal
       m = calibrate without tags: click the floor points listed in the config
@@ -20,10 +23,10 @@ Every pixel has a floor position once calibrated:
       g = show / hide a measuring grid drawn on the floor
       p = save the position of every pixel to out/pixel_map.npy
 
-Dashboard:
-      d = show / hide a top-down view of the field (goals, floor tags, ball, Puppers)
-      z = zoom the dashboard between the whole field and "fit to what is visible"
-      (--dashboard opens it at start; scripts/dashboard.py shows the same view from another terminal or machine)
+Dashboard (one window: camera feed on the left, top-down field view on the right, readouts below):
+      d = switch between that and the camera feed alone
+      z = zoom the field view between the whole field and "fit to what is visible"
+      (--dashboard starts with it; scripts/dashboard.py shows the field view from another terminal or machine)
 
 Ball colour:
       b = put the cursor on the ball and press b: the ball colour is set from the
@@ -51,7 +54,7 @@ from fieldcam.net import StatePublisher  # noqa: E402
 from fieldcam.detect import BallDetector  # noqa: E402
 from fieldcam.pipeline import Perception  # noqa: E402
 from fieldcam.probe import Probe, floor_map  # noqa: E402
-from fieldcam.topdown import render as render_topdown  # noqa: E402
+from fieldcam.topdown import render_combined  # noqa: E402
 
 
 class SimSource:
@@ -89,7 +92,6 @@ class SimSource:
 
 
 WINDOW = "pupper fc perception"
-DASHBOARD = "pupper fc field view"
 OPEN_CAMERAS = []  # released on exit, however the program ends
 CAMERA_HELP = "Wireless phone: lock it, keep it still and near the Mac, Wi-Fi and Bluetooth on."
 CLICKS_FILE = "out/manual_calib.json"
@@ -111,16 +113,35 @@ def floor_tags_in_view(perc) -> list:
     return sorted(i for i in perc.debug.get("tags", {}) if i not in robot_ids)
 
 
-def needed(perc, survey: bool):
-    """(how many floor tags calibration needs, which of the ones in view count)."""
+def corner_text(perc) -> str:
+    r = perc.cfg["tags"]["corner_ids"]
+    return (f"tag {r['west_south']} and tag {r['west_north']} on the west goal line, "
+            f"tag {r['east_south']} and tag {r['east_north']} on the east goal line")
+
+
+def needed(perc, mode: str):
+    """(how many floor tags calibration needs, which of the ones in view count). mode: corners | survey | measured."""
     seen = floor_tags_in_view(perc)
-    if survey:
+    if mode == "corners":
+        return 4, [i for i in seen if i in perc.cfg["tags"]["corner_ids"].values()]
+    if mode == "survey":
         return 2, seen
     return 4, [i for i in seen if i in perc.cfg["tags"]["field"]]
 
 
-def announce_needed(survey: bool):
-    if survey:
+def announce_needed(perc, mode: str):
+    if mode == "corners":
+        r = perc.cfg["tags"]["corner_ids"]
+        box("CALIBRATION NEEDED: FIELD FROM CORNER TAGS", [
+            "Put one floor tag on each corner of the field, tag centre on the corner:",
+            f"  seen from above, counter-clockwise: tag {r['west_south']}, tag {r['east_south']}, "
+            f"tag {r['east_north']}, tag {r['west_north']}",
+            f"  the east goal (+x) is between tags {r['east_south']} and {r['east_north']}, "
+            f"the west goal between tags {r['west_north']} and {r['west_south']}",
+            "All four must be COMPLETELY in view: whole black square and white border, nothing on top.",
+            "It calibrates by itself the moment it sees them. The field's size is taken from the tags.",
+        ])
+    elif mode == "survey":
         box("CALIBRATION NEEDED", [
             "Put at least 2 floor tags where the camera sees them COMPLETELY:",
             "the whole black square and the white border around it, nothing on top.",
@@ -138,9 +159,23 @@ def announce_done(perc):
     cam, mode = perc.cam, perc.calib_mode
     how = {"tags": f"{len(perc.floor_layout)} measured floor tags in the config",
            "survey": f"{len(perc.survey['tags']) if perc.survey else 0} floor tags, nothing measured",
+           "corners": f"the four corner tags ({len(perc.survey['tags']) if perc.survey else 0} floor tags in view), nothing measured",
            "clicks": "clicked points"}.get(mode, str(mode))
     lines = [f"from: {how}",
              f"camera is {cam.center[2]:.2f} m above the floor; fit error {cam.reproj_err_px:.2f} px (under 2 is good)"]
+    if mode == "corners":
+        fs, r = perc.survey["field"], perc.cfg["tags"]["corner_ids"]
+        lines.append(f"THE FIELD IS {fs['length']:.2f} m long (goal to goal) x {fs['width']:.2f} m wide, measured from the tags")
+        lines.append(f"east goal (+x) between tags {r['east_south']} and {r['east_north']}, "
+                     f"west goal between tags {r['west_north']} and {r['west_south']}; centre is the middle of the four")
+        if fs["off_rectangle"] > 0.03:
+            lines.append(f"NOTE: the four tags are {fs['off_rectangle'] * 100:.0f} cm away from a true rectangle. "
+                         "Square the corners up, then press f again.")
+        else:
+            lines.append(f"the four tags form a rectangle to within {fs['off_rectangle'] * 100:.1f} cm")
+        if fs["length"] < fs["width"]:
+            lines.append("NOTE: the goals are on the LONG sides. If that is not intended, the tags are turned a quarter: "
+                         "move each tag one corner round.")
     if mode == "survey":
         sv = perc.survey
         lines.append(f"tag {sv['ref']} is the field centre: its right edge points at the east goal (+x), top edge at +y")
@@ -150,7 +185,7 @@ def announce_done(perc):
             lines.append("NOTE: only 2 tags, so expect several cm of error. A third tag, spread apart, helps a lot.")
     if cam.reproj_err_px > 3.0:
         lines.append("NOTE: the fit error is high. Check the tag size / positions in the config, then recalibrate.")
-    lines.append("Positions are live now. If the camera or the reference tag moves, recalibrate (t, c or m).")
+    lines.append("Positions are live now. If the camera or the tags move, recalibrate (f, t, c or m).")
     box("CALIBRATION DONE", lines)
 
 
@@ -161,6 +196,17 @@ def survey_calibrate(perc, frame, quiet: bool = False) -> bool:
             seen = floor_tags_in_view(perc) if perc.cam is None else sorted(perc.debug.get("tags", {}))
             box("CALIBRATION FAILED", [f"Need at least 2 floor tags completely in view; seeing {seen or 'none'}.",
                                        "Robot tags do not count. The previous calibration, if any, is still in use."])
+        return False
+    return True
+
+
+def corners_calibrate(perc, frame, quiet: bool = False) -> bool:
+    """Calibrate with the four corner tags defining the field."""
+    if not perc.calibrate_from_corners(frame):
+        if not quiet:
+            box("CALIBRATION FAILED", [perc.calib_fail or "could not calibrate from the corner tags",
+                                       "Expected: " + corner_text(perc) + ".",
+                                       "The previous calibration, if any, is still in use."])
         return False
     return True
 
@@ -249,9 +295,13 @@ def main():
     ap.add_argument("--print", action="store_true", help="print each state as JSON")
     ap.add_argument("--reuse-clicks", action="store_true",
                     help="start from the last click calibration (only valid if the camera has not moved)")
+    ap.add_argument("--corners", action="store_true",
+                    help="calibrate at start from tags on the four field corners, which define the field (same as key f)")
     ap.add_argument("--survey", action="store_true",
                     help="calibrate at start from the floor tags in view, nothing measured (same as key t)")
-    ap.add_argument("--dashboard", action="store_true", help="also open the top-down field view (same as key d)")
+    ap.add_argument("--dashboard", action="store_true",
+                    help="show the top-down field view and readouts beside the camera feed (same as key d)")
+    ap.add_argument("--dashboard-width", type=int, default=1400, help="width of that combined window in pixels")
     ap.add_argument("--display-width", type=int, default=1280, help="debug window width in pixels")
     args = ap.parse_args()
 
@@ -291,8 +341,19 @@ def main():
     count, t_status = 0, 0.0
     probe, mouse_ready = Probe(scale), False
     dash_on, dash_zoom = args.dashboard, "field"
+
+    def show(picture, stale_s=0.0):
+        """Put the camera picture in the window, alone or with the field view and readouts."""
+        if dash_on:
+            canvas, k, bounds = render_combined(picture, state, args.dashboard_width, dash_zoom, stale_s)
+            probe.scale, probe.bounds = k, bounds
+        else:
+            canvas = cv2.resize(picture, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale != 1.0 else picture
+            probe.scale, probe.bounds = scale, None
+        cv2.imshow(WINDOW, canvas)
     announced_cam, asked, t_done, moved = None, False, 0.0, False  # what has been said about calibration so far
     feed_lost = False
+    auto = "corners" if args.corners else "survey" if args.survey else "measured"  # how to calibrate at start
     while True:
         frame, t_rx, n = src.read(n)
         if frame is None:
@@ -310,10 +371,7 @@ def main():
                 draw_banner(dead, "CAMERA FEED LOST", [
                     f"no frames for {lost:.0f} s: reconnecting by itself",
                     "wireless phone: lock it, keep it still and near the Mac    q = quit"], (0, 0, 255))
-                cv2.imshow(WINDOW, cv2.resize(dead, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-                           if scale != 1.0 else dead)
-                if dash_on:
-                    cv2.imshow(DASHBOARD, render_topdown(state, zoom=dash_zoom, stale_s=lost))
+                show(dead, stale_s=lost)
                 if cv2.waitKey(30) & 0xFF == ord("q"):
                     break
             continue
@@ -321,9 +379,9 @@ def main():
             feed_lost = False
             box("CAMERA FEED BACK", ["Frames are arriving again. The earlier calibration is still in use;",
                                      "if the phone was moved, the CAMERA OR TAGS MOVED warning will say so."])
-        if perc.cam is None and args.survey:
-            if count % 10 == 0:  # --survey: never fall back to the measured layout in the config
-                survey_calibrate(perc, frame, quiet=True)
+        if perc.cam is None and auto != "measured":
+            if count % 10 == 0:  # --corners / --survey: never fall back to the measured layout in the config
+                (corners_calibrate if auto == "corners" else survey_calibrate)(perc, frame, quiet=True)
         elif perc.cam is None:
             perc.calibrate(frame)
         # Live: capture happened `latency` before we received the frame, and "now" is the wall clock.
@@ -341,7 +399,7 @@ def main():
             announce_done(perc)
         elif perc.cam is None and not asked:   # tried on the first frame and could not
             asked = True
-            announce_needed(args.survey)
+            announce_needed(perc, auto)
         err = state.get("calib_err_px") or 0.0
         if perc.cam is not None and (err > MOVED_PX) != moved:
             moved = err > MOVED_PX
@@ -353,8 +411,9 @@ def main():
         if not args.print and (live or perc.cam is None) and time.time() - t_status > 1.0:
             t_status = time.time()
             if perc.cam is None:
-                need, have = needed(perc, args.survey)
-                print(f"CALIBRATING... floor tags completely in view: {have or 'none'}  ({len(have)} of {need} needed)",
+                need, have = needed(perc, auto)
+                what = "corner tags" if auto == "corners" else "floor tags"
+                print(f"CALIBRATING... {what} completely in view: {have or 'none'}  ({len(have)} of {need} needed)",
                       flush=True)
             elif live:
                 print(status_line(state), flush=True)
@@ -367,18 +426,19 @@ def main():
             vis = perc.draw(frame, state, banner=False)
             probe.draw(vis, perc.cam)
             if perc.cam is None:
-                need, have = needed(perc, args.survey)
-                keys = ("it starts by itself" if args.survey else "t = use any 2+ tags, nothing measured") \
-                    + "    m = click the field corners instead"
+                need, have = needed(perc, auto)
+                keys = ("it starts by itself" if auto != "measured" else "f = tags on the 4 corners define the field"
+                        "    t = any 2+ tags, nothing measured") + "    m = click the field corners"
+                what = "corner tags (one on each field corner)" if auto == "corners" else "floor tags"
                 draw_banner(vis, "CALIBRATING...", [
-                    f"floor tags completely in view: {len(have)} of {need} needed"
+                    f"{what} completely in view: {len(have)} of {need} needed"
                     + (f"   (ids {', '.join(map(str, have))})" if have else ""),
                     "a tag counts only if its whole black square and white border are visible",
                     keys], (0, 200, 255))
             elif moved:
                 draw_banner(vis, "CAMERA OR TAGS MOVED", [
                     f"calibration is off by {err:.0f} px: positions are wrong",
-                    "press t to recalibrate (c for the measured layout, m to click)"], (0, 0, 255))
+                    "recalibrate: f = corner tags, t = any tags, c = measured layout, m = click"], (0, 0, 255))
             elif time.time() - t_done < DONE_BANNER_S:
                 draw_banner(vis, "CALIBRATION DONE", [
                     f"camera {perc.cam.center[2]:.2f} m above the floor, fit error {perc.cam.reproj_err_px:.1f} px",
@@ -386,10 +446,7 @@ def main():
             else:
                 cv2.putText(vis, f"{fps:.0f} fps", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         if not args.no_gui:
-            cv2.imshow(WINDOW, cv2.resize(vis, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-                       if scale != 1.0 else vis)
-            if dash_on:
-                cv2.imshow(DASHBOARD, render_topdown(state, zoom=dash_zoom))
+            show(vis)
             if not mouse_ready:  # the window has to exist before it can take a mouse handler
                 cv2.setMouseCallback(WINDOW, probe.on_mouse)
                 mouse_ready = True
@@ -400,8 +457,6 @@ def main():
                 probe.grid = not probe.grid
             if key == ord("d"):
                 dash_on = not dash_on
-                if not dash_on:
-                    cv2.destroyWindow(DASHBOARD)
             if key == ord("z"):
                 dash_zoom = "fit" if dash_zoom == "field" else "field"
             if key == ord("x"):
@@ -415,13 +470,15 @@ def main():
                 print(f"saved {path.name}: array [row, column] -> (x, y) in metres on the floor, "
                       "NaN where a pixel does not show floor. Valid until the camera moves.")
             if key == ord("c") and not perc.calibrate(frame):
-                _need, have = needed(perc, False) if perc.cam is None else (4, sorted(perc.debug.get("tags", {})))
+                _need, have = needed(perc, "measured") if perc.cam is None else (4, sorted(perc.debug.get("tags", {})))
                 box("CALIBRATION FAILED", [f"Need at least 4 of the measured floor tags completely in view; seeing {have or 'none'}.",
                                            "The previous calibration, if any, is still in use."])
+            if key == ord("f"):
+                corners_calibrate(perc, frame)
             if key == ord("t"):
                 survey_calibrate(perc, frame)
             if key == ord("m"):
-                click_calibrate(perc, frame, points, scale)
+                click_calibrate(perc, frame, perc.cfg["manual_points"], scale)  # current field size, e.g. after f
                 mouse_ready = False  # the click mode borrowed the mouse; take it back
         if args.frames and count >= args.frames:
             break

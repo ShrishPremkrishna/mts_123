@@ -8,7 +8,7 @@ import numpy as np
 
 from . import planner
 from .camera_model import CameraModel, default_intrinsics, load_intrinsics, solve_camera_pose
-from .config import resolve
+from .config import resolve, set_field_size
 from .detect import BallDetector, TagDetector
 from .filters import CVFilter2D, YawFilter, wrap
 from .relative import relative_geometry
@@ -42,6 +42,8 @@ class Perception:
         self.calib_mode: str | None = None  # 'tags' | 'survey' | 'clicks'
         self.floor_layout: dict = {}        # floor tag id -> field xy, for the bumped-camera check
         self.survey: dict | None = None     # set by calibrate_from_survey: reference tag + tag poses
+        self.calib_fail: str | None = None  # why the last calibration attempt failed, in plain words
+        self._config_field = (cfg["field"]["length"], cfg["field"]["width"])  # as written in the config
 
         self.tag_det = TagDetector()
         b = cfg["ball"]
@@ -76,27 +78,100 @@ class Perception:
         using only the printed tag size (tags.floor_size). Works from 2 tags,
         better with 3+, spread apart. Robot tags are ignored.
         """
-        tags = self.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
-        robot_ids = {rc["tag_id"] for rc in self.cfg["robots"].values()}
-        floor = {i: c for i, c in tags.items()
-                 if i not in robot_ids and (use_ids is None or i in use_ids)}
+        floor = self._floor_tags(frame, use_ids)
         if len(floor) < min_tags:
+            self.calib_fail = f"need at least {min_tags} floor tags completely in view; seeing {sorted(floor) or 'none'}"
             return False
-        size = self.cfg["tags"]["floor_size"]
-        # Survey on lens-corrected pixels; the pose solve below takes the raw ones.
-        flat = {i: cv2.undistortPoints(c.reshape(-1, 1, 2).astype(np.float64), self.K, self.dist, P=self.K)
-                .reshape(4, 2) for i, c in floor.items()}
         ref = min(floor)
-        poses, _ = survey_tags(flat, {i: size for i in floor}, ref)
-        ids = sorted(floor)
-        cam = solve_camera_pose(
-            self.K, self.dist, np.vstack([floor[i] for i in ids]),
-            np.vstack([tag_corners((poses[i]["x"], poses[i]["y"], poses[i]["yaw"]), size) for i in ids]))
-        layout = {i: np.array([poses[i]["x"], poses[i]["y"]]) for i in ids}
+        poses = self._survey(floor, ref)
+        cam, layout = self._camera_from_layout(floor, poses)
         if not self._use_camera(cam, "survey", layout):
+            self.calib_fail = "the tags in view do not fit a camera above the floor"
             return False
         self.survey = {"ref": ref, "tags": poses}
         return True
+
+    def calibrate_from_corners(self, frame: np.ndarray, use_ids=None) -> bool:
+        """Four floor tags on the field's corners define the field itself. Nothing is measured.
+
+        tags.corner_ids says which tag is on which corner (default 0, 1, 2, 3
+        going counter-clockwise seen from above, starting at the west goal's
+        -y end). From those four the field's centre, direction and SIZE are
+        worked out: +x runs from the 0-3 side to the 1-2 side, so the east goal
+        is between tags 1 and 2. Any other floor tags in view help locate the
+        camera but do not affect the field. tags.corner_inset moves the true
+        corner outward from the tag centre if the sheets sit inside the lines.
+        """
+        floor = self._floor_tags(frame, use_ids)
+        roles = self.cfg["tags"]["corner_ids"]  # west_south, east_south, east_north, west_north
+        missing = [f"tag {tid} ({name.replace('_', '-')})" for name, tid in roles.items() if tid not in floor]
+        if missing:
+            self.calib_fail = "corner tags not completely in view: " + ", ".join(missing)
+            return False
+        poses = self._survey(floor, roles["west_south"])
+        at = {name: np.array([poses[tid]["x"], poses[tid]["y"]]) for name, tid in roles.items()}
+        ex = (at["east_south"] - at["west_south"]) + (at["east_north"] - at["west_north"])
+        if np.linalg.norm(ex) < 1e-6:
+            self.calib_fail = "the corner tags are on top of each other"
+            return False
+        ex = ex / np.linalg.norm(ex)                # +x: from the west side to the east side
+        ey = np.array([-ex[1], ex[0]])              # +y: to the left of +x
+        if ((at["west_north"] - at["west_south"]) + (at["east_north"] - at["east_south"])) @ ey <= 0:
+            ids = [roles[k] for k in ("west_south", "east_south", "east_north", "west_north")]
+            self.calib_fail = (f"the corner tags go round the field the wrong way. Seen from above, tags "
+                               f"{ids[0]}, {ids[1]}, {ids[2]}, {ids[3]} must go counter-clockwise: swap tags {ids[1]} and {ids[3]}")
+            return False
+        origin = sum(at.values()) / 4
+        to_field = lambda p: np.array([(p - origin) @ ex, (p - origin) @ ey])  # noqa: E731
+        f = {name: to_field(p) for name, p in at.items()}
+        len_tags = ((f["east_south"][0] - f["west_south"][0]) + (f["east_north"][0] - f["west_north"][0])) / 2
+        wid_tags = ((f["west_north"][1] - f["west_south"][1]) + (f["east_north"][1] - f["east_south"][1])) / 2
+        ideal = {"west_south": (-len_tags / 2, -wid_tags / 2), "east_south": (len_tags / 2, -wid_tags / 2),
+                 "east_north": (len_tags / 2, wid_tags / 2), "west_north": (-len_tags / 2, wid_tags / 2)}
+        off_rectangle = max(float(np.linalg.norm(f[k] - ideal[k])) for k in f)
+        inset = self.cfg["tags"]["corner_inset"]
+        length, width = len_tags + 2 * inset[0], wid_tags + 2 * inset[1]
+        if length < 0.3 or width < 0.3:
+            self.calib_fail = f"the corner tags are too close together to be a field ({length:.2f} x {width:.2f} m)"
+            return False
+        theta = math.atan2(ex[1], ex[0])
+        field_poses = {}
+        for tid, p in poses.items():
+            xy = to_field(np.array([p["x"], p["y"]]))
+            field_poses[tid] = {"x": float(xy[0]), "y": float(xy[1]), "yaw": wrap(p["yaw"] - theta)}
+        cam, layout = self._camera_from_layout(floor, field_poses)
+        if cam is None:
+            self.calib_fail = "the corner tags do not fit a camera above the floor"
+            return False
+        set_field_size(self.cfg, length, width)  # the field is now what the tags say it is
+        self._use_camera(cam, "corners", layout)
+        self.survey = {"ref": roles["west_south"], "tags": field_poses,
+                       "field": {"length": length, "width": width, "off_rectangle": off_rectangle}}
+        return True
+
+    def _floor_tags(self, frame: np.ndarray, use_ids=None) -> dict:
+        """Floor tags completely visible in this frame: {id: image corners}. Robot tags left out."""
+        self.calib_fail = None
+        tags = self.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+        robot_ids = {rc["tag_id"] for rc in self.cfg["robots"].values()}
+        return {i: c for i, c in tags.items() if i not in robot_ids and (use_ids is None or i in use_ids)}
+
+    def _survey(self, floor: dict, ref: int) -> dict:
+        """Where the floor tags are relative to tag `ref`, from the image and the printed size alone."""
+        size = self.cfg["tags"]["floor_size"]
+        # Survey on lens-corrected pixels; the camera pose solve takes the raw ones.
+        flat = {i: cv2.undistortPoints(c.reshape(-1, 1, 2).astype(np.float64), self.K, self.dist, P=self.K)
+                .reshape(4, 2) for i, c in floor.items()}
+        poses, _ = survey_tags(flat, {i: size for i in floor}, ref)
+        return poses
+
+    def _camera_from_layout(self, floor: dict, poses: dict):
+        """Camera pose from tags whose floor poses are known: (camera, {id: field xy})."""
+        size, ids = self.cfg["tags"]["floor_size"], sorted(floor)
+        cam = solve_camera_pose(
+            self.K, self.dist, np.vstack([floor[i] for i in ids]),
+            np.vstack([tag_corners((poses[i]["x"], poses[i]["y"], poses[i]["yaw"]), size) for i in ids]))
+        return cam, {i: np.array([poses[i]["x"], poses[i]["y"]]) for i in ids}
 
     def calibrate_from_points(self, image_pts, field_xy) -> bool:
         """Locate the camera from >= 4 hand-picked floor points (no tags needed).
@@ -111,6 +186,8 @@ class Perception:
     def _use_camera(self, cam: CameraModel | None, mode: str, floor_layout: dict) -> bool:
         if cam is None:
             return False
+        if mode != "corners":  # every other mode uses the field size written in the config
+            set_field_size(self.cfg, *self._config_field)
         self.cam = cam
         self.calib_mode, self.floor_layout = mode, floor_layout
         self.calib_err_px = cam.reproj_err_px
@@ -318,6 +395,9 @@ class Perception:
                 cv2.line(out, P(sx, sy), P(*shot["target"]), col, 1)
                 cv2.circle(out, P(sx, sy), 8, col, 2)
         hud = f"calib err {state['calib_err_px']:.1f}px  frame age {state['frame_age_s'] * 1000:.0f}ms"
+        if self.calib_mode == "corners":
+            fs = self.survey["field"]
+            hud += f"  |  field from corner tags: {fs['length']:.2f} x {fs['width']:.2f} m"
         if self.calib_mode == "survey":
             hud += f"  |  tag {self.survey['ref']} is the field centre, its right edge points at the east goal"
         cv2.putText(out, hud, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)

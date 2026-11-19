@@ -73,21 +73,26 @@ for a phone app that serves video over Wi-Fi. That path is untested.
 ```
 
 ```bash
-.venv/bin/python scripts/run_perception.py --survey --dashboard
+.venv/bin/python scripts/run_perception.py --corners --dashboard
 ```
 
-That opens two windows: the camera view with overlays, and the top-down
-dashboard described below. The script says where calibration stands, in the terminal and as a banner in
+`--corners` is for a marked-out field with a tag on each corner; use `--survey`
+to try things at a desk with whatever tags are in view.
+
+That opens one window: the camera feed with overlays on the left, the top-down
+field view on the right, and the readouts underneath (described below). The
+script says where calibration stands, in the terminal and as a banner in
 the window: **CALIBRATION NEEDED → CALIBRATING… (n of m tags) → CALIBRATION
 DONE**, and **CAMERA OR TAGS MOVED** if the floor tags drift more than 8 px
 from where calibration put them.
 
-### Three ways to calibrate
+### Four ways to calibrate
 
 | Key | Needs | Field frame |
 | --- | --- | --- |
+| `f` (automatic with `--corners`) | Tags 0, 1, 2, 3 on the four corners of the field, nothing measured | **The tags define the field:** its centre is the middle of the four, +x runs from the 0–3 side to the 1–2 side (east goal between tags 1 and 2), and its length and width are measured from the tags and replace the config's. Seen from above the tags go counter-clockwise. Other floor tags in view help but do not change the field. `tags.corner_inset` covers sheets that sit inside the lines. |
 | `c` (automatic at start) | 4+ floor tags at the measured positions in `config/field.yaml` | The real field |
-| `t` (automatic with `--survey`) | Any 2+ floor tags, nothing measured; 3+ spread apart is better | Lowest-numbered tag is the field centre; its right edge points at +x, top edge at +y |
+| `t` (automatic with `--survey`) | Any 2+ floor tags, nothing measured; 3+ spread apart is better | Lowest-numbered tag is the field centre; its right edge points at +x, top edge at +y. **The field outline and goals are then only drawn around that tag from the sizes in the config; the tags do not mark the field's edges.** Good for trying things at a desk, not for the real arena. |
 | `m` | Click the floor points listed under `manual_points` (default: the four field corners) | The real field |
 
 A tag counts only when its whole black square and white border are visible.
@@ -114,8 +119,10 @@ position. It shows only what perception currently reports: a ball or robot that
 is not seen disappears and is listed as "not seen", and the view dims and says
 STALE if updates stop.
 
-- In the live script: `--dashboard` at start, or `d` to show/hide, `z` to zoom
-  between the whole field and "fit to what is visible" (useful at a desk).
+- In the live script it shares one window with the camera feed: `--dashboard` at
+  start, or `d` to switch between that and the camera feed alone; `z` zooms the
+  field view between the whole field and "fit to what is visible" (useful at a
+  desk). The mouse tools (position, pins, `b`) work on the camera part.
 - From another terminal, or another machine that receives the stream:
 
 ```bash
@@ -221,7 +228,7 @@ simulator loop. The gameplay controller in `pupper_fc` is the one to drive robot
 
 ## What is verified
 
-Simulation, 1080p, camera 2.6 m up (and a slanted view), 35 tests, plus 4 capture tests against a fake camera:
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 39 tests, plus 4 capture tests against a fake camera:
 
 | Check | Result |
 | --- | --- |
@@ -232,6 +239,8 @@ Simulation, 1080p, camera 2.6 m up (and a slanted view), 35 tests, plus 4 captur
 | Ball radius estimated from the image | 5.9 cm for a 6.0 cm ball |
 | Robot-relative ball position / bearing | within 3 cm / 4° of truth |
 | Calibration from 3 unmeasured tags | robot ≤ 1.2 cm, ball ≤ 1.1 cm |
+| Field from 4 corner tags (true 2.80 × 1.80 m) | measured 2.81–2.82 × 1.81 m; robot ≤ 0.9 cm, ball ≤ 0.8 cm |
+| Corner tags in the wrong order, or one hidden | refused, with the tag to move or uncover named |
 | Same, with the lens guessed badly (60° vs 69°) | robot ≤ 3.6 cm, ball ≤ 3.3 cm |
 | Calibration from 4 clicks, each up to 4 px off | ≤ 0.8 cm |
 | Tag-to-tag distance from 3 tags, over 1.4–3.3 m | ≤ 2.2 cm |
@@ -251,7 +260,7 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 - The ball detector's fitted outline matched the real ball in one saved frame.
 - Click calibration registered clicks in the real window.
 
-Not done: the dashboard on a live feed, the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
+Not done: corner-tag calibration and the dashboard on a live feed, the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
 latency measurement, a mounted overhead view, robot tags on robots, two robots,
 a recorded replay fixture, identity-swap or false-detection counts, clock
 alignment with a robot, and anything on the Pi.

@@ -21,6 +21,14 @@ tags:
   # Only the no-measuring modes use these (key t, and scripts/measure_tags.py).
   floor_size: 0.17
   robot_size: 0.08
+  # CORNER TAGS (key f, or --corners): one floor tag on each corner of the field defines
+  # the field itself, position, direction and size, with nothing measured. Seen from
+  # above the four go counter-clockwise; the east goal (+x) is between east_south and
+  # east_north. The field size above is then replaced by what the tags measure.
+  corner_ids: {west_south: 0, east_south: 1, east_north: 2, west_north: 3}
+  # If the sheets sit inside the lines, say how far each tag CENTRE is from the true
+  # corner along the length and along the width, metres. [0, 0] = centre on the corner.
+  corner_inset: [0.0, 0.0]
   # Floor tags used to locate the camera. Only the tag CENTRES matter, so their
   # rotation and printed size don't need to be exact. Need >= 4, more is better,
   # spread as widely as possible. Keep them where robots rarely stand.

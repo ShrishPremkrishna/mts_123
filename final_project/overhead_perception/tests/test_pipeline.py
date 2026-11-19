@@ -548,3 +548,116 @@ def test_dashboard_view():
     assert blank["floor_tags"] == {} and count(render(json.loads(json.dumps(blank))), PINK) == 0
     assert render(wire, stale_s=3.0).mean() < img.mean()   # an old picture is dimmed
     assert render(None).shape == img.shape
+
+
+def test_combined_window_keeps_the_camera_feed():
+    """Camera feed and field view share one picture, and the mouse tools still address camera pixels."""
+    import json
+
+    import cv2
+
+    from fieldcam.probe import Probe
+    from fieldcam.topdown import PINK, render_combined
+
+    cfg, arena, perc = make(**CAMERAS["overhead"])
+    frame = arena.render({"striker": (-0.6, -0.3, 0.9)}, (0.2, 0.3))
+    st = json.loads(json.dumps(perc.process(frame, t_capture=0.0, t_now=0.1)))
+    canvas, k, (cam_w, cam_h) = render_combined(frame, st, width=1400)
+    assert canvas.shape[1] == 1400 and canvas.shape[0] == cam_h + 250
+    assert abs(k - cam_w / 1920) < 1e-9 and cam_w == int(1400 * 0.62)
+    # The left part IS the camera picture (shrunk), not a redraw of it.
+    assert np.abs(canvas[:cam_h, :cam_w].astype(int) - cv2.resize(frame, (cam_w, cam_h), interpolation=cv2.INTER_AREA)).max() == 0
+    # The right part is the field view, with the ball drawn in it.
+    assert int(np.all(canvas[:cam_h, cam_w:] == PINK, axis=-1).sum()) > 20
+    assert render_combined(frame, None, width=1400)[0].shape == canvas.shape     # no state yet: still draws
+
+    # Mouse: inside the camera picture -> camera pixel; outside it -> nothing to probe, no pin.
+    probe = Probe(k)
+    probe.bounds = (cam_w, cam_h)
+    u, v = arena.cam.project([[1.4, -0.9, 0.0]])[0]
+    probe.on_mouse(cv2.EVENT_LBUTTONDOWN, u * k, v * k, 0, None)
+    assert abs(probe.cursor[0] - u) < 1e-6 and abs(probe.cursor[1] - v) < 1e-6
+    probe.draw(frame.copy(), perc.cam)
+    assert np.allclose(probe.pins[0], (1.4, -0.9), atol=0.01)
+    probe.on_mouse(cv2.EVENT_LBUTTONDOWN, cam_w + 50, 100, 0, None)   # over the field view
+    probe.on_mouse(cv2.EVENT_LBUTTONDOWN, 100, cam_h + 50, 0, None)   # over the readouts
+    probe.draw(frame.copy(), perc.cam)
+    assert probe.cursor is None and len(probe.pins) == 1
+
+
+# ---- tags on the four corners define the field ---------------------------------
+@pytest.mark.parametrize("cam", CAMERAS)
+def test_corner_tags_define_the_field(cam):
+    """Tags 0-3 sit on the corners of a 2.8 x 1.8 m rectangle in the simulator. With nothing
+    measured, that rectangle becomes the field: its centre, direction and size."""
+    cfg, arena, _ = make(**CAMERAS[cam])
+    cfg["tags"]["floor_size"] = 0.15
+    perc = Perception(cfg, *SIZE)
+    assert perc.calibrate_from_corners(arena.render({}, None)), perc.calib_fail
+    fs = perc.survey["field"]
+    print(f"\n[{cam}] field from corner tags: {fs['length']:.3f} x {fs['width']:.3f} m (truth 2.800 x 1.800), "
+          f"off a rectangle by {fs['off_rectangle'] * 100:.1f} cm")
+    assert perc.calib_mode == "corners"
+    assert abs(fs["length"] - 2.8) < 0.04 and abs(fs["width"] - 1.8) < 0.04 and fs["off_rectangle"] < 0.03
+    # The field everything else uses is now the measured one, not the config's 3.0 x 2.0.
+    assert abs(cfg["field"]["length"] - fs["length"]) < 1e-9 and abs(cfg["goals"]["east"]["x"] - fs["length"] / 2) < 1e-9
+    assert abs(cfg["manual_points"][0]["xy"][0] + fs["length"] / 2) < 1e-9
+
+    # The simulated rectangle is centred on the arena and aligned with it, so positions must match truth directly.
+    rng = np.random.default_rng(11)
+    pos_err, yaw_err, ball_err = [], [], []
+    for _ in range(8):
+        truth = {"striker": (rng.uniform(-1.0, 0.0), rng.uniform(-0.6, 0.6), rng.uniform(-math.pi, math.pi)),
+                 "keeper": (rng.uniform(0.4, 1.0), rng.uniform(-0.6, 0.6), rng.uniform(-math.pi, math.pi))}
+        ball = (rng.uniform(-1.0, 1.0), rng.uniform(-0.6, 0.6))
+        if min(math.hypot(ball[0] - r[0], ball[1] - r[1]) for r in truth.values()) < 0.3:
+            continue
+        p = Perception(cfg, *SIZE)
+        p.cam, p.roi_mask, p.ball_radius_px, p.floor_layout, p.calib_mode = (
+            perc.cam, perc.roi_mask, perc.ball_radius_px, perc.floor_layout, perc.calib_mode)
+        st = p.process(arena.render(truth, ball), t_capture=0.0)
+        for name, (x, y, yaw) in truth.items():
+            r = st["robots"][name]
+            assert r["visible"]
+            pos_err.append(math.hypot(r["x"] - x, r["y"] - y))
+            yaw_err.append(abs(wrap(r["yaw"] - yaw)))
+        assert st["ball"]["visible"]
+        ball_err.append(math.hypot(st["ball"]["x"] - ball[0], st["ball"]["y"] - ball[1]))
+        assert abs(st["field"]["length"] - fs["length"]) < 1e-9 and st["calib_mode"] == "corners"
+        assert abs(st["goals"]["west"]["x"] + fs["length"] / 2) < 1e-9
+        assert st["calib_err_px"] < 3.0
+    print(f"[{cam}] robot pos err max {max(pos_err) * 100:.1f} cm, yaw err max {math.degrees(max(yaw_err)):.1f} deg, "
+          f"ball err max {max(ball_err) * 100:.1f} cm")
+    assert max(pos_err) < 0.03 and max(ball_err) < 0.03 and max(yaw_err) < math.radians(4)
+
+
+def test_corner_tags_failures_and_options():
+    cfg, arena, _ = make(**CAMERAS["overhead"])
+    cfg["tags"]["floor_size"] = 0.15
+    empty = arena.render({}, None)
+    perc = Perception(cfg, *SIZE)
+
+    # A corner tag out of view: refuse, and say which one.
+    assert not perc.calibrate_from_corners(empty, use_ids={0, 1, 3, 4, 5})
+    assert "tag 2" in perc.calib_fail and "east-north" in perc.calib_fail and perc.cam is None
+
+    # Tags laid out clockwise (1 and 3 swapped): refuse, and say how to fix it.
+    cfg["tags"]["corner_ids"] = {"west_south": 0, "east_south": 3, "east_north": 2, "west_north": 1}
+    assert not perc.calibrate_from_corners(empty)
+    assert "wrong way" in perc.calib_fail and "swap" in perc.calib_fail and perc.cam is None
+
+    # Turned a quarter (goals on the long sides): accepted, and the numbers show it.
+    cfg["tags"]["corner_ids"] = {"west_south": 1, "east_south": 2, "east_north": 3, "west_north": 0}
+    assert perc.calibrate_from_corners(empty)
+    assert perc.survey["field"]["length"] < perc.survey["field"]["width"]
+    assert abs(perc.survey["field"]["length"] - 1.8) < 0.04
+
+    # Tags sitting 10 cm inside the lines: the field is that much bigger than the tag rectangle.
+    cfg["tags"]["corner_ids"] = {"west_south": 0, "east_south": 1, "east_north": 2, "west_north": 3}
+    cfg["tags"]["corner_inset"] = [0.10, 0.10]
+    assert perc.calibrate_from_corners(empty)
+    assert abs(perc.survey["field"]["length"] - 3.0) < 0.04 and abs(perc.survey["field"]["width"] - 2.0) < 0.04
+
+    # Going back to another mode restores the field size written in the config.
+    assert perc.calibrate(empty) and perc.calib_mode == "tags"
+    assert cfg["field"]["length"] == 3.0 and cfg["goals"]["east"]["x"] == 1.5
