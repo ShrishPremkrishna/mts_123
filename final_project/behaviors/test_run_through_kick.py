@@ -34,13 +34,14 @@ BALL_R = 0.075
 
 class World:
   def __init__(self, ball, robot=(0.0, 0.0, 0.0), *, latency=0.1, rate=10.0,
-               efficiency=0.8, tau=0.15, noise=0.01, blind=0.40, seed=0):
+               efficiency=0.8, tau=0.15, noise=0.01, blind=0.40, seed=0, drift=(0.0, 0.0)):
     self.bx, self.by = ball
     self.x, self.y, self.yaw = robot
     self.v = [0.0, 0.0, 0.0]
     self.t = 0.0
     self.latency, self.period = latency, 1.0 / rate
     self.eff, self.tau, self.noise, self.blind = efficiency, tau, noise, blind
+    self.drift = drift  # (vy m/s, wz rad/s) added while walking: a gait that pulls to one side
     self.rng = random.Random(seed)
     self.frames = []  # (capture time, x, y) not yet delivered
     self.next_frame = 0.0
@@ -57,7 +58,9 @@ class World:
     h = DT / SUB
     for _ in range(SUB):
       a = h / self.tau
-      target = (cmd.vx * self.eff, cmd.vy * self.eff, cmd.wz * self.eff)
+      walking = abs(cmd.vx) > 0.05
+      target = (cmd.vx * self.eff, cmd.vy * self.eff + walking * self.drift[0],
+                cmd.wz * self.eff + walking * self.drift[1])
       self.v = [v + a * (g - v) for v, g in zip(self.v, target)]
       c, s = math.cos(self.yaw), math.sin(self.yaw)
       self.x += (c * self.v[0] - s * self.v[1]) * h
@@ -117,8 +120,27 @@ def test_aimed_kick_lines_up_on_the_goal(seed):
   ctrl_aim = math.atan2(goal[1] - ball[1], goal[0] - ball[0])
   assert w.contact is not None
   assert abs(wrap(w.contact["yaw"] - ctrl_aim)) < math.radians(4.0)
-  assert abs(w.contact["lateral"]) < 0.03
+  # 0.04 m, not 0.03: lateral_ki keeps some of the charge-start transient, the
+  # price of cancelling a steady sideways pull (test_camera_corrects_...).
+  assert abs(w.contact["lateral"]) < 0.04
   assert w.contact["speed"] > 0.6
+
+
+def test_charge_heads_through_the_ball():
+  # The charge starts with the ball up to yaw_tol off the nose. A yaw command
+  # frozen at that moment kept turning the robot past the ball line (2.4 deg here).
+  ball = (1.0, -0.05)
+  w = run(World(ball=ball, noise=0.0), RunThroughKick())
+  assert w.contact is not None
+  assert abs(math.degrees(wrap(w.contact["yaw"] - math.atan2(ball[1], ball[0])))) < 1.0
+
+
+@pytest.mark.parametrize("seed", range(3))
+def test_camera_corrects_a_gait_that_pulls_left(seed):
+  # Floor trials C3/C4: the walker pulled left about 0.1-0.2 m over 1 m.
+  w = run(World(ball=(1.0, 0.0), seed=seed, drift=(0.08, 0.05)), RunThroughKick())
+  assert w.contact is not None
+  assert abs(w.contact["lateral"]) < 0.05
 
 
 def test_passes_a_ball_that_blocks_the_run_up():

@@ -42,7 +42,9 @@ class BridgeParams:
   max_distance: float = 1.5
   max_bearing: float = 0.5  # rad
   max_cut: float = 0.4  # rad, |aim - bearing|
-  start_max_age: float = 0.3  # s, newest estimate when the kick starts
+  # The onboard colour detector gives estimates 115-166 ms old at 10-17 Hz, so the
+  # newest one can be up to about 0.3 s old (training saw up to about 0.3 s).
+  start_max_age: float = 0.4  # s, newest estimate when the kick starts
   # Same clamp as the exported command_clip (vx, vy, wz).
   clip_x: tuple[float, float] = (-0.5, 2.0)
   clip_y: tuple[float, float] = (-1.0, 1.0)
@@ -52,7 +54,7 @@ class BridgeParams:
   end_range: float = 0.45
   post_kick_s: float = 1.25  # 0.25 s to contact + the 1 s training window after it
   # Loss handling: short hold far away, long hold inside the blind zone.
-  hold_far_s: float = 0.25
+  hold_far_s: float = 0.4  # 0.25 s aborted robot trial L1 (2026-11-16) after 0.03 s
   hold_near_s: float = 1.5
   # Aborts.
   fade_in_s: float = 4.0  # kick controller init + fade-in (2 s + 2 s in config.yaml)

@@ -75,6 +75,9 @@ def yaw_from_quaternion(q) -> float:
 class LearnedKickNode(Node):
   def __init__(self):
     super().__init__("learned_kick")
+    # False on older course stacks with no e-stop gateway (no /estop_controller/stop_status):
+    # then the gateway check is skipped and switches go to controller_manager directly.
+    self.declare_parameter("require_gateway", True)
     self.declare_parameter("input_mode", "robot")
     self.declare_parameter("cmd_vel_topic", "/cmd_vel")
     self.declare_parameter("ball_topic", "/soccer/ball")
@@ -253,7 +256,7 @@ class LearnedKickNode(Node):
       problem = self.entry_problem(now)
       if not problem and self.mode == "robot" and now - self.imu_time > float(self.param("imu_max_age")):
         problem = "no recent IMU yaw"
-      if not problem and self.gateway_blocked is not False:
+      if not problem and bool(self.param("require_gateway")) and self.gateway_blocked is not False:
         problem = ("e-stop gateway latched or faulted (press Options so the walker stands)"
                    if self.gateway_blocked else "no /estop_controller/stop_status yet")
       others = self.count_publishers(self.cmd_topic) - 1

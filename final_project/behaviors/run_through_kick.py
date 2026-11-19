@@ -91,6 +91,10 @@ class KickParams:
   charge_speed: float = 1.0  # m/s
   charge_accel: float = 1.5  # m/s^2
   lateral_kp: float = 1.5  # 1/s
+  # Integral on the ball's lateral offset during the charge: learns a steady
+  # sideways pull (gait or floor; trials C3-C4 pulled left 0.1-0.2 m) and keeps
+  # cancelling it through the camera blind zone. 0 turns it off.
+  lateral_ki: float = 3.0  # 1/s^2
   blind_range: float = 0.40  # m; closer ball-centre ranges are not trusted
   speed_efficiency: float = 0.8  # achieved / commanded speed (measure on the floor)
   # Limits (the walker's trained ranges: |vy| <= 0.5 m/s, |wz| <= 2 rad/s).
@@ -162,6 +166,7 @@ class RunThroughKick:
     self._aim0 = None  # type: float | None  # manual aim at start, robot frame
     self._yaw_dr = 0.0  # dead-reckoned yaw since start (manual aim hold)
     self._travel = 0.0  # commanded travel in the current phase [m]
+    self._lat_i = 0.0  # integral of the ball's lateral offset in the charge [m s]
 
   # ------------------------------------------------------------------ control
 
@@ -178,6 +183,7 @@ class RunThroughKick:
     self._t_fresh = now
     self._t_last = None
     self._vx = 0.0
+    self._lat_i = 0.0
     self._last = ZERO
     self._history.clear()
     self._manual = static_ball is not None
@@ -217,8 +223,11 @@ class RunThroughKick:
       self._t_fresh = now
     if aim is not None:
       self._aim = wrap(aim)
-    elif self._ball is not None and self.state == State.ALIGN:
-      self._aim = math.atan2(self._ball[1], self._ball[0])  # straight through
+    elif self._ball is not None and self.state in (State.ALIGN, State.CHARGE):
+      # Straight through: keep turning to the ball during the charge too. Frozen
+      # at the charge start, the yaw command kept the walker turning at up to
+      # 0.16 rad/s for the whole charge (2026-11-16 floor trials).
+      self._aim = math.atan2(self._ball[1], self._ball[0])
 
     if self.state == State.ALIGN:
       cmd = self._align(now, fresh)
@@ -290,9 +299,15 @@ class RunThroughKick:
     if not fresh:
       return self._abort_cmd(now, "ball lost before the blind zone")
     self._vx = min(p.charge_speed, self._vx + p.charge_accel * dt)
+    if p.lateral_ki > 0.0:  # anti-windup: the learned bias uses at most half of max_vy
+      self._lat_i = clip(self._lat_i + by * dt, 0.5 * p.max_vy / p.lateral_ki)
     return Command(
-      self._vx, clip(p.lateral_kp * by, p.max_vy), clip(p.yaw_kp * self._aim, p.max_wz)
+      self._vx, clip(p.lateral_kp * by + self._lateral_bias(), p.max_vy),
+      clip(p.yaw_kp * self._aim, p.max_wz)
     )
+
+  def _lateral_bias(self) -> float:
+    return self.params.lateral_ki * self._lat_i
 
   def _coast(self, now: float, dt: float) -> Command:
     p = self.params
@@ -304,7 +319,7 @@ class RunThroughKick:
       self._enter(State.BRAKE, now)
       return ZERO
     self._vx = min(p.charge_speed, self._vx + p.charge_accel * dt)
-    return Command(self._vx, 0.0, 0.0)
+    return Command(self._vx, self._lateral_bias(), 0.0)  # keep cancelling the learned pull
 
   # ------------------------------------------------------------------ helpers
 

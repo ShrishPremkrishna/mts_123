@@ -27,6 +27,7 @@ HERE = Path(__file__).resolve().parents[1]
 def _nodes(context):
   kick = LaunchConfiguration("kick").perform(context)
   mode = LaunchConfiguration("input_mode").perform(context)
+  gateway = LaunchConfiguration("gateway").perform(context).lower() in ("true", "1")
   if kick == "run_through":
     speed = LaunchConfiguration("charge_speed").perform(context)
     efficiency = LaunchConfiguration("speed_efficiency").perform(context)
@@ -36,7 +37,8 @@ def _nodes(context):
            output="both"),
       ExecuteProcess(cmd=["python3", "-u", str(HERE / "run_through_kick_node.py"), "--ros-args",
                           "-p", f"input_mode:={mode}", "-p", f"charge_speed:={float(speed)}",
-                          "-p", f"speed_efficiency:={float(efficiency)}"],
+                          "-p", f"speed_efficiency:={float(efficiency)}",
+                          "-p", f"require_gateway:={str(gateway).lower()}"],
                      output="both"),
     ]
   if kick == "learned":
@@ -46,7 +48,8 @@ def _nodes(context):
     end_range = 0.30 if mode == "field" else 0.45  # overhead tracking has no camera blind zone
     return [ExecuteProcess(cmd=["python3", "-u", str(HERE / "learned_kick_node.py"), "--ros-args",
                                 "-p", f"input_mode:={mode}", "-p", f"fade_in_s:={float(fade)}",
-                                "-p", f"end_range:={end_range}"], output="both")]
+                                "-p", f"end_range:={end_range}",
+                                "-p", f"require_gateway:={str(gateway).lower()}"], output="both")]
   raise RuntimeError("kick must be run_through or learned")
 
 
@@ -58,6 +61,8 @@ def generate_launch_description():
                           description="run-through speed [m/s]; above 0.49 needs tools/make_course_config.py"),
     DeclareLaunchArgument("speed_efficiency", default_value="0.8",
                           description="run-through: achieved / commanded speed (stage B measures it)"),
+    DeclareLaunchArgument("gateway", default_value="true",
+                          description="false on older course stacks with no e-stop gateway"),
     DeclareLaunchArgument("fade_in_s", default_value="4.0",
                           description="learned: kick slot init + fade-in [s] (1.0 with the kick config copy)"),
     OpaqueFunction(function=_nodes),

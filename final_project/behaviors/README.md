@@ -9,6 +9,7 @@ A local controller that kicks with the deployed walking policy: it walks Pupper 
 | `run_through_kick.py` | Pure-Python controller (no ROS, no numpy): states, limits, latency compensation, manual mode, field-to-robot conversion |
 | `run_through_kick_node.py` | ROS 2 service around it (`input_mode` manual, robot or field), same shape as `follow_me_pupper/robot/follow_service.py` |
 | `learned_kick.py`, `learned_kick_node.py` | Command bridge for the learned header-kick policy: entry window, command slot, controller switches, zero exit |
+| `penalty_kick*.py`, `penalty_sim.py`, `launch/penalty_kick.launch.py`, `tools/walk_calibration.py` | Penalty kick with the leg-kick trick: find the ball, line up on the ball-to-goal line, kick with the left or right front leg. See `PENALTY_KICK.md` |
 | `policies/header_kick_cpu_run2.json` | Learned policy (CPU run 2) with its manifest (hashes, validator, simulation results) |
 | `launch/kick_trial.launch.py`, `tools/` | Trial launch, walker speed-cap config, policy installer, scripted ball for stand tests |
 | `ROBOT_RUNBOOK.md`, `trial_log.csv` | Robot procedure and the trial record |

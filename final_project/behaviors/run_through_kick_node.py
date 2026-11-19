@@ -81,6 +81,9 @@ def yaw_from_quaternion(q) -> float:
 class RunThroughKickNode(Node):
   def __init__(self):
     super().__init__("run_through_kick")
+    # False on older course stacks with no e-stop gateway (no /estop_controller/stop_status):
+    # then the gateway check is skipped and switches go to controller_manager directly.
+    self.declare_parameter("require_gateway", True)
     self.declare_parameter("input_mode", "manual")
     self.declare_parameter("cmd_vel_topic", "/kick_cmd_vel")
     self.declare_parameter("robot_cmd_vel_topic", "/cmd_vel")  # what the walker reads
@@ -212,7 +215,7 @@ class RunThroughKickNode(Node):
       if self.kick.active:
         response.success, response.message = True, "already kicking"
         return response
-      if self.gateway_blocked is not False:
+      if bool(self.get_parameter("require_gateway").value) and self.gateway_blocked is not False:
         response.success = False
         response.message = ("e-stop gateway latched or faulted (press Options so the walker stands)"
                             if self.gateway_blocked else "no /estop_controller/stop_status yet")
