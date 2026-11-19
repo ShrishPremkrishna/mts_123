@@ -48,6 +48,20 @@ def _bounds(state: dict, zoom: str):
     return (cx - half, cx + half, cy - half, cy + half)
 
 
+def view_mapping(state: dict, size, zoom: str = "field"):
+    """How the field view lays the field out in a picture of this size.
+    Returns (to_px, to_world): field metres -> pixel, and pixel -> field metres."""
+    w, h = size
+    x0, x1, y0, y1 = _bounds(state, zoom)
+    scale = min((w - 40) / (x1 - x0), (h - 40) / (y1 - y0))
+    ox = 20 + ((w - 40) - scale * (x1 - x0)) / 2
+    oy = 20 + ((h - 40) - scale * (y1 - y0)) / 2
+    to_px = lambda x, y: (int(round(ox + (x - x0) * scale)), int(round(oy + (y1 - y) * scale)))  # noqa: E731
+    to_world = lambda u, v: (x0 + (u - ox) / scale, y1 - (v - oy) / scale)  # noqa: E731
+    to_px.scale = scale
+    return to_px, to_world
+
+
 def _dashed(img, a, b, colour, thick=1, dash=10):
     a, b = np.array(a, float), np.array(b, float)
     n = max(int(np.linalg.norm(b - a) // dash), 1)
@@ -73,10 +87,8 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
 
     length, width, ball_r = _field_dims(state)
     x0, x1, y0, y1 = _bounds(state, zoom)
-    scale = min((view_w - 40) / (x1 - x0), (h - 40) / (y1 - y0))
-    ox = 20 + ((view_w - 40) - scale * (x1 - x0)) / 2
-    oy = 20 + ((h - 40) - scale * (y1 - y0)) / 2
-    P = lambda x, y: (int(round(ox + (x - x0) * scale)), int(round(oy + (y1 - y) * scale)))  # noqa: E731
+    P, _ = view_mapping(state, (view_w, h), zoom)
+    scale = P.scale
     S = lambda m: max(int(round(m * scale)), 1)  # noqa: E731
 
     # ---- field, lines, goals ----
@@ -121,6 +133,24 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
             r = (state.get("robots") or {}).get(name, {})
             if r.get("visible") and "ball" in rel:
                 cv2.line(img, P(r["x"], r["y"]), P(ball["x"], ball["y"]), (255, 255, 0), 1, cv2.LINE_AA)
+
+    # ---- the approach plan: path to the line-up point, then the run through the ball ----
+    for name, ap in (state.get("approach") or {}).items():
+        r, plan = (state.get("robots") or {}).get(name, {}), (ap or {}).get("plan")
+        if not plan or not r.get("visible"):
+            continue
+        col = COLOURS.get(name, (200, 200, 200))
+        c, s = math.cos(r["yaw"]), math.sin(r["yaw"])
+        world = lambda q: (r["x"] + c * q[0] - s * q[1], r["y"] + s * q[0] + c * q[1])  # noqa: E731  body -> field
+        running = ap.get("phase") in ("RUN", "BRAKE")
+        pts = [P(*world(q)) for q in plan["path"]]
+        if not running:
+            for a, b in zip(pts, pts[1:]):
+                _dashed(img, a, b, (255, 255, 255), 2, 8)
+        lu, end = P(*world(plan["line_up"])), P(*world(plan["run_end"]))
+        cv2.circle(img, lu, max(S(0.05), 6), (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.arrowedLine(img, lu, end, col, 3 if running else 2, cv2.LINE_AA, tipLength=0.12)
+        _text(img, "line-up", (lu[0] + 10, lu[1] + 18), (255, 255, 255), 0.45)
 
     # ---- robots ----
     for name, r in (state.get("robots") or {}).items():
@@ -173,7 +203,7 @@ def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
     if state.get("calibrated"):
         mode = state.get("calib_mode")
         how = {"tags": "measured floor tags", "survey": "tags in view (unmeasured)", "clicks": "clicked points",
-               "corners": "corner tags define the field"}
+               "corners": "corner tags define the field", "fake": "FAKE FIELD, no camera"}
         first.append((f"done: {how.get(mode, mode or '?')}", white, 0.52, 1, 24))
         if mode == "corners":
             fld = state.get("field") or {}
@@ -228,6 +258,14 @@ def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
         if "ready" in shot:
             rows.append(("READY TO KICK", (0, 220, 0), 0.52, 2, 24) if shot["ready"]
                         else ("not in kick position", (170, 170, 170), 0.52, 1, 24))
+        ap = (state.get("approach") or {}).get(name)
+        if ap:
+            phase_col = {"APPROACH": (0, 200, 255), "ALIGN": (0, 255, 255), "RUN": (0, 220, 0), "BRAKE": (170, 170, 170)}
+            rows.append((f"PLAN: {ap['phase']}", phase_col.get(ap["phase"], white), 0.56, 2, 22))
+            cmd = ap["cmd"]
+            rows.append((f"cmd  fwd {cmd['vx']:+.2f}  left {cmd['vy']:+.2f} m/s  turn {cmd['wz']:+.2f}", white, 0.47, 1, 22))
+            for k, step in enumerate(((ap.get("plan") or {}).get("steps") or [])[:5], 1):
+                rows.append((f"{k}. {step}"[:46], (200, 200, 200), 0.45, 1, 19))
         rows.append((f"age {r['age_s'] * 1000:.0f} ms", grey, 0.45, 1, 30))
         out.append(rows)
     return out
@@ -257,9 +295,10 @@ def render_panel(state: dict | None, size=(PANEL_W, 800), stale_s: float = 0.0, 
 def render_strip(state: dict | None, size=(1400, 250), stale_s: float = 0.0) -> np.ndarray:
     """The same readouts laid out as columns, to sit underneath the two views."""
     w, h = size
+    sections = _sections(state, stale_s)
+    h = max(h, 30 + max(sum(row[4] for row in rows) for rows in sections))  # grow to fit the longest column
     img = np.full((h, w, 3), (18, 18, 18), np.uint8)
     cv2.line(img, (0, 0), (w, 0), (70, 70, 70), 1)
-    sections = _sections(state, stale_s)
     col_w = w // max(len(sections), 4)
     for k, rows in enumerate(sections):
         if k:

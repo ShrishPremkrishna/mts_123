@@ -118,6 +118,21 @@ approach:
   ball_clearance: 0.30      # keep the body this far from the ball while circling behind it
   turn_first_dist: 0.45     # farther than this: face the waypoint and walk; closer: strafe in at the shot yaw
 
+# Line-up-then-run approach (fieldcam/approach.py, scripts/fake_approach.py). All optional;
+# these are the defaults, and they are starting guesses, not measured Pupper values.
+approach_plan:
+  run_up: 0.60          # m, nominal line-up distance behind the ball
+  run_min: 0.45         # m, the run may start anywhere from here ...
+  run_max: 1.20         # m, ... to here behind the ball, once on the line
+  lat_tol: 0.04         # m, sideways distance from the shot line that counts as on it
+  yaw_tol: 5            # degrees, facing along the shot line closely enough
+  ball_clearance: 0.35  # m, keep this far from the ball while walking round it
+  walk_speed: 0.35      # m/s
+  creep_speed: 0.15     # m/s, forward speed while converging onto the line
+  strafe_speed: 0.20    # m/s, sideways (the Pupper strafes slowly)
+  run_speed: 0.45       # m/s
+  follow_through: 0.25  # m, keep running this far past the contact point
+
 net:
   host: 127.0.0.1           # set to the Pupper's IP (or a broadcast address) on the arena network
   port: 5005

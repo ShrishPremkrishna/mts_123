@@ -108,6 +108,59 @@ pins show the distance) · right click or `x` = clear pins · `g` = floor grid �
 A pixel's position is where its line of sight meets the floor, so it is only
 right for things lying on the floor.
 
+## Fake approach: line up, then run at the ball (no camera)
+
+```bash
+.venv/bin/python scripts/fake_approach.py
+```
+
+A pretend Pupper and ball on a pretend field. Each step the fake field hands the
+approach logic just two things, both relative to the robot: the ball (metres
+ahead, metres left) and the goal (the same, plus which way it faces). From those
+it works out the preparatory moves and a velocity command, and the dashboard
+plays it out:
+
+1. **APPROACH**: walk to a point behind the ball on the line from the goal
+   through the ball (about 0.95 m back), going round the ball if it is in the
+   way, and turn to face the goal.
+2. **ALIGN**: creep forward along that line, shuffling sideways onto it.
+3. **RUN**: the moment it is on the line (within 4 cm) and facing along it
+   (within 5°), anywhere from 0.45 to 1.2 m behind the ball, it goes to run
+   speed without stopping, and keeps correcting until the bumper reaches the ball.
+4. **BRAKE**, then start again from wherever the ball ended up.
+
+It is written for a robot that takes only speed commands, follows them
+imprecisely, strafes slowly and cannot walk backwards: it is closed-loop on what
+the camera sees, never commands backward motion, and does not need to stop on an
+exact spot (only on the line and facing along it).
+
+The terminal prints the two relative inputs, the phase, the command and the
+moves in words ("turn 48 deg left, walk 0.87 m to get behind the ball, turn 72 deg
+right to face the goal, creep forward onto the shot line, run through the ball").
+The dashboard shows the path, the line-up point, the run arrow, the phase and the steps.
+
+Left click puts the ball somewhere, right click the robot; `space` pauses, `r`
+gives a random scene, `g` attacks the other goal. `--headless --seconds 30`
+prints without a window. Settings are under `approach_plan` in `config/field.yaml`.
+
+```bash
+.venv/bin/python scripts/fake_approach.py --sloppy --delay 0.15 --noise 0.01
+```
+
+`--sloppy` makes the fake robot follow commands badly (80% of the forward speed
+asked for, 70% sideways, veers left, creeps forward while strafing); `--delay`
+and `--noise` make the planner see positions late and jittery. The 80% is the
+shooting code's own `speed_efficiency` assumption; the rest are guesses.
+
+The logic is `fieldcam/approach.py` (`plan()` for the geometry and the list of
+moves, `ApproachController.tick(ball, goal, now)` for the phases and command).
+It takes only the two relative points, so the camera's `relative` output can
+feed it unchanged; that connection, and sending the command to a robot, are not
+made yet. The fake field (`fieldcam/fakeworld.py`) is a cartoon for trying the
+logic: it does not predict a real Pupper's motion or a real ball's bounce. The
+team's gameplay controller in `../pupper_fc` covers similar ground with its own
+approach, align and strike phases.
+
 ## Dashboard
 
 A top-down drawing of the field: goals, floor tags (filled when readable in the
@@ -197,6 +250,7 @@ shots:   {<name>: {target, aim_yaw, staging:[x,y,yaw], ball_to_target,
 | `ball.x`, `ball.y` | Ball in the robot's body frame, metres | x forward, y to the robot's left |
 | `ball.distance`, `ball.bearing` | Range to the ball, and the turn that faces it | bearing + = turn left |
 | `goal.*` | The same four numbers for the centre of the goal this robot attacks | |
+| `goal.facing` | Direction a ball must travel to go into that goal, as a turn from the robot's heading | + = left |
 | `shot_line.ball_to_goal_yaw` | Field direction of the line ball → goal centre | counter-clockwise from +x |
 | `shot_line.turn_to_shot_line` | Turn that points the robot along that line | + = turn left |
 | `shot_line.behind_ball` | How far the robot is behind the ball along the line, metres | + = ball between robot and goal |
@@ -228,7 +282,7 @@ simulator loop. The gameplay controller in `pupper_fc` is the one to drive robot
 
 ## What is verified
 
-Simulation, 1080p, camera 2.6 m up (and a slanted view), 39 tests, plus 4 capture tests against a fake camera:
+Simulation, 1080p, camera 2.6 m up (and a slanted view), 39 tests, plus 4 capture tests against a fake camera and 13 approach tests on the fake field:
 
 | Check | Result |
 | --- | --- |
@@ -246,6 +300,9 @@ Simulation, 1080p, camera 2.6 m up (and a slanted view), 39 tests, plus 4 captur
 | Tag-to-tag distance from 3 tags, over 1.4–3.3 m | ≤ 2.2 cm |
 | 8 cm robot tag read rate / 5 cm on a soft image | 100% / 96% |
 | Dashboard | drawn from the UDP state; ball and tags land on their field positions; unseen objects are not drawn |
+| Fake approach, 4 set starts | every first run starts on the line (≤ 1 cm off, ≤ 5° off) 0.75–0.90 m behind the ball, never touches the ball on the way in, never commands reverse, and scores |
+| Same with a sloppy fake robot, positions 0.15 s late and jittery (8 scenes × 60 s) | 48 runs, no scene without a hit; at contact heading 2.3° (90th pct 3.2°), ball 1.4 cm off-centre (90th pct 2.2 cm); 8 goals |
+| Timed moves with no camera feedback, same sloppy robot (experiment, not in the tests) | 38 cm and 20° off at the line-up point |
 | Gameplay bridge | real `Controller.tick` accepts the observation and commands motion |
 
 Live iPhone at a desk, November 16 (no physical reference measurements taken):
@@ -260,7 +317,7 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 - The ball detector's fitted outline matched the real ball in one saved frame.
 - Click calibration registered clicks in the real window.
 
-Not done: corner-tag calibration and the dashboard on a live feed, the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
+Not done: the approach logic on real perception or a real robot, corner-tag calibration and the dashboard on a live feed, the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
 latency measurement, a mounted overhead view, robot tags on robots, two robots,
 a recorded replay fixture, identity-swap or false-detection counts, clock
 alignment with a robot, and anything on the Pi.
@@ -278,6 +335,8 @@ alignment with a robot, and anything on the Pi.
 - `fieldcam/relative.py` ball and goal from each robot's point of view, shot-line angles
 - `fieldcam/colorpick.py` ball colour ranges from pixels under the cursor
 - `fieldcam/topdown.py`, `scripts/dashboard.py` top-down dashboard from the published state
+- `fieldcam/approach.py` line-up-then-run plan and phase controller, from a robot-relative ball and goal
+- `fieldcam/fakeworld.py`, `scripts/fake_approach.py` fake field that drives it, with no camera
 - `fieldcam/planner.py` simple shot geometry and approach (simulator loop)
 - `fieldcam/sim.py` synthetic arena for tests and `--source sim`
 - `fieldcam/net.py`, `fieldcam/capture.py` UDP and camera capture

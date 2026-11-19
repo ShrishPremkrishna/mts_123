@@ -31,7 +31,8 @@ def relative_geometry(robot: dict, ball: dict | None, goal: dict) -> dict:
     """robot/ball: visible entries of the perception state. goal: {x, y_min, y_max} being attacked.
 
     Returns
-      goal:  the goal centre in the robot's body frame
+      goal:  the goal centre in the robot's body frame, plus `facing`: the direction a ball
+             must travel to go INTO that goal, as a turn from the robot's heading (+ = left)
       ball:  the ball in the robot's body frame                         (only if the ball is seen)
       shot_line:                                                         (only if the ball is seen)
         ball_to_goal_yaw   field direction of the shot line, ball -> goal centre
@@ -43,6 +44,8 @@ def relative_geometry(robot: dict, ball: dict | None, goal: dict) -> dict:
     """
     goal_xy = (goal["x"], 0.5 * (goal["y_min"] + goal["y_max"]))
     out = {"goal": body_point(robot, goal_xy), "age_s": robot["age_s"]}
+    # The goal line runs along y, so "into the goal" is +x for the east goal and -x for the west one.
+    out["goal"]["facing"] = wrap((0.0 if goal["x"] >= 0 else math.pi) - robot["yaw"])
     if ball is None:
         return out
     out["ball"] = body_point(robot, (ball["x"], ball["y"]))
