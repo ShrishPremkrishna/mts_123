@@ -180,3 +180,15 @@ include the observed trip, requalification and rehome times.
 - `imu_mounting_deg.*`: Mounting angles for the IMU relative the the IMU link, measured in degrees
 - `can_channel`: Which CANbus channel the actuator is connected to
 - `can_id`: CANbus ID of the actuator (must be 1 or greater)
+
+
+### Mechanical Home travel timeout
+
+After sending neutral, the board driver records the search or return phase and
+each unresolved axis in the native run log. Each row identifies the joint,
+reference status, commanded and measured positions, rest target, signed
+measured-minus-rest error, and allowed settling error in radians. The main
+failure message includes the first outstanding joint for the lobby. A joint
+that has yet to find its reference reports its current encoder coordinate.
+Reproduce a single axis frozen on return with the real driver and fake SPI
+using `ctest --test-dir <board-build> -V -R imu_health_mechanical_return_frozen`.

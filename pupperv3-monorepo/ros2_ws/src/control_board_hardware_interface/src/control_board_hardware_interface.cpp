@@ -1005,22 +1005,51 @@ hardware_interface::return_type ControlBoardHardwareInterface::write(
 bool ControlBoardHardwareInterface::do_homing() {
   using Clock = std::chrono::steady_clock;
   constexpr int dt_ms = 10;
-  auto refuse = [this](const char *reason) {
+  std::vector<double> return_tolerance(hw_state_positions_.size());
+  bool returning = false;
+  auto refuse = [&](const char *reason, bool report_axes = false) {
     deactivate_motors();
     latch_field_fault();
+    // The last sampled coordinates and pre-disable targets are still available here.
+    // Never postpone the neutral packet to format or write the failure evidence.
+    std::string travel_summary;
+    if (report_axes) {
+      std::ostringstream summary;
+      summary << "; phase=" << (returning ? "return" : "search");
+      size_t pending_axes = 0;
+      for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
+        const double rest = hw_actuator_post_homing_positions_[i];
+        const double error = hw_state_positions_[i] - rest;
+        const bool at_target = std::abs(hw_command_positions_[i] - rest) <= 0.01;
+        if (returning ? at_target && std::abs(error) <= return_tolerance[i] : hw_actuator_is_homed_[i]) continue;
+        if (pending_axes++ == 0)
+          summary << " first_pending_joint=" << info_.joints[i].name << " command_rad=" << hw_command_positions_[i]
+                  << " measured_rad=" << hw_state_positions_[i] << " rest_rad=" << rest
+                  << " measured_minus_rest_rad=" << error << " tolerance_rad=" << return_tolerance[i];
+        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                     "Home travel evidence phase=%s axis=%zu joint=%s stage=%d referenced=%d "
+                     "command_rad=%.6f measured_rad=%.6f rest_rad=%.6f measured_minus_rest_rad=%.6f "
+                     "tolerance_rad=%.6f target_reached=%d",
+                     returning ? "return" : "search", i, info_.joints[i].name.c_str(),
+                     static_cast<int>(hw_actuator_homing_stages_[i]), static_cast<int>(hw_actuator_is_homed_[i]),
+                     hw_command_positions_[i], hw_state_positions_[i], rest, error, return_tolerance[i],
+                     static_cast<int>(at_target));
+      }
+      summary << " pending_axes=" << pending_axes;
+      travel_summary = summary.str();
+    }
     std::fill(hw_actuator_is_homed_.begin(), hw_actuator_is_homed_.end(), false);
     std::fill(hw_actuator_zero_positions_.begin(), hw_actuator_zero_positions_.end(), 0.0);
     clear_joint_commands();
     terminal_health(BNO055::Output{});
     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
-                 "Mechanical Home stopped: %s; neutral sent, supported Home required", reason);
+                 "Mechanical Home stopped: %s%s; neutral sent, supported Home required", reason, travel_summary.c_str());
     return false;
   };
   // Axes in one stage travel together. Budget the full physical span plus the
   // position error needed to detect the stop, then the longest return stroke.
   std::map<int, double> stage_seconds;
   std::vector<double> remaining_search(hw_state_positions_.size());
-  std::vector<double> return_tolerance(hw_state_positions_.size());
   double return_seconds = 0;
   for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
     const double speed = std::abs(hw_actuator_homing_velocities_[i]);
@@ -1049,7 +1078,7 @@ bool ControlBoardHardwareInterface::do_homing() {
   const auto deadline = Clock::now() + std::chrono::duration<double>(budget_seconds);
   auto feedback_ok = [&]() {
     if (field_rehome_ && field_state_ != FieldState::homing) return false;
-    if (Clock::now() >= deadline) return refuse("joint stop or return exceeded its travel budget");
+    if (Clock::now() >= deadline) return refuse("joint stop or return exceeded its travel budget", true);
     if ((spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID) != SPI_BOTH_REPLIES_VALID)
       return refuse("missing or corrupt reply from a motor board");
     for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
@@ -1132,7 +1161,7 @@ bool ControlBoardHardwareInterface::do_homing() {
           RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Homed actuator %d", i);
         } else {
           const double step = hw_actuator_homing_velocities_[i] * dt_ms * 0.001;
-          if (std::abs(step) > remaining_search[i]) return refuse("joint stop exceeded its search travel");
+          if (std::abs(step) > remaining_search[i]) return refuse("joint stop exceeded its search travel", true);
           remaining_search[i] -= std::abs(step);
           hw_command_positions_[i] += step;
           hw_command_velocities_[i] = hw_actuator_homing_velocities_[i];
@@ -1148,6 +1177,7 @@ bool ControlBoardHardwareInterface::do_homing() {
     // Sleep for dt
     std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   }
+  returning = true;
   while (!all_returned) {
     if (!feedback_ok()) return false;
     all_returned = true;

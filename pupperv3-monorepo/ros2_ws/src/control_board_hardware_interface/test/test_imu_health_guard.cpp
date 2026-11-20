@@ -20,11 +20,19 @@ namespace {
 spi_command_t command{}; spi_data_t data{};
 std::vector<spi_command_t> sent;
 std::string fault_message;
+std::vector<std::string> travel_evidence;
+std::string mechanical_refusal;
 bool neutral_at_log = false;
 void capture_fault(const rcutils_log_location_t *, int, const char *, rcutils_time_point_value_t,
                    const char *format, va_list *args) {
   char message[1024];
   std::vsnprintf(message, sizeof(message), format, *args);
+  if (std::strncmp(message, "Mechanical Home stopped:", 24) == 0) mechanical_refusal = message;
+  if (std::strncmp(message, "Home travel evidence ", 21) == 0) {
+    const spi_command_t zero{};
+    if (sent.empty() || std::memcmp(&sent.back(), &zero, sizeof(zero)) != 0) std::abort();
+    travel_evidence.emplace_back(message);
+  }
   if (std::strncmp(message, "IMU fault ", 10) == 0) {
     const spi_command_t zero{};
     neutral_at_log = !sent.empty() && std::memcmp(&sent.back(), &zero, sizeof(zero)) == 0;
@@ -786,6 +794,11 @@ int main(int argc,char **argv){try{
         p["homing_kd"] = "0";
       }
     }
+    if (scenario == "mechanical_return_frozen") {
+      // All encoder positions stay zero. Only joint7 needs to move after its reference.
+      for (auto &joint : info.joints)
+        if (joint.name != "joint7") joint.parameters["post_homing_position"] = "0";
+    }
     if (follow_without_endstop) {
       for (auto &joint : info.joints) {
         auto &p = joint.parameters;
@@ -822,7 +835,22 @@ int main(int argc,char **argv){try{
     if (scenario == "mechanical_missing") spi_replies = 1;
     if (scenario == "mechanical_nonfinite") data.q_abad[0] = std::numeric_limits<float>::infinity();
     lose_reply_during_homing = scenario == "mechanical_lost";
+    const auto original_logger = rcutils_logging_get_output_handler();
+    rcutils_logging_set_output_handler(capture_fault);
     const auto activated = driver->on_activate({});
+    rcutils_logging_set_output_handler(original_logger);
+    if (scenario == "mechanical_return_frozen") {
+      require(travel_evidence.size() == 1, "return timeout did not identify exactly one blocked joint");
+      const auto &line = travel_evidence.front();
+      require(line.find("phase=return axis=7 joint=joint7") != std::string::npos &&
+              line.find("referenced=1 command_rad=-0.150000 measured_rad=0.000000 rest_rad=-0.150000 ") != std::string::npos &&
+              line.find("measured_minus_rest_rad=0.150000 tolerance_rad=0.020000 target_reached=1") != std::string::npos,
+              "return diagnostic lost the pre-disable target, encoder position, or tolerance");
+      require(mechanical_refusal.find("phase=return first_pending_joint=joint7") != std::string::npos &&
+              mechanical_refusal.find("pending_axes=1; neutral sent") != std::string::npos,
+              "operator-facing refusal did not identify the return failure");
+      std::cout << line << "\n" << mechanical_refusal << "\n";
+    }
     if (follow_return) {
       require(activated == hardware_interface::CallbackReturn::SUCCESS, "valid measured Home failed");
       std::cout << "PASS " << scenario << "\n";
