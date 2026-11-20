@@ -87,6 +87,12 @@ def prepare_session_profile(config_path, urdf):
         # This opt-in profile is a candidate, not observed running capability.
         combined["gemini_walk"]["ros__parameters"] = catalog_module.walk_controller_params(base)
         combined["gemini_walk"]["ros__parameters"]["model_path"] = str(models[1])
+    walker = getattr(catalog_module, "WALKER", None)
+    if walker and (catalog_module.TRICK_DIR / "walker.yaml").is_file():
+        # tricks/walker.yaml sets gemini_walk's blend-in in every motion mode; the API reads the
+        # same file for its wait (tricks.LOCOMOTION_READY_S), so the two cannot differ.
+        combined["gemini_walk"]["ros__parameters"].update(
+            init_duration=walker["init_duration"], fade_in_duration=walker["fade_in_duration"])
     for name in names:
         trick = selected[name]
         combined["controller_manager"]["ros__parameters"][trick.controller] = {"type": NEURAL_TYPE}

@@ -80,7 +80,8 @@ from std_srvs.srv import Trigger
 
 from spawn_controllers import LOADED, spawn
 from stop_status import StopStatus, TOPIC as STOP_STATUS_TOPIC
-from tricks import WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
+from tricks import (LOCOMOTION_READY_S, WALK_CONTROLLER, WALK_READY_S, WALK_STAND_FIRST, WALK_STAND_FIRST_S, Trick,
+                    load_tricks, reference_message_data)
 
 log = logging.getLogger("robot_api")
 
@@ -744,6 +745,13 @@ class Robot:
                     return Result(False, f"cannot leave {leaving.name}: {res.message}")
             states = await self.controller_states()
             deactivate = sorted(self.leg_controllers - set(activate))
+        if (controller == LOCOMOTION_CONTROLLER and WALK_STAND_FIRST and states.get(controller) != "active"
+                and not self._stands(self.state_of(active[0]) if active else MOTORS_IDLE)):
+            stood = await self._stand_first(generation)
+            if not stood.ok:
+                return stood
+            states = await self.controller_states()
+            deactivate = sorted(self.leg_controllers - set(activate))
         trick = self.state_of(controller)
         if isinstance(trick, Trick) and trick.interactive and controller == trick.controller and states.get(controller) != "active":
             configured = await self._set_start_clip(controller, start_clip)
@@ -758,7 +766,7 @@ class Robot:
         req.activate_controllers = [c for c in activate if states[c] != "active"]
         req.deactivate_controllers = [c for c in deactivate if states.get(c) == "active"]
         if states.get(LOCOMOTION_CONTROLLER) == "active" and self.walk_since is None:
-            self.walk_since = time.monotonic() - WALK_READY_S  # active before we started
+            self.walk_since = time.monotonic() - LOCOMOTION_READY_S  # active before we started
         if not req.activate_controllers and not req.deactivate_controllers:
             self.state_now = self.state_of(controller)
             if controller == LOCOMOTION_CONTROLLER:
@@ -854,8 +862,32 @@ class Robot:
                 seconds = max(seconds, state.blend_time
                               + state.clip_length(state.exit_clip) + 0.3)
         if controller == LOCOMOTION_CONTROLLER and state != LOCOMOTION:
-            seconds += WALK_READY_S
+            seconds += LOCOMOTION_READY_S
+            if WALK_STAND_FIRST and not self._stands(state):
+                seconds += WALK_STAND_FIRST_S
         return seconds
+
+    @staticmethod
+    def _stands(state) -> bool:
+        """Does this state leave Pupper standing (a walker, or a trick that ends standing)?"""
+        return state == LOCOMOTION or (isinstance(state, Trick) and state.end_pose == "standing")
+
+    async def _stand_first(self, generation: int) -> Result:
+        """Stand the robot up with WALK_STAND_FIRST (the course controller, at its own
+        slow pace) before gemini_walk takes the legs. gemini_walk's short blend-in
+        (tricks/walker.yaml) is for a robot that already stands: it must never lift
+        the robot from the floor."""
+        stood = await self.switch_to(WALK_STAND_FIRST)
+        if not stood.ok:
+            return Result(False, f"could not stand up with {WALK_STAND_FIRST}: {stood.message}")
+        deadline = time.monotonic() + WALK_STAND_FIRST_S
+        while time.monotonic() < deadline:
+            if self.stops != generation or self.fallen or self.stopped_during_call():
+                return Result(False, "controller change cancelled by a stop")
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
+            await asyncio.sleep(min(0.1, deadline - time.monotonic()))
+        return Result(True, "standing")
 
     def walking_controller(self, state) -> str:
         """The controller move, turn and arc drive in a state: a walking trick's own
@@ -916,7 +948,7 @@ class Robot:
         """Wait until gemini_walk has eased the legs to standing and faded its
         policy in. A walk sent before that runs on a half-started controller."""
         generation = self.stops
-        deadline = (self.walk_since or time.monotonic()) + WALK_READY_S
+        deadline = (self.walk_since or time.monotonic()) + LOCOMOTION_READY_S
         while time.monotonic() < deadline and self.stops == generation:
             await asyncio.sleep(min(0.1, deadline - time.monotonic()))
 

@@ -39,7 +39,7 @@ from pathlib import Path
 import kick_at as kick_plan  # robot/kick_at.py: the turn-and-walk plan and the walker model
 from ball_kick import Fix, approach, config_from_mapping
 from part3_follow import prepare_to_move
-from robot_api import (FELL_MESSAGE, LLM_CMD_RATE, LOCOMOTION, LOCOMOTION_CONTROLLER, WALK_READY_S,
+from robot_api import (FELL_MESSAGE, LLM_CMD_RATE, LOCOMOTION, LOCOMOTION_CONTROLLER, LOCOMOTION_READY_S,
                        MotionBlockedError, Result, Robot, with_note)
 from tool_registry import Param, kick_ball_available, tool
 
@@ -56,7 +56,8 @@ DETECTOR_FAILURES_MAX = 5  # consecutive detector exceptions that end the approa
 # Kick clip timeline (tricks/leg_kick/policy.json, both sides): still to 0.40 s, weight
 # shift to 0.9 s, wind-up to 1.3 s, swing 1.3-1.5 s (contact), leg down by 2.1 s, weight
 # back by 2.56 s, then still to 3.0 s.
-KICK_MOTION_END_S = 2.6  # into the clip: the walker takes the legs here, not at 3.0 s
+KICK_MOTION_END_S = 2.6  # into the clip: the walker takes the legs here, not at 3.0 s (tool option leave)
+KICK_LEAVE_MIN_S = 1.7  # the earliest leave: the swing ends at 1.5 s and the leg starts down at 1.6 s
 KICK_SETTLE_S = 0.15  # zero speed on the walker before the trick takes the legs (tool option settle)
 STEP_SETTLE_S = 0.2  # zero speed between kick_at's turn and walk steps, so that each starts from rest
 CONFIG_PATH = Path(os.environ.get("PUPPER_BALL_KICK_CONFIG", "~/.config/gemini-pupper/ball_kick.yaml")).expanduser()
@@ -258,10 +259,10 @@ def _legs_owned_elsewhere(robot: Robot) -> bool:
 
 def kick_time(trick) -> float:
     """Seconds play_kick takes: blend-in, the kick motion, then the walker's own start."""
-    return KICK_SETTLE_S + trick.blend_time + KICK_MOTION_END_S + WALK_READY_S + 0.5
+    return KICK_SETTLE_S + trick.blend_time + KICK_MOTION_END_S + LOCOMOTION_READY_S + 0.5
 
 
-async def play_kick(robot: Robot, trick, clip: str) -> Result:
+async def play_kick(robot: Robot, trick, clip: str, leave: float = KICK_MOTION_END_S) -> Result:
     """STRICT switch into the leg kick at the kick clip itself (start_clip), wait for
     the end of the kick motion, then give the legs back to the walker (or relax them
     if the walker refuses them for a reason other than a stop).
@@ -275,11 +276,11 @@ async def play_kick(robot: Robot, trick, clip: str) -> Result:
         return Result(False, f"leg kick did not take the legs: {entry.message}")
     result = Result(False, "kick not played")
     try:
-        await robot.sleep(trick.blend_time + KICK_MOTION_END_S - 0.1)
+        await robot.sleep(trick.blend_time + leave - 0.1)
         if robot.fallen:
             result = Result(False, f"leg kick ended in a fall: {FELL_MESSAGE}")
             return result
-        result = await robot.wait_start_clip(trick, clip, KICK_MOTION_END_S)
+        result = await robot.wait_start_clip(trick, clip, leave)
         if result.ok:
             result = Result(True, f"played {clip}")
         return result
@@ -371,11 +372,12 @@ async def drive(robot: Robot, vx: float, vy: float, wz_deg: float, seconds: floa
     return "stopped" if robot.stopped_during_call() else None
 
 
-async def kick_now(robot: Robot, trick, clip: str, settle: float = KICK_SETTLE_S) -> Result:
+async def kick_now(robot: Robot, trick, clip: str, settle: float = KICK_SETTLE_S,
+                   leave: float = KICK_MOTION_END_S) -> Result:
     """Zero speed for ``settle`` seconds, then play_kick. The caller holds the walker."""
     if early := await drive(robot, 0.0, 0.0, 0.0, settle):
         return Result(False, f"no kick: {early}")
-    return await play_kick(robot, trick, clip)
+    return await play_kick(robot, trick, clip, leave)
 
 
 async def kick_in_place(robot: Robot, side: str) -> Result:
@@ -413,7 +415,8 @@ async def kick_in_place(robot: Robot, side: str) -> Result:
 
 async def kick_at(robot: Robot, x: float, y: float, side: str = "auto", dry_run: bool = False,
                   gain: float = kick_plan.FWD_GAIN, delay: float = kick_plan.DEAD_S, angle: float | None = None,
-                  point: str = "ball", speed: float = kick_plan.SPEED, settle: float = KICK_SETTLE_S) -> Result:
+                  point: str = "ball", speed: float = kick_plan.SPEED, settle: float = KICK_SETTLE_S,
+                  leave: float = KICK_MOTION_END_S) -> Result:
     """Go to a kick position and kick, as one job: the kick clip is requested in the
     same tick in which the last motion step ends (finished).
 
@@ -424,9 +427,11 @@ async def kick_at(robot: Robot, x: float, y: float, side: str = "auto", dry_run:
     walk to it, turn to the kick heading. gain, delay: the walker model (travel =
     gain x speed x (time - delay)), measured at 0.2 m/s.
     """
-    numbers = (x, y, gain, delay, speed, settle) + (() if angle is None else (angle,))
+    numbers = (x, y, gain, delay, speed, settle, leave) + (() if angle is None else (angle,))
     if any(type(v) not in (int, float) or not math.isfinite(v) for v in numbers):
-        return Result(False, "x, y, angle, gain, delay, speed and settle must be finite numbers")
+        return Result(False, "x, y, angle, gain, delay, speed, settle and leave must be finite numbers")
+    if not KICK_LEAVE_MIN_S <= leave <= 3.0:
+        return Result(False, f"leave must be from {KICK_LEAVE_MIN_S:g} to 3 s into the kick clip")
     if side not in SIDES or type(dry_run) is not bool:
         return Result(False, "side must be right, left or auto, and dry_run true or false")
     if not 0.5 <= gain <= 2.0 or not 0.0 <= delay <= 0.5 or not 0.0 <= settle <= 2.0:
@@ -482,7 +487,7 @@ async def kick_at(robot: Robot, x: float, y: float, side: str = "auto", dry_run:
             return Result(False, f"kick_at stopped before the kick: {early}; zero speed requested", details)
         if dry_run:
             return Result(True, f"dry run: {moves} for {clip}; no kick played, walker still active.", details)
-        kicked = await kick_now(robot, trick, clip, settle)
+        kicked = await kick_now(robot, trick, clip, settle, leave)
         if not kicked.ok:
             return Result(False, kicked.message, details)
         details["kick_at"]["kicked"] = True
@@ -524,12 +529,15 @@ async def kick_in_place_tool(robot: Robot, side: str) -> Result:
                 enum=list(kick_plan.POINTS), required=False),
     speed=Param("number", "Walk speed command, m/s. Default 0.2 (the gain was measured there).", required=False),
     settle=Param("number", "Zero-speed time before the kick, seconds. Default 0.15.", required=False),
+    leave=Param("number", "Seconds into the kick clip at which the walker takes the legs back. Default 2.6"
+                          " (the motion ends); 2.1 is when the paw is down.", required=False),
     _ends_following=True,
 )
 async def kick_at_tool(robot: Robot, x: float, y: float, side: str = "auto", dry_run: bool = False,
                        gain: float = kick_plan.FWD_GAIN, delay: float = kick_plan.DEAD_S, angle: float | None = None,
-                       point: str = "ball", speed: float = kick_plan.SPEED, settle: float = KICK_SETTLE_S) -> Result:
-    return await kick_at(robot, x, y, side, dry_run, gain, delay, angle, point, speed, settle)
+                       point: str = "ball", speed: float = kick_plan.SPEED, settle: float = KICK_SETTLE_S,
+                       leave: float = KICK_MOTION_END_S) -> Result:
+    return await kick_at(robot, x, y, side, dry_run, gain, delay, angle, point, speed, settle, leave)
 
 
 @tool(

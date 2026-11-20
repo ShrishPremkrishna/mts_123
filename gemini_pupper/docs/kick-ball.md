@@ -1,6 +1,6 @@
 # Kick the ball: kick_at, kick_in_place and kick_ball
 
-Pupper kicks a ball with one front leg from ball coordinates (`kick_at`, the path in use: the field camera gives the coordinates) or from its own camera (`kick_ball`, not reliable on the robot). Since 2026-11-19 the walk, the kick and the return to the walker are one job with no fixed waits between them: the paw touches the ball approximately 2.1 s after the last walk command (5 s before). Offline checks and simulation pass; the fast sequence is not yet run on the robot.
+Pupper kicks a ball with one front leg from ball coordinates (`kick_at`, the path in use: the field camera gives the coordinates) or from its own camera (`kick_ball`, not reliable on the robot). Since 2026-11-19 the walk, the kick and the return to the walker are one job with no fixed waits between them: the paw touches the ball approximately 2.1 s after the last walk command (5 s before). On the robot on 2026-11-19 the walk-kick-walk job took 5.7 s for each leg (12.5 s before): see "Robot result".
 
 ## Timing of the kick (all kick tools)
 
@@ -20,6 +20,18 @@ Pupper kicks a ball with one front leg from ball coordinates (`kick_at`, the pat
 Controller service calls add approximately 0.1–0.3 s on the robot (not measured). The walker start is now the longest wait. It is a launch parameter of the walking controller and also sets the speed of the stand-up from lying, so it is not changed here.
 
 Simulation (`foundation/scripts/check_kick_handoff.py`, the production clip player and fade arithmetic with the leg kick policy in MuJoCo, 2026-11-19, 24 cases for both legs): the robot stands in every case, body tilt at most 5.0° in the kick and 3.7° in the return. Ball speed 0.1 s after contact: 1.26–1.34 m/s with the earlier sequence, 1.23–1.40 m/s with the direct clip start and the 0.2 + 0.3 s blend-in from a stand, 0.94–1.50 m/s with a body speed of 0.26 m/s at the end of the walk (also with the earlier 0.5 s wait: 1.06–1.24 m/s). A walker init phase of 0.3 s after the kick is as stable as 2.0 s. The simulation has no walking policy: a position hold stands in for the walker.
+
+**Robot result (2026-11-19 4:52 pm PT, release u5, both legs).** Test: walk 0.305 m (1 ft) and kick, left then right (`kick_at.py 0.553 0.040 --side left`, then `0.553 -0.046 --side right`). Both kick clips were confirmed by the controller, with no fault. The operator watched both runs and said that the result was good.
+
+| From `server.log` | Release u3 (4:20 pm) | Release u5 (4:52 pm) |
+| --- | --- | --- |
+| Whole job: walk, kick, walker ready | 12.5 s | 5.7 s |
+| Walk end to paw contact (estimate: trick activation + blend-in + 1.45 s) | 4.9 s | 2.3 s |
+| Contact to a ready walker | 6.4 s | 2.2 s |
+
+Release u5 on the Pupper is `~/pupper-foundation-session-20261029/software-ballkick-20261119-u5`: this branch plus `tricks/walker.yaml` (a copy of `tricks/walker.example.yaml`). Its install and run scripts are in `~/pupper-foundation-session-20261029/kickfast-kit-20261119` (`kickfast2-install.sh`, `kickfast3-prepare.sh`, `kickfast3-session.sh`, `KICKFAST-RUNBOOK.txt`). After a restart of the Pupper, make a new run: copy the two `kickfast3` scripts with a new run name, then `prepare`, `start-native` on the stand, `start-api` (no `--app-manifest`), Options, `stand_up`. Not yet tried on the robot: `--leave 2.1`, `--settle 0`, the pose mode, a kick at a ball with this release.
+
+**Walker start after a kick (2026-11-19).** Measured on the robot with release u3 (4:20 pm PT): 4.9 s from the end of the walk to paw contact, then 6.4 s until the walker obeyed a speed; 4.2 s of that was `gemini_walk`'s own 2 s + 2 s start. The optional file `tricks/walker.yaml` (`walker_config` in `robot/tricks.py`) sets a short start, for example `init_duration: 0.2`, `fade_in_duration: 0.3`, `stand_first: neural_controller_default`, `stand_first_s: 2.3`. The walker then obeys a speed 0.7 s after it takes the legs. The slow course values exist to lift the robot from the floor, so with a short start `Robot.switch_to` first activates the `stand_first` controller for `stand_first_s` whenever the robot does not stand (motors idle, a fall, a trick that ends lying). `tricks/walker.yaml` is not in the repository (`tricks/walker.example.yaml` is): with no file, the course values and the earlier behavior stay. `foundation/hardware/lab6_session.launch.py` applies the file to `gemini_walk` in every motion mode. The kick tools also take `leave` (`--leave`): the time into the kick clip at which the walker takes the legs back (default 2.6 s; 2.1 s is when the paw is down, and the simulation stands with it).
 
 To go back to the 0.5 + 1.0 s blend-in, remove `init_duration` and `fade_in_duration` from `tricks/leg_kick/trick.yaml`. A change of these values needs a new `start-native`, because they are launch parameters; the API refuses to start against a launch with other values.
 
@@ -88,7 +100,7 @@ PYTHONPATH=pupper-mjlab/src python foundation/scripts/check_kick_handoff.py --ou
 
 ```bash
 python3 gemini_pupper/robot/kick_at.py X Y [--side right|left|auto] [--dry-run] [--fwd-gain 1.31] [--dead 0.14]
-                                           [--angle DEG] [--point ball|robot] [--ft] [--speed 0.2] [--settle 0.15]
+                                           [--angle DEG] [--point ball|robot] [--ft] [--speed 0.2] [--settle 0.15] [--leave 2.6]
 ```
 
 The command makes one call to the API's `kick_at` tool, and that tool does the turn, the walk and the kick as one job. Other programs (the field camera's planner) can make the same call: `POST /tools/kick_at` with `{"x": 0.60, "y": 0.10, "side": "auto"}` and the `X-Pupper-Command-Epoch` header from `GET /health`; optional `dry_run`, `gain`, `delay`. If the planner drives the robot to the ball itself, it calls `POST /tools/kick_in_place` with `{"side": "right"}` when the ball centre is 0.25–0.26 m ahead of base_link on the paw line; the kick then starts 0.15 s later. Neither tool is offered to Gemini (`OPERATOR_ONLY_TOOLS`).

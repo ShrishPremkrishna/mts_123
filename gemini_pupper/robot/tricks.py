@@ -89,6 +89,40 @@ REFERENCE_SETTLE_S = 1.2  # after a reference trick's playback, time to land and
 # A walking policy (gemini_walk, or a trick's walk_policy) holds its default pose for
 # init_duration, then fades the policy in over fade_in_duration (2 s + 2 s).
 WALK_READY_S = 4.2
+
+
+def walker_config(path: Path | None = None) -> dict:
+    """gemini_walk's own blend-in, from the optional tricks/walker.yaml (no file: the
+    course values, 2 s + 2 s). The slow course values exist to lift the robot from the
+    floor. With a short blend-in, ``stand_first`` names the controller that stands the
+    robot up at the course pace before gemini_walk takes the legs (robot_api.switch_to),
+    so the short values apply only when the robot already stands, as after a kick."""
+    path = TRICK_DIR / "walker.yaml" if path is None else path
+    config = {"init_duration": 2.0, "fade_in_duration": 2.0, "stand_first": None, "stand_first_s": 2.3}
+    if not path.is_file():
+        return config
+    spec = yaml.safe_load(path.read_text()) or {}
+    if not isinstance(spec, dict) or set(spec) - set(config):
+        raise ValueError(f"{path}: expected only the keys {sorted(config)}")
+    for key in ("init_duration", "fade_in_duration", "stand_first_s"):
+        value = spec.get(key, config[key])
+        if type(value) not in (int, float) or not math.isfinite(value) or not 0.1 <= value <= 5.0:
+            raise ValueError(f"{path}: {key} must be a number from 0.1 to 5 seconds")
+        config[key] = float(value)
+    first = spec.get("stand_first")
+    if first is not None and (not isinstance(first, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", first)):
+        raise ValueError(f"{path}: stand_first must be a controller name")
+    if config["init_duration"] < 1.5 and first is None:
+        raise ValueError(f"{path}: an init_duration below 1.5 s needs stand_first (it must not lift the robot)")
+    config["stand_first"] = first
+    return config
+
+
+WALKER = walker_config()
+# Seconds from gemini_walk's activation until it obeys a speed (WALK_READY_S with the course values).
+LOCOMOTION_READY_S = WALKER["init_duration"] + WALKER["fade_in_duration"] + 0.2
+WALK_STAND_FIRST = WALKER["stand_first"]  # None: gemini_walk also stands the robot up
+WALK_STAND_FIRST_S = WALKER["stand_first_s"]  # how long that controller gets to stand the robot up
 # Contract v2 exports action/motion arrays in this fixed controller order. Older
 # v2 trick exports omit names; walking references explicitly carry the names.
 ROBOT_JOINT_NAMES = [f"leg_{leg}_{joint}" for leg in ("front_r", "front_l", "back_r", "back_l")
@@ -487,6 +521,8 @@ def walk_controller_params(base: dict) -> dict:
         max_vx_backward=WALK_SPEED_CAP,
         reference_tricks=True,
     )
+    if (TRICK_DIR / "walker.yaml").is_file():  # no file: the course controller's own values stay
+        params.update(init_duration=WALKER["init_duration"], fade_in_duration=WALKER["fade_in_duration"])
     return params
 
 

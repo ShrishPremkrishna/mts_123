@@ -121,13 +121,13 @@ def steps(x: float, y: float, side: str, angle_deg: float | None = None, point: 
 
 def run(client, x: float, y: float, side: str, dry_run: bool = False, log=print,
         gain: float = FWD_GAIN, delay: float = DEAD_S, angle: float | None = None, point: str = "ball",
-        speed: float = SPEED, settle: float | None = None) -> str:
+        speed: float = SPEED, settle: float | None = None, leave: float | None = None) -> str:
     side = choose_side(y, side)
     path = steps(x, y, side, angle, point)  # the tool makes the same plan; this one is for the log and refusals
     log(f"{point} x {x:.3f} y {y:+.3f}: {side} leg; "
         + ", ".join(f"{kind} {value:+.1f} deg" if kind == "turn" else f"walk {value:+.3f} m" for kind, value in path)
         + (" (dry run)" if dry_run else ", then kick"))
-    extra = {k: v for k, v in (("angle", angle), ("settle", settle)) if v is not None}
+    extra = {k: v for k, v in (("angle", angle), ("settle", settle), ("leave", leave)) if v is not None}
     if point != "ball":
         extra["point"] = point
     if speed != SPEED:
@@ -146,6 +146,8 @@ def main(argv=None) -> int:
     ap.add_argument("--ft", action="store_true", help="X and Y are in feet")
     ap.add_argument("--speed", type=float, default=SPEED, help="walk speed command, m/s (the gain was measured at 0.2)")
     ap.add_argument("--settle", type=float, help="zero-speed time before the kick, s (default 0.15)")
+    ap.add_argument("--leave", type=float, help="seconds into the kick clip at which the walker takes the legs back"
+                                                " (default 2.6; 2.1 is when the paw is down)")
     ap.add_argument("--dry-run", action="store_true", help="turn and walk, no kick")
     ap.add_argument("--fwd-gain", type=float, default=FWD_GAIN, help="walker travel per commanded metre at 0.2 m/s")
     ap.add_argument("--dead", type=float, default=DEAD_S, help="walker start delay, s")
@@ -156,7 +158,7 @@ def main(argv=None) -> int:
     scale = FOOT_M if args.ft else 1.0
     try:
         stamp("DONE: " + run(client, args.x * scale, args.y * scale, args.side, args.dry_run, stamp, args.fwd_gain,
-                             args.dead, args.angle, args.point, args.speed, args.settle))
+                             args.dead, args.angle, args.point, args.speed, args.settle, args.leave))
         return 0
     except ValueError as error:
         stamp(f"REFUSED: {error}")

@@ -651,3 +651,98 @@ def test_kick_at_speed_shortens_the_walk_and_obeys_the_walker_limit(monkeypatch)
             walk = [t for t, m in rig.robot.twists() if m.linear.x]
             assert abs((walk[-1] - walk[0]) - 0.6 / (kick.kick_plan.FWD_GAIN * fast)) <= 0.11
     asyncio.run(case())
+
+
+# ----------------------------------------------------------------------------- fast walker start (tricks/walker.yaml)
+STAND_FIRST = "neural_controller_default"
+
+
+def fast_walker(monkeypatch, ready=0.7, stand_s=2.3):
+    """The settings that tricks/walker.yaml gives: gemini_walk ready in ``ready`` seconds, and
+    the course controller stands the robot up when it does not stand."""
+    import robot_api as api
+    monkeypatch.setattr(api, "LOCOMOTION_READY_S", ready)
+    monkeypatch.setattr(api, "WALK_STAND_FIRST", STAND_FIRST)
+    monkeypatch.setattr(api, "WALK_STAND_FIRST_S", stand_s)
+    monkeypatch.setattr(kick, "LOCOMOTION_READY_S", ready)
+
+
+def test_fast_walker_takes_the_legs_back_quickly_after_a_kick(monkeypatch):
+    async def case():
+        async with kick_rig(monkeypatch) as (rig, world):
+            fast_walker(monkeypatch)
+            leg = rig.ts.tricks["leg_kick"]
+            assert (await tool_registry.call(rig.ts, "kick_at", {"x": 0.553, "y": 0.040, "side": "left"})).ok
+            assert await rig.settle()
+            assert rig.ts.last_outcome["terminal_state"] == "succeeded", rig.ts.last_outcome["message"]
+            back = rig.robot.activations(LOCOMOTION_CONTROLLER)[-1]
+            assert back - rig.robot.activations(leg.controller)[0] == pytest.approx(leg.blend_time + kick.KICK_MOTION_END_S, abs=0.15)
+            assert rig.clock.now - back == pytest.approx(0.7, abs=0.15)  # not the 4.2 s of the course values
+            assert rig.robot.activations(STAND_FIRST) == []  # the robot stands after a kick: no slow stand-up
+            # The next job starts at once on the walker that already holds the legs.
+            assert (await tool_registry.call(rig.ts, "kick_at", {"x": 0.553, "y": -0.046, "side": "right"})).ok
+            assert await rig.settle()
+            assert kicks(rig, leg) == ["kick_left", "kick_right"] and rig.robot.activations(STAND_FIRST) == []
+    asyncio.run(case())
+
+
+def test_kick_at_leave_gives_the_legs_back_when_the_paw_is_down(monkeypatch):
+    async def case():
+        async with kick_rig(monkeypatch) as (rig, world):
+            leg = rig.ts.tricks["leg_kick"]
+            for bad in (1.0, 3.5):
+                assert not (await tool_registry.call(rig.ts, "kick_at", {"x": 0.553, "y": 0.04, "leave": bad})).ok
+            assert (await tool_registry.call(rig.ts, "kick_at", {"x": 0.553, "y": 0.040, "side": "left", "leave": 2.1})).ok
+            assert await rig.settle()
+            assert rig.ts.last_outcome["terminal_state"] == "succeeded", rig.ts.last_outcome["message"]
+            back = rig.robot.activations(LOCOMOTION_CONTROLLER)[-1]
+            assert back - rig.robot.activations(leg.controller)[0] == pytest.approx(leg.blend_time + 2.1, abs=0.15)
+    asyncio.run(case())
+
+
+def test_fast_walker_never_lifts_the_robot_the_course_controller_stands_it_up_first(monkeypatch):
+    async def case():
+        async with kick_rig(monkeypatch) as (rig, world):
+            fast_walker(monkeypatch)
+            assert (await rig.call("lie_down")).ok and rig.robot.active() == set()
+            mark = rig.clock.now
+            assert (await rig.call("stand_up")).ok
+            assert rig.ts.last_outcome["terminal_state"] == "succeeded", rig.ts.last_outcome["message"]
+            after = [switch for switch in rig.robot.switches if switch[2]][-2:]  # the two activations of stand_up
+            assert [(off, on) for _, off, on in after] == [([], [STAND_FIRST]), ([STAND_FIRST], [LOCOMOTION_CONTROLLER])]
+            assert after[0][0] >= mark
+            assert after[1][0] - after[0][0] >= 2.3 - 1e-6  # the slow stand-up gets its time
+            assert rig.robot.active() == {LOCOMOTION_CONTROLLER} and rig.ts.state_now == LOCOMOTION
+    asyncio.run(case())
+
+
+def test_stop_during_the_slow_stand_up_does_not_start_the_walker(monkeypatch):
+    async def case():
+        async with kick_rig(monkeypatch) as (rig, world):
+            fast_walker(monkeypatch)
+            assert (await rig.call("lie_down")).ok
+            mark = rig.clock.now
+            assert (await tool_registry.call(rig.ts, "stand_up", {})).ok
+            assert await run_until(rig, lambda: rig.robot.activations(STAND_FIRST) and rig.clock.now > mark + 1.0)
+            assert (await tool_registry.call(rig.ts, "stop", {})).ok
+            assert await rig.settle()
+            assert [t for t in rig.robot.activations(LOCOMOTION_CONTROLLER) if t > mark] == []
+            assert LOCOMOTION_CONTROLLER not in rig.robot.active()
+    asyncio.run(case())
+
+
+def test_walker_file_is_optional_and_refuses_a_short_start_with_no_stand_up_controller(tmp_path):
+    import tricks
+    assert tricks.walker_config(tmp_path / "none.yaml") == {"init_duration": 2.0, "fade_in_duration": 2.0,
+                                                            "stand_first": None, "stand_first_s": 2.3}
+    if not (tricks.TRICK_DIR / "walker.yaml").is_file():  # a robot release can install the file
+        assert tricks.LOCOMOTION_READY_S == pytest.approx(tricks.WALK_READY_S) and tricks.WALK_STAND_FIRST is None
+    path = tmp_path / "walker.yaml"
+    path.write_text("init_duration: 0.2\nfade_in_duration: 0.3\nstand_first: neural_controller_default\n")
+    assert tricks.walker_config(path) == {"init_duration": 0.2, "fade_in_duration": 0.3,
+                                          "stand_first": "neural_controller_default", "stand_first_s": 2.3}
+    for bad in ("init_duration: 0.2\n", "init_duration: 0.01\nstand_first: a\n", "speed: 3\n",
+                "init_duration: 0.2\nstand_first: 'bad name'\n"):
+        path.write_text(bad)
+        with pytest.raises(ValueError):
+            tricks.walker_config(path)
