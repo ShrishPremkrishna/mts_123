@@ -20,7 +20,8 @@ In the window:
   left click   put the ball there          right click  put the robot there
   space        pause / resume              r            new random ball and robot
   k            roll the ball (random)      g            attack the other goal
-  z            zoom                        q            quit
+  z            zoom                        i            more / less detail
+  q            quit
 
 The same state goes out over UDP, so scripts/dashboard.py and scripts/listen.py
 see it exactly as they would see the real camera pipeline.
@@ -44,7 +45,9 @@ from fieldcam.fakeworld import FakeWorld  # noqa: E402
 from fieldcam.intercept import RobotModel, plan_robot  # noqa: E402
 from fieldcam.net import StatePublisher  # noqa: E402
 from fieldcam.relative import body_point  # noqa: E402
-from fieldcam.topdown import PANEL_W, render, view_mapping  # noqa: E402
+from fieldcam.states import BallMachine, RobotMachine  # noqa: E402
+from fieldcam.topdown import field_view_size, render, view_mapping  # noqa: E402
+from fieldcam.wire import wire_state  # noqa: E402
 
 WINDOW = "pupper fc fake approach"
 NAME = "striker"
@@ -79,6 +82,8 @@ class Brain:
         self.robot_model = RobotModel(walk_speed=params.walk_speed, strafe_speed=params.strafe_speed,
                                       turn_rate=params.turn_rate, clearance=params.ball_clearance,
                                       standoff=params.run_up, aim_depth=params.aim_depth)
+        self.ball_machine, self.robot_machine = BallMachine(), RobotMachine(NAME, self.robot_model.kick_windup_s)
+        self._plans = None
 
     def reset(self):
         self.ctrl.reset()
@@ -98,8 +103,8 @@ class Brain:
                 goals = seen["goals"]
                 own = next(g for side, g in goals.items() if side != w.attacks)
                 plans = plan_robot(robot, traj, goals[w.attacks], own, w.length, w.width, self.robot_model,
-                                   area=seen["prediction"]["area"])
-                seen["intercepts"] = {NAME: plans}
+                                   area=seen["prediction"]["area"], previous=self._plans)
+                seen["intercepts"], self._plans = {NAME: plans}, plans
                 strike = plans["strike"]
                 if self.predict and traj.moving and strike["feasible"] and self.ctrl.phase != "RUN":
                     target = body_point(robot, strike["ball"])     # line up for where the ball will be
@@ -107,6 +112,10 @@ class Brain:
                     hold = True                                    # ... and wait there until it has stopped
         else:
             self.tracker.reset()
+        ball_now = self.ball_machine.update(seen.get("prediction"), seen["stamp"])
+        own = next(g for side, g in seen["goals"].items() if side != w.attacks)
+        seen["machines"] = {"ball": ball_now, "robots": {NAME: self.robot_machine.update(
+            seen["stamp"], True, robot, ball_now, (seen.get("intercepts") or {}).get(NAME), {}, own)}}
         out = self.ctrl.tick(ball, goal, now)
         if hold and out["phase"] == "RUN":
             # Lined up for the predicted spot while the ball is still rolling: do not run at an empty spot.
@@ -207,12 +216,12 @@ def main():
           f"line-up {params.run_up:.2f} m behind the ball, run speed {params.run_speed:.2f} m/s, "
           f"{'SLOPPY' if args.sloppy else 'perfect'} robot (never reverses), planner sees positions {args.delay * 1000:.0f} ms late")
 
-    dt, zoom, paused, state, click = 1 / 30, "field", False, None, []
+    dt, zoom, paused, state, click, detail = 1 / 30, "field", False, None, [], True
     late = deque()  # what the planner is allowed to see, args.delay seconds behind the truth
     size = (1280, 800)
 
     def on_mouse(event, x, y, _flags, _param):
-        if event in (cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN) and state is not None and x < size[0] - PANEL_W:
+        if event in (cv2.EVENT_LBUTTONDOWN, cv2.EVENT_RBUTTONDOWN) and state is not None and y < field_view_size(size)[1]:
             click.append((event, x, y))
 
     last_phase, last_steps, t_print, img, mouse_ready = None, None, -1.0, None, False
@@ -225,7 +234,8 @@ def main():
         out = brain.step(seen, world.t)                    # <- positions in, a velocity command out
         state["approach"] = {NAME: out}
         state["prediction"], state["intercepts"] = seen.get("prediction"), seen.get("intercepts", {})
-        pub.send(state)
+        state["machines"] = seen.get("machines")
+        pub.send(wire_state(state))
 
         steps = (out["plan"] or {}).get("steps")
         if out["phase"] != last_phase or world.event:
@@ -246,7 +256,7 @@ def main():
             world.step(out["cmd"], dt)
 
         if not args.headless or args.snapshot:
-            img = render(state, size, zoom)
+            img = render(state, size, zoom, detail=detail)
         if not args.headless:
             cv2.imshow(WINDOW, img)
             if not mouse_ready:
@@ -259,6 +269,8 @@ def main():
                 paused = not paused
             if key == ord("z"):
                 zoom = "fit" if zoom == "field" else "field"
+            if key == ord("i"):
+                detail = not detail
             if key == ord("r"):
                 world.random_scene()
                 if args.rolling:
@@ -271,7 +283,7 @@ def main():
                 brain.reset()
             while click:
                 event, x, y = click.pop(0)
-                to_world = view_mapping(state, (size[0] - PANEL_W, size[1]), zoom)[1]
+                to_world = view_mapping(state, field_view_size(size), zoom)[1]
                 wx, wy = to_world(x, y)
                 if event == cv2.EVENT_LBUTTONDOWN:
                     world.place_ball(wx, wy)

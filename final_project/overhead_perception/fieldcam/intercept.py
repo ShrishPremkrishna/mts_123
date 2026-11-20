@@ -62,6 +62,10 @@ class RobotModel:
     kick_window: float = 0.04      # m, the wind-up may start once the stopping area is this small
     pose_tol: float = 0.04         # m, this close to the pose counts as being there
     yaw_tol_deg: float = 5.0       # degrees
+    field_margin: float = 0.25     # m, a pose further outside the field lines than this is flagged
+    switch_s: float = 0.5          # s, a different route or paw must be this much quicker to replace the current one
+    guard_depth: float = 0.45      # m, a guarding robot stands this far in front of its goal line
+    stale_s: float = 0.35          # s, a robot position older than this is flagged
 
     @classmethod
     def from_config(cls, cfg: dict) -> "RobotModel":
@@ -74,31 +78,79 @@ class RobotModel:
         return m
 
 
-def _route_time(points, yaw0: float, yaw_final: float | None, m: RobotModel) -> float:
-    """Turn, walk, turn along a list of points, starting with heading yaw0."""
-    t, heading = 0.0, yaw0
+def _side(angle: float) -> str:
+    return f"{abs(math.degrees(angle)):.0f} deg {'left' if angle >= 0 else 'right'}"
+
+
+def _route_legs(points, yaw0: float, yaw_final: float | None, m: RobotModel):
+    """Turn, walk, turn along a list of points, starting with heading yaw0: (seconds, legs).
+
+    A leg is {"do": "turn", "deg" (+ = left), "s"} or {"do": "walk", "m", "s", "to": [x, y]}.
+    """
+    t, heading, legs = 0.0, yaw0, []
+
+    def turn(to):
+        nonlocal t, heading
+        angle = wrap(to - heading)
+        if abs(angle) > math.radians(1.0):
+            legs.append({"do": "turn", "deg": math.degrees(angle), "s": abs(angle) / m.turn_rate})
+            t += abs(angle) / m.turn_rate
+        heading = to
+
     for a, b in zip(points, points[1:]):
         leg = math.hypot(b[0] - a[0], b[1] - a[1])
         if leg < 0.03:
             continue
-        direction = math.atan2(b[1] - a[1], b[0] - a[0])
-        t += abs(wrap(direction - heading)) / m.turn_rate + leg / m.walk_speed
-        heading = direction
+        turn(math.atan2(b[1] - a[1], b[0] - a[0]))
+        legs.append({"do": "walk", "m": leg, "s": leg / m.walk_speed, "to": [float(b[0]), float(b[1])]})
+        t += leg / m.walk_speed
     if yaw_final is not None:
-        t += abs(wrap(yaw_final - heading)) / m.turn_rate
-    return t
+        turn(yaw_final)
+    return t, legs
 
 
-def travel(robot, target, yaw_final: float | None = None, avoid=None, m: RobotModel = RobotModel()) -> dict:
+def describe(legs) -> list[str]:
+    """The legs of a route as short lines a person can read."""
+    out = []
+    for leg in legs:
+        if leg["do"] == "start":
+            out.append(f"get moving ({leg['s']:.1f} s)")
+        elif leg["do"] == "turn":
+            out.append(f"turn {_side(math.radians(leg['deg']))} ({leg['s']:.1f} s)")
+        elif leg["do"] == "walk":
+            out.append(f"walk {leg['m']:.2f} m ({leg['s']:.1f} s)")
+        elif leg["do"] == "shuffle":
+            parts = [f"{abs(leg['ahead']) * 100:.0f} cm forward"] if abs(leg["ahead"]) > 0.02 else []
+            if abs(leg["left"]) > 0.02:
+                parts.append(f"{abs(leg['left']) * 100:.0f} cm {'left' if leg['left'] > 0 else 'right'}")
+            if abs(leg["deg"]) > 1.0:
+                parts.append(f"turning {_side(math.radians(leg['deg']))}")
+            out.append("shuffle " + (", ".join(parts) or "in place") + f" ({leg['s']:.1f} s)")
+        elif leg["do"] == "stay":
+            out.append("already there")
+        else:
+            out.append(f"{leg['do']} ({leg['s']:.1f} s)")
+    return out
+
+
+def travel(robot, target, yaw_final: float | None = None, avoid=None, m: RobotModel = RobotModel(),
+           prefer: str | None = None) -> dict:
     """Fastest candidate route from robot (x, y, yaw) to target (x, y) [ending at heading yaw_final].
 
-    avoid: (x, y) of the ball; a walking route that would pass within m.clearance of it
-    goes round, on whichever side is quicker. Returns {"time_s", "path": [[x, y], ...], "how"}.
+    avoid: (x, y) of the ball; a walking route that would pass within m.clearance of it goes
+    round instead. prefer: the route chosen last time ("direct", "round_left", "round_right",
+    "shuffle"); another route replaces it only if it is m.switch_s quicker, so the choice does
+    not flip back and forth between frames.
+
+    {"time_s", "path": [[x, y], ...], "how": "walk" | "shuffle", "route", "legs": [...],
+     "steps": [text, ...], "considered": [{"route", "time_s"}, ...], "why"}
     """
     start = (float(robot[0]), float(robot[1]))
     yaw0 = float(robot[2])
     target = (float(target[0]), float(target[1]))
-    routes = [[start, target]]
+    options = {}          # route name -> (seconds, path, legs, how)
+    routes = {"direct": [start, target]}
+    blocked = False
     if avoid is not None:
         seg = (target[0] - start[0], target[1] - start[1])
         seg_len = math.hypot(*seg)
@@ -107,23 +159,56 @@ def travel(robot, target, yaw_final: float | None = None, avoid=None, m: RobotMo
             along = max(0.0, min(1.0, (rel[0] * seg[0] + rel[1] * seg[1]) / seg_len ** 2))
             miss = math.hypot(rel[0] - along * seg[0], rel[1] - along * seg[1])
             if miss < m.clearance and 0.0 < along < 1.0:
+                blocked = True
                 n = (-seg[1] / seg_len, seg[0] / seg_len)
-                routes = [[start, (avoid[0] + side * n[0] * m.clearance * 1.3,
-                                   avoid[1] + side * n[1] * m.clearance * 1.3), target] for side in (1.0, -1.0)]
-    best = min(routes, key=lambda r: _route_time(r, yaw0, yaw_final, m))
-    out = {"time_s": m.react_s + _route_time(best, yaw0, yaw_final, m), "path": [list(p) for p in best], "how": "walk"}
+                routes = {name: [start, (avoid[0] + side * n[0] * m.clearance * 1.3,
+                                         avoid[1] + side * n[1] * m.clearance * 1.3), target]
+                          for name, side in (("round_left", 1.0), ("round_right", -1.0))}
+    for name, pts in routes.items():
+        seconds, legs = _route_legs(pts, yaw0, yaw_final, m)
+        options[name] = (m.react_s + seconds, [list(q) for q in pts], [{"do": "start", "s": m.react_s}] + legs, "walk")
 
     # Short move, not behind the robot, nothing in the way: shuffle there while turning.
     dx, dy = target[0] - start[0], target[1] - start[1]
     dist = math.hypot(dx, dy)
     ahead = math.cos(yaw0) * dx + math.sin(yaw0) * dy
     left = -math.sin(yaw0) * dx + math.cos(yaw0) * dy
-    if dist <= m.shuffle_max and len(best) == 2 and (ahead >= -0.02 or m.can_reverse):
-        turn = abs(wrap(yaw_final - yaw0)) / m.turn_rate if yaw_final is not None else 0.0
-        shuffle = m.react_s + max(abs(ahead) / m.walk_speed, abs(left) / m.strafe_speed, turn)
-        if shuffle < out["time_s"]:
-            out = {"time_s": shuffle, "path": [list(start), list(target)], "how": "shuffle"}
-    return out
+    if dist <= m.shuffle_max and not blocked and (ahead >= -0.02 or m.can_reverse):
+        angle = wrap(yaw_final - yaw0) if yaw_final is not None else 0.0
+        seconds = max(abs(ahead) / m.walk_speed, abs(left) / m.strafe_speed, abs(angle) / m.turn_rate)
+        options["shuffle"] = (m.react_s + seconds, [list(start), list(target)],
+                              [{"do": "start", "s": m.react_s},
+                               {"do": "shuffle", "ahead": ahead, "left": left, "deg": math.degrees(angle), "s": seconds}],
+                              "shuffle")
+
+    quickest = min(options, key=lambda k: options[k][0])
+    chosen, why = quickest, ""
+    if prefer in options and prefer != quickest and options[prefer][0] - options[quickest][0] < m.switch_s:
+        chosen = prefer
+        why = (f"keeping {prefer.replace('_', ' ')}: {quickest.replace('_', ' ')} is only "
+               f"{options[prefer][0] - options[quickest][0]:.1f} s quicker")
+    elif len(options) > 1:
+        other = min((k for k in options if k != chosen), key=lambda k: options[k][0])
+        why = (f"{chosen.replace('_', ' ')} is {options[other][0] - options[chosen][0]:.1f} s quicker than "
+               f"{other.replace('_', ' ')}")
+    if blocked:
+        why = ("the ball is in the way: " + why) if why else "the ball is in the way"
+    seconds, path, legs, how = options[chosen]
+    return {"time_s": seconds, "path": path, "how": how, "route": chosen, "legs": legs, "steps": describe(legs),
+            "considered": [{"route": k, "time_s": float(v[0])} for k, v in sorted(options.items(), key=lambda kv: kv[1][0])],
+            "why": why}
+
+
+def _outside(pose, length: float, width: float) -> float:
+    """How far (m) a point is outside the field lines; 0 if inside."""
+    return max(abs(pose[0]) - length / 2, abs(pose[1]) - width / 2, 0.0)
+
+
+def _path_clearance(traj: Trajectory, point) -> float | None:
+    """Closest the ball's predicted path comes to a point while it is still rolling, m (None if it is not rolling)."""
+    if not traj.moving:
+        return None
+    return min(math.hypot(x - point[0], y - point[1]) for _, x, y in traj.samples(0.1)[:-1] or [[0, *traj.end]])
 
 
 def _shot_direction(ball_xy, goal: dict, m: RobotModel) -> tuple[float, float]:
@@ -160,8 +245,21 @@ def _in_field(xy, length: float, width: float) -> bool:
     return abs(xy[0]) <= length / 2 and abs(xy[1]) <= width / 2
 
 
+def _warnings(pose, traj: Trajectory, length: float, width: float, m: RobotModel, what: str) -> list[str]:
+    """Things about a waiting pose a person should know: off the field, or in the rolling ball's way."""
+    out = []
+    outside = _outside(pose, length, width)
+    if outside > m.field_margin:
+        out.append(f"{what} is {outside * 100:.0f} cm outside the field: no room behind the ball there")
+    near = _path_clearance(traj, pose)
+    if near is not None and near < m.body_radius + 0.10:
+        out.append(f"the ball's path passes {near * 100:.0f} cm from {what}: the robot may be hit while it waits")
+    return out
+
+
 def plan_strike(robot, traj: Trajectory, goal: dict, length: float, width: float,
-                m: RobotModel = RobotModel(), step: float = 0.1, area: dict | None = None) -> dict:
+                m: RobotModel = RobotModel(), step: float = 0.1, area: dict | None = None,
+                prefer: str | None = None) -> dict:
     """Where to line up to strike the ball toward `goal`, and when contact can happen.
 
     {"feasible", "kind": "at_rest" | "moving", "ball": [x, y] at contact, "pose": [x, y, yaw],
@@ -176,7 +274,9 @@ def plan_strike(robot, traj: Trajectory, goal: dict, length: float, width: float
     def candidate(t):
         bx, by, speed = traj.at(t)
         pose = strike_pose((bx, by), goal, m, extra)
-        go = travel(robot, pose[:2], pose[2], avoid=(bx, by), m=m)
+        if extra and _outside(pose, length, width) > m.field_margin:
+            pose = strike_pose((bx, by), goal, m, 0.0)      # no room to wait further back: use the plain line-up point
+        go = travel(robot, pose[:2], pose[2], avoid=(bx, by), m=m, prefer=prefer)
         return (bx, by), speed, pose, go
 
     best = None
@@ -201,14 +301,18 @@ def plan_strike(robot, traj: Trajectory, goal: dict, length: float, width: float
             f"line up where the ball {'will stop' if kind == 'at_rest' else 'will be'} in {ball_t:.1f} s"
             + (f", {extra * 100:.0f} cm further back until that is certain" if extra > 0.05 else "")
             + "; run when it stops")
+    steps = go["steps"] + ([f"wait for the ball ({wait:.1f} s)"] if wait > 0.05 else []) + ["run through the ball"]
     return {"feasible": True, "kind": kind, "ball": [float(ball_xy[0]), float(ball_xy[1])],
             "pose": [float(pose[0]), float(pose[1]), float(pose[2])], "path": go["path"], "how": go["how"],
+            "route": go["route"], "steps": steps, "why": go["why"], "considered": go["considered"],
             "travel_s": float(go["time_s"]), "ball_there_in_s": float(ball_t), "contact_in_s": float(contact_t),
-            "wait_s": float(wait), "hold": bool(traj.moving), "note": note}
+            "wait_s": float(wait), "hold": bool(traj.moving), "note": note,
+            "warnings": _warnings(pose, traj, length, width, m, "the line-up point")}
 
 
 def plan_kick(robot, traj: Trajectory, goal: dict, length: float, width: float,
-              m: RobotModel = RobotModel(), area: dict | None = None) -> dict:
+              m: RobotModel = RobotModel(), area: dict | None = None,
+              prefer: str | None = None, prefer_paw: str | None = None) -> dict:
     """Meet the ball with a LEG KICK: be at the paw pose, wind up, and have the paw arrive as the ball does.
 
     The kick needs the robot standing still at an exact pose (ball in front of one paw) for
@@ -227,6 +331,11 @@ def plan_kick(robot, traj: Trajectory, goal: dict, length: float, width: float,
     stage is where to go now: the pose itself once the stopping point is sure, otherwise the same
     pose backed off by the size of the stopping area. saves_s is how much earlier the paw reaches
     the ball than if the robot only started moving in once the ball had stopped.
+
+    For reading the decision: "timeline" lists the stages with their seconds, "limit" says whether
+    the robot or the ball decides when contact can happen, "other_paw" gives the paw not chosen,
+    "steps" spells the route out and "warnings" lists anything wrong with the pose. prefer /
+    prefer_paw are the route and paw chosen last time: they are kept unless another is clearly quicker.
     """
     if traj.ends not in ("still", "stops"):
         why = {"out": "the ball is rolling out of the field", "horizon": "the ball does not stop within the prediction"}
@@ -239,24 +348,31 @@ def plan_kick(robot, traj: Trajectory, goal: dict, length: float, width: float,
     sure = (not traj.moving) or (area is not None and max(area["along"], area["across"]) <= m.kick_window)
     extra = 0.0 if sure else _area_radius(area, m)
 
-    best = None
+    options = {}
     for paw in ("right", "left"):                           # right first: the paw with robot kicks on record
         contact = max(ready, 0.0)
         for _ in range(3):                                  # the pose depends on where the ball is at contact
             bx, by, speed = traj.at(contact)
             pose = kick_pose((bx, by), goal, paw, m)
-            go = travel(robot, pose[:2], pose[2], avoid=(bx, by), m=m)
+            go = travel(robot, pose[:2], pose[2], avoid=(bx, by), m=m, prefer=prefer)
             contact = max(ready, go["time_s"] + m.kick_settle_s + m.kick_windup_s)
-        if not _in_field((bx, by), length, width):
-            continue
-        if best is None or contact < best[0] - 1e-6:
-            best = (contact, paw, (bx, by), speed, pose, go)
-    if best is None:
+        if _in_field((bx, by), length, width):
+            options[paw] = (contact, paw, (bx, by), speed, pose, go)
+    if not options:
         return {"feasible": False, "note": "the ball ends up outside the field"}
-    contact, paw, ball_xy, speed, pose, go = best
+    quickest = min(options, key=lambda k: options[k][0])   # ties go to the right paw (listed first)
+    chosen = quickest
+    if prefer_paw in options and options[prefer_paw][0] - options[quickest][0] < m.switch_s:
+        chosen = prefer_paw                                 # do not swap paws for a fraction of a second
+    contact, paw, ball_xy, speed, pose, go = options[chosen]
+    other = next((options[k] for k in options if k != chosen), None)
     stage = kick_pose(ball_xy, goal, paw, m, extra)
     off = math.hypot(robot[0] - pose[0], robot[1] - pose[1])
     at_pose = off <= m.pose_tol and abs(wrap(robot[2] - pose[2])) <= math.radians(m.yaw_tol_deg)
+    if at_pose:
+        # Already standing on the pose: nothing to walk, only the settle and the wind-up are left.
+        go = {**go, "time_s": 0.0, "steps": ["already at the pose"], "path": [[float(robot[0]), float(robot[1])]]}
+        contact = max(ready, m.kick_settle_s + m.kick_windup_s)
     commit = contact - m.kick_windup_s
     if at_pose and sure and commit <= m.kick_settle_s + 1e-6:
         action, note = "wind_up", f"start the {paw}-paw kick now: the ball will be there when the paw is"
@@ -270,12 +386,29 @@ def plan_kick(robot, traj: Trajectory, goal: dict, length: float, width: float,
                 f"go to {extra * 100:.0f} cm behind the {paw}-paw kick pose until the stopping point is certain")
     # Without prediction the robot would see the ball stop, and only then walk in, settle and wind up.
     stop = traj.end_in_s if traj.moving else 0.0
+    robot_ready = go["time_s"] + m.kick_settle_s            # standing settled at the pose
+    wait = max(commit - robot_ready, 0.0)
+    timeline = [{"what": "walk to the pose", "s": float(go["time_s"])}, {"what": "settle", "s": m.kick_settle_s}]
+    if wait > 0.05:
+        timeline.append({"what": "wait for the ball", "s": float(wait)})
+    timeline.append({"what": "wind-up", "s": m.kick_windup_s})
+    if sure:
+        unsure_why = ""
+    elif area is None:
+        unsure_why = "no stopping area yet"
+    else:
+        unsure_why = (f"stopping area is {max(area['along'], area['across']) * 100:.0f} cm, "
+                      f"needs {m.kick_window * 100:.0f} cm")
     return {"feasible": True, "paw": paw, "ball": [float(ball_xy[0]), float(ball_xy[1])],
             "pose": [float(v) for v in pose], "stage": [float(v) for v in stage], "path": go["path"], "how": go["how"],
+            "route": go["route"], "steps": go["steps"], "why": go["why"], "considered": go["considered"],
             "travel_s": float(go["time_s"]), "commit_in_s": float(max(commit, 0.0)), "contact_in_s": float(contact),
             "ball_ready_in_s": float(ready), "ball_speed_at_contact": float(speed), "sure": bool(sure),
-            "at_pose": bool(at_pose), "action": action,
-            "saves_s": float(max(stop + go["time_s"] + m.kick_settle_s + m.kick_windup_s - contact, 0.0)), "note": note}
+            "unsure_why": unsure_why, "at_pose": bool(at_pose), "action": action, "timeline": timeline,
+            "limit": "ball" if ready > robot_ready + m.kick_windup_s + 1e-6 else "robot",
+            "other_paw": None if other is None else {"paw": other[1], "contact_in_s": float(other[0])},
+            "saves_s": float(max(stop + go["time_s"] + m.kick_settle_s + m.kick_windup_s - contact, 0.0)), "note": note,
+            "warnings": _warnings(stage, traj, length, width, m, "the kick pose" if sure else "the waiting point")}
 
 
 def plan_block(robot, traj: Trajectory, own_goal: dict, m: RobotModel = RobotModel(), step: float = 0.1) -> dict | None:
@@ -299,7 +432,7 @@ def plan_block(robot, traj: Trajectory, own_goal: dict, m: RobotModel = RobotMod
         gap = math.hypot(bx - robot[0], by - robot[1])
         if gap <= m.block_cover:
             stand = (float(robot[0]), float(robot[1]))
-            go = {"time_s": 0.0, "path": [list(stand)], "how": "stay"}
+            go = {"time_s": 0.0, "path": [list(stand)], "how": "stay", "steps": ["already in the ball's path"]}
         else:
             k = 1.0 - m.block_cover / gap
             stand = (robot[0] + k * (bx - robot[0]), robot[1] + k * (by - robot[1]))
@@ -312,19 +445,47 @@ def plan_block(robot, traj: Trajectory, own_goal: dict, m: RobotModel = RobotMod
                 "spare_s": None, "enters_in_s": float(traj.end_in_s), "enters_at_y": float(traj.end[1])}
     spare, t, point, go = best
     return {"feasible": spare >= m.block_margin_s, "point": [float(point[0]), float(point[1])], "path": go["path"],
-            "how": go["how"], "travel_s": float(go["time_s"]), "ball_there_in_s": t, "spare_s": spare,
+            "how": go["how"], "steps": go["steps"], "travel_s": float(go["time_s"]), "ball_there_in_s": t, "spare_s": spare,
             "enters_in_s": float(traj.end_in_s), "enters_at_y": float(traj.end[1])}
 
 
+def plan_guard(robot, ball_xy, own_goal: dict, m: RobotModel = RobotModel(), prefer: str | None = None) -> dict:
+    """Stand between the ball and this robot's own goal: on the line from the goal centre to the ball,
+    m.guard_depth in front of the goal line, facing the ball.
+
+    {"pose": [x, y, yaw], "path", "steps", "travel_s", "at_pose"}
+    """
+    gx, gy = own_goal["x"], 0.5 * (own_goal["y_min"] + own_goal["y_max"])
+    dx, dy = ball_xy[0] - gx, ball_xy[1] - gy
+    d = math.hypot(dx, dy)
+    ux, uy = (dx / d, dy / d) if d > 1e-6 else (-math.copysign(1.0, gx), 0.0)
+    depth = min(m.guard_depth, max(d - m.clearance, 0.1))  # never further out than just short of the ball
+    pose = (gx + ux * depth, gy + uy * depth, math.atan2(uy, ux))
+    go = travel(robot, pose[:2], pose[2], avoid=ball_xy, m=m, prefer=prefer)
+    at_pose = (math.hypot(robot[0] - pose[0], robot[1] - pose[1]) <= 2 * m.pose_tol
+               and abs(wrap(robot[2] - pose[2])) <= math.radians(2 * m.yaw_tol_deg))
+    return {"pose": [float(v) for v in pose], "path": go["path"], "route": go["route"], "steps": go["steps"],
+            "travel_s": float(go["time_s"]), "at_pose": bool(at_pose)}
+
+
 def plan_robot(robot_state: dict, traj: Trajectory, attack_goal: dict, own_goal: dict, length: float, width: float,
-               m: RobotModel = RobotModel(), area: dict | None = None) -> dict:
+               m: RobotModel = RobotModel(), area: dict | None = None, previous: dict | None = None) -> dict:
     """The plans for one robot of the perception state ({"x", "y", "yaw", ...}):
-    strike (run through the ball), kick (leg kick) and, when its own goal is threatened, block.
-    area: the prediction's stopping area, if any."""
+    strike (run through the ball), kick (leg kick), guard (stand between the ball and its own
+    goal) and, when its own goal is threatened, block.
+    area: the prediction's stopping area, if any. previous: this robot's plans from the frame
+    before, so routes and the kicking paw are not swapped for a marginal gain."""
     robot = (robot_state["x"], robot_state["y"], robot_state["yaw"])
-    out = {"strike": plan_strike(robot, traj, attack_goal, length, width, m, area=area),
-           "kick": plan_kick(robot, traj, attack_goal, length, width, m, area=area)}
+    before = previous or {}
+    kept = lambda plan, key: (before.get(plan) or {}).get(key)  # noqa: E731
+    out = {"strike": plan_strike(robot, traj, attack_goal, length, width, m, area=area, prefer=kept("strike", "route")),
+           "kick": plan_kick(robot, traj, attack_goal, length, width, m, area=area,
+                             prefer=kept("kick", "route"), prefer_paw=kept("kick", "paw")),
+           "guard": plan_guard(robot, traj.at(0.0)[:2], own_goal, m, prefer=kept("guard", "route"))}
     block = plan_block(robot, traj, own_goal, m)
     if block is not None:
         out["block"] = block
+    age = robot_state.get("age_s")
+    if age is not None and age > m.stale_s:
+        out["stale"] = f"robot position is {age:.1f} s old: plans are from where it was"
     return out

@@ -7,7 +7,8 @@ receives the UDP stream). It needs no camera: it only listens.
   python scripts/dashboard.py
   python scripts/dashboard.py --port 5005
 
-Keys: z = zoom between the whole field and "fit to what is visible"   q = quit
+Keys: z = zoom between the whole field and "fit to what is visible"
+      i = more / less detail in the readouts   q = quit
 """
 import argparse
 import sys
@@ -37,10 +38,10 @@ def main():
     port = args.port or load_config()["net"]["port"]
     sub = StateSubscriber(port)
     print(f"listening for perception state on UDP port {port} (start scripts/run_perception.py if nothing shows)")
-    zoom, img, t0 = args.zoom, None, time.time()
+    zoom, img, t0, detail = args.zoom, None, time.time(), True
     while True:
         state = sub.latest()
-        img = render(state, zoom=zoom, stale_s=state["rx_age_s"] if state else 0.0)
+        img = render(state, zoom=zoom, stale_s=state["rx_age_s"] if state else 0.0, detail=detail)
         if not args.no_gui:
             cv2.imshow(WINDOW, img)
             key = cv2.waitKey(30) & 0xFF
@@ -48,6 +49,8 @@ def main():
                 break
             if key == ord("z"):
                 zoom = "fit" if zoom == "field" else "field"
+            if key == ord("i"):
+                detail = not detail
         else:
             time.sleep(0.03)
         if args.seconds and time.time() - t0 > args.seconds:

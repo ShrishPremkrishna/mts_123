@@ -147,6 +147,7 @@ prediction:
   wander_deg: 4.0       # degrees a roll may drift off its line (divots, seams); widens the stopping area.
                         # Rolls that do get knocked off course widen it further by themselves.
   area_floor: 0.03      # m, the stopping area is never claimed to be smaller than this
+  coast_s: 1.5          # s, keep predicting a rolling ball this long after it was last seen (hidden by a robot)
   min_speed: 0.10       # m/s, slower than this the ball is treated as standing still
   walls: false          # true if the field has boards the ball bounces off; false = it rolls out
   restitution: 0.4      # with walls: fraction of the speed into a board that comes back out

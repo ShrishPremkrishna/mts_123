@@ -14,6 +14,7 @@ from .detect import BallDetector, TagDetector
 from .filters import CVFilter2D, YawFilter, wrap
 from .intercept import RobotModel, plan_robot
 from .relative import relative_geometry
+from .states import BallMachine, RobotMachine
 from .tagmeasure import survey_tags, tag_corners
 
 CALIBRATION_DRIFT_LIMIT_PX = 8.0
@@ -49,6 +50,7 @@ class Perception:
         self.floor_layout: dict = {}        # floor tag id -> field xy, for the bumped-camera check
         self.survey: dict | None = None     # set by calibrate_from_survey: reference tag + tag poses
         self.calib_fail: str | None = None  # why the last calibration attempt failed, in plain words
+        self.ignored_tags: list = []        # floor-tag ids left out of the last corner calibration (not on the floor)
         self.calibration_valid = False
         self.calibration_revision = 0
         self.calibration_reason: str | None = None
@@ -67,6 +69,12 @@ class Perception:
         # Where the ball is going (ballistics.py) and where each robot should meet it (intercept.py).
         self.roll_model, self.robot_model = RollModel.from_config(cfg), RobotModel.from_config(cfg)
         self.roll = RollTracker(self.roll_model)
+        # What is going on, in words (states.py): one machine for the ball, one per robot.
+        self.ball_machine = BallMachine()
+        self.robot_machines = {name: RobotMachine(name, self.robot_model.kick_windup_s) for name in cfg["robots"]}
+        self._plans: dict = {}              # last frame's plans, so routes and paws are not swapped for nothing
+        self._frame_times: list = []        # recent capture times, for the measured frame rate
+        self._ball_seen: list = []          # was the ball measured in each recent frame
         self.seq = 0
         self.debug: dict = {}  # raw detections from the last frame, for drawing
 
@@ -142,9 +150,14 @@ class Perception:
         going counter-clockwise seen from above, starting at the west goal's
         -y end). From those four the field's centre, direction and SIZE are
         worked out: +x runs from the 0-3 side to the 1-2 side, so the east goal
-        is between tags 1 and 2. Any other floor tags in view help locate the
-        camera but do not affect the field. tags.corner_inset moves the true
-        corner outward from the tag centre if the sheets sit inside the lines.
+        is between tags 1 and 2. tags.corner_inset moves the true corner
+        outward from the tag centre if the sheets sit inside the lines.
+
+        Only the four corner tags locate the camera. Any other floor tag in
+        view is checked against that: one lying flat on the floor is kept and
+        watched for movement like the corners; one that is not (on a desk, on
+        a chair, held in a hand) would bend the fit, so it is left out and
+        listed in self.ignored_tags.
         """
         floor = self._floor_tags(frame, use_ids)
         roles = self.cfg["tags"]["corner_ids"]  # west_south, east_south, east_north, west_north
@@ -152,7 +165,8 @@ class Perception:
         if missing:
             self.calib_fail = "corner tags not completely in view: " + ", ".join(missing)
             return False
-        poses = self._survey(floor, roles["west_south"])
+        corners_only = {tid: floor[tid] for tid in roles.values()}
+        poses = self._survey(corners_only, roles["west_south"])
         at = {name: np.array([poses[tid]["x"], poses[tid]["y"]]) for name, tid in roles.items()}
         ex = (at["east_south"] - at["west_south"]) + (at["east_north"] - at["west_north"])
         if np.linalg.norm(ex) < 1e-6:
@@ -183,12 +197,28 @@ class Perception:
         for tid, p in poses.items():
             xy = to_field(np.array([p["x"], p["y"]]))
             field_poses[tid] = {"x": float(xy[0]), "y": float(xy[1]), "yaw": wrap(p["yaw"] - theta)}
-        cam, layout = self._camera_from_layout(floor, field_poses)
+        cam, layout = self._camera_from_layout(corners_only, field_poses)
         if cam is None:
             self.calib_fail = "the corner tags do not fit a camera above the floor"
             return False
+        # Other tags in view: on the floor, a tag's corners land on a square of the printed size.
+        # Raised off the floor it looks bigger than that (a desk-height tag by about 40 %).
+        size, ignored = self.cfg["tags"]["floor_size"], []
+        for tid in sorted(set(floor) - set(corners_only)):
+            c = cam.pixel_to_plane(floor[tid], 0.0)
+            sides = [float(np.linalg.norm(c[k] - c[(k + 1) % 4])) for k in range(4)]
+            diagonals = [float(np.linalg.norm(c[0] - c[2])), float(np.linalg.norm(c[1] - c[3]))]
+            flat = (all(abs(side - size) < 0.12 * size for side in sides)
+                    and abs(diagonals[0] - diagonals[1]) < 0.12 * size * math.sqrt(2))
+            if flat:
+                centre = c.mean(axis=0)
+                layout[tid] = centre
+                field_poses[tid] = {"x": float(centre[0]), "y": float(centre[1]), "yaw": 0.0}
+            else:
+                ignored.append(int(tid))
         if not self._use_camera(cam, "corners", layout):
             return False
+        self.ignored_tags = ignored
         set_field_size(self.cfg, length, width)  # the field is now what the tags say it is
         self._set_field_roi()
         self.survey = {"ref": roles["west_south"], "tags": field_poses,
@@ -335,7 +365,7 @@ class Perception:
             "goals": cfg["goals"], "shots": {}, "relative": {},
             # Where the ball is going, and where each robot should go because of it. None / empty
             # unless calibration is valid and the ball is being measured.
-            "prediction": None, "intercepts": {},
+            "prediction": None, "intercepts": {}, "machines": None, "diagnostics": {},
             # Enough for a viewer to draw the scene without the config file.
             "field": {"length": cfg["field"]["length"], "width": cfg["field"]["width"],
                       "ball_radius": cfg["ball"]["radius"]},
@@ -447,18 +477,56 @@ class Perception:
         # Where the ball is going (a roll model on a velocity fitted over the last few frames),
         # then, per robot, where to line up for a strike and whether its own goal needs a block.
         f = cfg["field"]
-        predicted = (self.roll.predict(t_now, f["length"], f["width"], f["goal_width"], cfg["ball"]["radius"])
-                     if (self.calibration_valid and ball["visible"]) else None)
-        if predicted is not None:
-            state["prediction"], traj = predicted
-            for name, rc in cfg["robots"].items():
-                robot = state["robots"][name]
-                if robot["visible"]:
-                    own = next(g for side, g in cfg["goals"].items() if side != rc["attacks"])
-                    state["intercepts"][name] = plan_robot(robot, traj, cfg["goals"][rc["attacks"]], own,
-                                                           f["length"], f["width"], self.robot_model,
-                                                           area=state["prediction"]["area"])
+        own_goal = {name: next(g for side, g in cfg["goals"].items() if side != rc["attacks"])
+                    for name, rc in cfg["robots"].items()}
+        problem = None
+        try:
+            # The tracker itself drops a ball it has not seen for too long, so a ball hidden for a
+            # moment (behind a robot) keeps its prediction.
+            predicted = (self.roll.predict(t_now, f["length"], f["width"], f["goal_width"], cfg["ball"]["radius"])
+                         if self.calibration_valid else None)
+            if predicted is not None:
+                state["prediction"], traj = predicted
+                for name, rc in cfg["robots"].items():
+                    robot = state["robots"][name]
+                    if robot["visible"]:
+                        state["intercepts"][name] = plan_robot(robot, traj, cfg["goals"][rc["attacks"]], own_goal[name],
+                                                               f["length"], f["width"], self.robot_model,
+                                                               area=state["prediction"]["area"],
+                                                               previous=self._plans.get(name))
+            self._plans = state["intercepts"]
+            ball_now = self.ball_machine.update(state["prediction"], t_now)
+            state["machines"] = {"ball": ball_now, "robots": {
+                name: machine.update(t_now, self.calibration_valid, state["robots"][name], ball_now,
+                                     state["intercepts"].get(name),
+                                     {n: p for n, p in state["intercepts"].items() if n != name}, own_goal[name])
+                for name, machine in self.robot_machines.items()}}
+        except Exception as exc:  # noqa: BLE001  prediction and planning are extras: a fault there must not stop tracking
+            problem = f"{type(exc).__name__}: {exc}"
+            state["prediction"], state["intercepts"], state["machines"] = None, {}, None
+        state["diagnostics"] = self._diagnostics(t_capture, tags, measured, problem)
         return state
+
+    def _diagnostics(self, t_capture: float, tags: dict, ball_measured: bool, problem: str | None) -> dict:
+        """Health figures for the dashboard: how fast frames come, what the camera fit looks like, what is in view."""
+        self._frame_times = [t for t in self._frame_times if t_capture - t < 2.0 and t < t_capture] + [t_capture]
+        self._ball_seen = (self._ball_seen + [bool(ball_measured)])[-40:]
+        span = self._frame_times[-1] - self._frame_times[0]
+        robot_ids = {rc["tag_id"]: name for name, rc in self.cfg["robots"].items()}
+        return {
+            "fps": (len(self._frame_times) - 1) / span if span > 0 else None,
+            "lens_deg": self.hfov_deg, "lens_from": ("a lens calibration file" if self.has_calibrated_intrinsics else
+                                                    "fitted from the tags" if self.fov_fit else "the config's guess"),
+            "camera_height": float(self.cam.center[2]) if self.cam is not None else None,
+            "fit_px": float(self.cam.reproj_err_px) if self.cam is not None else None,
+            "drift_px": self.calib_err_px, "drift_limit_px": CALIBRATION_DRIFT_LIMIT_PX,
+            "floor_tags_seen": sorted(int(i) for i in tags if i not in robot_ids),
+            "robot_tags_seen": sorted(robot_ids[i] for i in tags if i in robot_ids),
+            "ball_measured": bool(ball_measured), "ball_noise": float(self.roll.noise),
+            "ball_seen_rate": sum(self._ball_seen) / len(self._ball_seen),
+            "ignored_tags": list(self.ignored_tags),
+            "problem": problem,
+        }
 
     # ---- debug drawing ---------------------------------------------------
     def draw(self, frame: np.ndarray, state: dict, banner: bool = True) -> np.ndarray:

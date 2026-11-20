@@ -27,6 +27,7 @@ Every pixel has a floor position once calibrated:
 Dashboard (one window: camera feed on the left, top-down field view on the right, readouts below):
       d = switch between that and the camera feed alone
       z = zoom the field view between the whole field and "fit to what is visible"
+      i = more / less detail in the readouts (states and reasons stay; timelines, route steps and fit figures toggle)
       (--dashboard starts with it; scripts/dashboard.py shows the field view from another terminal or machine)
 
 Ball colour:
@@ -56,6 +57,7 @@ from fieldcam.detect import BallDetector  # noqa: E402
 from fieldcam.pipeline import Perception  # noqa: E402
 from fieldcam.probe import Probe, floor_map  # noqa: E402
 from fieldcam.topdown import render_combined  # noqa: E402
+from fieldcam.wire import wire_state  # noqa: E402
 
 
 class SimSource:
@@ -200,6 +202,9 @@ def announce_done(perc):
         lines.append(f"THE FIELD IS {fs['length']:.2f} m long (goal to goal) x {fs['width']:.2f} m wide, measured from the tags")
         lines.append(f"east goal (+x) between tags {r['east_south']} and {r['east_north']}, "
                      f"west goal between tags {r['west_north']} and {r['west_south']}; centre is the middle of the four")
+        if perc.ignored_tags:
+            lines.append(f"NOTE: tag(s) {', '.join(map(str, perc.ignored_tags))} in view are NOT flat on the floor "
+                         "(on a desk or chair?) and were left out. Only tags on the floor may be used.")
         if fs["off_rectangle"] > 0.03:
             lines.append(f"NOTE: the four tags are {fs['off_rectangle'] * 100:.0f} cm away from a true rectangle. "
                          "Square the corners up, then press f again.")
@@ -408,12 +413,13 @@ def main():
     count, t_status = 0, 0.0
     reconnects = getattr(src, "reconnects", 0)
     probe, mouse_ready = Probe(scale), False
-    dash_on, dash_zoom = args.dashboard, "field"
+    dash_on, dash_zoom, dash_detail = args.dashboard, "field", True
+    t_send_warn = 0.0
 
     def show(picture, stale_s=0.0):
         """Put the camera picture in the window, alone or with the field view and readouts."""
         if dash_on:
-            canvas, k, bounds = render_combined(picture, state, args.dashboard_width, dash_zoom, stale_s)
+            canvas, k, bounds = render_combined(picture, state, args.dashboard_width, dash_zoom, stale_s, detail=dash_detail)
             probe.scale, probe.bounds = k, bounds
         else:
             canvas = cv2.resize(picture, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale != 1.0 else picture
@@ -470,7 +476,12 @@ def main():
             state["replay_clock"] = ("video_presentation" if args.replay_fps is None else "assumed_constant_fps")
             if args.replay_fps is not None:
                 state["replay_fps"] = args.replay_fps
-        pub.send(state)
+        try:
+            pub.send(wire_state(state))     # a compact copy: the window keeps the full state
+        except OSError as exc:              # the network must never stop the camera loop
+            if time.time() - t_send_warn > 5.0:
+                t_send_warn = time.time()
+                print(f"WARNING: could not publish this frame's state ({exc}). Tracking continues.", flush=True)
         if sim:
             src.step(state)
         if args.print:
@@ -561,6 +572,8 @@ def main():
                 dash_on = not dash_on
             if key == ord("z"):
                 dash_zoom = "fit" if dash_zoom == "field" else "field"
+            if key == ord("i"):
+                dash_detail = not dash_detail
             if key == ord("x"):
                 probe.pins.clear()
             if key == ord("b"):

@@ -37,6 +37,7 @@ class RollModel:
     decel_spread: float = 0.20  # m/s^2, how far one roll's own slow-down may sit from that guess
     area_floor: float = 0.03    # m, the stopping area is never claimed to be smaller than this
     wander_deg: float = 4.0     # degrees, how far off its line a roll may drift (divots, seams); widens the area
+    coast_s: float = 1.5        # s, keep predicting a rolling ball this long after it was last seen (hidden by a robot)
     min_speed: float = 0.10     # m/s, below this the ball is treated as standing still
     walls: bool = False         # True: the field edge is a board the ball bounces off; False: it rolls out
     restitution: float = 0.4    # fraction of the speed into a wall that comes back out
@@ -274,7 +275,8 @@ class RollTracker:
         self.model = model
         self.learned: list[float] = []     # slow-down rates measured on finished rolls (newest last)
         self.turns: list[float] = []       # how far each finished roll turned off its first line, rad (0 = straight)
-        self.reset()
+        self.noise = model.meas_sigma      # m, measurement noise: starts at the configured value, then measured
+        self.reset()                       #    from how much a ball that is standing still appears to jitter
 
     def reset(self):
         self.hist: deque = deque()         # (t, x, y) of the last window_s: the velocity fit
@@ -288,6 +290,10 @@ class RollTracker:
         self._carry = None                 # (slow-down, spread) carried over a bend or bounce within one roll
         self._u0 = None                    # the direction this roll had before it was first knocked off course
         self._roll_turn = 0.0              # how far (rad) it has turned from that since
+        self._knocks = 0                   # times this roll was knocked off course
+        self._knock_t = None               # when it was last knocked (or kicked)
+        self._phase = "still"
+        self._still_since = None           # when it last came to rest (noise is only learned once the window is all still)
         self.last_roll: dict | None = None
         self._last_decel = None
 
@@ -303,7 +309,14 @@ class RollTracker:
         if spread < 1e-9:
             return None
         vel = ((T - t_mid)[:, None] * (Z - Z.mean(axis=0))).sum(axis=0) / spread
-        return t_mid, Z.mean(axis=0), vel, self.model.meas_sigma / math.sqrt(spread)
+        # How sure is that velocity? Judge by how far the measurements actually sit from the line,
+        # not only by the noise assumed so far: a ball that is standing still but detected a few
+        # centimetres apart from frame to frame must not read as a ball that is moving.
+        scatter = 0.0
+        if len(pts) >= 3:
+            off = Z - Z.mean(axis=0) - (T - t_mid)[:, None] * vel
+            scatter = math.sqrt(float((off ** 2).sum()) / (2 * (len(pts) - 2)))
+        return t_mid, Z.mean(axis=0), vel, max(self.noise, scatter) / math.sqrt(spread)
 
     def decel_prior(self) -> tuple[float, float]:
         """(starting guess for a roll's slow-down rate, how far a roll may sit from it)."""
@@ -337,17 +350,21 @@ class RollTracker:
 
     def update(self, xy, t: float) -> None:
         z = (float(t), float(xy[0]), float(xy[1]))
+        if not all(math.isfinite(v) for v in z):
+            return                                          # a broken measurement must not poison the fit
         if self.hist and t <= self.hist[-1][0]:
             return                                          # repeated or out-of-order frame
+        if self.hist and t - self.hist[-1][0] > self.model.coast_s:
+            self.reset()                                    # not seen for too long to be the same motion
         if len(self.hist) >= 3:
             expect = self._state_at(t)
             off = math.hypot(z[1] - expect[0][0], z[2] - expect[0][1]) if expect else 0.0
-            if off > self.model.jump:
+            if off > max(self.model.jump, 4.0 * self.noise):
                 if self._pending is not None:
                     # Two in a row away from the old motion: it is real. Start again from these two.
                     self.hist = deque([self._pending, z])
                     self.all = [self._pending, z]
-                    self._pending, self._restart = None, True
+                    self._pending, self._restart, self._knock_t = None, True, z[0]
                 else:
                     self._pending = z
                 return
@@ -372,22 +389,36 @@ class RollTracker:
             self.turns.append(self._roll_turn)
             del self.turns[:-10]
         self._roll_t0, self.trail, self._carry, self._u0, self._roll_turn = None, [], None, None, 0.0
+        self._knocks = 0
 
     def estimate(self, t_now: float) -> dict | None:
-        if len(self.hist) < 2 or t_now - self.hist[-1][0] > 2 * self.model.window_s:
+        if len(self.hist) < 2:
+            return None
+        # A rolling ball hidden for a moment (a robot walks in front of it) is still predicted for
+        # coast_s; a ball that was standing still is dropped sooner, since it may have been picked up.
+        if t_now - self.hist[-1][0] > (self.model.coast_s if self._moving else 2 * self.model.window_s):
             return None
         pos, vel, sigma = self._state_at(t_now)
         speed = float(np.linalg.norm(vel))
         # Moving only if the speed stands clear of both the floor and the noise; a little
         # hysteresis so it does not flicker around the threshold.
-        threshold = max(self.model.min_speed, 3.0 * sigma) * (0.7 if self._moving else 1.0)
+        # With only three or four measurements the scatter about the line says little, so ask for more.
+        sure = {2: 3.0, 3: 6.0, 4: 4.5}.get(len(self.hist), 3.0)
+        threshold = max(self.model.min_speed, sure * sigma) * (0.7 if self._moving else 1.0)
         was_moving, self._moving = self._moving, speed > threshold
+        if not was_moving and self._moving:
+            # To START counting as moving, the ball must also have actually gone somewhere: a ball that
+            # is standing still but detected a few centimetres apart (or in only some frames) has not.
+            a, b = self.hist[0], self.hist[-1]
+            step = max(self.model.jump, 4.0 * self.noise) if len(self.hist) < 3 else max(0.04, 4.0 * self.noise)
+            self._moving = math.hypot(b[1] - a[1], b[2] - a[2]) > step
         if self._restart and was_moving and self._moving and self._roll_t0 is not None:
             # Knocked off course mid-roll (a bounce, a divot, a touch): same ball, same floor. Fit the
             # new direction from here, keep what this roll has shown about how fast it slows.
             if self._last_decel is not None:
                 self._carry = (self._last_decel, max(self.decel_prior()[1] * 0.5, 0.05))
             self._roll_t0 = self.hist[0][0]
+            self._knocks += 1
         elif self._restart and was_moving:
             self._end_roll(t_now, summary=False)
         if self._moving and self._roll_t0 is None:
@@ -395,16 +426,27 @@ class RollTracker:
             start = self.hist[0][0]
             if self._still_pos is not None and not self._restart:
                 away = [h[0] for h in self.hist
-                        if math.hypot(h[1] - self._still_pos[0], h[2] - self._still_pos[1]) > 3 * self.model.meas_sigma]
+                        if math.hypot(h[1] - self._still_pos[0], h[2] - self._still_pos[1]) > 3 * self.noise]
                 start = away[0] if away else self.hist[-1][0]
             self._roll_t0, self.trail, self.last_roll = start, [], None
+            self._knock_t = start if self._knock_t is None or self._knock_t < start else self._knock_t
         elif not self._moving and was_moving:
             self._end_roll(t_now, summary=True)
         self._restart = False
         if not self._moving:
             # Standing still: the best position is the plain average of the window.
-            pos, vel = np.array([[h[1], h[2]] for h in self.hist]).mean(axis=0), np.zeros(2)
+            window = np.array([[h[1], h[2]] for h in self.hist])
+            pos, vel = window.mean(axis=0), np.zeros(2)
             self._still_pos = (float(pos[0]), float(pos[1]))
+            self._still_since = t_now if (was_moving or self._still_since is None) else self._still_since
+            settled = np.array([[q[1], q[2]] for q in self.all
+                                if q[0] >= max(self._still_since + self.model.window_s, t_now - 2.0)])
+            if len(settled) >= 4:
+                # Standing still: its apparent jitter IS the measurement noise. Follow it slowly, within
+                # sane bounds, so every threshold suits this ball, these lights and this camera height.
+                # (Taken over the last two seconds, so a ball found in only some frames still counts.)
+                jitter = float(np.sqrt(((settled - settled.mean(axis=0)) ** 2).sum() / (2 * (len(settled) - 1))))
+                self.noise = min(max(0.95 * self.noise + 0.05 * jitter, 0.003), 0.05)
         return {"x": float(pos[0]), "y": float(pos[1]), "vx": float(vel[0]), "vy": float(vel[1]),
                 "speed": float(np.linalg.norm(vel)), "speed_sigma": float(sigma), "moving": self._moving,
                 "samples": len(self.hist)}
@@ -429,14 +471,15 @@ class RollTracker:
             u = np.linalg.svd(old - centre)[2][0]
             off = (np.array([[q[1], q[2]] for q in pts[-2:]]) - centre) @ np.array([-u[1], u[0]])
             wobble = float(np.sqrt((((old - centre) @ np.array([-u[1], u[0]])) ** 2).mean()))
-            limit = max(3.0 * max(self.model.meas_sigma, wobble), 0.03)
+            limit = max(3.0 * max(self.noise, wobble), 0.03)
             if off[0] * off[1] > 0 and min(abs(off[0]), abs(off[1])) > limit:
                 if self._last_decel is not None:
                     self._carry = (self._last_decel, max(self.decel_prior()[1] * 0.5, 0.05))
                 if self._u0 is None:
                     self._u0 = u if (old[-1] - old[0]) @ u >= 0 else -u
                 pts = pts[-3:]
-                self._roll_t0 = pts[0][0]
+                self._roll_t0, self._knock_t = pts[0][0], pts[0][0]
+                self._knocks += 1
         decel0, decel_sigma = self.decel_prior()
         # The roll proper starts where the ball was fastest: before that it was still being pushed,
         # and those frames would make it look as if it slows faster than it does. Speeds are taken
@@ -444,7 +487,7 @@ class RollTracker:
         if len(pts) >= 6:
             speeds = [math.hypot(b[1] - a[1], b[2] - a[2]) / (b[0] - a[0]) for a, b in zip(pts, pts[2:])]
             fastest = int(np.argmax(speeds[:len(pts) - 4]))
-            noise = 3.0 * math.sqrt(2.0) * self.model.meas_sigma / (pts[fastest + 2][0] - pts[fastest][0])
+            noise = 3.0 * math.sqrt(2.0) * self.noise / (pts[fastest + 2][0] - pts[fastest][0])
             if fastest > 0 and speeds[fastest] > speeds[0] + noise:
                 pts = pts[fastest:]
                 self._roll_t0 = pts[0][0]
@@ -452,9 +495,11 @@ class RollTracker:
             # Too early to see this roll's own slow-down, and its first frames may still be the push:
             # go by the newest frames only and keep the slow-down at the starting guess.
             recent = [q for q in pts if q[0] >= pts[-1][0] - 0.35]
-            return _fit_roll(recent if len(recent) >= 3 else pts[-3:], decel0, decel_sigma, self.model.meas_sigma, hold=0.02)
+            self._phase = "early"
+            return _fit_roll(recent if len(recent) >= 3 else pts[-3:], decel0, decel_sigma, self.noise, hold=0.02)
+        self._phase = "own_rate"
         while True:
-            fit = _fit_roll(pts, decel0, decel_sigma, self.model.meas_sigma)
+            fit = _fit_roll(pts, decel0, decel_sigma, self.noise)
             if fit is None or len(pts) < 6 or fit["decel_data"] is None:
                 return fit
             # A ball that is clearly still SPEEDING UP is still being pushed: the roll starts later.
@@ -463,6 +508,23 @@ class RollTracker:
                 self._roll_t0 = pts[0][0]
                 continue
             return fit
+
+    def _speeding_up(self) -> bool:
+        """Is the ball clearly faster in the newer half of the window than the older half (being pushed or hit)?"""
+        pts = list(self.hist)
+        if len(pts) < 4:
+            return False
+        half = len(pts) // 2
+        old, new = pts[:half + 1], pts[half:]
+        speed = lambda q: math.hypot(q[-1][1] - q[0][1], q[-1][2] - q[0][2]) / max(q[-1][0] - q[0][0], 1e-6)  # noqa: E731
+        sigma = math.sqrt(2.0) * self.noise / max(min(old[-1][0] - old[0][0], new[-1][0] - new[0][0]), 1e-6)
+        # Well clear of the noise AND a real gain in speed: a rolling ball's measured speed wobbles by itself.
+        return speed(new) - speed(old) > max(6.0 * sigma, 0.15)
+
+    def _guess_from(self) -> str:
+        if self._carry is not None:
+            return "this roll, before it was knocked off course"
+        return f"{len(self.learned)} finished rolls" if len(self.learned) >= 2 else "the config"
 
     def predict(self, t_now: float, length: float, width: float, goal_width: float, radius: float = 0.0):
         """(prediction dict, Trajectory) for a field of this size, or None before there is enough to go on.
@@ -474,15 +536,25 @@ class RollTracker:
           trail                [[age_s, x, y], ...]: what each earlier frame of this roll predicted
           last_roll            for a few seconds after a roll: {"ago_s", "stopped", "trail",
                                "first_guess_error", "decel"}
+          seen_ago_s, hidden   how long since the ball was last measured; hidden = predicting without seeing it
+          fit                  how the numbers were arrived at, for the dashboard and the state machines:
+                               {"phase": "still" | "starting" | "early" | "own_rate", "roll_s", "roll_frames",
+                                "noise", "guess", "guess_spread", "guess_from", "speeding_up", "knocks",
+                                "knock_ago_s", "turned_deg", "wander_deg"}
         """
         est = self.estimate(t_now)
         if est is None:
             return None
         pos, vel = (est["x"], est["y"]), (est["vx"], est["vy"])
         decel, decel_sigma = self.decel_prior()
+        guess, guess_spread, guess_from = decel, decel_sigma, self._guess_from()
         along = across = None
+        self._phase = "still"
+        frames = 0
         if est["moving"]:
+            self._phase = "starting"
             fit = self._roll_fit()
+            frames = fit["n"] if fit else 0
             if fit is not None and fit["v0"] > 0:
                 decel, v0, u = fit["decel"], fit["v0"], fit["u"]
                 tau = min(max(t_now - fit["t0"], 0.0), v0 / decel)
@@ -505,7 +577,17 @@ class RollTracker:
         self._last_decel = decel
         traj = predict_roll(pos, vel, length, width, goal_width, replace(self.model, decel=decel), radius)
         out = traj.as_dict(pos, vel, est["speed_sigma"], est["samples"])
-        out.update(decel_sigma=float(decel_sigma), area=None, trail=[], last_roll=None)
+        seen_ago = t_now - self.hist[-1][0]
+        out.update(decel_sigma=float(decel_sigma), area=None, trail=[], last_roll=None,
+                   seen_ago_s=float(seen_ago), hidden=bool(seen_ago > 0.25),
+                   fit={"phase": self._phase if traj.moving else "still",
+                        "roll_s": float(t_now - self._roll_t0) if self._roll_t0 is not None else 0.0,
+                        "roll_frames": int(frames), "noise": float(self.noise),
+                        "guess": float(guess), "guess_spread": float(guess_spread), "guess_from": guess_from,
+                        "speeding_up": bool(est["moving"] and self._speeding_up()), "knocks": int(self._knocks),
+                        "knock_ago_s": None if self._knock_t is None else float(t_now - self._knock_t),
+                        "turned_deg": float(math.degrees(self._roll_turn)),
+                        "wander_deg": float(math.degrees(self.wander()))})
         if traj.moving and traj.ends == "stops" and along is not None:
             direction = traj.pieces[-1][2]
             floor = self.model.area_floor

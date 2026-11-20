@@ -320,6 +320,64 @@ plans do not check that the waiting robot is clear of the ball's path. The appro
 logic itself is unchanged, so it can still place its line-up point outside the
 field when the ball is near an edge.
 
+## States, diagnostics and what keeps it running
+
+Added November 20 on `perception/ball-prediction`. Simulation, plus replays of frames
+captured from the phone over the real field; no robot has acted on any of it.
+
+**State machines** (`fieldcam/states.py`, published as `machines`). They reduce the
+prediction and the plans to a named state with a reason and the time spent in it:
+
+| Machine | States |
+| --- | --- |
+| Ball | `NOT_SEEN`, `HIDDEN` (predicted, not measured), `STILL`, `HIT` (speeding up: pushed or kicked), `ROLLING` (slowing), `KNOCKED` (off course, direction refitted). While it moves, `going` says how the roll ends. |
+| Each Pupper: role | `OFFENSE` or `DEFENSE`. The two robots are opponents, so each decides for itself: defend at once if the ball is predicted into its own goal; otherwise attack if it reaches the ball first or the ball is in the other half; defend (guard) if the other robot is clearly first to a ball in its own half. "First" is by the kick plan's contact time, so a robot that is nearer but on the wrong side of the ball is not first. |
+| Each Pupper: state | `HOLD` (no calibration / tag not seen), `SEARCH`, `GO_TO_KICK_POSE`, `WAIT_FOR_BALL`, `WIND_UP`, `KICKING`, `BLOCK`, `GUARD`, `WAIT` |
+| Each Pupper: decision | on offence with the ball rolling: `intercept` (stopping point known well enough that the wind-up may start before the ball stops) or `wait_for_stop` |
+
+A state changes only after the new one has held for a moment (0.15 s for the ball, 0.3 s
+for a robot's state, 1 s for its role, with a 1 s margin before "first to the ball" changes
+hands); a hit, a knock, a wind-up and a threat to the robot's own goal are taken at once.
+Once a wind-up starts the robot stays `KICKING` for the wind-up time.
+
+**Robustness changes:**
+
+- **Noise is measured, not assumed.** A ball standing still shows how much its measured
+  position jitters; the tracker follows that (0.3 to 5 cm) and scales its thresholds by it.
+  Whether the ball is moving is judged by how far the measurements sit from a straight
+  line and by whether it has actually gone anywhere, so a still ball found 3 cm apart from
+  frame to frame, or in only some frames, is not reported as hit. (On frames from the real
+  field with the untuned pink range, the ball was found in 38 % of frames and jittered by
+  about 3 cm; before this it read as `HIT` in a third of them, now in none.)
+- **A hidden ball keeps its prediction** for `prediction.coast_s` (1.5 s) while it is
+  rolling, marked `hidden`; a ball that was still and vanishes is dropped after 1.2 s.
+- **Tags that are not on the floor are left out.** Corner calibration uses only the four
+  corner tags; any other floor tag in view is kept only if it projects to a square of the
+  printed size on the floor. Two tag sheets lying on a desk in view had pushed the fit past
+  the 8 px limit (best 7 px at a wrong lens angle); without them the same frame fits to 0.3 px.
+- **Routes and the kicking paw do not flip** between frames: a different one must be 0.5 s quicker.
+- **Plans carry warnings:** a waiting point off the field, or in the rolling ball's path;
+  a robot position that is stale.
+- **A fault in prediction or planning cannot stop tracking.** It is caught, shown on the
+  dashboard and in `diagnostics.problem`, and positions keep flowing.
+- **The published state always fits one datagram** (`fieldcam/wire.py`). The full state
+  had grown past macOS's 9216-byte limit and the publish call failed. The window keeps the
+  full state; the network gets a compact copy: core fields untouched, the newer blocks
+  rounded to the millimetre, and explanations, then long lists, then routes dropped only
+  if it is still over 8000 bytes (`_wire.trimmed` says how far that went). A failed send
+  is reported and skipped, not fatal.
+
+**What the dashboard says.** Columns under the pictures: system (calibration and why it
+is withheld, tag drift against the limit, camera height, lens angle and where it came
+from, frame rate, which tags are readable, tags ignored), ball (state, why, where it is
+going, the stopping area, how this roll is being fitted and from what starting guess,
+measured noise, how often it is being found), and one per robot (role and why, state and
+why, the decision, the kick timeline as walk + settle + wait + wind-up, whether the robot
+or the ball is the limit, the other paw's time, the route step by step with the reason it
+was chosen, warnings). On the field view the active plan's route is drawn with numbered
+legs and their lengths, labels move out of each other's way and stay on screen, and each
+robot and the ball carry their state. `i` switches between full and brief readouts.
+
 ## Dashboard
 
 A top-down drawing of the field: goals, floor tags (filled when readable in the
@@ -427,6 +485,11 @@ prediction: null | {moving, x, y, vx, vy, speed, speed_sigma, heading, decel, de
                     area: null | {x, y, along, across, heading},      # where it should stop, ~2 sigma half-axes
                     trail: [[age_s, x, y], ...],                      # what earlier frames of this roll predicted
                     last_roll: null | {ago_s, stopped:[x, y], trail, first_guess_error, decel}}
+machines: null | {ball: {state, since_s, why, going, moving, speed, heading_deg},
+                  robots: {<name>: {role, role_why, role_since_s, state, why, since_s, decision,
+                                    target:[x, y, yaw], first_to_ball, contact_in_s}}}
+diagnostics: {fps, lens_deg, lens_from, camera_height, fit_px, drift_px, drift_limit_px, floor_tags_seen,
+              robot_tags_seen, ignored_tags, ball_measured, ball_seen_rate, ball_noise, problem}
 intercepts: {<name>: {strike: {feasible, kind: at_rest|moving, ball:[x, y], pose:[x, y, yaw],
                                path:[[x, y], ...], travel_s, ball_there_in_s, contact_in_s, wait_s, hold, note},
                       kick:   {feasible, paw, ball:[x, y], pose:[x, y, yaw], stage:[x, y, yaw], path, travel_s,
@@ -558,7 +621,9 @@ Open field checks include focus stability, tape-referenced geometry, true captur
 - `fieldcam/approach.py` line-up-then-run plan and phase controller, from a robot-relative ball and goal
 - `fieldcam/fakeworld.py`, `scripts/fake_approach.py` fake field that drives it, with no camera
 - `fieldcam/ballistics.py` ball velocity fit, roll model and predicted path; `scripts/fit_ball_roll.py` measures the roll rate
-- `fieldcam/intercept.py` where each robot should line up or block, and the route there
+- `fieldcam/intercept.py` where each robot should line up, kick, guard or block, and the route there in steps
+- `fieldcam/states.py` state machines for the ball and each Pupper
+- `fieldcam/wire.py` the compact copy of the state that goes over the network
 - `fieldcam/planner.py` simple shot geometry and approach (simulator loop)
 - `fieldcam/sim.py` synthetic arena for tests and `--source sim`
 - `fieldcam/net.py`, `fieldcam/capture.py` UDP and camera capture

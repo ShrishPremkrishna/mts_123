@@ -507,7 +507,7 @@ def test_dashboard_view():
     """The top-down view is drawn from the published state alone, and never shows what is not seen."""
     import json
 
-    from fieldcam.topdown import PANEL_W, PINK, _bounds, render
+    from fieldcam.topdown import PINK, _bounds, field_view_size, render
 
     cfg, arena, perc = make(**CAMERAS["overhead"])
     truth = {"striker": (-0.6, -0.3, 0.9), "keeper": (1.0, 0.2, 2.6)}
@@ -520,17 +520,17 @@ def test_dashboard_view():
 
     wire = json.loads(json.dumps(st))  # exactly what arrives over UDP
     img = render(wire)
-    assert img.shape == (800, 1280, 3)
+    view_w, view_h = field_view_size((1280, 800))       # the field view is the top of the picture, readouts below
+    assert img.shape[1] == 1280 and img.shape[0] >= 800
 
     def count(picture, bgr):
-        return int(np.all(picture[:, : 1280 - PANEL_W] == bgr, axis=-1).sum())
+        return int(np.all(picture[:view_h] == bgr, axis=-1).sum())
 
     assert count(img, PINK) > 30                       # the ball is on the field view
     # World -> pixel for the whole-field view, to check things are drawn where they are.
     x0, x1, y0, y1 = _bounds(wire, "field")
-    view_w = 1280 - PANEL_W
-    scale = min((view_w - 40) / (x1 - x0), (800 - 40) / (y1 - y0))
-    ox, oy = 20 + ((view_w - 40) - scale * (x1 - x0)) / 2, 20 + ((800 - 40) - scale * (y1 - y0)) / 2
+    scale = min((view_w - 40) / (x1 - x0), (view_h - 40) / (y1 - y0))
+    ox, oy = 20 + ((view_w - 40) - scale * (x1 - x0)) / 2, 20 + ((view_h - 40) - scale * (y1 - y0)) / 2
     bu, bv = int(round(ox + (0.2 - x0) * scale)), int(round(oy + (y1 - 0.3) * scale))
     assert tuple(img[bv, bu]) == PINK                  # ball drawn at the ball's field position
     tu, tv = int(round(ox + (1.4 - x0) * scale)), int(round(oy + (y1 + 0.9) * scale))
@@ -543,7 +543,7 @@ def test_dashboard_view():
     assert count(gone, PINK) == 0
     assert not st2["robots"]["keeper"]["visible"]
     # Zoom-to-fit, not calibrated, stale and no-data all draw without complaint.
-    assert render(wire, zoom="fit").shape == img.shape
+    assert render(wire, zoom="fit").shape[1] == img.shape[1]
     blank = Perception(cfg, *SIZE).process(arena.render(truth, (0.2, 0.3)), 0.0)
     assert blank["floor_tags"] == {} and count(render(json.loads(json.dumps(blank))), PINK) == 0
     assert render(wire, stale_s=3.0).mean() < img.mean()   # an old picture is dimmed
@@ -563,13 +563,13 @@ def test_combined_window_keeps_the_camera_feed():
     frame = arena.render({"striker": (-0.6, -0.3, 0.9)}, (0.2, 0.3))
     st = json.loads(json.dumps(perc.process(frame, t_capture=0.0, t_now=0.1)))
     canvas, k, (cam_w, cam_h) = render_combined(frame, st, width=1400)
-    assert canvas.shape[1] == 1400 and canvas.shape[0] == cam_h + 250
+    assert canvas.shape[1] == 1400 and canvas.shape[0] >= cam_h + 250   # the readouts grow to fit what they say
     assert abs(k - cam_w / 1920) < 1e-9 and cam_w == int(1400 * 0.62)
     # The left part IS the camera picture (shrunk), not a redraw of it.
     assert np.abs(canvas[:cam_h, :cam_w].astype(int) - cv2.resize(frame, (cam_w, cam_h), interpolation=cv2.INTER_AREA)).max() == 0
     # The right part is the field view, with the ball drawn in it.
     assert int(np.all(canvas[:cam_h, cam_w:] == PINK, axis=-1).sum()) > 20
-    assert render_combined(frame, None, width=1400)[0].shape == canvas.shape     # no state yet: still draws
+    assert render_combined(frame, None, width=1400)[0].shape[1] == canvas.shape[1]     # no state yet: still draws
 
     # Mouse: inside the camera picture -> camera pixel; outside it -> nothing to probe, no pin.
     probe = Probe(k)
