@@ -43,6 +43,8 @@ def environment(template, profile):
     # Never import the previous run's session ID, node addresses or run directory.
     env = {k: os.environ[k] for k in ("HOME", "USER", "LANG", "LC_ALL", "TMPDIR") if k in os.environ}
     env.update({k: template["environment"][k] for k in PLATFORM_KEYS if k in template["environment"]})
+    if os.environ.get("PUPPER_IMU_STARTUP_TRACE"):
+        env["PUPPER_IMU_STARTUP_TRACE"] = "1"  # prepare selects the path inside the new run
     env.update(ROS_DOMAIN_ID="168", ROS_LOCALHOST_ONLY="1",
                PUPPER_FC_IMU_RECOVERY=profile.get("imu_recovery", "strict"),
                PUPPER_FC_RECORDING=profile.get("recording","events"), PUPPER_SESSION_SKILLS="leg_kick",
@@ -85,6 +87,9 @@ def check_manager(run, plan, boot):
     if (receipt["boot_id"] != boot or receipt["session_id"] != plan["session_id"]
             or receipt["status"] != "running" or not (run / "native-readiness.json").is_file()):
         raise ValueError("session is stopped, starting or incomplete; inspect its receipt before recovery")
+    readiness = read(run / "native-readiness.json")
+    if readiness.get("session_id") != plan["session_id"] or readiness.get("homing_finished") is not True:
+        raise ValueError("no confirmed Home for the selected native session")
     manager = receipt["processes"]["manager"]
     proc = PROC / str(manager["pid"])
     start = (proc / "stat").read_text().rsplit(")", 1)[1].split()[19]
@@ -115,6 +120,12 @@ def run_home_probe(command, *, env, timeout):
         finally:
             if interrupted:
                 raise KeyboardInterrupt
+
+
+def start_deferred_perception(run, python, helper, env):
+    if read(run / "owned_session.json").get("perception_deferred") is True:
+        subprocess.run([python, "-B", "-s", helper, "start-perception", "--run-dir", run],
+                       env=env, check=True, stdout=subprocess.DEVNULL, timeout=90)
 
 
 def acquire_run(action, args, profile_path, profile, template, env, boot, python, helper):
@@ -154,6 +165,8 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
     if state["robot_id"] != profile["robot_id"]:
         raise ValueError("active session belongs to another robot")
     plan = check_run(run, profile, env)
+    if action == "prepare" and (run / "owned_session.json").is_file():
+        check_manager(run, plan, boot)
     if action == "home":
         if not (run / "owned_session.json").exists():
             if args.recover_imu:
@@ -161,7 +174,10 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
             if not args.supported:
                 raise ValueError("support the robot on its stand; use home --supported to start the motors")
             write_new(run / "awaiting-standing.json", {"session_id": plan["session_id"]})
-            subprocess.run([python, "-B", "-s", helper, "start-native", "--run-dir", run],
+            command = [python, "-B", "-s", helper, "start-native", "--run-dir", run]
+            if env["PUPPER_FC_RECORDING"] == "events":
+                command.append("--defer-perception")
+            subprocess.run(command,
                            env=env, check=True, stdout=subprocess.DEVNULL, timeout=120)
         check_manager(run, plan, boot)
         probe = [python, "-B", "-s", str(Path(__file__).resolve())]
@@ -180,6 +196,8 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
                 for path in ("fc-runner.lock", "field-source.lock"):
                     owner = stack.enter_context((run / path).open("a"))
                     fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if profile.get("imu_recovery") not in ("supported_standby", "supported_damping"):
+                    start_deferred_perception(run, python, helper, env)
             run_home_probe(probe, env={**env, **plan["environment"]},
                            timeout=160 if args.recover_imu else 80)
             if args.supported and not args.home_only:
@@ -456,7 +474,8 @@ def main(argv=None):
                                       joystick_listed=any(Path("/dev/input").glob("js[0-9]*")))),
                       flush=True)
                 return 0
-            check_manager(run, plan, boot)
+        if args.action == "match":
+            start_deferred_perception(run, python, helper, env)
     if args.action == "field":
         cmd = field_command(args, profile, run, python, args.epoch, continuous=True)
         cmd.append("--stop-on-eof")

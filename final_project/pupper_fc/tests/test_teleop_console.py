@@ -181,6 +181,45 @@ def test_dashboard_rejects_wrong_team_missing_support_and_untrusted_browser():
             assert reply["stage"] == "error" and "confirming" in reply["message"]
 
 
+def test_home_startup_fault_reaches_operator_before_cleanup_and_requires_fresh_request():
+    import threading
+    release = threading.Event()
+    reason = "Home stopped before motor enable (stationary startup window timed out)."
+    processes = []
+
+    async def launch(host, robot, action, home_only):
+        if action == "prepare":
+            return SetupPi(robot, action, home_only)
+        proc = SetupPi(robot, action, home_only)
+        proc.stdout = asyncio.StreamReader()
+        proc.stdout.feed_data((json.dumps({"event":"home_startup_fault", "message":reason}) + "\n").encode())
+        async def cleanup():
+            await asyncio.to_thread(release.wait, 4)
+            # Impossible/stale success data must not open a standing cue or mark a failed run homed.
+            proc.stdout.feed_data(b'{"event":"stand_prompt"}\n')
+            proc.stdout.feed_data((reason + " Owned setup processes exited. Select Prepare.\n").encode())
+            proc.finish()
+        asyncio.create_task(cleanup())
+        processes.append(proc)
+        return proc
+
+    app = create_app({"blue":"pi-blue"}, setup=launch)
+    with TestClient(app, base_url="http://localhost") as client:
+        with client.websocket_connect(BLUE_SETUP, headers=LOCAL) as ws:
+            ws.send_json({"action":"home", "home_only":True, "supported":True})
+            assert ws.receive_json()["stage"] == "running"
+            fault = ws.receive_json()
+            assert fault["stage"] == "home_startup_fault" and fault["message"] == reason
+            release.set()
+            done = ws.receive_json()
+            assert done["stage"] == "error" and "Select Prepare" in done["message"]
+        with client.websocket_connect(BLUE_SETUP, headers=LOCAL) as ws:
+            ws.send_json({"action":"prepare"})
+            assert ws.receive_json()["stage"] == "running"
+            assert ws.receive_json()["stage"] == "complete"
+        assert len(processes) == 1 and processes[0].writes == []
+
+
 @pytest.mark.parametrize("leave", ["early disconnect", "stale cue", "disconnect at cue"])
 def test_dashboard_abandoned_home_finishes_without_enabling_standing(leave):
     launches = []

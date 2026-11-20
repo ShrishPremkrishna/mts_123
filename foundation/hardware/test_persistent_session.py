@@ -47,7 +47,9 @@ class Life:
     def require_starting(self, receipt):
         if receipt['status'] != 'starting': raise ValueError('startup canceled')
     def state(self, target, tag): return self.states.get(target['role'], 'exited')
-    def spawn(self, run, role, expected, command):
+    def spawn(self, run, role, expected, command, *, attach_perception=False):
+        if attach_perception:
+            assert self.receipt['status'] == 'running' and self.receipt['perception_deferred']
         self.spawned.append((role, expected, command))
         self.receipt['processes'][role] = {'pid': 30 + len(self.spawned), 'role': role}
         self.states[role] = 'running'
@@ -427,6 +429,64 @@ class SessionTests(unittest.TestCase):
         session.start_native(self.run, self.plan, self.life)
         detector = next(command for role, _, command in self.life.spawned if role == "detector")
         self.assertEqual(detector[detector.index("--fc-timings") + 1], str(self.run / "detector-timings.jsonl"))
+
+    def deferred_fc_fixture(self):
+        self.plan['environment'].update(PUPPER_SESSION_MOTION_MODE='fc_walk_kick', PUPPER_FC_RECORDING='events')
+        self.plan['components']['detector_model'] = {'path': '/test/selected.hef'}
+        manifest = self.run / 'runtime-manifest.json'
+        session.write(manifest, {'feedback_broadcasters': ['imu_sensor_broadcaster']})
+        self.plan['runtime_manifest'] = {'path': str(manifest)}
+
+    def test_deferred_camera_requires_same_home_and_exclusive_ownership(self):
+        self.deferred_fc_fixture()
+        foreign = self.life.PROC / '29'
+        foreign.mkdir()
+        (foreign / 'cmdline').write_bytes(b'camera_node\0')
+        session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        with self.assertRaisesRegex(ValueError, 'Existing controller/camera owner'):
+            session.start_perception(self.run, self.plan, self.life)
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch'])
+        (foreign / 'cmdline').unlink()
+        foreign.rmdir()
+        session.start_perception(self.run, self.plan, self.life)
+        session.start_perception(self.run, self.plan, self.life)
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch', 'camera', 'detector'])
+        self.life.states['camera'] = 'exited'
+        with self.assertRaisesRegex(ValueError, 'Previously owned camera has exited'):
+            session.start_perception(self.run, self.plan, self.life)
+
+    def test_pre_motor_fault_cleans_even_if_launch_has_exited(self):
+        self.deferred_fc_fixture()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [1795213424.430136802] [ControlBoardHardwareInterface]: '
+            'IMU startup check failed: IMU fault phase=startup reason=stationary startup window timed out '
+            'sampled_mono_us=286480530 quaternion={seq=223 valid=1}\n')
+        (self.run / 'native-readiness.json').unlink()
+        with (patch.object(self.life, 'state', return_value='exited'),
+              patch.object(session.time, 'sleep', side_effect=AssertionError('waited for deadline')),
+              self.assertRaisesRegex(ValueError, 'stationary startup window timed out.*Owned setup processes exited')):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        self.assertTrue(self.life.closed)
+        self.assertFalse((self.run / 'native-readiness.json').exists())
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch'])
+
+    def test_logged_manager_exit_alone_does_not_imply_pre_motor_shutdown(self):
+        self.deferred_fc_fixture()
+        self.life.native_log = '[ERROR] [ros2_control_node-2]: process has died [pid 42, exit code -6]\n'
+        with self.assertRaisesRegex(ValueError, 'startup failed'):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        self.assertFalse(self.life.closed)
+
+    def test_cleaned_up_claim_requires_verified_exit(self):
+        self.deferred_fc_fixture()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [ControlBoardHardwareInterface]: '
+            'IMU startup check failed: IMU fault phase=startup reason=gyro stale sampled_mono_us=123\n')
+        with (patch.object(self.life, 'state', return_value='exited'),
+              patch.object(self.life, 'cleanup', side_effect=ValueError('foreign process identity')),
+              self.assertRaisesRegex(ValueError, r'Process cleanup unconfirmed.*foreign process identity')):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        for prefix in ('Homing actuators...', 'Finished homing!'):
+            self.assertIsNone(session.pre_motor_fault(prefix + '\n' + self.life.native_log))
+        self.assertIsNone(session.pre_motor_fault(self.life.native_log.replace('phase=startup', 'phase=read')))
 
     def test_native_start_preserves_one_camera_recorder_and_current_launch(self):
         result = session.start_native(self.run, self.plan, self.life)

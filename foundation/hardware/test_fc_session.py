@@ -49,13 +49,20 @@ def setup(tmp_path, monkeypatch):
             (folder / "selected-session.json").write_text(json.dumps({"run_dir": str(folder), "app_root": str(root),
                 "session_id":"session", "prepared": True, "environment": env,
                 "components": {"app_manifest": {"sha256": "abc"}}}))
+        elif "start-perception" in args:
+            receipt = cli.read(folder / "owned_session.json")
+            assert receipt["status"] == "running" and receipt["perception_deferred"]
+            receipt["perception_deferred"] = False
+            cli.write_new(folder / "owned_session.json", receipt)
+            calls.append("perception")
         else:
             assert "start-native" in args
             calls.append("home")
             (folder / "owned_session.json").write_text(json.dumps({"session_id":"session", "status":"running",
-                "boot_id":"boot-one", "processes":{"manager":{"pid":123,"start_ticks":"4",
+                "boot_id":"boot-one", "perception_deferred":"--defer-perception" in args,
+                "processes":{"manager":{"pid":123,"start_ticks":"4",
                 "executable":"/opt/ros/ros2_control_node"}}}))
-            (folder / "native-readiness.json").write_text("{}")
+            cli.write_new(folder / "native-readiness.json", {"session_id":"session","homing_finished":True})
             mgr = proc / "123"; mgr.mkdir()
             (mgr / "stat").write_text("123 (name) " + "0 " * 19 + "4")
             (mgr / "exe").symlink_to("/opt/ros/ros2_control_node")
@@ -75,7 +82,7 @@ def test_stages_reuse_home_disarm_and_address_one_robot(setup, monkeypatch):
         setup.call("home")
     setup.call("home", "--supported")
     setup.call("home")
-    assert setup.calls == ["prepare", "home", "--supported-stand", "--read-hardware"]
+    assert setup.calls == ["prepare", "home", "perception", "--supported-stand", "--read-hardware"]
     with pytest.raises(ValueError, match="identity"):
         setup.call("match", "--runner-only", "--robot-id", "pupper-2")
     def replace(python, argv, env):
@@ -100,6 +107,8 @@ def test_never_rehome_on_stale_start_or_connect(setup):
         setup.call("home", "--supported")
     with pytest.raises(ValueError, match="incomplete"):
         setup.call("match", "--runner-only")
+    with pytest.raises(ValueError, match="incomplete"):
+        setup.call("match", "--runner-only", "--connect")
     setup.calls.clear()
     (folder / "owned_session.json").write_text(json.dumps({"status":"stopped"}))
     setup.call("prepare")
@@ -278,7 +287,7 @@ def test_dashboard_uses_same_home_once_and_reports_validated_team(setup, capsys)
     receipts = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     assert all(r["run"] == prepared["run"] and not r["match_armed"] for r in receipts)
     assert [r["home_only"] for r in receipts] == [True, False]
-    assert setup.calls == ["prepare", "home", "--read-hardware", "--dashboard-stand"]
+    assert setup.calls == ["prepare", "home", "--read-hardware", "perception", "--dashboard-stand"]
 
 
 def test_dashboard_standing_prompt_discards_early_enter_on_a_real_terminal(monkeypatch):
@@ -412,7 +421,24 @@ def test_dashboard_connect_prepares_once_with_zero_motor_commands_and_reuses_man
     monkeypatch.setattr(os, "execve", exec_runner)
     with pytest.raises(SystemExit):
         setup.call(*args)
-    assert setup.calls == ["prepare", "home", "--read-hardware", "--supported-stand"]
+    assert setup.calls == ["prepare", "home", "--read-hardware", "perception", "--supported-stand"]
+
+
+def test_missing_same_session_home_receipt_never_connects_or_starts_perception(setup):
+    setup.call("prepare")
+    setup.call("home", "--supported", "--home-only")
+    state = cli.read(setup.profile.with_suffix(".current.json"))
+    cli.write_new(Path(state["run_dir"]) / "native-readiness.json", {"session_id":"another", "homing_finished":True})
+    with pytest.raises(ValueError, match="no confirmed Home"):
+        setup.call("match", "--runner-only", "--connect")
+    assert setup.calls == ["prepare", "home", "--read-hardware"]
+
+
+def test_explicit_startup_trace_uses_the_new_run_location(setup, monkeypatch):
+    monkeypatch.setenv("PUPPER_IMU_STARTUP_TRACE", "/home/pi/old-run/trace.csv")
+    setup.call("prepare")
+    current = cli.read(setup.profile.with_suffix(".current.json"))
+    assert cli.read(Path(current["run_dir"]) / "selected-session.json")["environment"]["PUPPER_IMU_STARTUP_TRACE"] == "1"
 
 
 def test_pitch_is_scoped_to_field_feed_and_does_not_change_enrollment(setup, tmp_path):

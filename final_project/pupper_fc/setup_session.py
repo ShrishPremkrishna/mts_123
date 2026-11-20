@@ -41,6 +41,7 @@ async def run_setup(ws, host, robot, launch):
     async def monitor():
         nonlocal cue
         receipt, diagnostic = None, ""
+        startup_fault = False
         while line := await proc.stdout.readline():
             text = line.decode(errors="replace").strip()
             try:
@@ -51,6 +52,14 @@ async def run_setup(ws, host, robot, launch):
                     diagnostic = text[-350:]
                 continue
             if not isinstance(event, dict):
+                continue
+            if action == "home" and event.get("event") == "home_startup_fault" and isinstance(event.get("message"), str):
+                cue = None
+                startup_fault = True
+                diagnostic = event["message"][:350]
+                events.put_nowait(dict(stage="home_startup_fault", message=diagnostic))
+                continue
+            if startup_fault:
                 continue
             if event.get("event") == "stand_prompt" and action == "home" and not home_only:
                 if abandoned:
@@ -64,6 +73,9 @@ async def run_setup(ws, host, robot, launch):
                     and isinstance(event.get("run"), str) and event["run"]):
                 receipt = event
         code = await proc.wait()
+        if startup_fault:
+            events.put_nowait(dict(stage="error", message=diagnostic))
+            return
         if code or receipt is None:
             raise ValueError(diagnostic or "The Pi closed setup without confirming this team's action")
         message = ("Session prepared." if action == "prepare" else
@@ -72,7 +84,7 @@ async def run_setup(ws, host, robot, launch):
         if action == "home" and not home_only and mode == "supported_damping":
             message = "Bench damping enabled. Keep Pupper supported."
         events.put_nowait(dict(stage="complete", run=receipt["run"], message=message,
-                               imu_recovery=mode, match_capable=mode in ("strict", "supported_rehome")))
+                               imu_recovery=mode, match_capable=mode in ("strict", "supported_rehome", "field_redundant_imu")))
 
     async def send_events():
         await ws.send_json(dict(event="setup", stage="running", robot_id=robot, action=action,
@@ -80,7 +92,7 @@ async def run_setup(ws, host, robot, launch):
         while True:
             event = await events.get()
             await ws.send_json(dict(event, event="setup", action=action, robot_id=robot, home_only=home_only))
-            if event["stage"] == "complete":
+            if event["stage"] in ("complete", "error"):
                 return
 
     async def read_operator():

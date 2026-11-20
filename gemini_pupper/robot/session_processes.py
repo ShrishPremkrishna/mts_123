@@ -152,9 +152,14 @@ def capture_spawn(pid, session, role, expected):
     return target
 
 
-def spawn(directory, role, expected, command):
+def spawn(directory, role, expected, command, *, attach_perception=False):
     receipt = load(directory)
-    require_starting(receipt)
+    if attach_perception:
+        if (role not in ('camera', 'detector') or receipt['status'] != 'running'
+                or receipt.get('perception_deferred') is not True or receipt['ros'] != 'created'):
+            raise ValueError('No deferred camera attachment belongs to this running session')
+    else:
+        require_starting(receipt)
     if role in receipt['processes'] or role in receipt['pending']:
         raise ValueError('role was already spawned; automatic restart is forbidden')
     if role == 'launch': (directory / 'controllers_ready').unlink(missing_ok=True)

@@ -16,9 +16,11 @@ ssh mts python3 /home/pi/pupper-fc/bin/fc_session.py prepare
 ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py home --supported
 ```
 
-**Prepare** pins the installed FC release and existing native platform and reuses the current run on this boot. It opens no motor, ROS or camera processes. **Home** starts one supported hardware session, the onboard camera, the headless detector and the recorder. The terminal standing cue is Enter after homing, or Options on the gamepad. The gateway requires a connected gamepad for software Start. Keep Pupper supported through that cue. A repeated home checks the original manager and live hardware state. The standing cue is skipped while the walker is already active.
+**Prepare** pins the installed FC release and existing native platform and reuses the current run on this boot. It opens no motor, ROS or camera processes. **Home** starts one supported hardware session and the recorder. With event recording, the first request to stand for a match or open play starts the onboard camera and detector after Home succeeds. Full recording starts them before Home to capture the whole session. The terminal standing cue is Enter after homing, or Options on the gamepad. The gateway requires a connected gamepad for software Start. Keep Pupper supported through that cue. A repeated home checks the original manager and live hardware state. The standing cue is skipped while the walker is already active.
 
 For controller-free homing, choose **Finish homed · no gamepad** before clicking Home, or run `home --supported --home-only`. It initializes the supported hardware once and queries the board state. The command requests no walker activation. Later `home --supported` reuses that home and accepts Enter to stand while the connected gamepad provides the independent Stop path. Preparing and homing do not wait for joystick messages.
+
+If the board refuses its IMU check before motor enable, the setup screen shows the native reason while the Pi closes the processes from that attempt. Once setup confirms their exit, select **Prepare** for a fresh run, keep Pupper supported and still, and explicitly select **Home** again. If setup reports unconfirmed cleanup, inspect the retained run and complete the existing owned shutdown procedure first.
 
 Closing setup revokes its pending software standing cue. If mechanical homing has started, keep the robot on its stand while the Pi finishes its readiness checks. The physical gamepad Stop remains available during setup.
 

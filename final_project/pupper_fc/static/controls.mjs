@@ -165,7 +165,7 @@ function renderSetup() {
   $('setup-supported').disabled = locked;
   $('setup-home-mode').disabled = locked;
   $('setup-home').hidden = Boolean(setup.cue);
-  $('setup-home').disabled = locked || !$('setup-supported').checked;
+  $('setup-home').disabled = locked || setup.needsPrepare || !$('setup-supported').checked;
   $('setup-stand').hidden = !setup.cue;
   $('setup-stand').disabled = !setup.cue;
   $('setup-stand').textContent = t.matchCapable === false ? 'Enable bench test' : 'Enable standing';
@@ -194,11 +194,12 @@ async function beginSetup(t, action) {
   if (!t || t.online || t.connecting || t.setup.busy || state.phase !== 'idle') return;
   const request = {action};
   if (action === 'home') {
-    if (!$('setup-supported').checked) return;
+    if (!$('setup-supported').checked || t.setup.needsPrepare) return;
     request.supported = true;
     request.home_only = $('setup-home-mode').value === 'home-only';
   }
-  const setup = {action, homeOnly:request.home_only, busy:true, message:'Connecting to the Pi…', discovered:t.setup.discovered};
+  const setup = {action, homeOnly:request.home_only, busy:true, message:'Connecting to the Pi…',
+    discovered:t.setup.discovered, needsPrepare:t.setup.needsPrepare};
   t.setup = setup;
   t.feedback.textContent = '';
   let completed = false;
@@ -228,8 +229,16 @@ async function beginSetup(t, action) {
       if (event.stage === 'stand_prompt' && action === 'home' && !request.home_only) {
         setup.cue = event.cue;
         t.connection.textContent = 'Ready to stand';
+      } else if (event.stage === 'home_startup_fault') {
+        setup.cue = null;
+        setup.needsPrepare = true;
+        t.connection.textContent = 'Home stopped';
       } else if (event.stage === 'complete') {
         completed = event.action === action;
+        if (action === 'prepare' && completed) {
+          setup.prepared = true;
+          setup.needsPrepare = false;
+        }
         if (typeof event.match_capable === 'boolean') t.matchCapable = event.match_capable;
         setup.cue = null;
         setup.connectAfterHome = completed && t.matchCapable !== false && action === 'home' && !request.home_only && event.home_only === false;
