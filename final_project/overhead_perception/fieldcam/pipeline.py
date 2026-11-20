@@ -7,10 +7,12 @@ import cv2
 import numpy as np
 
 from . import planner
+from .ballistics import RollModel, RollTracker, predict_roll
 from .camera_model import CameraModel, default_intrinsics, load_intrinsics, solve_camera_pose
 from .config import resolve, set_field_size
 from .detect import BallDetector, TagDetector
 from .filters import CVFilter2D, YawFilter, wrap
+from .intercept import RobotModel, plan_robot
 from .relative import relative_geometry
 from .tagmeasure import survey_tags, tag_corners
 
@@ -60,6 +62,9 @@ class Perception:
             name: (CVFilter2D(tr["robot_accel_sigma"], tr["meas_sigma"]), YawFilter())
             for name in cfg["robots"]
         }
+        # Where the ball is going (ballistics.py) and where each robot should meet it (intercept.py).
+        self.roll_model, self.robot_model = RollModel.from_config(cfg), RobotModel.from_config(cfg)
+        self.roll = RollTracker(self.roll_model)
         self.seq = 0
         self.debug: dict = {}  # raw detections from the last frame, for drawing
 
@@ -216,6 +221,7 @@ class Perception:
             name: (CVFilter2D(tr["robot_accel_sigma"], tr["meas_sigma"]), YawFilter())
             for name in self.cfg["robots"]
         }
+        self.roll.reset()
         self._set_field_roi()
 
         r = self.cfg["ball"]["radius"]
@@ -294,6 +300,9 @@ class Perception:
             "robots": {n: {"visible": False, "measured_this_frame": False, "measured_at": None}
                        for n in cfg["robots"]},
             "goals": cfg["goals"], "shots": {}, "relative": {},
+            # Where the ball is going, and where each robot should go because of it. None / empty
+            # unless calibration is valid and the ball is being measured.
+            "prediction": None, "intercepts": {},
             # Enough for a viewer to draw the scene without the config file.
             "field": {"length": cfg["field"]["length"], "width": cfg["field"]["width"],
                       "ball_radius": cfg["ball"]["radius"]},
@@ -369,6 +378,7 @@ class Perception:
             self.debug["ball_px"] = det
             xy = cam.pixel_to_plane([det[:2]], cfg["ball"]["radius"])[0]
             measured = self.ball_f.update(xy, t_capture)
+            self.roll.update(xy, t_capture)
         if self.ball_f.initialised:
             x = self.ball_f.predict_to(t_now)
             state["ball"] = {
@@ -400,6 +410,22 @@ class Perception:
             if self.calibration_valid and robot["visible"]:
                 state["relative"][name] = relative_geometry(
                     robot, ball if ball["visible"] else None, cfg["goals"][rc["attacks"]])
+
+        # Where the ball is going (a roll model on a velocity fitted over the last few frames),
+        # then, per robot, where to line up for a strike and whether its own goal needs a block.
+        est = self.roll.estimate(t_now) if (self.calibration_valid and ball["visible"]) else None
+        if est is not None:
+            f = cfg["field"]
+            traj = predict_roll((est["x"], est["y"]), (est["vx"], est["vy"]), f["length"], f["width"],
+                                f["goal_width"], self.roll_model, cfg["ball"]["radius"])
+            state["prediction"] = traj.as_dict((est["x"], est["y"]), (est["vx"], est["vy"]),
+                                               est["speed_sigma"], est["samples"])
+            for name, rc in cfg["robots"].items():
+                robot = state["robots"][name]
+                if robot["visible"]:
+                    own = next(g for side, g in cfg["goals"].items() if side != rc["attacks"])
+                    state["intercepts"][name] = plan_robot(robot, traj, cfg["goals"][rc["attacks"]], own,
+                                                           f["length"], f["width"], self.robot_model)
         return state
 
     # ---- debug drawing ---------------------------------------------------
@@ -434,8 +460,15 @@ class Perception:
             bx, by = P(ball["x"], ball["y"], r)
             cv2.putText(out, f"ball ({ball['x'] * 100:+.0f}, {ball['y'] * 100:+.0f}) cm", (bx + 20, by - 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-            cv2.arrowedLine(out, P(ball["x"], ball["y"], r),
-                            P(ball["x"] + ball["vx"] * 0.5, ball["y"] + ball["vy"] * 0.5, r), (0, 255, 0), 2)
+            pred = state.get("prediction") or {}
+            if pred.get("moving") and len(pred.get("path") or []) > 1:
+                # Where it is going: the predicted roll, and a ring where it ends.
+                path = np.int32([P(x, y, r) for _, x, y in pred["path"]])
+                cv2.polylines(out, [path], False, (190, 105, 255), 3, cv2.LINE_AA)
+                cv2.circle(out, P(*pred["end"], r), int(self.ball_radius_px or 8) + 4, (190, 105, 255), 2)
+            elif "moving" not in pred:
+                cv2.arrowedLine(out, P(ball["x"], ball["y"], r),
+                                P(ball["x"] + ball["vx"] * 0.5, ball["y"] + ball["vy"] * 0.5, r), (0, 255, 0), 2)
         for name, rb in state["robots"].items():
             if not rb.get("visible"):
                 continue

@@ -137,6 +137,31 @@ approach_plan:
   run_speed: 0.45       # m/s
   follow_through: 0.25  # m, keep running this far past the contact point
 
+# Where the ball is going (fieldcam/ballistics.py). All optional; these are the defaults.
+prediction:
+  # How fast a rolling ball slows down, m/s^2. From speed v it rolls v*v / (2 * roll_decel) metres.
+  # 0.35 is a GUESS. Measure it on the real floor with the real ball: scripts/fit_ball_roll.py
+  roll_decel: 0.35
+  min_speed: 0.10       # m/s, slower than this the ball is treated as standing still
+  walls: false          # true if the field has boards the ball bounces off; false = it rolls out
+  restitution: 0.4      # with walls: fraction of the speed into a board that comes back out
+  horizon_s: 8.0        # never predict further ahead than this
+  window_s: 0.6         # the ball's velocity is fitted over measurements this recent
+
+# How fast the robot is assumed to get somewhere (fieldcam/intercept.py), used to choose
+# where to meet the ball. All optional; these are the defaults. The three speeds are the
+# limits of the combined walk-and-kick release (0.22 / 0.18 m/s, 0.65 rad/s), not measured travel.
+intercept:
+  walk_speed: 0.22        # m/s forward
+  strafe_speed: 0.18      # m/s sideways
+  turn_rate: 0.65         # rad/s
+  can_reverse: false
+  react_s: 0.3            # s before the robot is actually moving
+  standoff: 0.60          # m, line up this far behind the ball on the line to the goal
+  max_contact_speed: 0.10 # m/s, only strike a ball moving slower than this
+  setup_s: 0.0            # s the robot must be in place before contact (a kick's wind-up)
+  block_margin_s: 0.3     # s to spare required before a block counts as reachable
+
 net:
   host: 127.0.0.1           # set to the Pupper's IP (or a broadcast address) on the arena network
   port: 5005

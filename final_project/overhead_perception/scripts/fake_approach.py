@@ -9,11 +9,18 @@ ball without stopping) and a velocity command. The dashboard plays it out.
 
   python scripts/fake_approach.py                  # watch it
   python scripts/fake_approach.py --headless --seconds 30   # just the numbers
+  python scripts/fake_approach.py --rolling        # every new scene starts with the ball rolling
+  python scripts/fake_approach.py --compare 40     # 40 rolling-ball scenes: predicting vs chasing
+
+A rolling ball: the ball's path is predicted from its last few positions (pink dashed
+line, a dot each second, a ring where it ends) and the robot lines up for where the ball
+WILL be. --chase turns that off: the robot then aims at where the ball is right now.
 
 In the window:
   left click   put the ball there          right click  put the robot there
   space        pause / resume              r            new random ball and robot
-  g            attack the other goal       z            zoom       q  quit
+  k            roll the ball (random)      g            attack the other goal
+  z            zoom                        q            quit
 
 The same state goes out over UDP, so scripts/dashboard.py and scripts/listen.py
 see it exactly as they would see the real camera pipeline.
@@ -31,9 +38,12 @@ import cv2
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fieldcam.approach import ApproachController, Params  # noqa: E402
+from fieldcam.ballistics import RollModel, RollTracker, predict_roll  # noqa: E402
 from fieldcam.config import load_config  # noqa: E402
 from fieldcam.fakeworld import FakeWorld  # noqa: E402
+from fieldcam.intercept import RobotModel, plan_robot  # noqa: E402
 from fieldcam.net import StatePublisher  # noqa: E402
+from fieldcam.relative import body_point  # noqa: E402
 from fieldcam.topdown import PANEL_W, render, view_mapping  # noqa: E402
 
 WINDOW = "pupper fc fake approach"
@@ -51,6 +61,101 @@ def describe(rel: dict, out: dict) -> str:
             f"cmd vx {c['vx']:+.2f} vy {c['vy']:+.2f} wz {c['wz']:+.2f} | {out['note']}")
 
 
+class Brain:
+    """Everything between "what perception reports" and "the velocity command".
+
+    It sees only ball and robot POSITIONS (as the camera would give them), works out where
+    the ball is going, and hands the approach logic the ball it should line up for: the
+    predicted one while the ball rolls (predict=True), otherwise the ball as it is now.
+    """
+
+    def __init__(self, world: FakeWorld, params: Params, predict: bool = True):
+        self.world, self.params, self.predict = world, params, predict
+        self.ctrl = ApproachController(params)
+        # The fake ball's own rules, so the prediction is tested on the same physics it rolls with.
+        self.roll_model = RollModel(decel=world.ball_friction, walls=True, restitution=0.4,
+                                    meas_sigma=max(world.noise, 0.005))
+        self.tracker = RollTracker(self.roll_model)
+        self.robot_model = RobotModel(walk_speed=params.walk_speed, strafe_speed=params.strafe_speed,
+                                      turn_rate=params.turn_rate, clearance=params.ball_clearance,
+                                      standoff=params.run_up, aim_depth=params.aim_depth)
+
+    def reset(self):
+        self.ctrl.reset()
+        self.tracker.reset()
+
+    def step(self, seen: dict, now: float) -> dict:
+        """seen: a perception-shaped state. Adds `prediction` and `intercepts` to it and returns the approach output."""
+        w, rel, robot = self.world, seen["relative"][NAME], seen["robots"][NAME]
+        ball = (rel["ball"]["x"], rel["ball"]["y"]) if "ball" in rel else None
+        goal = (rel["goal"]["x"], rel["goal"]["y"], rel["goal"]["facing"])
+        if seen["ball"].get("visible"):
+            self.tracker.update((seen["ball"]["x"], seen["ball"]["y"]), seen["stamp"])
+            est = self.tracker.estimate(seen["stamp"])
+            if est is not None:
+                traj = predict_roll((est["x"], est["y"]), (est["vx"], est["vy"]), w.length, w.width, w.goal_width,
+                                    self.roll_model, w.ball_radius)
+                seen["prediction"] = traj.as_dict((est["x"], est["y"]), (est["vx"], est["vy"]),
+                                                  est["speed_sigma"], est["samples"])
+                goals = seen["goals"]
+                own = next(g for side, g in goals.items() if side != w.attacks)
+                plans = plan_robot(robot, traj, goals[w.attacks], own, w.length, w.width, self.robot_model)
+                seen["intercepts"] = {NAME: plans}
+                strike = plans["strike"]
+                if self.predict and traj.moving and strike["feasible"] and self.ctrl.phase != "RUN":
+                    target = body_point(robot, strike["ball"])     # line up for where the ball will be
+                    ball = (target["x"], target["y"])
+        else:
+            self.tracker.reset()
+        return self.ctrl.tick(ball, goal, now)
+
+
+def compare(cfg: dict, params: Params, n: int, args) -> None:
+    """n rolling-ball scenes, each run twice from the same start: predicting, and chasing the ball as it is now."""
+    f = cfg["field"]
+    dt, limit = 1 / 30, 60.0
+    rows = {"predict": [], "chase": []}
+    for seed in range(n):
+        for mode in rows:
+            world = FakeWorld(f["length"], f["width"], f["goal_width"], cfg["ball"]["radius"], seed=args.seed + seed,
+                              noise=args.noise, sloppy=args.sloppy)
+            world.random_scene()
+            world.roll_ball()
+            brain = Brain(world, params, predict=mode == "predict")
+            late, walked, last, hit_t, goal_t, hit_walk = deque(), 0.0, world.robot[:2].copy(), None, None, None
+            while world.t < limit and goal_t is None:
+                state = world.state(NAME)
+                late.append(state)
+                seen = late[0] if len(late) <= round(args.delay / dt) else late.popleft()
+                out = brain.step(seen, world.t)
+                world.step(out["cmd"], dt)
+                walked += float(math.hypot(*(world.robot[:2] - last)))
+                last = world.robot[:2].copy()
+                if hit_t is None and world.kicks:
+                    hit_t, hit_walk = world.t, walked
+                if world.event.startswith("GOAL"):
+                    goal_t = world.t if world.goals_scored else None
+                    if goal_t is None:
+                        break                              # own goal or the roll itself went in: not a result
+            rows[mode].append((hit_t, goal_t, hit_walk))
+    print(f"\n{n} rolling-ball scenes ({'sloppy' if args.sloppy else 'perfect'} robot, {args.noise * 100:.0f} cm position noise, "
+          f"{args.delay * 1000:.0f} ms delay), ball starts at 0.6-1.5 m/s in a random direction, {limit:.0f} s limit")
+    print(f"{'':10s} {'first hit':>22s} {'goal':>22s} {'walked to first hit':>22s}")
+    for mode, r in rows.items():
+        hits = [h for h, _, _ in r if h is not None]
+        goals = [g for _, g, _ in r if g is not None]
+        med = lambda v: f"{sorted(v)[len(v) // 2]:.1f} s" if v else "-"  # noqa: E731
+        walks = [w for _, _, w in r if w is not None]
+        print(f"{mode:10s} {len(hits):3d}/{n} median {med(hits):>8s} {len(goals):3d}/{n} median {med(goals):>8s} "
+              f"{'median ' + med(walks)[:-1] + 'm':>22s}")
+    both = [(a[0], b[0]) for a, b in zip(rows["predict"], rows["chase"]) if a[0] is not None and b[0] is not None]
+    if both:
+        saved = sorted(b - a for a, b in both)
+        print(f"same scene, both hit ({len(both)}): predicting reaches the ball {saved[len(saved) // 2]:+.1f} s sooner (median), "
+              f"{sum(saved) / len(saved):+.1f} s (mean), best {saved[-1]:+.1f} s, worst {saved[0]:+.1f} s; "
+              f"sooner in {sum(d > 0.2 for d in saved)}, later in {sum(d < -0.2 for d in saved)}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--headless", action="store_true", help="no window: print and exit after --seconds")
@@ -64,6 +169,11 @@ def main():
     ap.add_argument("--delay", type=float, default=0.0, help="the planner sees positions this many seconds late")
     ap.add_argument("--speed", type=float, default=1.0, help="playback speed (2 = twice as fast)")
     ap.add_argument("--snapshot", default=None, help="write the last picture to this image file")
+    ap.add_argument("--rolling", action="store_true", help="every new scene starts with the ball rolling")
+    ap.add_argument("--chase", action="store_true",
+                    help="do not predict: line up for where the ball is now, not where it will be")
+    ap.add_argument("--compare", type=int, default=0, metavar="N",
+                    help="no window: run N rolling-ball scenes predicting and chasing, and print how they did")
     args = ap.parse_args()
 
     cfg = load_config()
@@ -75,11 +185,17 @@ def main():
         setattr(params, key, math.radians(value) if key in ("yaw_tol", "turn_first") else float(value))
     if args.run_up:
         params.run_up = args.run_up
+    if args.compare:
+        compare(cfg, params, args.compare, args)
+        return
     world = FakeWorld(f["length"], f["width"], f["goal_width"], cfg["ball"]["radius"], seed=args.seed, noise=args.noise,
                       sloppy=args.sloppy)
-    if args.random:
+    if args.random or args.rolling:
         world.random_scene()
-    ctrl = ApproachController(params)
+    if args.rolling:
+        world.roll_ball()
+    brain = Brain(world, params, predict=not args.chase)
+    ctrl = brain.ctrl
     pub = StatePublisher(cfg["net"]["host"], cfg["net"]["port"])
     print(f"fake field {f['length']:.2f} x {f['width']:.2f} m, ball radius {cfg['ball']['radius'] * 100:.0f} cm, "
           f"line-up {params.run_up:.2f} m behind the ball, run speed {params.run_speed:.2f} m/s, "
@@ -100,10 +216,9 @@ def main():
         late.append(state)
         seen = late[0] if len(late) <= round(args.delay / dt) else late.popleft()
         rel = seen["relative"][NAME]
-        ball = (rel["ball"]["x"], rel["ball"]["y"]) if "ball" in rel else None
-        goal = (rel["goal"]["x"], rel["goal"]["y"], rel["goal"]["facing"])
-        out = ctrl.tick(ball, goal, world.t)               # <- the only inputs: two robot-relative points
+        out = brain.step(seen, world.t)                    # <- positions in, a velocity command out
         state["approach"] = {NAME: out}
+        state["prediction"], state["intercepts"] = seen.get("prediction"), seen.get("intercepts", {})
         pub.send(state)
 
         steps = (out["plan"] or {}).get("steps")
@@ -140,10 +255,14 @@ def main():
                 zoom = "fit" if zoom == "field" else "field"
             if key == ord("r"):
                 world.random_scene()
-                ctrl.reset()
+                if args.rolling:
+                    world.roll_ball()
+                brain.reset()
+            if key == ord("k"):
+                world.roll_ball()
             if key == ord("g"):
                 world.attacks = "west" if world.attacks == "east" else "east"
-                ctrl.reset()
+                brain.reset()
             while click:
                 event, x, y = click.pop(0)
                 to_world = view_mapping(state, (size[0] - PANEL_W, size[1]), zoom)[1]
@@ -152,7 +271,7 @@ def main():
                     world.place_ball(wx, wy)
                 else:
                     world.place_robot(wx, wy)
-                ctrl.reset()
+                brain.reset()
         if args.seconds and world.t >= args.seconds:
             break
 

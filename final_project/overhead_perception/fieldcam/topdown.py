@@ -152,6 +152,44 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
         cv2.arrowedLine(img, lu, end, col, 3 if running else 2, cv2.LINE_AA, tipLength=0.12)
         _text(img, "line-up", (lu[0] + 10, lu[1] + 18), (255, 255, 255), 0.45)
 
+    # ---- where the ball is going: dashed path, a tick each second, a ring where it ends ----
+    pred = state.get("prediction") or {}
+    if pred.get("moving") and pred.get("path"):
+        pts = [P(x, y) for _, x, y in pred["path"]]
+        for a, b in zip(pts, pts[1:]):
+            _dashed(img, a, b, PINK, 2, 7)
+        for (t0, _, _), (t1, x, y) in zip(pred["path"], pred["path"][1:]):
+            if int(t1) > int(t0):                          # crossed a whole second
+                cv2.circle(img, P(x, y), 3, (255, 255, 255), -1, cv2.LINE_AA)
+        end = P(*pred["end"])
+        cv2.circle(img, end, max(S(ball_r), 5), PINK, 2, cv2.LINE_AA)
+        _text(img, _ending(pred), (end[0] + max(S(ball_r), 5) + 5, end[1] - 6), PINK, 0.5, 1)
+
+    # ---- where each robot should go because of that (skipped when an approach plan is drawn for it) ----
+    for name, plans in (state.get("intercepts") or {}).items():
+        r = (state.get("robots") or {}).get(name, {})
+        if not r.get("visible"):
+            continue
+        col = COLOURS.get(name, (200, 200, 200))
+        strike = plans.get("strike") or {}
+        if strike.get("feasible") and name not in (state.get("approach") or {}):
+            pts = [P(*q) for q in strike["path"]]
+            for a, b in zip(pts, pts[1:]):
+                _dashed(img, a, b, col, 1, 8)
+            x, y, yaw = strike["pose"]
+            cv2.circle(img, P(x, y), max(S(0.05), 6), col, 2, cv2.LINE_AA)
+            cv2.arrowedLine(img, P(x, y), P(x + 0.3 * math.cos(yaw), y + 0.3 * math.sin(yaw)), col, 2, cv2.LINE_AA, tipLength=0.3)
+            _text(img, f"line up, {strike['travel_s']:.1f} s", (P(x, y)[0] + 10, P(x, y)[1] + 18), col, 0.45)
+        block = plans.get("block")
+        if block and block.get("point"):
+            red = (0, 0, 255)
+            pts = [P(*q) for q in block["path"]]
+            for a, b in zip(pts, pts[1:]):
+                _dashed(img, a, b, red, 2, 8)
+            c = P(*block["point"])
+            cv2.drawMarker(img, c, red, cv2.MARKER_TILTED_CROSS, 18, 3, cv2.LINE_AA)
+            _text(img, "block: " + _spare(block), (c[0] + 12, c[1] + 22), red, 0.5, 2)
+
     # ---- robots ----
     for name, r in (state.get("robots") or {}).items():
         if not r.get("visible"):
@@ -175,7 +213,7 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
         cv2.circle(img, p, max(S(ball_r), 5), PINK, -1, cv2.LINE_AA)
         cv2.circle(img, p, max(S(ball_r), 5), (255, 255, 255), 1, cv2.LINE_AA)
         speed = math.hypot(ball.get("vx", 0.0), ball.get("vy", 0.0))
-        if speed > 0.05:  # where it will be in one second
+        if speed > 0.05 and "moving" not in pred:  # no prediction published: where it would be in one second
             cv2.arrowedLine(img, p, P(ball["x"] + ball["vx"], ball["y"] + ball["vy"]), (255, 255, 255), 2,
                             cv2.LINE_AA, tipLength=0.2)
         _text(img, "ball", (p[0] + max(S(ball_r), 5) + 5, p[1] + 5), PINK, 0.6, 2)
@@ -187,6 +225,21 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
         img[:, :view_w] = (img[:, :view_w] * 0.45).astype(np.uint8)
         _text(img, f"STALE: no update for {stale_s:.1f} s", (16, h - 24), (0, 0, 255), 0.9, 2)
     return img
+
+
+def _ending(pred: dict) -> str:
+    """How the predicted roll ends, in a few words."""
+    t = pred.get("end_in_s", 0.0)
+    return {"stops": f"stops in {t:.1f} s", "out": f"out in {t:.1f} s", "horizon": "still rolling",
+            "goal_east": f"EAST GOAL in {t:.1f} s", "goal_west": f"WEST GOAL in {t:.1f} s"}.get(pred.get("ends"), "")
+
+
+def _spare(block: dict) -> str:
+    """How much time a block leaves, in a few words."""
+    spare = block["spare_s"]
+    if spare < 0:
+        return f"{-spare:.1f} s too late"
+    return f"{spare:.1f} s to spare" if block["feasible"] else f"tight, {spare:.1f} s to spare"
 
 
 def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
@@ -229,7 +282,15 @@ def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
     ball_rows = [head("BALL")]
     if ball.get("visible"):
         ball_rows.append((f"({ball['x'] * 100:+.0f}, {ball['y'] * 100:+.0f}) cm", PINK, 0.6, 2, 24))
-        ball_rows.append((f"speed {math.hypot(ball['vx'], ball['vy']):.2f} m/s", white, 0.52, 1, 24))
+        pred = state.get("prediction")
+        if pred is None:
+            ball_rows.append((f"speed {math.hypot(ball['vx'], ball['vy']):.2f} m/s", white, 0.52, 1, 24))
+        elif not pred["moving"]:
+            ball_rows.append(("standing still", white, 0.52, 1, 24))
+        else:
+            ball_rows.append((f"rolling {pred['speed']:.2f} m/s: {_ending(pred)}", white, 0.52, 1, 22))
+            ball_rows.append((f"  at ({pred['end'][0] * 100:+.0f}, {pred['end'][1] * 100:+.0f}) cm"
+                              + (f", {pred['bounces']} bounce(s)" if pred.get("bounces") else ""), white, 0.52, 1, 24))
         ball_rows.append((f"age {ball['age_s'] * 1000:.0f} ms", grey, 0.45, 1, 30))
     else:
         ball_rows.append(("not seen", dim, 0.52, 1, 30))
@@ -258,6 +319,16 @@ def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
         if "ready" in shot:
             rows.append(("READY TO KICK", (0, 220, 0), 0.52, 2, 24) if shot["ready"]
                         else ("not in kick position", (170, 170, 170), 0.52, 1, 24))
+        plans = (state.get("intercepts") or {}).get(name) or {}
+        strike, block = plans.get("strike"), plans.get("block")
+        if strike and strike.get("feasible"):
+            rows.append((f"line up in {strike['travel_s']:.1f} s, contact in {strike['contact_in_s']:.1f} s", white, 0.5, 1, 22))
+        elif strike:
+            rows.append((f"no strike: {strike['note']}"[:46], (170, 170, 170), 0.47, 1, 22))
+        if block:
+            rows.append((f"OWN GOAL in {block['enters_in_s']:.1f} s: " + (
+                "no block point" if block["spare_s"] is None else _spare(block)),
+                (0, 0, 255), 0.5, 2, 22))
         ap = (state.get("approach") or {}).get(name)
         if ap:
             phase_col = {"APPROACH": (0, 200, 255), "ALIGN": (0, 255, 255), "RUN": (0, 220, 0), "BRAKE": (170, 170, 170)}

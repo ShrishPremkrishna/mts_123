@@ -7,8 +7,8 @@ the approach planner needs.
 
 This is a cartoon for trying the approach LOGIC, not physics: the robot is a
 point that follows its velocity command under simple acceleration limits, the
-ball is a disc that rolls with constant friction and is knocked along by the
-robot's front bumper. It says nothing about what a real Pupper or ball will do.
+ball is a disc that slows at a constant rate, bounces off the field edge and is
+knocked along by the robot's front bumper (roll_ball sends it rolling). It says nothing about what a real Pupper or ball will do.
 
 The fake robot cannot walk backwards (like the real one). With sloppy=True it
 also follows commands badly, in ways the team has seen or assumed: it reaches
@@ -65,6 +65,12 @@ class FakeWorld:
         if yaw is not None:
             self.robot[2] = yaw
         self.robot_vel[:] = 0.0
+
+    def roll_ball(self, speed: float | None = None, direction: float | None = None):
+        """Send the ball rolling: speed in m/s and direction in radians (field frame); random if not given."""
+        speed = self.rng.uniform(0.6, 1.5) if speed is None else speed
+        direction = self.rng.uniform(-math.pi, math.pi) if direction is None else direction
+        self.ball_vel[:] = (speed * math.cos(direction), speed * math.sin(direction))
 
     def random_scene(self):
         hl, hw = self.length / 2, self.width / 2
@@ -141,14 +147,16 @@ class FakeWorld:
         vx, vy, wz = self.robot_vel
         robot = {"visible": True, "x": float(self.robot[0] + jitter()), "y": float(self.robot[1] + jitter()),
                  "yaw": float(self.robot[2] + jitter()), "vx": float(c * vx - s * vy), "vy": float(s * vx + c * vy),
-                 "wz": float(wz), "age_s": 0.0}
+                 "wz": float(wz), "age_s": 0.0, "measured_this_frame": True, "measured_at": self.t}
         ball_seen = self.last_goal_t is None  # the ball is "out of play" while it sits in the goal
         ball = ({"visible": True, "x": float(self.ball[0] + jitter()), "y": float(self.ball[1] + jitter()),
-                 "vx": float(self.ball_vel[0]), "vy": float(self.ball_vel[1]), "age_s": 0.0}
-                if ball_seen else {"visible": False})
+                 "vx": float(self.ball_vel[0]), "vy": float(self.ball_vel[1]), "age_s": 0.0,
+                 "measured_this_frame": True, "measured_at": self.t}
+                if ball_seen else {"visible": False, "measured_this_frame": False, "measured_at": None})
         goals = self.goals
         return {
-            "seq": self.seq, "stamp": self.t, "frame_age_s": 0.0, "calibrated": True, "calib_mode": "fake",
+            "seq": self.seq, "stamp": self.t, "captured_at": self.t, "frame_age_s": 0.0,
+            "calibrated": True, "calibration_valid": True, "calib_mode": "fake",
             "calib_err_px": 0.0, "ball": ball, "robots": {name: robot}, "goals": goals, "shots": {},
             "field": {"length": self.length, "width": self.width, "ball_radius": self.ball_radius},
             "floor_tags": {},

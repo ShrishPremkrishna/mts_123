@@ -189,6 +189,95 @@ logic: it does not predict a real Pupper's motion or a real ball's bounce. The
 team's gameplay controller in `../pupper_fc` covers similar ground with its own
 approach, align and strike phases.
 
+## Where the ball is going
+
+On the `perception/ball-prediction` branch (November 20). Simulation only: nothing
+here has seen a real rolling ball or moved a robot.
+
+**The physics.** A rolling ball is assumed to slow at a constant rate
+(`prediction.roll_decel`, m/s²) along a straight line: from speed v it rolls for
+v / decel seconds and covers v² / (2 · decel) metres. It ends by stopping,
+crossing a goal line between the posts, or reaching the field edge, where it is
+"out" or (with `prediction.walls: true`) bounces. `roll_decel: 0.35` is a guess.
+Measure it with the real ball on the real floor:
+
+```bash
+.venv/bin/python scripts/fit_ball_roll.py     # next to a running, calibrated run_perception.py
+```
+
+Roll the ball by hand a few times and let it stop; each roll prints its own
+value and fit error, and the median is the number for the config.
+
+**The velocity.** Predicting seconds ahead needs a better velocity than the
+tracking filter gives: with 1 cm position noise that filter reads a ball that is
+standing still as 0.11 m/s (30 frames/s) to 0.19 m/s (7.5 frames/s, the rate
+seen on the mounted phone), and its predicted stopping point is about 30 cm off.
+`RollTracker` fits a straight line through the last 0.6 s of ball measurements
+and corrects it with the roll model. A measurement far from the fit means a
+kick or a bounce; if the next one agrees the old history is dropped, and one
+stray detection is ignored.
+
+**The plans** (`fieldcam/intercept.py`), per robot that is in view:
+
+- `strike`: where to line up behind the ball on the line to the goal it attacks,
+  using where the ball **will** be: nearly always where it comes to rest, or
+  earlier if the robot can be in place while the ball is still crawling
+  (`intercept.max_contact_speed`). No plan if the ball is rolling out or into a goal.
+- `block`: only when the ball is predicted to roll into the robot's own goal:
+  where to stand so its body is across the ball's path, and how much time that
+  leaves, or how late it would be.
+
+The route is the quickest of a few candidates under a simple model of the robot
+(walks forward, turns, shuffles sideways slowly, never reverses, goes round the
+ball). The speeds are the limits of the combined walk-and-kick release, not
+measured travel, and turning on the spot before each leg is pessimistic.
+
+**Where it shows.** Published as `prediction` and `intercepts` (see
+[Interfaces](#interfaces)). On the dashboard and the camera view the predicted
+path is a pink line with a dot each second and a ring where it ends ("stops in
+1.8 s", "WEST GOAL in 1.2 s", "out in 0.9 s"); each robot gets its line-up
+point and, when its goal is threatened, a red cross at the block point.
+
+**Try it with no camera:**
+
+```bash
+.venv/bin/python scripts/fake_approach.py --rolling     # k rolls the ball again
+```
+
+```bash
+.venv/bin/python scripts/fake_approach.py --compare 200 --sloppy --noise 0.01 --delay 0.15
+```
+
+`--compare` runs each rolling-ball scene twice from the same start: lining up
+for the predicted ball, and for the ball as it is now (`--chase`).
+
+**What the numbers say (fake field, November 20):**
+
+| Question | Result |
+| --- | --- |
+| Stopping point known one second after a kick, 1 cm noise | 4 cm median error at 7.5 frames/s (9 cm at the 90th percentile), 3 cm at 30 frames/s |
+| Same with the tracking filter's velocity | 25 cm at 7.5 frames/s, 16 cm at 30 frames/s |
+| A kick is noticed | 0.20 s after it at 7.5 frames/s, 0.13 s at 30 |
+| A still ball reported as moving | 0.1 % of frames |
+| `roll_decel` assumed 0.50 when it is really 0.35 | stopping point 25 cm off one second after a 1 m/s kick (35 cm at first): the value has to be measured |
+| `fit_ball_roll.py` on a fake ball that slows at 0.42 m/s² | 0.40 to 0.42 from four rolls |
+| Striker reaches a rolling ball sooner by predicting (200 scenes) | 0.1 s median, 0.2 to 0.3 s mean, out of about 10 to 12 s |
+| Keeper 30 cm in front of its goal can reach a block (model only, 2570 shots on target) | 73 % overall; 60 % when the ball arrives in under 1.5 s |
+
+So for the striker, prediction changes little: a ball at 0.6 to 1.5 m/s has
+stopped within about 4 s, long before a robot walking at 0.35 m/s gets there,
+and chasing the ball's current position ends up at the same place. It matters
+where the ball's remaining roll time is comparable to the robot's travel time:
+a ball rolling toward or past a nearby robot, and above all defending a goal.
+The keeper figure is the travel model alone (no simulated robot), for the field
+the camera measured on November 20 (2.70 × 1.42 m) with 0.61 m goals.
+
+Known limits: the fake ball follows exactly the constant-rate rule, so the
+agreement between prediction and fake field shows the code is consistent, not
+that a real ball behaves this way. Air drag on a light ball, spin, and seams in
+the floor are ignored. The approach logic itself is unchanged, so it can still
+place its line-up point outside the field when the ball is near an edge.
+
 ## Dashboard
 
 A top-down drawing of the field: goals, floor tags (filled when readable in the
@@ -290,6 +379,13 @@ same field size; change both together.
 seq, stamp, captured_at, frame_age_s, calibrated, calib_mode, calib_err_px
 calibration_valid, calibration_revision, calibration_status, calibration_reason, calibration_checked_at
 field:   {length, width, ball_radius}
+prediction: null | {moving, x, y, vx, vy, speed, speed_sigma, heading, decel, samples,
+                    ends: still|stops|goal_east|goal_west|out|horizon, end:[x, y], end_in_s,
+                    bounces, path:[[t, x, y], ...]}
+intercepts: {<name>: {strike: {feasible, kind: at_rest|moving, ball:[x, y], pose:[x, y, yaw],
+                               path:[[x, y], ...], travel_s, ball_there_in_s, contact_in_s, wait_s, note},
+                      block:  {feasible, point:[x, y], path, travel_s, ball_there_in_s, spare_s,
+                               enters_in_s, enters_at_y}}}     # block only when its own goal is threatened
 floor_tags: {<id>: {x, y, visible}}
 ball:    {visible, x, y, vx, vy, age_s, measured_at, measured_this_frame}
 robots:  {<name>: {visible, x, y, yaw, vx, vy, wz, age_s, measured_at, measured_this_frame}}
@@ -413,6 +509,8 @@ Open field checks include focus stability, tape-referenced geometry, true captur
 - `fieldcam/topdown.py`, `scripts/dashboard.py` top-down dashboard from the published state
 - `fieldcam/approach.py` line-up-then-run plan and phase controller, from a robot-relative ball and goal
 - `fieldcam/fakeworld.py`, `scripts/fake_approach.py` fake field that drives it, with no camera
+- `fieldcam/ballistics.py` ball velocity fit, roll model and predicted path; `scripts/fit_ball_roll.py` measures the roll rate
+- `fieldcam/intercept.py` where each robot should line up or block, and the route there
 - `fieldcam/planner.py` simple shot geometry and approach (simulator loop)
 - `fieldcam/sim.py` synthetic arena for tests and `--source sim`
 - `fieldcam/net.py`, `fieldcam/capture.py` UDP and camera capture
