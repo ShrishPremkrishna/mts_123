@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import copy
 from types import SimpleNamespace
 
 import pytest
@@ -358,3 +359,346 @@ def test_stopped_or_zombie_manager_refuses_loaded_verification_and_trial(setup, 
     assert not runtime.same_manager(evidence, proc=proc)
     with pytest.raises(ValueError, match="changed during"):
         runtime.verify_loaded(receipt, proc=proc)
+
+
+@pytest.fixture
+def guarded_setup(executable_setup, monkeypatch):
+    proc, manifest, files, _, manager, executable = executable_setup
+    root = manifest.parent / "selected-guard"
+    paths = {"guard_python": "python3.12", "guard_script": "final_project/behaviors/body_command_guard.py",
+             "guard_obstacles": "final_project/pupper_fc/obstacles.py",
+             "guard_package_init": "final_project/pupper_fc/__init__.py"}
+    for role, relative in paths.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(role)
+        files[role] = {"path": str(path), "sha256": runtime.sha(path)}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    report = {"environment": runtime.guard_environment(), "origins": {"rclpy": "/selected/rclpy"},
+              "python_executable": str(root / "python3.12"), "prefix": str(root), "base_prefix": str(root)}
+    probe = lambda pins: copy.deepcopy(report)
+    monkeypatch.setattr(runtime, "probe_guard_environment", probe)
+    receipt = runtime.preflight(manifest, runtime.sha(manifest), proc=proc,
+                                dependency_checker=lambda _: None, python_checker=probe)
+
+    def guard(pid=301, ticks=20000, state="S"):
+        directory = proc / str(pid)
+        directory.mkdir()
+        (directory / "cmdline").write_bytes(b"\0".join(os.fsencode(arg) for arg in runtime.guard_command(receipt["files"])) + b"\0")
+        (directory / "exe").symlink_to(receipt["files"]["guard_python"]["path"])
+        (directory / "cwd").symlink_to(root)
+        env = [f"{key}={value}" for key, value in report["environment"].items() if value is not None]
+        env.append("PRIVATE_TOKEN=not-recorded")
+        (directory / "environ").write_bytes(b"\0".join(os.fsencode(value) for value in env) + b"\0")
+        write_stat(directory, ticks, state)
+        return directory
+
+    def running():
+        manager()
+        for role in runtime.EXECUTABLES:
+            executable(role)
+        return guard()
+
+    return proc, manifest, files, receipt, guard, running, report
+
+
+def test_guarded_evidence_binds_script_interpreter_and_separate_command_authority(guarded_setup):
+    proc, _, _, receipt, _, running, _ = guarded_setup
+    directory = running()
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    assert evidence["command_topology"] == "guarded"
+    assert evidence["guard_process"]["argv"] == runtime.guard_command(receipt["files"])
+    assert evidence["guard_process"]["pid"] == 301
+    assert "loaded-Python-bytecode proof" in evidence["scope"]
+    assert "PRIVATE_TOKEN" not in json.dumps(evidence)
+    assert runtime.same_manager(evidence, proc=proc)
+    assert runtime.same_command_path(evidence, proc=proc)
+    shutil.rmtree(directory)
+    assert runtime.same_manager(evidence, proc=proc)  # Native standing remains authoritative.
+    assert not runtime.same_command_path(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("role", sorted(runtime.GUARD_ROLES))
+def test_guard_file_roles_are_all_or_none_and_every_pin_is_checked(guarded_setup, role):
+    proc, _, files, receipt, _, running, _ = guarded_setup
+    partial = {name: pin for name, pin in files.items() if name != role}
+    with pytest.raises(ValueError, match="all four"):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": partial})
+    running()
+    Path(files[role]["path"]).write_text("changed")
+    with pytest.raises(ValueError, match="mismatch"):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+@pytest.mark.parametrize("fault", ["wrong_layout", "unexpected_initializer"])
+def test_guard_package_layout_and_namespace_are_pinned(guarded_setup, fault):
+    _, manifest, files, receipt, _, _, _ = guarded_setup
+    if fault == "wrong_layout":
+        other = manifest.parent / "obstacles.py"
+        other.write_text("guard_obstacles")
+        files["guard_obstacles"]["path"] = str(other)
+    else:
+        (runtime.guard_root(receipt["files"]) / "final_project/__init__.py").write_text("unexpected")
+    with pytest.raises(ValueError, match="layout|initializer"):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": files})
+
+
+def test_guard_python_venv_invocation_is_distinct_from_resolved_image(guarded_setup):
+    _, manifest, files, _, _, _, _ = guarded_setup
+    alias = manifest.parent / "venv/bin/python"
+    alias.parent.mkdir(parents=True)
+    alias.symlink_to(files["guard_python"]["path"])
+    files["guard_python"]["path"] = str(alias)
+    pins = runtime.verify_files({"schema": runtime.SCHEMA, "files": files})
+    assert pins["guard_python"]["path"] != str(alias)
+    assert runtime.guard_command(pins)[0] == str(alias)
+
+
+@pytest.mark.parametrize("mode", ["all_obstacles", "arena_ball_contact"])
+def test_guard_policy_pins_exact_process_mode(guarded_setup, mode):
+    proc, manifest, files, receipt, _, running, _ = guarded_setup
+    path = manifest.parent / "guard-policy.json"
+    path.write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": mode}))
+    files["guard_policy"] = {"path": str(path), "sha256": runtime.sha(path)}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    updated = runtime.preflight(manifest, runtime.sha(manifest), proc=proc,
+                                dependency_checker=lambda _: None, python_checker=runtime.probe_guard_environment)
+    receipt.clear(); receipt.update(updated)
+    directory = running()
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    argv = evidence["guard_process"]["argv"]
+    assert ("--arena-ball-contact" in argv) is (mode == "arena_ball_contact")
+    assert runtime.guard_mode(evidence["files"]) == mode
+    wrong = argv[:-1] if mode == "arena_ball_contact" else [*argv, "--arena-ball-contact"]
+    (directory / "cmdline").write_bytes(b"\0".join(os.fsencode(arg) for arg in wrong) + b"\0")
+    assert not runtime.same_command_path(evidence, proc=proc)
+    path.write_text(json.dumps({"schema": "pupper_guard_policy_v1", "mode": "arena_ball_contact" if mode == "all_obstacles" else "all_obstacles"}))
+    with pytest.raises(ValueError, match="guard policy changed"):
+        runtime.guard_command(evidence["files"])
+
+
+@pytest.mark.parametrize("policy", [None, [], {}, {"schema": "unknown", "mode": "arena_ball_contact"},
+    {"schema": "pupper_guard_policy_v1", "mode": "all"},
+    {"schema": "pupper_guard_policy_v1", "mode": "arena_ball_contact", "exclude": ["0"]}])
+def test_guard_policy_refuses_unknown_schema_or_options(guarded_setup, policy):
+    _, manifest, files, _, _, _, _ = guarded_setup
+    path = manifest.parent / "guard-policy.json"
+    path.write_text(json.dumps(policy))
+    files["guard_policy"] = {"path": str(path), "sha256": runtime.sha(path)}
+    with pytest.raises(ValueError, match="Invalid guard policy"):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": files})
+
+
+def test_guard_policy_cannot_select_arena_on_stock_path(guarded_setup):
+    _, manifest, files, receipt, _, _, _ = guarded_setup
+    assert runtime.guard_mode(receipt["files"]) == "all_obstacles"
+    assert "--arena-ball-contact" not in runtime.guard_command(receipt["files"])
+    stock = {name: pin for name, pin in files.items() if name not in runtime.GUARD_ROLES}
+    stock["guard_policy"] = {"path": str(manifest.parent / "not-read.json"), "sha256": "0" * 64}
+    with pytest.raises(ValueError, match="complete guarded"):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": stock})
+
+
+def test_preflight_refuses_existing_guard_before_any_native_manager(guarded_setup):
+    proc, manifest, _, _, guard, _, _ = guarded_setup
+    guard()
+    with pytest.raises(ValueError, match="command guard is running"):
+        runtime.preflight(manifest, runtime.sha(manifest), proc=proc,
+                          dependency_checker=lambda _: None, python_checker=lambda _: {})
+
+
+@pytest.mark.parametrize("fault", ["missing", "duplicate", "old", "at_preflight", "stopped", "zombie",
+                                  "argv", "script", "python", "cwd", "environment", "missing_environ"])
+def test_guard_process_faults_refuse_loaded_candidate(guarded_setup, fault):
+    proc, manifest, _, receipt, guard, running, _ = guarded_setup
+    directory = running()
+    if fault == "missing":
+        shutil.rmtree(directory)
+    elif fault == "duplicate":
+        guard(pid=302)
+    elif fault in {"old", "at_preflight", "stopped", "zombie"}:
+        write_stat(directory, ticks=1 if fault == "old" else int(receipt["preflight_ticks"]) if fault == "at_preflight" else 20000,
+                   state={"stopped": "T", "zombie": "Z"}.get(fault, "S"))
+    elif fault in {"argv", "script"}:
+        cmd = runtime.guard_command(receipt["files"])
+        if fault == "argv":
+            cmd.insert(1, "-O")
+        else:
+            cmd[-1] = "/other/body_command_guard.py"
+        (directory / "cmdline").write_bytes(b"\0".join(os.fsencode(arg) for arg in cmd))
+    elif fault in {"python", "cwd"}:
+        link = directory / ("exe" if fault == "python" else "cwd")
+        link.unlink()
+        other = manifest.parent / "other"
+        other.write_text("other")
+        link.symlink_to(other)
+    elif fault == "environment":
+        with (directory / "environ").open("ab") as stream:
+            stream.write(b"ROS_DOMAIN_ID=unexpected\0")
+    else:
+        (directory / "environ").unlink()
+    with pytest.raises(ValueError, match="guard"):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+@pytest.mark.parametrize("fault", ["new_pid", "pid_reuse", "duplicate", "zombie", "boot"])
+def test_guard_continuity_fault_is_separate_from_native_manager(guarded_setup, fault):
+    proc, _, _, receipt, guard, running, _ = guarded_setup
+    directory = running()
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    if fault == "new_pid":
+        shutil.rmtree(directory)
+        guard(pid=302, ticks=20001)
+    elif fault == "duplicate":
+        guard(pid=302)
+    elif fault == "boot":
+        (proc / "sys/kernel/random/boot_id").write_text("different-boot")
+    else:
+        write_stat(directory, ticks=20001 if fault == "pid_reuse" else 20000,
+                   state="Z" if fault == "zombie" else "S")
+    assert not runtime.same_command_path(evidence, proc=proc)
+    assert runtime.same_manager(evidence, proc=proc) == (fault != "boot")
+
+
+def test_guard_environment_or_import_origin_change_invalidates_prepared_receipt(guarded_setup):
+    proc, _, _, receipt, _, _, report = guarded_setup
+    report["origins"]["rclpy"] = "/different/rclpy"
+    with pytest.raises(ValueError, match="environment/import origins changed"):
+        runtime.verify_prepared(receipt, proc=proc)
+
+
+@pytest.mark.parametrize("field", ["st_dev", "st_ino"])
+def test_guard_kernel_python_image_identity_must_match_selected_inode(guarded_setup, monkeypatch, field):
+    proc, _, _, receipt, _, running, _ = guarded_setup
+    target = running() / "exe"
+    original = Path.stat
+    def changed(path, *args, **kwargs):
+        st = original(path, *args, **kwargs)
+        if path == target:
+            values = {"st_dev": st.st_dev, "st_ino": st.st_ino}
+            values[field] += 1
+            return SimpleNamespace(**values)
+        return st
+    monkeypatch.setattr(Path, "stat", changed)
+    with pytest.raises(ValueError, match="guard Python image"):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+def test_guard_replacement_during_verification_refuses(guarded_setup, monkeypatch):
+    proc, _, _, receipt, _, running, _ = guarded_setup
+    directory = running()
+    original = runtime.guard_identity
+    def changed(*args, **kwargs):
+        identity = original(*args, **kwargs)
+        write_stat(directory, ticks=20001)
+        return identity
+    monkeypatch.setattr(runtime, "guard_identity", changed)
+    with pytest.raises(ValueError, match="Command path identity changed"):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
+def test_stock_evidence_has_no_guard_dependency(setup):
+    proc, _, _, receipt, manager = setup
+    manager()
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    assert evidence["command_topology"] == "stock"
+    assert runtime.same_command_path(evidence, proc=proc)
+    del evidence["command_topology"]  # Existing stock receipts remain usable.
+    assert runtime.same_command_path(evidence, proc=proc)
+
+
+def test_import_probe_uses_pinned_interpreter_flags_cwd_timeout_and_allowlisted_environment(guarded_setup, monkeypatch):
+    _, _, _, receipt, _, _, _ = guarded_setup
+    pins = receipt["files"]
+    # Fixture normally injects the no-ROS probe. Load the actual function separately.
+    fresh = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fresh)
+    origins = {name: {key: pins[role][key] for key in ("path", "sha256")}
+               for name, role in (("final_project.pupper_fc", "guard_package_init"),
+                                  ("final_project.pupper_fc.obstacles", "guard_obstacles"))}
+    report = {"python_executable": pins["guard_python"]["path"], "prefix": "/selected", "base_prefix": "/base", "origins": origins}
+    calls = []
+    def run(args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
+    monkeypatch.setattr(fresh.subprocess, "run", run)
+    monkeypatch.setenv("PRIVATE_TOKEN", "never-record")
+    output = fresh.probe_guard_environment(pins)
+    args, kwargs = calls[0]
+    assert args[:4] == [pins["guard_python"]["invocation_path"], "-B", "-s", "-c"]
+    assert kwargs["timeout"] == 10 and kwargs["cwd"] == fresh.guard_root(pins)
+    assert "rclpy.init(" not in args[4]
+    assert "PRIVATE_TOKEN" not in json.dumps(output)
+
+
+def select_deadline(guarded_setup):
+    proc, manifest, files, receipt, _, _, _ = guarded_setup
+    config_path = Path(files["config"]["path"])
+    config = runtime.yaml.safe_load(config_path.read_text())
+    config["neural_controller_default"]["ros__parameters"].update(
+        cmd_vel_contract="fc_deadline_v1", game_buttons=False,
+        reference_tricks=False, chord_partner="")
+    config_path.write_text(runtime.yaml.safe_dump(config))
+    files["config"]["sha256"] = runtime.sha(config_path)
+    helper = runtime.guard_root(receipt["files"]) / "final_project/behaviors/command_deadline.py"
+    helper.write_text("# pinned deadline helper\n")
+    files["command_deadline"] = {"path": str(helper), "sha256": runtime.sha(helper)}
+    manifest.write_text(json.dumps({"schema": runtime.SCHEMA, "files": files}))
+    updated = runtime.preflight(manifest, runtime.sha(manifest), proc=proc,
+                                dependency_checker=lambda _: None,
+                                python_checker=runtime.probe_guard_environment)
+    receipt.clear()
+    receipt.update(updated)  # Existing fake process closures use this receipt.
+    return config_path
+
+
+def test_direct_deadline_identity_does_not_depend_on_legacy_mux(guarded_setup):
+    import shutil
+    select_deadline(guarded_setup)
+    proc, _, _, receipt, _, running, _ = guarded_setup
+    running()
+    shutil.rmtree(proc / "202")  # No mux exists in the selected direct path.
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    assert evidence["command_topology"] == "fc_deadline_v1"
+    assert set(evidence["executables"]) == {"gateway"}
+    assert evidence["guard_process"]["argv"][-2:] == ["--command-contract", "fc_deadline_v1"]
+    assert runtime.same_manager(evidence, proc=proc)
+    assert runtime.same_command_path(evidence, proc=proc)
+    shutil.rmtree(proc / "301")
+    assert runtime.same_manager(evidence, proc=proc)
+    assert not runtime.same_command_path(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("fault", ["missing_helper", "helper_drift", "game_buttons", "reference_tricks", "chord_partner", "unknown"])
+def test_deadline_selection_rejects_partial_or_alternate_authority(guarded_setup, fault):
+    config_path = select_deadline(guarded_setup)
+    _, _, files, _, _, _, _ = guarded_setup
+    if fault == "missing_helper":
+        del files["command_deadline"]
+    elif fault == "helper_drift":
+        Path(files["command_deadline"]["path"]).write_text("changed")
+    else:
+        config = runtime.yaml.safe_load(config_path.read_text())
+        params = config["neural_controller_default"]["ros__parameters"]
+        if fault == "unknown":
+            params["cmd_vel_contract"] = "future_mode"
+        else:
+            params[fault] = "alternate_controller" if fault == "chord_partner" else True
+        config_path.write_text(runtime.yaml.safe_dump(config))
+        files["config"]["sha256"] = runtime.sha(config_path)
+    with pytest.raises(ValueError):
+        runtime.verify_files({"schema": runtime.SCHEMA, "files": files})
+
+
+def test_deadline_dependency_check_excludes_unused_mux(guarded_setup, monkeypatch):
+    select_deadline(guarded_setup)
+    pins = guarded_setup[3]["files"]
+    checked = []
+    def ldd(args, **kwargs):
+        checked.append(args[1])
+        return SimpleNamespace(returncode=1 if args[1] == pins["mux"]["path"] else 0,
+                               stdout="", stderr="unused mux dependency unavailable")
+    monkeypatch.setattr(runtime.subprocess, "run", ldd)
+    runtime.check_dependencies(pins)
+    assert pins["mux"]["path"] not in checked
+    assert set(checked) == {pins[r]["path"] for r in ("driver", "controller", "gateway")}

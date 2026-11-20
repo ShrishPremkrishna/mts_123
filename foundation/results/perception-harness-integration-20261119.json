@@ -1,0 +1,78 @@
+{
+  "schema": "pupper_fc_perception_harness_integration_v1",
+  "recorded_utc": "2026-11-20T00:23:27.460704+00:00",
+  "upstream_perception": "65f9f37",
+  "local_merge": "2cdf449",
+  "kick_review_tip": "07ed0fdcc7611826f928e3fffb63d89cdd32104e",
+  "hardware_access": false,
+  "deployment": false,
+  "new_dependencies_installed": false,
+  "source_sha256": {
+    "final_project/behaviors/overhead_ingress.py": "8e7a0453d0ec549dd65a736b7bf0bf5aad87e3264c755f1eb34dfd9586cb7f6b",
+    "final_project/behaviors/tools/pose_trial.py": "2f496ef4130279722b858add26f4898fe35557153f21f6de578bb1b780e8adf9",
+    "final_project/overhead_perception/fieldcam/net.py": "b7f139297921da48c4659c9540c55eaed4da0b9e738b4a68f6b793df0233c196",
+    "final_project/overhead_perception/fieldcam/pipeline.py": "3fc16f5ef18ce0ed8bffbe7981f7ddc399fd1a743802002a43f2c8460237045c",
+    "final_project/overhead_perception/fieldcam/filters.py": "d8247510ac7083d68e2e3a1ee17ac531dffde0516ef49d57acfe6080b17dbb9e",
+    "final_project/overhead_perception/fieldcam/gameplay.py": "172fe85403c1f2ca2f87bc5a1a6a8c0a117d8027355cf603b4800b573e95b33f",
+    "final_project/overhead_perception/scripts/run_perception.py": "468f3f1c715b0b46225b5b20a9b814e4c6646fa09c6a262957788d6b60109980"
+  },
+  "implemented": [
+    "Merged current overhead source preserving existing FC executor and native work.",
+    "Latched calibration invalidation after detected drift, reconnect/feed loss or changed image dimensions. Explicit successful recalibration resets filters and increments revision.",
+    "Exact accepted measurement stamps distinguish fresh camera evidence from display coasting.",
+    "Real UDP producer clock exchange and source/session/calibration/geometry-bound per-Pi normalized frame ingress; no arm, intent renewal or motor startup authority.",
+    "Camera-free destination plan generator reuses bounded movement-client pulses/IMU turns, preserves shared tracked move target, and scores independent endpoint precision separately from accuracy."
+  ],
+  "tests": {
+    "combined": {
+      "passed": 1086,
+      "failed": 2,
+      "subtests_passed": 48,
+      "seconds": 60.82,
+      "log": "artifacts/pupper-fc/2026-11-19/perception-integration-tests.log",
+      "failures": [
+        "test_survey_calibration_three_tags[69.0-oblique_side]",
+        "test_survey_calibration_three_tags[60.0-oblique_side]"
+      ],
+      "qualification": "Same incoming baseline failures: full-image detector misses unoccluded small oblique tag; crop/resize detects it. Not fixed or hidden. No mounted field evidence."
+    },
+    "cli_simulation": {
+      "exit_code": 0,
+      "frames": 3,
+      "log": "artifacts/pupper-fc/2026-11-19/perception-cli-smoke.log"
+    },
+    "loopback": "artifacts/pupper-fc/2026-11-19/perception-health/perception-health-loopback.json",
+    "kick_branch_focused": {
+      "passed": 86,
+      "seconds": 115.48,
+      "scope": "Exact branch fake ROS and idealized world, not robot."
+    }
+  },
+  "kick_review": {
+    "audit": "artifacts/pupper-fc/2026-11-19/kick-handoff-review/audit.json",
+    "fable": "artifacts/pupper-fc/2026-11-19/kick-handoff-review/fable/adjudication.json",
+    "model": "claude-fable-5-2",
+    "findings": [
+      "Unrelated Optional Lab 3 feature-gate removal spans branch.",
+      "kick_at is timed open-loop navigation; dry_run still moves.",
+      "Reverse-speed envelope violation, stale/future image age laundering and skipped small turn leave concrete defects.",
+      "Playback receipt helper can accept stand_idle without seeing kick; native emission of this anomaly not established.",
+      "Injected fault/fall/shared-block at return boundary can report success without walker restoration.",
+      "Asset hashes match; manifest lacks linked training run, hardware acceptance and course approval record. Earlier contact is a teammate report; fast transitions unqualified."
+    ],
+    "decision": "Not merged. Discuss narrow operator-only kick-in-place extraction preserving main behavior and correcting result/receipt semantics before integration."
+  },
+  "limits": [
+    "No physical robot or camera actions; target-native build and selected release acceptance remain.",
+    "Sensor/driver latency is configured, not measured by network clock sync.",
+    "Hidden floor references cannot reveal a hidden camera bump; click calibration has no floor-reference monitor.",
+    "Actual goal width/ball radius differ between placeholder configs and must be reconciled from measurements.",
+    "New adapter and trial plan are software candidates; no claim of physical arrival, obstacle coverage, braking or shooting."
+  ],
+  "next": [
+    "Discuss kick extraction with owner; no wholesale merge.",
+    "Prepare current Pi-compatible selected release without changing last floor-tested rollback.",
+    "Supervised marked-start short camera-free repeated endpoints, then combined IMU-turn plans after turn qualification.",
+    "Mounted camera-only coverage and geometry/latency qualification; replace estimated travel with actual tracked pose feedback."
+  ]
+}

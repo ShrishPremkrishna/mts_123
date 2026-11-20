@@ -1,0 +1,542 @@
+"""Actual viewer classes with mocked ROS/Hailo: image/stamp stay paired."""
+import ast
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+import threading
+from types import ModuleType, SimpleNamespace
+
+import numpy as np
+import pytest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class Clock:
+    value = 100.0
+
+    def monotonic(self):
+        return self.value
+
+    def time(self):
+        return self.value
+
+
+@pytest.fixture
+def viewer(monkeypatch):
+    safety_spec = importlib.util.spec_from_file_location(
+        "capture_stamp_safety", ROOT / "follow_me_pupper/robot/perception_safety.py")
+    safety = importlib.util.module_from_spec(safety_spec)
+    safety_spec.loader.exec_module(safety)
+    path = ROOT / "follow_me_pupper/robot/viser_camera.py"
+    tree = ast.parse(path.read_text())
+    selected = [item for item in tree.body if isinstance(item, (ast.ClassDef, ast.FunctionDef))
+                and item.name in ("RosSource", "DetectionWorker", "DetectionPublisher",
+                                  "detection_projection", "detector_source_frame", "display_detections",
+                                  "load_identified_detector")]
+    projection_tree = ast.parse((ROOT / "follow_me_pupper/robot/fisheye_converter.py").read_text())
+    selected = [item for item in projection_tree.body
+                if isinstance(item, ast.FunctionDef) and item.name == "equirect_height"] + selected
+    clock = Clock()
+    cv2 = SimpleNamespace(
+        IMREAD_COLOR=1, COLOR_BGR2RGB=1,
+        imdecode=lambda arr, _: np.full((2, 3, 3), int(arr[0]), np.uint8),
+        cvtColor=lambda image, _: image)
+    scope = dict(threading=threading, time=clock, np=np, cv2=cv2, os=os,
+                 fresh_frame=safety.fresh_frame, image_stamp_ns=safety.image_stamp_ns,
+                 MAX_FRAME_AGE_S=safety.MAX_FRAME_AGE_S,
+                 DETECTION_PUBLISH_WIDTH=700, DETECTION_PUBLISH_HEIGHT=572,
+                 DETECTION_H_FOV_DEG=220.0, DETECTION_MIN_CONFIDENCE=.4)
+    exec(compile(ast.Module(selected, type_ignores=[]), str(path), "exec"), scope)
+
+    def header():
+        return SimpleNamespace(stamp=SimpleNamespace(sec=0, nanosec=0), frame_id="")
+
+    def detection():
+        return SimpleNamespace(header=header(), id="", results=[],
+                               bbox=SimpleNamespace(center=SimpleNamespace(
+                                   position=SimpleNamespace(x=0, y=0)), size_x=0, size_y=0))
+
+    messages = ModuleType("vision_msgs.msg")
+    messages.Detection2DArray = lambda: SimpleNamespace(header=header(), detections=[])
+    messages.Detection2D = detection
+    messages.ObjectHypothesisWithPose = lambda: SimpleNamespace(
+        hypothesis=SimpleNamespace(class_id="", score=0))
+    monkeypatch.setitem(sys.modules, "vision_msgs.msg", messages)
+    strings = ModuleType("std_msgs.msg")
+    strings.String = lambda: SimpleNamespace(data="")
+    monkeypatch.setitem(sys.modules, "std_msgs.msg", strings)
+    return SimpleNamespace(**scope, clock=clock)
+
+
+def source(viewer):
+    obj = object.__new__(viewer.RosSource)
+    obj.lock = threading.Lock()
+    obj.frame = obj.frame_received_at = obj.frame_stamp = None
+    obj.last_image_stamp = obj.last_read_at = obj.last_read_stamp = None
+    obj.node = SimpleNamespace(get_clock=lambda: SimpleNamespace(
+        now=lambda: SimpleNamespace(nanoseconds=10_500_000_000)))
+    return obj
+
+
+def message(stamp, pixel=1):
+    sec, nanosec = divmod(stamp, 1_000_000_000)
+    return SimpleNamespace(data=bytes([pixel]),
+                           header=SimpleNamespace(stamp=SimpleNamespace(sec=sec, nanosec=nanosec)))
+
+
+def publisher(viewer, now_ns=10_500_000_000, labels=("person",), identity=None):
+    messages, obstacles = [], []
+    node = SimpleNamespace(
+        now_ns=now_ns, obstacles=obstacles,
+        create_publisher=lambda kind, topic, qos: SimpleNamespace(
+            publish=(obstacles if topic == "/fc/obstacle_detections" else messages).append),
+        create_subscription=lambda *args: None)
+    node.get_clock = lambda: SimpleNamespace(now=lambda: SimpleNamespace(nanoseconds=node.now_ns))
+    identity = identity or dict(model_sha256="a" * 64, labels_sha256=hashlib.sha256(
+        ("\n".join(labels) + "\n").encode()).hexdigest())
+    obj = viewer.DetectionPublisher(node, labels, detector_identity=identity)
+    return obj, messages
+
+
+def test_startup_identity_hashes_actual_file_and_loaded_label_order_once(viewer, tmp_path, monkeypatch):
+    model = tmp_path / "model.hef"
+    model.write_bytes(b"actual selected model")
+    labels = (ROOT / "follow_me_pupper/robot/coco.txt").read_text().splitlines()
+    detector = SimpleNamespace(labels=labels, close=lambda: None)
+    calls = []
+    def load(**kwargs):
+        calls.append(kwargs)
+        return detector
+    monkeypatch.setitem(viewer.load_identified_detector.__globals__, "HailoYoloSeg", load)
+    loaded, identity = viewer.load_identified_detector(model)
+    assert loaded is detector and calls == [dict(model_path=model, score_threshold=.4)]
+    assert identity == dict(model_sha256=hashlib.sha256(model.read_bytes()).hexdigest(),
+        labels_sha256="bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a")
+    pub, _ = publisher(viewer, labels=labels, identity=identity)
+    identity["labels_sha256"] = "tampered caller dictionary"
+    model.unlink()  # No model reads/hashes in the frame publication path.
+    image = np.zeros((572, 700, 3), np.uint8)
+    detections = [SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=i, score=.9)
+                  for i in (32, 0, 56)]
+    pub.publish(detections, image, capture_stamp_ns=10_400_000_000, received_at=100)
+    pub.publish([], image, capture_stamp_ns=10_500_000_000, received_at=100)
+    first, second = [json.loads(msg.data) for msg in pub.node.obstacles]
+    assert [d["class_id"] for d in first["detections"]] == ["32", "0", "56"]
+    assert first["detector_identity"] == second["detector_identity"] == pub.detector_identity
+    assert first["detector_identity"]["labels_sha256"] != identity["labels_sha256"]
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("change", ["replace_model", "edit_model", "malformed_labels"])
+def test_startup_identity_refuses_file_change_or_invalid_loaded_labels(viewer, tmp_path, monkeypatch, change):
+    model = tmp_path / "model.hef"
+    model.write_bytes(b"original")
+    closed = []
+    def load(**kwargs):
+        if change == "replace_model":
+            replacement = tmp_path / "replacement"
+            replacement.write_bytes(b"original")
+            replacement.replace(model)
+        elif change == "edit_model":
+            model.write_bytes(b"replacement")
+        return SimpleNamespace(labels=["bad\nlabel"] if change == "malformed_labels" else ["person"],
+                               close=lambda: closed.append(True))
+    monkeypatch.setitem(viewer.load_identified_detector.__globals__, "HailoYoloSeg", load)
+    with pytest.raises(ValueError):
+        viewer.load_identified_detector(model)
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("class_id", ["32", 32.0, True, -1, 1])
+def test_invalid_class_index_is_unhealthy_not_an_arena_ball(viewer, class_id):
+    pub, legacy = publisher(viewer)
+    det = SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=class_id, score=.9)
+    pub.publish([det], np.zeros((572, 700, 3)), capture_stamp_ns=10_400_000_000, received_at=100)
+    envelope = json.loads(pub.node.obstacles[0].data)
+    assert not envelope["valid"] and not envelope["healthy"] and not legacy
+
+
+def test_display_filter_cannot_remove_a_near_detection_from_published_guard_evidence(viewer):
+    pub, _ = publisher(viewer)
+    image = np.zeros((572, 700, 3), np.uint8)
+    det = SimpleNamespace(box=(280, 100, 420, 520), mask=None, class_id=0, score=.8)
+    inference = [det]
+    assert viewer.display_detections(inference, .9) == []
+    assert inference == [det]
+    pub.publish(inference, image, capture_stamp_ns=10_400_000_000, received_at=100)
+    envelope = json.loads(pub.node.obstacles[0].data)
+    assert envelope["healthy"] and envelope["detections"][0]["confidence"] == .8
+
+
+def test_display_rotation_and_color_edits_cannot_change_fixed_detector_source(viewer):
+    raw = np.arange(18, dtype=np.uint8).reshape(2, 3, 3)
+    expected = raw[:, :, ::-1].copy()
+    selected = viewer.detector_source_frame(raw, swap_rb=True)
+    displayed = np.rot90(raw[:, :, ::-1].copy(), 2)
+    displayed[:] = 0
+    assert np.array_equal(selected, expected)
+    assert viewer.detector_source_frame(raw, swap_rb=False) is raw
+
+
+def test_guard_envelope_preserves_source_identity_capture_projection_and_empty_results(viewer):
+    pub, _ = publisher(viewer)
+    image = np.zeros((572, 700, 3), np.uint8)
+    det = SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=0, score=.9)
+    pub.publish([det], image, capture_stamp_ns=10_400_000_000, received_at=100)
+    first = json.loads(pub.node.obstacles[0].data)
+    assert first == dict(schema="fc_camera_obstacles_v1", producer_instance=pub.obstacle_instance,
+        detector_identity=pub.detector_identity,
+        sequence=0, captured_at_ros_ns=10_400_000_000, valid=True, healthy=True,
+        format="normalized_xyxy_v1", image_width=700, image_height=572, horizontal_fov_deg=220.0,
+        detections=[dict(box=[.4, 100/572, .6, 500/572], confidence=.9, class_id="0")])
+    pub.publish([], image, capture_stamp_ns=10_500_000_000, received_at=100)
+    second = json.loads(pub.node.obstacles[1].data)
+    assert second["sequence"] == 1 and second["detections"] == [] and second["healthy"]
+    assert second["producer_instance"] == first["producer_instance"]
+    assert second["captured_at_ros_ns"] == 10_500_000_000
+    other, _ = publisher(viewer)
+    assert other.obstacle_instance != pub.obstacle_instance
+
+
+@pytest.mark.parametrize("box,score", [((0, 0, 701, 500), .9), ((0, 0, 0, 2), .9),
+    ((0, 0, 2, 2), float("nan")), ((0, 0, float("nan"), 2), .9)])
+def test_malformed_detection_publishes_explicit_unhealthy_not_empty_clear(viewer, box, score):
+    pub, legacy = publisher(viewer)
+    det = SimpleNamespace(box=box, mask=None, class_id=0, score=score)
+    assert pub.publish([det], np.zeros((572, 700, 3)),
+                       capture_stamp_ns=10_400_000_000, received_at=100) is None
+    envelope = json.loads(pub.node.obstacles[0].data)
+    assert envelope["valid"] is False and envelope["healthy"] is False
+    assert legacy == []
+    assert pub.publish([], np.zeros((572, 700, 3)),
+                       capture_stamp_ns=10_400_000_000, received_at=100) is None
+    assert len(pub.node.obstacles) == 1
+
+
+def test_wrong_projection_shape_is_explicitly_invalid(viewer):
+    pub, legacy = publisher(viewer)
+    pub.publish([], np.zeros((700, 700, 3)), capture_stamp_ns=10_400_000_000, received_at=100)
+    assert not json.loads(pub.node.obstacles[0].data)["valid"]
+    assert not legacy
+
+
+def test_atomic_snapshot_keeps_selected_image_stamp_after_new_camera_callback(viewer):
+    camera = source(viewer)
+    camera._on_image(message(10_123_456_789, pixel=1))
+    selected, received_at, stamp = camera.read_sample()
+    viewer.clock.value = 100.1
+    camera._on_image(message(10_223_456_789, pixel=2))
+    assert (selected[0, 0, 0], received_at, stamp) == (1, 100, 10_123_456_789)
+    latest, received_at, stamp = camera.read_sample()
+    assert (latest[0, 0, 0], received_at, stamp) == (2, 100.1, 10_223_456_789)
+    assert camera.read_sample() is None
+
+
+def test_slow_older_decode_cannot_overwrite_newer_image_and_metadata(viewer):
+    camera = source(viewer)
+    entered, release = threading.Event(), threading.Event()
+    decode = viewer.cv2.imdecode
+
+    def slow_decode(arr, mode):
+        if arr[0] == 1:
+            entered.set()
+            assert release.wait(2)
+        return decode(arr, mode)
+
+    viewer.cv2.imdecode = slow_decode
+    thread = threading.Thread(target=camera._on_image, args=(message(10_000_000_001, 1),))
+    thread.start()
+    try:
+        assert entered.wait(1)
+        viewer.clock.value = 100.1
+        camera._on_image(message(10_000_000_002, 2))
+    finally:
+        release.set()
+        thread.join(1)
+    image, received_at, stamp = camera.read_sample()
+    assert (image[0, 0, 0], received_at, stamp) == (2, 100.1, 10_000_000_002)
+
+
+def test_source_rejects_repeated_and_reordered_stamps_without_new_evidence(viewer):
+    camera = source(viewer)
+    camera._on_image(message(10_000_000_002, 2))
+    assert camera.read()[0, 0, 0] == 2  # legacy API still yields an array
+    camera._on_image(message(10_000_000_002, 3))
+    camera._on_image(message(10_000_000_001, 4))
+    assert camera.read_sample() is None
+    assert camera.last_image_stamp == 10_000_000_002
+
+
+def test_future_capture_stamp_cannot_poison_source_highwater(viewer):
+    camera = source(viewer)
+    camera._on_image(message(10_400_000_000, 1))
+    assert camera.read()[0, 0, 0] == 1
+    camera._on_image(message(999_000_000_000, 9))
+    assert camera.last_image_stamp == 10_400_000_000
+    assert camera.read_sample() is None
+    camera._on_image(message(10_500_000_000, 2))
+    image, _, stamp = camera.read_sample()
+    assert image[0, 0, 0] == 2 and stamp == 10_500_000_000
+
+
+def test_stale_source_header_is_rejected_before_initial_highwater(viewer):
+    camera = source(viewer)
+    camera._on_image(message(8_000_000_000, 1))
+    assert camera.last_image_stamp is None and camera.read_sample() is None
+    camera._on_image(message(10_500_000_000, 2))
+    assert camera.read()[0, 0, 0] == 2
+
+
+@pytest.mark.parametrize("node", [None, SimpleNamespace(), SimpleNamespace(
+    get_clock=lambda: SimpleNamespace(now=lambda: SimpleNamespace(nanoseconds=None)))])
+def test_unknown_source_ros_clock_cannot_admit_or_advance_capture(viewer, node):
+    camera = source(viewer)
+    camera.node = node
+    camera._on_image(message(10_500_000_000))
+    assert camera.last_image_stamp is None and camera.read_sample() is None
+
+
+def test_source_clock_exception_fails_closed_and_recovers_without_poisoning(viewer):
+    camera = source(viewer)
+    healthy_node = camera.node
+
+    def unavailable():
+        raise RuntimeError("clock unavailable")
+
+    camera.node = SimpleNamespace(get_clock=unavailable)
+    camera._on_image(message(10_500_000_000))
+    assert camera.last_image_stamp is None
+    camera.node = healthy_node
+    camera._on_image(message(10_500_000_000))
+    assert camera.read_sample() is not None
+
+
+def test_publisher_keeps_exact_source_nanoseconds_for_nonempty_and_empty_results(viewer):
+    pub, messages = publisher(viewer)
+    image = np.zeros((2, 3, 3), np.uint8)
+    detection = SimpleNamespace(box=(0, 0, 2, 1), mask=None, class_id=0, score=0.9)
+    assert pub.publish([detection], image, capture_stamp_ns=10_123_456_789, received_at=100) == 1
+    msg = messages[-1]
+    assert (msg.header.stamp.sec, msg.header.stamp.nanosec) == (10, 123_456_789)
+    assert msg.detections[0].header.stamp == msg.header.stamp
+    assert pub.publish([], image, capture_stamp_ns=10_223_456_789, received_at=100) == 0
+    assert len(messages) == 2 and messages[-1].detections == []
+    assert messages[-1].header.stamp.nanosec == 223_456_789
+
+
+@pytest.mark.parametrize("stamp,receipt", [
+    (None, 100), (True, 100), (-1, 100), (10.0, 100),
+    (10_000_000_000, None), (10_000_000_000, float("nan")),
+    (10_000_000_000, 98), (10_000_000_000, 101),
+    (8_000_000_000, 100), (11_000_000_000, 100),
+])
+def test_missing_invalid_delayed_or_future_metadata_publishes_nothing(viewer, stamp, receipt):
+    pub, messages = publisher(viewer)
+    result = pub.publish([], np.zeros((2, 3, 3)), capture_stamp_ns=stamp, received_at=receipt)
+    assert result is None and messages == []
+
+
+def test_publisher_cannot_turn_duplicate_or_reordered_results_into_new_empty_frames(viewer):
+    pub, messages = publisher(viewer)
+    image = np.zeros((2, 3, 3))
+    assert pub.publish([], image, capture_stamp_ns=10_200_000_000, received_at=100) == 0
+    for stamp in (10_200_000_000, 10_100_000_000):
+        assert pub.publish([], image, capture_stamp_ns=stamp, received_at=100) is None
+    assert len(messages) == 1
+
+
+def test_epoch_scale_future_nanosecond_and_stale_boundary_are_not_rounded_fresh(viewer):
+    now_ns = 1_800_000_000_123_456_789
+    pub, messages = publisher(viewer, now_ns=now_ns)
+    image = np.zeros((2, 3, 3))
+    for stamp in (now_ns + 1, now_ns - 1_000_000_001):
+        assert pub.publish([], image, capture_stamp_ns=stamp, received_at=100) is None
+    assert messages == []
+    assert pub.publish([], image, capture_stamp_ns=now_ns, received_at=100) == 0
+    assert messages[0].header.stamp.nanosec == 123_456_789
+
+
+def test_selected_snapshot_survives_inference_while_source_advances(viewer):
+    camera = source(viewer)
+    camera._on_image(message(10_123_456_789, 1))
+    image, received_at, stamp = camera.read_sample()
+    entered, release, published = threading.Event(), threading.Event(), threading.Event()
+    pub, messages = publisher(viewer)
+
+    class Model:
+        last_inference_ms = 1
+
+        def infer(self, frame):
+            entered.set()
+            assert release.wait(2)
+            assert frame[0, 0, 0] == 1
+            return []
+
+        def close(self):
+            pass
+
+    def report(detections, frame, **metadata):
+        pub.publish(detections, frame, **metadata)
+        published.set()
+
+    worker = viewer.DetectionWorker(Model(), on_stamped_result=report)
+    try:
+        assert worker.submit(image, received_at, capture_stamp_ns=stamp)
+        assert entered.wait(1)
+        camera._on_image(message(10_223_456_789, 2))
+        release.set()
+        assert published.wait(1)
+        assert messages[0].header.stamp.nanosec == 123_456_789
+        assert camera.last_image_stamp == 10_223_456_789
+    finally:
+        release.set()
+        assert worker.close()
+
+
+def test_worker_latest_pending_image_keeps_its_own_stamp_and_rejects_old_submits(viewer):
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    reports = []
+
+    class Model:
+        last_inference_ms = 1
+
+        def infer(self, frame):
+            if frame[0, 0, 0] == 1:
+                entered.set()
+                assert release.wait(2)
+            return []
+
+        def close(self):
+            pass
+
+    def report(detections, frame, **metadata):
+        reports.append((int(frame[0, 0, 0]), metadata))
+        if len(reports) == 2:
+            finished.set()
+
+    worker = viewer.DetectionWorker(Model(), on_stamped_result=report)
+    try:
+        assert not worker.submit(np.zeros((2, 3, 3)))  # stamped path requires source evidence
+        assert worker.submit(np.full((2, 3, 3), 1), 100, capture_stamp_ns=1)
+        assert entered.wait(1)
+        assert worker.submit(np.full((2, 3, 3), 2), 100, capture_stamp_ns=2)
+        assert worker.submit(np.full((2, 3, 3), 3), 100, capture_stamp_ns=3)
+        assert not worker.submit(np.full((2, 3, 3), 9), 100, capture_stamp_ns=3)
+        assert not worker.submit(np.full((2, 3, 3), 9), 100, capture_stamp_ns=2)
+        release.set()
+        assert finished.wait(1)
+        assert [(pixel, data["capture_stamp_ns"]) for pixel, data in reports] == [(1, 1), (3, 3)]
+    finally:
+        release.set()
+        assert worker.close()
+
+
+def test_stalled_inference_and_inference_failure_do_not_publish_healthy_empty_frames(viewer):
+    entered, release, failed = threading.Event(), threading.Event(), threading.Event()
+    reports = []
+
+    class Model:
+        last_inference_ms = 1
+
+        def infer(self, frame):
+            if frame[0, 0, 0] == 1:
+                entered.set()
+                assert release.wait(2)
+                return []
+            failed.set()
+            raise RuntimeError("test accelerator error")
+
+        def close(self):
+            pass
+
+    worker = viewer.DetectionWorker(Model(), on_stamped_result=lambda *a, **k: reports.append((a, k)))
+    try:
+        worker.submit(np.full((2, 3, 3), 1), 100, capture_stamp_ns=1)
+        assert entered.wait(1)
+        viewer.clock.value = 102
+        worker.submit(np.full((2, 3, 3), 2), 102, capture_stamp_ns=2)
+        release.set()
+        assert failed.wait(1)
+    finally:
+        release.set()
+        assert worker.close()
+    assert reports == []
+
+
+def test_unstamped_picam_worker_retains_legacy_two_argument_callback(viewer):
+    reported = threading.Event()
+    calls = []
+
+    class Model:
+        last_inference_ms = 1
+
+        def infer(self, frame):
+            return []
+
+        def close(self):
+            pass
+
+    def report(*args):
+        calls.append(args)
+        reported.set()
+
+    worker = viewer.DetectionWorker(Model(), on_result=report)
+    try:
+        worker.submit(np.zeros((2, 3, 3)))
+        assert reported.wait(1)
+        assert len(calls) == 1 and len(calls[0]) == 2
+    finally:
+        assert worker.close()
+
+
+@pytest.mark.parametrize("display_fov,display_width", [(90, 700), (180, 350), (300, 1050), (220, 350)])
+def test_display_fov_and_scale_do_not_change_detection_projection_or_box_contract(
+        viewer, display_fov, display_width):
+    calls = []
+    raw = np.zeros((1050, 1400, 3), np.uint8)
+    displayed = np.ones((viewer.equirect_height(display_width, display_fov), display_width, 3), np.uint8)
+
+    def project(image, model, width, height, *, h_fov_deg):
+        calls.append((image is raw, width, height, h_fov_deg))
+        return np.zeros((height, width, 3), np.uint8)
+
+    viewer.detection_projection.__globals__["fisheye_to_equirectangular"] = project
+    detector_input = viewer.detection_projection(
+        raw, object(), 700, displayed=displayed, display_fov=display_fov)
+    assert calls == [(True, 700, 572, 220.0)]
+    assert detector_input is not displayed
+    pub, messages = publisher(viewer)
+    detection = SimpleNamespace(box=(280, 100, 420, 500), mask=None, class_id=0, score=0.9)
+    assert pub.publish([detection], detector_input,
+                       capture_stamp_ns=10_400_000_000, received_at=100) == 1
+    box = messages[0].detections[0].bbox
+    assert (box.center.position.x, box.center.position.y, box.size_x, box.size_y) == (350, 300, 140, 400)
+
+
+def test_matching_default_display_projection_is_reused_without_second_warp(viewer):
+    displayed = np.zeros((572, 700, 3), np.uint8)
+
+    def redundant_warp(*args, **kwargs):
+        pytest.fail("the matching default display should be reused")
+
+    viewer.detection_projection.__globals__["fisheye_to_equirectangular"] = redundant_warp
+    assert viewer.detection_projection(
+        np.zeros((1050, 1400, 3)), object(), 700,
+        displayed=displayed, display_fov=220.0) is displayed
+
+
+def test_raw_camera_view_still_gets_fixed_detector_projection(viewer):
+    calls = []
+
+    def project(image, model, width, height, *, h_fov_deg):
+        calls.append((width, height, h_fov_deg))
+        return np.zeros((height, width, 3), np.uint8)
+
+    viewer.detection_projection.__globals__["fisheye_to_equirectangular"] = project
+    frame = viewer.detection_projection(np.zeros((1050, 1400, 3)), object(), 700)
+    assert frame.shape[:2] == (572, 700) and calls == [(700, 572, 220.0)]

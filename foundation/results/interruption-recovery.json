@@ -1,11 +1,11 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Reliable movement and headbutt baseline; finish build/runtime mismatch prevention and rapid supervised axis trials before shots.",
-  "worktree": "/Users/shrish/workspace/cs123",
+  "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
+  "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
-  "mode": "user_returning_v3_target_checks_pending",
-  "updated_utc": "2026-11-17T04:23:49.979042+00:00",
-  "current_report": "foundation/results/movement-offline-followthrough-20261116.json",
+  "mode": "main_staged_waiting_for_robot_handover",
+  "updated_utc": "2026-11-20T01:00:56+00:00",
+  "current_report": "foundation/results/staged-field-session-20261119.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -19,7 +19,40 @@
     "offline_gameplay": "final_project/pupper_fc/validation.json",
     "historical_harness_sprint": "foundation/results/harness-sprint-20261103.json",
     "offline_followthrough": "foundation/results/movement-offline-followthrough-20261116.json",
-    "v2_release": "foundation/results/movement-release-20261116.json"
+    "v2_release": "foundation/results/movement-release-20261116.json",
+    "movement_live": "foundation/results/movement-live-20261116.json",
+    "takeover_audit": "foundation/results/takeover-audit-20261116.json",
+    "gait_gate": "foundation/results/gait-gate-20261116.json",
+    "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/result.json",
+    "fable_execution_review": "artifacts/pupper-fc/2026-11-17/overnight-execution-review/final-review.json",
+    "overnight_execution": "foundation/results/overnight-execution-20261117.json",
+    "real_ros_start_guard": "artifacts/pupper-fc/2026-11-17/ros-fc-guard-20261117T100600Z/integration-summary-final.json",
+    "camera_cadence": "artifacts/pupper-fc/2026-11-17/detection-cadence-review/integrated-tests.json",
+    "guarded_path_integration": "artifacts/pupper-fc/2026-11-17/guarded-integration-20261117T105600Z/combined-tests.json",
+    "guarded_source_kit": "artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json",
+    "native_guard_watchdog": "artifacts/pupper-fc/2026-11-17/native-guard-watchdog-20261117T103600Z/summary.json",
+    "guarded_launch": "artifacts/pupper-fc/2026-11-17/guarded-launch-20261117T104700Z/summary.json",
+    "fc_bridge_ros": "artifacts/pupper-fc/2026-11-17/ros-fc-closed-loop-20261117T120814Z/summary-final.json",
+    "fc_bridge_validation": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/tests.json",
+    "native_start_target_build": "artifacts/pupper-fc/2026-11-17/pi-start-build-audit-20261117T120404Z/BUILD_RECIPE.txt",
+    "defense_navigation": "artifacts/pupper-fc/2026-11-17/defense-navigation-boundary-correction/summary.json",
+    "defense_independent": "artifacts/pupper-fc/2026-11-17/defense-independent/final/verification.json",
+    "defense_ros": "artifacts/pupper-fc/2026-11-17/ros-defense-20261117T125012Z/summary.json",
+    "fc_deadline_ros": "artifacts/pupper-fc/2026-11-17/command-survival/bridge-start-smoke/summary.json",
+    "native_original_expiry": "artifacts/pupper-fc/2026-11-17/command-survival/authority-chain/summary.json",
+    "overnight_priority_review": "artifacts/pupper-fc/2026-11-17/overnight-value-review.json",
+    "opponent_reassessment": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/findings.json",
+    "actual_bridge_guard_native": "artifacts/pupper-fc/2026-11-17/deadline-full-chain/summary.json",
+    "strict_finite_native": "artifacts/pupper-fc/2026-11-17/strict-trial-native/summary.json",
+    "strict_client_fable": "artifacts/pupper-fc/2026-11-17/strict-trial-fable-focused/adjudication.json",
+    "gateway_stop_cancellation": "artifacts/pupper-fc/2026-11-17/strict-trial-stop-review/summary.json",
+    "guard_shutdown": "artifacts/pupper-fc/2026-11-17/guard-shutdown-ros/summary.json",
+    "recovery_inventory": "artifacts/pupper-fc/2026-11-17/recovery-feasibility-inventory/inventory.json",
+    "course_requirements": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/course-deliverable-verification.json",
+    "executor_viewer": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/summary.json",
+    "recovery_side_feasibility": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json",
+    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/editorial-validation.json",
+    "perception_integration_nov19": "foundation/results/perception-integration-review-20261119.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -28,46 +61,90 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User returning with robot/ball/charged batteries. Read-only inventory and staging authorized. New readiness question pending for supported homing; no movement until supervision confirmed.",
+  "authorization": "Current task is source reconciliation and motor-inactive preparation. At the last handover check the owner reported a teammate actively operating the robot. Historical November 17 cloud authorization is recorded below.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
-    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata."
+    "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
+    "claude_source_review": "User explicitly permits sharing any project code with Fable5.2; credentials remain external/not shared. Use exact claude-fable-5-2, not fable alias.",
+    "overnight_2026_11_17": {
+      "authorized_total_additional_usd": 50,
+      "source": "User reply: Allow up to $50 additional cloud compute",
+      "scope": "Aggregate additional cloud-compute budget for this overnight session; not per experiment. Include setup, storage and teardown. Existing subscriptions/local compute remain authorized.",
+      "spent_confirmed_usd": 0,
+      "active_paid_jobs": [],
+      "rule": "Start with a bounded smoke test and verified collection. Keep a teardown reserve; do not spend merely to exhaust the cap.",
+      "colab_allocation": {
+        "maximum_compute_units": 20,
+        "maximum_wall_hours": 2,
+        "purchases_authorized_by_root": false,
+        "resource_owner": "overnight_compute",
+        "status": "STOPPED after upload review rejection; no frames uploaded. Teardown verified no active sessions,0CU/hour. User subsequently explicitly approved selected frame transfer. Prefer verified local MPS and no cloud spending.",
+        "session_id": "fc-perception-0933",
+        "observed_cu_per_hour": 1.94,
+        "initial_balance_cu": 326.94,
+        "teardown_guard_minutes": 115,
+        "final_balance_cu": 326.94,
+        "billing_limit": "Approximately80sec existing-creditL4. Rounded balance does not establish zerocharge; no purchases, exactdollarincrement unreported. Local comparison incurred no cloud job charge."
+      }
+    }
   },
   "activity": {
-    "automation": "Last recorded November 4: no scheduled automation. Automation state was not queried during the November 10 context cleanup.",
-    "compute": "All offline checks complete:467 tests+48subtests,5ROS transport cases,15Linux process probes. No training; source-only Claude reviews unavailableDNS/timeout, independent subagents used.",
+    "automation": "No automation controls the physical session.",
+    "compute": "Main source recovered on Pi. Stock target plan and opt-in kick assets checked. Legacy camera-guard release staged, Pi relative/absolute heading logic exercised with synthetic inputs, strict native build inputs verified. See the current report.",
     "owners": {
-      "physical_robot": "User preparing robot again; awaiting new stand/controller/exclusive-access confirmation. No agent-owned native session started.",
+      "physical_robot": "Owner confirmed a teammate is using Pupper. Coordinate handover before FC homing or using substantial CPU for native compilation.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
-      "movement": "Shrish taking over movement and headbutt; teammate continues foot-kick policy.",
+      "movement": "Shrish and current project lead: gait readiness, responsive execution, headbutt and defense; no bumper fitted.",
       "shooting": "Tej",
-      "perception": "Ryan",
-      "arena": "Shrish"
+      "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
+      "arena": "Shrish",
+      "project_lead": "Root operates the isolated main worktree. Other agents own their own branches and worktrees."
     },
-    "goal_status": "Offline baseline complete; final recovery/context closeout being committed. Target verification and physical acceptance pending."
+    "goal_status": "Main-agent staging and physical field tests requested by owner. Overnight workstream is historical.",
+    "pending_archives": [],
+    "processes": {
+      "local_practice": {
+        "pid": 27855,
+        "tool_session": 38486,
+        "url": "http://127.0.0.1:8766/",
+        "status": "Historical November 17 observation: viewer was running with simulation stopped. Not rechecked November 19; do not assume this PID remains the same process.",
+        "source_runtime_sha256": "49ccc6a0795ea5e23d84913f7125f4921c4f98125dd695259cf39e0276bbdabb",
+        "verified_utc": "2026-11-17T17:28:10.451773+00:00"
+      },
+      "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
+      "completed": "Dedicated source, representative stage-one plan, camera environment and dormant guarded release checked. Mounted perception, physical destination repeats and new native build remain open."
+    }
   },
   "hardware_session": {
-    "status": "Last physical closure: no startup at02:27UTC. User now powering robot back up; fresh reachability/boot/readiness check pending.",
+    "status": "A teammate owns Pupper's kick session. FC source is staged. Stock sprint preflight predates the teammate's controller launch. Take a fresh preflight after handover.",
     "ssh": "mts",
-    "observed_utc": "2026-11-17T02:27:19.546335+00:00",
-    "current_boot_id": "e0ec5244-f04d-43f3-978a-eef050844135",
-    "active_run": null,
-    "motor_api_recorders_last_observed_active": false,
-    "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v2",
+    "observed_utc": "2026-11-20T00:58:59Z",
+    "current_boot_id": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
+    "active_run": "20261119-kickfast3",
+    "motor_api_recorders_last_observed_active": true,
+    "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "manifest_profiles": {
-      "walk": "d21913f0f6addf332c7bac2ebebd89ea85637dda40d7a1c33d687e47c58c9bb2",
-      "sprint": "54afc5e568b8bbf54a0068c269565fbe53937c40c6ac862fcdeb9901e103a7b0"
+      "walk": "78b2c308422fcaae39160fd4f5205fb50fb2e8156bba5a9956284b6147b9a223",
+      "sprint": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1"
     },
     "selected_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
-    "selected_controller_sha256": "8ec98a7e220e1e225575c9b3916e8d581b24287c58c48f2eba61c2f5edb412bc",
-    "last_physical_run": "/home/pi/pupper-fc-runs/stock-shot-20261117T004242Z",
-    "source_checkout": "/home/pi/mts_123; source sync alone does not choose binaries",
+    "selected_controller_sha256": "e76b9d581c7cf72d6ffe82a2077bf52d2dfdcdb932524631055b13b1ee29b9c8",
+    "last_physical_run": "/home/pi/pupper-fc-runs/logfix-floor-20261117",
+    "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
-    "prepared_run": "/home/pi/pupper-fc-runs/movement-20261117T022613Z",
-    "prepared_state": "CLOSED_WITHOUT_STARTUP; old preflight is invalid after reboot. Current-run pointer is historical, not an active session.",
-    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/v2-closure-20261117T022613Z.json",
-    "local_candidate": "/home/pi/pupper-fc-releases/movement-20261116-v3",
-    "candidate_state": "v2 remains staged onPi; v3 archived locally, not yet transferred."
+    "prepared_run": null,
+    "prepared_state": "Await handover and fresh motor-inactive preflight before supported homing. No current FC session.",
+    "local_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "candidate_state": "Stock sprint is the last floor-tested selection. Short corrected 3 s left/right at 0.15 were stable and stopped, and forward 0.45 for 2 s travelled about 30 inches. New guarded legacy profile assembled only. Direct-deadline and software Start native binaries remain unbuilt.",
+    "client_update": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "client_update_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "persistent_tool_session_id": null,
+    "persistent_prepared_token": null,
+    "persistent_prepared_action": null,
+    "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs/logfix-floor-20261117/closure.json",
+    "camera_only_session_id": "d25bba2299f24dd09e5f09a282003293",
+    "last_camera_run": "/home/pi/pupper-fc-runs/front-camera-20261117-a",
+    "previous_preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-uZ0QxGWY/preflight.json"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -76,24 +153,40 @@
     "prior_physical_capture": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/stock-shot-20261117T004242Z/remote-closed",
     "prior_capture_verification": "44 files, 479767987 bytes; all remote/local hashes match",
     "v3_package": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/offline-readiness/movement-20261116-v3.tar.gz",
-    "v3_sha256": "96eb5e80156413f693a7b1b74dd480297212e68a8e0f98971c4b9a4abb0e1f4f"
+    "v3_sha256": "96eb5e80156413f693a7b1b74dd480297212e68a8e0f98971c4b9a4abb0e1f4f",
+    "gait_gate_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z",
+    "gait_gate_verified": "35 captured files (554631841 bytes), all remote hashes matched;106 analysis/build files archived with SHA256 index. Corrected release archive SHA256 01fea93ff65d20382138b52c8444a5e50e2cebb603451cbe0fbded32dc5ca280.",
+    "corrected_runs": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs",
+    "corrected_runs_verification": "62indexedfiles/785107222bytes; all hashes match. No pending archive from these3runs. Older unrelated closed-session backlog remains historical.",
+    "overnight_perception": "artifacts/pupper-fc/2026-11-17/overnight-perception-20261117T093300Z/perception-complete.tar.gz",
+    "overnight_perception_verified": "804 files hash-verified; archive SHA256 bff1df29874ee2efc72144763066caf79b838327b22f707c16a78e9b01866268",
+    "final_ros_guard_supplement": "18 files verified; SHA25634b416d0f9068b1753981d0da5977d410bfffdad3e0f90698d587226760e7b8e; prior78-file archive remains unchanged.",
+    "defense_evidence": "artifacts/pupper-fc/2026-11-17/defense-integration-20261117T125540Z/archive-verification.json",
+    "participant_evidence": "artifacts/pupper-fc/2026-11-17/participant-integration-20261117T133702Z/archive-verification.json",
+    "deadline_native_evidence": "artifacts/pupper-fc/2026-11-17/command-survival/authority-integration-archive-verification.json",
+    "deadline_final_integration": "artifacts/pupper-fc/2026-11-17/deadline-integration-20261117T144500Z/archive-verification.json",
+    "opponent_reassessment": "artifacts/pupper-fc/2026-11-17/opponent-deadline-reassessment/complete.tar.gz",
+    "strict_finite_gateway_stop": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/archive-verification.json",
+    "guard_shutdown_followup": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json",
+    "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json",
+    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json"
   },
   "next": [
     {
-      "id": "supervised_movement",
-      "action": "On user readiness/reboot: stage v3 into new directory, verify all role hashes and dependencies/package resolution, prepare fresh sprint-candidate receipt, then one supervised homing and low axis/braking trials before speed increase/ball contact."
+      "id": "straight_repeats",
+      "action": "After teammate handover, verify idle, freshly preflight stock sprint, home on stand and complete three supervised nominal 20 cm pulses from the same marked start. Measure each endpoint and stop independently."
     },
     {
-      "id": "perception_upstream",
-      "action": "Consumer frame/time bugs fixed offline; obtain synchronized actual ball/goal/robot-pose stream before camera-driven shots. Temporary onboard detector remains uncalibrated."
+      "id": "tag_setup",
+      "action": "In parallel, use the verified Mac camera environment and loose tag 10 at standing height. Check corner IDs, both goal widths, tape positions and headings before moving a robot."
     },
     {
-      "id": "physical_capabilities",
-      "action": "Measure forward/braking/lateral then centered contact on actual floor. Existing policy shortlists remain simulation evidence; do not train/swap policies before baseline measurement."
+      "id": "closed_loop",
+      "action": "Replace or improve the arena network path and measure capture latency. Run the staged single-thread native builder when Pi is idle, qualify the guarded runtime and implement/test a finite move-intent sender, then measure the same target with real camera feedback."
     },
     {
-      "id": "project_open",
-      "action": "Live FC transport, overhead tracking, two-robot commissioning and separate P0 get-up remain open; see project brief."
+      "id": "strike",
+      "action": "Keep the leg-kick release separate. Confirm policy approval and loaded identity, then qualify walker return and ball direction. Source the second robot for role switching."
     }
   ],
   "recorded_open_items": {
@@ -105,5 +198,20 @@
   "legacy_branches": [
     "pupper-foundation"
   ],
-  "context_review_date": "2026-11-16 America/Los_Angeles"
+  "context_review_date": "2026-11-19",
+  "alignment": {
+    "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
+    "open": "Mounted tag coverage, measured camera latency, reconciled field/ball/goal dimensions, Pi native build/selection for tracked play, intended ball, second robot, kick approval/provenance and physical kick performance.",
+    "next_discussion": "Use measurements from the first straight repeats and the mounted tag survey to select the next physical test.",
+    "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
+    "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately."
+  },
+  "verified_commands": {
+    "status": "python3 foundation/scripts/session_status.py --verify-inputs",
+    "regression": "python3 foundation/scripts/check_foundation.py --api-python .venv-api/bin/python --numerical-python .venv/bin/python --output <new-evidence-directory>",
+    "fc_focused": ".venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests",
+    "claude": "claude --print --model claude-fable-5-2 (bounded read-only tools, approved account/network path)",
+    "evidence": "foundation/results/takeover-audit-20261116.json",
+    "practice": ".venv-api/bin/python -m final_project.pupper_fc --port 8766 (check the port before starting a new local viewer)"
+  }
 }

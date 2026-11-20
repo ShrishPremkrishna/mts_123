@@ -10,7 +10,7 @@ This folder contains release tools, local validation, recorded experiments and t
 
 Run `python3 foundation/scripts/session_status.py` from the repository root. It reads the [checkpoint](results/interruption-recovery.json) and local references. `--verify-inputs` also requires the saved local inputs and verifies their pinned digests. It performs no robot connection.
 
-The checkpoint states when its facts were observed. Its latest owned physical session is R5 from November 3; R6 was staged on November 4. Current Pi processes, ownership and loaded code require a live check when authorized. Release hashes, paths and held candidates are in that record. The [robot procedure](HARDWARE_CHECKLIST.md) explains the existing commands and their effects.
+The checkpoint identifies the latest owned session, when its facts were observed, current access constraints and pending evidence collection. Current Pi processes, ownership and loaded code require a live check when authorized. Release hashes, paths and held candidates are in that record. The [robot procedure](HARDWARE_CHECKLIST.md) explains the existing commands and their effects.
 
 ## Evidence by question
 

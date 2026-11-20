@@ -1,212 +1,333 @@
 # Pupper build and test handoff
 
-Updated 2026-11-17 UTC (November 16 in California). Use the
-[checkpoint](../foundation/results/interruption-recovery.json) for the current
-operator, readiness and active run. This document explains the workflow; its
-release records below are dated evidence, not permission to start the robot.
+Updated November 19, 2026. The [checkpoint](../foundation/results/interruption-recovery.json)
+owns the selected release, profile hashes, current operator and next actions.
+This document describes the procedure; historical releases do not assign work.
 
-## Quick start: one owner, one selected release, one session
+## Current path
 
-1. **Agree who owns the robot.** Exchange operator, boot ID, release/profile, run
-   directory, manager/launch identities, camera/recorder owners and motor state.
-   A teammate's active session remains theirs until an explicit handoff.
-2. **Select a completed release and profile.** Shared Git source, a build directory
-   and the mutable platform install are not release selectors. Never overwrite
-   selected binaries/configuration or install into another person's live runtime.
-3. **Check identity before hardware startup.** For a new session, use a fresh shell,
-   the selected release environment and the preflight command below with the
-   manager stopped. For an already homed matching session, retain its receipt and
-   run the loaded check; do not prepare or home again for each trial.
-4. **Start only with the supervisor ready and robot supported.** The selected
-   launch **can home the legs**, even with the walker inactive. Verify the loaded
-   runtime before the owner's deliberate arm/activation step. A staged release or
-   passing test is not physical acceptance.
-5. **Reuse that session for short trials.** Follow the
-   [axis-pulse and headbutt runbook](behaviors/ROBOT_RUNBOOK.md). Stop the shot
-   adapter before isolated pulses; do not add a second mux or teleop publisher.
-   Save one receipt plus actual travel, braking, stability and contact observations.
-6. **Close or hand over explicitly.** The owner stops the trial, supports the robot
-   for driver shutdown, closes owned processes/recordings and records the result.
-   Keep failed runs. An uncertain exit or changed boot needs identity recovery;
-   do not restart blindly or kill unrelated processes.
+The last floor-tested release is `movement-20261117-logfix`. Its sprint profile
+produced the recorded forward and short lateral results. The
+[legacy guarded walk](../foundation/results/staged-field-session-20261119.json)
+was assembled on the Pi using the existing native binaries. Its loaded runtime,
+camera stopping and physical walking await qualification. The direct
+command-deadline mode still needs a target-built controller.
+The [November 17 source kit](../artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json)
+contains separate source archives for the native controller and software-Start
+gateway. It covers the guarded movement work through that date. The November 19
+overhead producer, clock adapter and offline pose planner live in the active
+checkout. The kit has no Pi binaries, camera environment or field calibration.
 
-## Ownership and directories
+| Selection | Motion path | Preparation |
+| --- | --- | --- |
+| Existing stock release | Twist through mux to native | Select its existing whole release/profile. |
+| Guarded legacy candidate | Twist through mux and camera guard | Staged walk profile, all-obstacle guard, original native binaries. |
+| Direct FC candidate (`fc_deadline_v1`) | Original-deadline command through camera guard to native | Target-built controller and strict 15-role source index; explicitly select the new controller digest. No active mux. |
 
-Shrish now owns movement, X/Y sprinting, the run-through/headbutt baseline,
-gameplay integration and the arena. Tej owns foot kicking; Ryan owns overhead
-perception and shooting geometry. Earlier movement assignments to Marcus are
-historical. Physical get-up remains separate open work. Capability ownership does
-not authorize starting processes in another person's robot session.
+The [hardware checklist](../foundation/HARDWARE_CHECKLIST.md#guarded-walk-candidate)
+owns assembly commands. Assembly copies files and starts nothing. The software-Start
+service additionally requires a target-built gateway and its generated service
+bindings; controller-only assembly does not add it. The accepted Options activation
+path remains available. A source kit, successful build or file copy never selects
+the currently running release.
 
-| Location | Purpose and boundary |
-| --- | --- |
-| `/home/pi/mts_123` | Shared Git source. Coordinate pulls/edits; source synchronization does not install or select a runtime. |
-| `/home/pi/pupperv3-monorepo/ros2_ws/install` | Mutable legacy platform installation. No global rebuild/install/overwrite during an owned session. |
-| `/home/pi/pupper-fc-native-build-20261116` | Preserved isolated Pi build. Use a new directory and one owner for subsequent builds. |
-| `/home/pi/pupper-fc-releases/movement-20261116-vN` | Frozen release. New version for changed binaries, policy, launch or configuration; never overwrite a selected version. |
-| `/home/pi/pupper-fc-runs/<unique-run>` | Receipts, logs, recordings and operator observations. Do not reuse a completed run directory. |
-| `/home/pi/kick` | Recovered teammate experiment. Preserve its original files/logs. |
+## Target build for camera-guided play
 
-`pupper_gait_deploy/install.py` and `deploy.sh` target the platform installation;
-`deploy.sh --no-launch` still installs and rebuilds. They are not staging checks.
-Walk/sprint use separately pinned manifests. The manifest's `trial_profile` must
-match the trial's `--profile`. Native parameters are cached at initialization;
-changing their ROS parameter-store values does not establish applied settings.
-A profile change needs an owner-coordinated fresh session.
+The first stock straight trial can run before this build. The direct-deadline
+controller and software Start gateway need the Pi's Debian 12 ARM64 runtime.
+The local Ubuntu Jazzy image is suitable for simulation and has incompatible
+C++/Python dependencies for deployment. [Build audit](../foundation/results/build-environment-audit-20261116.json).
 
-## Build target and the repeated compatibility mistake
+The prepared runner lives at
+`/home/pi/pupper-fc-source/native-build-runner-X6aa22bm/build-one.sh`.
+When the Pi is idle, run it with Bash and the single argument
+`neural_controller`, then `joy_utils`. Each invocation uses an isolated build
+directory. The runner's source and dependency checks passed on the target.
+Retain its build log, behavioral test results and installed-file hashes before
+assembling a separate direct-deadline release and verifying its loaded libraries.
+The [staging report](../foundation/results/staged-field-session-20261119.json)
+records the runner digest, fallback release and outstanding checks.
 
-Read-only target check at **2026-11-17 02:08:18 UTC**:
+`pupper_gait_deploy/install.py` and `deploy.sh --no-launch` update the shared
+platform install. Use the isolated runner for this build.
 
-| Component | Verified Pi value |
-| --- | --- |
-| OS / architecture | Debian 12 Bookworm / aarch64 |
-| Compiler / C library | GCC `12.2.0-14+deb12u1` / glibc 2.36 |
-| C++ runtime | `libstdc++.so.6.0.30`; provides through `GLIBCXX_3.4.30`, `CXXABI_1.3.13` |
-| ROS underlay | `/opt/ros/jazzy` exists; complete dependency identity not yet frozen |
+## One selected release, one persistent physical session
 
-The cached `cs123-ros-jazzy-slew-check:latest` image is ARM64 **Ubuntu 24.04**,
-for offline ROS tests only. v1 required `GLIBC_2.38` / `GLIBCXX_3.4.32` and was held
-before activation. We repeated the known November 2 failure by packaging
-Ubuntu test outputs for the older Pi. This was a release-process mistake.
-Matching ARM64 and ROS Jazzy does not establish binary compatibility.
+One operator owns motion, camera configuration and restarts. When taking over an
+existing session, exchange boot, release/profile, run directory, process identities
+and motor state. Reuse a matching homed session and its receipt for successive
+trials; do not prepare, home or activate again for every command.
 
-For now, build reviewed source in a separate Pi workspace against its existing
-underlay; preserve the global installation. Keep source hashes, compiler identity,
-test output and artifact hashes. Later, create an ARM64 Debian 12/GCC 12 builder
-with the exact Pi ROS/dependency closure. No verified cached builder or complete
-sysroot exists. Changing only the Ubuntu compiler or selecting an older ROS
-distribution is insufficient.
-
-Offline checks from the Mac checkout:
+Use a fresh bounded connection after a battery swap or reboot:
 
 ```sh
-python3 foundation/scripts/session_status.py
-.venv-api/bin/python -m pytest -q foundation/hardware/test_runtime_identity.py final_project/behaviors/tools/test_movement_trial.py
-python3 foundation/scripts/check_ros_offline.py --output /absolute/new/evidence-directory
+ssh -S none -o ConnectTimeout=5 -o ServerAliveInterval=5 -o ServerAliveCountMax=2 mts
 ```
 
-The last command tests inside the Ubuntu container; its outputs are not approved
-Pi deployment binaries.
+The previous shared SSH connection could stay stale for minutes after power-off.
+This bypasses it without changing the user's SSH configuration. An unavailable
+Pi is not permission to restart services or automatically home on reconnect.
 
-## Selected release and startup commands
-
-At **2026-11-17 02:10:56 UTC**, the build owner reported
-`/home/pi/pupper-fc-releases/movement-20261116-v2` staged: Pi-native build/tests,
-pinned files/config-policy link, four ROS package prefixes and target `ldd`
-checks passed. No hardware startup or physical acceptance was included. v1 stays
-held. Use a newer complete receipt if the owner supersedes this version.
-
-| v2 manifest | Reviewed SHA256 |
-| --- | --- |
-| `walk-manifest.json` | `d21913f0f6addf332c7bac2ebebd89ea85637dda40d7a1c33d687e47c58c9bb2` |
-| `sprint-manifest.json` | `54afc5e568b8bbf54a0068c269565fbe53937c40c6ac862fcdeb9901e103a7b0` |
-
-The stock launch needs pinned **driver, controller, config, policy, launch, URDF,
-gateway and mux** entries. Use the release's copied checker/trial tools. Fully
-expand the configuration before preflight. Populate the following variables from
-the reviewed release handoff; `PUPPER_MANIFEST` selects one profile. Use a fresh
-shell and source only that release's environment, which sets its intended
-underlay/overlay order; do not accumulate incidental overlays from older sessions.
+In a Pi Bash shell, select the reviewed release, profile, manifest and hash.
+The [stock straight trial](#first-camera-free-straight-trial) gives the four
+values for the baseline. Source the selected environment in each Pi terminal.
+Before homing, check the boot and attached gamepad with motors inactive:
 
 ```sh
 source "$PUPPER_RELEASE/environment.sh"
-export PYTHONDONTWRITEBYTECODE=1
-mkdir "$PUPPER_RUN"  # New child of the existing /home/pi/pupper-fc-runs directory; stop on error.
-python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" preflight \
-  --manifest "$PUPPER_MANIFEST" --sha256 "$PUPPER_MANIFEST_SHA256" \
-  --output "$PUPPER_RUN/preflight.json"
+cat /proc/sys/kernel/random/boot_id
+awk 'BEGIN { RS="" } /DualSense|Wireless Controller|Handlers=.*js[0-9]/ { print $0 "\n" }' /proc/bus/input/devices
 ```
 
-Preflight starts no ROS/hardware. It checks pinned files, the configured policy,
-absence of a manager, and target dependencies. Gateway/mux `ldd` coverage requires
-them to be present in the manifest. Dependency refusal means fix the build, not
-bypass the check. The launch separately verifies selected ROS package resolution.
+Confirm the expected controller has an input handler. If missing, reconnect it
+and repeat the check. The [post-reboot verification](../foundation/results/staged-field-session-20261119.json)
+identifies the replacement receipt from that boot. A later operator started
+another controller manager, so that receipt is historical. At handover,
+confirm the prior operator has closed their session and released the robot.
+Then verify idle hardware and create a fresh preflight in a new run directory,
+even if the boot and stock manifest still match:
 
-Only after current supervisor readiness is established:
+```sh
+PUPPER_RUN=$(mktemp -d /home/pi/pupper-fc-runs/coordinate-stage1-XXXXXXXX)
+python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" preflight \
+  --manifest "$PUPPER_MANIFEST" --sha256 "$PUPPER_MANIFEST_SHA256" \
+  --output "$PUPPER_RUN/preflight.json" &&
+  printf 'export PUPPER_RUN=%q\n' "$PUPPER_RUN"
+```
+
+Preflight returns `motion_started=false`. Copy the printed
+`export PUPPER_RUN=…` line into **each new Pi terminal** and set the same
+release/profile environment there. Before using any terminal for the recorder,
+launch or trials, confirm it can read this session's receipt:
+
+```sh
+test -r "${PUPPER_RUN:?Set the run path printed by preflight}/preflight.json"
+```
+
+After this check passes, start one recorder in the selected environment if the session has none:
+
+```sh
+ros2 bag record -o "$PUPPER_RUN/telemetry" /joy /cmd_vel /kick_cmd_vel \
+  /joint_states /imu_sensor_broadcaster/imu /neural_controller_default/observation \
+  /estop_controller/stop_status /emergency_stop /rosout
+```
+
+With the supervisor ready, R3 and power accessible, and Pupper supported,
+start the selected launch in its own terminal:
 
 ```sh
 export PUPPER_RUNTIME_RECEIPT="$PUPPER_RUN/preflight.json"
-ros2 launch "$PUPPER_RELEASE/foundation/hardware/stock_session.launch.py"
+export PUPPER_IMU_STARTUP_TRACE="$PUPPER_RUN/imu-startup.csv"
+set -o pipefail
+ros2 launch "$PUPPER_RELEASE/foundation/hardware/stock_session.launch.py" 2>&1 | tee "$PUPPER_RUN/native.log"
 ```
 
-**This can home.** Keep its owning terminal/session and logs. It starts one private
-mux, stop gateway and inactive walker, retains joystick stop input, and does not
-start teleop, camera or voice. From a second terminal with the same selected
-environment, verify before the deliberate arm/activation step:
+**This can home the legs.** It starts the manager, Stop gateway, joystick input
+and inactive walker. Guarded selections add their pinned guard; direct FC omits
+the mux. Camera production and the gameplay bridge are separate selected processes.
+Keep the owning terminal and logs. From the same selected environment, check:
 
 ```sh
 python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" loaded \
-  --receipt "$PUPPER_RUN/preflight.json"
+  --receipt "$PUPPER_RUN/preflight.json" > "$PUPPER_RUN/loaded.json"
 ```
 
-The check binds boot, a newly started manager, supplied configuration bytes and
-actual driver/controller mappings by path/inode/device. It does not inspect
-weights in memory or prove physical behavior. v2 does not cover gateway/mux
-running executable identity. Current source and the offline v3 package add that
-check: exact executable path/device/inode, PID/start time, no duplicate or old
-process, and no stopped/zombie process. Trials recheck these identities. This is
-a process snapshot, not a lease or proof of application health. The [runbook](behaviors/ROBOT_RUNBOOK.md) supplies the exact
-receipt-required pulse commands and explains command receipts versus measured
-motion. Its stock layout is **20 frames × 48 values**, command indices **6:9** in
-the newest frame.
+The check verifies the supplied configuration, mapped libraries and required
+process identities. Look for homing completion and the opened DualSense
+joystick in the launch log. On the supported robot, use Options
+once and check `ros2 control list_controllers` for `neural_controller_default`
+active before the operator sets it on the mark. Strict FC also requires
+matching loaded contract/clock and
+fresh native binding to the bridge's source before arm. A replaced bridge source
+requires a deliberate native Stop/Start; disarmed zero traffic does not arm it.
 
-The [offline continuation receipt](../foundation/results/movement-offline-followthrough-20261116.json)
-identifies the v3 package and its new Python sources. Its native binaries and
-stock actor are byte-identical to v2; no rebuild is needed. v3 is **local only**
-until staged into its own new directory and checked on the target. Do not mix
-its helper files with a v2 manifest or reuse the closed preflight after reboot.
+For stock isolated pulses, use the [movement runbook](behaviors/ROBOT_RUNBOOK.md)
+and stop other command publishers. Do not use Twist pulse helpers as a test of
+the strict FC path: it deliberately has no Twist input. Qualify the selected
+bridge/guard/controller path on the stand before its bounded floor trials.
+Record actual distance, heading, stability and braking separately from command
+receipts. The stock observation layout is 20 frames × 48 values, with command
+indices 6:9 in the newest frame.
 
-## Shutdown, rollback and next improvements
+## First camera-free straight trial
 
-A command zero, gateway stop and full driver shutdown have different effects.
-The session owner closes the owned launch/recorder by recorded identity; do not
-use a broad process kill. Record manager exit, remaining owned processes, closed
-recording and the operator's physical observation before handing over. A software
-exit alone does not prove motor release. See the
-[hardware shutdown procedure](../foundation/HARDWARE_CHECKLIST.md).
-
-Rollback selects a previously recorded **whole release/profile** after the old
-session shuts down, then repeats preflight and supervised startup. Never replace
-a live library or mix unrelated historical manifests. The R5 driver
-`1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429`
-has historical physical evidence, not blanket acceptance of a new stack.
-
-The local ABI screen now rejects missing target version definitions before
-transfer. It reads ELF metadata; it never executes candidate code. From the
-source checkout, pass the candidate binaries explicitly:
+Use these Pi settings in the [session procedure](#one-selected-release-one-persistent-physical-session)
+above. They select the prior floor-tested native settings. The baseline requests
+0.2 m/s and can run independently of either camera. [Floor evidence](../foundation/results/gait-gate-20261116.json).
 
 ```sh
-python3 foundation/scripts/check_pi_abi.py \
-  --target foundation/results/build-environment-audit-20261116.json \
-  --docker-image cs123-ros-jazzy-slew-check:latest \
-  /absolute/candidate/libneural_controller.so /absolute/candidate/estop_controller
+export PUPPER_RELEASE=/home/pi/pupper-fc-releases/movement-20261117-logfix
+export PUPPER_PROFILE=sprint
+export PUPPER_MANIFEST="$PUPPER_RELEASE/sprint-manifest.json"
+export PUPPER_MANIFEST_SHA256=a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1
 ```
 
-Local GNU `readelf` is used when available; otherwise the explicit cached Docker
-image supplies only the metadata reader, with no network and read-only inputs.
-Exit 0 means architecture/version requirements passed, 1 means a mismatch and
-2 means inspection failed. This does **not** replace target `ldd`, dependency
-closure or loaded-runtime verification. The target baseline pins provider hashes
-and exact exported version names; refresh it after a target runtime upgrade.
-ELF files without ordinary section tables (including sectionless ELF and extended
-section numbering) are refused. The checker does not read dynamic-only version
-tables; an empty `readelf` result must not be used to bypass that refusal.
+On the Mac, generate the nominal 20 cm straight target from the active repository.
+The scale of 1 is an initial estimate. Keep the plan and mark the start position,
+heading, target and the robot reference point used for tape measurements.
+Choose a repeat count before starting, for example three attempts. Record x
+forward along the start heading, y to its left and yaw counterclockwise.
 
-Keep generated `__pycache__`/`.pyc` files out of future packages. v2's imported
-checker regenerated one nonselected cache entry; the selected release identities
-remain valid. Use the environment setting above to avoid changing cached files
-during setup; do not edit or repackage v2 to hide that historical receipt detail.
+```sh
+.venv-api/bin/python final_project/behaviors/tools/pose_trial.py \
+  --start 0 0 0 --target 0.2 0 0 --speed 0.2 --distance-scale 1
+```
 
-Remaining small improvements:
+On the Pi, use the same release environment, profile and run directory as the
+native terminal. With the robot ready and one deliberate Options activation
+confirmed, start its resident trial client once:
 
-1. Make the existing packaging path require this pre-transfer screen's receipt;
-   retain target `ldd` checks.
-2. Freeze the Pi build baseline and create the matching offline builder. Label
-   test-only versus deployable outputs distinctly.
-3. Validate v3's new executable checks and pulse reporting in the next selected
-   session. Keep operator ownership explicit; process identity alone is not a
-   distributed lock across teammates.
+```sh
+set -o pipefail
+python3 -u "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" \
+  --session --execute --profile "$PUPPER_PROFILE" \
+  --runtime-receipt "$PUPPER_RUN/preflight.json" --out "$PUPPER_RUN/trials" | tee -a "$PUPPER_RUN/trial-session.jsonl"
+```
 
-Evidence and remaining gaps: [build audit](../foundation/results/build-environment-audit-20261116.json).
-Movement candidates: [offline comparison](../foundation/results/movement-readiness-20261116.json).
+1. Send `{"command":"status"}` and check readiness. In a clear lane, send
+   `{"command":"prepare","axis":"forward","speed":0.2,"duration":1}`. When the
+   operator is watching and the response has `event=prepared` and `problem=null`, send
+   `{"command":"run","token":"RETURNED_TOKEN"}` with that attempt’s token.
+2. Read the individual trial receipt. Require `outcome=completed`,
+   `command_verification.passed=true` and a recorded
+   `summary.zero_confirmed_in_observation_s`. Observe the physical stop, then
+   measure the endpoint before repositioning. Preserve interruptions, refusals
+   and missing measurements. Check the cause before another attempt.
+3. Restore the start and heading for each repeat. Use a fresh prepare/run token.
+   On the Mac, record a JSON array with a unique `trial_id`, `outcome`, `x` and
+   `y` in metres and `yaw` in **radians** for each attempt. Use `null` for
+   unmeasured values. Score with
+   `.venv-api/bin/python final_project/behaviors/tools/pose_trial.py --target 0.2 0 0 --measurements endpoints.json`.
+   The score reports RMS distance to the target and RMS spread about the mean
+   endpoint. A paired x/y measurement counts even when heading was unavailable. Spread needs
+   at least two endpoints. Heading errors use the recorded yaw independently.
+
+The frozen stock client supports timed axis pulses. The newer
+[Pi client](../foundation/results/staged-field-session-20261119.json)
+processed relative and absolute headings in synthetic tests. Select it
+separately and qualify isolated physical turns before combining them with
+translation. See the [movement runbook](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
+for the guarded candidate, which also requires a real onboard camera producer.
+
+## Mounted overhead camera, motors inactive
+
+1. Print pages **2–9** of the [tag packet](overhead_perception/tags/pupper_fc_tags.pdf)
+   on US Letter at **Actual Size / 100%**. Page 1 is a placement guide with
+   readable duplicate IDs. Keep it outside the camera view. Check the printed
+   black squares with a ruler. Floor IDs 0–5 are 17 cm per side and robot IDs
+   10/11 are 8 cm. Preserve the white border and the robot card's FRONT marking.
+2. Centre tags 0, 1, 2, 3 on west-south, east-south, east-north, west-north
+   corners respectively. The east goal lies between 1 and 2. For inward
+   placement enter the measured x/y inset in `tags.corner_inset` (metres).
+   Tags 4 and 5 go at midfield on the south and north sides. Centre each goal
+   on its end line. Measure both clear openings between the inside edges of
+   the posts. The current model represents two equal, centred goal mouths.
+   Replace the 0.82 m placeholder in `field.goal_width` with the measured
+   common opening. Tape the field length and width too.
+3. Mount the camera with all four corner tags visible, including their white
+   borders. Place the loose tag 10 level on a support at the measured
+   standing tag height. Set `robots.striker.tag_height` and orient FRONT
+   along the known heading. For the mounted robot also measure its
+   `tag_offset` from the body centre (forward, left). Use tag 11 and the
+   `keeper` settings for the second robot.
+
+On the Mac, start from the active repository root. The interactive camera
+uses full OpenCV in its own environment. The November 19 Mac setup passed
+all 70 perception tests and a four-frame simulated corner calibration using
+Python 3.12.8 and OpenCV 5.1.0 (Cocoa). For a new checkout, create it once:
+
+```sh
+cd final_project/overhead_perception
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Create a run folder and copy the [field configuration](overhead_perception/config/field.yaml)
+into it from the perception directory:
+
+```sh
+mkdir -p out
+camera_run=$(mktemp -d out/field-camera-XXXXXXXX)
+cp config/field.yaml "$camera_run/field.yaml"
+```
+
+Enter the measurements above in the copy. Leave `net.host` at `127.0.0.1`
+for Mac-only observation. In the same terminal, start the live dashboard:
+
+```sh
+.venv/bin/python -u scripts/run_perception.py --source phone --config "$camera_run/field.yaml" \
+  --corners --dashboard --print > "$camera_run/perception.log"
+```
+
+At the field centre, near both goals and near a sideline, hold the card on tape
+marks and point FRONT toward +x, then +y (0°, +90°). Record tape pose and
+dashboard pose for each position and a short moving pass. Count frames with
+`calibration_valid=true` and `robots.striker.measured_this_frame=true`;
+`visible` alone includes predictions. Retain the camera log, field YAML,
+lens/resolution and tag height. Check height, scale and orientation against
+the marks before putting the tag on a robot. The pink ball can be added when
+available. Measure its radius and tune its colour with the dashboard's `b`
+picker under the arena lights.
+
+For later Pi ingress, set `net.host` to the intended Pi address and run
+`python3 final_project/behaviors/overhead_ingress.py --duration 15` from the Pi
+source checkout for receive-only discovery. Capture the producer session and
+calibration revision. Corner calibration estimates length and width anew.
+Check them against tape and use the **full-precision values** from a valid
+frame's `field` in the FC field JSON. The dashboard rounds to centimetres.
+Alternatively, configure the measured field and tag-centre coordinates and
+use measured-tag calibration. The adapter checks incoming dimensions and goal
+segments to 0.000001 m. Both ingress and bridge need the same geometry file.
+It contains `field` with `length`, `width`, `goal_width`, `ball_radius`,
+`robot_radius`, and `bumper_offset` (centre to front contact point, metres),
+and `attack_signs` with opposite +1/−1 values for `pupper-1` and `pupper-2`.
+Measure lens intrinsics and capture latency with the selected camera mode.
+Network clock admission and physical stopping are separate tests.
+[Camera tools](overhead_perception/README.md#remaining-bring-up-on-the-arena)
+· [FC field configuration](behaviors/README.md).
+
+## Operator kick after the straight baseline
+
+The stock sprint release runs only the walker. The
+[operator kick](../gemini_pupper/README.md#operator-soccer-kick-candidate)
+requires a separately prepared Gemini release, its clip assets and the same
+`PUPPER_SESSION_SKILLS=leg_kick` selection in both launcher and API. Obtain
+the applicable course clearance for this policy and review its replay before
+hardware use. Close the stock session before selecting the kick release.
+
+For each no-ball side trial, confirm the walker owns the legs, submit one
+operator kick with the current command epoch and follow its returned job ID
+in `GET /queue/status` (`recent_outcomes`). Record the requested side, observed
+foot, matching clip/frame, terminal result and restoration of the walker.
+Keep the existing 0.5-second initialization and 1.0-second fade for this first
+comparison. Ball-contact trials with the intended ball also need its marked
+starting offset, actual contact or miss, travel direction/distance and robot
+stability. [Kick selection and software tests](../foundation/results/staged-field-session-20261119.json).
+
+## Close and recover
+
+Zero velocity, controller Stop and full driver shutdown have different effects.
+The owner supports the robot as needed, closes ingress and the owned native
+session, then verifies process exits and recording closure using the
+[shutdown procedure](../foundation/HARDWARE_CHECKLIST.md). Keep failed runs and
+uncertain observations; do not kill by broad process name or overwrite evidence.
+On the frozen stock client, idle `quit` or `stop` exits the client while the
+native session can remain active. Check native deactivation and driver shutdown
+separately.
+
+Rollback selects a previously recorded **whole release/profile** after the old
+session closes. Never replace a live library or mix historical manifests. Native
+parameters are cached at initialization, so changing the parameter store is not
+proof of applied settings. A profile change needs a fresh coordinated session.
+
+From the Mac checkout, start offline checks with:
+
+```sh
+python3 foundation/scripts/session_status.py
+.venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests
+```
+
+The checkpoint links the tested source kit, current results and pending physical
+acceptance. [Earlier v2/v3 work](../foundation/results/movement-offline-followthrough-20261116.json)
+and the [fall investigation](../foundation/results/gait-gate-20261116.json) remain
+historical evidence; they are not a second queue of next actions.

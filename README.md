@@ -29,13 +29,21 @@ Machine-specific paths and installed-tool observations below describe Shrish's M
 | --- | --- |
 | Mac API and browser | [Setup and fake-robot checks](gemini_pupper/README.md#offline-checks), `.venv-api/bin/python`, and npm in `gemini_pupper/web`. |
 | Mac simulation and native checks | [CPU environment and offline checks](foundation/README.md). `.venv/bin/python` imports this checkout's `pupper-mjlab`. The offline ROS runner uses Docker Desktop; that Ubuntu image is test-only for the Debian Pi. Build deployment binaries against the target environment. GPU training uses a suitable CUDA host. |
-| Claude Code and subagents | Claude CLI is installed on this Mac. Prior authenticated source-only work is recorded; check availability in the current session. Available agent/browser tools depend on the host application. |
+| Claude Code and subagents | CLI 2.1.308 and exact `claude-fable-5-2` were verified November 17. Lean authenticated review invocation and measured startup are in the [diagnostic](artifacts/pupper-fc/2026-11-17/fable-latency/summary.json). Available agent/browser tools depend on the host application. |
 | Gemini | Existing local credential location is `~/.config/gemini-pupper/api_key`. Onboard setup uses an explicit key file and a one-use browser bootstrap. Verify access without printing credentials. Confirm before any API experiment expected above $5. |
 | Pupper | `ssh mts` uses Shrish's configured SSH alias and Tailscale. [The session checkpoint](foundation/results/interruption-recovery.json) holds access constraints and dated release observations. |
 | Class library | Local Obsidian course folder is `/Users/shrish/Library/Mobile Documents/iCloud~md~obsidian/Documents/vaulted/Fall2026Classes/Cs123`. Start at `CS123.md` or `References/Course Sources.md`. It contains dated handouts, slides, notebooks, source captures and learning notes. [Live course site](https://cs123-stanford.readthedocs.io/en/latest/). |
 | Experiment archives | Ignored `artifacts/` currently links into the legacy worktree. Additional archives are in `/Users/shrish/workspace/pupper-foundation-artifacts`. Retrieve the specific evidence named by a report. |
 
 Cloud runtime availability and physical readiness are session-specific. Ordinary source work does not require the historical artifact archive or a robot connection.
+
+For bounded Fable source reviews, use the exact model and the lean invocation
+recorded in the diagnostic, with an explicit review system prompt and authorized
+source on stdin. Safe
+mode removed startup hooks while retaining existing sign-in; `--bare` disables
+that authentication route. Retain bounded progress and final model/exit evidence
+in files, not every streamed token in chat. A 95.6-second focused source/math
+review succeeded; tiny connectivity probes do not predict review duration.
 
 ### Choose the check for the task
 

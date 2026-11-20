@@ -44,6 +44,14 @@ canvas{width:100%;height:100%;display:block;touch-action:none}
 .legend.observed{border:1px dashed #d4e4d7;margin-left:8px}
 .legend.target{border:1px solid #b7e8ae;margin-left:8px;transform:rotate(45deg);border-radius:0}
 .telemetry{padding:20px 23px;margin-top:15px;display:grid;grid-template-columns:minmax(0,1.45fr) 1fr;gap:26px;min-height:139px}
+.state-strip{grid-column:1/-1;display:flex;gap:20px;align-items:center;padding-bottom:15px;border-bottom:1px solid var(--line)}
+.state-strip>div{display:flex;flex-direction:column;gap:6px;min-width:100px}
+.state-strip strong{font-size:17px;font-weight:550;color:#c2d8bf}
+.state-strip strong.defense{color:#a9d3e2}
+.state-strip strong.stopped{color:var(--red)}
+.state-link{color:#718478;font-size:20px}
+.state-strip p{margin-left:auto;color:var(--muted);font-size:10px;line-height:1.6}
+#epoch{font-size:12px;white-space:normal;overflow-wrap:anywhere}
 .phase-detail h2{font-size:21px;font-weight:550;letter-spacing:-.5px;margin:7px 0}
 .phase-detail p{color:#a7b8ac;font-size:12px;line-height:1.55}
 .phase-detail p.recovery{margin-top:5px;color:#e8bd87}
@@ -141,6 +149,7 @@ aside{grid-template-columns:1fr 1fr;align-items:start}
 #events li{grid-template-columns:37px 100px 1fr;gap:6px}
 }
 @media(max-width:450px){aside{grid-template-columns:1fr}
+.state-strip{gap:10px;flex-wrap:wrap}.state-strip p{margin-left:0;width:100%}
 .disturbance-card{grid-column:auto}
 .telemetry{grid-template-columns:1fr}
 .telemetry dl{grid-template-columns:repeat(2,1fr)}

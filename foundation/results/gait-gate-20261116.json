@@ -1,0 +1,288 @@
+{
+  "observed_utc": "2026-11-17T06:21:14.719822+00:00",
+  "scope": "Supervised measured gait readiness gate before live-play integration; commands and physical observations reported separately.",
+  "hypothesis": "The existing stock gait is adequate for initial headbutt and simple defense at conservative commands; measured travel, stability and stopping decide whether further gait work is needed.",
+  "comparison": "Three repeat forward trials, turning, then low-speed left/right movement; select usable motion from observed errors and failures.",
+  "stopping_limit": "One pulse at a time, max3s; stop escalation for instability, inconsistent delivery or physical intervention. No gains/limits/new policies. Battery alert40%, swap33%or17V.",
+  "run": "/home/pi/pupper-fc-runs/movement-20261117T055317Z",
+  "native_release": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+  "profile": "sprint",
+  "client": "/home/pi/pupper-fc-client-updates/client-session-20261116-r1",
+  "client_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+  "mode": "single pulse; unresolved persistent idle fault avoided without changing guards",
+  "homing": "passed; loaded identity verified manager21315/start208942, bootdfa2435c-75c7-488f-9db4-940a82507576",
+  "battery_initial": "90%19.61V; independent monitor active,88%19.47V after homing",
+  "trials": [
+    {
+      "id": "forward01",
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T055613892610Z-forward.json",
+      "axis": "forward",
+      "command_speed": 0.45,
+      "duration_s": 2,
+      "exit_code": 0,
+      "command_verification": "passed",
+      "zero_observation_s": 0.06,
+      "operator_observation": "Around30in; straight/stable. Follow-up confirmed stationary normally.",
+      "physical_acceptance": "Controlled forward/stop observed; braking distance not measured.",
+      "travel_inches_approx": 30,
+      "travel_m_approx": 0.762
+    },
+    {
+      "id": "forward02",
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T055828893986Z-forward.json",
+      "axis": "forward",
+      "command_speed": 0.45,
+      "duration_s": 2,
+      "exit_code": 0,
+      "command_verification": "passed",
+      "zero_observation_s": 0.04,
+      "operator_observation": "Another30in-ish; straight and stable afaik.",
+      "travel_inches_approx": 30,
+      "travel_m_approx": 0.762,
+      "physical_acceptance": "Consistent initial travel/stability; stationary state requested before turn."
+    },
+    {
+      "id": "turn_left01",
+      "axis": "turn_left",
+      "command_speed_rad_s": 0.35,
+      "duration_s": 1.5,
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T060143691371Z-turn_left.json",
+      "exit_code": 0,
+      "command_verification": "passed",
+      "zero_observation_s": 0.02,
+      "imu_yaw_change_rad": 0.405,
+      "imu_yaw_change_deg": 23.2,
+      "operator_observation": "Owner asked to repeat while watching; no physical assessment supplied.",
+      "physical_acceptance": "pending"
+    },
+    {
+      "id": "turn_right01",
+      "axis": "turn_right",
+      "command_speed_rad_s": 0.35,
+      "duration_s": 1.5,
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T060249928346Z-turn_right.json",
+      "exit_code": 0,
+      "command_verification": "passed",
+      "zero_observation_s": 0.03,
+      "imu_yaw_change_rad": -0.481,
+      "imu_yaw_change_deg": -27.6,
+      "operator_observation": "Owner watched repeat and said looks kind of right; requested future exact-angle control.",
+      "physical_acceptance": "Direction and approximate turn accepted; exact target-angle control unimplemented."
+    },
+    {
+      "id": "turn_left02",
+      "axis": "turn_left",
+      "command_speed_rad_s": 0.35,
+      "duration_s": 1.5,
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T060331333894Z-turn_left.json",
+      "exit_code": 0,
+      "command_verification": "passed",
+      "zero_observation_s": 0.03,
+      "imu_yaw_change_rad": 0.416,
+      "imu_yaw_change_deg": 23.8,
+      "operator_observation": "Owner watched repeat and said looks kind of right; requested future exact-angle control.",
+      "physical_acceptance": "Direction and approximate turn accepted; exact target-angle control unimplemented."
+    },
+    {
+      "id": "lateral_left01",
+      "axis": "left",
+      "duration_s": 1,
+      "operator_observation": "Stable, went left a few inches.",
+      "physical_acceptance": "Short probe controlled only",
+      "exit_code": 0,
+      "zero_observation_s": 0.06,
+      "command_speed_m_s": 0.15,
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T060738042236Z-left.json"
+    },
+    {
+      "id": "lateral_right01",
+      "axis": "right",
+      "duration_s": 1,
+      "operator_observation": "A little wobbly; owner requested sustained6ft left/right evaluation.",
+      "physical_acceptance": "Wobble observed; sustained stability unaccepted",
+      "exit_code": 0,
+      "zero_observation_s": 0.02,
+      "command_speed_m_s": 0.15,
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T060928286941Z-right.json"
+    },
+    {
+      "id": "lateral_left02",
+      "axis": "left",
+      "duration_s": 3,
+      "operator_observation": "Robot fell LEFT; owner thinks left legs collapsed.",
+      "physical_acceptance": "FAILED: fall",
+      "exit_code": 4,
+      "zero_observation_s": null,
+      "elapsed_s": 2.887894494,
+      "reason": "stock policy observation stale",
+      "command_input_matched_before_stop": true,
+      "command_verification": "UNVERIFIED; incomplete pulse and no zero feedback",
+      "command_speed_m_s": 0.15,
+      "receipt": "/home/pi/pupper-fc-runs/movement-20261117T055317Z/trials/movement-20261117T061251665458Z-left.json"
+    }
+  ],
+  "closure": {
+    "state": "CLOSED_AFTER_LATERAL_FALL",
+    "closed_utc": "2026-11-17T06:15:37.116669+00:00",
+    "native_exit_code": 0,
+    "recorder_exit_code": 0,
+    "driver_deactivation_logged": true,
+    "manager_absent": true,
+    "operator_supported": true,
+    "no_further_motion": "No prepared trial/client; independent battery monitor stopped."
+  },
+  "gate_progress": "Forward initial baseline controlled; turns approximate controlled; sustained lateral FAILED. No headbutt/contact test. Do not extend lateral trial or widen motion limits.",
+  "preservation": {
+    "local_root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z",
+    "copy_status": "Verified complete: 35 files, 554631841 bytes; every file matches closed remote index.",
+    "mcap_sha256": "132cee6ce9ff0ed5dd33100d29c6010d7b4c524ab675a390bae2deb4c3c006a0",
+    "verification": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/verification.json"
+  },
+  "investigation": {
+    "updated_utc": "2026-11-17T06:40:09.137830+00:00",
+    "observed_timeline_s_from_trial_start": {
+      "last_joint_state": 2.67889,
+      "last_imu": 2.67892,
+      "last_observation": 2.68112874,
+      "last_imu_tilt_deg": 3.4516,
+      "max_pre_gap_tilt_deg": 4.83,
+      "client_emergency_stop": 2.8877952,
+      "first_joint_after_gap": 4.00119,
+      "first_imu_after_gap": 4.0038,
+      "imu_source_stamp_gap_s": 1.32201,
+      "first_returned_imu_tilt_deg": 40.8337
+    },
+    "interpretation": "A common control/publication interruption preceded the client stop by about 207 ms. Stable pre-gap attitude and stopped inference logging support a control-loop stall. No final-command or rosout topics were recorded, so exact stall location and whether damping contributed to the physical fall remain unproved.",
+    "earlier_turn_gaps": "Recorder receipt delays only: IMU source stamps advanced normally across those gaps. Do not cite these as control-loop stalls.",
+    "command_contract": "Pinned stock actor and native libraries verified before run; requested/applied lateral input +0.15 m/s matched. No game buttons or policy switch. Selected source archive neural_controller.cpp SHA ea05d804e4376785fa573c6ac0a77f15e9e26835ce2c81906f36b74101a4c0fb matches inspected pre-edit source.",
+    "leading_hypothesis": "Synchronous per-inference logging blocked the control thread. Independent exact Fable 5.2 review ranked this first. Delayed stop-log ordering supports it, but does not prove full-pipe backpressure in the incident. SPI blocking or scheduling remain alternatives.",
+    "motor_free_experiment": {
+      "platform": "same Pi; no hardware driver linked or loaded",
+      "fault": "prefill measured 16384-byte stderr pipe; drain after 1.5 s",
+      "info_log_max_ms": 1500.393,
+      "disabled_log_max_ms": 0.007,
+      "scope": "Proves a blocking mechanism, not original incident cause. Initial attempts incorrectly assumed 4096-byte capacity and did not fill the Pi pipe; final test uses returned capacity."
+    },
+    "correction": "Removed per-inference synchronous log; realtime timing publishers retained. Pi-native build and six focused CTest groups passed (28 safety tests), host2724checks passed. No gains, limits, policy or stop thresholds changed. Separate release prepared; no physical validation.",
+    "system_health": "Read-only check: throttled=0x0, no swap use, 63 GB free, no kernel events around incident. Observed temperature68.1C after closure is not incident temperature.",
+    "native_screen": "Stock and Markus ablated completed two nominal low-speed lateral replicas without falls. Stock lateral tracking weaker; Markus uses considerably more driver clamping. No candidate promoted; simulation does not explain physical fall.",
+    "training_decision": "No new lateral policy training now. Resolve control interruption, then remeasure gait. Short-right wobble remains unresolved.",
+    "review_limit": "Fable used supplied source and extracted summary, not raw MCAP; some assertions in its review are stronger than the evidence. Root retains alternative hypotheses.",
+    "next_experiment": "After build verification and supported-robot readiness: record observation, policy_output, position_command, imu_latency_seconds, policy_inference_latency_seconds, joint/IMU, commands, Stop and rosout; inspect timing on stand before floor motion. No prolonged lateral retry.",
+    "owners": "Root owns hardware, diagnosis and integration. Fable5.2 review completed. Other agents are completed or usage-limited, not active.",
+    "test_environment_correction": "Initial safety test segfaulted because ldd selected legacy installed libneural_controller.so. Explicit new-build LD_LIBRARY_PATH corrected selection; all6focused groups passed. Other first-run failures were pre-existing lint/missingcppcheck, not hidden passing claims.",
+    "prepared_release": {
+      "schema": "pupper_movement_logging_correction_v1",
+      "created_utc": "2026-11-17T06:43:06.103049+00:00",
+      "base_release": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+      "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+      "controller_sha256": "e76b9d581c7cf72d6ffe82a2077bf52d2dfdcdb932524631055b13b1ee29b9c8",
+      "controller_source_sha256": "ce29220632822db0cefaf9c9330777b207ba8ef360b91fc262332d4e273e16b4",
+      "client_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+      "native_tests": "six groups pass, including28safety tests; LD_LIBRARY_PATH explicitly selected new build",
+      "hardware_started": false,
+      "physical_acceptance": false,
+      "change": "Removed synchronous per-inference log; same timing topics remain. Policies, gains, limits, timeouts unchanged.",
+      "manifests": {
+        "walk": "78b2c308422fcaae39160fd4f5205fb50fb2e8156bba5a9956284b6147b9a223",
+        "sprint": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1"
+      }
+    },
+    "prepared_run": "/home/pi/pupper-fc-runs/logfix-stand-20261117",
+    "motor_free_preflight": "Passed: selected hashes/dependencies and no active manager; motion_started=false."
+  },
+  "post_correction_supported_validation": {
+    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "controller_sha256": "e76b9d581c7cf72d6ffe82a2077bf52d2dfdcdb932524631055b13b1ee29b9c8",
+    "run": "/home/pi/pupper-fc-runs/logfix-stand-20261117b",
+    "supported_active_s": 30,
+    "joint_source_gap_max_ms": 8.573,
+    "imu_source_gap_max_ms": 8.16,
+    "observation_receive_gap_max_ms": 26.461,
+    "position_command_receive_gap_max_ms": 27.098,
+    "policy_output_receive_gap_max_ms": 39.076,
+    "inference_max_ms": 2.635,
+    "imu_age_max_ms": 27.876,
+    "gateway_clear": true,
+    "trial": {
+      "axis": "left",
+      "speed_m_s": 0.15,
+      "duration_s": 3,
+      "receipt": "movement-20261117T070122802657Z-left.json",
+      "sampled_commands": 63,
+      "applied_match": true,
+      "zero_ack_s": 0.03,
+      "operator_observation": "Battery replaced; on stand; test looked controlled",
+      "physical_scope": "Leg motion while supported only; no floor stability acceptance"
+    },
+    "closure": "2026-11-17T07:02:51.906137Z; manager absent, driver deactivated, native/recorder exits0",
+    "earlier_attempt": "logfix-stand-20261117 closed after root duplicate STRICT activation; Options already activated walker. Both requested timing windows actually observed inactive controller and are not acceptance. Raw capture includes brief active interval before root error.",
+    "capture_preservation": "All three corrected runs collected and hash-verified:62indexedfiles,785107222bytes. See /Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs/verification.json"
+  },
+  "thermal_monitor": {
+    "started_utc": "2026-11-17T06:55:50.986647+00:00",
+    "samples": 31,
+    "cpu_c_min": 70.3,
+    "cpu_c_max": 74.7,
+    "throttle_masks": [
+      "0x0"
+    ],
+    "scope": "CPU/SoC only. No decoded motor temperature in current SPI/ROS contract. Zero masks do not establish motor thermal condition.",
+    "local_csv": "/tmp/pupper-thermal-battery-20261117.csv",
+    "status": "Both boot monitors stopped.103validsamples total; firstboot70.3\u201374.7C, freshboot64.2\u201371.9C, all raw throttle masks0x0. Motor temperatures unavailable.",
+    "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/analysis"
+  },
+  "post_correction_floor_validation": {
+    "run": "/home/pi/pupper-fc-runs/logfix-floor-20261117",
+    "boot_id": "8e70f243-74ae-4d5f-9c46-9ef1cf3d7e2d",
+    "left": {
+      "speed_m_s": 0.15,
+      "duration_s": 3,
+      "matched_samples": 63,
+      "zero_feedback_s": 0.06,
+      "peak_imu_tilt_deg": 4.74,
+      "operator": "Stable and stopped cleanly"
+    },
+    "right": {
+      "speed_m_s": 0.15,
+      "duration_s": 3,
+      "matched_samples": 63,
+      "zero_feedback_s": 0.03,
+      "peak_imu_tilt_deg": 3.26,
+      "operator": "Stable and stopped cleanly"
+    },
+    "ball_contact_attempt": {
+      "speed_m_s": 0.45,
+      "duration_s": 2,
+      "matched_samples": 43,
+      "zero_feedback_s": 0.04,
+      "peak_imu_tilt_deg": 6.01,
+      "operator": "Did not reach ball; initially reported few inches of travel, then said ball may have been too far away. Placement unmeasured.",
+      "acceptance": "No successful contact established"
+    },
+    "marked_forward_repeat": {
+      "speed_m_s": 0.45,
+      "duration_s": 2,
+      "matched_samples": 43,
+      "zero_feedback_s": 0.04,
+      "travel_inches_approx": 30,
+      "travel_m_approx": 0.762,
+      "peak_imu_tilt_deg": 5.34,
+      "operator": "30 inches"
+    },
+    "recorded_trial_windows": "IMU receive gaps at most8.74ms, observation receive gaps at most40.27ms across these four trial windows. No recurrence of the original1.32s gap in these windows; this is not long-term reliability proof.",
+    "closure": "2026-11-17T07:28:10.259814Z; native/recorder exit0, manager absent, driver deactivation logged; user on stand/R3/handsclear.",
+    "remaining": "Original stall root cause remains provisional; prolonged lateral travel, exact turns, braking distance, reliable ball contact and full play unaccepted."
+  },
+  "software_followthrough": {
+    "commits": {
+      "integration": "82ba2c4",
+      "logging_correction": "2977ef3",
+      "lateral_calibration": "c32457a",
+      "software_start": "c8e9213"
+    },
+    "checks": "295APItests+48subtests; nativehost2724checks; loggingfix6PiCTestgroups including28safetytests; softwareStart12ROSgroups+21deterministiccases. Counts are software evidence only.",
+    "software_start": "Fable5.2 initialreview found2highstatebugs; fixed with reproductions and other bounded corrections. Follow-up independent review, residentcaller integration and deployment remain pending.",
+    "extended_lateral": "Opt-in <=20s, <=.15m/s left/right; source tested only, not deployed or physically qualified."
+  }
+}

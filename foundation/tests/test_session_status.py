@@ -58,6 +58,32 @@ def test_clean_clone_can_read_handoff_before_strict_local_verification(checkout)
     assert code == 1 and not report['missing_local'] and 'checksum mismatch' in report['errors'][0]
 
 
+def test_archived_evidence_is_optional_on_a_fresh_clone_and_required_in_strict_mode(checkout):
+    archive = 'artifacts/old-run/result.json'
+    tracked = 'artifacts/versioned-result.json'
+    state_path = checkout / 'foundation/results/interruption-recovery.json'
+    state = json.loads(state_path.read_text())
+    state['evidence'] = {'old_run': archive, 'versioned': tracked}
+    state_path.write_text(json.dumps(state))
+    (checkout / 'artifacts').mkdir()
+    (checkout / tracked).write_text('{}')
+    subprocess.run(['git', 'add', '-f', tracked], cwd=checkout, check=True)
+
+    code, report = status(checkout)
+    assert code == 0 and report['missing_local_artifacts'] == [archive]
+    human = subprocess.check_output([sys.executable, str(SCRIPT)], cwd=checkout, text=True)
+    assert 'absent from this checkout: 1 (list with --json)' in human and archive not in human
+    code, report = status(checkout, '--verify-inputs')
+    assert code == 1 and f'Missing machine-local evidence: {archive}' in report['errors']
+
+    (checkout / archive).parent.mkdir()
+    (checkout / archive).write_text('{}')
+    (checkout / tracked).unlink()
+    code, report = status(checkout)
+    assert code == 1 and not report['missing_local_artifacts']
+    assert report['errors'] == [f'Missing evidence reference: {tracked}']
+
+
 def test_legacy_checkout_still_checks_tracked_reports_and_branch(checkout):
     subprocess.run(['git', 'switch', '-qc', 'pupper-foundation'], cwd=checkout, check=True)
     assert status(checkout)[0] == 0

@@ -1,0 +1,27 @@
+# Front-leg swing kick (Tej, 2026-11-16): a tracking policy trained on a clip
+# library (Mjlab-Tracking-LegKick-Flat-Pupper-v3, run 2 model_1499, exported
+# policy SHA-256 9c841f26...). Clips: stand_idle (loops), kick_right and
+# kick_left (3.0 s each, then stand_idle). The robot shifts its weight away
+# from the kicking leg and swings that paw forward through a ball at
+# approximately (0.258, -0.046) m (right) or (0.258, +0.040) m (left) from
+# base_link. Sim: ball 1.2 to 1.5 m/s. Robot (course stack, 2026-11-16 5:33 and
+# 5:37 pm PT): two right kicks hit the beach ball. The left kick ran in sim only.
+#
+# tool_only: only the kick tools (lab/part9_ball_kick.py) play it. They place the
+# ball first and give the legs back to the walker when the kick motion ends,
+# because the policy trained only with its feet on the ground and jitters when
+# the robot is lifted while it holds the legs.
+#
+# init_duration, fade_in_duration: the controller's blend-in. The kick starts in
+# the walker's stance, so 0.2 s + 0.3 s replace the default 0.5 s + 1.0 s. Sim
+# (foundation/scripts/check_kick_handoff.py, 2026-11-19): same ball speed, tilt
+# at most 5 degrees, also at 0.1 s + 0.1 s. Not run on the robot with these values.
+description: Front-leg swing kick at a ball placed in front of one front paw.
+type: policy
+policy: policy.json
+start_pose: standing
+end_pose: standing
+max_body_angle_deg: 45   # the kick tilts at most approximately 6 degrees
+tool_only: kick_ball
+init_duration: 0.2
+fade_in_duration: 0.3

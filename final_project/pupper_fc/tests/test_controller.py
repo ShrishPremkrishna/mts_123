@@ -45,6 +45,18 @@ def is_zero(command):
     return command.vx == 0 and command.vy == 0 and command.wz == 0
 
 
+@pytest.mark.parametrize("goal", [-1, 1])
+def test_recorded_referee_pulse_does_not_execute_motion_or_release_reset(goal):
+    controller = Controller()
+    assert controller.record_goal(goal) is None
+    assert controller._goal_latched
+    controller.reset()
+    assert controller.record_goal(0) is None
+    assert controller._goal_latched  # only a valid tick may release requested reset
+    result = controller.tick(Observation(0, Pose(-1, 0, 0), Ball(0, 0)), 0)
+    assert not controller._goal_latched and result.phase == "approach"
+
+
 def staged(field=Field(), ball=Ball(0.0, 0.0), yaw_offset=0.0, back=0.0):
     """Robot pose at the staging point for a ball on the field's x axis."""
     sign = field.attack_sign
@@ -316,7 +328,7 @@ def test_ball_moved_while_circling_picks_a_new_side_waypoint():
 
 @pytest.mark.parametrize("limits", [Limits(), Limits(vx=0.1, vy=0.05, wz=0.3)])
 @pytest.mark.parametrize("sign", [1, -1])
-def test_every_command_is_bounded_and_expires_after_150_ms(limits, sign):
+def test_every_command_is_bounded_and_expires_within_150_ms(limits, sign):
     field = Field(attack_sign=sign)
     controller = Controller(field, limits)
     rng = random.Random(123)
@@ -340,9 +352,13 @@ def test_every_command_is_bounded_and_expires_after_150_ms(limits, sign):
         assert abs(command.vx) <= limits.vx + 1e-12
         assert abs(command.vy) <= limits.vy + 1e-12
         assert abs(command.wz) <= limits.wz + 1e-12
-        assert command.expires_at == pytest.approx(now + 0.15)
+        expected_expiry = (min(now + 0.15, observation.captured_at + ctl.MAX_STRIKE_OBSERVATION_AGE)
+                           if decision.phase == "strike" else now + 0.15)
+        assert command.expires_at == pytest.approx(expected_expiry)
         assert command.robot_id == observation.robot_id
-    assert {"approach", "align", "strike", "reassess", "blocked", "return_home",
+    # Fresh strike completion/reassessment has a dedicated deterministic test;
+    # these deliberately delayed random samples may abort on freshness first.
+    assert {"approach", "align", "strike", "blocked", "return_home",
             "tracking_lost", "recovery_required"} <= phases
 
 

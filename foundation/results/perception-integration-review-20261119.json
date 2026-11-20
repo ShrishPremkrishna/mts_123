@@ -1,0 +1,53 @@
+{
+  "schema": "pupper_fc_perception_integration_review_v1",
+  "recorded_utc": "2026-11-19T23:10:46.772972+00:00",
+  "local_main_before_review": "3efae54",
+  "upstream_main": "39d9bbb8bf2286c49a5a369c3bd85de349760571",
+  "perception_tip": "6c488af847bc46c388091aafa016f8b88eb1e956",
+  "review_scope": "Fetched current remotes and inspected incoming code without merging or operating hardware. User requested alignment before field setup in about 30 minutes.",
+  "source_archive": "artifacts/pupper-fc/2026-11-19/incoming-overhead-source.tar.gz",
+  "source_archive_sha256": "a098e5a26fd1913edf50670e9fc45632435f91073de906582b5ccb2f4cb66310",
+  "perception_audit": "artifacts/pupper-fc/2026-11-19/perception-audit.json",
+  "kick_audit": "artifacts/pupper-fc/2026-11-19/kick-audit.json",
+  "tests": "artifacts/pupper-fc/2026-11-19/perception-tests.json",
+  "fable_review": "artifacts/pupper-fc/2026-11-19/fable-demo-review/adjudication.json",
+  "findings": [
+    "Incoming overhead code is substantial: camera calibration, AprilTags, pink ball, relative geometry, dashboard, fake field; desk camera and simulation only.",
+    "Goals are derived from field edges and configured width; no live goal-tag detector.",
+    "Raw visible tracks may coast; the maintained adapter must preserve genuine measurement times and reject invalid calibration.",
+    "Camera bump remains admissible: rendered+0.2m shift produced~0.1987m wrong fresh pose at107px residual.",
+    "Mac wall-clock UDP and per-Pi boot-monotonic bridge still need concrete normalization/clock binding.",
+    "Existing Executor accepts a move target with ball=null and no goals.",
+    "New approach.py is a velocity planner, not new learned leg-kick weights. No newer deployable foot-kick artifact found on fetched branches."
+  ],
+  "next_milestone": "One real tracked Pupper repeatedly reaches scripted x/y/yaw targets, scored against independent marks; same target interface later accepts shot staging.",
+  "owner_update": "Goals available, ball not yet available, field setup expected soon; second Pupper to source. Demo minimum: two opponents, 1\u20132 minutes, smooth low-latency execution, useful directional shots and role switching.",
+  "deferred": [
+    "New gait training and speed sweeps",
+    "Additional side-recovery trajectories",
+    "Parallel/new motion planner",
+    "Broad perception model sweeps",
+    "Presentation polish",
+    "Foot-kick integration until runnable artifact and entry/exit evidence exist"
+  ],
+  "hardware_access": false,
+  "new_dependencies_installed": false,
+  "tests_not_hardware_acceptance": true,
+  "test_summary": {
+    "incoming_image_suite": {
+      "passed": 54,
+      "failed": 2,
+      "repeated_failures": [
+        "test_survey_calibration_three_tags[69.0-oblique_side]",
+        "test_survey_calibration_three_tags[60.0-oblique_side]"
+      ],
+      "cause": "Unresolved; optional desk-survey cases, no mounted-field evidence."
+    },
+    "current_stock_kick_focused": {
+      "passed": 125
+    },
+    "independent_review_model": "claude-fable-5-2",
+    "physical_tests": 0
+  },
+  "deployment_gap": "The new direct-deadline executor/controller path still needs a Pi-compatible build and supervised acceptance. The last floor-tested release remains the rollback baseline."
+}

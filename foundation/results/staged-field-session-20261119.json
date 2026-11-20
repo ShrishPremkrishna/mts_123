@@ -1,0 +1,161 @@
+{
+  "recorded_utc": "2026-11-20T01:00:56+00:00",
+  "baseline_integration": "4bf115c",
+  "kick_stage": "a33645c",
+  "branch": "main",
+  "prior_integration_report": "foundation/results/perception-harness-integration-20261119.json",
+  "pi": {
+    "host": "mts",
+    "boot": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
+    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "profile": "sprint",
+    "manifest": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1",
+    "trial_client": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-uZ0QxGWY/preflight.json",
+    "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
+    "cpu_temperature_c_sample": 74.9,
+    "motion_started": false,
+    "preflight_status": "Historical. Another operator started a separate controller manager after this receipt.",
+    "operator_run_at_last_observation": "20261119-kickfast3",
+    "sampled_utc": "2026-11-20T00:58:59Z",
+    "motion_scope": "FC deployment did not start or command the robot. A separate operator owns the active controls.",
+    "gamepad_at_last_observation": "DualSense Wireless Controller on event10/js0. Verify again at handover."
+  },
+  "target_preparation": {
+    "source_directory": "/home/pi/pupper-fc-source/build-prep-nov19",
+    "source_controller_files_verified": 779,
+    "source_gateway_files_verified": 11,
+    "ros_dependencies_found": 23,
+    "build_completed": false,
+    "local_evidence": "artifacts/pupper-fc/2026-11-19/pi-build-prep/summary.json",
+    "native_runner": "/home/pi/pupper-fc-source/native-build-runner-X6aa22bm/build-one.sh",
+    "native_runner_sha256": "384f6bac50d0b7bbfb029c57b8c32e2ae016c02c0a03e0a4975862236671e223",
+    "inputs_verified_on_boot": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
+    "verified_target_tools": 7,
+    "build_slot": "Run controller and gateway packages separately in an idle Pi slot. Single-threaded build and native tests remain outstanding.",
+    "legacy_guarded_walk": {
+      "path": "/home/pi/pupper-fc-releases/guarded-walk-legacy-yyT1gN59",
+      "manifest": "a75e178043a2ef7c2f30fda0cedd0bc513b21d7ad26ec8720b20f158788a6a2e",
+      "checked_roles": 24,
+      "linked_binaries": 4,
+      "guard_imports": 5,
+      "runtime_started": false,
+      "physical_acceptance": false,
+      "command_path": "legacy Twist"
+    },
+    "heading": {
+      "client_sha256": "60ac1f6604df2ff7ccf1b6f6201fad80e21d463275ed61bce6b0b7407005aa39",
+      "imports_matched": 6,
+      "simulated_absolute_and_relative_turns": true,
+      "physical_acceptance": false
+    },
+    "local_verification": "artifacts/pupper-fc/2026-11-19/pi-native-build/summary.json"
+  },
+  "kick": {
+    "source_branch": "tej/gemini-ball-kick",
+    "source_tip": "07ed0fd",
+    "candidate_sha256": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81",
+    "scope": "Explicitly selected kick in place. Clip and restoration checked independently. Uses existing 0.5 s initialization and 1.0 s fade.",
+    "focused_tests": 20,
+    "broad_tests": 1277,
+    "main_worktree_tests": 33,
+    "physical_acceptance": false
+  },
+  "trial": {
+    "start": [
+      0,
+      0,
+      0
+    ],
+    "target": [
+      0.2,
+      0,
+      0
+    ],
+    "speed_m_s": 0.2,
+    "nominal_duration_s": 1.0,
+    "endpoint": "pending measurement",
+    "independent_physical_readiness": "After owner handover and fresh preflight, use the stock sprint walker on a marked lane. No new floor run in this session.",
+    "score_verification": "Measured x/y and heading are independent. Accuracy uses available x/y endpoints; spread requires at least two. Twenty focused plan/scoring tests passed."
+  },
+  "tracked_play": {
+    "source_integrated": true,
+    "mounted_camera_qualified": false,
+    "native_release_qualified": false,
+    "operator_target_sender": "The planner emits a target and the bridge accepts leased intents. An operator-triggered, finite move producer with measured arrival and stop evidence still needs implementation and qualification."
+  },
+  "checkout_recovery": {
+    "baseline_source_checked": "1c8d611649efd6d1c18c126f2a977f6e0a4ae2f0",
+    "branch": "main",
+    "lfs_paths": 91,
+    "unique_sha256_objects": 65,
+    "unique_object_bytes": 429051592,
+    "working_files_hash_mismatches": 0,
+    "checks": [
+      "Working file SHA-256 compared with each committed pointer",
+      "Git LFS object check",
+      "Git connectivity check",
+      "Index tree exactly equals HEAD following metadata refresh",
+      "Worktree clean"
+    ],
+    "scope": "Dedicated FC source checkout. Active kick session uses separately installed code."
+  },
+  "field_setup": {
+    "tags": "Packet decoded at print scale. IDs 0\u20135 are floor tags with 17 cm black squares. IDs 10/11 are robot tags with 8 cm black squares.",
+    "mac_camera_python": "final_project/overhead_perception/.venv/bin/python",
+    "python_version": "3.12.8",
+    "opencv": "5.1.0.95 (Cocoa)",
+    "numpy": "2.5.5",
+    "pyyaml": "6.0.3",
+    "measured_on_mac": "70 camera tests passed. Four-frame simulated corners calibration passed with the full OpenCV environment.",
+    "physical_camera": "Arena coverage, poses, height, goal mouth, intrinsics and camera timing remain unmeasured."
+  },
+  "network": {
+    "route": "Campus Wi-Fi between camera Mac and Pi. Synthetic packets only, no ROS or physical commands.",
+    "clock_width_limit_ms": 20,
+    "bulk_transfer_in_progress": {
+      "probes": 16,
+      "matched": 11,
+      "admitted": 0,
+      "rtt_min_p50_max_ms": [
+        146.808,
+        437.965,
+        942.676
+      ],
+      "duplicates": 0,
+      "unexpected": 0,
+      "frames": 161,
+      "unique_frames": 161,
+      "frames_with_offset": 0,
+      "frames_with_capture_clock_budget": 0,
+      "source_processing_min_p50_max_ms": [
+        0.027,
+        0.074,
+        0.36
+      ]
+    },
+    "after_bulk_transfer": {
+      "probes": 16,
+      "matched": 15,
+      "admitted": 2,
+      "rtt_min_p50_max_ms": [
+        7.267,
+        96.318,
+        615.771
+      ],
+      "duplicates": 0,
+      "unexpected": 0,
+      "frames": 219,
+      "unique_frames": 219,
+      "frames_with_offset": 98,
+      "frames_with_capture_clock_budget": 98
+    },
+    "qualified_for_live_guidance": false,
+    "next": "Qualify the intended arena route with no bulk transfers and measure actual frame age. Prefer a short wired path or a nearby dedicated access point."
+  },
+  "regression_on_mac": {
+    "fc_gameplay_operator_kick_status_and_pose_tests": 636,
+    "perception_tests": 70,
+    "physical_trials_in_this_session": 0
+  }
+}

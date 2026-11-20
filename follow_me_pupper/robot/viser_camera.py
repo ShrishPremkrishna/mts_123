@@ -5,12 +5,21 @@ YOLOv8n-seg runs on the Hailo accelerator alongside the stream, so the viewer
 shows bounding boxes *and* per-object segmentation masks. Toggle either one from
 the "Detection" folder in the browser GUI. When frames come from ROS the same
 detections are published on /detections, which is what follow_me.py tracks.
+Their header stamp is the selected camera image's capture stamp, carried through
+inference unchanged. Missing, stale or repeated capture metadata publishes no
+frame; a successful empty inference retains its real source stamp.
+The same inference also publishes /fc/obstacle_detections with explicit source
+identity and fixed projection. Its healthy flag means successful inference, not
+proof that the lens is unobscured or that every obstacle was recognized.
 
 The model always runs on the *undistorted* (equirectangular) image, never on the
 raw fisheye -- the lens bends people into shapes YOLO has never seen, and scores
 drop badly. That happens regardless of which view the GUI is showing, so
 /detections keeps flowing either way; the overlays themselves are drawn in the
-equirectangular view, since that is the frame their pixels belong to.
+220-degree equirectangular view, since that is the frame their pixels belong to.
+Display FOV/scale changes never change the detector's 220-degree projection.
+Display confidence, rotation and color controls do not change safety inference.
+Detector color correction is fixed by --swap-rb at startup; its confidence is0.4.
 
 Two ways to get frames:
 
@@ -53,7 +62,7 @@ import yaml
 
 from fisheye_converter import equirect_height, fisheye_to_equirectangular, load_camera_model
 from yolo_seg import Detection, HailoYoloSeg, draw_detections
-from perception_safety import image_stamp_ns, fresh_frame
+from perception_safety import MAX_FRAME_AGE_S, image_stamp_ns, fresh_frame, DetectionCadence
 
 # follow_me.py measures against this reference frame, so publish in it no matter
 # what resolution the viewer happens to be showing. The height is pinned too --
@@ -63,6 +72,68 @@ from perception_safety import image_stamp_ns, fresh_frame
 # means a given y is always the same elevation angle.
 DETECTION_PUBLISH_WIDTH = 700
 DETECTION_PUBLISH_HEIGHT = 572
+DETECTION_H_FOV_DEG = 220.0
+DETECTION_MIN_CONFIDENCE = 0.4
+
+
+def load_identified_detector(model_path):
+    """Hash selected HEF once and actual loaded label order, before publishing.
+
+    File continuity across loading is checked, not accelerator loaded-bytecode
+    attestation. The canonical labels are UTF-8, one loaded string per line,
+    including a final newline. No per-frame file access or label remapping.
+    """
+    import hashlib
+
+    def file_identity(stat):
+        return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+    with open(model_path, "rb") as selected:
+        before = file_identity(os.fstat(selected.fileno()))
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: selected.read(1024 * 1024), b""):
+            digest.update(chunk)
+        if file_identity(os.fstat(selected.fileno())) != before:
+            raise ValueError("detector model changed while hashing")
+        detector = HailoYoloSeg(model_path=model_path, score_threshold=DETECTION_MIN_CONFIDENCE)
+        try:
+            if (file_identity(os.fstat(selected.fileno())) != before or
+                    file_identity(os.stat(model_path)) != before):
+                raise ValueError("detector model changed while loading")
+            labels = detector.labels
+            if not labels or any(not isinstance(s, str) or not s or "\n" in s or "\r" in s
+                                 for s in labels):
+                raise ValueError("invalid loaded detector labels")
+            identity = dict(model_sha256=digest.hexdigest(), labels_sha256=hashlib.sha256(
+                ("\n".join(labels) + "\n").encode("utf-8")).hexdigest())
+        except Exception:
+            detector.close()
+            raise
+    return detector, identity
+
+
+def detector_source_frame(frame, *, swap_rb=False):
+    """Pinned startup color correction, independent of viewer controls."""
+    return frame[:, :, ::-1].copy() if swap_rb else frame
+
+
+def display_detections(detections, confidence):
+    """Filtering for overlays only; never feeds the detection publisher."""
+    return [det for det in detections if det.score >= confidence]
+
+
+def detection_projection(frame, camera_model, width, *, displayed=None, display_fov=None):
+    """Project detector input independently of the user's display FOV.
+
+    Reuse an already-rendered view only when its projection and dimensions are
+    identical. Rescaling a narrower display cannot restore the missing angles.
+    """
+    height = equirect_height(width, DETECTION_H_FOV_DEG)
+    if (displayed is not None and display_fov == DETECTION_H_FOV_DEG and
+            displayed.shape[:2] == (height, width)):
+        return displayed
+    return fisheye_to_equirectangular(
+        frame, camera_model, width, height, h_fov_deg=DETECTION_H_FOV_DEG)
 
 
 class PiCamSource:
@@ -110,23 +181,12 @@ class RosSource:
         self.lock = threading.Lock()
         self.frame = None
         self.frame_received_at = None
+        self.frame_stamp = None
         self.last_read_at = None
+        self.last_read_stamp = None
         self.last_image_stamp = None
 
-        def callback(msg):
-            received_at = time.monotonic()
-            stamp = image_stamp_ns(msg)
-            if stamp is None or (self.last_image_stamp is not None and stamp <= self.last_image_stamp):
-                return
-            arr = np.frombuffer(msg.data, np.uint8)
-            bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-            if bgr is not None:
-                with self.lock:
-                    self.frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-                    self.frame_received_at = received_at
-                    self.last_image_stamp = stamp
-
-        self.node.create_subscription(CompressedImage, topic, callback, 10)
+        self.node.create_subscription(CompressedImage, topic, self._on_image, 10)
         self.thread = threading.Thread(target=self._spin, daemon=True)
         self.thread.start()
 
@@ -155,13 +215,53 @@ class RosSource:
     def ok(self):
         return self.rclpy.ok()
 
-    def read(self):
+    def _on_image(self, msg):
+        received_at = time.monotonic()
+        stamp = image_stamp_ns(msg)
+        if stamp is None:
+            return
+        # Reject implausible camera times BEFORE advancing last_image_stamp.
+        # Otherwise one future stamp could poison the highwater and exclude
+        # subsequent healthy frames even though the publisher rejected it.
+        try:
+            ros_now_ns = self.node.get_clock().now().nanoseconds
+            if type(ros_now_ns) is not int:
+                return
+            if not 0 <= ros_now_ns - stamp <= int(MAX_FRAME_AGE_S * 1_000_000_000):
+                return
+        except (AttributeError, TypeError, ValueError, OverflowError, RuntimeError):
+            return  # unknown source-clock relationship is not fresh evidence
+        arr = np.frombuffer(msg.data, np.uint8)
+        bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if bgr is None:
+            return
+        frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        with self.lock:
+            # Check after decoding, under the same lock as the snapshot. A slow
+            # older decode cannot overwrite a newer frame with mismatched time.
+            if self.last_image_stamp is not None and stamp <= self.last_image_stamp:
+                return
+            self.frame = frame
+            self.frame_received_at = received_at
+            self.frame_stamp = stamp
+            self.last_image_stamp = stamp
+
+    def read_sample(self):
+        """Consume one atomic (RGB image, receipt monotonic, capture ROS ns) tuple."""
         with self.lock:
             frame, self.frame = self.frame, None
-            self.last_read_at = self.frame_received_at
-            if frame is None or not fresh_frame(self.last_read_at, time.monotonic()):
+            received_at = self.frame_received_at
+            stamp = getattr(self, 'frame_stamp', None)
+            self.frame_received_at = self.frame_stamp = None
+            self.last_read_at, self.last_read_stamp = received_at, stamp
+            if frame is None or not fresh_frame(received_at, time.monotonic()):
                 return None
-            return frame.copy()  # consume once; never re-detect a frozen camera image
+            return frame.copy(), received_at, stamp
+
+    def read(self):
+        """Legacy image-only API; publication uses read_sample's atomic metadata."""
+        sample = self.read_sample()
+        return None if sample is None else sample[0]
 
     def close(self):
         # Order matters: shut down rclpy so spin() returns and the thread exits,
@@ -189,18 +289,24 @@ class DetectionPublisher:
     mean of their box crop instead; an empty id means no color was available.
     """
 
-    def __init__(self, node, labels):
+    def __init__(self, node, labels, *, detector_identity):
+        import uuid
         from std_msgs.msg import String
         from vision_msgs.msg import Detection2DArray
 
         self.node = node
-        self.labels = labels
+        self.labels = tuple(labels)
+        self.detector_identity = dict(detector_identity)
         self.class_name_to_id = {name: i for i, name in enumerate(labels)}
         self.tracking_enabled = False
         self.tracking_object = None
         self.tracking_class_id = None
+        self.last_published_stamp = None
+        self.obstacle_instance = uuid.uuid4().hex
+        self.obstacle_sequence = 0
 
         self.publisher = node.create_publisher(Detection2DArray, "/detections", 10)
+        self.obstacle_publisher = node.create_publisher(String, "/fc/obstacle_detections", 1)
         node.create_subscription(String, "/tracking_control", self._on_control, 10)
 
     def _on_control(self, msg):
@@ -246,14 +352,78 @@ class DetectionPublisher:
         r, g, b = pixels.mean(axis=0)
         return f"{r:.0f},{g:.0f},{b:.0f}"
 
-    def publish(self, detections, frame):
+    def publish(self, detections, frame, *, capture_stamp_ns=None, received_at=None):
+        """Publish with proven camera time; return None if rejected, else count.
+
+        Camera headers and this node must use the same ROS clock. Receipt time
+        uses the local monotonic clock independently; neither substitutes for
+        source capture time. Legacy calls without metadata fail closed.
+        """
+        import json
+        from std_msgs.msg import String
         from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 
+        if type(capture_stamp_ns) is not int or capture_stamp_ns < 0:
+            return None
+        if (self.last_published_stamp is not None and
+                capture_stamp_ns <= self.last_published_stamp):
+            return None
+        try:
+            if not fresh_frame(received_at, time.monotonic()):
+                return None
+            ros_now_ns = self.node.get_clock().now().nanoseconds
+            if type(ros_now_ns) is not int:
+                return None
+            # Integer subtraction preserves ordering at epoch-scale nanoseconds.
+            # Converting both clocks to float seconds could hide a future stamp.
+            age_ns = ros_now_ns - capture_stamp_ns
+            if not 0 <= age_ns <= int(MAX_FRAME_AGE_S * 1_000_000_000):
+                return None
+        except (AttributeError, TypeError, ValueError, OverflowError, RuntimeError):
+            return None
+
+        # Both outputs describe the SAME selected inference. The explicit
+        # envelope lets the body-command gate reject a restarted producer,
+        # wrong projection and unhealthy output without guessing from boxes.
+        frame_shape = frame.shape[:2]
+        normalized = []
+        valid = (len(frame_shape) == 2 and frame_shape[1] > 0 and
+                 frame_shape[0] == equirect_height(frame_shape[1], DETECTION_H_FOV_DEG))
+        try:
+            for det in detections:
+                if (isinstance(det.class_id, bool) or not isinstance(det.class_id, (int, np.integer))
+                        or not 0 <= det.class_id < len(self.labels)):
+                    raise ValueError("invalid detector class index")
+                x1, y1, x2, y2 = (float(value) for value in det.box)
+                box = [x1 / frame_shape[1], y1 / frame_shape[0],
+                       x2 / frame_shape[1], y2 / frame_shape[0]]
+                score = float(det.score)
+                if (not all(np.isfinite(v) for v in (*box, score)) or
+                        not (0 <= box[0] < box[2] <= 1 and 0 <= box[1] < box[3] <= 1
+                             and 0 <= score <= 1)):
+                    raise ValueError("invalid detection geometry or confidence")
+                normalized.append(dict(box=box, confidence=score, class_id=str(det.class_id)))
+        except (TypeError, ValueError, ZeroDivisionError, IndexError, AttributeError):
+            valid = False
+            normalized = []
+        envelope = dict(schema="fc_camera_obstacles_v1", producer_instance=self.obstacle_instance,
+                        detector_identity=self.detector_identity,
+                        sequence=self.obstacle_sequence, captured_at_ros_ns=capture_stamp_ns,
+                        valid=bool(valid), healthy=bool(valid), format="normalized_xyxy_v1",
+                        image_width=DETECTION_PUBLISH_WIDTH, image_height=DETECTION_PUBLISH_HEIGHT,
+                        horizontal_fov_deg=DETECTION_H_FOV_DEG, detections=normalized)
+        obstacle_msg = String()
+        obstacle_msg.data = json.dumps(envelope, allow_nan=False, separators=(",", ":"))
+        self.obstacle_publisher.publish(obstacle_msg)
+        self.obstacle_sequence += 1
+        if not valid:
+            self.last_published_stamp = capture_stamp_ns
+            return None  # never publish malformed boxes as healthy legacy output
+
         msg = Detection2DArray()
-        msg.header.stamp = self.node.get_clock().now().to_msg()
+        msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(capture_stamp_ns, 1_000_000_000)
         msg.header.frame_id = "camera"
 
-        frame_shape = frame.shape[:2]
         sx = DETECTION_PUBLISH_WIDTH / max(frame_shape[1], 1)
         sy = DETECTION_PUBLISH_HEIGHT / max(frame_shape[0], 1)
 
@@ -278,6 +448,7 @@ class DetectionPublisher:
             msg.detections.append(det_msg)
 
         self.publisher.publish(msg)
+        self.last_published_stamp = capture_stamp_ns
         return len(msg.detections)
 
 
@@ -290,9 +461,10 @@ class DetectionWorker:
     the stream smooth when the model is slower than the camera.
     """
 
-    def __init__(self, model, on_result=None):
+    def __init__(self, model, on_result=None, *, on_stamped_result=None):
         self.model = model
         self.on_result = on_result
+        self.on_stamped_result = on_stamped_result
         self.enabled = True
 
         self._lock = threading.Lock()
@@ -301,6 +473,8 @@ class DetectionWorker:
         self._stop = False
         self._result = ([], (0, 0))
         self._scaled_cache = {}
+        self._last_submitted_stamp = None
+        self._last_result_stamp = None
 
         self.inference_ms = 0.0
         self.fps = 0.0
@@ -308,10 +482,19 @@ class DetectionWorker:
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
 
-    def submit(self, frame, received_at=None):
+    def submit(self, frame, received_at=None, *, capture_stamp_ns=None):
         with self._lock:
-            self._pending = (frame, time.monotonic() if received_at is None else received_at)
+            if self.on_stamped_result is not None or capture_stamp_ns is not None:
+                if type(capture_stamp_ns) is not int or capture_stamp_ns < 0:
+                    return False
+                if (self._last_submitted_stamp is not None and
+                        capture_stamp_ns <= self._last_submitted_stamp):
+                    return False
+                self._last_submitted_stamp = capture_stamp_ns
+            self._pending = (frame, time.monotonic() if received_at is None else received_at,
+                             capture_stamp_ns)
         self._wake.set()
+        return True
 
     def raw(self):
         """The last detections in the coordinates they were computed in."""
@@ -343,7 +526,7 @@ class DetectionWorker:
                     item, self._pending = self._pending, None
                 if item is None or self._stop:
                     continue
-                frame, received_at = item
+                frame, received_at, capture_stamp_ns = item
                 if not fresh_frame(received_at, time.monotonic()):
                     continue
                 try:
@@ -354,6 +537,11 @@ class DetectionWorker:
                     continue
                 if self._stop or not fresh_frame(received_at, time.monotonic()):
                     continue  # stale results cannot refresh /detections
+                if capture_stamp_ns is not None:
+                    if (self._last_result_stamp is not None and
+                            capture_stamp_ns <= self._last_result_stamp):
+                        continue
+                    self._last_result_stamp = capture_stamp_ns
                 with self._lock:
                     self._result = (detections, frame.shape[:2])
                 self.inference_ms = self.model.last_inference_ms
@@ -364,6 +552,9 @@ class DetectionWorker:
                 last_done = now
                 if self.on_result is not None:
                     self.on_result(detections, frame)
+                if self.on_stamped_result is not None:
+                    self.on_stamped_result(detections, frame, capture_stamp_ns=capture_stamp_ns,
+                                           received_at=received_at)
         finally:
             self.model.close()  # owner closes only after its inference has finished
 
@@ -639,7 +830,7 @@ def main():
     parser.add_argument(
         "--swap-rb",
         action="store_true",
-        help="start with red and blue swapped (also toggleable in the GUI)",
+        help="fixed detector R/B correction; display color is separately adjustable",
     )
     parser.add_argument(
         "--detect",
@@ -689,14 +880,14 @@ def main():
         gui_fov = server.gui.add_slider(
             "Equirect FOV (deg)", min=90, max=280, step=5, initial_value=220
         )
-        gui_rotate = server.gui.add_checkbox("Rotate 180", False)
+        gui_rotate = server.gui.add_checkbox("Rotate display 180", False)
         # Off, the picture is stretched to fill the window and proportions go
         # wrong; on, it keeps its true shape and pads with bars instead.
         gui_lock_aspect = server.gui.add_checkbox("Lock aspect ratio", True)
         # The camera stack occasionally hands frames back with red and blue the
         # wrong way round (skin goes blue, the floor goes purple). Flip it here
-        # and both the view and the detector see the corrected colours.
-        gui_swap_rb = server.gui.add_checkbox("Swap R/B", args.swap_rb)
+        # for the display. Detector color is fixed by --swap-rb at startup.
+        gui_swap_rb = server.gui.add_checkbox("Display swap R/B", args.swap_rb)
         gui_scale = server.gui.add_slider(
             "Display scale", min=0.25, max=1.0, step=0.05, initial_value=0.5
         )
@@ -719,13 +910,13 @@ def main():
     publisher = None
     if args.detect:
         try:
-            detector = HailoYoloSeg(model_path=args.model)
+            detector, detector_identity = load_identified_detector(args.model)
             print(f"Loaded {os.path.basename(args.model)} ({len(detector.labels)} classes).")
         except Exception as exc:
             print(f"[detection] disabled: {exc}")
 
     if detector is not None and args.publish_detections and isinstance(source, RosSource):
-        publisher = DetectionPublisher(source.node, detector.labels)
+        publisher = DetectionPublisher(source.node, detector.labels, detector_identity=detector_identity)
         print("Publishing /detections (follow_me.py can track off this).")
 
     with server.gui.add_folder("Detection"):
@@ -735,7 +926,8 @@ def main():
         gui_boxes = server.gui.add_checkbox("Bounding boxes", True)
         gui_masks = server.gui.add_checkbox("Segmentation masks", True)
         gui_conf = server.gui.add_slider(
-            "Confidence", min=0.1, max=0.9, step=0.05, initial_value=0.4
+            "Display confidence", min=DETECTION_MIN_CONFIDENCE, max=0.9, step=0.05,
+            initial_value=DETECTION_MIN_CONFIDENCE
         )
         gui_mask_alpha = server.gui.add_slider(
             "Mask opacity", min=0.1, max=0.9, step=0.05, initial_value=0.45
@@ -744,7 +936,7 @@ def main():
             "Detect FPS", min=1, max=20, step=1, initial_value=10
         )
         gui_detect_input = server.gui.add_text(
-            "Runs on", initial_value="equirectangular image", disabled=True
+            "Runs on", initial_value="fixed 220-degree panorama (overlays at 220 degrees)", disabled=True
         )
         gui_objects = server.gui.add_text(
             "Objects", initial_value="none" if detector else "model not loaded", disabled=True
@@ -782,16 +974,13 @@ def main():
 
     worker = None
     if detector is not None:
-        on_result = None
-        if publisher is not None:
-            on_result = lambda dets, frame: publisher.publish(dets, frame)
-        worker = DetectionWorker(detector, on_result=on_result)
+        worker = DetectionWorker(detector, on_stamped_result=publisher.publish if publisher else None)
 
     pacer = StreamPacer()
     fisheye_model = None
     model_shape = None
     last_report = time.time()
-    last_submit = 0.0
+    detection_cadence = DetectionCadence()
     frames = 0
 
     print_access_banner(args.port)
@@ -801,11 +990,18 @@ def main():
         while source.ok():
             loop_start = time.time()
 
-            frame = source.read()
+            if isinstance(source, RosSource):
+                sample = source.read_sample()
+                frame, received_at, capture_stamp_ns = sample if sample else (None, None, None)
+            else:
+                frame = source.read()
+                received_at, capture_stamp_ns = time.monotonic(), None
             if frame is None:
                 time.sleep(0.01)
                 continue
 
+            detector_source = detector_source_frame(frame, swap_rb=args.swap_rb)
+            matching_orientation = not gui_rotate.value and gui_swap_rb.value == args.swap_rb
             if gui_swap_rb.value:
                 frame = frame[:, :, ::-1].copy()
 
@@ -821,28 +1017,26 @@ def main():
             # what YOLO was trained on. It also means /detections keeps flowing
             # no matter which view the GUI happens to be set to.
             showing_equirect = gui_view.value == "equirectangular"
+            display_fov = float(gui_fov.value)
             detecting = worker is not None and gui_detect.value
-            submit_due = detecting and (
-                time.time() - last_submit >= 1.0 / gui_detect_fps_target.value
-            )
+            submit_due = detection_cadence.due(
+                time.monotonic(), float(gui_detect_fps_target.value), enabled=detecting)
 
-            equirect = None
+            equirect = detect_frame = None
             if showing_equirect or submit_due:
                 h, w = frame.shape[:2]
                 if model_shape != (w, h):
                     fisheye_model = load_camera_model(args.camera_params, w, h)
                     model_shape = (w, h)
-                # Displayed at the requested scale; when it is only for the
-                # detector, build it small right away rather than warping big
-                # and shrinking afterwards.
-                out_w = int(w * gui_scale.value) // 2 * 2 if showing_equirect else args.detect_width
-                equirect = fisheye_to_equirectangular(
-                    frame,
-                    fisheye_model,
-                    out_w,
-                    equirect_height(out_w, gui_fov.value),
-                    h_fov_deg=gui_fov.value,
-                )
+                if showing_equirect:
+                    out_w = int(w * gui_scale.value) // 2 * 2
+                    equirect = fisheye_to_equirectangular(
+                        frame, fisheye_model, out_w,
+                        equirect_height(out_w, display_fov), h_fov_deg=display_fov)
+                if submit_due:
+                    detect_frame = detection_projection(
+                        detector_source, fisheye_model, args.detect_width,
+                        displayed=equirect if matching_orientation else None, display_fov=display_fov)
 
             if showing_equirect:
                 frame = equirect
@@ -857,26 +1051,18 @@ def main():
 
             detections = []
             if detecting:
-                detector.score_threshold = float(gui_conf.value)
                 detector.want_masks = bool(gui_masks.value)
 
-                # Hand the model a frame no wider than --detect-width; masks and
-                # boxes get scaled back up for display.
+                # Fixed detector projection is independent of display FOV/scale.
                 if submit_due:
-                    detect_frame = equirect
-                    if detect_frame.shape[1] > args.detect_width:
-                        ratio = args.detect_width / detect_frame.shape[1]
-                        detect_frame = cv2.resize(
-                            detect_frame, None, fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA
-                        )
-                    worker.submit(detect_frame, received_at=getattr(source, 'last_read_at', None))
-                    last_submit = time.time()
+                    worker.submit(detect_frame, received_at=received_at,
+                                  capture_stamp_ns=capture_stamp_ns)
 
                 # Boxes and masks live in equirectangular pixels, so they can
-                # only be drawn on that view -- the fisheye frame is a different
-                # geometry. The counts and /detections stay live either way.
-                if showing_equirect:
-                    detections = worker.latest(frame.shape[:2])
+                # only be drawn on a matching projection. A different display
+                # FOV is also different geometry; counts and /detections stay live.
+                if showing_equirect and display_fov == DETECTION_H_FOV_DEG and matching_orientation:
+                    detections = display_detections(worker.latest(frame.shape[:2]), float(gui_conf.value))
                     if detections and (gui_boxes.value or gui_masks.value):
                         frame = draw_detections(
                             frame,
@@ -886,7 +1072,7 @@ def main():
                             mask_alpha=float(gui_mask_alpha.value),
                         )
                 else:
-                    detections = worker.raw()
+                    detections = display_detections(worker.raw(), float(gui_conf.value))
 
             quality = int(gui_quality.value)
             push_background(
@@ -921,9 +1107,10 @@ def main():
                         gui_detect_stats.value = (
                             f"{worker.fps:.1f} fps, {worker.inference_ms:.0f} ms/frame"
                         )
-                        hint = "" if showing_equirect else " - switch View to see overlays"
+                        hint = ("" if showing_equirect and display_fov == DETECTION_H_FOV_DEG
+                                else " - select 220-degree equirectangular view for overlays")
                         gui_detect_input.value = (
-                            f"equirectangular ({int(gui_fov.value)} deg){hint}"
+                            f"fixed {int(DETECTION_H_FOV_DEG)}-degree panorama{hint}"
                         )
                     else:
                         gui_objects.value = "paused"

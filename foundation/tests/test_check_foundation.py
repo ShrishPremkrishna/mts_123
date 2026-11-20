@@ -17,10 +17,13 @@ spec.loader.exec_module(runner)
 
 def test_check_plan_routes_incompatible_environments_without_dropping_groups():
     checks = dict(runner.build_checks('/api/bin/python', '/numeric/bin/python'))
-    assert len(checks) == 11
+    assert len(checks) == 12
     assert checks['tool_queue'][0] == checks['floor_input'][0] == checks['course_tools'][0] == '/api/bin/python'
     assert checks['classical'][0] == checks['motion_export'][0] == checks['course_follow'][0] == '/numeric/bin/python'
     assert checks['controller_cpp'] == ['bash', 'pupper_gait_deploy/test/run_host_test.sh']
+    assert checks['final_project'] == ['/api/bin/python', '-m', 'pytest',
+                                     'final_project/behaviors', 'final_project/pupper_fc/tests',
+                                     '-q', '-p', 'no:cacheprovider']
     assert len([p for p in checks['motion_export'] if p.startswith('pupper-mjlab/tests/')]) == 23
 
 
@@ -205,6 +208,28 @@ def test_atomic_report_failure_preserves_previous_receipt(tmp_path, monkeypatch)
 def test_missing_source_is_preserved_for_mutation_comparison(tmp_path, monkeypatch):
     monkeypatch.setattr(runner,'watched_files',lambda root:['missing.cpp'])
     assert runner.source_hashes(tmp_path)=={'missing.cpp':None}
+
+
+def test_final_project_code_and_viewer_changes_are_in_source_snapshot(tmp_path, monkeypatch):
+    (tmp_path / 'foundation/configs').mkdir(parents=True)
+    (tmp_path / 'foundation/configs/class-driver-joint-limits.json').write_text('{"sources":[]}')
+    names = ['final_project/behaviors/run_through_kick.py',
+             'final_project/pupper_fc/controller.py',
+             'final_project/pupper_fc/static/app.js',
+             'final_project/pupper_fc/static/style.css',
+             'final_project/pupper_fc/static/index.html']
+    for name in names:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('before')
+    monkeypatch.setattr(runner.subprocess, 'run',
+                        lambda *a, **kw: SimpleNamespace(stdout='\0'.join(names).encode()))
+    before = runner.source_hashes(tmp_path)
+    for name in names:
+        (tmp_path / name).write_text('after')
+    after = runner.source_hashes(tmp_path)
+    assert set(before) == set(names)
+    assert all(before[name] != after[name] for name in names)
 
 
 def test_malformed_source_manifest_failure_gets_receipt(main_rig, monkeypatch):

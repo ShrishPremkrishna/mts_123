@@ -10,6 +10,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "neural_controller/command_filter.hpp"
+#include "neural_controller/command_deadline.hpp"
 #include "neural_controller/gait_reference_json.hpp"
 #include "neural_controller/obs_spec.hpp"
 #include "neural_controller/trick_motion.hpp"
@@ -193,6 +195,9 @@ class NeuralController : public controller_interface::ControllerInterface {
     std::chrono::steady_clock::time_point receipt;
     std::uint64_t generation = 0;
     bool finite = false;  // linear.x, linear.y and angular.z all finite
+    bool source_deadline = false;
+    bool allowed = false;
+    std::int64_t issued_mono_ns = 0, expires_mono_ns = 0;
   };
   // Receiver-side expiry, only for the parsed gait-reference velocity path (see
   // on_init). Elsewhere /cmd_vel may be a target, so zero is not "stop" and the
@@ -204,20 +209,43 @@ class NeuralController : public controller_interface::ControllerInterface {
   static constexpr double kCmdVelTimeoutMax = 1.0;
   std::atomic<std::uint64_t> cmd_vel_generation_{0};
   bool cmd_vel_was_live_ = false;
+  bool command_deadline_mode_ = false;
+  std::string command_clock_id_;
+  CommandDeadlineState command_deadline_state_;
+  std::mutex command_deadline_mutex_;  // Callback/lifecycle only; never update().
+  struct CommandAuthoritySnapshot {
+    std::string clock_id, bound_source_instance;
+    std::uint64_t generation = 0;
+    std::int64_t activation_mono_ns = 0, sampled_mono_ns = 0;
+  };
+  // Publication/lifecycle barrier prevents an old snapshot publishing after a
+  // generation reset. Never acquire this while holding the receive-state lock.
+  std::mutex command_authority_publish_mutex_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr command_authority_publisher_;
+  std::int64_t command_authority_last_sample_ = 0;
+  std::int64_t command_authority_last_published_sample_ = 0;
+  std::string command_authority_published_source_;
   // Clock seam for tests; production receipts and expiry use steady_clock.
   virtual std::chrono::steady_clock::time_point cmd_vel_now() const {
     return std::chrono::steady_clock::now();
   }
+  virtual std::int64_t command_deadline_now_ns() const { return command_monotonic_ns(); }
   void receive_cmd_vel(const geometry_msgs::msg::Twist::SharedPtr &msg, std::uint64_t generation);
+  void receive_command_deadline(const std_msgs::msg::String::SharedPtr &msg, std::uint64_t generation);
+  // Testable split after bounded parsing; commit rechecks activation generation.
+  void commit_command_deadline(const CommandDeadline *parsed, std::uint64_t generation);
+  void publish_command_authority(const CommandAuthoritySnapshot &snapshot);
   // Bump the generation and drop the subscription and any buffered command.
   void revoke_cmd_vel();
   bool cmd_vel_live(const CmdVelSample *sample) const;
   // The callback the current subscription invokes (bound to its generation).
   std::function<void(const geometry_msgs::msg::Twist::SharedPtr)> cmd_vel_callback_;
+  std::function<void(const std_msgs::msg::String::SharedPtr)> command_deadline_callback_;
 
   // Realtime buffers for command and emergency stop subscriptions
   realtime_tools::RealtimeBuffer<std::shared_ptr<const CmdVelSample>> rt_cmd_vel_ptr_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_subscriber_ = nullptr;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr command_deadline_subscriber_ = nullptr;
 
   realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Pose>> rt_cmd_pose_ptr_;
   rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr cmd_pose_subscriber_ = nullptr;

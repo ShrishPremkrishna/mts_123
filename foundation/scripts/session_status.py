@@ -15,6 +15,7 @@ def inspect(root=ROOT, verify_inputs=False):
     state = json.loads((root / STATE.relative_to(ROOT)).read_text())
     errors = []
     missing_local = []
+    missing_local_artifacts = []
     if state.get("schema") != "pupper_current_session_v2":
         raise ValueError("Unknown current-state schema; inspect the handoff before proceeding")
     def git(*args):
@@ -35,12 +36,19 @@ def inspect(root=ROOT, verify_inputs=False):
         else:
             errors.append(f"Cannot establish shared history between {branch} and {primary}. "
                           f"Check the checkout and fetch {primary} history if it is missing or shallow.")
-    refs = [state["current_report"], state["historical_recovery"]["path"], *state["evidence"].values()]
+    reports = [state["current_report"], state["historical_recovery"]["path"]]
+    refs = [*reports, *state["evidence"].values()]
+    # Include both staged additions and files staged for deletion from HEAD.
+    tracked_artifacts = set(git("ls-files", "-z", "--with-tree=HEAD", "--", "artifacts").split("\0"))
     for ref in dict.fromkeys(refs):
         p = Path(ref)
         if p.is_absolute() or ".." in p.parts:
             raise ValueError(f"Invalid evidence reference: {ref}")
-        if not (root / p).is_file():
+        if (root / p).is_file():
+            continue
+        if ref not in reports and p.parts[:1] == ("artifacts",) and p.as_posix() not in tracked_artifacts:
+            missing_local_artifacts.append(ref)
+        else:
             errors.append(f"Missing evidence reference: {ref}")
     py = root / state["environment"]["python"]
     if not py.is_file():
@@ -52,6 +60,7 @@ def inspect(root=ROOT, verify_inputs=False):
         missing_local.append(f"Frozen hardware archive: {hardware}")
     if verify_inputs:
         errors.extend(f"Required for verification: {item}" for item in missing_local)
+        errors.extend(f"Missing machine-local evidence: {ref}" for ref in missing_local_artifacts)
         for name, expected in [
             (state["historical_recovery"]["path"], state["historical_recovery"]["sha256"]),
             (state["environment"]["frozen_hardware_inputs"], state["environment"]["frozen_hardware_sha256"]),
@@ -67,14 +76,15 @@ def inspect(root=ROOT, verify_inputs=False):
             "robot_status_is_live": False, "test_python": str(py),
             "next": state["next"], "activity": state["activity"],
             "errors": errors, "local_references_ok": not errors,
-            "missing_local": missing_local, "verify_inputs_requested": verify_inputs,
+            "missing_local": missing_local, "missing_local_artifacts": missing_local_artifacts,
+            "verify_inputs_requested": verify_inputs,
             "scope": "Local handoff checks only; no readiness for physical motion implied."}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("--verify-inputs", action="store_true", help="Require the local API test interpreter and verify both pinned input digests")
+    parser.add_argument("--verify-inputs", action="store_true", help="Require the local evidence archives and API test interpreter and verify both pinned input digests")
     args = parser.parse_args()
     try:
         r = inspect(verify_inputs=args.verify_inputs)
@@ -94,6 +104,8 @@ def main():
             print("Pinned input digests: unchecked (use --verify-inputs for strict verification)")
             for item in r["missing_local"]:
                 print(f"Local setup missing: {item}")
+            if r["missing_local_artifacts"]:
+                print(f"Machine-local evidence files absent from this checkout: {len(r['missing_local_artifacts'])} (list with --json)")
         owners = r['activity'].get('owners', {})
         if owners:
             print(f"Saved owners/activity ({r['updated_utc']}; verify actual agents and exits before resuming):")

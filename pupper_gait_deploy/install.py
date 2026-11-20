@@ -65,6 +65,11 @@ def file_mappings(monorepo: Path) -> list[tuple[Path, Path, str]]:
       "Command clip + IMU-yaw heading hold (from the policy JSON)",
     ),
     (
+      REPO / "src" / "command_deadline.hpp",
+      pkg / "include" / "neural_controller" / "command_deadline.hpp",
+      "Opt-in same-host original-command expiry and ordering contract",
+    ),
+    (
       REPO / "src" / "position_target_slew.hpp",
       pkg / "include" / "neural_controller" / "position_target_slew.hpp",
       "Opt-in physical target slew contract shared with training and native tests",

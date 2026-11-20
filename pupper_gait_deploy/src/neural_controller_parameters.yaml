@@ -69,6 +69,14 @@ neural_controller:
       description: "Extra backward speed cap (m/s, positive number) applied to the filtered command; 0 disables",
     }
 
+  cmd_vel_contract:
+    {
+      type: string,
+      default_value: "legacy_twist",
+      read_only: true,
+      description: "Immutable velocity transport: legacy_twist or same-host fc_deadline_v1. FC requires gait velocity, game_buttons false, reference_tricks false and empty chord_partner; no bare Twist or pose/joystick inputs are subscribed in FC mode",
+    }
+
   cmd_vel_timeout_s:
     {
       type: double,

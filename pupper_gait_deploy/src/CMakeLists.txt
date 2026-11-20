@@ -36,7 +36,7 @@ add_subdirectory(modules/RTNeural)
 
 target_link_libraries(neural_controller neural_controller_parameters RTNeural)
 
-target_include_directories(neural_controller PRIVATE include)
+target_include_directories(neural_controller PRIVATE include modules/RTNeural/modules/json)
 
 ament_target_dependencies(
   neural_controller
@@ -118,7 +118,7 @@ if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
     ament_add_gtest(test_neural_controller_safety test/test_neural_controller_safety.cpp)
     set_target_properties(test_neural_controller_safety PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    target_include_directories(test_neural_controller_safety PRIVATE include)
+    target_include_directories(test_neural_controller_safety PRIVATE include modules/RTNeural/modules/json)
     target_link_libraries(test_neural_controller_safety neural_controller neural_controller_parameters RTNeural)
     ament_target_dependencies(test_neural_controller_safety controller_interface hardware_interface
       realtime_tools rclcpp rclcpp_lifecycle controller_manager_msgs geometry_msgs sensor_msgs std_msgs tf2)

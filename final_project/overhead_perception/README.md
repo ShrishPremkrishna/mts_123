@@ -74,7 +74,8 @@ What the code does about an unreliable link:
 - **Waits for the phone at start** instead of failing, and lists the cameras macOS sees.
 - **Reports a lost feed.** No frame for 2 s shows CAMERA FEED LOST, stops publishing
   (consumers see their data go stale, the dashboard says STALE), and keeps trying to
-  reopen the camera. When frames return it carries on with the same calibration.
+  reopen the camera. Feed loss or reconnect now withholds calibration until an
+  explicit recalibration; reconnect never grants motion again automatically.
 - **Always releases the camera on exit**, including Ctrl-C. Before this, stopping the
   program left a wireless phone unavailable to the next run.
 
@@ -96,8 +97,9 @@ That opens one window: the camera feed with overlays on the left, the top-down
 field view on the right, and the readouts underneath (described below). The
 script says where calibration stands, in the terminal and as a banner in
 the window: **CALIBRATION NEEDED → CALIBRATING… (n of m tags) → CALIBRATION
-DONE**, and **CAMERA OR TAGS MOVED** if the floor tags drift more than 8 px
-from where calibration put them.
+DONE**, and **CALIBRATION WITHHELD** if a visible floor reference drifts more
+than 8 px, the image dimensions change or the feed reconnects. This is a latch:
+moving the camera back does not clear it. Verify the setup and recalibrate.
 
 ### Four ways to calibrate
 
@@ -111,6 +113,9 @@ from where calibration put them.
 A tag counts only when its whole black square and white border are visible.
 After calibration the camera position is frozen, so tags may be covered.
 Robot tags (ids 10, 11) never count for calibration.
+Covered floor tags retain the last transform but cannot reveal a hidden camera
+bump; `calibration_checked_at` records the last check. Click-only calibration
+has no live floor-reference check. These limits need actual arena qualification.
 
 ### Other keys
 
@@ -272,11 +277,12 @@ same field size; change both together.
 **UDP JSON**, one datagram per frame (`net.host`, `net.port`; `scripts/listen.py` prints it):
 
 ```
-seq, stamp, frame_age_s, calibrated, calib_mode, calib_err_px
+seq, stamp, captured_at, frame_age_s, calibrated, calib_mode, calib_err_px
+calibration_valid, calibration_revision, calibration_status, calibration_reason, calibration_checked_at
 field:   {length, width, ball_radius}
 floor_tags: {<id>: {x, y, visible}}
-ball:    {visible, x, y, vx, vy, age_s}
-robots:  {<name>: {visible, x, y, yaw, vx, vy, wz, age_s}}
+ball:    {visible, x, y, vx, vy, age_s, measured_at, measured_this_frame}
+robots:  {<name>: {visible, x, y, yaw, vx, vy, wz, age_s, measured_at, measured_this_frame}}
 goals:   {east|west: {x, y_min, y_max}}
 relative: {<name>: {ball:{x, y, distance, bearing}, goal:{x, y, distance, bearing},
                     shot_line:{ball_to_goal_yaw, turn_to_shot_line, behind_ball, left_of_line},
@@ -313,11 +319,30 @@ measurement behind each one is. `visible` stays true while a track coasts
 **Gameplay controller.** `fieldcam/gameplay.py` `to_observation(state, robot, robot_id)`
 returns a `final_project.pupper_fc.model.Observation`: pose at capture time,
 the capture time itself, and `None` for anything not measured in that frame.
-`fallen` and `goal` are not observed from overhead. Clock alignment between
-machines is the caller's `clock_offset`; nothing measures it yet.
+`fallen` and `goal` are not observed from overhead. This helper's `clock_offset`
+is only for controlled same-clock use. For live delivery, use the measured
+clock adapter below rather than guessing an offset or stamping on receipt.
+
+**Maintained live ingress.** [overhead_ingress.py](../behaviors/overhead_ingress.py)
+maps the source into the existing same-Pi `/fc/normalized_events` contract.
+`StatePublisher` adds `_transport` identity, live/simulation mode and paired
+wall/monotonic samples. A bounded nonce clock exchange measures the mapping to
+each Pi; delayed frames retain their original age. Source process, calibration
+revision, field geometry and robot mapping are pinned. Missing measurements stay
+missing, and invalid calibration/clock/session evidence withholds motion. It
+publishes only frames; it cannot arm, start motors or renew action permission.
+
+Run the ingress without `--publish` for bounded camera-only discovery. Live
+publication requires the pinned arguments shown by `--help` and the same
+calibrated field JSON used by the FC bridge. Names `striker`/`keeper` map to
+identities `pupper-1`/`pupper-2`, not permanent tactical roles. Camera/video
+simulation is explicitly rejected by live ingress. The camera's `latency_s`
+remains an unmeasured estimate until the physical capture-latency test; network
+clock synchronization does not determine sensor/driver latency.
 
 **ROS 2.** `ros2/field_state_bridge.py` is an untested sketch (UDP → topics);
-topic names are placeholders and it has never run against ROS.
+topic names are placeholders and it has never run against ROS. Its `--drive`
+option is not the integration path; use the maintained ingress and FC executor.
 
 `shots` and `cmd` are an earlier, simpler approach planner kept for the
 simulator loop. The gameplay controller in `pupper_fc` is the one to drive robots.

@@ -98,7 +98,6 @@ CLICKS_FILE = "out/manual_calib.json"
 
 
 RULE = "=" * 72
-MOVED_PX = 8.0      # calibration error above this means the camera or the tags have moved
 DONE_BANNER_S = 4.0  # how long the green "done" banner stays on screen
 
 
@@ -329,7 +328,11 @@ def main():
     if not perc.has_calibrated_intrinsics and not sim:
         print("WARNING: no intrinsics file; using a pinhole guess from hfov_deg. "
               "Run scripts/calibrate_intrinsics.py for real accuracy.")
-    pub = StatePublisher(cfg["net"]["host"], cfg["net"]["port"])
+    pub = StatePublisher(cfg["net"]["host"], cfg["net"]["port"], live=live)
+    import atexit
+    atexit.register(pub.close)
+    print(json.dumps({"event": "perception_source", "source_id": pub.source_id,
+                      "source_session": pub.source_session, "live": live}))
     latency = cam_cfg["latency_s"] if live else 0.0
     points = cfg["manual_points"]
     scale = min(1.0, args.display_width / src.width)
@@ -342,6 +345,7 @@ def main():
 
     n, state, vis, t_fps, fps = -1, None, None, time.time(), 0.0
     count, t_status = 0, 0.0
+    reconnects = getattr(src, "reconnects", 0)
     probe, mouse_ready = Probe(scale), False
     dash_on, dash_zoom = args.dashboard, "field"
 
@@ -359,6 +363,10 @@ def main():
     auto = "corners" if args.corners else "survey" if args.survey else "measured"  # how to calibrate at start
     while True:
         frame, t_rx, n = src.read(n)
+        new_reconnects = getattr(src, "reconnects", 0)
+        if new_reconnects != reconnects:
+            reconnects = new_reconnects
+            perc.invalidate_calibration("camera reconnected; verify setup and recalibrate")
         if frame is None:
             if not live:
                 break
@@ -367,6 +375,7 @@ def main():
             lost = src.lost_for
             if lost and not feed_lost:
                 feed_lost = True
+                perc.invalidate_calibration("camera feed lost; verify setup and recalibrate")
                 box("CAMERA FEED LOST", ["No frames are arriving. Nothing is being published while it is down.",
                                          "Trying to reconnect by itself. " + CAMERA_HELP])
             if lost and not args.no_gui:
@@ -380,8 +389,8 @@ def main():
             continue
         if feed_lost:
             feed_lost = False
-            box("CAMERA FEED BACK", ["Frames are arriving again. The earlier calibration is still in use;",
-                                     "if the phone was moved, the CAMERA OR TAGS MOVED warning will say so."])
+            box("CAMERA FEED BACK", ["Frames are arriving again. Motion remains withheld after the interruption;",
+                                     "verify the camera and field, then explicitly recalibrate."])
         if perc.cam is None and auto != "measured":
             if count % 10 == 0:  # --corners / --survey: never fall back to the measured layout in the config
                 (corners_calibrate if auto == "corners" else survey_calibrate)(perc, frame, quiet=True)
@@ -404,13 +413,14 @@ def main():
             asked = True
             announce_needed(perc, auto)
         err = state.get("calib_err_px") or 0.0
-        if perc.cam is not None and (err > MOVED_PX) != moved:
-            moved = err > MOVED_PX
+        invalid_calibration = not state.get("calibration_valid", False)
+        if perc.cam is not None and invalid_calibration != moved:
+            moved = invalid_calibration
             if moved:
-                box("CAMERA OR TAGS MOVED", [f"The floor tags are {err:.0f} px away from where calibration put them.",
-                                             "Every position is wrong until you recalibrate: press t (or c / m) in the window."])
+                box("CALIBRATION WITHHELD", [state.get("calibration_reason", "calibration needs verification"),
+                                             "Verify the field and camera, then explicitly recalibrate (f / c / m)."])
             else:
-                print("calibration error is back to normal", flush=True)
+                print("new calibration accepted; bind its revision before robot navigation", flush=True)
         if not args.print and (live or perc.cam is None) and time.time() - t_status > 1.0:
             t_status = time.time()
             if perc.cam is None:
@@ -439,8 +449,8 @@ def main():
                     "a tag counts only if its whole black square and white border are visible",
                     keys], (0, 200, 255))
             elif moved:
-                draw_banner(vis, "CAMERA OR TAGS MOVED", [
-                    f"calibration is off by {err:.0f} px: positions are wrong",
+                draw_banner(vis, "CALIBRATION WITHHELD", [
+                    state.get("calibration_reason", "verify calibration before motion"),
                     "recalibrate: f = corner tags, t = any tags, c = measured layout, m = click"], (0, 0, 255))
             elif time.time() - t_done < DONE_BANNER_S:
                 draw_banner(vis, "CALIBRATION DONE", [
@@ -492,6 +502,7 @@ def main():
     if state:
         s = state["shots"].get("striker", {})
         print(f"{count} frames, ~{fps:.0f} fps. striker ready={s.get('ready')} error={s.get('error')}")
+    pub.close()
 
 
 def _stop(*_args):

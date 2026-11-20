@@ -1,0 +1,124 @@
+{
+  "updated_utc": "2026-11-17T05:36:00.810250+00:00",
+  "release": "/home/pi/pupper-fc-releases/movement-20261116-v3",
+  "boot_id": "dfa2435c-75c7-488f-9db4-940a82507576",
+  "status": "Paused at user request; current native session and recorder closed cleanly",
+  "target_verification": "128 indexed files, selected profiles, target dependencies and four package prefixes verified before startup. Existing platform and teammate kick checkout untouched.",
+  "attempts": [
+    {
+      "run": "movement-20261117T042934Z",
+      "outcome": "Startup screen failed before motor enable; initial trace not enabled."
+    },
+    {
+      "run": "movement-20261117T043340Z",
+      "outcome": "Gyro peak0.217rad/s, longest eligible1.261s. User confirmed handling. Quaternion/gyro coherent; no parser defect evidenced."
+    },
+    {
+      "run": "movement-20261117T043631Z",
+      "outcome": "Gyro peak0.115rad/s, longest eligible1.200s. User confirmed moved again."
+    },
+    {
+      "run": "movement-20261117T044050Z",
+      "outcome": "Handheld with separate power-stop person; peak1.576rad/s, longest eligible0.393s. Failed before enable."
+    },
+    {
+      "run": "movement-20261117T044541Z",
+      "outcome": "Stationary startup passed in~3s; Finished homing; selected runtime loaded verified; walker initially inactive."
+    },
+    {
+      "run": "movement-20261117T052404Z",
+      "outcome": "Fresh battery, homing passed, exact selected native identities verified. One 0.7 m/s command for three seconds completed; physical outcome was not reported before user ended the session."
+    }
+  ],
+  "interpretation": "Handling-confounded startup data does not diagnose IMU drift or faulty hardware. Local gravity_arc resets with window; it is not whole-session tilt. R5 already contains maintained drift-tolerant startup rule; no threshold or driver change made.",
+  "archives": [
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/startup-failures-20261117T043340Z.tar.gz",
+      "sha256": "067077b53712ba3898348a897e57a7e0186a5fe5a09ab7c3584c65519d897a5a",
+      "member_hashes_verified": true
+    },
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/startup-supported-attempts-20261117T044050Z.tar.gz",
+      "sha256": "c7ee44537f65abb5cc42ddcc773a4cf7e2338feb994e74bff3d0d928e1dfd62f",
+      "member_hashes_verified": true
+    },
+    {
+      "path": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/movement-20261117T052404Z-closeout.tar.gz",
+      "sha256": "786ba63be4d9833f5de636a8b3285b5ddc70c7c9fb717650b602668b969fc757",
+      "member_hashes_verified": true,
+      "scope": "All current-run metadata and logs; full MCAP remains on Pi, indexed and hashed."
+    }
+  ],
+  "workflow_fix": "Shared startup command now always requests built-in IMU trace, avoiding a repeat solely for diagnosis. Handheld suggestion was not an effective shortcut; firm body support required for next attempt.",
+  "next": "Resume only when requested. Preserve the full MCAP locally, inspect the client idle-staleness exit, and continue measured longer-run, braking, turnaround and lateral checks before contact.",
+  "current_run": "/home/pi/pupper-fc-runs/movement-20261117T052404Z",
+  "battery_plan": "During future supervised blocks, read battery between trials and during waits; plan a swap near 33% / 17 V, earlier for sharp loaded sag. Do not cancel low-voltage shutdown.",
+  "client_scheduling_fix": {
+    "cause": "Full /proc identity scans after every ROS callback cost a median 19.85 ms on the Pi, starving callbacks and causing command expiry and observation RPC timeouts.",
+    "fix": "Run the full identity scan initially and then at a 0.2 s cadence. Initial/final identity checks, freshness rules and stop behavior are retained; the native release is unchanged.",
+    "verification": "167 implementation tests; 73 focused root/reviewer tests. A read-only Pi 200 Hz timer probe improved from 91 to 369 callbacks over 2 s with bounded scans. Persistent-runner validation is recorded separately.",
+    "client_source_sha256": "01592b58080a348df4c43e025c17faf1a3ccc2137772cd5a2379fdddc00c1407",
+    "staging": "/home/pi/pupper-fc-runs/movement-20261117T044541Z/client-loop-r1",
+    "receipt": "client-selected.json and client-manifest.json beside active run",
+    "scope": "Scan cadence plus callback and scan time; not a hard 0.2 s identity-detection deadline."
+  },
+  "physical_results": {
+    "turn_low": "Operator observed a controlled left turn and stop at 0.35 rad/s for 1.5 s.",
+    "forward_low": "Operator observed forward travel at a 0.2 m/s command for 2 s; distance unmeasured.",
+    "forward_045": "Operator reported stable travel and stop at a 0.45 m/s command for 2 s.",
+    "forward_07": "One-second burst had a controlled stop. Latest three-second run has controller evidence only; operator assessment unavailable.",
+    "forward_10_short": "Operator found the one-second burst too short to judge, and slightly unsteady.",
+    "forward_10_long": "Operator reported straight travel, clean stop and slight wobble during a three-second 1.0 m/s command. Actual speed and distance unmeasured.",
+    "turnaround": "Timed 0.8 rad/s turn for 3 s yielded an IMU delta of 2.154 rad, about 123 degrees. Operator completed the turn manually. No angle-targeted turnaround demonstrated.",
+    "lateral_and_contact": "Not yet tested on this release."
+  },
+  "battery": {
+    "start": "71%18.34V",
+    "swap_alert": "40%17.23V",
+    "shutdown_requested": "33%17.03V",
+    "minimum_sample": "30%16.96V",
+    "csv": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/battery-044541.csv"
+  },
+  "prior_block_closure": {
+    "run": "/home/pi/pupper-fc-runs/movement-20261117T044541Z",
+    "result": "Manager 16252 exited cleanly with Successfully deactivated; native and recorder exit 0. Recording closed at 05:12:58 UTC after user R3/support confirmation."
+  },
+  "persistent_client": {
+    "source_commit": "37e78df",
+    "path": "/home/pi/pupper-fc-client-updates/client-session-20261116-r1",
+    "source_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "validation": "176 offline tests; real-ROS synthetic sequential pulses, Stop and EOF checks; independent Claude Fable 5.2 and subagent reviews. Synthetic tests do not prove physical reliability.",
+    "physical_receipt": "/home/pi/pupper-fc-runs/movement-20261117T052404Z/trials/movement-20261117T052756077772Z-forward.json",
+    "physical_result": "Command matched the stock observation, 63 samples, 3.0219 s elapsed, zero seen after 0.0365 s. Operator assessment unavailable.",
+    "closeout": "Client exited 3 with session authority interrupted: stock policy observation stale. This was observed when sending Stop during wrap-up; exact cause/time not yet established. Prepared turn was never run."
+  },
+  "imu_comparison": {
+    "source": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/closed-044541/imu-trial-windows.json",
+    "finding": "Steady-window roll/pitch standard deviations increased from 0.75/1.20 degrees at 0.2 m/s to 2.45/3.15 degrees during the longer 1.0 m/s trial. This supports investigating wobble but is sensor evidence, not measured translation, slip or actual speed.",
+    "raw_mcap_sha256": "e834ab3095d1ed16f9ee1bade4b358c7ebfed12906e75ce4dd4ace81b7df9d70"
+  },
+  "current_battery": {
+    "final_sample_utc": "2026-11-17T05:32:01Z",
+    "percentage": 99,
+    "voltage": 20.2,
+    "reads": 13,
+    "errors": 0,
+    "csv": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/battery-next.csv",
+    "monitor": "Stopped at user request"
+  },
+  "closure": {
+    "state": "CLOSED_AT_USER_REQUEST",
+    "closed_utc": "2026-11-17T05:35:23.609448+00:00",
+    "boot_id": "dfa2435c-75c7-488f-9db4-940a82507576",
+    "native_exit_code": 0,
+    "recorder_exit_code": 0,
+    "driver_deactivation_logged": true,
+    "operator_supported": true,
+    "physical_release_observation": "Not separately requested; user may power off now",
+    "prepared_turn_executed": false,
+    "latest_trial_operator_acceptance": "Unavailable: user ended session instead of assessing trial",
+    "persistent_client_exit": "3; session authority interrupted: stock policy observation stale; cause unresolved",
+    "no_owned_runtime_remains": true
+  },
+  "closure_verification": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-live/closeout-052404-verification.json"
+}

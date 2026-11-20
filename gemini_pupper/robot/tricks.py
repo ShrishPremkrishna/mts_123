@@ -131,6 +131,7 @@ class Trick:
     walk: WalkConfig | None = None  # ... and its speeds (trick.yaml's walk block)
     secret: bool = False  # hidden until the local password gate accepts an unlock
     frame_count: int = 0  # exact exported finite motion frames; references use zero
+    operator_only: bool = False
 
     @property
     def interactive(self) -> bool:
@@ -289,6 +290,16 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
     if selected == ():
         return {}
     specs = sorted(trick_dir.glob("*/trick.yaml"))
+    # Older and unscoped releases discover only immediate child directories.
+    # Load an operator candidate only when its session profile names it.
+    operator_dir = trick_dir / "operator"
+    if selected:
+        for name in selected:
+            candidate = operator_dir / name / "trick.yaml"
+            if candidate.is_file():
+                if (trick_dir / name / "trick.yaml").is_file():
+                    raise ValueError(f"ambiguous ordinary and operator skill {name!r}")
+                specs.append(candidate)
     present = {path.parent.name for path in specs}
     if selected is not None and (missing := set(selected) - present):
         raise ValueError(f"PUPPER_SESSION_SKILLS names unavailable/replaced tricks: {sorted(missing)}")
@@ -393,6 +404,7 @@ def load_tricks(trick_dir: Path = TRICK_DIR) -> dict[str, Trick]:
             walk_path=walk_path,
             walk=walk,
             secret=spec.get("secret", False),
+            operator_only=spec_path.parent.parent == operator_dir,
         )
     catalog = {name: t for name, t in tricks.items() if replaced_by.get(name) not in tricks}
     # One explicit selector is shared by launch and server. Filtering never

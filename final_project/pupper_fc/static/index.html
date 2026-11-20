@@ -10,7 +10,7 @@
 <body>
   <div class="shell">
     <header class="page-header">
-      <div class="identity"><span class="logo" aria-hidden="true">p<span>fc</span></span><div><h1>PupperFC</h1><p>Offline practice <span> / </span> Gameplay sandbox</p></div></div>
+      <div class="identity"><span class="logo" aria-hidden="true">p<span>fc</span></span><div><h1>PupperFC</h1><p>Offline practice <span> / </span> Automatic soccer roles</p></div></div>
       <div class="file-actions"><button id="export" class="subtle" data-live>↓ Export trace</button><button id="import" class="subtle">↑ Open trace</button><input type="file" id="trace-file" accept=".json,application/json" hidden></div>
     </header>
 
@@ -29,12 +29,13 @@
         </section>
 
         <section class="telemetry" aria-label="Gameplay state">
-          <div class="phase-detail"><span class="eyebrow">GAMEPLAY STATE</span><h2 id="phase">Waiting for practice</h2><p id="reason">The local simulator will appear here.</p><p id="recovery" class="recovery" hidden>Recovery requested. Physical get-up is not implemented.</p></div>
-          <dl><div><dt>Observation age</dt><dd id="tracking-age">—</dd></div><div><dt>Commanded speed</dt><dd id="speed">—</dd></div><div><dt>Turn command</dt><dd id="turn">—</dd></div><div><dt>Practice time</dt><dd id="time">—</dd></div></dl>
+          <div class="state-strip"><div><span class="eyebrow">ROLE</span><strong id="role">Unassigned</strong></div><span class="state-link" aria-hidden="true">·</span><div><span class="eyebrow">SESSION</span><strong id="authority">Stopped</strong></div><p>Role chooses the job.<br>A hold stops its current action.</p></div>
+          <div class="phase-detail"><span class="eyebrow">CURRENT ACTION</span><h2 id="phase">Waiting for practice</h2><p id="reason">The local simulator will appear here.</p><p id="recovery" class="recovery" hidden>Recovery requested. Physical get-up is not implemented.</p></div>
+          <dl><div><dt id="tracking-age-label">Decision input age</dt><dd id="tracking-age">—</dd></div><div><dt>Play permission left</dt><dd id="lease">—</dd></div><div><dt>Commanded speed</dt><dd id="speed">—</dd></div><div><dt>Turn command</dt><dd id="turn">—</dd></div><div><dt>Practice time</dt><dd id="time">—</dd></div><div><dt>Session</dt><dd id="epoch">—</dd></div></dl>
         </section>
 
         <section class="history-card" aria-label="Practice results">
-          <div class="metrics"><div><strong id="goals">0</strong><span>Goals</span></div><div><strong id="shots">0</strong><span>Shots</span></div><div><strong id="own-goals">0</strong><span>Own goals</span></div><div><strong id="phase-changes">0</strong><span>State changes</span></div></div>
+          <div class="metrics"><div><strong id="goals">0</strong><span>Goals</span></div><div><strong id="shots">0</strong><span>Shots</span></div><div><strong id="own-goals">0</strong><span>Own goals</span></div><div><strong id="phase-changes">0</strong><span>Action changes</span></div></div>
           <div class="history-heading"><h2>Recent decisions</h2><span>Latest first</span></div><ol id="events"><li class="empty-event">Start practice to follow the decisions.</li></ol>
         </section>
       </div>
@@ -57,6 +58,7 @@
           <label class="slider-label" for="delay">Observation delay<output id="delay-value">0 ms</output></label><input id="delay" type="range" min="0" max="800" step="25" value="0" data-live>
           <label class="slider-label" for="noise">Position noise<output id="noise-value">0 cm</output></label><input id="noise" type="range" min="0" max="8" step="0.5" value="0" data-live>
           <label class="slider-label" for="max-speed">Forward speed limit<output id="max-speed-value">0.65 m/s</output></label><input id="max-speed" type="range" min="0.15" max="1" step="0.05" value="0.65" data-live>
+          <p class="help">Sandbox dimensions and motion limits are assumptions, not the selected robot release.</p>
           <label class="check"><input id="hide-ball" type="checkbox" data-live><span>Hide ball from observations</span></label>
           <label class="check"><input id="freeze" type="checkbox" data-live><span>Freeze observations</span></label>
         </section>
@@ -64,12 +66,15 @@
         <section class="control-card disturbance-card">
           <div class="section-heading"><h2>Change the play</h2></div>
           <div class="button-pair"><button id="nudge-up" data-live>Nudge ball ↑</button><button id="nudge-down" data-live>Nudge ball ↓</button></div>
-          <div class="button-pair"><button id="center-ball" data-live>Center ball</button><button id="home-robot" data-live>Reposition Pupper</button></div>
+          <div class="button-pair"><button id="threat-ball" data-live>Ball near home goal</button><button id="center-ball" data-live>Ball at midfield</button></div>
+          <div class="button-pair"><button id="home-robot" data-live>Reposition Pupper</button></div>
+          <label class="check"><input id="camera-hold" type="checkbox" data-live><span>Simulate front-camera hold<small>Exercises interruption, not object recognition.</small></span></label>
+          <label class="check"><input id="intent-loss" type="checkbox" data-live><span>Interrupt play instructions<small>Permission expires while tracking continues.</small></span></label>
           <label class="check fall-check"><input id="fallen" type="checkbox" data-live><span>Simulated fall<small>Physical get-up is not implemented.</small></span></label>
         </section>
       </aside>
     </main>
-    <footer>A 2D gameplay experiment. Ball contact and motion are simplified; results are not physical robot validation.</footer>
+    <footer>One simulated robot using automatic role selection and the gameplay executor. Motion and ball contact are simplified; no opponent physics, camera inference or physical robot validation.</footer>
   </div>
 </body>
 </html>

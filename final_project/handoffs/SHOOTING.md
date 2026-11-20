@@ -1,8 +1,8 @@
-# Shooting — Tej
+# Shooting
 
-November 12, 2026 · [Pupper FC brief](../README.md)
+November 16, 2026 · [Pupper FC brief](../README.md)
 
-**Outcome:** Repeatable directional shots on a bright ground ball from stationary and moving starts. Two autonomous Puppers play on a roughly 8×12 ft field; overhead perception supplies robot/ball/goal geometry. Coordinate with Marcus on movement, Ryan on perception, and Shrish and assisting agents on gameplay.
+**Outcome:** Repeatable directional shots on a bright ground ball from stationary and moving starts. Two autonomous Puppers play on a roughly 8×12 ft field; overhead perception supplies robot/ball/goal geometry. The [project brief](../README.md) owns current assignments: Shrish owns movement, headbutts and gameplay integration with assisting agents; Tej owns foot-kick work, and Ryan owns perception.
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
@@ -17,7 +17,7 @@ Start from [simulation/training](../../pupper-mjlab/README.md), [native deployme
 - A runnable shot with documented starting conditions, inputs, contact behavior and exit to locomotion; compare specialized candidates against the existing-gait baseline.
 - Stationary and moving-entry results. When adding ball-contact simulation, report assumptions and transfer limitations separately from physical shooting results.
 - Measured contact success, ball direction/distance, misses, falls, and robot stability after contact. Show align → contact → regain controlled motion → resume, including interrupted and failed attempts.
-- Preconditions and interruption behavior gameplay can use. Coordinate falls with gameplay's detection/preemption and the separate P0 get-up work; physical-motion ownership remains open.
+- Preconditions and interruption behavior gameplay can use. Coordinate fall stopping with gameplay; physical get-up scope/ownership remain open for discussion.
 
 Foot kicking and a dedicated goalie posture are stretch work.
 

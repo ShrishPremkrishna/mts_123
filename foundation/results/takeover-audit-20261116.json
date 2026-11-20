@@ -1,0 +1,46 @@
+{
+  "observed_utc": "2026-11-17T05:46:07.346270+00:00",
+  "scope": "Offline takeover investigation before owner alignment; no robot operations, installations or deployment.",
+  "source_revision_before_audit": "9f9319f296751c904d0459eadad7c4db2856efa3",
+  "active_checkout": "/Users/shrish/workspace/cs123",
+  "historical_checkout": "/Users/shrish/workspace/cs123-foundation",
+  "investigated": "Current source and instructions; recent relevant turns of Max out Pupper capabilities; course materials/live final-project directions; local physical closeout artifacts.",
+  "verified_facts": [
+    "Current Pupper FC source is in main; preserved foundation branch carries November4 priorities.",
+    "Both existing Python environments work; numerical mjlab imports current checkout; no installs needed.",
+    "Ubuntu24 test binaries were repeatedly packaged for Debian12 Pi. Existing ABI checker rejects v1 and accepts Pi-native v2; deployment packaging does not yet enforce its receipt.",
+    "Broad regression omitted final_project tests and source hashes. Corrected by this audit.",
+    "Latest owned physical session closed with native and recorder exit0 and logged driver deactivation. This audit did not contact the robot.",
+    "Physical observations support short forward/turn/stop trials, not measured speed/braking, reliable contact, lateral acceptance or autonomous soccer.",
+    "Real controller stops observations when estopped; synthetic ROS session fake continues publishing zero observations. Idle-client failure trigger remains unresolved without client event timing.",
+    "Large-scale instruction pruning is unwarranted: current main already has compact guidance. Corrected stale capability/owner claims and historical checkout routing."
+  ],
+  "changes": [
+    "final_project lane and source hashing in check_foundation.py",
+    "focused runner regressions",
+    "stale evidence/owner corrections",
+    "course deliverables and proposed acceptance recorded in existing PLAN.md",
+    "historical AGENTS.md directs FC to active main"
+  ],
+  "verification": {
+    "integrated_groups": 12,
+    "all_groups_passed": true,
+    "pytest_passed": 2605,
+    "subtests_passed": 48,
+    "docker_abi_tests_skipped_in_restricted_run": 5,
+    "docker_abi_tests_passed_separately_with_approved_access": 5,
+    "focused_runner_tests_passed": 27,
+    "strict_pinned_input_verification": "passed",
+    "changed_sources_during_regression": [],
+    "added_sources_during_regression": []
+  },
+  "independent_reviews": {
+    "subagents": "environment, requirements and architecture; independent runner diff review",
+    "claude_initial_model": "claude-fable-5-1 (alias resolved here; not claimed as5.2)",
+    "claude_requested_model_verified": "claude-fable-5-2",
+    "decision": "Do not remove idle freshness guard or change its threshold without interruption/rearm evidence. Fable5.2 and independent code review rejected initial no-safety-value claim."
+  },
+  "raw_evidence": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/takeover-audit",
+  "regression_report_sha256": "5e0363d3ac1798ceeb3915b611e332f44349ddc3a494a9efc48bf7af4e8ce906",
+  "platform_limits": "No evidence isolating UI/server lag cause. Repository defects and oversized history reads can be corrected; repository cleanup cannot establish a cure for chat rendering or platform interruptions."
+}
