@@ -163,7 +163,7 @@ class ResidentStart:
                 raise ValueError("Start submission uncertain; inspect gateway before further action") from exc
             return payload
 
-    def request_stop(self, reason):
+    def request_stop(self, reason, *, authority=None):
         """Latch locally and send native plus gateway Stop once; neither is an ACK."""
         with self.lock:
             if self.stop_latched:
@@ -173,7 +173,7 @@ class ResidentStart:
             # A bad/new gateway status must not replace the identity of a Start
             # that may already be queued remotely. For a no-Start Stop, use the
             # already-observed identity; a missing anchor cannot be confirmed.
-            anchor = self.last_request or self.state
+            anchor = authority if authority is not None else self.last_request or self.state
             identity = anchor.get("instance_id") if anchor else None
             epoch = anchor.get("epoch") if anchor else None
             sequence = anchor.get("sequence") if anchor else None

@@ -26,6 +26,7 @@ FIELD_FILES = (
     "gemini_pupper/robot/fc_walk_kick.py", "gemini_pupper/robot/fc_release_profile.py",
     "gemini_pupper/robot/controller_coverage.py", "gemini_pupper/robot/session_processes.py",
     "foundation/hardware/fc_walk_kick_release.py", "foundation/hardware/stage_app.py",
+    "foundation/hardware/software_start.py",
     "foundation/hardware/persistent_session.py", "foundation/hardware/floor_stock/shutdown_coordinator.py",
 )
 

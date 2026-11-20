@@ -338,6 +338,13 @@ class Robot:
         threading.Thread(target=self.executor.spin, daemon=True).start()
         log.info("tool server ready: %d tricks, locomotion controller %s", len(self.tricks), LOCOMOTION_CONTROLLER)
 
+    def gateway_stop_anchor(self):
+        """Last status from the gateway instance this client accepted at startup."""
+        with self._stop_lock:
+            state = self._stop_status.state
+            return ({key: state[key] for key in ("instance_id", "epoch", "sequence")}
+                    if state is not None else None)
+
     def motion_block_reason(self) -> str | None:
         if self.closing:
             return "tool server is shutting down; no new motion is accepted"

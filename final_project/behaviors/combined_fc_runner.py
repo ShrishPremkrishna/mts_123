@@ -137,8 +137,31 @@ class GuardedPath:
             raise RuntimeError(reason or "walk deadline expired at publication")
 
 
+async def await_gateway_stop(caller, spin_once, ros_ok):
+    """Keep receiving the one-shot Stop acknowledgement through bounded shutdown."""
+    while caller.stop_pending:
+        available = ros_ok()
+        if available:
+            try:
+                spin_once(timeout_sec=.01)
+            except RuntimeError:
+                available = False
+        result = caller.poll_stop(force_unconfirmed=not available)
+        if result is not None:
+            return result
+        await asyncio.sleep(0)
+    return caller.stop_result
+
+
+def gateway_stop_ready(gateway, anchor):
+    return (anchor is not None and gateway.stop_capable
+            and gateway.state["instance_id"] == anchor["instance_id"]
+            and gateway.stop_publisher.get_subscription_count() > 0)
+
+
 async def run(args):
     from foundation.hardware.fc_walk_kick_release import verify_running_session
+    from foundation.hardware.software_start import attach
     # Refuse stale installs or an unowned manager before constructing a robot client.
     verify_running_session(args.run_dir, ROOT)
     from robot_api import Robot
@@ -163,6 +186,7 @@ async def run(args):
     path = GuardedPath(core, node, lambda data: publish.publish(String(data=data)))
     emit = EventSink()
     quit_event = asyncio.Event()
+    gateway = attach(node, clock=clock, selected_controller="gemini_walk")
 
     def runtime_problem(during_kick):
         problem = path.check(during_kick)
@@ -171,7 +195,8 @@ async def run(args):
         return problem[1] if problem else None
 
     runtime = CombinedRuntime(robot, core.executor, core.robot_id, velocity_sink=path.write,
-                              path_problem=runtime_problem, walker_ready=path.restored_walker_ready)
+                              path_problem=runtime_problem, walker_ready=path.restored_walker_ready,
+                              hard_stop=lambda reason: gateway.request_stop(reason, authority=robot.gateway_stop_anchor()))
 
     def sync_camera_hold():
         active_clip = runtime.handoff.active is not None
@@ -231,6 +256,8 @@ async def run(args):
                     if action == "arm":
                         if core.executor.armed:
                             raise ValueError("field play is already armed")
+                        if not gateway_stop_ready(gateway, robot.gateway_stop_anchor()):
+                            raise ValueError("waiting for the selected gateway Stop channel")
                         problem = path.check(False)
                         if problem:
                             raise ValueError(problem[1])
@@ -239,6 +266,7 @@ async def run(args):
                 emit({"accepted": False, "reason": str(exc)[:180]})
 
     reader = opened = False
+    exit_code = 0
     try:
         await asyncio.wait_for(runtime.open(), timeout=10)
         opened = True
@@ -262,12 +290,21 @@ async def run(args):
             if runtime.stop_reason:
                 break
             await asyncio.sleep(max(0, TICK_S - (clock() - started)))
-        return 3 if runtime.stop_reason and not quit_event.is_set() else 0
+        if runtime.stop_reason and not quit_event.is_set():
+            exit_code = 3
     finally:
         if reader:
             loop.remove_reader(sys.stdin.fileno())
         try:
-            await runtime.close()
+            try:
+                if opened:
+                    runtime.stop("combined runtime closed")
+                    stop_result = await await_gateway_stop(gateway, spin.spin_once, rclpy.ok)
+                    emit(stop_result)
+                    if stop_result["uncertain"]:
+                        exit_code = 3
+            finally:
+                await runtime.close()
         finally:
             spin.shutdown()
             node.destroy_node()
@@ -275,6 +312,7 @@ async def run(args):
                 await robot.shutdown()
             else:
                 await robot.disconnect()
+    return exit_code
 
 
 def main(argv=None):

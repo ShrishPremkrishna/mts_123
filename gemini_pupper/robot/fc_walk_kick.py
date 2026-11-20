@@ -19,7 +19,8 @@ from robot_api import CALL_STOPS, LOCOMOTION_CONTROLLER
 
 
 class CombinedRuntime:
-    def __init__(self, robot, executor, robot_id, *, velocity_sink, path_problem, walker_ready=None):
+    def __init__(self, robot, executor, robot_id, *, velocity_sink, path_problem, walker_ready=None,
+                 hard_stop=None):
         if robot_id not in executor.controllers or executor.kick_side not in ("left", "right"):
             raise ValueError("field executor must select a robot and a kicking foot")
         self.robot = robot
@@ -28,6 +29,7 @@ class CombinedRuntime:
         self.velocity_sink = velocity_sink
         self.path_problem = path_problem
         self.walker_ready = walker_ready
+        self.hard_stop = hard_stop
         self.handoff = KickHandoff(robot_id)
         self.receipts = OperatorKickReceipts(self.handoff, robot.command_instance)
         self.opened = False
@@ -115,6 +117,9 @@ class CombinedRuntime:
             return
         self.stop_reason = str(reason)
         self.executor.stop()
+        if self.opened and self.hard_stop is not None:
+            # Fence queued gateway activations before waiting on the local job.
+            self.hard_stop(self.stop_reason)
         if self._submission is not None and not self._submission.done():
             self._submission.cancel()
         # Start cancellation even when the output transport has become unavailable.

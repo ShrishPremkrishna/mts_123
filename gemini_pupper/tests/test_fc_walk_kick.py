@@ -111,10 +111,11 @@ def test_rejected_observer_disconnects_without_interrupting_the_current_operator
             observer = Robot(validate_session_manifest=False, observe_only=True)
             ex = Executor(fields={ROBOT: Field()}, kick_side="left")
             runtime = CombinedRuntime(observer, ex, ROBOT, velocity_sink=lambda _: pytest.fail("guard wrote"),
-                                      path_problem=lambda _: None)
+                                      path_problem=lambda _: None, hard_stop=lambda _: pytest.fail("unclaimed Stop"))
             try:
                 with pytest.raises(RuntimeError, match="sole active"):
                     await runtime.open()
+                runtime.stop("failed observer")
                 with pytest.raises(MotionBlockedError, match="unclaimed"):
                     observer.send_speed(0, 0, 0)
                 with pytest.raises(MotionBlockedError, match="unclaimed"):
@@ -229,8 +230,9 @@ def test_field_veto_at_native_entry_and_during_playback(monkeypatch, interruptio
             ex = Executor(fields={ROBOT: Field()}, kick_side="left")
             out = []
             active = []
+            hard_stops = []
             runtime = CombinedRuntime(rig.ts, ex, ROBOT, velocity_sink=out.append,
-                                      path_problem=lambda in_kick: None)
+                                      path_problem=lambda in_kick: None, hard_stop=hard_stops.append)
             await runtime.open()
             ex.arm("match", "plant", rig.ts.now())
             permission = asyncio.Event()
@@ -270,4 +272,23 @@ def test_field_veto_at_native_entry_and_during_playback(monkeypatch, interruptio
             else:
                 assert not rig.robot.activations("trick_leg_kick")
             await runtime.close()
+            assert hard_stops == [runtime.stop_reason]
+    asyncio.run(case())
+
+
+def test_recoverable_camera_hold_does_not_latch_gateway(monkeypatch):
+    async def case():
+        async with field_clock_rig(monkeypatch) as rig:
+            ex = Executor(fields={ROBOT: Field()}, kick_side="left")
+            stops = []
+            runtime = CombinedRuntime(rig.ts, ex, ROBOT, velocity_sink=lambda _: None,
+                                      path_problem=lambda _: None, hard_stop=stops.append)
+            await runtime.open()
+            now = rig.ts.now()
+            ex.arm("match", "plant", now)
+            ex.set_external_hold(ROBOT, True, now, "person in front")
+            assert field_tick(runtime, now, 1, (-.95, -.04)).decision.phase == "external_hold"
+            assert ex.armed and not stops
+            await runtime.close()
+            assert len(stops) == 1
     asyncio.run(case())

@@ -115,3 +115,40 @@ def test_actual_shot_can_finish_before_planning_the_next_approach(clip_complete,
     # Source and pose must still be fresh while recovering, even with clip proof.
     e.handle(frame(.28, 9, robots={}, ball=displaced))
     assert e.kick_step(h, .28).cancel == job
+
+
+@pytest.mark.parametrize("newer_same_gateway", [True, False])
+def test_hard_stop_result_is_bounded_and_tied_to_owned_gateway(newer_same_gateway):
+    import asyncio
+    from types import SimpleNamespace
+    from foundation.hardware.software_start import ResidentStart, STOP_TOPIC
+
+    clock = [3.]
+    sent = []
+    caller = ResidentStart(None, None, clock=lambda: clock[0], gateway_stop=lambda: sent.append("gateway"),
+                           emergency_stop=lambda: sent.append("native"))
+    status = dict(protocol="pupper_stop_v1", instance_id="a" * 32, sequence=10, epoch=2,
+                  latched=False, fault=False, stop_required=False, in_flight=True,
+                  unknown_remote_submission=False, shutting_down=False, selected_controller="gemini_walk",
+                  software_stop_topic=STOP_TOPIC)
+    assert caller.observe(status)
+    anchor = {key: status[key] for key in ("instance_id", "epoch", "sequence")}
+    caller.stop_publisher = SimpleNamespace(get_subscription_count=lambda: 1)
+    assert runner.gateway_stop_ready(caller, anchor)
+    # A restart cannot replace the authority the robot client opened against.
+    assert caller.observe({**status, "instance_id":"b" * 32})
+    assert not runner.gateway_stop_ready(caller, anchor)
+    caller.request_stop("gateway has a pending activation", authority=anchor)
+    caller.request_stop("repeated local fault", authority=anchor)
+    assert sent == ["native", "gateway"]
+    sequence = [10]
+
+    def receive(timeout_sec):
+        clock[0] += .1
+        sequence[0] += 1
+        caller.observe({**status, "instance_id": anchor["instance_id"] if newer_same_gateway else "b" * 32,
+                        "epoch":3, "latched":True, "sequence":sequence[0]})
+
+    result = asyncio.run(runner.await_gateway_stop(caller, receive, lambda: True))
+    assert result["confirmed"] == newer_same_gateway and result["uncertain"] != newer_same_gateway
+    assert sent == ["native", "gateway"]
