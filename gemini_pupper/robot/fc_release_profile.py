@@ -19,7 +19,7 @@ FIELD_FILES = (
     "final_project/behaviors/overhead_ingress.py",
     "final_project/overhead_perception/fieldcam/__init__.py", "final_project/overhead_perception/fieldcam/net.py",
     *(f"follow_me_pupper/robot/{name}" for name in
-      ("viser_camera.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "camera_params.yaml", "coco.txt")),
+      ("viser_camera.py", "onboard_ball.py", "pink_ball.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "camera_params.yaml", "coco.txt")),
     *(f"final_project/pupper_fc/{name}.py" for name in
       ("__init__", "model", "controller", "paw_approach", "integration", "tactics",
        "obstacles", "kick_handoff", "operator_kick_receipts")),
