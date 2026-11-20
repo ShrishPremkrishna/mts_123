@@ -212,10 +212,15 @@ accuracy (see the table below).
 
 ## Tags
 
-`tags/pupper_fc_tags.pdf` has nine pages: a layout sheet showing where every
-tag goes ([tag_layout.png](tags/tag_layout.png) is the same picture), six floor
-tags (17 cm, ids 0–5) and two robot tags (8 cm, ids 10 striker, 11 keeper), one
-per US Letter page. Print at 100% on matte paper.
+`tags/pupper_fc_tags.pdf` is made for **double-sided printing**: 16 US Letter
+pages, each tag followed by its own guide page. Printed double-sided, the guide
+lands directly behind the tag on the same sheet (it is centred, so flipping on
+the long or the short edge both work); printed single-sided it is simply the
+next sheet. There are six floor tags (17 cm, ids 0–5) and two robot tags (8 cm,
+ids 10 striker, 11 keeper). Print at 100% on matte paper.
+
+The whole field on one sheet is separate: [tag_layout.png](tags/tag_layout.png)
+(also `tags/tag_layout.pdf`).
 
 | Tag | Where it goes |
 | --- | --- |
@@ -226,7 +231,9 @@ per US Letter page. Print at 100% on matte paper.
 | 4, 5 | Ends of the halfway line, south and north (optional: they sharpen the camera fit) |
 | 10, 11 | On the striker's and keeper's backs |
 
-Each floor page names its spot and carries a small map with that spot marked.
+Each floor tag's guide page names it, shows a map with its spot marked, and has
+a + at the tag's centre to set on that spot. The printed side also carries one
+line naming the spot, so a taped-down tag can be checked from above.
 Seen from above the corner tags read 0, 1, 2, 3 counter-clockwise, and the east
 goal (the one the striker attacks) is between tags 1 and 2. East, west, north
 and south are only names: choose which goal is east once and the rest follows.
@@ -234,8 +241,10 @@ and south are only names: choose which goal is east once and the rest follows.
 Tape floor sheets down whole, tag centre on its spot, any rotation. Cut robot
 tags at the corner marks, mount flat on a stiff card with the FRONT edge toward
 the nose, then measure `tag_height` (and `tag_offset` if it is not over the body
-centre) into the config. Keep the printed layout sheet out of the camera's view:
-its miniature tags are readable and carry the same ids as the real ones.
+centre) into the config. A robot tag's guide page fits inside the cut-out, so
+the card says which robot it is on its back. Keep the printed layout sheet out
+of the camera's view: its miniature tags are readable and carry the same ids as
+the real ones.
 
 `scripts/make_tags.py` regenerates everything from the config (`--pdf` for the PDF).
 

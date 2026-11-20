@@ -3,7 +3,12 @@
 with where it goes, plus one layout sheet showing the whole field from above.
 
   python scripts/make_tags.py            # PNG pages into out/tags/, layout into tags/tag_layout.png
-  python scripts/make_tags.py --pdf      # also tags/pupper_fc_tags.pdf (needs Pillow, see below)
+  python scripts/make_tags.py --pdf      # also tags/pupper_fc_tags.pdf and tags/tag_layout.pdf (needs Pillow, see below)
+
+The PDF is made for DOUBLE-SIDED printing: every tag is followed by its own guide
+page (which tag it is, where it goes, a map), centred so that it lands directly
+behind the tag on the back of the same sheet. Printed single-sided, the guide
+simply comes out as the next sheet.
 
 Each tag page is US Letter at 300 dpi; print at 100% / "actual size" on matte paper
 (glossy paper glares under overhead lights and kills detection).
@@ -64,35 +69,82 @@ def tag_image(tag_id: int, side_px: int) -> np.ndarray:
     return cv2.resize(cv2.aruco.generateImageMarker(TAG_DICT, tag_id, 8), (side_px, side_px), interpolation=cv2.INTER_NEAREST)
 
 
-def draw_minimap(img: np.ndarray, x: int, y: int, w: int, h: int, cfg: dict, spots: dict, highlight: int):
-    """A small top-down field (grayscale) with every floor tag's spot; the highlighted one is filled."""
+def draw_minimap(img: np.ndarray, x: int, y: int, w: int, h: int, cfg: dict, spots: dict, highlight: int, scale: float = 1.0):
+    """A top-down field (grayscale) with every floor tag's spot; the highlighted one is filled.
+    Drawn centred in the box (x, y, w, h). scale enlarges lines, markers and letters."""
     f = cfg["field"]
-    k = min((w - 90) / f["length"], (h - 60) / f["width"])
+    z = lambda v: max(int(round(v * scale)), 1)  # noqa: E731
+    k = min((w - z(260 if scale >= 2 else 90)) / f["length"], (h - z(70)) / f["width"])
     cx, cy = x + w // 2, y + h // 2
     P = lambda fx, fy: (int(round(cx + fx * k)), int(round(cy - fy * k)))  # noqa: E731
     hl, hw, hg = f["length"] / 2, f["width"] / 2, f["goal_width"] / 2
-    cv2.rectangle(img, P(-hl, hw), P(hl, -hw), 0, 3)
-    cv2.line(img, P(0, hw), P(0, -hw), 0, 1)
+    cv2.rectangle(img, P(-hl, hw), P(hl, -hw), 0, z(3))
+    cv2.line(img, P(0, hw), P(0, -hw), 0, z(1))
     for sign, letter in ((-1, "W"), (1, "E")):
-        cv2.rectangle(img, P(sign * hl, hg), P(sign * (hl + 0.18), -hg), 0, 3)
+        cv2.rectangle(img, P(sign * hl, hg), P(sign * (hl + 0.18), -hg), 0, z(3))
         gx, gy = P(sign * (hl + 0.18), 0)
-        cv2.putText(img, letter, (gx + (8 if sign > 0 else -34), gy + 12), FONT, 1.0, 0, 3)
-    cv2.putText(img, "N", (cx - 12, P(0, hw)[1] - 8), FONT, 0.8, 0, 2)
-    cv2.putText(img, "S", (cx - 12, P(0, -hw)[1] + 30), FONT, 0.8, 0, 2)
-    for tid, s in spots.items():
-        px, py = P(*s["xy"])
+        (tw, th), _ = cv2.getTextSize(letter, FONT, scale, z(3))
+        cv2.putText(img, letter, (gx + z(10) if sign > 0 else gx - z(10) - tw, gy + th // 2), FONT, scale, 0, z(3))
+    for letter, edge, up in (("N", hw, True), ("S", -hw, False)):
+        (tw, th), _ = cv2.getTextSize(letter, FONT, 0.8 * scale, z(2))
+        py = P(0, edge)[1]
+        cv2.putText(img, letter, (cx - tw // 2, py - z(10) if up else py + th + z(10)), FONT, 0.8 * scale, 0, z(2))
+    for tid, sp in spots.items():
+        px, py = P(*sp["xy"])
         if tid == highlight:
-            cv2.rectangle(img, (px - 13, py - 13), (px + 13, py + 13), 0, -1)
-            cv2.circle(img, (px, py), 30, 0, 3)
+            cv2.rectangle(img, (px - z(13), py - z(13)), (px + z(13), py + z(13)), 0, -1)
+            cv2.circle(img, (px, py), z(30), 0, z(3))
         else:
-            cv2.rectangle(img, (px - 8, py - 8), (px + 8, py + 8), 255, -1)
-            cv2.rectangle(img, (px - 8, py - 8), (px + 8, py + 8), 0, 2)
+            cv2.rectangle(img, (px - z(8), py - z(8)), (px + z(8), py + z(8)), 255, -1)
+            cv2.rectangle(img, (px - z(8), py - z(8)), (px + z(8), py + z(8)), 0, z(2))
 
 
-def page(tag_id: int, size_m: float, label: str, front: str | None = None, where: str | None = None,
-         cfg: dict | None = None, spots: dict | None = None) -> np.ndarray:
-    """One US-Letter page. `front`: robot tags only, a small note that stays on the tag after cutting.
-    `where` (+ cfg, spots): floor tags, the words and a small map saying where the tag goes."""
+def _centred(img, text: str, y: int, scale: float, thick: int):
+    """Text centred on the page's vertical centre line, so it sits behind the tag whichever way the sheet is flipped."""
+    (tw, _), _ = cv2.getTextSize(text, FONT, scale, thick)
+    cv2.putText(img, text, ((img.shape[1] - tw) // 2, y), FONT, scale, 0, thick, cv2.LINE_AA)
+
+
+def back_page(tag_id: int, size_m: float, title: str, where: str, notes: list[str],
+              cfg: dict | None = None, spots: dict | None = None, border_m: float = 0.0) -> np.ndarray:
+    """The guide that prints on the BACK of a tag's sheet.
+
+    Everything is centred on the page and kept inside the outline of the tag
+    (plus `border_m` for a tag that gets cut out), so after double-sided printing
+    it lies directly behind the tag, whether the printer flips on the long or the
+    short edge. Floor tags (cfg and spots given) get a map with their spot marked.
+    """
+    img = np.full((int(11 * DPI), int(8.5 * DPI)), 255, np.uint8)
+    side = int(round(size_m / 0.0254 * DPI))
+    side -= side % 8
+    b = int(round(border_m / 0.0254 * DPI))
+    y0, x0 = (img.shape[0] - side) // 2 - b, (img.shape[1] - side) // 2 - b
+    box = side + 2 * b
+    cv2.rectangle(img, (x0, y0), (x0 + box, y0 + box), 0, 2)          # where the tag (or the cut-out) is, on the other side
+    u = box / 2008.0                                                 # everything scales with the outline
+    z = lambda v: max(int(round(v * u)), 1)  # noqa: E731
+    _centred(img, title, y0 + z(215), 4.2 * u, z(10))
+    _centred(img, where, y0 + z(325), 2.0 * u, z(5))
+    cy = y0 + box // 2
+    if cfg is not None and spots is not None:
+        draw_minimap(img, x0 + z(100), y0 + z(365), box - z(200), cy - z(80) - (y0 + z(365)), cfg, spots, tag_id, scale=2.6 * u)
+        cx = img.shape[1] // 2
+        cv2.line(img, (cx - z(45), cy), (cx + z(45), cy), 0, z(4))    # the tag's centre, to set on the marked spot
+        cv2.line(img, (cx, cy - z(45)), (cx, cy + z(45)), 0, z(4))
+        _centred(img, "+ is the centre of the tag", cy + z(120), 1.3 * u, z(3))
+        first, size, gap = cy + z(270), 1.7, 115
+    else:
+        first, size, gap = y0 + z(700), 2.6, 190      # a cut-out robot tag is small: fewer, larger words
+    for i, line in enumerate(notes):
+        _centred(img, line, first + z(gap) * i, size * u, z(3 if size < 2 else 5))
+    _centred(img, "The tag is printed directly behind this square.", y0 + box - z(60), 1.0 * u, z(2))
+    return img
+
+
+def page(tag_id: int, size_m: float, label: str, front: str | None = None, where: str | None = None) -> np.ndarray:
+    """The printed side of a tag's sheet (US Letter). `front`: robot tags only, a small note that
+    stays on the tag after cutting. `where`: floor tags, one line naming the spot; the full
+    guide and map are on the back (back_page)."""
     img = np.full((int(11 * DPI), int(8.5 * DPI)), 255, np.uint8)
     side = int(round(size_m / 0.0254 * DPI))
     side -= side % 8
@@ -102,15 +154,8 @@ def page(tag_id: int, size_m: float, label: str, front: str | None = None, where
     # Labels and the map stay clear of that white zone and of the printer's margins.
     top = max(y0 - side // 4 - 30, 170)
     cv2.putText(img, f"{label}   id {tag_id}   {size_m * 100:.0f} cm", (x0, top), FONT, 1.6, 0, 4)
-    if where:
+    if where:  # one line on the printed side, so a taped-down tag can still be checked from above
         cv2.putText(img, where, (x0, top + 75), FONT, 1.5, 0, 4)
-        map_top = y0 + side + cell + 20
-        map_h = img.shape[0] - 80 - map_top
-        if cfg is not None and spots is not None and map_h > 150:
-            draw_minimap(img, x0, map_top, 560, map_h, cfg, spots, tag_id)
-            cv2.putText(img, "PUT THIS TAG HERE (seen from above).", (x0 + 600, map_top + 70), FONT, 1.2, 0, 3)
-            cv2.putText(img, "Tag centre on the spot, any rotation.", (x0 + 600, map_top + 125), FONT, 1.2, 0, 3)
-            cv2.putText(img, "E = east goal, the one the striker attacks.", (x0 + 600, map_top + 180), FONT, 1.0, 0, 2)
     if front:
         # Robot tags get cut out, so the front marker must sit inside the cut:
         # beyond the one-cell white quiet zone, inside corner cut marks at CUT_BORDER.
@@ -239,22 +284,32 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     spots = placements(cfg)
 
-    pages = []
     layout = layout_sheet(cfg, args.field_size, args.robot_size)
     (ROOT / "tags").mkdir(exist_ok=True)
     cv2.imwrite(str(ROOT / "tags" / "tag_layout.png"), cv2.resize(layout, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA))
     cv2.imwrite(str(out / "00_layout.png"), layout)
-    pages.append(out / "00_layout.png")
+
+    pages = []  # front, back, front, back, ... : each back prints behind the tag before it
+    floor_notes = ["Tape the whole sheet down, tag side up.", "Set the + on the marked spot. Any rotation.",
+                   "E = east goal, the one the striker attacks.", "Seen from above. N / S are the two long sides."]
     for tid in sorted(cfg["tags"]["field"]):
-        path = out / f"floor_{tid:02d}.png"
-        cv2.imwrite(str(path), page(tid, args.field_size, "FLOOR TAG", where=spots[tid]["where"], cfg=cfg, spots=spots))
-        pages.append(path)
+        front, back = out / f"floor_{tid:02d}_front.png", out / f"floor_{tid:02d}_back.png"
+        cv2.imwrite(str(front), page(tid, args.field_size, "FLOOR TAG", where=spots[tid]["where"]))
+        cv2.imwrite(str(back), back_page(tid, args.field_size, f"FLOOR TAG {tid}", spots[tid]["where"], floor_notes, cfg, spots))
+        pages += [front, back]
     for name, rc in cfg["robots"].items():
-        path = out / f"robot_{name}_{rc['tag_id']:02d}.png"
-        cv2.imwrite(str(path), page(rc["tag_id"], args.robot_size, f"{name} (attacks {rc['attacks']}): cut at the corner marks",
-                                    front=f"^ FRONT   {name}   id {rc['tag_id']} ^"))
-        pages.append(path)
-    print(f"wrote {len(pages)} pages to {out}/ and the layout picture to tags/tag_layout.png")
+        front, back = out / f"robot_{name}_{rc['tag_id']:02d}_front.png", out / f"robot_{name}_{rc['tag_id']:02d}_back.png"
+        cv2.imwrite(str(front), page(rc["tag_id"], args.robot_size, f"{name} (attacks {rc['attacks']}): cut at the corner marks",
+                                     front=f"^ FRONT   {name}   id {rc['tag_id']} ^"))
+        cv2.imwrite(str(back), back_page(rc["tag_id"], args.robot_size, name.upper(), f"robot tag {rc['tag_id']}",
+                                         [f"Attacks the {rc['attacks'].upper()} goal.", "Mount flat on the robot's back.",
+                                          "The FRONT edge is marked", "on the printed side: toward the nose."],
+                                         border_m=CUT_BORDER_M))
+        pages += [front, back]
+    for stale in out.glob("*.png"):  # pages from an earlier layout of this folder
+        if stale not in pages and stale.name != "00_layout.png":
+            stale.unlink()
+    print(f"wrote {len(pages)} pages ({len(pages) // 2} tags, front and back) to {out}/ and the layout picture to tags/tag_layout.png")
 
     if args.pdf:
         try:
@@ -265,7 +320,9 @@ def main():
         images = [Image.open(p).convert("RGB") for p in pages]
         pdf = ROOT / "tags" / "pupper_fc_tags.pdf"
         images[0].save(pdf, save_all=True, append_images=images[1:], resolution=float(DPI))
-        print(f"wrote {pdf.relative_to(ROOT)}: layout sheet + {len(pages) - 1} tag pages")
+        Image.open(out / "00_layout.png").convert("RGB").save(ROOT / "tags" / "tag_layout.pdf", resolution=float(DPI))
+        print(f"wrote {pdf.relative_to(ROOT)}: {len(pages)} pages for double-sided printing (tag, then its guide), "
+              "and tags/tag_layout.pdf")
 
 
 if __name__ == "__main__":
