@@ -103,6 +103,53 @@ def test_open_does_not_wake_an_inactive_walker(monkeypatch):
     asyncio.run(case())
 
 
+@pytest.mark.parametrize("first", ["clear", "latched", "malformed", "estop", "fall", "owner_changed", "timeout"])
+def test_first_gateway_observation_lags_inventory(monkeypatch, first):
+    async def case():
+        async with field_clock_rig(monkeypatch) as rig:
+            rig.robot.stop_status_enabled = False
+            observer = Robot(validate_session_manifest=False, observe_only=True)
+            ex = Executor(fields={ROBOT: Field()}, kick_side="left")
+            runtime = CombinedRuntime(observer, ex, ROBOT, velocity_sink=lambda _: pytest.fail("guard wrote"),
+                                      path_problem=lambda _: None)
+            counts = len(rig.robot.published), len(rig.robot.switches)
+            opening = asyncio.create_task(runtime.open())
+            try:
+                for _ in range(16):
+                    await asyncio.sleep(0)
+                assert not opening.done() and not runtime.opened
+                if first == "timeout":
+                    with pytest.raises(asyncio.TimeoutError):
+                        await asyncio.wait_for(opening, .02)
+                else:
+                    if first == "estop":
+                        observer._on_estop(None)
+                    elif first == "fall":
+                        observer._on_rosout(SimpleNamespace(name="gemini_walk", msg=ESTOP_LOG))
+                    elif first == "malformed":
+                        observer._on_stop_status(SimpleNamespace(data="{}"))
+                    else:
+                        rig.robot.stop_status["latched"] = first == "latched"
+                        if first == "owner_changed":
+                            rig.robot.controllers["gemini_walk"] = "inactive"
+                        observer._on_stop_status(SimpleNamespace(data=json.dumps(rig.robot.stop_status)))
+                    if first == "clear":
+                        await asyncio.wait_for(opening, .25)
+                        assert runtime.opened
+                    else:
+                        with pytest.raises(RuntimeError, match="veto|Stop or fall|sole active"):
+                            await asyncio.wait_for(opening, .25)
+                assert runtime.opened == (first == "clear")
+                assert (len(rig.robot.published), len(rig.robot.switches)) == counts
+            finally:
+                opening.cancel()
+                if runtime.opened:
+                    await observer.shutdown()
+                else:
+                    await observer.disconnect()
+    asyncio.run(case())
+
+
 def test_rejected_observer_disconnects_without_interrupting_the_current_operator(monkeypatch):
     async def case():
         async with field_clock_rig(monkeypatch) as rig:

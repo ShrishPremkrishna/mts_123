@@ -52,14 +52,24 @@ class CombinedRuntime:
         if not kick.operator_only or not r.trick_available(kick):
             raise RuntimeError("selected operator-only leg kick is unavailable")
         generation = r.stops
-        states = await r.controller_states()
-        active = {name for name in r.leg_controllers if states.get(name) == "active"}
-        if generation != r.stops or r.fallen or r.motion_block_reason():
-            raise RuntimeError("robot has a stop, fall or motion veto")
-        if active != {LOCOMOTION_CONTROLLER} or states.get(kick.controller) != "inactive":
-            raise RuntimeError("requires sole active gemini_walk and loaded inactive kick")
-        if r.current is not None or not r.commands.empty():
-            raise RuntimeError("another job owns the robot")
+        while True:
+            states = await r.controller_states()
+            active = {name for name in r.leg_controllers if states.get(name) == "active"}
+            if active != {LOCOMOTION_CONTROLLER} or states.get(kick.controller) != "inactive":
+                raise RuntimeError("requires sole active gemini_walk and loaded inactive kick")
+            if r.current is not None or not r.commands.empty():
+                raise RuntimeError("another job owns the robot")
+            if generation != r.stops or r.fallen:
+                raise RuntimeError("robot reported a Stop or fall during startup")
+            waited = await r.wait_for_initial_stop_observation()
+            if generation != r.stops or r.fallen:
+                raise RuntimeError("robot reported a Stop or fall during startup")
+            reason = r.motion_block_reason()
+            if reason:
+                raise RuntimeError("robot has a motion veto: " + reason)
+            if not waited:
+                break
+            # Recheck ownership if a controller could have switched during DDS discovery.
         r.claim_observed_session(generation)
         self._generation = generation
         self.opened = True

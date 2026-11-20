@@ -11,6 +11,7 @@ import re
 PROTOCOL = 'pupper_stop_v1'
 TOPIC = '/estop_controller/stop_status'
 MAX_AGE_S = 0.5
+FIRST_STATUS_PENDING = 'shared stop status has not been received'
 _FLAGS = ('latched', 'fault', 'stop_required', 'in_flight',
           'unknown_remote_submission', 'shutting_down')
 _BLOCKING = tuple(name for name in _FLAGS if name != 'in_flight')
@@ -32,7 +33,7 @@ class StopStatus:
         self.state = None
         self.received = None
         self.instance_id = None
-        self.error = 'shared stop status has not been received'
+        self.error = FIRST_STATUS_PENDING
         self.permanent_error = None
         self.local_inhibit = False
         self._barrier_epoch = -1

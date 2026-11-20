@@ -81,7 +81,7 @@ from std_srvs.srv import Trigger
 
 from spawn_controllers import LOADED, spawn
 from secret_gate import SecretGate
-from stop_status import StopStatus, TOPIC as STOP_STATUS_TOPIC
+from stop_status import FIRST_STATUS_PENDING, StopStatus, TOPIC as STOP_STATUS_TOPIC
 from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
 
 log = logging.getLogger("robot_api")
@@ -319,6 +319,7 @@ class Robot:
         # Unknown/stale status blocks motion even when this server just restarted.
         self.loop = asyncio.get_event_loop()
         self._stop_status = StopStatus()
+        self._first_stop_observation = asyncio.Event()
         self._stop_lock = threading.RLock()
         self._stop_cleanup_scheduled = False
         self._stop_cleanup_episode = None
@@ -344,6 +345,19 @@ class Robot:
             state = self._stop_status.state
             return ({key: state[key] for key in ("instance_id", "epoch", "sequence")}
                     if state is not None else None)
+
+    async def wait_for_initial_stop_observation(self):
+        """Wait only for initial subscriber discovery. A Stop or fall also wakes the observer."""
+        with self._stop_lock:
+            if (self._first_stop_observation.is_set() or self.fallen or self._stop_status.local_inhibit
+                    or self._stop_cleanup_scheduled or self.motion_block_reason() != FIRST_STATUS_PENDING):
+                return False
+        await self._first_stop_observation.wait()
+        return True
+
+    def _notify_first_stop_observation(self):
+        if not self._first_stop_observation.is_set():
+            self.loop.call_soon_threadsafe(self._first_stop_observation.set)
 
     def motion_block_reason(self) -> str | None:
         if self.closing:
@@ -383,6 +397,7 @@ class Robot:
             blocked = self._stop_status.reason(time.monotonic()) is not None
             if not blocked:
                 self._stop_cleanup_episode = None
+            self._notify_first_stop_observation()
         if blocked:
             self._request_shared_stop_cleanup()
 
@@ -556,6 +571,7 @@ class Robot:
         with self._stop_lock:
             self._fall_generation += 1
             self.fallen = controller
+            self._notify_first_stop_observation()
             return self._fall_generation
 
     async def _on_fall(self, controller: str, generation: int | None = None) -> None:
@@ -1675,6 +1691,7 @@ class Robot:
         self.gamepad_estop_at = time.monotonic()
         with self._stop_lock:
             self._stop_status.inhibit()
+            self._notify_first_stop_observation()
         # Synchronous inhibit precedes asyncio cleanup. Only authoritative fresh
         # release status can rearm; the Empty message itself carries no epoch.
         self._request_shared_stop_cleanup()
