@@ -111,13 +111,33 @@ DONE**, and **CALIBRATION WITHHELD** if a visible floor reference drifts more
 than 8 px, the image dimensions change or the feed reconnects. This is a latch:
 moving the camera back does not clear it. Verify the setup and recalibrate.
 
+Two things calibration does by itself on a live camera (November 20, after the first
+corner calibration on a phone looking down at an angle kept being withheld):
+
+- **It waits for a steady picture.** A phone feed that has just opened is still
+  focusing and framing. Calibrating on one of those frames gave a camera position
+  the next second's picture no longer matched, and the drift check withheld it at
+  once. Automatic calibration now waits until every floor tag in view has stayed
+  within 2 px for a second (the banner says so). Pressing a calibration key is not held back.
+- **It fits the lens angle when there is no lens file.** The config's 69° guess left
+  the far tags 7 to 8 px from where the model put them, right at the 8 px limit; the
+  same frames fit at 66° with 0.5 px. With no `config/intrinsics.yaml`, calibration
+  searches the angle within 15° of `camera.hfov_deg` and keeps the result only if it
+  at least halves the error; the calibration message reports the fitted angle. Looking
+  straight down the angle cannot be told from the camera's height, so the configured
+  value stays. A real lens calibration (`scripts/calibrate_intrinsics.py`) is still
+  better: this fits one number and no distortion.
+
+If every tag it asked for is in view and it still has not calibrated, the banner
+turns red (**CALIBRATION BLOCKED**) and says why, instead of looking as if it were waiting.
+
 ### Four ways to calibrate
 
 | Key | Needs | Field frame |
 | --- | --- | --- |
 | `f` (automatic with `--corners`) | Tags 0, 1, 2, 3 on the four corners of the field, nothing measured | **The tags define the field:** its centre is the middle of the four, +x runs from the 0–3 side to the 1–2 side (east goal between tags 1 and 2), and its length and width are measured from the tags and replace the config's. Seen from above the tags go counter-clockwise. Other floor tags in view help but do not change the field. `tags.corner_inset` covers sheets that sit inside the lines. |
 | `c` (automatic at start) | 4+ floor tags at the measured positions in `config/field.yaml` | The real field |
-| `t` (automatic with `--survey`) | Any 2+ floor tags, nothing measured; 3+ spread apart is better | Lowest-numbered tag is the field centre; its right edge points at +x, top edge at +y. **The field outline and goals are then only drawn around that tag from the sizes in the config; the tags do not mark the field's edges.** Good for trying things at a desk, not for the real arena. |
+| `t` (automatic with `--survey`) | Any 2+ floor tags, nothing measured; 3+ spread apart is better | **With all four corner tags in view, pressing `t` does the same as `f`.** Otherwise: lowest-numbered tag is the field centre; its right edge points at +x, top edge at +y. **The field outline and goals are then only drawn around that tag from the sizes in the config; the tags do not mark the field's edges.** Good for trying things at a desk, not for the real arena. |
 | `m` | Click the floor points listed under `manual_points` (default: the four field corners) | The real field |
 
 A tag counts only when its whole black square and white border are visible.
@@ -192,51 +212,65 @@ approach, align and strike phases.
 ## Where the ball is going
 
 On the `perception/ball-prediction` branch (November 20). Simulation only: nothing
-here has seen a real rolling ball or moved a robot.
+here has been checked against a real rolling ball, and nothing moves a robot.
 
-**The physics.** A rolling ball is assumed to slow at a constant rate
-(`prediction.roll_decel`, m/s²) along a straight line: from speed v it rolls for
-v / decel seconds and covers v² / (2 · decel) metres. It ends by stopping,
-crossing a goal line between the posts, or reaching the field edge, where it is
-"out" or (with `prediction.walls: true`) bounces. `roll_decel: 0.35` is a guess.
-Measure it with the real ball on the real floor:
+**The physics.** A rolling ball slows at a roughly constant rate along a straight
+line: from speed v it rolls for v / decel seconds and covers v² / (2 · decel)
+metres. It ends by stopping, crossing a goal line between the posts, or reaching
+the field edge, where it is "out" or (with `prediction.walls: true`) bounces.
 
-```bash
-.venv/bin/python scripts/fit_ball_roll.py     # next to a running, calibrated run_perception.py
-```
+**Every roll is fitted on its own, every frame.** Hand rolls on the real carpet
+gave scattered slow-down rates, so no single measured number is trusted. From the
+first frames of a roll the tracker fits that roll's own start speed and slow-down
+rate, and refits on every frame after:
 
-Roll the ball by hand a few times and let it stop; each roll prints its own
-value and fit error, and the median is the number for the config.
+- For the first 0.6 s the curve is too short to show the slow-down, so the rate
+  stays at the starting guess (`prediction.roll_decel`, then the rates of finished
+  rolls) and only the newest frames set the speed.
+- After that the roll's own data takes over. The roll is taken to start where the
+  ball was fastest, so frames where a hand was still pushing it do not count.
+- The prediction comes with a **stopping area**: an ellipse of about 2 sigma that
+  starts large ("somewhere over there") and shrinks to a spot as the roll goes on.
 
-**The velocity.** Predicting seconds ahead needs a better velocity than the
-tracking filter gives: with 1 cm position noise that filter reads a ball that is
-standing still as 0.11 m/s (30 frames/s) to 0.19 m/s (7.5 frames/s, the rate
-seen on the mounted phone), and its predicted stopping point is about 30 cm off.
-`RollTracker` fits a straight line through the last 0.6 s of ball measurements
-and corrects it with the roll model. A measurement far from the fit means a
-kick or a bounce; if the next one agrees the old history is dropped, and one
-stray detection is ignored.
+**Knocked off course.** A divot or seam can turn the ball. A sharp knock shows as
+a jump and a gentle one as the newest frames sitting to one side of the roll's
+line; either way the direction is refitted from there while the slow-down learned
+so far is kept. Because that can happen at any point still ahead, the area is
+widened across the roll by `prediction.wander_deg` per metre still to go, and
+rolls that really are knocked off line widen it further for the next ones.
 
 **The plans** (`fieldcam/intercept.py`), per robot that is in view:
 
-- `strike`: where to line up behind the ball on the line to the goal it attacks,
-  using where the ball **will** be: nearly always where it comes to rest, or
-  earlier if the robot can be in place while the ball is still crawling
-  (`intercept.max_contact_speed`). No plan if the ball is rolling out or into a goal.
+- `strike` (run through the ball): line up behind where the ball **will** stop, on
+  the line to the goal it attacks. While the ball rolls the line-up point sits
+  further back by the size of the stopping area and `hold` is true: get lined up
+  now, run only once the ball has stopped.
+- `kick` (leg kick): the pose that puts the ball in front of one paw with the
+  swing aimed at the goal, and the timeline walk → settle → wind-up → contact.
+  The wind-up takes about 2.3 s, so it may **start while the ball is still
+  rolling**, timed so the paw arrives as the ball does; that is allowed once the
+  stopping area is under `intercept.kick_window`. Until then the robot waits
+  behind the pose by the size of the area. `action` is `go_to_pose`, `wait` or
+  `wind_up`, and `saves_s` says how much sooner contact happens than waiting for
+  the ball to stop first.
 - `block`: only when the ball is predicted to roll into the robot's own goal:
-  where to stand so its body is across the ball's path, and how much time that
-  leaves, or how late it would be.
+  where to stand so its body is across the ball's path, and the time to spare.
 
-The route is the quickest of a few candidates under a simple model of the robot
-(walks forward, turns, shuffles sideways slowly, never reverses, goes round the
-ball). The speeds are the limits of the combined walk-and-kick release, not
-measured travel, and turning on the spot before each leg is pessimistic.
+Routes are the quickest of a few candidates for a robot that walks forward,
+turns, shuffles sideways slowly and never reverses. Speeds are the limits of the
+combined walk-and-kick release (0.22 m/s forward, 0.18 m/s sideways, 0.65 rad/s),
+not measured travel, and turning on the spot before each leg is pessimistic. The
+kick offsets and timing are the team's current figures, not measured with the match ball.
 
 **Where it shows.** Published as `prediction` and `intercepts` (see
-[Interfaces](#interfaces)). On the dashboard and the camera view the predicted
-path is a pink line with a dot each second and a ring where it ends ("stops in
-1.8 s", "WEST GOAL in 1.2 s", "out in 0.9 s"); each robot gets its line-up
-point and, when its goal is threatened, a red cross at the block point.
+[Interfaces](#interfaces)). On the dashboard and the camera view, while the ball rolls:
+the predicted path (pink dashes, a dot each second), the stopping area (shaded
+ellipse), a ring where it should stop, and white dots for what each earlier frame
+predicted, so you can watch the prediction settle. For a few seconds after a roll
+the dots stay and a line says how far off the first guess was. Each robot gets its
+line-up point, a green outline at the kick pose (thin = where to wait, thick = the
+pose itself, "KICK NOW" when the wind-up should start) and, when its goal is
+threatened, a red cross at the block point.
 
 **Try it with no camera:**
 
@@ -248,35 +282,43 @@ point and, when its goal is threatened, a red cross at the block point.
 .venv/bin/python scripts/fake_approach.py --compare 200 --sloppy --noise 0.01 --delay 0.15
 ```
 
-`--compare` runs each rolling-ball scene twice from the same start: lining up
-for the predicted ball, and for the ball as it is now (`--chase`).
+**Measuring the roll rate** is now optional (it only sets the starting guess):
+`scripts/fit_ball_roll.py`, run next to a calibrated live view, prints each hand
+roll's rate and the median.
 
-**What the numbers say (fake field, November 20):**
+**What the numbers say (simulated rolls, November 20).** Each roll slows at its
+own rate, drawn from 0.2 to 0.6 m/s², is pushed by hand for 0.35 s first, and is
+measured with 1 cm noise. Error in the predicted stopping point, median (90th percentile):
+
+| When in the roll | Fixed rate 0.35 | Per-roll fit, 7.5 frames/s | Per-roll fit, 30 frames/s |
+| --- | --- | --- | --- |
+| first 0.5 s | 29 cm (86) | 32 cm (97) | 35 cm (107) |
+| 0.5 to 1 s | 21 cm (63) | 24 cm (132) | 14 cm (63) |
+| middle | 14 cm (48) | 7 cm (45) | 3 cm (20) |
+| last 30 % | 3 cm (10) | 1 cm (4) | 1 cm (2) |
 
 | Question | Result |
 | --- | --- |
-| Stopping point known one second after a kick, 1 cm noise | 4 cm median error at 7.5 frames/s (9 cm at the 90th percentile), 3 cm at 30 frames/s |
-| Same with the tracking filter's velocity | 25 cm at 7.5 frames/s, 16 cm at 30 frames/s |
-| A kick is noticed | 0.20 s after it at 7.5 frames/s, 0.13 s at 30 |
+| Real stopping point inside the drawn area | 83 to 97 % of frames |
+| Every roll knocked 5 to 25° off course once: last 30 % | 2 cm (6); inside the area 76 to 93 % of frames |
+| Area under 4 cm (wind-up may start) | 0.45 s before the ball stops at 7.5 frames/s (in two thirds of rolls), 0.7 s at 30 frames/s |
 | A still ball reported as moving | 0.1 % of frames |
-| `roll_decel` assumed 0.50 when it is really 0.35 | stopping point 25 cm off one second after a 1 m/s kick (35 cm at first): the value has to be measured |
-| `fit_ball_roll.py` on a fake ball that slows at 0.42 m/s² | 0.40 to 0.42 from four rolls |
-| Striker reaches a rolling ball sooner by predicting (200 scenes) | 0.1 s median, 0.2 to 0.3 s mean, out of about 10 to 12 s |
-| Keeper 30 cm in front of its goal can reach a block (model only, 2570 shots on target) | 73 % overall; 60 % when the ball arrives in under 1.5 s |
+| Striker reaches a rolling ball sooner by predicting (fake field, 100 scenes) | 0.1 s median out of about 12 s |
+| Keeper 30 cm in front of its goal can reach a block (travel model only) | 73 % of shots on target; 60 % when the ball arrives in under 1.5 s |
 
-So for the striker, prediction changes little: a ball at 0.6 to 1.5 m/s has
-stopped within about 4 s, long before a robot walking at 0.35 m/s gets there,
-and chasing the ball's current position ends up at the same place. It matters
-where the ball's remaining roll time is comparable to the robot's travel time:
-a ball rolling toward or past a nearby robot, and above all defending a goal.
-The keeper figure is the travel model alone (no simulated robot), for the field
-the camera measured on November 20 (2.70 × 1.42 m) with 0.61 m goals.
+So: early in a roll nothing beats a rough guess, because the frames so far cannot
+tell a ball that will slow quickly from one that will not; that is what the large
+area is for. From the middle of the roll on, the per-roll fit is two to five times
+closer than a fixed rate, and at 2 cm noise or 7.5 frames/s the gain is smaller.
+For a walking robot the practical uses are getting lined up before the ball has
+stopped, starting the kick's wind-up up to about half a second early, and defence.
 
-Known limits: the fake ball follows exactly the constant-rate rule, so the
-agreement between prediction and fake field shows the code is consistent, not
-that a real ball behaves this way. Air drag on a light ball, spin, and seams in
-the floor are ignored. The approach logic itself is unchanged, so it can still
-place its line-up point outside the field when the ball is near an edge.
+Known limits: the simulated ball follows exactly the constant-rate rule, so these
+figures show the fitting works, not that a real ball behaves this way. A ball that
+curves steadily (spin, a slope) is followed as a series of straight pieces. The
+plans do not check that the waiting robot is clear of the ball's path. The approach
+logic itself is unchanged, so it can still place its line-up point outside the
+field when the ball is near an edge.
 
 ## Dashboard
 
@@ -379,11 +421,17 @@ same field size; change both together.
 seq, stamp, captured_at, frame_age_s, calibrated, calib_mode, calib_err_px
 calibration_valid, calibration_revision, calibration_status, calibration_reason, calibration_checked_at
 field:   {length, width, ball_radius}
-prediction: null | {moving, x, y, vx, vy, speed, speed_sigma, heading, decel, samples,
+prediction: null | {moving, x, y, vx, vy, speed, speed_sigma, heading, decel, decel_sigma, samples,
                     ends: still|stops|goal_east|goal_west|out|horizon, end:[x, y], end_in_s,
-                    bounces, path:[[t, x, y], ...]}
+                    bounces, path:[[t, x, y], ...],
+                    area: null | {x, y, along, across, heading},      # where it should stop, ~2 sigma half-axes
+                    trail: [[age_s, x, y], ...],                      # what earlier frames of this roll predicted
+                    last_roll: null | {ago_s, stopped:[x, y], trail, first_guess_error, decel}}
 intercepts: {<name>: {strike: {feasible, kind: at_rest|moving, ball:[x, y], pose:[x, y, yaw],
-                               path:[[x, y], ...], travel_s, ball_there_in_s, contact_in_s, wait_s, note},
+                               path:[[x, y], ...], travel_s, ball_there_in_s, contact_in_s, wait_s, hold, note},
+                      kick:   {feasible, paw, ball:[x, y], pose:[x, y, yaw], stage:[x, y, yaw], path, travel_s,
+                               commit_in_s, contact_in_s, ball_ready_in_s, ball_speed_at_contact, sure,
+                               at_pose, action: go_to_pose|wait|wind_up, saves_s, note},
                       block:  {feasible, point:[x, y], path, travel_s, ball_there_in_s, spare_s,
                                enters_in_s, enters_at_y}}}     # block only when its own goal is threatened
 floor_tags: {<id>: {x, y, visible}}

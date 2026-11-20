@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 from . import planner
-from .ballistics import RollModel, RollTracker, predict_roll
+from .ballistics import RollModel, RollTracker
 from .camera_model import CameraModel, default_intrinsics, load_intrinsics, solve_camera_pose
 from .config import resolve, set_field_size
 from .detect import BallDetector, TagDetector
@@ -38,6 +38,8 @@ class Perception:
         intr = load_intrinsics(resolve(cam_cfg["intrinsics"]), width, height)
         self.has_calibrated_intrinsics = intr is not None
         self.K, self.dist = intr or default_intrinsics(width, height, cam_cfg["hfov_deg"])
+        self.hfov_deg = None if intr else float(cam_cfg["hfov_deg"])   # the lens angle in use when it is only a guess
+        self.fov_fit: dict | None = None    # set when calibration replaced that guess with a fitted angle
 
         self.cam: CameraModel | None = None
         self.roi_mask: np.ndarray | None = None
@@ -76,9 +78,40 @@ class Perception:
         ids = [i for i in tags if i in field]
         if len(ids) < min_tags:
             return False
-        cam = solve_camera_pose(self.K, self.dist,
-                                [_quad_center(tags[i]) for i in ids], [field[i] for i in ids])
+        cam = self._solve_camera([_quad_center(tags[i]) for i in ids], [field[i] for i in ids])
         return self._use_camera(cam, "tags", dict(field))
+
+    def _solve_camera(self, image_pts, field_xy) -> CameraModel | None:
+        """Camera pose from floor points, fitting the lens angle too when there is no lens calibration.
+
+        Without an intrinsics file the lens is a pinhole guessed from camera.hfov_deg. A guess
+        that is a few degrees out leaves the floor points several pixels from where the model
+        puts them (measured on an iPhone looking down at an angle: 5.5 px at the configured
+        69 degrees, 0.6 px at 66). So the angle is searched within 15 degrees of the configured
+        one and replaced only when that at least halves the error: looking straight down, the
+        angle cannot be told from the camera's height and the error barely changes, so the
+        configured value stays.
+        """
+        cam = solve_camera_pose(self.K, self.dist, image_pts, field_xy)
+        if self.has_calibrated_intrinsics or len(image_pts) < 6:
+            return cam
+        base = cam.reproj_err_px if cam is not None else float("inf")
+        configured = float(self.cfg["camera"]["hfov_deg"])
+
+        def at(hfov):
+            K, _ = default_intrinsics(*self.size, hfov)
+            c = solve_camera_pose(K, self.dist, image_pts, field_xy)
+            return (c.reproj_err_px if c is not None else float("inf")), hfov, c, K
+
+        best = min((at(h) for h in np.arange(configured - 15.0, configured + 15.01, 1.0)), key=lambda r: r[0])
+        best = min((at(h) for h in np.arange(best[1] - 1.0, best[1] + 1.01, 0.1)), key=lambda r: r[0])
+        err, hfov, fitted, K = best
+        if fitted is None or not (err < 0.5 * base and base - err > 0.5):
+            return cam
+        self.K, self.hfov_deg = K, float(hfov)
+        self.fov_fit = {"hfov_deg": float(hfov), "configured_deg": configured, "fit_px": float(err),
+                        "fit_px_configured": None if cam is None else float(base)}
+        return fitted
 
     def calibrate_from_survey(self, frame: np.ndarray, min_tags: int = 2, use_ids=None) -> bool:
         """Locate the camera from whatever floor tags are in view, with nothing measured.
@@ -181,8 +214,8 @@ class Perception:
     def _camera_from_layout(self, floor: dict, poses: dict):
         """Camera pose from tags whose floor poses are known: (camera, {id: field xy})."""
         size, ids = self.cfg["tags"]["floor_size"], sorted(floor)
-        cam = solve_camera_pose(
-            self.K, self.dist, np.vstack([floor[i] for i in ids]),
+        cam = self._solve_camera(
+            np.vstack([floor[i] for i in ids]),
             np.vstack([tag_corners((poses[i]["x"], poses[i]["y"], poses[i]["yaw"]), size) for i in ids]))
         return cam, {i: np.array([poses[i]["x"], poses[i]["y"]]) for i in ids}
 
@@ -413,19 +446,18 @@ class Perception:
 
         # Where the ball is going (a roll model on a velocity fitted over the last few frames),
         # then, per robot, where to line up for a strike and whether its own goal needs a block.
-        est = self.roll.estimate(t_now) if (self.calibration_valid and ball["visible"]) else None
-        if est is not None:
-            f = cfg["field"]
-            traj = predict_roll((est["x"], est["y"]), (est["vx"], est["vy"]), f["length"], f["width"],
-                                f["goal_width"], self.roll_model, cfg["ball"]["radius"])
-            state["prediction"] = traj.as_dict((est["x"], est["y"]), (est["vx"], est["vy"]),
-                                               est["speed_sigma"], est["samples"])
+        f = cfg["field"]
+        predicted = (self.roll.predict(t_now, f["length"], f["width"], f["goal_width"], cfg["ball"]["radius"])
+                     if (self.calibration_valid and ball["visible"]) else None)
+        if predicted is not None:
+            state["prediction"], traj = predicted
             for name, rc in cfg["robots"].items():
                 robot = state["robots"][name]
                 if robot["visible"]:
                     own = next(g for side, g in cfg["goals"].items() if side != rc["attacks"])
                     state["intercepts"][name] = plan_robot(robot, traj, cfg["goals"][rc["attacks"]], own,
-                                                           f["length"], f["width"], self.robot_model)
+                                                           f["length"], f["width"], self.robot_model,
+                                                           area=state["prediction"]["area"])
         return state
 
     # ---- debug drawing ---------------------------------------------------
@@ -466,6 +498,15 @@ class Perception:
                 path = np.int32([P(x, y, r) for _, x, y in pred["path"]])
                 cv2.polylines(out, [path], False, (190, 105, 255), 3, cv2.LINE_AA)
                 cv2.circle(out, P(*pred["end"], r), int(self.ball_radius_px or 8) + 4, (190, 105, 255), 2)
+                area = pred.get("area")
+                if area:   # the stopping area, drawn on the floor
+                    c, s_ = math.cos(area["heading"]), math.sin(area["heading"])
+                    ring = [P(area["x"] + c * area["along"] * math.cos(a) - s_ * area["across"] * math.sin(a),
+                              area["y"] + s_ * area["along"] * math.cos(a) + c * area["across"] * math.sin(a))
+                            for a in np.linspace(0, 2 * math.pi, 40)]
+                    cv2.polylines(out, [np.int32(ring)], True, (190, 105, 255), 2, cv2.LINE_AA)
+                for _, x, y in pred.get("trail") or []:   # what earlier frames of this roll predicted
+                    cv2.circle(out, P(x, y, r), 3, (255, 255, 255), -1, cv2.LINE_AA)
             elif "moving" not in pred:
                 cv2.arrowedLine(out, P(ball["x"], ball["y"], r),
                                 P(ball["x"] + ball["vx"] * 0.5, ball["y"] + ball["vy"] * 0.5, r), (0, 255, 0), 2)

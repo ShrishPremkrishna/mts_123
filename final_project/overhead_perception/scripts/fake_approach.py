@@ -38,7 +38,7 @@ import cv2
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fieldcam.approach import ApproachController, Params  # noqa: E402
-from fieldcam.ballistics import RollModel, RollTracker, predict_roll  # noqa: E402
+from fieldcam.ballistics import RollModel, RollTracker  # noqa: E402
 from fieldcam.config import load_config  # noqa: E402
 from fieldcam.fakeworld import FakeWorld  # noqa: E402
 from fieldcam.intercept import RobotModel, plan_robot  # noqa: E402
@@ -89,25 +89,31 @@ class Brain:
         w, rel, robot = self.world, seen["relative"][NAME], seen["robots"][NAME]
         ball = (rel["ball"]["x"], rel["ball"]["y"]) if "ball" in rel else None
         goal = (rel["goal"]["x"], rel["goal"]["y"], rel["goal"]["facing"])
+        hold = False
         if seen["ball"].get("visible"):
             self.tracker.update((seen["ball"]["x"], seen["ball"]["y"]), seen["stamp"])
-            est = self.tracker.estimate(seen["stamp"])
-            if est is not None:
-                traj = predict_roll((est["x"], est["y"]), (est["vx"], est["vy"]), w.length, w.width, w.goal_width,
-                                    self.roll_model, w.ball_radius)
-                seen["prediction"] = traj.as_dict((est["x"], est["y"]), (est["vx"], est["vy"]),
-                                                  est["speed_sigma"], est["samples"])
+            predicted = self.tracker.predict(seen["stamp"], w.length, w.width, w.goal_width, w.ball_radius)
+            if predicted is not None:
+                seen["prediction"], traj = predicted
                 goals = seen["goals"]
                 own = next(g for side, g in goals.items() if side != w.attacks)
-                plans = plan_robot(robot, traj, goals[w.attacks], own, w.length, w.width, self.robot_model)
+                plans = plan_robot(robot, traj, goals[w.attacks], own, w.length, w.width, self.robot_model,
+                                   area=seen["prediction"]["area"])
                 seen["intercepts"] = {NAME: plans}
                 strike = plans["strike"]
                 if self.predict and traj.moving and strike["feasible"] and self.ctrl.phase != "RUN":
                     target = body_point(robot, strike["ball"])     # line up for where the ball will be
                     ball = (target["x"], target["y"])
+                    hold = True                                    # ... and wait there until it has stopped
         else:
             self.tracker.reset()
-        return self.ctrl.tick(ball, goal, now)
+        out = self.ctrl.tick(ball, goal, now)
+        if hold and out["phase"] == "RUN":
+            # Lined up for the predicted spot while the ball is still rolling: do not run at an empty spot.
+            self.ctrl.reset()
+            out = {**out, "phase": "ALIGN", "cmd": {"vx": 0.0, "vy": 0.0, "wz": 0.0},
+                   "note": "lined up: waiting for the ball to stop, then run"}
+        return out
 
 
 def compare(cfg: dict, params: Params, n: int, args) -> None:

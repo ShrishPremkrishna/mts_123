@@ -51,6 +51,17 @@ class RobotModel:
     block_margin_s: float = 0.3    # s to spare required before a block counts as reachable
     body_radius: float = 0.20      # m, a block point is kept at least this far in front of the goal line
     block_cover: float = 0.10      # m, the body blocks a ball passing this close to its centre (half its width)
+    area_standoff_max: float = 0.5 # m, while the stopping area is uncertain, wait up to this much further back
+    # The leg kick (figures from the team's paw approach and kick notes; none measured with the match ball).
+    kick_forward: float = 0.258    # m, ball centre ahead of the robot centre at contact
+    kick_left_paw: float = 0.040   # m, ball to the LEFT of the body centre line for a left-paw kick
+    kick_right_paw: float = -0.046 # m, the same for the right paw (negative = to the right)
+    kick_settle_s: float = 0.2     # s standing still at the pose before the wind-up starts
+    kick_windup_s: float = 2.3     # s from the start of the wind-up to the paw reaching the ball
+    kick_max_ball_speed: float = 0.05  # m/s, the ball must be this slow when the paw arrives
+    kick_window: float = 0.04      # m, the wind-up may start once the stopping area is this small
+    pose_tol: float = 0.04         # m, this close to the pose counts as being there
+    yaw_tol_deg: float = 5.0       # degrees
 
     @classmethod
     def from_config(cls, cfg: dict) -> "RobotModel":
@@ -115,13 +126,34 @@ def travel(robot, target, yaw_final: float | None = None, avoid=None, m: RobotMo
     return out
 
 
-def strike_pose(ball_xy, goal: dict, m: RobotModel = RobotModel()) -> tuple[float, float, float]:
-    """(x, y, yaw): m.standoff behind the ball on the line through it to the goal, facing along that line."""
+def _shot_direction(ball_xy, goal: dict, m: RobotModel) -> tuple[float, float]:
+    """Unit vector from the ball toward a point m.aim_depth behind the goal centre (steady close to the goal)."""
     gy = 0.5 * (goal["y_min"] + goal["y_max"])
-    ax = goal["x"] + math.copysign(m.aim_depth, goal["x"])     # behind the goal line: steady close to the goal
+    ax = goal["x"] + math.copysign(m.aim_depth, goal["x"])
     d = math.hypot(ax - ball_xy[0], gy - ball_xy[1])
-    ux, uy = ((ax - ball_xy[0]) / d, (gy - ball_xy[1]) / d) if d > 1e-6 else (math.copysign(1.0, goal["x"]), 0.0)
-    return ball_xy[0] - m.standoff * ux, ball_xy[1] - m.standoff * uy, math.atan2(uy, ux)
+    return ((ax - ball_xy[0]) / d, (gy - ball_xy[1]) / d) if d > 1e-6 else (math.copysign(1.0, goal["x"]), 0.0)
+
+
+def strike_pose(ball_xy, goal: dict, m: RobotModel = RobotModel(), extra: float = 0.0) -> tuple[float, float, float]:
+    """(x, y, yaw): m.standoff (+ extra) behind the ball on the line through it to the goal, facing along that line."""
+    ux, uy = _shot_direction(ball_xy, goal, m)
+    back = m.standoff + extra
+    return ball_xy[0] - back * ux, ball_xy[1] - back * uy, math.atan2(uy, ux)
+
+
+def kick_pose(ball_xy, goal: dict, paw: str, m: RobotModel = RobotModel(), extra: float = 0.0) -> tuple[float, float, float]:
+    """(x, y, yaw) of the robot centre that puts the ball in front of the chosen paw, the swing aimed at the goal.
+
+    extra > 0 backs the robot off along the shot direction (for waiting while the ball is still rolling).
+    """
+    ux, uy = _shot_direction(ball_xy, goal, m)
+    left = m.kick_left_paw if paw == "left" else m.kick_right_paw
+    forward = m.kick_forward + extra
+    return (ball_xy[0] - ux * forward + uy * left, ball_xy[1] - uy * forward - ux * left, math.atan2(uy, ux))
+
+
+def _area_radius(area: dict | None, m: RobotModel) -> float:
+    return 0.0 if not area else min(max(area["along"], area["across"]), m.area_standoff_max)
 
 
 def _in_field(xy, length: float, width: float) -> bool:
@@ -129,16 +161,21 @@ def _in_field(xy, length: float, width: float) -> bool:
 
 
 def plan_strike(robot, traj: Trajectory, goal: dict, length: float, width: float,
-                m: RobotModel = RobotModel(), step: float = 0.1) -> dict:
+                m: RobotModel = RobotModel(), step: float = 0.1, area: dict | None = None) -> dict:
     """Where to line up to strike the ball toward `goal`, and when contact can happen.
 
     {"feasible", "kind": "at_rest" | "moving", "ball": [x, y] at contact, "pose": [x, y, yaw],
-     "path": [[x, y], ...], "travel_s", "ball_there_in_s", "contact_in_s", "wait_s", "note"}
+     "path": [[x, y], ...], "travel_s", "ball_there_in_s", "contact_in_s", "wait_s", "hold", "note"}
     feasible is False when the ball is predicted to leave the field or go in a goal first.
+    While the ball rolls, `area` (the predicted stopping area) pushes the line-up point further
+    back by the area's size, so the robot waits clear of wherever the ball may end up, and
+    `hold` is True: line up now, run only once the ball has stopped.
     """
+    extra = _area_radius(area, m) if traj.moving else 0.0
+
     def candidate(t):
         bx, by, speed = traj.at(t)
-        pose = strike_pose((bx, by), goal, m)
+        pose = strike_pose((bx, by), goal, m, extra)
         go = travel(robot, pose[:2], pose[2], avoid=(bx, by), m=m)
         return (bx, by), speed, pose, go
 
@@ -161,11 +198,84 @@ def plan_strike(robot, traj: Trajectory, goal: dict, length: float, width: float
     kind, ball_t, contact_t, ball_xy, pose, go = best
     wait = max(0.0, contact_t - go["time_s"] - m.setup_s)
     note = ("the ball is still: line up behind it" if not traj.moving else
-            f"line up where the ball {'will stop' if kind == 'at_rest' else 'will be'} in {ball_t:.1f} s")
+            f"line up where the ball {'will stop' if kind == 'at_rest' else 'will be'} in {ball_t:.1f} s"
+            + (f", {extra * 100:.0f} cm further back until that is certain" if extra > 0.05 else "")
+            + "; run when it stops")
     return {"feasible": True, "kind": kind, "ball": [float(ball_xy[0]), float(ball_xy[1])],
             "pose": [float(pose[0]), float(pose[1]), float(pose[2])], "path": go["path"], "how": go["how"],
             "travel_s": float(go["time_s"]), "ball_there_in_s": float(ball_t), "contact_in_s": float(contact_t),
-            "wait_s": float(wait), "note": note}
+            "wait_s": float(wait), "hold": bool(traj.moving), "note": note}
+
+
+def plan_kick(robot, traj: Trajectory, goal: dict, length: float, width: float,
+              m: RobotModel = RobotModel(), area: dict | None = None) -> dict:
+    """Meet the ball with a LEG KICK: be at the paw pose, wind up, and have the paw arrive as the ball does.
+
+    The kick needs the robot standing still at an exact pose (ball in front of one paw) for
+    kick_settle_s, then kick_windup_s of wind-up before the paw reaches the ball. The ball must
+    be nearly stopped (kick_max_ball_speed) when the paw arrives. So the timeline is
+
+        walk to the pose -> settle -> wind-up starts ("commit") -> paw contact
+
+    and the wind-up may start while the ball is still rolling, as long as it will have
+    arrived by the time the paw does. That needs the stopping point known to within
+    kick_window, which is what `area` (the predicted stopping area) says.
+
+    {"feasible", "paw", "ball": [x, y] at contact, "pose": [x, y, yaw], "stage": [x, y, yaw],
+     "path", "travel_s", "commit_in_s", "contact_in_s", "ball_ready_in_s", "ball_speed_at_contact",
+     "sure": bool, "at_pose": bool, "action": "go_to_pose" | "wait" | "wind_up", "saves_s", "note"}
+    stage is where to go now: the pose itself once the stopping point is sure, otherwise the same
+    pose backed off by the size of the stopping area. saves_s is how much earlier the paw reaches
+    the ball than if the robot only started moving in once the ball had stopped.
+    """
+    if traj.ends not in ("still", "stops"):
+        why = {"out": "the ball is rolling out of the field", "horizon": "the ball does not stop within the prediction"}
+        return {"feasible": False, "note": why.get(traj.ends, "the ball is rolling into a goal")}
+    # When is the ball slow enough for the paw? (Solve speed(t) = kick_max_ball_speed on the last piece.)
+    ready = 0.0
+    if traj.moving:
+        t0, _, _, s0, t1 = traj.pieces[-1]
+        ready = min(max(t0 + (s0 - m.kick_max_ball_speed) / traj.decel, 0.0), t1) if traj.decel > 0 else t1
+    sure = (not traj.moving) or (area is not None and max(area["along"], area["across"]) <= m.kick_window)
+    extra = 0.0 if sure else _area_radius(area, m)
+
+    best = None
+    for paw in ("right", "left"):                           # right first: the paw with robot kicks on record
+        contact = max(ready, 0.0)
+        for _ in range(3):                                  # the pose depends on where the ball is at contact
+            bx, by, speed = traj.at(contact)
+            pose = kick_pose((bx, by), goal, paw, m)
+            go = travel(robot, pose[:2], pose[2], avoid=(bx, by), m=m)
+            contact = max(ready, go["time_s"] + m.kick_settle_s + m.kick_windup_s)
+        if not _in_field((bx, by), length, width):
+            continue
+        if best is None or contact < best[0] - 1e-6:
+            best = (contact, paw, (bx, by), speed, pose, go)
+    if best is None:
+        return {"feasible": False, "note": "the ball ends up outside the field"}
+    contact, paw, ball_xy, speed, pose, go = best
+    stage = kick_pose(ball_xy, goal, paw, m, extra)
+    off = math.hypot(robot[0] - pose[0], robot[1] - pose[1])
+    at_pose = off <= m.pose_tol and abs(wrap(robot[2] - pose[2])) <= math.radians(m.yaw_tol_deg)
+    commit = contact - m.kick_windup_s
+    if at_pose and sure and commit <= m.kick_settle_s + 1e-6:
+        action, note = "wind_up", f"start the {paw}-paw kick now: the ball will be there when the paw is"
+    elif at_pose or (not sure and math.hypot(robot[0] - stage[0], robot[1] - stage[1]) <= m.pose_tol):
+        action = "wait"
+        note = ("in place: waiting for the ball to slow down" if sure else
+                "waiting clear of the ball until its stopping point is certain")
+    else:
+        action = "go_to_pose"
+        note = (f"go to the {paw}-paw kick pose" if sure else
+                f"go to {extra * 100:.0f} cm behind the {paw}-paw kick pose until the stopping point is certain")
+    # Without prediction the robot would see the ball stop, and only then walk in, settle and wind up.
+    stop = traj.end_in_s if traj.moving else 0.0
+    return {"feasible": True, "paw": paw, "ball": [float(ball_xy[0]), float(ball_xy[1])],
+            "pose": [float(v) for v in pose], "stage": [float(v) for v in stage], "path": go["path"], "how": go["how"],
+            "travel_s": float(go["time_s"]), "commit_in_s": float(max(commit, 0.0)), "contact_in_s": float(contact),
+            "ball_ready_in_s": float(ready), "ball_speed_at_contact": float(speed), "sure": bool(sure),
+            "at_pose": bool(at_pose), "action": action,
+            "saves_s": float(max(stop + go["time_s"] + m.kick_settle_s + m.kick_windup_s - contact, 0.0)), "note": note}
 
 
 def plan_block(robot, traj: Trajectory, own_goal: dict, m: RobotModel = RobotModel(), step: float = 0.1) -> dict | None:
@@ -207,10 +317,13 @@ def plan_block(robot, traj: Trajectory, own_goal: dict, m: RobotModel = RobotMod
 
 
 def plan_robot(robot_state: dict, traj: Trajectory, attack_goal: dict, own_goal: dict, length: float, width: float,
-               m: RobotModel = RobotModel()) -> dict:
-    """Both plans for one robot of the perception state ({"x", "y", "yaw", ...})."""
+               m: RobotModel = RobotModel(), area: dict | None = None) -> dict:
+    """The plans for one robot of the perception state ({"x", "y", "yaw", ...}):
+    strike (run through the ball), kick (leg kick) and, when its own goal is threatened, block.
+    area: the prediction's stopping area, if any."""
     robot = (robot_state["x"], robot_state["y"], robot_state["yaw"])
-    out = {"strike": plan_strike(robot, traj, attack_goal, length, width, m)}
+    out = {"strike": plan_strike(robot, traj, attack_goal, length, width, m, area=area),
+           "kick": plan_kick(robot, traj, attack_goal, length, width, m, area=area)}
     block = plan_block(robot, traj, own_goal, m)
     if block is not None:
         out["block"] = block

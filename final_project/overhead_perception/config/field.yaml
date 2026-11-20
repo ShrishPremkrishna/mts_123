@@ -140,8 +140,13 @@ approach_plan:
 # Where the ball is going (fieldcam/ballistics.py). All optional; these are the defaults.
 prediction:
   # How fast a rolling ball slows down, m/s^2. From speed v it rolls v*v / (2 * roll_decel) metres.
-  # 0.35 is a GUESS. Measure it on the real floor with the real ball: scripts/fit_ball_roll.py
+  # This is only the STARTING GUESS: every roll is fitted on its own as it happens, and the rates
+  # of finished rolls replace this guess while the program runs. scripts/fit_ball_roll.py measures it.
   roll_decel: 0.35
+  decel_spread: 0.20    # m/s^2, how far one roll's own rate may sit from that guess
+  wander_deg: 4.0       # degrees a roll may drift off its line (divots, seams); widens the stopping area.
+                        # Rolls that do get knocked off course widen it further by themselves.
+  area_floor: 0.03      # m, the stopping area is never claimed to be smaller than this
   min_speed: 0.10       # m/s, slower than this the ball is treated as standing still
   walls: false          # true if the field has boards the ball bounces off; false = it rolls out
   restitution: 0.4      # with walls: fraction of the speed into a board that comes back out
@@ -161,6 +166,16 @@ intercept:
   max_contact_speed: 0.10 # m/s, only strike a ball moving slower than this
   setup_s: 0.0            # s the robot must be in place before contact (a kick's wind-up)
   block_margin_s: 0.3     # s to spare required before a block counts as reachable
+  area_standoff_max: 0.5  # m, while the stopping area is uncertain, wait up to this much further back
+  # The leg kick. Offsets and timing are the team's current figures (pupper_fc/paw_approach.py,
+  # handoffs/SHOOTING.md); none has been measured with the match ball.
+  kick_forward: 0.258     # m, ball centre ahead of the robot centre at contact
+  kick_left_paw: 0.040    # m, ball left of the body centre line for a left-paw kick
+  kick_right_paw: -0.046  # m, the same for the right paw (negative = right)
+  kick_settle_s: 0.2      # s standing still at the pose before the wind-up starts
+  kick_windup_s: 2.3      # s from the start of the wind-up to the paw reaching the ball
+  kick_max_ball_speed: 0.05  # m/s, the ball must be this slow when the paw arrives
+  kick_window: 0.04       # m, the wind-up may start once the stopping area is this small
 
 net:
   host: 127.0.0.1           # set to the Pupper's IP (or a broadcast address) on the arena network

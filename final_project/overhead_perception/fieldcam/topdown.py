@@ -162,8 +162,24 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
             if int(t1) > int(t0):                          # crossed a whole second
                 cv2.circle(img, P(x, y), 3, (255, 255, 255), -1, cv2.LINE_AA)
         end = P(*pred["end"])
+        area = pred.get("area")
+        if area:
+            # The stopping area: where the ball should come to rest, about 2 sigma. It shrinks as the roll goes on.
+            axes, tilt = (max(S(area["along"]), 2), max(S(area["across"]), 2)), -math.degrees(area["heading"])
+            shade = img.copy()
+            cv2.ellipse(shade, end, axes, tilt, 0, 360, PINK, -1, cv2.LINE_AA)
+            img[:] = cv2.addWeighted(shade, 0.28, img, 0.72, 0)
+            cv2.ellipse(img, end, axes, tilt, 0, 360, PINK, 1, cv2.LINE_AA)
+        _draw_trail(img, P, pred.get("trail") or [], (255, 255, 255))
         cv2.circle(img, end, max(S(ball_r), 5), PINK, 2, cv2.LINE_AA)
         _text(img, _ending(pred), (end[0] + max(S(ball_r), 5) + 5, end[1] - 6), PINK, 0.5, 1)
+    done = pred.get("last_roll")
+    if done:
+        # Just after a roll: what each frame had predicted (dots), against where the ball really stopped.
+        _draw_trail(img, P, done["trail"], (170, 170, 170))
+        c = P(*done["stopped"])
+        _text(img, f"first guess was {done['first_guess_error'] * 100:.0f} cm off", (c[0] + max(S(ball_r), 5) + 6, c[1] - 14),
+              (200, 200, 200), 0.45)
 
     # ---- where each robot should go because of that (skipped when an approach plan is drawn for it) ----
     for name, plans in (state.get("intercepts") or {}).items():
@@ -179,7 +195,22 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
             x, y, yaw = strike["pose"]
             cv2.circle(img, P(x, y), max(S(0.05), 6), col, 2, cv2.LINE_AA)
             cv2.arrowedLine(img, P(x, y), P(x + 0.3 * math.cos(yaw), y + 0.3 * math.sin(yaw)), col, 2, cv2.LINE_AA, tipLength=0.3)
-            _text(img, f"line up, {strike['travel_s']:.1f} s", (P(x, y)[0] + 10, P(x, y)[1] + 18), col, 0.45)
+            _text(img, f"line up, {strike['travel_s']:.1f} s" + (" (wait)" if strike.get("hold") else ""),
+                  (P(x, y)[0] + 10, P(x, y)[1] + 18), col, 0.45)
+        kick = plans.get("kick") or {}
+        if kick.get("feasible"):
+            # The leg-kick pose: a small outline of the robot where it has to stand, nose toward the goal.
+            for pose, thick in ((kick["stage"], 1), (kick["pose"], 2)):
+                x, y, yaw = pose
+                c, s_ = math.cos(yaw), math.sin(yaw)
+                box = np.int32([P(x + c * a - s_ * b, y + s_ * a + c * b)
+                                for a, b in ((ROBOT_LEN / 2, ROBOT_WID / 2), (ROBOT_LEN / 2, -ROBOT_WID / 2),
+                                             (-ROBOT_LEN / 2, -ROBOT_WID / 2), (-ROBOT_LEN / 2, ROBOT_WID / 2))])
+                cv2.polylines(img, [box], True, (0, 255, 0), thick, cv2.LINE_AA)
+            x, y, _ = kick["pose"]
+            label = {"wind_up": "KICK NOW", "wait": "kick pose: wait"}.get(kick["action"], "kick pose")
+            _text(img, f"{label} ({kick['paw']} paw), contact {kick['contact_in_s']:.1f} s",
+                  (P(x, y)[0] - 40, P(x, y)[1] + S(ROBOT_WID) + 14), (0, 255, 0), 0.45, 2 if kick["action"] == "wind_up" else 1)
         block = plans.get("block")
         if block and block.get("point"):
             red = (0, 0, 255)
@@ -225,6 +256,15 @@ def render_field(state: dict | None, size=(880, 800), zoom: str = "field", stale
         img[:, :view_w] = (img[:, :view_w] * 0.45).astype(np.uint8)
         _text(img, f"STALE: no update for {stale_s:.1f} s", (16, h - 24), (0, 0, 255), 0.9, 2)
     return img
+
+
+def _draw_trail(img, P, trail, colour):
+    """Where earlier frames said the ball would stop: a thin line through them, newer dots larger."""
+    pts = [P(x, y) for _, x, y in trail]
+    for a, b in zip(pts, pts[1:]):
+        cv2.line(img, a, b, colour, 1, cv2.LINE_AA)
+    for k, p in enumerate(pts):
+        cv2.circle(img, p, 2 if k < len(pts) - 5 else 3, colour, -1, cv2.LINE_AA)
 
 
 def _ending(pred: dict) -> str:
@@ -289,8 +329,16 @@ def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
             ball_rows.append(("standing still", white, 0.52, 1, 24))
         else:
             ball_rows.append((f"rolling {pred['speed']:.2f} m/s: {_ending(pred)}", white, 0.52, 1, 22))
+            area = pred.get("area")
             ball_rows.append((f"  at ({pred['end'][0] * 100:+.0f}, {pred['end'][1] * 100:+.0f}) cm"
-                              + (f", {pred['bounces']} bounce(s)" if pred.get("bounces") else ""), white, 0.52, 1, 24))
+                              + (f" +/- {max(area['along'], area['across']) * 100:.0f} cm" if area else "")
+                              + (f", {pred['bounces']} bounce(s)" if pred.get("bounces") else ""), white, 0.52, 1, 22))
+            ball_rows.append((f"  slowing at {pred['decel']:.2f} +/- {pred.get('decel_sigma', 0):.2f} m/s2 (this roll)",
+                              grey, 0.45, 1, 24))
+        if pred and pred.get("last_roll"):
+            done = pred["last_roll"]
+            ball_rows.append((f"last roll: first guess {done['first_guess_error'] * 100:.0f} cm off"
+                              + (f", slowed at {done['decel']:.2f}" if done.get("decel") else ""), grey, 0.45, 1, 24))
         ball_rows.append((f"age {ball['age_s'] * 1000:.0f} ms", grey, 0.45, 1, 30))
     else:
         ball_rows.append(("not seen", dim, 0.52, 1, 30))
@@ -325,6 +373,12 @@ def _sections(state: dict | None, stale_s: float) -> list[list[tuple]]:
             rows.append((f"line up in {strike['travel_s']:.1f} s, contact in {strike['contact_in_s']:.1f} s", white, 0.5, 1, 22))
         elif strike:
             rows.append((f"no strike: {strike['note']}"[:46], (170, 170, 170), 0.47, 1, 22))
+        kick = plans.get("kick")
+        if kick and kick.get("feasible"):
+            what = {"wind_up": "KICK NOW", "wait": "kick: wait at pose", "go_to_pose": "kick: go to pose"}[kick["action"]]
+            rows.append((f"{what} ({kick['paw']} paw)", (0, 255, 0), 0.52, 2 if kick["action"] == "wind_up" else 1, 20))
+            rows.append((f"  wind-up in {kick['commit_in_s']:.1f} s, contact in {kick['contact_in_s']:.1f} s"
+                         + (f", saves {kick['saves_s']:.1f} s" if kick["saves_s"] > 0.05 else ""), white, 0.47, 1, 22))
         if block:
             rows.append((f"OWN GOAL in {block['enters_in_s']:.1f} s: " + (
                 "no block point" if block["spare_s"] is None else _spare(block)),

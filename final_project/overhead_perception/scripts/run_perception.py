@@ -11,6 +11,7 @@ Keys: f = FIELD FROM CORNER TAGS: tags 0, 1, 2, 3 on the four corners of the fie
           Seen from above they go counter-clockwise; the east goal (+x) is between tags 1 and 2
       c = (re)calibrate from floor tags at the measured positions in the config (needs 4+)
       t = calibrate from whatever floor tags are in view, nothing measured (needs 2+):
+          with all four corner tags in view this is the same as f; otherwise
           the lowest-numbered tag becomes the field centre, its right edge points at the east goal
       m = calibrate without tags: click the floor points listed in the config
           (default: the four field corners), in the order the window asks
@@ -112,6 +113,33 @@ def floor_tags_in_view(perc) -> list:
     return sorted(i for i in perc.debug.get("tags", {}) if i not in robot_ids)
 
 
+class Settled:
+    """Has the picture held still long enough to calibrate on?
+
+    A phone feed that has just opened is still focusing and framing: calibrating on one of
+    those first frames gives a camera position the next second's picture no longer matches,
+    and the drift check then withholds it. So the automatic calibration waits until every
+    floor tag in view has stayed within `tol_px` for `hold_s`.
+    """
+
+    def __init__(self, hold_s: float = 1.0, tol_px: float = 2.0):
+        self.hold_s, self.tol_px = hold_s, tol_px
+        self.hist: list = []          # (time, {tag id: centre pixel})
+
+    def update(self, perc, now: float) -> bool:
+        robot_ids = {rc["tag_id"] for rc in perc.cfg["robots"].values()}
+        centres = {i: c.mean(axis=0) for i, c in perc.debug.get("tags", {}).items() if i not in robot_ids}
+        if not centres or (self.hist and set(centres) != set(self.hist[-1][1])):
+            self.hist = []            # tags came or went: start the wait again
+        self.hist.append((now, centres))
+        while self.hist and self.hist[0][0] < now - self.hold_s - 0.5:
+            self.hist.pop(0)
+        if not centres or now - self.hist[0][0] < self.hold_s:
+            return False
+        first = self.hist[0][1]
+        return all(float(np.linalg.norm(c[i] - first[i])) <= self.tol_px for _, c in self.hist for i in first)
+
+
 def corner_text(perc) -> str:
     r = perc.cfg["tags"]["corner_ids"]
     return (f"tag {r['west_south']} and tag {r['west_north']} on the west goal line, "
@@ -162,6 +190,11 @@ def announce_done(perc):
            "clicks": "clicked points"}.get(mode, str(mode))
     lines = [f"from: {how}",
              f"camera is {cam.center[2]:.2f} m above the floor; fit error {cam.reproj_err_px:.2f} px (under 2 is good)"]
+    if perc.fov_fit:
+        fit = perc.fov_fit
+        was = "no fit at all" if fit["fit_px_configured"] is None else f"{fit['fit_px_configured']:.1f} px"
+        lines.append(f"lens angle fitted from the tags: {fit['hfov_deg']:.1f} degrees across (the config's "
+                     f"{fit['configured_deg']:.0f} gave {was}). No lens calibration file is in use.")
     if mode == "corners":
         fs, r = perc.survey["field"], perc.cfg["tags"]["corner_ids"]
         lines.append(f"THE FIELD IS {fs['length']:.2f} m long (goal to goal) x {fs['width']:.2f} m wide, measured from the tags")
@@ -197,6 +230,29 @@ def survey_calibrate(perc, frame, quiet: bool = False) -> bool:
                                        "Robot tags do not count. The previous calibration, if any, is still in use."])
         return False
     return True
+
+
+def tags_calibrate(perc, frame) -> bool:
+    """The t key: calibrate from the tags in view, in the most useful way they allow.
+
+    With all four corner tags in view they define the field, exactly as f does: someone who
+    has put a tag on each corner means those corners, not a field drawn around one tag. Only
+    when the corners are not all there (or are laid out in a way that cannot be a field) does
+    it fall back to placing a field of the configured size around the lowest-numbered tag.
+    """
+    corner_ids = set(perc.cfg["tags"]["corner_ids"].values())
+    seen = set(perc.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)))
+    if corner_ids <= seen:
+        if perc.calibrate_from_corners(frame):
+            return True
+        box("CORNER TAGS NOT USED", [perc.calib_fail or "the corner tags could not define a field",
+                                     "Falling back to a field drawn around the lowest-numbered tag.",
+                                     "Fix the corners and press f to have the four tags define the field."])
+    elif seen & corner_ids:
+        missing = sorted(corner_ids - seen)
+        print(f"t: corner tag(s) {missing} not completely in view, so the field is drawn around the "
+              f"lowest-numbered tag instead. With all four in view, t (or f) uses them as the field corners.", flush=True)
+    return survey_calibrate(perc, frame)
 
 
 def corners_calibrate(perc, frame, quiet: bool = False) -> bool:
@@ -366,6 +422,7 @@ def main():
     announced_cam, asked, t_done, moved = None, False, 0.0, False  # what has been said about calibration so far
     feed_lost = False
     auto = "corners" if args.corners else "survey" if args.survey else "measured"  # how to calibrate at start
+    settled = Settled()
     while True:
         frame, t_rx, n = src.read(n)
         new_reconnects = getattr(src, "reconnects", 0)
@@ -396,10 +453,12 @@ def main():
             feed_lost = False
             box("CAMERA FEED BACK", ["Frames are arriving again. Motion remains withheld after the interruption;",
                                      "verify the camera and field, then explicitly recalibrate."])
+        # Calibrate by itself, but on a live camera only once the picture has held still for a second.
+        steady = settled.update(perc, time.time()) if (live and perc.cam is None) else True
         if perc.cam is None and auto != "measured":
-            if count % 10 == 0:  # --corners / --survey: never fall back to the measured layout in the config
+            if count % 10 == 0 and steady:  # --corners / --survey: never fall back to the measured layout in the config
                 (corners_calibrate if auto == "corners" else survey_calibrate)(perc, frame, quiet=True)
-        elif perc.cam is None:
+        elif perc.cam is None and steady:
             perc.calibrate(frame)
         # Live: capture happened `latency` before we received the frame, and "now" is the wall clock.
         t_capture = t_rx - latency
@@ -429,8 +488,11 @@ def main():
         if perc.cam is not None and invalid_calibration != moved:
             moved = invalid_calibration
             if moved:
-                box("CALIBRATION WITHHELD", [state.get("calibration_reason", "calibration needs verification"),
-                                             "Verify the field and camera, then explicitly recalibrate (f / c / m)."])
+                why = state.get("calibration_reason", "calibration needs verification")
+                if why == "floor_reference_drift":
+                    why = (f"a floor tag is {err:.0f} px from where calibration put it (limit 8): "
+                           "the camera or a tag has moved")
+                box("CALIBRATION WITHHELD", [why, "Verify the field and camera, then explicitly recalibrate (f / c / m)."])
             else:
                 print("new calibration accepted; bind its revision before robot navigation", flush=True)
         if not args.print and (live or perc.cam is None) and time.time() - t_status > 1.0:
@@ -438,7 +500,10 @@ def main():
             if perc.cam is None:
                 need, have = needed(perc, auto)
                 what = "corner tags" if auto == "corners" else "floor tags"
-                print(f"CALIBRATING... {what} completely in view: {have or 'none'}  ({len(have)} of {need} needed)",
+                # Every tag it asked for is in view and it still has not calibrated: say why.
+                why = ("  waiting for the picture to hold still" if len(have) >= need and not steady else
+                       f"  BLOCKED: {perc.calib_fail}" if len(have) >= need and perc.calib_fail else "")
+                print(f"CALIBRATING... {what} completely in view: {have or 'none'}  ({len(have)} of {need} needed){why}",
                       flush=True)
             elif live:
                 print(status_line(state), flush=True)
@@ -455,11 +520,23 @@ def main():
                 keys = ("it starts by itself" if auto != "measured" else "f = tags on the 4 corners define the field"
                         "    t = any 2+ tags, nothing measured") + "    m = click the field corners"
                 what = "corner tags (one on each field corner)" if auto == "corners" else "floor tags"
-                draw_banner(vis, "CALIBRATING...", [
-                    f"{what} completely in view: {len(have)} of {need} needed"
-                    + (f"   (ids {', '.join(map(str, have))})" if have else ""),
-                    "a tag counts only if its whole black square and white border are visible",
-                    keys], (0, 200, 255))
+                if len(have) >= need and not steady:
+                    draw_banner(vis, "CALIBRATING...", [
+                        f"all {need} tags are in view: waiting for the picture to hold still for a second",
+                        "keep the camera and the tags still",
+                        keys], (0, 200, 255))
+                elif len(have) >= need and perc.calib_fail:
+                    # All the tags are there, so "waiting" would be wrong: show what is stopping it.
+                    draw_banner(vis, "CALIBRATION BLOCKED", [
+                        f"all {need} tags are in view, but: {perc.calib_fail}"[:110],
+                        ("expected " + corner_text(perc))[:110] if auto == "corners" else "fix that, or use another way below",
+                        keys], (0, 0, 255))
+                else:
+                    draw_banner(vis, "CALIBRATING...", [
+                        f"{what} completely in view: {len(have)} of {need} needed"
+                        + (f"   (ids {', '.join(map(str, have))})" if have else ""),
+                        "a tag counts only if its whole black square and white border are visible",
+                        keys], (0, 200, 255))
             elif moved:
                 draw_banner(vis, "CALIBRATION WITHHELD", [
                     state.get("calibration_reason", "verify calibration before motion"),
@@ -501,7 +578,7 @@ def main():
             if key == ord("f"):
                 corners_calibrate(perc, frame)
             if key == ord("t"):
-                survey_calibrate(perc, frame)
+                tags_calibrate(perc, frame)
             if key == ord("m"):
                 click_calibrate(perc, frame, perc.cfg["manual_points"], scale)  # current field size, e.g. after f
                 mouse_ready = False  # the click mode borrowed the mouse; take it back
