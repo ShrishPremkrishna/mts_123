@@ -539,6 +539,7 @@ def test_imu_delivery_restores_only_the_sensor_without_resuming(case):
 
 def test_laptop_stand_requires_same_live_owner_and_reuses_home(setup, capsys, monkeypatch):
     from fc_operator import valid_owner
+    monkeypatch.setattr(cli, "current_board_mode", lambda *_: "healthy")
     template_path = Path(cli.read(setup.profile)["platform_template"])
     template = cli.read(template_path)
     template["components"]["gateway"] = {"path": "/native/gateway", "sha256": "test"}
@@ -557,3 +558,56 @@ def test_laptop_stand_requires_same_live_owner_and_reuses_home(setup, capsys, mo
     with pytest.raises(ValueError, match="no longer owns"):
         setup.call(*connect, "--operator-owner", owner)
     assert setup.calls == ["prepare", "home", "--read-hardware"]
+
+
+def test_board_receipt_refuses_old_home_on_terminal_manager(tmp_path):
+    from final_project.behaviors.board_imu import MAGIC, RECORD
+    cli.write_new(tmp_path / "owned_session.json", {"processes": {"manager": {"pid": 107}}})
+    row = [0] * 24
+    row[0:9] = [2, MAGIC, 107, 73, 91, 0, 0, 1, cli.time.monotonic_ns()]
+    row[21:24] = [3, 3, 0]
+    profile = {"imu_recovery": "field_redundant_imu"}
+    def publish():
+        (tmp_path / "fc-board-health.bin").write_bytes(RECORD.pack(*row))
+    publish()
+    assert cli.current_board_mode(tmp_path, profile) == "healthy"
+    row[7:9] = [4, 1]
+    publish()
+    assert cli.current_board_mode(tmp_path, profile) == "terminal"
+    row[7] = 1
+    publish()
+    with pytest.raises(ValueError, match="does not confirm"):
+        cli.current_board_mode(tmp_path, profile)
+
+
+def test_connect_replaces_a_terminal_board_session_without_moving(setup, capsys, monkeypatch):
+    template_path = Path(cli.read(setup.profile)["platform_template"])
+    template = cli.read(template_path)
+    template["components"]["gateway"] = {"path": "/native/gateway", "sha256": "test"}
+    template["fc_operator_control"] = True
+    cli.write_new(template_path, template)
+    mode = "healthy"
+    monkeypatch.setattr(cli, "current_board_mode", lambda *_: mode)
+    connect = ("match", "--runner-only", "--connect")
+    setup.call(*connect)
+    original = Path(json.loads(capsys.readouterr().out.splitlines()[-1])["run"])
+    setup.call("home", "--supported", "--home-only")
+    mode = "terminal"
+    (original / "robot.log").write_text("[ros2_control_node-2] [ERROR] [123.0] "
+        "[ControlBoardHardwareInterface]: Joint feedback invalid on knee\n")
+    runner = cli.subprocess.run
+    def shutdown_or_prepare(args, **kwargs):
+        if "shutdown" in args:
+            assert Path(args[-1]) == original
+            receipt = cli.read(original / "owned_session.json")
+            receipt["status"] = "stopped"
+            cli.write_new(original / "owned_session.json", receipt)
+            setup.calls.append("shutdown")
+            return
+        return runner(args, **kwargs)
+    monkeypatch.setattr(cli.subprocess, "run", shutdown_or_prepare)
+    setup.call(*connect)
+    result = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert not result["homed"] and result["run"] != str(original)
+    assert result["previous_fault"] == "Joint feedback invalid on knee"
+    assert setup.calls == ["prepare", "home", "--read-hardware", "shutdown", "prepare"]

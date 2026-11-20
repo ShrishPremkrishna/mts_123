@@ -108,6 +108,22 @@ def check_manager(run, plan, boot):
     # An inactive hardware interface may leave this same manager PID alive.
 
 
+def current_board_mode(run, profile):
+    """Read the current manager's hardware receipt before reusing a saved Home."""
+    from final_project.behaviors.board_imu import AGE_NS, BoardReceipt
+    manager = read(run / "owned_session.json")["processes"]["manager"]["pid"]
+    board = BoardReceipt(run / "fc-board-health.bin", manager, profile.get("imu_recovery", "strict"))
+    try:
+        row = board.read()
+    finally:
+        board.close()
+    if row[7] == 4:
+        return "terminal"
+    if not row[4] or row[7] not in (1, 2, 3) or not 0 <= time.monotonic_ns() - row[8] <= AGE_NS:
+        raise ValueError("Current board feedback does not confirm an active Home. Check Blue or Red before standing.")
+    return "healthy" if row[7] == 1 else "balance_hold"
+
+
 def run_home_probe(command, *, env, timeout):
     # The terminal delivers Ctrl-C or hangup to the parent and foreground probe.
     # Let the probe finish its Stop acknowledgement and ROS cleanup before the
@@ -459,6 +475,8 @@ def main(argv=None):
     if args.action == "field" and not args.epoch:
         p.error("field needs the current match epoch")
     from fc_operator import attached, valid_owner
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
     if (args.action == "operator" and not valid_owner(args.owner)) or (args.owner is not None and args.action != "operator"):
         p.error("operator requires its browser owner")
     if args.operator_owner is not None and (not args.connect or not valid_owner(args.operator_owner)):
@@ -474,6 +492,22 @@ def main(argv=None):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         run, plan = acquire_run("prepare" if args.connect else args.action, args, profile_path, profile,
                                 template, env, boot, python, helper)
+        homed = (run / "owned_session.json").is_file() and (run / "native-readiness.json").is_file()
+        previous_fault = None
+        if fc_control and homed and not args.recover_imu:
+            board_mode = current_board_mode(run, profile)
+            if board_mode == "terminal":
+                from fc_operator import board_error
+                previous_fault = board_error(run) or "The board deactivated after Home"
+                if not ((args.connect and not args.operator_owner) or args.action == "prepare"):
+                    raise ValueError(previous_fault + ". Support the robot and reconnect for a fresh Home.")
+                # A terminal board has already sent neutral. Release this exact stopped-board session.
+                subprocess.run([python, "-B", "-s", helper, "shutdown", "--run-dir", run], env=env,
+                               check=True, stdout=subprocess.DEVNULL)
+                run, plan = acquire_run("prepare", args, profile_path, profile, template, env, boot, python, helper)
+                homed = False
+            elif board_mode == "balance_hold" and (args.action == "operator" or args.operator_owner):
+                raise ValueError("Current balance hold must clear before standing or joining play")
         if args.action == "test-imu-delivery":
             if (run / "awaiting-standing.json").exists():
                 raise ValueError("complete supported Home and standing before the delivery test")
@@ -482,13 +516,12 @@ def main(argv=None):
             return 0
         if args.connect:
             bench = profile.get("imu_recovery") in ("supported_standby", "supported_damping")
-            homed = (run / "owned_session.json").is_file() and (run / "native-readiness.json").is_file()
             if args.operator_owner and not attached(run, plan["session_id"], args.operator_owner):
                 raise ValueError("The standing operator no longer owns this robot")
             if bench or not homed or (run / "awaiting-standing.json").exists() or (fc_control and not args.operator_owner):
                 print(json.dumps(dict(event="home_required", robot_id=profile["robot_id"], run=str(run),
                                       imu_recovery=profile.get("imu_recovery", "strict"), match_capable=not bench,
-                                      fc_operator_control=fc_control, homed=homed,
+                                      fc_operator_control=fc_control, homed=homed, previous_fault=previous_fault,
                                       joystick_listed=any(Path("/dev/input").glob("js[0-9]*")))),
                       flush=True)
                 return 0
@@ -510,7 +543,7 @@ def main(argv=None):
     print(json.dumps({"run": str(run), "robot_id": profile["robot_id"], "stage": args.action,
                       "state": "session prepared" if args.action == "prepare" else "homed, hardware active; match disarmed",
                       "match_armed": False, "home_only": args.home_only, "fc_operator_control": fc_control,
-                      "homed": (run / "owned_session.json").is_file() and (run / "native-readiness.json").is_file(),
+                      "homed": homed,
                       "imu_recovery": profile.get("imu_recovery", "strict")}))
     return 0
 
