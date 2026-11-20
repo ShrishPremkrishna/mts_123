@@ -6,19 +6,9 @@
     1080
   ],
   "transport": "wireless Continuity Camera",
-  "calibration": "four corner tags; approximate 69 degree pinhole optics; 0.17 m black tag-size assumption",
-  "corner_ids": {
-    "west_south": 3,
-    "east_south": 2,
-    "east_north": 1,
-    "west_north": 0
-  },
-  "camera_height_estimate_m": 3.27,
-  "field_length_m": 2.896991748478149,
-  "field_width_m": 1.5199617688364766,
   "configured_goal_opening_m": 0.6096,
   "configured_ball_radius_m": 0.11,
-  "unmeasured": "Physical tag size, field dimensions, goal opening, and ball radius are unconfirmed. Goal mouth planes seen beyond projected end lines. Confirm field scale by tape.",
+  "unmeasured": "Goal openings, ball circumference, true goal-mouth planes and independently measured field width remain open. The software goal segments sit inside the physical goal mouths. The rough physical tape distances below are operator estimates.",
   "joint_observation": {
     "simultaneously_measured": [
       "all six floor tags",
@@ -35,5 +25,39 @@
     "Loss of optical sharpness made every tag disappear while the phone kept delivering frames. A retained calibration flag alone cannot confirm live visibility."
   ],
   "local_session_dir": "out/phone-field-dtrknxnz",
-  "source_snapshot": "d3544f6dba44b610d22536209ecc0c8857187703"
+  "source_snapshot": "d3544f6dba44b610d22536209ecc0c8857187703",
+  "initial_calibration": {
+    "calibration": "four corner tags; approximate 69 degree pinhole optics; 0.17 m black tag-size assumption",
+    "field_length_m": 2.896991748478149,
+    "field_width_m": 1.5199617688364766,
+    "camera_height_estimate_m": 3.27
+  },
+  "selected_corner_ids": {
+    "west_south": 3,
+    "east_south": 2,
+    "east_north": 1,
+    "west_north": 0
+  },
+  "selected_calibration": {
+    "updated_utc": "2026-11-20T08:26:06.189299+00:00",
+    "method": "Corner survey with measured printed tag side; approximate camera lens intrinsics. Owner reported roughly 6.25 for the black square (interpreted as inches) and about 9 feet from tag 0 to tag 1.",
+    "black_square_side_m": 0.15875,
+    "approximate_tape_0_to_1_m": 2.7432000000000003,
+    "prior_0_to_1_m": 2.898055959534404,
+    "camera_0_to_1_m": 2.6957342654787744,
+    "camera_minus_tape_m": -0.04746573452122593,
+    "rectangle_m": [
+      2.702601426530115,
+      1.4190875786106156
+    ],
+    "median_fit_error_px": 0.9333960768487778,
+    "live_checks": {
+      "sample_frames": 20,
+      "all_six_tags": 20,
+      "striker_tag": 20,
+      "pink_ball": 20
+    },
+    "config_on_mac": "out/phone-field-dtrknxnz/field-measured.yaml",
+    "focus": "The complete view blurred and reacquired all six markers after the phone feed reopened and time elapsed. Physical trigger unconfirmed."
+  }
 }
