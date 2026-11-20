@@ -1,0 +1,327 @@
+{
+  "source_commit": "e4848c4cc7f162dfff47c7b43b9b106c8cfa7335",
+  "date": "2026-11-20",
+  "verification_directory": "outputs/pupper-fc-home/verification",
+  "archive_hashes": {
+    "pupper-fc-laptop.zip": "f45c6359fb83ecd777e8223a87be7795177bdc2b7aa0f2762da355425a4ef093",
+    "pupper-fc-pi.tar.gz": "c512969356e97b7dd44c51fdd3cb0ca3a7cc5601793d27be0029878f9525bb33"
+  },
+  "archive_verification": {
+    "commit": "e4848c4cc7f162dfff47c7b43b9b106c8cfa7335",
+    "laptop_source_blobs": 48,
+    "verified_wheel_hashes": 19,
+    "pi_source_blobs": 750,
+    "app_selected_digests": 59
+  },
+  "laptop": {
+    "cold_http_ready_s": 5.647,
+    "running_lobby_reopen_s": 0.072,
+    "sim_camera_visible": {
+      "tags": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        10,
+        11
+      ],
+      "ball": true,
+      "robots": {
+        "striker": true,
+        "keeper": true
+      }
+    },
+    "warm_http_ready_s": 0.387,
+    "runtime_wheels": 19,
+    "source_commit": "e4848c4cc7f162dfff47c7b43b9b106c8cfa7335"
+  },
+  "pi_install": {
+    "revision": "e4848c4cc7f162dfff47c7b43b9b106c8cfa7335",
+    "archive_sha256": "c512969356e97b7dd44c51fdd3cb0ca3a7cc5601793d27be0029878f9525bb33",
+    "verified_members": 751,
+    "source_to_native_build_files": 33,
+    "target_board_sha256": "a3cfb573366ffed4c614779f7231f37e48edf7ac46f732a8241ebd862e7d552d",
+    "native_build": "/home/pi/pupper-fc-distributions/native-bc0bf70f497b9b06",
+    "enrolled_release": "/home/pi/pupper-fc-releases/fc-c702bca88a2e8191",
+    "prior_enrollment": "/home/pi/pupper-fc-releases/fc-deca4af28609d907",
+    "target_archive": "/home/pi/pupper-fc-distributions/home-e4848c4cc7f162dfff47c7b43b9b106c8cfa7335.tar.gz",
+    "independent_staged_manifest": "a9b28ab4ad76bc650bb458ae9fd46864528a45a9ebfa04b47e5172157ddabc38",
+    "enrolled_manifest": "d2b3809128575ce4ed75bb743724c66243320532ca2de0466f19fc2844eefa4f",
+    "verified_staged_sources": 59,
+    "stage_difference": [
+      "destination_remote_path"
+    ],
+    "actual_home_on_this_build": "Completed once; final live receipts in real-home-state.json.",
+    "boot_id": "4f3d9a21-3bb7-4548-9979-b49bc6cab04b"
+  },
+  "pi_cold_connect_to_home_panel_s": 0.825,
+  "pi_prepared_reconnect_to_home_panel_s": 0.321,
+  "supported_home_from_chrome": {
+    "connect_to_home_panel_s": 0.215,
+    "connect_hint": "At Connect, the Pi listed no joystick. Home only is available now. Connect the Stop gamepad to enable standing from here.",
+    "home_result": "Homed on stand.",
+    "home_click_to_result_s": 12.134,
+    "final_status": "Homed on stand."
+  },
+  "live_pi_state": {
+    "release": "e4848c4cc7f162dfff47c7b43b9b106c8cfa7335",
+    "session": "/home/pi/pupper-fc-runs/fc-pupper-1-277e1caa7306",
+    "fresh_samples_to_mechanical_start_s": 3.112,
+    "mechanical_home_s": 3.72,
+    "joints_homed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "successful_native_activation_count": 1,
+    "manager_pid": 22669,
+    "mapped_board_sha256": "a3cfb573366ffed4c614779f7231f37e48edf7ac46f732a8241ebd862e7d552d",
+    "controllers": {
+      "trick_leg_kick": "inactive",
+      "imu_sensor_broadcaster": "active",
+      "gemini_walk": "inactive"
+    },
+    "hardware": [
+      {
+        "name": "control_board_hardware_interface",
+        "active": "active",
+        "claimed_commands": []
+      }
+    ],
+    "home_generation": 1840992264,
+    "faults": 0,
+    "balance_incidents": 0,
+    "mode": 1,
+    "board_age_ms": 1.87,
+    "spi_reply_mask": 3,
+    "owned_processes": [
+      "launch",
+      "manager",
+      "recorder"
+    ],
+    "perception_deferred": true,
+    "fault_trace_present": false,
+    "stop_gamepad_present": false,
+    "seconds_since_board_activation": 105.29
+  },
+  "source_receipts": {
+    "robot.log": "7b8ac878426d3f8ef18ad7a4a0a20170fa74b39f6fa80fb9ad10bb3e20842c10",
+    "native-readiness.json": "8c61d91e0c2c07ff016105f0ab58de83ba9f0df1c5770f683934fe9df9f24907"
+  },
+  "first_failed_home": {
+    "source_for_incident": "0a479c1b999fb95c46e31b3ccfc8a806475fd406",
+    "boot_id": "4f3d9a21-3bb7-4548-9979-b49bc6cab04b",
+    "run": "fc-pupper-1-01585be238ad",
+    "ui_elapsed_click_to_failure_s": 20.453,
+    "native_stationary_gate_elapsed_s": 15.004,
+    "at_deadline_primary_known_ages_ms": {
+      "quaternion": 11.56,
+      "gyro": 5.073
+    },
+    "native_qualification_window_s": 3,
+    "alternate_required_overlap_s": 0.5,
+    "startup_deadline_s": 15,
+    "enabled_motor_command_reached": false,
+    "mechanical_homing_reached": false,
+    "walker_active": false,
+    "pre_enable_faults": 1,
+    "owned_status_after_explicit_cleanup": "stopped",
+    "initial_session_left_camera_recorder_detector": true,
+    "physical_motor_release_independently_measured": false,
+    "recorded_raw_source_sha256": {
+      "robot.log": "7f884874ac0ed0ad1be9407bf4e823632ba0eae47549bde0438c41180b36e831",
+      "fc-board-health.bin": "1892a7708480b0bc74cc190d2783883c9f98f05945791fd17c44eb93389e04c3",
+      "owned_session.json": "02dcd0c1bb4bb0255d10b569ff0069cf29314971d029e202e9cc74d295585af9",
+      "camera.log": "0b9a23cdb48c03cd1054cd12634d5cca3919eb06a739871706329083f15500e0",
+      "recorder.log": "06d68d1f8873576264535d8988bdb7b7950de39f98199bccf8b2212b9180cf39",
+      "detector.log": "d6dc6255df36b9d6f1fefcc696093838aa5e593fcc488d5cc8e661980dde36a2"
+    },
+    "boot_seconds_since_kernel": {
+      "battery": 5.337,
+      "discovery": 6.518,
+      "networkmanager_process": 7.729,
+      "ssh_listening_service": 8.526,
+      "display_manager": 8.718,
+      "wifi_initial_attempt": 11.524,
+      "touch_ui_process_stable": 18.82,
+      "wifi_first_profile_timeout": 37.002,
+      "wifi_working_profile_selected": 46.31,
+      "wifi_associated_and_ip": 49.127,
+      "systemd_time_sync": 65.76
+    },
+    "boot_savings_after_change": "unmeasured; in-place working Wi-Fi preference verified, no reboot",
+    "wifi_change": {
+      "profile_id_digest": "8c06fabe",
+      "before": "0",
+      "after": "10",
+      "still_active": true,
+      "reactivated": false,
+      "rollback_receipt": "/home/pi/.local/state/pupper-fc/wifi-priority-before.json",
+      "cold_boot_after_change": "unmeasured"
+    },
+    "unattributed": "Historical run logged the last primary cached sample, no intermediate primary or alternative trace; no single cause identified from that file."
+  },
+  "cold_audits": [
+    {
+      "model_requested": "claude-opus-5-5",
+      "source": "0a479c1b999fb95c46e31b3ccfc8a806475fd406",
+      "packet_sha256": "5d420f38ed538ff6715dd2749e683c66c167ad126badb82a76100c5584778d5f",
+      "fresh_directory": true,
+      "tools": false,
+      "seconds": 362.29,
+      "exit": 0
+    },
+    {
+      "model_requested": "claude-fable-5-2",
+      "source": "0a479c1b999fb95c46e31b3ccfc8a806475fd406",
+      "packet_sha256": "5d420f38ed538ff6715dd2749e683c66c167ad126badb82a76100c5584778d5f",
+      "fresh_directory": true,
+      "tools": false,
+      "seconds": 259.7,
+      "exit": 0
+    }
+  ],
+  "native_checks": {
+    "behavior_passed": 99,
+    "ctest_total": 105,
+    "ctest_passed": 103,
+    "baseline_and_candidate_style_failures": [
+      "flake8",
+      "uncrustify"
+    ]
+  },
+  "game_checks": {
+    "passed": 188,
+    "subtests": 34,
+    "ros": [
+      {
+        "roster": [
+          "pupper-1"
+        ],
+        "measured_width_m": 1.442886155351121,
+        "end_to_standby_s": 0.252,
+        "start_to_first_nonzero_s": 0.452,
+        "warm_restart_to_first_nonzero_s": 0.492,
+        "kick_completions": [
+          "r1-p0-k1",
+          "r1-p0-k2"
+        ],
+        "observed_ball_relocation_m": 0.24,
+        "integrated_second_approach_m": 0.24,
+        "new_capture_after_first_completion_s": 0.038,
+        "eof_standby": true,
+        "ros_events": {
+          "pupper-1": 570
+        },
+        "pending_frames": {
+          "pupper-1": 6
+        },
+        "wall_s": 12.668
+      },
+      {
+        "roster": [
+          "pupper-2"
+        ],
+        "measured_width_m": 1.442886155351121,
+        "end_to_standby_s": 0.187,
+        "start_to_first_nonzero_s": 0.576,
+        "warm_restart_to_first_nonzero_s": 0.628,
+        "kick_completions": [
+          "r1-p0-k1",
+          "r1-p0-k2"
+        ],
+        "observed_ball_relocation_m": 0.24,
+        "integrated_second_approach_m": 0.24,
+        "new_capture_after_first_completion_s": 0.017,
+        "eof_standby": true,
+        "ros_events": {
+          "pupper-2": 577
+        },
+        "pending_frames": {
+          "pupper-2": 13
+        },
+        "wall_s": 12.823
+      },
+      {
+        "roster": [
+          "pupper-1",
+          "pupper-2"
+        ],
+        "measured_width_m": 1.582886155351121,
+        "rejected_start_standby": true,
+        "end_to_standby_s": 0.25,
+        "start_to_first_nonzero_s": 2.862,
+        "warm_restart_to_first_nonzero_s": 0.58,
+        "score": {
+          "pupper-1": 1,
+          "pupper-2": 0
+        },
+        "early_resume_held_match": true,
+        "missed_red_goal_frames": 1,
+        "rally_after_replacement_and_resume": 2,
+        "imu_roster_pause": true,
+        "imu_explicit_new_epoch": true,
+        "imu_score_and_rally_preserved": true,
+        "imu_received_fresh_tactics_and_motion": true,
+        "imu_native_service_acks": {
+          "pupper-1": 0,
+          "pupper-2": 1
+        },
+        "eof_standby": true,
+        "ros_events": {
+          "pupper-1": 274,
+          "pupper-2": 370
+        },
+        "pending_frames": {
+          "pupper-1": 13,
+          "pupper-2": 21
+        },
+        "wall_s": 10.885
+      },
+      {
+        "roster": [
+          "pupper-1"
+        ],
+        "measured_width_m": 1.442886155351121,
+        "rolling_ball": {
+          "roll": {
+            "distinct_captures": 3,
+            "maximum_lateral_lead_m": 0.0554,
+            "observed_three_leads_and_turn_s": 0.192
+          },
+          "deflection": {
+            "distinct_captures": 6,
+            "maximum_lateral_lead_m": 0.0673,
+            "observed_three_leads_and_turn_s": 0.347
+          },
+          "predict_only_stopped": true,
+          "fresh_roll_reacquired_same_epoch": true,
+          "kicks_during_pass": 0
+        }
+      }
+    ]
+  },
+  "unsupported_claims": [
+    "The original single pre-enable timeout did not preserve per-poll evidence; exact physical cause remains unresolved.",
+    "A reduction from historical launch-to-body-command at 609.8 s cannot be computed until the same physical endpoint is observed.",
+    "Physical standing, independent Stop, 1\u20133 s in-play IMU dropouts, ball contact and braking on this release and two-robot floor play are pending."
+  ],
+  "rollback_on_blue_after_supported_shutdown": "python3 /home/pi/pupper-fc-releases/fc-c702bca88a2e8191/foundation/hardware/fc_walk_kick_release.py rollback",
+  "actual_pi_phase_intervals_s": {
+    "board_load_to_startup_check": 0.552,
+    "check_entry_to_mechanical_home_start": 3.112,
+    "mechanical_home_to_completed_return": 3.72,
+    "completed_return_to_feedback_broadcaster_activation": 0.838
+  }
+}

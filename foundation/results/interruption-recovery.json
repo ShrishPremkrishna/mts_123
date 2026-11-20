@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
   "mode": "fc_touchscreen_and_field_qualification",
-  "updated_utc": "2026-11-20T22:45:56.958298+00:00",
+  "updated_utc": "2026-11-20T22:52:33.181629+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -72,7 +72,8 @@
     "fc_appliance": "foundation/results/fc-appliance-release-20261120.json",
     "match_imu": "foundation/results/fc-match-imu-release-20261120.json",
     "fc_continuous_release": "foundation/results/fc-continuous-release-20261120.json",
-    "home_startup": "foundation/results/fc-home-startup-investigation-20261120.md"
+    "home_startup": "foundation/results/fc-home-startup-investigation-20261120.md",
+    "home_release": "foundation/results/fc-home-release-20261120.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -138,7 +139,7 @@
     "fc_appliance_release": "Verified offline: shipped both archive hashes and committed blobs, clean Mac launch and Chrome, standalone Pi stage/compile, systemd appliance rollback, and three final ROS rosters. See the appliance release record for timings and outstanding physical checks."
   },
   "hardware_session": {
-    "status": "Blue running original eyes/touch Wi-Fi, legacy robot services inactive. One supported Home on 0a479c1 timed out before enable. Manager, camera and recorder processes verified stopped. Four quiet and two loaded motor-free IMU restarts all passed in 3.105–3.113 s. Both motor boards answered 19/20 verified neutral probes. See the startup investigation for the candidate repair and target receipts.",
+    "status": "Blue on its stand, Home only COMPLETE on e4848c4. Chrome click to confirmation 12.134 s, 12 joints homed, one successful activation. At +105 s hardware active, no claimed motor commands, both leg controllers inactive, 0 faults; camera and detector deferred. Original eyes/touch Wi-Fi restored. No Stop gamepad present during this test. Verify current session before any hardware action.",
     "observed_utc": "2026-11-20T22:18:59.578360+00:00",
     "ssh": "mts",
     "current_boot_id": "4f3d9a21-3bb7-4548-9979-b49bc6cab04b",
@@ -205,7 +206,7 @@
     },
     {
       "id": "verify_physical_release",
-      "action": "Verify the corrected FC boot retains the touchscreen, battery monitor, SSH and discovery. Test Connect, supported Home and the standing cue from the laptop lobby on the installed release."
+      "action": "Boot, Connect and supported Home verified on Blue. Next, with the independent Stop connected, verify supported standing and Stop from the laptop before floor play."
     },
     {
       "id": "field_setup",
