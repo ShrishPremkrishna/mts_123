@@ -50,9 +50,10 @@ function render() {
   $('camera-status').textContent = cam ? ((state.source === 'sim' ? 'Simulated · ' : '') + cam.status) : 'Disconnected';
   $('camera-connect').textContent = cam?.frame ? 'View field' : 'Connect camera';
   $('start-match').hidden = ['playing','balance_hold','balance_resuming','stopping'].includes(state.phase);
+  const missingOperator = live.some(t => t.fcOperator && !t.operator?.standing);
   const unverified = live.find(t => t.imu?.state !== 'healthy' || !t.imu?.board_session ||
     !Number.isInteger(t.imu?.generation) || t.imu.generation < 1 || !Number.isInteger(t.imu.incident) || t.imu.incident < 0);
-  const visible = cam?.visible || {}, canStart = !unverified && cam?.live && cam?.frame?.calibration_valid && visible.ball &&
+  const visible = cam?.visible || {}, canStart = !missingOperator && !unverified && cam?.live && cam?.frame?.calibration_valid && visible.ball &&
         live.length && live.every(t => visible.robots?.[t.slot === 'blue' ? 'striker' : 'keeper']);
   $('start-match').disabled = pending || state.phase !== 'idle' || !canStart ||
     Object.values(teams).some(t => t.setup.busy);
@@ -146,6 +147,7 @@ function showSetup(t) {
   }
   setupTeam = t;
   $('robot-setup').hidden = !t;
+  if (t && $('setup-home-mode').value === 'stand') openOperator(t);
   render();
 }
 
@@ -154,22 +156,30 @@ function renderSetup() {
   if (!t) return;
   const setup = t.setup;
   const locked = setup.busy || t.savingAddress || state.phase !== 'idle';
-  $('setup-address').disabled = $('save-address').disabled = locked || t.connecting || t.online;
+  const laptopStand = t.fcOperator && t.homed && $('setup-home-mode').value === 'stand';
+  $('setup-address').disabled = $('save-address').disabled = locked || t.connecting || t.online || Boolean(t.operator);
   if (setup.busy && setup.action === 'home') {
     $('setup-supported').checked = true;
-    $('setup-home-mode').value = setup.homeOnly ? 'home-only' : 'stand';
+    $('setup-home-mode').value = setup.wantStand ? 'stand' : 'home-only';
   }
   $('robot-setup').dataset.team = t.slot;
   $('setup-title').textContent = (t.slot === 'blue' ? 'Blue' : 'Red') + ' Pupper setup';
-  $('setup-prepare').disabled = locked || setup.prepared;
+  $('setup-prepare').disabled = locked || setup.prepared || Boolean(t.operator);
   $('setup-supported').disabled = locked;
-  $('setup-home-mode').disabled = locked;
-  $('setup-home').hidden = Boolean(setup.cue);
+  $('setup-home-mode').disabled = locked || Boolean(t.operator);
+  $('setup-home').hidden = Boolean(setup.cue || laptopStand);
   $('setup-home').disabled = locked || setup.needsPrepare || !$('setup-supported').checked;
-  $('setup-stand').hidden = !setup.cue;
-  $('setup-stand').disabled = !setup.cue;
+  $('setup-stand').hidden = !setup.cue && !laptopStand;
+  $('setup-stand').disabled = laptopStand ? (!t.operator?.ready || t.operator.standing || t.operator.waiting ||
+    t.operator.stopping || !$('setup-supported').checked) : !setup.cue;
   $('setup-stand').textContent = t.matchCapable === false ? 'Enable bench test' : 'Enable standing';
-  if (setup.busy && setup.action === 'home') {
+  if (t.fcOperator) {
+    $('setup-hint').textContent = $('setup-home-mode').value === 'home-only'
+      ? 'Home measures the legs and leaves the walker inactive.'
+      : 'Keep Pupper supported for Stand. Keep this lobby visible. Stop all or Esc stops the robots. Losing this window or its connection also requests Stop.';
+  } else if (t.fcOperator === undefined && t.matchCapable !== false) {
+    $('setup-hint').textContent = 'Connect or Prepare to check the standing controls available on this Pi.';
+  } else if (setup.busy && setup.action === 'home') {
     $('setup-hint').textContent = 'Keep Pupper supported. Use the gamepad for physical Stop. Esc cancels a pending standing cue.';
   } else {
     $('setup-hint').textContent = $('setup-home-mode').value === 'home-only'
@@ -181,10 +191,72 @@ function renderSetup() {
   if ($('setup-status').textContent !== setup.message) $('setup-status').textContent = setup.message;
 }
 
+function stopOperator(t) {
+  const op = t.operator;
+  if (!op || op.stopping) return;
+  op.stopping = true;
+  op.ready = op.standing = false;
+  if (op.socket.readyState === WebSocket.OPEN) op.socket.send(JSON.stringify({action:'stop'}));
+  else op.socket.close();
+}
+
+function openOperator(t) {
+  if (t.operator || !t.fcOperator || !t.homed || document.hidden || t.online || t.setup.busy) return;
+  const socket = new WebSocket('ws://' + location.host + '/operator/' + t.slot + '?owner=' + owner);
+  const op = t.operator = {socket, ready:false, standing:false, waiting:false, offer:null, stopping:false};
+  t.setup.message = 'Connecting laptop Stop to the Pi…';
+  socket.onmessage = ({data}) => {
+    if (t.operator !== op) return;
+    const event = JSON.parse(data);
+    if (event.event === 'operator_challenge') {
+      if (document.hidden) { stopOperator(t); return; }
+      if (op.stopping || socket.readyState !== WebSocket.OPEN || socket.bufferedAmount) return;
+      const identity = event.challenge.split(' ').slice(0, 2).join(' ');
+      if (op.offer && op.offer.identity !== identity && setupTeam === t) {
+        $('setup-supported').checked = false;
+        renderSetup();
+      }
+      op.offer = {challenge:event.challenge, identity, received:performance.now(), wall:Date.now()};
+      socket.send(JSON.stringify({action:'heartbeat', challenge:event.challenge}));
+      return;
+    }
+    if (event.event === 'operator_status' && !op.stopping) {
+      op.ready = event.ready === true;
+      if (!op.waiting && !op.standing) t.setup.message = op.ready ?
+        'Laptop Stop connected. Confirm Pupper is supported, then click Enable standing.' :
+        (event.reason || 'Waiting for the Pi Stop gateway…');
+    } else if (event.event === 'operator_standing' && !op.stopping) {
+      op.ready = op.standing = true;
+      op.waiting = false;
+      t.setup.message = 'Pi confirmed standing.';
+      if (setupTeam === t) showSetup(null);
+      void t.openRunner(true);
+    } else if (event.event === 'operator_stop' || event.event === 'error') {
+      op.stopping = true; op.standing = op.ready = false;
+      op.result = event.event === 'error' ? (event.reason || 'Pi operator connection failed.') :
+        (event.confirmed ? 'Pi confirmed Stop.' : 'Stop unconfirmed. Check Pupper.') + (event.reason ? ' ' + event.reason : '');
+      t.feedback.textContent = t.setup.message = op.result;
+    }
+    render();
+  };
+  socket.onclose = () => {
+    if (t.operator !== op) return;
+    t.operator = null;
+    t.homed = false;
+    t.setup = {message:op.result || 'Laptop Stop connection lost. Check Pupper and reconnect.'};
+    t.feedback.textContent = t.setup.message;
+    clearKeys(t.slot);
+    t.socket?.close();
+    t.connection.textContent = 'Offline';
+    t.connect.textContent = 'Connect';
+    render();
+  };
+}
+
 function cancelSetup(t) {
   if (!t.setup.busy) return;
   const socket = t.setup.socket;
-  t.setup = {message:'Setup connection closed. If homing started, keep Pupper supported and use the physical Stop.'};
+  t.setup = {message:'Setup connection closed. If Home started, keep Pupper on its stand until Home finishes.'};
   t.connection.textContent = 'Offline';
   if (setupTeam === t) $('setup-supported').checked = false;
   if (socket) socket.close();
@@ -196,9 +268,10 @@ async function beginSetup(t, action) {
   if (action === 'home') {
     if (!$('setup-supported').checked || t.setup.needsPrepare) return;
     request.supported = true;
-    request.home_only = $('setup-home-mode').value === 'home-only';
+    request.home_only = $('setup-home-mode').value === 'home-only' || (t.fcOperator !== false && t.matchCapable !== false);
   }
-  const setup = {action, homeOnly:request.home_only, busy:true, message:'Connecting to the Pi…',
+  const wantStand = action === 'home' && $('setup-home-mode').value === 'stand';
+  const setup = {action, homeOnly:request.home_only, wantStand, busy:true, message:'Connecting to the Pi…',
     discovered:t.setup.discovered, needsPrepare:t.setup.needsPrepare};
   t.setup = setup;
   t.feedback.textContent = '';
@@ -239,6 +312,8 @@ async function beginSetup(t, action) {
           setup.prepared = true;
           setup.needsPrepare = false;
         }
+        t.fcOperator = event.fc_operator_control === true;
+        t.homed = event.homed === true || (completed && action === 'home');
         if (typeof event.match_capable === 'boolean') t.matchCapable = event.match_capable;
         setup.cue = null;
         setup.connectAfterHome = completed && t.matchCapable !== false && action === 'home' && !request.home_only && event.home_only === false;
@@ -256,7 +331,12 @@ async function beginSetup(t, action) {
       setup.socket = null;
       setup.cue = null;
       if (!completed && !setup.failed) fail('Setup connection lost. Keep Pupper supported and check the Pi before retrying.');
-      if (setup.connectAfterHome) {
+      if (completed && t.fcOperator && t.homed && (wantStand || (action === 'prepare' && setupTeam === t && $('setup-home-mode').value === 'stand'))) {
+        if (setupTeam !== t) showSetup(t);
+        openOperator(t);
+      } else if (completed && wantStand && request.home_only && !t.fcOperator) {
+        setup.message = 'Homed on stand. This Pi uses a physical Stop gamepad. Connect it and select Home again to enable standing.';
+      } else if (setup.connectAfterHome) {
         if (setupTeam === t) showSetup(null);
         void t.openRunner(true);
       }
@@ -279,17 +359,38 @@ $('save-address').onclick = async () => {
     if (host) localStorage.setItem(addressKey(t.slot), host);
     else localStorage.removeItem(addressKey(t.slot));
     t.setup = {message:host ? 'Saved SSH address: ' + host : 'Default connection restored.'};
+    t.homed = false; t.fcOperator = undefined;
     if (setupTeam === t) { $('setup-supported').checked = false; $('setup-address').value = host; }
   } catch (error) { t.setup.message = error.message; }
   finally { t.savingAddress = false; render(); }
 };
 $('setup-close').onclick = () => { const opener = setupTeam?.options; showSetup(null); opener?.focus(); };
 $('setup-supported').onchange = renderSetup;
-$('setup-home-mode').onchange = renderSetup;
+$('setup-home-mode').onchange = () => {
+  if ($('setup-home-mode').value === 'stand' && setupTeam) openOperator(setupTeam);
+  renderSetup();
+};
 $('setup-prepare').onclick = () => beginSetup(setupTeam, 'prepare');
 $('setup-home').onclick = () => beginSetup(setupTeam, 'home');
 $('setup-stand').onclick = () => {
-  const setup = setupTeam?.setup;
+  const t = setupTeam, setup = t?.setup;
+  if (t?.operator) {
+    const op = t.operator;
+    if (!op.ready || op.waiting || op.stopping || op.standing || document.hidden || !$('setup-supported').checked) return;
+    const offer = op.offer;
+    const elapsed = offer ? Date.now() - offer.wall : Infinity;
+    if (!offer || performance.now() - offer.received >= 300 || elapsed < 0 || elapsed >= 300 ||
+        op.socket.readyState !== WebSocket.OPEN || op.socket.bufferedAmount) {
+      setup.message = 'Pi standing cue expired. Wait for a fresh cue and click Enable standing again.';
+      render();
+      return;
+    }
+    op.waiting = true;
+    op.socket.send(JSON.stringify({action:'stand', challenge:offer.challenge, supported:true}));
+    setup.message = 'Standing cue sent. Waiting for the Pi…';
+    render();
+    return;
+  }
   if (!setup?.cue || setup.socket?.readyState !== WebSocket.OPEN) return;
   setup.socket.send(JSON.stringify({action:'stand', cue:setup.cue}));
   setup.cue = null;
@@ -317,7 +418,7 @@ function addTeam(slot, config) {
     if (t.online) toggle(settings.hidden);
     else showSetup(setupTeam === t ? null : t);
   };
-  el('disconnect').onclick = () => { clearKeys(slot); t.socket?.close(); };
+  el('disconnect').onclick = () => { clearKeys(slot); stopOperator(t); t.socket?.close(); };
   t.ballMode.onchange = () => { t.requestedBall = t.ballMode.value; t.ballMode.blur(); };
   t.modeEl.onchange = () => { t.requested = {mode:t.modeEl.value, expires:performance.now()+400}; clearKeys(slot); t.modeEl.blur(); };
   t.openRunner = async (alreadyDiscovered = false) => {
@@ -330,7 +431,7 @@ function addTeam(slot, config) {
     try {
       if (!alreadyDiscovered) await discoverTeam(slot);
       if(t.attempt!==attempt) return;
-      const sock = new WebSocket('ws://' + location.host + '/play/' + slot + '?owner=' + owner);
+      const sock = new WebSocket('ws://' + location.host + '/play/' + slot + '?owner=' + owner + (t.operator?.standing ? '&lease=1' : ''));
       t.socket = sock; el('connection').textContent='Connecting…';
       sock.onmessage = ({data}) => {
         const event = JSON.parse(data);
@@ -343,6 +444,8 @@ function addTeam(slot, config) {
           el('imu-profile').textContent = 'IMU profile · ' + (event.imu_recovery || 'strict').replaceAll('_', ' ');
           if (event.event === 'home_required') {
             t.needsHome = true;
+            t.fcOperator = event.fc_operator_control === true;
+            t.homed = event.homed === true;
             t.joystickListed = event.joystick_listed;
           }
           return;
@@ -362,7 +465,7 @@ function addTeam(slot, config) {
           if ((event.event==='error'||event.accepted===false) && event.reason) t.feedback.textContent=event.reason;
           return;
         }
-        if (t.stopping) return;
+        if (t.stopping || t.operator?.stopping) return;
         t.imu = event.imu;
         if (t.imu?.state !== 'healthy') down.clear();
         if (t.mode !== event.mode || !event.ready) clearKeys(slot);
@@ -404,10 +507,13 @@ function addTeam(slot, config) {
           t.setup = {prepared:true, discovered:true, message:t.matchCapable ?
             'Connected. Support Pupper on the stand, then select Home.' :
             'Supported damping bench profile. Keep Pupper supported for the entire test.'};
-          t.connection.textContent = 'Needs Home';
-          t.connect.textContent = 'Home';
+          const readyToStand = t.fcOperator && t.homed;
+          t.connection.textContent = readyToStand ? 'Homed' : 'Needs Home';
+          t.connect.textContent = readyToStand ? 'Set up' : 'Home';
           showSetup(t);
-
+          if (readyToStand) openOperator(t);
+        } else if (t.operator) {
+          stopOperator(t);
         } else if (!t.feedback.textContent) t.feedback.textContent='Session closed. Check power, Wi-Fi and homing if unexpected.';
         render();
       };
@@ -421,6 +527,7 @@ function addTeam(slot, config) {
 function stopAll() {
   down.clear();
   for (const t of Object.values(teams)) {
+    stopOperator(t);
     cancelSetup(t);
     t.requested=null;
     t.attempt=null;
@@ -444,8 +551,12 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>down.delete(e.code));
 window.addEventListener('blur',()=>down.clear());
-document.addEventListener('visibilitychange',()=>{if(document.hidden)down.clear();});
-window.addEventListener('pagehide',()=>{down.clear();for(const t of Object.values(teams)){cancelSetup(t);t.socket?.close();}});
+document.addEventListener('visibilitychange',()=>{
+  if (!document.hidden) return;
+  down.clear();
+  for (const t of Object.values(teams)) stopOperator(t);
+});
+window.addEventListener('pagehide',()=>{down.clear();for(const t of Object.values(teams)){stopOperator(t);cancelSetup(t);t.socket?.close();}});
 $('start-match').onclick=()=>action('match/start');
 $('end-match').onclick=()=>{down.clear();return action('match/end');};
 $('resume-balance').onclick=()=>{down.clear();return action('match/balance-resume',{id:state.balance?.id});};

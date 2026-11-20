@@ -84,7 +84,8 @@ async def run_setup(ws, host, robot, launch):
         if action == "home" and not home_only and mode == "supported_damping":
             message = "Bench damping enabled. Keep Pupper supported."
         events.put_nowait(dict(stage="complete", run=receipt["run"], message=message,
-                               imu_recovery=mode, match_capable=mode in ("strict", "supported_rehome", "field_redundant_imu")))
+                               imu_recovery=mode, match_capable=mode in ("strict", "supported_rehome", "field_redundant_imu"),
+                               fc_operator_control=receipt.get("fc_operator_control") is True, homed=receipt.get("homed") is True))
 
     async def send_events():
         await ws.send_json(dict(event="setup", stage="running", robot_id=robot, action=action,

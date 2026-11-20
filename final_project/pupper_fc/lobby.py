@@ -19,7 +19,8 @@ PROFILE = Path(__file__).with_name("arena.json")
 
 
 class Peer:
-    def __init__(self, robot, host, owner, proc):
+    def __init__(self, robot, host, owner, proc, *, operator_link=None):
+        self.operator_link = operator_link
         self.robot, self.host, self.owner, self.proc = robot, host, owner, proc
         self.offer = {}
         self.field_info = None
@@ -347,6 +348,9 @@ class Lobby:
 
     def _check_boards(self, players, epoch=None):
         for peer in players:
+            link = getattr(peer, "operator_link", None)
+            if link and not link.current():
+                raise ValueError(f"{peer.robot}: laptop Stop connection expired")
             reason = play_problem(peer, self.board_anchors, epoch)
             if reason:
                 raise ValueError(f"{peer.robot}: {reason}")
@@ -460,6 +464,10 @@ class Lobby:
                 await self.end(self.owner, problem)
                 return
             for p in self.players:
+                link = getattr(p, "operator_link", None)
+                if link and not link.current():
+                    self.stop_requested(p)
+                    return
                 self.observe_controls(p)
 
     async def _close_fields(self, *, require_closed=False):

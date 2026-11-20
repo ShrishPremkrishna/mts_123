@@ -21,6 +21,7 @@ PYTHON = ENV / "bin/python"
 PACKAGE = ROOT / "final_project/pupper_fc"
 TESTS = [
     "final_project/pupper_fc/tests/test_teleop_console.py",
+    "final_project/pupper_fc/tests/test_operator_link.py",
     "final_project/pupper_fc/tests/test_match_lobby.py",
     "final_project/pupper_fc/tests/test_moving_intercept.py",
     "final_project/pupper_fc/tests/test_balance_lobby.py",

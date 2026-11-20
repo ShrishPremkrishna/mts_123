@@ -16,15 +16,17 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .field_transport import finish_runner, remote_argv, ssh_host
 from .lobby import Lobby, Peer
+from .operator_link import OperatorLink, open_operator
 from .setup_session import open_setup, run_setup
 
 STATIC = Path(__file__).with_name("static")
 ROBOTS = {"blue": "pupper-1", "red": "pupper-2"}
 
 
-async def open_runner(host, robot_id):
+async def open_runner(host, robot_id, operator_owner=None):
+    owner_args = ["--operator-owner", operator_owner.replace("-", "")] if operator_owner else []
     return await asyncio.create_subprocess_exec(
-        *remote_argv(host, "match", "--runner-only", "--connect", "--robot-id", robot_id),
+        *remote_argv(host, "match", "--runner-only", "--connect", "--robot-id", robot_id, *owner_args),
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
 
 
@@ -59,7 +61,7 @@ def operator_message(data, robot_id):
     raise ValueError("Invalid operator control")
 
 
-def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=open_setup):
+def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=open_setup, operator=open_operator):
     hosts = hosts or {}
     hosts = {slot: ssh_host(host) for slot, host in hosts.items() if slot in ROBOTS and host}
     if len(set(hosts.values())) != len(hosts):
@@ -79,6 +81,7 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
     owners = set()
     setting_up = set()
+    operators = {}
 
     @app.get("/")
     async def home():
@@ -142,7 +145,7 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                     raise ValueError("Choose Blue or Red")
                 def can_select():
                     lobby.check_owner(token)
-                    if lobby.phase != "idle" or slot in owners:
+                    if lobby.phase != "idle" or slot in owners or slot in operators:
                         raise ValueError("Disconnect this team and end the match before changing its connection")
                 can_select()
                 explicit = data.get("host", "")
@@ -180,12 +183,42 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
     def available(ws, slot):
         origin = urlsplit(ws.headers.get("origin", ""))
         return (slot in hosts and slot not in owners
-                and (slot not in selected_by or selected_by[slot] == ws.query_params.get("owner")) and origin.scheme == "http"
+                and (slot not in selected_by or selected_by[slot] == ws.query_params.get("owner"))
+                and (slot not in operators or operators[slot].owner == ws.query_params.get("owner")) and origin.scheme == "http"
                 and origin.netloc == ws.headers.get("host") and origin.hostname in ("localhost", "127.0.0.1"))
+
+    @app.websocket("/operator/{slot}")
+    async def supervise(ws: WebSocket, slot: str):
+        if not available(ws, slot) or slot in operators or lobby.phase != "idle":
+            await ws.close(code=1008)
+            return
+        try:
+            owner = str(uuid.UUID(ws.query_params.get("owner", "")))
+            lobby.check_owner(owner)
+        except ValueError:
+            await ws.close(code=1008)
+            return
+        link = operators[slot] = OperatorLink(owner, ROBOTS[slot])
+        try:
+            await ws.accept()
+            proc = await operator(hosts[slot], link.robot, owner)
+            await link.run(ws, proc)
+        except (WebSocketDisconnect, BrokenPipeError, ConnectionResetError):
+            pass
+        except (OSError, ValueError, RuntimeError, TimeoutError) as exc:
+            with suppress(RuntimeError, WebSocketDisconnect):
+                await ws.send_json(dict(event="error", reason=str(exc) or "Pi operator connection lost"))
+        finally:
+            operators.pop(slot, None)
+            peer = lobby.peers.get(link.robot)
+            if peer and peer.owner == owner:
+                lobby.stop_requested(peer)
+            with suppress(RuntimeError, WebSocketDisconnect):
+                await ws.close()
 
     @app.websocket("/setup/{slot}")
     async def setup_robot(ws: WebSocket, slot: str):
-        if not available(ws, slot):
+        if not available(ws, slot) or slot in operators:
             await ws.close(code=1008)
             return
         owners.add(slot)
@@ -222,8 +255,16 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                 raise ValueError("End the current match before adding a team")
             owner = ws.query_params.get("owner")
             owner = str(uuid.UUID(owner)) if owner else uuid.uuid4().hex
-            proc = await connect(hosts[slot], robot_id)
-            peer = Peer(robot_id, hosts[slot], owner, proc)
+            link = operators.get(slot)
+            if ws.query_params.get("lease") == "1":
+                if not link or link.owner != owner or not link.current():
+                    raise ValueError("Reconnect and confirm supported standing in this window")
+                proc = await connect(hosts[slot], robot_id, owner)
+            else:
+                if link:
+                    raise ValueError("Finish supported standing before opening match controls")
+                proc = await connect(hosts[slot], robot_id)
+            peer = Peer(robot_id, hosts[slot], owner, proc, operator_link=link)
             lobby.peers[robot_id] = peer
 
             async def from_robot():
