@@ -3,8 +3,8 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej’s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
-  "mode": "fc_matchday_dashboard_verified",
-  "updated_utc": "2026-11-20T19:15:01+00:00",
+  "mode": "fc_appliance_offline_verified",
+  "updated_utc": "2026-11-20T19:23:28+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -132,7 +132,7 @@
       "completed": "Field camera closed. Both Pi sessions closed and recordings were copied and SHA-256 verified. No live offense source or controller."
     },
     "software_verification": "Both ffdaed5 packages rebuilt byte-identically. Extracted Mac launched under Chrome; independently extracted Pi application staged, imported the actual ROS client and matched all native sources. Three ROS rosters, including two warm standing sessions, passed. See latest release receipt.",
-    "fc_appliance_release": "Cold Connect/Home/Start and headless install; separate supported damping, one-corner snapshots, team-color patches and onboard pink-ball modes. See appliance release receipt."
+    "fc_appliance_release": "Verified offline: shipped both archive hashes and committed blobs, clean Mac launch and Chrome, standalone Pi stage/compile, systemd appliance rollback, and three final ROS rosters. See the appliance release record for timings and outstanding physical checks."
   },
   "hardware_session": {
     "status": "CLOSED after the last supervised test. The front-camera guard refused offense. Gateway Stop acknowledged at epoch 2, both leg controllers inactive before driver shutdown, all owned processes exited, recordings closed.",
@@ -203,7 +203,7 @@
     "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json",
     "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json",
     "final_offense_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0/archive-verification.json",
-    "offline_release_commit": "ffdaed5280d48fa382e18bc7fc6144b533c401c6"
+    "offline_release_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c"
   },
   "next": [
     {

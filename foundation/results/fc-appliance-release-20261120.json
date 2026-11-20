@@ -35,5 +35,306 @@
     "independently_reproduced": "An 8 ms scheduling pause during a wall-clock sample permanently disqualified the camera despite consistent clocks.",
     "fixed": "Retry one bounded measurement or skip this observation. Keep original capture time and 300 ms motion evidence expiry. Real 250 ms wall step still invalidates the session.",
     "checks": "51 clock, ingress and attack tests. New regression uses actual UDP publisher and Pi binding."
+  },
+  "source_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c",
+  "packages": {
+    "pupper-fc-laptop.zip": {
+      "sha256": "831c150359bb91f5015b0dc4f52c10a40a0d8e76cc0e39705ff26779eff1e408",
+      "bytes": 36535338
+    },
+    "pupper-fc-pi.tar.gz": {
+      "sha256": "cb6c0798aecc419a42079ccefbe63d544e122a9df066702410cda9eaa7caf910",
+      "bytes": 8464533
+    }
+  },
+  "git_objects": {
+    "commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c",
+    "laptop_source_blobs": 45,
+    "verified_wheel_hashes": 19,
+    "pi_source_blobs": 743,
+    "app_selected_digests": 58
+  },
+  "mac_extraction": {
+    "cold_http_ready_s": 4.175,
+    "running_lobby_reopen_s": 0.07,
+    "sim_camera_visible": {
+      "tags": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        10,
+        11
+      ],
+      "ball": true,
+      "robots": {
+        "striker": true,
+        "keeper": true
+      }
+    },
+    "warm_http_ready_s": 0.292,
+    "runtime_wheels": 19,
+    "source_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c"
+  },
+  "mac_extracted_chrome": {
+    "loaded_from": "/Users/shrish/.codex/worktrees/fc-teleop/cs123/outputs/pupper-fc-appliance/Pupper FC",
+    "live_hardware": false,
+    "calibrated_preview": "Mapped floor tags 0, 1, 2, 3, 4, 5 · Ball visible · Blue visible · Red visible",
+    "offline_check": "Synthetic field passed. Six floor tags, both robots, the ball and kickoff verified. One corner tag and both teams’ colour-patch positions and signed headings also passed.",
+    "errors": []
+  },
+  "dashboard_chrome": {
+    "cold_connect_home": true,
+    "standing_cue": true,
+    "warm_standby": true,
+    "onboard_confirmed": true,
+    "corner_inputs": true,
+    "desktop_width": 1440,
+    "mobile_width": 390,
+    "errors": []
+  },
+  "arm64_pi_build": {
+    "architecture": "aarch64",
+    "stage": {
+      "release": "/tmp/standalone-release",
+      "source_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c",
+      "files": 58,
+      "manifest_sha256": "14f19b9c87ba2f39a5428ec39d8f7ffb6933fae0a7cce9c707feb52bf7a1d773",
+      "profile": {
+        "controllers": [
+          "gemini_walk",
+          "trick_leg_kick"
+        ],
+        "motion_mode": "fc_walk_kick",
+        "walker_command_contract": "fc_deadline_v1",
+        "guard_arguments": [
+          "--command-contract",
+          "fc_deadline_v1",
+          "--arena-ball-contact"
+        ],
+        "clip_names": [
+          "kick_left",
+          "kick_right"
+        ],
+        "feedback_broadcasters": [
+          "imu_sensor_broadcaster"
+        ],
+        "imu_recovery": "strict",
+        "bounds": {
+          "forward": 0.49,
+          "backward": 0.3,
+          "sideways": 0.49,
+          "yaw_deg_s": 114.59155902616465
+        },
+        "motor_started": false
+      },
+      "native_binaries": "source-only; requires selected target-native controller, driver and gateway"
+    },
+    "verify_equal": true,
+    "robot_client": {
+      "source_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c",
+      "source_sha256": {
+        "final_project/behaviors/combined_fc_runner.py": "5b53c7f9ef8b4527cf2355cdf7a2bfc52d86df0c16ad4395dfe8089976f68cde",
+        "gemini_pupper/robot/fc_walk_kick.py": "cd3dadff7bea8cc6dee905e00a06e889eff5ad764fb460f8e02470048c8962bc",
+        "gemini_pupper/lab/operator_kick.py": "80afdd043430ada0e2cc15440f9891fd956237524208d543e698cc2329857636",
+        "gemini_pupper/robot/robot_api.py": "177e5c5865cd905ea25ef0aa9f3641688a98b508f3e81d3713c3d66c6afa974a"
+      },
+      "clients": {
+        "/controller_manager/list_controllers": [
+          "controller_manager_msgs/srv/ListControllers"
+        ],
+        "/controller_manager/switch_controller": [
+          "controller_manager_msgs/srv/SwitchController"
+        ]
+      },
+      "publishers": {
+        "/parameter_events": [
+          "rcl_interfaces/msg/ParameterEvent"
+        ],
+        "/rosout": [
+          "rcl_interfaces/msg/Log"
+        ],
+        "/trick_leg_kick/clip": [
+          "std_msgs/msg/String"
+        ]
+      },
+      "subscriptions": {
+        "/emergency_stop": [
+          "std_msgs/msg/Empty"
+        ],
+        "/estop_controller/stop_status": [
+          "std_msgs/msg/String"
+        ],
+        "/imu_sensor_broadcaster/imu": [
+          "sensor_msgs/msg/Imu"
+        ],
+        "/rosout": [
+          "rcl_interfaces/msg/Log"
+        ],
+        "/trick_leg_kick/clip_status": [
+          "std_msgs/msg/String"
+        ]
+      },
+      "available_skills": [
+        "leg_kick"
+      ],
+      "session": "Observe-only real rclpy graph in network-disabled ARM64 Jazzy container. No physical processes or controller/hardware services. validate_session_manifest=False solely for isolated operator-client construction."
+    },
+    "extracted_native_binaries": {
+      "control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so": "a0b86a8903b500eb2a26617fcb2b5789f6ef8a63263857b322fcfd3758595535",
+      "joy_utils/lib/joy_utils/estop_controller": "411c91d81b27c45de1d9c76db72643953b97aa77d24f7c53e27329e7bfb368e8",
+      "neural_controller/lib/libneural_controller.so": "05fd33b6138d5acb335c2db4704c8191acf16e4a4bdc539c6c10ea3851829b3f"
+    }
+  },
+  "pi_prepare_medians_s": {
+    "cold_prepare_process_s": 0.2341,
+    "warm_prepare_process_s": 0.0239,
+    "home_launch_description_s": 0.0361,
+    "cold_connect_to_home_prompt_s": 0.212,
+    "prepared_reconnect_to_home_prompt_s": 0.0211
+  },
+  "pi_prepare_scope": "Extracted Pi app; real ARM64 ROS process cold/warm Prepare and new dashboard Connect helper; rebuilt board plus earlier ABI-compatible walking/Stop libraries and approved HEF. No SSH, devices or actuator time.",
+  "bookworm_boot_test": {
+    "systemd": "systemd 252 (252.39-1~deb12u2)",
+    "modes": [
+      "appliance",
+      "appliance",
+      "appliance",
+      "normal"
+    ],
+    "observed_starts": 0,
+    "verified_condition_skips": [
+      "robot.service",
+      "pupper-gui.service",
+      "llm-agent.service",
+      "lightdm.service",
+      "cups.socket",
+      "volume-max.service"
+    ],
+    "preserved": [
+      "ssh",
+      "avahi",
+      "battery",
+      "Bluetooth",
+      "Hailo",
+      "NetworkManager",
+      "preexisting site drop-in",
+      "unit enablement symlink",
+      "previous default target"
+    ],
+    "scope": "Clean disposable Debian Bookworm ARM64 filesystem, actual systemctl and systemd-analyze condition, archived unit files. No Pi or live PID 1 reboot."
+  },
+  "boot_regressions": "65 adapted vendor scenarios and 9 independent regressions passed. Exact aliases, condition reset, foreign files, and concurrent administrator changes were exercised.",
+  "setup_rehearsal": "Real colcon board build and enrollment in an unprivileged isolated ARM64 fixture reflecting the preexisting qualified walker and separate Stop-gateway overlays. It selected the actual approved HEF, enrolled Blue then Red. Discovery/boot privilege calls and Hailo imports were substituted in this enrollment test. Boot configuration was separately verified on Debian ARM64 with real systemd.",
+  "quick_suite": "121 passed, plus 34 parametrized subtests. The extracted Mac also passed both built-in perception and kickoff checks.",
+  "ros_match_rehearsals": [
+    {
+      "roster": [
+        "pupper-1"
+      ],
+      "measured_width_m": 1.442886155351121,
+      "end_to_standby_s": 0.16,
+      "start_to_first_nonzero_s": 0.28,
+      "warm_restart_to_first_nonzero_s": 0.3,
+      "kick_completions": [
+        "r1-p0-k1",
+        "r1-p0-k2"
+      ],
+      "observed_ball_relocation_m": 0.24,
+      "integrated_second_approach_m": 0.24,
+      "new_capture_after_first_completion_s": 0.027,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-1": 570
+      },
+      "pending_frames": {
+        "pupper-1": 0
+      },
+      "wall_s": 12.22
+    },
+    {
+      "roster": [
+        "pupper-2"
+      ],
+      "measured_width_m": 1.442886155351121,
+      "end_to_standby_s": 0.258,
+      "start_to_first_nonzero_s": 0.328,
+      "warm_restart_to_first_nonzero_s": 0.309,
+      "kick_completions": [
+        "r1-p0-k1",
+        "r1-p0-k2"
+      ],
+      "observed_ball_relocation_m": 0.24,
+      "integrated_second_approach_m": 0.24,
+      "new_capture_after_first_completion_s": 0.003,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-2": 572
+      },
+      "pending_frames": {
+        "pupper-2": 2
+      },
+      "wall_s": 12.019
+    },
+    {
+      "roster": [
+        "pupper-1",
+        "pupper-2"
+      ],
+      "measured_width_m": 1.582886155351121,
+      "rejected_start_standby": true,
+      "end_to_standby_s": 0.299,
+      "start_to_first_nonzero_s": 0.406,
+      "warm_restart_to_first_nonzero_s": 0.375,
+      "score": {
+        "pupper-1": 1,
+        "pupper-2": 0
+      },
+      "early_resume_held_match": true,
+      "missed_red_goal_frames": 2,
+      "rally_after_replacement_and_resume": 2,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-1": 251,
+        "pupper-2": 242
+      },
+      "pending_frames": {
+        "pupper-1": 6,
+        "pupper-2": 7
+      },
+      "wall_s": 6.914
+    }
+  ],
+  "ros_scope": "Real ROS Jazzy and UDP field-source processes, production match director, executor, operator actions and kick handoff. Camera observations are scripted. Positions, kick completion, native guard readiness and gateway readiness are simulated in this match rehearsal. Compiled driver injection, obstacle guard and extracted-client checks are separate. Times measure the dashboard match request to a nonzero executor command on prepared peers. No physical motion measured.",
+  "rollback": "Using two actual extracted archives, restored the prior enrollment/manifest/prefix and disabled a first-managed install. Privilege call and native library contents were fixtures for this procedure. Debian test separately restored the real original systemd default.",
+  "models": {
+    "boot": {
+      "exact": [
+        "claude-fable-5-2"
+      ],
+      "finished": "end_turn"
+    },
+    "color": {
+      "exact": [
+        "claude-opus-5-5"
+      ],
+      "finished": "end_turn"
+    }
+  },
+  "outputs": "outputs/pupper-fc-appliance/verification",
+  "verification_sha256": {
+    "build.json": "6e90b087607684696146cbbb83121d1a3b1a607a52c549bb5025621f23b00004",
+    "git-objects.json": "ad45d76eb8dfead962fb8cbaa3e5e7a73b1662ee8d4e7c47dec2cefe037983fa",
+    "mac-extraction.json": "728578845449ee044ee42a25ef933db4b0cf0207572c51c01727e61ef60685aa",
+    "extracted-chrome.json": "3bb9a23b8968d9b34ac6366bf14eb43ca7aad98c7300dc809d03c3e82e843a7c",
+    "extracted-self-test.json": "3b5cd55fd7abfd0a4dc4621b1266a259dd0df058d5682a6725f575cf4f2f72ac",
+    "pi-extraction.json": "83668b5c47bf3c65da1ce88eb33086d8f07245c25a5f91e83a9beb34b0f659be",
+    "extracted-bookworm-boot.json": "b8c9bf490c35adc9bf4f3a834d1cfbeb4fa58481bbf27e798c922efca8dfc338",
+    "pi-prepare.json": "016f79ff449a8a8efbc6bbbe33062cb1047acf4561739565759f3cfd9a7f510e",
+    "dashboard-browser.json": "77e7435211369768910fbdd7e3b5c630eb641dc88334c799cb5e4452eb7a9c9c",
+    "final-acceptance.log": "c54d0ba57c4fa6df8efa76e16d9fed13dbc67888c3aa4ec9481a1b6caba372d0",
+    "cross-release-rollback.log": "a2b4d690de577ee379a2a1d7e95d3cfe018cb1846cc2b04b06e02747829f8464"
   }
 }
