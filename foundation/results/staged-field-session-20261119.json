@@ -358,5 +358,42 @@
     ],
     "review_scope": "Independent local reviews decoded raw telemetry for the straight and turning intervals. Fable 5.2 reviewed generic repeatability measurement. Automatic approval review blocked sending a private runbook and code excerpts for the additional external runbook review."
   },
-  "physical_test_status": "Owner requested analysis and discussion before any other tests. Physical session closed; native build suspended."
+  "physical_test_status": "Owner requested analysis and discussion before any other tests. Physical session closed; native build suspended.",
+  "teammate_kick_log_review": {
+    "reviewed_utc": "2026-11-20T02:13:24+00:00",
+    "source_branch": "tej/gemini-ball-kick",
+    "commit": "30b84a096deab79a43a966224ccd571c21f5662a",
+    "installed_release": "/home/pi/pupper-foundation-session-20261029/software-ballkick-20261119-u5",
+    "identity_check": "Installed robot_api.py, part9_ball_kick.py, leg_kick/trick.yaml and launch file matched branch files byte for byte. Effective walker settings matched the four example values.",
+    "log_directory": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs",
+    "kickfast3": {
+      "file": "20261119-kickfast3/server.log",
+      "sha256": "e19211597b57e315742b2c68e2fe75ae549ae26f48b5416b8f4752905279b7f6",
+      "commanded_approach_m": 0.305,
+      "interval": "Monotonic job start to finish, including preceding commanded approach and walker restoration.",
+      "trials": [
+        {
+          "time_local": "16:52",
+          "settle_s": 0.15,
+          "leave_s": 2.6,
+          "left_s": 5.761479,
+          "right_s": 5.62522
+        },
+        {
+          "time_local": "16:58",
+          "settle_s": 0.0,
+          "leave_s": 2.1,
+          "left_s": 4.980931,
+          "right_s": 5.030687
+        }
+      ],
+      "outcome": "All four terminal jobs succeeded and reported side-specific playback and locomotion active. Ball contact explicitly unmeasured. No direct timing of physical paw impact or first resumed walking step."
+    },
+    "kickfast4": {
+      "file": "20261119-kickfast4/server.log",
+      "sha256_at_review": "9afb9399b566ffd997e09dc897bd480cd9eb498b85f3879852d7b95c2e3fcdd0",
+      "scope": "Two dry-run approach jobs in the log at review. They skipped the kick. A commanded approach is not a measured endpoint."
+    },
+    "branched_report": "Tej reports about 12.5 s on older u3. His default-u5 estimate of 2.3 s from walking end to contact uses clip timing. The later 16:58 Pi records supersede the branch note that zero settle and a 2.1 s clip exit were untried."
+  }
 }

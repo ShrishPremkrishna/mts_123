@@ -304,12 +304,13 @@ operator kick with the current command epoch and follow its returned job ID
 in `GET /queue/status` (`recent_outcomes`). Record the requested side, observed
 foot, matching clip/frame, terminal result and restoration of the walker.
 The main operator path uses a 0.5-second kick initialization and 1.0-second
-fade. Capture a baseline with that release. Give the first return-to-walk
-comparison to Tej's u5 configuration. For a 0.305 m walk and kick on each
-side, Tej reports a 5.7 s whole job, an estimated 2.3 s from walk end to the
-clip's contact phase, and 2.2 s from that phase to a ready walker. Both clips
-were confirmed. A ball-contact trial on u5 was still open. The donor uses
-a shorter walker start from standing and a separate slow stand-up path.
+fade. Tej’s u5 is the first comparison candidate. The Pi logged both legs
+on the same commanded 0.305 m approach. Default settings took 5.76/5.63 s
+(left/right). Zero settling time and a 2.1 s clip exit took 4.98/5.03 s.
+All four jobs reported locomotion active. Tej’s estimated 2.3 s from walk
+end to the default clip’s contact phase needs an actual ball and synchronized
+video to validate. Use the default as the reference when checking whether the
+faster settings preserve balance, contact and the first walking step.
 Record the selected release, start pose, stability, clip progress and the
 first observed response to a new walk command for each comparison.
 [Tej's u5 trial and settings at 30b84a0](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#timing-of-the-kick-all-kick-tools)

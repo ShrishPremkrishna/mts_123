@@ -6,7 +6,14 @@ The selected demo shot uses Tej’s left or right leg kick. Shrish owns the fiel
 
 ## Fast transition candidate
 
-Tej’s u5 release uses direct kick clip entry and a short walker restart from standing. The optional walker profile sets 0.2 s initialization and 0.3 s fade, with a separate slow stand-up path. Tej reports left and right no-ball trials following a commanded 0.305 m walk. Whole-job time fell from 12.5 s on u3 to 5.7 s on u5. The 2.3 s from walk end to nominal paw contact and 2.2 s from that phase to walker readiness use the clip’s expected contact frame. Those trials establish neither observed impact time nor physical response to the next walk command. [Tej’s timing table and release settings](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#timing-of-the-kick-all-kick-tools)
+Tej’s u5 release uses direct kick clip entry, a short walker restart from standing (0.2 s initialization and 0.3 s fade) and a separate slow stand-up path. The Pi log has four successful jobs. Each includes a commanded 0.305 m approach and reports restoration of locomotion.
+
+| u5 configuration | Left, whole job | Right, whole job |
+| --- | ---: | ---: |
+| Default 0.15 s settle, exit clip at 2.6 s | 5.76 s | 5.63 s |
+| Zero settle, exit clip at 2.1 s | 4.98 s | 5.03 s |
+
+Tej reports 12.5 s on the older u3 release. His default-u5 estimate of 2.3 s from walk end to impact uses the clip’s expected contact frame. Actual impact, direction and the first resumed walking step were unmeasured in these four jobs. The later 16:58 Pi records supersede the branch note that the faster settings were untried. A newer kickfast4 log contained two approach-only dry runs. [Pi record and log identities](../../foundation/results/staged-field-session-20261119.json) · [Tej’s branch report](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#timing-of-the-kick-all-kick-tools)
 
 Keep the fast transition as a selective integration candidate. The donor can count a return to the idle clip as completion, and the optional walker settings need binding to the active launch as well as the tool process. Main’s operator kick checks the requested side/clip and verifies walker restoration. Its kick blend is still 0.5 s initialization plus 1.0 s fade. The field-game bridge currently requires the stock walker, while the kick tool requires Gemini’s walker and trick controller. Use one compatible runtime that gives walking, kick and Stop exclusive ownership in turn. [Operator kick](../../gemini_pupper/lab/operator_kick.py) · [Field-game bridge](../behaviors/fc_executor_bridge.py)
 

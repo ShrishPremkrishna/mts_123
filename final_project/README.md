@@ -30,8 +30,8 @@ can proceed with a loose tag before a robot is available. The [tracked navigatio
 uses the same target with measured robot poses once the mounted camera, timing,
 field dimensions and Pi runtime have been qualified.
 
-Tej’s `tej/gemini-ball-kick` branch advanced to `30b84a0`. Its u5 trials
-report a shorter walking-to-kick-to-walking cycle for both legs with no ball.
+Tej’s `tej/gemini-ball-kick` branch advanced to `30b84a0`. The Pi logged u5 walk–kick–walk jobs of 5.76/5.63 s for left/right, then
+4.98/5.03 s with the shorter settings. Ball contact was unmeasured.
 Shared main has the conservative, explicitly enabled kick in place. Qualifying
 the faster return and a real step after each kick is the first motion block
 after alignment. The [shooting handoff](handoffs/SHOOTING.md) records the
