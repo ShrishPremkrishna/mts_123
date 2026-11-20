@@ -11,68 +11,57 @@ goal-directed shots, automatic offense/defense, smooth responsive execution and
 shared overhead tracking. First establish this sequence; earlier endurance targets
 remain qualification work after it is physically achievable.
 
-**First observable result.** From a marked start, repeat one short straight pulse
-and measure each stopped endpoint with tape and a heading reference. The stock
-floor-tested release and frozen client support this step today if the same
-release passes fresh preflight and supervised startup. Choose the target and
-number of attempts before the first run. Record every attempt, endpoint spread,
-target error and interruptions. The [first-trial procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#first-camera-free-straight-trial)
-uses a 20 cm nominal target. The prior 30-inch observation came from a different
-speed and duration.
+**First robot block after owner alignment — Tej’s faster leg-kick transition.**
+Select and identify one compatible walker/kick release. Reproduce the left and
+right approaches to a marked spot with no ball, one kick each and a measured
+walking step after each return. Capture the final walk command, actual clip
+entry and completion, walker restoration, physical balance and first resumed step.
+Keep Stop available to the operator. Then use the intended ball at marked offsets
+and record actual time to contact, direction, distance, misses and resumed walking.
+Use the [shooting handoff](handoffs/SHOOTING.md) and
+[operator procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#operator-kick-after-the-straight-baseline)
+for candidate identities and what the existing receipts prove.
 
-**Next tracked result.** One tagged robot reaches a scripted field pose
-`(x, y, yaw)` under real overhead feedback. Use the same target as the
-camera-free trial. To add combined camera-free trials, qualify relative IMU
-turns separately on the selected newer client. Both trials can proceed without
-the ball. A later moving run-up needs a separate braking and contact test.
+**Parallel camera block.** Qualify the real mount, field scale, capture age and
+robot heading against tape with motors idle. Corner IDs 0/1/2/3 are west-south,
+east-south, east-north and west-north. IDs 10/11 identify robots. Goals use
+measured field geometry. Measure printed tag size, standing tag height, center
+offset and heading offset. Compare camera position and yaw to independent marks
+around both goals. Complete the held native build and qualify its command path
+once agreed for tracked navigation.
 
-1. The overhead producer, calibration-health correction and measured-clock adapter
-   are integrated locally. Use the normalized ingress with the existing executor
-   when qualifying tracking. The producer’s `--drive` example has a separate
-   command path.
-2. Establish camera-only field calibration and robot-tag coverage at the real mount.
-   Floor corner IDs are 0 west-south, 1 east-south, 2 east-north, 3 west-north.
-   IDs 10/11 identify robots; their names do not lock their soccer roles.
-   The current goals come from field geometry, not goal-mounted tag detection.
-   Measure the field, goal mouths, printed tag size, standing tag height and offset.
-3. Complete the target-native build/selection and motor-inactive admission checks,
-   then a supervised short motion check before arbitrary pose trials.
-4. Use a small fixed matrix of target positions/headings and different starts,
-   retain every attempt, and measure final position and heading against independent
-   tape marks as well as the camera. A proposed first precision target is 5 cm and
-   5 degrees sustained for 0.5 seconds, subject to measured tracking capability;
-   report distributions, settling time, overshoot and interruptions, not only hits.
-5. Qualify a short marked run-through separately, then actual contact once the ball
-   arrives. Choose run-up and follow-through from measured geometry and braking.
-   Do not default to an additional two-metre open-loop burst. Tej's leg kick can
-   replace the strike only when its executable policy, entry/exit and physical
-   evidence are available. Then commission robot two and rehearse the short match.
+**First integrated play.** First use a fixed field target with real robot pose
+feedback and compare final x, y and heading against tape from several starts.
+The November 19 forward trials supply an approximate straight baseline. The
++20° IMU turn timed out, so qualify terminal heading against an external mark.
+Then specify a target for the robot center that places the actual ball beside
+the selected paw, with yaw aimed through the ball toward the goal. Use fresh
+overhead pose to steer continuously and slow for the final alignment. Measure the
+safe kicking position and heading window on the real ball before adopting
+acceptance thresholds. Use one command owner, stop walking, dispatch one leg kick,
+confirm the requested clip and walking recovery, and reacquire field state.
+Until the leg action is connected and qualified, hold at the kick position.
+The current autonomous executor still drives forward to simulate a strike.
 
-This block excludes new gait training, self-righting attempts, another approach
-planner, broad detector searches and presentation polish. The existing calibrated
-camera stop/hold path and physical Stop remain part of execution qualification.
-The [November 19 review](../foundation/results/perception-integration-review-20261119.json)
-records incoming commits, tests, reproduced defects and deferred work.
-
-The separately supplied `tej/gemini-ball-kick` handoff at `07ed0fd` corrects the
-earlier branch inventory: it contains leg-kick assets and tools. Review found
-unrelated gate removal, timed navigation and concrete speed/freshness/result
-defects. Do not merge it wholesale. The selected extraction is an explicitly enabled operator kick in place. Record
-actual clip entry and completion, then verify return to the walker. Prior contact
-is a teammate report. Faster transitions still need qualification on a selected
-runtime. Keep the first straight trials on the stock motion release.
+**Next increments.** Measure ball displacement during the wind-up and update
+moving-ball targets up to commitment. Commission robot two, validate each team's
+role transitions, and rehearse the short match. Keep front-camera person stopping
+in the physical qualification. Consider onboard ball refinement only if measured
+overhead error or occlusion prevents consistent placement. Longer gait sweeps and
+additional training can wait for a demonstrated limitation.
+[Floor and timing evidence](../foundation/results/staged-field-session-20261119.json).
 
 ## Outcome and ownership
 
-Two Puppers sustain offensive and defensive play using overhead vision and a 2D field model. The working base includes locomotion, headbutt shooting, tracking, autonomous positioning and goal restarts. The owner accepted manual ball replacement and one deliberate resume cue for the first working game. Self-righting receives a bounded feasibility investigation before commitment to the demo. Foot kicking and a special goalie pose are stretch goals. Ball-in-simulation training is a later experiment, not a prerequisite for the first working game.
+Two Puppers sustain offensive and defensive play using overhead vision and a 2D field model. The demo requires tracked positioning, shooting with Tej’s leg policy, defense and goal restarts. The owner accepted manual ball replacement and one deliberate resume cue for the first working game. Self-righting receives a bounded feasibility investigation before commitment to the demo. A special goalie pose remains optional. Ball-in-simulation training is a later experiment, not a prerequisite for the first working game.
 
 | Owner | Outcome |
 | --- | --- |
-| Shrish — [movement notes](handoffs/MOVEMENT.md) | Taking over controllable forward/lateral motion, turning, braking, stability and locomotion-based headbutts. Existing teammate gait exports remain candidates; measured limits are still needed. |
-| Tej — [shooting](handoffs/SHOOTING.md) | Foot-kick policy, with known entry conditions, contact and exit behavior. Headbutt baseline now belongs to Shrish. |
+| Shrish — [movement notes](handoffs/MOVEMENT.md) | Controllable forward/lateral motion, turning, braking, stability and accurate placement for the selected paw. Existing teammate gait exports remain candidates; measured limits are still needed. |
+| Tej — [shooting](handoffs/SHOOTING.md) | Foot-kick policy, with known entry conditions, contact and exit behavior. Shrish owns the approach and handoff. |
 | Ryan — [perception](handoffs/PERCEPTION.md) | iPhone ingestion, field coordinates, persistent robot identities/headings, ball position/velocity, goals, shooting geometry and observation age/validity. |
 | Shrish, assisted by agents — gameplay/integration | Offense/defense selection, approach execution, command ownership, interruption, recovery coordination, startup, operator view and whole-game validation. |
-| Shrish — arena | Camera mounting, boundaries/goals, markers, ball, surface and bumper arrangement for repeatable trials. Coordinate dimensions and markers with Ryan. |
+| Shrish — arena | Camera mounting, boundaries/goals, markers, ball, surface and paw contact marks for repeatable trials. Coordinate dimensions and markers with Ryan. |
 
 These are the team's current areas, not fixed roles for incoming agents. Get-up was previously P0; the accepted takeover recommendation is a bounded feasibility investigation before committing it to the demo. Physical-motion ownership remains to be assigned. Shrish and assisting agents own its gameplay integration. The first playable prototype can advance while recovery is open; it must not be described as having solved recovery. Technical boundaries may change jointly without dropping an outcome.
 
@@ -131,7 +120,7 @@ Use the existing checkpoint for active owners, exact next action, verified comma
 
 ## Game behavior and proposed rules
 
-Offense selects a target, approaches the useful side of the ball, aligns the bumper, strikes, brakes and reassesses. The current defensive baseline takes a goal-side position facing the ball and updates that position as the ball moves. Role selection uses ball position relative to the own goal, distinct entry/exit thresholds and a minimum dwell to limit oscillation. Predictive interception is optional work only if measured play shows this heuristic is insufficient.
+Offense selects a target, approaches the useful side of the ball, aligns the selected paw, hands control to the kick policy, verifies walker recovery and reassesses. The current defensive baseline takes a goal-side position facing the ball and updates that position as the ball moves. Role selection uses ball position relative to the own goal, distinct entry/exit thresholds and a minimum dwell to limit oscillation. Predictive interception is optional work only if measured play shows this heuristic is insufficient.
 
 Manual ball replacement and one deliberate resume cue are accepted for the first working game; detailed game rules remain adjustable. A missed shot, moving ball or blocked route causes reassessment rather than stale timed actions. Geometry and heuristics can establish a baseline; learned decision-making remains an option. Proposed placement: local gameplay handles time-sensitive control, while voice sets intent and explains state.
 
@@ -167,7 +156,7 @@ gains, limits and fall stopping remain unchanged. Physical get-up stays open.
 Agree these meanings at the first connection and version changes with affected owners. Schemas, libraries and transport remain open.
 
 - Field axes, metric units, heading convention, body-to-field conversion, robot IDs and goal ownership. Convert explicitly at existing ROS/tool boundaries.
-- Capture time, clock basis and observation age; measured, predicted and missing states. Include robot footprint, bumper contact offset and ball radius. Camera distortion and elevated marker effects need calibration even with 2D gameplay.
+- Capture time, clock basis and observation age; measured, predicted and missing states. Include robot footprint, measured left/right foot contact offsets and ball radius. Camera distortion and elevated marker effects need calibration even with 2D gameplay.
 - Skill entry conditions, limits, interruption and completion meanings. Navigation targets must be replaceable rather than accumulating in a queue.
 - One effective motion owner per robot across gameplay, strike, recovery, voice and joystick; Stop has priority. Commands identify their robot.
 - Robot-local expiration of stale motion intent covering lost camera, laptop, network or publisher. An upstream timeout cannot cover that process dying. Reconnect establishes fresh authority.
@@ -190,7 +179,7 @@ These are integration outcomes, not a serial allocation of teammate time. Every 
 
 1. **See the field.** Live overlay and recorded replay show identities/headings, ball, goals and observation age. Check known positions, motion, occlusion and reacquisition.
 2. **Reach a pose.** Existing gait reaches marked positions with chosen heading and stops. Measure position/heading error, response delay and stopping distance.
-3. **Complete a play.** Find, approach, shoot, reacquire and repeat from varied arrangements. Record attempts, useful shots/goals, elapsed time and interventions. Compare specialized shooting against this baseline before adding training complexity.
+3. **Complete a play.** Find, approach, shoot, reacquire and repeat from varied arrangements. Record attempts, useful shots/goals, elapsed time and interventions. Retain the chosen foot, observed ball travel and first resumed walking step.
 4. **Defend and recover.** Intercept rolled balls with measured lateral reach; demonstrate fall stopping, supervised restart and temporary perception loss. Add physical get-up only if its bounded feasibility work supports that commitment.
 5. **Play against an opponent.** Use replay, simplified simulation and physical surrogates before robot two is available. Then commission its own profile/calibration and run real matches. Robot one's acceptance does not validate robot two.
 6. **Sustain the demo.** Repeat match-length trials with shots, defense, misses, goal restart and representative recovery. Separately exercise camera/command loss, Stop and restart. Set numerical thresholds before acceptance and retain failures.

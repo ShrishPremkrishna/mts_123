@@ -1,26 +1,9 @@
 {
-  "recorded_utc": "2026-11-20T01:00:56+00:00",
+  "recorded_utc": "2026-11-20T01:45:27+00:00",
   "baseline_integration": "4bf115c",
   "kick_stage": "a33645c",
   "branch": "main",
   "prior_integration_report": "foundation/results/perception-harness-integration-20261119.json",
-  "pi": {
-    "host": "mts",
-    "boot": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
-    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
-    "profile": "sprint",
-    "manifest": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1",
-    "trial_client": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
-    "preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-uZ0QxGWY/preflight.json",
-    "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
-    "cpu_temperature_c_sample": 74.9,
-    "motion_started": false,
-    "preflight_status": "Historical. Another operator started a separate controller manager after this receipt.",
-    "operator_run_at_last_observation": "20261119-kickfast3",
-    "sampled_utc": "2026-11-20T00:58:59Z",
-    "motion_scope": "FC deployment did not start or command the robot. A separate operator owns the active controls.",
-    "gamepad_at_last_observation": "DualSense Wireless Controller on event10/js0. Verify again at handover."
-  },
   "target_preparation": {
     "source_directory": "/home/pi/pupper-fc-source/build-prep-nov19",
     "source_controller_files_verified": 779,
@@ -32,7 +15,7 @@
     "native_runner_sha256": "384f6bac50d0b7bbfb029c57b8c32e2ae016c02c0a03e0a4975862236671e223",
     "inputs_verified_on_boot": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
     "verified_target_tools": 7,
-    "build_slot": "Run controller and gateway packages separately in an idle Pi slot. Single-threaded build and native tests remain outstanding.",
+    "build_slot": "Controller compiled partway in a separate target prefix. The owner requested discussion before further tests.",
     "legacy_guarded_walk": {
       "path": "/home/pi/pupper-fc-releases/guarded-walk-legacy-yyT1gN59",
       "manifest": "a75e178043a2ef7c2f30fda0cedd0bc513b21d7ad26ec8720b20f158788a6a2e",
@@ -49,7 +32,19 @@
       "simulated_absolute_and_relative_turns": true,
       "physical_acceptance": false
     },
-    "local_verification": "artifacts/pupper-fc/2026-11-19/pi-native-build/summary.json"
+    "local_verification": "artifacts/pupper-fc/2026-11-19/pi-native-build/summary.json",
+    "native_build_hold": {
+      "status": "Manually suspended. No automatic continuation.",
+      "controller_stage": "75% displayed during compilation of test_neural_controller_safety.cpp",
+      "native_tests_started": false,
+      "gateway_build_started": false,
+      "installed_new_release": false,
+      "verified_stopped_process_count": 11,
+      "session_id": 18996,
+      "boot_id": "0b821fb1-480f-4575-9e5c-bd4565bd690e",
+      "stage_directory": "/home/pi/pupper-fc-source/build-prep-nov19/build-RjkuMKsB",
+      "evidence": "artifacts/pupper-fc/2026-11-19/pi-native-build/execution-3nw9utm1/hold.json"
+    }
   },
   "kick": {
     "source_branch": "tej/gemini-ball-kick",
@@ -74,8 +69,8 @@
     ],
     "speed_m_s": 0.2,
     "nominal_duration_s": 1.0,
-    "endpoint": "pending measurement",
-    "independent_physical_readiness": "After owner handover and fresh preflight, use the stock sprint walker on a marked lane. No new floor run in this session.",
+    "endpoint": "Four forward pulses of one second and one pulse of two seconds completed. Operator measured about 8 in for a 20 cm target and estimated about 15 in for a 40 cm target.",
+    "independent_physical_readiness": "Closed. Fresh supervision and preflight needed for another floor session.",
     "score_verification": "Measured x/y and heading are independent. Accuracy uses available x/y endpoints; spread requires at least two. Twenty focused plan/scoring tests passed."
   },
   "tracked_play": {
@@ -151,11 +146,265 @@
       "frames_with_capture_clock_budget": 98
     },
     "qualified_for_live_guidance": false,
-    "next": "Qualify the intended arena route with no bulk transfers and measure actual frame age. Prefer a short wired path or a nearby dedicated access point."
+    "next": "Use the direct arena path for the next camera trial. Test conservative clock-bound retention in playback and measure real capture age and coverage through the actual receiver.",
+    "direct_lan": {
+      "probes": 16,
+      "admitted": 9,
+      "frames": 229,
+      "frames_with_capture_clock_budget": 148,
+      "rtt_min_p50_max_ms": [
+        4.297,
+        19.221,
+        94.003
+      ],
+      "observation": "All 229 synthetic frames arrived. The longest uninterrupted stretch without an eligible clock estimate lasted 1.935 s.",
+      "qualified_for_live_camera_guidance": false
+    }
   },
   "regression_on_mac": {
     "fc_gameplay_operator_kick_status_and_pose_tests": 636,
     "perception_tests": 70,
-    "physical_trials_in_this_session": 0
+    "physical_trials_in_this_session": 0,
+    "additional_behavior_and_gemini_suite": "2044 passed in first broad run. The remaining three passed after permitting loopback and building the lockfile-pinned web bundle. Completed before owner requested a hold."
+  },
+  "previous_pi_staging": {
+    "host": "mts",
+    "boot": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
+    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "profile": "sprint",
+    "manifest": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1",
+    "trial_client": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-uZ0QxGWY/preflight.json",
+    "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
+    "cpu_temperature_c_sample": 74.9,
+    "motion_started": false,
+    "preflight_status": "Historical. Another operator started a separate controller manager after this receipt.",
+    "operator_run_at_last_observation": "20261119-kickfast3",
+    "sampled_utc": "2026-11-20T00:58:59Z",
+    "motion_scope": "FC deployment did not start or command the robot. A separate operator owns the active controls.",
+    "gamepad_at_last_observation": "DualSense Wireless Controller on event10/js0. Verify again at handover."
+  },
+  "pi": {
+    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "profile": "sprint",
+    "manifest": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1",
+    "trial_client": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
+    "host": "mts",
+    "boot": "0b821fb1-480f-4575-9e5c-bd4565bd690e",
+    "preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-VJBLdGpR/preflight.json",
+    "manager": 6186,
+    "release_sha_verified": true,
+    "selected_heading_client_commit": "dc3e124c6cb2db645197dc8798fbfcc854699be0",
+    "source_commit_during_forward_runs": "454d3ef1e07ee4ca4f1b4d5db1291313ca37bc43",
+    "operator_end_state": "Pupper supported on the stand. The selected driver logged successful deactivation and shutdown, manager and launch exited, and bag metadata closed."
+  },
+  "field_trials": {
+    "scope": "Camera-free. Travel estimated by the operator from tape. No lateral endpoint dataset or externally measured yaw. Command integral is not physical distance.",
+    "stock_forward": [
+      {
+        "trial": 1,
+        "nominal_target_m": 0.2,
+        "control_samples": 22,
+        "matched": true,
+        "onset_ms": 37.3,
+        "zero_feedback_ms": 44.8,
+        "imu_yaw_change_deg": -0.72,
+        "tape_travel_m_approx": null,
+        "observation": "No measurement reported.",
+        "receipt_sha256": "dbd554636149d30e8e34bd7f4a3e55bdb5545a7e355ad249907f7f407bd62561",
+        "raw_bag": {
+          "input_to_observed_controller_command_ms": 35.67,
+          "input_zero_to_observed_controller_zero_ms": 44.48,
+          "yaw_change_at_input_zero_deg": -0.587,
+          "yaw_change_one_second_after_zero_deg": -1.023,
+          "native_nonzero_samples_in_1s_after_zero": 0
+        }
+      },
+      {
+        "trial": 2,
+        "nominal_target_m": 0.2,
+        "control_samples": 22,
+        "matched": true,
+        "onset_ms": 97.1,
+        "zero_feedback_ms": 52.6,
+        "imu_yaw_change_deg": -0.57,
+        "tape_travel_m_approx": null,
+        "observation": "Initially estimated six inches. Same endpoint as next taped run, then tape displacement was measured at about eight inches. No separate measurement for this attempt.",
+        "receipt_sha256": "e0d329b570f666d84752fdd89c041a014165d6a9ed7fc073515edf8b27920c49",
+        "raw_bag": {
+          "input_to_observed_controller_command_ms": 53.07,
+          "input_zero_to_observed_controller_zero_ms": 51.86,
+          "yaw_change_at_input_zero_deg": -0.403,
+          "yaw_change_one_second_after_zero_deg": -1.733,
+          "native_nonzero_samples_in_1s_after_zero": 0
+        }
+      },
+      {
+        "trial": 3,
+        "nominal_target_m": 0.2,
+        "control_samples": 22,
+        "matched": true,
+        "onset_ms": 53.7,
+        "zero_feedback_ms": 43.7,
+        "imu_yaw_change_deg": -0.54,
+        "tape_travel_m_approx": 0.2032,
+        "observation": "Same marked start and heading as trial 2. Operator reported same distance and subsequently measured approximately eight inches. Lateral endpoint unmeasured.",
+        "receipt_sha256": "e2a6ae37844d7353e396f5e15858ad97e1d5824eac49bb59a685f2c7e7e0dc68",
+        "raw_bag": {
+          "input_to_observed_controller_command_ms": 49.34,
+          "input_zero_to_observed_controller_zero_ms": 43.39,
+          "yaw_change_at_input_zero_deg": -0.46,
+          "yaw_change_one_second_after_zero_deg": -0.874,
+          "native_nonzero_samples_in_1s_after_zero": 0
+        }
+      },
+      {
+        "trial": 4,
+        "nominal_target_m": 0.2,
+        "control_samples": 22,
+        "matched": true,
+        "onset_ms": 64.2,
+        "zero_feedback_ms": 66.1,
+        "imu_yaw_change_deg": -0.44,
+        "tape_travel_m_approx": null,
+        "observation": "Reset to same tape confirmed. Operator said normal. Numerical endpoint and lateral offset unreported.",
+        "receipt_sha256": "aeb95e0d884b62a519033ea629700e5e63a49cc74614fb679c40ab0373a53acb",
+        "raw_bag": {
+          "input_to_observed_controller_command_ms": 24.14,
+          "input_zero_to_observed_controller_zero_ms": 65.79,
+          "yaw_change_at_input_zero_deg": -0.41,
+          "yaw_change_one_second_after_zero_deg": -2.225,
+          "native_nonzero_samples_in_1s_after_zero": 0
+        }
+      },
+      {
+        "trial": 5,
+        "nominal_target_m": 0.4,
+        "control_samples": 42,
+        "matched": true,
+        "onset_ms": 60.1,
+        "zero_feedback_ms": 47.1,
+        "imu_yaw_change_deg": -1.86,
+        "tape_travel_m_approx": 0.381,
+        "observation": "Same start confirmed. Owner estimated around 15 inches. Lateral offset and yaw not reported.",
+        "receipt_sha256": "8cbb65e67d4d4f8f9320b0af3793b526025b239bb88d60c2d33f0c449f837c97",
+        "raw_bag": {
+          "input_to_observed_controller_command_ms": 57.44,
+          "input_zero_to_observed_controller_zero_ms": 46.59,
+          "yaw_change_at_input_zero_deg": -1.762,
+          "yaw_change_one_second_after_zero_deg": -0.976,
+          "native_nonzero_samples_in_1s_after_zero": 0
+        }
+      }
+    ],
+    "turn": {
+      "target_deg": 20,
+      "relative": true,
+      "timeout_s": 6.0,
+      "imu_change_deg": 15.59,
+      "final_error_deg": 4.41,
+      "confirmed_external_angle": null,
+      "stable_completion": false,
+      "matched_feedback_observations": 117,
+      "unmatched_feedback_observations": 0,
+      "zero_confirmed_in_trial": false,
+      "interruption": "heading timeout before stable completion",
+      "end_state": "Timeout triggered Stop. Separate native shutdown and release verified on the stand.",
+      "client_sha256": "60ac1f6604df2ff7ccf1b6f6201fad80e21d463275ed61bce6b0b7407005aa39",
+      "checker_sha256": "cabb50664fef4a57dc7c041569ec526c97c1a380acf6dc6937fdaa9dc55c3da2",
+      "receipt_sha256": "994e6d39b07dfcaae4ff3711e21a00a4f0d289de2d33f03d07dd83201b82d67d",
+      "peak_imu_change_deg": 17.87,
+      "required_dwell_ms": 300,
+      "observed_in_band_span_ms": 95.03,
+      "native_emergency_event_s": 6.00079,
+      "mux_output_zero_s": 6.033184,
+      "subsequent_gateway_latch_observed_in_first_2s": false,
+      "driver_deactivated_after_timeout_s": 81.215,
+      "interpretation": "Turn rate decreased near the target. Yaw briefly entered tolerance, then left it. The final native zero sample is absent. This trace cannot establish a motor deadband, bad gait policy, physical braking time or the outcome with a longer timeout."
+    },
+    "closure": {
+      "hardware_deactivated": true,
+      "run_dir": "/home/pi/pupper-fc-runs/coordinate-stage1-VJBLdGpR",
+      "telemetry_bytes": 499097569,
+      "telemetry_sha256": "cf8b47888a6e98fbfc0db0805c76152ba8da01579dfe3936e8e76e053c192209",
+      "archive": {
+        "verified_files": 21,
+        "verified_bytes": 499399851,
+        "includes_closed_telemetry": true,
+        "remote_index_sha256": "53db412a9b2137b242e42ce7fad8e81fbb8d87a57b9918a96d7257fd255d9e42"
+      }
+    },
+    "local_evidence": "artifacts/pupper-fc/2026-11-19/coordinate-stage1-VJBLdGpR",
+    "recording": {
+      "messages": 720222,
+      "duration_s": 1193.36,
+      "recorded_channels": 9,
+      "external_position_or_camera_video": false,
+      "straight_cmd_onset_ms_range": [
+        24.14,
+        57.44
+      ],
+      "straight_cmd_zero_ms_range": [
+        43.39,
+        65.79
+      ],
+      "long_run_transient_imu_yaw_deg": -3.11
+    },
+    "analysis_files": [
+      "artifacts/pupper-fc/2026-11-19/coordinate-stage1-VJBLdGpR/straight-bag-analysis.json",
+      "artifacts/pupper-fc/2026-11-19/coordinate-stage1-VJBLdGpR/heading-analysis.json",
+      "artifacts/pupper-fc/2026-11-19/coordinate-stage1-VJBLdGpR/heading-response.png"
+    ],
+    "review_scope": "Independent local reviews decoded raw telemetry for the straight and turning intervals. Fable 5.2 reviewed generic repeatability measurement. Automatic approval review blocked sending a private runbook and code excerpts for the additional external runbook review."
+  },
+  "physical_test_status": "Owner requested analysis and discussion before any other tests. Physical session closed; native build suspended.",
+  "teammate_kick_log_review": {
+    "reviewed_utc": "2026-11-20T02:13:24+00:00",
+    "source_branch": "tej/gemini-ball-kick",
+    "commit": "30b84a096deab79a43a966224ccd571c21f5662a",
+    "installed_release": "/home/pi/pupper-foundation-session-20261029/software-ballkick-20261119-u5",
+    "identity_check": "Installed robot_api.py, part9_ball_kick.py, leg_kick/trick.yaml and launch file matched branch files byte for byte. Effective walker settings matched the four example values.",
+    "log_directory": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs",
+    "kickfast3": {
+      "file": "20261119-kickfast3/server.log",
+      "sha256": "e19211597b57e315742b2c68e2fe75ae549ae26f48b5416b8f4752905279b7f6",
+      "commanded_approach_m": 0.305,
+      "interval": "Monotonic job start to finish, including preceding commanded approach and walker restoration.",
+      "trials": [
+        {
+          "time_local": "16:52",
+          "settle_s": 0.15,
+          "leave_s": 2.6,
+          "left_s": 5.761479,
+          "right_s": 5.62522,
+          "kick_to_walker_activation_s": {
+            "left": 3.25,
+            "right": 3.249
+          }
+        },
+        {
+          "time_local": "16:58",
+          "settle_s": 0.0,
+          "leave_s": 2.1,
+          "left_s": 4.980931,
+          "right_s": 5.030687,
+          "kick_to_walker_activation_s": {
+            "left": 2.7,
+            "right": 2.75
+          }
+        }
+      ],
+      "outcome": "All four terminal jobs succeeded and reported side-specific playback and locomotion active. Ball contact explicitly unmeasured. No direct timing of physical paw impact or first resumed walking step.",
+      "native_log": "20261119-kickfast3/robot.log",
+      "native_interval": "Controller-manager activation of trick_leg_kick to activation of gemini_walk. Excludes the approach, walker readiness delay and subsequent physical step.",
+      "native_log_sha256": "0971bc5ce561de036eebde11d22f435c830f197768c9d485b1cc0cb2f1a126bf"
+    },
+    "kickfast4": {
+      "file": "20261119-kickfast4/server.log",
+      "sha256_at_review": "9afb9399b566ffd997e09dc897bd480cd9eb498b85f3879852d7b95c2e3fcdd0",
+      "scope": "Two dry-run approach jobs in the log at review. They skipped the kick. A commanded approach is not a measured endpoint."
+    },
+    "branched_report": "Tej reports about 12.5 s on older u3. His default-u5 estimate of 2.3 s from walking end to contact uses clip timing. The later 16:58 Pi records supersede the branch note that zero settle and a 2.1 s clip exit were untried."
   }
 }

@@ -1,8 +1,8 @@
 # Movement
 
-November 16, 2026 · [Pupper FC brief](../README.md)
+November 19, 2026 · [Pupper FC brief](../README.md)
 
-**Outcome:** Give two autonomous Pupper soccer players fast, controllable movement on the roughly 8×12 ft field: body-frame forward/backward and lateral travel, turning, acceleration, braking and stability. The [project brief](../README.md) owns current assignments: Shrish owns movement, headbutts and gameplay integration with assisting agents; Tej owns foot-kick work, and Ryan owns perception. Physical get-up scope and ownership are reopened for owner discussion; see the current brief.
+Give two autonomous Puppers controllable forward, backward and lateral travel, turning and braking on the roughly 8 × 12-foot field. Shrish owns movement and gameplay integration, Tej owns the leg kick, and Ryan owns overhead perception. For a shot, the walker must reach a measured pose behind the ball that puts it on the selected paw's line, settle, then hand the legs to the kick. The [project brief](../README.md) records the current agreement.
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
@@ -13,7 +13,7 @@ Start with the available gait and [native controller](../../pupper_gait_deploy/R
 ## Required deliverables
 
 - A measured movement envelope: achieved speed in ±bodyX and ±bodyY, turning, acceleration, braking time/distance, stability, and limiting failures.
-- Demonstrated entry, transitions, interruption, and exit between locomotion, shooting, stopping, and recovery. After a goal, robots must reposition and wait for ball replacement with software still running, without routine rehoming.
+- Measure elapsed time from the last walk command to foot contact, then to the first verified walking response. Record Stop or loss of tracking during the handoff separately. Tej's faster return is the first comparison candidate in the [kick procedure](../ROBOT_BUILD_AND_TEST_HANDOFF.md#operator-kick-after-the-straight-baseline). After a goal, robots must reposition and wait for ball replacement with software still running.
 - If get-up is retained, coordinate with its separately assigned owner. Gameplay owns detection/preemption/coordination; physical-motion ownership remains open. Demonstrate expected arena fall postures, including left/right and other reachable configurations, before claiming recovery. Ordinary standing, a fall-stop, or retrying stand does not establish get-up. Report a safe stop after failed recovery as a failure to recover.
 
 ## Proof and integration handoff

@@ -91,6 +91,22 @@ def test_preflight_refuses_existing_manager(setup):
         runtime.preflight(manifest, runtime.sha(manifest), proc=proc, dependency_checker=lambda _: None)
 
 
+def test_legacy_stock_receipt_verifies_loaded_runtime_without_changing_receipt(executable_setup):
+    proc, _, _, receipt, manager, executable = executable_setup
+    del receipt["files"]["config"]["command_contract"]
+    manager()
+    for role in runtime.EXECUTABLES:
+        executable(role)
+    evidence = runtime.verify_loaded(receipt, proc=proc)
+    assert evidence["command_topology"] == "stock"
+    assert evidence["files"]["config"]["command_contract"] == "legacy_twist"
+    assert set(evidence["executables"]) == {"mux", "gateway"}
+    assert "command_contract" not in receipt["files"]["config"]
+    receipt["files"]["config"]["inode"] += 1
+    with pytest.raises(ValueError, match="Selected files changed"):
+        runtime.verify_loaded(receipt, proc=proc)
+
+
 @pytest.mark.parametrize("role", sorted(runtime.ROLES))
 def test_any_selected_file_change_invalidates_receipt(setup, role):
     proc, _, files, receipt, manager = setup
@@ -667,6 +683,17 @@ def test_direct_deadline_identity_does_not_depend_on_legacy_mux(guarded_setup):
     shutil.rmtree(proc / "301")
     assert runtime.same_manager(evidence, proc=proc)
     assert not runtime.same_command_path(evidence, proc=proc)
+
+
+@pytest.mark.parametrize("strict", [False, True])
+def test_guarded_receipt_requires_its_recorded_command_contract(guarded_setup, strict):
+    if strict:
+        select_deadline(guarded_setup)
+    proc, _, _, receipt, _, running, _ = guarded_setup
+    running()
+    del receipt["files"]["config"]["command_contract"]
+    with pytest.raises(ValueError, match="Selected files changed"):
+        runtime.verify_loaded(receipt, proc=proc)
 
 
 @pytest.mark.parametrize("fault", ["missing_helper", "helper_drift", "game_buttons", "reference_tricks", "chord_partner", "unknown"])

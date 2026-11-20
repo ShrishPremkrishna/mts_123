@@ -389,7 +389,14 @@ def verify_prepared(receipt, *, proc=Path("/proc"), python_checker=None):
     if sha(receipt["manifest_path"]) != receipt["manifest_sha256"]:
         raise ValueError("Selected manifest changed after preflight")
     current = verify_files(read_json(receipt["manifest_path"]))
-    if current != receipt["files"]:
+    recorded = receipt["files"]
+    if (isinstance(recorded, dict) and isinstance(recorded.get("config"), dict)
+            and "command_contract" not in recorded["config"] and "guard_script" not in current
+            and current["config"]["command_contract"] == "legacy_twist"):
+        # Older stock receipts pinned the entire YAML before this derived field existed.
+        # Keep the original receipt intact and compare every file identity as usual.
+        recorded = {**recorded, "config": {**recorded["config"], "command_contract": "legacy_twist"}}
+    if current != recorded:
         raise ValueError("Selected files changed after preflight; prepare again with motors stopped")
     if "guard_script" in current:
         probe = probe_guard_environment if python_checker is None else python_checker

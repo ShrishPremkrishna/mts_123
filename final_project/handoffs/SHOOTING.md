@@ -1,30 +1,31 @@
 # Shooting
 
-November 16, 2026 · [Pupper FC brief](../README.md)
+November 19, 2026 · [Demo testing order](../PLAN.md#current-sprint--november-19)
 
-**Outcome:** Repeatable directional shots on a bright ground ball from stationary and moving starts. Two autonomous Puppers play on a roughly 8×12 ft field; overhead perception supplies robot/ball/goal geometry. The [project brief](../README.md) owns current assignments: Shrish owns movement, headbutts and gameplay integration with assisting agents; Tej owns foot-kick work, and Ryan owns perception.
+The selected demo shot uses Tej’s left or right leg kick. Shrish owns the field-guided approach and the handoff from walking. The current automatic executor uses a forward run-through in simulation. The physical demo needs an explicit leg-kick action before autonomous shooting.
 
-These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
+## Fast transition candidate
 
-## Immediate working baseline
+Tej’s u5 release uses direct kick clip entry, a short walker restart from standing (0.2 s initialization and 0.3 s fade) and a separate slow stand-up path. The Pi log has four successful jobs. Each includes a commanded 0.305 m approach and reports restoration of locomotion.
 
-Follow the TA-guided progression: use the existing gait to align behind the ball and run through it with the front bumper. Next explore a specialized primitive with stationary and moving entries, then ball-in-simulation training. Keep the baseline playable while evaluating later stages; advancing training complexity should address a measured limitation. These stages have separate evidence, and later training is not a prerequisite for the first working game.
+| u5 configuration | Left, whole job | Right, whole job |
+| --- | ---: | ---: |
+| Default 0.15 s settle, exit clip at 2.6 s | 5.76 s | 5.63 s |
+| Zero settle, exit clip at 2.1 s | 4.98 s | 5.03 s |
 
-Start from [simulation/training](../../pupper-mjlab/README.md), [native deployment interfaces](../../pupper_gait_deploy/README.md), and [harness interruption behavior](../../gemini_pupper/README.md). These establish reusable motion components, not a verified soccer simulator or shot.
+The native controller log isolates the interval from activating the kick to activating the walker. It fell from 3.25 s on both legs to 2.70 s left and 2.75 s right. Tej reports 12.5 s for the whole job on the older u3 release. His default-u5 estimate of 2.3 s from walk end to impact uses the clip’s expected contact frame. Actual impact, direction and the first resumed walking step were unmeasured in these four jobs. The later 16:58 Pi records supersede the branch note that the faster settings were untried. A newer kickfast4 log contained two approach-only dry runs. [Pi record and log identities](../../foundation/results/staged-field-session-20261119.json) · [Tej’s branch report](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#timing-of-the-kick-all-kick-tools)
 
-## Required deliverables
+Keep the fast transition as a selective integration candidate. The donor can count a return to the idle clip as completion, and the optional walker settings need binding to the active launch as well as the tool process. Main’s operator kick checks the requested side/clip and verifies walker restoration. Its kick blend is still 0.5 s initialization plus 1.0 s fade. The field-game bridge currently requires the stock walker, while the kick tool requires Gemini’s walker and trick controller. Use one compatible runtime that gives walking, kick and Stop exclusive ownership in turn. [Operator kick](../../gemini_pupper/lab/operator_kick.py) · [Field-game bridge](../behaviors/fc_executor_bridge.py)
 
-- A runnable shot with documented starting conditions, inputs, contact behavior and exit to locomotion; compare specialized candidates against the existing-gait baseline.
-- Stationary and moving-entry results. When adding ball-contact simulation, report assumptions and transfer limitations separately from physical shooting results.
-- Measured contact success, ball direction/distance, misses, falls, and robot stability after contact. Show align → contact → regain controlled motion → resume, including interrupted and failed attempts.
-- Preconditions and interruption behavior gameplay can use. Coordinate fall stopping with gameplay; physical get-up scope/ownership remain open for discussion.
+## Approach and ball tracking
 
-Foot kicking and a dedicated goalie posture are stretch work.
+Ryan supplies field observations. The normalized camera feed currently consumes measured robot/ball tracks and configured goals. FC’s tactics choose each robot’s role and FC’s pose controller already turns field position error into body-frame forward, lateral and yaw velocities. For leg shooting, give that controller a paw-specific target, refresh it with each fresh observation, reduce speed near arrival and allow turning in place. Predict moving-ball contact using both the time needed to reach the stance and the wind-up. Once the kick is committed, freeze the side and issue it once. Use the onboard camera for people/obstacles. A close-range ball check is a later option if top-down measurements miss the paw’s contact window.
 
-## Proof and integration handoff
+Tej’s timed tool uses travel = gain × commanded speed × elapsed time after the start delay. The donor fitted gain 1.31 and delay 0.14 s at 0.20 m/s for its walker. Main’s stock gait reached about 20 cm in one second and 38 cm in two at the same commanded speed. Use camera-measured remaining distance and heading to finish an approach. Timing calibrations belong to the tested gait, speed and surface. [Donor’s pose mode](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#L105-L118) · [Marked floor trials](../../foundation/results/staged-field-session-20261119.json)
 
-Provide gameplay with a reproducible invocation/example, primitive inputs and outputs, entry/exit expectations, observed duration, failure cases, clips/trial records, and policy/config/release identities. Keep simulated results, controller receipts, and physical observations distinct. After a goal, gameplay must be able to reposition the robot and await ball replacement without routine rehoming or restarting software.
+## What earns a place in the demo
 
-Agree on robot IDs, body/field frames, angle units, capture-time/age, validity/uncertainty, and command interruption. Scripted, learned, or combined motion, policy count, schema, and transport remain open.
-
-Use the [hardware procedure](../../foundation/HARDWARE_CHECKLIST.md) before physical trials: one operator, simulated changed motions, applicable course approval for new policies, and preserved joint/current limits.
+1. After agreement, reproduce both walking entries on a pinned release. Record the actual clip, stability, return and first walking step. Use the [operator procedure](../ROBOT_BUILD_AND_TEST_HANDOFF.md#operator-kick-after-the-straight-baseline) for release selection and applicable course clearance.
+2. With the intended ball, mark its forward and lateral position relative to each foot. Measure the contact window and walk-end-to-impact time on video, shot direction, distance, misses and walking recovery.
+3. Approach using fresh overhead observations. With the chosen yaw toward goal, subtract the rotated, measured ball offset for that paw from the field ball position to obtain the robot-center target. Slow and align, dispatch one kick, verify the clip and restored walker, then choose the next play. Hold before committing if the observations or strike authority expire. Retain physical Stop during the action.
+4. Start with a stationary ball and the more repeatable foot. Add rolling balls using measured wind-up and camera age, then rehearse role changes and two-robot play. Record the entire approach, actual ball travel and resumed movement in the same take.
