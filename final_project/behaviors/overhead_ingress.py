@@ -196,7 +196,7 @@ class IngressCore:
         if self.held:
             return None
         self.held = True
-        return self._event(None, {}, None, {})
+        return {**self._event(None, {}, None, {}), "source_reason": self.last_reason}
 
     def expire(self, now):
         try:

@@ -5,6 +5,7 @@ Each Pi has its own ROS domain. The synthetic camera reports measured positions 
 memory fixtures. HTTP/WebSocket and physical-controller checks run separately.
 """
 import asyncio
+from collections import deque
 from contextlib import ExitStack
 from dataclasses import replace
 import json
@@ -52,7 +53,7 @@ class Camera:
 
     def snapshot(self):
         return dict(live=True, source_session=self.session, match=self.match,
-                    frame=dict(seq=self.seq, captured_at=self.captured, calibration_valid=True, calibration_revision=1),
+                    frame=dict(seq=self.seq, captured_at=self.captured, calibration_valid=True, calibration_revision=1, field=self.field),
                     visible=dict(ball=True, robots=dict(striker=True, keeper=True)))
 
     def set_match(self, director, pubs=()):
@@ -111,6 +112,7 @@ class Player:
         self.actions, self.receipts, self.kinds = [], [], set()
         self.missed_goal_frames = 0
         self.events = self.pending_frames = self.pending_armed_frames = self.revokes = 0
+        self.frame_rejections = deque(maxlen=5)
         self.first_motion = self.last_return = self.new_capture = self.after_return_x = None
         self.walked_between_m = 0.
         self.nonzero_between = False
@@ -147,7 +149,10 @@ class Player:
         if self.robot == RED and info.get("phase") == "goal" and not info["reset_ready"]:
             self.missed_goal_frames += 1
             return
-        self.core.ingest(event)
+        result = self.core.ingest(event)
+        if event["event"] == "frame" and not result["accepted"] and self.core.executor.armed:
+            self.frame_rejections.append((time.monotonic(), event["seq"],
+                                          event.get("source_reason", result["reason"])))
         director = self.camera.director
         if director and director.pending_start:
             assert event["event"] != "intent", event
@@ -182,7 +187,11 @@ class Player:
             self.first_motion = now
         if self.last_return and len(self.receipts) == 1 and moving:
             self.nonzero_between = True
-        assert step.cancel is None, (self.robot, self.phase, step.cancel)
+        assert step.cancel is None, (self.robot, self.phase, self.reason, step.cancel,
+                                     "camera_age", time.time()-self.camera.captured,
+                                     "executor_capture_age", now-self.core.executor.capture_highwater,
+                                     "recent_rejected_frames_(age_s,seq,reason)",
+                                     [(round(now - at, 3), seq, why) for at, seq, why in self.frame_rejections])
         edge = kick_event(prior, self.handoff, step, now)
         if edge:
             assert director.observe_kick(edge)
@@ -209,15 +218,21 @@ async def rehearse(roster, base_domain, root):
     config = {"field":field, "attack_signs":SIGNS}
     geometry = root / "field.json"
     geometry.write_text(json.dumps(config))
-    camera = Camera(field)
+    # Both Pis start from the same enrollment. The laptop measures a wider field
+    # for the pair and must deliver it to both ROS field sources and both executors.
+    camera = Camera(dict(field, width=field["width"]+.14) if len(roster) == 2 else field)
     players, sources = {}, []
     run_log = root / "sources.log"
     async def describe(host, robot):
-        return dict(robot_host="127.0.0.1", field_config=config, port=players[robot].port)
+        return dict(robot_host="127.0.0.1", field_config=config, match_pitch_version=1, port=players[robot].port)
     async def open_source(host, robot, info, epoch, session, revision, tracks):
         player = players[robot]
+        from foundation.hardware.fc_session import session_field
+        selected = session_field({"field_config":str(geometry)}, root,
+                                 json.dumps(info["pitch"]) if info.get("pitch") else None)
+        assert json.loads(Path(selected).read_text())["field"]["width"] == camera.field["width"]
         command = [sys.executable, str(ROOT / "final_project/behaviors/live_field_attack.py"),
-                   "--release", str(ROOT), "--field-config", str(geometry), "--source-host", "127.0.0.1",
+                   "--release", str(ROOT), "--field-config", selected, "--source-host", "127.0.0.1",
                    "--source-session", session, "--calibration-revision", str(revision), "--producer-id", "wire",
                    "--epoch", epoch, "--robot-id", robot, "--match-tracks", json.dumps(tracks),
                    "--port", str(player.port), "--stop-on-eof", "--duration", "60", "--publish"]
@@ -255,7 +270,7 @@ async def rehearse(roster, base_domain, root):
                         ticker.result()
                     await asyncio.sleep(.008)
         try:
-            result = {"roster":roster}
+            result = {"roster":roster, "measured_width_m":camera.field["width"]}
             if len(roster) == 2:
                 players[RED].reject_after = lambda: players[BLUE].pending_armed_frames >= 3
                 try:
@@ -275,6 +290,8 @@ async def rehearse(roster, base_domain, root):
                     p.first_motion = None
                 launched = time.monotonic()
                 await lobby.start(OWNER)
+                assert all(p.core.executor.controllers[p.robot].field.width == camera.field["width"]
+                           for p in players.values())
                 await until(lambda: lead.first_motion is not None)
                 speeds.append(round(lead.first_motion-launched, 3))
                 if trial == 0:

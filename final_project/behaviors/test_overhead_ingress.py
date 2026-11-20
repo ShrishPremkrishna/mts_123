@@ -71,7 +71,7 @@ def test_actual_bridge_accepts_original_capture_and_cancels_on_calibration_loss(
     with pytest.raises(ValueError, match="calibration invalid"):
         core.normalize(bad, 10.08)
     invalidation = core.revoke("calibration invalid")
-    assert invalidation["captured_at"] is None
+    assert invalidation["captured_at"] is None and invalidation["source_reason"] == "calibration invalid"
     assert not fc.ingest(invalidation)["accepted"]
     assert fc.executor.frame is None and fc.tick().command.vx == 0
     assert fc.executor.armed  # Only the operator owns arm/Stop.
@@ -197,6 +197,86 @@ def test_slow_reply_keeps_current_frame_until_its_original_expiry():
             assert receiver.poll()[0]["captured_at"] is None and core.held
         finally:
             receiver.close()
+
+
+@pytest.mark.parametrize("jump", [0., .25])
+def test_publisher_bracket_delay_recovers_only_with_consistent_clocks(jump):
+    core = core_fixture()
+    mono, wall_offset = 19.97, 980.
+    pauses = []
+
+    def sample_wall():
+        nonlocal mono
+        wall = mono + wall_offset
+        if pauses:
+            mono += pauses.pop(0)
+        return wall
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
+        receiver.bind(("127.0.0.1", 0))
+        receiver.settimeout(.5)
+        publisher = StatePublisher("127.0.0.1", receiver.getsockname()[1], source_id="camera",
+                                   source_session="session-1", live=True, clock_worker=False,
+                                   monotonic=lambda: mono, wall=sample_wall)
+        try:
+            mono = 20.03
+            pauses[:] = [.008, 0.]  # Interrupted measurement, precise second bracket.
+            publisher.send(state(1, 1000.))
+            packet = json.loads(receiver.recv(65535))
+            frame = core.normalize(packet, mono - 10 + .001)
+            assert packet["captured_at"] == 1000.
+            assert packet["_transport"]["sent_mono"] == pytest.approx(20.038)
+            assert packet["_transport"]["pair_span_s"] == 0.
+            previous = frame["captured_at"]
+            assert .035 < mono - 10 - previous < .06
+
+            mono = 20.34
+            pauses[:] = [.006, .007]  # Exhaust both attempts. Never reuse the previous sample.
+            publisher.send(state(2, 1000.31))
+            assert not select.select([receiver], [], [], .02)[0]
+            assert core.expire(mono - 10)["captured_at"] is None
+            assert core.last_capture == previous
+
+            mono = 20.38
+            wall_offset += jump
+            publisher.send(state(3, 1000.35 + jump))
+            packet = json.loads(receiver.recv(65535))
+            if jump:
+                with pytest.raises(ValueError, match="source wall clock stepped"):
+                    core.normalize(packet, mono - 10 + .001)
+                mono += .04
+                publisher.send(state(4, 1000.39 + jump))
+                assert json.loads(receiver.recv(65535))["_transport"]["clock_valid"] is False
+                assert core.poisoned
+            else:
+                fresh = core.normalize(packet, mono - 10 + .001)
+                assert fresh["source"]["seq"] == 3
+                assert fresh["captured_at"] - previous == pytest.approx(.35, abs=.001)
+                assert not core.held and not core.poisoned
+        finally:
+            publisher.close()
+
+
+def test_unmeasured_publisher_start_cannot_admit_earlier_captures():
+    core = core_fixture()
+    # Both startup brackets are too wide. The first precise sample is at 1000.03 wall time.
+    mono = iter([19.96, 19.965, 19.965, 19.97, 20.03, 20.03, 20.07, 20.07])
+    wall = iter([999.96, 999.965, 1000.03, 1000.07])
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
+        receiver.bind(("127.0.0.1", 0))
+        receiver.settimeout(.5)
+        publisher = StatePublisher("127.0.0.1", receiver.getsockname()[1], source_id="camera",
+                                   source_session="session-1", live=True, clock_worker=False,
+                                   monotonic=lambda: next(mono), wall=lambda: next(wall))
+        try:
+            publisher.send(state(1, 1000.))
+            with pytest.raises(ValueError, match="capture predates session"):
+                core.normalize(json.loads(receiver.recv(65535)), 10.04)
+            publisher.send(state(2, 1000.04))
+            frame = core.normalize(json.loads(receiver.recv(65535)), 10.08)
+            assert frame["source"]["seq"] == 2 and not core.poisoned
+        finally:
+            publisher.close()
 
 
 @pytest.mark.parametrize("condition", ["wide", "expired", "nonce", "replay", "reverse", "jump"])

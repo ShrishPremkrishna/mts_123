@@ -29,5 +29,11 @@
     "Physical body ID/heading uses either two body tags or asymmetric center/nose color patches. Anonymous body preview cannot command a robot.",
     "Onboard pixels and detector mode are telemetry. Obstacle processing remains independent."
   ],
-  "boot_and_versions": "Appliance boot writes next-boot systemd settings once. Runtime has no new boot daemon or desktop. Normal mode restores prior selection; FC application rollback is separate."
+  "boot_and_versions": "Appliance boot writes next-boot systemd settings once. Runtime has no new boot daemon or desktop. Normal mode restores prior selection; FC application rollback is separate.",
+  "timing_regression": {
+    "observed": "One Red second-kick cancellation with tracking_lost. Exact cause undetermined.",
+    "independently_reproduced": "An 8 ms scheduling pause during a wall-clock sample permanently disqualified the camera despite consistent clocks.",
+    "fixed": "Retry one bounded measurement or skip this observation. Keep original capture time and 300 ms motion evidence expiry. Real 250 ms wall step still invalidates the session.",
+    "checks": "51 clock, ingress and attack tests. New regression uses actual UDP publisher and Pi binding."
+  }
 }

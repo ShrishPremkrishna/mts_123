@@ -74,9 +74,9 @@ class LiveFieldPlay:
             return frame, intent, reason
         # Ordinary MOVE does not require the ball once admitted. Fence its older
         # lease on the first missing pair/unsafe target; never mint a capture.
-        if frame["captured_at"] is not None:
-            frame = {**frame, "captured_at": None, "robots": {}, "ball": None, "goals": {}}
-        return frame, None, reason
+        reason = frame.get("source_reason", reason)
+        return {**frame, "captured_at": None, "robots": {}, "ball": None, "goals": {},
+                "source_reason": reason}, None, reason
 
 
 class LiveMatchPlay(LiveFieldPlay):
@@ -115,7 +115,9 @@ class LiveMatchPlay(LiveFieldPlay):
         info = frame.get("fc_match")
         pose, ball = frame["robots"].get(self.robot_id), frame["ball"]
         def hold(reason):
-            return {**frame, "captured_at": None, "robots": {}, "ball": None, "goals": {}}, None, reason
+            reason = frame.get("source_reason", reason)
+            return {**frame, "captured_at": None, "robots": {}, "ball": None, "goals": {},
+                    "source_reason": reason}, None, reason
         if (captured is None or not 0 <= now - captured < self.max_age
                 or not directive_ok(info, self.epoch, self.roster, frame.get("source", {}).get("seq"))
                 or pose is None or pose["captured_at"] != captured or not self.inside(pose, self.field.robot_radius)):

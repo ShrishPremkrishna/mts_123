@@ -28,6 +28,8 @@ TESTS = [
     "final_project/behaviors/test_operator_drive.py",
     "foundation/hardware/test_fc_session.py",
     "final_project/overhead_perception/tests/test_appearance.py",
+    "final_project/behaviors/test_overhead_ingress.py::test_publisher_bracket_delay_recovers_only_with_consistent_clocks",
+    "final_project/behaviors/test_overhead_ingress.py::test_unmeasured_publisher_start_cannot_admit_earlier_captures",
     "final_project/overhead_perception/tests/test_team_colors.py",
     "final_project/overhead_perception/tests/test_field_setup.py",
     "foundation/tests/test_onboard_ball.py",

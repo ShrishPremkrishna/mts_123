@@ -65,7 +65,12 @@ def test_original_capture_and_loss_bound_each_lease():
         raw = packet(source, sim.observe(delay=.02), FIELD, raw["seq"] + 1, sim.time)
         (raw["ball"] if entity == "ball" else raw["robots"]["striker"])["measured_this_frame"] = False
         assert lease(source.normalize(raw, sim.time), sim.time) is None
-    assert lease(source.revoke("signal lost")) is None
+    revoked = source.revoke("signal lost")
+    match = attack.LiveMatchPlay(ROBOT, FIELD, ingress.MAX_FRAME_AGE_S, source.epoch, [ROBOT])
+    for mode in (play, match):
+        outgoing, intent, reason = mode.events(revoked, sim.time)
+        assert intent is None and outgoing["captured_at"] is None
+        assert outgoing["source_reason"] == reason == "signal lost"
 
 
 @pytest.mark.parametrize("side,sign", [("left", 1), ("right", -1)])
@@ -183,3 +188,4 @@ def test_standoff_never_leases_cross_ball_or_out_of_bounds_moves(robot_xy, ball_
     withdraw, intent, reason = play.events(frame, now)
     assert intent is None and expected in reason
     assert withdraw["captured_at"] is None and withdraw["seq"] == frame["seq"]
+    assert withdraw["source_reason"] == reason
