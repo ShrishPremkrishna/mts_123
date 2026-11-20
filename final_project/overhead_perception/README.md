@@ -348,8 +348,12 @@ clock adapter below rather than guessing an offset or stamping on receipt.
 **Maintained live ingress.** [overhead_ingress.py](../behaviors/overhead_ingress.py)
 maps the source into the existing same-Pi `/fc/normalized_events` contract.
 `StatePublisher` adds `_transport` identity, live/simulation mode and paired
-wall/monotonic samples. A bounded nonce clock exchange measures the mapping to
-each Pi; delayed frames retain their original age. Source process, calibration
+wall/monotonic samples. The publisher retries once if sampling takes over 2 ms,
+then skips the frame if both samples are too wide. The previous capture keeps
+its original expiry. The next precise sample is checked against the last precise
+one. A detected wall-clock step still requires a new session. A bounded nonce
+clock exchange measures the mapping to each Pi. Delayed frames retain their
+original age. Source process, calibration
 revision, field geometry and robot mapping are pinned. Missing measurements stay
 missing, and invalid calibration/clock/session evidence withholds motion. It
 publishes only frames; it cannot arm, start motors or renew action permission.
