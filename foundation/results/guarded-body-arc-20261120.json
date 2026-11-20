@@ -1,0 +1,50 @@
+{
+  "recorded_utc": "2026-11-20T08:15:55.348427+00:00",
+  "arc_source_sha256": "2c7f12515450cd39a3b01b683d80db4f61a52c5ed8f909a694e78410daa8916d",
+  "native_library_sha256": "624dc560c03a1f2f2b0bab44580900d699fdabcce8a1557ac6acd49550180a75",
+  "image_id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+  "scope": "Linux ARM64 local no-network Jazzy container, real ROS arc runner, ROS guard, ROS Stop gateway, native walking policy/observation on memory joints. Synthetic camera, joystick, IMU and controller-manager lifecycle service. Physical Pi session ownership replaced by verified in-container native process identity.",
+  "nominal": {
+    "event": "profile_ended",
+    "reason": null,
+    "curved_walker_feedback_seen": true,
+    "peak_policy_forward_mps": 0.18000000715255737,
+    "peak_policy_abs_yaw_rps": 0.2769230902194977,
+    "reported_mono_ns": 128847987881072
+  },
+  "cancelled": [
+    {
+      "event": "cancelled",
+      "reason": "guard clearance changed or status gap exceeded freshness",
+      "curved_walker_feedback_seen": false,
+      "peak_policy_forward_mps": 0.03201239928603172,
+      "peak_policy_abs_yaw_rps": 0.04924984648823738,
+      "reported_mono_ns": 128848381742155
+    },
+    {
+      "event": "cancelled",
+      "reason": "waiting for fresh IMU feedback",
+      "curved_walker_feedback_seen": true,
+      "peak_policy_forward_mps": 0.12252351641654968,
+      "peak_policy_abs_yaw_rps": 0.18849772214889526,
+      "reported_mono_ns": 128849442322572
+    }
+  ],
+  "observed_zero_count": 3,
+  "gateway_stop_confirmed": true,
+  "native_deactivated": true,
+  "observed_kinematics": "Values are native policy command inputs; no body displacement, measured body yaw or braking length is inferred.",
+  "concurrent_load_observation": "When running three Docker graphs concurrently, one fresh trial cancelled for missing timely walker feedback and observed zero. The same script/channel and input were verified in a single isolated graph.",
+  "fresh_guard_previously_bound_native_refusal": {
+    "other_walker_remained_active": true,
+    "gateway_latched": false,
+    "max_observed_forward_or_yaw": 0.0
+  },
+  "runner_exit": 0,
+  "native_exit": 0,
+  "existing_source_refusal": {
+    "other_session_continued": true,
+    "gateway_latched": false,
+    "foreign_requests": 0
+  }
+}
