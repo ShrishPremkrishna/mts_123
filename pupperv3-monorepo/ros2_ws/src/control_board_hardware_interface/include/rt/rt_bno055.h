@@ -86,6 +86,9 @@ class BNO055 {
     Eigen::Vector3f gyro = Eigen::Vector3f::Zero();
     bool quaternion_valid = false, gyro_valid = false, acceleration_valid = false;
     uint8_t quaternion_accuracy = 0, gyro_accuracy = 0;
+    // Last observed SH-2 sequence per report type, modulo 256; -1 means unseen.
+    // Invalid timing can advance this sequence without refreshing the receipt.
+    int quaternion_report_sequence = -1, gyro_report_sequence = -1;
     // Host receipt clocks, independently updated only by accepted new reports.
     // They are NOT sensor measurement timestamps or proof of calibration.
     std::chrono::steady_clock::time_point quaternion_receipt_time{};
@@ -135,6 +138,7 @@ class BNO055 {
   }
 
   void softReset(void);
+  Output current_output();
   bool receivePacket(void);
   bool waitForI2C(void);
   void setFeatureCommand(uint8_t reportID, uint32_t microsBetweenReports, uint32_t specificConfig);

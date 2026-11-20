@@ -1,12 +1,14 @@
 // Actual BNO implementation with all device syscalls intercepted. No real I/O.
 // Linux link: --wrap=open,--wrap=open64,--wrap=ioctl,--wrap=read,--wrap=write,--wrap=close.
+#include <atomic>
 #include <cstdarg>
 #include <cstring>
+#include <functional>
 #include <stdexcept>
 #include <iostream>
 #include <string>
 #include <thread>
-#include "rt/rt_bno055.h"
+#include "control_board_hardware_interface/imu_manager.hpp"
 #include "control_board_hardware_interface/imu_health.hpp"
 #include "test_bno_raw_fixtures.hpp"
 
@@ -14,6 +16,9 @@ static std::vector<RawRead> input;
 static size_t cursor=0;
 static unsigned opens=0,closes=0,writes=0;
 static bool fail_open=false;
+static bool delay_next_empty_read = false;
+static std::function<void()> during_next_probe;
+static std::function<void()> after_sensor_setup;
 void require(bool v,const char *m) { if(!v)throw std::runtime_error(m); }
 extern "C" int bno_fake_open(const char *path,int,...) {
   require(std::string(path)=="/dev/i2c-1","unexpected device path");++opens;
@@ -27,7 +32,20 @@ extern "C" int bno_fake_ioctl(int fd,unsigned long request,...) {
 }
 extern "C" ssize_t bno_fake_read(int fd,void *dst,size_t count) {
   require(fd==73,"unexpected read fd");
-  if(cursor==input.size()) { require(count==4,"unexpected extra payload read");std::memset(dst,0,count);return count; }
+  if (cursor == input.size()) {
+    require(count == 4, "unexpected extra payload read");
+    if (during_next_probe) {
+      auto observe = std::move(during_next_probe);
+      during_next_probe = {};
+      observe();
+    }
+    if (delay_next_empty_read) {
+      delay_next_empty_read = false;
+      std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    }
+    std::memset(dst, 0, count);
+    return count;
+  }
   const auto &r=input[cursor++];require(r.requested==count,"fixture read differs");
   std::memcpy(dst,r.bytes.data(),r.bytes.size());return r.returned;
 }
@@ -35,7 +53,9 @@ extern "C" ssize_t bno_fake_write(int fd,const void *src,size_t count) {
   require(fd==73,"unexpected write fd");const auto *b=static_cast<const uint8_t*>(src);
   require((count==5 && b[2]==1 && b[4]==1) || (count==6 && b[2]==2 && b[4]==0xf9)
       || (count==21 && b[2]==2 && b[4]==0xfd && (b[5]==2 || b[5]==5)),"unexpected sensor command");
-  ++writes;return count;
+  ++writes;
+  if (writes == 4 && after_sensor_setup) after_sensor_setup();
+  return count;
 }
 extern "C" int __wrap_open(const char *p,int flags,...) { return bno_fake_open(p,flags); }
 extern "C" int __wrap_open64(const char *p,int flags,...) { return bno_fake_open(p,flags); }
@@ -83,7 +103,30 @@ void queued_age_checks(BNO055 &imu) {
 int main(int argc,char **argv) {
  try {
   require(argc==2,"scenario required");const std::string mode=argv[1];
-  if(mode=="open_failure") {
+  if (mode == "manager_blocked_read") {
+    using namespace std::chrono;
+    std::atomic<bool> probe_started{false};
+    after_sensor_setup = [&] {
+      load(valid_two_reports());
+      delay_next_empty_read = true;
+      during_next_probe = [&] { probe_started = true; };
+    };
+    IMUManager manager;
+    manager.begin(10000);
+    const auto deadline = steady_clock::now() + seconds(1);
+    while (!probe_started && steady_clock::now() < deadline) std::this_thread::yield();
+    require(probe_started, "sampler did not enter the following I2C read");
+    const auto published = manager.get_imu_data();
+    const auto observed = steady_clock::now();
+    require(!pupper_imu::feedback_error(published, observed), "controller missed a completed pair during blocked I2C read");
+    std::cout << "threaded_publication_age_us="
+              << duration_cast<microseconds>(observed - published.gyro_receipt_time).count() << '\n';
+    manager.stop();
+    const auto cached = manager.get_imu_data();
+    require(cached.gyro_receipt_time == published.gyro_receipt_time &&
+            cached.quaternion_receipt_time == published.quaternion_receipt_time &&
+            pupper_imu::feedback_error(cached, steady_clock::now()), "blocked read concealed actual expiry");
+  } else if(mode=="open_failure") {
     fail_open=true;bool threw=false;try{BNO055 imu(1,10000);}catch(const std::runtime_error&){threw=true;}
     require(threw && writes==0 && closes==0,"failed open used device");
   } else {
@@ -92,8 +135,61 @@ int main(int argc,char **argv) {
     if(mode=="initial") {
       auto x=imu.sample();require(!x.quaternion_valid&&!x.gyro_valid&&!x.acceleration_valid,"unobserved component valid");
       require(x.acc.isZero()&&x.gyro.isZero()&&x.quat.coeffs().isZero(),"uninitialized output");
+      require(x.quaternion_report_sequence == -1 && x.gyro_report_sequence == -1, "unseen sequence invented");
+    } else if (mode == "stale_before_fresh") {
+      load(valid_two_reports());
+      const auto first = imu.sample();
+      require(first.gyro_valid && first.quaternion_valid, "missing initial paired reports");
+      // One second of known age in the first queued gyro. Do not end the drain
+      // early until the second, genuinely fresh report completes the pair.
+      auto rows = packet({0xfb,0x10,0x27,0,0,2,2,3,0,0,0,0,0,0,0});
+      const auto fresh = packet({0xfb,0,0,0,0,2,3,3,0,0,0,0,0,0,0});
+      rows.insert(rows.end(), fresh.begin(), fresh.end());
+      load(std::move(rows));
+      const auto recovered = imu.sample();
+      require(recovered.gyro_report_sequence == 3 && recovered.gyro_minimum_age_at_receipt.count() == 0,
+              "an obsolete gyro hid the queued fresh one");
+      require(recovered.quaternion_receipt_time == first.quaternion_receipt_time,
+              "gyro packet renewed cached quaternion");
+    } else if (mode == "overlap_deadline") {
+      // Model an independent controller read 25 ms into the next I2C probe.
+      // The last published pair is 90 ms old. The packet already read from
+      // the device contains a fresh pair. The 100 ms limit stays in effect.
+      using namespace std::chrono;
+      BNO055::Output published;
+      const auto start = steady_clock::now();
+      published.quat = Eigen::Quaternionf::Identity();
+      published.gyro_valid = published.quaternion_valid = true;
+      published.quaternion_receipt_time = published.gyro_receipt_time = start - milliseconds(90);
+      require(!pupper_imu::feedback_error(published, start), "old pair was not initially usable");
+      bool saw_usable_pair = false;
+      during_next_probe = [&]() {
+        saw_usable_pair = !pupper_imu::feedback_error(published, steady_clock::now() + milliseconds(25));
+      };
+      load(valid_two_reports());
+      published = imu.sample();
+      if (during_next_probe) imu.sample();
+      require(saw_usable_pair, "a short following read caused an avoidable deadline fault");
+    } else if (mode == "following_read_blocked") {
+      // One captured SH-2 packet carries both reports. The next header read stalls
+      // in the OS. No sensor report arrives during that stall.
+      load(valid_two_reports());
+      delay_next_empty_read = true;
+      const auto first = imu.sample();
+      const auto returned = std::chrono::steady_clock::now();
+      std::cout << "packet available after "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(returned - first.gyro_receipt_time).count()
+                << " ms from receipt" << std::endl;
+      require(delay_next_empty_read, "reader waited on next I2C transfer before publishing the complete report");
+      require(!pupper_imu::feedback_error(first, returned), "fresh complete packet rejected");
+      const auto cached = imu.sample();
+      require(!delay_next_empty_read, "following transfer never attempted");
+      require(cached.gyro_receipt_time == first.gyro_receipt_time &&
+              cached.quaternion_receipt_time == first.quaternion_receipt_time, "stall renewed cached reports");
+      require(pupper_imu::feedback_error(cached, std::chrono::steady_clock::now()), "lost input hid expiry");
     } else if(mode=="gyro_only") {
       load(normal_gyro());auto x=imu.sample();require(x.gyro_valid&&!x.quaternion_valid,"gyro invented quaternion");
+      require(x.gyro_report_sequence == 2 && x.quaternion_report_sequence == -1, "gyro-only sequence lost");
     } else {
       load(mode=="delayed_tail" ? zero_header_then_late_one_byte() : valid_two_reports());
       const auto before=imu.sample();
@@ -111,6 +207,10 @@ int main(int argc,char **argv) {
       else if(mode=="short_read") {auto rows=normal_gyro();--rows.back().returned;rows.back().bytes.pop_back();load(rows);}
       else throw std::runtime_error("unknown scenario");
       const auto after=imu.sample();
+      if (mode == "gyro_refresh" || mode == "duplicate") {
+        require(after.quaternion_report_sequence == 1, "unchanged orientation sequence advanced");
+        require(after.gyro_report_sequence == (mode == "gyro_refresh" ? 2 : 1), "wrong gyro report sequence");
+      }
       if(mode=="bad_quaternion")require(!after.quaternion_valid&&after.gyro_valid,"invalid quaternion kept valid");
       else if(mode=="gyro_refresh")require(after.gyro_receipt_time>before.gyro_receipt_time&&after.quaternion_receipt_time==before.quaternion_receipt_time,"independent timestamps conflated");
       else require(after.quaternion_receipt_time==before.quaternion_receipt_time&&after.gyro_receipt_time==before.gyro_receipt_time,"non-new/invalid report refreshed cached state");
