@@ -1,6 +1,6 @@
 # Pupper FC demo and recording
 
-Working delivery script, November 17, 2026. The [delivery plan](PLAN.md#course-deliverables)
+Working delivery script, November 19, 2026. The [delivery plan](PLAN.md#course-deliverables)
 owns deadlines and acceptance targets. This is the production plan for the narrated
 video and five-minute presentation. It is not a record of completed filming or
 submission. The [brief](README.md)
@@ -24,7 +24,7 @@ Do not splice a human repositioning out of a claimed autonomous sequence.
 | 0:00–0:12 | Best continuous physical play excerpt, with both robots visible; title and team names | State the soccer objective. This clip is still needed. |
 | 0:12–0:34 | Actual arena view plus a simple field-to-command diagram | Explain Ryan's tracking, Shrish's execution and Tej's kick work. |
 | 0:34–0:56 | Real role/action display alongside field view; labeled offline rehearsal until physical integration is recorded | Explain offense versus defense and the pose target. |
-| 0:56–1:30 | Continuous approach, alignment, shot, goal return, visible ball replacement and resume | Demonstrate the complete play. If it takes longer, borrow time from explanation; do not conceal an intervention. |
+| 0:56–1:30 | Continuous approach, paw alignment, leg kick, return to walking, goal return, visible ball replacement and resume | Keep the kicking foot and ball visible through contact. Allow more time if needed. |
 | 1:30–1:54 | Qualified front-camera interruption with wide external view and corresponding hold/zero evidence | Show actual stopping and resumption. Current stationary camera footage alone cannot fill this claim. |
 | 1:54–2:18 | Short failure/repair explanation with native timing evidence | Explain the logging stall reproduction and why source-age deadlines matter. |
 | 2:18–2:38 | Measured trial results: attempts, goals, interventions, falls, stopping/heading error | Report the full trial set, including misses. Physical numbers are pending. |
@@ -37,14 +37,15 @@ the measured result and retain the footage's scope. Do not read editing notes.
 > Pupper FC is our project to make two quadruped robots play soccer. Each robot
 > should choose offense or defense, move into position, and react when the field changes.
 >
-> Ryan is developing overhead tracking of the robots, ball and goals. Shrish owns
-> movement and integration: turning that field state into short, replaceable motion
-> commands. Tej is developing a leg-kick policy. Our initial shooting path uses locomotion.
+> Ryan tracks the robots and ball from overhead and maps them relative to the goals.
+> Shrish uses that field state to steer the walker. Tej's left and right front-leg
+> kicks are the shooting actions we plan to use.
 >
-> On offense, the controller approaches a point behind the ball, aligns toward the
-> goal, makes a bounded strike, then brakes and reassesses. On defense, it seeks a
-> goal-side position facing the ball. Different switching thresholds keep the role
-> from changing on every observation.
+> On offense, the goal is to get behind the ball, line it up with one paw, kick
+> toward goal, then return to walking. The current executor can steer to a pose.
+> Connecting its arrival to a single leg kick and showing contact are next.
+> On defense, it seeks a goal-side position facing the ball. Different switching
+> thresholds keep the role from changing on every observation.
 >
 > A role does not automatically permit movement. Old observations, expired
 > instructions, an obstacle hold, or Stop can interrupt the action. After a goal,
@@ -57,9 +58,10 @@ the measured result and retain the footage's scope. Do not read editing notes.
 > through the guard and controller. Its software tests do not measure physical braking.
 >
 > Today, short physical forward and lateral trials are verified. The shared executor
-> has also completed a labeled simulation of attack, defense, interruptions, scoring
-> and restart. Physical camera stopping, coordinate-controlled play and the two-robot
-> match still need qualification. Our bounded self-righting experiment did not establish
+> has also completed a simulation of attack, defense, interruptions, scoring
+> and restart using the earlier run-through shot. Physical camera stopping,
+> coordinate-controlled play and the two-robot match still need qualification.
+> Our bounded self-righting experiment did not establish
 > side recovery.
 >
 > The final demonstration must show those connections working together, with every
@@ -76,8 +78,8 @@ speaking assignment.
 | Slot | Screen title and on-screen content | Presenter cue |
 | --- | --- | --- |
 | 0:00–0:25 | **Pupper FC** — Two robots, opposing goals, autonomous roles | State the objective and allowed human ball reset. Open with the best qualified physical clip if staging is not already visible. |
-| 0:25–1:05 | **Field state to motion** — Overhead tracking → role/pose controller → expiring commands → gait. Front camera interrupts motion. | Explain Ryan/Shrish/Tej boundaries. Explain that Tej's leg kick is a separate candidate unless selected and demonstrated. |
-| 1:05–1:45 | **Roles and interruptions** — Offense: approach → align → strike → reassess. Defense: guard goal-side, face ball. Goal: home → reset cue. | Use the [implemented state diagram](pupper_fc/README.md#shared-state-executor-and-deliberate-game-resume). Distinguish role from permission. |
+| 0:25–1:05 | **Field state to motion** — Overhead tracking → role and target pose → expiring gait commands → leg kick → walking. | Show the release used in the clip and identify which transitions it performed autonomously. |
+| 1:05–1:45 | **Roles and interruptions** — Offense approaches, aligns a paw, kicks and reassesses. Defense guards goal-side and faces the ball. After a goal, return home and await the cue. | Use the [executor diagram](pupper_fc/README.md#shared-state-executor-and-deliberate-game-resume) for role and permission. Its current strike phase still commands a run-through. |
 | 1:45–2:20 | **Keeping commands current** — Original expiry survives relays. Stop cancels authority. Observation age stays visible. | Explain one reproduced failure and its verified repair. Never turn a software expiry bound into a braking claim. |
 | 2:20–4:10 | **Live play** — Field view plus role/action/hold reason | Run one rehearsed complete play and restart. Show defense or a qualified person interruption only if the time/space budget supports it. |
 | 4:10–4:45 | **Measured results** — Attempts, goals, interventions, falls; motion/stopping error | Show the full predeclared trial set and physical-versus-simulation labels. Do not substitute a passing-test count for robot performance. |
@@ -102,10 +104,10 @@ release/profile in the run receipt. No new capture framework is needed.
 | 1 | Marked forward/backward/lateral travel, measured heading target and stop; include failures | The usable movement envelope on the actual surface. Current forward/lateral telemetry lacks an external-view film. |
 | 1 | Fixed onboard camera at measured walking height/pitch: clear floor, person at marked ranges/offsets, intended pink ball, representative obstacle; separate holdout sequence | Detector coverage and blind spots. This is stationary perception evidence until moving stopping tests pass. |
 | 1 | Qualified motion with the person/obstacle already in a tested stopping corridor; film stop, clear condition and fresh resumption | Physical front-camera stop/hold behavior and measured stopping margin. Plan the range from prior braking measurements. |
-| 1 | One continuous pose-controlled approach → alignment → useful ball contact; goal → return/reset/resume, miss → brake/reassess | First complete physical play, with the actual ball and perception feed. Keep failed attempts. |
+| 1 | Continuous overhead-guided approach → paw alignment → visible leg kick → walker responds. Show goal return/reset/resume or reassessment after a miss. | First complete physical play with the intended ball. Record the kicking side, actual ball displacement and direction, and elapsed time until walking resumes. Keep misses. |
 | 2 | Two opposing robots in a shared field, visible role changes and defense, one operator goal-resume cue | The target match behavior. Separate one-robot mirrored clips do not establish it. |
 | 2 | Three full two-minute bouts after qualification, all interventions counted | Demo reliability under the agreed acceptance target. Extract an excerpt for the short video without discarding the full bouts. |
-| 3 | Tej's kick or recovery only after its own qualification | Optional capability, separately identified from the base gait/headbutt demo. No side-recovery footage is currently supported. |
+| 3 | Physical get-up if subsequently demonstrated | The existing side-recovery experiment supplies failure evidence. |
 
 Retain the existing motor-inactive onboard recording as perception-development
 material. It shows the room from the camera, not Pupper avoiding a person. The

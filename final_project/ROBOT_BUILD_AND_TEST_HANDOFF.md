@@ -303,10 +303,22 @@ For each no-ball side trial, confirm the walker owns the legs, submit one
 operator kick with the current command epoch and follow its returned job ID
 in `GET /queue/status` (`recent_outcomes`). Record the requested side, observed
 foot, matching clip/frame, terminal result and restoration of the walker.
-Keep the existing 0.5-second initialization and 1.0-second fade for this first
-comparison. Ball-contact trials with the intended ball also need its marked
-starting offset, actual contact or miss, travel direction/distance and robot
-stability. [Kick selection and software tests](../foundation/results/staged-field-session-20261119.json).
+The main operator path uses a 0.5-second kick initialization and 1.0-second
+fade. Capture a baseline with that release. Give the first return-to-walk
+comparison to Tej's u5 configuration. For a 0.305 m walk and kick on each
+side, Tej reports a 5.7 s whole job, an estimated 2.3 s from walk end to the
+clip's contact phase, and 2.2 s from that phase to a ready walker. Both clips
+were confirmed. A ball-contact trial on u5 was still open. The donor uses
+a shorter walker start from standing and a separate slow stand-up path.
+Record the selected release, start pose, stability, clip progress and the
+first observed response to a new walk command for each comparison.
+[Tej's u5 trial and settings at 30b84a0](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#timing-of-the-kick-all-kick-tools)
+· [Main kick selection and software tests](../foundation/results/staged-field-session-20261119.json).
+
+For contact trials, use the intended ball and record its marked starting
+position relative to the selected paw, visible foot contact or miss, ball
+travel direction and distance, and robot stability. Time actual contact and
+the return to walking from the same external recording.
 
 ## Close and recover
 

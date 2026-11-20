@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
+  "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
   "mode": "owner_alignment_after_recordings",
-  "updated_utc": "2026-11-20T01:45:27+00:00",
+  "updated_utc": "2026-11-20T02:04:59+00:00",
   "current_report": "foundation/results/staged-field-session-20261119.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -94,8 +94,8 @@
     "owners": {
       "physical_robot": "Shrish supervised the floor session. He reported Pupper back on its stand. FC driver and recorder were closed after the heading timeout.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
-      "movement": "Shrish and current project lead: gait readiness, responsive execution, headbutt and defense; no bumper fitted.",
-      "shooting": "Tej",
+      "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
+      "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
       "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
       "arena": "Shrish",
       "project_lead": "Root operates the isolated main worktree. Other agents own their own branches and worktrees."
@@ -173,12 +173,16 @@
   },
   "next": [
     {
-      "id": "alignment",
-      "action": "Discuss the six recorded movement attempts and agree the next milestone with Shrish before further tests or build resumption."
+      "id": "discussion",
+      "action": "Review the faster donor transition and recommended approach with the owner. Existing hold on testing and the suspended build remains."
     },
     {
-      "id": "deferred",
-      "action": "Available after discussion: qualify a repeatable turn against an external heading mark, measure mounted tag poses and capture age, and complete the held direct-deadline build before tracked navigation. A finite operator-owned target sender is still required."
+      "id": "kick_and_camera",
+      "action": "Once agreed, reproduce both u5 transitions on a pinned compatible release and observe an actual resumed walking step. In parallel qualify mounted robot poses, yaw and capture age against marks."
+    },
+    {
+      "id": "integrated_play",
+      "action": "Measure real-ball contact for each paw, qualify field-pose steering, then hand off from fresh aligned pose into exactly one leg kick and resume walking. See final_project/PLAN.md."
     }
   ],
   "recorded_open_items": {
@@ -194,9 +198,10 @@
   "alignment": {
     "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
     "open": "Mounted tag coverage, measured camera latency, reconciled field/ball/goal dimensions, Pi native build/selection for tracked play, intended ball, second robot, kick approval/provenance and physical kick performance.",
-    "next_discussion": "Agree what arrival position and heading are sufficient for a goal-directed shot, and the order of controlled turn calibration, mounted overhead tracking and integration.",
+    "next_discussion": "Agree on field-guided continuous steering, measured paw placement, and the first integrated stationary-ball play.",
     "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
-    "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately."
+    "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately.",
+    "owner_steering_2026_11_19_kick": "Prioritize the improved walk\u2013kick\u2013walk transition on the test block and use the trained leg policy as the demo shot. Discuss closed-loop approach, contact timing and field heading before resuming tests."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",
