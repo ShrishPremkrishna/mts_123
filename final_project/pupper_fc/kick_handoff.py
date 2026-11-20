@@ -47,11 +47,16 @@ class KickHandoff:
         self.job_timeout_s = job_timeout_s
         self.active: KickRequest | None = None
         self._terminal: dict[tuple[str, str | int], str] = {}
+        self.clip_started = False
         self._clip_seen = False
         self._ending: str | None = None
         self._cancel_sent = False
         self._restored = False
         self._authority_until = -math.inf
+
+    @property
+    def clip_confirmed(self):
+        return self.active is not None and self._clip_seen
 
     def receipt(self, request: KickRequest, phase: str, *, clip: str | None = None,
                 walker_active: bool = False) -> bool:
@@ -65,10 +70,12 @@ class KickHandoff:
         """
         if self.active is None or request != self.active or self._restored:
             return False
-        if phase == "clip_confirmed":
+        if phase in ("clip_started", "clip_confirmed"):
             if self._ending or clip != f"kick_{request.side}":
                 return False
-            self._clip_seen = True
+            self.clip_started = True
+            if phase == "clip_confirmed":
+                self._clip_seen = True
             return True
         if phase == "failed":
             self._ending = self._ending or "kick_failed"
@@ -138,6 +145,7 @@ class KickHandoff:
             return KickStep(replace(decision, command=stopped, phase="kick_hold",
                                     reason="kick requires a current stationary authorized decision"))
         self.active = KickRequest(self.robot_id, epoch, attempt_id, side, now, command.expires_at)
+        self.clip_started = False
         self._clip_seen = False
         self._ending = None
         self._cancel_sent = False

@@ -194,6 +194,11 @@ UNCHANGED = object()
 # came in must not queue its job afterwards: stop clears everything.
 CALL_STOPS: contextvars.ContextVar[int | None] = contextvars.ContextVar("call_stops", default=None)
 
+# An in-process FC kick can lose its field authority while ROS service
+# discovery or parameter writes yield. Recheck at the native submission site.
+ACTIVATION_GATE: contextvars.ContextVar[Callable[[], str | None] | None] = contextvars.ContextVar(
+    "activation_gate", default=None)
+
 
 def state_name(state) -> str:
     """A state in words: "locomotion", "motors idle", "fallen", or the trick's name."""
@@ -205,7 +210,9 @@ Job = Callable[[], Awaitable[Result]]
 class Robot:
     """Owns a ROS node and runs queued jobs one at a time."""
 
-    def __init__(self, *, validate_session_manifest: bool = True, ros_signal_handlers: bool = True) -> None:
+    def __init__(self, *, validate_session_manifest: bool = True, ros_signal_handlers: bool = True,
+                 observe_only: bool = False) -> None:
+        self._observing = observe_only
         self.tricks: dict[str, Trick] = load_tricks()
         self._session_scoped = "PUPPER_SESSION_SKILLS" in os.environ
         manifest = runtime_config.validate_session_catalog(self.tricks) if validate_session_manifest else None
@@ -285,7 +292,7 @@ class Robot:
         self._follow_jobs: set[str] = set()
         self._follow_activation_pending = False
         self._follow_activation_count = 0
-        self.follow_available = True  # server fills from explicit startup configuration
+        self.follow_available = not observe_only  # a field observer may only read controller state
         self.follow_state_uncertain = False
         self.startup_error: str | None = None
         self.controller_fault: str | None = None
@@ -349,6 +356,8 @@ class Robot:
         return None
 
     def _require_motion(self) -> None:
+        if self._observing:
+            raise MotionBlockedError("robot client has not claimed this session")
         reason = self.motion_block_reason()
         if reason:
             raise MotionBlockedError(reason)
@@ -383,7 +392,7 @@ class Robot:
         # scheduling anything on asyncio. Repeated 20 Hz status/10 Hz Empty
         # messages never create an unbounded family of cleanup coroutines.
         with self._stop_lock:
-            if self.closing:
+            if self.closing or self._observing:
                 return
         self.send_speed(0, 0, 0)
         with self._stop_lock:
@@ -524,7 +533,17 @@ class Robot:
         # Record receipt in the ROS thread: recovery must see a newer event even
         # before asyncio has run its cleanup, and must never erase that event.
         generation = self._record_fall(name)
+        with self._stop_lock:
+            if self.closing or self._observing:
+                return
         asyncio.run_coroutine_threadsafe(self._on_fall(name, generation), self.loop)
+
+    def claim_observed_session(self, generation: int) -> None:
+        """Enable local cleanup only after the field runner verified exclusive ownership."""
+        with self._stop_lock:
+            if self.stops != generation or self.fallen or self.motion_block_reason():
+                raise RuntimeError("Stop, fall or motion veto while claiming the robot")
+            self._observing = False
 
     def _record_fall(self, controller: str) -> int:
         with self._stop_lock:
@@ -574,11 +593,16 @@ class Robot:
 
     async def _call(self, client, request, timeout: float = 3.0):
         # A blocking wait here would prevent the stop tool from being handled.
+        if self._observing and client is not self.list_client:
+            raise MotionBlockedError("unclaimed client may only read the controller inventory")
         follower_activation = client is self.follow_on
         follow_generation = self._follow_generation
         activation = follower_activation or (client is self.switch_client and bool(getattr(request, "activate_controllers", [])))
         def require_activation():
             self._require_motion()
+            gate = ACTIVATION_GATE.get()
+            if gate is not None and (reason := gate()):
+                raise MotionBlockedError(reason)
             # A pending mode entry can be superseded while service discovery
             # yields. Reject before submission; after submission the existing
             # response/late-cleanup path must reconcile the remote activation.
@@ -940,6 +964,8 @@ class Robot:
         t = Twist()
         values = (float(vx), float(vy), float(wz_deg))
         with self._stop_lock:
+            if self._observing:
+                raise MotionBlockedError("an unclaimed client cannot publish velocity")
             reason = self.motion_block_reason() if any(values) else None
             if any(values) and (reason or self.fallen):
                 self.cmd_pub.publish(t)  # clear a previous velocity before refusing
@@ -1763,6 +1789,9 @@ class Robot:
         use the same stop path as the stop tool. Unresolved remote activation
         remains a fault requiring the physical stop and controller inspection.
         """
+        if self._observing:
+            await self.disconnect()
+            return Result(True, "unclaimed robot client disconnected")
         self.closing = True
         if self._stop_timer is not None:
             self._stop_timer.cancel()
@@ -1776,23 +1805,33 @@ class Robot:
                     result = Result(False, "remote activation still pending at shutdown; use the physical e-stop and restart the controller stack")
             return result
         finally:
-            if self._stop_cleanup_task is not None:
-                self._stop_cleanup_task.cancel()
-                try:
-                    await self._stop_cleanup_task
-                except asyncio.CancelledError:
-                    pass
-            self.worker.cancel()
+            await self.disconnect()
+
+    async def disconnect(self) -> None:
+        """Release a read-only client's resources, or finish a completed shutdown."""
+        with self._stop_lock:
+            if not self._observing and not self.closing:
+                raise RuntimeError("a claimed robot client must use shutdown")
+            self.closing = True
+        if self._stop_timer is not None:
+            self._stop_timer.cancel()
+        if self._stop_cleanup_task is not None:
+            self._stop_cleanup_task.cancel()
             try:
-                await self.worker
+                await self._stop_cleanup_task
             except asyncio.CancelledError:
                 pass
-            if hasattr(self.executor, "shutdown"):
-                self.executor.shutdown(timeout_sec=1.0)
-            if hasattr(self.node, "destroy_node"):
-                self.node.destroy_node()
-            if hasattr(rclpy, "try_shutdown"):
-                rclpy.try_shutdown()
+        self.worker.cancel()
+        try:
+            await self.worker
+        except asyncio.CancelledError:
+            pass
+        if hasattr(self.executor, "shutdown"):
+            self.executor.shutdown(timeout_sec=1.0)
+        if hasattr(self.node, "destroy_node"):
+            self.node.destroy_node()
+        if hasattr(rclpy, "try_shutdown"):
+            rclpy.try_shutdown()
 
     async def mode(self) -> Result:
         """Observed controller/queue state; never measured physical pose or speed."""

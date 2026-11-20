@@ -1,6 +1,6 @@
 """Steer to a foot-specific ball pose and measure when the walker can yield.
 
-The ball offsets come from Tej's u5 tool. The tolerances, braking envelope and
+The common ball offset comes from Tej's u5 tool. The tolerances, braking envelope and
 wind-up allowance are provisional until measured with the intended ball.
 """
 import math
@@ -10,6 +10,8 @@ from .model import Ball, Command, Pose
 
 
 PAW_FORWARD_M = 0.258
+# Combined-release candidates from a rigid size-5 ball in MuJoCo. Tej owns floor validation.
+COMBINED_PAW_FORWARD_M = {"left": 0.258, "right": 0.270}
 PAW_LEFT_M = {"left": 0.040, "right": -0.046}
 FORWARD_WINDOW_M = 0.020
 LATERAL_WINDOW_M = 0.015
@@ -19,29 +21,33 @@ SETTLE_S = 0.20
 MAX_CAPTURE_GAP_S = 0.15
 
 
-def paw_pose(ball, goal, side):
+def paw_pose(ball, goal, side, *, forward_m=PAW_FORWARD_M):
     """Place the observed ball on the chosen paw, with the swing aimed at goal."""
     yaw = math.atan2(goal[1] - ball.y, goal[0] - ball.x)
     c, s = math.cos(yaw), math.sin(yaw)
     lateral = PAW_LEFT_M[side]
-    return Pose(ball.x - c * PAW_FORWARD_M + s * lateral,
-                ball.y - s * PAW_FORWARD_M - c * lateral, yaw)
+    return Pose(ball.x - c * forward_m + s * lateral,
+                ball.y - s * forward_m - c * lateral, yaw)
 
 
-def contact_window(robot, ball, heading_error, side, lookahead=0.0, *, scale=1.0):
+def contact_window(robot, ball, heading_error, side, lookahead=0.0, *, scale=1.0, forward_m=PAW_FORWARD_M):
     """Test the ball-centre offset in the robot's observed body frame."""
     dx = ball.x + ball.vx * lookahead - robot.x
     dy = ball.y + ball.vy * lookahead - robot.y
     c, s = math.cos(robot.yaw), math.sin(robot.yaw)
     return (abs(heading_error) <= scale * YAW_WINDOW_RAD
-            and abs(dx * c + dy * s - PAW_FORWARD_M) <= scale * FORWARD_WINDOW_M
+            and abs(dx * c + dy * s - forward_m) <= scale * FORWARD_WINDOW_M
             and abs(-dx * s + dy * c - PAW_LEFT_M[side]) <= scale * LATERAL_WINDOW_M)
 
 
 class PawApproach:
-    def __init__(self, side):
+    def __init__(self, side, forward_m=None):
         if side not in ("left", "right"):
             raise ValueError("kick_side must be left, right or None")
+        self.forward_m = PAW_FORWARD_M if forward_m is None else forward_m
+        if not math.isfinite(self.forward_m) or self.forward_m <= 0:
+            raise ValueError("paw forward offset must be finite and positive")
+        self.assist_enabled = forward_m is not None
         self.side = side
         self.samples = deque(maxlen=128)
         self.reset()
@@ -50,7 +56,35 @@ class PawApproach:
         self.last_command = Command()
         self.last_control_time = None
         self.docked = False
+        self.reset_dock_progress()
         self.reset_settle()
+
+    def reset_dock_progress(self):
+        self.dock_anchor = None
+        self.last_dock_capture = None
+        self.assist_until = -math.inf
+
+    def docking_speed_floor(self, robot, ball, distance, heading_error, captured_at, now):
+        """Briefly step out of the stock gait's near-zero response after a measured stall."""
+        if (not self.assist_enabled or not .006 < distance < .040 or abs(heading_error) > YAW_WINDOW_RAD
+                or not 0 <= now - captured_at < MAX_CAPTURE_GAP_S or math.hypot(ball.vx, ball.vy) > .02):
+            self.reset_dock_progress()
+            return 0.
+        if self.last_dock_capture is not None and not 0 <= captured_at - self.last_dock_capture < MAX_CAPTURE_GAP_S:
+            self.reset_dock_progress()
+        self.last_dock_capture = captured_at
+        if self.dock_anchor is not None:
+            stamp, pose = self.dock_anchor
+            if (captured_at < stamp or math.hypot(robot.x - pose.x, robot.y - pose.y) >= .004
+                    or abs(math.remainder(robot.yaw - pose.yaw, math.tau)) > .03):
+                self.dock_anchor = None
+            elif captured_at - stamp >= .55 and self.assist_until < stamp:
+                # Allow one brief pulse per measured standstill. A new pulse
+                # needs new motion. The speed, acceleration and expiry limits still apply.
+                self.assist_until = captured_at + .16
+        if self.dock_anchor is None:
+            self.dock_anchor = captured_at, robot
+        return .075 if captured_at < self.assist_until else 0.
 
     def reset_settle(self):
         self.samples.clear()
@@ -102,7 +136,8 @@ class PawApproach:
         horizon = now - captured_at + WINDUP_S
 
         def will_stay(vx, vy):
-            return contact_window(robot, Ball(ball.x, ball.y, vx, vy), heading_error, self.side, horizon)
+            return contact_window(robot, Ball(ball.x, ball.y, vx, vy), heading_error, self.side, horizon,
+                                  forward_m=self.forward_m)
 
         # Fit a line to positions and average the independent velocity reports
         # over elapsed capture time. Both forecasts must stay on the paw.

@@ -13,9 +13,11 @@ NATIVE_AUTHORITY_MAX_AGE_S = 0.3
 
 
 def guard_publishers_problem(node, client_name, *, robot_topic="/cmd_vel", kick_topic="/kick_cmd_vel",
-                             command_contract="legacy_twist", allow_absent_native=False):
+                             command_contract="legacy_twist", allow_absent_native=False,
+                             native_node="/neural_controller_default", detector_node=None):
     if command_contract == "fc_deadline_v1":
-        return _deadline_graph_problem(node, client_name, allow_absent_native=allow_absent_native)
+        return _deadline_graph_problem(node, client_name, allow_absent_native=allow_absent_native,
+                                       native=native_node, detector=detector_node)
     if command_contract != "legacy_twist":
         return "authority", "unknown command contract"
     expected = {robot_topic: ["/fc_body_command_guard", client_name],
@@ -38,12 +40,15 @@ def guard_publishers_problem(node, client_name, *, robot_topic="/cmd_vel", kick_
     return missing
 
 
-def _deadline_graph_problem(node, client_name, *, allow_absent_native=False):
+def _deadline_graph_problem(node, client_name, *, allow_absent_native=False, native="/neural_controller_default",
+                            detector=None):
     # Import only for strict selection; legacy source subsets need no helper.
     from final_project.behaviors.command_deadline import REQUEST_TOPIC, ADMITTED_TOPIC
-    guard, native = "/fc_body_command_guard", "/neural_controller_default"
+    guard = "/fc_body_command_guard"
     publishers = {REQUEST_TOPIC: client_name, ADMITTED_TOPIC: guard, GUARD_STATUS_TOPIC: guard,
                   NATIVE_AUTHORITY_TOPIC: native}
+    if detector is not None:
+        publishers["/fc/obstacle_detections"] = detector
     subscribers = {REQUEST_TOPIC: guard, ADMITTED_TOPIC: native}
     name = lambda info: info.node_namespace.rstrip("/") + "/" + info.node_name
     try:
@@ -56,7 +61,8 @@ def _deadline_graph_problem(node, client_name, *, allow_absent_native=False):
                 return "authority", "unexpected publishers on " + topic
             if actual != [owner] or count != 1:
                 if not (allow_absent_native and owner == native and not actual and count == 0):
-                    missing = missing or ("path", "missing selected publisher on " + topic)
+                    missing = missing or ("camera" if owner == detector else "path",
+                                          "missing selected publisher on " + topic)
             elif infos[0].topic_type != "std_msgs/msg/String":
                 return "authority", "wrong deadline message type on " + topic
         for topic, owner in subscribers.items():

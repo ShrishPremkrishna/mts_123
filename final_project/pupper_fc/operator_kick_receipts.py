@@ -52,7 +52,7 @@ class OperatorKickReceipts:
         self._observed = False
         return True
 
-    def observe(self, status: dict) -> bool:
+    def observe(self, status: dict, *, walker_ready=None) -> bool:
         """Return True for consumption of a terminal report, including failure.
 
         The handoff decision communicates success, cancellation or unresolved
@@ -93,6 +93,10 @@ class OperatorKickReceipts:
                 self._observed = True
                 return True  # Failure observed; exclusive ownership is still unresolved.
         else:
+            return False
+        # A manager can report active before DDS delivers the rebound native
+        # source receipt. Keep this job and zero output until both agree.
+        if walker_ready is not None and not walker_ready():
             return False
         self._observed = self.handoff.receipt(request, "walker_restored", walker_active=True)
         return self._observed

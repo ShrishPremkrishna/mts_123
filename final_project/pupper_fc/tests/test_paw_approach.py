@@ -4,7 +4,7 @@ import pytest
 
 from final_project.pupper_fc.controller import Controller
 from final_project.pupper_fc.model import Ball, Field, Limits, Observation, Pose
-from final_project.pupper_fc.paw_approach import paw_pose
+from final_project.pupper_fc.paw_approach import COMBINED_PAW_FORWARD_M, PawApproach, paw_pose
 from final_project.pupper_fc.simulation import Simulator
 
 
@@ -15,6 +15,44 @@ def test_rotated_field_pose_puts_the_ball_on_the_requested_paw(side, lateral):
     assert pose == Pose(ball.x + lateral, ball.y - .258, math.pi / 2)
     with pytest.raises(ValueError, match="kick_side"):
         Controller(kick_side="center")
+
+
+def test_docking_assist_requires_measured_stall_and_fresh_stationary_ball():
+    paw = PawApproach("left", .258)
+    robot, ball = Pose(0, 0, 0), Ball(.278, .040)
+
+    def observe(t, pose=robot, observed_ball=ball):
+        return paw.docking_speed_floor(pose, observed_ball, .020, 0., t, t + .06)
+
+    assert all(observe(i * .05) == 0. for i in range(11))
+    assert observe(.56) == .075
+    assert all(observe(t) == .075 for t in (.60, .65, .70))
+    # An unchanged base never receives a second pulse until it actually moves.
+    assert all(observe(i * .05) == 0. for i in range(15, 42))
+    assert observe(2.10, Pose(.006, 0, 0)) == 0.
+    for i in range(43, 56):
+        assert observe(i * .05, Pose(.006, 0, 0), Ball(.278, .04, .08, 0.)) == 0.
+    assert observe(4.) == 0.  # Capture gap starts a new measurement window.
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_combined_standoff_guides_steering_and_kick_readiness(side):
+    # Stand near the forward edge of the release-specific window. A right
+    # foot using the common historical offset would reject this placement.
+    forward = COMBINED_PAW_FORWARD_M[side]
+    ball = Ball(.4, 0.)
+    goal = (1., 0.)
+    controller = Controller(kick_side=side, paw_forward_m=forward)
+    pose = paw_pose(ball, goal, side, forward_m=forward)
+    for tick in range(12):
+        t = tick * .05
+        obs = Observation(t, pose, ball)
+        decision = controller.tick(obs, t, shot_target=goal)
+    assert decision.phase == "kick_ready"
+    assert decision.target == pytest.approx((ball.x - forward, pose.y))
+    near_edge = Pose(pose.x - .014, pose.y, pose.yaw)
+    t += .05
+    assert controller.tick(Observation(t, near_edge, ball), t, shot_target=goal).command.vx == 0.
 
 
 @pytest.mark.parametrize("side", ["left", "right"])

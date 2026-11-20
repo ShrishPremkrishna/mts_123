@@ -110,6 +110,8 @@ async def lifespan(app: FastAPI):
             finally:
                 tools = None
         return
+    if os.environ.get("PUPPER_SESSION_MOTION_MODE") == "fc_walk_kick":
+        raise RuntimeError("the combined field runner exclusively owns this motion profile")
     follow_available = follower_config().mode != "disabled"
     tools = Robot(ros_signal_handlers=False)
     tools.follow_available = follow_available

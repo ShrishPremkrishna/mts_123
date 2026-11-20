@@ -87,16 +87,26 @@ def prepare(args):
                   'lifecycle': pinned(root / 'gemini_pupper/robot/session_processes.py'),
                   'telemetry_topics': pinned(args.telemetry_topics)}
     topics = json.loads(args.telemetry_topics.read_text())
-    if (not isinstance(topics, list) or not topics or len(set(topics)) != len(topics) or
+    if (not isinstance(topics, list) or
             any(not isinstance(topic, str) or not re.fullmatch(r'/[A-Za-z0-9_/]+', topic) for topic in topics) or
-            not {'/joint_states', '/llm_cmd_vel'} <= set(topics)):
-        raise ValueError('Telemetry JSON must list distinct absolute topics including joint_states and llm_cmd_vel')
+            len(set(topics)) != len(topics)):
+        raise ValueError('Telemetry JSON must list distinct absolute topics')
+    if os.environ.get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
+        from fc_walk_kick_release import inspect_native, validate_selection
+        validate_selection(root, components, app)
+        if inspect_native(args.native_library)['sha256'] != components['native']['sha256']:
+            raise ValueError('Native controller changed during preparation')
+    elif not {'/joint_states', '/llm_cmd_vel'} <= set(topics):
+        raise ValueError('Telemetry JSON must include joint_states and llm_cmd_vel')
     run = args.run_dir.resolve()
     run.mkdir(mode=0o700, parents=True, exist_ok=False)
     tag = uuid.uuid4().hex
     env = {k: os.environ[k] for k in ENV_KEYS if k in os.environ}
     env.setdefault('PUPPER_FOLLOWER_MODE', 'disabled')
     env.setdefault('PUPPER_SESSION_MOTION_MODE', 'walking')
+    if env['PUPPER_SESSION_MOTION_MODE'] == 'fc_walk_kick':
+        env.update(PUPPER_GAIT_DEPLOY_DIR=str(root / 'pupper_gait_deploy'),
+                   FOLLOW_USE_COLOR='0', FOLLOW_AVOID_OBSTACLES='0', FOLLOW_ALWAYS_DETECT='0')
     env.update(PUPPER_GEMINI_DIR=str(root / 'gemini_pupper'),
                PUPPER_STAGED_GEMINI_DIR=str(root / 'gemini_pupper'),
                PUPPER_SESSION_SKILLS=os.environ['PUPPER_SESSION_SKILLS'],
@@ -421,6 +431,8 @@ def start_native(run, plan, life):
 
 
 def start_api(run, plan, life, *, app_manifest=None, app_manifest_sha256=None):
+    if plan.get("environment", {}).get("PUPPER_SESSION_MOTION_MODE") == "fc_walk_kick":
+        raise ValueError("combined walk/kick session is owned by the field runner; ordinary API is unavailable")
     port = int(plan['environment']['PORT'])
     with lock(life, run):
         receipt = receipt_for(life, run, plan)

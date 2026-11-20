@@ -74,8 +74,8 @@ def follower_identity(config: FollowerConfig) -> dict:
 def session_motion_mode() -> str:
     """The default keeps the observed low-speed profile; class_run is opt-in."""
     mode = os.environ.get("PUPPER_SESSION_MOTION_MODE", "walking").strip().lower()
-    if mode not in ("walking", "class_run"):
-        raise ValueError("PUPPER_SESSION_MOTION_MODE must be walking or class_run")
+    if mode not in ("walking", "class_run", "fc_walk_kick"):
+        raise ValueError("PUPPER_SESSION_MOTION_MODE must be walking, class_run or fc_walk_kick")
     return mode
 
 
@@ -151,6 +151,11 @@ def validate_session_catalog(tricks: dict) -> dict | None:
         if manifest.get("motion_mode", "walking") != session_motion_mode():
             raise ValueError("server motion mode differs from persistent launch")
         expected = ["neural_controller_default", "gemini_walk"] + session_skill_controllers(tricks)
+        if session_motion_mode() == "fc_walk_kick":
+            import fc_release_profile
+            expected = list(fc_release_profile.CONTROLLERS)
+            fc_release_profile.verify_profile(manifest, REPO.parent,
+                                              yaml.safe_load(Path(manifest["configuration"]).read_text()))
         if manifest["motion_controllers"] != expected:
             raise ValueError("selected controller set differs from persistent launch")
         if "follower" in manifest:

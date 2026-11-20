@@ -18,13 +18,6 @@ from pathlib import Path
 
 import yaml
 
-from launch import LaunchDescription
-from launch.actions import EmitEvent, ExecuteProcess, RegisterEventHandler
-from launch.event_handlers import OnProcessExit
-from launch.events import Shutdown
-from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterFile
-
 ROOT = Path(__file__).resolve().parent
 CONFIG_SHA = "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0"
 URDF_SHA = "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
@@ -48,7 +41,6 @@ def prepare_session_profile(config_path, urdf):
     import runtime_config
     import tricks as catalog_module
     from controller_coverage import NEURAL_TYPE, combined_course_config
-    from ament_index_python.packages import get_package_share_directory
 
     for module in (runtime_config, catalog_module):
         if Path(module.__file__).resolve().parent != repo / "robot":
@@ -67,13 +59,19 @@ def prepare_session_profile(config_path, urdf):
     if follower.mode == "legacy":
         raise ValueError("persistent profile supports the Lab 5 follower or disabled mode, not legacy")
     baseline = yaml.safe_load(config_path.read_text())
+    if motion_mode == "fc_walk_kick":
+        import fc_release_profile
     models = []
     for name in ("neural_controller_default", "gemini_walk"):
         value = baseline[name]["ros__parameters"]["model_path"]
         prefix = "$(find-pkg-share neural_controller)"
         if not value.startswith(prefix):
             raise ValueError("baseline model must use the pinned installed neural_controller policy")
-        model = Path(get_package_share_directory("neural_controller")) / value[len(prefix):].lstrip("/")
+        if motion_mode == "fc_walk_kick":
+            model = repo.parent / fc_release_profile.WALK_MODEL
+        else:
+            from ament_index_python.packages import get_package_share_directory
+            model = Path(get_package_share_directory("neural_controller")) / value[len(prefix):].lstrip("/")
         if hashlib.sha256(model.read_bytes()).hexdigest() != STOCK_POLICY_SHA:
             raise ValueError("installed stock policy differs from the demonstrated baseline")
         models.append(model.resolve())
@@ -94,6 +92,11 @@ def prepare_session_profile(config_path, urdf):
         if trick.walks:
             combined["controller_manager"]["ros__parameters"][trick.walk_controller] = {"type": NEURAL_TYPE}
             combined[trick.walk_controller] = {"ros__parameters": catalog_module.walk_policy_params(trick, base)}
+
+    motion_controllers = ["neural_controller_default", "gemini_walk", *controllers]
+    if motion_mode == "fc_walk_kick":
+        fc_release_profile.select(combined, names, follower.mode)
+        motion_controllers = list(fc_release_profile.CONTROLLERS)
 
     validator_path = runtime_config.component_dir("pupper_gait_deploy", "PUPPER_GAIT_DEPLOY_DIR") / "download_policy.py"
     spec = importlib.util.spec_from_file_location("persistent_policy_validator", validator_path)
@@ -117,6 +120,10 @@ def prepare_session_profile(config_path, urdf):
               Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path,
               *(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py")),
               *sorted((repo / "lab").glob("*.py")), repo / "lab/prompt.md"]
+    if motion_mode == "fc_walk_kick":
+        assets.extend(repo.parent / p for p in (*fc_release_profile.FIELD_FILES, fc_release_profile.WALK_MODEL))
+        for trick in selected.values():
+            assets.extend((trick.path, trick.path.parent / "trick.yaml"))
     if follower.service_dir is not None:
         service = follower.service_dir
         required_follower = [service / name for name in (
@@ -134,11 +141,13 @@ def prepare_session_profile(config_path, urdf):
     manifest = {"schema": runtime_config.SESSION_SCHEMA, "skills": list(names),
                 "follower": runtime_config.follower_identity(follower),
                 "motion_mode": motion_mode,
-                "motion_controllers": ["neural_controller_default", "gemini_walk", *controllers],
+                "motion_controllers": motion_controllers,
                 "catalog": runtime_config.session_catalog_identity(selected),
                 "assets": {str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest() for path in assets},
                 "configuration": str(config_out),
                 "hardware_approval": "Not supplied by this profile; selected policies still require applicable approval and supervised readiness."}
+    if motion_mode == "fc_walk_kick":
+        fc_release_profile.verify_profile(manifest, repo.parent, combined)
     temporary = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
     temporary.write_text(json.dumps(manifest, indent=2) + "\n")
     temporary.replace(manifest_path)
@@ -146,6 +155,12 @@ def prepare_session_profile(config_path, urdf):
 
 
 def generate_launch_description():
+    from launch import LaunchDescription
+    from launch.actions import EmitEvent, ExecuteProcess, RegisterEventHandler
+    from launch.event_handlers import OnProcessExit
+    from launch.events import Shutdown
+    from launch_ros.actions import Node
+    from launch_ros.parameter_descriptions import ParameterFile
     if os.environ.get("ROS_DOMAIN_ID") != "168":
         raise RuntimeError("Lab 6 session requires explicit ROS_DOMAIN_ID=168")
     config_path = ROOT / "lab6-session.yaml"
@@ -164,8 +179,6 @@ def generate_launch_description():
                                 "/controller_manager/switch_controller_backend")])
     gateway = Node(package="joy_utils", executable="estop_controller",
                    parameters=[config], output="screen")
-    mux = Node(package="cmd_vel_mux", executable="cmd_vel_mux_node",
-               parameters=[config], output="screen")
     joy = Node(package="joy", executable="joy_node", name="floor_physical_joy",
                namespace="/", parameters=[config], output="screen")
     # A silent mux can otherwise leave a controller holding its last velocity.
@@ -182,7 +195,20 @@ def generate_launch_description():
                  "-p", f"use_color:={str(follower.use_color).lower()}",
                  "-p", f"avoid_obstacles:={str(follower.avoid_obstacles).lower()}"],
             cwd=str(follower.service_dir), output="screen"))
-    required = (state, manager, gateway, mux, joy, *follower_actions)
+    extra = []
+    if runtime_config.session_motion_mode() == "fc_walk_kick":
+        from fc_release_profile import GUARD, GUARD_ARGS
+        root = runtime_config.REPO.parent
+        guard = ExecuteProcess(cmd=[sys.executable, "-B", "-s", str(root / GUARD), *GUARD_ARGS],
+                               cwd=str(root), output="screen", respawn=False)
+        required = (state, manager, gateway, joy)
+        # The native walk deadline zeros the request if the guard exits.
+        # Keep the manager and physical Stop alive during a policy transfer.
+        extra.append(guard)
+    else:
+        mux = Node(package="cmd_vel_mux", executable="cmd_vel_mux_node",
+                   parameters=[config], output="screen")
+        required = (state, manager, gateway, mux, joy, *follower_actions)
     guards = [RegisterEventHandler(OnProcessExit(target_action=node,
         on_exit=[EmitEvent(event=Shutdown(reason="required Lab 6 session process exited"))]))
         for node in required]
@@ -192,4 +218,4 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "imu_sensor_broadcaster", *common], output="screen")
     motion = Node(package="controller_manager", executable="spawner",
         arguments=[*motion_controllers, "--inactive", "--param-file", str(generated_config), *common], output="screen")
-    return LaunchDescription([*guards, *required, feedback, motion])
+    return LaunchDescription([*guards, *required, feedback, motion, *extra])

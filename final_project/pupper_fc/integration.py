@@ -142,12 +142,13 @@ class Executor:
     """
 
     def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None,
-                 required_participants=(), kick_side=None):
+                 required_participants=(), kick_side=None, paw_forward_m=None):
         fields = fields or {"pupper-1": Field(), "pupper-2": Field(attack_sign=-1)}
         self.kick_side = kick_side
+        self.paw_forward_m = paw_forward_m
         self._kick_owners = {}
         self._revoked_kicks = set()
-        self.controllers = {token(r, "robot_id"): Controller(f, limits, kick_side=kick_side)
+        self.controllers = {token(r, "robot_id"): Controller(f, limits, kick_side=kick_side, paw_forward_m=paw_forward_m)
                             for r, f in fields.items()}
         if not isinstance(required_participants, (list, tuple)):
             raise ValueError("required_participants must be a list or tuple of distinct configured robot IDs")
@@ -198,7 +199,7 @@ class Executor:
         self.epoch, self.clock, self.last_now = epoch, clock, now
         self.used_epochs.add(epoch)
         # A deliberate new session gets fresh referee/controller state too.
-        self.controllers = {r: Controller(c.field, c.limits, kick_side=self.kick_side)
+        self.controllers = {r: Controller(c.field, c.limits, kick_side=self.kick_side, paw_forward_m=self.paw_forward_m)
                             for r, c in self.controllers.items()}
         # A new gameplay epoch cannot release an ongoing local physical veto.
         self.external_resume_after = {r: now if (self.external_holds[r] or
@@ -558,9 +559,20 @@ class Executor:
                 observation = observations[robot_id]
                 kwargs = {}
                 action, target = intent.kind, intent.target
+                owner = self._kick_owners.get(robot_id)
+                in_clip = (owner is not None and owner.active is not None and owner.clip_started
+                           and action in ("auto", "attack", "shoot"))
                 # Referee return/reset needs only pose, for every action owner.
                 # Missing goals or an irrelevant target cannot bypass its latch.
-                if controller.referee_active(observation.goal):
+                if (in_clip and not observation.fallen and observation.robot is not None
+                        and not controller.observation_problem(observation)
+                        and (observation.ball is not None or owner.clip_confirmed
+                             or controller.referee_active(observation.goal))):
+                    # An actual swing moves the ball. Geometry for a subsequent
+                    # approach cannot interrupt this clip or its walker return.
+                    # Time, pose, authority and obstacle gates still apply.
+                    action = "finish_kick"
+                elif controller.referee_active(observation.goal):
                     action = "referee"
                 elif action == "auto":
                     tactical = self.tactics[robot_id].tick(observation, now)
@@ -583,7 +595,11 @@ class Executor:
                         decisions[robot_id] = Decision("tracking_lost", "opponent goal is missing", zero(now, robot_id))
                         continue
                     kwargs["shot_target"] = destination
-                decision = controller.tick(observation, now, **kwargs)
+                if action == "finish_kick":
+                    decision = Decision("kick_owned", "selected kick owns the legs until walker return",
+                                        zero(now, robot_id))
+                else:
+                    decision = controller.tick(observation, now, **kwargs)
                 evidence_deadline = self.frame_evidence_deadline(robot_id)
                 deadline = min(decision.command.expires_at, intent.valid_until,
                                evidence_deadline if evidence_deadline is not None else now)
@@ -620,7 +636,7 @@ class Executor:
     def _kick_permitted(self, robot_id, decision):
         intent = self.intents[robot_id]
         return (self.armed and intent is not None and intent.kind in ("auto", "attack", "shoot")
-                and decision.role != "defense" and decision.phase in ("approach", "align", "kick_ready"))
+                and decision.role != "defense" and decision.phase in ("approach", "align", "kick_ready", "kick_owned"))
 
     def kick_step(self, handoff, now):
         """Select the single output owner for one foot-policy control tick.
@@ -642,6 +658,21 @@ class Executor:
         return handoff.step(decision, now, epoch=self.epoch,
                             attempt_id=intent.identity[0] if intent is not None else None,
                             side=self.kick_side, permitted=permitted)
+
+    def kick_authorized(self, handoff, now, *, require_ready=False):
+        """Recheck authority immediately before an asynchronous native switch.
+
+        Consume no handoff edges: the next output tick retains any cancellation.
+        """
+        job = handoff.active
+        robot_id = handoff.robot_id
+        if job is None or self._kick_owners.get(robot_id) is not handoff or self.epoch != job.epoch:
+            return False
+        decision = self._plan_tick(now)[robot_id]
+        intent = self.intents[robot_id]
+        return (robot_id not in self._revoked_kicks and self._kick_permitted(robot_id, decision)
+                and (not require_ready or decision.phase == "kick_ready")
+                and intent.identity[0] == job.attempt_id and now < decision.command.expires_at)
 
     def handle(self, event):
         """Apply one normalized event and return a fully serializable shadow tick."""

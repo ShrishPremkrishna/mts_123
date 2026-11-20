@@ -42,7 +42,7 @@ def build_controller(output):
     return binary, command
 
 
-def make_model(contact_model):
+def make_model(contact_model, *, configure_scene=None):
     from mjlab.entity import Entity
     from mjlab.tasks.tracking.config.pupper.env_cfgs import pupper_tracking_env_cfg
     from mjlab.tasks.tracking.config.pupper.contact_contract import enable_tracking_ground_hulls
@@ -58,6 +58,8 @@ def make_model(contact_model):
     spec = Entity(cfg.scene.entities['robot']).spec
     spec.worldbody.add_geom(name='terrain', type=mujoco.mjtGeom.mjGEOM_PLANE,
                             size=[5,5,.1], contype=1, conaffinity=1, friction=[1,.005,.0001])
+    if configure_scene is not None:
+        configure_scene(spec)
     model = spec.compile()
     MujocoCfg(**PUPPER_MUJOCO_OPTIONS).apply(model)
     # Native integration at the controller manager's actual 520 Hz update rate;

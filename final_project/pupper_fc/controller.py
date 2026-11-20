@@ -124,7 +124,7 @@ class Controller:
 
     def __init__(self, field: Field = Field(), limits: Limits = Limits(), *,
                  strike_stopping_allowance: float = STRIKE_STOPPING_ALLOWANCE,
-                 kick_side: str | None = None):
+                 kick_side: str | None = None, paw_forward_m: float | None = None):
         if not _finite(strike_stopping_allowance) or strike_stopping_allowance < 0:
             raise ValueError("strike stopping allowance must be finite and nonnegative")
         self.field, self.limits = field, limits
@@ -134,7 +134,7 @@ class Controller:
         if kick_side is not None:
             # Stock releases intentionally package only their pinned walking sources.
             from .paw_approach import PawApproach
-            self._paw = PawApproach(kick_side)
+            self._paw = PawApproach(kick_side, paw_forward_m)
         self._goal_latched = False
         self._home_reached = False
         self._reset_requested = False
@@ -467,14 +467,14 @@ class Controller:
         ymax = self.field.width / 2 - self.field.robot_radius
         return _clip(x, -xmax, xmax), _clip(y, -ymax, ymax)
 
-    def _drive(self, phase, reason, robot, target, heading, max_speed, now, robot_id):
+    def _drive(self, phase, reason, robot, target, heading, max_speed, now, robot_id, *, min_speed=0.):
         """Proportional move to a field point while turning to a field heading."""
         dx, dy = target[0] - robot.x, target[1] - robot.y
         distance = math.hypot(dx, dy)
         heading_error = _wrap(heading - robot.yaw)
         vx = vy = 0.0
         if distance > 1e-9:
-            speed = min(max_speed, KP_POSITION * distance)
+            speed = min(max_speed, max(min_speed, KP_POSITION * distance))
             if self._paw is not None:
                 # Leave room to turn on a tight curve; full speed is available on line.
                 speed *= max(0.05, math.cos(heading_error))
@@ -516,8 +516,9 @@ class Controller:
                            self._travel_heading(robot, home, facing), self.limits.vx, now, robot_id)
 
     def _paw_attack(self, robot, ball, goal, captured_at, now, robot_id):
-        from .paw_approach import MAX_CAPTURE_GAP_S, PAW_FORWARD_M, contact_window, paw_pose
-        pose = paw_pose(ball, goal, self.kick_side)
+        from .paw_approach import MAX_CAPTURE_GAP_S, contact_window, paw_pose
+        forward_m = self._paw.forward_m
+        pose = paw_pose(ball, goal, self.kick_side, forward_m=forward_m)
         target = (pose.x, pose.y)
         if self._reachable(*target) != target:
             return self._halt("blocked", "selected paw position lies outside the field", now, robot_id)
@@ -525,8 +526,9 @@ class Controller:
         # Enter near the middle of the contact window; hysteresis leaves room for
         # capture noise while braking and waiting for evidence of steady placement.
         self._paw.docked = contact_window(robot, ball, heading_error, self.kick_side,
-                                          scale=1.0 if self._paw.docked else 0.55)
+                                          scale=1.0 if self._paw.docked else 0.55, forward_m=forward_m)
         if self._paw.docked:
+            self._paw.reset_dock_progress()
             cmd = self._paw.ramp(0, 0, 0, self.limits, now, robot_id)
             # The swing is committed for the wind-up. A rolling ball that will leave
             # the paw line cannot authorize a kick, even when aligned at this instant.
@@ -547,9 +549,9 @@ class Controller:
         across = -dx * s + dy * c
         # Route around the ball to a point safely behind the stance. From the
         # back half-plane, close only on the paw's side of the ball.
-        if (along < PAW_FORWARD_M - 0.025
-                or (along < PAW_FORWARD_M + 0.09 and abs(across) > 0.12)
-                or (along < PAW_FORWARD_M + 0.16 and abs(heading_error) > 0.30)):
+        if (along < forward_m - 0.025
+                or (along < forward_m + 0.09 and abs(across) > 0.12)
+                or (along < forward_m + 0.16 and abs(heading_error) > 0.30)):
             margin = defensive_clearance(self.field)
             staging = Pose(pose.x - c * margin, pose.y - s * margin, pose.yaw)
             if self._reachable(staging.x, staging.y) != (staging.x, staging.y):
@@ -562,7 +564,8 @@ class Controller:
         distance = math.hypot(pose.x - robot.x, pose.y - robot.y)
         return self._drive("align" if distance < ALIGN_RADIUS else "approach",
                            f"steering to the {self.kick_side} paw position", robot, target,
-                           self._travel_heading(robot, target, pose.yaw), self.limits.vx, now, robot_id)
+                           self._travel_heading(robot, target, pose.yaw), self.limits.vx, now, robot_id,
+                           min_speed=self._paw.docking_speed_floor(robot, ball, distance, heading_error, captured_at, now))
 
     def _play(self, robot, ball, now, robot_id, captured_at, shot_target=None):
         if self._strike is not None:

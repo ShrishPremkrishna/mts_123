@@ -1,0 +1,12 @@
+[
+  "/joint_states",
+  "/imu_sensor_broadcaster/imu",
+  "/fc/normalized_events",
+  "/fc/obstacle_detections",
+  "/fc/body_command/request",
+  "/fc/body_command/admitted",
+  "/fc/body_command_guard/status",
+  "/neural_controller_default/command_authority",
+  "/trick_leg_kick/clip",
+  "/trick_leg_kick/clip_status"
+]

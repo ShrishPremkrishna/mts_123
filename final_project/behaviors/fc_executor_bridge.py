@@ -52,6 +52,8 @@ OBS_MAX_AGE_S = 0.2
 NATIVE_DISCOVERY_S = 0.3
 ROBOT_IDS = ("pupper-1", "pupper-2")
 LIMITS = Limits(vx=0.3, vy=0.3, wz=1.0)
+# First combined profile tested in the coupled walking and kicking policy simulation.
+COMBINED_LIMITS = Limits(vx=0.22, vy=0.18, wz=0.65)
 EVENT_TOPIC = "/fc/normalized_events"
 STATUS_TOPIC = "/fc/executor_bridge/status"
 NODE_NAME = "fc_executor_bridge"
@@ -165,7 +167,8 @@ class BridgeCore:
 
     def __init__(self, robot_id, producer_id, boot_id, fields, *, clock=time.monotonic,
                  required_participants=(), command_contract=LEGACY_CONTRACT,
-                 monotonic_ns=time.monotonic_ns, command_clock_id=None, source_instance=None):
+                 monotonic_ns=time.monotonic_ns, command_clock_id=None, source_instance=None,
+                 kick_side=None, paw_forward_m=None):
         if robot_id not in ROBOT_IDS or set(fields) != set(ROBOT_IDS):
             raise ValueError("configure both robots and pin one output robot")
         if command_contract not in (LEGACY_CONTRACT, DEADLINE_CONTRACT):
@@ -177,7 +180,9 @@ class BridgeCore:
         self.robot_id, self.producer_id = robot_id, token(producer_id, "producer_id")
         self.clock_name = "linux-monotonic:" + token(boot_id, "boot_id")
         self.clock = clock
-        self.executor = Executor(fields, LIMITS, required_participants=required_participants)
+        self.limits = COMBINED_LIMITS if kick_side is not None else LIMITS
+        self.executor = Executor(fields, self.limits, required_participants=required_participants,
+                                 kick_side=kick_side, paw_forward_m=paw_forward_m)
         if self.executor.required_participants and robot_id not in self.executor.required_participants:
             raise ValueError("required participants must include this bridge's robot")
         self.stopped = False
@@ -242,7 +247,7 @@ class BridgeCore:
         values = (cmd.vx, cmd.vy, cmd.wz, cmd.expires_at)
         if (cmd.robot_id != self.robot_id or
                 any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in values) or
-                abs(cmd.vx) > LIMITS.vx or abs(cmd.vy) > LIMITS.vy or abs(cmd.wz) > LIMITS.wz):
+                abs(cmd.vx) > self.limits.vx or abs(cmd.vy) > self.limits.vy or abs(cmd.wz) > self.limits.wz):
             self.stop()
             raise ValueError("invalid, misrouted or out-of-bounds Executor command")
         intent = self.executor.intents[self.robot_id]

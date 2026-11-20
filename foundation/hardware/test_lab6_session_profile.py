@@ -367,3 +367,28 @@ def test_persistent_follower_choice_is_explicit(profile, monkeypatch):
     with pytest.raises(ValueError, match="PUPPER_FOLLOWER_MODE explicitly"):
         profile.generate_launch_description()
     assert not runtime_config.session_manifest_path().exists()
+
+
+def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    graph = profile.generate_launch_description()
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    config = yaml.safe_load(Path(manifest["configuration"]).read_text())
+    assert manifest["motion_controllers"] == ["gemini_walk", "trick_leg_kick"]
+    assert config["gemini_walk"]["ros__parameters"]["cmd_vel_contract"] == "fc_deadline_v1"
+    assert config["trick_leg_kick"]["ros__parameters"].get("cmd_vel_contract", "legacy_twist") == "legacy_twist"
+    assert config["estop_controller"]["ros__parameters"]["controller_names"] == manifest["motion_controllers"]
+    entities = graph.args[0]
+    assert not any(getattr(e, "kwargs", {}).get("package") == "cmd_vel_mux" for e in entities)
+    guards = [e for e in entities if type(e).__name__ == "ExecuteProcess"]
+    assert len(guards) == 1
+    assert guards[0].kwargs["cmd"][-3:] == ["--command-contract", "fc_deadline_v1", "--arena-ball-contact"]
+    spawners = [e for e in entities if getattr(e, "kwargs", {}).get("executable") == "spawner"]
+    assert spawners[-1].kwargs["arguments"][:3] == ["gemini_walk", "trick_leg_kick", "--inactive"]
+
+
+def test_wrong_fc_skill_fails_before_launch(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    with pytest.raises(ValueError, match="requires only leg_kick"):
+        profile.generate_launch_description()
