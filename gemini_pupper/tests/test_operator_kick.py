@@ -2,12 +2,17 @@
 
 import asyncio
 from contextlib import asynccontextmanager
+from copy import deepcopy
 import hashlib
 import json
 
 import httpx
 import pytest
 
+from final_project.pupper_fc.integration import Executor
+from final_project.pupper_fc.kick_handoff import KickHandoff
+from final_project.pupper_fc.model import Decision, Field, zero
+from final_project.pupper_fc.operator_kick_receipts import OperatorKickReceipts
 from test_server_transport import harness, robot_api, server
 import operator_kick
 from tricks import TRICK_DIR, WALK_CONTROLLER, controller_params, load_tricks
@@ -47,6 +52,31 @@ def test_candidate_assets_and_default_exclusion(monkeypatch):
     assert (params["init_duration"], params["fade_in_duration"]) == (0.5, 1.0)
 
 
+def field_tick(handoff, side, now=0.0, attempt="attack-1"):
+    ready = Decision("kick_ready", "at the requested stance", zero(now))
+    return handoff.step(ready, now, epoch="soccer", attempt_id=attempt, side=side, permitted=True)
+
+
+def staged_field_request(handoff, side):
+    """Walk authority and fresh observed robot/ball geometry produce the request."""
+    executor = Executor(fields={handoff.robot_id: Field()}, kick_side=side)
+    executor.arm("soccer", "field", 0.)
+    fields = {"epoch": "soccer", "clock": "field"}
+    executor.handle({**fields, "event": "intent", "now": 0., "seq": 1, "kind": "attack",
+                     "robot_id": handoff.robot_id, "intent_id": "attack-1", "issued_at": 0., "valid_until": .5})
+    pose = {"x": -.258, "y": -.040 if side == "left" else .046, "yaw": 0.}
+    for seq in range(8):
+        now = seq * .04
+        frame = {**fields, "event": "frame", "now": now, "seq": seq, "captured_at": now,
+                 "robots": {handoff.robot_id: pose}, "ball": {"x": 0., "y": 0.},
+                 "goals": {"right": {"x": 1.83, "y": 0.}}}
+        assert executor.handle(frame)["accepted"]
+        step = executor.kick_step(handoff, now)
+        if step.request is not None:
+            return executor, step.request, now
+    pytest.fail("the field executor did not dispatch from a steady, aligned stance")
+
+
 @pytest.mark.parametrize("side,frame", [("right", 180), ("left", 380)])
 def test_http_entry_and_walker_restoration(server, monkeypatch, side, frame):
     async def case():
@@ -68,7 +98,15 @@ def test_http_entry_and_walker_restoration(server, monkeypatch, side, frame):
                     assert (await client.post(path, json={"side": "auto"}, headers=headers)).status_code == 422
                     assert (await client.post(path, json={"side": side, "speed": 1}, headers=headers)).status_code == 422
                     assert not rig.robot.activations("trick_leg_kick")
-                    accepted = (await client.post(path, headers=headers, json={"side": side})).json()
+                    handoff = KickHandoff("pupper-1")
+                    receipts = OperatorKickReceipts(handoff, rig.ts.command_instance)
+                    executor, job, field_time = staged_field_request(handoff, side)
+                    accepted = (await client.post(path, headers=headers, json={"side": job.side})).json()
+                    wrong_side = deepcopy(accepted)
+                    wrong_side["details"]["submission"]["name"] = "kick_in_place " + ("left" if side == "right" else "right")
+                    assert not receipts.bind(job, wrong_side)
+                    assert receipts.bind(job, accepted)
+                    assert executor.kick_step(handoff, field_time + .01).decision.phase == "kick_in_flight"
                     assert accepted["success"] and await rig.settle()
                     final = rig.ts.last_outcome
                     assert final["job_id"] == accepted["details"]["submission"]["job_id"]
@@ -77,6 +115,27 @@ def test_http_entry_and_walker_restoration(server, monkeypatch, side, frame):
                     assert frame <= actual_frame < frame + 21
                     assert "Walker restoration confirmed" in final["message"]
                     assert "contact unmeasured" in final["message"]
+                    status = (await client.get("/queue/status?observe_controllers=false")).json()
+                    assert not receipts.observe(dict(status, recent_outcomes={"outcomes": []}))
+                    assert not receipts.observe(dict(status, session_context={"server_instance": "f" * 32}))
+                    history = status["recent_outcomes"]["outcomes"]
+                    row = next(entry for entry in history if entry["job_id"] == final["job_id"])
+                    proof = row["operator_kick"]
+                    for incorrect in ({"job_id": rig.ts.command_instance + ":999"},
+                                      {"server_instance": "f" * 32}, {"execution_started": False},
+                                      {"terminal_state": "started"}, {"name": "kick_in_place neither"},
+                                      {"operator_kick": {}},
+                                      {"operator_kick": {**proof, "confirmed_clip": "stand_idle"}},
+                                      {"operator_kick": {**proof, "restored_controller": "trick_leg_kick"}}):
+                        bad = dict(status, recent_outcomes={"outcomes": [{**row, **incorrect}]})
+                        assert not receipts.observe(bad)
+                    # Prose is deliberately irrelevant to the field executor.
+                    row["message"] = "opaque presentation text"
+                    assert receipts.observe(status)
+                    assert not receipts.observe(status)
+                    assert executor.kick_step(handoff, field_time + .02).decision.phase == "kick_complete"
+                    fresh = field_tick(handoff, side, field_time + .03, attempt="attack-2").request
+                    assert fresh and not receipts.bind(fresh, accepted)
                     assert [act for _, _, act in rig.robot.switches] == [["trick_leg_kick"], [WALK_CONTROLLER]]
                     assert rig.robot.controllers[WALK_CONTROLLER] == "active"
                     await client.post("/tools/stop", json={})
@@ -103,12 +162,19 @@ def test_receipt_anomalies_fail_and_restore_walker(monkeypatch, bad):
                     msg = harness._DataMsg(" ".join(fields))
                 original(topic, msg)
             monkeypatch.setattr(rig.robot, "send", interfere)
-            assert (await operator_kick.kick_in_place(rig.ts, "right")).ok
+            handoff = KickHandoff("pupper-1")
+            job = field_tick(handoff, "right").request
+            receipts = OperatorKickReceipts(handoff, rig.ts.command_instance)
+            submission = await operator_kick.kick_in_place(rig.ts, "right")
+            assert receipts.bind(job, submission.as_dict())
             assert await rig.settle()
             assert not rig.ts.last_outcome["success"]
             assert "did not confirm kick_right" in rig.ts.last_outcome["message"]
             assert "Walker restoration confirmed" in rig.ts.last_outcome["message"]
             assert rig.robot.controllers[WALK_CONTROLLER] == "active"
+            assert receipts.observe({**rig.ts.status(), "recent_outcomes": rig.ts.recent_outcomes()})
+            assert field_tick(handoff, "right", .02).decision.phase == "kick_failed"
+            assert handoff.active is None
     asyncio.run(case())
 
 
@@ -198,7 +264,15 @@ def test_walker_switch_reply_without_active_inventory_is_not_restoration(monkeyp
                     rig.robot.controllers[WALK_CONTROLLER] = "inactive"
                 return result
             monkeypatch.setattr(rig.ts, "switch_to", lose_walker)
-            assert (await operator_kick.kick_in_place(rig.ts, "left")).ok and await rig.settle()
+            handoff = KickHandoff("pupper-1")
+            receipts = OperatorKickReceipts(handoff, rig.ts.command_instance)
+            job = field_tick(handoff, "left").request
+            submission = await operator_kick.kick_in_place(rig.ts, "left")
+            assert receipts.bind(job, submission.as_dict()) and await rig.settle()
             assert not rig.ts.last_outcome["success"]
             assert "Could not verify the walker" in rig.ts.last_outcome["message"]
+            assert receipts.observe({**rig.ts.status(), "recent_outcomes": rig.ts.recent_outcomes()})
+            blocked = field_tick(handoff, "left", .02)
+            assert blocked.cancel == job and blocked.decision.phase == "kick_cancelling"
+            assert field_tick(handoff, "left", .03, attempt="next").request is None
     asyncio.run(case())

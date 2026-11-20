@@ -6,6 +6,22 @@ from final_project.pupper_fc.runtime import Sandbox
 from final_project.pupper_fc.server import create_app
 
 
+def test_default_practice_shows_one_paw_handoff_and_allows_speed_changes():
+    sandbox = create_app().state.sandbox
+    assert sandbox.kick_side == "left"
+    sandbox.control({"action": "start"})
+    for tick in range(250):
+        if tick == 12:
+            sandbox.control({"action": "configure", "settings": {"max_speed": .45}})
+        sandbox.advance()
+        if sandbox.decision.phase == "kick_complete":
+            break
+    state = sandbox.snapshot()
+    assert state["decision"]["phase"] == "kick_complete"
+    assert state["metrics"]["shots"] == 1 and state["metrics"]["goals"] == 0
+    assert state["settings"]["max_speed"] == .45
+
+
 def test_viewer_and_api_use_same_offline_session():
     sandbox = Sandbox()
     # No lifespan here: step explicitly instead of relying on wall-clock timing.

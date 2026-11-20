@@ -96,8 +96,15 @@ async def kick_in_place(robot: Robot, side: str) -> Result:
             return Result(False, f"{playback.message}. Walker restoration unconfirmed: {reason}")
         if {c for c in robot.leg_controllers if states.get(c) == "active"} != {walker}:
             return Result(False, f"{playback.message}. Could not verify the walker as the active leg controller.")
-        return Result(playback.ok, f"{playback.message}. Walker restoration confirmed. Ball contact unmeasured.")
+        evidence = {"schema": "pupper_operator_kick_result_v1", "side": side,
+                    "confirmed_clip": clip if playback.ok else None, "restored_controller": walker}
+        return Result(playback.ok, f"{playback.message}. Walker restoration confirmed. Ball contact unmeasured.",
+                      {"operator_kick": evidence})
 
     estimate = (robot.transition_time_estimate(LOCOMOTION_CONTROLLER) + SETTLE_S
                 + TRICK_INIT_S + TRICK_FADE_S + MOTION_END_S + WALK_READY_S)
-    return with_note(note, await robot.queue(f"kick_in_place {side}", job, estimate, then=LOCOMOTION))
+    name = f"kick_in_place {side}"
+    result = await robot.queue(name, job, estimate, then=LOCOMOTION)
+    if result.ok:
+        result.details["submission"]["name"] = name
+    return with_note(note, result)

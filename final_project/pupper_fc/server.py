@@ -12,7 +12,7 @@ from .simulation import SCENARIOS
 
 
 def create_app(sandbox=None):
-    sandbox = sandbox or Sandbox()
+    sandbox = sandbox or Sandbox(kick_side="left")
 
     @asynccontextmanager
     async def lifespan(app):

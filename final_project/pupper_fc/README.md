@@ -1,13 +1,25 @@
 # Offline soccer decision rehearsal
 
-The interactive field runs the shared gameplay executor with one simulated robot
-and an automatically renewed `auto` intent. Its real tactics choose offense or
-defense. Offense approaches, aligns, strikes and replans; defense takes a ball-clear
-goal-side position. After a goal, the controller returns home and waits for ball
-replacement and a deliberate resume. Role, action, session state and remaining
-play permission are displayed separately.
+The interactive field defaults to one simulated Pupper steering toward a left-foot shot. It receives metric field position and yaw, steers on fresh observations, slows into the paw contact window and requests one kick. A simulated backend reports clip playback and walker restoration. The ball receives no kick impulse. The viewer can show roles, hold reasons, speed, yaw rate and decision input age throughout.
 
-This is a **2D kinematic/contact sandbox**, not MuJoCo, a gait rollout or evidence that a real Pupper can execute these commands. It contains no robot transport, ROS, camera access or cloud calls.
+## One-robot software rehearsal
+
+Run the camera-to-kick matrix from the repo root with the API Python (NumPy is required for Ryan’s tracking filters).
+
+```sh
+.venv-api/bin/python -m final_project.pupper_fc.kick_rehearsal
+.venv-api/bin/python -m final_project.pupper_fc --kick-side right --headless --scenario offset
+```
+
+The matrix exercises the field camera’s actual clock and packet admission, bounded body-frame velocity commands and the exclusive kick handoff. It covers three cruise speeds, several starting poses, both feet, a moved ball, camera loss, noisy tracking, reduced gait response and walking to a new metric pose after the kick. The retained numbers distinguish host processing time from simulated capture age. [Three-speed video](media/three-speed-approach.mp4) · [Case results and source identities](../../foundation/results/field-kick-rehearsal-20261119.json)
+
+In the retained 22-case run, every attempt reached a stationary handoff inside 10.3 mm forward, 7.3 mm sideways and 0.38° heading error in the simulated field. In an angled run, reducing delivered translation to 70% and turning to 65% increased approach time from 4.76 to 6.56 s. The planner used the observed pose to correct the difference. An approach starting on the opposite side of the ball took about 16 seconds. In a separate near-wall example the required paw position fell outside the field and the planner held. These results use provisional paw geometry and synthetic tracks.
+
+In foot mode, `Executor.handle` and `tick` return zero-velocity previews. `kick_step` is the sole output for the walker and kick backend. Renew the same intent ID to refine a metric pose or shot target continuously. One offensive attempt can emit one ticket. A new deliberate attempt uses a new ID. The backend must start before the ticket’s deadline and acknowledge the same side/clip and restored walker. The simulation waits using its virtual clock and keeps processing new observations throughout. A force, torque, contact or physical braking result requires independent measurement.
+
+An additional in-process test takes left and right requests from the field executor through the actual operator endpoint and queue with fake native hardware. The [receipt adapter](operator_kick_receipts.py) accepts evidence for the exact server instance, job, side, clip and restored walker. Source changes do not select a compatible live walking/kick release or dispatch to the Pi. [Operator interface](../../gemini_pupper/README.md#operator-soccer-kick-candidate)
+
+To replay recorded normalized inputs, use `.venv-api/bin/python -m final_project.pupper_fc.integration --replay INPUT.jsonl --kick-side right --robot-id pupper-1`. The file supplies arm, clock, intent and frame events with their original timestamps. Receipts in this replay are simulated.
 
 ## Run
 
@@ -17,7 +29,7 @@ From the repository root, using the existing API environment:
 .venv-api/bin/python -m final_project.pupper_fc
 ```
 
-Open <http://127.0.0.1:8765>. The server binds loopback only; all tabs share one practice session. `--port 8766` selects another port. Stop the server with Ctrl-C. Python changes require a server restart; refresh the page after frontend changes. The [root setup instructions](../../README.md) cover the existing environment; headless runs need only Python's standard library.
+Open <http://127.0.0.1:8765>. The server binds loopback only; all tabs share one practice session. `--port 8766` selects another port. Stop the server with Ctrl-C. Python changes require a server restart; refresh the page after frontend changes. The [root setup instructions](../../README.md) cover the existing environment; the viewer requires the API environment. Use `--kick-side right` to change feet and `--legacy-run-through` to inspect the historical scoring simulation. Reset practice to begin a new single-shot attempt.
 
 Choose a scenario and attack direction and press **Reset practice**, then **Start**.
 Drag the ball or robot, or use the reposition buttons. **Ball near home goal**
@@ -58,11 +70,7 @@ python3 -m final_project.pupper_fc --headless --scenario all --seconds 40
 .venv-api/bin/python -m pytest -q final_project/pupper_fc/tests
 ```
 
-The `--headless` command remains the **isolated Controller baseline** in
-`simulation.py`; it does not exercise executor roles, leases or external holds.
-The browser/API and runtime tests exercise that orchestration. Headless JSON
-reports every outcome, including failures. `--seed 12` changes seeded sensor
-noise; changing the seed alone does not randomize geometry. `--output /tmp/fc-trial.json` saves a summary to a new file.
+The headless viewer uses the same Sandbox and Executor as the browser. With no explicit foot it retains the historical run-through for comparison. Select a foot for a kick rehearsal. `--seed 12` changes observation noise and `--output /tmp/fc-trial.json` saves a new result file.
 
 ## Small integration seams
 
@@ -70,7 +78,7 @@ noise; changing the seed alone does not randomize geometry. `--output /tmp/fc-tr
 | --- | --- | --- |
 | Perception | `model.Observation`: capture time, robot pose/ID, optional ball position/velocity, fallen flag and goal event | The perception adapter supplies calibrated field coordinates and capture age. Missing data stays missing. The controller never receives simulator truth. |
 | Movement | `model.Command`: body-frame forward/lateral/yaw velocity, expiry and robot ID; `model.Limits` | Measured movement limits and a robot adapter replace simulated motion. Enforce expiry at the robot, exclusive command ownership and Stop before hardware use. |
-| Shooting | `Controller` stages/aligns, then produces a bounded velocity strike; decision exposes target pose and phase | A dedicated strike can replace that phase once its entry, cancellation and exit conditions are known. No policy loading is built into this sandbox. |
+| Shooting | The field target places the chosen paw on the shot line. The kick handoff grants one request and holds walking until the backend reports release. | Qualify a compatible walking/kick runtime with Tej’s actual policy and measured paw geometry. |
 | Gameplay | `Executor` admits field frames and leased intents, then calls its `Controller` | Browser/API use the shared executor; the headless baseline calls the controller directly. The runtime owns simulated operator controls and metrics. |
 
 The [project brief](../README.md) records current owners and agreed outcomes for these interfaces.

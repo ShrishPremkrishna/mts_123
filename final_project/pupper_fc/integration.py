@@ -142,9 +142,13 @@ class Executor:
     """
 
     def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None,
-                 required_participants=()):
+                 required_participants=(), kick_side=None):
         fields = fields or {"pupper-1": Field(), "pupper-2": Field(attack_sign=-1)}
-        self.controllers = {token(r, "robot_id"): Controller(f, limits) for r, f in fields.items()}
+        self.kick_side = kick_side
+        self._kick_owners = {}
+        self._revoked_kicks = set()
+        self.controllers = {token(r, "robot_id"): Controller(f, limits, kick_side=kick_side)
+                            for r, f in fields.items()}
         if not isinstance(required_participants, (list, tuple)):
             raise ValueError("required_participants must be a list or tuple of distinct configured robot IDs")
         participants = tuple(token(r, "required participant") for r in required_participants)
@@ -181,6 +185,7 @@ class Executor:
             controller.cancel()
 
     def stop(self):
+        self._revoked_kicks.update(self._kick_owners)
         self.armed = False
         self._clear()
 
@@ -193,7 +198,8 @@ class Executor:
         self.epoch, self.clock, self.last_now = epoch, clock, now
         self.used_epochs.add(epoch)
         # A deliberate new session gets fresh referee/controller state too.
-        self.controllers = {r: Controller(c.field, c.limits) for r, c in self.controllers.items()}
+        self.controllers = {r: Controller(c.field, c.limits, kick_side=self.kick_side)
+                            for r, c in self.controllers.items()}
         # A new gameplay epoch cannot release an ongoing local physical veto.
         self.external_resume_after = {r: now if (self.external_holds[r] or
                                                self.external_resume_after[r] != -math.inf) else -math.inf
@@ -202,6 +208,7 @@ class Executor:
         self.armed = True
 
     def _hold_external(self, robot_id, now):
+        self._revoke_kick(robot_id)
         self.controllers[robot_id].cancel()
         self.external_resume_after[robot_id] = now
 
@@ -288,6 +295,7 @@ class Executor:
 
     def _cancel_intent(self, robot_id):
         """Revoke one action owner, including its tactical session memory."""
+        self._revoke_kick(robot_id)
         self.intents[robot_id] = None
         self.controllers[robot_id].cancel()
         self.tactics[robot_id] = Tactics(self.controllers[robot_id].field, robot_id)
@@ -312,6 +320,7 @@ class Executor:
         for robot_id, controller in self.controllers.items():
             deadline = self.frame_evidence_deadline(robot_id)
             if deadline is None or now >= deadline:
+                self._revoke_kick(robot_id)
                 controller.cancel()
         self.frame_seq = seq
         self.frame = None  # a new invalid observation cannot leave old motion alive
@@ -409,7 +418,12 @@ class Executor:
         except (ValueError, TypeError):
             self._cancel_intent(robot_id)
             raise
-        if previous is None or previous.valid_until <= now or previous.identity != intent.identity:
+        # A tracking source may refine the same destination on every frame.
+        # Keep the foot-mode ramp across those updates. A new owner, kind or
+        # expired lease always interrupts, even when the coordinates match.
+        same_stream = (self.kick_side is not None and previous is not None
+                       and kind in ("move", "shoot") and previous.identity[:2] == intent.identity[:2])
+        if previous is None or previous.valid_until <= now or (previous.identity != intent.identity and not same_stream):
             self._cancel_intent(robot_id)
         self.intents[robot_id] = intent
 
@@ -494,6 +508,16 @@ class Executor:
         self.controllers[robot_id].check_resume_after_goal(observations[robot_id], now)
 
     def tick(self, now):
+        """Legacy velocity output, or a motion-free planning preview in foot mode."""
+        decisions = self._plan_tick(now)
+        if self.kick_side is not None:
+            # Only kick_step can arbitrate policy ownership. A consumer of
+            # generic event responses must never drive through an active kick.
+            decisions = {r: replace(d, command=replace(d.command, vx=0.0, vy=0.0, wz=0.0))
+                         for r, d in decisions.items()}
+        return decisions
+
+    def _plan_tick(self, now):
         try:
             now = number(now, "now")
         except ValueError:
@@ -582,7 +606,42 @@ class Executor:
             intent = self.intents[robot_id]
             if self.armed and intent is not None and intent.kind == "auto" and now < intent.valid_until:
                 decisions[robot_id] = replace(decision, role=self.tactics[robot_id].role)
+            if robot_id in self._kick_owners and not self._kick_permitted(robot_id, decisions[robot_id]):
+                self._revoke_kick(robot_id)
         return decisions
+
+    def _revoke_kick(self, robot_id):
+        owner = self._kick_owners.get(robot_id)
+        if owner is not None and owner.active is not None:
+            # Keep a veto seen between output ticks, even if a newer input
+            # already repaired the frame, role or intent before the next one.
+            self._revoked_kicks.add(robot_id)
+
+    def _kick_permitted(self, robot_id, decision):
+        intent = self.intents[robot_id]
+        return (self.armed and intent is not None and intent.kind in ("auto", "attack", "shoot")
+                and decision.role != "defense" and decision.phase in ("approach", "align", "kick_ready"))
+
+    def kick_step(self, handoff, now):
+        """Select the single output owner for one foot-policy control tick.
+
+        Input events may tick the planner several times at the same instant.
+        Only this output boundary can emit a kick request. Call it at control
+        cadence, including while stopped or awaiting backend receipts.
+        """
+        robot_id = handoff.robot_id
+        if self.kick_side is None or robot_id not in self.controllers:
+            raise ValueError("kick handoff requires a configured foot and robot")
+        if self._kick_owners.setdefault(robot_id, handoff) is not handoff:
+            raise ValueError("another kick handoff owns this robot")
+        if handoff.active is None:
+            self._revoked_kicks.discard(robot_id)
+        decision = self._plan_tick(now)[robot_id]
+        intent = self.intents[robot_id]
+        permitted = self._kick_permitted(robot_id, decision) and robot_id not in self._revoked_kicks
+        return handoff.step(decision, now, epoch=self.epoch,
+                            attempt_id=intent.identity[0] if intent is not None else None,
+                            side=self.kick_side, permitted=permitted)
 
     def handle(self, event):
         """Apply one normalized event and return a fully serializable shadow tick."""
@@ -640,30 +699,86 @@ class Executor:
                     decisions={r: asdict(d) for r, d in decisions.items()})
 
 
-def replay(events, executor=None):
-    executor = executor or Executor()
+def replay(events, executor=None, *, kick_side=None, robot_id="pupper-1"):
+    """Use the capture's event times. Foot-mode outputs are for the selected robot only."""
+    executor = executor or Executor(kick_side=kick_side)
+    if kick_side is None:
+        for event in events:
+            yield executor.handle(event)
+        return
+    if executor.kick_side != kick_side or robot_id not in executor.controllers:
+        raise ValueError("foot replay requires a matching configured foot and robot")
+    from .kick_handoff import KickHandoff
+    from .simulation import SimulatedKick
+
+    simulated_receipts = []
+
+    class ReplayHandoff(KickHandoff):
+        def receipt(self, request, phase, **evidence):
+            accepted = super().receipt(request, phase, **evidence)
+            simulated_receipts.append({"attempt_id": request.attempt_id, "epoch": request.epoch,
+                                       "phase": phase, "accepted": accepted, **evidence})
+            return accepted
+
+    handoff = ReplayHandoff(robot_id)
+    backend = SimulatedKick(handoff)
     for event in events:
-        yield executor.handle(event)
+        # Bare local tick/stop records are legal. Optional identity fields must
+        # belong to this session before their timestamps can affect the backend.
+        kind = event.get("event") if isinstance(event, dict) else None
+        old_session = kind in ("tick", "stop") and any(
+            key in event and event[key] != value for key, value in
+            (("epoch", executor.epoch), ("clock", executor.clock)))
+        try:
+            now = number(event.get("now") if isinstance(event, dict) else None, "now")
+        except ValueError:
+            now = None
+        backwards = now is not None and executor.last_now is not None and now < executor.last_now
+        if old_session or backwards:
+            reason = "unrecognized replay session" if old_session else "replay timestamp moved backwards"
+            result = {"accepted": False, "reason": reason, "armed": executor.armed,
+                      "epoch": executor.epoch, "now": executor.last_now}
+        else:
+            result = executor.handle(event)
+        result["decisions"] = {}
+        result["kick_shadow"] = {"robot_id": robot_id, "side": kick_side, "simulated_receipts": []}
+        if result["accepted"] and now is not None:
+            step = executor.kick_step(handoff, now)
+            simulated_receipts.clear()
+            backend.update(step, now)
+            result["decisions"][robot_id] = asdict(step.decision)
+            result["kick_shadow"].update(request=asdict(step.request) if step.request else None,
+                                         cancel=asdict(step.cancel) if step.cancel else None,
+                                         simulated_receipts=list(simulated_receipts))
+        yield result
+
+
+def _jsonl_events(stream):
+    for line_number, line in enumerate(stream, 1):
+        if line.strip():
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"line {line_number}: invalid JSON; stopped: {exc}") from exc
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--replay", type=Path, required=True, help="normalized input JSONL; output is shadow decisions only")
+    parser.add_argument("--kick-side", choices=("left", "right"), help="select a paw and simulate the policy receipts")
+    parser.add_argument("--robot-id", choices=("pupper-1", "pupper-2"),
+                        help="foot replay robot (default: pupper-1)")
     args = parser.parse_args(argv)
-    executor = Executor()
+    if args.robot_id and not args.kick_side:
+        parser.error("--robot-id requires --kick-side")
+    executor = Executor(kick_side=args.kick_side)
     try:
         with args.replay.open() as stream:
-            for line_number, line in enumerate(stream, 1):
-                if not line.strip():
-                    continue
-                try:
-                    event = json.loads(line)
-                except ValueError as exc:
-                    executor.stop()
-                    print(f"line {line_number}: invalid JSON; stopped: {exc}", file=sys.stderr)
-                    return 2
-                print(json.dumps(executor.handle(event), allow_nan=False))
-    except OSError as exc:
+            for row in replay(_jsonl_events(stream), executor, kick_side=args.kick_side,
+                              robot_id=args.robot_id or "pupper-1"):
+                print(json.dumps(row, allow_nan=False))
+    except (OSError, ValueError) as exc:
+        executor.stop()
         print(str(exc), file=sys.stderr)
         return 2
     return 0

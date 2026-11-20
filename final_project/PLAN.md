@@ -11,24 +11,11 @@ goal-directed shots, automatic offense/defense, smooth responsive execution and
 shared overhead tracking. First establish this sequence; earlier endurance targets
 remain qualification work after it is physically achievable.
 
-**First robot block after owner alignment — Tej’s faster leg-kick transition.**
-Select and identify one compatible walker/kick release. Reproduce the left and
-right approaches to a marked spot with no ball, one kick each and a measured
-walking step after each return. Capture the final walk command, actual clip
-entry and completion, walker restoration, physical balance and first resumed step.
-Keep Stop available to the operator. Then use the intended ball at marked offsets
-and record actual time to contact, direction, distance, misses and resumed walking.
-Use the [shooting handoff](handoffs/SHOOTING.md) and
-[operator procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#operator-kick-after-the-straight-baseline)
-for candidate identities and what the existing receipts prove.
+**Current sprint — software only.** Use a single simulated Pupper and the real overhead input adapter to prove smooth feedback steering, near-ball braking, paw placement, one kick and a return to walking. Run varied start poses, speed limits and degraded observations. Reuse the same controller for a stream of metric positions and headings. The [rehearsal and footage](pupper_fc/README.md#one-robot-software-rehearsal) and [measured results](../foundation/results/field-kick-rehearsal-20261119.json) are the reference for this sprint. Sync the verified source to the separate FC checkout once the Pi is powered and ownership is checked.
 
-**Parallel camera block.** Qualify the real mount, field scale, capture age and
-robot heading against tape with motors idle. Corner IDs 0/1/2/3 are west-south,
-east-south, east-north and west-north. IDs 10/11 identify robots. Goals use
-measured field geometry. Measure printed tag size, standing tag height, center
-offset and heading offset. Compare camera position and yaw to independent marks
-around both goals. Complete the held native build and qualify its command path
-once agreed for tracked navigation.
+**Tej’s parallel work.** Tej owns the physical kick, recovery, measured wind-up and paw contact window. The [shooting handoff](handoffs/SHOOTING.md) records candidate identities and physical evidence. No physical test is part of the current software sprint.
+
+**Later camera block.** Qualify scale, capture age and robot heading against independent marks. Corner IDs 0/1/2/3 are west-south, east-south, east-north and west-north. IDs 10/11 identify robots. Goals use measured geometry. Replay captured field inputs through the same executor before enabling a compatible walking/kick runtime.
 
 **First integrated play.** First use a fixed field target with real robot pose
 feedback and compare final x, y and heading against tape from several starts.
@@ -41,7 +28,7 @@ safe kicking position and heading window on the real ball before adopting
 acceptance thresholds. Use one command owner, stop walking, dispatch one leg kick,
 confirm the requested clip and walking recovery, and reacquire field state.
 Until the leg action is connected and qualified, hold at the kick position.
-The current autonomous executor still drives forward to simulate a strike.
+The foot-mode executor exercises this handoff offline. The legacy run-through is available for historical replay.
 
 **Next increments.** Measure ball displacement during the wind-up and update
 moving-ball targets up to commitment. Commission robot two, validate each team's

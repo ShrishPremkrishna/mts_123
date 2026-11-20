@@ -44,6 +44,7 @@ observation reports ``goal == 0``. Returning home needs the robot pose only.
 Every tunable below is a sandbox assumption, not a measured Pupper value.
 """
 import math
+from dataclasses import replace
 
 from .model import Ball, Command, Decision, Field, Limits, Observation, Pose, zero
 
@@ -119,14 +120,21 @@ def defensive_clearance(field):
 
 
 class Controller:
-    """Approach behind the ball, align the bumper, strike toward the opponent goal."""
+    """Steer to a field pose, with an optional foot-specific approach and handoff."""
 
     def __init__(self, field: Field = Field(), limits: Limits = Limits(), *,
-                 strike_stopping_allowance: float = STRIKE_STOPPING_ALLOWANCE):
+                 strike_stopping_allowance: float = STRIKE_STOPPING_ALLOWANCE,
+                 kick_side: str | None = None):
         if not _finite(strike_stopping_allowance) or strike_stopping_allowance < 0:
             raise ValueError("strike stopping allowance must be finite and nonnegative")
         self.field, self.limits = field, limits
         self.strike_stopping_allowance = strike_stopping_allowance
+        self.kick_side = kick_side
+        self._paw = None
+        if kick_side is not None:
+            # Stock releases intentionally package only their pinned walking sources.
+            from .paw_approach import PawApproach
+            self._paw = PawApproach(kick_side)
         self._goal_latched = False
         self._home_reached = False
         self._reset_requested = False
@@ -200,6 +208,8 @@ class Controller:
         return self._pose_problem(observation.robot) or self._ball_problem(observation.ball)
 
     def _clear_play(self):
+        if self._paw is not None:
+            self._paw.reset()
         self._ball_anchor = None    # ball position the waypoint and dwell refer to
         self._waypoint = None       # ((x, y), description) while getting around the ball
         self._aligned_since = None
@@ -252,13 +262,19 @@ class Controller:
             # A reactive guard keeps its route while its facing yaw changes.
             # Ball movement and segment validation govern defensive replanning;
             # explicit intent replacement still cancels through the Executor.
-            target_key = (("guard", preserve_target_heading) if avoid_ball else
-                          ("pose", target_pose, preserve_target_heading))
+            if avoid_ball:
+                target_key = ("guard", preserve_target_heading)
+            elif self._paw is not None:
+                # Moving waypoints replace the current steering reference in place.
+                # Cancellation or changing action owners separately resets the ramp.
+                target_key = ("pose", preserve_target_heading)
+            else:
+                target_key = ("pose", target_pose, preserve_target_heading)
         elif shot_target is not None:
             if (not isinstance(shot_target, (tuple, list)) or len(shot_target) != 2
                     or not _finite(*shot_target) or not self._plausible(*shot_target)):
                 return self._halt("invalid_intent", "shot target is invalid or outside the field", now, robot_id)
-            target_key = ("shot", tuple(shot_target))
+            target_key = ("paw_shot",) if self._paw else ("shot", tuple(shot_target))
         else:
             target_key = None
         if target_key != self._target_key:
@@ -296,6 +312,10 @@ class Controller:
             target = (target_pose.x, target_pose.y)
             if (math.hypot(target_pose.x - robot.x, target_pose.y - robot.y) <= HOME_TOLERANCE
                     and abs(_wrap(target_pose.yaw - robot.yaw)) <= HOME_HEADING_TOLERANCE):
+                if self._paw:
+                    cmd = self._paw.ramp(0, 0, 0, self.limits, now, robot_id)
+                    if cmd.vx or cmd.vy or cmd.wz:
+                        return Decision("move", "braking at the requested field pose", cmd, target, target_pose.yaw)
                 return Decision("target_reached", "at the requested field pose", zero(now, robot_id),
                                 target, target_pose.yaw)
             return self._drive("move", "moving to the requested field pose", robot, target,
@@ -306,6 +326,11 @@ class Controller:
             return self._halt("tracking_lost", "ball is not in view", now, robot_id)
         if shot_target is not None and math.hypot(shot_target[0] - ball.x, shot_target[1] - ball.y) <= 1e-6:
             return self._halt("invalid_intent", "shot destination coincides with the ball", now, robot_id)
+        if self._paw is not None:
+            goal = shot_target or (self.field.attack_sign * self.field.length / 2, 0.0)
+            if math.hypot(goal[0] - ball.x, goal[1] - ball.y) <= 1e-6:
+                return self._halt("blocked", "ball is already at the shot destination", now, robot_id)
+            return self._paw_attack(robot, ball, goal, observation.captured_at, now, robot_id)
         return self._play(robot, ball, now, robot_id, observation.captured_at, shot_target)
 
     def _guard_transit(self, robot, ball, target_pose, now, robot_id):
@@ -450,6 +475,9 @@ class Controller:
         vx = vy = 0.0
         if distance > 1e-9:
             speed = min(max_speed, KP_POSITION * distance)
+            if self._paw is not None:
+                # Leave room to turn on a tight curve; full speed is available on line.
+                speed *= max(0.05, math.cos(heading_error))
             c, s = math.cos(robot.yaw), math.sin(robot.yaw)
             vx = speed * (dx * c + dy * s) / distance
             vy = speed * (-dx * s + dy * c) / distance
@@ -458,11 +486,17 @@ class Controller:
                         self.limits.vy / abs(vy) if vy else 1.0)
             vx, vy = vx * scale, vy * scale
         wz = _clip(KP_YAW * heading_error, -self.limits.wz, self.limits.wz)
-        return Decision(phase, reason, Command(vx, vy, wz, now + 0.15, robot_id),
-                        target, heading, distance, heading_error)
+        cmd = (self._paw.ramp(vx, vy, wz, self.limits, now, robot_id) if self._paw is not None else
+               Command(vx, vy, wz, now + 0.15, robot_id))
+        return Decision(phase, reason, cmd, target, heading, distance, heading_error)
 
     def _travel_heading(self, robot, target, near_heading):
         dx, dy = target[0] - robot.x, target[1] - robot.y
+        if self._paw is not None:
+            # Blend over a band of remaining distance instead of switching yaw at one radius.
+            w = _clip((math.hypot(dx, dy) - 0.14) / FACE_TRAVEL_DISTANCE, 0.0, 1.0)
+            w *= w * (3.0 - 2.0 * w)
+            return _wrap(near_heading + w * _wrap(math.atan2(dy, dx) - near_heading))
         if math.hypot(dx, dy) > FACE_TRAVEL_DISTANCE:
             return math.atan2(dy, dx)
         return near_heading
@@ -480,6 +514,55 @@ class Controller:
                             zero(now, robot_id), home, facing, distance, heading_error)
         return self._drive("return_home", "goal recorded; returning to home position", robot, home,
                            self._travel_heading(robot, home, facing), self.limits.vx, now, robot_id)
+
+    def _paw_attack(self, robot, ball, goal, captured_at, now, robot_id):
+        from .paw_approach import MAX_CAPTURE_GAP_S, PAW_FORWARD_M, contact_window, paw_pose
+        pose = paw_pose(ball, goal, self.kick_side)
+        target = (pose.x, pose.y)
+        if self._reachable(*target) != target:
+            return self._halt("blocked", "selected paw position lies outside the field", now, robot_id)
+        heading_error = _wrap(pose.yaw - robot.yaw)
+        # Enter near the middle of the contact window; hysteresis leaves room for
+        # capture noise while braking and waiting for evidence of steady placement.
+        self._paw.docked = contact_window(robot, ball, heading_error, self.kick_side,
+                                          scale=1.0 if self._paw.docked else 0.55)
+        if self._paw.docked:
+            cmd = self._paw.ramp(0, 0, 0, self.limits, now, robot_id)
+            # The swing is committed for the wind-up. A rolling ball that will leave
+            # the paw line cannot authorize a kick, even when aligned at this instant.
+            ready = False
+            if cmd.vx or cmd.vy or cmd.wz:
+                self._paw.reset_settle()
+            else:
+                ready = self._paw.settled(robot, ball, captured_at, now, heading_error)
+            if ready:
+                cmd = replace(cmd, expires_at=min(cmd.expires_at, captured_at + MAX_CAPTURE_GAP_S))
+            return Decision("kick_ready" if ready else "align",
+                            f"{self.kick_side} paw ready" if ready else "confirming a steady paw and ball",
+                            cmd, target, pose.yaw, math.hypot(pose.x - robot.x, pose.y - robot.y), heading_error)
+        self._paw.reset_settle()
+        c, s = math.cos(pose.yaw), math.sin(pose.yaw)
+        dx, dy = ball.x - robot.x, ball.y - robot.y
+        along = dx * c + dy * s
+        across = -dx * s + dy * c
+        # Route around the ball to a point safely behind the stance. From the
+        # back half-plane, close only on the paw's side of the ball.
+        if (along < PAW_FORWARD_M - 0.025
+                or (along < PAW_FORWARD_M + 0.09 and abs(across) > 0.12)
+                or (along < PAW_FORWARD_M + 0.16 and abs(heading_error) > 0.30)):
+            margin = defensive_clearance(self.field)
+            staging = Pose(pose.x - c * margin, pose.y - s * margin, pose.yaw)
+            if self._reachable(staging.x, staging.y) != (staging.x, staging.y):
+                return self._halt("blocked", "no ball-clear staging pose fits behind the ball", now, robot_id)
+            routed = self._guard_transit(robot, ball, staging, now, robot_id)
+            if routed.phase == "move":
+                return replace(routed, phase="approach", reason="routing behind the ball for the selected paw")
+            return routed
+        self._guard_waypoint = self._guard_side = None
+        distance = math.hypot(pose.x - robot.x, pose.y - robot.y)
+        return self._drive("align" if distance < ALIGN_RADIUS else "approach",
+                           f"steering to the {self.kick_side} paw position", robot, target,
+                           self._travel_heading(robot, target, pose.yaw), self.limits.vx, now, robot_id)
 
     def _play(self, robot, ball, now, robot_id, captured_at, shot_target=None):
         if self._strike is not None:

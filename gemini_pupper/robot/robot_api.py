@@ -997,7 +997,8 @@ class Robot:
         return row
 
     def _finish_job(self, job_id: str, name: str, outcome: str, message: str, *,
-                    execution_started: bool, reason: str | None = None, set_last: bool = True) -> None:
+                    execution_started: bool, reason: str | None = None, set_last: bool = True,
+                    result: Result | None = None) -> None:
         self._follow_jobs.discard(job_id)
         row = self._job_event(job_id, name, "finished", outcome=outcome,
                               execution_started=execution_started, reason=reason)
@@ -1006,6 +1007,12 @@ class Robot:
                   "terminal_state": outcome, "execution_started": execution_started,
                   "event_seq": row["event_seq"], "wall_time_s": row["wall_time_s"],
                   "monotonic_s": row["monotonic_s"]}
+        # Only the operator kick exposes its verified clip and restored walker.
+        # Other tools can have arbitrary private details that do not belong in status.
+        if name in ("kick_in_place left", "kick_in_place right") and result and result.details:
+            evidence = result.details.get("operator_kick")
+            if evidence is not None:
+                record["operator_kick"] = evidence
         if len(self._terminal_outcomes) == self._terminal_outcomes.maxlen:
             self._terminal_outcomes_dropped += 1
         self._terminal_outcomes.append(record)
@@ -1057,7 +1064,7 @@ class Robot:
                 res = await self.current
                 (log.info if res.ok else log.warning)("%s: %s", name, res.message)
                 self._finish_job(job_id, name, "succeeded" if res.ok else "failed", res.message,
-                                 execution_started=execution_started)
+                                 execution_started=execution_started, result=res)
                 if not res.ok:
                     self.send_speed(0, 0, 0)
                     await self.clear_queue(reason="dependency_failed")  # later requests relied on this one succeeding
@@ -1068,6 +1075,7 @@ class Robot:
                 # has already finished. Cancellation of the waiter is not proof
                 # that this independently terminal job was cancelled.
                 if self.current.done() and not self.current.cancelled():
+                    completed = None
                     try:
                         completed = self.current.result()
                         outcome = "succeeded" if completed.ok else "failed"
@@ -1077,7 +1085,7 @@ class Robot:
                     log.info("%s: %s before worker cancellation", name, outcome)
                     self._finish_job(job_id, name, outcome, message,
                                      execution_started=execution_started,
-                                     reason="worker_cancelled_after_job_finished")
+                                     reason="worker_cancelled_after_job_finished", result=completed)
                 else:
                     log.info("%s: cancelled", name)
                     self._finish_job(job_id, name, "cancelled", "cancelled",

@@ -1,6 +1,7 @@
 """Assembly refuses drift and creates a separately verifiable walk candidate."""
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -47,6 +48,34 @@ def selected(tmp_path):
     return dict(baseline_manifest=path, baseline_sha256=sha(path), source_root=sources,
                 source_index=index, source_sha256=sha(index), destination=tmp_path / "guarded",
                 guard_python=Path(sys.executable))
+
+
+@pytest.mark.parametrize("deadline", [False, True])
+def test_stock_bridge_runs_with_only_its_selected_sources(selected, deadline):
+    if deadline:
+        select_deadline_controller(selected)
+    roles = DEADLINE_SOURCE_ROLES if deadline else SOURCE_ROLES
+    repo = Path(__file__).resolve().parents[2]
+    index = selected["source_index"]
+    index.write_text(json.dumps({"schema": "pupper_guard_sources_v1",
+                                 "files": {path: sha(repo / path) for path in roles.values()}}))
+    selected.update(source_root=repo, source_sha256=sha(index))
+    assemble(**selected)
+
+    # Isolated Python cannot resolve missing imports against this working tree.
+    program = """
+import json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd()))
+from final_project.behaviors import fc_executor_bridge as bridge
+receipt = json.loads(Path('walk-manifest.json').read_text())
+bridge.verify_bridge_sources(receipt)
+executor = bridge.Executor()
+executor.arm('packaged-walk', 'isolated', 0.)
+assert all(c.kick_side is None for c in executor.controllers.values())
+assert 'final_project.pupper_fc.paw_approach' not in sys.modules
+"""
+    subprocess.run([sys.executable, "-I", "-c", program], cwd=selected["destination"], check=True)
 
 
 def test_new_candidate_verifies_and_preserves_native_baseline(selected):

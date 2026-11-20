@@ -69,7 +69,9 @@ function render(state) {
   shown = state;
   const decision = state.decision || {}, command = decision.command || {}, metrics = state.metrics || {}, execution = state.execution;
   $("pitch-empty").hidden = true;
-  $("scenario-title").textContent = scenarios.find(s => s.id === state.scenario)?.name || phaseName(state.scenario || "Practice field");
+  const scenario = scenarios.find(s => s.id === state.scenario)?.name || phaseName(state.scenario || "Practice field");
+  $("scenario-title").textContent = state.kick_side ? `${scenario} · ${state.kick_side} paw` : scenario;
+  $("shots-label").textContent = state.kick_side ? "Kick requests" : "Shots";
   const label = replay ? "Recorded playback" : state.stopped ? "Stopped" : state.running ? "Practicing" : "Paused";
   $("run-status").replaceChildren(document.createElement("i"), document.createTextNode(label));
   $("run-status").className = `status ${!replay && state.running ? "running" : state.stopped ? "stopped" : ""}`;

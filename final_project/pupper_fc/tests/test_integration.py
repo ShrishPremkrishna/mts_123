@@ -8,6 +8,7 @@ import pytest
 
 from final_project.pupper_fc.controller import Controller
 from final_project.pupper_fc.integration import Executor, main, replay
+from final_project.pupper_fc.kick_handoff import KickHandoff
 from final_project.pupper_fc.model import Ball, Limits, Observation, Pose
 
 
@@ -46,6 +47,29 @@ def active():
     assert executor.handle(frame())["accepted"]
     assert not is_zero(command(executor.handle(intent())))
     return executor
+
+
+@pytest.mark.parametrize("kind", ["move", "shoot"])
+def test_foot_mode_continuously_refines_one_target_without_resetting_the_walker(kind):
+    executor = Executor(kick_side="right")
+    arm(executor)
+    owner = KickHandoff("pupper-1")
+    commands = []
+    for seq in range(1, 12):
+        now = seq * 0.04
+        target = dict(x=1.2, y=seq * 0.002)
+        if kind == "move":
+            target["yaw"] = 0.15
+        executor.handle(frame(now, seq))
+        preview = executor.handle(intent(now, seq, kind=kind, target=target))
+        assert preview["accepted"] and is_zero(command(preview))
+        commands.append(executor.kick_step(owner, now).decision.command.vx)
+    assert commands[0] == 0.0 and commands[-1] >= 0.20
+    # A different owner's motion starts from a fresh ramp.
+    executor.handle(intent(now, seq + 1, kind=kind, target=target, intent_id="replacement"))
+    assert executor.kick_step(owner, now).decision.command.vx == 0.0
+    with pytest.raises(ValueError, match="another kick handoff"):
+        executor.kick_step(KickHandoff("pupper-1"), now)
 
 
 def striking():

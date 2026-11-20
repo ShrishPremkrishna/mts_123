@@ -39,6 +39,45 @@ def _finite_number(value):
         return False
 
 
+class SimulatedKick:
+    """Post synthetic policy receipts on simulation time, without a ball impulse.
+
+    The fast profile leaves the clip at 2.1 s. Tej measured about 2.7 s from
+    controller activation to walker activation, then allows 0.7 s for readiness.
+    These event times exercise ownership; they do not simulate the moving foot.
+    """
+
+    def __init__(self, handoff):
+        self.handoff = handoff
+        self.pending = None
+        self.clip_confirmed = False
+
+    def update(self, step, now):
+        if step.cancel is not None:
+            if self.pending == step.cancel:
+                self.handoff.receipt(self.pending, "walker_restored", walker_active=True)
+                self.pending = None
+            return
+        if step.request is not None:
+            if self.pending is not None:
+                raise RuntimeError("simulated kick already owns the legs")
+            if not step.request.issued_at <= now < step.request.start_before:
+                self.handoff.receipt(step.request, "failed")
+                self.handoff.receipt(step.request, "walker_restored", walker_active=True)
+                return
+            self.pending = step.request
+            self.clip_confirmed = False
+        if self.pending is None:
+            return
+        elapsed = now - self.pending.issued_at
+        if elapsed >= 2.1 and not self.clip_confirmed:
+            self.clip_confirmed = self.handoff.receipt(
+                self.pending, "clip_confirmed", clip=f"kick_{self.pending.side}")
+        if elapsed >= 3.4 and self.clip_confirmed:
+            self.handoff.receipt(self.pending, "walker_restored", walker_active=True)
+            self.pending = None
+
+
 class Simulator:
     """One robot, one ball, no networking, hardware access or recovery physics.
 
@@ -48,7 +87,8 @@ class Simulator:
     that value in radians). A frozen camera repeats its entire previous packet.
     """
 
-    def __init__(self, field=Field(), limits=Limits(), seed=7, scenario="center"):
+    def __init__(self, field=Field(), limits=Limits(), seed=7, scenario="center",
+                 *, bumper_contact=True):
         field_values = (field.length, field.width, field.goal_width,
                         field.robot_radius, field.ball_radius, field.bumper_offset)
         limit_values = (limits.vx, limits.vy, limits.wz,
@@ -66,6 +106,7 @@ class Simulator:
         if not isinstance(seed, int):
             raise ValueError("seed must be an integer")
         self.field, self.limits = field, limits
+        self.bumper_contact = bumper_contact
         self.scenario = scenario
         self.time = 0.0
         self.velocity = Velocity()
@@ -190,7 +231,7 @@ class Simulator:
         dx, dy = x - robot.x, y - robot.y
         forward, left = dx * c + dy * s, -dx * s + dy * c
         bumper_half_width = field.robot_radius * 0.75
-        bumper = (0 <= forward < field.bumper_offset + field.ball_radius
+        bumper = (self.bumper_contact and 0 <= forward < field.bumper_offset + field.ball_radius
                   and abs(left) <= bumper_half_width)
         distance = math.hypot(dx, dy)
         if bumper:

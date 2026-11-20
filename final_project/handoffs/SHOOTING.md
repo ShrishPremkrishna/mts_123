@@ -2,7 +2,7 @@
 
 November 19, 2026 · [Demo testing order](../PLAN.md#current-sprint--november-19)
 
-The selected demo shot uses Tej’s left or right leg kick. Shrish owns the field-guided approach and the handoff from walking. The current automatic executor uses a forward run-through in simulation. The physical demo needs an explicit leg-kick action before autonomous shooting.
+The selected demo shot uses Tej’s left or right leg kick. Shrish owns the field-guided approach and the handoff from walking. The single-robot foot mode steers into a leg-kick request and rehearses the handoff offline. Tej owns physical kick and recovery testing. A compatible selected runtime is still needed for the physical demo. [Software rehearsal](../pupper_fc/README.md#one-robot-software-rehearsal)
 
 ## Fast transition candidate
 
@@ -25,7 +25,7 @@ Tej’s timed tool uses travel = gain × commanded speed × elapsed time after t
 
 ## What earns a place in the demo
 
-1. After agreement, reproduce both walking entries on a pinned release. Record the actual clip, stability, return and first walking step. Use the [operator procedure](../ROBOT_BUILD_AND_TEST_HANDOFF.md#operator-kick-after-the-straight-baseline) for release selection and applicable course clearance.
+1. Tej qualifies both walking entries on a pinned release. Record the actual clip, stability, return and first walking step. Use the [operator procedure](../ROBOT_BUILD_AND_TEST_HANDOFF.md#operator-kick-after-the-straight-baseline) for release selection and applicable course clearance.
 2. With the intended ball, mark its forward and lateral position relative to each foot. Measure the contact window and walk-end-to-impact time on video, shot direction, distance, misses and walking recovery.
 3. Approach using fresh overhead observations. With the chosen yaw toward goal, subtract the rotated, measured ball offset for that paw from the field ball position to obtain the robot-center target. Slow and align, dispatch one kick, verify the clip and restored walker, then choose the next play. Hold before committing if the observations or strike authority expire. Retain physical Stop during the action.
 4. Start with a stationary ball and the more repeatable foot. Add rolling balls using measured wind-up and camera age, then rehearse role changes and two-robot play. Record the entire approach, actual ball travel and resumed movement in the same take.

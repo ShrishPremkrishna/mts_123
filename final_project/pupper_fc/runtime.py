@@ -7,8 +7,9 @@ import math
 from pathlib import Path
 
 from .integration import Executor
+from .kick_handoff import KickHandoff
 from .model import Decision, Field, Limits, zero
-from .simulation import SCENARIOS, Simulator
+from .simulation import SCENARIOS, SimulatedKick, Simulator
 
 DT = 0.05
 TRACE_LIMIT = 2400
@@ -27,14 +28,17 @@ def number(value, name, low, high):
 class Sandbox:
     """One shared local practice session, independently of the viewer."""
 
-    def __init__(self, scenario="center", seed=7, attack_sign=1):
+    def __init__(self, scenario="center", seed=7, attack_sign=1, *, kick_side=None):
+        self.kick_side = kick_side
         files = ("model.py", "controller.py", "simulation.py", "runtime.py",
                  "integration.py", "tactics.py", "obstacles.py")
+        if kick_side is not None:
+            files += ("paw_approach.py", "kick_handoff.py")
         self.source_hashes = {
             name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
             for name in files
         }
-        self.settings = dict(delay_ms=0.0, noise_cm=0.0, max_speed=0.65,
+        self.settings = dict(delay_ms=0.0, noise_cm=0.0, max_speed=0.30 if kick_side else 0.65,
                              ball_visible=True, freeze=False, renew_intent=True)
         self._epoch_sequence = 0
         self.reset(scenario, seed, attack_sign)
@@ -49,8 +53,15 @@ class Sandbox:
         self.scenario, self.seed = scenario, seed
         self.field = Field(attack_sign=attack_sign)
         self.limits = replace(Limits(), vx=self.settings["max_speed"])
-        self.sim = Simulator(field=self.field, limits=self.limits, seed=seed, scenario=scenario)
-        self.executor = Executor(fields={ROBOT_ID: self.field}, limits=self.limits)
+        if self.kick_side:
+            self.field = replace(self.field, goal_width=.6096, ball_radius=.11)
+            self.limits = replace(self.limits, vy=self.limits.vx, wz=1.0,
+                                  acceleration=.65, yaw_acceleration=2.0)
+        self.sim = Simulator(field=self.field, limits=self.limits, seed=seed, scenario=scenario,
+                             bumper_contact=self.kick_side is None)
+        self.executor = Executor(fields={ROBOT_ID: self.field}, limits=self.limits, kick_side=self.kick_side)
+        self.handoff = KickHandoff(ROBOT_ID) if self.kick_side else None
+        self.actuator = SimulatedKick(self.handoff) if self.handoff else None
         self.frame_seq = self.intent_seq = 0
         self._last_observation = None
         self.running, self.stopped, self.settling = False, False, False
@@ -125,7 +136,9 @@ class Sandbox:
             raise ValueError("Resume requires current play instructions; enable renewal and Step")
         history = copy(self.sim._history)
         sim = deepcopy(self.sim, {id(self.sim._history): history})
-        executor = deepcopy(self.executor)
+        # The candidate may validate input but cannot emit a kick. Keep the
+        # live receipt owner if this transaction replaces the executor.
+        executor = deepcopy(self.executor, {id(self.handoff): self.handoff} if self.handoff else {})
         observed = sim.observe(delay=self.settings["delay_ms"] / 1000,
                                noise=self.settings["noise_cm"] / 100,
                                ball_visible=self.settings["ball_visible"],
@@ -189,6 +202,15 @@ class Sandbox:
                 ("hold" in decision.phase and decision.reason != old.reason)):
             self._event()
 
+    def _control_tick(self):
+        if self.handoff is None:
+            return self.executor.tick(self.sim.time)[ROBOT_ID]
+        step = self.executor.kick_step(self.handoff, self.sim.time)
+        self.actuator.update(step, self.sim.time)
+        if step.request is not None:
+            self.metrics["shots"] += 1
+        return step.decision
+
     def advance(self, force=False):
         if not self.running and not force and not self.settling:
             return
@@ -196,7 +218,7 @@ class Sandbox:
         if self.executor.armed:
             self._admit_observation()
             self._renew_intent()
-        decision = self.executor.tick(self.sim.time)[ROBOT_ID]
+        decision = self._control_tick()
         self._set_decision(decision)
         previous_goal = self.sim.goal
         self.sim.step(decision.command, DT)
@@ -214,7 +236,8 @@ class Sandbox:
         # Keep truth available to the display and metrics, never to Controller.
         truth = {key: raw[key] for key in ("robot", "ball", "velocity", "goal", "fallen")}
         return dict(time=round(self.sim.time, 4), running=self.running, stopped=self.stopped,
-                    scenario=self.scenario, seed=self.seed, field=asdict(self.field), truth=truth,
+                    scenario=self.scenario, seed=self.seed, kick_side=self.kick_side,
+                    field=asdict(self.field), truth=truth,
                     observation=asdict(self.observation), decision=asdict(self.decision),
                     execution=self._execution(),
                     settings=dict(self.settings), metrics=dict(self.metrics),
@@ -246,8 +269,7 @@ class Sandbox:
         elif action == "stop":
             self.running, self.stopped, self.settling = False, True, True
             self.executor.stop()
-            self._set_decision(Decision("stopped", "Operator Stop latched; simulated braking continues.",
-                                        zero(self.sim.time)))
+            self._set_decision(self._control_tick())
             self._record()
         elif action == "step":
             if self.stopped:
@@ -264,7 +286,7 @@ class Sandbox:
             self.sim, self.executor, self.observation = sim, executor, observation
             self.frame_seq, self._last_observation = seq, observation
             self.running = True
-            self._set_decision(self.executor.tick(self.sim.time)[ROBOT_ID])
+            self._set_decision(self._control_tick())
         elif action == "configure":
             values = request.get("settings")
             if not isinstance(values, dict) or set(values) - set(self.settings):
@@ -280,9 +302,12 @@ class Sandbox:
                     new[key] = number(val, key, lo, hi)
             if new["max_speed"] != self.settings["max_speed"]:
                 self.limits = replace(self.limits, vx=new["max_speed"])
+                if self.kick_side:
+                    self.limits = replace(self.limits, vy=new["max_speed"])
                 self.sim.limits = self.limits
                 self.controller.limits = self.limits
-                self.controller.cancel()
+                if self.kick_side is None:
+                    self.controller.cancel()
             self.settings = new
         elif action in ("move_ball", "move_robot"):
             x = number(request.get("x"), "x", -self.field.length/2, self.field.length/2)
@@ -309,7 +334,7 @@ class Sandbox:
                 raise ValueError("held must be true or false")
             self.executor.set_external_hold(ROBOT_ID, held, self.sim.time,
                                             "simulated front-camera hold")
-            self._set_decision(self.executor.tick(self.sim.time)[ROBOT_ID])
+            self._set_decision(self._control_tick())
         else:
             raise ValueError("Unknown control action")
         # Truth/settings preview operator edits immediately. Observation remains
