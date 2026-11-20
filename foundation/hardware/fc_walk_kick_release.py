@@ -42,8 +42,8 @@ def check_imu_recovery(driver, mode):
     if mode == "strict":
         return
     if mode == "field_redundant_imu":
-        if any(marker not in driver for marker in (b"FC_FIELD_REDUNDANT_IMU_V1", b"FC_BOARD_HEALTH_V1")):
-            raise ValueError("build the bundled board driver with alternate IMU reports and board receipts")
+        if any(marker not in driver for marker in (b"FC_FIELD_REDUNDANT_IMU_V1", b"FC_BOARD_HEALTH_V1", b"FC_JOINT_CLAIM_V1")):
+            raise ValueError("build the bundled board driver with alternate IMU reports, board receipts and pre-Stand joint checks")
         return
     if mode not in ("supported_damping", "supported_rehome", "supported_standby"):
         raise ValueError("unknown FC balance mode")
