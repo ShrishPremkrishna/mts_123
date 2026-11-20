@@ -6,14 +6,14 @@ This document describes the procedure; historical releases do not assign work.
 
 ## Current path
 
+The combined release is the current selection for supervised testing.
+It homed on the stand with walking and kicking loaded together and Stop latched.
+The [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json)
+records the selected binaries and the walk–kick–walk tests on simulated joints.
 The last floor-tested release is `movement-20261117-logfix`. Its sprint profile
 produced the recorded forward and short lateral results. The
-[legacy guarded walk](../foundation/results/staged-field-session-20261119.json)
-was assembled on the Pi using the existing native binaries. Its loaded runtime,
-camera stopping and physical walking await qualification. Direct command-deadline
-operation requires the selected Pi-compatible controller and a separate runtime
-check. The [staging report](../foundation/results/staged-field-session-20261119.json)
-records target build and release evidence.
+[earlier staging report](../foundation/results/staged-field-session-20261119.json)
+preserves the separate legacy walk build.
 The [November 17 source kit](../artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json)
 contains separate source archives for the native controller and software-Start
 gateway. It covers the guarded movement work through that date. The November 19
@@ -36,7 +36,18 @@ the currently running release.
 
 ## Combined walk and leg-kick release
 
-From the checked-out commit on the target, choose an unused absolute release
+The [Pi qualification receipt](../foundation/results/pi-combined-walk-kick-20261119.json) identifies the selected release, Bash environment, prepared run, native binaries and checks on the target. Source its `application.environment` in a Pi Bash shell. The following read-only command rechecks the selected files and current session state.
+
+```sh
+/usr/bin/python3 -B -s "$FC_RELEASE/foundation/hardware/persistent_session.py" status --run-dir "$FC_RUN"
+```
+
+The current stand session has a ten-second CPU temperature, fan and firmware
+log in its run directory (`pi-thermal-*.jsonl`). For a new session, run
+`python3 foundation/scripts/record_pi_thermal.py "$FC_RUN"` from the Pi source
+checkout after homing. The recorder exits with that session's controller manager.
+
+For a new build, choose an unused absolute release
 directory. Staging and verifying both generate the actual controller YAML in a
 temporary directory and exercise disarmed planner startup. Save the manifest
 digest printed by staging.
@@ -67,6 +78,14 @@ service and publishes obstacle observations in the same ROS domain.
 ROS_DOMAIN_ID=168 python3 "$FC_RELEASE/follow_me_pupper/robot/viser_camera.py" \
   --source ros --detect --publish-detections --model "$FC_HEF"
 ```
+
+In the detector viewer, open **Detection** and clear **Segmentation masks**.
+This removes mask computation used by the preview. The field guard consumes the
+same classes, confidence scores, boxes and original capture times. Disconnect
+the viewer and check frame ages and expiry counts on the guard over a complete
+time window. See the target measurements in the Pi qualification receipt.
+The guard binds to a single detector instance. If the detector process exits,
+restart the guard and its detector as a coordinated session with Stop latched.
 
 To prepare files without starting motors, select the Pi ROS overlay containing
 the reviewed controller and IMU, and use that session's Python. Set
@@ -118,7 +137,9 @@ directory. The runner's source and dependency checks passed on the target.
 Retain its build log, behavioral test results and installed-file hashes before
 assembling a separate direct-deadline release and verifying its loaded libraries.
 The [staging report](../foundation/results/staged-field-session-20261119.json)
-records the runner digest, fallback release and outstanding checks.
+records the runner digest and fallback release. The
+[Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json)
+records the later target test results and loaded components.
 
 `pupper_gait_deploy/install.py` and `deploy.sh --no-launch` update the shared
 platform install. Use the isolated runner for this build.

@@ -11,11 +11,11 @@ goal-directed shots, automatic offense/defense, smooth responsive execution and
 shared overhead tracking. First establish this sequence; earlier endurance targets
 remain qualification work after it is physically achievable.
 
-**Current sprint — software only.** Use a single simulated Pupper and the real overhead input adapter to prove smooth feedback steering, near-ball braking, paw placement, one kick and a return to walking. Run varied start poses, speed limits and degraded observations. Reuse the same controller for a stream of metric positions and headings. The [field rehearsal](pupper_fc/README.md#one-robot-software-rehearsal) covers tracking faults and speed changes. The [policy physics test](../foundation/results/combined-walk-kick-physics-20261119.json) follows the same body through walking, paw contact and restored movement. Stage the verified combined release in the separate FC directory once the Pi has power and ownership is checked.
+**Combined release and next test.** The single-Pupper release uses measured field position and heading to steer and slow into paw placement. In physics, all four trials completed approach, kick and walking recovery. Three scored. On the Pi, both foot policies completed walk–kick–walk on memory-backed joints. In each run the runner then requested Stop, the gateway latched and both leg controllers became inactive. The physical robot homed on the stand with the verified build loaded and both policies inactive. The next supervised check is to start the walker on the stand, request Stop and observe both the latch and controller deactivation. Consult the session receipt for current detector status. [Field rehearsal](pupper_fc/README.md#one-robot-software-rehearsal) · [Physics trials](../foundation/results/combined-walk-kick-physics-20261119.json) · [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json).
 
-**Tej’s parallel work.** Tej owns the physical kick, recovery, measured wind-up and paw contact window. The [shooting handoff](handoffs/SHOOTING.md) records candidate identities and physical evidence. No physical test is part of the current software sprint.
+**Tej’s parallel work.** Tej owns physical kick and recovery, measured wind-up and the paw contact window. Test the deployed transition first and compare his faster return against its contact and first stable walking step. [Shooting handoff](handoffs/SHOOTING.md).
 
-**Later camera block.** Qualify scale, capture age and robot heading against independent marks. Corner IDs 0/1/2/3 are west-south, east-south, east-north and west-north. IDs 10/11 identify robots. Goals use measured geometry. Replay captured field inputs through the same executor before enabling a compatible walking/kick runtime.
+**Later camera block.** Qualify scale, capture age and robot heading against independent marks. Corner IDs 0/1/2/3 are west-south, east-south, east-north and west-north. IDs 10/11 identify robots. Goals use measured geometry. Replay captured field inputs through the same executor before enabling field-guided motion on the deployed release.
 
 **First integrated play.** First use a fixed field target with real robot pose
 feedback and compare final x, y and heading against tape from several starts.
@@ -27,7 +27,7 @@ overhead pose to steer continuously and slow for the final alignment. Measure th
 safe kicking position and heading window on the real ball before adopting
 acceptance thresholds. Use one command owner, stop walking, dispatch one leg kick,
 confirm the requested clip and walking recovery, and reacquire field state.
-The combined release performs this handoff in simulation. On the field, enable the kick after Tej qualifies contact and walking recovery on that release. The legacy run-through is available for historical replay.
+The combined release performs this handoff in physics simulation and on the Pi with memory-backed joints. On the field, enable the kick after Tej qualifies contact and walking recovery on that release. The legacy run-through is available for historical replay.
 
 **Next increments.** Measure ball displacement during the wind-up and update
 moving-ball targets up to commitment. Commission robot two, validate each team's
