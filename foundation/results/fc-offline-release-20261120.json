@@ -20,7 +20,7 @@
       "staged_pi_app_files": 79
     },
     "physics_selected_files_digest": "8419b3c7c4e7076a90fbfac6a56b5e0d2c56a1688bceba1269b63a987928186c",
-    "rebuild": "Fresh independent clone checked out at the release commit with an offline wheelhouse. Both archives and SHA256SUMS compared byte for byte."
+    "rebuild": "Fresh independent clone at the release commit with an offline wheelhouse. The ZIP, tarball and SHA256SUMS were byte-for-byte identical to the shipped files."
   },
   "laptop": {
     "host": "arm64 macOS 26.5.1 with CPython 3.12",
@@ -199,12 +199,77 @@
     "outputs/pupper-fc-release/verification/guard.json": "86a2b8b4c70b395909fbb9e55701bf65599583956dc7056748830dbc3f475367",
     "outputs/pupper-fc-release/verification/prepare-final.json": "1dead7ef8cdf14ac3ecd9b5b37d5e7511d20a365e30acbe379022157bad307fe",
     "outputs/pupper-fc-release/verification/release-physics.json": "f20b9173e978d0a796d9db281025ed1c70c675ac756a4d4c382fa2db5bc76695",
-    "outputs/pupper-fc-release/verification/release-wire-receipt.json": "f1ba2b3957c66d267bd0f0d38d0b355293aff02fac5354e058ff7f648ab7f9c4"
+    "outputs/pupper-fc-release/verification/release-wire-receipt.json": "f1ba2b3957c66d267bd0f0d38d0b355293aff02fac5354e058ff7f648ab7f9c4",
+    "outputs/pupper-fc-release/verification/fable-5-1-sensor.json": "0840d02dc9a8011e858390dc45d0e04adb25b62b25943ea926385e90099feea5",
+    "outputs/pupper-fc-release/verification/fable-5-1-package.json": "737c15f911c6287d0efea7c5edfd88b4b1125ef5403fd7942da3d1ca662ea2ea"
   },
-  "model_assistance": "Exact claude-opus-5-5 returned implementation input. Two bounded attempts at a new exact claude-fable-5-2 audit returned no review. Independent workers verified source identities, software behavior and measurements.",
+  "model_assistance": "Exact claude-opus-5-5 gave implementation input. Two local timeouts ended the initial claude-fable-5-2 requests without a review. The supplemental sensor and packaging reviews completed on exact claude-fable-5-1; see independent_audits.",
   "physical_open": [
     "Build and enroll the exact board driver against the target underlay with the prior native session shut down.",
     "Measure cold time to first useful physical motion, warm starts, braking and Stop with a connected gamepad.",
     "Check field geometry, team tags, signed headings and camera freshness. Verify one drive and kick on each robot before paired play."
-  ]
+  ],
+  "independent_audits": {
+    "scope": "Supplemental read-only review of the shipped source commit and de-identified offline measurements. Each CLI request disabled tools and fallback. Selected response fields recorded from streaming output.",
+    "previous_5_2": {
+      "requested_model": "claude-fable-5-2",
+      "sensor_timeout_s": 45,
+      "packaging_timeout_s": 70,
+      "observation": "Both Python wrappers caught subprocess.TimeoutExpired and retained no partial output or final provider result. An earlier successful review reported 79.320 s elapsed with this model. The upstream cause of the two timeouts is unknown.",
+      "sensor_scope": "Supported field rehoming, warm standby and rollback contracts",
+      "packaging_scope": "Archive reproducibility, extracted laptop launcher and clean Pi staging"
+    },
+    "reviews": {
+      "sensor": {
+        "response_model": "claude-fable-5-1",
+        "elapsed_s": 44.342,
+        "subtype": "success",
+        "bundle_sha256": "44ac975b37cd3a367c36303ac0a7d20d2b89780015fb761709090b28d3ecc13a",
+        "billed_model_ids": [
+          "claude-fable-5-1"
+        ],
+        "receipt": "outputs/pupper-fc-release/verification/fable-5-1-sensor.json"
+      },
+      "package": {
+        "response_model": "claude-fable-5-1",
+        "elapsed_s": 26.561,
+        "subtype": "success",
+        "bundle_sha256": "849bba8440290f6fce69cfc9d20dbcc9d6237b3848055439e187a535571103cb",
+        "billed_model_ids": [
+          "claude-fable-5-1"
+        ],
+        "receipt": "outputs/pupper-fc-release/verification/fable-5-1-package.json"
+      }
+    },
+    "sensor_findings": [
+      "The reviewer accepted per-report publication, independent 100 ms receipt expiry and the supported recovery evidence. Physical trip latency, actuator response and fall behavior remain unmeasured.",
+      "We traced the proposed unconditional cache invalidation through the hardware read, activation and homing paths. The driver checks receipt age independently from validity. A poll between healthy reports can return a valid, still-fresh cache. Duplicate polls retain the original receipt and cannot renew authority. The legacy timestamp is diagnostic only. Existing cache and dropout regressions exercise expiry. We retained the tested behavior.",
+      "The reviewer proposed a supported, instrumented single-stream dropout during hardware qualification. The offline 103–104 ms trips depended on the fixture polling cadence and do not set a measured bound for the Pi."
+    ],
+    "package_findings": [
+      "The reviewer accepted the archive checks, clean Mac install and independent Ubuntu/Jazzy staging. The Debian Pi build, hardware enrollment and time to physical motion remain open.",
+      "After review, direct byte comparison again found the shipped ZIP, tarball and checksum file identical to the independent clean-clone rebuild. Both ZIP and tarball hashes are recorded above. Prepare timings measure a motor-inactive subprocess. Cold laptop timing measures HTTP availability and includes a separate observation during concurrent compilation.",
+      "The reviewer requested an executed rollback receipt. The shipped CLI restored the previous profile, native-prefix selection and release manifest. Its verifier checked all 79 staged files. It disabled a first managed install while retaining its saved profile. Each operation was repeatable."
+    ],
+    "rollback_check": {
+      "archive_sha256": "b68fc4e69c52ec9ed905a51c69c6a2d6754571dd141ed65633a79bfd1b3bea9b",
+      "environment": "Isolated ARM64 Ubuntu/Jazzy, network disabled, exact Pi archive and fixture script mounted read-only, no checkout or device. Previous and current platform selections/native files were fixtures, and Avahi/sudo was unavailable. Each staged manifest was verified with the shipped verify CLI.",
+      "command": "python3 foundation/hardware/fc_walk_kick_release.py rollback",
+      "cases": {
+        "rollback_previous_profile_prefix_and_manifest": {
+          "active_before": "2c2373959e9fe00b1804048f357c8303e26efaa654da765030dbd9630a727fbc",
+          "active_after": "28e370d07ea10731a3a33691e35fde8f3266d654f3db5c3c4941432607d66f83",
+          "old_files_verified": 79,
+          "prefix_restored": true,
+          "second": "already restored"
+        },
+        "rollback_first_managed_install_disables": {
+          "active_after": false,
+          "saved_profile_unchanged": true,
+          "selected_manifest_retained": "2c2373959e9fe00b1804048f357c8303e26efaa654da765030dbd9630a727fbc",
+          "second": "enrollment disabled"
+        }
+      }
+    }
+  }
 }

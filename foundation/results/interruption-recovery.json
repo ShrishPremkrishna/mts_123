@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
   "mode": "fc_offline_release_verified",
-  "updated_utc": "2026-11-20T11:01:12+00:00",
+  "updated_utc": "2026-11-20T11:09:10+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -80,7 +80,7 @@
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
-    "claude_source_review": "User authorized sharing selected private source and de-identified timings with exact claude-opus-5-5 and claude-fable-5-2. Credentials remain external.",
+    "claude_source_review": "User authorized sharing selected private project source and de-identified timings with exact Claude Opus 5.5 and Fable 5.2, and requested Fable 5.1 for the supplemental release audits. Credentials remain external.",
     "overnight_2026_11_17": {
       "authorized_total_additional_usd": 50,
       "source": "User reply: Allow up to $50 additional cloud compute",
@@ -241,7 +241,7 @@
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",
     "regression": "python3 foundation/scripts/check_foundation.py --api-python .venv-api/bin/python --numerical-python .venv/bin/python --output <new-evidence-directory>",
     "fc_focused": ".venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests",
-    "claude": "claude --print --model claude-fable-5-2 (bounded read-only tools, approved account/network path)",
+    "claude": "claude -p --model claude-fable-5-1 --effort low --safe-mode --strict-mcp-config --tools \"\" --no-session-persistence --output-format stream-json --verbose --include-partial-messages",
     "evidence": "foundation/results/takeover-audit-20261116.json",
     "practice": ".venv-api/bin/python -m final_project.pupper_fc --port 8766 (check the port before starting a new local viewer)",
     "kick_matrix": ".venv-api/bin/python -m final_project.pupper_fc.kick_rehearsal",
