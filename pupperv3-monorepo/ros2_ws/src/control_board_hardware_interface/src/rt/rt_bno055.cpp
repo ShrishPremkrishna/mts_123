@@ -1,5 +1,6 @@
 
 #include "rt/rt_bno055.h"
+#include "control_board_hardware_interface/imu_health.hpp"
 
 #include <string>
 #include <stdexcept>
@@ -51,7 +52,7 @@ BNO055::BNO055(int i2c_device_number, uint32_t micros_between_reports) {
     }
   }
 
-  std::cout << "Enabling rot vec + gyro. Micros between reports: " << micros_between_reports
+  std::cout << "FC_IMU_PUBLISH_PER_REPORT_V1 enabling quaternion and gyro, report interval (us): " << micros_between_reports
             << std::endl;
   std::this_thread::sleep_for(std::chrono::milliseconds(2));
   enableRotationVector(micros_between_reports);
@@ -177,8 +178,6 @@ bool BNO055::dataAvailable(void) {
       //   printf("got channel control\n");
       parseCommandReport();  // This will update responses to commands, calibrationStatus, etc.
       return (true);
-    } else {
-      printf("IMU got wack data\n");
     }
   }
 
@@ -348,11 +347,24 @@ void BNO055::parseCommandReport(void) {
 }
 
 BNO055::Output BNO055::sample() {
-  // Typically has two messages available in one call to sample()
+  // A completed report must reach the controller before another I2C read can
+  // block. Keep draining unusable/duplicate packets within the original budget.
+  const auto start_quat = quaternion_receipt_time_;
+  const auto start_gyro = gyro_receipt_time_;
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(25);
   for (unsigned packets=0; packets<32 && std::chrono::steady_clock::now()<deadline && dataAvailable(); ++packets) {
     latest_packet_timestamp = std::chrono::high_resolution_clock::now();
+    if (quaternion_receipt_time_ != start_quat || gyro_receipt_time_ != start_gyro) {
+      auto result = current_output();
+      if (!pupper_imu::feedback_error(result, std::chrono::steady_clock::now())) {
+        return result;
+      }
+    }
   }
+  return current_output();
+}
+
+BNO055::Output BNO055::current_output() {
   Output result;
   result.quat.x() = getQuatI();
   result.quat.y() = getQuatJ();
@@ -370,6 +382,8 @@ BNO055::Output BNO055::sample() {
 
   result.quaternion_valid = quaternion_valid_;
   result.gyro_valid = gyro_valid_;
+  result.quaternion_report_sequence = quaternion_sequence_.seen ? quaternion_sequence_.last : -1;
+  result.gyro_report_sequence = gyro_sequence_.seen ? gyro_sequence_.last : -1;
   result.quaternion_accuracy = uint8_t(quatAccuracy);
   result.gyro_accuracy = uint8_t(gyroAccuracy);
   result.quaternion_receipt_time = quaternion_receipt_time_;

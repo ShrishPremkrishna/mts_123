@@ -25,12 +25,10 @@ std::optional<std::pair<BNO055::Output, uint32_t>> IMUManager::sample_imu_multip
 
   for (int i = 0; i < max_samples; i++) {
     BNO055::Output output = imu_->sample();
-    if (!output.quaternion_valid || !output.gyro_valid || !output.quat.coeffs().allFinite()
-        || !output.gyro.allFinite() || output.quat.isApprox(Eigen::Quaternionf(0, 0, 0, 0), 1e-6)) {
-      RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
-                  "%sBad IMU sample [%f, %f, %f, %f]. Retrying...%s", YELLOW_ANSI, output.quat.x(),
-                  output.quat.y(), output.quat.z(), output.quat.w(), RESET_ANSI);
-    } else {
+    // Keep console I/O off the polling thread. The driver records a single
+    // timestamped diagnostic for the sample that actually disables actuation.
+    if (output.quaternion_valid && output.gyro_valid && output.quat.coeffs().allFinite() &&
+        output.gyro.allFinite() && !output.quat.isApprox(Eigen::Quaternionf(0, 0, 0, 0), 1e-6)) {
       auto end = std::chrono::high_resolution_clock::now();
       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
       return std::make_pair(output, duration.count());
@@ -42,19 +40,24 @@ std::optional<std::pair<BNO055::Output, uint32_t>> IMUManager::sample_imu_multip
   return std::nullopt;
 }
 
-void IMUManager::poll_imu() {
+bool IMUManager::poll_imu() {
   auto maybe_output = sample_imu_multiple_attempts(/*max_samples=*/5, /*delay_ms=*/1);
   if (maybe_output) {
     // lock and copy imu data
     std::lock_guard<std::mutex> lock(imu_mutex_);
-    imu_data = maybe_output->first;
+    const auto &output = maybe_output->first;
+    const bool advanced = output.quaternion_receipt_time != imu_data.quaternion_receipt_time ||
+                          output.gyro_receipt_time != imu_data.gyro_receipt_time;
+    imu_data = output;
     imu_sampling_time_us = maybe_output->second;
+    return advanced;
   } else {
     // An observed invalid stream must not hide behind the last good cache.
     // Retain values and receipt clocks for diagnosis, but revoke usability.
     std::lock_guard<std::mutex> lock(imu_mutex_);
     imu_data.quaternion_valid = false;
     imu_data.gyro_valid = false;
+    return false;
   }
 }
 
@@ -65,7 +68,9 @@ BNO055::Output IMUManager::get_imu_data() {
 
 void IMUManager::imu_read_thread_fn() {
   while (!stop_imu_read_thread_) {
-    poll_imu();
+    // Publish each pair under the mutex, release it, then service a queued
+    // packet immediately. Empty reads back off and long bursts still yield.
+    for (unsigned i = 0; i < 32 && !stop_imu_read_thread_ && poll_imu(); ++i) {}
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 }
