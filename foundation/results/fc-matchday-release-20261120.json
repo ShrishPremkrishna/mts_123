@@ -1,0 +1,207 @@
+{
+  "date": "2026-11-20",
+  "source_commit": "ffdaed5280d48fa382e18bc7fc6144b533c401c6",
+  "branch": "codex/pupper-fc-match",
+  "packages": {
+    "pupper-fc-laptop.zip": {
+      "sha256": "545a7c53190963926ce593ca9168148c83c292b5a1e303a1073e547d5db3dff2",
+      "bytes": 36515350
+    },
+    "pupper-fc-pi.tar.gz": {
+      "sha256": "63008f3f945c40b3a462d5420d0d0762b2081660825bcee4c31f0e4649683596",
+      "bytes": 8430234
+    }
+  },
+  "archive_contents": {
+    "commit": "ffdaed5280d48fa382e18bc7fc6144b533c401c6",
+    "laptop_source_blobs": 42,
+    "verified_wheel_hashes": 19,
+    "pi_source_blobs": 737,
+    "app_selected_digests": 56
+  },
+  "reproduction": "Independent clean local clone used the locked wheelhouse with package indexes disabled. ZIP, tarball and SHA256SUMS compared byte-for-byte identical.",
+  "workflow": "After one-time Pi enrollment and trusted SSH, per-team dashboard Prepare and supported Home run the Pi CLI. A fresh standing cue still requires the connected Stop gamepad, and full Home attaches the runner. The standing robot reuses its session on End/Start. Terminal fallback and headless tests share the same implementation.",
+  "checked_scripts": [
+    "./pupper-fc --self-test",
+    "./pupper-fc-check --ros",
+    "./pupper-fc-package --output outputs/pupper-fc-matchday"
+  ],
+  "mac": {
+    "platform": "26.5.1",
+    "machine": "arm64",
+    "cold_http_ready_seconds": 5.214,
+    "warm_http_ready_seconds": 0.383,
+    "running_reopen_seconds": 0.067,
+    "cli_self_test_s": 0.459,
+    "bundled_wheels": 19,
+    "scope": "Fresh ZIP extraction, no previous venv, package index and pip cache disabled. Physical devices and robot discovery were not used."
+  },
+  "linux_pi_archive": {
+    "scope": "ARM64/Jazzy Docker with network disabled, no checkout mount, actual Pi tarball extracted independently of the checkout. Compared every native source file against verified 7236bc6 tarball. No device or physical motion.",
+    "application_files_verified": 56,
+    "native": {
+      "source_files": 679,
+      "previous_source_files": 679,
+      "changed": [],
+      "canonical_digest": "e99fdeb449e5a90e8bab84b2e6804ca85932557a5e830ea7b76dcba9b848cca2"
+    }
+  },
+  "timing_extracted_releases": {
+    "method": "8 alternating-order pairs, first excluded. Motor-inactive Prepare cold and warm plus Home launch-description construction, per benchmark_fc_prepare.py, from exact extracted previous and current archives in the same ARM64 ROS container. Each sample cold creates a fresh run and warm Prepare reuses it. Host load, cache and OS scheduling affect elapsed times. No robot processes started.",
+    "medians_seconds": {
+      "old": {
+        "cold_prepare_process_s": 0.3076,
+        "warm_prepare_process_s": 0.0301,
+        "home_launch_description_s": 0.1385
+      },
+      "candidate": {
+        "cold_prepare_process_s": 0.295,
+        "warm_prepare_process_s": 0.0302,
+        "home_launch_description_s": 0.1295
+      }
+    },
+    "earlier_staging_study": "A separate staged-candidate run in fc-runtime-path-20261120.json measured 47 ms cold Prepare saving. The exact archives measured 12.6 ms. Warm difference in both was about 0.1 ms."
+  },
+  "physical_comparison": "Previous Pi runs measured 8.19 and 10.66 s of qualification plus home, including 5.08 and 3.85 s mechanical. Healthy warm matches avoid repeating this procedure. Total user-intent-to-motion savings compared with the 609.8 s launch-to-first-request run require physical timing. The historical request may be zero.",
+  "ros_scope": "Real local production lobby/field subprocess, UDP, DDS, executor and kick-handoff logic. The peer, guard feedback, camera and native kick completion are fixtures. Kickoff durations end at the first nonzero executor command.",
+  "ros_checks": [
+    {
+      "roster": [
+        "pupper-1"
+      ],
+      "end_to_standby_s": 0.206,
+      "start_to_first_nonzero_s": 0.351,
+      "warm_restart_to_first_nonzero_s": 0.354,
+      "kick_completions": [
+        "r1-p0-k1",
+        "r1-p0-k2"
+      ],
+      "observed_ball_relocation_m": 0.24,
+      "integrated_second_approach_m": 0.24,
+      "new_capture_after_first_completion_s": 0.025,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-1": 574
+      },
+      "pending_frames": {
+        "pupper-1": 0
+      },
+      "wall_s": 12.419
+    },
+    {
+      "roster": [
+        "pupper-2"
+      ],
+      "end_to_standby_s": 0.266,
+      "start_to_first_nonzero_s": 0.369,
+      "warm_restart_to_first_nonzero_s": 0.405,
+      "kick_completions": [
+        "r1-p0-k1",
+        "r1-p0-k2"
+      ],
+      "observed_ball_relocation_m": 0.24,
+      "integrated_second_approach_m": 0.24,
+      "new_capture_after_first_completion_s": 0.014,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-2": 577
+      },
+      "pending_frames": {
+        "pupper-2": 3
+      },
+      "wall_s": 12.184
+    },
+    {
+      "roster": [
+        "pupper-1",
+        "pupper-2"
+      ],
+      "rejected_start_standby": true,
+      "end_to_standby_s": 0.232,
+      "start_to_first_nonzero_s": 0.44,
+      "warm_restart_to_first_nonzero_s": 2.693,
+      "score": {
+        "pupper-1": 1,
+        "pupper-2": 0
+      },
+      "early_resume_held_match": true,
+      "missed_red_goal_frames": 2,
+      "rally_after_replacement_and_resume": 2,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-1": 261,
+        "pupper-2": 340
+      },
+      "pending_frames": {
+        "pupper-1": 4,
+        "pupper-2": 5
+      },
+      "wall_s": 9.395
+    }
+  ],
+  "isolated_setup": {
+    "scope": "Production Uvicorn, WebSockets, setup_session.open_setup argv, fc_session CLI/profile/run and real TTY supervised_stand code. Local SSH shim and pseudoterminal, fixture manager/process identity, native planner, board and Stop gateway. No radio or actuators.",
+    "observed_events": [
+      "prepare_plan",
+      "mechanical_home_fixture",
+      "board_check_fixture",
+      "standing_check",
+      "standing cancelled",
+      "standing_check",
+      "gateway_start",
+      "standing_check"
+    ]
+  },
+  "camera_dropout": "Three Linux/Jazzy native walker trials survived 1–3 s without front-camera detections. Walking-policy input went to zero at 276–298 ms. 1,064 zero native samples, stale sequence rejection, fresh clearance/zero/drive recovery to 0.16 m/s on the same walker generation. Core balance remains separately watched at 100 ms. See fc-runtime-path-20261120.json for individual results.",
+  "browser_fixture": {
+    "scope": "Real Chrome, production HTML/CSS/JS, localhost FastAPI, setup and play WebSockets and camera worker. Fixtures replace Pi processes, physical camera during play and field transport.",
+    "version": "157.0.8103.79",
+    "checks": [
+      "Mobile 390px and 320px fit, Red setup can be opened and closed; Home requires explicit support.",
+      "Real synthetic camera worker delivered JPEG, six tags, both teams and ball; simulated camera cannot enable Start.",
+      "Blue Prepare and Home-only used one discovery, received confirmed Home and kept the runner disconnected.",
+      "Full Home waited for a fresh browser standing cue, sent one newline, then automatically attached the runner without rescanning.",
+      "Escape canceled Red’s pending standing cue and stopped the connected Blue adapter.",
+      "Blue keyboard / Red autonomous: W held before kickoff sent no forward drive, W in match drove Blue, End/Start twice maintained both sessions without another Home."
+    ],
+    "errors": []
+  },
+  "quick_regressions": "67 passed in 3.69 s with an upstream FastAPI TestClient deprecation warning. All three ROS rosters passed.",
+  "other_checks": [
+    "91 targeted native-launch, enrollment, session and staging tests with 10 additional subtests before the final disconnect correction. Final quick tests include corrected transport and Pi CLI regressions.",
+    "1,246 shared Gemini regression cases passed on the first broad run. Two HTTP-cache cases needed the existing legacy web/dist asset; all 40 HTTP transport tests passed with that development prerequisite present. The Pupper FC packages contain their own UI.",
+    "Rollback invoked from the exact shipped Pi tar restored and digest-verified the 79-file prior release across the selection change and disabled a first installation, repeatably; platform snapshots and native prefixes for rollback were fixtures."
+  ],
+  "model_review": {
+    "implementation": "Exact claude-opus-5-5 identified inherited recording-mode environment and insufficient staged runtime-import evidence. Stage verifies the default events/strict selection, and the extracted Pi observer was run in real ROS.",
+    "audit": "Exact claude-fable-5-1 identified foreground interrupt propagation and early monitor exit. Final regressions cover Stop acknowledgement through a delayed ~550 ms completion, ROS cleanup and SSH child reaping. The PTY tests use synthetic Stop and no physical actuators."
+  },
+  "physical_open": [
+    "Measure cold time to first useful field motion and warm End/Start with real radio, Hailo and camera.",
+    "Confirm support, real gamepad Stop, actual braking/torque, feedback freshness, thermal behavior, and walking return after a kick on each robot.",
+    "A real core IMU dropout during motion remains a strict motor-disabling fault. Assisted recovery still requires support, an enrolled compatible driver and explicit intervention."
+  ],
+  "evidence": {
+    "outputs/pupper-fc-matchday/verification/mac-extracted.json": "04a60c7e8f14553e93ed1ac28dab6bbd71321d64e8171b57ad20abcdc2186c31",
+    "outputs/pupper-fc-matchday/verification/pi-extracted.json": "2a28c5956111f50e4916616488d02074b6c70918b10cb128194c0ddc6707b7b0",
+    "outputs/pupper-fc-matchday/verification/prepare-ab.json": "3deccccc8671c26948f2c166f4c65ca667267e888f1ac3054bcac7bdf5755530",
+    "outputs/pupper-fc-matchday/verification/setup-pty.json": "99fdb3493dbad4fa8b8ee45824c43635204263940a469994914ab4bc09c5c398",
+    "outputs/pupper-fc-matchday/verification/cross-release-rollback.txt": "b7ba5123a10422eb234d2b873f2d383cc7d081f01273aa96e43fd0733fc6879e",
+    "outputs/pupper-fc-matchday/verification/front-camera-dropouts.json": "7206c34ab26bbc81c74f03fe98cb7beeffbe4e0216af12ca52182a85ecb43686",
+    "outputs/pupper-fc-matchday/verification/quick-and-ros.log": "e0bbebe7b8a7fa2b4c893841528e2010bafd6ccfae5ce2501b6de791337f083a",
+    "outputs/pupper-fc-release/visual-qa/browser-check.json": "b28172b7766402176c1269f5b689ab6abbab077db922193c7837954d300805b0",
+    "outputs/pupper-fc-matchday/verification/paired-kickoff-timing.jsonl": "52d45bedea231df42de366cfb2b3ff7b7f9d2d1e4ba19dcec4e69b4bdfaebe56"
+  },
+  "paired_timing_followup": {
+    "first_kickoff_s": 0.437,
+    "warm_kickoff_s": 0.434,
+    "warm_boundary_s": {
+      "new_field_processes_started": 0.015,
+      "paired_feeds_ready": 0.29,
+      "kickoff_commit": 0.397,
+      "blue_first_ros_intent": 0.432,
+      "first_nonzero_command": 0.434
+    },
+    "scope": "Single instrumented follow-up. Both field publishers were recreated. The paired fixture deliberately holds Red arm for 0.100 s. No intermediate timestamps were captured in the earlier 2.693 s warm sample, so its exact cause is unknown."
+  }
+}

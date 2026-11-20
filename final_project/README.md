@@ -9,7 +9,7 @@ Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 
 
 On November 20, Pupper completed stand recovery after a stale balance-sensor reading disabled its driver. During the final west-goal attempt, the overhead camera produced 950 paired robot-and-ball observations. Intermittently stale front-camera images kept the offense runner from arming. The recording contains only zero-velocity requests and no kick. The operator supported Pupper for shutdown. [Final field trial](../foundation/results/field-offense-final-20261120.json)
 
-The final ROS rehearsal verified solo Blue, solo Red and paired kickoff, standby, scoring and deliberate Resume. On prepared simulated peers, warm kickoff reached the first nonzero executor command in 0.32–0.38 seconds. The field robot still needs its updated driver, mounted-camera and motion acceptance. [Match evidence](../foundation/results/fc-match-ros-20261120.json) · [Native driver evidence](../foundation/results/fc-native-reliability-20261120.json)
+The final ROS rehearsal verified solo Blue, solo Red and paired kickoff, standby, scoring and deliberate Resume. On the current dashboard release, warm kickoff reached the first nonzero executor command in 0.35 s for Blue, 0.41 s for Red, and 2.69 s for the pair in individual ROS rehearsals. The field robot still needs its updated driver, mounted-camera and motion acceptance. [Current release evidence](../foundation/results/fc-matchday-release-20261120.json) · [Native driver evidence](../foundation/results/fc-native-reliability-20261120.json)
 
 ## Current agreement and owner steering — November 19, 2026
 
