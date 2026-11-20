@@ -2,6 +2,10 @@
 
 This candidate shortens the path from a powered robot to repeated soccer attempts. Keep the Pi, board driver, calibrated joint coordinates and walker alive between attempts. The laptop owns the overhead camera, field geometry, game roles and operator controls. The Pi owns its 12 actuator commands, balance feedback, onboard Hailo detector and physical Stop.
 
+## Gamepad-free Stand qualification stopped · November 20
+
+Blue completed Home and briefly activated the walker from the UI. The later diagnostic build stopped during Home with both rear knees near their mechanical stops. Physical Stand, Stop and soccer remain unqualified. The handoff identifies the installed commit, measured joint positions, package digests and branches holding the secondary work. [Hardware and branch handoff](../../foundation/results/fc-stand-handoff-20261120.md)
+
 ## Blue's supported Home and startup investigation
 
 On Blue, a supported Home on the preceding release timed out before motor enable with fresh final primary IMU samples. The original error omitted both predicates' history. All six subsequent cold sensor trials passed on the same Pi, including two with the actual vision stack starting. Supported Home now needs verified primary balance and valid joint feedback. The alternate IMU agreement gates the first standing claim. Routine Home only defers perception. The operator can retry a verified pre-enable refusal from the lobby. [Measurements, service inventory and independent audits](../../foundation/results/fc-home-startup-investigation-20261120.md)

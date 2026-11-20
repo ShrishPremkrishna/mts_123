@@ -3,8 +3,8 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej’s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
-  "mode": "fc_touchscreen_and_field_qualification",
-  "updated_utc": "2026-11-20T22:52:33.181629+00:00",
+  "mode": "stopped_by_operator",
+  "updated_utc": "2026-11-20T23:30:52.546240+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -73,7 +73,8 @@
     "match_imu": "foundation/results/fc-match-imu-release-20261120.json",
     "fc_continuous_release": "foundation/results/fc-continuous-release-20261120.json",
     "home_startup": "foundation/results/fc-home-startup-investigation-20261120.md",
-    "home_release": "foundation/results/fc-home-release-20261120.json"
+    "home_release": "foundation/results/fc-home-release-20261120.json",
+    "fc_stand_handoff": "foundation/results/fc-stand-handoff-20261120.md"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -82,7 +83,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Shrish authorized release installation and supervised Home. The touch interface and network recovery take priority. No motion has been requested since the latest boot.",
+  "authorization": "Robot testing ended at the operator’s request. The active goal was cleared. Wrap-up was limited to preserving and publishing branches.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -121,7 +122,7 @@
       "arena": "Shrish",
       "project_lead": "Shrish. Offline release integration in codex/pupper-fc-match."
     },
-    "goal_status": "Opt-in match IMU recovery on codex/pupper-fc-match. Primary-report loss and roster-held Resume exercised offline. Physical candidate commissioning remains open.",
+    "goal_status": "Stopped by operator; sustained gamepad-free Stand, physical watchdog Stop and floor soccer unverified.",
     "pending_archives": [],
     "processes": {
       "local_practice": {
@@ -139,31 +140,31 @@
     "fc_appliance_release": "Verified offline: shipped both archive hashes and committed blobs, clean Mac launch and Chrome, standalone Pi stage/compile, systemd appliance rollback, and three final ROS rosters. See the appliance release record for timings and outstanding physical checks."
   },
   "hardware_session": {
-    "status": "Blue on its stand, Home only COMPLETE on e4848c4. Chrome click to confirmation 12.134 s, 12 joints homed, one successful activation. At +105 s hardware active, no claimed motor commands, both leg controllers inactive, 0 faults; camera and detector deferred. Original eyes/touch Wi-Fi restored. No Stop gamepad present during this test. Verify current session before any hardware action.",
-    "observed_utc": "2026-11-20T22:18:59.578360+00:00",
+    "status": "Testing stopped. Final supported Home on ef65bb7 sent neutral after both rear knees failed the return step. Shutdown recorded successful cleanup. No further physical commands authorized.",
+    "observed_utc": "2026-11-20T23:22:04+00:00",
     "ssh": "mts",
     "current_boot_id": "4f3d9a21-3bb7-4548-9979-b49bc6cab04b",
     "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
-    "selected_candidate": "/home/pi/pupper-fc-releases/fc-deca4af28609d907",
+    "selected_candidate": "/home/pi/pupper-fc-releases/fc-gamepad-free-ef65bb7af26f",
     "platform_environment": null,
-    "selected_driver_sha256": "d6676536a1f6839518160e82d87ceef9ff3f8373773811e933898efd73a42eed",
+    "selected_driver_sha256": "c5a3c70c4d8319535bd6c503fca7cf72e383de14d027a35a6366c665d23a67b8",
     "selected_controller_sha256": "dc90fa30b3df597806536623c270ceff1a52db4d937e30bcbd4b8f984a820500",
     "active_run": null,
-    "processes_at_observation": "Last pre-reboot inventory showed Hailo service, no camera or ros2_control_node after diagnostic cleanup. Post-reboot process inventory awaits network recovery.",
+    "processes_at_observation": "FC owned shutdown reported passed_cleanup; hardware activity was not inspected again after the stop request.",
     "policies_at_observation": {},
     "gateway_stop_latched_at_observation": null,
-    "qualification_report": "foundation/results/fc-continuous-release-20261120.json",
+    "qualification_report": "foundation/results/fc-stand-handoff-20261120.md",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
     "previous_straight_trials": {
       "report": "foundation/results/staged-field-session-20261119.json",
       "run": "/home/pi/pupper-fc-runs/coordinate-stage1-VJBLdGpR",
       "closure": "artifacts/pupper-fc/2026-11-19/coordinate-stage1-VJBLdGpR/robot/closure.json"
     },
-    "frozen_release_source_commit": "3bd1bc9f54db7f96f5706355cec5d57b9ac1bf71",
+    "frozen_release_source_commit": "ef65bb7af26f629c1a99bc86fefc2d20079c86fe",
     "verified_front_camera": "38/38 clear checks on the stand. During the field trace 108/276 samples held on stale captures or clear-frame recovery. See final report.",
     "thermal_log": "Final run pi-thermal-22406-142237.jsonl; peak CPU 84.8 C.",
     "previous_run": "/home/pi/pupper-fc-runs/fc-field-74798bf0",
-    "last_closed_run": "/home/pi/pupper-fc-runs/fc-final-74798bf0-0051",
+    "last_closed_run": "/home/pi/pupper-fc-runs/fc-pupper-1-514d12fd09b7",
     "policies_before_driver_shutdown": {
       "gemini_walk": "inactive",
       "imu_sensor_broadcaster": "active",
@@ -201,20 +202,8 @@
   },
   "next": [
     {
-      "id": "supported_match_imu",
-      "action": "In a sling, verify both IMU report pairs, native Stop and a two-second ROS delivery pause on one prepared Pi. Resume through the lobby and verify a fresh key action. Hardware bus interruption, braking distance and target firmware still need physical qualification."
-    },
-    {
-      "id": "verify_physical_release",
-      "action": "Boot, Connect and supported Home verified on Blue. Next, with the independent Stop connected, verify supported standing and Stop from the laptop before floor play."
-    },
-    {
-      "id": "field_setup",
-      "action": "Check six-tag automatic goal overlay. For a one-corner setup, enter measured field and printed tag dimensions, check the far corner in the snapshot and confirm the overlay. Try the two physical team patches, and compare onboard color vs YOLO-confirmed pink detections with the real ball."
-    },
-    {
-      "id": "physical_match",
-      "action": "With the operator present, check one controlled drive and kick and the walking return. Repeat on the second enrolled Pi before accepting two-robot play."
+      "id": "stopped_by_operator",
+      "action": "Preserve the branch handoff. Any new hardware session requires a new operator request."
     }
   ],
   "recorded_open_items": {
