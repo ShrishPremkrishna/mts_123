@@ -1,0 +1,7 @@
+# Lobby and perception handoff
+
+The feature snapshot at `69d8a73` contains the laptop game lobby, team discovery, keyboard teleop, automatic field calibration, moving-ball pursuit and package tooling. The same history also changes the Pi driver, Home and IMU recovery. Select feature paths when integrating with `main`. [Release history](RELEASE.md)
+
+The extracted laptop at source `e4848c4` reached the lobby in 5.647 s on first launch and 0.387 s on a warm restart. Its software camera check saw the six field tags, both body tags and the ball. The real ROS rehearsal used synthetic observations to exercise solo and paired kickoff, repeat kicks and scoring. Blue completed a supported Home on that revision. The measured scope of each check is recorded in the release receipt. [Home and package receipt](../../foundation/results/fc-home-release-20261120.json) · [ROS and pursuit evidence](../../foundation/results/fc-continuous-release-20261120.json)
+
+For desktop integration, preserve concurrent camera-ingress work on `main`, then verify a clean laptop extraction, setup screens, and Blue/Red controls against device-free endpoints. Recheck tag-free two-robot identity and signed heading on labeled captures before enabling them for autonomous play. The Pi boot utility can be reviewed independently with its touchscreen and USB-recovery fixtures. [Lobby tests](tests/test_match_lobby.py) · [Team-color tests](../overhead_perception/tests/test_team_colors.py) · [Packaging](PACKAGING.md)
