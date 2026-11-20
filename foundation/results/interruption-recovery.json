@@ -3,8 +3,8 @@
   "objective": "Deliver reliable two-robot Pupper FC soccer and final deliverables, with explicit roles, coordinate navigation, responsive locomotion and person avoidance; revised priorities under owner alignment.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
-  "mode": "physical_stage1_preflight",
-  "updated_utc": "2026-11-20T00:40:10.271037+00:00",
+  "mode": "main_staged_waiting_for_robot_handover",
+  "updated_utc": "2026-11-20T01:00:56+00:00",
   "current_report": "foundation/results/staged-field-session-20261119.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -61,7 +61,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Owner authorizes overnight offline engineering, exact Fable 5.2 code reviews, up to $50 aggregate additional cloud compute, and explicitly approved uploading the selected 245 camera frames to own Colab for the obstacle experiment (reply: yes u can do anything). This does not widen the budget or authorize robot motion. Current experiment instead uses local MPS; cloud is closed.",
+  "authorization": "Current task is source reconciliation and motor-inactive preparation. At the last handover check the owner reported a teammate actively operating the robot. Historical November 17 cloud authorization is recorded below.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -90,9 +90,9 @@
   },
   "activity": {
     "automation": "No automation controls the physical session.",
-    "compute": "Shared main contains the reviewed perception integration. Opt-in leg kick a33645c passed the focused and package regressions. Pi stock sprint preflight passed. The strict controller and gateway source packages and build prerequisites were verified on the target.",
+    "compute": "Main source recovered on Pi. Stock target plan and opt-in kick assets checked. Legacy camera-guard release staged, Pi relative/absolute heading logic exercised with synthetic inputs, strict native build inputs verified. See the current report.",
     "owners": {
-      "physical_robot": "Root coordinates physical trials with Shrish. Await current stand/readiness confirmation before homing.",
+      "physical_robot": "Owner confirmed a teammate is using Pupper. Coordinate handover before FC homing or using substantial CPU for native compilation.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and current project lead: gait readiness, responsive execution, headbutt and defense; no bumper fitted.",
       "shooting": "Tej",
@@ -112,16 +112,16 @@
         "verified_utc": "2026-11-17T17:28:10.451773+00:00"
       },
       "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
-      "completed": "Source/branch audit, opt-in kick implementation, target build preparation and floor-release preflight complete. Hardware initialization still pending current supervision."
+      "completed": "Dedicated source, representative stage-one plan, camera environment and dormant guarded release checked. Mounted perception, physical destination repeats and new native build remain open."
     }
   },
   "hardware_session": {
-    "status": "Stock movement-20261117-logfix sprint profile passed motor-inactive preflight. Controller connected when checked. Await current physical readiness for supported homing.",
+    "status": "A teammate owns Pupper's kick session. FC source is staged. Stock sprint preflight predates the teammate's controller launch. Take a fresh preflight after handover.",
     "ssh": "mts",
-    "observed_utc": "2026-11-20T00:40:10.271037+00:00",
-    "current_boot_id": "529bf7d6-a3cd-49a8-80f9-620859fa3ac3",
-    "active_run": null,
-    "motor_api_recorders_last_observed_active": false,
+    "observed_utc": "2026-11-20T00:58:59Z",
+    "current_boot_id": "bb48252e-8037-4510-b8ec-cd20fe7afef0",
+    "active_run": "20261119-kickfast3",
+    "motor_api_recorders_last_observed_active": true,
     "selected_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "manifest_profiles": {
       "walk": "78b2c308422fcaae39160fd4f5205fb50fb2e8156bba5a9956284b6147b9a223",
@@ -132,10 +132,10 @@
     "last_physical_run": "/home/pi/pupper-fc-runs/logfix-floor-20261117",
     "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
-    "prepared_run": "/home/pi/pupper-fc-runs/coordinate-stage1-diuJj7pE",
-    "prepared_state": "Preflight created for this boot with motors inactive. No homing or movement trial launched in this staging block. Recheck boot and controller ownership at handoff.",
+    "prepared_run": null,
+    "prepared_state": "Await handover and fresh motor-inactive preflight before supported homing. No current FC session.",
     "local_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
-    "candidate_state": "Last floor evidence on the selected logfix controller: corrected three-second left/right commands at 0.15 were stable and stopped cleanly; forward 0.45 for two seconds traveled approximately 30 inches. That block used the sprint manifest. The guarded walk-only source candidate and native software Start update are not deployed or physically accepted.",
+    "candidate_state": "Stock sprint is the last floor-tested selection. Short corrected 3 s left/right at 0.15 were stable and stopped, and forward 0.45 for 2 s travelled about 30 inches. New guarded legacy profile assembled only. Direct-deadline and software Start native binaries remain unbuilt.",
     "client_update": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "client_update_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
     "persistent_tool_session_id": null,
@@ -143,7 +143,8 @@
     "persistent_prepared_action": null,
     "closure": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/gait-gate-20261117T055317Z/corrected-runs/logfix-floor-20261117/closure.json",
     "camera_only_session_id": "d25bba2299f24dd09e5f09a282003293",
-    "last_camera_run": "/home/pi/pupper-fc-runs/front-camera-20261117-a"
+    "last_camera_run": "/home/pi/pupper-fc-runs/front-camera-20261117-a",
+    "previous_preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-uZ0QxGWY/preflight.json"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -173,19 +174,19 @@
   "next": [
     {
       "id": "straight_repeats",
-      "action": "On the recorded boot, use the preflight receipt for the stock sprint profile. Recheck ownership. Supported homing, verify loaded identities, Options once, then a short straight target from the marked start. Record completion, travel, drift and stop for each repeated trial."
+      "action": "After teammate handover, verify idle, freshly preflight stock sprint, home on stand and complete three supervised nominal 20 cm pulses from the same marked start. Measure each endpoint and stop independently."
     },
     {
       "id": "tag_setup",
-      "action": "In parallel print actual-size AprilTags and mount camera. In corners mode observe an unattached robot tag at known positions/headings before testing tracking with moving legs."
+      "action": "In parallel, use the verified Mac camera environment and loose tag 10 at standing height. Check corner IDs, both goal widths, tape positions and headings before moving a robot."
     },
     {
       "id": "closed_loop",
-      "action": "Complete isolated target-native build/acceptance for the guarded executor, match measured geometry and source clocks, then repeat the identical x/y/yaw target with real feedback."
+      "action": "Replace or improve the arena network path and measure capture latency. Run the staged single-thread native builder when Pi is idle, qualify the guarded runtime and implement/test a finite move-intent sender, then measure the same target with real camera feedback."
     },
     {
       "id": "strike",
-      "action": "Select and qualify the operator kick only in its own suitable release after resolving hardware approval. Verify left/right playback and walker return before ball-contact trials. Source the second robot and rehearse role changes."
+      "action": "Keep the leg-kick release separate. Confirm policy approval and loaded identity, then qualify walker return and ball direction. Source the second robot for role switching."
     }
   ],
   "recorded_open_items": {
@@ -211,6 +212,6 @@
     "fc_focused": ".venv-api/bin/python -m pytest -q final_project/behaviors final_project/pupper_fc/tests",
     "claude": "claude --print --model claude-fable-5-2 (bounded read-only tools, approved account/network path)",
     "evidence": "foundation/results/takeover-audit-20261116.json",
-    "practice": ".venv-api/bin/python -m final_project.pupper_fc --port 8766 (root-owned PID27855 already serving; inspect ownership before another launch)"
+    "practice": ".venv-api/bin/python -m final_project.pupper_fc --port 8766 (check the port before starting a new local viewer)"
   }
 }

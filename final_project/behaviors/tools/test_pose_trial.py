@@ -69,3 +69,57 @@ def test_wrap_and_duplicate_trial_ids():
     row=dict(trial_id='one',outcome='completed',x=0,y=0,yaw=-math.pi+.01)
     assert abs(score(Pose(0,0,math.pi-.01),[row])['trials'][0]['heading_error_deg'])<2
     with pytest.raises(ValueError):score(Pose(0,0,0),[row,row])
+
+
+def test_position_and_heading_use_independent_measurements():
+    rows = [
+        dict(trial_id="tape", outcome="completed", x=.3, y=.4, yaw=None),
+        dict(trial_id="both", outcome="interrupted", x=.6, y=.8, yaw=math.radians(179)),
+        dict(trial_id="heading", outcome="completed", x=None, y=.9, yaw=math.radians(-179)),
+        dict(trial_id="missing", outcome="refused"),
+    ]
+    result = score(Pose(0, 0, math.pi), rows)
+    assert (result["attempts"], result["measured"], result["unmeasured"]) == (4, 2, 2)
+    assert result["heading_measured"] == 2
+    assert result["accuracy_rms_m"] == pytest.approx(math.sqrt((.5**2 + 1.0**2) / 2))
+    assert result["repeatability_rms_m"] == pytest.approx(.25)
+    assert result["mean_endpoint"] == pytest.approx(dict(x=.45, y=.6, yaw=math.pi))
+    tape, both, heading, missing = result["trials"]
+    assert tape["position_error_m"] == pytest.approx(.5) and not tape["heading_measured"]
+    assert "heading_error_deg" not in tape
+    assert both["outcome"] == "interrupted" and both["heading_error_deg"] == pytest.approx(-1)
+    assert heading["heading_error_deg"] == pytest.approx(1) and not heading["measured"]
+    assert "position_error_m" not in heading
+    assert missing["outcome"] == "refused" and not missing["measured"] and not missing["heading_measured"]
+
+
+def test_a_single_position_can_measure_accuracy_only():
+    result = score(Pose(.2, 0, 0), [dict(trial_id="only", outcome="completed", x=.22, y=0)])
+    assert result["accuracy_rms_m"] == pytest.approx(.02)
+    assert result["repeatability_rms_m"] is None
+    assert result["mean_endpoint"] == dict(x=.22, y=0, yaw=None)
+
+
+def test_heading_only_and_unpaired_coordinates_do_not_create_an_endpoint():
+    rows = [dict(trial_id="one", outcome="completed", x=.2, yaw=1.0),
+            dict(trial_id="two", outcome="interrupted", y=.1)]
+    result = score(Pose(.2, 0, 0), rows)
+    assert result["measured"] == 0 and result["unmeasured"] == 2
+    assert result["heading_measured"] == 1
+    assert result["accuracy_rms_m"] is None and result["repeatability_rms_m"] is None
+    assert result["mean_endpoint"] == dict(x=None, y=None, yaw=1.0)
+
+
+def test_opposing_headings_have_no_mean_direction():
+    rows = [dict(trial_id="east", outcome="completed", yaw=0),
+            dict(trial_id="west", outcome="completed", yaw=math.pi)]
+    result = score(Pose(0, 0, 0), rows)
+    assert result["heading_measured"] == 2
+    assert result["mean_endpoint"]["yaw"] is None
+
+
+@pytest.mark.parametrize("field,value", [("x", math.nan), ("y", math.inf), ("yaw", True)])
+def test_invalid_values_are_rejected_even_when_other_fields_are_missing(field, value):
+    row = {"trial_id": "partial", "outcome": "interrupted", field: value}
+    with pytest.raises(ValueError, match=field + " must be finite"):
+        score(Pose(0, 0, 0), [row])

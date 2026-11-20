@@ -19,6 +19,7 @@ from dataclasses import asdict
 import json
 import math
 from pathlib import Path
+from statistics import mean
 import sys
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -95,14 +96,17 @@ def plan(start: Pose, target: Pose, *, speed=0.2, distance_scale=1.0,
 def score(target: Pose, measurements: list[dict]):
     """Separate endpoint spread (precision) from target error (accuracy).
 
-    Each trial row records x/y/yaw in the same independently marked field frame,
-    plus a unique trial_id. Include failed or incomplete trials with outcome and
-    x/y/yaw=null: they count as incomplete, never a zero-error success.
+    Include every attempt with its outcome. "measured" counts trials with both
+    position coordinates. "heading_measured" counts available yaw measurements
+    independently. A missing or null coordinate contributes no inferred value.
     """
     target = point(asdict(target), heading=True)
     if not isinstance(measurements, list) or not measurements:
         raise ValueError("measurements must be a nonempty list")
-    rows, endpoints, ids = [], [], set()
+    rows = []
+    endpoints = []
+    headings = []
+    ids = set()
     for row in measurements:
         if not isinstance(row, dict):
             raise ValueError("measurement must be an object")
@@ -113,29 +117,44 @@ def score(target: Pose, measurements: list[dict]):
         outcome = row.get("outcome")
         if not isinstance(outcome, str) or not outcome:
             raise ValueError("every attempted trial needs an outcome")
-        if any(row.get(k) is None for k in ("x", "y", "yaw")):
-            rows.append({"trial_id": trial_id, "outcome": outcome, "measured": False})
-            continue
-        pose = point(row, heading=True)
-        endpoints.append(pose)
-        rows.append({"trial_id": trial_id, "outcome": outcome, "measured": True,
-                     "position_error_m": math.hypot(pose.x-target.x, pose.y-target.y),
-                     "heading_error_deg": math.degrees(wrap_heading(pose.yaw-target.yaw))})
-    result = {"attempts": len(rows), "measured": len(endpoints),
-              "unmeasured": len(rows)-len(endpoints), "trials": rows,
-              "accuracy_rms_m": None, "repeatability_rms_m": None,
-              "mean_endpoint": None,
-              "scope": "Independent endpoint measurements; verify identical marked starts separately."}
+        values = {key: number(row[key], key) for key in ("x", "y", "yaw")
+                  if row.get(key) is not None}
+        has_position = "x" in values and "y" in values
+        trial = {"trial_id": trial_id, "outcome": outcome, "measured": has_position,
+                 "heading_measured": "yaw" in values}
+        if has_position:
+            x, y = values["x"], values["y"]
+            endpoints.append((x, y))
+            trial["position_error_m"] = math.hypot(x - target.x, y - target.y)
+        if "yaw" in values:
+            yaw = values["yaw"]
+            headings.append(yaw)
+            trial["heading_error_deg"] = math.degrees(wrap_heading(yaw - target.yaw))
+        rows.append(trial)
+
+    mean_x = mean_y = mean_yaw = None
+    accuracy = spread = None
     if endpoints:
-        x = sum(p.x for p in endpoints)/len(endpoints)
-        y = sum(p.y for p in endpoints)/len(endpoints)
-        c = sum(math.cos(p.yaw) for p in endpoints)
-        s = sum(math.sin(p.yaw) for p in endpoints)
-        result.update(mean_endpoint={"x": x, "y": y,
-                                     "yaw": math.atan2(s, c) if math.hypot(s, c)>1e-9 else None},
-                      accuracy_rms_m=math.sqrt(sum((p.x-target.x)**2+(p.y-target.y)**2 for p in endpoints)/len(endpoints)),
-                      repeatability_rms_m=math.sqrt(sum((p.x-x)**2+(p.y-y)**2 for p in endpoints)/len(endpoints)))
-    return result
+        def rms_distance(reference):
+            scale = math.sqrt(len(endpoints))
+            distances = (math.dist(endpoint, reference) / scale for endpoint in endpoints)
+            return math.hypot(*distances)
+
+        mean_x = mean(x for x, _ in endpoints)
+        mean_y = mean(y for _, y in endpoints)
+        accuracy = rms_distance((target.x, target.y))
+        if len(endpoints) >= 2:
+            spread = rms_distance((mean_x, mean_y))
+    if headings:
+        c = sum(math.cos(yaw) for yaw in headings)
+        s = sum(math.sin(yaw) for yaw in headings)
+        if math.hypot(s, c) > 1e-9 * len(headings):
+            mean_yaw = math.atan2(s, c)
+    return {"attempts": len(rows), "measured": len(endpoints),
+            "unmeasured": len(rows) - len(endpoints), "heading_measured": len(headings),
+            "trials": rows, "accuracy_rms_m": accuracy, "repeatability_rms_m": spread,
+            "mean_endpoint": {"x": mean_x, "y": mean_y, "yaw": mean_yaw} if endpoints or headings else None,
+            "scope": "Position and heading may come from different attempts. Verify identical marked starts separately."}
 
 
 def main(argv=None):

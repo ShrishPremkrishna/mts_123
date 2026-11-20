@@ -7,8 +7,11 @@ This document describes the procedure; historical releases do not assign work.
 ## Current path
 
 The last floor-tested release is `movement-20261117-logfix`. Its sprint profile
-produced the recorded forward and short lateral results. The new guarded walk
-and direct command-deadline modes are software candidates, not deployed releases.
+produced the recorded forward and short lateral results. The
+[legacy guarded walk](../foundation/results/staged-field-session-20261119.json)
+was assembled on the Pi using the existing native binaries. Its loaded runtime,
+camera stopping and physical walking await qualification. The direct
+command-deadline mode still needs a target-built controller.
 The [November 17 source kit](../artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json)
 contains separate source archives for the native controller and software-Start
 gateway. It covers the guarded movement work through that date. The November 19
@@ -18,7 +21,7 @@ checkout. The kit has no Pi binaries, camera environment or field calibration.
 | Selection | Motion path | Preparation |
 | --- | --- | --- |
 | Existing stock release | Twist through mux to native | Select its existing whole release/profile. |
-| Guarded legacy candidate | Twist through mux and camera guard | Default guarded assembly; retains native binaries. |
+| Guarded legacy candidate | Twist through mux and camera guard | Staged walk profile, all-obstacle guard, original native binaries. |
 | Direct FC candidate (`fc_deadline_v1`) | Original-deadline command through camera guard to native | Target-built controller and strict 15-role source index; explicitly select the new controller digest. No active mux. |
 
 The [hardware checklist](../foundation/HARDWARE_CHECKLIST.md#guarded-walk-candidate)
@@ -28,47 +31,25 @@ bindings; controller-only assembly does not add it. The accepted Options activat
 path remains available. A source kit, successful build or file copy never selects
 the currently running release.
 
-## Build before requesting robot supervision
+## Target build for camera-guided play
 
-The observed Pi is **Debian 12 ARM64**, GCC 12.2, glibc 2.36, with
-`GLIBCXX_3.4.30` and `CXXABI_1.3.13`. `/opt/ros/jazzy` exists, but its complete
-build dependency identity is not frozen. The cached Ubuntu 24.04/Jazzy container
-is for offline testing: its binaries and CPython 3.12 bindings are not qualified
-for this Pi. Matching architecture and ROS distribution is insufficient.
+The first stock straight trial can run before this build. The direct-deadline
+controller and software Start gateway need the Pi's Debian 12 ARM64 runtime.
+The local Ubuntu Jazzy image is suitable for simulation and has incompatible
+C++/Python dependencies for deployment. [Build audit](../foundation/results/build-environment-audit-20261116.json).
 
-1. Capture the actual target compiler, Python/SOABI, ROS underlay and dependency
-   identities. Use a fresh shell with the intended underlay, not accumulated overlays.
-2. Follow the source kit's package-only build recipes in fresh source/build/install
-   directories. Keep `/home/pi/pupperv3-monorepo/ros2_ws/install` and every selected
-   release unchanged. Missing dependencies are preparation work, not a reason to
-   attempt hardware startup.
-3. Run the affected behavioral native tests with the new library first in
-   `LD_LIBRARY_PATH`; inspect `ldd` on the test executable to catch an older overlay.
-   Preserve source hashes, exact commands, compiler/underlay identity, test results
-   and installed-file hashes. The recipes distinguish behavioral tests from the
-   package's unrelated lint checks.
-4. Assemble a new release and keep its completion receipt. Retain the target build
-   receipt separately: selecting a library digest does not prove which source built it.
-   Complete dependency/import checks before asking the user to place the robot.
+The prepared runner lives at
+`/home/pi/pupper-fc-source/native-build-runner-X6aa22bm/build-one.sh`.
+When the Pi is idle, run it with Bash and the single argument
+`neural_controller`, then `joy_utils`. Each invocation uses an isolated build
+directory. The runner's source and dependency checks passed on the target.
+Retain its build log, behavioral test results and installed-file hashes before
+assembling a separate direct-deadline release and verifying its loaded libraries.
+The [staging report](../foundation/results/staged-field-session-20261119.json)
+records the runner digest, fallback release and outstanding checks.
 
-`pupper_gait_deploy/install.py` and `deploy.sh` target the mutable platform install;
-`deploy.sh --no-launch` still rebuilds and installs. They are not staging checks.
-The source kit instead uses their maintained file mappings without executing them.
-
-For a candidate ELF file, the existing local compatibility screen is:
-
-```sh
-python3 foundation/scripts/check_pi_abi.py \
-  --target foundation/results/build-environment-audit-20261116.json \
-  --docker-image cs123-ros-jazzy-slew-check:latest \
-  /absolute/candidate/libneural_controller.so /absolute/candidate/estop_controller
-```
-
-It reads metadata without executing candidate code. Exit 0 means the recorded
-architecture/version requirements passed; 1 is mismatch and 2 is inspection failure.
-It does not establish full ROS/dependency compatibility or replace target `ldd`.
-Refresh the baseline after target runtime changes. No complete Pi sysroot/offline
-builder has yet been verified. [Build audit](../foundation/results/build-environment-audit-20261116.json).
+`pupper_gait_deploy/install.py` and `deploy.sh --no-launch` update the shared
+platform install. Use the isolated runner for this build.
 
 ## One selected release, one persistent physical session
 
@@ -87,25 +68,58 @@ The previous shared SSH connection could stay stale for minutes after power-off.
 This bypasses it without changing the user's SSH configuration. An unavailable
 Pi is not permission to restart services or automatically home on reconnect.
 
-For a new owned session, select the exact release/profile and create a new run
-directory. Populate the variables from its reviewed receipt; paths/hashes below
-are not defaults. Preflight starts no ROS or hardware:
+In a Pi Bash shell, select the reviewed release, profile, manifest and hash.
+The [stock straight trial](#first-camera-free-straight-trial) gives the four
+values for the baseline. Source the selected environment in each Pi terminal.
+Before homing, check the boot and attached gamepad with motors inactive:
 
 ```sh
 source "$PUPPER_RELEASE/environment.sh"
-export PYTHONDONTWRITEBYTECODE=1
-mkdir "$PUPPER_RUN"
-python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" preflight \
-  --manifest "$PUPPER_MANIFEST" --sha256 "$PUPPER_MANIFEST_SHA256" \
-  --output "$PUPPER_RUN/preflight.json"
+cat /proc/sys/kernel/random/boot_id
+awk 'BEGIN { RS="" } /DualSense|Wireless Controller|Handlers=.*js[0-9]/ { print $0 "\n" }' /proc/bus/input/devices
 ```
 
-Only with the supervisor ready and Pupper supported, start the selected launch:
+Confirm the expected controller has an input handler. If missing, reconnect it
+and repeat the check. The [post-reboot verification](../foundation/results/staged-field-session-20261119.json)
+identifies the replacement receipt from that boot. A later operator started
+another controller manager, so that receipt is historical. At handover,
+confirm the prior operator has closed their session and released the robot.
+Then verify idle hardware and create a fresh preflight in a new run directory,
+even if the boot and stock manifest still match:
+
+```sh
+PUPPER_RUN=$(mktemp -d /home/pi/pupper-fc-runs/coordinate-stage1-XXXXXXXX)
+python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" preflight \
+  --manifest "$PUPPER_MANIFEST" --sha256 "$PUPPER_MANIFEST_SHA256" \
+  --output "$PUPPER_RUN/preflight.json" &&
+  printf 'export PUPPER_RUN=%q\n' "$PUPPER_RUN"
+```
+
+Preflight returns `motion_started=false`. Copy the printed
+`export PUPPER_RUN=…` line into **each new Pi terminal** and set the same
+release/profile environment there. Before using any terminal for the recorder,
+launch or trials, confirm it can read this session's receipt:
+
+```sh
+test -r "${PUPPER_RUN:?Set the run path printed by preflight}/preflight.json"
+```
+
+After this check passes, start one recorder in the selected environment if the session has none:
+
+```sh
+ros2 bag record -o "$PUPPER_RUN/telemetry" /joy /cmd_vel /kick_cmd_vel \
+  /joint_states /imu_sensor_broadcaster/imu /neural_controller_default/observation \
+  /estop_controller/stop_status /emergency_stop /rosout
+```
+
+With the supervisor ready, R3 and power accessible, and Pupper supported,
+start the selected launch in its own terminal:
 
 ```sh
 export PUPPER_RUNTIME_RECEIPT="$PUPPER_RUN/preflight.json"
 export PUPPER_IMU_STARTUP_TRACE="$PUPPER_RUN/imu-startup.csv"
-ros2 launch "$PUPPER_RELEASE/foundation/hardware/stock_session.launch.py"
+set -o pipefail
+ros2 launch "$PUPPER_RELEASE/foundation/hardware/stock_session.launch.py" 2>&1 | tee "$PUPPER_RUN/native.log"
 ```
 
 **This can home the legs.** It starts the manager, Stop gateway, joystick input
@@ -119,8 +133,11 @@ python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" loaded \
 ```
 
 The check verifies the supplied configuration, mapped libraries and required
-process identities. Then use one deliberate activation, with the supported robot
-and supervisor ready. Strict FC also requires matching loaded contract/clock and
+process identities. Look for homing completion and the opened DualSense
+joystick in the launch log. On the supported robot, use Options
+once and check `ros2 control list_controllers` for `neural_controller_default`
+active before the operator sets it on the mark. Strict FC also requires
+matching loaded contract/clock and
 fresh native binding to the bridge's source before arm. A replaced bridge source
 requires a deliberate native Stop/Start; disarmed zero traffic does not arm it.
 
@@ -134,19 +151,22 @@ indices 6:9 in the newest frame.
 
 ## First camera-free straight trial
 
-Use the stock release `/home/pi/pupper-fc-releases/movement-20261117-logfix`
-and its `sprint-manifest.json` for this comparison. Set `PUPPER_RELEASE` to
-that directory, `PUPPER_PROFILE=sprint`, and `PUPPER_MANIFEST` to
-`$PUPPER_RELEASE/sprint-manifest.json`. The recorded `PUPPER_MANIFEST_SHA256` is
-`a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1`.
-The profile identifies the native settings used for the prior floor run.
-The trial below requests only 0.2 m/s. Its stock path uses no camera or gameplay
-bridge. Follow the fresh-run preflight and supported startup above. Preserve the
-native and recorder outputs for each session. [Floor evidence](../foundation/results/gait-gate-20261116.json).
+Use these Pi settings in the [session procedure](#one-selected-release-one-persistent-physical-session)
+above. They select the prior floor-tested native settings. The baseline requests
+0.2 m/s and can run independently of either camera. [Floor evidence](../foundation/results/gait-gate-20261116.json).
+
+```sh
+export PUPPER_RELEASE=/home/pi/pupper-fc-releases/movement-20261117-logfix
+export PUPPER_PROFILE=sprint
+export PUPPER_MANIFEST="$PUPPER_RELEASE/sprint-manifest.json"
+export PUPPER_MANIFEST_SHA256=a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1
+```
 
 On the Mac, generate the nominal 20 cm straight target from the active repository.
 The scale of 1 is an initial estimate. Keep the plan and mark the start position,
 heading, target and the robot reference point used for tape measurements.
+Choose a repeat count before starting, for example three attempts. Record x
+forward along the start heading, y to its left and yaw counterclockwise.
 
 ```sh
 .venv-api/bin/python final_project/behaviors/tools/pose_trial.py \
@@ -158,14 +178,15 @@ native terminal. With the robot ready and one deliberate Options activation
 confirmed, start its resident trial client once:
 
 ```sh
-python3 "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" \
+set -o pipefail
+python3 -u "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" \
   --session --execute --profile "$PUPPER_PROFILE" \
-  --runtime-receipt "$PUPPER_RUN/preflight.json" --out "$PUPPER_RUN/trials"
+  --runtime-receipt "$PUPPER_RUN/preflight.json" --out "$PUPPER_RUN/trials" | tee -a "$PUPPER_RUN/trial-session.jsonl"
 ```
 
 1. Send `{"command":"status"}` and check readiness. In a clear lane, send
    `{"command":"prepare","axis":"forward","speed":0.2,"duration":1}`. When the
-   operator is watching and the returned problem is clear, send
+   operator is watching and the response has `event=prepared` and `problem=null`, send
    `{"command":"run","token":"RETURNED_TOKEN"}` with that attempt’s token.
 2. Read the individual trial receipt. Require `outcome=completed`,
    `command_verification.passed=true` and a recorded
@@ -178,12 +199,110 @@ python3 "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" \
    unmeasured values. Score with
    `.venv-api/bin/python final_project/behaviors/tools/pose_trial.py --target 0.2 0 0 --measurements endpoints.json`.
    The score reports RMS distance to the target and RMS spread about the mean
-   endpoint. Only measured endpoints contribute to those distances.
+   endpoint. A paired x/y measurement counts even when heading was unavailable. Spread needs
+   at least two endpoints. Heading errors use the recorded yaw independently.
 
-The frozen stock client supports timed axis pulses. It has no IMU-heading
-request. Select the newer client and qualify isolated turns before combining
-them with translation. See the [movement runbook](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
+The frozen stock client supports timed axis pulses. The newer
+[Pi client](../foundation/results/staged-field-session-20261119.json)
+processed relative and absolute headings in synthetic tests. Select it
+separately and qualify isolated physical turns before combining them with
+translation. See the [movement runbook](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
 for the guarded candidate, which also requires a real onboard camera producer.
+
+## Mounted overhead camera, motors inactive
+
+1. Print pages **2–9** of the [tag packet](overhead_perception/tags/pupper_fc_tags.pdf)
+   on US Letter at **Actual Size / 100%**. Page 1 is a placement guide with
+   readable duplicate IDs. Keep it outside the camera view. Check the printed
+   black squares with a ruler. Floor IDs 0–5 are 17 cm per side and robot IDs
+   10/11 are 8 cm. Preserve the white border and the robot card's FRONT marking.
+2. Centre tags 0, 1, 2, 3 on west-south, east-south, east-north, west-north
+   corners respectively. The east goal lies between 1 and 2. For inward
+   placement enter the measured x/y inset in `tags.corner_inset` (metres).
+   Tags 4 and 5 go at midfield on the south and north sides. Centre each goal
+   on its end line. Measure both clear openings between the inside edges of
+   the posts. The current model represents two equal, centred goal mouths.
+   Replace the 0.82 m placeholder in `field.goal_width` with the measured
+   common opening. Tape the field length and width too.
+3. Mount the camera with all four corner tags visible, including their white
+   borders. Place the loose tag 10 level on a support at the measured
+   standing tag height. Set `robots.striker.tag_height` and orient FRONT
+   along the known heading. For the mounted robot also measure its
+   `tag_offset` from the body centre (forward, left). Use tag 11 and the
+   `keeper` settings for the second robot.
+
+On the Mac, start from the active repository root. The interactive camera
+uses full OpenCV in its own environment. The November 19 Mac setup passed
+all 70 perception tests and a four-frame simulated corner calibration using
+Python 3.12.8 and OpenCV 5.1.0 (Cocoa). For a new checkout, create it once:
+
+```sh
+cd final_project/overhead_perception
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Create a run folder and copy the [field configuration](overhead_perception/config/field.yaml)
+into it from the perception directory:
+
+```sh
+mkdir -p out
+camera_run=$(mktemp -d out/field-camera-XXXXXXXX)
+cp config/field.yaml "$camera_run/field.yaml"
+```
+
+Enter the measurements above in the copy. Leave `net.host` at `127.0.0.1`
+for Mac-only observation. In the same terminal, start the live dashboard:
+
+```sh
+.venv/bin/python -u scripts/run_perception.py --source phone --config "$camera_run/field.yaml" \
+  --corners --dashboard --print > "$camera_run/perception.log"
+```
+
+At the field centre, near both goals and near a sideline, hold the card on tape
+marks and point FRONT toward +x, then +y (0°, +90°). Record tape pose and
+dashboard pose for each position and a short moving pass. Count frames with
+`calibration_valid=true` and `robots.striker.measured_this_frame=true`;
+`visible` alone includes predictions. Retain the camera log, field YAML,
+lens/resolution and tag height. Check height, scale and orientation against
+the marks before putting the tag on a robot. The pink ball can be added when
+available. Measure its radius and tune its colour with the dashboard's `b`
+picker under the arena lights.
+
+For later Pi ingress, set `net.host` to the intended Pi address and run
+`python3 final_project/behaviors/overhead_ingress.py --duration 15` from the Pi
+source checkout for receive-only discovery. Capture the producer session and
+calibration revision. Corner calibration estimates length and width anew.
+Check them against tape and use the **full-precision values** from a valid
+frame's `field` in the FC field JSON. The dashboard rounds to centimetres.
+Alternatively, configure the measured field and tag-centre coordinates and
+use measured-tag calibration. The adapter checks incoming dimensions and goal
+segments to 0.000001 m. Both ingress and bridge need the same geometry file.
+It contains `field` with `length`, `width`, `goal_width`, `ball_radius`,
+`robot_radius`, and `bumper_offset` (centre to front contact point, metres),
+and `attack_signs` with opposite +1/−1 values for `pupper-1` and `pupper-2`.
+Measure lens intrinsics and capture latency with the selected camera mode.
+Network clock admission and physical stopping are separate tests.
+[Camera tools](overhead_perception/README.md#remaining-bring-up-on-the-arena)
+· [FC field configuration](behaviors/README.md).
+
+## Operator kick after the straight baseline
+
+The stock sprint release runs only the walker. The
+[operator kick](../gemini_pupper/README.md#operator-soccer-kick-candidate)
+requires a separately prepared Gemini release, its clip assets and the same
+`PUPPER_SESSION_SKILLS=leg_kick` selection in both launcher and API. Obtain
+the applicable course clearance for this policy and review its replay before
+hardware use. Close the stock session before selecting the kick release.
+
+For each no-ball side trial, confirm the walker owns the legs, submit one
+operator kick with the current command epoch and follow its returned job ID
+in `GET /queue/status` (`recent_outcomes`). Record the requested side, observed
+foot, matching clip/frame, terminal result and restoration of the walker.
+Keep the existing 0.5-second initialization and 1.0-second fade for this first
+comparison. Ball-contact trials with the intended ball also need its marked
+starting offset, actual contact or miss, travel direction/distance and robot
+stability. [Kick selection and software tests](../foundation/results/staged-field-session-20261119.json).
 
 ## Close and recover
 
