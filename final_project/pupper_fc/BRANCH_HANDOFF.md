@@ -1,0 +1,7 @@
+# Match integration handoff
+
+This branch preserves the gamepad-free browser controls and exact diagnostic source installed on Blue, `ef65bb7`. The physical handoff records both archive hashes, the earlier walker-activation fault and the two rear knee readings from the final Home. Testing ended with neutral sent and owned processes released. [Physical findings and package identity](../../foundation/results/fc-stand-handoff-20261120.md)
+
+Chrome and an isolated Pi gateway exercised Stop and browser-heartbeat loss with memory-backed controllers. The final offline suite passed 195 tests and 34 subtests alongside real ROS match rehearsals. Sustained physical Stand, watchdog Stop from that state and floor soccer remain open. The driver, generated knee geometry and standing admission change together. Keep those changes under review when extracting independent laptop or diagnostics work. [Operator interface](../../foundation/hardware/FC_OPERATOR.md) · [Release evidence](RELEASE.md)
+
+Future software work should replay Blue’s recorded Home-to-Stand transition and the case of a rear knee that stays at its stop. Require a measured Stand result before admitting play, and preserve the native Stop response when operator replies go silent. The draft replay and recordings are on the Stand work branch. [Recorded trajectories at the handoff](https://github.com/ShrishPremkrishna/mts_123/tree/6a79102/pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test)
