@@ -1,5 +1,6 @@
 # Part 3 sim candidate, its HOLD status, and whether hardware eligibility also needs a push condition
 Status: DECIDED by synthesizer (4/4 lenses agree; pending human review) · 2026-11-18 · Requested by: W4 (Part 3)
+Human override (2026-11-20): **HOLD overridden. Bumpy WIDEN +2000 (`model_6492`, W&B `23pt1499`) cleared for hardware by the human.** Quoted words: "I'm clearing Part 3 bumpy for hardware, override." The human said this to the Pi deployment Claude session, which relayed it; the human had told this session to follow that session's lead. Course/TA approval and the hardware procedure (`foundation/HARDWARE_CHECKLIST.md`) still apply. Known defect, now accepted risk: lopsided standing, with left shoves at 0.65 m/s falling 0.97 in sim (`../part3/reward_shaping.md`). Flat control (`13m4vcia`) is staged as the fallback.
 Criticality: Critical. It picks the policy behind the headline Part 3 claims and decides whether anything is prepared for a physical robot.
 Reversible?: Yes. (a) is a re-label among saved, already-evaluated checkpoints (0 GPU). A hardware HOLD costs nothing to lift. The irreversible direction is clearing a policy that then falls on the robot.
 
