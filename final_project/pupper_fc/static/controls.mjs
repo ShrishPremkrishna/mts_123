@@ -166,7 +166,8 @@ function renderSetup() {
   } else {
     $('setup-hint').textContent = $('setup-home-mode').value === 'home-only'
       ? 'Home the legs and leave the walker inactive.'
-      : 'Standing requires a connected Stop gamepad and a fresh cue after homing.';
+      : t.joystickListed === false ? 'At Connect, the Pi listed no joystick. Home only is available now. Connect the Stop gamepad to enable standing from here.'
+      : 'Click Enable standing after Home. Keep the Stop gamepad connected.';
   }
   if (t.matchCapable === false) $('setup-hint').textContent = 'Bench damping profile · keep Pupper supported throughout. Match play is disabled.';
   if ($('setup-status').textContent !== setup.message) $('setup-status').textContent = setup.message;
@@ -309,7 +310,10 @@ function addTeam(slot, config) {
         if (event.event === 'profile' || event.event === 'home_required') {
           t.matchCapable = event.match_capable !== false;
           el('imu-profile').textContent = 'IMU profile · ' + (event.imu_recovery || 'strict').replaceAll('_', ' ');
-          if (event.event === 'home_required') t.needsHome = true;
+          if (event.event === 'home_required') {
+            t.needsHome = true;
+            t.joystickListed = event.joystick_listed;
+          }
           return;
         }
         if (event.event === 'onboard_ball' && event.robot_id === t.id && event.onboard_ball) {

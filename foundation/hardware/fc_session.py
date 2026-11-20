@@ -452,7 +452,8 @@ def main(argv=None):
             bench = profile.get("imu_recovery") in ("supported_standby", "supported_damping")
             if bench or not (run / "owned_session.json").exists() or (run / "awaiting-standing.json").exists():
                 print(json.dumps(dict(event="home_required", robot_id=profile["robot_id"], run=str(run),
-                                      imu_recovery=profile.get("imu_recovery", "strict"), match_capable=not bench)),
+                                      imu_recovery=profile.get("imu_recovery", "strict"), match_capable=not bench,
+                                      joystick_listed=any(Path("/dev/input").glob("js[0-9]*")))),
                       flush=True)
                 return 0
             check_manager(run, plan, boot)

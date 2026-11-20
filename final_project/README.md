@@ -1,6 +1,6 @@
 # Pupper FC
 
-The November 20 opt-in match candidate uses fresh alternate BNO08x reports to keep closed-loop standby during a primary-report loss. The lobby retains the match and offers an explicit Resume after requalification. Complete chip or bus loss needs a supported Home. The physical Pi remains packed. [Match IMU recovery](pupper_fc/RELEASE.md#match-imu-recovery-candidate--november-20)
+The November 20 opt-in match candidate uses fresh alternate BNO08x reports to keep closed-loop standby during a primary-report loss. The lobby retains the match and offers an explicit Resume after requalification. Complete chip or bus loss needs a supported Home. The Blue Pi is available for supervised qualification. Its updated attacker steers on fresh overhead measurements and estimates moving-ball arrival. [Continuous pursuit and timing](pupper_fc/RELEASE.md#continuous-pursuit-and-camera-cadence--november-20) [Match IMU recovery](pupper_fc/RELEASE.md#match-imu-recovery-candidate--november-20)
 
 ## Pupper FC appliance release · November 20, 2026
 

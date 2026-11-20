@@ -34,14 +34,20 @@ class Camera:
         self.seq, self.captured = 0, 0.
         self.latest = {}
         self.match, self.ball_x = None, 0.
+        self.ball_y = self.ball_vy = 0.
+        self.ball_measured = True
 
     def frame(self, players):
         self.seq += 1
-        self.captured = time.time()
+        stamp = time.time()
+        if self.captured:
+            self.ball_y += self.ball_vy * (stamp - self.captured)
+        self.captured = stamp
         measured = dict(visible=True, measured_this_frame=True, measured_at=self.captured, age_s=0., vx=0., vy=0.)
         frame = dict(seq=self.seq, calibration_valid=True, calibration_revision=1, field=self.field,
                      captured_at=self.captured, stamp=self.captured, frame_age_s=0.,
-                     ball=dict(measured, x=self.ball_x, y=0.), robots={},
+                     ball={**measured, "x":self.ball_x, "y":self.ball_y, "vy":self.ball_vy,
+                           "measured_this_frame":self.ball_measured}, robots={},
                      goals={name:dict(x=sign*self.field["length"]/2, y_min=-self.field["goal_width"]/2, y_max=self.field["goal_width"]/2)
                             for name, sign in (("west", -1), ("east", 1))})
         for p in players:
@@ -248,6 +254,7 @@ class Player:
         now = time.monotonic()
         prior = self.handoff.active
         step = self.core.executor.kick_step(self.handoff, now)
+        self.decision = step.decision
         self.phase, self.reason = step.decision.phase, step.decision.reason
         from final_project.behaviors.combined_fc_runner import resume_cycle
         offer = self.controls.offer(now, resume_cycle(self.core, now))
@@ -288,7 +295,56 @@ class Player:
         self.sim.step(sim_command, dt)
 
 
-async def rehearse(roster, base_domain, root):
+async def rolling_pass(lobby, camera, player, until):
+    from final_project.pupper_fc.paw_approach import COMBINED_PAW_FORWARD_M, paw_pose
+
+    camera.ball_x = .29
+    camera.ball_vy = .19
+    await lobby.start(OWNER)
+    await until(lambda: player.first_motion is not None)
+    epoch = lobby.epoch
+
+    def signed_lead(direction):
+        frame = player.core.executor.frame
+        decision = player.decision
+        if not frame or not decision.target or "moving-ball" not in decision.reason:
+            return None
+        ball = frame[1][player.robot].ball
+        if ball is None or direction * ball.vy <= 0:
+            return None
+        reactive = paw_pose(ball, frame[2]["right"], "right", forward_m=COMBINED_PAW_FORWARD_M["right"])
+        advance = direction * (decision.target[1] - reactive.y)
+        if advance <= .006:
+            return None
+        return (frame[0], advance, decision.command.vy)
+
+    result = {}
+    for direction, label in ((1,"roll"), (-1,"deflection")):
+        changed = time.monotonic()
+        camera.ball_vy = direction * .19
+        samples = {}
+        def seen():
+            sample = signed_lead(direction)
+            if sample:
+                samples.setdefault(sample[0], (sample[1], sample[2]))
+            return len(samples) >= 3 and any(direction * vy > .005 for _, vy in samples.values())
+        await until(seen, 4)
+        result[label] = dict(distinct_captures=len(samples),
+                             maximum_lateral_lead_m=round(max(v[0] for v in samples.values()), 4),
+                             observed_three_leads_and_turn_s=round(time.monotonic() - changed, 3))
+    camera.ball_measured = False
+    await until(lambda: not player.core.executor.frame or player.core.executor.frame[1][player.robot].ball is None)
+    await until(lambda: max(abs(v) for v in (player.decision.command.vx, player.decision.command.vy,
+                                             player.decision.command.wz)) == 0.)
+    camera.ball_measured = True
+    await until(lambda: signed_lead(-1))
+    assert player.core.executor.epoch == epoch and not player.receipts
+    await lobby.end(OWNER)
+    result.update(predict_only_stopped=True, fresh_roll_reacquired_same_epoch=True, kicks_during_pass=0)
+    return result
+
+
+async def rehearse(roster, base_domain, root, rolling=False):
     from final_project.behaviors.fc_executor_bridge import load_fields
     from final_project.pupper_fc.field_transport import FieldFeed
     from final_project.pupper_fc.lobby import Lobby, PROFILE
@@ -351,6 +407,10 @@ async def rehearse(roster, base_domain, root):
         try:
             await until(lambda: all(p.offer.get("imu", {}).get("state") == "healthy" for p in players.values()))
             result = {"roster":roster, "measured_width_m":camera.field["width"]}
+            if rolling:
+                result["rolling_ball"] = await rolling_pass(lobby, camera, lead, until)
+                print(json.dumps(result), flush=True)
+                return
             if len(roster) == 2:
                 players[RED].reject_after = lambda: players[BLUE].pending_armed_frames >= 3
                 try:
@@ -474,12 +534,12 @@ def main():
         raise SystemExit("Run in the device-free, network-disabled ROS test container.")
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--roster", choices=("blue","red","both","all"), default="all")
+    parser.add_argument("--roster", choices=("blue","red","both","rolling","all"), default="all")
     args = parser.parse_args()
-    for idx, (name, roster) in enumerate((("blue",[BLUE]), ("red",[RED]), ("both",[BLUE, RED]))):
+    for idx, (name, roster) in enumerate((("blue",[BLUE]), ("red",[RED]), ("both",[BLUE, RED]), ("rolling",[BLUE]))):
         if args.roster in ("all",name):
             with tempfile.TemporaryDirectory() as temp:
-                asyncio.run(rehearse(roster, 100+idx*2, Path(temp)))
+                asyncio.run(rehearse(roster, 100+idx*2, Path(temp), rolling=name == "rolling"))
 
 
 if __name__ == "__main__":

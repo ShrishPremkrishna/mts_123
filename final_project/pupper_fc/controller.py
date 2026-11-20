@@ -119,6 +119,27 @@ def defensive_clearance(field):
     return max(field.robot_radius, field.bumper_offset) + field.ball_radius + CLEARANCE_MARGIN
 
 
+def _paw_travel_heading(dx, dy, distance, near_heading):
+    weight = _clip((distance - 0.14) / FACE_TRAVEL_DISTANCE, 0., 1.)
+    weight *= weight * (3. - 2. * weight)
+    return _wrap(near_heading + weight * _wrap(math.atan2(dy, dx) - near_heading))
+
+
+def _walk_velocity(dx, dy, distance, yaw, heading_error, limits, max_speed, min_speed, slow_for_turn):
+    vx = vy = 0.
+    if distance > 1e-9:
+        speed = min(max_speed, max(min_speed, KP_POSITION * distance))
+        if slow_for_turn:
+            speed *= max(.05, math.cos(heading_error))
+        c, s = math.cos(yaw), math.sin(yaw)
+        vx = speed * (dx * c + dy * s) / distance
+        vy = speed * (-dx * s + dy * c) / distance
+        # Scale both axes together to preserve the requested direction.
+        scale = min(1., limits.vx / abs(vx) if vx else 1., limits.vy / abs(vy) if vy else 1.)
+        vx, vy = vx * scale, vy * scale
+    return vx, vy, _clip(KP_YAW * heading_error, -limits.wz, limits.wz)
+
+
 class Controller:
     """Steer to a field pose, with an optional foot-specific approach and handoff."""
 
@@ -472,20 +493,8 @@ class Controller:
         dx, dy = target[0] - robot.x, target[1] - robot.y
         distance = math.hypot(dx, dy)
         heading_error = _wrap(heading - robot.yaw)
-        vx = vy = 0.0
-        if distance > 1e-9:
-            speed = min(max_speed, max(min_speed, KP_POSITION * distance))
-            if self._paw is not None:
-                # Leave room to turn on a tight curve; full speed is available on line.
-                speed *= max(0.05, math.cos(heading_error))
-            c, s = math.cos(robot.yaw), math.sin(robot.yaw)
-            vx = speed * (dx * c + dy * s) / distance
-            vy = speed * (-dx * s + dy * c) / distance
-            # Scale both axes together so the direction of travel is preserved.
-            scale = min(1.0, self.limits.vx / abs(vx) if vx else 1.0,
-                        self.limits.vy / abs(vy) if vy else 1.0)
-            vx, vy = vx * scale, vy * scale
-        wz = _clip(KP_YAW * heading_error, -self.limits.wz, self.limits.wz)
+        vx, vy, wz = _walk_velocity(dx, dy, distance, robot.yaw, heading_error, self.limits,
+                                    max_speed, min_speed, self._paw is not None)
         cmd = (self._paw.ramp(vx, vy, wz, self.limits, now, robot_id) if self._paw is not None else
                Command(vx, vy, wz, now + 0.15, robot_id))
         return Decision(phase, reason, cmd, target, heading, distance, heading_error)
@@ -494,9 +503,7 @@ class Controller:
         dx, dy = target[0] - robot.x, target[1] - robot.y
         if self._paw is not None:
             # Blend over a band of remaining distance instead of switching yaw at one radius.
-            w = _clip((math.hypot(dx, dy) - 0.14) / FACE_TRAVEL_DISTANCE, 0.0, 1.0)
-            w *= w * (3.0 - 2.0 * w)
-            return _wrap(near_heading + w * _wrap(math.atan2(dy, dx) - near_heading))
+            return _paw_travel_heading(dx, dy, math.hypot(dx, dy), near_heading)
         if math.hypot(dx, dy) > FACE_TRAVEL_DISTANCE:
             return math.atan2(dy, dx)
         return near_heading
@@ -516,17 +523,19 @@ class Controller:
                            self._travel_heading(robot, home, facing), self.limits.vx, now, robot_id)
 
     def _paw_attack(self, robot, ball, goal, captured_at, now, robot_id):
-        from .paw_approach import MAX_CAPTURE_GAP_S, contact_window, paw_pose
+        from .paw_approach import COMMAND_LEASE_S, MAX_CAPTURE_GAP_S, contact_window, paw_pose
         forward_m = self._paw.forward_m
         pose = paw_pose(ball, goal, self.kick_side, forward_m=forward_m)
         target = (pose.x, pose.y)
         if self._reachable(*target) != target:
             return self._halt("blocked", "selected paw position lies outside the field", now, robot_id)
+        intercept, pursuit = self._paw.intercept(robot, ball, goal, self.field, self.limits, captured_at, now)
         heading_error = _wrap(pose.yaw - robot.yaw)
+        crossing = self._paw.crossing_clearance(robot, ball, captured_at, now, heading_error)
         # Enter near the middle of the contact window; hysteresis leaves room for
         # capture noise while braking and waiting for evidence of steady placement.
-        self._paw.docked = contact_window(robot, ball, heading_error, self.kick_side,
-                                          scale=1.0 if self._paw.docked else 0.55, forward_m=forward_m)
+        self._paw.docked = not crossing and contact_window(
+            robot, ball, heading_error, self.kick_side, scale=1.0 if self._paw.docked else 0.55, forward_m=forward_m)
         if self._paw.docked:
             self._paw.reset_dock_progress()
             cmd = self._paw.ramp(0, 0, 0, self.limits, now, robot_id)
@@ -562,10 +571,47 @@ class Controller:
             return routed
         self._guard_waypoint = self._guard_side = None
         distance = math.hypot(pose.x - robot.x, pose.y - robot.y)
+        speed_floor = self._paw.docking_speed_floor(robot, ball, distance, heading_error, captured_at, now)
+        if crossing:
+            # A sideways adjustment at the contact standoff can sweep the nose
+            # through a crossing ball. Stay behind its measured line first.
+            clearance = defensive_clearance(self.field)
+            lead = intercept or pose
+            if along < clearance - CLEARANCE_MARGIN / 2 and abs(across) < clearance:
+                retreat = clearance + CLEARANCE_MARGIN / 2 - along
+                target = self._reachable(robot.x - c * retreat, robot.y - s * retreat)
+                reason = "backing clear of the measured crossing ball"
+            else:
+                extra = max(0., clearance - forward_m)
+                # Never advance downfield past the observed ball's clearance
+                # while its lateral position is still crossing the selected paw.
+                advance = min(0., (pose.x - lead.x) * c + (pose.y - lead.y) * s)
+                target = self._reachable(lead.x + c * (advance - extra), lead.y + s * (advance - extra))
+                reason = (pursuit or "aligning with the measured ball") + " from behind the crossing ball"
+            return self._drive("approach", reason, robot, target, pose.yaw, self.limits.vx, now, robot_id)
+        if intercept is not None:
+            # Test the next command lease and braking distance against the ball
+            # actually seen. Recheck on every capture, even when the new stance
+            # lies beyond the ball's current position.
+            dx, dy = intercept.x - robot.x, intercept.y - robot.y
+            lead_distance = math.hypot(dx, dy)
+            speed = self.limits.vx
+            braking_distance = speed**2 / (2 * self.limits.acceleration) if self.limits.acceleration > 0 else math.inf
+            stop_distance = COMMAND_LEASE_S * speed + braking_distance
+            fraction = min(1., stop_distance / lead_distance) if lead_distance else 0.
+            path_gap = _segment_distance(robot.x, robot.y, robot.x + fraction * dx,
+                                         robot.y + fraction * dy, ball.x, ball.y)
+            measured_gap = min(math.hypot(ball.x - robot.x, ball.y - robot.y),
+                               self.field.robot_radius + self.field.ball_radius,
+                               math.hypot(ball.x - pose.x, ball.y - pose.y))
+            if path_gap >= measured_gap - 1e-9:
+                pose, target, distance = intercept, (intercept.x, intercept.y), lead_distance
+            else:
+                pursuit = "steering to measured paw position for ball clearance"
         return self._drive("align" if distance < ALIGN_RADIUS else "approach",
-                           f"steering to the {self.kick_side} paw position", robot, target,
+                           pursuit or f"steering to the {self.kick_side} paw position", robot, target,
                            self._travel_heading(robot, target, pose.yaw), self.limits.vx, now, robot_id,
-                           min_speed=self._paw.docking_speed_floor(robot, ball, distance, heading_error, captured_at, now))
+                           min_speed=speed_floor)
 
     def _play(self, robot, ball, now, robot_id, captured_at, shot_target=None):
         if self._strike is not None:

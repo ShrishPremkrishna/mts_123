@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+import select
 import signal
 import sys
 import time
@@ -187,12 +188,13 @@ class LiveMatchPlay(LiveFieldPlay):
 
 
 
-def stream(receiver, play, duration, *, publish=None, trace=None, pump=None):
+def stream(receiver, play, duration, *, publish=None, trace=None, pump=None, stop_input=None):
     end = time.monotonic() + duration
     frames = paired = revocations = 0
     latest = None
     report_at = 0.
     reported_ready = False
+    wake_on = [receiver.sock] if stop_input is None else [receiver.sock, stop_input]
     try:
         while time.monotonic() < end:
             if pump is not None and not pump():
@@ -224,7 +226,13 @@ def stream(receiver, play, duration, *, publish=None, trace=None, pump=None):
                                   "pairs": paired, "revocations": revocations, "latest": latest},
                                  allow_nan=False), flush=True)
                 report_at = now + 1.
-            time.sleep(.003)
+            # Wake immediately on a new camera packet or operator disconnect.
+            # Keep servicing ROS kick receipts, clock probes and capture expiry
+            # between frames, even if the camera goes completely silent.
+            deadline = min(end, now + .020)
+            if receiver.core.last_capture is not None and not receiver.core.held:
+                deadline = min(deadline, receiver.core.last_capture + play.max_age)
+            select.select(wake_on, [], [], max(0., deadline - time.monotonic()))
     finally:
         # An orderly source exit clears the runner frame immediately. On a
         # lost process or connection the original capture's lease still expires.
@@ -319,7 +327,6 @@ def main(argv=None):
             if node is not None and args.match_tracks is not None:
                 rclpy.spin_once(node, timeout_sec=0)
             if args.stop_on_eof:
-                import select
                 if select.select([sys.stdin], [], [], 0)[0] and not sys.stdin.buffer.read1(128):
                     return False
             return True
@@ -330,7 +337,8 @@ def main(argv=None):
                           "side": args.side, "field": config["field"]}),
               flush=True)
         try:
-            stream(receiver, play, args.duration, publish=publish, trace=trace, pump=pump)
+            stream(receiver, play, args.duration, publish=publish, trace=trace, pump=pump,
+                   stop_input=sys.stdin if args.stop_on_eof else None)
         finally:
             for sig, handler in previous.items():
                 signal.signal(sig, handler)
