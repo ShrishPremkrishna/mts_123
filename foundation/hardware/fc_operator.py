@@ -14,7 +14,7 @@ def valid_owner(owner):
     return isinstance(owner, str) and re.fullmatch(r"[0-9a-f]{32}", owner) is not None
 
 
-def board_error(run):
+def board_error(run, stand_since=None):
     """Latest native driver error in this run after its most recent successful board activation."""
     try:
         with (Path(run) / "robot.log").open("rb") as log:
@@ -23,16 +23,44 @@ def board_error(run):
             lines = log.read().decode(errors="replace").splitlines()
     except OSError:
         return None
-    for line in reversed(lines):
-        match = re.fullmatch(r"\[ros2_control_node-\d+\] \[(INFO|ERROR|FATAL)\] \[[0-9.]+\] "
-                             r"\[ControlBoardHardwareInterface\]: (.+)", line)
-        if match:
-            level, detail = match.groups()
-            if level in ("ERROR", "FATAL"):
-                return detail.split(" sampled_mono_us=", 1)[0][:350]
-            if detail.startswith("Successfully activated!"):
-                break
-    return None
+    result = terminal = unclaimed = None
+    for line in lines:
+        match = re.fullmatch(r"\[(ros2_control_node-\d+)\] \[(INFO|WARN|ERROR|FATAL)\] "
+                             r"\[(\d+\.\d+)\] \[([^]]+)\]: (.+)", line)
+        if not match:
+            continue
+        process, level, when, logger, detail = match.groups()
+        when = float(when)
+        driver = logger == "ControlBoardHardwareInterface"
+        if driver and detail.startswith("Successfully activated!"):
+            result = terminal = unclaimed = None
+            continue
+        this_stand = stand_since is not None and when >= stand_since
+        if driver and level in ("ERROR", "FATAL"):
+            result = detail.split(" sampled_mono_us=", 1)[0][:350]
+            terminal = (process, when, result)
+            unclaimed = None
+        elif driver and level == "WARN" and (issue := re.fullmatch(
+                r"FC joint feedback phase=(unclaimed|before_exchange|after_exchange) predicate=(\w+) "
+                r"joint=\S+ observed=\S+ min=\S+ max=\S+", detail)):
+            phase, predicate = issue.groups()
+            if phase == "unclaimed":
+                unclaimed = (process, when, detail[:350]) if this_stand else None
+            elif (terminal and terminal[0] == process and 0 <= when - terminal[1] <= .05
+                  and terminal[2] == "IMU fault phase=read reason=" + predicate):
+                result = terminal[2] + ". " + detail[:350]
+                terminal = None
+        elif this_stand and ((driver and level == "WARN" and detail.startswith("Supported Home retained; a fresh leg claim"))
+                or (level == "ERROR" and logger in ("resource_manager", "controller_manager") and
+                    detail.startswith("Component 'control_board_hardware_interface' could not perform switch"))):
+            if terminal:
+                continue
+            result = detail if driver else "The board refused the new leg claim"
+            # The driver logs an unpowered issue only on its first bad sample.
+            # Report an observed sample from this click within one claim lease.
+            if unclaimed and unclaimed[0] == process and 0 <= when - unclaimed[1] <= .05:
+                result += ". Joint sample near refusal: " + unclaimed[2]
+    return result
 
 
 def attached(run, session_id, owner):
@@ -85,7 +113,7 @@ def serve(run, robot_id, owner):
         seen = previous_ready = None
         buffer = bytearray()
         started = time.monotonic()
-        ack_deadline = None
+        ack_deadline = stand_since = None
 
         def emit(event, **values):
             print(json.dumps(dict(event=event, robot_id=robot_id, **values)), flush=True)
@@ -110,7 +138,8 @@ def serve(run, robot_id, owner):
                         break
             finally:
                 confirmed = result.get("confirmed") is True and not result.get("uncertain")
-                fault = board_error(run) if failed or reason == "Pi revoked laptop control" else None
+                fault = (board_error(run, stand_since=stand_since if not standing else None)
+                         if failed or reason == "Pi revoked laptop control" else None)
                 if fault:
                     reason = f"{reason.rstrip('.')}. Board reported: {fault}."
                 terminal = dict(confirmed=confirmed, reason=reason)
@@ -212,6 +241,7 @@ def serve(run, robot_id, owner):
                         echoed.clear()
                         touched = True
                         ack_deadline = time.monotonic()+4
+                        stand_since = time.time()  # Match native log timestamps only; authority uses monotonic time.
                         pending = start.call_async(request)
                     else:
                         # A Pi timer or a buffered copy must never manufacture a browser heartbeat.

@@ -28,7 +28,8 @@ def test_failed_stand_stops_before_inspecting_board_and_retains_native_cause(tmp
     owner = "a" * 32
     (tmp_path / "selected-session.json").write_text(json.dumps({"session_id":"current-run"}))
     actions = []
-    def inspect(run):
+    def inspect(run, *, stand_since):
+        assert stand_since is not None
         assert actions == ["request Stop", "acknowledge Stop"]
         return "IMU fault phase=read reason=invalid or discontinuous joint exchange"
 
@@ -66,3 +67,25 @@ def test_failed_stand_stops_before_inspecting_board_and_retains_native_cause(tmp
     assert "invalid or discontinuous joint exchange" in terminal["reason"]
     assert disk["session_id"] == "current-run" and disk["phase"] == "stand" and disk["gateway_epoch"] == 2
     assert not (tmp_path / "fc-operator-standing.json").exists()
+
+
+def test_joint_warning_is_scoped_to_claim_or_matching_terminal_pair(tmp_path):
+    log = tmp_path / "robot.log"
+    def row(level, when, msg):
+        return f"[ros2_control_node-2] [{level}] [{when:.9f}] [ControlBoardHardwareInterface]: {msg}\n"
+    sample = "FC joint feedback phase=unclaimed predicate=position_rad joint=knee observed=.616 min=-2.69 max=.61"
+    gate = "Supported Home retained; a fresh leg claim requires qualified primary and alternate IMU agreement and current, in-range joint feedback"
+    issue = "IMU fault phase=read reason=position_rad"
+    warning = row("WARN", 4.0, sample)
+    log.write_text(warning + row("WARN", 4.019, gate))
+    assert sample in fc_operator.board_error(tmp_path, stand_since=3.98)
+    assert fc_operator.board_error(tmp_path, stand_since=4.01) == gate
+    assert fc_operator.board_error(tmp_path) is None
+    log.write_text(warning + row("WARN", 5., gate))
+    assert fc_operator.board_error(tmp_path, stand_since=3.98) == gate
+    post = sample.replace("unclaimed", "after_exchange")
+    log.write_text(warning + row("ERROR", 6., issue + " sampled_mono_us=123") + row("WARN", 6.001, post))
+    assert fc_operator.board_error(tmp_path) == issue + ". " + post
+    unrelated = "IMU fault phase=read reason=stale quaternion receipt"
+    log.write_text(warning + row("ERROR", 6., unrelated) + row("WARN", 6.001, post))
+    assert fc_operator.board_error(tmp_path) == unrelated
