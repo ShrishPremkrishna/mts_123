@@ -50,7 +50,7 @@ function render() {
   $('camera-status').textContent = cam ? ((state.source === 'sim' ? 'Simulated · ' : '') + cam.status) : 'Disconnected';
   $('camera-connect').textContent = cam?.frame ? 'View field' : 'Connect camera';
   $('start-match').hidden = ['playing','balance_hold','balance_resuming','stopping'].includes(state.phase);
-  const missingOperator = live.some(t => t.fcOperator && !t.operator?.standing);
+  const missingOperator = live.some(t => t.fcOperator && (!t.operator?.standing || !freshOperatorOffer(t.operator.offer)));
   const unverified = live.find(t => t.imu?.state !== 'healthy' || !t.imu?.board_session ||
     !Number.isInteger(t.imu?.generation) || t.imu.generation < 1 || !Number.isInteger(t.imu.incident) || t.imu.incident < 0);
   const visible = cam?.visible || {}, canStart = !missingOperator && !unverified && cam?.live && cam?.frame?.calibration_valid && visible.ball &&
@@ -171,7 +171,7 @@ function renderSetup() {
   $('setup-home').disabled = locked || setup.needsPrepare || !$('setup-supported').checked;
   $('setup-stand').hidden = !setup.cue && !laptopStand;
   $('setup-stand').disabled = laptopStand ? (!t.operator?.ready || t.operator.standing || t.operator.waiting ||
-    t.operator.stopping || !$('setup-supported').checked) : !setup.cue;
+    t.operator.stopping || !freshOperatorOffer(t.operator.offer, 300) || !$('setup-supported').checked) : !setup.cue;
   $('setup-stand').textContent = t.matchCapable === false ? 'Enable bench test' : 'Enable standing';
   if (t.fcOperator) {
     $('setup-hint').textContent = $('setup-home-mode').value === 'home-only'
@@ -191,6 +191,12 @@ function renderSetup() {
   if ($('setup-status').textContent !== setup.message) $('setup-status').textContent = setup.message;
 }
 
+function freshOperatorOffer(offer, limit = 750) {
+  if (!offer) return false;
+  const elapsed = performance.now() - offer.received, wall = Date.now() - offer.wall;
+  return elapsed >= 0 && elapsed < limit && wall >= 0 && wall < limit;
+}
+
 function stopOperator(t) {
   const op = t.operator;
   if (!op || op.stopping) return;
@@ -204,19 +210,40 @@ function openOperator(t) {
   if (t.operator || !t.fcOperator || !t.homed || document.hidden || t.online || t.setup.busy) return;
   const socket = new WebSocket('ws://' + location.host + '/operator/' + t.slot + '?owner=' + owner);
   const op = t.operator = {socket, ready:false, standing:false, waiting:false, offer:null, stopping:false};
+  function checkConnection() {
+    if (op.result || !op.offer || freshOperatorOffer(op.offer)) return;
+    op.lost = true;
+    op.result = 'Stop connection lost. Stop unconfirmed. Check Pupper.';
+    stopOperator(t);
+    clearKeys(t.slot);
+    t.ready = false;
+    t.feedback.textContent = t.setup.message = op.result;
+    t.connection.textContent = 'Stop connection lost';
+    if (t.socket?.readyState === WebSocket.OPEN) t.socket.send(JSON.stringify({command:'stop',robot_id:t.id}));
+    render();
+    // Allow the Pi to deliver its explicit Stop result, then release the dead
+    // connection. Reconnecting requires another operator action.
+    setTimeout(() => { if (t.operator === op) socket.close(); }, 2000);
+  }
+  // The arena HTTP request can stall independently of this Stop connection.
+  const watchdog = setInterval(checkConnection, 100);
   t.setup.message = 'Connecting laptop Stop to the Pi…';
   socket.onmessage = ({data}) => {
     if (t.operator !== op) return;
     const event = JSON.parse(data);
     if (event.event === 'operator_challenge') {
+      checkConnection();
       if (document.hidden) { stopOperator(t); return; }
       if (op.stopping || socket.readyState !== WebSocket.OPEN || socket.bufferedAmount) return;
-      const identity = event.challenge.split(' ').slice(0, 2).join(' ');
+      const words = event.challenge.split(' ');
+      if (words.length !== 3 || !/^\d+$/.test(words[2])) return;
+      const identity = words.slice(0, 2).join(' '), sequence = BigInt(words[2]);
+      if (op.offer?.identity === identity && sequence <= op.offer.sequence) return;
       if (op.offer && op.offer.identity !== identity && setupTeam === t) {
         $('setup-supported').checked = false;
         renderSetup();
       }
-      op.offer = {challenge:event.challenge, identity, received:performance.now(), wall:Date.now()};
+      op.offer = {challenge:event.challenge, identity, sequence, received:performance.now(), wall:Date.now()};
       socket.send(JSON.stringify({action:'heartbeat', challenge:event.challenge}));
       return;
     }
@@ -240,10 +267,11 @@ function openOperator(t) {
     render();
   };
   socket.onclose = () => {
+    clearInterval(watchdog);
     if (t.operator !== op) return;
     t.operator = null;
     t.homed = false;
-    t.setup = {message:op.result || 'Laptop Stop connection lost. Check Pupper and reconnect.'};
+    t.setup = {message:op.result || 'Stop connection lost. Stop unconfirmed. Check Pupper and reconnect.'};
     t.feedback.textContent = t.setup.message;
     clearKeys(t.slot);
     t.socket?.close();
@@ -378,8 +406,7 @@ $('setup-stand').onclick = () => {
     const op = t.operator;
     if (!op.ready || op.waiting || op.stopping || op.standing || document.hidden || !$('setup-supported').checked) return;
     const offer = op.offer;
-    const elapsed = offer ? Date.now() - offer.wall : Infinity;
-    if (!offer || performance.now() - offer.received >= 300 || elapsed < 0 || elapsed >= 300 ||
+    if (!freshOperatorOffer(offer, 300) ||
         op.socket.readyState !== WebSocket.OPEN || op.socket.bufferedAmount) {
       setup.message = 'Pi standing cue expired. Wait for a fresh cue and click Enable standing again.';
       render();
@@ -458,7 +485,12 @@ function addTeam(slot, config) {
           return;
         }
         if (event.event === 'stop_result') {
-          t.feedback.textContent = event.confirmed ? 'Robot acknowledged Stop.' : 'Stop was not confirmed.';
+          if (t.operator?.lost) {
+            if (event.confirmed) {
+              t.operator.result = 'Stop connection lost. Pi confirmed Stop through match controls.';
+              t.feedback.textContent = t.setup.message = t.operator.result;
+            }
+          } else t.feedback.textContent = event.confirmed ? 'Robot acknowledged Stop.' : 'Stop was not confirmed.';
           return;
         }
         if (event.event !== 'controls') {
