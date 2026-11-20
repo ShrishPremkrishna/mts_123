@@ -343,7 +343,30 @@
     ],
     "browser": "Real Chrome and HTTP/WebSocket with scripted Pi state, mixed drivers, fresh epoch, score preservation and supported Home state.",
     "commissioning": "ROS Jazzy typed controller services and a scripted controller inventory. 2.031s deliberate delivery gap and two interrupted/late-reply restoration cases. Native board input continued by design.",
-    "other_checks": "The unfiltered neural_controller ament lint suite additionally reports flake8, CMake lint, uncrustify and xmllint failures. These checks scan bundled RTNeural dependencies, formatting and package metadata."
+    "other_checks": "The unfiltered neural_controller ament lint suite additionally reports flake8, CMake lint, uncrustify and xmllint failures. These checks scan bundled RTNeural dependencies, formatting and package metadata.",
+    "common_delivery_only": {
+      "injected_delivery_gap_s": 5.01,
+      "paused": true,
+      "explicit_resume": true,
+      "fresh_board": true,
+      "previous_home": 1,
+      "resumed_home": 1,
+      "native_releases": [],
+      "hard_stops": [],
+      "clock": "controlled test clock"
+    },
+    "check_totals": {
+      "fc_check": 165,
+      "fc_check_subtests": 34,
+      "hardware_session_suite": 110,
+      "hardware_session_subtests": 10,
+      "laptop": 670,
+      "laptop_subtests": 48,
+      "runner_suite": 885,
+      "runner_subtests": 86,
+      "native_board": 86,
+      "native_walker": 41
+    }
   },
   "independent_review": {
     "models": [
@@ -356,5 +379,52 @@
     "Same-chip reports share the chip, I2C path and supply. Their known batch age plus host receipt is a lower bound on sample age.",
     "A halted host cannot enforce a software timer. A checksum alone does not establish fresh motor replies or preserve drive origin after reset.",
     "Physical balance, floor braking distance, independent Stop, target firmware identity and installed report cadence remain unverified."
-  ]
+  ],
+  "source_commit": "44e88d7859abcd3bcdbb973ca99be121b1a770ee",
+  "archive_hashes": {
+    "pupper-fc-laptop.zip": "15bbb97c0b40834a6b63337646251409e01854785459be5900f19b61bcee367a",
+    "pupper-fc-pi.tar.gz": "989436485d72d0b8461e8f11558e91adfbb745bab99f28abee8b66569396ca85"
+  },
+  "archive_verification": {
+    "git_objects": {
+      "commit": "44e88d7859abcd3bcdbb973ca99be121b1a770ee",
+      "laptop_source_blobs": 46,
+      "verified_wheel_hashes": 19,
+      "pi_source_blobs": 748,
+      "app_selected_digests": 59
+    },
+    "extracted_laptop": {
+      "cold_http_ready_s": 4.503,
+      "running_lobby_reopen_s": 0.053,
+      "sim_camera_visible": {
+        "tags": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          10,
+          11
+        ],
+        "ball": true,
+        "robots": {
+          "striker": true,
+          "keeper": true
+        }
+      },
+      "warm_http_ready_s": 0.372,
+      "runtime_wheels": 19,
+      "source_commit": "44e88d7859abcd3bcdbb973ca99be121b1a770ee"
+    },
+    "extracted_pi_builds": {
+      "control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so": "302157f96743cd50d3f48f06c5fbc090ce2bc0518b042b678ab0f415e509f08f",
+      "joy_utils/lib/joy_utils/estop_controller": "411c91d81b27c45de1d9c76db72643953b97aa77d24f7c53e27329e7bfb368e8",
+      "neural_controller/lib/libneural_controller.so": "26dc30e841b0a84b7b5429561628762d423b21f762c3468fd0d0e3bfdb3e5c9a"
+    },
+    "architecture": "aarch64",
+    "verified_staged_manifest": "7e7545bb098f2a3103fe24e52783cdd68d537c5c20497baf8e87f40a0066c1b6",
+    "operator_profile": "field_redundant_imu"
+  },
+  "verification_directory": "outputs/pupper-fc-match-imu/verification"
 }
